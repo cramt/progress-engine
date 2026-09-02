@@ -147,3 +147,76 @@ pub fn probability_that(
     });
     Probability::new(total)
 }
+
+/// Cumulative per-group counts at each checkpoint: `[checkpoint][group]`.
+pub type Path<'a> = &'a [Vec<u32>];
+
+/// Enumerate draws across successive checkpoints, exactly.
+///
+/// `gaps[j]` is how many *additional* cards are drawn to reach checkpoint `j`,
+/// so `[7, 1, 1]` is "opening hand, then one draw, then one more". `f` receives
+/// the cumulative counts at every checkpoint and the joint probability of that
+/// whole path.
+///
+/// This is what makes turn-indexed questions answerable. "A land and a dork by
+/// turn one, and a second land by turn two" is not two independent events —
+/// the prefixes are nested, so the answer needs the joint distribution. Because
+/// each gap is drawn from what the previous checkpoints left behind, the chain
+/// is Markov and stays exact.
+pub fn for_each_checkpoint_path(groups: &[u32], gaps: &[u32], mut f: impl FnMut(Path<'_>, f64)) {
+    let population: u32 = groups.iter().sum();
+    if gaps.iter().sum::<u32>() > population {
+        return;
+    }
+    let mut history: Vec<Vec<u32>> = Vec::with_capacity(gaps.len());
+    let mut drawn = vec![0u32; groups.len()];
+    descend(groups, gaps, 0, &mut drawn, &mut history, 1.0, &mut f);
+}
+
+fn descend(
+    groups: &[u32],
+    gaps: &[u32],
+    depth: usize,
+    drawn: &mut Vec<u32>,
+    history: &mut Vec<Vec<u32>>,
+    acc: f64,
+    f: &mut impl FnMut(Path<'_>, f64),
+) {
+    if depth == gaps.len() {
+        f(history, acc);
+        return;
+    }
+    // What is still in the library, per group.
+    let available: Vec<u32> = groups
+        .iter()
+        .zip(drawn.iter())
+        .map(|(total, used)| total - used)
+        .collect();
+
+    for_each_composition(&available, gaps[depth], |take, p| {
+        for (d, t) in drawn.iter_mut().zip(take.iter()) {
+            *d += t;
+        }
+        history.push(drawn.clone());
+        descend(groups, gaps, depth + 1, drawn, history, acc * p, f);
+        history.pop();
+        for (d, t) in drawn.iter_mut().zip(take.iter()) {
+            *d -= t;
+        }
+    });
+}
+
+/// Probability that a checkpoint path satisfies `pred`.
+pub fn probability_that_path(
+    groups: &[u32],
+    gaps: &[u32],
+    mut pred: impl FnMut(Path<'_>) -> bool,
+) -> Probability {
+    let mut total = 0.0;
+    for_each_checkpoint_path(groups, gaps, |history, p| {
+        if pred(history) {
+            total += p;
+        }
+    });
+    Probability::new(total)
+}

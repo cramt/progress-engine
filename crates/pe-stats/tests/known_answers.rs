@@ -125,3 +125,72 @@ fn overlapping_categories_are_handled_by_grouping() {
     assert!(overlapping.get() > 0.0 && overlapping.get() < 1.0);
     assert!(disjoint.get() > 0.0);
 }
+
+// --- checkpoint paths -------------------------------------------------------
+
+#[test]
+fn a_single_checkpoint_path_equals_a_plain_composition() {
+    // The two enumerators must agree where they overlap, or turn-indexed
+    // questions silently disagree with single-turn ones.
+    let via_path = h::probability_that_path(&[6, 8, 85], &[11], |hist| hist[0][0] >= 1);
+    let via_comp = h::probability_that(&[6, 8, 85], 11, |c| c[0] >= 1);
+    assert!(close(via_path.get(), via_comp.get(), 1e-12));
+}
+
+#[test]
+fn path_probabilities_sum_to_one() {
+    let mut total = 0.0;
+    h::for_each_checkpoint_path(&[36, 10, 53], &[7, 1, 1], |_, p| total += p);
+    assert!(close(total, 1.0, 1e-10), "summed to {total}");
+}
+
+#[test]
+fn the_final_checkpoint_marginal_matches_drawing_that_many_at_once() {
+    // Splitting 9 cards into 7+1+1 must not change the distribution at the end.
+    let stepwise = h::probability_that_path(&[36, 10, 53], &[7, 1, 1], |hist| hist[2][0] >= 4);
+    let at_once = h::probability_that(&[36, 10, 53], 9, |c| c[0] >= 4);
+    assert!(
+        close(stepwise.get(), at_once.get(), 1e-10),
+        "{} vs {}",
+        stepwise.get(),
+        at_once.get()
+    );
+}
+
+#[test]
+fn the_curve_out_question() {
+    // "A land and a mana dork on turn one, so the three-drop commander lands on
+    // turn two" — 36 lands, 10 one-mana dorks, on the play.
+    let groups = [36, 10, 53];
+    let gaps = [7, 1];
+    let p = h::probability_that_path(&groups, &gaps, |hist| {
+        hist[0][0] >= 1 && hist[0][1] >= 1 && hist[1][0] >= 2
+    });
+
+    // Must be bounded by its own components: it cannot beat either the
+    // opening-hand requirement alone or the turn-two land requirement alone.
+    let opener_only =
+        h::probability_that_path(&groups, &gaps, |hist| hist[0][0] >= 1 && hist[0][1] >= 1);
+    let lands_only = h::probability_that_path(&groups, &gaps, |hist| hist[1][0] >= 2);
+    assert!(p.get() <= opener_only.get());
+    assert!(p.get() <= lands_only.get());
+    assert!(p.get() > 0.0);
+
+    // And the nesting must be respected: requiring 2 lands by turn 1 is strictly
+    // harder than by turn 2, since turn 2 has seen one more card.
+    let by_t1 = h::probability_that_path(&groups, &gaps, |hist| hist[0][0] >= 2);
+    let by_t2 = h::probability_that_path(&groups, &gaps, |hist| hist[1][0] >= 2);
+    assert!(
+        by_t1.get() < by_t2.get(),
+        "{} vs {}",
+        by_t1.get(),
+        by_t2.get()
+    );
+}
+
+#[test]
+fn drawing_more_cards_than_the_deck_holds_yields_nothing() {
+    let mut called = false;
+    h::for_each_checkpoint_path(&[3, 2], &[10], |_, _| called = true);
+    assert!(!called);
+}
