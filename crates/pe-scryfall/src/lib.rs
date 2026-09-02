@@ -5,6 +5,7 @@
 //! that quietly matches nothing produces a confidently wrong probability, which
 //! is the exact failure this crate exists to prevent.
 
+pub mod index;
 mod parse;
 
 pub use parse::{parse, ParseError};

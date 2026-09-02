@@ -1,0 +1,16 @@
+[package]
+name = "pe-js"
+description = "JavaScript acceptance criteria, evaluated against the exact engine."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+pe-criteria.workspace = true
+pe-stats.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+deno_core = "0.411.0"
