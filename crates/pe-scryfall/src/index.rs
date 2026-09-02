@@ -62,6 +62,20 @@ pub struct Card {
 #[derive(Debug, Clone, Facet)]
 pub struct Index {
     pub cards: HashMap<String, Card>,
+    /// When `scryfall sync` last rebuilt this index, as it wrote it.
+    ///
+    /// `None` is an answer rather than a failure, for the same reason a missing
+    /// legality word is: the index is a cache built by an external tool and the
+    /// test fixtures are hand-written subsets of it, so the field is routinely
+    /// absent. A caller that reports it must say *unknown* rather than invent a
+    /// date — a report claiming today's index when nobody knows which index ran
+    /// is the confidently wrong number this project exists to prevent.
+    ///
+    /// Kept as the text the index wrote rather than a parsed timestamp: parsing
+    /// would reject a 25MB index over one unfamiliar format, and nothing here
+    /// does arithmetic on it.
+    #[facet(default)]
+    pub updated_at: Option<String>,
 }
 
 /// Normalise a card name to the index's key form: lowercase and trimmed.

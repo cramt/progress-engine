@@ -169,6 +169,9 @@ fn run_test(
     }
     let source = std::fs::read_to_string(criteria_path)
         .with_context(|| format!("reading criteria {}", criteria_path.display()))?;
+    // Hashed off the bytes that were actually about to run, before anything
+    // gets a chance to normalise them.
+    let criteria_sha256 = report::sha256_hex(source.as_bytes());
 
     let mut criteria = pe_js::Criteria::load(source)?;
 
@@ -205,10 +208,16 @@ fn run_test(
     let report = report::Report::build(
         criteria.criteria(),
         &probabilities,
-        simulate.then_some(trials),
+        simulate.then_some(report::Sampling { trials, seed }),
         &library,
         queries,
         on_the_draw,
+        report::Provenance {
+            tool_version: env!("CARGO_PKG_VERSION"),
+            index_updated_at: library.index_updated_at.clone(),
+            deck_sha256: library.deck_sha256.clone(),
+            criteria_sha256,
+        },
     );
     println!("{}", facet_json::to_string_pretty(&report)?);
     eprintln!("{}", report.human());

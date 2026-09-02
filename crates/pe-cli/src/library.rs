@@ -27,6 +27,13 @@ pub struct Excluded {
 pub struct Library {
     pub entries: Vec<Entry>,
     pub commanders: Vec<String>,
+    /// SHA-256 of the decklist file, taken here because this is where its bytes
+    /// are read. Hashing a re-read of the path would answer a question about a
+    /// different moment in time.
+    pub deck_sha256: String,
+    /// When the index was built, or `None` when it never said. Carried out of
+    /// the index rather than looked up again for the same reason.
+    pub index_updated_at: Option<String>,
     /// Kept rather than dropped: excluding a card silently is the same failure
     /// as a query that matches nothing — a confident number nobody can question.
     pub excluded: Vec<Excluded>,
@@ -98,6 +105,8 @@ impl Library {
         Ok(Library {
             entries,
             commanders,
+            deck_sha256: crate::report::sha256_hex(text.as_bytes()),
+            index_updated_at: index.updated_at,
             excluded,
         })
     }

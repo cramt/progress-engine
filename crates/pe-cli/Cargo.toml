@@ -22,6 +22,7 @@ pe-js.workspace = true
 pe-scryfall.workspace = true
 pe-stats.workspace = true
 pe-sim.workspace = true
+sha2.workspace = true
 
 [dev-dependencies]
 # The end-to-end tests read the binary's stdout with a JSON parser that is not

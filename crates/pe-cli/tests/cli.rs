@@ -217,6 +217,9 @@ fn only_sampled_runs_carry_error_bars() {
         );
     }
     assert!(json.get("trials").is_none());
+    // No seed dealt this either, and reporting one would imply a run that could
+    // have come out differently.
+    assert!(json.get("seed").is_none());
 }
 
 #[test]
@@ -397,4 +400,84 @@ fn an_exclusion_says_how_many_left_and_why() {
         "stderr was: {stderr}"
     );
     serde_json::from_slice::<serde_json::Value>(&out.stdout).expect("stdout is pure JSON");
+}
+
+#[test]
+fn a_run_says_what_produced_it() {
+    // A percentage on its own cannot explain why it differs from yesterday's:
+    // the deck, the criteria, the index and the tool all move it and all four
+    // look identical in the output. So the run names its inputs.
+    let out = run("simple-ramp.criteria.js");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let p = &json["provenance"];
+
+    assert_eq!(p["tool_version"], env!("CARGO_PKG_VERSION"));
+    for field in ["deck_sha256", "criteria_sha256"] {
+        let hash = p[field].as_str().unwrap_or_else(|| panic!("no {field}"));
+        assert_eq!(hash.len(), 64, "{field} should be a sha256: {hash}");
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()), "{field}");
+    }
+}
+
+#[test]
+fn the_same_inputs_hash_the_same_way() {
+    // Worth nothing as an identifier if it moves on its own, which would make
+    // every comparison report a change nobody made.
+    let first = run("simple-ramp.criteria.js");
+    let second = run("simple-ramp.criteria.js");
+    let first: serde_json::Value = serde_json::from_slice(&first.stdout).unwrap();
+    let second: serde_json::Value = serde_json::from_slice(&second.stdout).unwrap();
+    assert_eq!(first["provenance"], second["provenance"]);
+}
+
+#[test]
+fn editing_the_criteria_moves_only_the_criteria_hash() {
+    // The whole point of hashing the two files separately: "your criteria
+    // changed" and "your deck changed" are different diagnoses, and a single
+    // hash over both could not tell them apart.
+    let a = run("simple-ramp.criteria.js");
+    let b = run("eager.criteria.js");
+    let a: serde_json::Value = serde_json::from_slice(&a.stdout).unwrap();
+    let b: serde_json::Value = serde_json::from_slice(&b.stdout).unwrap();
+
+    assert_ne!(
+        a["provenance"]["criteria_sha256"], b["provenance"]["criteria_sha256"],
+        "a different criteria file must hash differently"
+    );
+    assert_eq!(
+        a["provenance"]["deck_sha256"], b["provenance"]["deck_sha256"],
+        "the deck did not change, so its hash must not"
+    );
+}
+
+#[test]
+fn an_index_with_no_date_reports_the_date_as_unknown() {
+    // The fixture index is a hand-written subset with no `updated_at`, as any
+    // index built before the field existed is. Null says nobody knows; omitting
+    // the key would read as a tool that forgot to look, and filling it in with
+    // today would be evidence for a claim nothing supports.
+    let out = run("simple-ramp.criteria.js");
+    assert!(out.status.success(), "a dateless index must still run");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let date = json["provenance"]
+        .get("index_updated_at")
+        .expect("the date must be reported even when it is unknown");
+    assert!(date.is_null(), "expected null, got {date}");
+}
+
+#[test]
+fn a_sampled_run_reports_the_seed_that_dealt_it() {
+    // Trials without a seed does not identify the hands, so quoting a sampled
+    // figure from it cannot be checked by anyone who wants to repeat the run.
+    let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+        .arg("test")
+        .arg(fixture("simple-ramp.txt"))
+        .arg(fixture("simple-ramp.criteria.js"))
+        .arg("--index")
+        .arg(fixture("index.json"))
+        .args(["--simulate", "--trials", "5000", "--seed", "9"])
+        .output()
+        .expect("binary should run");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["seed"], 9);
 }

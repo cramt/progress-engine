@@ -107,6 +107,16 @@ A criterion with no `atLeast` is informational: it reports a number and cannot
 fail. Add `--draw` to model being on the draw, and `--simulate` to sample
 instead of enumerate (slower, approximate, and reported with standard errors).
 
+The JSON also carries a `provenance` block — the tool's version, the date the
+card index was built, and SHA-256 hashes of the decklist and criteria files as
+they were read. A percentage that moved since last week is useless on its own,
+because your deck, your criteria, the index and the tool itself each move it and
+in the output they are indistinguishable: a number changed. Naming the inputs is
+what lets a comparison say *which* one changed rather than only that something
+did. An index that never recorded when it was built reports `null` there, for the
+same reason a card with no legality word comes back unknown: a plausible date
+nobody can vouch for is worse than an admitted gap.
+
 ### The card index it needs, and does not build
 
 Only one of those two rows works from a fresh clone. `parse` reads the decklist
