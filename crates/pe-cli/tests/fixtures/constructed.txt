@@ -1,0 +1,7 @@
+// No commander is nominated anywhere in this list, so nothing here says which
+// format it is. Four copies would be a violation in Commander and correct in
+// constructed, and 60 cards is the reverse; the checker says nothing rather
+// than picking one.
+4x Sol Ring [Ramp]
+4x Assassin's Trophy [Interaction]
+52x Forest [Land]

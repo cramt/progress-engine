@@ -1,0 +1,8 @@
+// The smallest deck that is legal in every way this checker knows how to test,
+// so that "no warnings" is a claim about the checker rather than about a deck
+// nobody could have built. One legendary creature in the command zone, 99
+// basics in the library: 100 cards, mono-green, and the copy limit does not
+// apply to basics.
+1x Marwyn, the Nurturer [Commander{top}]
+
+99x Forest [Land]

@@ -1,0 +1,16 @@
+// A perfectly legal deck that the index cannot describe.
+//
+// The index is keyed by lowercased card name, and Scryfall prints a token
+// called "Llanowar Elves" as well as the card. The token wins the key, so this
+// list resolves to `Token Creature — Elf Druid`, mana value 0, `not_legal` in
+// every format, `any_number` false. Read as facts about the card, that is two
+// violations: an illegal card, and two copies of a singleton. Both are
+// inventions about a card nobody has any data for.
+//
+// 100 cards, mono-green, one legendary creature commanding. Nothing here is
+// against the rules and the run must say nothing at all.
+1x Marwyn, the Nurturer [Commander{top}]
+
+97x Forest [Land]
+
+2x Llanowar Elves [Ramp - One Mana]

@@ -1,5 +1,62 @@
 {
   "cards": {
+    "sol ring": {
+      "name": "Sol Ring",
+      "ci": [],
+      "type_line": "Artifact",
+      "cmc": 1.0,
+      "keywords": [],
+      "oracle": "{T}: Add {C}{C}.",
+      "commander_legal": "legal",
+      "any_number": false
+    },
+    "assassin's trophy": {
+      "name": "Assassin's Trophy",
+      "ci": [
+        "B",
+        "G"
+      ],
+      "type_line": "Instant",
+      "cmc": 2.0,
+      "keywords": [],
+      "oracle": "Destroy target permanent an opponent controls. Its controller may search their library for a basic land card, put it onto the battlefield, then shuffle.",
+      "commander_legal": "legal",
+      "any_number": false
+    },
+    "slime against humanity": {
+      "name": "Slime Against Humanity",
+      "ci": [
+        "G"
+      ],
+      "type_line": "Sorcery",
+      "cmc": 2.0,
+      "keywords": [],
+      "oracle": "Create X 3/3 green Ooze creature tokens, where X is the number of cards named Slime Against Humanity you own in exile and in your graveyard, plus the number of Oozes you control.\nA deck can have any number of cards named Slime Against Humanity.",
+      "commander_legal": "legal",
+      "any_number": true
+    },
+    "mana crypt": {
+      "name": "Mana Crypt",
+      "ci": [],
+      "type_line": "Artifact",
+      "cmc": 0.0,
+      "keywords": [],
+      "oracle": "At the beginning of your upkeep, flip a coin. If you lose the flip, this artifact deals 3 damage to you.\n{T}: Add {C}{C}.",
+      "commander_legal": "banned",
+      "any_number": false
+    },
+    "sword of dungeons & dragons": {
+      "name": "Sword of Dungeons & Dragons",
+      "ci": [],
+      "type_line": "Artifact — Equipment",
+      "cmc": 3.0,
+      "keywords": [
+        "Equip"
+      ],
+      "oracle": "Equipped creature gets +2/+2 and has protection from Dragons.\nWhenever equipped creature deals combat damage to a player, create a 4/4 red Dragon creature token with flying and roll a d20.\nEquip {2}",
+      "commander_legal": "not_legal",
+      "any_number": false
+    },
     "solemn simulacrum": {
       "name": "Solemn Simulacrum",
       "ci": [],
@@ -316,7 +373,9 @@
       "type_line": "Token Creature — Elf Druid",
       "cmc": 0.0,
       "keywords": [],
-      "oracle": "{T}: Add {G}."
+      "oracle": "{T}: Add {G}.",
+      "commander_legal": "not_legal",
+      "any_number": false
     },
     "end-raze forerunners": {
       "name": "End-Raze Forerunners",
@@ -527,6 +586,18 @@
       "cmc": 5.0,
       "keywords": [],
       "oracle": "+1: Look at the top four cards of your library. You may reveal a creature or land card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.\n−3: Destroy target artifact, enchantment, or creature with flying.\n−8: You get an emblem with \"Creatures you control get +2/+2 and have vigilance, trample, and indestructible.\""
+    },
+    "heritage druid": {
+      "name": "Heritage Druid",
+      "ci": [
+        "G"
+      ],
+      "type_line": "Creature — Elf Druid",
+      "cmc": 1.0,
+      "keywords": [],
+      "oracle": "Tap three untapped Elves you control: Add {G}{G}{G}.",
+      "commander_legal": "legal",
+      "any_number": false
     },
     "ignoble hierarch": {
       "name": "Ignoble Hierarch",

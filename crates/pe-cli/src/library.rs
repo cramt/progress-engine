@@ -26,7 +26,11 @@ pub struct Excluded {
 
 pub struct Library {
     pub entries: Vec<Entry>,
-    pub commanders: Vec<String>,
+    /// The nominated commanders, as whole entries rather than names.
+    ///
+    /// The legality check needs their colour identity and type line, and a name
+    /// stored beside the card it names is a pair that can disagree.
+    pub commanders: Vec<Entry>,
     /// SHA-256 of the decklist file, taken here because this is where its bytes
     /// are read. Hashing a re-read of the path would answer a question about a
     /// different moment in time.
@@ -65,12 +69,6 @@ impl Library {
             );
         }
 
-        let commanders = parsed
-            .iter()
-            .filter(|e| e.is_commander())
-            .map(|e| e.name.clone())
-            .collect();
-
         // The library is what you draw from: the deck minus anything outside it
         // (companions, sideboards) and minus the commanders, which start in the
         // command zone. Getting this wrong is the classic 99-versus-100 error.
@@ -81,25 +79,27 @@ impl Library {
         // out, which the decklist cannot know and `parse` therefore never
         // claims.
         let mut entries = Vec::new();
+        let mut commanders = Vec::new();
         let mut excluded = Vec::new();
-        for e in parsed
-            .iter()
-            .filter(|e| !e.is_outside() && !e.is_commander())
-        {
-            let card = index.get(&e.name).expect("checked above").clone();
-            if let Some(card_type) = card.outside_library() {
-                excluded.push(Excluded {
-                    name: card.name,
-                    qty: e.qty.get(),
-                    card_type,
-                });
-                continue;
-            }
-            entries.push(Entry {
-                card,
+        for e in &parsed {
+            let entry = Entry {
+                card: index.get(&e.name).expect("checked above").clone(),
                 categories: e.categories.iter().map(|c| c.name.clone()).collect(),
                 qty: e.qty.get(),
-            });
+            };
+            if e.is_commander() {
+                commanders.push(entry);
+            } else if e.is_outside() {
+                continue;
+            } else if let Some(card_type) = entry.card.outside_library() {
+                excluded.push(Excluded {
+                    name: entry.card.name,
+                    qty: entry.qty,
+                    card_type,
+                });
+            } else {
+                entries.push(entry);
+            }
         }
 
         Ok(Library {
@@ -113,6 +113,22 @@ impl Library {
 
     pub fn size(&self) -> u32 {
         self.entries.iter().map(|e| e.qty).sum()
+    }
+
+    pub fn commander_names(&self) -> Vec<String> {
+        self.commanders
+            .iter()
+            .map(|e| e.card.name.clone())
+            .collect()
+    }
+
+    /// Every card the list actually plays, library and command zone alike.
+    ///
+    /// The rules that apply to a card wherever it sits — the banlist, the copy
+    /// limit — read this rather than `entries`, so that a commander cannot
+    /// escape them by not being in the library.
+    pub fn played(&self) -> impl Iterator<Item = &Entry> {
+        self.entries.iter().chain(&self.commanders)
     }
 
     /// Group the library by which of `queries` each card matches.

@@ -14,7 +14,7 @@
 1x Boreal Druid [Ramp - One Mana]
 1x Birds of Paradise [Ramp - One Mana]
 1x Joraga Treespeaker [Ramp - One Mana]
-1x Ignoble Hierarch [Ramp - One Mana]
+1x Heritage Druid [Ramp - One Mana]
 1x Delighted Halfling [Ramp - One Mana]
 1x Wild Growth [Ramp - One Mana]
 

@@ -1,0 +1,8 @@
+// token-shadowed.txt one card short. The token entry still silences every rule
+// that reads card data, but deck size counts lines in a decklist and does not
+// care what the index thinks a card is, so it must still fire.
+1x Marwyn, the Nurturer [Commander{top}]
+
+96x Forest [Land]
+
+2x Llanowar Elves [Ramp - One Mana]
