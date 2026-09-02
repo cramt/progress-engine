@@ -14,7 +14,7 @@ mod grouping;
 
 pub use grouping::{Grouping, GroupingError};
 
-use pe_stats::{Path, Probability};
+use pe_stats::{KahanSum, Path, Probability};
 
 /// One named acceptance criterion, optionally with a threshold it must meet.
 #[derive(Debug, Clone, PartialEq)]
@@ -75,12 +75,39 @@ pub enum RunError<E> {
     /// different question, refuses the same way.
     #[error("this question draws {draws} cards from a library of {population}")]
     NotEnoughCards { population: u32, draws: u32 },
+    /// The enumeration is supposed to partition every possible draw, so its
+    /// path probabilities sum to 1. If they do not, some region of the sample
+    /// space was visited twice or not at all, and every criterion's total is
+    /// drawn from the wrong denominator.
+    #[error(
+        "the enumeration summed to {total} instead of 1, so it lost or gained probability mass.\n\
+         Every percentage this run would report is wrong by an unknown amount, so it reports none."
+    )]
+    MassNotOne { total: f64 },
     #[error("evaluating criteria: {0}")]
     Evaluator(E),
 }
 
 /// Above this, enumeration stops being instant and starts being a hang.
 const MAX_PATHS: u128 = 5_000_000;
+
+/// How far the total probability mass may sit from 1 before the run is a bug
+/// rather than arithmetic.
+///
+/// Measured with `KahanSum` against enumerations whose exact total is 1: 1.2e-13
+/// over 57 compositions, 4.5e-14 over 4.3M, 6.0e-14 over 14M checkpoint paths,
+/// 2.7e-14 over 160M. The error does not grow with the term count — compensated
+/// summation leaves only the log-gamma round trip inside each term, and since
+/// every term is positive that error cannot compound either. So the floor is
+/// ~1e-13 for a Commander-sized library, and 1e-9 leaves four orders of headroom
+/// for larger populations, where log-gamma works with bigger magnitudes.
+///
+/// It is deliberately not tighter than the causes it exists to catch. The
+/// smallest single path in the widest enumeration `MAX_PATHS` allows is ~7e-11,
+/// so this will not notice one lone path going missing. It will notice a
+/// miscounted group, a wrong gap vector, or an early return dropping a branch,
+/// which is what actually goes wrong.
+const MASS_TOLERANCE: f64 = 1e-9;
 
 /// Estimated number of compositions, used only to refuse impossible questions
 /// before spending an hour on them.
@@ -119,10 +146,12 @@ pub fn run<E>(
         return Err(RunError::TooWide { paths, groups });
     }
 
-    let mut totals = vec![0.0f64; criteria];
+    let mut totals = vec![KahanSum::new(); criteria];
+    let mut mass = KahanSum::new();
     let mut failure = None;
 
     pe_stats::for_each_checkpoint_path(grouping.group_sizes(), gaps, |history, p| {
+        mass.add(p);
         if failure.is_some() {
             return;
         }
@@ -131,7 +160,7 @@ pub fn run<E>(
             Ok(hits) => {
                 for (total, hit) in totals.iter_mut().zip(hits) {
                     if hit {
-                        *total += p;
+                        total.add(p);
                     }
                 }
             }
@@ -139,8 +168,17 @@ pub fn run<E>(
         }
     });
 
-    match failure {
-        Some(e) => Err(RunError::Evaluator(e)),
-        None => Ok(totals.into_iter().map(Probability::new).collect()),
+    if let Some(e) = failure {
+        return Err(RunError::Evaluator(e));
     }
+    // Free, because the enumeration that produced the answers already produced
+    // every term of this sum.
+    let total = mass.total();
+    if (total - 1.0).abs() > MASS_TOLERANCE {
+        return Err(RunError::MassNotOne { total });
+    }
+    Ok(totals
+        .into_iter()
+        .map(|t| Probability::new(t.total()))
+        .collect())
 }

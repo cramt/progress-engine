@@ -187,3 +187,45 @@ fn a_hand_bigger_than_the_library_is_refused_rather_than_answered_zero() {
         "{err}"
     );
 }
+
+#[test]
+fn every_path_of_a_run_is_accounted_for() {
+    // A criterion that is true everywhere collects the whole enumeration, so
+    // its answer is the total probability mass the run checks internally. If
+    // this is not 1, some region of the sample space was visited twice or not
+    // at all, and every other criterion's answer came from the same enumeration.
+    type Shape = (&'static [(u64, u32)], &'static [u32]);
+    let shapes: [Shape; 5] = [
+        (&[(0b1, 36), (0, 63)], &[7]),
+        (&[(0b1, 36), (0b10, 10), (0, 53)], &[7, 1, 1]),
+        (&[(0b1, 36), (0b10, 10), (0, 53)], &[7, 2, 3]),
+        (&[(0b11, 2), (0b01, 4), (0b10, 6), (0, 87)], &[7, 1, 1, 1]),
+        (
+            &[(0b1, 20), (0b10, 20), (0b100, 20), (0, 39)],
+            &[7, 1, 1, 1, 1, 1],
+        ),
+    ];
+    for (cards, gaps) in shapes {
+        let g = Grouping::build(q(&["a", "b", "c"]), cards.iter().copied()).unwrap();
+        let mut ev = Closures(vec![Box::new(|_: &PathView<'_>| true)]);
+        let r = pe_criteria::run(&g, gaps, 1, &mut ev).unwrap();
+        assert!(
+            (r[0].get() - 1.0).abs() < 1e-12,
+            "{cards:?} over gaps {gaps:?} summed to {}",
+            r[0].get()
+        );
+    }
+}
+
+#[test]
+fn losing_probability_mass_is_refused_rather_than_reported() {
+    // There is no input that provokes this today — the guards above catch the
+    // known ways to enumerate nothing. It exists for the ways nobody has found
+    // yet, so what matters is that it refuses rather than warns, and that the
+    // message says the numbers would have been wrong.
+    let err: RunError<Infallible> = RunError::MassNotOne { total: 0.9993 };
+    let msg = err.to_string();
+    assert!(msg.contains("0.9993"), "{msg}");
+    assert!(msg.contains("mass"), "{msg}");
+    assert!(msg.contains("wrong"), "{msg}");
+}

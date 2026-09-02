@@ -194,3 +194,113 @@ fn drawing_more_cards_than_the_deck_holds_yields_nothing() {
     h::for_each_checkpoint_path(&[3, 2], &[10], |_, _| called = true);
     assert!(!called);
 }
+
+// --- total probability mass -------------------------------------------------
+
+#[test]
+fn composition_mass_sums_to_one_across_group_shapes() {
+    // The enumeration partitions the sample space, so whatever the shape of the
+    // groups, the pieces must add back up to the whole.
+    let shapes: [(&[u32], u32); 7] = [
+        (&[99], 7),
+        (&[36, 63], 7),
+        (&[6, 8, 85], 11),
+        (&[2, 4, 6, 87], 11),
+        (&[1, 1, 1, 1, 1, 1, 1, 1, 1, 90], 7),
+        (&[10, 10, 10, 10, 10, 10, 10, 10, 10, 9], 12),
+        (&[5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5], 7),
+    ];
+    for (groups, draws) in shapes {
+        let mut mass = h::KahanSum::new();
+        h::for_each_composition(groups, draws, |_, p| mass.add(p));
+        assert!(
+            close(mass.total(), 1.0, 1e-12),
+            "{groups:?} drawing {draws} summed to {}",
+            mass.total()
+        );
+    }
+}
+
+#[test]
+fn checkpoint_path_mass_sums_to_one_across_gap_vectors() {
+    // Splitting the same draws into more checkpoints multiplies the path count
+    // without changing the total, which is exactly the property worth checking:
+    // the deepest case below is 122,880 paths and must still land on 1.
+    let shapes: [(&[u32], &[u32]); 7] = [
+        (&[36, 10, 53], &[7]),
+        (&[36, 10, 53], &[7, 1]),
+        (&[36, 10, 53], &[7, 1, 1]),
+        (&[36, 10, 53], &[7, 2, 3]),
+        (&[36, 10, 53], &[7, 1, 1, 1, 1, 1, 1, 1]),
+        (&[20, 20, 20, 39], &[7, 1, 1, 1, 1, 1]),
+        // Drawing the library down to nothing, one card at a time.
+        (&[3, 2], &[1, 1, 1, 1, 1]),
+    ];
+    for (groups, gaps) in shapes {
+        let mut mass = h::KahanSum::new();
+        h::for_each_checkpoint_path(groups, gaps, |_, p| mass.add(p));
+        assert!(
+            close(mass.total(), 1.0, 1e-12),
+            "{groups:?} over gaps {gaps:?} summed to {}",
+            mass.total()
+        );
+    }
+}
+
+#[test]
+fn a_dropped_branch_shows_up_as_missing_mass() {
+    // The failure the mass check exists to catch: an enumerator that returns
+    // early over part of the sample space. Nothing about the surviving answer
+    // looks wrong — it is still a probability, still in range, still close to
+    // the truth. Only the total gives it away.
+    let groups = [12, 8, 79];
+    let gaps = [7, 1, 1];
+
+    let truth = h::probability_that_path(&groups, &gaps, |hist| hist[2][0] >= 1);
+
+    let mut kept = h::KahanSum::new();
+    let mut hits = h::KahanSum::new();
+    h::for_each_checkpoint_path(&groups, &gaps, |hist, p| {
+        // Stand-in for a bound that is off by one.
+        if hist[0][0] >= 5 {
+            return;
+        }
+        kept.add(p);
+        if hist[2][0] >= 1 {
+            hits.add(p);
+        }
+    });
+
+    let silently_wrong = hits.total();
+    assert!(silently_wrong > 0.0 && silently_wrong < 1.0);
+    assert!(
+        close(silently_wrong, truth.get(), 0.01),
+        "the point is that this stays plausible: {silently_wrong} vs {}",
+        truth.get()
+    );
+
+    let lost = 1.0 - kept.total();
+    assert!(
+        lost > 1e-9,
+        "the mass check must be able to see this, but only {lost} went missing"
+    );
+}
+
+#[test]
+fn compensated_summation_keeps_what_naive_addition_throws_away() {
+    // Every term here is below the spacing of f64 near 1, so naive addition
+    // drops all hundred of them while their total is not negligible.
+    let mut naive = 1.0f64;
+    let mut kahan = h::KahanSum::new();
+    kahan.add(1.0);
+    for _ in 0..100 {
+        naive += 1e-17;
+        kahan.add(1e-17);
+    }
+    assert_eq!(naive, 1.0, "naive summation should have lost all of it");
+    let recovered = kahan.total() - 1.0;
+    assert!(
+        (recovered - 1e-15).abs() <= f64::EPSILON,
+        "recovered {recovered}"
+    );
+}
