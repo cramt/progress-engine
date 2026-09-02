@@ -22,7 +22,10 @@ fn quantity_with_and_without_x() {
 
 #[test]
 fn multi_word_names_survive_the_lazy_match() {
-    assert_eq!(one("1x Senu, Keen-Eyed Protector").name, "Senu, Keen-Eyed Protector");
+    assert_eq!(
+        one("1x Senu, Keen-Eyed Protector").name,
+        "Senu, Keen-Eyed Protector"
+    );
 }
 
 #[test]
@@ -96,7 +99,9 @@ fn double_faced_names_are_not_truncated_by_the_comment_rule() {
 #[test]
 fn line_leading_comments_and_blanks_are_skipped() {
     assert!(decklist::parse_line("// a comment", 1).unwrap().is_none());
-    assert!(decklist::parse_line("   // indented comment", 1).unwrap().is_none());
+    assert!(decklist::parse_line("   // indented comment", 1)
+        .unwrap()
+        .is_none());
     assert!(decklist::parse_line("", 1).unwrap().is_none());
     assert!(decklist::parse_line("   ", 1).unwrap().is_none());
 }

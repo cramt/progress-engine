@@ -92,7 +92,9 @@ impl Entry {
     /// single string, and anchoring on the raw text would silently lose the
     /// commander.
     pub fn is_commander(&self) -> bool {
-        self.categories.iter().any(|c| c.name_starts_with("commander"))
+        self.categories
+            .iter()
+            .any(|c| c.name_starts_with("commander"))
     }
 
     /// In the list but not among the 100 — a companion is a 101st card (CR 903.11).
@@ -139,10 +141,12 @@ pub fn parse_line(line: &str, number: usize) -> Result<Option<Entry>, ParseError
         return Ok(None);
     }
 
-    let caps = line_re().captures(line).ok_or_else(|| ParseError::Malformed {
-        line: number,
-        text: trimmed.to_string(),
-    })?;
+    let caps = line_re()
+        .captures(line)
+        .ok_or_else(|| ParseError::Malformed {
+            line: number,
+            text: trimmed.to_string(),
+        })?;
 
     let qty: u32 = caps["qty"].parse().map_err(|_| ParseError::Malformed {
         line: number,
@@ -161,7 +165,11 @@ pub fn parse_line(line: &str, number: usize) -> Result<Option<Entry>, ParseError
         });
     }
 
-    let category = caps.name("cat").map(|m| m.as_str()).unwrap_or("").to_string();
+    let category = caps
+        .name("cat")
+        .map(|m| m.as_str())
+        .unwrap_or("")
+        .to_string();
     let categories = category.split(',').filter_map(Category::parse).collect();
 
     Ok(Some(Entry {
