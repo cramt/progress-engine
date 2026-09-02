@@ -51,8 +51,35 @@ was not set up for, that run is discarded and repeated against one that covers i
 `a && b` never evaluates `b` while `a` is false, and a turn nobody modelled would otherwise
 answer zero for every hand.
 
-A `--simulate` mode exists for criteria that genuinely need to inspect individual cards. The
-exact engine is its test oracle.
+`--simulate` is not a second feature set — it is a second implementation. It shuffles and
+deals where the default enumerates, and wherever both can answer they must agree, which is
+asserted at three levels: unit, through the JavaScript bindings, and end to end through the
+binary. Two independent routes to the same number is how a mistake in either one gets caught
+rather than believed, and that is reason enough for the crate to exist. It is also the escape
+hatch for questions too wide to enumerate: compositions multiply with the number of groups the
+queries split the library into and with how deep the turns go, so a criterion joining seven
+category queries at turn six is refused rather than answered in an hour:
+
+```
+$ progress-engine test simple-ramp.txt wide.criteria.js
+Error: this question is too wide to answer exactly: 6158592 compositions across 6 groups.
+Reduce the number of distinct queries, or ask about an earlier turn.
+```
+
+Six groups from a file that asks seven questions, because the refusal lands part-way through
+discovery. Queries are learned by running the file, so they arrive a few at a time, and five of
+them — six groups, counting the cards none of them matched — already put the estimate over the
+ceiling. The last two are never reached, so the figure names what the run had learned when it
+gave up rather than what the file would eventually have asked for. Sampling does not care how
+many groups there are, so it answers that question approximately instead of not at all.
+
+What `--simulate` is *not* is a way to inspect individual cards: both modes hand a criterion
+the same `count(query)` and nothing else, so anything that turns on *which* cards — a specific
+interaction, an ordering, the best card in hand — cannot be written in either. That API is
+wanted and does not exist, which is
+[issue #11](https://github.com/cramt/progress-engine/issues/11). Describing it here as though
+it shipped would be this tool's own defining failure mode aimed at its documentation: a
+confident claim about something that is not there.
 
 ## Status
 
@@ -79,6 +106,40 @@ caller piping stdout through `jq` cannot lose the failure.
 A criterion with no `atLeast` is informational: it reports a number and cannot
 fail. Add `--draw` to model being on the draw, and `--simulate` to sample
 instead of enumerate (slower, approximate, and reported with standard errors).
+
+### The card index it needs, and does not build
+
+Only one of those two rows works from a fresh clone. `parse` reads the decklist
+text and nothing else, so it needs no card data and never has. `test` has to
+know what a card *is*, and it gets that from a Scryfall index this repository
+does not produce.
+
+It looks for `index.json` under `$SCRYFALL_CACHE`, failing that
+`$XDG_CACHE_HOME/scryfall`, failing that `~/.cache/scryfall`; `--index <path>`
+points it somewhere else entirely. The tool that writes that file is a separate
+`scryfall sync` shell tool that does not live here, so a clone of this repo
+alone gets:
+
+```
+$ progress-engine test simple-ramp.txt simple-ramp.criteria.js
+Error: no Scryfall index at /home/you/.cache/scryfall/index.json.
+Build one with: scryfall sync
+```
+
+Loading the library is stricter still: a card the index does not know stops the
+run with *run `scryfall check` first*, rather than being skipped, because a card
+that cannot be looked up has no type line and would quietly skew every
+probability it touches — the same reasoning that makes an excluded card announce
+itself.
+
+The split was deliberate: bulk fetching, rate limits and caching were already
+solved in the shell tool, and two things that could disagree about what a card
+is would be worse than one thing that lives elsewhere. It is still half a tool
+presented as a whole one, and being told to run a command you do not have is
+precisely the sort of confident wrongness the rest of this document is about.
+Owning it — `progress-engine sync`, building the index here and carrying the
+fields queries actually need — is
+[issue #2](https://github.com/cramt/progress-engine/issues/2).
 
 ### Queries that match nothing
 
