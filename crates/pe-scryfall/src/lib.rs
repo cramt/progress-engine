@@ -6,6 +6,7 @@
 //! is the exact failure this crate exists to prevent.
 
 pub mod index;
+pub mod legality;
 mod parse;
 mod zone;
 
@@ -74,7 +75,9 @@ impl Colors {
         Colors::from_letters(&joined).unwrap_or_default()
     }
 
-    fn is_subset_of(self, other: Colors) -> bool {
+    /// Whether every colour of `self` is also in `other`. Both the `id<=`
+    /// query and the colour identity legality check are this one test.
+    pub fn is_subset_of(self, other: Colors) -> bool {
         self.0 & !other.0 == 0
     }
 }

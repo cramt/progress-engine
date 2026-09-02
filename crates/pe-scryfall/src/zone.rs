@@ -83,7 +83,8 @@ fn face_outside_library(face: &str) -> Option<OutsideLibrary> {
         .or_else(|| has_word(subtypes, "attraction").then_some(OutsideLibrary::Attraction))
 }
 
-fn has_word(haystack: &str, word: &str) -> bool {
+/// Shared with `legality.rs`, which avoids substrings for the same reason.
+pub(crate) fn has_word(haystack: &str, word: &str) -> bool {
     haystack
         .split_whitespace()
         .any(|w| w.eq_ignore_ascii_case(word))
