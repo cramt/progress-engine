@@ -268,3 +268,47 @@ fn an_empty_library_is_refused_rather_than_hanging() {
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("library is empty"), "stderr was: {stderr}");
 }
+
+#[test]
+fn asking_for_help_succeeds_and_goes_to_stdout() {
+    for args in [vec!["--help"], vec!["test", "--help"]] {
+        let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+            .args(&args)
+            .output()
+            .expect("binary should run");
+        assert!(out.status.success(), "{args:?} should exit 0");
+        assert!(
+            !out.stdout.is_empty(),
+            "{args:?} should print help to stdout"
+        );
+        assert!(out.stderr.is_empty(), "{args:?} should leave stderr clean");
+    }
+}
+
+#[test]
+fn a_usage_error_fails_and_goes_to_stderr() {
+    // figue renders a missing argument as a help request on stdout with exit 0.
+    // Both halves of that would break callers here: other tools shell out to
+    // this binary and read the exit code, and stdout carries JSON they pipe
+    // through jq.
+    for args in [
+        vec![],
+        vec!["test"],
+        vec!["bogus"],
+        vec!["test", "a", "b", "--nope"],
+    ] {
+        let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+            .args(&args)
+            .output()
+            .expect("binary should run");
+        assert!(!out.status.success(), "{args:?} should exit non-zero");
+        assert!(
+            out.stdout.is_empty(),
+            "{args:?} must not put usage text on stdout"
+        );
+        assert!(
+            !out.stderr.is_empty(),
+            "{args:?} should explain itself on stderr"
+        );
+    }
+}

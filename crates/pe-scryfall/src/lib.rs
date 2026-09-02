@@ -10,8 +10,6 @@ mod parse;
 
 pub use parse::{parse, ParseError};
 
-use serde::Serialize;
-
 /// A card as the matcher sees it: Scryfall's data plus the categories the
 /// decklist assigned it.
 #[derive(Debug, Clone)]
@@ -25,7 +23,7 @@ pub struct CardView<'a> {
     pub categories: &'a [String],
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Cmp {
     Lt,
     Le,
@@ -51,7 +49,7 @@ impl Cmp {
 }
 
 /// Colour identity as a 6-bit set over WUBRG plus colourless.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Colors(u8);
 
 impl Colors {
@@ -79,14 +77,14 @@ impl Colors {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IsProperty {
     Permanent,
     Spell,
     Historic,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Query {
     /// `t:land` — substring of the type line, case-insensitive.
     Type(String),

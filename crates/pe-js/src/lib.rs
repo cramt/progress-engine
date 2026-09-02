@@ -11,6 +11,7 @@
 //! sampled, and faster besides.
 
 use deno_core::{extension, op2, v8, JsRuntime, OpState, RuntimeOptions};
+use facet::Facet;
 use pe_criteria::{Criterion, Evaluator, PathView};
 use thiserror::Error;
 
@@ -219,13 +220,13 @@ fn read_meta(runtime: &mut JsRuntime) -> Result<Vec<Criterion>, JsError> {
         deno_core::scope!(scope, runtime);
         v8::Local::new(scope, value).to_rust_string_lossy(scope)
     };
-    #[derive(serde::Deserialize)]
+    #[derive(Facet)]
     struct Meta {
         name: String,
-        #[serde(rename = "atLeast")]
+        #[facet(rename = "atLeast")]
         at_least: Option<f64>,
     }
-    let metas: Vec<Meta> = serde_json::from_str(&json).map_err(|e| JsError::Load(e.to_string()))?;
+    let metas: Vec<Meta> = facet_json::from_str(&json).map_err(|e| JsError::Load(e.to_string()))?;
     Ok(metas
         .into_iter()
         .map(|m| Criterion {

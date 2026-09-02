@@ -1,19 +1,18 @@
 //! Turning results into a verdict.
 
+use facet::Facet;
 use pe_criteria::Criterion;
-
-use serde::Serialize;
 
 use crate::library::Library;
 
-#[derive(Serialize)]
+#[derive(Facet)]
 pub struct CriterionResult {
     pub name: String,
     pub probability: f64,
     pub percent: f64,
     pub at_least: Option<f64>,
     /// Present only for sampled runs: never quote a sampled figure without it.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[facet(skip_serializing_if = Option::is_none)]
     pub standard_error: Option<f64>,
     pub pass: bool,
 }
@@ -23,19 +22,19 @@ pub struct CriterionResult {
 /// Reported because a query matching nothing is this project's defining failure:
 /// it produces a confident 0% rather than an error. Showing the count makes a
 /// typo'd category name obvious at a glance.
-#[derive(Serialize)]
+#[derive(Facet)]
 pub struct QueryMatch {
     pub query: String,
     pub cards: u32,
 }
 
-#[derive(Serialize)]
+#[derive(Facet)]
 pub struct Report {
     pub library_size: u32,
     pub commanders: Vec<String>,
     pub on_the_draw: bool,
     pub method: &'static str,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[facet(skip_serializing_if = Option::is_none)]
     pub trials: Option<u32>,
     pub queries: Vec<QueryMatch>,
     pub criteria: Vec<CriterionResult>,

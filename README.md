@@ -147,6 +147,15 @@ cargo test
 nix flake check    # fmt, clippy -D warnings, tests, build
 ```
 
+Reflection comes from [facet](https://github.com/facet-rs/facet): `facet-json`
+writes the JSON contract above and reads the card index, and `figue` parses
+argv. One `#[derive(Facet)]` per type feeds all of them.
+
+figue treats a missing argument as a help request, printing usage to stdout and
+exiting 0. Both halves of that are wrong here — stdout carries JSON a caller
+pipes through `jq`, and other tools read the exit code — so usage errors are
+sent to stderr with a non-zero status instead, and stdout stays JSON-only.
+
 ## License
 
 MIT

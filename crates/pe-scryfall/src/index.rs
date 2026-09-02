@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
+use facet::Facet;
 use thiserror::Error;
 
 use crate::CardView;
@@ -25,29 +25,31 @@ pub enum IndexError {
         path: PathBuf,
         source: std::io::Error,
     },
+    /// Boxed because facet-json's error carries the source text and spans it
+    /// needs for a pointed diagnostic, which is far larger than the ok variant.
     #[error("parsing {path}: {source}")]
     Json {
         path: PathBuf,
-        source: serde_json::Error,
+        source: Box<facet_json::DeserializeError>,
     },
 }
 
 /// One card, as the index stores it.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Facet)]
 pub struct Card {
     pub name: String,
-    #[serde(default)]
+    #[facet(default)]
     pub ci: Vec<String>,
-    #[serde(default)]
+    #[facet(default)]
     pub type_line: String,
-    #[serde(default)]
+    #[facet(default)]
     pub cmc: f64,
     /// Oracle text of every face joined, so a query sees the whole card.
-    #[serde(default)]
+    #[facet(default)]
     pub oracle: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Facet)]
 pub struct Index {
     pub cards: HashMap<String, Card>,
 }
@@ -81,9 +83,9 @@ impl Index {
             path: path.to_path_buf(),
             source,
         })?;
-        serde_json::from_str(&text).map_err(|source| IndexError::Json {
+        facet_json::from_str(&text).map_err(|source| IndexError::Json {
             path: path.to_path_buf(),
-            source,
+            source: Box::new(source),
         })
     }
 

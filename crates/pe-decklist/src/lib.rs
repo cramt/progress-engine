@@ -9,8 +9,8 @@
 use std::num::NonZeroU32;
 use std::sync::OnceLock;
 
+use facet::Facet;
 use regex::Regex;
-use serde::Serialize;
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -27,7 +27,7 @@ pub enum ParseError {
 
 /// One `[Category{flag}]` element. Archidekt allows several per line,
 /// comma-separated: `[Big Colorless,Test]`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Facet)]
 pub struct Category {
     /// Category text with any `{flags}` stripped, e.g. `Commander`.
     pub name: String,
@@ -71,7 +71,7 @@ impl Category {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Facet)]
 pub struct Entry {
     pub qty: NonZeroU32,
     pub name: String,

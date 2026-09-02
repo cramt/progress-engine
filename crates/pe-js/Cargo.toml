@@ -10,8 +10,8 @@ repository.workspace = true
 thiserror.workspace = true
 pe-criteria.workspace = true
 tokio.workspace = true
-serde.workspace = true
-serde_json.workspace = true
+facet.workspace = true
+facet-json.workspace = true
 deno_core = "0.411.0"
 
 [dev-dependencies]

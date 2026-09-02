@@ -12,18 +12,22 @@ mod report;
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
-use clap::{Parser, Subcommand};
+use facet::Facet;
+use figue::{self as args, DriverError, FigueBuiltins};
 
 use library::Library;
 
-#[derive(Parser)]
-#[command(name = "progress-engine", version, about, long_about = None)]
+/// Draw-probability tests for Magic: The Gathering decklists.
+#[derive(Facet)]
 struct Cli {
-    #[command(subcommand)]
+    #[facet(args::subcommand)]
     command: Command,
+    #[facet(flatten)]
+    _builtins: FigueBuiltins,
 }
 
-#[derive(Subcommand)]
+#[derive(Facet)]
+#[repr(u8)]
 enum Command {
     /// Parse a decklist and emit it as JSON.
     ///
@@ -31,54 +35,103 @@ enum Command {
     /// there is exactly one definition of what a decklist is.
     Parse {
         /// Decklist file in Archidekt format.
+        #[facet(args::positional)]
         file: PathBuf,
     },
     /// Run a criteria file against a decklist.
     Test {
         /// Decklist file in Archidekt format.
+        #[facet(args::positional)]
         deck: PathBuf,
         /// JavaScript criteria file.
+        #[facet(args::positional)]
         criteria: PathBuf,
         /// Model being on the draw rather than on the play.
-        #[arg(long)]
+        #[facet(args::named, default)]
         draw: bool,
         /// Sample instead of enumerating. Slower and approximate; the exact
         /// engine is the default for good reason.
-        #[arg(long)]
+        #[facet(args::named, default)]
         simulate: bool,
         /// Hands to deal when sampling.
-        #[arg(long, default_value_t = 200_000)]
+        #[facet(args::named, default = 200_000)]
         trials: u32,
         /// Seed, so a sampled run is reproducible.
-        #[arg(long, default_value_t = 0)]
+        #[facet(args::named, default = 0)]
         seed: u64,
         /// Scryfall index, as built by `scryfall sync`.
-        #[arg(long)]
+        #[facet(args::named, default)]
         index: Option<PathBuf>,
     },
 }
 
+/// A decklist entry as `parse` emits it.
+///
+/// `commander` and `outside` are emitted rather than left for the caller to
+/// re-derive. They are the fiddly part — a companion is a 101st card, "Sticker
+/// Package" is not a sideboard, and a multi-category line has to be tested per
+/// category — and a second implementation of that is exactly what this tool
+/// exists to remove.
+#[derive(Facet)]
+struct ParsedEntry {
+    #[facet(flatten)]
+    entry: pe_decklist::Entry,
+    commander: bool,
+    outside: bool,
+}
+
+/// Parse argv, with this tool's output discipline rather than figue's default.
+///
+/// figue renders a missing argument as a help request printed to stdout with
+/// exit 0, which would hand a caller a success for a command that never ran and
+/// put non-JSON on the stdout a caller pipes through `jq`. Both matter here. So
+/// help goes to stdout and exits 0 only when it was actually asked for;
+/// otherwise it is a usage error, and it goes to stderr with a non-zero status.
+fn parse_args() -> Cli {
+    let asked_for_help = std::env::args().skip(1).any(|a| {
+        matches!(a.as_str(), "-h" | "--help" | "-V" | "--version")
+            || a.starts_with("--completions")
+            || a.starts_with("--html-help")
+            || a.starts_with("--export-jsonschemas")
+    });
+
+    match figue::from_std_args::<Cli>().into_result() {
+        Ok(output) => output.get(),
+        Err(DriverError::Help { text, suggestion }) if asked_for_help => {
+            println!("{text}");
+            if let Some(s) = suggestion {
+                println!("{}", s.render_pretty());
+            }
+            std::process::exit(0);
+        }
+        Err(DriverError::Help { text, suggestion }) => {
+            eprintln!("{text}");
+            if let Some(s) = suggestion {
+                eprintln!("{}", s.render_pretty());
+            }
+            std::process::exit(2);
+        }
+        Err(other) => {
+            eprintln!("{other}");
+            std::process::exit(other.exit_code().max(1));
+        }
+    }
+}
+
 fn main() -> Result<()> {
-    match Cli::parse().command {
+    match parse_args().command {
         Command::Parse { file } => {
             let text = std::fs::read_to_string(&file)
                 .with_context(|| format!("reading decklist {}", file.display()))?;
-            let entries = pe_decklist::parse(&text)?;
-            // `commander` and `outside` are emitted rather than left for the
-            // caller to re-derive. They are the fiddly part — a companion is a
-            // 101st card, "Sticker Package" is not a sideboard, and a
-            // multi-category line has to be tested per category — and a second
-            // implementation of that is exactly what this tool exists to remove.
-            let augmented: Vec<serde_json::Value> = entries
-                .iter()
-                .map(|e| {
-                    let mut v = serde_json::to_value(e).expect("entry serialises");
-                    v["commander"] = e.is_commander().into();
-                    v["outside"] = e.is_outside().into();
-                    v
+            let augmented: Vec<ParsedEntry> = pe_decklist::parse(&text)?
+                .into_iter()
+                .map(|entry| ParsedEntry {
+                    commander: entry.is_commander(),
+                    outside: entry.is_outside(),
+                    entry,
                 })
                 .collect();
-            println!("{}", serde_json::to_string_pretty(&augmented)?);
+            println!("{}", facet_json::to_string_pretty(&augmented)?);
             Ok(())
         }
         Command::Test {
@@ -154,7 +207,7 @@ fn run_test(
         queries,
         on_the_draw,
     );
-    println!("{}", serde_json::to_string_pretty(&report)?);
+    println!("{}", facet_json::to_string_pretty(&report)?);
     eprintln!("{}", report.human());
     if !report.ok {
         std::process::exit(1);
