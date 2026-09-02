@@ -2,6 +2,11 @@
 resolver = "2"
 members = ["crates/*"]
 
+[workspace.metadata.crane]
+# crane reads the package name from the root Cargo.toml, which a virtual
+# workspace manifest does not have. Without this it warns and uses a placeholder.
+name = "progress-engine"
+
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
