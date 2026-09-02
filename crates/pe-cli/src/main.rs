@@ -64,7 +64,21 @@ fn main() -> Result<()> {
             let text = std::fs::read_to_string(&file)
                 .with_context(|| format!("reading decklist {}", file.display()))?;
             let entries = pe_decklist::parse(&text)?;
-            println!("{}", serde_json::to_string_pretty(&entries)?);
+            // `commander` and `outside` are emitted rather than left for the
+            // caller to re-derive. They are the fiddly part — a companion is a
+            // 101st card, "Sticker Package" is not a sideboard, and a
+            // multi-category line has to be tested per category — and a second
+            // implementation of that is exactly what this tool exists to remove.
+            let augmented: Vec<serde_json::Value> = entries
+                .iter()
+                .map(|e| {
+                    let mut v = serde_json::to_value(e).expect("entry serialises");
+                    v["commander"] = e.is_commander().into();
+                    v["outside"] = e.is_outside().into();
+                    v
+                })
+                .collect();
+            println!("{}", serde_json::to_string_pretty(&augmented)?);
             Ok(())
         }
         Command::Test {
