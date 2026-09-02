@@ -61,6 +61,15 @@ pub fn simulate<E>(
         }
     }
 
+    // How many cards have been seen by each checkpoint.
+    let reached_at: Vec<u32> = gaps
+        .iter()
+        .scan(0u32, |acc, gap| {
+            *acc += gap;
+            Some(*acc)
+        })
+        .collect();
+
     let mut rng = ChaCha8Rng::seed_from_u64(seed);
     let groups = grouping.group_sizes().len();
     let mut hits: Vec<u32> = Vec::new();
@@ -70,23 +79,25 @@ pub fn simulate<E>(
         let n = deck.len();
         let mut cumulative = vec![0u32; groups];
         let mut history: Vec<Vec<u32>> = Vec::with_capacity(gaps.len());
-        let mut drawn = 0u32;
         let mut checkpoint = 0usize;
 
         for i in 0..(total_draws as usize).min(n) {
-            let j = rng.random_range(i..n);
-            deck.swap(i, j);
-            cumulative[deck[i] as usize] += 1;
-            drawn += 1;
-            // Snapshot at every checkpoint boundary, including gaps of zero.
-            while checkpoint < gaps.len() && drawn >= gaps[..=checkpoint].iter().sum::<u32>() {
+            // Snapshot before dealing, because a checkpoint can be reached
+            // before any card is: a leading gap of zero means "the hand as it
+            // stands", and recording it after the next draw reports a card the
+            // player has not seen yet.
+            while checkpoint < gaps.len() && reached_at[checkpoint] as usize <= i {
                 history.push(cumulative.clone());
                 checkpoint += 1;
             }
+            let j = rng.random_range(i..n);
+            deck.swap(i, j);
+            cumulative[deck[i] as usize] += 1;
         }
-        // Gaps of zero at the very start leave checkpoints unfilled.
-        while history.len() < gaps.len() {
+        // Whatever the last draw reached, plus any trailing gaps of zero.
+        while checkpoint < gaps.len() {
             history.push(cumulative.clone());
+            checkpoint += 1;
         }
 
         let view = PathView::new(grouping, &history);

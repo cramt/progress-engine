@@ -171,3 +171,27 @@ fn zero_trials_is_refused_rather_than_divided_by() {
         SimError::NoTrials
     ));
 }
+
+#[test]
+fn a_checkpoint_reached_before_any_draw_sees_an_empty_hand() {
+    // Found by the property tests, not by anyone reading the code. The snapshot
+    // loop only ran *after* dealing a card, so a leading gap of zero recorded
+    // the hand one draw too late: the sampler answered 100% to a question the
+    // exact engine answered 0%, on a library of one card.
+    let g = Grouping::build(q(&["land"]), [(0b1, 1)]).unwrap();
+    let criteria = || {
+        Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1),
+            Box::new(|v: &PathView<'_>| v.count(1, 0) >= 1),
+            Box::new(|v: &PathView<'_>| v.count(2, 0) >= 1),
+        ])
+    };
+    // Nothing before the draw, the land after it, and a trailing gap of zero
+    // that must not lose it again.
+    let sampled = simulate(&g, &[0, 1, 0], 100, 1, &mut criteria()).unwrap();
+    assert_eq!(sampled, vec![0.0, 1.0, 1.0], "{sampled:?}");
+
+    let exact = pe_criteria::run(&g, &[0, 1, 0], 3, &mut criteria()).unwrap();
+    let exact: Vec<f64> = exact.iter().map(|p| p.get()).collect();
+    assert_eq!(exact, sampled, "same question, same answer");
+}
