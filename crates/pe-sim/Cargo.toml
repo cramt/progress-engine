@@ -12,3 +12,6 @@ rand_chacha.workspace = true
 thiserror.workspace = true
 pe-criteria.workspace = true
 pe-stats.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

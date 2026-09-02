@@ -8,3 +8,6 @@ repository.workspace = true
 
 [dependencies]
 libm.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

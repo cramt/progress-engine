@@ -19,6 +19,7 @@ facet = { version = "0.46", features = ["nonzero"] }
 facet-json = "0.46"
 figue = "4"
 libm = "0.2"
+proptest = { version = "1", default-features = false, features = ["std", "bit-set"] }
 rand = "0.9"
 rand_chacha = "0.9"
 regex = "1"

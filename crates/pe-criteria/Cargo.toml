@@ -9,3 +9,6 @@ repository.workspace = true
 [dependencies]
 thiserror.workspace = true
 pe-stats.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
