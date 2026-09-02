@@ -9,6 +9,7 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 use pe_criteria::{Grouping, GroupingError};
 use pe_scryfall::index::{Card, Index};
+use pe_scryfall::OutsideLibrary;
 
 pub struct Entry {
     pub card: Card,
@@ -16,9 +17,19 @@ pub struct Entry {
     pub qty: u32,
 }
 
+/// A listed card that never enters the library, and which type made it so.
+pub struct Excluded {
+    pub name: String,
+    pub qty: u32,
+    pub card_type: OutsideLibrary,
+}
+
 pub struct Library {
     pub entries: Vec<Entry>,
     pub commanders: Vec<String>,
+    /// Kept rather than dropped: excluding a card silently is the same failure
+    /// as a query that matches nothing — a confident number nobody can question.
+    pub excluded: Vec<Excluded>,
 }
 
 impl Library {
@@ -56,19 +67,38 @@ impl Library {
         // The library is what you draw from: the deck minus anything outside it
         // (companions, sideboards) and minus the commanders, which start in the
         // command zone. Getting this wrong is the classic 99-versus-100 error.
-        let entries = parsed
+        //
+        // Two separate notions of "outside", deliberately kept apart. The
+        // decklist says a companion or a sideboard card is out, which is
+        // decklist data; the card data says a sticker sheet or an attraction is
+        // out, which the decklist cannot know and `parse` therefore never
+        // claims.
+        let mut entries = Vec::new();
+        let mut excluded = Vec::new();
+        for e in parsed
             .iter()
             .filter(|e| !e.is_outside() && !e.is_commander())
-            .map(|e| Entry {
-                card: index.get(&e.name).expect("checked above").clone(),
+        {
+            let card = index.get(&e.name).expect("checked above").clone();
+            if let Some(card_type) = card.outside_library() {
+                excluded.push(Excluded {
+                    name: card.name,
+                    qty: e.qty.get(),
+                    card_type,
+                });
+                continue;
+            }
+            entries.push(Entry {
+                card,
                 categories: e.categories.iter().map(|c| c.name.clone()).collect(),
                 qty: e.qty.get(),
-            })
-            .collect();
+            });
+        }
 
         Ok(Library {
             entries,
             commanders,
+            excluded,
         })
     }
 

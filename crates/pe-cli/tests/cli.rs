@@ -17,9 +17,13 @@ fn fixture(name: &str) -> PathBuf {
 }
 
 fn run(criteria: &str) -> std::process::Output {
+    run_deck("simple-ramp.txt", criteria)
+}
+
+fn run_deck(deck: &str, criteria: &str) -> std::process::Output {
     Command::new(env!("CARGO_BIN_EXE_progress-engine"))
         .arg("test")
-        .arg(fixture("simple-ramp.txt"))
+        .arg(fixture(deck))
         .arg(fixture(criteria))
         .arg("--index")
         .arg(fixture("index.json"))
@@ -311,4 +315,86 @@ fn a_usage_error_fails_and_goes_to_stderr() {
             "{args:?} should explain itself on stderr"
         );
     }
+}
+
+#[test]
+fn cards_that_live_outside_the_library_are_not_counted_in_it() {
+    // Stickers, attractions, planes and the rest are shuffled into a deck of
+    // their own or into none at all. Counting them inflates library_size and so
+    // moves every probability in the report.
+    let out = run_deck("outside-the-library.txt", "short-circuit.criteria.js");
+    assert!(out.status.success());
+
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+
+    // 40 Forests, two planeswalkers, and the two real cards that apply
+    // stickers. Eleven cards across nine listings left.
+    assert_eq!(json["library_size"], 44);
+
+    let excluded = json["excluded"].as_array().expect("excluded array");
+    assert_eq!(excluded.len(), 9);
+    let by_name = |name: &str| {
+        excluded
+            .iter()
+            .find(|e| e["name"] == name)
+            .unwrap_or_else(|| panic!("{name} should be reported as excluded"))
+    };
+    for (name, card_type) in [
+        ("Ancestral Hot Dog Minotaur", "Stickers"),
+        ("Bumper Cars", "Attraction"),
+        ("Academy at Tolaria West", "Plane"),
+        ("Chaotic Aether", "Phenomenon"),
+        ("All in Good Time", "Scheme"),
+        ("Akroma, Angel of Wrath Avatar", "Vanguard"),
+        ("Backup Plan", "Conspiracy"),
+        ("Tomb of Annihilation", "Dungeon"),
+        ("Ajani Steadfast Emblem", "Emblem"),
+    ] {
+        assert_eq!(by_name(name)["card_type"], card_type);
+    }
+    assert_eq!(by_name("Bumper Cars")["qty"], 3, "quantities are kept");
+}
+
+#[test]
+fn a_planeswalker_is_not_a_plane_and_a_sticker_payoff_is_not_a_sticker() {
+    // Both halves of the trap this fix had to avoid. "Plane" is a substring of
+    // every planeswalker's type line, and "Sticker Package" is the category the
+    // real cards that apply stickers live in -- matching it once reported five
+    // of them as companions.
+    let out = run_deck("outside-the-library.txt", "short-circuit.criteria.js");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+
+    for name in [
+        "Vivien Reid",
+        "Nissa, Who Shakes the World",
+        "Park Bleater",
+        "Ticketomaton",
+    ] {
+        assert!(
+            !json["excluded"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|e| e["name"] == name),
+            "{name} belongs in the library"
+        );
+    }
+}
+
+#[test]
+fn an_exclusion_says_how_many_left_and_why() {
+    // A silent exclusion is the same failure as a query that matches nothing: a
+    // confident number nobody can question. Whoever watches their list shrink
+    // gets the count, the names and the type that did it.
+    let out = run_deck("outside-the-library.txt", "short-circuit.criteria.js");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("11 cards never in the library"),
+        "stderr was: {stderr}"
+    );
+    assert!(
+        stderr.contains("3x Bumper Cars (Attraction)"),
+        "stderr was: {stderr}"
+    );
+    serde_json::from_slice::<serde_json::Value>(&out.stdout).expect("stdout is pure JSON");
 }

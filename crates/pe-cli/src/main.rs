@@ -164,6 +164,9 @@ fn run_test(
     seed: u64,
 ) -> Result<()> {
     let library = Library::load(deck, index_path)?;
+    if let Some(note) = report::exclusion_note(&library) {
+        eprintln!("{note}");
+    }
     let source = std::fs::read_to_string(criteria_path)
         .with_context(|| format!("reading criteria {}", criteria_path.display()))?;
 

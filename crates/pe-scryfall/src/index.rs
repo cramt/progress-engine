@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use facet::Facet;
 use thiserror::Error;
 
-use crate::CardView;
+use crate::{CardView, OutsideLibrary};
 
 #[derive(Debug, Error)]
 pub enum IndexError {
@@ -108,5 +108,10 @@ impl Card {
             color_identity: &self.ci,
             categories,
         }
+    }
+
+    /// Which never-in-the-library type this card is, if it is one.
+    pub fn outside_library(&self) -> Option<OutsideLibrary> {
+        crate::outside_library(&self.type_line)
     }
 }

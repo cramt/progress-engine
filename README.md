@@ -96,6 +96,32 @@ FAIL misspelled category   0.00%  (needs 30.0%)
 Unsupported *syntax*, by contrast, is refused outright — `power>=3` names itself
 as an error rather than quietly matching nothing.
 
+### Cards that are never in your library
+
+Sticker sheets, attractions, planes, phenomena, schemes, vanguards, conspiracies,
+dungeons and emblems live in a deck of their own or in no deck at all. Counting
+them inflates the library and moves every probability with it: a 99-card list
+with ten attractions answers questions about a 109-card library that does not
+exist. They are left out of the library, and never quietly:
+
+```
+$ progress-engine test unfinity.txt criteria.js
+note: 11 cards never in the library and not counted: 1x Ancestral Hot Dog Minotaur (Stickers), 3x Bumper Cars (Attraction), ...
+```
+
+The same list appears in the JSON as `excluded`, with the card type that did it.
+Dropping cards silently would be the empty-query failure again — a confident
+number nobody can question — so someone whose 109 comes back as 99 is told what
+left and why.
+
+The decision is made on the **type line**. Category names cannot do it: "Sticker
+Package" is a legitimate Archidekt category for the real cards that *apply*
+stickers, and matching it once dropped five of them from a 100-card list. Nor is
+it a substring match, because `Plane` sits inside every planeswalker ever
+printed. The type line is split on its em dash and compared whole word by whole
+word, card types on the left and Attraction on the right, where it is a subtype
+of `Artifact — Attraction`.
+
 ### Questions the deck cannot answer
 
 Two more routes to a confident number about nothing, both refused rather than
@@ -138,6 +164,11 @@ Notes:
   later as a mysteriously wrong card total.
 - `Commander` and `Companion`/`Sideboard`/`Maybeboard`/`{noDeck}` are matched **per category**,
   so `[Ramp,Commander{top}]` is still your commander.
+- **`outside` is a fact about the decklist, not about the cards.** It is what the
+  list says — companions, sideboards, `{noDeck}` — and that is all `parse` can
+  know, having no card index. A sticker sheet is outside the library too, but
+  nothing in the text says so, so it leaves later, at `test` time, where card data
+  is at hand, and is reported separately as `excluded`.
 
 ## Development
 
@@ -180,6 +211,12 @@ can filter on `cat:"Exile Outlet"`, which is decklist data, not card data. Rathe
 than have the card crate depend on the decklist crate, `CardView` takes
 categories as a plain `&[String]`. The CLI is what joins the two, which keeps
 both halves independently testable.
+
+The same seam decides where each kind of "outside the library" lives. Companions
+and sideboards are decklist data, so `pe-decklist` answers those; sticker sheets
+and attractions are card data, so `pe-scryfall` answers those. Neither crate
+learns about the other, and `pe-cli` applies both at the point where a decklist
+entry finally meets its card.
 
 `pe-stats` deliberately has no idea what a card is. Its tests are pure
 known-answer arithmetic, so a failure there is unambiguously a maths bug rather

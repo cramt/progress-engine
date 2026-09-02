@@ -679,6 +679,99 @@
       "cmc": 1.0,
       "keywords": [],
       "oracle": "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a legendary spell, and that spell can't be countered."
+    },
+    "ancestral hot dog minotaur": {
+      "name": "Ancestral Hot Dog Minotaur",
+      "ci": [],
+      "type_line": "Stickers",
+      "cmc": 0.0,
+      "keywords": [
+        "Flying",
+        "Afflict"
+      ],
+      "oracle": "{TK}{TK} — Afflict 2 (Whenever this creature becomes blocked, defending player loses 2 life.)\n{TK}{TK}{TK} — Flying\n{TK}{TK} — 1/4\n{TK}{TK}{TK}{TK}{TK} — 8/6"
+    },
+    "bumper cars": {
+      "name": "Bumper Cars",
+      "ci": [],
+      "type_line": "Artifact — Attraction",
+      "cmc": 0.0,
+      "keywords": [],
+      "oracle": "Visit — Target creature must be blocked this turn if able."
+    },
+    "academy at tolaria west": {
+      "name": "Academy at Tolaria West",
+      "ci": [],
+      "type_line": "Plane — Dominaria",
+      "cmc": 0.0,
+      "keywords": [],
+      "oracle": "At the beginning of your end step, if you have no cards in hand, draw seven cards.\nWhenever chaos ensues, discard your hand."
+    },
+    "chaotic aether": {
+      "name": "Chaotic Aether",
+      "ci": [],
+      "type_line": "Phenomenon",
+      "cmc": 0.0,
+      "keywords": [],
+      "oracle": "When you encounter Chaotic Aether, each blank roll of the planar die is a {CHAOS} roll until a player planeswalks away from a plane. (Then planeswalk away from this phenomenon.)"
+    },
+    "all in good time": {
+      "name": "All in Good Time",
+      "ci": [],
+      "type_line": "Scheme",
+      "cmc": 0.0,
+      "keywords": [],
+      "oracle": "When you set this scheme in motion, take an extra turn after this one. Schemes can't be set in motion that turn."
+    },
+    "akroma, angel of wrath avatar": {
+      "name": "Akroma, Angel of Wrath Avatar",
+      "ci": [],
+      "type_line": "Vanguard",
+      "cmc": 0.0,
+      "keywords": [],
+      "oracle": "Whenever a creature you control enters, it gains two abilities chosen at random from among flying, first strike, trample, haste, protection from black, protection from red, and vigilance."
+    },
+    "backup plan": {
+      "name": "Backup Plan",
+      "ci": [],
+      "type_line": "Conspiracy",
+      "cmc": 0.0,
+      "keywords": [],
+      "oracle": "(Start the game with this conspiracy face up in the command zone.)\nDraw an additional hand of seven cards as the game begins. Before taking mulligans, shuffle all but one of your hands into your library."
+    },
+    "tomb of annihilation": {
+      "name": "Tomb of Annihilation",
+      "ci": [],
+      "type_line": "Dungeon",
+      "cmc": 0.0,
+      "keywords": [],
+      "oracle": "Trapped Entry — Each player loses 1 life. (Leads to: Veils of Fear, Oubliette)\nVeils of Fear — Each player loses 2 life unless they discard a card. (Leads to: Sandfall Cell)\nSandfall Cell — Each player loses 2 life unless they sacrifice a creature, artifact, or land of their choice. (Leads to: Cradle of the Death God)\nOubliette — Discard a card and sacrifice a creature, an artifact, and a land. (Leads to: Cradle of the Death God)\nCradle of the Death God — Create The Atropal, a legendary 4/4 black God Horror creature token with deathtouch."
+    },
+    "ajani steadfast emblem": {
+      "name": "Ajani Steadfast Emblem",
+      "ci": [],
+      "type_line": "Emblem — Ajani",
+      "cmc": 0.0,
+      "keywords": [],
+      "oracle": "If a source would deal damage to you or a planeswalker you control, prevent all but 1 of that damage."
+    },
+    "park bleater": {
+      "name": "Park Bleater",
+      "ci": [
+        "W"
+      ],
+      "type_line": "Creature — Goat Employee",
+      "cmc": 3.0,
+      "keywords": [],
+      "oracle": "Whenever another creature you own enters, you get {TK}.\n{W}, {T}: You may put a sticker on a creature you own that entered this turn."
+    },
+    "ticketomaton": {
+      "name": "Ticketomaton",
+      "ci": [],
+      "type_line": "Artifact Creature — Robot",
+      "cmc": 3.0,
+      "keywords": [],
+      "oracle": "When Ticketomaton enters, you get {TK}, then you may put a sticker on a nonland permanent you own."
     }
   }
 }

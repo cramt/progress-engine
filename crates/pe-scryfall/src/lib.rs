@@ -7,8 +7,10 @@
 
 pub mod index;
 mod parse;
+mod zone;
 
 pub use parse::{parse, ParseError};
+pub use zone::{outside_library, OutsideLibrary};
 
 /// A card as the matcher sees it: Scryfall's data plus the categories the
 /// decklist assigned it.

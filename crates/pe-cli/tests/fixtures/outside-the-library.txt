@@ -1,0 +1,28 @@
+// A deck with a sticker sheet, an attraction deck and a planar deck stapled to
+// it. None of that is ever shuffled into the library, but the text export has no
+// way to say so -- only the type line does.
+//
+// The library is 44: 40 Forests, two planeswalkers, and the two real cards that
+// apply stickers. Everything below them leaves, and has to say that it did.
+1x Marwyn, the Nurturer [Commander{top}]
+
+40x Forest [Land]
+1x Vivien Reid [Draw]
+1x Nissa, Who Shakes the World [Payoff]
+
+// Real cards, filed under the category Archidekt gives them. Matching the
+// category name would drop them; matching "Plane" as a substring would drop the
+// two planeswalkers above.
+1x Park Bleater [Sticker Package]
+1x Ticketomaton [Sticker Package]
+
+// One of each type that lives in its own deck or zone.
+1x Ancestral Hot Dog Minotaur [Sticker Package]
+3x Bumper Cars [Attractions]
+1x Academy at Tolaria West [Planechase]
+1x Chaotic Aether [Planechase]
+1x All in Good Time [Archenemy]
+1x Akroma, Angel of Wrath Avatar [Vanguard]
+1x Backup Plan [Conspiracy]
+1x Tomb of Annihilation [Dungeon]
+1x Ajani Steadfast Emblem [Emblem]
