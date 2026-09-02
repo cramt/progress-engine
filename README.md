@@ -50,13 +50,45 @@ exact engine is its test oracle.
 
 ## Status
 
-Early. Working today:
+Working today:
 
-- `progress-engine parse <file> --json` — the canonical Archidekt decklist parser, including
-  multi-category lines (`[Big Colorless,Test]`).
+| Command | What it does |
+|---|---|
+| `progress-engine parse <deck>` | The canonical Archidekt decklist parser, as JSON |
+| `progress-engine test <deck> <criteria.js>` | Evaluate criteria and report PASS/FAIL |
 
-Planned, in order: Scryfall-syntax query parser, hypergeometric core, JS criteria, `test`
-runner, `--simulate`.
+```
+$ progress-engine test simple-ramp.txt simple-ramp.criteria.js
+PASS keepable opener (2-5 lands)   78.97%  (needs 70.0%)
+PASS turn-1 accelerant             51.04%  (needs 35.0%)
+PASS commander on turn 2           44.29%  (needs 30.0%)
+     any ramp by turn 3            94.39%
+
+PASS: 3 of 3 assertions met
+```
+
+JSON goes to stdout, the verdict to stderr, and the exit code reflects it — so a
+caller piping stdout through `jq` cannot lose the failure.
+
+A criterion with no `atLeast` is informational: it reports a number and cannot
+fail. Add `--draw` to model being on the draw, and `--simulate` to sample
+instead of enumerate (slower, approximate, and reported with standard errors).
+
+### Queries that match nothing
+
+The defining failure mode this tool exists to prevent is a query that is
+perfectly valid and matches no cards. It cannot be a parse error, and it yields
+a confident 0% rather than a complaint. So every run reports what each query
+matched, and says so loudly when that is zero:
+
+```
+$ progress-engine test simple-ramp.txt typo.criteria.js
+note: query "cat:\"Rmap\"" matched no cards in this deck
+FAIL misspelled category   0.00%  (needs 30.0%)
+```
+
+Unsupported *syntax*, by contrast, is refused outright — `power>=3` names itself
+as an error rather than quietly matching nothing.
 
 ## Decklist format
 
@@ -106,6 +138,9 @@ dragging in the others.
 | `pe-stats` | Exact hypergeometric draw probabilities | Nothing. No Magic concepts at all. |
 | `pe-decklist` | Parsing Archidekt decklists | Decklist text. No card data. |
 | `pe-scryfall` | Card data and Scryfall search syntax | Cards. No decklists. |
+| `pe-criteria` | Grouping cards by query, evaluating exactly | Counts. Neither cards nor JavaScript. |
+| `pe-js` | The JavaScript runtime and its bindings | V8, and the criteria contract. |
+| `pe-sim` | Sampling, validated against `pe-stats` | Shuffling. |
 | `pe-cli` | The `progress-engine` binary | All of the above. |
 
 The seam worth knowing about is between `pe-scryfall` and `pe-decklist`: a query
@@ -116,4 +151,11 @@ both halves independently testable.
 
 `pe-stats` deliberately has no idea what a card is. Its tests are pure
 known-answer arithmetic, so a failure there is unambiguously a maths bug rather
-than a card-data bug.
+than a card-data bug. The same reasoning puts the evaluator behind a trait in
+`pe-criteria`: the enumeration is tested with plain Rust closures, so a failure
+there is an engine bug and a failure in `pe-js` is a bindings bug. Keeping those
+distinguishable is worth the indirection.
+
+`pe-sim` exists to check `pe-stats`, not to replace it. Where both can answer,
+they must agree — and that agreement is asserted at three levels: unit, through
+the JavaScript bindings, and end to end through the binary.
