@@ -68,7 +68,13 @@ extension!(
 );
 
 pub struct Criteria {
+    // Declaration order is drop order: the V8 runtime must go before the tokio
+    // runtime it was created inside.
     runtime: JsRuntime,
+    /// V8 posts delayed tasks (garbage collection, mostly) and refuses to do so
+    /// outside a tokio context. It only bites once enough calls accumulate, so
+    /// without this the exact engine works and a long sampled run dies partway.
+    _tokio: tokio::runtime::Runtime,
     evaluate: v8::Global<v8::Function>,
     criteria: Vec<Criterion>,
 }
@@ -76,6 +82,11 @@ pub struct Criteria {
 impl Criteria {
     /// Load a criteria file.
     pub fn load(source: String) -> Result<Self, JsError> {
+        let tokio = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .map_err(|e| JsError::Load(e.to_string()))?;
+        let guard = tokio.enter();
         let mut runtime = JsRuntime::new(RuntimeOptions {
             extensions: vec![pe_ext::init()],
             ..Default::default()
@@ -94,8 +105,10 @@ impl Criteria {
         }
         let evaluate = global_function(&mut runtime, "__evaluate")?;
 
+        drop(guard);
         Ok(Criteria {
             runtime,
+            _tokio: tokio,
             evaluate,
             criteria,
         })
@@ -135,6 +148,7 @@ impl Criteria {
     }
 
     fn call_evaluate(&mut self) -> Result<Vec<bool>, JsError> {
+        let _guard = self._tokio.enter();
         let evaluate = self.evaluate.clone();
         let runtime = &mut self.runtime;
         deno_core::scope!(scope, runtime);
@@ -293,4 +307,36 @@ impl Criteria {
         let state = state.borrow();
         state.borrow::<CountTable>().queries.clone()
     }
+}
+
+/// The discovery loop, over any runner.
+///
+/// Exact enumeration and sampling both need the same "run, notice new queries,
+/// regroup, start over" dance. Having one copy of it means the two engines
+/// cannot drift apart in how they resolve queries — only in how they compute.
+pub fn with_discovery<E, T>(
+    criteria: &mut Criteria,
+    mut build: impl FnMut(&[String]) -> Result<pe_criteria::Grouping, E>,
+    run: impl Fn(&pe_criteria::Grouping, &mut Criteria) -> Result<T, JsError>,
+) -> Result<T, DiscoveryError<E>> {
+    let mut queries: Vec<String> = Vec::new();
+
+    criteria.set_queries(queries.clone());
+    criteria.probe().map_err(DiscoveryError::Js)?;
+    queries.append(&mut criteria.take_discovered());
+
+    for _ in 0..MAX_DISCOVERY_ROUNDS {
+        let grouping = build(&queries).map_err(DiscoveryError::Build)?;
+        criteria.set_queries(queries.clone());
+
+        let result = run(&grouping, criteria);
+
+        let newly_found = criteria.take_discovered();
+        if !newly_found.is_empty() {
+            queries.extend(newly_found);
+            continue;
+        }
+        return result.map_err(DiscoveryError::Js);
+    }
+    Err(DiscoveryError::DidNotSettle)
 }

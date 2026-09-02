@@ -1,7 +1,7 @@
 //! Turning results into a verdict.
 
 use pe_criteria::Criterion;
-use pe_stats::Probability;
+
 use serde::Serialize;
 
 use crate::library::Library;
@@ -12,6 +12,9 @@ pub struct CriterionResult {
     pub probability: f64,
     pub percent: f64,
     pub at_least: Option<f64>,
+    /// Present only for sampled runs: never quote a sampled figure without it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub standard_error: Option<f64>,
     pub pass: bool,
 }
 
@@ -31,6 +34,9 @@ pub struct Report {
     pub library_size: u32,
     pub commanders: Vec<String>,
     pub on_the_draw: bool,
+    pub method: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trials: Option<u32>,
     pub queries: Vec<QueryMatch>,
     pub criteria: Vec<CriterionResult>,
     pub asserted: usize,
@@ -41,7 +47,8 @@ pub struct Report {
 impl Report {
     pub fn build(
         criteria: &[Criterion],
-        probabilities: &[Probability],
+        probabilities: &[f64],
+        sampled: Option<u32>,
         library: &Library,
         queries: Vec<QueryMatch>,
         on_the_draw: bool,
@@ -49,14 +56,15 @@ impl Report {
         let results: Vec<CriterionResult> = criteria
             .iter()
             .zip(probabilities)
-            .map(|(c, p)| CriterionResult {
+            .map(|(c, &p)| CriterionResult {
                 name: c.name.clone(),
-                probability: round(p.get(), 6),
-                percent: round(p.percent(), 2),
+                probability: round(p, 6),
+                percent: round(p * 100.0, 2),
+                standard_error: sampled.map(|t| round(pe_sim::standard_error(p, t), 6)),
                 at_least: c.at_least,
                 // A criterion with no threshold is informational; it reports a
                 // number and cannot fail.
-                pass: c.at_least.is_none_or(|t| p.get() >= t),
+                pass: c.at_least.is_none_or(|t| p >= t),
             })
             .collect();
 
@@ -67,6 +75,12 @@ impl Report {
             library_size: library.size(),
             commanders: library.commanders.clone(),
             on_the_draw,
+            method: if sampled.is_some() {
+                "sampled"
+            } else {
+                "exact"
+            },
+            trials: sampled,
             queries,
             criteria: results,
             asserted,

@@ -42,6 +42,16 @@ enum Command {
         /// Model being on the draw rather than on the play.
         #[arg(long)]
         draw: bool,
+        /// Sample instead of enumerating. Slower and approximate; the exact
+        /// engine is the default for good reason.
+        #[arg(long)]
+        simulate: bool,
+        /// Hands to deal when sampling.
+        #[arg(long, default_value_t = 200_000)]
+        trials: u32,
+        /// Seed, so a sampled run is reproducible.
+        #[arg(long, default_value_t = 0)]
+        seed: u64,
         /// Scryfall index, as built by `scryfall sync`.
         #[arg(long)]
         index: Option<PathBuf>,
@@ -61,8 +71,19 @@ fn main() -> Result<()> {
             deck,
             criteria,
             draw,
+            simulate,
+            trials,
+            seed,
             index,
-        } => run_test(&deck, &criteria, draw, index.as_deref()),
+        } => run_test(
+            &deck,
+            &criteria,
+            draw,
+            index.as_deref(),
+            simulate,
+            trials,
+            seed,
+        ),
     }
 }
 
@@ -71,6 +92,9 @@ fn run_test(
     criteria_path: &std::path::Path,
     on_the_draw: bool,
     index_path: Option<&std::path::Path>,
+    simulate: bool,
+    trials: u32,
+    seed: u64,
 ) -> Result<()> {
     let library = Library::load(deck, index_path)?;
     let source = std::fs::read_to_string(criteria_path)
@@ -84,9 +108,25 @@ fn run_test(
     let turns = criteria.max_checkpoint();
     let gaps = draw_gaps(turns, on_the_draw);
 
-    let probabilities = pe_js::run_with_discovery(&mut criteria, &gaps, |queries| {
-        library.grouping_for(queries)
-    })
+    // Both engines share the discovery loop, so they cannot drift apart in how
+    // they resolve queries — only in how they compute the answer.
+    let probabilities: Vec<f64> = pe_js::with_discovery(
+        &mut criteria,
+        |queries| library.grouping_for(queries),
+        |grouping, criteria| {
+            if simulate {
+                pe_sim::simulate(grouping, &gaps, trials, seed, criteria)
+            } else {
+                let n = criteria.criteria().len();
+                pe_criteria::run(grouping, &gaps, n, criteria)
+                    .map(|ps| ps.into_iter().map(|p| p.get()).collect())
+                    .map_err(|e| match e {
+                        pe_criteria::RunError::Evaluator(js) => js,
+                        other => pe_js::JsError::Eval(other.to_string()),
+                    })
+            }
+        },
+    )
     .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let queries = criteria
@@ -100,6 +140,7 @@ fn run_test(
     let report = report::Report::build(
         criteria.criteria(),
         &probabilities,
+        simulate.then_some(trials),
         &library,
         queries,
         on_the_draw,

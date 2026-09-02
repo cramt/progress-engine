@@ -146,3 +146,71 @@ fn the_query_breakdown_reports_real_match_counts() {
     assert_eq!(find("t:land"), 36);
     assert_eq!(find("Ramp - One Mana"), 10);
 }
+
+#[test]
+fn sampling_agrees_with_the_exact_engine_end_to_end() {
+    // The exact engine is the oracle for the sampled one. If these drift apart,
+    // one of them is wrong and the tool cannot say which.
+    let exact = run("simple-ramp.criteria.js");
+    let exact: serde_json::Value = serde_json::from_slice(&exact.stdout).unwrap();
+
+    let sampled = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+        .arg("test")
+        .arg(fixture("simple-ramp.txt"))
+        .arg(fixture("simple-ramp.criteria.js"))
+        .arg("--index")
+        .arg(fixture("index.json"))
+        .args(["--simulate", "--trials", "50000", "--seed", "1"])
+        .output()
+        .expect("binary should run");
+    let sampled: serde_json::Value = serde_json::from_slice(&sampled.stdout).unwrap();
+
+    assert_eq!(exact["method"], "exact");
+    assert_eq!(sampled["method"], "sampled");
+    assert_eq!(sampled["trials"], 50000);
+
+    for c in sampled["criteria"].as_array().unwrap() {
+        let name = c["name"].as_str().unwrap();
+        let got = c["percent"].as_f64().unwrap();
+        let se = c["standard_error"].as_f64().unwrap() * 100.0;
+        let want = percent(&exact, name);
+        assert!(
+            (got - want).abs() < 4.0 * se,
+            "{name}: sampled {got} vs exact {want}, {:.2} SE away",
+            (got - want).abs() / se
+        );
+    }
+}
+
+#[test]
+fn a_sampled_run_is_reproducible() {
+    let go = |seed: &str| {
+        let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+            .arg("test")
+            .arg(fixture("simple-ramp.txt"))
+            .arg(fixture("simple-ramp.criteria.js"))
+            .arg("--index")
+            .arg(fixture("index.json"))
+            .args(["--simulate", "--trials", "5000", "--seed", seed])
+            .output()
+            .expect("binary should run");
+        let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+        percent(&json, "turn-1 accelerant")
+    };
+    assert_eq!(go("7"), go("7"), "same seed must deal the same hands");
+    assert_ne!(go("7"), go("8"), "different seeds should differ");
+}
+
+#[test]
+fn only_sampled_runs_carry_error_bars() {
+    // An exact answer has no standard error, and claiming one would be a lie.
+    let out = run("simple-ramp.criteria.js");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    for c in json["criteria"].as_array().unwrap() {
+        assert!(
+            c.get("standard_error").is_none(),
+            "exact runs must not report SE"
+        );
+    }
+    assert!(json.get("trials").is_none());
+}

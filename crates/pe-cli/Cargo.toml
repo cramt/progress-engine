@@ -20,3 +20,4 @@ pe-js.workspace = true
 serde.workspace = true
 pe-scryfall.workspace = true
 pe-stats.workspace = true
+pe-sim.workspace = true
