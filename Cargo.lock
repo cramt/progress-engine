@@ -162,6 +162,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "pe-criteria"
+version = "0.1.0"
+dependencies = [
+ "pe-stats",
+ "thiserror",
+]
+
+[[package]]
 name = "pe-decklist"
 version = "0.1.0"
 dependencies = [

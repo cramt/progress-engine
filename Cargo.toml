@@ -19,4 +19,5 @@ thiserror = "2"
 
 pe-decklist = { path = "crates/pe-decklist" }
 pe-scryfall = { path = "crates/pe-scryfall" }
+pe-criteria = { path = "crates/pe-criteria" }
 pe-stats = { path = "crates/pe-stats" }
