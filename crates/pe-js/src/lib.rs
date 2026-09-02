@@ -29,6 +29,9 @@ pub enum JsError {
 /// grouped yet.
 #[derive(Default)]
 struct CountTable {
+    /// Deepest `t(n)` any criterion asked for, so the run models exactly as many
+    /// turns as the file actually cares about.
+    max_checkpoint: u32,
     queries: Vec<String>,
     counts: Vec<Vec<u32>>,
     discovered: Vec<String>,
@@ -38,6 +41,7 @@ struct CountTable {
 #[smi]
 fn op_pe_count(state: &mut OpState, #[smi] checkpoint: u32, #[string] query: String) -> u32 {
     let table = state.borrow_mut::<CountTable>();
+    table.max_checkpoint = table.max_checkpoint.max(checkpoint);
     match table.queries.iter().position(|q| *q == query) {
         Some(idx) => table
             .counts
@@ -271,4 +275,22 @@ pub enum DiscoveryError<E> {
     Run(pe_criteria::RunError<JsError>),
     #[error("criteria kept naming new queries after {MAX_DISCOVERY_ROUNDS} rounds")]
     DidNotSettle,
+}
+
+impl Criteria {
+    /// The deepest turn any criterion has asked about so far.
+    pub fn max_checkpoint(&self) -> u32 {
+        let state = self.runtime.op_state();
+        let state = state.borrow();
+        state.borrow::<CountTable>().max_checkpoint
+    }
+}
+
+impl Criteria {
+    /// The queries the criteria settled on, once discovery has finished.
+    pub fn queries(&self) -> Vec<String> {
+        let state = self.runtime.op_state();
+        let state = state.borrow();
+        state.borrow::<CountTable>().queries.clone()
+    }
 }

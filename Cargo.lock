@@ -1056,9 +1056,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "pe-criteria",
  "pe-decklist",
+ "pe-js",
  "pe-scryfall",
  "pe-stats",
+ "serde",
  "serde_json",
 ]
 
