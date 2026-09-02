@@ -9,7 +9,7 @@
 use std::convert::Infallible;
 
 use pe_criteria::{Evaluator, Grouping, PathView};
-use pe_sim::{simulate, standard_error};
+use pe_sim::{simulate, standard_error, SimError};
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
 struct Closures(Vec<Check>);
@@ -134,4 +134,40 @@ fn drawing_the_whole_library_is_not_an_infinite_loop() {
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) == 4)]);
     let p = simulate(&g, &[10], 100, 1, &mut ev).unwrap()[0];
     assert_eq!(p, 1.0, "drawing every card must find every land");
+}
+
+#[test]
+fn a_hand_bigger_than_the_library_is_refused_rather_than_clamped() {
+    // The sampler used to deal what it could and answer 100% for a question the
+    // exact engine answered 0%. Both refuse now.
+    let g = Grouping::build(q(&["land"]), [(0b1, 1), (0, 1)]).unwrap();
+    let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1)]);
+    let err = simulate(&g, &[7], 100, 1, &mut ev).unwrap_err();
+    assert!(
+        matches!(
+            err,
+            SimError::NotEnoughCards {
+                population: 2,
+                draws: 7
+            }
+        ),
+        "{err}"
+    );
+
+    let exact = pe_criteria::run(&g, &[7], 1, &mut ev).unwrap_err();
+    assert_eq!(
+        exact.to_string(),
+        err.to_string(),
+        "same question, same answer"
+    );
+}
+
+#[test]
+fn zero_trials_is_refused_rather_than_divided_by() {
+    let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
+    let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1)]);
+    assert!(matches!(
+        simulate(&g, &[7], 0, 1, &mut ev).unwrap_err(),
+        SimError::NoTrials
+    ));
 }

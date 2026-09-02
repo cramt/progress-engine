@@ -39,10 +39,10 @@ struct CountTable {
 
 #[op2(fast)]
 #[smi]
-fn op_pe_count(state: &mut OpState, #[smi] checkpoint: u32, #[string] query: String) -> u32 {
+fn op_pe_count(state: &mut OpState, #[smi] checkpoint: u32, #[string] query: &str) -> u32 {
     let table = state.borrow_mut::<CountTable>();
     table.max_checkpoint = table.max_checkpoint.max(checkpoint);
-    match table.queries.iter().position(|q| *q == query) {
+    match table.queries.iter().position(|q| q == query) {
         Some(idx) => table
             .counts
             .get(checkpoint as usize)
@@ -53,8 +53,8 @@ fn op_pe_count(state: &mut OpState, #[smi] checkpoint: u32, #[string] query: Str
             // A query nobody has grouped by yet. Record it and answer 0; the
             // driver notices, regroups and starts over, so the answer this run
             // produced is discarded rather than trusted.
-            if !table.discovered.contains(&query) {
-                table.discovered.push(query);
+            if !table.discovered.iter().any(|q| q == query) {
+                table.discovered.push(query.to_string());
             }
             0
         }
@@ -68,14 +68,15 @@ extension!(
 );
 
 pub struct Criteria {
-    // Declaration order is drop order: the V8 runtime must go before the tokio
-    // runtime it was created inside.
+    // Declaration order is drop order, and there are two constraints: a global
+    // handle must be reset before the isolate holding it is disposed, and the
+    // V8 runtime must go before the tokio runtime it was created inside.
+    evaluate: v8::Global<v8::Function>,
     runtime: JsRuntime,
     /// V8 posts delayed tasks (garbage collection, mostly) and refuses to do so
     /// outside a tokio context. It only bites once enough calls accumulate, so
     /// without this the exact engine works and a long sampled run dies partway.
     _tokio: tokio::runtime::Runtime,
-    evaluate: v8::Global<v8::Function>,
     criteria: Vec<Criterion>,
 }
 
@@ -107,9 +108,9 @@ impl Criteria {
 
         drop(guard);
         Ok(Criteria {
+            evaluate,
             runtime,
             _tokio: tokio,
-            evaluate,
             criteria,
         })
     }
@@ -140,10 +141,10 @@ impl Criteria {
         state.borrow_mut::<CountTable>().counts = counts;
     }
 
-    /// Run every criterion once with all counts zero, purely to discover which
-    /// queries they reference.
+    /// Run every criterion once with all counts zero, purely to see which
+    /// queries and turns they reach for. Whatever it answers is discarded.
     pub fn probe(&mut self) -> Result<(), JsError> {
-        self.set_counts(vec![vec![]; 8]);
+        self.set_counts(Vec::new());
         self.call_evaluate().map(|_| ())
     }
 
@@ -234,60 +235,20 @@ fn read_meta(runtime: &mut JsRuntime) -> Result<Vec<Criterion>, JsError> {
         .collect())
 }
 
-/// Run criteria, discovering which queries they reference as they ask.
-///
-/// Criteria name their queries inline (`t(1).count('t:land')`), and short-circuit
-/// operators mean a single probe run need not reach every one of them. So rather
-/// than demand queries be declared up front, this asks the criteria to run, and
-/// whenever JavaScript reaches for a query the current grouping does not cover,
-/// the whole run is discarded and restarted with a grouping that does. That
-/// terminates: the set of queries in a file is finite and only ever grows.
-///
-/// `build` turns the currently-known query list into a grouping, which is where
-/// the caller applies card data.
-pub fn run_with_discovery<E>(
-    criteria: &mut Criteria,
-    gaps: &[u32],
-    mut build: impl FnMut(&[String]) -> Result<pe_criteria::Grouping, E>,
-) -> Result<Vec<pe_stats::Probability>, DiscoveryError<E>> {
-    let mut queries: Vec<String> = Vec::new();
-
-    // A probe pass with everything zero finds most queries in one go; the loop
-    // below is what makes it correct when branching hides some.
-    criteria.set_queries(queries.clone());
-    criteria.probe().map_err(DiscoveryError::Js)?;
-    queries.append(&mut criteria.take_discovered());
-
-    for _ in 0..MAX_DISCOVERY_ROUNDS {
-        let grouping = build(&queries).map_err(DiscoveryError::Build)?;
-        criteria.set_queries(queries.clone());
-
-        let n = criteria.criteria().len();
-        let result = pe_criteria::run(&grouping, gaps, n, criteria);
-
-        let newly_found = criteria.take_discovered();
-        if !newly_found.is_empty() {
-            queries.extend(newly_found);
-            continue;
-        }
-        return result.map_err(DiscoveryError::Run);
-    }
-    Err(DiscoveryError::DidNotSettle)
-}
-
-/// Each round strictly grows the query set, so this only trips on something
-/// pathological like a criterion building query strings at random.
+/// Each round strictly grows the query set and the turn horizon, so this only
+/// trips on something pathological like a criterion building query strings at
+/// random or indexing turns by what it drew.
 const MAX_DISCOVERY_ROUNDS: usize = 16;
 
 #[derive(Debug, Error)]
-pub enum DiscoveryError<E> {
+pub enum DiscoveryError<E, R> {
     #[error(transparent)]
     Js(JsError),
     #[error("building the card grouping: {0}")]
     Build(E),
     #[error(transparent)]
-    Run(pe_criteria::RunError<JsError>),
-    #[error("criteria kept naming new queries after {MAX_DISCOVERY_ROUNDS} rounds")]
+    Run(R),
+    #[error("criteria kept naming new queries or turns after {MAX_DISCOVERY_ROUNDS} rounds")]
     DidNotSettle,
 }
 
@@ -311,32 +272,53 @@ impl Criteria {
 
 /// The discovery loop, over any runner.
 ///
-/// Exact enumeration and sampling both need the same "run, notice new queries,
-/// regroup, start over" dance. Having one copy of it means the two engines
-/// cannot drift apart in how they resolve queries — only in how they compute.
-pub fn with_discovery<E, T>(
+/// Exact enumeration and sampling both need the same "run, notice what the
+/// criteria reached for, start over" dance. Having one copy of it means the two
+/// engines cannot drift apart in how they resolve a criteria file — only in how
+/// they compute the answer.
+///
+/// Two things are discovered, and both for the same reason: criteria name their
+/// queries and their turns inline, and short-circuiting operators mean no single
+/// pass has to reach all of them. `a && b` with every count at zero never
+/// evaluates `b`, so neither `b`'s query nor `b`'s turn is visible yet — and a
+/// turn the run does not model answers 0 for every composition, which is the
+/// silent, confident 0% this tool exists to prevent. So whenever a run reaches
+/// past what it was set up for, the whole run is discarded and repeated against
+/// a grouping and a horizon that cover it.
+///
+/// That terminates because both sets only ever grow, and a criteria file names
+/// finitely many of each.
+///
+/// `gaps_for` turns a turn horizon into cards drawn between checkpoints, which
+/// is where the caller applies the rules of the game.
+pub fn with_discovery<E, R, T>(
     criteria: &mut Criteria,
     mut build: impl FnMut(&[String]) -> Result<pe_criteria::Grouping, E>,
-    run: impl Fn(&pe_criteria::Grouping, &mut Criteria) -> Result<T, JsError>,
-) -> Result<T, DiscoveryError<E>> {
+    gaps_for: impl Fn(u32) -> Vec<u32>,
+    run: impl Fn(&pe_criteria::Grouping, &[u32], &mut Criteria) -> Result<T, R>,
+) -> Result<T, DiscoveryError<E, R>> {
     let mut queries: Vec<String> = Vec::new();
 
     criteria.set_queries(queries.clone());
     criteria.probe().map_err(DiscoveryError::Js)?;
     queries.append(&mut criteria.take_discovered());
+    let mut horizon = criteria.max_checkpoint();
 
     for _ in 0..MAX_DISCOVERY_ROUNDS {
         let grouping = build(&queries).map_err(DiscoveryError::Build)?;
         criteria.set_queries(queries.clone());
+        let gaps = gaps_for(horizon);
 
-        let result = run(&grouping, criteria);
+        let result = run(&grouping, &gaps, criteria);
 
         let newly_found = criteria.take_discovered();
-        if !newly_found.is_empty() {
+        let reached_deeper = criteria.max_checkpoint() > horizon;
+        if !newly_found.is_empty() || reached_deeper {
             queries.extend(newly_found);
+            horizon = criteria.max_checkpoint();
             continue;
         }
-        return result.map_err(DiscoveryError::Js);
+        return result.map_err(DiscoveryError::Run);
     }
     Err(DiscoveryError::DidNotSettle)
 }

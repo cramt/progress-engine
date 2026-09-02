@@ -67,6 +67,14 @@ pub enum RunError<E> {
          Reduce the number of distinct queries, or ask about an earlier turn."
     )]
     TooWide { paths: u128, groups: usize },
+    #[error("the library is empty: every card in the list is a commander or outside the deck")]
+    EmptyLibrary,
+    /// A hand that cannot be dealt enumerates to no paths at all, so every
+    /// criterion would collect zero probability mass and report a confident 0%.
+    /// Refuse instead — the sampler, which clamps to the library and answers a
+    /// different question, refuses the same way.
+    #[error("this question draws {draws} cards from a library of {population}")]
+    NotEnoughCards { population: u32, draws: u32 },
     #[error("evaluating criteria: {0}")]
     Evaluator(E),
 }
@@ -77,12 +85,15 @@ const MAX_PATHS: u128 = 5_000_000;
 /// Estimated number of compositions, used only to refuse impossible questions
 /// before spending an hour on them.
 fn estimate_paths(groups: usize, gaps: &[u32]) -> u128 {
+    // Compositions of `gap` over `groups` bins: C(gap + groups - 1, groups - 1).
+    // Saturating rather than bare arithmetic: `run` refuses an empty grouping
+    // before reaching here, but underflowing the bin count would spin the fold
+    // for u128::MAX iterations rather than failing.
+    let bins = (groups as u128).saturating_sub(1);
     gaps.iter()
         .map(|&gap| {
-            // Compositions of `gap` over `groups` bins: C(gap + groups - 1, groups - 1).
-            let n = u128::from(gap) + groups as u128 - 1;
-            let k = groups as u128 - 1;
-            (0..k).fold(1u128, |acc, i| acc.saturating_mul(n - i) / (i + 1).max(1))
+            let n = u128::from(gap) + bins;
+            (0..bins).fold(1u128, |acc, i| acc.saturating_mul(n - i) / (i + 1))
         })
         .fold(1u128, |a, b| a.saturating_mul(b))
 }
@@ -95,6 +106,14 @@ pub fn run<E>(
     evaluator: &mut impl Evaluator<Error = E>,
 ) -> Result<Vec<Probability>, RunError<E>> {
     let groups = grouping.group_sizes().len();
+    if groups == 0 {
+        return Err(RunError::EmptyLibrary);
+    }
+    let population = grouping.population();
+    let draws: u32 = gaps.iter().sum();
+    if draws > population {
+        return Err(RunError::NotEnoughCards { population, draws });
+    }
     let paths = estimate_paths(groups, gaps);
     if paths > MAX_PATHS {
         return Err(RunError::TooWide { paths, groups });

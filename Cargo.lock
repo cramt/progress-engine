@@ -1099,7 +1099,6 @@ dependencies = [
 name = "pe-js"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "deno_core",
  "pe-criteria",
  "pe-stats",
@@ -1126,6 +1125,7 @@ dependencies = [
  "pe-stats",
  "rand",
  "rand_chacha",
+ "thiserror",
 ]
 
 [[package]]

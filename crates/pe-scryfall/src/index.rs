@@ -42,8 +42,6 @@ pub struct Card {
     pub type_line: String,
     #[serde(default)]
     pub cmc: f64,
-    #[serde(default)]
-    pub keywords: Vec<String>,
     /// Oracle text of every face joined, so a query sees the whole card.
     #[serde(default)]
     pub oracle: String,

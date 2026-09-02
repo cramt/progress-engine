@@ -214,3 +214,57 @@ fn only_sampled_runs_carry_error_bars() {
     }
     assert!(json.get("trials").is_none());
 }
+
+#[test]
+fn a_turn_behind_a_short_circuit_is_still_modelled() {
+    // How deep into the game a file looks is discovered by running it, and `&&`
+    // means an all-zero probe stops before the deepest turn. Getting this wrong
+    // does not error: the unmodelled turn answers 0 for every composition and
+    // the criterion reports a confident 0%, which is the failure this whole tool
+    // exists to prevent.
+    let hidden = run("short-circuit.criteria.js");
+    let eager = run("eager.criteria.js");
+    assert!(hidden.status.success(), "short-circuited form should pass");
+
+    let hidden: serde_json::Value = serde_json::from_slice(&hidden.stdout).unwrap();
+    let eager: serde_json::Value = serde_json::from_slice(&eager.stdout).unwrap();
+
+    let got = percent(&hidden, "two lands by turn 2");
+    assert!(got > 1.0, "collapsed to {got}%");
+    assert_eq!(got, percent(&eager, "two lands by turn 2"));
+}
+
+#[test]
+fn an_answer_does_not_depend_on_an_unrelated_criterion() {
+    // The original symptom: an informational criterion that happened to reach a
+    // later turn was dragging the run horizon out for everyone else, so deleting
+    // it silently changed another criterion's answer.
+    let alone = run("short-circuit.criteria.js");
+    let alone: serde_json::Value = serde_json::from_slice(&alone.stdout).unwrap();
+    let together = run("short-circuit-plus-deep.criteria.js");
+    let together: serde_json::Value = serde_json::from_slice(&together.stdout).unwrap();
+
+    assert_eq!(
+        percent(&alone, "two lands by turn 2"),
+        percent(&together, "two lands by turn 2"),
+        "a criterion's answer must not depend on its neighbours"
+    );
+}
+
+#[test]
+fn an_empty_library_is_refused_rather_than_hanging() {
+    // Every line is a commander or outside the deck. This used to spin forever
+    // in release and panic on an underflow in debug.
+    let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+        .arg("test")
+        .arg(fixture("no-library.txt"))
+        .arg(fixture("short-circuit.criteria.js"))
+        .arg("--index")
+        .arg(fixture("index.json"))
+        .output()
+        .expect("binary should run");
+
+    assert!(!out.status.success());
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("library is empty"), "stderr was: {stderr}");
+}

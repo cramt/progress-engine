@@ -158,3 +158,32 @@ fn criterion_carries_its_threshold() {
     };
     assert_eq!(c.at_least, Some(0.55));
 }
+
+#[test]
+fn an_empty_library_is_refused_rather_than_enumerated() {
+    // Every card in the list was a commander or outside the deck. This used to
+    // underflow the bin count and spin the estimator for u128::MAX iterations.
+    let g = Grouping::build(q(&["land"]), []).unwrap();
+    let mut ev = Closures(vec![Box::new(|_: &PathView<'_>| true)]);
+    let err = pe_criteria::run(&g, &[7], 1, &mut ev).unwrap_err();
+    assert!(matches!(err, RunError::EmptyLibrary), "{err}");
+}
+
+#[test]
+fn a_hand_bigger_than_the_library_is_refused_rather_than_answered_zero() {
+    // Enumeration yields no paths at all here, so every criterion would collect
+    // zero mass and report a confident 0%.
+    let g = Grouping::build(q(&["land"]), [(0b1, 1), (0, 1)]).unwrap();
+    let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1)]);
+    let err = pe_criteria::run(&g, &[7], 1, &mut ev).unwrap_err();
+    assert!(
+        matches!(
+            err,
+            RunError::NotEnoughCards {
+                population: 2,
+                draws: 7
+            }
+        ),
+        "{err}"
+    );
+}

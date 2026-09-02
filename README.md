@@ -45,6 +45,12 @@ That constraint is what keeps the engine exact: a criterion is a pure function o
 cards of each query you drew, so it is evaluated once per possible composition instead of once
 per simulated hand.
 
+Which queries a file uses and how far into the game it looks are both discovered by running
+it, so neither is declared up front. When a criterion reaches for a query or a turn the run
+was not set up for, that run is discarded and repeated against one that covers it — because
+`a && b` never evaluates `b` while `a` is false, and a turn nobody modelled would otherwise
+answer zero for every hand.
+
 A `--simulate` mode exists for criteria that genuinely need to inspect individual cards. The
 exact engine is its test oracle.
 
@@ -89,6 +95,23 @@ FAIL misspelled category   0.00%  (needs 30.0%)
 
 Unsupported *syntax*, by contrast, is refused outright — `power>=3` names itself
 as an error rather than quietly matching nothing.
+
+### Questions the deck cannot answer
+
+Two more routes to a confident number about nothing, both refused rather than
+answered:
+
+```
+$ progress-engine test all-commander.txt criteria.js
+Error: the library is empty: every card in the list is a commander or outside the deck
+
+$ progress-engine test two-card-deck.txt criteria.js
+Error: this question draws 7 cards from a library of 2
+```
+
+The second is refused identically under `--simulate`. Left to themselves the two
+engines disagree by the whole answer: enumeration finds no dealable hand and
+reports 0%, while sampling deals what it can and reports whatever that gives.
 
 ## Decklist format
 

@@ -15,6 +15,20 @@
 use pe_criteria::{Evaluator, Grouping, PathView};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum SimError<E> {
+    /// Asking for more cards than the library holds used to deal what it could
+    /// and answer anyway, while the exact engine returned 0% for the same
+    /// question. Two engines, a hundred points apart, neither complaining.
+    #[error("this question draws {draws} cards from a library of {population}")]
+    NotEnoughCards { population: u32, draws: u32 },
+    #[error("no hands to deal: --trials must be greater than zero")]
+    NoTrials,
+    #[error("evaluating criteria: {0}")]
+    Evaluator(E),
+}
 
 /// Deal `trials` hands and report how often each criterion held.
 ///
@@ -26,7 +40,19 @@ pub fn simulate<E>(
     trials: u32,
     seed: u64,
     evaluator: &mut impl Evaluator<Error = E>,
-) -> Result<Vec<f64>, E> {
+) -> Result<Vec<f64>, SimError<E>> {
+    let population = grouping.population();
+    let total_draws: u32 = gaps.iter().sum();
+    if total_draws > population {
+        return Err(SimError::NotEnoughCards {
+            population,
+            draws: total_draws,
+        });
+    }
+    if trials == 0 {
+        return Err(SimError::NoTrials);
+    }
+
     // The library as one card per slot, each holding the index of its group.
     let mut deck: Vec<u16> = Vec::with_capacity(grouping.population() as usize);
     for (group, &size) in grouping.group_sizes().iter().enumerate() {
@@ -37,7 +63,6 @@ pub fn simulate<E>(
 
     let mut rng = ChaCha8Rng::seed_from_u64(seed);
     let groups = grouping.group_sizes().len();
-    let total_draws: u32 = gaps.iter().sum();
     let mut hits: Vec<u32> = Vec::new();
 
     for _ in 0..trials {
@@ -65,7 +90,7 @@ pub fn simulate<E>(
         }
 
         let view = PathView::new(grouping, &history);
-        let results = evaluator.evaluate(&view)?;
+        let results = evaluator.evaluate(&view).map_err(SimError::Evaluator)?;
         if hits.is_empty() {
             hits = vec![0; results.len()];
         }

@@ -115,29 +115,24 @@ fn run_test(
         .with_context(|| format!("reading criteria {}", criteria_path.display()))?;
 
     let mut criteria = pe_js::Criteria::load(source)?;
-    // A probe pass reveals both which queries the file uses and how many turns
-    // it cares about, so neither has to be declared.
-    criteria.set_queries(Vec::new());
-    criteria.probe()?;
-    let turns = criteria.max_checkpoint();
-    let gaps = draw_gaps(turns, on_the_draw);
 
-    // Both engines share the discovery loop, so they cannot drift apart in how
-    // they resolve queries — only in how they compute the answer.
+    // Which queries the file uses and how deep into the game it looks are both
+    // discovered by running it, so neither has to be declared. Both engines go
+    // through the same loop, so they cannot drift apart in how they resolve a
+    // criteria file — only in how they compute the answer.
     let probabilities: Vec<f64> = pe_js::with_discovery(
         &mut criteria,
         |queries| library.grouping_for(queries),
-        |grouping, criteria| {
+        |turns| draw_gaps(turns, on_the_draw),
+        |grouping, gaps, criteria| -> Result<Vec<f64>> {
             if simulate {
-                pe_sim::simulate(grouping, &gaps, trials, seed, criteria)
+                Ok(pe_sim::simulate(grouping, gaps, trials, seed, criteria)?)
             } else {
                 let n = criteria.criteria().len();
-                pe_criteria::run(grouping, &gaps, n, criteria)
-                    .map(|ps| ps.into_iter().map(|p| p.get()).collect())
-                    .map_err(|e| match e {
-                        pe_criteria::RunError::Evaluator(js) => js,
-                        other => pe_js::JsError::Eval(other.to_string()),
-                    })
+                Ok(pe_criteria::run(grouping, gaps, n, criteria)?
+                    .into_iter()
+                    .map(|p| p.get())
+                    .collect())
             }
         },
     )
