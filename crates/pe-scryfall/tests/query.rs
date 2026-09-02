@@ -4,7 +4,7 @@
 //! matches nothing yields a confidently wrong probability, which is the failure
 //! this crate exists to prevent.
 
-use progress_engine::query::{self, CardView, Colors, ParseError, Query};
+use pe_scryfall::{self as query, CardView, Colors, ParseError, Query};
 
 fn card<'a>(
     name: &'a str,

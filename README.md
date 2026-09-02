@@ -95,3 +95,25 @@ nix flake check    # fmt, clippy -D warnings, tests, build
 ## License
 
 MIT
+
+## Crate layout
+
+A workspace, split so each piece can be understood — and depended on — without
+dragging in the others.
+
+| Crate | Responsibility | Knows about |
+|---|---|---|
+| `pe-stats` | Exact hypergeometric draw probabilities | Nothing. No Magic concepts at all. |
+| `pe-decklist` | Parsing Archidekt decklists | Decklist text. No card data. |
+| `pe-scryfall` | Card data and Scryfall search syntax | Cards. No decklists. |
+| `pe-cli` | The `progress-engine` binary | All of the above. |
+
+The seam worth knowing about is between `pe-scryfall` and `pe-decklist`: a query
+can filter on `cat:"Exile Outlet"`, which is decklist data, not card data. Rather
+than have the card crate depend on the decklist crate, `CardView` takes
+categories as a plain `&[String]`. The CLI is what joins the two, which keeps
+both halves independently testable.
+
+`pe-stats` deliberately has no idea what a card is. Its tests are pure
+known-answer arithmetic, so a failure there is unambiguously a maths bug rather
+than a card-data bug.

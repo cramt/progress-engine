@@ -150,25 +150,48 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
+name = "pe-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "pe-decklist",
+ "pe-scryfall",
+ "pe-stats",
+ "serde_json",
+]
+
+[[package]]
+name = "pe-decklist"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "pe-scryfall"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "pe-stats"
+version = "0.1.0"
+dependencies = [
+ "libm",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "progress-engine"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "libm",
- "regex",
- "serde",
- "serde_json",
- "thiserror",
 ]
 
 [[package]]

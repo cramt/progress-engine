@@ -1,0 +1,11 @@
+[package]
+name = "pe-scryfall"
+description = "Card data and a rudimentary Scryfall search syntax parser."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true

@@ -4,7 +4,7 @@
 //! are deliberately fixing). These are the contract `scryfall check` and
 //! `scryfall play` rely on when they delegate parsing.
 
-use progress_engine::decklist::{self, ParseError};
+use pe_decklist::{self as decklist, ParseError};
 
 fn one(line: &str) -> decklist::Entry {
     decklist::parse_line(line, 1)

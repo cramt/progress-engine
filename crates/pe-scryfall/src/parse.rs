@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 
-use super::{Cmp, Colors, IsProperty, Query};
+use crate::{Cmp, Colors, IsProperty, Query};
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ParseError {

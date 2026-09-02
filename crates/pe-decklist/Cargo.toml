@@ -1,0 +1,12 @@
+[package]
+name = "pe-decklist"
+description = "The canonical parser for Archidekt-format decklists."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+regex.workspace = true
+serde.workspace = true
+thiserror.workspace = true

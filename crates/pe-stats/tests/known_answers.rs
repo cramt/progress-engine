@@ -6,7 +6,7 @@
 //! and then hand-copied into two files. Now it is computed, so the new code and
 //! the old acceptance test validate each other instead of both being magic.
 
-use progress_engine::hypergeom::{self as h, Probability};
+use pe_stats::{self as h, Probability};
 
 fn close(a: f64, b: f64, tol: f64) -> bool {
     (a - b).abs() < tol

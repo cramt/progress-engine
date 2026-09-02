@@ -1,0 +1,19 @@
+[package]
+name = "pe-cli"
+description = "The progress-engine command line interface."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "progress-engine"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+pe-decklist.workspace = true
+pe-scryfall.workspace = true
+pe-stats.workspace = true

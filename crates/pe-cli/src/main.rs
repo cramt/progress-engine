@@ -1,4 +1,4 @@
-use progress_engine::decklist;
+use pe_decklist as decklist;
 
 use std::path::PathBuf;
 
