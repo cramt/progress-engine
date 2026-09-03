@@ -9,11 +9,16 @@ pub enum ParseError {
     #[error("empty query")]
     Empty,
     #[error(
-        "unknown search key {key:?} in term {term:?} (supported: t, o, name, cat, mv, cmc, id, is)"
+        "unknown search key {key:?} in term {term:?} (supported: t, o, name, kw, cat, mv, cmc, id, is)"
     )]
     UnknownKey { key: String, term: String },
     #[error("unknown is: property {value:?} (supported: permanent, spell, historic)")]
     UnknownIsProperty { value: String },
+    #[error(
+        "{term:?}: {key}: asks whether a card has a value, not how it compares. \
+         Write {key}:value, or -{key}:value for the cards without it"
+    )]
+    NoComparison { key: String, term: String },
     #[error("{term:?}: {value:?} is not a number")]
     BadNumber { term: String, value: String },
     #[error("{term:?}: {value:?} is not a colour identity (use letters from wubrg, or c)")]
@@ -133,6 +138,20 @@ fn parse_term(term: &str) -> Result<Query, ParseError> {
         "t" | "type" => Ok(Query::Type(value.to_string())),
         "o" | "oracle" => Ok(Query::Oracle(value.to_string())),
         "name" => Ok(Query::Name(value.to_string())),
+        "kw" | "keyword" => {
+            // A keyword is had or not had, so `kw:` and `kw=` are the only
+            // forms that mean anything. Scryfall answers `kw>=flying` with
+            // "didn't match any cards" — the silent no-match this crate
+            // refuses, so this is the one place `kw:` deliberately differs
+            // from Scryfall, and it differs by being louder.
+            if cmp != Cmp::Eq {
+                return Err(ParseError::NoComparison {
+                    key: key.to_ascii_lowercase(),
+                    term: term.to_string(),
+                });
+            }
+            Ok(Query::Keyword(value.to_string()))
+        }
         "cat" | "category" => Ok(Query::Category(value.to_string())),
         "mv" | "cmc" => {
             let n: f64 = value.parse().map_err(|_| ParseError::BadNumber {

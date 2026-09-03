@@ -4,6 +4,7 @@
 //! matches nothing yields a confidently wrong probability, which is the failure
 //! this crate exists to prevent.
 
+use pe_scryfall::index::{Card, Index};
 use pe_scryfall::{self as query, CardView, Colors, ParseError, Query};
 
 fn card<'a>(
@@ -19,9 +20,29 @@ fn card<'a>(
         type_line,
         oracle,
         cmc,
+        keywords: &[],
         color_identity: ci,
         categories: cats,
     }
+}
+
+/// A card the index gave keywords, which is all the `kw:` tests care about.
+fn keyworded<'a>(name: &'a str, oracle: &'a str, keywords: &'a [String]) -> CardView<'a> {
+    CardView {
+        name,
+        type_line: "Creature — Bird",
+        oracle,
+        cmc: 2.0,
+        keywords,
+        color_identity: &[],
+        categories: &[],
+    }
+}
+
+/// Keywords as the index prints them: Scryfall's own capitalisation, spaces
+/// and all.
+fn keywords(list: &[&str]) -> Vec<String> {
+    list.iter().map(|k| k.to_string()).collect()
 }
 
 fn white() -> Vec<String> {
@@ -207,4 +228,132 @@ fn colors_parse_from_letters() {
     assert_eq!(Colors::from_letters("wu"), Colors::from_letters("UW"));
     assert!(Colors::from_letters("c").is_some());
     assert!(Colors::from_letters("z").is_none());
+}
+
+#[test]
+fn a_card_matches_only_the_keywords_it_has() {
+    let birds = keywords(&["Flying"]);
+    let birds = keyworded(
+        "Birds of Paradise",
+        "Flying\n{T}: Add one mana of any color.",
+        &birds,
+    );
+    let bolt = keywords(&[]);
+    let bolt = keyworded(
+        "Lightning Bolt",
+        "Lightning Bolt deals 3 damage to any target.",
+        &bolt,
+    );
+    assert!(matches("kw:flying", &birds));
+    assert!(!matches("kw:trample", &birds));
+    assert!(!matches("kw:flying", &bolt));
+}
+
+#[test]
+fn keyword_matching_ignores_case_the_way_scryfall_does() {
+    // The index prints Scryfall's capitalisation ("Flying", "Double strike",
+    // "Council's dilemma"), which nobody types.
+    let kws = keywords(&["Flying", "Double strike"]);
+    let c = keyworded("Adorned Pouncer", "Double strike", &kws);
+    assert!(matches("kw:FLYING", &c));
+    assert!(matches("kw:Flying", &c));
+    assert!(matches(r#"kw:"DOUBLE STRIKE""#, &c));
+    assert!(matches("keyword:flying", &c));
+}
+
+#[test]
+fn a_keyword_is_a_whole_value_not_a_substring() {
+    // The Plane-inside-planeswalker mistake, in a new place: a keyword is a
+    // discrete entry in a list, so a prefix of one is not one.
+    let kws = keywords(&["Trample"]);
+    let c = keyworded("Colossal Dreadmaw", "Trample", &kws);
+    assert!(matches("kw:trample", &c));
+    assert!(!matches("kw:tramp", &c));
+    assert!(!matches("kw:trampleover", &c));
+
+    // Real data, not hypothetical: Scryfall lists "Hexproof from" separately,
+    // and gives plain "Hexproof" to the cards that also have it. Whole-value
+    // matching loses nothing because the index already says both.
+    let hexproof = keywords(&["Hexproof from", "Hexproof"]);
+    let valkyrie = keyworded(
+        "Eradicator Valkyrie",
+        "Hexproof from planeswalkers",
+        &hexproof,
+    );
+    assert!(matches(r#"kw:"hexproof from""#, &valkyrie));
+    assert!(matches("kw:hexproof", &valkyrie));
+
+    let only_from = keywords(&["Hexproof from"]);
+    let only_from = keyworded("Hypothetical", "Hexproof from red", &only_from);
+    assert!(!matches("kw:hexproof", &only_from));
+}
+
+#[test]
+fn kw_asks_what_a_card_has_where_o_asks_what_it_says() {
+    // The reason the key is worth having, and the Kor Haven error in another
+    // costume: Plummet says "flying" and has no keywords at all, so counting
+    // evasive creatures with o:flying counts the card that kills them.
+    let none = keywords(&[]);
+    let plummet = keyworded("Plummet", "Destroy target creature with flying.", &none);
+    assert!(matches("o:flying", &plummet));
+    assert!(!matches("kw:flying", &plummet));
+}
+
+#[test]
+fn a_card_the_index_never_gave_keywords_has_none_rather_than_panicking() {
+    // Exactly the shape of the pe-cli fixture index, which predates the field.
+    let solemn: Card = facet_json::from_str(
+        r#"{"name":"Solemn Simulacrum","type_line":"Artifact Creature — Golem","cmc":4.0}"#,
+    )
+    .expect("card fixture should parse");
+    let view = solemn.view(&[]);
+    assert!(!matches("kw:flying", &view));
+    assert!(matches("t:artifact", &view));
+}
+
+#[test]
+fn kw_takes_a_value_not_a_comparison() {
+    // Scryfall answers kw>=flying with "didn't match any cards"; a silent
+    // no-match is the one thing this parser will not do.
+    assert!(matches!(
+        query::parse("kw>=flying"),
+        Err(ParseError::NoComparison { .. })
+    ));
+    assert!(matches!(
+        query::parse("kw!=flying"),
+        Err(ParseError::NoComparison { .. })
+    ));
+    assert!(matches!(
+        query::parse("kw:"),
+        Err(ParseError::MissingValue { .. })
+    ));
+    let err = query::parse("kw<flying").unwrap_err().to_string();
+    assert!(
+        err.contains("kw<flying"),
+        "message should name the term: {err}"
+    );
+    // `kw=flying` is a synonym Scryfall accepts, so we do too.
+    assert_eq!(
+        query::parse("kw=flying").unwrap(),
+        Query::Keyword("flying".into())
+    );
+}
+
+#[test]
+fn a_keyword_no_card_carries_is_a_typo_the_index_can_name() {
+    let index: Index = facet_json::from_str(
+        r#"{"cards":{"birds of paradise":{"name":"Birds of Paradise","keywords":["Flying"]}}}"#,
+    )
+    .expect("index fixture should parse");
+    let vocabulary = index.keyword_vocabulary();
+    let q = query::parse("kw:flyign or (t:land -kw:Flying)").expect("query should parse");
+    assert_eq!(q.unknown_keywords(&vocabulary), vec!["flyign".to_string()]);
+}
+
+#[test]
+fn an_index_silent_about_keywords_accuses_no_query_of_a_typo() {
+    let index: Index =
+        facet_json::from_str(r#"{"cards":{"plains":{"name":"Plains"}}}"#).expect("should parse");
+    let q = query::parse("kw:flying").expect("query should parse");
+    assert!(q.unknown_keywords(&index.keyword_vocabulary()).is_empty());
 }

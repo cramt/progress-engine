@@ -21,6 +21,8 @@ pub struct CardView<'a> {
     pub type_line: &'a str,
     pub oracle: &'a str,
     pub cmc: f64,
+    /// Keyword abilities, actions and ability words, as Scryfall prints them.
+    pub keywords: &'a [String],
     /// Colour identity letters, e.g. `["W","U"]`.
     pub color_identity: &'a [String],
     pub categories: &'a [String],
@@ -97,6 +99,8 @@ pub enum Query {
     Oracle(String),
     /// `name:"Rogue's Passage"`, or a bare word.
     Name(String),
+    /// `kw:flying`, `kw:"double strike"` — one whole keyword the card has.
+    Keyword(String),
     /// `cat:"Exile Outlet"` — the one non-Scryfall addition, matching the
     /// decklist's Archidekt categories.
     Category(String),
@@ -117,6 +121,15 @@ impl Query {
             Query::Type(s) => contains_ci(card.type_line, s),
             Query::Oracle(s) => contains_ci(card.oracle, s),
             Query::Name(s) => contains_ci(card.name, s),
+            // Whole value, not substring: a keyword is a discrete entry in a
+            // list, so `kw:trample` must not be satisfied by a hypothetical
+            // "Trampleover", nor by the word appearing in oracle text.
+            // Lowercased in full rather than by the ASCII rule used elsewhere
+            // because Scryfall prints keywords such as "Pavitr's Sevā".
+            Query::Keyword(s) => {
+                let want = s.to_lowercase();
+                card.keywords.iter().any(|k| k.to_lowercase() == want)
+            }
             Query::Category(s) => card.categories.iter().any(|c| c.eq_ignore_ascii_case(s)),
             Query::ManaValue(cmp, v) => {
                 card.cmc.partial_cmp(v).is_some_and(|ord| cmp.test_ord(ord))
@@ -154,6 +167,42 @@ impl Query {
             Query::Not(inner) => !inner.matches(card),
             Query::And(parts) => parts.iter().all(|p| p.matches(card)),
             Query::Or(parts) => parts.iter().any(|p| p.matches(card)),
+        }
+    }
+
+    /// The `kw:` values in this query that no card in the index carries.
+    ///
+    /// Scryfall refuses `kw:tramp` with *Unknown keyword "tramp"* instead of
+    /// returning nothing, and a caller holding an index should say the same:
+    /// a keyword no card has is a misspelling, and a misspelling that matches
+    /// zero cards reports a confident 0%. The parser cannot tell — only the
+    /// index knows which keywords exist — so this is the check it can make
+    /// once a query and an index are in the same place.
+    ///
+    /// An index that carries no keywords at all yields nothing here: silence
+    /// about keywords is not evidence that every keyword is a typo.
+    pub fn unknown_keywords(&self, vocabulary: &index::KeywordVocabulary) -> Vec<String> {
+        let mut out = Vec::new();
+        if !vocabulary.is_empty() {
+            self.collect_unknown_keywords(vocabulary, &mut out);
+        }
+        out
+    }
+
+    fn collect_unknown_keywords(
+        &self,
+        vocabulary: &index::KeywordVocabulary,
+        out: &mut Vec<String>,
+    ) {
+        match self {
+            Query::Keyword(k) if !vocabulary.contains(k) => out.push(k.clone()),
+            Query::Not(inner) => inner.collect_unknown_keywords(vocabulary, out),
+            Query::And(parts) | Query::Or(parts) => {
+                for part in parts {
+                    part.collect_unknown_keywords(vocabulary, out);
+                }
+            }
+            _ => {}
         }
     }
 }

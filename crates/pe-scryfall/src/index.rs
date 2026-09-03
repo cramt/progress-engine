@@ -5,7 +5,7 @@
 //! rate limits and caching are already solved there, and duplicating them here
 //! would mean two things that could disagree about what a card is.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use facet::Facet;
@@ -48,6 +48,18 @@ pub struct Card {
     /// Oracle text of every face joined, so a query sees the whole card.
     #[facet(default)]
     pub oracle: String,
+    /// Keyword abilities, keyword actions and ability words as Scryfall prints
+    /// them, e.g. `["Hexproof from", "Hexproof"]`. Read through `kw:` rather
+    /// than the oracle text: `o:flying` also matches "creatures with flying
+    /// can't block".
+    ///
+    /// An absent field reads as empty, because the fixtures are hand-written
+    /// subsets of the index and routinely omit it. That errs in the direction
+    /// this crate insists on — a `kw:` term over an index that never carried
+    /// keywords matches nothing rather than everything — but it does mean a
+    /// negated `-kw:flying` is reading silence as proof of absence.
+    #[facet(default)]
+    pub keywords: Vec<String>,
     /// Scryfall's Commander legality word. Read it through
     /// [`Card::commander_legality`] rather than comparing the text.
     #[facet(default)]
@@ -116,6 +128,46 @@ impl Index {
     pub fn get(&self, name: &str) -> Option<&Card> {
         self.cards.get(&keyname(name))
     }
+
+    /// Every keyword any card here carries, lowercased for comparison.
+    ///
+    /// Scryfall answers `kw:tramp` with *Unknown keyword "tramp"* rather than
+    /// an empty result, and it is right to: a mistyped keyword that quietly
+    /// matches zero cards is the confident 0% this project exists to prevent.
+    /// The parser cannot make that check on its own — the set of real keywords
+    /// grows with every set, so a list hard-coded next to the parser would be a
+    /// second opinion about what a card is, and would start refusing real
+    /// queries the day it fell behind. The index is the authority, so the check
+    /// lives here; see [`crate::Query::unknown_keywords`].
+    pub fn keyword_vocabulary(&self) -> KeywordVocabulary {
+        KeywordVocabulary {
+            known: self
+                .cards
+                .values()
+                .flat_map(|c| c.keywords.iter())
+                .map(|k| k.to_lowercase())
+                .collect(),
+        }
+    }
+}
+
+/// The keywords an index knows about, for checking a `kw:` term against.
+#[derive(Debug, Clone, Default)]
+pub struct KeywordVocabulary {
+    known: HashSet<String>,
+}
+
+impl KeywordVocabulary {
+    pub fn contains(&self, keyword: &str) -> bool {
+        self.known.contains(&keyword.to_lowercase())
+    }
+
+    /// Whether the index said anything at all about keywords. Not public:
+    /// callers ask [`crate::Query::unknown_keywords`], which already knows an
+    /// index silent about keywords proves nothing about any keyword.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.known.is_empty()
+    }
 }
 
 impl Card {
@@ -129,6 +181,7 @@ impl Card {
             type_line: &self.type_line,
             oracle: &self.oracle,
             cmc: self.cmc,
+            keywords: &self.keywords,
             color_identity: &self.ci,
             categories,
         }
