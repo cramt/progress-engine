@@ -961,3 +961,91 @@ fn sync_replaces_an_existing_index_without_leaving_debris() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// An index built before a field existed answers every query that reads it with
+/// nothing, which reads exactly like a deck that has none of that thing. That
+/// is this project's defining failure mode aimed at its own cache, so the run
+/// says which one you might be looking at.
+#[test]
+fn an_index_that_predates_the_fields_says_so() {
+    let out = run("simple-ramp.criteria.js");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("built before some of the fields"),
+        "the checked-in fixture index has no schema, so it is stale: {stderr}"
+    );
+    assert!(stderr.contains("progress-engine sync"), "{stderr}");
+    // And it still answers, because a stale index is not a reason to refuse.
+    assert!(out.status.success(), "{stderr}");
+}
+
+/// The whole path, from Scryfall's bytes to a probability: build an index out
+/// of real bulk records, then answer questions that only the fields that index
+/// carries can answer. Everything above this runs against a checked-in index,
+/// so without this the two halves are only ever tested apart.
+#[test]
+fn sync_then_test_answers_questions_the_old_index_could_not() {
+    let dir = std::env::temp_dir().join(format!("pe-e2e-{}", std::process::id()));
+    let index = dir.join("index.json");
+    let _ = std::fs::remove_dir_all(&dir);
+
+    let sync = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+        .arg("sync")
+        .arg("--index")
+        .arg(&index)
+        .arg("--from")
+        .arg(fixture("simple-ramp.bulk.jsonl"))
+        .output()
+        .expect("binary should run");
+    assert!(
+        sync.status.success(),
+        "{}",
+        String::from_utf8_lossy(&sync.stderr)
+    );
+
+    let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+        .arg("test")
+        .arg(fixture("simple-ramp.txt"))
+        .arg(fixture("produces.criteria.js"))
+        .arg("--index")
+        .arg(&index)
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "{stderr}");
+
+    // A freshly built index is not stale, so the warning must be absent.
+    assert!(
+        !stderr.contains("built before some of the fields"),
+        "an index this tool just built should not be called stale: {stderr}"
+    );
+    // And no query matched nothing, which is the failure these keys exist to
+    // avoid rather than to cause.
+    assert!(
+        !stderr.contains("matched no cards"),
+        "the new keys should match real cards: {stderr}"
+    );
+
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).expect("stdout is JSON");
+    let counted = |query: &str| -> u64 {
+        json["queries"]
+            .as_array()
+            .expect("queries array")
+            .iter()
+            .find(|q| q["query"] == query)
+            .unwrap_or_else(|| panic!("no query {query}"))["cards"]
+            .as_u64()
+            .expect("a count")
+    };
+
+    // 36 lands plus the accelerants; the exact figure is the deck's, and what
+    // matters is that it is neither zero nor everything.
+    let green_sources = counted("produces:g");
+    assert!(
+        (40..=60).contains(&green_sources),
+        "produces:g found {green_sources} of a 99 card deck"
+    );
+    assert!(percent(&json, "green source in opener") > 90.0);
+
+    let _ = std::fs::remove_dir_all(&dir);
+}

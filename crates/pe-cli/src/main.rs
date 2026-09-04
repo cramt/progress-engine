@@ -182,6 +182,9 @@ fn run_test(
     seed: u64,
 ) -> Result<()> {
     let library = Library::load(deck, index_path)?;
+    if let Some(note) = report::stale_index_note(&library) {
+        eprintln!("{note}");
+    }
     if let Some(note) = report::exclusion_note(&library) {
         eprintln!("{note}");
     }

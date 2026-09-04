@@ -339,6 +339,24 @@ impl Report {
 /// Printed before the run rather than folded into `human()`, because a list that
 /// is *all* stickers fails with "the library is empty" and the reader still
 /// needs to know where their cards went.
+/// A warning that the index predates fields the queries read.
+///
+/// Louder than a bare note because the failure it prevents is silent: a
+/// `produces:` or `pow:` term against an index built before those fields
+/// existed matches nothing and reports a confident 0%, which reads exactly like
+/// a deck that genuinely has none. Telling the two apart is what this tool is
+/// for, so it will not answer that question without saying which one it might
+/// be looking at.
+pub fn stale_index_note(library: &Library) -> Option<String> {
+    library.index_is_stale.then(|| {
+        "note: this index was built before some of the fields queries now read.\n\
+         Terms such as produces:, c:, pow: and f: will match nothing rather than \
+         fail, which reads\n      the same as a deck that has none. Rebuild it \
+         with: progress-engine sync"
+            .to_string()
+    })
+}
+
 pub fn exclusion_note(library: &Library) -> Option<String> {
     if library.excluded.is_empty() {
         return None;

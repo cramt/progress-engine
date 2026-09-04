@@ -38,6 +38,13 @@ pub struct Library {
     /// When the index was built, or `None` when it never said. Carried out of
     /// the index rather than looked up again for the same reason.
     pub index_updated_at: Option<String>,
+    /// Whether the index predates fields the current queries read.
+    ///
+    /// Worth carrying because the failure is silent: `produces:w` against an
+    /// index built before that field existed matches nothing and reports a
+    /// confident 0%, which is indistinguishable from a deck with no white
+    /// sources. The whole point of this tool is that those two look different.
+    pub index_is_stale: bool,
     /// Kept rather than dropped: excluding a card silently is the same failure
     /// as a query that matches nothing — a confident number nobody can question.
     pub excluded: Vec<Excluded>,
@@ -53,6 +60,7 @@ impl Library {
             .map(Path::to_path_buf)
             .unwrap_or_else(Index::default_path);
         let index = Index::load(&path)?;
+        let stale = index.is_stale();
 
         // Strict about unknown cards, unlike the legality checker which merely
         // reports them: you cannot compute a land count for a card you cannot
@@ -64,7 +72,7 @@ impl Library {
             .collect();
         if !unknown.is_empty() {
             bail!(
-                "unknown card(s): {} — run `scryfall check` first",
+                "unknown card(s): {} — rebuild the index with `progress-engine sync`",
                 unknown.join(", ")
             );
         }
@@ -106,6 +114,7 @@ impl Library {
             entries,
             commanders,
             deck_sha256: crate::report::sha256_hex(text.as_bytes()),
+            index_is_stale: stale,
             index_updated_at: index.updated_at,
             excluded,
         })
