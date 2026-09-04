@@ -55,7 +55,12 @@ pub enum IndexError {
 /// One face of a card.
 ///
 /// Every card has at least one, including the single-faced ones — so nothing
-/// downstream has to branch on how many there are. Scryfall's own shape makes
+/// downstream has to branch on how many there are.
+///
+/// A face carries the *typed* data a query reads per face — its cost, its
+/// power and toughness — and not its oracle text. The joined text at card level
+/// is what `o:` and `fo:` search, and storing it again per face was six
+/// megabytes answering a question no query can currently ask. Scryfall's own shape makes
 /// `power` mean the card's power on one layout and nothing at all on another,
 /// and flattening that three-case match into one uniform list here is what lets
 /// `pow>=3` be written once and be right about Delver of Secrets.
@@ -67,25 +72,20 @@ pub struct Face {
     pub type_line: String,
     #[facet(default)]
     pub mana_cost: String,
-    /// Verbatim, reminder text included. The card-level [`Card::oracle`] is
-    /// what `o:` searches; this is here so a face-level question can be asked
-    /// later without another sync.
-    #[facet(default)]
-    pub full_oracle: String,
     /// Colours, with a colourless back face's colour indicator already folded
     /// in — see `bulk::BulkCard::face_colors`.
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Vec::is_empty)]
     pub colors: Vec<String>,
     /// Kept as printed rather than parsed, because `*`, `1+*`, `∞` and `.5` are
     /// all real values and none of them is a number. Reading one as a number is
     /// [`crate::numeric`]'s job, and it is allowed to answer *not a number*.
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub power: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub toughness: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub loyalty: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub defense: Option<String>,
 }
 
@@ -101,13 +101,13 @@ pub struct Card {
     #[facet(default)]
     pub layout: String,
     /// Colour identity letters, e.g. `["W","U"]`. What `id:` reads.
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Vec::is_empty)]
     pub ci: Vec<String>,
     /// The card's own colours, which are **not** its identity. Kor Haven's
     /// identity is white; its colour is nothing at all. Conflating the two is
     /// the classic quiet error, so they are separate fields read by separate
     /// keys: `c:` here, `id:` above.
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Vec::is_empty)]
     pub colors: Vec<String>,
     #[facet(default)]
     pub type_line: String,
@@ -123,26 +123,26 @@ pub struct Card {
     /// The same text with reminder text left in, which is what `fo:` searches.
     /// Written only when it differs from `oracle`, which is 28% of cards;
     /// `None` means the two are the same, not that the text is missing.
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub full_oracle: Option<String>,
     /// Keyword abilities, keyword actions and ability words as Scryfall prints
     /// them, e.g. `["Hexproof from", "Hexproof"]`. Read through `kw:` rather
     /// than the oracle text: `o:flying` also matches "creatures with flying
     /// can't block".
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Vec::is_empty)]
     pub keywords: Vec<String>,
     /// The mana this card can actually make, as Scryfall's `produced_mana`.
     /// The answer to the README's opening bug: Kor Haven's `{W}` is in an
     /// activation cost, so it produces `["C"]` and no amount of oracle-text
     /// regex has to be trusted about it.
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Vec::is_empty)]
     pub produces: Vec<String>,
     #[facet(default)]
     pub rarity: String,
     #[facet(default)]
     pub set: String,
     /// Every face, including the only one on a single-faced card.
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Vec::is_empty)]
     pub faces: Vec<Face>,
     /// What every format says about this card. Read `f:`, `banned:` and the
     /// Commander check through it.
@@ -155,16 +155,16 @@ pub struct Card {
     /// re-syncing does not silently stop checking the banlist — which would be
     /// a check quietly becoming a no-op, indistinguishable in the output from a
     /// deck that is fine.
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = LegalityWord::is_empty)]
     pub commander_legal: LegalityWord,
     /// Whether a deck may contain any number of copies. `None` when the index
     /// never said — see [`Card::may_appear_any_number_of_times`].
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub any_number: Option<bool>,
     /// Scryfall's Commander "game changer" flag, for bracket questions.
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub game_changer: Option<bool>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub reserved: Option<bool>,
 }
 
@@ -409,7 +409,7 @@ impl Card {
     /// word an older index carried. The fallback cannot disagree with the
     /// table, because `sync` never writes both.
     pub fn commander_legality(&self) -> CommanderLegality {
-        match self.legalities.commander.commander() {
+        match self.legalities.commander() {
             CommanderLegality::Unknown => self.commander_legal.commander(),
             known => known,
         }

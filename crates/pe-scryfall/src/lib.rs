@@ -458,9 +458,9 @@ impl Query {
                 match status {
                     // Restricted counts as legal, because it is: a restricted
                     // card is one you may play, at one copy.
-                    FormatStatus::Legal => matches!(word.as_str(), "legal" | "restricted"),
-                    FormatStatus::Banned => word.as_str() == "banned",
-                    FormatStatus::Restricted => word.as_str() == "restricted",
+                    FormatStatus::Legal => word.permits_play() == Some(true),
+                    FormatStatus::Banned => word == crate::legality::Legality::Banned,
+                    FormatStatus::Restricted => word == crate::legality::Legality::Restricted,
                 }
             }
             Query::Layout(s) => card.layout.eq_ignore_ascii_case(s),

@@ -26,6 +26,8 @@ regex = "1"
 serde_json = "1"
 sha2 = "0.10"
 thiserror = "2"
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 tokio = { version = "1", features = ["rt", "time"] }
 
 pe-decklist = { path = "crates/pe-decklist" }

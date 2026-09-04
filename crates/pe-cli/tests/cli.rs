@@ -888,3 +888,76 @@ fn an_expectation_that_cannot_be_histogrammed_is_refused_by_name() {
     assert!(stderr.contains("lands per card"), "stderr was: {stderr}");
     assert!(stderr.contains("countable"), "stderr was: {stderr}");
 }
+
+/// `sync` builds the index this tool reads, from a bulk file rather than from
+/// the network — so CI proves the whole path without depending on Scryfall
+/// being up, which would make a test's answer a fact about reachability.
+#[test]
+fn sync_builds_an_index_from_a_bulk_file() {
+    let dir = std::env::temp_dir().join(format!("pe-sync-{}", std::process::id()));
+    let index = dir.join("index.json");
+    let _ = std::fs::remove_dir_all(&dir);
+
+    let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+        .arg("sync")
+        .arg("--index")
+        .arg(&index)
+        .arg("--from")
+        .arg(fixture("bulk-sample.jsonl"))
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "sync should succeed: {stderr}");
+
+    // Every record is accounted for, by name rather than as a bare total.
+    assert!(stderr.contains("read 15 records"), "{stderr}");
+    assert!(stderr.contains("skipped 3"), "{stderr}");
+    assert!(stderr.contains("kept 12 cards"), "{stderr}");
+
+    let written: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&index).expect("index written"))
+            .expect("index is JSON");
+
+    // Issue #38 end to end: the token must not have won the name.
+    let elves = &written["cards"]["llanowar elves"];
+    assert_eq!(elves["cmc"], 1.0, "the card, not the mana value 0 token");
+    assert_eq!(elves["type_line"], "Creature — Elf Druid");
+    assert_eq!(elves["produces"][0], "G");
+
+    // And the index says which shape it was written in, so a later run can
+    // tell a fresh index from one that predates the fields it reads.
+    assert_eq!(written["schema"], 1);
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A second sync over the same path leaves a readable index rather than a
+/// half-written one — the write goes to a neighbour and is renamed over.
+#[test]
+fn sync_replaces_an_existing_index_without_leaving_debris() {
+    let dir = std::env::temp_dir().join(format!("pe-resync-{}", std::process::id()));
+    let index = dir.join("index.json");
+    let _ = std::fs::remove_dir_all(&dir);
+
+    for _ in 0..2 {
+        let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+            .arg("sync")
+            .arg("--index")
+            .arg(&index)
+            .arg("--from")
+            .arg(fixture("bulk-sample.jsonl"))
+            .output()
+            .expect("binary should run");
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+    assert!(index.exists());
+    assert!(
+        !dir.join("index.json.partial").exists(),
+        "the temporary file should have been renamed away"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}

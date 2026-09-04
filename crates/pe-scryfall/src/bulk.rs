@@ -228,13 +228,14 @@ impl BulkCard {
         // The joined text is what `o:` and `fo:` search. Faces are joined with a
         // newline rather than Scryfall's " // " so that a phrase search cannot
         // match across the seam between two faces, which is text no card has.
-        let full_oracle = faces
-            .iter()
-            .map(|f| f.full_oracle.as_str())
+        let full_oracle = self
+            .face_texts()
+            .into_iter()
             .filter(|t| !t.is_empty())
             .collect::<Vec<_>>()
             .join("\n");
         let oracle = strip_reminder_text(&full_oracle);
+        let any_number = says_a_deck_can_have_any_number(&full_oracle);
 
         Ok(Card {
             name: self.name.clone(),
@@ -256,7 +257,7 @@ impl BulkCard {
             // nothing.
             full_oracle: (full_oracle != oracle).then_some(full_oracle),
             oracle,
-            any_number: Some(says_a_deck_can_have_any_number(&faces)),
+            any_number: Some(any_number),
             game_changer: self.game_changer,
             reserved: self.reserved,
             faces,
@@ -277,13 +278,28 @@ impl BulkCard {
                 name: self.name.clone(),
                 type_line: self.type_line.clone().unwrap_or_default(),
                 mana_cost: self.mana_cost.clone().unwrap_or_default(),
-                full_oracle: self.oracle_text.clone().unwrap_or_default(),
                 colors: self.face_colors(self.colors.as_ref(), self.color_indicator.as_ref()),
                 power: self.power.clone(),
                 toughness: self.toughness.clone(),
                 loyalty: self.loyalty.clone(),
                 defense: self.defense.clone(),
             }],
+        }
+    }
+
+    /// The oracle text of each face, in printed order.
+    ///
+    /// Separate from [`Self::faces`] because the index keeps the text joined at
+    /// card level and the typed values per face; the two are collected here
+    /// from the same place so they cannot come from different readings of the
+    /// same record.
+    fn face_texts(&self) -> Vec<String> {
+        match self.card_faces.as_ref().filter(|f| !f.is_empty()) {
+            Some(faces) => faces
+                .iter()
+                .map(|f| f.oracle_text.clone().unwrap_or_default())
+                .collect(),
+            None => vec![self.oracle_text.clone().unwrap_or_default()],
         }
     }
 
@@ -295,7 +311,6 @@ impl BulkCard {
             // being absent, and that is the honest reading: it has a cost, and
             // the cost is nothing.
             mana_cost: f.mana_cost.clone().unwrap_or_default(),
-            full_oracle: f.oracle_text.clone().unwrap_or_default(),
             colors: self.face_colors(f.colors.as_ref(), f.color_indicator.as_ref()),
             power: f.power.clone(),
             toughness: f.toughness.clone(),
@@ -364,11 +379,9 @@ impl BulkCard {
 /// which was surveyed across all 38,626 records and appears in that form and no
 /// other. The *bounded* rule ("up to seven") is deliberately not derived; see
 /// the README.
-fn says_a_deck_can_have_any_number(faces: &[Face]) -> bool {
+fn says_a_deck_can_have_any_number(oracle: &str) -> bool {
     const PHRASE: &str = "a deck can have any number of cards named";
-    faces
-        .iter()
-        .any(|f| f.full_oracle.to_lowercase().contains(PHRASE))
+    oracle.to_lowercase().contains(PHRASE)
 }
 
 /// Oracle text with its reminder text removed, which is what `o:` searches.

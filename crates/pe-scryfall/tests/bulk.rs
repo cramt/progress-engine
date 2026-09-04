@@ -61,13 +61,8 @@ fn a_token_never_shadows_the_card_it_is_named_after() {
         );
     }
     assert_eq!(
-        index
-            .get("Llanowar Elves")
-            .unwrap()
-            .legalities
-            .commander
-            .as_str(),
-        "legal",
+        index.get("Llanowar Elves").unwrap().legalities.commander(),
+        pe_scryfall::legality::CommanderLegality::Legal,
         "the token is not legal in Commander and the card is"
     );
 }

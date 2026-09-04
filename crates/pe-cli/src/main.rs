@@ -9,6 +9,7 @@
 mod legality;
 mod library;
 mod report;
+mod sync;
 
 use std::path::PathBuf;
 
@@ -60,9 +61,24 @@ enum Command {
         /// Seed, so a sampled run is reproducible.
         #[facet(args::named, default = 0)]
         seed: u64,
-        /// Scryfall index, as built by `scryfall sync`.
+        /// Scryfall index, as built by `progress-engine sync`.
         #[facet(args::named, default)]
         index: Option<PathBuf>,
+    },
+    /// Build the card index from Scryfall's bulk data.
+    ///
+    /// `test` needs to know what a card is, and this is where that comes from.
+    /// Run it once, and again when you want newer cards.
+    Sync {
+        /// Where to write the index. Defaults to the path `test` reads.
+        #[facet(args::named, default)]
+        index: Option<PathBuf>,
+        /// Build from a bulk file already on disk instead of downloading one.
+        #[facet(args::named, default)]
+        from: Option<PathBuf>,
+        /// Rebuild even when the index already has Scryfall's latest data.
+        #[facet(args::named, default)]
+        force: bool,
     },
 }
 
@@ -152,6 +168,7 @@ fn main() -> Result<()> {
             trials,
             seed,
         ),
+        Command::Sync { index, from, force } => sync::run(index.as_deref(), from.as_deref(), force),
     }
 }
 

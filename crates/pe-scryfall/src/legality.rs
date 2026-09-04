@@ -76,6 +76,12 @@ impl LegalityWord {
         &self.0
     }
 
+    /// Whether the index said nothing here, which `sync` never writes: the
+    /// field exists only to read what an older index left behind.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn commander(&self) -> CommanderLegality {
         CommanderLegality::from_word(&self.0)
     }
@@ -211,71 +217,76 @@ fn self_references(name: &str) -> impl Iterator<Item = String> + '_ {
     std::iter::once("this card".to_string()).chain(faces)
 }
 
-/// What the index knows about a card's legality in every format Scryfall tracks.
+/// What a format says about a card, in general.
 ///
-/// A struct rather than a map, and that is the point: the set of formats is
-/// closed and published, so `f:pauperr` can be a **parse error naming the
-/// typo** instead of a query that matches nothing. A map would make every
-/// misspelling a silent 0%, which is the failure this crate exists to prevent.
-///
-/// Every field defaults to the empty word, which reads as
-/// [`CommanderLegality::Unknown`] — an index that predates a format, or a
-/// hand-written fixture that carries one field, must draw no complaint about
-/// the rest.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Facet)]
-pub struct Legalities {
-    #[facet(default)]
-    pub standard: LegalityWord,
-    #[facet(default)]
-    pub future: LegalityWord,
-    #[facet(default)]
-    pub historic: LegalityWord,
-    #[facet(default)]
-    pub timeless: LegalityWord,
-    #[facet(default)]
-    pub gladiator: LegalityWord,
-    #[facet(default)]
-    pub pioneer: LegalityWord,
-    #[facet(default)]
-    pub modern: LegalityWord,
-    #[facet(default)]
-    pub legacy: LegalityWord,
-    #[facet(default)]
-    pub pauper: LegalityWord,
-    #[facet(default)]
-    pub vintage: LegalityWord,
-    #[facet(default)]
-    pub penny: LegalityWord,
-    #[facet(default)]
-    pub commander: LegalityWord,
-    #[facet(default)]
-    pub oathbreaker: LegalityWord,
-    #[facet(default)]
-    pub standardbrawl: LegalityWord,
-    #[facet(default)]
-    pub brawl: LegalityWord,
-    #[facet(default)]
-    pub competitivebrawl: LegalityWord,
-    #[facet(default)]
-    pub alchemy: LegalityWord,
-    #[facet(default)]
-    pub paupercommander: LegalityWord,
-    #[facet(default)]
-    pub duel: LegalityWord,
-    #[facet(default)]
-    pub oldschool: LegalityWord,
-    #[facet(default)]
-    pub premodern: LegalityWord,
-    #[facet(default)]
-    pub predh: LegalityWord,
-    #[facet(default)]
-    pub tlr: LegalityWord,
+/// Distinct from [`CommanderLegality`], which is the reading the Commander
+/// rules need: Commander has no restricted list, so a `restricted` word there
+/// is data this crate has no rule for, and Unknown is the honest answer rather
+/// than a guess in either direction. Everywhere else, restricted is a real
+/// status and means you may play one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Legality {
+    Legal,
+    NotLegal,
+    Banned,
+    Restricted,
+    #[default]
+    Unknown,
+}
+
+impl Legality {
+    /// The one letter this status is stored as; see [`Legalities`].
+    const fn letter(self) -> char {
+        match self {
+            Legality::Legal => 'l',
+            Legality::NotLegal => 'n',
+            Legality::Banned => 'b',
+            Legality::Restricted => 'r',
+            Legality::Unknown => '?',
+        }
+    }
+
+    fn from_letter(c: char) -> Self {
+        match c {
+            'l' => Legality::Legal,
+            'n' => Legality::NotLegal,
+            'b' => Legality::Banned,
+            'r' => Legality::Restricted,
+            _ => Legality::Unknown,
+        }
+    }
+
+    /// Read Scryfall's word.
+    ///
+    /// A word this crate has never seen becomes `Unknown` rather than failing,
+    /// for the same reason everything else here degrades: rejecting a 35,000
+    /// card index over one unfamiliar string is worse than admitting a gap.
+    pub fn from_word(word: &str) -> Self {
+        match word {
+            "legal" => Legality::Legal,
+            "not_legal" => Legality::NotLegal,
+            "banned" => Legality::Banned,
+            "restricted" => Legality::Restricted,
+            _ => Legality::Unknown,
+        }
+    }
+
+    /// Whether a deck in this format may contain the card, or `None` when
+    /// nothing was ever said. Restricted permits play, at one copy.
+    pub fn permits_play(self) -> Option<bool> {
+        match self {
+            Legality::Legal | Legality::Restricted => Some(true),
+            Legality::NotLegal | Legality::Banned => Some(false),
+            Legality::Unknown => None,
+        }
+    }
 }
 
 /// The format names this crate answers for, as Scryfall spells them.
 ///
-/// Public so the query parser can both resolve a name and, when it fails, list
-/// what it would have accepted.
+/// The order is the storage order of [`Legalities`] and must not be permuted:
+/// doing so would silently reinterpret every index already on disk. New
+/// formats go on the end.
 pub const FORMATS: [&str; 23] = [
     "standard",
     "future",
@@ -302,79 +313,71 @@ pub const FORMATS: [&str; 23] = [
     "tlr",
 ];
 
+/// What every format says about one card, as one letter each.
+///
+/// Stored as a fixed-order string — `"nnllnllllln lb…"` — rather than as
+/// twenty-three named fields, and that is a measured decision rather than a
+/// stylistic one. The named form is 17MB of a 50MB index and took the time to
+/// load it from 1.8 to 5.7 seconds, which every `test` run pays; this is about
+/// 1MB and gives it back. The letters are `l`egal, `n`ot legal, `b`anned,
+/// `r`estricted, and `?` for a format nobody said anything about.
+///
+/// The set of formats is still closed and published, which is the part that
+/// matters for correctness: `f:pauperr` is a **parse error naming the typo**
+/// rather than a query that matches nothing. A position past the end of the
+/// string, or a letter this crate does not know, both read as unknown — an
+/// index written before a format existed must draw no conclusion about it.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Facet)]
+#[facet(transparent)]
+pub struct Legalities(String);
+
 impl Legalities {
-    /// Read a format's word by name. `None` when the name is not a format,
+    /// Read a format's status by name. `None` when the name is not a format,
     /// which callers turn into an error rather than a no-match.
-    pub fn get(&self, format: &str) -> Option<&LegalityWord> {
-        Some(match format {
-            "standard" => &self.standard,
-            "future" => &self.future,
-            "historic" => &self.historic,
-            "timeless" => &self.timeless,
-            "gladiator" => &self.gladiator,
-            "pioneer" => &self.pioneer,
-            "modern" => &self.modern,
-            "legacy" => &self.legacy,
-            "pauper" => &self.pauper,
-            "vintage" => &self.vintage,
-            "penny" => &self.penny,
-            "commander" => &self.commander,
-            "oathbreaker" => &self.oathbreaker,
-            "standardbrawl" => &self.standardbrawl,
-            "brawl" => &self.brawl,
-            "competitivebrawl" => &self.competitivebrawl,
-            "alchemy" => &self.alchemy,
-            "paupercommander" => &self.paupercommander,
-            "duel" => &self.duel,
-            "oldschool" => &self.oldschool,
-            "premodern" => &self.premodern,
-            "predh" => &self.predh,
-            "tlr" => &self.tlr,
-            _ => return None,
-        })
+    pub fn get(&self, format: &str) -> Option<Legality> {
+        let at = FORMATS.iter().position(|f| *f == format)?;
+        Some(
+            self.0
+                .chars()
+                .nth(at)
+                .map_or(Legality::Unknown, Legality::from_letter),
+        )
+    }
+
+    /// What this card's Commander legality is, which is the one every deck
+    /// here is checked against.
+    pub fn commander(&self) -> CommanderLegality {
+        match self.get("commander") {
+            Some(Legality::Legal) => CommanderLegality::Legal,
+            Some(Legality::NotLegal) => CommanderLegality::NotLegal,
+            Some(Legality::Banned) => CommanderLegality::Banned,
+            _ => CommanderLegality::Unknown,
+        }
     }
 
     /// Build from Scryfall's `legalities` object.
     ///
-    /// A format Scryfall adds later is dropped rather than stored, and dropping
-    /// it is honest: this crate cannot answer `f:` for a format it has no field
-    /// for, and a name it does not know is already a parse error.
+    /// A format Scryfall adds later is dropped rather than stored: this crate
+    /// has no field for it, cannot answer `f:` about it, and already refuses
+    /// the name at parse time.
     pub fn from_words(words: &std::collections::BTreeMap<String, String>) -> Self {
-        let mut out = Self::default();
-        for (format, word) in words {
-            if let Some(slot) = out.get_mut(format) {
-                *slot = LegalityWord::from(word.as_str());
-            }
-        }
-        out
+        Legalities(
+            FORMATS
+                .iter()
+                .map(|format| {
+                    words
+                        .get(*format)
+                        .map_or(Legality::Unknown, |w| Legality::from_word(w))
+                        .letter()
+                })
+                .collect(),
+        )
     }
 
-    fn get_mut(&mut self, format: &str) -> Option<&mut LegalityWord> {
-        Some(match format {
-            "standard" => &mut self.standard,
-            "future" => &mut self.future,
-            "historic" => &mut self.historic,
-            "timeless" => &mut self.timeless,
-            "gladiator" => &mut self.gladiator,
-            "pioneer" => &mut self.pioneer,
-            "modern" => &mut self.modern,
-            "legacy" => &mut self.legacy,
-            "pauper" => &mut self.pauper,
-            "vintage" => &mut self.vintage,
-            "penny" => &mut self.penny,
-            "commander" => &mut self.commander,
-            "oathbreaker" => &mut self.oathbreaker,
-            "standardbrawl" => &mut self.standardbrawl,
-            "brawl" => &mut self.brawl,
-            "competitivebrawl" => &mut self.competitivebrawl,
-            "alchemy" => &mut self.alchemy,
-            "paupercommander" => &mut self.paupercommander,
-            "duel" => &mut self.duel,
-            "oldschool" => &mut self.oldschool,
-            "premodern" => &mut self.premodern,
-            "predh" => &mut self.predh,
-            "tlr" => &mut self.tlr,
-            _ => return None,
-        })
+    /// Whether the index said anything at all about legality here.
+    pub fn is_silent(&self) -> bool {
+        self.0
+            .chars()
+            .all(|c| Legality::from_letter(c) == Legality::Unknown)
     }
 }
