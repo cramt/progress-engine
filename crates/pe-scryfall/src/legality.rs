@@ -210,3 +210,171 @@ fn self_references(name: &str) -> impl Iterator<Item = String> + '_ {
     });
     std::iter::once("this card".to_string()).chain(faces)
 }
+
+/// What the index knows about a card's legality in every format Scryfall tracks.
+///
+/// A struct rather than a map, and that is the point: the set of formats is
+/// closed and published, so `f:pauperr` can be a **parse error naming the
+/// typo** instead of a query that matches nothing. A map would make every
+/// misspelling a silent 0%, which is the failure this crate exists to prevent.
+///
+/// Every field defaults to the empty word, which reads as
+/// [`CommanderLegality::Unknown`] — an index that predates a format, or a
+/// hand-written fixture that carries one field, must draw no complaint about
+/// the rest.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Facet)]
+pub struct Legalities {
+    #[facet(default)]
+    pub standard: LegalityWord,
+    #[facet(default)]
+    pub future: LegalityWord,
+    #[facet(default)]
+    pub historic: LegalityWord,
+    #[facet(default)]
+    pub timeless: LegalityWord,
+    #[facet(default)]
+    pub gladiator: LegalityWord,
+    #[facet(default)]
+    pub pioneer: LegalityWord,
+    #[facet(default)]
+    pub modern: LegalityWord,
+    #[facet(default)]
+    pub legacy: LegalityWord,
+    #[facet(default)]
+    pub pauper: LegalityWord,
+    #[facet(default)]
+    pub vintage: LegalityWord,
+    #[facet(default)]
+    pub penny: LegalityWord,
+    #[facet(default)]
+    pub commander: LegalityWord,
+    #[facet(default)]
+    pub oathbreaker: LegalityWord,
+    #[facet(default)]
+    pub standardbrawl: LegalityWord,
+    #[facet(default)]
+    pub brawl: LegalityWord,
+    #[facet(default)]
+    pub competitivebrawl: LegalityWord,
+    #[facet(default)]
+    pub alchemy: LegalityWord,
+    #[facet(default)]
+    pub paupercommander: LegalityWord,
+    #[facet(default)]
+    pub duel: LegalityWord,
+    #[facet(default)]
+    pub oldschool: LegalityWord,
+    #[facet(default)]
+    pub premodern: LegalityWord,
+    #[facet(default)]
+    pub predh: LegalityWord,
+    #[facet(default)]
+    pub tlr: LegalityWord,
+}
+
+/// The format names this crate answers for, as Scryfall spells them.
+///
+/// Public so the query parser can both resolve a name and, when it fails, list
+/// what it would have accepted.
+pub const FORMATS: [&str; 23] = [
+    "standard",
+    "future",
+    "historic",
+    "timeless",
+    "gladiator",
+    "pioneer",
+    "modern",
+    "legacy",
+    "pauper",
+    "vintage",
+    "penny",
+    "commander",
+    "oathbreaker",
+    "standardbrawl",
+    "brawl",
+    "competitivebrawl",
+    "alchemy",
+    "paupercommander",
+    "duel",
+    "oldschool",
+    "premodern",
+    "predh",
+    "tlr",
+];
+
+impl Legalities {
+    /// Read a format's word by name. `None` when the name is not a format,
+    /// which callers turn into an error rather than a no-match.
+    pub fn get(&self, format: &str) -> Option<&LegalityWord> {
+        Some(match format {
+            "standard" => &self.standard,
+            "future" => &self.future,
+            "historic" => &self.historic,
+            "timeless" => &self.timeless,
+            "gladiator" => &self.gladiator,
+            "pioneer" => &self.pioneer,
+            "modern" => &self.modern,
+            "legacy" => &self.legacy,
+            "pauper" => &self.pauper,
+            "vintage" => &self.vintage,
+            "penny" => &self.penny,
+            "commander" => &self.commander,
+            "oathbreaker" => &self.oathbreaker,
+            "standardbrawl" => &self.standardbrawl,
+            "brawl" => &self.brawl,
+            "competitivebrawl" => &self.competitivebrawl,
+            "alchemy" => &self.alchemy,
+            "paupercommander" => &self.paupercommander,
+            "duel" => &self.duel,
+            "oldschool" => &self.oldschool,
+            "premodern" => &self.premodern,
+            "predh" => &self.predh,
+            "tlr" => &self.tlr,
+            _ => return None,
+        })
+    }
+
+    /// Build from Scryfall's `legalities` object.
+    ///
+    /// A format Scryfall adds later is dropped rather than stored, and dropping
+    /// it is honest: this crate cannot answer `f:` for a format it has no field
+    /// for, and a name it does not know is already a parse error.
+    pub fn from_words(words: &std::collections::BTreeMap<String, String>) -> Self {
+        let mut out = Self::default();
+        for (format, word) in words {
+            if let Some(slot) = out.get_mut(format) {
+                *slot = LegalityWord::from(word.as_str());
+            }
+        }
+        out
+    }
+
+    fn get_mut(&mut self, format: &str) -> Option<&mut LegalityWord> {
+        Some(match format {
+            "standard" => &mut self.standard,
+            "future" => &mut self.future,
+            "historic" => &mut self.historic,
+            "timeless" => &mut self.timeless,
+            "gladiator" => &mut self.gladiator,
+            "pioneer" => &mut self.pioneer,
+            "modern" => &mut self.modern,
+            "legacy" => &mut self.legacy,
+            "pauper" => &mut self.pauper,
+            "vintage" => &mut self.vintage,
+            "penny" => &mut self.penny,
+            "commander" => &mut self.commander,
+            "oathbreaker" => &mut self.oathbreaker,
+            "standardbrawl" => &mut self.standardbrawl,
+            "brawl" => &mut self.brawl,
+            "competitivebrawl" => &mut self.competitivebrawl,
+            "alchemy" => &mut self.alchemy,
+            "paupercommander" => &mut self.paupercommander,
+            "duel" => &mut self.duel,
+            "oldschool" => &mut self.oldschool,
+            "premodern" => &mut self.premodern,
+            "predh" => &mut self.predh,
+            "tlr" => &mut self.tlr,
+            _ => return None,
+        })
+    }
+}

@@ -1,18 +1,23 @@
 //! Lexer and recursive-descent parser for the supported Scryfall syntax subset.
+//!
+//! Every error here names the term that caused it and, where the accepted
+//! values are a closed set, lists them. That is the whole discipline: an
+//! unsupported term must cost you a message, not a silent zero.
 
 use thiserror::Error;
 
-use crate::{Cmp, Colors, IsProperty, Query};
+use crate::legality::FORMATS;
+use crate::{
+    Cmp, ColorField, ColorSpec, Colors, FormatStatus, IsProperty, Query, Rarity, Stat, StatOperand,
+};
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ParseError {
     #[error("empty query")]
     Empty,
-    #[error(
-        "unknown search key {key:?} in term {term:?} (supported: t, o, name, kw, cat, mv, cmc, id, is)"
-    )]
+    #[error("unknown search key {key:?} in term {term:?} (supported: {})", SUPPORTED_KEYS.join(", "))]
     UnknownKey { key: String, term: String },
-    #[error("unknown is: property {value:?} (supported: permanent, spell, historic)")]
+    #[error("unknown is: property {value:?} (supported: {})", is_properties())]
     UnknownIsProperty { value: String },
     #[error(
         "{term:?}: {key}: asks whether a card has a value, not how it compares. \
@@ -21,14 +26,37 @@ pub enum ParseError {
     NoComparison { key: String, term: String },
     #[error("{term:?}: {value:?} is not a number")]
     BadNumber { term: String, value: String },
-    #[error("{term:?}: {value:?} is not a colour identity (use letters from wubrg, or c)")]
+    #[error(
+        "{term:?}: {value:?} is not a colour (use letters from wubrg, a colour name, \
+         a guild/shard/wedge nickname, c for colourless, m for multicolour, or a number)"
+    )]
     BadColors { term: String, value: String },
+    #[error("{term:?}: {value:?} is not a rarity (supported: common, uncommon, rare, special, mythic, bonus)")]
+    BadRarity { term: String, value: String },
+    #[error("{term:?}: {value:?} is not a format (supported: {})", FORMATS.join(", "))]
+    BadFormat { term: String, value: String },
+    #[error("{term:?}: {value:?} is neither a number nor a statistic to compare against (try pow, tou, pt, loy or def)")]
+    BadStatOperand { term: String, value: String },
     #[error("{term:?}: missing a value after the operator")]
     MissingValue { term: String },
     #[error("unbalanced parenthesis")]
     UnbalancedParen,
     #[error("unexpected {0:?}")]
     Unexpected(String),
+}
+
+/// The keys a term may start with, for the error that lists them.
+const SUPPORTED_KEYS: [&str; 24] = [
+    "t", "o", "fo", "name", "kw", "cat", "mv", "cmc", "c", "color", "id", "identity", "produces",
+    "prod", "pow", "tou", "pt", "loy", "def", "r", "s", "f", "layout", "is",
+];
+
+fn is_properties() -> String {
+    IS_PROPERTIES
+        .iter()
+        .map(|(name, _)| *name)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -122,6 +150,148 @@ fn split_term(term: &str) -> Option<(&str, Cmp, &str)> {
     Some((key, cmp, &rest[vstart..]))
 }
 
+/// Colour nicknames, as Scryfall accepts them.
+///
+/// Data rather than code because that is what they are — a naming convention
+/// with no rule behind it. Getting one wrong (Abzan is WBG, not WBR) is a query
+/// that runs perfectly and answers about the wrong deck, so they are written
+/// out where they can be read against a colour pie.
+const COLOR_NICKNAMES: [(&str, &str); 41] = [
+    // Single colours, spelled out.
+    ("white", "w"),
+    ("blue", "u"),
+    ("black", "b"),
+    ("red", "r"),
+    ("green", "g"),
+    // Guilds.
+    ("azorius", "wu"),
+    ("dimir", "ub"),
+    ("rakdos", "br"),
+    ("gruul", "rg"),
+    ("selesnya", "gw"),
+    ("orzhov", "wb"),
+    ("izzet", "ur"),
+    ("golgari", "bg"),
+    ("boros", "rw"),
+    ("simic", "gu"),
+    // Strixhaven colleges, which are the guild pairs under other names.
+    ("silverquill", "wb"),
+    ("prismari", "ur"),
+    ("witherbloom", "bg"),
+    ("lorehold", "rw"),
+    ("quandrix", "gu"),
+    // Shards.
+    ("bant", "gwu"),
+    ("esper", "wub"),
+    ("grixis", "ubr"),
+    ("jund", "brg"),
+    ("naya", "rgw"),
+    // Wedges.
+    ("abzan", "wbg"),
+    ("jeskai", "urw"),
+    ("sultai", "bgu"),
+    ("mardu", "rwb"),
+    ("temur", "gur"),
+    // Four-colour names, each the colour it is missing.
+    ("artifice", "wubr"),
+    ("chaos", "ubrg"),
+    ("aggression", "brgw"),
+    ("altruism", "rgwu"),
+    ("growth", "gwub"),
+    // Five.
+    ("wubrg", "wubrg"),
+    ("rainbow", "wubrg"),
+    // Guild-adjacent spellings Scryfall also takes.
+    ("colorless", "c"),
+    ("colourless", "c"),
+    ("multicolor", "m"),
+    ("multicolour", "m"),
+];
+
+/// Read the right-hand side of a colour term.
+///
+/// `c` is the one value whose meaning depends on the key. For a card's colours
+/// or identity it means *no colour*, which is the absence of a symbol; for
+/// `produces:` it means the `{C}` symbol, which is a thing a Sol Ring makes.
+/// Collapsing the two would make `produces:c` either trivially true or
+/// impossible, depending which way you collapsed it.
+fn parse_color_spec(field: ColorField, value: &str) -> Option<ColorSpec> {
+    let lower = value.to_ascii_lowercase();
+    if let Ok(n) = lower.parse::<u32>() {
+        return Some(ColorSpec::Count(n));
+    }
+    let letters = COLOR_NICKNAMES
+        .iter()
+        .find(|(name, _)| *name == lower)
+        .map_or(lower.as_str(), |(_, letters)| letters);
+
+    if letters == "m" {
+        return Some(ColorSpec::Multicolor);
+    }
+    if letters == "c" {
+        return Some(match field {
+            ColorField::Produces => ColorSpec::Set(Colors::from_mana_letters("c")?),
+            _ => ColorSpec::Colorless,
+        });
+    }
+    let colors = match field {
+        ColorField::Produces => Colors::from_mana_letters(letters)?,
+        _ => Colors::from_letters(letters)?,
+    };
+    Some(ColorSpec::Set(colors))
+}
+
+/// The `is:` properties, paired with the words that select them.
+const IS_PROPERTIES: [(&str, IsProperty); 25] = [
+    ("permanent", IsProperty::Permanent),
+    ("spell", IsProperty::Spell),
+    ("historic", IsProperty::Historic),
+    ("vanilla", IsProperty::Vanilla),
+    ("frenchvanilla", IsProperty::FrenchVanilla),
+    ("bear", IsProperty::Bear),
+    ("dfc", IsProperty::DoubleFaced),
+    ("doublefaced", IsProperty::DoubleFaced),
+    ("mdfc", IsProperty::ModalDoubleFaced),
+    ("transform", IsProperty::Transform),
+    ("tdfc", IsProperty::Transform),
+    ("split", IsProperty::Split),
+    ("flip", IsProperty::Flip),
+    ("meld", IsProperty::Meld),
+    ("leveler", IsProperty::Leveler),
+    ("adventure", IsProperty::Adventure),
+    ("hybrid", IsProperty::Hybrid),
+    ("phyrexian", IsProperty::Phyrexian),
+    ("commander", IsProperty::Commander),
+    ("partner", IsProperty::Partner),
+    ("companion", IsProperty::Companion),
+    ("reserved", IsProperty::Reserved),
+    ("gamechanger", IsProperty::GameChanger),
+    ("game_changer", IsProperty::GameChanger),
+    ("modal_dfc", IsProperty::ModalDoubleFaced),
+];
+
+/// The statistics that compare numerically, and the words for them.
+const STATS: [(&str, Stat); 11] = [
+    ("pow", Stat::Power),
+    ("power", Stat::Power),
+    ("tou", Stat::Toughness),
+    ("toughness", Stat::Toughness),
+    ("pt", Stat::PowerPlusToughness),
+    ("powtou", Stat::PowerPlusToughness),
+    ("loy", Stat::Loyalty),
+    ("loyalty", Stat::Loyalty),
+    ("def", Stat::Defense),
+    ("defense", Stat::Defense),
+    ("defence", Stat::Defense),
+];
+
+fn stat_named(word: &str) -> Option<Stat> {
+    STATS
+        .iter()
+        .find(|(name, _)| *name == word)
+        .map(|&(_, s)| s)
+}
+
 fn parse_term(term: &str) -> Result<Query, ParseError> {
     let Some((key, cmp, value)) = split_term(term) else {
         // No operator: a bare word is a name substring.
@@ -133,55 +303,137 @@ fn parse_term(term: &str) -> Result<Query, ParseError> {
         });
     }
     let colon = term[key.len()..].starts_with(':');
+    let key = key.to_ascii_lowercase();
 
-    match key.to_ascii_lowercase().as_str() {
+    // Keys that ask whether a card *has* a value rather than how it compares.
+    // Scryfall answers `kw>=flying` with "didn't match any cards" — the silent
+    // no-match this crate refuses — so these are the places it deliberately
+    // differs from Scryfall, and it differs by being louder.
+    let require_equality = |q: Query| -> Result<Query, ParseError> {
+        if cmp != Cmp::Eq {
+            return Err(ParseError::NoComparison {
+                key: key.clone(),
+                term: term.to_string(),
+            });
+        }
+        Ok(q)
+    };
+
+    if let Some(stat) = stat_named(&key) {
+        let operand = match stat_named(&value.to_ascii_lowercase()) {
+            Some(other) => StatOperand::Stat(other),
+            None => StatOperand::Number(value.parse::<f64>().map_err(|_| {
+                ParseError::BadStatOperand {
+                    term: term.to_string(),
+                    value: value.to_string(),
+                }
+            })?),
+        };
+        return Ok(Query::Stat(stat, cmp, operand));
+    }
+
+    let color_field = match key.as_str() {
+        "c" | "color" | "colors" | "colour" | "colours" => Some(ColorField::Color),
+        "id" | "identity" => Some(ColorField::Identity),
+        "produces" | "prod" | "produced" => Some(ColorField::Produces),
+        _ => None,
+    };
+    if let Some(field) = color_field {
+        let spec = parse_color_spec(field, value).ok_or_else(|| ParseError::BadColors {
+            term: term.to_string(),
+            value: value.to_string(),
+        })?;
+        // A colon means "fits inside" for identity and "contains all of" for
+        // the other two; see `ColorField::colon_means`. A count compares as a
+        // number whatever the key, because `c:2` reads as "exactly two".
+        let cmp = match (colon, spec) {
+            (true, ColorSpec::Count(_)) => Cmp::Eq,
+            (true, _) => field.colon_means(),
+            (false, _) => cmp,
+        };
+        return Ok(Query::Colors(field, cmp, spec));
+    }
+
+    match key.as_str() {
         "t" | "type" => Ok(Query::Type(value.to_string())),
         "o" | "oracle" => Ok(Query::Oracle(value.to_string())),
+        "fo" | "fulloracle" => Ok(Query::FullOracle(value.to_string())),
         "name" => Ok(Query::Name(value.to_string())),
-        "kw" | "keyword" => {
-            // A keyword is had or not had, so `kw:` and `kw=` are the only
-            // forms that mean anything. Scryfall answers `kw>=flying` with
-            // "didn't match any cards" — the silent no-match this crate
-            // refuses, so this is the one place `kw:` deliberately differs
-            // from Scryfall, and it differs by being louder.
-            if cmp != Cmp::Eq {
-                return Err(ParseError::NoComparison {
-                    key: key.to_ascii_lowercase(),
+        "kw" | "keyword" => require_equality(Query::Keyword(value.to_string())),
+        "cat" | "category" => require_equality(Query::Category(value.to_string())),
+        "mv" | "cmc" | "manavalue" => match value.to_ascii_lowercase().as_str() {
+            "even" => Ok(Query::ManaValueParity { even: true }),
+            "odd" => Ok(Query::ManaValueParity { even: false }),
+            _ => {
+                let n: f64 = value.parse().map_err(|_| ParseError::BadNumber {
                     term: term.to_string(),
-                });
+                    value: value.to_string(),
+                })?;
+                Ok(Query::ManaValue(cmp, n))
             }
-            Ok(Query::Keyword(value.to_string()))
-        }
-        "cat" | "category" => Ok(Query::Category(value.to_string())),
-        "mv" | "cmc" => {
-            let n: f64 = value.parse().map_err(|_| ParseError::BadNumber {
-                term: term.to_string(),
-                value: value.to_string(),
-            })?;
-            Ok(Query::ManaValue(cmp, n))
-        }
-        "id" | "identity" => {
-            let colors = Colors::from_letters(value).ok_or_else(|| ParseError::BadColors {
-                term: term.to_string(),
-                value: value.to_string(),
-            })?;
-            // Scryfall treats `id:` as "fits inside", i.e. `<=`.
-            let cmp = if colon { Cmp::Le } else { cmp };
-            Ok(Query::Identity(cmp, colors))
-        }
-        "is" => match value.to_ascii_lowercase().as_str() {
-            "permanent" => Ok(Query::Is(IsProperty::Permanent)),
-            "spell" => Ok(Query::Is(IsProperty::Spell)),
-            "historic" => Ok(Query::Is(IsProperty::Historic)),
-            other => Err(ParseError::UnknownIsProperty {
-                value: other.to_string(),
-            }),
         },
+        "r" | "rarity" => {
+            let rarity = Rarity::parse(value).ok_or_else(|| ParseError::BadRarity {
+                term: term.to_string(),
+                value: value.to_string(),
+            })?;
+            Ok(Query::Rarity(cmp, rarity))
+        }
+        "s" | "e" | "set" | "edition" => require_equality(Query::Set(value.to_string())),
+        "f" | "format" => format_term(term, value, FormatStatus::Legal, cmp, &key),
+        "banned" => format_term(term, value, FormatStatus::Banned, cmp, &key),
+        "restricted" => format_term(term, value, FormatStatus::Restricted, cmp, &key),
+        "layout" => require_equality(Query::Layout(value.to_string())),
+        // `not:` is Scryfall's inverted `is:`, and it is worth having because
+        // `-is:permanent` and `not:permanent` are both typed by people who read
+        // the docs.
+        "is" | "not" => {
+            let want = value.to_ascii_lowercase();
+            let property = IS_PROPERTIES
+                .iter()
+                .find(|(name, _)| *name == want)
+                .map(|&(_, p)| p)
+                .ok_or_else(|| ParseError::UnknownIsProperty {
+                    value: want.clone(),
+                })?;
+            let q = require_equality(Query::Is(property))?;
+            Ok(if key == "not" {
+                Query::Not(Box::new(q))
+            } else {
+                q
+            })
+        }
         other => Err(ParseError::UnknownKey {
             key: other.to_string(),
             term: term.to_string(),
         }),
     }
+}
+
+fn format_term(
+    term: &str,
+    value: &str,
+    status: FormatStatus,
+    cmp: Cmp,
+    key: &str,
+) -> Result<Query, ParseError> {
+    if cmp != Cmp::Eq {
+        return Err(ParseError::NoComparison {
+            key: key.to_string(),
+            term: term.to_string(),
+        });
+    }
+    let want = value.to_ascii_lowercase();
+    // A closed set, so a misspelling is an error rather than a query that
+    // matches nothing. This is the whole reason `Legalities` is a struct.
+    let format = FORMATS
+        .iter()
+        .find(|f| **f == want)
+        .ok_or_else(|| ParseError::BadFormat {
+            term: term.to_string(),
+            value: value.to_string(),
+        })?;
+    Ok(Query::Format(status, format))
 }
 
 struct Parser {

@@ -5,7 +5,16 @@
 //! this crate exists to prevent.
 
 use pe_scryfall::index::{Card, Index};
+use pe_scryfall::legality::Legalities;
 use pe_scryfall::{self as query, CardView, Colors, ParseError, Query};
+
+/// An index that said nothing about legality, which is what a hand-written
+/// fixture is. Shared because `CardView` borrows it and every literal below
+/// needs one to point at.
+fn silent() -> &'static Legalities {
+    static SILENT: std::sync::OnceLock<Legalities> = std::sync::OnceLock::new();
+    SILENT.get_or_init(Legalities::default)
+}
 
 fn card<'a>(
     name: &'a str,
@@ -19,9 +28,20 @@ fn card<'a>(
         name,
         type_line,
         oracle,
+        full_oracle: oracle,
+        mana_cost: "",
         cmc,
         keywords: &[],
         color_identity: ci,
+        colors: &[],
+        produces: &[],
+        rarity: "",
+        set: "",
+        layout: "normal",
+        faces: &[],
+        legalities: silent(),
+        game_changer: None,
+        reserved: None,
         categories: cats,
     }
 }
@@ -32,9 +52,20 @@ fn keyworded<'a>(name: &'a str, oracle: &'a str, keywords: &'a [String]) -> Card
         name,
         type_line: "Creature — Bird",
         oracle,
+        full_oracle: oracle,
+        mana_cost: "",
         cmc: 2.0,
         keywords,
         color_identity: &[],
+        colors: &[],
+        produces: &[],
+        rarity: "",
+        set: "",
+        layout: "normal",
+        faces: &[],
+        legalities: silent(),
+        game_changer: None,
+        reserved: None,
         categories: &[],
     }
 }
@@ -181,13 +212,34 @@ fn quoted_or_is_a_value_not_an_operator() {
 
 #[test]
 fn unsupported_syntax_errors_rather_than_matching_nothing() {
+    // Mana-cost and devotion terms are not implemented, so they name
+    // themselves rather than matching nothing.
     assert!(matches!(
-        query::parse("power>=3"),
+        query::parse("mana:{G}{U}"),
         Err(ParseError::UnknownKey { .. })
     ));
     assert!(matches!(
-        query::parse("is:vanilla"),
+        query::parse("devotion:{u/b}"),
+        Err(ParseError::UnknownKey { .. })
+    ));
+    // The land cycles are curated lists on Scryfall's side rather than
+    // fields in the bulk data, so this crate declines them by name instead of
+    // guessing at them from oracle text.
+    assert!(matches!(
+        query::parse("is:shockland"),
         Err(ParseError::UnknownIsProperty { .. })
+    ));
+    assert!(matches!(
+        query::parse("is:tapland"),
+        Err(ParseError::UnknownIsProperty { .. })
+    ));
+    assert!(matches!(
+        query::parse("f:pauperr"),
+        Err(ParseError::BadFormat { .. })
+    ));
+    assert!(matches!(
+        query::parse("r:legendary"),
+        Err(ParseError::BadRarity { .. })
     ));
     assert!(matches!(
         query::parse("mv<=notanumber"),
@@ -214,8 +266,30 @@ fn unsupported_syntax_errors_rather_than_matching_nothing() {
 
 #[test]
 fn error_messages_name_the_offending_term() {
-    let err = query::parse("power>=3").unwrap_err().to_string();
-    assert!(err.contains("power"), "message should name the key: {err}");
+    let err = query::parse("mana:{G}").unwrap_err().to_string();
+    assert!(err.contains("mana"), "message should name the key: {err}");
+
+    // Where the accepted values are a closed set, the message lists them:
+    // a typo is worth one line of help rather than a silent 0%.
+    let err = query::parse("f:pauperr").unwrap_err().to_string();
+    assert!(
+        err.contains("pauperr"),
+        "message should name the value: {err}"
+    );
+    assert!(
+        err.contains("paupercommander"),
+        "message should list formats: {err}"
+    );
+
+    let err = query::parse("is:tapland").unwrap_err().to_string();
+    assert!(
+        err.contains("tapland"),
+        "message should name the property: {err}"
+    );
+    assert!(
+        err.contains("vanilla"),
+        "message should list properties: {err}"
+    );
 }
 
 #[test]
