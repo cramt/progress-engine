@@ -90,6 +90,7 @@ Working today:
 
 | Command | What it does |
 |---|---|
+| `progress-engine sync` | Build the card index from Scryfall bulk data |
 | `progress-engine parse <deck>` | The canonical Archidekt decklist parser, as JSON |
 | `progress-engine test <deck> <criteria.js>` | Evaluate criteria and report PASS/FAIL |
 
@@ -249,39 +250,165 @@ percentile, and a percentile is a statement about a range, which is
 assertion is left until the thing it asserts on exists, and it will not be
 called `atLeast`.
 
-### The card index it needs, and does not build
+### The card index it builds
 
-Only one of those two rows works from a fresh clone. `parse` reads the decklist
-text and nothing else, so it needs no card data and never has. `test` has to
-know what a card *is*, and it gets that from a Scryfall index this repository
-does not produce.
+`parse` reads the decklist text and nothing else, so it needs no card data and
+never has. `test` has to know what a card *is*, and `sync` is where that comes
+from:
 
-It looks for `index.json` under `$SCRYFALL_CACHE`, failing that
+```
+$ progress-engine sync
+downloading oracle_cards, updated 2026-09-04T09:01:54.392+00:00 (24.5 MB)
+read 38631 records
+  skipped 3321: not a card (token, emblem or art card)
+  skipped 8: not English
+  kept 35224 cards
+  40 names match more than one card; which printing is kept is decided by a rule that gives the same answer every sync
+wrote 35224 cards to /home/you/.cache/scryfall/index.json
+```
+
+It writes `index.json` under `$SCRYFALL_CACHE`, failing that
 `$XDG_CACHE_HOME/scryfall`, failing that `~/.cache/scryfall`; `--index <path>`
-points it somewhere else entirely. The tool that writes that file is a separate
-`scryfall sync` shell tool that does not live here, so a clone of this repo
-alone gets:
+puts it somewhere else, and `--from <file>` builds from a bulk file already on
+disk rather than downloading one. A run with no index at all says so and names
+the command that fixes it.
 
-```
-$ progress-engine test simple-ramp.txt simple-ramp.criteria.js
-Error: no Scryfall index at /home/you/.cache/scryfall/index.json.
-Build one with: scryfall sync
-```
+Loading the library is strict about cards the index does not know: an unknown
+card stops the run rather than being skipped, because a card that cannot be
+looked up has no type line and would quietly skew every probability it touches
+— the same reasoning that makes an excluded card announce itself.
 
-Loading the library is stricter still: a card the index does not know stops the
-run with *run `scryfall check` first*, rather than being skipped, because a card
-that cannot be looked up has no type line and would quietly skew every
-probability it touches — the same reasoning that makes an excluded card announce
-itself.
+**Every record is accounted for by name, not as a total.** "Kept 35,224 cards"
+is not a statement anybody can check; "dropped 3,321 as tokens" is, because it
+moves when Scryfall's data moves. The skip reasons are the whole audit trail for
+a file nothing else in this repository can see inside.
 
-The split was deliberate: bulk fetching, rate limits and caching were already
-solved in the shell tool, and two things that could disagree about what a card
-is would be worse than one thing that lives elsewhere. It is still half a tool
-presented as a whole one, and being told to run a command you do not have is
-precisely the sort of confident wrongness the rest of this document is about.
-Owning it — `progress-engine sync`, building the index here and carrying the
-fields queries actually need — is
-[issue #2](https://github.com/cramt/progress-engine/issues/2).
+**A sync can refuse to install what it built.** It overwrites the file every
+later run reads, so the failure mode is not "sync did nothing" but "every number
+from now on describes a card pool that does not exist". Two things stop it: more
+than a handful of records whose shape this tool does not expect, which means
+Scryfall's format has moved under the flattening below; and a download that
+yields a fraction of the card pool, which means it was truncated. A truncated
+download still parses as perfectly valid JSONL, which is exactly why the count
+is checked rather than trusted. The write itself goes to a neighbouring file and
+is renamed over the target, so an interrupted sync leaves the previous index
+intact instead of a half-written one.
+
+**Tokens are not cards, and used to win.** Scryfall prints tokens that share a
+name with a real card. Keyed by lowercased name they collided, and whichever was
+written last won the key — so **Llanowar Elves was a mana value 0 token that is
+not legal in Commander**, along with forty other cards including Mutavault and
+Meteorite. Every field belonged to the token, so `mv>=5` silently missed a
+Meteorite and colour identity came back empty for all of them. `t:land` happened
+to survive because `Token Land` still contains the word, which was luck rather
+than design.
+
+The discriminator is the `layout` field and nothing else. `set_type` cannot do
+it — tokens ship in sets typed `memorabilia`, `promo`, `masters` and `box`, and
+the `emblem` layout ships in sets typed `token`. Nor can the word "Token" in the
+type line, which fifty token records do not carry. Owning the build is what made
+the fix expressible at all: once two objects share a key the information needed
+to tell them apart is gone, and the index was built elsewhere.
+
+**What the index carries, and what that costs.** Beyond the type line and mana
+value it always had: the mana a card actually *produces*, its colours as
+distinct from its colour identity, its printed mana cost, power, toughness,
+loyalty and defense per face, rarity, set, layout, and every format's legality
+word. Loading it takes about 2.9 seconds against the 1.8 the old five-field
+index took. That is a real cost for real data, and it is stated here rather than
+left to be noticed: the twenty-three legalities are stored as one letter each
+because the readable form was 17MB of a 50MB file and three seconds of every
+run, and default-valued fields are not written at all, which is why an index
+carrying four times as much is slightly smaller than the one it replaces.
+
+**Faces are flattened, and the invariant is checked rather than assumed.**
+Scryfall puts oracle text either on the card or on its faces, never both and
+never neither — so every card in the index comes out with at least one face,
+including the single-faced ones, and nothing downstream has to branch on how
+many there are. Without that, `power` means the card's power on one layout and
+nothing at all on another, and `pow>=3` would answer about the front of Delver
+of Secrets rather than about the card. A record that violates the invariant is
+counted and named rather than quietly flattened wrongly.
+
+**Reminder text is separated at sync time**, because Scryfall's `o:` does not
+search it and its `fo:` does. Without the split, `o:flying` is satisfied by
+"(This creature can't be blocked except by creatures with flying)" — the
+miscategorisation this document opens with, wearing a different card. Where a
+card's brackets do not balance, which a handful of split reminder cards manage,
+the text is left whole rather than truncated at the stray bracket: `o:` matching
+some reminder text is a far smaller error than `o:` losing a card's actual rules.
+
+Oracle tags — `otag:ramp`, `otag:sacrifice-outlet` — are now published as bulk
+data too, which removes the objection that blocked
+[issue #15](https://github.com/cramt/progress-engine/issues/15). They are not
+synced yet.
+
+### The query language
+
+A subset of [Scryfall's search syntax](https://scryfall.com/docs/syntax), plus
+one addition of our own. Where a key exists it means what Scryfall means, and
+where one does not, using it is an error naming the key rather than a query that
+matches nothing.
+
+| Key | Asks |
+|---|---|
+| `t:` `type:` | Substring of the type line |
+| `o:` `oracle:` | Oracle text, **without** reminder text |
+| `fo:` `fulloracle:` | Oracle text, reminder text included |
+| `name:` | Substring of the name; a bare word means this |
+| `kw:` `keyword:` | One whole keyword ability the card has |
+| `mv:` `cmc:` | Mana value, including `mv:even` and `mv:odd` |
+| `c:` `color:` | The card's own colours |
+| `id:` `identity:` | Its colour identity |
+| `produces:` `prod:` | The mana it can actually make |
+| `pow:` `tou:` `pt:` `loy:` `def:` | Printed statistics, comparable to each other |
+| `r:` `rarity:` | Rarity, ordered so `r>=rare` works |
+| `s:` `e:` `set:` | Set code of the printing the index carries |
+| `f:` `banned:` `restricted:` | Format legality |
+| `layout:` | Scryfall's layout name |
+| `is:` `not:` | See below |
+| `cat:` `category:` | **Ours**: an Archidekt category from the decklist |
+
+All of them combine with juxtaposition for AND, `or`, `-` for NOT, and
+parentheses.
+
+**`c:` and `id:` point in opposite directions**, which is the single most
+misread thing in Scryfall's syntax and the reason both are spelled out here.
+`c:rg` means red **and** green — a colon is "contains all of". `id:rg` means
+fits inside Gruul — a colon is "is contained by". Paste `c:wu` when you meant
+`id:wu` and you get a confident answer about a different deck. Both take colour
+letters, full names, guild, shard, wedge and college nicknames, `c` for
+colourless, `m` for multicolour, and a bare number to count colours.
+
+**`produces:` is the fix for the bug this document opens with.** Kor Haven's
+`{W}` is in an activation cost, so `o:"{W}"` calls it a white source and
+`produces:w` does not. It is orthogonal to `t:land`, so `t:land produces:w` and
+`-t:land produces:w` are both askable, and multiple letters mean AND as they do
+for `c:`.
+
+**A statistic that is not a number satisfies no comparison.** `*`, `1+*`, `∞`
+and `.5` are all real printed power values. Calling `*` zero would put Tarmogoyf
+in `pow=0` and quietly out of `pow>=1`; instead neither holds, and `-pow>=1` is
+where "we cannot say" lands. Statistics are read on **every face**, so `pow>=3`
+finds Delver of Secrets, which is a 1/1 that becomes a 3/2.
+
+`is:` answers `permanent`, `spell`, `historic`, `vanilla`, `frenchvanilla`,
+`bear`, `dfc`, `mdfc`, `transform`, `split`, `flip`, `meld`, `leveler`,
+`adventure`, `hybrid`, `phyrexian`, `commander`, `partner`, `companion`,
+`reserved` and `gamechanger`.
+
+**The land cycles are missing on purpose.** `is:shockland`, `is:fetchland`,
+`is:tapland` and the rest are **curated lists** on Scryfall's side, not fields in
+the bulk data. Reproducing them would mean hard-coding a copy that goes stale
+the day a new cycle prints, or deriving them from oracle text — and a naive
+`/enters.*tapped/` calls a Temple and a Shockland the same thing, while "enters
+tapped unless you control two or fewer other lands" is conditional in a way no
+regex survives. Both are worse than the error you get today, which at least says
+what it cannot do. `is:tapland` is the direct answer to "do these two lands
+actually give me two mana on turn two", so this is a real gap and it is
+[issue #9](https://github.com/cramt/progress-engine/issues/9).
+
+`mana:` and `devotion:` are likewise not implemented and say so.
 
 ### Queries that match nothing
 
@@ -296,8 +423,20 @@ note: query "cat:\"Rmap\"" matched no cards in this deck
 FAIL misspelled category   0.00%  (needs 30.0%)
 ```
 
-Unsupported *syntax*, by contrast, is refused outright — `power>=3` names itself
-as an error rather than quietly matching nothing.
+Unsupported *syntax*, by contrast, is refused outright — `mana:{G}{U}` names
+itself as an error rather than quietly matching nothing, and where the accepted
+values are a closed set the message lists them:
+
+```
+-engine test simple-ramp.txt typo.criteria.js
+Error: in query "f:pauperr": "f:pauperr": "pauperr" is not a format (supported:
+standard, future, historic, timeless, gladiator, pioneer, modern, legacy, pauper,
+vintage, penny, commander, oathbreaker, standardbrawl, brawl, competitivebrawl,
+alchemy, paupercommander, duel, oldschool, premodern, predh, tlr)
+```
+
+That is why the format table is a closed struct rather than a map: a map would
+make every misspelling a silent 0%.
 
 ### Cards that are never in your library
 
@@ -394,20 +533,20 @@ day to put it back.
 
 **An index entry that is not the card tells you nothing about the card.**
 Llanowar Elves is legal in Commander, and against a real index this checker
-briefly said it was not. The index is keyed by lowercased card name, Scryfall
-prints tokens that share a name with a real card, and the token can win the key
-— at which point every field belongs to the token: mana value 0, no colour
-identity, `not_legal` in every format. Forty-one real cards are shadowed that
-way today, Mutavault and Meteorite and Storm Crow among them. Reporting the
-token's fields as the card's would be the same confidently wrong claim as
-reading a missing field as guilt, so an entry whose type line says `Token` is
-treated as no data by every rule that consults card data and draws no complaint
-of any kind. Only deck size still applies to it, because counting lines in a
-decklist needs no card data at all. This repository cannot repair the underlying
-defect — once two objects share a key the information is gone, and the index is
-built elsewhere — so it is filed as
-[issue #38](https://github.com/cramt/progress-engine/issues/38) and declined
-rather than laundered.
+once said it was not. The index is keyed by lowercased card name, Scryfall
+prints tokens that share a name with a real card, and the token could win the
+key — at which point every field belonged to the token: mana value 0, no colour
+identity, `not_legal` in every format. Forty-one real cards were shadowed that
+way, Mutavault and Meteorite and Storm Crow among them.
+
+That is fixed at the source now that `sync` builds the index here: a token is
+not a card and never enters it. The defence downstream stays, because an old
+index is still readable and the reasoning has not changed — an entry whose type
+line says `Token` is treated as no data by every rule that consults card data,
+and draws no complaint of any kind. Only deck size still applies to it, because
+counting lines in a decklist needs no card data at all. Reporting the token's
+fields as the card's would be the same confidently wrong claim as reading a
+missing field as guilt.
 
 **There is no `--format` flag, so the format is inferred, and only ever from
 evidence.** A list that nominates a commander is a Commander list and gets all
@@ -490,8 +629,14 @@ nix flake check    # fmt, clippy -D warnings, tests, build
 ```
 
 Reflection comes from [facet](https://github.com/facet-rs/facet): `facet-json`
-writes the JSON contract above and reads the card index, and `figue` parses
-argv. One `#[derive(Facet)]` per type feeds all of them.
+writes the JSON contract above, reads Scryfall's bulk data and reads and writes
+the card index, and `figue` parses argv. One `#[derive(Facet)]` per type feeds
+all of them.
+
+The tests never reach the network. `sync --from <file>` builds from a bulk file
+on disk, and the fixtures are real Scryfall records checked in verbatim — a test
+whose answer depends on Scryfall being up is a fact about reachability rather
+than about this code.
 
 figue treats a missing argument as a help request, printing usage to stdout and
 exiting 0. Both halves of that are wrong here — stdout carries JSON a caller
@@ -511,7 +656,7 @@ dragging in the others.
 |---|---|---|
 | `pe-stats` | Exact hypergeometric draw probabilities | Nothing. No Magic concepts at all. |
 | `pe-decklist` | Parsing Archidekt decklists | Decklist text. No card data. |
-| `pe-scryfall` | Card data and Scryfall search syntax | Cards. No decklists. |
+| `pe-scryfall` | Card data, Scryfall bulk data and search syntax | Cards. No decklists. |
 | `pe-criteria` | Grouping cards by query, evaluating exactly | Counts. Neither cards nor JavaScript. |
 | `pe-js` | The JavaScript runtime and its bindings | V8, and the criteria contract. |
 | `pe-sim` | Sampling, validated against `pe-stats` | Shuffling. |

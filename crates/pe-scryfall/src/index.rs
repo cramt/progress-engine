@@ -94,8 +94,8 @@ pub struct Face {
 pub struct Card {
     pub name: String,
     /// Scryfall's identity for the card, kept so a later index can be keyed by
-    /// something that is actually unique. Names are not: thirty-eight of them
-    /// name more than one card.
+    /// something that is actually unique. Names are not: forty of them name more
+    /// than one card.
     #[facet(default)]
     pub oracle_id: Option<String>,
     #[facet(default)]
@@ -263,8 +263,8 @@ impl Index {
             };
             let key = keyname(&card.name);
             match cards.get(&key) {
-                // Two genuinely different cards under one name — thirty-eight
-                // of them, all Un-set variants. One has to lose, so the winner
+                // Two genuinely different cards under one name — forty of
+                // them, nearly all Un-set variants. One has to lose, so the winner
                 // is chosen by a rule that gives the same answer every sync
                 // rather than by whichever line came first: a name that
                 // resolves differently between two syncs would move a

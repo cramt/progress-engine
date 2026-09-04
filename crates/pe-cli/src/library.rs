@@ -144,7 +144,12 @@ impl Library {
     pub fn grouping_for(&self, queries: &[String]) -> Result<Grouping> {
         let parsed: Vec<_> = queries
             .iter()
-            .map(|q| pe_scryfall::parse(q).with_context(|| format!("in query {q:?}")))
+            // Formatted in rather than layered as context: this error travels
+            // through a generic `DiscoveryError` whose Display shows only the
+            // outermost layer, so a chained cause would be dropped — and the
+            // cause is the whole message, the one that names the offending term
+            // and lists what would have been accepted.
+            .map(|q| pe_scryfall::parse(q).map_err(|e| anyhow::anyhow!("in query {q:?}: {e}")))
             .collect::<Result<_>>()?;
 
         let cards = self.entries.iter().map(|e| {
@@ -163,7 +168,8 @@ impl Library {
 
     /// How many library cards match a query, for the per-query breakdown.
     pub fn matching(&self, query: &str) -> Result<u32> {
-        let q = pe_scryfall::parse(query).with_context(|| format!("in query {query:?}"))?;
+        let q =
+            pe_scryfall::parse(query).map_err(|e| anyhow::anyhow!("in query {query:?}: {e}"))?;
         Ok(self
             .entries
             .iter()

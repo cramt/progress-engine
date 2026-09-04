@@ -1,7 +1,7 @@
 //! End-to-end tests driving the real binary against a fixture deck.
 //!
 //! The fixture index is checked in so this needs no network and no card cache:
-//! CI must be able to prove the numbers without `scryfall sync` having run.
+//! CI must be able to prove the numbers without a sync having run.
 //!
 //! The deck is deliberately ordinary — 36 lands, 10 one-mana accelerants, a
 //! three-mana commander — because if the tool cannot get an obvious deck right,
@@ -1048,4 +1048,22 @@ fn sync_then_test_answers_questions_the_old_index_could_not() {
     assert!(percent(&json, "green source in opener") > 90.0);
 
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A query error has to arrive with its cause attached. The message that names
+/// the offending term and lists what would have been accepted is the entire
+/// value of refusing rather than matching nothing — and it travels through a
+/// generic error whose Display shows only its outermost layer, so it is easy to
+/// lose and impossible to notice from inside the parser's own tests.
+#[test]
+fn a_refused_query_says_what_it_would_have_accepted() {
+    let out = run("bad-query.criteria.js");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success(), "{stderr}");
+    assert!(stderr.contains("is:tapland"), "names the query: {stderr}");
+    assert!(stderr.contains("tapland"), "names the term: {stderr}");
+    assert!(
+        stderr.contains("frenchvanilla"),
+        "lists the properties it does support: {stderr}"
+    );
 }
