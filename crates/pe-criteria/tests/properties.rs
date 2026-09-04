@@ -11,18 +11,53 @@
 
 use std::convert::Infallible;
 
-use pe_criteria::{Evaluator, Grouping, PathView};
+use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan};
 use proptest::prelude::*;
 use proptest::test_runner::{Config, RngAlgorithm, TestCaseError, TestRng, TestRunner};
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
+type Tally = Box<dyn FnMut(&PathView<'_>) -> u32>;
 
 struct Closures(Vec<Check>);
 
 impl Evaluator for Closures {
     type Error = Infallible;
-    fn evaluate(&mut self, view: &PathView<'_>) -> Result<Vec<bool>, Infallible> {
-        Ok(self.0.iter_mut().map(|f| f(view)).collect())
+    fn evaluate(&mut self, view: &PathView<'_>) -> Result<PathOutcomes, Infallible> {
+        Ok(PathOutcomes {
+            held: self.0.iter_mut().map(|f| f(view)).collect(),
+            counted: Vec::new(),
+        })
+    }
+}
+
+/// The expectation half: closures answering *how many* rather than *whether*.
+struct Counters(Vec<Tally>);
+
+impl Evaluator for Counters {
+    type Error = Infallible;
+    fn evaluate(&mut self, view: &PathView<'_>) -> Result<PathOutcomes, Infallible> {
+        Ok(PathOutcomes {
+            held: Vec::new(),
+            counted: self
+                .0
+                .iter_mut()
+                .map(|f| Count::new(f(view)).expect("a count of a drawn card is in range"))
+                .collect(),
+        })
+    }
+}
+
+fn only_criteria(n: usize) -> Plan {
+    Plan {
+        criteria: n,
+        expectations: 0,
+    }
+}
+
+fn only_expectations(n: usize) -> Plan {
+    Plan {
+        criteria: 0,
+        expectations: n,
     }
 }
 
@@ -155,7 +190,8 @@ fn every_run_accounts_for_all_of_its_probability_mass() {
     runner(256)
         .run(&question(), |q| {
             let mut ev = Closures(vec![Box::new(|_: &PathView<'_>| true)]);
-            let r = pe_criteria::run(&q.grouping, &q.gaps, 1, &mut ev)
+            let r = pe_criteria::run(&q.grouping, &q.gaps, only_criteria(1), &mut ev)
+                .map(|o| o.probabilities)
                 .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
             prop_assert!(
                 (r[0].get() - 1.0).abs() < 1e-12,
@@ -186,7 +222,8 @@ fn a_count_threshold_never_gets_less_likely_as_turns_advance() {
                 })
                 .collect();
             let mut ev = checks(&by_turn);
-            let r = pe_criteria::run(&q.grouping, &q.gaps, by_turn.len(), &mut ev)
+            let r = pe_criteria::run(&q.grouping, &q.gaps, only_criteria(by_turn.len()), &mut ev)
+                .map(|o| o.probabilities)
                 .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
             let ps: Vec<f64> = r.iter().map(|p| p.get()).collect();
             for pair in ps.windows(2) {
@@ -218,7 +255,8 @@ fn a_single_turn_criterion_matches_the_closed_form_at_least() {
                 query,
                 k,
             }]);
-            let enumerated = pe_criteria::run(&q.grouping, gaps, 1, &mut ev)
+            let enumerated = pe_criteria::run(&q.grouping, gaps, only_criteria(1), &mut ev)
+                .map(|o| o.probabilities)
                 .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
             let closed = pe_stats::at_least(
                 q.grouping.population(),
@@ -251,11 +289,18 @@ fn criteria_evaluated_together_get_the_same_answers_as_criteria_evaluated_alone(
         .run(&cases, |(q, loose)| {
             let thresholds = resolve(&loose, &q);
             let mut ev = checks(&thresholds);
-            let together = pe_criteria::run(&q.grouping, &q.gaps, thresholds.len(), &mut ev)
-                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            let together = pe_criteria::run(
+                &q.grouping,
+                &q.gaps,
+                only_criteria(thresholds.len()),
+                &mut ev,
+            )
+            .map(|o| o.probabilities)
+            .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
             for (i, t) in thresholds.iter().enumerate() {
                 let mut solo = checks(&[*t]);
-                let alone = pe_criteria::run(&q.grouping, &q.gaps, 1, &mut solo)
+                let alone = pe_criteria::run(&q.grouping, &q.gaps, only_criteria(1), &mut solo)
+                    .map(|o| o.probabilities)
                     .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
                 prop_assert_eq!(
                     together[i].get(),
@@ -264,6 +309,114 @@ fn criteria_evaluated_together_get_the_same_answers_as_criteria_evaluated_alone(
                     t
                 );
             }
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+fn every_expectation_distribution_is_a_distribution() {
+    // The same statement as the mass check above, made about the other kind of
+    // answer. A histogram that does not sum to 1 has lost or double-counted a
+    // region of the sample space, and every bucket in it is then drawn from the
+    // wrong denominator -- which no single bucket can reveal on its own.
+    let cases = (question(), any::<u8>());
+    runner(256)
+        .run(&cases, |(q, query)| {
+            let query = usize::from(query) % q.queries;
+            let last = q.gaps.len() - 1;
+            let mut ev = Counters(vec![
+                Box::new(move |v: &PathView<'_>| v.count(0, query)),
+                Box::new(move |v: &PathView<'_>| v.count(last, query)),
+            ]);
+            let r = pe_criteria::run(&q.grouping, &q.gaps, only_expectations(2), &mut ev)
+                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            for (i, d) in r.distributions.iter().enumerate() {
+                prop_assert!(
+                    (d.total() - 1.0).abs() < 1e-12,
+                    "{:?} over gaps {:?}, expectation {i} summed to {}",
+                    q.grouping.group_sizes(),
+                    q.gaps,
+                    d.total()
+                );
+                prop_assert!(
+                    d.probabilities().iter().all(|p| *p >= 0.0),
+                    "a negative bucket in {:?}",
+                    d.probabilities()
+                );
+            }
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+fn an_expectation_matches_the_closed_form_mean() {
+    // One query at one checkpoint reduces to a plain hypergeometric, whose mean
+    // is draws * successes / population in closed form. The engine walks every
+    // composition and weights it; `pe_stats::mean` divides three numbers.
+    // Nothing but the answer is shared between them.
+    let cases = (question(), any::<u8>());
+    runner(256)
+        .run(&cases, |(q, query)| {
+            let query = usize::from(query) % q.queries;
+            let gaps = &q.gaps[..1];
+            let mut ev = Counters(vec![Box::new(move |v: &PathView<'_>| v.count(0, query))]);
+            let r = pe_criteria::run(&q.grouping, gaps, only_expectations(1), &mut ev)
+                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            let closed = pe_stats::mean(
+                q.grouping.population(),
+                q.grouping.matching_total(query),
+                gaps[0],
+            );
+            let enumerated = r.distributions[0].mean();
+            prop_assert!(
+                (enumerated - closed).abs() < 1e-11,
+                "{:?} drawing {}, {} matching: enumerated {enumerated} vs closed {closed}",
+                q.grouping.group_sizes(),
+                gaps[0],
+                q.grouping.matching_total(query)
+            );
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+fn a_threshold_is_the_tail_of_the_distribution_it_thresholds() {
+    // The two kinds of answer are the same walk accumulated two ways, so asking
+    // the same question both ways must not produce two numbers. This is what
+    // stops the histogram and the probabilities drifting apart: a criterion
+    // "at least k" is by definition the mass at k and above.
+    let cases = (question(), any::<u8>(), 1u32..=3);
+    runner(192)
+        .run(&cases, |(q, query, k)| {
+            let query = usize::from(query) % q.queries;
+            let last = q.gaps.len() - 1;
+
+            let mut counting =
+                Counters(vec![Box::new(move |v: &PathView<'_>| v.count(last, query))]);
+            let counted =
+                pe_criteria::run(&q.grouping, &q.gaps, only_expectations(1), &mut counting)
+                    .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            let buckets = counted.distributions[0].probabilities();
+            let tail: f64 = buckets.iter().skip(k as usize).sum();
+
+            let mut checking = checks(&[Threshold {
+                checkpoint: last,
+                query,
+                k,
+            }]);
+            let held = pe_criteria::run(&q.grouping, &q.gaps, only_criteria(1), &mut checking)
+                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+
+            prop_assert!(
+                (tail - held.probabilities[0].get()).abs() < 1e-12,
+                "{:?} over gaps {:?}, query {query} k={k}: tail {tail} vs criterion {}",
+                q.grouping.group_sizes(),
+                q.gaps,
+                held.probabilities[0].get()
+            );
             Ok(())
         })
         .unwrap();

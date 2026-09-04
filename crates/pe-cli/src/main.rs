@@ -187,19 +187,24 @@ fn run_test(
     // discovered by running it, so neither has to be declared. Both engines go
     // through the same loop, so they cannot drift apart in how they resolve a
     // criteria file — only in how they compute the answer.
-    let probabilities: Vec<f64> = pe_js::with_discovery(
+    let answers: report::Answers = pe_js::with_discovery(
         &mut criteria,
         |queries| library.grouping_for(queries),
         |turns| draw_gaps(turns, on_the_draw),
-        |grouping, gaps, criteria| -> Result<Vec<f64>> {
+        |grouping, gaps, criteria| -> Result<report::Answers> {
+            let plan = criteria.plan();
             if simulate {
-                Ok(pe_sim::simulate(grouping, gaps, trials, seed, criteria)?)
+                let sampled = pe_sim::simulate(grouping, gaps, trials, seed, plan, criteria)?;
+                Ok(report::Answers {
+                    probabilities: sampled.proportions,
+                    distributions: sampled.distributions,
+                })
             } else {
-                let n = criteria.criteria().len();
-                Ok(pe_criteria::run(grouping, gaps, n, criteria)?
-                    .into_iter()
-                    .map(|p| p.get())
-                    .collect())
+                let exact = pe_criteria::run(grouping, gaps, plan, criteria)?;
+                Ok(report::Answers {
+                    probabilities: exact.probabilities.into_iter().map(|p| p.get()).collect(),
+                    distributions: exact.distributions,
+                })
             }
         },
     )
@@ -214,8 +219,11 @@ fn run_test(
         })
         .collect();
     let report = report::Report::build(
-        criteria.criteria(),
-        &probabilities,
+        report::Questions {
+            criteria: criteria.criteria(),
+            expectations: criteria.expectations(),
+        },
+        &answers,
         report::Scenario {
             on_the_draw,
             sampled: simulate.then_some(report::Sampling { trials, seed }),

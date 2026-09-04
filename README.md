@@ -38,7 +38,10 @@ That is a unit test for a deck. Change a card, run it again, see which assertion
 Probabilities are **exact**, not simulated. Cards are grouped by which of your queries they
 match, and the tool enumerates count-vectors over those groups, weighting each by its
 multivariate hypergeometric probability. There is no shuffler, so there is no sampler bias to
-chase — and it is fast enough that the answer is instant.
+chase — and it is fast enough that the answer is instant. Enumerating rather
+than sampling also means a count's whole *distribution* falls out of the same
+walk instead of having to be estimated: see [how many, not just how
+often](#how-many-not-just-how-often).
 
 The JavaScript API deliberately exposes only `count(query)` rather than the cards themselves.
 That constraint is what keeps the engine exact: a criterion is a pure function of how many
@@ -96,6 +99,12 @@ PASS keepable opener (2-5 lands)   78.97%  (needs 70.0%)
 PASS turn-1 accelerant             51.04%  (needs 35.0%)
 PASS commander on turn 2           44.29%  (needs 30.0%)
      any ramp by turn 3            94.39%
+     lands in opener              mean 2.55
+                                  0: 3.7%   1: 16.4%  2: 29.7%  3: 28.6%
+                                  4: 15.7%  5: 4.9%   6: 0.8%   7: 0.1%
+     ramp seen by turn 3          mean 2.36
+                                  0: 5.6%   1: 20.2%  2: 30.6%  3: 25.6%
+                                  4: 13.0%  5: 4.1%   6: 0.8%   7: 0.1%
 
 PASS: 3 of 3 assertions met
 ```
@@ -109,8 +118,11 @@ says so without refusing to answer: see
 [decks you cannot legally play](#decks-you-cannot-legally-play).
 
 A criterion with no `atLeast` is informational: it reports a number and cannot
-fail. Add `--draw` to model being on the draw, and `--simulate` to sample
-instead of enumerate (slower, approximate, and reported with standard errors).
+fail. The two blocks with means under them are `expect` rather than `criterion`,
+and they are the subject of [how many, not just how
+often](#how-many-not-just-how-often). Add `--draw` to model being on the draw,
+and `--simulate` to sample instead of enumerate (slower, approximate, and
+reported with standard errors).
 
 The JSON also carries a `provenance` block — the tool's version, the date the
 card index was built, and SHA-256 hashes of the decklist and criteria files as
@@ -121,6 +133,121 @@ what lets a comparison say *which* one changed rather than only that something
 did. An index that never recorded when it was built reports `null` there, for the
 same reason a card with no legality word comes back unknown: a plausible date
 nobody can vouch for is worse than an admitted gap.
+
+### How many, not just how often
+
+A criterion answers *how often*, and for a long time that was the only question
+this tool could be asked. But half of what anyone actually wants to know about a
+decklist is *how many* — expected lands in an opening hand, ramp pieces by turn
+three, mana available on turn four — and the only way to get at it was to write
+five criteria with five different thresholds and difference them by hand:
+
+```js
+criterion("0 lands", (t) => t(0).count('t:land') === 0);
+criterion("1 land",  (t) => t(0).count('t:land') === 1);
+criterion("2 lands", (t) => t(0).count('t:land') === 2);
+```
+
+That is a histogram reconstructed by its reader, in their head, from a column of
+percentages that do not say they belong together. It is arithmetic performed
+somewhere nothing checks it, which is the same category of mistake as a
+definition kept in your head rather than written down.
+
+So there is a second kind of registration. `expect` returns a count rather than
+a bool, and is answered with a mean and the whole distribution behind it:
+
+```js
+expect("lands in opener", (t) => t(0).count('t:land'));
+```
+
+```
+     lands in opener              mean 2.55
+                                  0: 3.7%   1: 16.4%  2: 29.7%  3: 28.6%
+                                  4: 15.7%  5: 4.9%   6: 0.8%   7: 0.1%
+```
+
+**The distribution is the more useful half, and it costs nothing.** The engine
+already walks every composition with that composition's exact probability;
+adding `p` to the bucket for the value a question took is the same loop over the
+same terms as testing whether it held. So `P(exactly k)` comes out for every k,
+exactly, rather than estimated — and it is what a mean cannot tell you. "2.55
+lands on average" is equally true of this deck and of one that mulligans to
+oblivion a fifth of the time; the row underneath, which says 3.7% of opening
+hands have no land at all and 20.1% have at most one, is the thing anybody
+brewing actually wants to look at. A summary statistic that hides its own shape
+is a confident number about the wrong question, which is this repository's
+subject.
+
+`--simulate` answers both kinds. A sampler computes a mean by averaging and a
+distribution by histogramming, so the second question costs it no more than the
+first, and the two engines are held to each other bucket by bucket rather than
+only on the mean — a mean can be right while the shape underneath it is wrong.
+
+**A value has to be a whole number, and there is a ceiling on it.** The answer is
+a histogram, so every value it accepts needs a bucket of its own; `count()`
+returns whole cards and is the only thing a criteria file may look at, so a
+count, or a sum of counts, is representable by construction. Anything else is
+refused by name rather than coerced:
+
+```
+$ progress-engine test simple-ramp.txt rate.criteria.js
+Error: evaluating criteria: expect("lands per card"): 0.14285714285714285 is not a countable value: it must be a whole number from 0 to 1024.
+An expectation is reported as a distribution with one bucket per value, and there is nowhere to put this one.
+```
+
+Dividing by seven to report a rate is a reasonable thing to want and this tool
+does not do it. The alternatives were rounding 0.57 to 1, or picking a bucket
+width nobody asked for and reporting a distribution over it — both of which
+answer a different question than the one written down and leave no mark in the
+output saying so. An admitted refusal beats a plausible histogram.
+
+The same refusal, in the other direction, guards the two kinds against each
+other. JavaScript will coerce a number to a bool and a bool to a number without
+complaint, so a criterion that forgot its comparison would silently become "at
+least one land" under a name promising a count, and an expectation returning
+`true` would report a probability in a column headed *mean*. Both are errors
+that name the offending registration and say which of the two you probably
+wanted.
+
+**A wide distribution is windowed, and says what it left out.** Lands seen by
+turn twenty runs from zero to twenty-six, and printing twenty-seven buckets is
+not a histogram but a wall. The human output shows the twelve contiguous buckets
+holding the most mass — contiguous, because a histogram with holes punched in it
+reads as missing data — drops ends that would print as `0.0%`, and states the
+remainder rather than dropping it:
+
+```
+$ progress-engine test simple-ramp.txt lands-by-turn.criteria.js
+     lands by turn 20  mean 9.45
+                       4: 0.6%    5: 2.0%    6: 5.1%    7: 9.9%    8: 15.1%
+                       9: 18.4%   10: 18.0%  11: 14.2%  12: 9.0%   13: 4.7%
+                       14: 2.0%   15: 0.7%  (+0.4% outside)
+```
+
+The JSON carries the whole array untruncated, indexed by value, so nothing is
+actually lost — the summary can afford to be a summary precisely because the
+machine-readable half is complete. A summary that quietly mislaid four percent
+of its mass would be the failure this whole document is about, in miniature.
+
+**There is no assertion on an expectation, and that is a stated gap rather than
+an oversight.** `atLeast` on a criterion is a threshold on a probability: a
+number between zero and one that means the same thing in every criterion ever
+written. The same keyword here would be a threshold in the units of whatever is
+being counted — "at least 2.5" is lands in one line and mana in the next — and
+nothing in the report would say which reading applied. One word with two
+meanings is precisely the unstated definition this tool exists to eliminate, so
+rather than ship the trap, an expectation is informational and cannot fail a
+run. It does not appear in `asserted`, it cannot move `failed`, and it never
+touches the exit code.
+
+The assertion people actually want is probably not about the mean anyway.
+"Averages at least 2.5 lands" is satisfied by a deck that floods half the time
+and is screwed the other half, which is the same shape-hiding this feature
+exists to undo. "Has two lands 90% of the time" is a statement about a
+percentile, and a percentile is a statement about a range, which is
+[issue #12](https://github.com/cramt/progress-engine/issues/12). Naming that
+assertion is left until the thing it asserts on exists, and it will not be
+called `atLeast`.
 
 ### The card index it needs, and does not build
 

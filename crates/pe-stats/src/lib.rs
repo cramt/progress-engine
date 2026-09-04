@@ -253,3 +253,94 @@ pub fn probability_that_path(
     });
     Probability::new(total.total())
 }
+
+/// A probability distribution over small non-negative integers.
+///
+/// Dense from zero, so the index *is* the value: `probabilities()[k]` is
+/// P(value = k), and a value nothing ever took still occupies its bucket at
+/// zero. That is what makes it a histogram rather than a sparse map, and a
+/// histogram with holes in it reads as missing data rather than as an unlikely
+/// outcome.
+///
+/// The exact engine gets one of these for nothing. It already walks every
+/// composition with that composition's exact probability, so bucketing by the
+/// value a question took costs the same loop as testing whether it held — and
+/// answers a strictly larger question, because a mean of 2.71 lands cannot tell
+/// you whether you are flooding or screwing and the shape can.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Distribution {
+    p: Vec<f64>,
+}
+
+impl Distribution {
+    /// P(value = k) for every k from 0 to the largest value observed.
+    pub fn probabilities(&self) -> &[f64] {
+        &self.p
+    }
+
+    /// Total mass. 1 for a complete enumeration, which is what the caller
+    /// checks rather than assumes.
+    pub fn total(&self) -> f64 {
+        let mut sum = KahanSum::new();
+        for p in &self.p {
+            sum.add(*p);
+        }
+        sum.total()
+    }
+
+    /// Expected value, summed over the same buckets that are reported.
+    ///
+    /// Deliberately not accumulated separately during the walk. A mean computed
+    /// beside a histogram is a second answer to the same question, and the two
+    /// can drift; computed *from* the histogram it cannot disagree with the
+    /// numbers printed underneath it.
+    pub fn mean(&self) -> f64 {
+        let mut sum = KahanSum::new();
+        for (k, p) in self.p.iter().enumerate() {
+            sum.add(k as f64 * p);
+        }
+        sum.total()
+    }
+
+    /// Standard deviation, from the same buckets.
+    pub fn sd(&self) -> f64 {
+        let mean = self.mean();
+        let mut sum = KahanSum::new();
+        for (k, p) in self.p.iter().enumerate() {
+            let d = k as f64 - mean;
+            sum.add(d * d * p);
+        }
+        sum.total().max(0.0).sqrt()
+    }
+}
+
+/// Accumulates a [`Distribution`] one weighted observation at a time.
+///
+/// One compensated sum per bucket rather than one for the whole thing: the
+/// enumeration visits the buckets interleaved and in no useful order, and a
+/// bucket holding a millionth of the mass would otherwise lose its low bits to
+/// whichever bucket holds most of it.
+#[derive(Debug, Clone, Default)]
+pub struct DistributionBuilder {
+    buckets: Vec<KahanSum>,
+}
+
+impl DistributionBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn add(&mut self, value: u32, p: f64) {
+        let idx = value as usize;
+        if idx >= self.buckets.len() {
+            self.buckets.resize(idx + 1, KahanSum::new());
+        }
+        self.buckets[idx].add(p);
+    }
+
+    pub fn build(self) -> Distribution {
+        Distribution {
+            p: self.buckets.into_iter().map(KahanSum::total).collect(),
+        }
+    }
+}

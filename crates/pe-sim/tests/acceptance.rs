@@ -8,16 +8,52 @@
 
 use std::convert::Infallible;
 
-use pe_criteria::{Evaluator, Grouping, PathView};
-use pe_sim::{simulate, standard_error, SimError};
+use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan};
+use pe_sim::{mean_standard_error, simulate, standard_error, SimError};
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
+type Tally = Box<dyn FnMut(&PathView<'_>) -> u32>;
+
 struct Closures(Vec<Check>);
 
 impl Evaluator for Closures {
     type Error = Infallible;
-    fn evaluate(&mut self, view: &PathView<'_>) -> Result<Vec<bool>, Infallible> {
-        Ok(self.0.iter_mut().map(|f| f(view)).collect())
+    fn evaluate(&mut self, view: &PathView<'_>) -> Result<PathOutcomes, Infallible> {
+        Ok(PathOutcomes {
+            held: self.0.iter_mut().map(|f| f(view)).collect(),
+            counted: Vec::new(),
+        })
+    }
+}
+
+/// The expectation half: closures answering *how many* rather than *whether*.
+struct Counters(Vec<Tally>);
+
+impl Evaluator for Counters {
+    type Error = Infallible;
+    fn evaluate(&mut self, view: &PathView<'_>) -> Result<PathOutcomes, Infallible> {
+        Ok(PathOutcomes {
+            held: Vec::new(),
+            counted: self
+                .0
+                .iter_mut()
+                .map(|f| Count::new(f(view)).expect("a count of a drawn card is in range"))
+                .collect(),
+        })
+    }
+}
+
+fn only_criteria(n: usize) -> Plan {
+    Plan {
+        criteria: n,
+        expectations: 0,
+    }
+}
+
+fn only_expectations(n: usize) -> Plan {
+    Plan {
+        criteria: 0,
+        expectations: n,
     }
 }
 
@@ -39,7 +75,9 @@ fn the_shuffler_reproduces_the_documented_land_distribution() {
             .map(|k| Box::new(move |v: &PathView<'_>| v.count(0, 0) >= k) as Check)
             .collect(),
     );
-    let at_least = simulate(&g, &[7], TRIALS, 0xC0FFEE, &mut ev).unwrap();
+    let at_least = simulate(&g, &[7], TRIALS, 0xC0FFEE, only_criteria(8), &mut ev)
+        .unwrap()
+        .proportions;
 
     let pmf: Vec<f64> = (0..=7)
         .map(|k| at_least[k] - at_least.get(k + 1).copied().unwrap_or(0.0))
@@ -81,7 +119,9 @@ fn sampling_agrees_with_the_exact_engine() {
         let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
             v.count(0, 0) >= 1 && v.count(0, 1) >= 1
         })]);
-        let sampled = simulate(&g, &[draws], TRIALS, 42, &mut ev).unwrap()[0];
+        let sampled = simulate(&g, &[draws], TRIALS, 42, only_criteria(1), &mut ev)
+            .unwrap()
+            .proportions[0];
 
         let se = standard_error(sampled, TRIALS);
         assert!(
@@ -103,7 +143,9 @@ fn checkpoints_agree_with_the_exact_engine() {
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
         v.count(0, 0) >= 1 && v.count(0, 1) >= 1 && v.count(1, 0) >= 2
     })]);
-    let sampled = simulate(&g, &[7, 1], TRIALS, 7, &mut ev).unwrap()[0];
+    let sampled = simulate(&g, &[7, 1], TRIALS, 7, only_criteria(1), &mut ev)
+        .unwrap()
+        .proportions[0];
 
     let se = standard_error(sampled, TRIALS);
     assert!(
@@ -118,7 +160,9 @@ fn the_same_seed_deals_the_same_hands() {
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
     let run = |seed: u64| {
         let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) >= 3)]);
-        simulate(&g, &[7], 5_000, seed, &mut ev).unwrap()[0]
+        simulate(&g, &[7], 5_000, seed, only_criteria(1), &mut ev)
+            .unwrap()
+            .proportions[0]
     };
     assert_eq!(run(123), run(123));
     assert_ne!(
@@ -132,7 +176,9 @@ fn the_same_seed_deals_the_same_hands() {
 fn drawing_the_whole_library_is_not_an_infinite_loop() {
     let g = Grouping::build(q(&["land"]), [(0b1, 4), (0, 6)]).unwrap();
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) == 4)]);
-    let p = simulate(&g, &[10], 100, 1, &mut ev).unwrap()[0];
+    let p = simulate(&g, &[10], 100, 1, only_criteria(1), &mut ev)
+        .unwrap()
+        .proportions[0];
     assert_eq!(p, 1.0, "drawing every card must find every land");
 }
 
@@ -142,7 +188,7 @@ fn a_hand_bigger_than_the_library_is_refused_rather_than_clamped() {
     // exact engine answered 0%. Both refuse now.
     let g = Grouping::build(q(&["land"]), [(0b1, 1), (0, 1)]).unwrap();
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1)]);
-    let err = simulate(&g, &[7], 100, 1, &mut ev).unwrap_err();
+    let err = simulate(&g, &[7], 100, 1, only_criteria(1), &mut ev).unwrap_err();
     assert!(
         matches!(
             err,
@@ -154,7 +200,7 @@ fn a_hand_bigger_than_the_library_is_refused_rather_than_clamped() {
         "{err}"
     );
 
-    let exact = pe_criteria::run(&g, &[7], 1, &mut ev).unwrap_err();
+    let exact = pe_criteria::run(&g, &[7], only_criteria(1), &mut ev).unwrap_err();
     assert_eq!(
         exact.to_string(),
         err.to_string(),
@@ -167,7 +213,7 @@ fn zero_trials_is_refused_rather_than_divided_by() {
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1)]);
     assert!(matches!(
-        simulate(&g, &[7], 0, 1, &mut ev).unwrap_err(),
+        simulate(&g, &[7], 0, 1, only_criteria(1), &mut ev).unwrap_err(),
         SimError::NoTrials
     ));
 }
@@ -188,10 +234,106 @@ fn a_checkpoint_reached_before_any_draw_sees_an_empty_hand() {
     };
     // Nothing before the draw, the land after it, and a trailing gap of zero
     // that must not lose it again.
-    let sampled = simulate(&g, &[0, 1, 0], 100, 1, &mut criteria()).unwrap();
+    let sampled = simulate(&g, &[0, 1, 0], 100, 1, only_criteria(3), &mut criteria())
+        .unwrap()
+        .proportions;
     assert_eq!(sampled, vec![0.0, 1.0, 1.0], "{sampled:?}");
 
-    let exact = pe_criteria::run(&g, &[0, 1, 0], 3, &mut criteria()).unwrap();
+    let exact = pe_criteria::run(&g, &[0, 1, 0], only_criteria(3), &mut criteria())
+        .unwrap()
+        .probabilities;
     let exact: Vec<f64> = exact.iter().map(|p| p.get()).collect();
     assert_eq!(exact, sampled, "same question, same answer");
+}
+
+#[test]
+fn the_sampled_distribution_reproduces_the_documented_land_distribution() {
+    // The same acceptance test as at the top of this file, asked directly. Above
+    // it is reconstructed from eight `>= k` criteria and differenced by hand,
+    // which is exactly the workaround an expectation exists to remove -- so this
+    // is also the check that the direct route and the workaround agree.
+    let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
+    let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| v.count(0, 0))]);
+    let sampled = simulate(&g, &[7], TRIALS, 0xC0FFEE, only_expectations(1), &mut ev).unwrap();
+    let d = &sampled.distributions[0];
+
+    let tolerance = 3.0 * 1.2331 / f64::from(TRIALS).sqrt();
+    assert!(
+        (d.mean() - 2.5455).abs() < tolerance,
+        "mean {} outside {tolerance} of 2.5455",
+        d.mean()
+    );
+    assert!((d.sd() - 1.2331).abs() < 0.02, "sd was {}", d.sd());
+    assert!((d.total() - 1.0).abs() < 1e-9, "summed to {}", d.total());
+
+    // Bucket for bucket against the closed-form hypergeometric, within the
+    // sampler's own error bars. A mean can be right while the shape is wrong,
+    // and the shape is the half this feature exists for.
+    for k in 0..=7usize {
+        let want = pe_stats::pmf(99, 36, 7, k as u32);
+        let got = d.probabilities()[k];
+        let se = standard_error(got, TRIALS);
+        assert!(
+            (got - want).abs() < 4.0 * se + 3.0 / f64::from(TRIALS),
+            "P(exactly {k}): sampled {got} vs exact {want}"
+        );
+    }
+
+    // And the error bar the report would quote beside that mean.
+    let se = mean_standard_error(d, TRIALS);
+    assert!(
+        (se - 1.2331 / f64::from(TRIALS).sqrt()).abs() < 1e-4,
+        "standard error of the mean was {se}"
+    );
+}
+
+#[test]
+fn expectations_agree_with_the_exact_engine() {
+    // The exact engine is the oracle for the sampled one, for the second kind of
+    // answer as much as the first. A sampler that quietly answered a different
+    // question here -- the mean of something else, or a histogram off by one
+    // bucket -- would look entirely plausible on its own.
+    let g = Grouping::build(q(&["land", "dork"]), [(0b01, 36), (0b10, 10), (0, 53)]).unwrap();
+    let counters = || {
+        Counters(vec![
+            Box::new(|v: &PathView<'_>| v.count(0, 0)) as Tally,
+            Box::new(|v: &PathView<'_>| v.count(1, 0) + v.count(1, 1)) as Tally,
+        ])
+    };
+
+    let exact = pe_criteria::run(&g, &[7, 1], only_expectations(2), &mut counters()).unwrap();
+    let sampled = simulate(
+        &g,
+        &[7, 1],
+        TRIALS,
+        11,
+        only_expectations(2),
+        &mut counters(),
+    )
+    .unwrap();
+
+    for (i, (e, s)) in exact
+        .distributions
+        .iter()
+        .zip(&sampled.distributions)
+        .enumerate()
+    {
+        let se = mean_standard_error(s, TRIALS);
+        assert!(
+            (s.mean() - e.mean()).abs() < 4.0 * se,
+            "expectation {i}: sampled mean {} vs exact {} ({:.1}x SE)",
+            s.mean(),
+            e.mean(),
+            (s.mean() - e.mean()).abs() / se
+        );
+        for k in 0..e.probabilities().len() {
+            let want = e.probabilities()[k];
+            let got = s.probabilities().get(k).copied().unwrap_or(0.0);
+            let bucket_se = standard_error(got, TRIALS);
+            assert!(
+                (got - want).abs() < 4.0 * bucket_se + 3.0 / f64::from(TRIALS),
+                "expectation {i}, P(exactly {k}): sampled {got} vs exact {want}"
+            );
+        }
+    }
 }

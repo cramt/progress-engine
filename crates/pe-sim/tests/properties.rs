@@ -14,19 +14,54 @@
 
 use std::convert::Infallible;
 
-use pe_criteria::{Evaluator, Grouping, PathView, RunError};
-use pe_sim::{simulate, standard_error};
+use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan, RunError};
+use pe_sim::{mean_standard_error, simulate, standard_error};
 use proptest::prelude::*;
 use proptest::test_runner::{Config, RngAlgorithm, TestCaseError, TestRng, TestRunner};
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
+type Tally = Box<dyn FnMut(&PathView<'_>) -> u32>;
 
 struct Closures(Vec<Check>);
 
 impl Evaluator for Closures {
     type Error = Infallible;
-    fn evaluate(&mut self, view: &PathView<'_>) -> Result<Vec<bool>, Infallible> {
-        Ok(self.0.iter_mut().map(|f| f(view)).collect())
+    fn evaluate(&mut self, view: &PathView<'_>) -> Result<PathOutcomes, Infallible> {
+        Ok(PathOutcomes {
+            held: self.0.iter_mut().map(|f| f(view)).collect(),
+            counted: Vec::new(),
+        })
+    }
+}
+
+/// The expectation half: closures answering *how many* rather than *whether*.
+struct Counters(Vec<Tally>);
+
+impl Evaluator for Counters {
+    type Error = Infallible;
+    fn evaluate(&mut self, view: &PathView<'_>) -> Result<PathOutcomes, Infallible> {
+        Ok(PathOutcomes {
+            held: Vec::new(),
+            counted: self
+                .0
+                .iter_mut()
+                .map(|f| Count::new(f(view)).expect("a count of a drawn card is in range"))
+                .collect(),
+        })
+    }
+}
+
+fn only_criteria(n: usize) -> Plan {
+    Plan {
+        criteria: n,
+        expectations: 0,
+    }
+}
+
+fn only_expectations(n: usize) -> Plan {
+    Plan {
+        criteria: 0,
+        expectations: n,
     }
 }
 
@@ -57,15 +92,18 @@ const TRIALS: u32 = 20_000;
 /// Under the null — the sampler is correct and the only difference is sampling
 /// noise — the estimate is asymptotically normal, so a two-sided five-sigma
 /// comparison fails by chance about 5.7e-7 of the time. This file makes at most
-/// 160 such comparisons, so a whole run trips by chance about once in eleven
-/// thousand. Four sigma would be 6.3e-5 per comparison and about one run in a
-/// hundred: flaky enough to teach people to re-run CI, which is the failure mode
-/// worth avoiding more than any bug this could catch.
+/// about 1,700 such comparisons: 160 for the criteria, and the rest because
+/// every bucket of every sampled distribution is compared as well as its mean.
+/// A whole run therefore trips by chance about once in a thousand. Four sigma
+/// would be 6.3e-5 per comparison and about one run in ten: flaky enough to
+/// teach people to re-run CI, which is the failure mode worth avoiding more
+/// than any bug this could catch.
 ///
 /// It is still tight enough to mean something. The bias that got a hand-rolled
 /// PRNG thrown out of this project's predecessor was eight standard errors; a
 /// sampler off by that much lands inside five sigma with probability 0.0014 per
-/// comparison, so it survives all 160 with probability about 1e-459.
+/// comparison, so it survives even one criterion's worth of comparisons with
+/// probability about 1e-11.
 ///
 /// The normal approximation is the weak part: for a criterion that fires on well
 /// under a percent of hands the count is Poisson rather than normal and the
@@ -192,30 +230,43 @@ fn sampling_agrees_with_the_exact_engine_within_five_standard_errors() {
             let thresholds = resolve(&loose, &q);
 
             let mut ev = checks(&thresholds);
-            let exact = pe_criteria::run(&q.grouping, &q.gaps, thresholds.len(), &mut ev)
-                .map_err(|e| TestCaseError::fail(format!("exact engine refused: {e}")))?;
+            let exact = pe_criteria::run(
+                &q.grouping,
+                &q.gaps,
+                only_criteria(thresholds.len()),
+                &mut ev,
+            )
+            .map_err(|e| TestCaseError::fail(format!("exact engine refused: {e}")))?;
 
             let mut ev = checks(&thresholds);
-            let sampled = simulate(&q.grouping, &q.gaps, TRIALS, seed, &mut ev)
-                .map_err(|e| TestCaseError::fail(format!("sampler refused: {e}")))?;
+            let sampled = simulate(
+                &q.grouping,
+                &q.gaps,
+                TRIALS,
+                seed,
+                only_criteria(thresholds.len()),
+                &mut ev,
+            )
+            .map_err(|e| TestCaseError::fail(format!("sampler refused: {e}")))?;
 
             for (i, t) in thresholds.iter().enumerate() {
-                let truth = exact[i].get();
+                let truth = exact.probabilities[i].get();
                 // A criterion that never fires makes the sampler report a
                 // standard error of exactly zero, which would turn this into a
                 // demand for bit-equality. The rule of three says zero hits in n
                 // trials still admits a true rate up to 3/n, so that is the
                 // floor.
-                let tolerance =
-                    SIGMA * standard_error(sampled[i], TRIALS) + 3.0 / f64::from(TRIALS);
+                let tolerance = SIGMA * standard_error(sampled.proportions[i], TRIALS)
+                    + 3.0 / f64::from(TRIALS);
                 prop_assert!(
-                    (sampled[i] - truth).abs() <= tolerance,
+                    (sampled.proportions[i] - truth).abs() <= tolerance,
                     "{:?} over gaps {:?}, {t:?}, seed {seed}: sampled {} vs exact {truth}, \
                      off by {:.1} standard errors",
                     q.grouping.group_sizes(),
                     q.gaps,
-                    sampled[i],
-                    (sampled[i] - truth).abs() / standard_error(sampled[i], TRIALS)
+                    sampled.proportions[i],
+                    (sampled.proportions[i] - truth).abs()
+                        / standard_error(sampled.proportions[i], TRIALS)
                 );
             }
             Ok(())
@@ -253,10 +304,10 @@ fn neither_engine_answers_a_question_the_other_refuses() {
     runner(256)
         .run(&maybe_undealable(), |(grouping, gaps)| {
             let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1)]);
-            let exact = pe_criteria::run(&grouping, &gaps, 1, &mut ev);
+            let exact = pe_criteria::run(&grouping, &gaps, only_criteria(1), &mut ev);
             // One trial: whether the sampler refuses cannot depend on how many
             // hands it was going to deal.
-            let sampled = simulate(&grouping, &gaps, 1, 0xC0FFEE, &mut ev);
+            let sampled = simulate(&grouping, &gaps, 1, 0xC0FFEE, only_criteria(1), &mut ev);
 
             prop_assert_eq!(
                 exact.is_err(),
@@ -324,7 +375,7 @@ fn a_question_too_wide_to_enumerate_is_still_answerable_by_sampling() {
                 "generator produced an enumerable question"
             );
             let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1)]);
-            let exact = pe_criteria::run(&grouping, &gaps, 1, &mut ev);
+            let exact = pe_criteria::run(&grouping, &gaps, only_criteria(1), &mut ev);
             prop_assert!(
                 matches!(exact, Err(RunError::TooWide { .. })),
                 "{:?} over gaps {:?}: {}",
@@ -332,7 +383,9 @@ fn a_question_too_wide_to_enumerate_is_still_answerable_by_sampling() {
                 gaps,
                 describe(&exact)
             );
-            prop_assert!(simulate(&grouping, &gaps, 200, 0xC0FFEE, &mut ev).is_ok());
+            prop_assert!(
+                simulate(&grouping, &gaps, 200, 0xC0FFEE, only_criteria(1), &mut ev).is_ok()
+            );
             Ok(())
         })
         .unwrap();
@@ -352,7 +405,8 @@ fn sampled_counts_never_decrease_as_turns_advance() {
                 (1..checkpoints)
                     .all(|t| (0..queries).all(|qi| v.count(t, qi) >= v.count(t - 1, qi)))
             })]);
-            let held = simulate(&q.grouping, &q.gaps, 2_000, seed, &mut ev)
+            let held = simulate(&q.grouping, &q.gaps, 2_000, seed, only_criteria(1), &mut ev)
+                .map(|s| s.proportions)
                 .map_err(|e| TestCaseError::fail(format!("sampler refused: {e}")))?;
             prop_assert_eq!(
                 held[0],
@@ -362,6 +416,138 @@ fn sampled_counts_never_decrease_as_turns_advance() {
                 q.gaps,
                 seed
             );
+            Ok(())
+        })
+        .unwrap();
+}
+
+/// "How many cards matching `query` had been drawn by `checkpoint`" — the shape
+/// of expectation the exact engine is built for.
+#[derive(Debug, Clone, Copy)]
+struct Tallied {
+    checkpoint: usize,
+    query: usize,
+}
+
+fn loose_tallies() -> impl Strategy<Value = Vec<(u8, u8)>> {
+    prop::collection::vec((any::<u8>(), any::<u8>()), 1..=2)
+}
+
+fn resolve_tallies(loose: &[(u8, u8)], q: &Question) -> Vec<Tallied> {
+    loose
+        .iter()
+        .map(|&(checkpoint, query)| Tallied {
+            checkpoint: usize::from(checkpoint) % q.gaps.len(),
+            query: usize::from(query) % q.queries,
+        })
+        .collect()
+}
+
+fn counters(tallies: &[Tallied]) -> Counters {
+    Counters(
+        tallies
+            .iter()
+            .copied()
+            .map(|t| Box::new(move |v: &PathView<'_>| v.count(t.checkpoint, t.query)) as Tally)
+            .collect(),
+    )
+}
+
+#[test]
+fn sampled_expectations_agree_with_the_exact_engine_within_five_standard_errors() {
+    // The same rule as for probabilities, applied to the other kind of answer.
+    // The sampler computes a mean by averaging and a distribution by
+    // histogramming, which is a different route to the same number than
+    // enumerating and weighting — and a sampler that quietly answered a
+    // neighbouring question, a histogram shifted by a bucket or a mean taken over
+    // trials that were not dealt, would look perfectly reasonable on its own.
+    //
+    // Every bucket is compared, not only the mean. A mean can be right while the
+    // shape underneath it is wrong, and the shape is the half an expectation
+    // exists to show.
+    let cases = (question(), loose_tallies(), any::<u64>());
+    runner(40)
+        .run(&cases, |(q, loose, seed)| {
+            let tallies = resolve_tallies(&loose, &q);
+            let plan = only_expectations(tallies.len());
+
+            let mut ev = counters(&tallies);
+            let exact = pe_criteria::run(&q.grouping, &q.gaps, plan, &mut ev)
+                .map_err(|e| TestCaseError::fail(format!("exact engine refused: {e}")))?;
+
+            let mut ev = counters(&tallies);
+            let sampled = simulate(&q.grouping, &q.gaps, TRIALS, seed, plan, &mut ev)
+                .map_err(|e| TestCaseError::fail(format!("sampler refused: {e}")))?;
+
+            for (i, t) in tallies.iter().enumerate() {
+                let truth = &exact.distributions[i];
+                let got = &sampled.distributions[i];
+
+                // A value the sampler never dealt contributes nothing to its
+                // mean, and the rule of three says such a value may still be
+                // drawn as often as 3/n. Weighted by the largest value in play,
+                // that is how far the two means may sit apart for reasons that
+                // are not a bug.
+                let largest = truth.probabilities().len().saturating_sub(1) as f64;
+                let tolerance =
+                    SIGMA * mean_standard_error(got, TRIALS) + largest * 3.0 / f64::from(TRIALS);
+                prop_assert!(
+                    (got.mean() - truth.mean()).abs() <= tolerance,
+                    "{:?} over gaps {:?}, {t:?}, seed {seed}: sampled mean {} vs exact {}",
+                    q.grouping.group_sizes(),
+                    q.gaps,
+                    got.mean(),
+                    truth.mean()
+                );
+
+                let buckets = truth.probabilities().len().max(got.probabilities().len());
+                for k in 0..buckets {
+                    let want = truth.probabilities().get(k).copied().unwrap_or(0.0);
+                    let have = got.probabilities().get(k).copied().unwrap_or(0.0);
+                    let tolerance = SIGMA * standard_error(have, TRIALS) + 3.0 / f64::from(TRIALS);
+                    prop_assert!(
+                        (have - want).abs() <= tolerance,
+                        "{:?} over gaps {:?}, {t:?}, seed {seed}: P(exactly {k}) sampled \
+                         {have} vs exact {want}",
+                        q.grouping.group_sizes(),
+                        q.gaps
+                    );
+                }
+            }
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+fn neither_engine_answers_an_expectation_the_other_refuses() {
+    // The refusal symmetry, restated for the second kind of answer. A guard
+    // added to one engine and not the other is the failure this catches, and
+    // "the sampler answered a question enumeration refused" was worth a hundred
+    // percentage points the last time it happened.
+    runner(256)
+        .run(&maybe_undealable(), |(grouping, gaps)| {
+            let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| v.count(0, 0))]);
+            let plan = only_expectations(1);
+            let exact = pe_criteria::run(&grouping, &gaps, plan, &mut ev);
+            let sampled = simulate(&grouping, &gaps, 1, 0xC0FFEE, plan, &mut ev);
+
+            prop_assert_eq!(
+                exact.is_err(),
+                sampled.is_err(),
+                "{:?} over gaps {:?}: exact {}, sampler {}",
+                grouping.group_sizes(),
+                gaps,
+                describe(&exact),
+                describe(&sampled)
+            );
+            if let (Err(e), Err(s)) = (exact, sampled) {
+                prop_assert_eq!(
+                    e.to_string(),
+                    s.to_string(),
+                    "same question, same refusal, different words"
+                );
+            }
             Ok(())
         })
         .unwrap();

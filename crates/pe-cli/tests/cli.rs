@@ -720,3 +720,171 @@ fn a_token_entry_is_found_by_whole_word_not_by_substring() {
         "deck size reads the decklist, not the index, so it still applies"
     );
 }
+
+// --- Expectations ---------------------------------------------------------
+
+/// The expectation named `name`, as the report emitted it.
+fn expectation<'a>(json: &'a serde_json::Value, name: &str) -> &'a serde_json::Value {
+    json["expectations"]
+        .as_array()
+        .expect("every report carries an expectations array")
+        .iter()
+        .find(|e| e["name"] == name)
+        .unwrap_or_else(|| panic!("no expectation named {name}"))
+}
+
+#[test]
+fn an_expectation_reports_the_closed_form_mean_end_to_end() {
+    // 36 lands in a 99-card library, opening seven. The mean of a hypergeometric
+    // is draws * successes / population, which is 2.545454..., and it is the
+    // constant this project's predecessor put in its shuffler acceptance test.
+    // Nothing between the decklist and this number goes near that arithmetic.
+    let out = run("simple-ramp.criteria.js");
+    assert!(out.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+
+    let lands = expectation(&json, "lands in opener");
+    assert_eq!(lands["mean"], 2.5455);
+
+    // And the distribution behind it, which is the half a mean cannot show:
+    // 3.7% of opening hands have no land at all.
+    let d: Vec<f64> = lands["distribution"]
+        .as_array()
+        .expect("a distribution array")
+        .iter()
+        .map(|p| p.as_f64().unwrap())
+        .collect();
+    assert_eq!(d.len(), 8, "seven cards drawn, so values 0 through 7");
+    assert!(
+        (d.iter().sum::<f64>() - 1.0).abs() < 1e-5,
+        "summed to {:?}",
+        d.iter().sum::<f64>()
+    );
+    assert!((d[0] - 0.037165).abs() < 1e-6, "P(no lands) was {}", d[0]);
+    // The mean the report prints is the mean of the buckets it prints beside it.
+    let from_buckets: f64 = d.iter().enumerate().map(|(k, p)| k as f64 * p).sum();
+    assert!((from_buckets - 2.5455).abs() < 1e-4, "{from_buckets}");
+}
+
+#[test]
+fn expectations_do_not_disturb_the_criteria_contract() {
+    // The `criteria` array is a contract several things already read by that
+    // name and that shape, including the provenance comparison. Expectations
+    // arrive alongside it rather than inside it.
+    let out = run("simple-ramp.criteria.js");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+
+    assert_eq!(json["criteria"].as_array().unwrap().len(), 4);
+    assert!((percent(&json, "keepable opener (2-5 lands)") - 78.97).abs() < 0.01);
+    for c in json["criteria"].as_array().unwrap() {
+        assert!(c.get("mean").is_none(), "a criterion has no mean");
+    }
+    // An expectation cannot fail, so it cannot move the verdict either.
+    assert_eq!(json["asserted"], 3);
+    assert_eq!(json["failed"], 0);
+    assert_eq!(json["ok"], true);
+    for e in json["expectations"].as_array().unwrap() {
+        assert!(
+            e.get("at_least").is_none(),
+            "expectations have no threshold"
+        );
+        assert!(e.get("pass").is_none(), "and so no verdict");
+    }
+}
+
+#[test]
+fn the_human_report_shows_the_mean_and_the_shape() {
+    // "2.55 lands on average" hides whether you are flooding or screwing, so the
+    // histogram is printed under it rather than left in the JSON.
+    let out = run("simple-ramp.criteria.js");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("lands in opener"), "stderr was: {stderr}");
+    assert!(stderr.contains("mean 2.55"), "stderr was: {stderr}");
+    assert!(stderr.contains("0: 3.7%"), "stderr was: {stderr}");
+    assert!(stderr.contains("2: 29.7%"), "stderr was: {stderr}");
+    // And none of it lands on the stdout a caller pipes through jq.
+    serde_json::from_slice::<serde_json::Value>(&out.stdout).expect("stdout is pure JSON");
+}
+
+#[test]
+fn sampled_expectations_agree_with_the_exact_engine_end_to_end() {
+    // The third level at which the two engines are held to each other, now for
+    // the second kind of answer. A sampled mean without its error bar is how a
+    // 2.54 and a 2.55 get mistaken for a disagreement, so the report carries one.
+    let exact = run("simple-ramp.criteria.js");
+    let exact: serde_json::Value = serde_json::from_slice(&exact.stdout).unwrap();
+
+    let sampled = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+        .arg("test")
+        .arg(fixture("simple-ramp.txt"))
+        .arg(fixture("simple-ramp.criteria.js"))
+        .arg("--index")
+        .arg(fixture("index.json"))
+        .args(["--simulate", "--trials", "50000", "--seed", "1"])
+        .output()
+        .expect("binary should run");
+    let sampled: serde_json::Value = serde_json::from_slice(&sampled.stdout).unwrap();
+
+    for e in sampled["expectations"].as_array().unwrap() {
+        let name = e["name"].as_str().unwrap();
+        let got = e["mean"].as_f64().unwrap();
+        let se = e["standard_error"]
+            .as_f64()
+            .expect("a sampled mean carries one");
+        let want = expectation(&exact, name)["mean"].as_f64().unwrap();
+        assert!(
+            (got - want).abs() < 4.0 * se,
+            "{name}: sampled {got} vs exact {want}, {:.2} SE away",
+            (got - want).abs() / se
+        );
+
+        // Bucket for bucket too: a mean can be right while the shape is wrong.
+        let want_d = expectation(&exact, name)["distribution"]
+            .as_array()
+            .unwrap();
+        let got_d = e["distribution"].as_array().unwrap();
+        for (k, w) in want_d.iter().enumerate() {
+            let w = w.as_f64().unwrap();
+            let g = got_d.get(k).and_then(|v| v.as_f64()).unwrap_or(0.0);
+            assert!(
+                (g - w).abs() < 4.0 * (g * (1.0 - g) / 50_000.0).sqrt() + 3.0 / 50_000.0,
+                "{name}, P(exactly {k}): sampled {g} vs exact {w}"
+            );
+        }
+    }
+}
+
+#[test]
+fn only_sampled_expectations_carry_error_bars() {
+    // An exact distribution has no sampling error, and quoting one would be a
+    // lie about how the number was produced.
+    let out = run("simple-ramp.criteria.js");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    for e in json["expectations"].as_array().unwrap() {
+        assert!(
+            e.get("standard_error").is_none(),
+            "exact runs must not report SE"
+        );
+    }
+}
+
+#[test]
+fn a_criterion_that_answers_with_a_number_is_refused_by_name() {
+    // `Boolean(2)` is true, so this file would have reported "how often you have
+    // at least one land" under a name promising "how many lands" -- a plausible
+    // number for a question nobody asked, which is this project's whole subject.
+    let out = run("kind-confusion.criteria.js");
+    assert!(!out.status.success(), "kind confusion must fail the run");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("lands in opener"), "stderr was: {stderr}");
+    assert!(stderr.contains("expect()"), "stderr was: {stderr}");
+}
+
+#[test]
+fn an_expectation_that_cannot_be_histogrammed_is_refused_by_name() {
+    let out = run("uncountable.criteria.js");
+    assert!(!out.status.success());
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("lands per card"), "stderr was: {stderr}");
+    assert!(stderr.contains("countable"), "stderr was: {stderr}");
+}

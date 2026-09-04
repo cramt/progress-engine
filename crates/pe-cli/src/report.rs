@@ -1,7 +1,8 @@
 //! Turning results into a verdict.
 
 use facet::Facet;
-use pe_criteria::Criterion;
+use pe_criteria::{Criterion, Expectation};
+use pe_stats::Distribution;
 use sha2::{Digest, Sha256};
 
 use crate::legality::Violation;
@@ -17,6 +18,54 @@ pub struct CriterionResult {
     #[facet(skip_serializing_if = Option::is_none)]
     pub standard_error: Option<f64>,
     pub pass: bool,
+}
+
+/// What an expectation answered: how many, on average, and how that was spread.
+///
+/// There is no `at_least` and no `pass` here, and their absence is deliberate
+/// rather than pending. See `pe_criteria::Expectation` for why an expectation
+/// cannot fail a run, and why the assertion that would make sense is a statement
+/// about a percentile rather than about this mean.
+#[derive(Facet)]
+pub struct ExpectationResult {
+    pub name: String,
+    pub mean: f64,
+    /// P(value = k), indexed by k, from zero to the largest value reachable.
+    ///
+    /// The whole distribution, untruncated, because this is the machine-readable
+    /// half. What a human is shown is a window over the same numbers — a
+    /// hundred-bucket histogram on a terminal is not a histogram, it is a wall —
+    /// and a caller that wants the tail should not have to re-run the tool to
+    /// get it.
+    pub distribution: Vec<f64>,
+    /// Present only for sampled runs, and the standard error of the *mean*
+    /// rather than of a proportion: two expectations averaging the same number
+    /// have different error bars if one is tightly spread and the other is not.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub standard_error: Option<f64>,
+}
+
+/// What the criteria file registered, in registration order within each kind.
+///
+/// Grouped for the same reason `Scenario` is: they arrive together, they are
+/// consumed together, and they index the two halves of [`Answers`] positionally,
+/// so a caller that had one without the other could only misuse it.
+#[derive(Clone, Copy)]
+pub struct Questions<'a> {
+    pub criteria: &'a [Criterion],
+    pub expectations: &'a [Expectation],
+}
+
+/// The numbers an engine produced, before they are given names and thresholds.
+///
+/// One shape for both engines, so the CLI's call site cannot care which one
+/// answered — which is the property that keeps `--simulate` a second
+/// implementation rather than a second feature set.
+pub struct Answers {
+    /// One per criterion. Exact probabilities, or sampled proportions.
+    pub probabilities: Vec<f64>,
+    /// One per expectation.
+    pub distributions: Vec<Distribution>,
 }
 
 /// How many library cards a query actually matched.
@@ -124,6 +173,10 @@ pub struct Report {
     pub seed: Option<u64>,
     pub queries: Vec<QueryMatch>,
     pub criteria: Vec<CriterionResult>,
+    /// Alongside `criteria` rather than merged into it. They answer different
+    /// questions in different units, and several things already read `criteria`
+    /// by that name and that shape.
+    pub expectations: Vec<ExpectationResult>,
     pub asserted: usize,
     pub failed: usize,
     pub ok: bool,
@@ -132,8 +185,8 @@ pub struct Report {
 
 impl Report {
     pub fn build(
-        criteria: &[Criterion],
-        probabilities: &[f64],
+        questions: Questions<'_>,
+        answers: &Answers,
         scenario: Scenario,
         library: &Library,
         queries: Vec<QueryMatch>,
@@ -144,9 +197,10 @@ impl Report {
             on_the_draw,
             sampled,
         } = scenario;
-        let results: Vec<CriterionResult> = criteria
+        let results: Vec<CriterionResult> = questions
+            .criteria
             .iter()
-            .zip(probabilities)
+            .zip(&answers.probabilities)
             .map(|(c, &p)| CriterionResult {
                 name: c.name.clone(),
                 probability: round(p, 6),
@@ -156,6 +210,18 @@ impl Report {
                 // A criterion with no threshold is informational; it reports a
                 // number and cannot fail.
                 pass: c.at_least.is_none_or(|t| p >= t),
+            })
+            .collect();
+
+        let expected: Vec<ExpectationResult> = questions
+            .expectations
+            .iter()
+            .zip(&answers.distributions)
+            .map(|(e, d)| ExpectationResult {
+                name: e.name.clone(),
+                mean: round(d.mean(), 4),
+                distribution: d.probabilities().iter().map(|p| round(*p, 6)).collect(),
+                standard_error: sampled.map(|s| round(pe_sim::mean_standard_error(d, s.trials), 6)),
             })
             .collect();
 
@@ -185,6 +251,7 @@ impl Report {
             seed: sampled.map(|s| s.seed),
             queries,
             criteria: results,
+            expectations: expected,
             asserted,
             failed,
             ok: failed == 0,
@@ -202,10 +269,13 @@ impl Report {
                 ));
             }
         }
+        // One width across both sections, so the numbers line up down the whole
+        // report rather than restarting at the second heading.
         let width = self
             .criteria
             .iter()
             .map(|c| c.name.chars().count())
+            .chain(self.expectations.iter().map(|e| e.name.chars().count()))
             .max()
             .unwrap_or(0)
             .max(9);
@@ -225,6 +295,18 @@ impl Report {
                 c.name, c.percent
             ));
         }
+
+        // The blank status column is not decoration: it is the same five
+        // characters PASS and FAIL occupy, and it says that an expectation has
+        // no verdict to give rather than that its verdict was omitted.
+        let indent = 5 + width + 2;
+        for e in &self.expectations {
+            out.push_str(&format!("     {:width$}  mean {:.2}\n", e.name, e.mean));
+            for line in histogram_lines(&e.distribution, indent) {
+                out.push_str(&format!("{:indent$}{line}\n", ""));
+            }
+        }
+
         out.push('\n');
         out.push_str(&if self.ok {
             format!(
@@ -290,6 +372,91 @@ pub fn legality_note(violations: &[Violation]) -> Option<String> {
     }
     out.push_str("The numbers below describe the list exactly as written.");
     Some(out)
+}
+
+/// How many buckets of a distribution the human output will print.
+///
+/// A distribution can have as many buckets as the deck has cards, and printing
+/// ninety of them is not a histogram, it is a wall of noise that nobody reads
+/// and that hides the shape it was meant to show. Twelve is about what fits on
+/// two lines of a terminal at a name width that is still readable.
+const HISTOGRAM_BUCKETS: usize = 12;
+
+/// Total line width the wrapped histogram may reach, indent included.
+const HISTOGRAM_WIDTH: usize = 78;
+
+/// A bucket below this prints as `0.0%`, spending a column to say nothing.
+const NEGLIGIBLE: f64 = 0.0005;
+
+/// The stretch of a distribution worth showing: the contiguous window of at most
+/// [`HISTOGRAM_BUCKETS`] holding the most mass, with any ends that would print as
+/// `0.0%` dropped.
+///
+/// Contiguous rather than "the twelve likeliest buckets", because a histogram
+/// with holes punched in it reads as missing data. Windowed rather than
+/// truncated at either end, because the interesting region of "lands by turn
+/// twelve" is nowhere near zero.
+fn histogram_window(p: &[f64]) -> Option<(usize, usize)> {
+    if p.is_empty() {
+        return None;
+    }
+    let width = HISTOGRAM_BUCKETS.min(p.len());
+    let mut best = (0usize, p[..width].iter().sum::<f64>());
+    let mut mass = best.1;
+    for lo in 1..=p.len() - width {
+        mass += p[lo + width - 1] - p[lo - 1];
+        if mass > best.1 {
+            best = (lo, mass);
+        }
+    }
+    let (mut lo, mut hi) = (best.0, best.0 + width - 1);
+    while hi > lo && p[hi] < NEGLIGIBLE {
+        hi -= 1;
+    }
+    while lo < hi && p[lo] < NEGLIGIBLE {
+        lo += 1;
+    }
+    Some((lo, hi))
+}
+
+/// The histogram as lines of `value: percent` cells, wrapped to the terminal.
+///
+/// Whatever the window leaves out is stated as a total rather than dropped. The
+/// full distribution is in the JSON, so the human summary can afford to be a
+/// summary — but a summary that quietly loses four percent of the mass is the
+/// confidently wrong number this tool exists to prevent, in miniature.
+fn histogram_lines(p: &[f64], indent: usize) -> Vec<String> {
+    let Some((lo, hi)) = histogram_window(p) else {
+        return Vec::new();
+    };
+    let cells: Vec<String> = (lo..=hi)
+        .map(|k| format!("{k}: {:.1}%", p[k] * 100.0))
+        .collect();
+    let cell_width = cells.iter().map(|c| c.chars().count()).max().unwrap_or(0);
+    let available = HISTOGRAM_WIDTH.saturating_sub(indent).max(cell_width);
+    let per_line = ((available + 2) / (cell_width + 2)).max(1);
+
+    let mut lines: Vec<String> = cells
+        .chunks(per_line)
+        .map(|chunk| {
+            chunk
+                .iter()
+                .map(|c| format!("{c:cell_width$}"))
+                .collect::<Vec<_>>()
+                .join("  ")
+                .trim_end()
+                .to_string()
+        })
+        .collect();
+
+    let shown: f64 = p[lo..=hi].iter().sum();
+    let outside = p.iter().sum::<f64>() - shown;
+    if outside >= NEGLIGIBLE {
+        if let Some(last) = lines.last_mut() {
+            last.push_str(&format!("  (+{:.1}% outside)", outside * 100.0));
+        }
+    }
+    lines
 }
 
 fn round(v: f64, places: u32) -> f64 {

@@ -12,7 +12,8 @@
 //! errors. The acceptance test for touching any of this is the hypergeometric
 //! distribution, and it is enforced in this crate's tests.
 
-use pe_criteria::{Evaluator, Grouping, PathView};
+use pe_criteria::{Evaluator, Grouping, PathView, Plan};
+use pe_stats::{Distribution, DistributionBuilder};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use thiserror::Error;
@@ -26,21 +27,52 @@ pub enum SimError<E> {
     NotEnoughCards { population: u32, draws: u32 },
     #[error("no hands to deal: --trials must be greater than zero")]
     NoTrials,
+    /// Worded identically to the exact engine's refusal of the same mistake.
+    /// The two engines are supposed to be interchangeable behind one call site,
+    /// and a shape mismatch is a fact about the evaluator rather than about how
+    /// the answer is computed.
+    #[error(
+        "the criteria answered {held} criteria and {counted} expectations, but this run was \
+         set up for {} and {}",
+        .plan.criteria, .plan.expectations
+    )]
+    WrongShape {
+        plan: Plan,
+        held: usize,
+        counted: usize,
+    },
     #[error("evaluating criteria: {0}")]
     Evaluator(E),
 }
 
-/// Deal `trials` hands and report how often each criterion held.
+/// What a sampled run measured. Estimates, every one of them.
 ///
-/// Returns proportions rather than `Probability` values, because these are
-/// estimates: pair them with [`standard_error`] before believing a digit.
+/// Proportions rather than `Probability` values, and a sampled histogram rather
+/// than an exact one: pair them with [`standard_error`] and
+/// [`mean_standard_error`] before believing a digit.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Sampled {
+    /// One per criterion: the fraction of hands in which it held.
+    pub proportions: Vec<f64>,
+    /// One per expectation: how often each value came up, as a fraction.
+    pub distributions: Vec<Distribution>,
+}
+
+/// Deal `trials` hands and report how often each criterion held, and how the
+/// values of each expectation were distributed.
+///
+/// A sampler computes a mean by averaging and a distribution by histogramming,
+/// so the second kind of question costs it no more than the first — which
+/// matters, because a question only one engine can answer is a question nothing
+/// checks.
 pub fn simulate<E>(
     grouping: &Grouping,
     gaps: &[u32],
     trials: u32,
     seed: u64,
+    plan: Plan,
     evaluator: &mut impl Evaluator<Error = E>,
-) -> Result<Vec<f64>, SimError<E>> {
+) -> Result<Sampled, SimError<E>> {
     let population = grouping.population();
     let total_draws: u32 = gaps.iter().sum();
     if total_draws > population {
@@ -72,7 +104,12 @@ pub fn simulate<E>(
 
     let mut rng = ChaCha8Rng::seed_from_u64(seed);
     let groups = grouping.group_sizes().len();
-    let mut hits: Vec<u32> = Vec::new();
+    let mut hits: Vec<u32> = vec![0; plan.criteria];
+    let mut histograms: Vec<DistributionBuilder> =
+        vec![DistributionBuilder::new(); plan.expectations];
+    // Every hand contributes the same share, so the buckets add up to 1 rather
+    // than to a count that the caller would have to remember to divide.
+    let share = 1.0 / f64::from(trials);
 
     for _ in 0..trials {
         // Partial Fisher-Yates: only shuffle as far as we actually draw.
@@ -102,20 +139,33 @@ pub fn simulate<E>(
 
         let view = PathView::new(grouping, &history);
         let results = evaluator.evaluate(&view).map_err(SimError::Evaluator)?;
-        if hits.is_empty() {
-            hits = vec![0; results.len()];
+        if results.held.len() != plan.criteria || results.counted.len() != plan.expectations {
+            return Err(SimError::WrongShape {
+                plan,
+                held: results.held.len(),
+                counted: results.counted.len(),
+            });
         }
-        for (h, r) in hits.iter_mut().zip(results) {
+        for (h, r) in hits.iter_mut().zip(results.held) {
             if r {
                 *h += 1;
             }
         }
+        for (histogram, value) in histograms.iter_mut().zip(results.counted) {
+            histogram.add(value.get(), share);
+        }
     }
 
-    Ok(hits
-        .into_iter()
-        .map(|h| f64::from(h) / f64::from(trials))
-        .collect())
+    Ok(Sampled {
+        proportions: hits
+            .into_iter()
+            .map(|h| f64::from(h) / f64::from(trials))
+            .collect(),
+        distributions: histograms
+            .into_iter()
+            .map(DistributionBuilder::build)
+            .collect(),
+    })
 }
 
 /// Standard error of a proportion estimated from `trials` samples.
@@ -124,4 +174,15 @@ pub fn simulate<E>(
 /// mistaken for a disagreement.
 pub fn standard_error(proportion: f64, trials: u32) -> f64 {
     (proportion * (1.0 - proportion) / f64::from(trials)).sqrt()
+}
+
+/// Standard error of a mean estimated from `trials` samples.
+///
+/// The proportion form above cannot serve here: a proportion's spread is fixed
+/// by the proportion itself, and a mean's is not. Two expectations averaging 2.7
+/// have wildly different error bars if one is always 2 or 3 and the other is
+/// sometimes 0 and sometimes 7, so the spread has to come out of the sampled
+/// distribution rather than out of its mean.
+pub fn mean_standard_error(distribution: &Distribution, trials: u32) -> f64 {
+    distribution.sd() / f64::from(trials).sqrt()
 }

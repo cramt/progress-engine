@@ -4,7 +4,7 @@
 //! test here is the bindings: that JS sees the right counts, that query
 //! discovery converges, and that the answers match the known fixtures.
 
-use pe_criteria::{Grouping, GroupingError, RunError};
+use pe_criteria::{Grouping, GroupingError, Outcomes, RunError};
 use pe_js::{with_discovery, Criteria, DiscoveryError, JsError};
 use pe_stats::Probability;
 
@@ -16,15 +16,16 @@ type Failure = DiscoveryError<GroupingError, RunError<JsError>>;
 /// motivated the horizon half of discovery hid in the gap between what the CLI
 /// called and what the tests called.
 fn run_exact(c: &mut Criteria, gaps: &[u32], connectors: u32) -> Result<Vec<Probability>, Failure> {
+    run_all(c, gaps, connectors).map(|o| o.probabilities)
+}
+
+fn run_all(c: &mut Criteria, gaps: &[u32], connectors: u32) -> Result<Outcomes, Failure> {
     let gaps = gaps.to_vec();
     with_discovery(
         c,
         |q| grouping_for(q, connectors),
         |_| gaps.clone(),
-        |g, gaps, c| {
-            let n = c.criteria().len();
-            pe_criteria::run(g, gaps, n, c)
-        },
+        |g, gaps, c| pe_criteria::run(g, gaps, c.plan(), c),
     )
 }
 
@@ -185,12 +186,10 @@ fn discovery_finds_turns_hidden_behind_short_circuits() {
         &mut c,
         |q| grouping_for(q, 8),
         gaps_for,
-        |g, gaps, c| {
-            let n = c.criteria().len();
-            pe_criteria::run(g, gaps, n, c)
-        },
+        |g, gaps, c| pe_criteria::run(g, gaps, c.plan(), c),
     )
-    .unwrap();
+    .unwrap()
+    .probabilities;
 
     // The same question with both operands evaluated eagerly, which the probe
     // does reach. The two spellings must not disagree.
@@ -206,12 +205,10 @@ fn discovery_finds_turns_hidden_behind_short_circuits() {
         &mut c2,
         |q| grouping_for(q, 8),
         gaps_for,
-        |g, gaps, c| {
-            let n = c.criteria().len();
-            pe_criteria::run(g, gaps, n, c)
-        },
+        |g, gaps, c| pe_criteria::run(g, gaps, c.plan(), c),
     )
-    .unwrap();
+    .unwrap()
+    .probabilities;
 
     assert!(
         hidden[0].percent() > 1.0,
@@ -224,4 +221,159 @@ fn discovery_finds_turns_hidden_behind_short_circuits() {
         hidden[0].percent(),
         eager[0].percent()
     );
+}
+
+// --- Expectations ---------------------------------------------------------
+
+#[test]
+fn a_javascript_expectation_reproduces_the_closed_form_mean() {
+    // Six arming outlets in a 99-card library, eleven cards seen. The mean of a
+    // hypergeometric is draws * successes / population in closed form, and
+    // nothing on the path from this JavaScript to that number goes near it.
+    let src = r#"
+        expect("arms by t5", (t) => t(0).count('cat:"arm"'));
+    "#;
+    let mut c = Criteria::load(src.to_string()).unwrap();
+    assert_eq!(c.expectations().len(), 1);
+    assert_eq!(c.expectations()[0].name, "arms by t5");
+    assert!(c.criteria().is_empty(), "expect() is not a criterion");
+
+    let r = run_all(&mut c, &[11], 8).unwrap();
+    assert!(r.probabilities.is_empty());
+
+    let d = &r.distributions[0];
+    let closed = pe_stats::mean(99, 6, 11);
+    assert!(
+        (d.mean() - closed).abs() < 1e-12,
+        "mean {} vs closed form {closed}",
+        d.mean()
+    );
+    assert!((d.total() - 1.0).abs() < 1e-12, "summed to {}", d.total());
+    for k in 0..=6u32 {
+        let want = pe_stats::pmf(99, 6, 11, k);
+        assert!(
+            (d.probabilities()[k as usize] - want).abs() < 1e-12,
+            "P(exactly {k}) was {}",
+            d.probabilities()[k as usize]
+        );
+    }
+}
+
+#[test]
+fn criteria_and_expectations_share_one_pass() {
+    // Both kinds registered in one file, answered off one enumeration. The
+    // criterion must equal the tail of the distribution beside it, or the two
+    // halves of the report are describing different runs.
+    let src = r#"
+        criterion("at least two arms", (t) => t(0).count('cat:"arm"') >= 2);
+        expect("arms", (t) => t(0).count('cat:"arm"'));
+    "#;
+    let mut c = Criteria::load(src.to_string()).unwrap();
+    let r = run_all(&mut c, &[11], 8).unwrap();
+
+    let tail: f64 = r.distributions[0].probabilities()[2..].iter().sum();
+    assert!(
+        (tail - r.probabilities[0].get()).abs() < 1e-12,
+        "criterion {} vs distribution tail {tail}",
+        r.probabilities[0].get()
+    );
+}
+
+#[test]
+fn discovery_finds_the_queries_and_turns_an_expectation_names() {
+    // Expectations go through the same discovery loop as criteria. If they did
+    // not, an expectation naming a query nobody grouped by would count zero on
+    // every path and report a confident, perfectly shaped distribution entirely
+    // at zero -- this project's defining failure with a histogram drawn on it.
+    let src = r#"
+        expect("arms by t2", (t) => t(2).count('cat:"arm"'));
+    "#;
+    let mut c = Criteria::load(src.to_string()).unwrap();
+    let r = run_all(&mut c, &[7, 1, 1], 8).unwrap();
+    assert!(
+        r.distributions[0].mean() > 0.0,
+        "collapsed to a distribution entirely at zero"
+    );
+    let closed = pe_stats::mean(99, 6, 9);
+    assert!(
+        (r.distributions[0].mean() - closed).abs() < 1e-12,
+        "mean {} vs closed form {closed}",
+        r.distributions[0].mean()
+    );
+}
+
+#[test]
+fn a_criterion_that_answers_with_a_number_is_an_error_not_a_coercion() {
+    // `Boolean(3)` is true and `Boolean(0)` is false, so a criterion that forgot
+    // its comparison used to answer "at least one arm" while looking like it
+    // answered "how many arms" -- a plausible number for a question nobody
+    // asked. The mistake has to name itself instead.
+    let src = r#"
+        criterion("arms", (t) => t(0).count('cat:"arm"'));
+    "#;
+    let mut c = Criteria::load(src.to_string()).unwrap();
+    let err = run_all(&mut c, &[11], 8).unwrap_err().to_string();
+    assert!(err.contains("criterion"), "{err}");
+    assert!(err.contains("arms"), "it must name the offender: {err}");
+    assert!(err.contains("expect()"), "and say what to do: {err}");
+}
+
+#[test]
+fn an_expectation_that_answers_with_a_bool_is_an_error_not_a_coercion() {
+    // The mirror image. `true` is 1 and `false` is 0, so this would report a
+    // mean that is really a probability, in a column headed "mean".
+    let src = r#"
+        expect("has an arm", (t) => t(0).count('cat:"arm"') >= 1);
+    "#;
+    let mut c = Criteria::load(src.to_string()).unwrap();
+    let err = run_all(&mut c, &[11], 8).unwrap_err().to_string();
+    assert!(err.contains("expect"), "{err}");
+    assert!(
+        err.contains("has an arm"),
+        "it must name the offender: {err}"
+    );
+    assert!(err.contains("criterion()"), "and say what to do: {err}");
+}
+
+#[test]
+fn an_expectation_with_no_bucket_to_go_in_is_refused_by_name() {
+    // Everything count() can produce is a whole number of cards. An expectation
+    // computing a rate is a real thing somebody will write, and bucketing 0.545
+    // at a width nobody chose would answer a different question in silence.
+    let src = r#"
+        expect("arms per card", (t) => t(0).count('cat:"arm"') / 11);
+    "#;
+    let mut c = Criteria::load(src.to_string()).unwrap();
+    let err = run_all(&mut c, &[11], 8).unwrap_err().to_string();
+    assert!(err.contains("arms per card"), "{err}");
+    assert!(err.contains("countable"), "{err}");
+
+    // And the same for a value too large to histogram.
+    let src = r#"
+        expect("arms, scaled", (t) => (t(0).count('cat:"arm"') + 1) * 100000);
+    "#;
+    let mut c = Criteria::load(src.to_string()).unwrap();
+    let err = run_all(&mut c, &[11], 8).unwrap_err().to_string();
+    assert!(err.contains("arms, scaled"), "{err}");
+    assert!(err.contains("countable"), "{err}");
+}
+
+#[test]
+fn a_bad_expectation_registration_fails_at_load() {
+    assert!(matches!(
+        Criteria::load("expect(123, () => 1);".to_string()),
+        Err(JsError::Load(_))
+    ));
+    assert!(matches!(
+        Criteria::load("expect('x', 'not a function');".to_string()),
+        Err(JsError::Load(_))
+    ));
+}
+
+#[test]
+fn a_file_of_only_expectations_is_a_file_with_something_in_it() {
+    // "No criteria" means nothing was registered at all, not "no criterion()".
+    // A file that only asks how many is a perfectly good file.
+    let src = r#"expect("arms", (t) => t(0).count('cat:"arm"'));"#;
+    assert!(Criteria::load(src.to_string()).is_ok());
 }

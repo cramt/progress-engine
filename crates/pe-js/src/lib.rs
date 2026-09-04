@@ -5,6 +5,13 @@
 //! criterion may ask `t(n).count(query)` and nothing else. It never sees the
 //! cards.
 //!
+//! A file registers two kinds of question. `criterion` returns a bool and is
+//! answered with a probability; `expect` returns a count and is answered with a
+//! mean and a distribution. JavaScript will happily coerce either into the
+//! other, so this is the layer that refuses to: a criterion answering with a
+//! number, or an expectation answering with a bool, is an error naming the
+//! offending registration rather than a plausible number.
+//!
 //! That narrowness is the whole trick. A criterion that depends only on counts
 //! is a pure function of the composition, so it can be evaluated once per
 //! possible composition rather than once per simulated hand — exact rather than
@@ -12,16 +19,19 @@
 
 use deno_core::{extension, op2, v8, JsRuntime, OpState, RuntimeOptions};
 use facet::Facet;
-use pe_criteria::{Criterion, Evaluator, PathView};
+use pe_criteria::{Count, Criterion, Evaluator, Expectation, PathOutcomes, PathView, Plan};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum JsError {
     #[error("loading criteria: {0}")]
     Load(String),
-    #[error("evaluating criteria: {0}")]
+    /// Bare, because every path that reports one is already inside an engine's
+    /// "evaluating criteria" wrapper, and saying it twice in one sentence reads
+    /// as a tool that lost track of what it was doing.
+    #[error("{0}")]
     Eval(String),
-    #[error("criteria file registered no criterion() calls")]
+    #[error("criteria file registered no criterion() or expect() calls")]
     NoCriteria,
 }
 
@@ -79,6 +89,7 @@ pub struct Criteria {
     /// without this the exact engine works and a long sampled run dies partway.
     _tokio: tokio::runtime::Runtime,
     criteria: Vec<Criterion>,
+    expectations: Vec<Expectation>,
 }
 
 impl Criteria {
@@ -101,8 +112,8 @@ impl Criteria {
             .execute_script("[criteria]", source)
             .map_err(|e| JsError::Load(e.to_string()))?;
 
-        let criteria = read_meta(&mut runtime)?;
-        if criteria.is_empty() {
+        let (criteria, expectations) = read_meta(&mut runtime)?;
+        if criteria.is_empty() && expectations.is_empty() {
             return Err(JsError::NoCriteria);
         }
         let evaluate = global_function(&mut runtime, "__evaluate")?;
@@ -113,11 +124,25 @@ impl Criteria {
             runtime,
             _tokio: tokio,
             criteria,
+            expectations,
         })
     }
 
     pub fn criteria(&self) -> &[Criterion] {
         &self.criteria
+    }
+
+    pub fn expectations(&self) -> &[Expectation] {
+        &self.expectations
+    }
+
+    /// The shape of the answer this file produces, for whichever engine is
+    /// about to run it.
+    pub fn plan(&self) -> Plan {
+        Plan {
+            criteria: self.criteria.len(),
+            expectations: self.expectations.len(),
+        }
     }
 
     /// Queries the criteria asked about that were not in the current grouping.
@@ -149,9 +174,15 @@ impl Criteria {
         self.call_evaluate().map(|_| ())
     }
 
-    fn call_evaluate(&mut self) -> Result<Vec<bool>, JsError> {
+    fn call_evaluate(&mut self) -> Result<PathOutcomes, JsError> {
         let _guard = self._tokio.enter();
         let evaluate = self.evaluate.clone();
+        // Borrowed field by field rather than through `self`, so the expectation
+        // names stay reachable inside the V8 scope. A value with nowhere to go in
+        // a histogram has to name the expectation that produced it, and cloning
+        // the names once per path would be a per-composition allocation.
+        let criteria = self.criteria.len();
+        let expectations = &self.expectations;
         let runtime = &mut self.runtime;
         deno_core::scope!(scope, runtime);
         v8::tc_scope!(let tc, scope);
@@ -167,12 +198,35 @@ impl Criteria {
         let array: v8::Local<v8::Array> = result
             .try_into()
             .map_err(|_| JsError::Eval("__evaluate did not return an array".into()))?;
-        let mut out = Vec::with_capacity(array.length() as usize);
+        let expected = criteria + expectations.len();
+        if array.length() as usize != expected {
+            return Err(JsError::Eval(format!(
+                "__evaluate returned {} results for {expected} registered questions",
+                array.length()
+            )));
+        }
+        let mut out = PathOutcomes {
+            held: Vec::with_capacity(criteria),
+            counted: Vec::with_capacity(expectations.len()),
+        };
         for i in 0..array.length() {
             let v = array
                 .get_index(tc, i)
                 .ok_or_else(|| JsError::Eval(format!("__evaluate result missing index {i}")))?;
-            out.push(v.boolean_value(tc));
+            // The bootstrap has already refused a criterion that answered with a
+            // number and an expectation that answered with a bool, by name. What
+            // is left to check here is whether the number can be histogrammed.
+            if (i as usize) < criteria {
+                out.held.push(v.boolean_value(tc));
+            } else {
+                let name = &expectations[i as usize - criteria].name;
+                let raw = v
+                    .number_value(tc)
+                    .ok_or_else(|| JsError::Eval(format!("expect({name:?}) returned no value")))?;
+                let count = Count::from_f64(raw)
+                    .map_err(|e| JsError::Eval(format!("expect({name:?}): {e}")))?;
+                out.counted.push(count);
+            }
         }
         Ok(out)
     }
@@ -181,7 +235,7 @@ impl Criteria {
 impl Evaluator for Criteria {
     type Error = JsError;
 
-    fn evaluate(&mut self, view: &PathView<'_>) -> Result<Vec<bool>, JsError> {
+    fn evaluate(&mut self, view: &PathView<'_>) -> Result<PathOutcomes, JsError> {
         let queries = {
             let state = self.runtime.op_state();
             let state = state.borrow();
@@ -212,7 +266,9 @@ fn global_function(
     Ok(v8::Global::new(scope, f))
 }
 
-fn read_meta(runtime: &mut JsRuntime) -> Result<Vec<Criterion>, JsError> {
+type Registrations = (Vec<Criterion>, Vec<Expectation>);
+
+fn read_meta(runtime: &mut JsRuntime) -> Result<Registrations, JsError> {
     let value = runtime
         .execute_script("[pe:meta]", "JSON.stringify(globalThis.__meta())")
         .map_err(|e| JsError::Load(e.to_string()))?;
@@ -221,19 +277,34 @@ fn read_meta(runtime: &mut JsRuntime) -> Result<Vec<Criterion>, JsError> {
         v8::Local::new(scope, value).to_rust_string_lossy(scope)
     };
     #[derive(Facet)]
-    struct Meta {
+    struct CriterionMeta {
         name: String,
         #[facet(rename = "atLeast")]
         at_least: Option<f64>,
     }
-    let metas: Vec<Meta> = facet_json::from_str(&json).map_err(|e| JsError::Load(e.to_string()))?;
-    Ok(metas
-        .into_iter()
-        .map(|m| Criterion {
-            name: m.name,
-            at_least: m.at_least,
-        })
-        .collect())
+    #[derive(Facet)]
+    struct ExpectationMeta {
+        name: String,
+    }
+    #[derive(Facet)]
+    struct Meta {
+        criteria: Vec<CriterionMeta>,
+        expectations: Vec<ExpectationMeta>,
+    }
+    let meta: Meta = facet_json::from_str(&json).map_err(|e| JsError::Load(e.to_string()))?;
+    Ok((
+        meta.criteria
+            .into_iter()
+            .map(|m| Criterion {
+                name: m.name,
+                at_least: m.at_least,
+            })
+            .collect(),
+        meta.expectations
+            .into_iter()
+            .map(|m| Expectation { name: m.name })
+            .collect(),
+    ))
 }
 
 /// Each round strictly grows the query set and the turn horizon, so this only

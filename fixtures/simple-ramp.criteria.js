@@ -24,3 +24,11 @@ criterion("commander on turn 2", (t) =>
 // Informational: no threshold, so it reports a number and cannot fail.
 criterion("any ramp by turn 3", (t) =>
   t(3).count('cat:"Ramp - One Mana"') + t(3).count('cat:"Ramp"') >= 1);
+
+// An expectation asks *how many* rather than *how often*, and is answered with
+// a mean and the whole distribution behind it. It has no threshold and cannot
+// fail: see the Expectation type in pe-criteria for why.
+expect("lands in opener", (t) => t(0).count('t:land'));
+
+expect("ramp seen by turn 3", (t) =>
+  t(3).count('cat:"Ramp - One Mana"') + t(3).count('cat:"Ramp"'));
