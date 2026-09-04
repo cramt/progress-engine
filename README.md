@@ -365,6 +365,8 @@ matches nothing.
 | `r:` `rarity:` | Rarity, ordered so `r>=rare` works |
 | `s:` `e:` `set:` | Set code of the printing the index carries |
 | `f:` `banned:` `restricted:` | Format legality |
+| `m:` `mana:` | The printed cost, as a multiset of symbols |
+| `devotion:` | How much a permanent gives to a devotion count |
 | `layout:` | Scryfall's layout name |
 | `is:` `not:` | See below |
 | `cat:` `category:` | **Ours**: an Archidekt category from the decklist |
@@ -433,7 +435,20 @@ twenty per cent away from Scryfall in one direction or the other. A key that
 looks like Scryfall's and quietly disagrees with it is worse than one that says
 it is missing, so it says it is missing.
 
-`mana:` and `devotion:` are likewise not implemented and say so.
+**`m:` and `devotion:` treat a cost as the multiset it is.** `{2}{W}{W}` is two
+generic and two white, so `m:{W}{W}` contains it and `m>{2}{W}{W}` does not.
+A colon is "contains at least", as on Scryfall, and `=` is exact. Shorthand
+works for symbols that are not split — `m:2WW` — and a hybrid reads the same
+written either way, because `{U/W}` and `{W/U}` are one symbol; a Phyrexian
+`{W/P}` is not reordered, since the marker's position is fixed and sorting it
+would invent a symbol.
+
+Each **face** is costed separately. Wear // Tear is stored as `{1}{R} // {W}`,
+and reading that as one multiset would invent a three-mana two-colour spell
+nobody can cast — so `m:{W}` and `m:{1}{R}` both find it and `m:{R}{W}` does
+not. Devotion is counted only on **permanents**, because only a permanent is on
+the battlefield to give it, and a term naming two different colours is refused:
+`devotion:{u}{b}` is two questions, while `devotion:{u/b}{u/b}` is one.
 
 ### Queries that match nothing
 
@@ -448,7 +463,7 @@ note: query "cat:\"Rmap\"" matched no cards in this deck
 FAIL misspelled category   0.00%  (needs 30.0%)
 ```
 
-Unsupported *syntax*, by contrast, is refused outright — `mana:{G}{U}` names
+Unsupported *syntax*, by contrast, is refused outright — `otag:ramp` names
 itself as an error rather than quietly matching nothing, and where the accepted
 values are a closed set the message lists them:
 

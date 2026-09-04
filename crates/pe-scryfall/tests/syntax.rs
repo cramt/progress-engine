@@ -370,3 +370,91 @@ fn french_vanilla_is_declined_rather_than_approximated() {
         Err(pe_scryfall::ParseError::UnknownIsProperty { .. })
     ));
 }
+
+/// A mana cost is a multiset of symbols, not a string. `m:` means "contains at
+/// least", matching Scryfall, so `m:{G}` finds every green card rather than the
+/// one card that costs exactly `{G}`.
+#[test]
+fn mana_costs_compare_as_multisets_of_symbols() {
+    let index = index();
+    let angel = get(&index, "Serra Angel"); // {3}{W}{W}
+    let birds = get(&index, "Birds of Paradise"); // {G}
+
+    assert!(matches(&angel, "m:{W}{W}"));
+    assert!(matches(&angel, "m:{W}"), "a colon is at least, not exactly");
+    assert!(!matches(&angel, "m:{W}{W}{W}"));
+    assert!(matches(&angel, "m={3}{W}{W}"), "and = is exactly");
+    assert!(!matches(&angel, "m={W}{W}"));
+    assert!(matches(&angel, "m>{2}{W}{W}"), "five is more than four");
+    assert!(!matches(&angel, "m>{3}{W}{W}"), "and not more than itself");
+
+    // Shorthand is allowed for symbols that are not split.
+    assert_eq!(
+        pe_scryfall::parse("m:3WW").unwrap(),
+        pe_scryfall::parse("m:{3}{W}{W}").unwrap()
+    );
+    assert!(matches(&birds, "m=G"));
+}
+
+/// Half of Wear // Tear costs `{1}{R}` and the other half `{W}`; neither is
+/// "the cost of the card", so each face is asked separately. Reading the stored
+/// `{1}{R} // {W}` as one multiset would invent a three-mana two-colour spell
+/// that nobody can cast.
+#[test]
+fn each_face_is_costed_separately() {
+    let index = index();
+    let wear = get(&index, "Wear // Tear");
+    assert_eq!(wear.mana_cost, "{1}{R} // {W}");
+
+    assert!(matches(&wear, "m:{W}"), "the Tear half");
+    assert!(matches(&wear, "m:{1}{R}"), "the Wear half");
+    assert!(
+        !matches(&wear, "m:{R}{W}"),
+        "no single face costs both, and no cost is the two joined"
+    );
+}
+
+/// A hybrid symbol has a canonical order and a query may not use it.
+#[test]
+fn a_hybrid_symbol_reads_the_same_written_either_way() {
+    use pe_scryfall::mana::ManaCost;
+    assert_eq!(ManaCost::parse("{U/W}"), ManaCost::parse("{W/U}"));
+    // But a marker is not a colour and its position is fixed: sorting `{W/P}`
+    // would invent a symbol.
+    assert_ne!(ManaCost::parse("{W/P}"), ManaCost::parse("{P/W}"));
+    assert_eq!(ManaCost::parse("2WW"), ManaCost::parse("{2}{W}{W}"));
+    assert_eq!(ManaCost::parse("{1}{1}"), ManaCost::parse("{2}"));
+}
+
+/// Only a permanent gives devotion, because only a permanent is on the
+/// battlefield to give it. Counting the blue symbols on a Counterspell found
+/// two thousand cards Scryfall does not.
+#[test]
+fn devotion_is_counted_only_on_permanents() {
+    let index = index();
+    let angel = get(&index, "Serra Angel"); // {3}{W}{W}, a creature
+    let properties = properties();
+    let charm = get(&properties, "Boros Charm"); // {R}{W}, an instant
+
+    assert!(matches(&angel, "devotion:{w}{w}"));
+    assert!(matches(&angel, "devotion:{w}"), "a colon is at least");
+    assert!(!matches(&angel, "devotion:{w}{w}{w}"));
+    assert!(matches(&angel, "devotion={w}{w}"), "and = is exactly");
+
+    assert!(
+        !matches(&charm, "devotion:{w}"),
+        "an instant is never on the battlefield to give devotion"
+    );
+}
+
+/// A devotion term asks about one colour or one pair. Two different colours in
+/// one term is two questions, and answering either would be a guess.
+#[test]
+fn a_devotion_term_naming_two_colours_is_refused() {
+    assert!(matches!(
+        pe_scryfall::parse("devotion:{u}{b}"),
+        Err(pe_scryfall::ParseError::MixedDevotion { .. })
+    ));
+    // The pair asked for together is fine, and is a different question.
+    assert!(pe_scryfall::parse("devotion:{u/b}{u/b}").is_ok());
+}

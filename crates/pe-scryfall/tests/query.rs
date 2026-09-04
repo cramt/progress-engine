@@ -212,16 +212,21 @@ fn quoted_or_is_a_value_not_an_operator() {
 
 #[test]
 fn unsupported_syntax_errors_rather_than_matching_nothing() {
-    // Mana-cost and devotion terms are not implemented, so they name
-    // themselves rather than matching nothing.
-    assert!(matches!(
-        query::parse("mana:{G}{U}"),
-        Err(ParseError::UnknownKey { .. })
-    ));
-    assert!(matches!(
-        query::parse("devotion:{u/b}"),
-        Err(ParseError::UnknownKey { .. })
-    ));
+    // Keys that read data the index does not carry, or that Scryfall answers
+    // from something other than a field, name themselves rather than matching
+    // nothing.
+    for term in [
+        "otag:ramp",
+        "cube:vintage",
+        "edhrecrank<=100",
+        "cn:5",
+        "year>=2020",
+    ] {
+        assert!(
+            matches!(query::parse(term), Err(ParseError::UnknownKey { .. })),
+            "{term} should be refused by name"
+        );
+    }
     // The land cycles are curated lists on Scryfall's side rather than
     // fields in the bulk data, so this crate declines them by name instead of
     // guessing at them from oracle text.
@@ -266,8 +271,8 @@ fn unsupported_syntax_errors_rather_than_matching_nothing() {
 
 #[test]
 fn error_messages_name_the_offending_term() {
-    let err = query::parse("mana:{G}").unwrap_err().to_string();
-    assert!(err.contains("mana"), "message should name the key: {err}");
+    let err = query::parse("otag:ramp").unwrap_err().to_string();
+    assert!(err.contains("otag"), "message should name the key: {err}");
 
     // Where the accepted values are a closed set, the message lists them:
     // a typo is worth one line of help rather than a silent 0%.

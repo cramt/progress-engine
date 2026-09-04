@@ -13,6 +13,7 @@
 pub mod bulk;
 pub mod index;
 pub mod legality;
+pub mod mana;
 mod parse;
 mod zone;
 
@@ -149,6 +150,14 @@ impl Colors {
 
     pub fn is_empty(self) -> bool {
         self.0 == 0
+    }
+
+    pub fn union(self, other: Colors) -> Colors {
+        Colors(self.0 | other.0)
+    }
+
+    pub fn intersect(self, other: Colors) -> Colors {
+        Colors(self.0 & other.0)
     }
 
     /// How many symbols, which is what `c>=2` counts.
@@ -379,6 +388,11 @@ pub enum Query {
     Set(String),
     /// `f:pauper`, `banned:legacy`.
     Format(FormatStatus, &'static str),
+    /// `m:2WW`, `mana>{2}{W}{W}` — the printed cost as a multiset of symbols.
+    Mana(Cmp, mana::ManaCost),
+    /// `devotion:{u}{u}` — how much a permanent gives to a devotion count,
+    /// carrying the colours asked about and the level asked for.
+    Devotion(Cmp, Colors, u32),
     /// `layout:transform`.
     Layout(String),
     /// `is:permanent`.
@@ -461,6 +475,26 @@ impl Query {
                     FormatStatus::Restricted => word == crate::legality::Legality::Restricted,
                 }
             }
+            // Any face may satisfy it, for the same reason a statistic may:
+            // half of Wear // Tear costs {1}{R} and the other half {W}, and
+            // neither is "the cost of the card".
+            Query::Mana(cmp, want) => card.costs().any(|have| match cmp {
+                Cmp::Ge => want.is_subset_of(&have),
+                Cmp::Gt => want.is_subset_of(&have) && have != *want,
+                Cmp::Le => have.is_subset_of(want),
+                Cmp::Lt => have.is_subset_of(want) && have != *want,
+                Cmp::Eq => have == *want,
+                Cmp::Ne => have != *want,
+            }),
+            // Only a permanent gives devotion, because only a permanent is on
+            // the battlefield to give it. Counting the blue symbols on a
+            // Counterspell found two thousand cards Scryfall does not.
+            Query::Devotion(cmp, colors, level) => {
+                IsProperty::Permanent.matches(card)
+                    && card
+                        .costs()
+                        .any(|have| cmp.test_num(have.devotion_to(*colors) as f64, *level as f64))
+            }
             Query::Layout(s) => card.layout.eq_ignore_ascii_case(s),
             Query::Is(p) => p.matches(card),
             Query::Not(inner) => !inner.matches(card),
@@ -513,6 +547,15 @@ impl CardView<'_> {
     /// Scryfall counts it: Blinding Souleater's mana cost is `{3}`.
     fn symbols(&self) -> impl Iterator<Item = &str> {
         mana_symbols(self.mana_cost).chain(mana_symbols(self.oracle))
+    }
+
+    /// The printed cost of each face, parsed.
+    ///
+    /// One per face rather than one per card: the index stores a split card's
+    /// cost as `{1}{R} // {W}`, and reading that as a single multiset would
+    /// invent a three-mana two-colour spell that nobody can cast.
+    fn costs(&self) -> impl Iterator<Item = mana::ManaCost> + '_ {
+        self.mana_cost.split("//").map(mana::ManaCost::parse)
     }
 }
 

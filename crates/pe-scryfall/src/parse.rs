@@ -37,6 +37,17 @@ pub enum ParseError {
     BadFormat { term: String, value: String },
     #[error("{term:?}: {value:?} is neither a number nor a statistic to compare against (try pow, tou, pt, loy or def)")]
     BadStatOperand { term: String, value: String },
+    #[error(
+        "{term:?}: {value:?} is not a mana cost (write symbols in braces, \
+         or unbraced shorthand for the simple ones: 2WW)"
+    )]
+    BadManaCost { term: String, value: String },
+    #[error(
+        "{term:?}: a devotion term asks about one set of colours at a time, and \
+         {value:?} names more than one. Write devotion:{{u}}{{u}} for blue, or \
+         devotion:{{u/b}}{{u/b}} for blue and black together"
+    )]
+    MixedDevotion { term: String, value: String },
     #[error("{term:?}: missing a value after the operator")]
     MissingValue { term: String },
     #[error("unbalanced parenthesis")]
@@ -46,9 +57,9 @@ pub enum ParseError {
 }
 
 /// The keys a term may start with, for the error that lists them.
-const SUPPORTED_KEYS: [&str; 24] = [
+const SUPPORTED_KEYS: [&str; 26] = [
     "t", "o", "fo", "name", "kw", "cat", "mv", "cmc", "c", "color", "id", "identity", "produces",
-    "prod", "pow", "tou", "pt", "loy", "def", "r", "s", "f", "layout", "is",
+    "prod", "pow", "tou", "pt", "loy", "def", "r", "s", "f", "m", "devotion", "layout", "is",
 ];
 
 fn is_properties() -> String {
@@ -382,6 +393,42 @@ fn parse_term(term: &str) -> Result<Query, ParseError> {
         "f" | "format" => format_term(term, value, FormatStatus::Legal, cmp, &key),
         "banned" => format_term(term, value, FormatStatus::Banned, cmp, &key),
         "restricted" => format_term(term, value, FormatStatus::Restricted, cmp, &key),
+        "m" | "mana" => {
+            let cost = crate::mana::ManaCost::parse(value);
+            if cost.is_empty() {
+                return Err(ParseError::BadManaCost {
+                    term: term.to_string(),
+                    value: value.to_string(),
+                });
+            }
+            // A colon is "contains at least", as it is on Scryfall: `m:{G}`
+            // finds every green card rather than only the one that costs {G}.
+            Ok(Query::Mana(if colon { Cmp::Ge } else { cmp }, cost))
+        }
+        "devotion" | "dev" => {
+            let spec = crate::mana::ManaCost::parse(value);
+            let level = spec.symbol_count();
+            if level == 0 {
+                return Err(ParseError::BadManaCost {
+                    term: term.to_string(),
+                    value: value.to_string(),
+                });
+            }
+            // Devotion is counted towards a colour or a pair, so every symbol
+            // in the term has to name the same one. `devotion:{u}{b}` is two
+            // questions, and answering either of them would be a guess.
+            if !spec.symbols_agree_on_colors() {
+                return Err(ParseError::MixedDevotion {
+                    term: term.to_string(),
+                    value: value.to_string(),
+                });
+            }
+            Ok(Query::Devotion(
+                if colon { Cmp::Ge } else { cmp },
+                spec.colors(),
+                level,
+            ))
+        }
         "layout" => require_equality(Query::Layout(value.to_string())),
         // `not:` is Scryfall's inverted `is:`, and it is worth having because
         // `-is:permanent` and `not:permanent` are both typed by people who read
