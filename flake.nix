@@ -59,14 +59,15 @@
       };
 
       # crane's default source filter keeps only Rust and Cargo files, which
-      # drops three things this build genuinely needs: the JavaScript bootstrap
-      # that pe-js embeds with include_str!, and the decklist and index fixtures
-      # the tests read. Without them the build fails late, during compilation,
-      # with a confusing "no such file" for a file that plainly exists.
+      # drops four things this build genuinely needs: the JavaScript bootstrap
+      # that pe-js embeds with include_str!, the decklist and index fixtures the
+      # tests read, and the Scryfall bulk records pe-scryfall is tested against.
+      # Without them the build fails late, during compilation, with a confusing
+      # "no such file" for a file that plainly exists.
       src = pkgs.lib.cleanSourceWith {
         src = ./.;
         filter = path: type:
-          (builtins.match ".*\\.(js|json|txt)$" path != null)
+          (builtins.match ".*\\.(js|json|jsonl|txt)$" path != null)
           || (craneLib.filterCargoSources path type);
         name = "source";
       };
