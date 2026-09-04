@@ -286,3 +286,87 @@ fn a_set_code_selects_the_printing_the_index_carries() {
     assert!(matches(&sol_ring, &format!("s:{}", sol_ring.set)));
     assert!(!matches(&sol_ring, "s:lea"));
 }
+
+/// A second fixture, for the `is:` properties whose derivations were wrong
+/// until they were checked against Scryfall's own answers.
+fn properties() -> Index {
+    let records: Vec<BulkCard> = include_str!("fixtures/bulk-properties.jsonl")
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|line| facet_json::from_str(line).expect("real bulk record should parse"))
+        .collect();
+    Index::build(records, None).0
+}
+
+/// Most Phyrexian mana is in an activation cost rather than a mana cost.
+/// Blinding Souleater costs `{3}` and its only `{W/P}` is in its ability, and
+/// reading the mana cost alone found forty of the seventy-three cards Scryfall
+/// does.
+#[test]
+fn phyrexian_mana_is_found_in_a_cost_a_card_pays_as_well_as_the_one_it_is_cast_for() {
+    let index = properties();
+    let souleater = get(&index, "Blinding Souleater");
+    assert_eq!(
+        souleater.mana_cost, "{3}",
+        "no Phyrexian symbol in the cost"
+    );
+    assert!(matches(&souleater, "is:phyrexian"));
+    // Hybrid is read from the printed cost only, which is Scryfall's asymmetry
+    // rather than ours: counting activation costs finds cards it does not.
+    assert!(!matches(&souleater, "is:hybrid"));
+    assert!(matches(&get(&index, "Boros Charm"), "c:rw"));
+}
+
+/// Every flavour of the partner mechanic prints as its own keyword, and a
+/// Background carries none at all — it is a subtype. Matching only the word
+/// "partner" found a hundred and forty of the two hundred and twenty-eight
+/// cards Scryfall finds.
+#[test]
+fn partner_covers_every_flavour_of_the_mechanic() {
+    let index = properties();
+    let abdel = get(&index, "Abdel Adrian, Gorion's Ward");
+    let adric = get(&index, "Adric, Mathematical Genius");
+    let background = get(&index, "Raised by Giants");
+
+    assert!(matches(&abdel, "is:partner"), "Choose a Background");
+    assert!(matches(&adric, "is:partner"), "Doctor's companion");
+    assert!(matches(&background, "is:partner"), "the Background itself");
+    assert!(!matches(&get(&index, "Grizzly Bears"), "is:partner"));
+}
+
+/// Scryfall counts a Background as something that can be your commander — all
+/// thirty of them — even though one cannot command on its own.
+#[test]
+fn a_background_counts_as_a_commander_the_way_scryfall_counts_it() {
+    let index = properties();
+    assert!(matches(&get(&index, "Raised by Giants"), "is:commander"));
+    assert!(matches(
+        &get(&index, "Abdel Adrian, Gorion's Ward"),
+        "is:commander"
+    ));
+    assert!(!matches(&get(&index, "Grizzly Bears"), "is:commander"));
+}
+
+#[test]
+fn a_bear_is_a_two_mana_two_by_two() {
+    let index = properties();
+    assert!(matches(&get(&index, "Grizzly Bears"), "is:bear"));
+    assert!(matches(&get(&index, "Grizzly Bears"), "is:vanilla"));
+    assert!(!matches(&get(&index, "Blinding Souleater"), "is:vanilla"));
+}
+
+/// French vanilla is not derivable from the bulk data and is declined by name.
+///
+/// Scryfall's `keywords` array mixes ability words — "Mark of Chaos Ascendant"
+/// — in with real keyword abilities, and its own answer excludes keywords with
+/// numeric parameters such as `Modular 3` and `Rampage 3` for reasons no field
+/// records. Every derivation tried came out twenty per cent away from
+/// Scryfall's, in one direction or the other, and a key that looks like
+/// Scryfall's and disagrees with it is worse than one that says it is missing.
+#[test]
+fn french_vanilla_is_declined_rather_than_approximated() {
+    assert!(matches!(
+        pe_scryfall::parse("is:frenchvanilla"),
+        Err(pe_scryfall::ParseError::UnknownIsProperty { .. })
+    ));
+}

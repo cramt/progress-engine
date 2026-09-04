@@ -1063,7 +1063,7 @@ fn a_refused_query_says_what_it_would_have_accepted() {
     assert!(stderr.contains("is:tapland"), "names the query: {stderr}");
     assert!(stderr.contains("tapland"), "names the term: {stderr}");
     assert!(
-        stderr.contains("frenchvanilla"),
+        stderr.contains("phyrexian"),
         "lists the properties it does support: {stderr}"
     );
 }

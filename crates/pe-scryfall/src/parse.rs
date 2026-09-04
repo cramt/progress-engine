@@ -242,12 +242,11 @@ fn parse_color_spec(field: ColorField, value: &str) -> Option<ColorSpec> {
 }
 
 /// The `is:` properties, paired with the words that select them.
-const IS_PROPERTIES: [(&str, IsProperty); 25] = [
+const IS_PROPERTIES: [(&str, IsProperty); 24] = [
     ("permanent", IsProperty::Permanent),
     ("spell", IsProperty::Spell),
     ("historic", IsProperty::Historic),
     ("vanilla", IsProperty::Vanilla),
-    ("frenchvanilla", IsProperty::FrenchVanilla),
     ("bear", IsProperty::Bear),
     ("dfc", IsProperty::DoubleFaced),
     ("doublefaced", IsProperty::DoubleFaced),

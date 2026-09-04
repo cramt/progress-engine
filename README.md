@@ -392,10 +392,25 @@ in `pow=0` and quietly out of `pow>=1`; instead neither holds, and `-pow>=1` is
 where "we cannot say" lands. Statistics are read on **every face**, so `pow>=3`
 finds Delver of Secrets, which is a 1/1 that becomes a 3/2.
 
-`is:` answers `permanent`, `spell`, `historic`, `vanilla`, `frenchvanilla`,
-`bear`, `dfc`, `mdfc`, `transform`, `split`, `flip`, `meld`, `leveler`,
-`adventure`, `hybrid`, `phyrexian`, `commander`, `partner`, `companion`,
-`reserved` and `gamechanger`.
+`is:` answers `permanent`, `spell`, `historic`, `vanilla`, `bear`, `dfc`,
+`mdfc`, `transform`, `split`, `flip`, `meld`, `leveler`, `adventure`, `hybrid`,
+`phyrexian`, `commander`, `partner`, `companion`, `reserved` and `gamechanger`.
+
+**Every one of them was checked against Scryfall's own answer**, by counting
+the whole card pool locally and asking Scryfall for the same count. Four came
+back identical and the rest within the handful of cards our index holds and
+Scryfall's default search hides. Three were wrong and are not any more:
+`is:phyrexian` read only the mana cost, and most Phyrexian mana is in an
+activation cost — Blinding Souleater costs `{3}` — which missed thirty-three of
+seventy-three cards. `is:partner` matched only the word "partner", when the
+mechanic also prints as "Choose a background", "Doctor's companion" and
+"Friends forever", and a Background carries no keyword at all because it is a
+subtype; that missed eighty-five. `is:hybrid`, unlike `is:phyrexian`, is read
+from the printed cost alone, which is Scryfall's asymmetry rather than ours and
+was found the same way.
+
+Writing a derivation and reading it back is not the same as checking it. All
+three of those looked right.
 
 **The land cycles are missing on purpose.** `is:shockland`, `is:fetchland`,
 `is:tapland` and the rest are **curated lists** on Scryfall's side, not fields in
@@ -407,6 +422,16 @@ regex survives. Both are worse than the error you get today, which at least says
 what it cannot do. `is:tapland` is the direct answer to "do these two lands
 actually give me two mana on turn two", so this is a real gap and it is
 [issue #9](https://github.com/cramt/progress-engine/issues/9).
+
+**`is:frenchvanilla` was implemented and then removed**, which is the same rule
+applied to our own work. Scryfall's `keywords` array mixes ability words —
+"Mark of Chaos Ascendant" — in with real keyword abilities, and both are
+followed by an em dash and then prose, so nothing in the data tells them apart.
+Scryfall's own answer also excludes keywords with numeric parameters, `Modular
+3` and `Rampage 3`, for reasons no field records. Every derivation tried landed
+twenty per cent away from Scryfall in one direction or the other. A key that
+looks like Scryfall's and quietly disagrees with it is worse than one that says
+it is missing, so it says it is missing.
 
 `mana:` and `devotion:` are likewise not implemented and say so.
 

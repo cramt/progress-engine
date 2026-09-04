@@ -324,8 +324,6 @@ pub enum IsProperty {
     Historic,
     /// A creature with no rules text at all.
     Vanilla,
-    /// A creature whose rules text is only keyword abilities.
-    FrenchVanilla,
     /// Scryfall's "bear": a 2/2 that costs two.
     Bear,
     /// Any card with two faces printed on two sides.
@@ -508,6 +506,16 @@ impl Query {
     }
 }
 
+impl CardView<'_> {
+    /// Every mana symbol printed on the card, in its cost and in its text.
+    ///
+    /// Both, because an activation cost is where most Phyrexian mana lives and
+    /// Scryfall counts it: Blinding Souleater's mana cost is `{3}`.
+    fn symbols(&self) -> impl Iterator<Item = &str> {
+        mana_symbols(self.mana_cost).chain(mana_symbols(self.oracle))
+    }
+}
+
 impl IsProperty {
     fn matches(self, card: &CardView<'_>) -> bool {
         let layout_is = |want: &str| card.layout.eq_ignore_ascii_case(want);
@@ -535,22 +543,6 @@ impl IsProperty {
             IsProperty::Vanilla => {
                 contains_ci(card.type_line, "creature") && card.oracle.trim().is_empty()
             }
-            // Every line of text is a keyword the card also lists. Written
-            // against the keyword list rather than a grammar for rules text,
-            // because the list is data and a grammar would be a guess.
-            IsProperty::FrenchVanilla => {
-                contains_ci(card.type_line, "creature")
-                    && !card.oracle.trim().is_empty()
-                    && card.oracle.lines().all(|line| {
-                        line.split(',')
-                            .filter(|p| !p.trim().is_empty())
-                            .all(|part| {
-                                card.keywords
-                                    .iter()
-                                    .any(|k| k.eq_ignore_ascii_case(part.trim()))
-                            })
-                    })
-            }
             IsProperty::Bear => {
                 card.cmc == 2.0
                     && contains_ci(card.type_line, "creature")
@@ -568,21 +560,40 @@ impl IsProperty {
             IsProperty::Meld => layout_is("meld"),
             IsProperty::Leveler => layout_is("leveler"),
             IsProperty::Adventure => layout_is("adventure"),
-            // Hybrid and Phyrexian are read off the printed cost rather than
-            // the colours, because a `{2/W}` card is mono-white and a `{W/U}`
-            // one is two colours: neither fact is the question being asked.
+            // Read off the symbols rather than the colours, because a `{2/W}`
+            // card is mono-white and a `{W/U}` one is two colours: neither
+            // fact is the question being asked.
+            //
+            // Cost *and* text, because Blinding Souleater's only Phyrexian
+            // symbol is in an activation cost and Scryfall counts it. Reading
+            // the mana cost alone missed thirty-three of the seventy-three
+            // cards Scryfall finds.
+            // Cost only, unlike Phyrexian below. That asymmetry is Scryfall's
+            // rather than ours: counting hybrid symbols in activation costs
+            // finds a hundred and twenty-four cards it does not.
             IsProperty::Hybrid => mana_symbols(card.mana_cost)
                 .any(|s| s.contains('/') && !s.to_ascii_lowercase().contains("/p")),
-            IsProperty::Phyrexian => {
-                mana_symbols(card.mana_cost).any(|s| s.to_ascii_lowercase().contains("/p"))
-            }
+            IsProperty::Phyrexian => card
+                .symbols()
+                .any(|s| s.to_ascii_lowercase().contains("/p")),
             IsProperty::Commander => {
                 legality::commander_route(card.name, card.type_line, card.oracle).is_some()
             }
-            // "Partner", "Partner with", "Friends forever" and the Doctor's
-            // companion all print as distinct keywords, so a prefix match is
-            // what "any flavour of partner" means.
-            IsProperty::Partner => has_keyword("partner") || has_keyword("friends forever"),
+            // Every flavour of the mechanic prints as its own keyword, and
+            // Scryfall's `is:partner` means any of them. Enumerated rather than
+            // prefix-matched on "partner", which found none of the hundred and
+            // forty cards that say "Doctor's companion" or "Choose a
+            // background" instead.
+            IsProperty::Partner => {
+                ["partner", "friends forever", "doctor's companion", "choose a background"]
+                    .iter()
+                    .any(|k| has_keyword(k))
+                    // A Background carries no keyword of its own — it is a
+                    // subtype, and it is the other half of the mechanic.
+                    // Scryfall counts them, and without them this found
+                    // twenty-seven fewer cards than it should.
+                    || legality::is_background(card.type_line)
+            }
             IsProperty::Companion => has_keyword("companion"),
             IsProperty::Reserved => card.reserved.unwrap_or(false),
             IsProperty::GameChanger => card.game_changer.unwrap_or(false),
@@ -590,9 +601,9 @@ impl IsProperty {
     }
 }
 
-/// The `{...}` symbols of a mana cost, without their braces.
-fn mana_symbols(cost: &str) -> impl Iterator<Item = &str> {
-    cost.split('{')
+/// The `{...}` symbols in a string, without their braces.
+fn mana_symbols(text: &str) -> impl Iterator<Item = &str> {
+    text.split('{')
         .skip(1)
         .filter_map(|s| s.split_once('}'))
         .map(|(sym, _)| sym)
