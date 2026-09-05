@@ -264,14 +264,58 @@ read 38631 records
   skipped 8: not English
   kept 35224 cards
   40 names match more than one card; which printing is kept is decided by a rule that gives the same answer every sync
-wrote 35224 cards to /home/you/.cache/scryfall/index.json
+wrote 35224 cards to /home/you/.cache/scryfall/index.jsonl
 ```
 
-It writes `index.json` under `$SCRYFALL_CACHE`, failing that
+It writes `index.jsonl` under `$SCRYFALL_CACHE`, failing that
 `$XDG_CACHE_HOME/scryfall`, failing that `~/.cache/scryfall`; `--index <path>`
 puts it somewhere else, and `--from <file>` builds from a bulk file already on
 disk rather than downloading one. A run with no index at all says so and names
 the command that fixes it.
+
+**A run costs what your deck costs, not what Magic costs.** The index is a
+header line and then one card per line, each behind the key it is filed under:
+
+```
+$ head -c 130 ~/.cache/scryfall/index.jsonl
+{"schema":1,"updated_at":"2026-09-04T09:01:54.392+00:00","cards":35224,"keywords":["... Catch","10,000 Needles", ...
+$ grep -c . ~/.cache/scryfall/index.jsonl
+35225
+```
+
+The header holds what is true of the file rather than of any card, so a question
+about the file answers off one line. The keyword list is there because `kw:`
+needs the whole pool to know that `kw:flyign` is a typo rather than a card
+nobody plays, and it is the pool: Scryfall files *... Catch* as a keyword, so
+this does too.
+
+Opening it locates the lines and parses none of them; a card is parsed when
+something names it. A decklist names about a hundred, so a `test` run reads a
+hundred cards rather than thirty-five thousand — 2.94s to 0.22s on this machine,
+measured over ten runs of the same deck against the same 35,220-card index:
+
+| | mean |
+|---|---|
+| one JSON object, parsed whole | 2.937s ± 0.131 |
+| one line per card, parsed on demand | **0.222s** ± 0.006 |
+
+The cost was never the 24MB — it is facet-json's per-field reflection over
+35,224 records of twenty-odd fields each, which is why the file is the same size
+either way. Of what is left, about 0.10s is starting V8 and answering the
+question, and about 0.12s is still proportional to the index: reading it and
+finding its lines. `sync` gets the same deal — deciding whether the index it
+already has is Scryfall's latest reads one line instead of the whole file.
+
+Two things follow from writing the key beside the card rather than deriving it.
+The file stays greppable, so `grep -P '^sol ring\t'` is a working lookup with no
+tool at all. And the two can disagree — so a card read out from under somebody
+else's key is an error rather than the wrong card returned confidently.
+
+Splitting a document into lines also adds a failure it did not have: JSON cut in
+half stops parsing, whereas a list of lines cut in half reads as a shorter list,
+which here would be a card pool quietly missing a thousand cards. So the header
+says how many lines should follow, and an index that does not have them is
+refused by name.
 
 Loading the library is strict about cards the index does not know: an unknown
 card stops the run rather than being skipped, because a card that cannot be
@@ -670,7 +714,7 @@ nix flake check    # fmt, clippy -D warnings, tests, build
 
 Reflection comes from [facet](https://github.com/facet-rs/facet): `facet-json`
 writes the JSON contract above, reads Scryfall's bulk data and reads and writes
-the card index, and `figue` parses argv. One `#[derive(Facet)]` per type feeds
+the cards in the index, and `figue` parses argv. One `#[derive(Facet)]` per type feeds
 all of them.
 
 The tests never reach the network. `sync --from <file>` builds from a bulk file

@@ -4,7 +4,7 @@
 //! matches nothing yields a confidently wrong probability, which is the failure
 //! this crate exists to prevent.
 
-use pe_scryfall::index::{Card, Index};
+use pe_scryfall::index::{Card, Index, IndexFile};
 use pe_scryfall::legality::Legalities;
 use pe_scryfall::{self as query, CardView, Colors, ParseError, Query};
 
@@ -418,12 +418,34 @@ fn kw_takes_a_value_not_a_comparison() {
     );
 }
 
+/// An index of these cards, written out and reopened.
+///
+/// Through the file rather than in memory because that is the only way the
+/// vocabulary is ever read: `sync` derives it from the cards into the header,
+/// and a run reads the header. Testing an in-memory shortcut would prove
+/// nothing about the round trip that has to hold.
+fn written(cards: &[(&str, &[&str])]) -> IndexFile {
+    let mut index = Index {
+        schema: Some(pe_scryfall::index::SCHEMA),
+        ..Index::default()
+    };
+    for (name, keywords) in cards {
+        index.cards.insert(
+            pe_scryfall::index::keyname(name),
+            Card {
+                name: (*name).into(),
+                keywords: keywords.iter().map(|k| (*k).to_string()).collect(),
+                ..Card::default()
+            },
+        );
+    }
+    let text = index.to_lines().expect("an index should serialise");
+    IndexFile::parse(std::path::Path::new("<memory>"), text).expect("and read back")
+}
+
 #[test]
 fn a_keyword_no_card_carries_is_a_typo_the_index_can_name() {
-    let index: Index = facet_json::from_str(
-        r#"{"cards":{"birds of paradise":{"name":"Birds of Paradise","keywords":["Flying"]}}}"#,
-    )
-    .expect("index fixture should parse");
+    let index = written(&[("Birds of Paradise", &["Flying"])]);
     let vocabulary = index.keyword_vocabulary();
     let q = query::parse("kw:flyign or (t:land -kw:Flying)").expect("query should parse");
     assert_eq!(q.unknown_keywords(&vocabulary), vec!["flyign".to_string()]);
@@ -431,8 +453,7 @@ fn a_keyword_no_card_carries_is_a_typo_the_index_can_name() {
 
 #[test]
 fn an_index_silent_about_keywords_accuses_no_query_of_a_typo() {
-    let index: Index =
-        facet_json::from_str(r#"{"cards":{"plains":{"name":"Plains"}}}"#).expect("should parse");
+    let index = written(&[("Plains", &[])]);
     let q = query::parse("kw:flying").expect("query should parse");
     assert!(q.unknown_keywords(&index.keyword_vocabulary()).is_empty());
 }

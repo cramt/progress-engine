@@ -13,6 +13,7 @@
 //! project exists to prevent, so absence has to be representable everywhere.
 
 use std::collections::{HashMap, HashSet};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use facet::Facet;
@@ -30,6 +31,17 @@ use crate::{CardView, Colors, OutsideLibrary};
 /// is treated as schema 0 — which is the truth about every index the external
 /// `scryfall sync` shell tool ever wrote.
 pub const SCHEMA: u32 = 1;
+
+/// What the index is called on disk.
+pub const FILE_NAME: &str = "index.jsonl";
+
+/// What separates a card's key from the card on its line.
+///
+/// A tab, because no card name contains one, and because it means a key can be
+/// found without parsing the card behind it — which is the whole point of the
+/// format. It also leaves the file greppable: `grep '^sol ring<TAB>'` is a
+/// working lookup.
+const SEPARATOR: char = '\t';
 
 #[derive(Debug, Error)]
 pub enum IndexError {
@@ -50,6 +62,47 @@ pub enum IndexError {
         path: PathBuf,
         source: Box<facet_json::DeserializeError>,
     },
+    #[error(
+        "the index at {0} is empty: it has no header line.\n\
+         Rebuild it with: progress-engine sync"
+    )]
+    NoHeader(PathBuf),
+    /// The header's card count and the number of card lines disagree.
+    ///
+    /// Worth its own variant because it is the failure a line-per-card format
+    /// adds: a JSON document cut in half stops parsing, whereas a truncated
+    /// list of lines still reads as a shorter list. A missing card is a lookup
+    /// that fails or, worse, a legality check with nothing to say — so the file
+    /// states how many cards it should have and this is what checks it.
+    #[error(
+        "the index at {path} is truncated: its header claims {expected} cards \
+         but {found} lines follow.\n\
+         Rebuild it with: progress-engine sync"
+    )]
+    Truncated {
+        path: PathBuf,
+        expected: usize,
+        found: usize,
+    },
+    /// A card line with no key in front of it.
+    #[error("the index at {path} has an entry with no name key on line {line}")]
+    UnkeyedEntry { path: PathBuf, line: usize },
+    /// The key a card is filed under is not the key its name produces, so a
+    /// lookup by that name would find the wrong card — or the right card under
+    /// a name nobody can ask for. Only checked on cards actually read, which is
+    /// where it would do harm.
+    #[error(
+        "the index at {path} files {name:?} under {key:?}, which is not the key \
+         that name produces.\n\
+         Rebuild it with: progress-engine sync"
+    )]
+    KeyMismatch {
+        path: PathBuf,
+        key: String,
+        name: String,
+    },
+    #[error("serialising the index: {0}")]
+    Serialize(String),
 }
 
 /// One face of a card.
@@ -168,9 +221,28 @@ pub struct Card {
     pub reserved: Option<bool>,
 }
 
-#[derive(Debug, Clone, Default, Facet)]
+/// Every card, in memory, as `sync` builds it before writing.
+///
+/// The read side is [`IndexFile`], which does not build one of these: a run
+/// wants a hundred cards and this is thirty-five thousand.
+#[derive(Debug, Clone, Default)]
 pub struct Index {
     pub cards: HashMap<String, Card>,
+    /// Which shape this index is being written in; see [`SCHEMA`] and
+    /// [`Header::schema`].
+    pub schema: Option<u32>,
+    /// When the bulk data this was built from was published; see
+    /// [`Header::updated_at`].
+    pub updated_at: Option<String>,
+}
+
+/// What an index file says about itself, on its first line.
+///
+/// Everything here is about the file as a whole rather than about any card, so
+/// a run that only needs to know *when this was built* or *whether it predates
+/// the fields my queries read* reads one line instead of thirty-five thousand.
+#[derive(Debug, Clone, Default, Facet)]
+pub struct Header {
     /// Which shape this index was written in; see [`SCHEMA`]. `None` is
     /// schema 0, an index from before the field existed.
     #[facet(default)]
@@ -183,10 +255,203 @@ pub struct Index {
     /// date — a report claiming today's index when nobody knows which index ran
     /// is the confidently wrong number this project exists to prevent.
     ///
-    /// Kept as text rather than a parsed timestamp: parsing would reject a 25MB
-    /// index over one unfamiliar format, and nothing here does arithmetic on it.
+    /// Kept as text rather than a parsed timestamp: parsing would reject a
+    /// whole index over one unfamiliar format, and nothing here does arithmetic
+    /// on it.
     #[facet(default)]
     pub updated_at: Option<String>,
+    /// How many card lines should follow. `None` from a hand-written fixture
+    /// that never counted itself, which is a gap rather than a claim of zero.
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub cards: Option<usize>,
+    /// Every keyword the whole card pool carries — see
+    /// [`IndexFile::keyword_vocabulary`].
+    #[facet(default, skip_serializing_if = Vec::is_empty)]
+    pub keywords: Vec<String>,
+}
+
+/// An index on disk, read a card at a time.
+///
+/// The file is held as text and the lines are located, but only the cards
+/// actually asked for are parsed. That is the difference between a run costing
+/// what Magic costs and a run costing what your deck costs: a hundred cards
+/// parsed instead of thirty-five thousand.
+///
+/// Locating a line is cheap because the key is written in front of it, so
+/// finding Sol Ring never involves deciding what the JSON after the tab means.
+pub struct IndexFile {
+    path: PathBuf,
+    header: Header,
+    text: String,
+    /// Key to the byte range of that card's JSON within `text`.
+    entries: HashMap<String, (usize, usize)>,
+}
+
+/// Hand-written because the derived one would print the whole file: this holds
+/// every byte of a 24MB index, and a panic message is not the place for it.
+impl std::fmt::Debug for IndexFile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IndexFile")
+            .field("path", &self.path)
+            .field("header", &self.header)
+            .field("cards", &self.entries.len())
+            .finish()
+    }
+}
+
+impl IndexFile {
+    pub fn open(path: &Path) -> Result<Self, IndexError> {
+        if !path.exists() {
+            return Err(IndexError::Missing(path.to_path_buf()));
+        }
+        let text = std::fs::read_to_string(path).map_err(|source| IndexError::Io {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        Self::parse(path, text)
+    }
+
+    /// The same, for text already in hand. `path` is only ever named in errors.
+    pub fn parse(path: &Path, text: String) -> Result<Self, IndexError> {
+        let header_end = text
+            .find('\n')
+            .ok_or_else(|| IndexError::NoHeader(path.to_path_buf()))?;
+        let header: Header =
+            facet_json::from_str(text[..header_end].trim_end()).map_err(|source| {
+                IndexError::Json {
+                    path: path.to_path_buf(),
+                    source: Box::new(source),
+                }
+            })?;
+
+        let mut entries = HashMap::new();
+        let mut found = 0usize;
+        let mut offset = header_end + 1;
+        let mut line_number = 1usize;
+        while offset < text.len() {
+            let rest = &text[offset..];
+            let length = rest.find('\n').unwrap_or(rest.len());
+            let line = &rest[..length];
+            line_number += 1;
+            if !line.trim().is_empty() {
+                let separator = line.find(SEPARATOR).ok_or(IndexError::UnkeyedEntry {
+                    path: path.to_path_buf(),
+                    line: line_number,
+                })?;
+                found += 1;
+                entries.insert(
+                    line[..separator].to_string(),
+                    (offset + separator + 1, offset + length),
+                );
+            }
+            offset += length + 1;
+        }
+
+        if let Some(expected) = header.cards {
+            if expected != found {
+                return Err(IndexError::Truncated {
+                    path: path.to_path_buf(),
+                    expected,
+                    found,
+                });
+            }
+        }
+
+        Ok(IndexFile {
+            path: path.to_path_buf(),
+            header,
+            text,
+            entries,
+        })
+    }
+
+    /// The card filed under this name, parsed now.
+    ///
+    /// Parsing is deferred to here rather than done at open, so the cost of an
+    /// index is the cost of the cards you name.
+    pub fn get(&self, name: &str) -> Result<Option<Card>, IndexError> {
+        let key = keyname(name);
+        let Some(&(start, end)) = self.entries.get(&key) else {
+            return Ok(None);
+        };
+        let card: Card =
+            facet_json::from_str(&self.text[start..end]).map_err(|source| IndexError::Json {
+                path: self.path.clone(),
+                source: Box::new(source),
+            })?;
+        // The key is written beside the card rather than derived from it, which
+        // is what makes a lookup cheap — and what lets the two disagree. They
+        // cannot disagree unnoticed about a card anyone actually reads.
+        if keyname(&card.name) != key {
+            return Err(IndexError::KeyMismatch {
+                path: self.path.clone(),
+                key,
+                name: card.name,
+            });
+        }
+        Ok(Some(card))
+    }
+
+    /// Whether this index has an entry for a name, without parsing it.
+    pub fn contains(&self, name: &str) -> bool {
+        self.entries.contains_key(&keyname(name))
+    }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    pub fn header(&self) -> &Header {
+        &self.header
+    }
+
+    pub fn updated_at(&self) -> Option<&str> {
+        self.header.updated_at.as_deref()
+    }
+
+    /// Which shape this index was written in. An index that never said is
+    /// schema 0 rather than the current one — claiming otherwise would be a
+    /// report vouching for fields nobody wrote.
+    pub fn schema(&self) -> u32 {
+        self.header.schema.unwrap_or(0)
+    }
+
+    /// Whether this index predates fields the current queries read.
+    pub fn is_stale(&self) -> bool {
+        self.schema() < SCHEMA
+    }
+
+    /// Every keyword the pool carries, lowercased for comparison.
+    ///
+    /// Scryfall answers `kw:tramp` with *Unknown keyword "tramp"* rather than
+    /// an empty result, and it is right to: a mistyped keyword that quietly
+    /// matches zero cards is the confident 0% this project exists to prevent.
+    /// The parser cannot make that check on its own — the set of real keywords
+    /// grows with every set, so a list hard-coded next to the parser would be a
+    /// second opinion about what a card is, and would start refusing real
+    /// queries the day it fell behind. The index is the authority, so the check
+    /// lives here; see [`crate::Query::unknown_keywords`].
+    ///
+    /// Read from the header rather than from the cards, because the cards are
+    /// not read. `sync` derives it from the cards it is writing, so the two
+    /// describe the same pool by construction; an index whose header never
+    /// mentioned keywords yields an empty vocabulary, which
+    /// [`crate::Query::unknown_keywords`] already knows proves nothing about
+    /// any keyword.
+    pub fn keyword_vocabulary(&self) -> KeywordVocabulary {
+        KeywordVocabulary {
+            known: self
+                .header
+                .keywords
+                .iter()
+                .map(|k| k.to_lowercase())
+                .collect(),
+        }
+    }
 }
 
 /// What a sync did, in terms anybody can check against the next one.
@@ -214,30 +479,105 @@ impl Index {
     ///
     /// `$SCRYFALL_CACHE` first, for compatibility with the external shell tool
     /// this grew out of, then the XDG cache directory.
+    ///
+    /// Named `.jsonl` rather than `.json` because it is one, and because the
+    /// `index.json` the shell tool wrote is a different format that this build
+    /// cannot read. Sitting beside it rather than on top of it means an
+    /// upgrade asks for a sync instead of failing to parse a file it never
+    /// wrote.
     pub fn default_path() -> PathBuf {
         if let Ok(dir) = std::env::var("SCRYFALL_CACHE") {
-            return PathBuf::from(dir).join("index.json");
+            return PathBuf::from(dir).join(FILE_NAME);
         }
         let base = std::env::var("XDG_CACHE_HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|_| {
                 PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".cache")
             });
-        base.join("scryfall").join("index.json")
+        base.join("scryfall").join(FILE_NAME)
     }
 
-    pub fn load(path: &Path) -> Result<Self, IndexError> {
-        if !path.exists() {
-            return Err(IndexError::Missing(path.to_path_buf()));
+    /// This index as the file format: a header line, then one card per line.
+    ///
+    /// Sorted by key so that two syncs of the same bulk data produce the same
+    /// bytes. A `HashMap` iterated in its own order would not, and an index
+    /// whose bytes move for no reason is one whose hash cannot be quoted as
+    /// provenance.
+    pub fn to_lines(&self) -> Result<String, IndexError> {
+        let header = Header {
+            schema: self.schema,
+            updated_at: self.updated_at.clone(),
+            cards: Some(self.cards.len()),
+            keywords: self.keyword_list(),
+        };
+        let mut out =
+            facet_json::to_string(&header).map_err(|e| IndexError::Serialize(e.to_string()))?;
+        out.push('\n');
+
+        let mut keys: Vec<&String> = self.cards.keys().collect();
+        keys.sort();
+        for key in keys {
+            let card = &self.cards[key];
+            let json = facet_json::to_string(card)
+                .map_err(|e| IndexError::Serialize(format!("{}: {e}", card.name)))?;
+            out.push_str(key);
+            out.push(SEPARATOR);
+            out.push_str(&json);
+            out.push('\n');
         }
-        let text = std::fs::read_to_string(path).map_err(|source| IndexError::Io {
-            path: path.to_path_buf(),
-            source,
-        })?;
-        facet_json::from_str(&text).map_err(|source| IndexError::Json {
-            path: path.to_path_buf(),
-            source: Box::new(source),
-        })
+        Ok(out)
+    }
+
+    /// Write to a neighbouring temporary file and rename over the target.
+    ///
+    /// A rename is atomic, so an interrupted sync leaves the previous index
+    /// intact rather than a half-written one. The write lives here beside
+    /// [`IndexFile::open`] because a format read in one crate and written in
+    /// another is two opinions about one file.
+    pub fn write_atomically(&self, path: &Path) -> Result<(), IndexError> {
+        let text = self.to_lines()?;
+        let io = |path: &Path| {
+            let path = path.to_path_buf();
+            move |source| IndexError::Io {
+                path: path.clone(),
+                source,
+            }
+        };
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir).map_err(io(dir))?;
+        }
+        // `<name>.partial`, appended rather than replacing the extension, so
+        // the debris of a failed sync is named after the file it was going to
+        // become.
+        let temp = {
+            let mut name = path.as_os_str().to_owned();
+            name.push(".partial");
+            PathBuf::from(name)
+        };
+        {
+            let mut file = std::fs::File::create(&temp).map_err(io(&temp))?;
+            file.write_all(text.as_bytes()).map_err(io(&temp))?;
+            file.sync_all().map_err(io(&temp))?;
+        }
+        std::fs::rename(&temp, path).map_err(io(path))
+    }
+
+    /// Every keyword any card here carries, as Scryfall prints them, sorted.
+    ///
+    /// Written into the header so that [`IndexFile`] can answer `kw:` questions
+    /// about the whole card pool without reading the whole card pool. Derived
+    /// at write time from the cards being written, so the two cannot describe
+    /// different pools.
+    fn keyword_list(&self) -> Vec<String> {
+        let mut all: Vec<String> = self
+            .cards
+            .values()
+            .flat_map(|c| c.keywords.iter().cloned())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+        all.sort();
+        all
     }
 
     /// Build an index from Scryfall bulk records.
@@ -319,27 +659,6 @@ impl Index {
     /// Whether this index predates fields the current queries read.
     pub fn is_stale(&self) -> bool {
         self.schema() < SCHEMA
-    }
-
-    /// Every keyword any card here carries, lowercased for comparison.
-    ///
-    /// Scryfall answers `kw:tramp` with *Unknown keyword "tramp"* rather than
-    /// an empty result, and it is right to: a mistyped keyword that quietly
-    /// matches zero cards is the confident 0% this project exists to prevent.
-    /// The parser cannot make that check on its own — the set of real keywords
-    /// grows with every set, so a list hard-coded next to the parser would be a
-    /// second opinion about what a card is, and would start refusing real
-    /// queries the day it fell behind. The index is the authority, so the check
-    /// lives here; see [`crate::Query::unknown_keywords`].
-    pub fn keyword_vocabulary(&self) -> KeywordVocabulary {
-        KeywordVocabulary {
-            known: self
-                .cards
-                .values()
-                .flat_map(|c| c.keywords.iter())
-                .map(|k| k.to_lowercase())
-                .collect(),
-        }
     }
 }
 

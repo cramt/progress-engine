@@ -10,13 +10,13 @@
 //! written win, and nothing here could detect or repair it. Owning the build is
 //! what makes the fix expressible at all.
 
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 use facet::Facet;
 use pe_scryfall::bulk::BulkCard;
-use pe_scryfall::index::{BuildReport, Index};
+use pe_scryfall::index::{BuildReport, Index, IndexFile};
 
 /// Scryfall's index of what bulk files exist.
 const BULK_DATA_API: &str = "https://api.scryfall.com/bulk-data";
@@ -104,7 +104,9 @@ pub fn run(index_path: Option<&Path>, from: Option<&Path>, force: bool) -> Resul
     let (index, report) = Index::build(records, updated_at);
     print_report(&report);
     check(&report, &index, from.is_none())?;
-    write_atomically(&path, &index)?;
+    index
+        .write_atomically(&path)
+        .with_context(|| format!("writing the index to {}", path.display()))?;
     eprintln!("wrote {} cards to {}", report.kept, path.display());
     Ok(())
 }
@@ -118,8 +120,10 @@ fn already_current(path: &Path, updated_at: Option<&str>) -> bool {
     let Some(updated_at) = updated_at else {
         return false;
     };
-    match Index::load(path) {
-        Ok(existing) => existing.updated_at.as_deref() == Some(updated_at) && !existing.is_stale(),
+    // Only the header is read, which is one line: asking "is this already the
+    // data I have?" must not cost as much as using it.
+    match IndexFile::open(path) {
+        Ok(existing) => existing.updated_at() == Some(updated_at) && !existing.is_stale(),
         Err(_) => false,
     }
 }
@@ -258,31 +262,6 @@ fn check(report: &BuildReport, index: &Index, downloaded: bool) -> Result<()> {
             index.cards.len()
         );
     }
-    Ok(())
-}
-
-/// Write to a neighbouring temporary file and rename over the target.
-///
-/// A rename is atomic, so an interrupted sync leaves the previous index intact
-/// rather than a half-written one. Reading a truncated index is the one failure
-/// here that would not announce itself — facet-json would refuse it, and the
-/// message would be about JSON rather than about a sync that died.
-fn write_atomically(path: &Path, index: &Index) -> Result<()> {
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
-    }
-    let temp = path.with_extension("json.partial");
-    let json = facet_json::to_string(index).context("serialising the index")?;
-    {
-        let mut file =
-            std::fs::File::create(&temp).with_context(|| format!("creating {}", temp.display()))?;
-        file.write_all(json.as_bytes())
-            .with_context(|| format!("writing {}", temp.display()))?;
-        file.sync_all()
-            .with_context(|| format!("flushing {}", temp.display()))?;
-    }
-    std::fs::rename(&temp, path)
-        .with_context(|| format!("renaming {} to {}", temp.display(), path.display()))?;
     Ok(())
 }
 

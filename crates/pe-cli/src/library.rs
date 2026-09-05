@@ -8,7 +8,7 @@ use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 use pe_criteria::{Grouping, GroupingError};
-use pe_scryfall::index::{Card, Index};
+use pe_scryfall::index::{Card, Index, IndexFile};
 use pe_scryfall::OutsideLibrary;
 
 pub struct Entry {
@@ -59,7 +59,7 @@ impl Library {
         let path = index_path
             .map(Path::to_path_buf)
             .unwrap_or_else(Index::default_path);
-        let index = Index::load(&path)?;
+        let index = IndexFile::open(&path)?;
         let stale = index.is_stale();
 
         // Strict about unknown cards, unlike the legality checker which merely
@@ -67,7 +67,7 @@ impl Library {
         // look up, so a typo here would silently skew every probability.
         let unknown: Vec<&str> = parsed
             .iter()
-            .filter(|e| index.get(&e.name).is_none())
+            .filter(|e| !index.contains(&e.name))
             .map(|e| e.name.as_str())
             .collect();
         if !unknown.is_empty() {
@@ -91,7 +91,7 @@ impl Library {
         let mut excluded = Vec::new();
         for e in &parsed {
             let entry = Entry {
-                card: index.get(&e.name).expect("checked above").clone(),
+                card: index.get(&e.name)?.expect("checked above"),
                 categories: e.categories.iter().map(|c| c.name.clone()).collect(),
                 qty: e.qty.get(),
             };
@@ -115,7 +115,7 @@ impl Library {
             commanders,
             deck_sha256: crate::report::sha256_hex(text.as_bytes()),
             index_is_stale: stale,
-            index_updated_at: index.updated_at,
+            index_updated_at: index.updated_at().map(str::to_owned),
             excluded,
         })
     }

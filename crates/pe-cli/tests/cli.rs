@@ -16,6 +16,14 @@ fn fixture(name: &str) -> PathBuf {
         .join(name)
 }
 
+/// The card filed under `key`, still unparsed — the index is one card per line,
+/// each behind the key it is filed under.
+fn entry<'a>(body: &'a str, key: &str) -> &'a str {
+    body.lines()
+        .find_map(|line| line.strip_prefix(key)?.strip_prefix('\t'))
+        .unwrap_or_else(|| panic!("no entry for {key:?}"))
+}
+
 fn run(criteria: &str) -> std::process::Output {
     run_deck("simple-ramp.txt", criteria)
 }
@@ -26,7 +34,7 @@ fn run_deck(deck: &str, criteria: &str) -> std::process::Output {
         .arg(fixture(deck))
         .arg(fixture(criteria))
         .arg("--index")
-        .arg(fixture("index.json"))
+        .arg(fixture("index.jsonl"))
         .output()
         .expect("binary should run")
 }
@@ -163,7 +171,7 @@ fn sampling_agrees_with_the_exact_engine_end_to_end() {
         .arg(fixture("simple-ramp.txt"))
         .arg(fixture("simple-ramp.criteria.js"))
         .arg("--index")
-        .arg(fixture("index.json"))
+        .arg(fixture("index.jsonl"))
         .args(["--simulate", "--trials", "50000", "--seed", "1"])
         .output()
         .expect("binary should run");
@@ -194,7 +202,7 @@ fn a_sampled_run_is_reproducible() {
             .arg(fixture("simple-ramp.txt"))
             .arg(fixture("simple-ramp.criteria.js"))
             .arg("--index")
-            .arg(fixture("index.json"))
+            .arg(fixture("index.jsonl"))
             .args(["--simulate", "--trials", "5000", "--seed", seed])
             .output()
             .expect("binary should run");
@@ -267,7 +275,7 @@ fn an_empty_library_is_refused_rather_than_hanging() {
         .arg(fixture("no-library.txt"))
         .arg(fixture("short-circuit.criteria.js"))
         .arg("--index")
-        .arg(fixture("index.json"))
+        .arg(fixture("index.jsonl"))
         .output()
         .expect("binary should run");
 
@@ -474,7 +482,7 @@ fn a_sampled_run_reports_the_seed_that_dealt_it() {
         .arg(fixture("simple-ramp.txt"))
         .arg(fixture("simple-ramp.criteria.js"))
         .arg("--index")
-        .arg(fixture("index.json"))
+        .arg(fixture("index.jsonl"))
         .args(["--simulate", "--trials", "5000", "--seed", "9"])
         .output()
         .expect("binary should run");
@@ -819,7 +827,7 @@ fn sampled_expectations_agree_with_the_exact_engine_end_to_end() {
         .arg(fixture("simple-ramp.txt"))
         .arg(fixture("simple-ramp.criteria.js"))
         .arg("--index")
-        .arg(fixture("index.json"))
+        .arg(fixture("index.jsonl"))
         .args(["--simulate", "--trials", "50000", "--seed", "1"])
         .output()
         .expect("binary should run");
@@ -895,7 +903,7 @@ fn an_expectation_that_cannot_be_histogrammed_is_refused_by_name() {
 #[test]
 fn sync_builds_an_index_from_a_bulk_file() {
     let dir = std::env::temp_dir().join(format!("pe-sync-{}", std::process::id()));
-    let index = dir.join("index.json");
+    let index = dir.join("index.jsonl");
     let _ = std::fs::remove_dir_all(&dir);
 
     let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
@@ -914,19 +922,24 @@ fn sync_builds_an_index_from_a_bulk_file() {
     assert!(stderr.contains("skipped 3"), "{stderr}");
     assert!(stderr.contains("kept 12 cards"), "{stderr}");
 
-    let written: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(&index).expect("index written"))
-            .expect("index is JSON");
+    let text = std::fs::read_to_string(&index).expect("index written");
+    let (header, body) = text.split_once('\n').expect("a header line and a body");
 
     // Issue #38 end to end: the token must not have won the name.
-    let elves = &written["cards"]["llanowar elves"];
+    let elves: serde_json::Value =
+        serde_json::from_str(entry(body, "llanowar elves")).expect("the entry is JSON");
     assert_eq!(elves["cmc"], 1.0, "the card, not the mana value 0 token");
     assert_eq!(elves["type_line"], "Creature — Elf Druid");
     assert_eq!(elves["produces"][0], "G");
 
-    // And the index says which shape it was written in, so a later run can
-    // tell a fresh index from one that predates the fields it reads.
-    assert_eq!(written["schema"], 1);
+    // The header says which shape the file was written in, so a later run can
+    // tell a fresh index from one that predates the fields it reads — and how
+    // many cards should follow, so a truncated file is caught rather than read
+    // as a smaller card pool.
+    let header: serde_json::Value = serde_json::from_str(header).expect("header is JSON");
+    assert_eq!(header["schema"], 1);
+    assert_eq!(header["cards"], 12);
+    assert_eq!(body.lines().count(), 12);
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -936,7 +949,7 @@ fn sync_builds_an_index_from_a_bulk_file() {
 #[test]
 fn sync_replaces_an_existing_index_without_leaving_debris() {
     let dir = std::env::temp_dir().join(format!("pe-resync-{}", std::process::id()));
-    let index = dir.join("index.json");
+    let index = dir.join("index.jsonl");
     let _ = std::fs::remove_dir_all(&dir);
 
     for _ in 0..2 {
@@ -956,7 +969,7 @@ fn sync_replaces_an_existing_index_without_leaving_debris() {
     }
     assert!(index.exists());
     assert!(
-        !dir.join("index.json.partial").exists(),
+        !dir.join("index.jsonl.partial").exists(),
         "the temporary file should have been renamed away"
     );
     let _ = std::fs::remove_dir_all(&dir);
@@ -986,7 +999,7 @@ fn an_index_that_predates_the_fields_says_so() {
 #[test]
 fn sync_then_test_answers_questions_the_old_index_could_not() {
     let dir = std::env::temp_dir().join(format!("pe-e2e-{}", std::process::id()));
-    let index = dir.join("index.json");
+    let index = dir.join("index.jsonl");
     let _ = std::fs::remove_dir_all(&dir);
 
     let sync = Command::new(env!("CARGO_BIN_EXE_progress-engine"))

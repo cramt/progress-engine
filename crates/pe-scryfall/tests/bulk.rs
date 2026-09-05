@@ -7,7 +7,7 @@
 //! bytes, including the three token records that shadow a real card.
 
 use pe_scryfall::bulk::{strip_reminder_text, Anomaly, BulkCard};
-use pe_scryfall::index::Index;
+use pe_scryfall::index::{Index, IndexFile};
 
 const SAMPLE: &str = include_str!("fixtures/bulk-sample.jsonl");
 
@@ -202,7 +202,7 @@ fn the_index_records_the_shape_it_was_written_in() {
 
     // An index from before the field is schema 0, and says so rather than
     // claiming to carry fields nobody wrote.
-    let old: Index = facet_json::from_str(r#"{"cards":{}}"#).unwrap();
+    let old = IndexFile::parse(std::path::Path::new("<memory>"), "{}\n".into()).unwrap();
     assert_eq!(old.schema(), 0);
     assert!(old.is_stale());
 }
