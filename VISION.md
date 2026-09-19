@@ -42,6 +42,9 @@ not a consolation prize.
 
 Neither needs a mana model. Both are reachable.
 
+[HANDS.md](HANDS.md) works both of them, and a dozen other cases, as concrete
+seven-card hands with the answer written down.
+
 That is a statement about these two decks, not a scoping decision: **a mana
 model is wanted**, and is the largest single piece of unbuilt work. See
 [Mana](#mana).

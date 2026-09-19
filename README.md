@@ -7,7 +7,9 @@ recalculating whether your deck is perfect yet is blue-aligned behaviour.
 
 This README is what the tool does today. [VISION.md](VISION.md) is what it is
 for, what it refuses to become, and which of those two lists a given decision
-came from.
+came from. [HANDS.md](HANDS.md) is a set of seven-card hands with the answers
+written down — the specification, in the only form small enough to check by
+hand.
 
 ## Why
 
