@@ -44,7 +44,7 @@ enum Command {
         /// Decklist file in Archidekt format.
         #[facet(args::positional)]
         deck: PathBuf,
-        /// JavaScript criteria file.
+        /// TOML criteria file.
         #[facet(args::positional)]
         criteria: PathBuf,
         /// Model being on the draw rather than on the play.
@@ -193,41 +193,52 @@ fn run_test(
     // gets a chance to normalise them.
     let criteria_sha256 = report::sha256_hex(source.as_bytes());
 
-    let mut criteria = pe_js::Criteria::load(source)?;
+    let mut criteria = pe_toml::Criteria::parse(&source, &criteria_path.display().to_string())?;
 
-    // Which queries the file uses and how deep into the game it looks are both
-    // discovered by running it, so neither has to be declared. Both engines go
-    // through the same loop, so they cannot drift apart in how they resolve a
-    // criteria file — only in how they compute the answer.
-    let answers: report::Answers = pe_js::with_discovery(
-        &mut criteria,
-        |queries| library.grouping_for(queries),
-        |turns| draw_gaps(turns, on_the_draw),
-        |grouping, gaps, criteria| -> Result<report::Answers> {
-            let plan = criteria.plan();
-            if simulate {
-                let sampled = pe_sim::simulate(grouping, gaps, trials, seed, plan, criteria)?;
-                Ok(report::Answers {
-                    probabilities: sampled.proportions,
-                    distributions: sampled.distributions,
-                })
-            } else {
-                let exact = pe_criteria::run(grouping, gaps, plan, criteria)?;
-                Ok(report::Answers {
-                    probabilities: exact.probabilities.into_iter().map(|p| p.get()).collect(),
-                    distributions: exact.distributions,
-                })
-            }
-        },
-    )
-    .map_err(|e| anyhow::anyhow!("{e}"))?;
+    // The file is data, so the whole query set and the whole turn horizon are
+    // known before a single hand is enumerated. Nothing is discovered by running
+    // anything, which is why a refusal below can say what the file asked for
+    // rather than what it had learned before it gave up.
+    //
+    // Both engines get the same evaluator and the same grouping, so they cannot
+    // drift apart in how they read a criteria file — only in how they compute
+    // the answer.
+
+    // Checked before anything is grouped, so a refused query can name the
+    // question that asked for it. The grouping sees a list of strings and has
+    // no idea which criterion each one came from; the criteria file does.
+    for query in criteria.queries() {
+        if let Err(e) = pe_scryfall::parse(query) {
+            let asked_by = criteria.asked_by(query).unwrap_or("this file");
+            anyhow::bail!("{asked_by}: in query {query:?}: {e}");
+        }
+    }
+    let grouping = library.grouping_for(criteria.queries())?;
+    let gaps = draw_gaps(criteria.horizon(), on_the_draw);
+    let plan = criteria.plan();
+    let answers: report::Answers = if simulate {
+        let sampled = pe_sim::simulate(&grouping, &gaps, trials, seed, plan, &mut criteria)?;
+        report::Answers {
+            probabilities: sampled.proportions,
+            distributions: sampled.distributions,
+        }
+    } else {
+        let exact = pe_criteria::run(&grouping, &gaps, plan, &mut criteria)?;
+        report::Answers {
+            probabilities: exact.probabilities.into_iter().map(|p| p.get()).collect(),
+            distributions: exact.distributions,
+        }
+    };
 
     let queries = criteria
         .queries()
-        .into_iter()
+        .iter()
         .map(|q| {
-            let cards = library.matching(&q).unwrap_or(0);
-            report::QueryMatch { query: q, cards }
+            let cards = library.matching(q).unwrap_or(0);
+            report::QueryMatch {
+                query: q.clone(),
+                cards,
+            }
         })
         .collect();
     let report = report::Report::build(

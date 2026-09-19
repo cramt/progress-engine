@@ -17,6 +17,7 @@ repository = "https://github.com/cramt/progress-engine"
 anyhow = "1"
 facet = { version = "0.46", features = ["nonzero"] }
 facet-json = "0.46"
+facet-toml = "0.46"
 figue = "4"
 libm = "0.2"
 proptest = { version = "1", default-features = false, features = ["std", "bit-set"] }
@@ -33,6 +34,6 @@ tokio = { version = "1", features = ["rt", "time"] }
 pe-decklist = { path = "crates/pe-decklist" }
 pe-scryfall = { path = "crates/pe-scryfall" }
 pe-criteria = { path = "crates/pe-criteria" }
-pe-js = { path = "crates/pe-js" }
+pe-toml = { path = "crates/pe-toml" }
 pe-sim = { path = "crates/pe-sim" }
 pe-stats = { path = "crates/pe-stats" }

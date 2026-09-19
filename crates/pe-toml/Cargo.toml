@@ -1,6 +1,6 @@
 [package]
-name = "pe-js"
-description = "JavaScript acceptance criteria, evaluated against the exact engine."
+name = "pe-toml"
+description = "TOML acceptance criteria, evaluated against the exact engine."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,10 +9,9 @@ repository.workspace = true
 [dependencies]
 thiserror.workspace = true
 pe-criteria.workspace = true
-tokio.workspace = true
 facet.workspace = true
-facet-json.workspace = true
-deno_core = "0.411.0"
+facet-toml.workspace = true
 
 [dev-dependencies]
 pe-stats.workspace = true
+pe-sim.workspace = true

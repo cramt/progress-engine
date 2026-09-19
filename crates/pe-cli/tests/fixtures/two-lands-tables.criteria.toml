@@ -1,0 +1,16 @@
+# The expanded spelling of two-lands.criteria.toml. TOML says these are the same
+# document; a criteria file a generator writes and one a person writes must not
+# be able to disagree about the answer.
+[[criterion]]
+name = "two lands by turn 2"
+at_least = 0.30
+
+  [[criterion.require]]
+  turn = 1
+  query = "t:land"
+  min = 1
+
+  [[criterion.require]]
+  turn = 2
+  query = "t:land"
+  min = 2

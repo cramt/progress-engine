@@ -181,11 +181,26 @@ pub trait Evaluator {
 
 #[derive(Debug, thiserror::Error)]
 pub enum RunError<E> {
+    /// Names every query, not just the count.
+    ///
+    /// It used to name neither, because the queries were learned by running a
+    /// JavaScript file and the run was refused part-way through learning them —
+    /// so the only honest thing it could report was how far it had got. A
+    /// declarative criteria file hands the whole set over before enumeration
+    /// starts, so the refusal can say what was actually asked and the reader can
+    /// see which query to drop.
     #[error(
         "this question is too wide to answer exactly: {paths} compositions across {groups} groups.\n\
-         Reduce the number of distinct queries, or ask about an earlier turn."
+         It asks about {} queries: {}\n\
+         Reduce the number of distinct queries, or ask about an earlier turn.",
+        .queries.len(),
+        .queries.join(", ")
     )]
-    TooWide { paths: u128, groups: usize },
+    TooWide {
+        paths: u128,
+        groups: usize,
+        queries: Vec<String>,
+    },
     #[error("the library is empty: every card in the list is a commander or outside the deck")]
     EmptyLibrary,
     /// A hand that cannot be dealt enumerates to no paths at all, so every
@@ -282,7 +297,11 @@ pub fn run<E>(
     }
     let paths = estimate_paths(groups, gaps);
     if paths > MAX_PATHS {
-        return Err(RunError::TooWide { paths, groups });
+        return Err(RunError::TooWide {
+            paths,
+            groups,
+            queries: grouping.queries().to_vec(),
+        });
     }
 
     let mut totals = vec![KahanSum::new(); plan.criteria];

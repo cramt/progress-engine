@@ -1,0 +1,6 @@
+# Uses a real Scryfall term this subset does not implement. It must refuse by
+# name and list what it would have taken, never quietly match nothing.
+[[criterion]]
+name = "unsupported"
+at_least = 0.1
+require = [{ turn = 0, query = 'artist:"Rebecca Guay"', min = 1 }]

@@ -52,7 +52,7 @@ fn percent(json: &serde_json::Value, name: &str) -> f64 {
 
 #[test]
 fn the_ramp_deck_reports_known_numbers() {
-    let out = run("simple-ramp.criteria.js");
+    let out = run("simple-ramp.criteria.toml");
     assert!(
         out.status.success(),
         "should exit 0 when all assertions pass"
@@ -78,7 +78,7 @@ fn the_ramp_deck_reports_known_numbers() {
 fn requiring_a_second_land_by_turn_two_is_strictly_harder() {
     // The nested-prefix check. "commander on turn 2" is "turn-1 accelerant"
     // plus one more requirement, so it cannot come out higher.
-    let out = run("simple-ramp.criteria.js");
+    let out = run("simple-ramp.criteria.toml");
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert!(percent(&json, "commander on turn 2") < percent(&json, "turn-1 accelerant"));
 }
@@ -87,7 +87,7 @@ fn requiring_a_second_land_by_turn_two_is_strictly_harder() {
 fn the_verdict_goes_to_stderr() {
     // stdout is JSON only, so a caller piping it through jq cannot lose the
     // verdict. That has burned this project's predecessor.
-    let out = run("simple-ramp.criteria.js");
+    let out = run("simple-ramp.criteria.toml");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("PASS: 3 of 3"), "stderr was: {stderr}");
     serde_json::from_slice::<serde_json::Value>(&out.stdout).expect("stdout is pure JSON");
@@ -95,7 +95,7 @@ fn the_verdict_goes_to_stderr() {
 
 #[test]
 fn a_missed_threshold_fails_the_run() {
-    let out = run("impossible.criteria.js");
+    let out = run("impossible.criteria.toml");
     assert!(
         !out.status.success(),
         "should exit non-zero when an assertion misses"
@@ -108,12 +108,15 @@ fn a_missed_threshold_fails_the_run() {
 }
 
 #[test]
-fn an_unparseable_query_names_itself() {
-    let out = run("badquery.criteria.js");
+fn an_unparseable_query_names_itself_and_the_question_that_asked_for_it() {
+    let out = run("badquery.criteria.toml");
     assert!(!out.status.success());
     let stderr = String::from_utf8_lossy(&out.stderr);
     // A query that cannot be parsed must say so, never quietly match nothing.
-    assert!(stderr.contains("power"), "stderr was: {stderr}");
+    assert!(stderr.contains("artist"), "stderr was: {stderr}");
+    // And which criterion wanted it, which is only knowable because the file
+    // hands over its whole query set before anything is grouped.
+    assert!(stderr.contains("unsupported"), "stderr was: {stderr}");
 }
 
 #[test]
@@ -121,7 +124,7 @@ fn a_query_matching_no_cards_is_called_out() {
     // The defining failure mode: a misspelled category parses fine, matches
     // nothing, and yields a confident 0%. It cannot be a parse error, so it has
     // to be visible in the output instead.
-    let out = run("typo.criteria.js");
+    let out = run("typo.criteria.toml");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
         stderr.contains("matched no cards"),
@@ -143,7 +146,7 @@ fn a_query_matching_no_cards_is_called_out() {
 fn the_query_breakdown_reports_real_match_counts() {
     // 36 Forests and 10 one-mana accelerants, which is checkable by eye against
     // the fixture decklist.
-    let out = run("simple-ramp.criteria.js");
+    let out = run("simple-ramp.criteria.toml");
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     let find = |needle: &str| -> u64 {
         json["queries"]
@@ -163,13 +166,13 @@ fn the_query_breakdown_reports_real_match_counts() {
 fn sampling_agrees_with_the_exact_engine_end_to_end() {
     // The exact engine is the oracle for the sampled one. If these drift apart,
     // one of them is wrong and the tool cannot say which.
-    let exact = run("simple-ramp.criteria.js");
+    let exact = run("simple-ramp.criteria.toml");
     let exact: serde_json::Value = serde_json::from_slice(&exact.stdout).unwrap();
 
     let sampled = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
         .arg("test")
         .arg(fixture("simple-ramp.txt"))
-        .arg(fixture("simple-ramp.criteria.js"))
+        .arg(fixture("simple-ramp.criteria.toml"))
         .arg("--index")
         .arg(fixture("index.jsonl"))
         .args(["--simulate", "--trials", "50000", "--seed", "1"])
@@ -200,7 +203,7 @@ fn a_sampled_run_is_reproducible() {
         let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
             .arg("test")
             .arg(fixture("simple-ramp.txt"))
-            .arg(fixture("simple-ramp.criteria.js"))
+            .arg(fixture("simple-ramp.criteria.toml"))
             .arg("--index")
             .arg(fixture("index.jsonl"))
             .args(["--simulate", "--trials", "5000", "--seed", seed])
@@ -216,7 +219,7 @@ fn a_sampled_run_is_reproducible() {
 #[test]
 fn only_sampled_runs_carry_error_bars() {
     // An exact answer has no standard error, and claiming one would be a lie.
-    let out = run("simple-ramp.criteria.js");
+    let out = run("simple-ramp.criteria.toml");
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     for c in json["criteria"].as_array().unwrap() {
         assert!(
@@ -231,32 +234,36 @@ fn only_sampled_runs_carry_error_bars() {
 }
 
 #[test]
-fn a_turn_behind_a_short_circuit_is_still_modelled() {
-    // How deep into the game a file looks is discovered by running it, and `&&`
-    // means an all-zero probe stops before the deepest turn. Getting this wrong
-    // does not error: the unmodelled turn answers 0 for every composition and
-    // the criterion reports a confident 0%, which is the failure this whole tool
-    // exists to prevent.
-    let hidden = run("short-circuit.criteria.js");
-    let eager = run("eager.criteria.js");
-    assert!(hidden.status.success(), "short-circuited form should pass");
+fn both_spellings_of_a_criteria_file_answer_the_same() {
+    // TOML says an inline table and an expanded [[criterion.require]] table are
+    // the same document. A generator will write one and a person will write the
+    // other, and the day those two answer differently is the day a saved file
+    // loaded back into a builder quietly changes a deck's numbers.
+    let inline = run("two-lands.criteria.toml");
+    let expanded = run("two-lands-tables.criteria.toml");
+    assert!(inline.status.success(), "the inline form should pass");
+    assert!(expanded.status.success(), "the expanded form should pass");
 
-    let hidden: serde_json::Value = serde_json::from_slice(&hidden.stdout).unwrap();
-    let eager: serde_json::Value = serde_json::from_slice(&eager.stdout).unwrap();
+    let inline: serde_json::Value = serde_json::from_slice(&inline.stdout).unwrap();
+    let expanded: serde_json::Value = serde_json::from_slice(&expanded.stdout).unwrap();
 
-    let got = percent(&hidden, "two lands by turn 2");
+    let got = percent(&inline, "two lands by turn 2");
     assert!(got > 1.0, "collapsed to {got}%");
-    assert_eq!(got, percent(&eager, "two lands by turn 2"));
+    assert_eq!(got, percent(&expanded, "two lands by turn 2"));
+    // Not only the headline: the whole answer, queries and all.
+    assert_eq!(inline["criteria"], expanded["criteria"]);
+    assert_eq!(inline["queries"], expanded["queries"]);
 }
 
 #[test]
 fn an_answer_does_not_depend_on_an_unrelated_criterion() {
-    // The original symptom: an informational criterion that happened to reach a
-    // later turn was dragging the run horizon out for everyone else, so deleting
-    // it silently changed another criterion's answer.
-    let alone = run("short-circuit.criteria.js");
+    // The run horizon is the deepest turn any question in the file names, so an
+    // informational criterion reaching turn 5 stretches it for everyone. The
+    // original symptom was that deleting such a neighbour silently changed
+    // another criterion's answer.
+    let alone = run("two-lands.criteria.toml");
     let alone: serde_json::Value = serde_json::from_slice(&alone.stdout).unwrap();
-    let together = run("short-circuit-plus-deep.criteria.js");
+    let together = run("two-lands-plus-deep.criteria.toml");
     let together: serde_json::Value = serde_json::from_slice(&together.stdout).unwrap();
 
     assert_eq!(
@@ -273,7 +280,7 @@ fn an_empty_library_is_refused_rather_than_hanging() {
     let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
         .arg("test")
         .arg(fixture("no-library.txt"))
-        .arg(fixture("short-circuit.criteria.js"))
+        .arg(fixture("two-lands.criteria.toml"))
         .arg("--index")
         .arg(fixture("index.jsonl"))
         .output()
@@ -333,7 +340,7 @@ fn cards_that_live_outside_the_library_are_not_counted_in_it() {
     // Stickers, attractions, planes and the rest are shuffled into a deck of
     // their own or into none at all. Counting them inflates library_size and so
     // moves every probability in the report.
-    let out = run_deck("outside-the-library.txt", "short-circuit.criteria.js");
+    let out = run_deck("outside-the-library.txt", "two-lands.criteria.toml");
     assert!(out.status.success());
 
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
@@ -372,7 +379,7 @@ fn a_planeswalker_is_not_a_plane_and_a_sticker_payoff_is_not_a_sticker() {
     // every planeswalker's type line, and "Sticker Package" is the category the
     // real cards that apply stickers live in -- matching it once reported five
     // of them as companions.
-    let out = run_deck("outside-the-library.txt", "short-circuit.criteria.js");
+    let out = run_deck("outside-the-library.txt", "two-lands.criteria.toml");
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
 
     for name in [
@@ -397,7 +404,7 @@ fn an_exclusion_says_how_many_left_and_why() {
     // A silent exclusion is the same failure as a query that matches nothing: a
     // confident number nobody can question. Whoever watches their list shrink
     // gets the count, the names and the type that did it.
-    let out = run_deck("outside-the-library.txt", "short-circuit.criteria.js");
+    let out = run_deck("outside-the-library.txt", "two-lands.criteria.toml");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
         stderr.contains("11 cards never in the library"),
@@ -415,7 +422,7 @@ fn a_run_says_what_produced_it() {
     // A percentage on its own cannot explain why it differs from yesterday's:
     // the deck, the criteria, the index and the tool all move it and all four
     // look identical in the output. So the run names its inputs.
-    let out = run("simple-ramp.criteria.js");
+    let out = run("simple-ramp.criteria.toml");
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     let p = &json["provenance"];
 
@@ -431,8 +438,8 @@ fn a_run_says_what_produced_it() {
 fn the_same_inputs_hash_the_same_way() {
     // Worth nothing as an identifier if it moves on its own, which would make
     // every comparison report a change nobody made.
-    let first = run("simple-ramp.criteria.js");
-    let second = run("simple-ramp.criteria.js");
+    let first = run("simple-ramp.criteria.toml");
+    let second = run("simple-ramp.criteria.toml");
     let first: serde_json::Value = serde_json::from_slice(&first.stdout).unwrap();
     let second: serde_json::Value = serde_json::from_slice(&second.stdout).unwrap();
     assert_eq!(first["provenance"], second["provenance"]);
@@ -443,8 +450,8 @@ fn editing_the_criteria_moves_only_the_criteria_hash() {
     // The whole point of hashing the two files separately: "your criteria
     // changed" and "your deck changed" are different diagnoses, and a single
     // hash over both could not tell them apart.
-    let a = run("simple-ramp.criteria.js");
-    let b = run("eager.criteria.js");
+    let a = run("simple-ramp.criteria.toml");
+    let b = run("two-lands-tables.criteria.toml");
     let a: serde_json::Value = serde_json::from_slice(&a.stdout).unwrap();
     let b: serde_json::Value = serde_json::from_slice(&b.stdout).unwrap();
 
@@ -464,7 +471,7 @@ fn an_index_with_no_date_reports_the_date_as_unknown() {
     // index built before the field existed is. Null says nobody knows; omitting
     // the key would read as a tool that forgot to look, and filling it in with
     // today would be evidence for a claim nothing supports.
-    let out = run("simple-ramp.criteria.js");
+    let out = run("simple-ramp.criteria.toml");
     assert!(out.status.success(), "a dateless index must still run");
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     let date = json["provenance"]
@@ -480,7 +487,7 @@ fn a_sampled_run_reports_the_seed_that_dealt_it() {
     let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
         .arg("test")
         .arg(fixture("simple-ramp.txt"))
-        .arg(fixture("simple-ramp.criteria.js"))
+        .arg(fixture("simple-ramp.criteria.toml"))
         .arg("--index")
         .arg(fixture("index.jsonl"))
         .args(["--simulate", "--trials", "5000", "--seed", "9"])
@@ -508,7 +515,7 @@ fn an_expectation_reports_the_closed_form_mean_end_to_end() {
     // is draws * successes / population, which is 2.545454..., and it is the
     // constant this project's predecessor put in its shuffler acceptance test.
     // Nothing between the decklist and this number goes near that arithmetic.
-    let out = run("simple-ramp.criteria.js");
+    let out = run("simple-ramp.criteria.toml");
     assert!(out.status.success());
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
 
@@ -540,7 +547,7 @@ fn expectations_do_not_disturb_the_criteria_contract() {
     // The `criteria` array is a contract several things already read by that
     // name and that shape, including the provenance comparison. Expectations
     // arrive alongside it rather than inside it.
-    let out = run("simple-ramp.criteria.js");
+    let out = run("simple-ramp.criteria.toml");
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
 
     assert_eq!(json["criteria"].as_array().unwrap().len(), 4);
@@ -565,7 +572,7 @@ fn expectations_do_not_disturb_the_criteria_contract() {
 fn the_human_report_shows_the_mean_and_the_shape() {
     // "2.55 lands on average" hides whether you are flooding or screwing, so the
     // histogram is printed under it rather than left in the JSON.
-    let out = run("simple-ramp.criteria.js");
+    let out = run("simple-ramp.criteria.toml");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("lands in opener"), "stderr was: {stderr}");
     assert!(stderr.contains("mean 2.55"), "stderr was: {stderr}");
@@ -580,13 +587,13 @@ fn sampled_expectations_agree_with_the_exact_engine_end_to_end() {
     // The third level at which the two engines are held to each other, now for
     // the second kind of answer. A sampled mean without its error bar is how a
     // 2.54 and a 2.55 get mistaken for a disagreement, so the report carries one.
-    let exact = run("simple-ramp.criteria.js");
+    let exact = run("simple-ramp.criteria.toml");
     let exact: serde_json::Value = serde_json::from_slice(&exact.stdout).unwrap();
 
     let sampled = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
         .arg("test")
         .arg(fixture("simple-ramp.txt"))
-        .arg(fixture("simple-ramp.criteria.js"))
+        .arg(fixture("simple-ramp.criteria.toml"))
         .arg("--index")
         .arg(fixture("index.jsonl"))
         .args(["--simulate", "--trials", "50000", "--seed", "1"])
@@ -627,7 +634,7 @@ fn sampled_expectations_agree_with_the_exact_engine_end_to_end() {
 fn only_sampled_expectations_carry_error_bars() {
     // An exact distribution has no sampling error, and quoting one would be a
     // lie about how the number was produced.
-    let out = run("simple-ramp.criteria.js");
+    let out = run("simple-ramp.criteria.toml");
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     for e in json["expectations"].as_array().unwrap() {
         assert!(
@@ -637,25 +644,43 @@ fn only_sampled_expectations_carry_error_bars() {
     }
 }
 
+/// A file that would have answered rather than complained.
+///
+/// Each of these is a criteria file that parses as TOML and asks a question
+/// with no honest answer. Left alone they produce a plausible percentage, which
+/// is the failure this whole tool is about, so each one has to refuse by name:
+/// the file it was in, the question that was wrong, and what was wrong with it.
 #[test]
-fn a_criterion_that_answers_with_a_number_is_refused_by_name() {
-    // `Boolean(2)` is true, so this file would have reported "how often you have
-    // at least one land" under a name promising "how many lands" -- a plausible
-    // number for a question nobody asked, which is this project's whole subject.
-    let out = run("kind-confusion.criteria.js");
-    assert!(!out.status.success(), "kind confusion must fail the run");
-    let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(stderr.contains("lands in opener"), "stderr was: {stderr}");
-    assert!(stderr.contains("expect()"), "stderr was: {stderr}");
-}
-
-#[test]
-fn an_expectation_that_cannot_be_histogrammed_is_refused_by_name() {
-    let out = run("uncountable.criteria.js");
-    assert!(!out.status.success());
-    let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(stderr.contains("lands per card"), "stderr was: {stderr}");
-    assert!(stderr.contains("countable"), "stderr was: {stderr}");
+fn a_criteria_file_that_asks_nothing_refuses_by_name() {
+    for (file, expected) in [
+        // An empty conjunction holds on every hand, so this would report 100%.
+        (
+            "no-clauses.criteria.toml",
+            ["nothing at all", "require"].as_slice(),
+        ),
+        // A clause naming a turn and a query and asking nothing of them.
+        (
+            "no-bounds.criteria.toml",
+            ["lands in opener", "min", "max"].as_slice(),
+        ),
+        // The JavaScript spelling of the threshold. Silently dropping it would
+        // turn an assertion into a number that cannot fail.
+        (
+            "unknown-key.criteria.toml",
+            ["atLeast", "at_least"].as_slice(),
+        ),
+    ] {
+        let out = run(file);
+        assert!(!out.status.success(), "{file} should fail the run");
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(stderr.contains(file), "{file} must name itself: {stderr}");
+        for needle in expected {
+            assert!(
+                stderr.contains(needle),
+                "{file} should mention {needle:?}: {stderr}"
+            );
+        }
+    }
 }
 
 /// `sync` builds the index this tool reads, from a bulk file rather than from
@@ -749,7 +774,7 @@ fn sync_replaces_an_existing_index_without_leaving_debris() {
 /// says which one you might be looking at.
 #[test]
 fn an_index_that_predates_the_fields_says_so() {
-    let out = run("simple-ramp.criteria.js");
+    let out = run("simple-ramp.criteria.toml");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
         stderr.contains("built before some of the fields"),
@@ -787,7 +812,7 @@ fn sync_then_test_answers_questions_the_old_index_could_not() {
     let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
         .arg("test")
         .arg(fixture("simple-ramp.txt"))
-        .arg(fixture("produces.criteria.js"))
+        .arg(fixture("produces.criteria.toml"))
         .arg("--index")
         .arg(&index)
         .output()
@@ -838,7 +863,7 @@ fn sync_then_test_answers_questions_the_old_index_could_not() {
 /// lose and impossible to notice from inside the parser's own tests.
 #[test]
 fn a_refused_query_says_what_it_would_have_accepted() {
-    let out = run("bad-query.criteria.js");
+    let out = run("bad-query.criteria.toml");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(!out.status.success(), "{stderr}");
     assert!(stderr.contains("is:tapland"), "names the query: {stderr}");

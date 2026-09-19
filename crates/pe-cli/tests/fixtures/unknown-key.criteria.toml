@@ -1,0 +1,6 @@
+# The JavaScript spelling of the threshold. Ignoring it would quietly turn an
+# assertion into an informational number that can never fail.
+[[criterion]]
+name = "keepable opener"
+atLeast = 0.70
+require = [{ turn = 0, query = "t:land", min = 2 }]

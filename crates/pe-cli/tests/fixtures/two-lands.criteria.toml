@@ -1,0 +1,9 @@
+# The inline-table spelling of a two-clause criterion. two-lands-tables.toml is
+# the same question written the other way, and the two must agree exactly.
+[[criterion]]
+name = "two lands by turn 2"
+at_least = 0.30
+require = [
+  { turn = 1, query = "t:land", min = 1 },
+  { turn = 2, query = "t:land", min = 2 },
+]

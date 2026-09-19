@@ -29,12 +29,15 @@ another counting 12. Both were defensible. Neither was written down.
 The fix is to stop keeping these definitions in your head. Write them as queries, write the
 thresholds you care about as assertions, and re-run them when the deck changes:
 
-```js
-criterion("t1 dork into t2 commander", (t) =>
-  t(1).count('t:land') >= 1 &&
-  t(1).count('cat:"Mana Dork"') >= 1 &&
-  t(2).count('t:land') >= 2
-, { atLeast: 0.55 });
+```toml
+[[criterion]]
+name = "t1 dork into t2 commander"
+at_least = 0.55
+require = [
+  { turn = 1, query = "t:land", min = 1 },
+  { turn = 1, query = 'cat:"Mana Dork"', min = 1 },
+  { turn = 2, query = "t:land", min = 2 },
+]
 ```
 
 That is a unit test for a deck. Change a card, run it again, see which assertions moved.
@@ -49,46 +52,52 @@ than sampling also means a count's whole *distribution* falls out of the same
 walk instead of having to be estimated: see [how many, not just how
 often](#how-many-not-just-how-often).
 
-The JavaScript API deliberately exposes only `count(query)` rather than the cards themselves.
-That constraint is what keeps the engine exact: a criterion is a pure function of how many
-cards of each query you drew, so it is evaluated once per possible composition instead of once
-per simulated hand.
+A clause asks only *how many* cards matching a query you have seen by a turn, never which
+ones. That constraint is what keeps the engine exact: a criterion is a pure function of how
+many cards of each query you drew, so it is evaluated once per possible composition instead of
+once per simulated hand.
 
-Which queries a file uses and how far into the game it looks are both discovered by running
-it, so neither is declared up front. When a criterion reaches for a query or a turn the run
-was not set up for, that run is discarded and repeated against one that covers it — because
-`a && b` never evaluates `b` while `a` is false, and a turn nobody modelled would otherwise
-answer zero for every hand.
+**The criteria file is data, not a program.** A `[[criterion]]` is a name, an optional
+threshold, and a list of clauses that are ANDed; a clause is a turn, a query and a range of
+counts. There is no expression language, because the boolean structure a criterion actually
+needs already exists in the Scryfall query — `or`, `-` and parentheses — and putting it there
+means one grammar instead of two. So the queries a file asks about and how far into the game
+it looks are both readable without running it, which is what lets a refusal say what was
+asked, and what makes hashing the file into the `provenance` block a promise that holds: the
+file cannot behave differently the second time it is read.
 
 `--simulate` is not a second feature set — it is a second implementation. It shuffles and
 deals where the default enumerates, and wherever both can answer they must agree, which is
-asserted at three levels: unit, through the JavaScript bindings, and end to end through the
-binary. Two independent routes to the same number is how a mistake in either one gets caught
-rather than believed, and that is reason enough for the crate to exist. It is also the escape
-hatch for questions too wide to enumerate: compositions multiply with the number of groups the
-queries split the library into and with how deep the turns go, so a criterion joining seven
-category queries at turn six is refused rather than answered in an hour:
+asserted at three levels: unit, through the criteria layer both engines share, and end to end
+through the binary. Two independent routes to the same number is how a mistake in either one
+gets caught rather than believed, and that is reason enough for the crate to exist.
+
+It is also the escape hatch for questions too wide to enumerate. Compositions multiply with the
+number of groups the queries split the library into and with how deep the turns go, so a
+criterion joining seven queries at turn six is refused rather than answered in an hour:
 
 ```
-$ progress-engine test simple-ramp.txt wide.criteria.js
-Error: this question is too wide to answer exactly: 6158592 compositions across 6 groups.
+$ progress-engine test simple-ramp.txt wide.criteria.toml
+Error: this question is too wide to answer exactly: 7918829568 compositions across 12 groups.
+It asks about 7 queries: t:land, cat:"Ramp", cat:"Ramp - One Mana", cat:"Draw", cat:"Ramp - Engine", t:creature, t:instant
 Reduce the number of distinct queries, or ask about an earlier turn.
 ```
 
-Six groups from a file that asks seven questions, because the refusal lands part-way through
-discovery. Queries are learned by running the file, so they arrive a few at a time, and five of
-them — six groups, counting the cards none of them matched — already put the estimate over the
-ceiling. The last two are never reached, so the figure names what the run had learned when it
-gave up rather than what the file would eventually have asked for. Sampling does not care how
-many groups there are, so it answers that question approximately instead of not at all.
+The refusal names all seven, because all seven are in the file and the file is data. It used
+to name five, and six groups: queries were learned by running the JavaScript, so they arrived
+a few at a time, the estimate went over the ceiling part-way through, and the last two were
+never reached. The number reported what the run had found out before it gave up rather than
+what had been asked ([#36](https://github.com/cramt/progress-engine/issues/36)). Sampling does
+not care how many groups there are, so it answers that question approximately instead of not
+at all.
 
-What `--simulate` is *not* is a way to inspect individual cards: both modes hand a criterion
-the same `count(query)` and nothing else, so anything that turns on *which* cards — a specific
-interaction, an ordering, the best card in hand — cannot be written in either. That API is
-wanted and does not exist, which is
-[issue #11](https://github.com/cramt/progress-engine/issues/11). Describing it here as though
-it shipped would be this tool's own defining failure mode aimed at its documentation: a
-confident claim about something that is not there.
+What `--simulate` is *not* is a way to inspect individual cards. There is no host language, so
+there is nothing for a card-level criterion to be written in: a clause names a query and a
+count and that is the whole vocabulary, in both engines. Anything that turns on *which* cards —
+a specific interaction, an ordering, the best card in hand — cannot be asked here at all, and
+`--simulate` does not change that. The wanted feature is
+[issue #11](https://github.com/cramt/progress-engine/issues/11); describing it here as though
+it shipped would be this tool's own defining failure mode aimed at its documentation.
 
 ## Status
 
@@ -98,10 +107,10 @@ Working today:
 |---|---|
 | `progress-engine sync` | Build the card index from Scryfall bulk data |
 | `progress-engine parse <deck>` | The canonical Archidekt decklist parser, as JSON |
-| `progress-engine test <deck> <criteria.js>` | Evaluate criteria and report PASS/FAIL |
+| `progress-engine test <deck> <criteria.toml>` | Evaluate criteria and report PASS/FAIL |
 
 ```
-$ progress-engine test simple-ramp.txt simple-ramp.criteria.js
+$ progress-engine test simple-ramp.txt simple-ramp.criteria.toml
 PASS keepable opener (2-5 lands)   78.97%  (needs 70.0%)
 PASS turn-1 accelerant             51.04%  (needs 35.0%)
 PASS commander on turn 2           44.29%  (needs 30.0%)
@@ -119,9 +128,9 @@ PASS: 3 of 3 assertions met
 JSON goes to stdout, the verdict to stderr, and the exit code reflects it — so a
 caller piping stdout through `jq` cannot lose the failure.
 
-A criterion with no `atLeast` is informational: it reports a number and cannot
-fail. The two blocks with means under them are `expect` rather than `criterion`,
-and they are the subject of [how many, not just how
+A criterion with no `at_least` is informational: it reports a number and cannot
+fail. The two blocks with means under them are `[[expect]]` rather than
+`[[criterion]]`, and they are the subject of [how many, not just how
 often](#how-many-not-just-how-often). Add `--draw` to model being on the draw,
 and `--simulate` to sample instead of enumerate (slower, approximate, and
 reported with standard errors).
@@ -136,6 +145,69 @@ did. An index that never recorded when it was built reports `null` there, for th
 same reason a card with no legality word comes back unknown: a plausible date
 nobody can vouch for is worse than an admitted gap.
 
+### The criteria file
+
+TOML, and the whole schema fits in one example. A `[[criterion]]` has a `name`,
+an optional `at_least`, and `require`: a list of clauses, all of which must
+hold. A clause is a `turn`, a `query`, and at least one of `min` and `max`. An
+`[[expect]]` is a `name`, a `turn` and a `query`, and reports a distribution
+rather than a verdict.
+
+```toml
+[[criterion]]
+name = "keepable opener (2-5 lands)"
+at_least = 0.70
+require = [{ turn = 0, query = "t:land", min = 2, max = 5 }]
+
+[[criterion]]
+name = "commander on turn 2"
+at_least = 0.30
+
+  [[criterion.require]]
+  turn = 1
+  query = 'cat:"Ramp - One Mana"'
+  min = 1
+
+  [[criterion.require]]
+  turn = 2
+  query = "t:land"
+  min = 2
+
+[[expect]]
+name = "lands in opener"
+turn = 0
+query = "t:land"
+```
+
+Both spellings of `require` above are the same TOML document, which matters
+because the text format is an API rather than a user interface: a generator
+emits inline tables, a person writes the expanded form, and neither has to
+convert. `turn` counts from 0, the opening hand, and is cumulative — turn 3 is
+everything seen by turn 3, not what arrived on it. On the play turn 1 draws
+nothing, so turns 0 and 1 see the same seven cards.
+
+**One query per clause, deliberately.** There is no way to add two counts
+together, because `count(a) + count(b)` counts a card matching both twice —
+`t:land` plus `t:artifact` reports Darksteel Citadel as two cards — where
+`t:land or t:artifact` gets the union right. The combining belongs in the query
+language, which already has `or`, `-` and parentheses and already handles
+overlap. Making the footgun unrepresentable beats documenting it.
+
+Everything the format refuses, it refuses by name, because each of these
+otherwise produces a percentage that looks exactly like a real one:
+
+| Written | Why it is refused |
+|---|---|
+| a criterion with no `require` clauses | an empty conjunction holds on every hand: a confident 100% |
+| a clause with neither `min` nor `max` | it names a query and asks nothing of it |
+| `min = 5, max = 2` | no hand can satisfy it: a confident 0% |
+| `at_least = 70` | a threshold is a share of hands, so 70% is `0.70` |
+| `atLeast`, `zone`, or any other unknown key | a key quietly dropped is an assertion quietly deleted |
+| a file with no `[[criterion]]` and no `[[expect]]` | it asks nothing |
+
+Every one of those messages names the file, the question, and what was wrong
+with it.
+
 ### How many, not just how often
 
 A criterion answers *how often*, and for a long time that was the only question
@@ -144,10 +216,18 @@ decklist is *how many* — expected lands in an opening hand, ramp pieces by tur
 three, mana available on turn four — and the only way to get at it was to write
 five criteria with five different thresholds and difference them by hand:
 
-```js
-criterion("0 lands", (t) => t(0).count('t:land') === 0);
-criterion("1 land",  (t) => t(0).count('t:land') === 1);
-criterion("2 lands", (t) => t(0).count('t:land') === 2);
+```toml
+[[criterion]]
+name = "0 lands"
+require = [{ turn = 0, query = "t:land", min = 0, max = 0 }]
+
+[[criterion]]
+name = "1 land"
+require = [{ turn = 0, query = "t:land", min = 1, max = 1 }]
+
+[[criterion]]
+name = "2 lands"
+require = [{ turn = 0, query = "t:land", min = 2, max = 2 }]
 ```
 
 That is a histogram reconstructed by its reader, in their head, from a column of
@@ -155,11 +235,14 @@ percentages that do not say they belong together. It is arithmetic performed
 somewhere nothing checks it, which is the same category of mistake as a
 definition kept in your head rather than written down.
 
-So there is a second kind of registration. `expect` returns a count rather than
-a bool, and is answered with a mean and the whole distribution behind it:
+So there is a second kind of table. `[[expect]]` names one count rather than a
+condition, and is answered with a mean and the whole distribution behind it:
 
-```js
-expect("lands in opener", (t) => t(0).count('t:land'));
+```toml
+[[expect]]
+name = "lands in opener"
+turn = 0
+query = "t:land"
 ```
 
 ```
@@ -185,31 +268,27 @@ distribution by histogramming, so the second question costs it no more than the
 first, and the two engines are held to each other bucket by bucket rather than
 only on the mean — a mean can be right while the shape underneath it is wrong.
 
-**A value has to be a whole number, and there is a ceiling on it.** The answer is
-a histogram, so every value it accepts needs a bucket of its own; `count()`
-returns whole cards and is the only thing a criteria file may look at, so a
-count, or a sum of counts, is representable by construction. Anything else is
-refused by name rather than coerced:
+**A value is a whole number of cards, and nothing else can be written.** The
+answer is a histogram, so every value it accepts needs a bucket of its own. An
+expectation names one query at one turn, and the only thing that comes back from
+that is a count, so a value with nowhere to go is not something the format can
+express. Dividing by seven to report a rate is a reasonable thing to want, and
+asking for it here used to earn a refusal naming the expectation, because the
+JavaScript that could write `count('t:land') / 7` could also write it by
+accident. The alternatives were rounding 0.57 to 1, or picking a bucket width
+nobody asked for — both of which answer a different question than the one
+written down and leave no mark in the output saying so. The refusal is still in
+the engine, at the boundary where a count is built; there is simply no longer a
+front end that can reach it.
 
-```
-$ progress-engine test simple-ramp.txt rate.criteria.js
-Error: evaluating criteria: expect("lands per card"): 0.14285714285714285 is not a countable value: it must be a whole number from 0 to 1024.
-An expectation is reported as a distribution with one bucket per value, and there is nowhere to put this one.
-```
-
-Dividing by seven to report a rate is a reasonable thing to want and this tool
-does not do it. The alternatives were rounding 0.57 to 1, or picking a bucket
-width nobody asked for and reporting a distribution over it — both of which
-answer a different question than the one written down and leave no mark in the
-output saying so. An admitted refusal beats a plausible histogram.
-
-The same refusal, in the other direction, guards the two kinds against each
-other. JavaScript will coerce a number to a bool and a bool to a number without
-complaint, so a criterion that forgot its comparison would silently become "at
-least one land" under a name promising a count, and an expectation returning
-`true` would report a probability in a column headed *mean*. Both are errors
-that name the offending registration and say which of the two you probably
-wanted.
+The same reasoning keeps the two kinds apart. They used to be two registration
+functions in a language that coerces a number to a bool and a bool to a number
+without complaint, so a criterion that forgot its comparison silently became "at
+least one land" under a name promising a count, and an expectation answering
+`true` reported a probability in a column headed *mean*. Both had to be caught
+at runtime and reported by name. They are now two different tables with two
+different sets of keys: `[[criterion]]` takes `require` and `[[expect]]` does
+not, so writing one and meaning the other is not a mistake the file can hold.
 
 **A wide distribution is windowed, and says what it left out.** Lands seen by
 turn twenty runs from zero to twenty-six, and printing twenty-seven buckets is
@@ -219,7 +298,7 @@ reads as missing data — drops ends that would print as `0.0%`, and states the
 remainder rather than dropping it:
 
 ```
-$ progress-engine test simple-ramp.txt lands-by-turn.criteria.js
+$ progress-engine test simple-ramp.txt lands-by-turn.criteria.toml
      lands by turn 20  mean 9.45
                        4: 0.6%    5: 2.0%    6: 5.1%    7: 9.9%    8: 15.1%
                        9: 18.4%   10: 18.0%  11: 14.2%  12: 9.0%   13: 4.7%
@@ -232,7 +311,7 @@ machine-readable half is complete. A summary that quietly mislaid four percent
 of its mass would be the failure this whole document is about, in miniature.
 
 **There is no assertion on an expectation, and that is a stated gap rather than
-an oversight.** `atLeast` on a criterion is a threshold on a probability: a
+an oversight.** `at_least` on a criterion is a threshold on a probability: a
 number between zero and one that means the same thing in every criterion ever
 written. The same keyword here would be a threshold in the units of whatever is
 being counted — "at least 2.5" is lands in one line and mana in the next — and
@@ -249,7 +328,7 @@ exists to undo. "Has two lands 90% of the time" is a statement about a
 percentile, and a percentile is a statement about a range, which is
 [issue #12](https://github.com/cramt/progress-engine/issues/12). Naming that
 assertion is left until the thing it asserts on exists, and it will not be
-called `atLeast`.
+called `at_least`.
 
 ### The card index it builds
 
@@ -302,10 +381,13 @@ measured over ten runs of the same deck against the same 35,220-card index:
 
 The cost was never the 24MB — it is facet-json's per-field reflection over
 35,224 records of twenty-odd fields each, which is why the file is the same size
-either way. Of what is left, about 0.10s is starting V8 and answering the
-question, and about 0.12s is still proportional to the index: reading it and
-finding its lines. `sync` gets the same deal — deciding whether the index it
-already has is Scryfall's latest reads one line instead of the whole file.
+either way. Of the 0.222s that was left, about 0.12s was proportional to the
+index — reading it and finding its lines — and about 0.10s was starting a
+JavaScript runtime and answering the question. Criteria are TOML now, so there
+is no runtime to start, and the same ten runs of the same deck against the same
+index come in at **0.136s** ± 0.008. `sync` gets the same deal on the other half
+— deciding whether the index it already has is Scryfall's latest reads one line
+instead of the whole file.
 
 Two things follow from writing the key beside the card rather than deriving it.
 The file stays greppable, so `grep -P '^sol ring\t'` is a working lookup with no
@@ -539,7 +621,7 @@ a confident 0% rather than a complaint. So every run reports what each query
 matched, and says so loudly when that is zero:
 
 ```
-$ progress-engine test simple-ramp.txt typo.criteria.js
+$ progress-engine test simple-ramp.txt typo.criteria.toml
 note: query "cat:\"Rmap\"" matched no cards in this deck
 FAIL misspelled category   0.00%  (needs 30.0%)
 ```
@@ -549,7 +631,7 @@ itself as an error rather than quietly matching nothing, and where the accepted
 values are a closed set the message lists them:
 
 ```
--engine test simple-ramp.txt typo.criteria.js
+-engine test simple-ramp.txt typo.criteria.toml
 Error: in query "f:pauperr": "f:pauperr": "pauperr" is not a format (supported:
 standard, future, historic, timeless, gladiator, pioneer, modern, legacy, pauper,
 vintage, penny, commander, oathbreaker, standardbrawl, brawl, competitivebrawl,
@@ -568,7 +650,7 @@ with ten attractions answers questions about a 109-card library that does not
 exist. They are left out of the library, and never quietly:
 
 ```
-$ progress-engine test unfinity.txt criteria.js
+$ progress-engine test unfinity.txt criteria.toml
 note: 11 cards never in the library and not counted: 1x Ancestral Hot Dog Minotaur (Stickers), 3x Bumper Cars (Attraction), ...
 ```
 
@@ -591,10 +673,10 @@ Two more routes to a confident number about nothing, both refused rather than
 answered:
 
 ```
-$ progress-engine test all-commander.txt criteria.js
+$ progress-engine test all-commander.txt criteria.toml
 Error: the library is empty: every card in the list is a commander or outside the deck
 
-$ progress-engine test two-card-deck.txt criteria.js
+$ progress-engine test two-card-deck.txt criteria.toml
 Error: this question draws 7 cards from a library of 2
 ```
 
@@ -643,8 +725,13 @@ nix flake check    # fmt, clippy -D warnings, tests, build
 
 Reflection comes from [facet](https://github.com/facet-rs/facet): `facet-json`
 writes the JSON contract above, reads Scryfall's bulk data and reads and writes
-the cards in the index, and `figue` parses argv. One `#[derive(Facet)]` per type feeds
-all of them.
+the cards in the index, `facet-toml` reads criteria files, and `figue` parses
+argv. One `#[derive(Facet)]` per type feeds all of them.
+
+Criteria schema types carry `#[facet(deny_unknown_fields)]`, and that is
+load-bearing rather than tidy. Without it `atLeast` is silently dropped and a
+criterion that was supposed to assert something reports an informational number
+instead — a passing run for a test nobody is running any more.
 
 The tests never reach the network. `sync --from <file>` builds from a bulk file
 on disk, and the fixtures are real Scryfall records checked in verbatim — a test
@@ -670,8 +757,8 @@ dragging in the others.
 | `pe-stats` | Exact hypergeometric draw probabilities | Nothing. No Magic concepts at all. |
 | `pe-decklist` | Parsing Archidekt decklists | Decklist text. No card data. |
 | `pe-scryfall` | Card data, Scryfall bulk data and search syntax | Cards. No decklists. |
-| `pe-criteria` | Grouping cards by query, evaluating exactly | Counts. Neither cards nor JavaScript. |
-| `pe-js` | The JavaScript runtime and its bindings | V8, and the criteria contract. |
+| `pe-criteria` | Grouping cards by query, evaluating exactly | Counts. Not cards, and not where the questions came from. |
+| `pe-toml` | Reading a criteria file and answering it | The criteria format, and counts. No cards. |
 | `pe-sim` | Sampling, validated against `pe-stats` | Shuffling. |
 | `pe-cli` | The `progress-engine` binary | All of the above. |
 
@@ -702,9 +789,14 @@ list is not something a draw-probability engine has any business doing.
 known-answer arithmetic, so a failure there is unambiguously a maths bug rather
 than a card-data bug. The same reasoning puts the evaluator behind a trait in
 `pe-criteria`: the enumeration is tested with plain Rust closures, so a failure
-there is an engine bug and a failure in `pe-js` is a bindings bug. Keeping those
-distinguishable is worth the indirection.
+there is an engine bug and a failure in `pe-toml` is a criteria-format bug.
+Keeping those distinguishable is worth the indirection.
+
+`pe-toml` holds the only `impl Evaluator`, and both engines take it through the
+same trait. That is why swapping the criteria format out from under them was a
+new crate and a deleted one rather than a change to either engine — and why
+there is one evaluator serving both rather than two that can disagree.
 
 `pe-sim` exists to check `pe-stats`, not to replace it. Where both can answer,
 they must agree — and that agreement is asserted at three levels: unit, through
-the JavaScript bindings, and end to end through the binary.
+the criteria layer both engines share, and end to end through the binary.

@@ -1,0 +1,5 @@
+# A land cycle Scryfall curates by hand rather than storing as a field, so this
+# crate declines it by name rather than guessing at it from oracle text.
+[[criterion]]
+name = "tapland"
+require = [{ turn = 0, query = "is:tapland", min = 1 }]

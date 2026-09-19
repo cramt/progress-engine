@@ -129,8 +129,9 @@ provenance is a promise that cannot be kept.
 It is **analysable**: the queries and zones a file asks about are readable
 without running it. That is not a nicety — the reason a too-wide refusal could
 not name the queries the file asked for was that the only way to learn them was
-to run the file, and it was refused partway through running. A declarative
-format deletes the bug rather than fixing it.
+to run the file, and it was refused partway through running. The declarative
+format deleted that bug rather than fixing it, and the refusal now names every
+query the file holds.
 
 ### The card matching is Scryfall's
 
@@ -226,7 +227,7 @@ through the front door.
 - Draw-probability engine; legality checking comes out ([#42](https://github.com/cramt/progress-engine/issues/42)).
 - Format-agnostic. Zone annotations stay, because library size is math; format
   rules go.
-- Criteria are TOML, structured, no expression language ([#44](https://github.com/cramt/progress-engine/issues/44)).
+- Criteria are TOML, structured, no expression language ([#44](https://github.com/cramt/progress-engine/issues/44)) — shipped.
 - Oracle tags are fetched at sync time and dated ([#41](https://github.com/cramt/progress-engine/issues/41)) — shipped.
 - Mulligan bottoming is a declared priority list ([#7](https://github.com/cramt/progress-engine/issues/7)).
 - The effect library ships, autoloads as a prelude, and is keyed on queries

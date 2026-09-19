@@ -1,0 +1,14 @@
+# two-lands.criteria.toml with an unrelated criterion that reaches a later turn.
+# The run horizon is the deepest turn any question names, so this one stretches
+# it -- and the first criterion's answer must not move because of a neighbour.
+[[criterion]]
+name = "two lands by turn 2"
+at_least = 0.30
+require = [
+  { turn = 1, query = "t:land", min = 1 },
+  { turn = 2, query = "t:land", min = 2 },
+]
+
+[[criterion]]
+name = "any ramp by turn 5"
+require = [{ turn = 5, query = 'cat:"Ramp"', min = 1 }]

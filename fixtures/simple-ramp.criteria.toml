@@ -1,0 +1,65 @@
+# What this deck has to do to function.
+#
+# `turn` is your position on that turn; turn 0 is the opening hand. On the play
+# turn 1 draws nothing, so turns 0 and 1 see the same seven cards.
+#
+# Both of TOML's spellings appear below. They are the same data — inline tables
+# suit a generator, the expanded form suits a hand-writer — and the tool cannot
+# tell them apart.
+
+[[criterion]]
+name = "keepable opener (2-5 lands)"
+at_least = 0.70
+require = [{ turn = 0, query = "t:land", min = 2, max = 5 }]
+
+[[criterion]]
+name = "turn-1 accelerant"
+at_least = 0.35
+require = [
+  { turn = 1, query = "t:land", min = 1 },
+  { turn = 1, query = 'cat:"Ramp - One Mana"', min = 1 },
+]
+
+# The bar for this deck getting off the ground: a land and a one-mana
+# accelerant on turn one, then a second land, so the three-mana commander
+# lands on turn two instead of turn three.
+[[criterion]]
+name = "commander on turn 2"
+at_least = 0.30
+
+  [[criterion.require]]
+  turn = 1
+  query = "t:land"
+  min = 1
+
+  [[criterion.require]]
+  turn = 1
+  query = 'cat:"Ramp - One Mana"'
+  min = 1
+
+  [[criterion.require]]
+  turn = 2
+  query = "t:land"
+  min = 2
+
+# Informational: no threshold, so it reports a number and cannot fail.
+#
+# One query rather than two clauses, because the two categories are alternatives
+# rather than requirements — and `or` in the query language gets the union right
+# where adding two counts would have counted a card in both groups twice.
+[[criterion]]
+name = "any ramp by turn 3"
+require = [{ turn = 3, query = 'cat:"Ramp - One Mana" or cat:"Ramp"', min = 1 }]
+
+# An expectation asks *how many* rather than *how often*, and is answered with
+# a mean and the whole distribution behind it. It has no threshold and cannot
+# fail: see the Expectation type in pe-criteria for why.
+[[expect]]
+name = "lands in opener"
+turn = 0
+query = "t:land"
+
+[[expect]]
+name = "ramp seen by turn 3"
+turn = 3
+query = 'cat:"Ramp - One Mana" or cat:"Ramp"'

@@ -1,0 +1,18 @@
+# Queries that only work against an index this tool built itself.
+#
+# `produces:` is the fix for the bug the README opens with: it asks what a card
+# makes rather than what its text mentions. `c:` is the card's own colour,
+# which is not its colour identity.
+[[criterion]]
+name = "green source in opener"
+at_least = 0.9
+require = [{ turn = 0, query = "produces:g", min = 1 }]
+
+[[criterion]]
+name = "turn-1 green creature"
+require = [{ turn = 0, query = "c:g t:creature mv=1", min = 1 }]
+
+[[expect]]
+name = "green sources in opener"
+turn = 0
+query = "produces:g"

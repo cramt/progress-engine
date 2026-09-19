@@ -1,0 +1,6 @@
+# A criterion that asserts nothing. Every hand satisfies an empty conjunction,
+# so this would report a confident 100% of any deck ever written.
+[[criterion]]
+name = "nothing at all"
+at_least = 0.5
+require = []

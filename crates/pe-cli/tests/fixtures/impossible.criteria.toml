@@ -1,0 +1,5 @@
+# Asserts something the deck cannot do, to prove a missed threshold fails.
+[[criterion]]
+name = "all seven opening cards are one-mana ramp"
+at_least = 0.50
+require = [{ turn = 0, query = 'cat:"Ramp - One Mana"', min = 7 }]

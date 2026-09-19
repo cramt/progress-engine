@@ -17,7 +17,7 @@ facet.workspace = true
 facet-json.workspace = true
 pe-criteria.workspace = true
 pe-decklist.workspace = true
-pe-js.workspace = true
+pe-toml.workspace = true
 
 pe-scryfall.workspace = true
 ureq.workspace = true

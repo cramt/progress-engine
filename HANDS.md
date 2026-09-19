@@ -88,7 +88,8 @@ Opt ×2
 
 **Turn 3:** three lands in play, not five. One drop per turn.
 
-**Naive model:** `t(3).count('t:land')` reports five, because it counts cards
+**Naive model:** a clause reading `turn = 3, query = "t:land"` sees five, because
+it counts cards
 drawn rather than lands played. Every mana-relevant criterion in the repo has
 this hole today, including the fixture's own "commander on turn 2".
 
@@ -126,9 +127,9 @@ Hallowed Fountain
 
 **Cannot cast it.** One land, one mana, two pips.
 
-**Naive model:** `count('produces:w') >= 1 && count('produces:u') >= 1` is
-**satisfied**, because Hallowed Fountain counts toward both. The conjunction is
-true and the spell is uncastable.
+**Naive model:** two clauses, `produces:w` at `min = 1` and `produces:u` at
+`min = 1`, are both **satisfied**, because Hallowed Fountain counts toward both.
+The conjunction is true and the spell is uncastable.
 
 This is why castability has to be a primitive rather than something a user
 assembles from counts. It is a bipartite matching — can these sources be
@@ -220,8 +221,7 @@ The TOML schema takes one query per clause specifically so that the second form
 cannot be written, and the combining happens in the query language, which gets
 unions right.
 
-*Answerable today for the first form. The second is what #44 makes
-unrepresentable.*
+*Answerable today for the first form. The second is unrepresentable, as of #44.*
 
 ---
 

@@ -1,0 +1,6 @@
+# A clause that names a turn and a query and then asks nothing of them. Read as
+# a tautology it holds on every hand; the only honest reading is a mistake.
+[[criterion]]
+name = "lands in opener"
+at_least = 0.5
+require = [{ turn = 0, query = "t:land" }]

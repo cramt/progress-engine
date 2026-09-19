@@ -1,0 +1,6 @@
+# A misspelled category. It parses fine as a query, so nothing can refuse it --
+# but it matches no cards, which would silently produce a confident 0%.
+[[criterion]]
+name = "misspelled category"
+at_least = 0.3
+require = [{ turn = 0, query = 'cat:"Rmap"', min = 1 }]
