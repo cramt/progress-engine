@@ -262,6 +262,9 @@ impl BulkCard {
             reserved: self.reserved,
             faces,
             commander_legal: Default::default(),
+            // Bulk data carries no tags. Membership is Scryfall's answer to a
+            // search, so it is attached after this, by whoever did the asking.
+            tags: Vec::new(),
         })
     }
 

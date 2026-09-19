@@ -937,8 +937,15 @@ fn sync_builds_an_index_from_a_bulk_file() {
     // many cards should follow, so a truncated file is caught rather than read
     // as a smaller card pool.
     let header: serde_json::Value = serde_json::from_str(header).expect("header is JSON");
-    assert_eq!(header["schema"], 1);
+    // Against the constant rather than a literal: this asserts that sync writes
+    // the shape this build reads, which is the thing that matters. A literal
+    // here only ever asserts that nobody bumped the number.
+    assert_eq!(header["schema"], pe_scryfall::index::SCHEMA);
     assert_eq!(header["cards"], 12);
+    // Built with --from, which reads a bulk file and so cannot fetch tags.
+    // The header must not claim any: an index that looked tagged but was not
+    // would answer otag: with a confident nothing.
+    assert!(header.get("tags").is_none(), "a --from sync claims no tags");
     assert_eq!(body.lines().count(), 12);
 
     let _ = std::fs::remove_dir_all(&dir);

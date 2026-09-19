@@ -39,6 +39,7 @@ fn card<'a>(
         set: "",
         layout: "normal",
         faces: &[],
+        tags: &[],
         legalities: silent(),
         game_changer: None,
         reserved: None,
@@ -63,6 +64,7 @@ fn keyworded<'a>(name: &'a str, oracle: &'a str, keywords: &'a [String]) -> Card
         set: "",
         layout: "normal",
         faces: &[],
+        tags: &[],
         legalities: silent(),
         game_changer: None,
         reserved: None,
@@ -216,7 +218,6 @@ fn unsupported_syntax_errors_rather_than_matching_nothing() {
     // from something other than a field, name themselves rather than matching
     // nothing.
     for term in [
-        "otag:ramp",
         "cube:vintage",
         "edhrecrank<=100",
         "cn:5",
@@ -269,10 +270,29 @@ fn unsupported_syntax_errors_rather_than_matching_nothing() {
     assert!(matches!(query::parse("   "), Err(ParseError::Empty)));
 }
 
+/// `otag:` parses, and the check that it names a real tag lives at the index
+/// rather than at the parser.
+///
+/// The same argument `kw:` already makes: a tag list hard-coded beside the
+/// parser would be a second opinion about what Scryfall says, and there is no
+/// deriving the answer from a card. So the parser accepts the term and the
+/// index — which knows which tags it was told to fetch — is what refuses it.
+#[test]
+fn otag_parses_and_is_checked_against_the_index_not_the_parser() {
+    assert!(matches!(
+        query::parse("otag:surveil-land"),
+        Ok(Query::Tag(t)) if t == "surveil-land"
+    ));
+    assert!(matches!(
+        query::parse("oracletag:tapland"),
+        Ok(Query::Tag(t)) if t == "tapland"
+    ));
+}
+
 #[test]
 fn error_messages_name_the_offending_term() {
-    let err = query::parse("otag:ramp").unwrap_err().to_string();
-    assert!(err.contains("otag"), "message should name the key: {err}");
+    let err = query::parse("cube:vintage").unwrap_err().to_string();
+    assert!(err.contains("cube"), "message should name the key: {err}");
 
     // Where the accepted values are a closed set, the message lists them:
     // a typo is worth one line of help rather than a silent 0%.

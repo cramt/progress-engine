@@ -30,7 +30,7 @@ use crate::{CardView, Colors, OutsideLibrary};
 /// that was never there. An index with no schema at all predates the field and
 /// is treated as schema 0 — which is the truth about every index the external
 /// `scryfall sync` shell tool ever wrote.
-pub const SCHEMA: u32 = 1;
+pub const SCHEMA: u32 = 2;
 
 /// What the index is called on disk.
 pub const FILE_NAME: &str = "index.jsonl";
@@ -219,6 +219,13 @@ pub struct Card {
     pub game_changer: Option<bool>,
     #[facet(default, skip_serializing_if = Option::is_none)]
     pub reserved: Option<bool>,
+    /// The oracle tags this card is a member of, as Scryfall's search answered
+    /// at sync time.
+    ///
+    /// Empty means *this card is in none of the tags this index carries*, which
+    /// is only meaningful alongside [`Header::tags`] saying which those were.
+    #[facet(default, skip_serializing_if = Vec::is_empty)]
+    pub tags: Vec<String>,
 }
 
 /// Every card, in memory, as `sync` builds it before writing.
@@ -234,6 +241,15 @@ pub struct Index {
     /// When the bulk data this was built from was published; see
     /// [`Header::updated_at`].
     pub updated_at: Option<String>,
+    /// Which oracle tags were fetched into this index; see [`Header::tags`].
+    ///
+    /// Held here rather than derived from the cards, because a tag that turned
+    /// out to have no members in this pool is still a tag the index carries —
+    /// and deriving the list from the cards would silently drop it, turning
+    /// *asked, nobody matched* into *never asked*.
+    pub tags: Vec<String>,
+    /// When those memberships were fetched; see [`Header::tags_fetched_at`].
+    pub tags_fetched_at: Option<String>,
 }
 
 /// What an index file says about itself, on its first line.
@@ -268,6 +284,24 @@ pub struct Header {
     /// [`IndexFile::keyword_vocabulary`].
     #[facet(default, skip_serializing_if = Vec::is_empty)]
     pub keywords: Vec<String>,
+    /// Every oracle tag this index carries, as the vocabulary `otag:` checks a
+    /// typo against — see [`IndexFile::tag_vocabulary`].
+    ///
+    /// Unlike keywords, this is not derived from the cards. Tag membership is
+    /// Scryfall's answer to a search rather than a field on a card, so an index
+    /// carries the tags it was told to fetch and no others. Listing them is
+    /// what lets a query tell *this index does not carry that tag* apart from
+    /// *no card has it* — the same empty result, and very different facts.
+    #[facet(default, skip_serializing_if = Vec::is_empty)]
+    pub tags: Vec<String>,
+    /// When the tag memberships were fetched.
+    ///
+    /// Separate from [`Self::updated_at`], which is when the bulk data was
+    /// published. The two move independently — tags come from the search API at
+    /// sync time and the bulk file carries its own release date — so one date
+    /// standing for both would misdate whichever it was not.
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub tags_fetched_at: Option<String>,
 }
 
 /// An index on disk, read a card at a time.
@@ -452,6 +486,26 @@ impl IndexFile {
                 .collect(),
         }
     }
+
+    /// Which oracle tags this index carries, read off the header.
+    ///
+    /// The same argument as [`Self::keyword_vocabulary`], one step stronger.
+    /// A keyword list hard-coded beside the parser would merely fall behind;
+    /// a tag list would be wrong on arrival, because tag membership is not
+    /// derivable from a card at all. Scryfall is asked, the answer is written
+    /// down with the date it was given, and the header says which tags were
+    /// asked about so that a query naming any other one can be refused instead
+    /// of quietly matching nothing.
+    pub fn tag_vocabulary(&self) -> TagVocabulary {
+        TagVocabulary {
+            known: self.header.tags.iter().map(|t| t.to_lowercase()).collect(),
+        }
+    }
+
+    /// When this index's tag memberships were fetched, if it carries any.
+    pub fn tags_fetched_at(&self) -> Option<&str> {
+        self.header.tags_fetched_at.as_deref()
+    }
 }
 
 /// What a sync did, in terms anybody can check against the next one.
@@ -509,6 +563,13 @@ impl Index {
             updated_at: self.updated_at.clone(),
             cards: Some(self.cards.len()),
             keywords: self.keyword_list(),
+            tags: {
+                let mut t = self.tags.clone();
+                t.sort();
+                t.dedup();
+                t
+            },
+            tags_fetched_at: self.tags_fetched_at.clone(),
         };
         let mut out =
             facet_json::to_string(&header).map_err(|e| IndexError::Serialize(e.to_string()))?;
@@ -640,9 +701,47 @@ impl Index {
                 cards,
                 schema: Some(SCHEMA),
                 updated_at,
+                // Built from bulk data alone, which says nothing about tags.
+                // `sync` attaches them after this, so an index built straight
+                // from a bulk file honestly carries none.
+                tags: Vec::new(),
+                tags_fetched_at: None,
             },
             report,
         )
+    }
+
+    /// Record which tags were fetched, and which cards are in them.
+    ///
+    /// `membership` is keyed by oracle id rather than by name, because tags are
+    /// a property of the card rather than of a printing, and because forty
+    /// names in Magic refer to more than one card. Cards the map does not
+    /// mention are in none of these tags — which is a claim this index is
+    /// entitled to make only because `tags` records that it asked.
+    ///
+    /// Returns how many cards were tagged, so `sync` can report it and a
+    /// reader can tell "the fetch returned nothing" from "the fetch was never
+    /// made". Silence here is the failure this whole file is careful about.
+    pub fn attach_tags(
+        &mut self,
+        tags: Vec<String>,
+        fetched_at: Option<String>,
+        membership: &HashMap<String, Vec<String>>,
+    ) -> usize {
+        let mut tagged = 0;
+        for card in self.cards.values_mut() {
+            let Some(oracle_id) = card.oracle_id.as_deref() else {
+                continue;
+            };
+            if let Some(found) = membership.get(oracle_id) {
+                card.tags = found.clone();
+                card.tags.sort();
+                tagged += 1;
+            }
+        }
+        self.tags = tags;
+        self.tags_fetched_at = fetched_at;
+        tagged
     }
 
     pub fn get(&self, name: &str) -> Option<&Card> {
@@ -681,6 +780,30 @@ impl KeywordVocabulary {
     }
 }
 
+/// The oracle tags an index carries, for checking an `otag:` term against.
+///
+/// Separate type from [`KeywordVocabulary`] despite the identical shape,
+/// because the two answer different questions and an index can be authoritative
+/// about one while silent about the other. Sharing a type would let a caller
+/// check a tag against the keyword list and get a confident wrong answer.
+#[derive(Debug, Clone, Default)]
+pub struct TagVocabulary {
+    known: HashSet<String>,
+}
+
+impl TagVocabulary {
+    pub fn contains(&self, tag: &str) -> bool {
+        self.known.contains(&tag.to_lowercase())
+    }
+
+    /// Whether the index carries any tags at all. Not public for the same
+    /// reason as [`KeywordVocabulary::is_empty`]: an index that fetched no tags
+    /// proves nothing about whether any given tag is real.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.known.is_empty()
+    }
+}
+
 impl Card {
     /// Join this card with the categories a decklist gave it.
     ///
@@ -702,6 +825,7 @@ impl Card {
             set: &self.set,
             layout: &self.layout,
             faces: &self.faces,
+            tags: &self.tags,
             legalities: &self.legalities,
             game_changer: self.game_changer,
             reserved: self.reserved,

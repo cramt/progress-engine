@@ -413,6 +413,7 @@ matches nothing.
 | `devotion:` | How much a permanent gives to a devotion count |
 | `layout:` | Scryfall's layout name |
 | `is:` `not:` | See below |
+| `otag:` `oracletag:` | A Scryfall oracle tag the card is in |
 | `cat:` `category:` | **Ours**: an Archidekt category from the decklist |
 
 All of them combine with juxtaposition for AND, `or`, `-` for NOT, and
@@ -458,16 +459,39 @@ was found the same way.
 Writing a derivation and reading it back is not the same as checking it. All
 three of those looked right.
 
-**The land cycles are missing on purpose.** `is:shockland`, `is:fetchland`,
-`is:tapland` and the rest are **curated lists** on Scryfall's side, not fields in
-the bulk data. Reproducing them would mean hard-coding a copy that goes stale
-the day a new cycle prints, or deriving them from oracle text — and a naive
-`/enters.*tapped/` calls a Temple and a Shockland the same thing, while "enters
-tapped unless you control two or fewer other lands" is conditional in a way no
-regex survives. Both are worse than the error you get today, which at least says
-what it cannot do. `is:tapland` is the direct answer to "do these two lands
-actually give me two mana on turn two", so this is a real gap and it is
-[issue #9](https://github.com/cramt/progress-engine/issues/9).
+**`otag:` is how the curated lists get here.** Scryfall's oracle tags — what a
+card *does*, as opposed to what it says — are not in the bulk data. They are not
+derivable from it either: a naive `/enters.*tapped/` calls a Temple and a
+Shockland the same thing, and "enters tapped unless you control two or fewer
+other lands" is conditional in a way no regex survives.
+
+So they are not derived. They are **fetched**, from Scryfall's search API at
+`sync` time, and the index records the date it asked. That is the same standard
+the rest of this file is held to: not a hard-coded copy that goes stale, and not
+a guess dressed as a fact, but somebody else's answer with a date attached.
+
+`sync` fetches six tags today, each because something here reads it:
+
+| Tag | Cards | Read by |
+|---|---|---|
+| `tapland` | 495 | whether two lands are actually two mana |
+| `surveil` | 334 | how many cards deep a turn sees |
+| `scry` | 475 | the same, leaving the card on top |
+| `mill` | 1,305 | the graveyard as a destination |
+| `tutor` | 1,168 | selection over the whole library |
+| `ramp` | 2,316 | the mana-curve questions |
+
+They cost nothing to carry: 5,197 of 35,486 cards are tagged, the file is the
+same 24MB, and a run parses only the cards your deck names either way.
+
+**An index carries the tags it was told to fetch, and says which.** The header
+lists them, so `otag:` can tell *this index never asked about that tag* apart
+from *no card is in it* — the same empty result, and very different facts. A
+query naming a tag the index does not carry is an error naming the tag, for the
+same reason `kw:tramp` is.
+
+Note that `is:fetchland` (the ten-card cycle) and `otag:fetchland` (54 cards
+that fetch) are different questions, and Scryfall means both.
 
 **`is:frenchvanilla` was implemented and then removed**, which is the same rule
 applied to our own work. Scryfall's `keywords` array mixes ability words —

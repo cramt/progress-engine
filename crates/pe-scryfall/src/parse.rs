@@ -57,9 +57,10 @@ pub enum ParseError {
 }
 
 /// The keys a term may start with, for the error that lists them.
-const SUPPORTED_KEYS: [&str; 26] = [
+const SUPPORTED_KEYS: [&str; 28] = [
     "t", "o", "fo", "name", "kw", "cat", "mv", "cmc", "c", "color", "id", "identity", "produces",
     "prod", "pow", "tou", "pt", "loy", "def", "r", "s", "f", "m", "devotion", "layout", "is",
+    "otag", "oracletag",
 ];
 
 fn is_properties() -> String {
@@ -370,6 +371,7 @@ fn parse_term(term: &str) -> Result<Query, ParseError> {
         "fo" | "fulloracle" => Ok(Query::FullOracle(value.to_string())),
         "name" => Ok(Query::Name(value.to_string())),
         "kw" | "keyword" => require_equality(Query::Keyword(value.to_string())),
+        "otag" | "oracletag" => require_equality(Query::Tag(value.to_string())),
         "cat" | "category" => require_equality(Query::Category(value.to_string())),
         "mv" | "cmc" | "manavalue" => match value.to_ascii_lowercase().as_str() {
             "even" => Ok(Query::ManaValueParity { even: true }),

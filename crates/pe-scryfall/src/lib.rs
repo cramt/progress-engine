@@ -17,6 +17,8 @@ pub mod mana;
 mod parse;
 mod zone;
 
+pub mod tags;
+
 pub use parse::{parse, ParseError};
 pub use zone::{outside_library, OutsideLibrary};
 
@@ -50,6 +52,9 @@ pub struct CardView<'a> {
     pub layout: &'a str,
     /// Every face, including the only one of a single-faced card.
     pub faces: &'a [Face],
+    /// The oracle tags this card is in, as of the index's tag fetch. What
+    /// `otag:` reads.
+    pub tags: &'a [String],
     pub legalities: &'a Legalities,
     pub game_changer: Option<bool>,
     pub reserved: Option<bool>,
@@ -369,6 +374,14 @@ pub enum Query {
     Name(String),
     /// `kw:flying`, `kw:"double strike"` — one whole keyword the card has.
     Keyword(String),
+    /// `otag:surveil-land`, `otag:tapland` — one Scryfall oracle tag the card
+    /// is in.
+    ///
+    /// Not derived from anything on the card: the index carries whatever
+    /// Scryfall's search answered when it was built. That is why this is worth
+    /// having at all — "lands that enter tapped" is 495 cards and no reading of
+    /// oracle text gets that set right, because the condition is conditional.
+    Tag(String),
     /// `cat:"Exile Outlet"` — the one non-Scryfall addition, matching the
     /// decklist's Archidekt categories.
     Category(String),
@@ -418,6 +431,10 @@ impl Query {
                 let want = s.to_lowercase();
                 card.keywords.iter().any(|k| k.to_lowercase() == want)
             }
+            // Tags are written lowercase and hyphenated by Scryfall
+            // (`surveil-land`), so an ASCII-insensitive compare is enough and
+            // there is no locale case to get wrong.
+            Query::Tag(s) => card.tags.iter().any(|t| t.eq_ignore_ascii_case(s)),
             Query::Category(s) => card.categories.iter().any(|c| c.eq_ignore_ascii_case(s)),
             Query::ManaValue(cmp, v) => cmp.test_num(card.cmc, *v),
             // A fractional mana value is neither even nor odd. Un-cards have
@@ -533,6 +550,38 @@ impl Query {
             Query::And(parts) | Query::Or(parts) => {
                 for part in parts {
                     part.collect_unknown_keywords(vocabulary, out);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Which `otag:` terms name a tag this index does not carry.
+    ///
+    /// The same contract as [`Self::unknown_keywords`], and it matters more
+    /// here. A mistyped keyword is at least a keyword; an index simply never
+    /// told to fetch `surveil-land` will answer `otag:surveil-land` with zero
+    /// cards and no indication that it was never asked. Both readings produce
+    /// an empty set, so the vocabulary is the only thing that tells them apart.
+    ///
+    /// An index carrying no tags at all yields nothing, because it is not
+    /// evidence that any particular tag is unreal — the caller is expected to
+    /// say *this index carries no tags, re-sync* rather than name each term.
+    pub fn unknown_tags(&self, vocabulary: &index::TagVocabulary) -> Vec<String> {
+        let mut out = Vec::new();
+        if !vocabulary.is_empty() {
+            self.collect_unknown_tags(vocabulary, &mut out);
+        }
+        out
+    }
+
+    fn collect_unknown_tags(&self, vocabulary: &index::TagVocabulary, out: &mut Vec<String>) {
+        match self {
+            Query::Tag(t) if !vocabulary.contains(t) => out.push(t.clone()),
+            Query::Not(inner) => inner.collect_unknown_tags(vocabulary, out),
+            Query::And(parts) | Query::Or(parts) => {
+                for part in parts {
+                    part.collect_unknown_tags(vocabulary, out);
                 }
             }
             _ => {}

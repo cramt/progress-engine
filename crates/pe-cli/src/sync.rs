@@ -10,6 +10,7 @@
 //! written win, and nothing here could detect or repair it. Owning the build is
 //! what makes the fix expressible at all.
 
+use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
@@ -101,9 +102,25 @@ pub fn run(index_path: Option<&Path>, from: Option<&Path>, force: bool) -> Resul
         }
     };
 
-    let (index, report) = Index::build(records, updated_at);
+    let (mut index, report) = Index::build(records, updated_at);
     print_report(&report);
     check(&report, &index, from.is_none())?;
+
+    // Tags come from the search API, so a sync reading a local bulk file has no
+    // way to get them and says so rather than writing an index that looks as
+    // though it asked. `--from` exists for tests and offline machines, and an
+    // index that quietly carried no tags would make `otag:` match nothing there
+    // with no indication why.
+    if from.is_none() {
+        let names = pe_scryfall::tags::standard_tag_names();
+        eprintln!("fetching {} oracle tags", names.len());
+        let membership = fetch_tags(&names)?;
+        let fetched_at = now_utc();
+        let tagged = index.attach_tags(names, fetched_at, &membership);
+        eprintln!("tagged {tagged} cards");
+    } else {
+        eprintln!("skipping oracle tags: --from reads a bulk file, and tags come from the search API");
+    }
     index
         .write_atomically(&path)
         .with_context(|| format!("writing the index to {}", path.display()))?;
@@ -146,6 +163,134 @@ fn find_bulk_file() -> Result<BulkFile> {
         .into_iter()
         .find(|f| f.kind == WANTED)
         .with_context(|| format!("Scryfall's bulk-data listing has no {WANTED} file"))
+}
+
+/// One page of a Scryfall search, reduced to what a tag fetch needs.
+#[derive(Facet)]
+struct SearchPage {
+    #[facet(default)]
+    data: Vec<SearchCard>,
+    #[facet(default)]
+    has_more: bool,
+    #[facet(default)]
+    next_page: Option<String>,
+}
+
+#[derive(Facet)]
+struct SearchCard {
+    #[facet(default)]
+    oracle_id: Option<String>,
+}
+
+/// Scryfall asks for 50-100ms between requests. Tag fetching is the only place
+/// here that makes many small calls in a row, so it is the only place that has
+/// to care.
+const REQUEST_GAP: std::time::Duration = std::time::Duration::from_millis(100);
+
+/// Which oracle ids are in each of `tags`, as Scryfall answers today.
+///
+/// One paginated search per tag. A tag that matches nothing comes back as an
+/// empty entry rather than being dropped: the index records that it asked, and
+/// "asked, no members" has to survive as a different fact from "never asked".
+///
+/// A tag Scryfall rejects outright is an error and stops the sync. Writing an
+/// index that silently lacks a tag the user asked for would produce exactly the
+/// confident empty result this tool exists to prevent — better to fail the
+/// sync, while the person is standing there.
+fn fetch_tags(tags: &[String]) -> Result<HashMap<String, Vec<String>>> {
+    let mut membership: HashMap<String, Vec<String>> = HashMap::new();
+
+    for tag in tags {
+        let mut url = format!(
+            "https://api.scryfall.com/cards/search?q=otag%3A{}&unique=cards",
+            urlencode(tag)
+        );
+        let mut found = 0usize;
+        loop {
+            std::thread::sleep(REQUEST_GAP);
+            let response = ureq::get(&url)
+                .header("User-Agent", USER_AGENT)
+                .header("Accept", "application/json")
+                .call();
+
+            let body = match response {
+                Ok(mut r) => r
+                    .body_mut()
+                    .read_to_string()
+                    .with_context(|| format!("reading Scryfall's answer for otag:{tag}"))?,
+                Err(ureq::Error::StatusCode(404)) => {
+                    // Scryfall answers an empty search with 404, which is a real
+                    // answer: the tag exists and nothing is in it.
+                    break;
+                }
+                Err(e) => {
+                    return Err(e).with_context(|| format!("asking Scryfall for otag:{tag}"))
+                }
+            };
+
+            let page: SearchPage = facet_json::from_str(&body)
+                .with_context(|| format!("parsing Scryfall's answer for otag:{tag}"))?;
+
+            for card in &page.data {
+                if let Some(id) = card.oracle_id.as_deref() {
+                    membership.entry(id.to_string()).or_default().push(tag.clone());
+                    found += 1;
+                }
+            }
+
+            match (page.has_more, page.next_page) {
+                (true, Some(next)) => url = next,
+                _ => break,
+            }
+        }
+        eprintln!("  otag:{tag}: {found} cards");
+    }
+
+    Ok(membership)
+}
+
+/// Today's UTC date as `YYYY-MM-DD`, or `None` if the clock is before 1970.
+///
+/// `None` rather than a fallback string, for the reason [`Header::updated_at`]
+/// gives: a date nobody can vouch for is worse than an admitted gap, and every
+/// reader of this field already handles the gap.
+///
+/// The civil-date arithmetic is Howard Hinnant's `civil_from_days`, written out
+/// rather than pulled in, because one date format is not worth a dependency
+/// and this is the whole of what would be used.
+fn now_utc() -> Option<String> {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_secs();
+    let days = (secs / 86_400) as i64;
+
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+
+    Some(format!("{y:04}-{m:02}-{d:02}"))
+}
+
+/// Percent-encode the handful of characters a tag name can contain.
+///
+/// Tags are lowercase words joined by hyphens, so this is close to a no-op —
+/// it exists so that a tag with anything else in it fails as a bad request
+/// rather than as a malformed URL that means something else.
+fn urlencode(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' | '~' => c.to_string(),
+            other => format!("%{:02X}", other as u32),
+        })
+        .collect()
 }
 
 fn download(uri: &str) -> Result<Vec<BulkCard>> {
