@@ -42,6 +42,10 @@ not a consolation prize.
 
 Neither needs a mana model. Both are reachable.
 
+That is a statement about these two decks, not a scoping decision: **a mana
+model is wanted**, and is the largest single piece of unbuilt work. See
+[Mana](#mana).
+
 ## The principles
 
 These are not aspirations. Each one is already load-bearing somewhere in the
@@ -168,6 +172,33 @@ destination, and a criterion asks about whichever destination it was routed to.
 Framing it as keep-versus-discard is wrong: for a Loam deck the discard pile is
 the win condition.
 
+### Mana
+
+Two lands is not two mana, and holding six Opts is not casting six Opts.
+
+Mana appears twice, and the two are not the same problem.
+
+As a **gate**, it decides whether a criterion is satisfiable at all: *can I cast
+a `{1}{W}{U}` three-drop on turn three?* This is not answerable from counts a
+user writes, because one Hallowed Fountain counts toward both `produces:w` and
+`produces:u` and a conjunction of independent counts is satisfied by a hand that
+cannot pay. It is a bipartite matching, and the engine can solve it exactly per
+composition while the user cannot express it — so it has to be a primitive.
+
+As a **budget**, it is spent. An opening hand of one Island and six Opt casts
+*one* Opt, because the first one consumes the Island. A model where an effect
+fires whenever you hold the card overstates that turn sixfold, and the number
+looks perfectly reasonable in a report.
+
+The gate is cheap: lands in play is a function of the checkpoint path the engine
+already walks. The budget is not, because an effect that draws makes *cards seen
+by turn T* path-dependent and changes the shape of the enumeration rather than
+the state carried through it. So the gate ships first and is worth having alone.
+
+Which spell you cast when you cannot cast both is a **declared priority over
+queries** — the same mechanism as mulligan bottoming and selection routing, gated
+by a resource instead of by a looked-at set. Not a fourth policy language.
+
 ### Zones are the real question
 
 "Did I find the card" is not a well-formed question. "Is the card in this zone by
@@ -198,6 +229,8 @@ through the front door.
 - The effect library ships, autoloads as a prelude, and is keyed on queries
   ([#43](https://github.com/cramt/progress-engine/issues/43)).
 - Overlapping effects resolve last-wins, per card.
+- A mana model is in scope, staged gate-first then budget
+  ([#10](https://github.com/cramt/progress-engine/issues/10)).
 
 ## Not yet decided
 
