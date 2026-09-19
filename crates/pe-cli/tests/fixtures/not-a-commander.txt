@@ -1,5 +1,0 @@
-// The command zone holds an enchantment. Nothing about Sylvan Library's type
-// line or its own text puts it there.
-1x Sylvan Library [Commander{top}]
-
-99x Forest [Land]

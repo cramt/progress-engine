@@ -119,11 +119,6 @@ PASS: 3 of 3 assertions met
 JSON goes to stdout, the verdict to stderr, and the exit code reflects it — so a
 caller piping stdout through `jq` cannot lose the failure.
 
-That list is also checked against the rules of the format before any of it is
-computed, and this one is silent because it is legal. When it is not, the run
-says so without refusing to answer: see
-[decks you cannot legally play](#decks-you-cannot-legally-play).
-
 A criterion with no `atLeast` is informational: it reports a number and cannot
 fail. The two blocks with means under them are `expect` rather than `criterion`,
 and they are the subject of [how many, not just how
@@ -509,6 +504,18 @@ twenty per cent away from Scryfall in one direction or the other. A key that
 looks like Scryfall's and quietly disagrees with it is worse than one that says
 it is missing, so it says it is missing.
 
+**`f:` selects cards, and that is all it does.** `f:modern` asks whether a card
+is legal in Modern, which is a fact about that card and a perfectly good way to
+pick one; so are `banned:legacy` and `-f:commander`. What used to sit beside
+this was a check on the *list* — five Commander rules and a `WARNING: this is
+not a legal Commander deck` block above your numbers — and it is gone
+([#42](https://github.com/cramt/progress-engine/issues/42)). The math does not
+need a format: hypergeometric probabilities care about library size and
+composition, both of which come from the decklist rather than from any rule set,
+and having opinions about Commander specifically made a Modern list
+second-class for no mathematical reason. Selecting is what a query does;
+volunteering a verdict about your deck is not what this tool is.
+
 **`m:` and `devotion:` treat a cost as the multiset it is.** `{2}{W}{W}` is two
 generic and two white, so `m:{W}{W}` contains it and `m>{2}{W}{W}` does not.
 A colon is "contains at least", as on Scryfall, and `=` is exact. Shorthand
@@ -577,114 +584,6 @@ it a substring match, because `Plane` sits inside every planeswalker ever
 printed. The type line is split on its em dash and compared whole word by whole
 word, card types on the left and Attraction on the right, where it is a subtype
 of `Artifact — Attraction`.
-
-### Decks you cannot legally play
-
-Impeccable statistics about a deck nobody will let you sit down with are the
-most embarrassing kind of confidently wrong number, and by the time the first
-probability is computed everything needed to catch that is already in memory:
-the quantities, the colour identities, the banlist word and which lines were
-nominated as commanders. So `test` checks the list against the Commander rules
-and says what it finds:
-
-```
-$ progress-engine test illegal-commander.txt criteria.js
-WARNING: this is not a legal Commander deck
-  color_identity: Assassin's Trophy has colour identity BG, which is outside G — the identity of Marwyn, the Nurturer
-  singleton: 2x Sylvan Library — Commander is singleton outside basic lands and the cards that say otherwise
-  singleton: 3x Sol Ring — Commander is singleton outside basic lands and the cards that say otherwise
-  format_legality: Mana Crypt is banned in Commander
-  format_legality: Sword of Dungeons & Dragons is not legal in Commander
-  deck_size: a Commander deck is 100 cards; this list has 98 (97 in the library plus 1 in the command zone)
-The numbers below describe the list exactly as written.
-PASS two lands by turn 2  100.00%  (needs 30.0%)
-
-PASS: 1 of 1 assertions met
-WARNING: 6 legality problems above — this is not a legal Commander deck
-```
-
-Five rules: colour identity against the *combined* identity of the nominated
-commanders, so partners work; the singleton limit; the banlist and everything
-else the format does not admit; deck size; and whether what you nominated can
-command at all. The same list is in the JSON as `legality`, each entry carrying
-a `rule` token to match on, the `card` at fault and the sentence a human reads —
-so a CI caller that wants an illegal list to be a build failure has everything it
-needs to make that decision itself.
-
-**A warning never fails the run.** Somebody brewing wants the numbers *before*
-the deck is legal — a half-built list is the normal case, not the error case,
-and a tool that refuses to answer until the ninety-ninth card is chosen is a
-tool nobody reaches for at the point they most want it. But a clean `PASS`
-sitting alone underneath a deck that cannot be played is precisely the report
-this project exists to prevent, so the warning is said twice: in full above the
-results, where it survives a run that then dies on an empty library or a
-question too wide to enumerate, and again as a count beside the verdict, which
-is the line a reader actually stops on. The exit code stays what it has always
-been, a statement about your criteria and nothing else.
-
-**A missing field is not a violation.** The card index is a cache built by a
-separate tool, older copies of it predate half these fields, and the hand-written
-test fixtures in this repository carry almost none of them. So the card-level
-answers are `Option<bool>` rather than `bool`, and every rule below reads a
-`None` as *no complaint at all* rather than as *illegal*. A checker that reads
-absent data as guilt buries its one real finding under ninety-eight imaginary
-ones and teaches its reader to skip the whole block — which is this project's
-own defining failure wearing a checker's clothes. The test suite keeps an index
-with those fields stripped out, and asserts that a card at two copies draws no
-complaint when nothing ever said whether it could be repeated.
-
-The colour identity rule is dropped altogether for a colourless commander, by
-the same mechanism and for the same reason. An identity is stored as a list of
-colour letters, so a commander that is genuinely colourless — Karn, Kozilek —
-and a commander whose index entry never carried the field at all both arrive as
-an empty list, and nothing can tell the two apart. Acting on that empty list
-would mean reporting every coloured card in the deck as illegal on the strength
-of a field that may simply not be there. So the rule is skipped for those decks:
-it gives up a genuine check for the handful of commanders it applies to, and in
-exchange no out-of-date index can produce ninety-nine invented violations. If
-the index ever learns to say *absent* and *colourless* differently, that is the
-day to put it back.
-
-**An index entry that is not the card tells you nothing about the card.**
-Llanowar Elves is legal in Commander, and against a real index this checker
-once said it was not. The index is keyed by lowercased card name, Scryfall
-prints tokens that share a name with a real card, and the token could win the
-key — at which point every field belonged to the token: mana value 0, no colour
-identity, `not_legal` in every format. Forty-one real cards were shadowed that
-way, Mutavault and Meteorite and Storm Crow among them.
-
-That is fixed at the source now that `sync` builds the index here: a token is
-not a card and never enters it. The defence downstream stays, because an old
-index is still readable and the reasoning has not changed — an entry whose type
-line says `Token` is treated as no data by every rule that consults card data,
-and draws no complaint of any kind. Only deck size still applies to it, because
-counting lines in a decklist needs no card data at all. Reporting the token's
-fields as the card's would be the same confidently wrong claim as reading a
-missing field as guilt.
-
-**There is no `--format` flag, so the format is inferred, and only ever from
-evidence.** A list that nominates a commander is a Commander list and gets all
-five rules. A list that nominates none gets none of them, and that is a refusal
-rather than an oversight: four copies of a card are a violation in Commander and
-correct in constructed, sixty cards is the reverse, and colour identity is not a
-rule outside Commander at all. Nothing in an Archidekt export distinguishes a
-sixty-card deck from a Commander list whose export lost its `[Commander]`
-bracket, so guessing would mean being confidently wrong about every card in the
-list rather than about one. It says nothing instead.
-
-**What it does not check: the bounded counts.** Scryfall's data models the
-*unlimited* rule — the ten cards, Relentless Rats and Shadowborn Apostle and
-their friends, that say a deck can have any number of them — and that is the
-rule enforced here. It does not model the *bounded* rule. Nazgûl says "up to
-nine" and Seven Dwarves says "up to seven", no field in the index carries that
-bound, and so **a deck with ten Nazgûl is illegal and this checker will not say
-so.** The alternative was reading the number out of the oracle text, a
-derivation that would be confidently wrong in both directions — silently
-permitting what it failed to parse and silently forbidding what it misparsed —
-which is a worse thing to ship than an admitted gap. Answering a narrower
-question than your reader believes you answered is the failure this whole
-repository is a reaction to, so it is written down here rather than left to be
-discovered at a table.
 
 ### Questions the deck cannot answer
 
@@ -788,15 +687,16 @@ and attractions are card data, so `pe-scryfall` answers those. Neither crate
 learns about the other, and `pe-cli` applies both at the point where a decklist
 entry finally meets its card.
 
-Legality splits along the same line and for the same reason. Whether a card is
-banned, whether it may be repeated at all, whether its type line puts it in the
-command zone and whether its identity fits inside a given one are all facts one
-card settles alone, so they live in `pe-scryfall::legality`. How many copies the
-list actually has, which lines were nominated as commanders and how many cards
-there are altogether are all decklist facts, so the rules that need them live in
-`pe-cli`. Splitting it that way is what lets the card half be tested exhaustively
-against hand-written index JSON — including the missing-field cases that matter
-most — without either crate learning what the other is.
+Legality is on the card side of that seam and stays entirely there. Whether a
+card is banned, whether it may be repeated at all, whether its type line puts it
+in the command zone and whether its identity fits inside a given one are all
+facts one card settles alone, so they live in `pe-scryfall::legality`, which is
+what `f:`, `banned:`, `restricted:`, `is:commander` and `is:partner` read. The
+half that needed the decklist — copy counts, which lines were nominated,
+how many cards there are altogether — used to live in `pe-cli` and has been
+removed ([#42](https://github.com/cramt/progress-engine/issues/42)): selecting
+cards by what a format says about them is a query, and pronouncing on a whole
+list is not something a draw-probability engine has any business doing.
 
 `pe-stats` deliberately has no idea what a card is. Its tests are pure
 known-answer arithmetic, so a failure there is unambiguously a maths bug rather

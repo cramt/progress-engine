@@ -6,7 +6,6 @@
 //! JSON — that has happened — but stderr still lands in front of whoever is
 //! reading.
 
-mod legality;
 mod library;
 mod report;
 mod sync;
@@ -188,13 +187,6 @@ fn run_test(
     if let Some(note) = report::exclusion_note(&library) {
         eprintln!("{note}");
     }
-    // Before the run rather than after it: a list that is illegal is usually
-    // also the list that goes on to fail on something else, and the warning has
-    // to survive that.
-    let violations = legality::check(&library);
-    if let Some(note) = report::legality_note(&violations) {
-        eprintln!("{note}");
-    }
     let source = std::fs::read_to_string(criteria_path)
         .with_context(|| format!("reading criteria {}", criteria_path.display()))?;
     // Hashed off the bytes that were actually about to run, before anything
@@ -250,7 +242,6 @@ fn run_test(
         },
         &library,
         queries,
-        violations,
         report::Provenance {
             tool_version: env!("CARGO_PKG_VERSION"),
             index_updated_at: library.index_updated_at.clone(),

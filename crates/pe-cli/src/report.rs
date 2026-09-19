@@ -5,7 +5,6 @@ use pe_criteria::{Criterion, Expectation};
 use pe_stats::Distribution;
 use sha2::{Digest, Sha256};
 
-use crate::legality::Violation;
 use crate::library::Library;
 
 #[derive(Facet)]
@@ -158,11 +157,6 @@ pub struct Report {
     pub library_size: u32,
     pub commanders: Vec<String>,
     pub excluded: Vec<ExcludedCard>,
-    /// Everything about the list that is against the rules, empty when there is
-    /// nothing to say. Never affects `ok`: see `legality.rs` for why a warning
-    /// does not fail a run, and why this array exists so that a caller can
-    /// decide otherwise for itself.
-    pub legality: Vec<Violation>,
     pub on_the_draw: bool,
     pub method: &'static str,
     #[facet(skip_serializing_if = Option::is_none)]
@@ -190,7 +184,6 @@ impl Report {
         scenario: Scenario,
         library: &Library,
         queries: Vec<QueryMatch>,
-        legality: Vec<Violation>,
         provenance: Provenance,
     ) -> Self {
         let Scenario {
@@ -240,7 +233,6 @@ impl Report {
                     card_type: e.card_type.as_str(),
                 })
                 .collect(),
-            legality,
             on_the_draw,
             method: if sampled.is_some() {
                 "sampled"
@@ -319,17 +311,6 @@ impl Report {
                 self.failed, self.asserted
             )
         });
-        // Said twice on purpose. The detail is printed before the run so that a
-        // run which then aborts still carries it, but the verdict line is what
-        // a reader actually stops on, and a clean PASS sitting alone under an
-        // illegal decklist is exactly the report this check exists to prevent.
-        if !self.legality.is_empty() {
-            out.push_str(&format!(
-                "\nWARNING: {} legality problem{} above — this is not a legal Commander deck",
-                self.legality.len(),
-                if self.legality.len() == 1 { "" } else { "s" }
-            ));
-        }
         out
     }
 }
@@ -372,24 +353,6 @@ pub fn exclusion_note(library: &Library) -> Option<String> {
         if total == 1 { "" } else { "s" },
         list.join(", ")
     ))
-}
-
-/// What to tell a human about a list that is against the rules.
-///
-/// Printed before the run for the same reason the exclusion note is: a run that
-/// then stops on an empty library or a question too wide to answer would take
-/// the warning down with it, and "your deck is illegal" is worth having either
-/// way. It does not stop the run — see `legality.rs`.
-pub fn legality_note(violations: &[Violation]) -> Option<String> {
-    if violations.is_empty() {
-        return None;
-    }
-    let mut out = String::from("WARNING: this is not a legal Commander deck\n");
-    for v in violations {
-        out.push_str(&format!("  {}: {}\n", v.rule, v.detail));
-    }
-    out.push_str("The numbers below describe the list exactly as written.");
-    Some(out)
 }
 
 /// How many buckets of a distribution the human output will print.

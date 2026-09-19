@@ -28,8 +28,9 @@ pub struct Library {
     pub entries: Vec<Entry>,
     /// The nominated commanders, as whole entries rather than names.
     ///
-    /// The legality check needs their colour identity and type line, and a name
-    /// stored beside the card it names is a pair that can disagree.
+    /// Whole entries because a name stored beside the card it names is a pair
+    /// that can disagree. They start in the command zone, so what this holds is
+    /// what the library does not.
     pub commanders: Vec<Entry>,
     /// SHA-256 of the decklist file, taken here because this is where its bytes
     /// are read. Hashing a re-read of the path would answer a question about a
@@ -62,9 +63,9 @@ impl Library {
         let index = IndexFile::open(&path)?;
         let stale = index.is_stale();
 
-        // Strict about unknown cards, unlike the legality checker which merely
-        // reports them: you cannot compute a land count for a card you cannot
-        // look up, so a typo here would silently skew every probability.
+        // Strict about unknown cards: you cannot compute a land count for a
+        // card you cannot look up, so a typo here would silently skew every
+        // probability.
         let unknown: Vec<&str> = parsed
             .iter()
             .filter(|e| !index.contains(&e.name))
@@ -129,15 +130,6 @@ impl Library {
             .iter()
             .map(|e| e.card.name.clone())
             .collect()
-    }
-
-    /// Every card the list actually plays, library and command zone alike.
-    ///
-    /// The rules that apply to a card wherever it sits — the banlist, the copy
-    /// limit — read this rather than `entries`, so that a commander cannot
-    /// escape them by not being in the library.
-    pub fn played(&self) -> impl Iterator<Item = &Entry> {
-        self.entries.iter().chain(&self.commanders)
     }
 
     /// Group the library by which of `queries` each card matches.
