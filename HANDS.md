@@ -189,7 +189,23 @@ keep-versus-discard framing. Binning the Loam is not a consolation prize for
 failing to keep it; it is the deck working. The policy is a **router**, and the
 criterion asks about the destination.
 
-*Needs #17, #43. The zone half of the question is #40, which has shipped.*
+*Answerable today.* Written down, it is:
+
+```toml
+[[effect]]
+match = "t:land otag:surveil"
+look = 1
+on = "landdrop"
+to_graveyard = 'name:"Life from the Loam"'
+```
+
+The `match`, `look` and `on` come from the standard library and are repeated
+here only because last-wins overrides a whole entry at a time. The
+`to_graveyard` is the part the library will never declare.
+
+This is a test, as `crates/pe-cli/tests/fixtures/loam-yard.criteria.toml`, with
+a ten-card cut-down beside it whose three zone counts are worked out on paper
+in the test that reads them.
 
 ### 10. The same hand, different question
 
@@ -199,7 +215,14 @@ Loam on top instead, and it arrives in hand next turn.
 Same card, same effect, opposite routing — because the routing is part of the
 question, not part of the card.
 
-*Needs #17. The zone half of the question is #40, which has shipped.*
+*Answerable today*, and it is the same file with the `to_graveyard` line taken
+out. That is what the default means: no destination declared, so nothing leaves
+the top, so the Loam arrives in hand on the following turn exactly as it would
+have without the surveil.
+
+The pair of these is asserted rather than described — the hand number moves
+between the two files, which is the only thing that proves the routing is doing
+work rather than being ignored.
 
 ---
 
@@ -270,9 +293,10 @@ case in #37, which is the one hole.*
 
 ## What these are for
 
-When the features land, these become tests. Until then they are the
-specification: if an implementation disagrees with a hand here, one of the two
-is wrong and it is worth knowing which before shipping a percentage.
+When the features land, these become tests — hands 9, 10, 11, 13 and 14 already
+have. Until then they are the specification: if an implementation disagrees with
+a hand here, one of the two is wrong and it is worth knowing which before
+shipping a percentage.
 
 They are also the regression surface for the effect library (#43). A stdlib that
 silently stops covering a card changes hand 1 from one Opt to zero, and nothing

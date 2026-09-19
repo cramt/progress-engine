@@ -25,14 +25,17 @@ pub enum Zone {
     /// stops holding the day anything routes a card elsewhere, and this is the
     /// name that will still be right when it does.
     Hand,
-    /// Askable, and correctly always empty.
+    /// Askable, and reachable exactly when some effect in this run routes a
+    /// card here.
     ///
-    /// Nothing routes a card here yet — that is selection routing, issues
+    /// Selection routing — issues
     /// [#17](https://github.com/cramt/progress-engine/issues/17) and
-    /// [#43](https://github.com/cramt/progress-engine/issues/43). Until then
-    /// every count in it is zero by construction, which is why
-    /// [`Zone::is_reachable`] exists and why a run that asks about the
-    /// graveyard says so out loud.
+    /// [#43](https://github.com/cramt/progress-engine/issues/43) — made this a
+    /// real destination, and made reachability a property of the run rather
+    /// than of the zone. A file whose effects route nothing here still reads
+    /// zero by construction, which is why [`Reachable`] is carried from the
+    /// run to the report and why a run that asks about an unrouted graveyard
+    /// says so out loud.
     ///
     /// **Unordered.** Dredge cares which card is on top of the yard and this
     /// cannot say; "Loam in the graveyard by turn 5" does not care, and that is
@@ -65,20 +68,6 @@ impl Zone {
         }
     }
 
-    /// Whether anything in this engine can put a card in this zone.
-    ///
-    /// An unreachable zone answers every question about it with 0.00%, and a
-    /// zero that means *not modelled* is indistinguishable in a percentage from
-    /// a zero that means *never happened*. That is this project's defining
-    /// failure mode, so the answer is still computed — honestly, as zero — and
-    /// the run reports which zones it was computed in.
-    pub fn is_reachable(self) -> bool {
-        match self {
-            Zone::Hand | Zone::Library => true,
-            Zone::Graveyard => false,
-        }
-    }
-
     /// Read a zone from what a criteria file wrote.
     pub fn parse(name: &str) -> Result<Zone, ZoneError> {
         match name {
@@ -89,6 +78,34 @@ impl Zone {
             _ => Err(ZoneError::Unknown {
                 name: name.to_string(),
             }),
+        }
+    }
+}
+
+/// Which zones *this run* can actually put a card into.
+///
+/// A zone nothing routes into answers every question about it with 0.00%, and
+/// a zero that means *not modelled* is indistinguishable in a percentage from a
+/// zero that means *never happened*. That is this project's defining failure
+/// mode, so the answer is still computed — honestly, as zero — and the run
+/// reports which zones it was computed in.
+///
+/// A struct carrying the one contingent zone rather than a method on [`Zone`],
+/// because reachability stopped being a property of the zone the day an effect
+/// could route a card. The hand and the library are reachable in every run
+/// there has ever been; the graveyard is reachable in the runs whose effects
+/// send something there, and nothing but the run knows which those are.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Reachable {
+    /// Whether some effect in this run routes a card to the graveyard.
+    pub graveyard: bool,
+}
+
+impl Reachable {
+    pub fn includes(self, zone: Zone) -> bool {
+        match zone {
+            Zone::Hand | Zone::Library => true,
+            Zone::Graveyard => self.graveyard,
         }
     }
 }

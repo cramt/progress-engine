@@ -11,7 +11,7 @@
 
 use std::convert::Infallible;
 
-use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan, Zone};
+use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan, Schedule, Zone};
 use proptest::prelude::*;
 use proptest::test_runner::{Config, RngAlgorithm, TestCaseError, TestRng, TestRunner};
 
@@ -192,9 +192,14 @@ fn every_run_accounts_for_all_of_its_probability_mass() {
     runner(256)
         .run(&question(), |q| {
             let mut ev = Closures(vec![Box::new(|_: &PathView<'_>| true)]);
-            let r = pe_criteria::run(&q.grouping, &q.gaps, only_criteria(1), &mut ev)
-                .map(|o| o.probabilities)
-                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            let r = pe_criteria::run(
+                &q.grouping,
+                &Schedule::plain(&q.gaps),
+                only_criteria(1),
+                &mut ev,
+            )
+            .map(|o| o.probabilities)
+            .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
             prop_assert!(
                 (r[0].get() - 1.0).abs() < 1e-12,
                 "{:?} over gaps {:?} summed to {}",
@@ -224,9 +229,14 @@ fn a_count_threshold_never_gets_less_likely_as_turns_advance() {
                 })
                 .collect();
             let mut ev = checks(&by_turn);
-            let r = pe_criteria::run(&q.grouping, &q.gaps, only_criteria(by_turn.len()), &mut ev)
-                .map(|o| o.probabilities)
-                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            let r = pe_criteria::run(
+                &q.grouping,
+                &Schedule::plain(&q.gaps),
+                only_criteria(by_turn.len()),
+                &mut ev,
+            )
+            .map(|o| o.probabilities)
+            .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
             let ps: Vec<f64> = r.iter().map(|p| p.get()).collect();
             for pair in ps.windows(2) {
                 prop_assert!(
@@ -257,9 +267,14 @@ fn a_single_turn_criterion_matches_the_closed_form_at_least() {
                 query,
                 k,
             }]);
-            let enumerated = pe_criteria::run(&q.grouping, gaps, only_criteria(1), &mut ev)
-                .map(|o| o.probabilities)
-                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            let enumerated = pe_criteria::run(
+                &q.grouping,
+                &Schedule::plain(gaps),
+                only_criteria(1),
+                &mut ev,
+            )
+            .map(|o| o.probabilities)
+            .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
             let closed = pe_stats::at_least(
                 q.grouping.population(),
                 q.grouping.matching_total(query),
@@ -293,7 +308,7 @@ fn criteria_evaluated_together_get_the_same_answers_as_criteria_evaluated_alone(
             let mut ev = checks(&thresholds);
             let together = pe_criteria::run(
                 &q.grouping,
-                &q.gaps,
+                &Schedule::plain(&q.gaps),
                 only_criteria(thresholds.len()),
                 &mut ev,
             )
@@ -301,9 +316,14 @@ fn criteria_evaluated_together_get_the_same_answers_as_criteria_evaluated_alone(
             .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
             for (i, t) in thresholds.iter().enumerate() {
                 let mut solo = checks(&[*t]);
-                let alone = pe_criteria::run(&q.grouping, &q.gaps, only_criteria(1), &mut solo)
-                    .map(|o| o.probabilities)
-                    .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+                let alone = pe_criteria::run(
+                    &q.grouping,
+                    &Schedule::plain(&q.gaps),
+                    only_criteria(1),
+                    &mut solo,
+                )
+                .map(|o| o.probabilities)
+                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
                 prop_assert_eq!(
                     together[i].get(),
                     alone[0].get(),
@@ -331,8 +351,13 @@ fn every_expectation_distribution_is_a_distribution() {
                 Box::new(move |v: &PathView<'_>| v.count_in(0, query, Zone::Hand)),
                 Box::new(move |v: &PathView<'_>| v.count_in(last, query, Zone::Hand)),
             ]);
-            let r = pe_criteria::run(&q.grouping, &q.gaps, only_expectations(2), &mut ev)
-                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            let r = pe_criteria::run(
+                &q.grouping,
+                &Schedule::plain(&q.gaps),
+                only_expectations(2),
+                &mut ev,
+            )
+            .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
             for (i, d) in r.distributions.iter().enumerate() {
                 prop_assert!(
                     (d.total() - 1.0).abs() < 1e-12,
@@ -366,8 +391,13 @@ fn an_expectation_matches_the_closed_form_mean() {
             let mut ev = Counters(vec![Box::new(move |v: &PathView<'_>| {
                 v.count_in(0, query, Zone::Hand)
             })]);
-            let r = pe_criteria::run(&q.grouping, gaps, only_expectations(1), &mut ev)
-                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            let r = pe_criteria::run(
+                &q.grouping,
+                &Schedule::plain(gaps),
+                only_expectations(1),
+                &mut ev,
+            )
+            .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
             let closed = pe_stats::mean(
                 q.grouping.population(),
                 q.grouping.matching_total(query),
@@ -401,9 +431,13 @@ fn a_threshold_is_the_tail_of_the_distribution_it_thresholds() {
             let mut counting = Counters(vec![Box::new(move |v: &PathView<'_>| {
                 v.count_in(last, query, Zone::Hand)
             })]);
-            let counted =
-                pe_criteria::run(&q.grouping, &q.gaps, only_expectations(1), &mut counting)
-                    .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            let counted = pe_criteria::run(
+                &q.grouping,
+                &Schedule::plain(&q.gaps),
+                only_expectations(1),
+                &mut counting,
+            )
+            .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
             let buckets = counted.distributions[0].probabilities();
             let tail: f64 = buckets.iter().skip(k as usize).sum();
 
@@ -412,8 +446,13 @@ fn a_threshold_is_the_tail_of_the_distribution_it_thresholds() {
                 query,
                 k,
             }]);
-            let held = pe_criteria::run(&q.grouping, &q.gaps, only_criteria(1), &mut checking)
-                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            let held = pe_criteria::run(
+                &q.grouping,
+                &Schedule::plain(&q.gaps),
+                only_criteria(1),
+                &mut checking,
+            )
+            .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
 
             prop_assert!(
                 (tail - held.probabilities[0].get()).abs() < 1e-12,

@@ -1,0 +1,5 @@
+{"schema":2,"updated_at":"2025-09-01","cards":4,"keywords":["Dredge"],"tags":["surveil","scry","tapland"],"tags_fetched_at":"2025-09-01"}
+undercity sewers	{"name":"Undercity Sewers","ci":["U","B"],"type_line":"Land","cmc":0.0,"oracle":"This land enters tapped. When it enters, surveil 1.\n{T}: Add {U} or {B}.","produces":["B","U"],"tags":["surveil","tapland"],"any_number":false}
+life from the loam	{"name":"Life from the Loam","ci":["G"],"type_line":"Sorcery","mana_cost":"{1}{G}","cmc":2.0,"oracle":"Return up to three target land cards from your graveyard to your hand.\nDredge 3","keywords":["Dredge"],"any_number":false}
+mountain	{"name":"Mountain","ci":["R"],"type_line":"Basic Land — Mountain","cmc":0.0,"oracle":"({T}: Add {R}.)","produces":["R"],"any_number":true}
+lightning bolt	{"name":"Lightning Bolt","ci":["R"],"type_line":"Instant","mana_cost":"{R}","cmc":1.0,"oracle":"Lightning Bolt deals 3 damage to any target.","any_number":false}

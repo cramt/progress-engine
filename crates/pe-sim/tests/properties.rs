@@ -14,7 +14,9 @@
 
 use std::convert::Infallible;
 
-use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan, RunError, Zone};
+use pe_criteria::{
+    Count, Evaluator, Grouping, PathOutcomes, PathView, Plan, RunError, Schedule, Zone,
+};
 use pe_sim::{mean_standard_error, simulate, standard_error};
 use proptest::prelude::*;
 use proptest::test_runner::{Config, RngAlgorithm, TestCaseError, TestRng, TestRunner};
@@ -234,7 +236,7 @@ fn sampling_agrees_with_the_exact_engine_within_five_standard_errors() {
             let mut ev = checks(&thresholds);
             let exact = pe_criteria::run(
                 &q.grouping,
-                &q.gaps,
+                &Schedule::plain(&q.gaps),
                 only_criteria(thresholds.len()),
                 &mut ev,
             )
@@ -243,7 +245,7 @@ fn sampling_agrees_with_the_exact_engine_within_five_standard_errors() {
             let mut ev = checks(&thresholds);
             let sampled = simulate(
                 &q.grouping,
-                &q.gaps,
+                &Schedule::plain(&q.gaps),
                 TRIALS,
                 seed,
                 only_criteria(thresholds.len()),
@@ -308,10 +310,22 @@ fn neither_engine_answers_a_question_the_other_refuses() {
             let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
                 v.count_in(0, 0, Zone::Hand) >= 1
             })]);
-            let exact = pe_criteria::run(&grouping, &gaps, only_criteria(1), &mut ev);
+            let exact = pe_criteria::run(
+                &grouping,
+                &Schedule::plain(&gaps),
+                only_criteria(1),
+                &mut ev,
+            );
             // One trial: whether the sampler refuses cannot depend on how many
             // hands it was going to deal.
-            let sampled = simulate(&grouping, &gaps, 1, 0xC0FFEE, only_criteria(1), &mut ev);
+            let sampled = simulate(
+                &grouping,
+                &Schedule::plain(&gaps),
+                1,
+                0xC0FFEE,
+                only_criteria(1),
+                &mut ev,
+            );
 
             prop_assert_eq!(
                 exact.is_err(),
@@ -381,7 +395,12 @@ fn a_question_too_wide_to_enumerate_is_still_answerable_by_sampling() {
             let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
                 v.count_in(0, 0, Zone::Hand) >= 1
             })]);
-            let exact = pe_criteria::run(&grouping, &gaps, only_criteria(1), &mut ev);
+            let exact = pe_criteria::run(
+                &grouping,
+                &Schedule::plain(&gaps),
+                only_criteria(1),
+                &mut ev,
+            );
             prop_assert!(
                 matches!(exact, Err(RunError::TooWide { .. })),
                 "{:?} over gaps {:?}: {}",
@@ -389,9 +408,15 @@ fn a_question_too_wide_to_enumerate_is_still_answerable_by_sampling() {
                 gaps,
                 describe(&exact)
             );
-            prop_assert!(
-                simulate(&grouping, &gaps, 200, 0xC0FFEE, only_criteria(1), &mut ev).is_ok()
-            );
+            prop_assert!(simulate(
+                &grouping,
+                &Schedule::plain(&gaps),
+                200,
+                0xC0FFEE,
+                only_criteria(1),
+                &mut ev
+            )
+            .is_ok());
             Ok(())
         })
         .unwrap();
@@ -414,9 +439,16 @@ fn sampled_counts_never_decrease_as_turns_advance() {
                     })
                 })
             })]);
-            let held = simulate(&q.grouping, &q.gaps, 2_000, seed, only_criteria(1), &mut ev)
-                .map(|s| s.proportions)
-                .map_err(|e| TestCaseError::fail(format!("sampler refused: {e}")))?;
+            let held = simulate(
+                &q.grouping,
+                &Schedule::plain(&q.gaps),
+                2_000,
+                seed,
+                only_criteria(1),
+                &mut ev,
+            )
+            .map(|s| s.proportions)
+            .map_err(|e| TestCaseError::fail(format!("sampler refused: {e}")))?;
             prop_assert_eq!(
                 held[0],
                 1.0,
@@ -484,12 +516,19 @@ fn sampled_expectations_agree_with_the_exact_engine_within_five_standard_errors(
             let plan = only_expectations(tallies.len());
 
             let mut ev = counters(&tallies);
-            let exact = pe_criteria::run(&q.grouping, &q.gaps, plan, &mut ev)
+            let exact = pe_criteria::run(&q.grouping, &Schedule::plain(&q.gaps), plan, &mut ev)
                 .map_err(|e| TestCaseError::fail(format!("exact engine refused: {e}")))?;
 
             let mut ev = counters(&tallies);
-            let sampled = simulate(&q.grouping, &q.gaps, TRIALS, seed, plan, &mut ev)
-                .map_err(|e| TestCaseError::fail(format!("sampler refused: {e}")))?;
+            let sampled = simulate(
+                &q.grouping,
+                &Schedule::plain(&q.gaps),
+                TRIALS,
+                seed,
+                plan,
+                &mut ev,
+            )
+            .map_err(|e| TestCaseError::fail(format!("sampler refused: {e}")))?;
 
             for (i, t) in tallies.iter().enumerate() {
                 let truth = &exact.distributions[i];
@@ -543,8 +582,15 @@ fn neither_engine_answers_an_expectation_the_other_refuses() {
                 v.count_in(0, 0, Zone::Hand)
             })]);
             let plan = only_expectations(1);
-            let exact = pe_criteria::run(&grouping, &gaps, plan, &mut ev);
-            let sampled = simulate(&grouping, &gaps, 1, 0xC0FFEE, plan, &mut ev);
+            let exact = pe_criteria::run(&grouping, &Schedule::plain(&gaps), plan, &mut ev);
+            let sampled = simulate(
+                &grouping,
+                &Schedule::plain(&gaps),
+                1,
+                0xC0FFEE,
+                plan,
+                &mut ev,
+            );
 
             prop_assert_eq!(
                 exact.is_err(),

@@ -97,6 +97,38 @@ pub struct ZoneUse {
     pub asked_by: String,
 }
 
+/// An effect the library brought to bear on this deck, and what it applied to.
+///
+/// Reported because an autoloading library changes answers without anybody
+/// editing anything, so the first question about a surprising number is what
+/// the tool thought the cards do. Last-wins is only honest if the run can say
+/// which effect applied to which card, and this is where it says it.
+///
+/// Only effects that matched at least one card are listed. An entry that
+/// matched nothing said nothing about this deck, and a list of every entry in
+/// the standard library under every report would bury the two lines that
+/// matter.
+#[derive(Facet)]
+pub struct EffectUse {
+    #[facet(rename = "match")]
+    pub matches: String,
+    pub look: u32,
+    pub on: &'static str,
+    /// The routing policy, or `null` where none was declared — in which case
+    /// every looked-at card stays on top and this effect moves no number.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub to_graveyard: Option<String>,
+    /// Which file declared it: the standard library, or the criteria file.
+    pub source: String,
+    /// The cards it applied to, after the overlap was resolved. A card matched
+    /// by a later entry is listed under that entry and not this one.
+    pub cards: Vec<String>,
+    pub copies: u32,
+    /// Whether this effect can move a number. False for an effect that routes
+    /// nothing, or that routes to a card this deck does not play.
+    pub live: bool,
+}
+
 /// A listed card that never enters the library, so was not counted in it.
 ///
 /// Reported for the same reason an empty query is: dropping cards quietly leaves
@@ -140,7 +172,21 @@ pub struct Provenance {
     /// precisely the edit a reader is trying to correlate with the number.
     pub deck_sha256: String,
     /// SHA-256 of the criteria file exactly as it was read, for the same reason.
+    ///
+    /// This covers the user's own `[[effect]]` tables too: they live in the
+    /// criteria file, so a routing policy that changed is a criteria file that
+    /// changed.
     pub criteria_sha256: String,
+    /// SHA-256 of the standard effect library exactly as it shipped.
+    ///
+    /// An input that moves the numbers and that nobody edited. It autoloads, so
+    /// a deck whose percentage changed between two tool versions would
+    /// otherwise be indistinguishable from a deck that changed — which is the
+    /// ambiguity the other four hashes were added to remove. It is not folded
+    /// into `tool_version`: the library is data, it will move on its own
+    /// schedule, and the whole point of a hash is that it does not need a
+    /// release to be comparable.
+    pub effect_library_sha256: String,
 }
 
 /// The two knobs a sampled run has and an exact run has no honest answer for.
@@ -163,6 +209,18 @@ pub struct Sampling {
 pub struct Scenario {
     pub on_the_draw: bool,
     pub sampled: Option<Sampling>,
+}
+
+/// What the run was able to ask about, as opposed to what it answered.
+///
+/// Grouped because they are one thought: a query that matched nothing, a zone
+/// nothing routes into and an effect that applied where nobody expected it are
+/// three doors to the same failure, and a reader chasing a surprising number
+/// reads all three or none of them.
+pub struct Breakdown {
+    pub queries: Vec<QueryMatch>,
+    pub zones: Vec<ZoneUse>,
+    pub effects: Vec<EffectUse>,
 }
 
 /// SHA-256 of some bytes, lowercase hex.
@@ -188,6 +246,9 @@ pub struct Report {
     /// Every zone the criteria file asked about, including the `hand` a clause
     /// meant without saying so.
     pub zones: Vec<ZoneUse>,
+    /// Every effect that applied to a card in this deck, standard library and
+    /// hand-written alike.
+    pub effects: Vec<EffectUse>,
     pub criteria: Vec<CriterionResult>,
     /// Alongside `criteria` rather than merged into it. They answer different
     /// questions in different units, and several things already read `criteria`
@@ -205,10 +266,14 @@ impl Report {
         answers: &Answers,
         scenario: Scenario,
         library: &Library,
-        queries: Vec<QueryMatch>,
-        zones: Vec<ZoneUse>,
+        breakdown: Breakdown,
         provenance: Provenance,
     ) -> Self {
+        let Breakdown {
+            queries,
+            zones,
+            effects,
+        } = breakdown;
         let Scenario {
             on_the_draw,
             sampled,
@@ -266,6 +331,7 @@ impl Report {
             seed: sampled.map(|s| s.seed),
             queries,
             zones,
+            effects,
             criteria: results,
             expectations: expected,
             asserted,
@@ -285,19 +351,41 @@ impl Report {
                 ));
             }
         }
-        // The same failure as an empty query, arriving by a different door.
-        // Nothing routes a card into the graveyard yet, so a criterion asking
-        // about it is answered with a confident zero that reads exactly like a
-        // deck that never gets there. It stays answered — silently refusing to
-        // print a number is its own kind of lie — but it does not get to be
-        // mistaken for a measurement.
+        // What the effect library made of this deck. Printed rather than left
+        // in the JSON because the library autoloads: nobody asked for these and
+        // they move the numbers, so a run that applied one says so unprompted.
+        // An entry that matched nothing says nothing and is not mentioned.
+        for e in &self.effects {
+            let route = match (&e.to_graveyard, e.live) {
+                (None, _) => ", everything stays on top".to_string(),
+                (Some(q), true) => format!(", {q} to the graveyard"),
+                (Some(q), false) => format!(", {q} to the graveyard — which no card here matches"),
+            };
+            out.push_str(&format!(
+                "note: effect {:?} (look {}, on {}{route})\n      applies to {} card{}: {}\n",
+                e.matches,
+                e.look,
+                e.on,
+                e.copies,
+                if e.copies == 1 { "" } else { "s" },
+                e.cards.join(", ")
+            ));
+        }
+        // The same failure as an empty query, arriving by a different door. A
+        // criterion asking about a zone no effect in this run routes into is
+        // answered with a confident zero that reads exactly like a deck that
+        // never gets there. It stays answered — silently refusing to print a
+        // number is its own kind of lie — but it does not get to be mistaken
+        // for a measurement. It switches off the moment an effect routes a card
+        // there, and not before: a note that never fires is as useless as one
+        // that always does.
         for z in &self.zones {
             if !z.reachable {
                 out.push_str(&format!(
-                    "note: nothing routes a card to the {} in this run yet, so every count in\n      \
+                    "note: nothing routes a card to the {} in this run, so every count in\n      \
                      it is zero by construction rather than by measurement.\n      \
                      Asked by: {:?}\n      \
-                     Routing is https://github.com/cramt/progress-engine/issues/17\n",
+                     Declare `to_graveyard` on an [[effect]] to route one there.\n",
                     z.zone, z.asked_by
                 ));
             }
@@ -377,6 +465,24 @@ pub fn stale_index_note(library: &Library) -> Option<String> {
          with: progress-engine sync"
             .to_string()
     })
+}
+
+/// The resolved effect library, in the shape the report prints.
+pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
+    resolved
+        .applied
+        .iter()
+        .map(|a| EffectUse {
+            matches: a.matches.clone(),
+            look: a.look,
+            on: a.on,
+            to_graveyard: a.to_graveyard.clone(),
+            source: a.origin.clone(),
+            cards: a.cards.clone(),
+            copies: a.copies,
+            live: a.live,
+        })
+        .collect()
 }
 
 pub fn exclusion_note(library: &Library) -> Option<String> {

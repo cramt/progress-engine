@@ -7,8 +7,8 @@
 use std::convert::Infallible;
 
 use pe_criteria::{
-    Count, Criterion, Evaluator, Expectation, Grouping, GroupingError, PathOutcomes, PathView,
-    Plan, RunError, Zone, MAX_COUNT,
+    Count, Criterion, Effect, Evaluator, Expectation, Grouping, GroupingError, PathOutcomes,
+    PathView, Plan, Route, RunError, Schedule, Trigger, Zone, MAX_COUNT,
 };
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
@@ -72,10 +72,10 @@ fn reproduces_the_thirty_one_versus_thirty_nine_percent_story() {
         v.count_in(0, 0, Zone::Hand) >= 1 && v.count_in(0, 1, Zone::Hand) >= 1
     })]);
 
-    let s = pe_criteria::run(&strict, &[11], only_criteria(1), &mut ev)
+    let s = pe_criteria::run(&strict, &Schedule::plain(&[11]), only_criteria(1), &mut ev)
         .unwrap()
         .probabilities;
-    let w = pe_criteria::run(&wide, &[11], only_criteria(1), &mut ev)
+    let w = pe_criteria::run(&wide, &Schedule::plain(&[11]), only_criteria(1), &mut ev)
         .unwrap()
         .probabilities;
 
@@ -113,12 +113,22 @@ fn a_card_can_satisfy_two_queries_at_once() {
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
         v.count_in(0, 0, Zone::Hand) >= 1 && v.count_in(0, 1, Zone::Hand) >= 1
     })]);
-    let o = pe_criteria::run(&overlapping, &[11], only_criteria(1), &mut ev)
-        .unwrap()
-        .probabilities[0];
-    let d = pe_criteria::run(&disjoint, &[11], only_criteria(1), &mut ev)
-        .unwrap()
-        .probabilities[0];
+    let o = pe_criteria::run(
+        &overlapping,
+        &Schedule::plain(&[11]),
+        only_criteria(1),
+        &mut ev,
+    )
+    .unwrap()
+    .probabilities[0];
+    let d = pe_criteria::run(
+        &disjoint,
+        &Schedule::plain(&[11]),
+        only_criteria(1),
+        &mut ev,
+    )
+    .unwrap()
+    .probabilities[0];
 
     // Dual-purpose cards make satisfying both requirements strictly likelier,
     // even though the per-query totals are identical.
@@ -145,7 +155,7 @@ fn the_curve_out_criterion_across_turns() {
             v.count_in(0, 0, Zone::Hand) >= 1 && v.count_in(0, 1, Zone::Hand) >= 1
         }),
     ]);
-    let r = pe_criteria::run(&g, &[7, 1], only_criteria(2), &mut ev)
+    let r = pe_criteria::run(&g, &Schedule::plain(&[7, 1]), only_criteria(2), &mut ev)
         .unwrap()
         .probabilities;
 
@@ -162,7 +172,7 @@ fn counts_are_cumulative_across_checkpoints() {
         v.count_in(1, 0, Zone::Hand) >= v.count_in(0, 0, Zone::Hand)
             && v.count_in(2, 0, Zone::Hand) >= v.count_in(1, 0, Zone::Hand)
     })]);
-    let r = pe_criteria::run(&g, &[7, 1, 1], only_criteria(1), &mut ev)
+    let r = pe_criteria::run(&g, &Schedule::plain(&[7, 1, 1]), only_criteria(1), &mut ev)
         .unwrap()
         .probabilities;
     assert!(
@@ -180,7 +190,7 @@ fn out_of_range_lookups_are_false_not_panics() {
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
         v.count_in(9, 0, Zone::Hand) >= 1
     })]);
-    let r = pe_criteria::run(&g, &[7], only_criteria(1), &mut ev)
+    let r = pe_criteria::run(&g, &Schedule::plain(&[7]), only_criteria(1), &mut ev)
         .unwrap()
         .probabilities;
     assert_eq!(r[0].get(), 0.0);
@@ -195,7 +205,7 @@ fn impossibly_wide_questions_are_refused_not_hung() {
     let cards: Vec<(u64, u32)> = (0..20).map(|i| (1u64 << i, 5)).collect();
     let g = Grouping::build(queries, cards).unwrap();
     let mut ev = Closures(vec![Box::new(|_: &PathView<'_>| true)]);
-    let err = pe_criteria::run(&g, &[40], only_criteria(1), &mut ev).unwrap_err();
+    let err = pe_criteria::run(&g, &Schedule::plain(&[40]), only_criteria(1), &mut ev).unwrap_err();
     assert!(matches!(err, RunError::TooWide { .. }));
     // The message must tell you what to do about it.
     let msg = err.to_string();
@@ -226,7 +236,7 @@ fn an_empty_library_is_refused_rather_than_enumerated() {
     // underflow the bin count and spin the estimator for u128::MAX iterations.
     let g = Grouping::build(q(&["land"]), []).unwrap();
     let mut ev = Closures(vec![Box::new(|_: &PathView<'_>| true)]);
-    let err = pe_criteria::run(&g, &[7], only_criteria(1), &mut ev).unwrap_err();
+    let err = pe_criteria::run(&g, &Schedule::plain(&[7]), only_criteria(1), &mut ev).unwrap_err();
     assert!(matches!(err, RunError::EmptyLibrary), "{err}");
 }
 
@@ -238,7 +248,7 @@ fn a_hand_bigger_than_the_library_is_refused_rather_than_answered_zero() {
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
         v.count_in(0, 0, Zone::Hand) >= 1
     })]);
-    let err = pe_criteria::run(&g, &[7], only_criteria(1), &mut ev).unwrap_err();
+    let err = pe_criteria::run(&g, &Schedule::plain(&[7]), only_criteria(1), &mut ev).unwrap_err();
     assert!(
         matches!(
             err,
@@ -271,7 +281,7 @@ fn every_path_of_a_run_is_accounted_for() {
     for (cards, gaps) in shapes {
         let g = Grouping::build(q(&["a", "b", "c"]), cards.iter().copied()).unwrap();
         let mut ev = Closures(vec![Box::new(|_: &PathView<'_>| true)]);
-        let r = pe_criteria::run(&g, gaps, only_criteria(1), &mut ev)
+        let r = pe_criteria::run(&g, &Schedule::plain(gaps), only_criteria(1), &mut ev)
             .unwrap()
             .probabilities;
         assert!(
@@ -308,7 +318,7 @@ fn an_expectation_reproduces_the_closed_form_mean() {
     let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| {
         v.count_in(0, 0, Zone::Hand)
     })]);
-    let r = pe_criteria::run(&g, &[7], only_expectations(1), &mut ev).unwrap();
+    let r = pe_criteria::run(&g, &Schedule::plain(&[7]), only_expectations(1), &mut ev).unwrap();
 
     let enumerated = r.distributions[0].mean();
     let closed = pe_stats::mean(99, 36, 7);
@@ -329,7 +339,7 @@ fn the_distribution_is_the_hypergeometric_bucket_for_bucket() {
     let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| {
         v.count_in(0, 0, Zone::Hand)
     })]);
-    let r = pe_criteria::run(&g, &[7], only_expectations(1), &mut ev).unwrap();
+    let r = pe_criteria::run(&g, &Schedule::plain(&[7]), only_expectations(1), &mut ev).unwrap();
     let d = &r.distributions[0];
 
     assert_eq!(
@@ -366,7 +376,8 @@ fn the_distribution_sums_to_one_across_shapes() {
                 v.count_in(0, 0, Zone::Hand) + v.count_in(0, 1, Zone::Hand)
             }),
         ]);
-        let r = pe_criteria::run(&g, gaps, only_expectations(2), &mut ev).unwrap();
+        let r =
+            pe_criteria::run(&g, &Schedule::plain(gaps), only_expectations(2), &mut ev).unwrap();
         for (i, d) in r.distributions.iter().enumerate() {
             assert!(
                 (d.total() - 1.0).abs() < 1e-12,
@@ -387,13 +398,19 @@ fn a_criterion_is_the_tail_of_the_expectation_beside_it() {
     let mut counting = Counters(vec![Box::new(|v: &PathView<'_>| {
         v.count_in(0, 0, Zone::Hand)
     })]);
-    let d = pe_criteria::run(&g, &[7], only_expectations(1), &mut counting).unwrap();
+    let d = pe_criteria::run(
+        &g,
+        &Schedule::plain(&[7]),
+        only_expectations(1),
+        &mut counting,
+    )
+    .unwrap();
     let tail: f64 = d.distributions[0].probabilities()[2..].iter().sum();
 
     let mut checking = Closures(vec![Box::new(|v: &PathView<'_>| {
         v.count_in(0, 0, Zone::Hand) >= 2
     })]);
-    let p = pe_criteria::run(&g, &[7], only_criteria(1), &mut checking).unwrap();
+    let p = pe_criteria::run(&g, &Schedule::plain(&[7]), only_criteria(1), &mut checking).unwrap();
 
     assert!(
         (tail - p.probabilities[0].get()).abs() < 1e-12,
@@ -427,7 +444,7 @@ fn an_evaluator_that_answers_the_wrong_shape_is_refused() {
     // title, which reads as a wrong number rather than as a bug.
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
     let mut ev = Closures(vec![Box::new(|_: &PathView<'_>| true)]);
-    let err = pe_criteria::run(&g, &[7], only_criteria(2), &mut ev).unwrap_err();
+    let err = pe_criteria::run(&g, &Schedule::plain(&[7]), only_criteria(2), &mut ev).unwrap_err();
     assert!(
         matches!(
             err,
@@ -451,4 +468,126 @@ fn an_expectation_carries_only_its_name() {
         name: "lands in opener".into(),
     };
     assert_eq!(e.name, "lands in opener");
+}
+
+// --- Effects --------------------------------------------------------------
+
+/// Five Loam, five surveil lands and twenty cards that are neither. Bit 0 is
+/// the Loam, bit 1 is *the effect applies to this card* — already resolved,
+/// which is how the engine always receives it.
+///
+/// Thirty cards rather than ten because a run with a look slot a turn turns
+/// over roughly twice as many as one without, and a deck that runs out is
+/// refused rather than answered.
+fn surveil_deck() -> Grouping {
+    Grouping::build(q(&["loam", "<effect>"]), [(0b01, 5), (0b10, 5), (0, 20)]).unwrap()
+}
+
+fn surveil(route: Route) -> Effect {
+    Effect {
+        matched_by: 1,
+        look: 1,
+        trigger: Trigger::LandDrop,
+        route,
+    }
+}
+
+#[test]
+fn a_look_that_routes_nothing_moves_nothing() {
+    // The default destination is a no-op, and it has to be exactly a no-op: a
+    // card left on top is the card the next draw takes, so looking at it and
+    // not moving it is indistinguishable from never having looked. If this ever
+    // stops holding, the standard library — which ships with no destinations at
+    // all — starts changing numbers nobody asked it to change.
+    let g = surveil_deck();
+    let tally = || {
+        Counters(vec![Box::new(|v: &PathView<'_>| {
+            v.count_in(3, 0, Zone::Hand)
+        })])
+    };
+    let plain = pe_criteria::run(
+        &g,
+        &Schedule::build(3, true, Vec::new()),
+        only_expectations(1),
+        &mut tally(),
+    )
+    .unwrap();
+    let looking = pe_criteria::run(
+        &g,
+        &Schedule::build(3, true, vec![surveil(Route::Nowhere)]),
+        only_expectations(1),
+        &mut tally(),
+    )
+    .unwrap();
+    // Bucket for bucket, to a tolerance rather than bitwise: the looking run
+    // enumerates twice as many checkpoints to reach the same answer, so the
+    // same probability is assembled from a different number of terms. The two
+    // agree to 1e-15, which is the log-gamma round trip and not the routing.
+    let (plain, looking) = (
+        plain.distributions[0].probabilities(),
+        looking.distributions[0].probabilities(),
+    );
+    assert_eq!(plain.len(), looking.len());
+    for (k, (a, b)) in plain.iter().zip(looking).enumerate() {
+        assert!((a - b).abs() < 1e-12, "P(exactly {k}) was {a} then {b}");
+    }
+}
+
+#[test]
+fn one_land_drop_a_turn_caps_how_deep_a_turn_can_get() {
+    // The reason the land-drop tier is bounded and the mana-gated tier is not.
+    // Holding five surveil lands on turn one plays one of them, so by turn T at
+    // most T cards can have been binned — whatever the deck, whatever the hand.
+    // A model that fired once per copy held would put five in the yard on turn
+    // one and the percentage would look entirely reasonable.
+    let g = surveil_deck();
+    for turn in 1..=3usize {
+        let mut ev = Counters(vec![Box::new(move |v: &PathView<'_>| {
+            v.count_in(turn, 0, Zone::Graveyard)
+        })]);
+        let r = pe_criteria::run(
+            &g,
+            &Schedule::build(turn as u32, true, vec![surveil(Route::Everything)]),
+            only_expectations(1),
+            &mut ev,
+        )
+        .unwrap();
+        let d = r.distributions[0].probabilities();
+        for (binned, p) in d.iter().enumerate() {
+            assert!(
+                binned <= turn || *p == 0.0,
+                "turn {turn} put {binned} in the yard with probability {p}"
+            );
+        }
+        assert!(
+            d.len() > 1 && d[1] > 0.0,
+            "and it is not vacuously capped: {d:?}"
+        );
+    }
+}
+
+#[test]
+fn a_routed_card_leaves_the_hand_and_the_library_for_the_yard() {
+    // The three zones partition the deck on every path, which is the invariant
+    // a routing bug breaks first: a card binned twice, or binned and still
+    // counted as drawn, shows up here and nowhere else.
+    let g = surveil_deck();
+    let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
+        v.count_in(3, 0, Zone::Hand)
+            + v.count_in(3, 0, Zone::Graveyard)
+            + v.count_in(3, 0, Zone::Library)
+            == 5
+    })]);
+    let r = pe_criteria::run(
+        &g,
+        &Schedule::build(3, true, vec![surveil(Route::Matching(0))]),
+        only_criteria(1),
+        &mut ev,
+    )
+    .unwrap();
+    assert!(
+        (r.probabilities[0].get() - 1.0).abs() < 1e-12,
+        "the partition held on only {} of the mass",
+        r.probabilities[0].get()
+    );
 }

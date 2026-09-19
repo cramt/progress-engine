@@ -1,0 +1,8 @@
+// Ten cards, one surveil land, one Loam. Small enough that every number this
+// deck produces can be worked out on paper, which is the only way to catch a
+// routing bug that is wrong by a factor of two and looks reasonable.
+
+1x Undercity Sewers [Land]
+8x Mountain [Land]
+
+1x Life from the Loam [Engine]

@@ -12,7 +12,7 @@
 //! errors. The acceptance test for touching any of this is the hypergeometric
 //! distribution, and it is enforced in this crate's tests.
 
-use pe_criteria::{Evaluator, Grouping, PathView, Plan};
+use pe_criteria::{Board, Evaluator, Grouping, PathView, Plan, Schedule};
 use pe_stats::{Distribution, DistributionBuilder};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -67,12 +67,13 @@ pub struct Sampled {
 /// checks.
 pub fn simulate<E>(
     grouping: &Grouping,
-    gaps: &[u32],
+    schedule: &Schedule,
     trials: u32,
     seed: u64,
     plan: Plan,
     evaluator: &mut impl Evaluator<Error = E>,
 ) -> Result<Sampled, SimError<E>> {
+    let gaps = schedule.gaps();
     let population = grouping.population();
     let total_draws: u32 = gaps.iter().sum();
     if total_draws > population {
@@ -103,6 +104,11 @@ pub fn simulate<E>(
         .collect();
 
     let mut rng = ChaCha8Rng::seed_from_u64(seed);
+    // The same `Board` the exact engine walks, from the same crate. A second
+    // implementation of *where the cards went* is exactly the disagreement the
+    // two engines exist to catch, so there is not one: this engine differs in
+    // how it produces a path and in nothing after that.
+    let mut board = Board::new(grouping, schedule);
     let groups = grouping.group_sizes().len();
     let mut hits: Vec<u32> = vec![0; plan.criteria];
     let mut histograms: Vec<DistributionBuilder> =
@@ -137,7 +143,8 @@ pub fn simulate<E>(
             checkpoint += 1;
         }
 
-        let view = PathView::new(grouping, &history);
+        board.walk(&history);
+        let view = PathView::new(&board);
         let results = evaluator.evaluate(&view).map_err(SimError::Evaluator)?;
         if results.held.len() != plan.criteria || results.counted.len() != plan.expectations {
             return Err(SimError::WrongShape {

@@ -1,0 +1,11 @@
+# The mana-gated tier, which is not built. Refused by name rather than fired on
+# the holding of the card.
+[[effect]]
+match = 'name:"Opt"'
+look = 1
+on = "cast"
+to_graveyard = "*"
+
+[[criterion]]
+name = "an outlet in the opener"
+require = [{ turn = 0, query = "t:land", min = 1 }]

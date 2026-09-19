@@ -17,6 +17,16 @@ pub struct Entry {
     pub qty: u32,
 }
 
+/// A grouping bit the caller computed itself, rather than one read off a query.
+///
+/// `members` is one flag per [`Library::entries`] position, so it is only
+/// meaningful beside the library it was built from — which is why it is passed
+/// straight into [`Library::grouping_for`] rather than stored anywhere.
+pub struct Marked {
+    pub label: String,
+    pub members: Vec<bool>,
+}
+
 /// A listed card that never enters the library, and which type made it so.
 pub struct Excluded {
     pub name: String,
@@ -132,8 +142,16 @@ impl Library {
             .collect()
     }
 
-    /// Group the library by which of `queries` each card matches.
-    pub fn grouping_for(&self, queries: &[String]) -> Result<Grouping> {
+    /// Group the library by which of `queries` each card matches, plus any
+    /// `marked` bits the caller worked out for itself.
+    ///
+    /// `marked` exists for the effect library. *Which effect applies to this
+    /// card* is not a query — it is the answer to several queries and a
+    /// last-wins rule — so it cannot be expressed as one, and handing the
+    /// engine the raw queries instead would make it re-decide the overlap on
+    /// every path. The bits land after the queries, so an index a criteria
+    /// clause already holds does not move.
+    pub fn grouping_for(&self, queries: &[String], marked: &[Marked]) -> Result<Grouping> {
         let parsed: Vec<_> = queries
             .iter()
             // Formatted in rather than layered as context: this error travels
@@ -144,7 +162,7 @@ impl Library {
             .map(|q| pe_scryfall::parse(q).map_err(|e| anyhow::anyhow!("in query {q:?}: {e}")))
             .collect::<Result<_>>()?;
 
-        let cards = self.entries.iter().map(|e| {
+        let cards = self.entries.iter().enumerate().map(|(card, e)| {
             let view = e.card.view(&e.categories);
             let mut mask = 0u64;
             for (i, q) in parsed.iter().enumerate() {
@@ -152,10 +170,20 @@ impl Library {
                     mask |= 1u64 << i;
                 }
             }
+            for (i, m) in marked.iter().enumerate() {
+                if m.members[card] {
+                    mask |= 1u64 << (queries.len() + i);
+                }
+            }
             (mask, e.qty)
         });
 
-        Grouping::build(queries.to_vec(), cards).map_err(|e: GroupingError| anyhow::anyhow!(e))
+        let names = queries
+            .iter()
+            .cloned()
+            .chain(marked.iter().map(|m| m.label.clone()))
+            .collect();
+        Grouping::build(names, cards).map_err(|e: GroupingError| anyhow::anyhow!(e))
     }
 
     /// How many library cards match a query, for the per-query breakdown.

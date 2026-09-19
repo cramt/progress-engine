@@ -147,8 +147,11 @@ fn a_zone_nothing_routes_a_card_into_is_called_out() {
     // The same failure as the empty query, arriving by a different door and
     // harder to spot: the query matches 36 lands, the criterion is well formed,
     // and the answer is still 0.00% for a reason that has nothing to do with
-    // the deck. Nothing routes a card to the graveyard yet, so every count in
-    // it is zero by construction, and a percentage cannot tell the reader that.
+    // the deck. No effect this run loaded routes a card to the graveyard, so
+    // every count in it is zero by construction, and a percentage cannot tell
+    // the reader that. The pair of this test is
+    // `routing_a_card_to_the_graveyard_switches_the_warning_off`, which is the
+    // same fixture deck with an effect that does.
     let out = run("graveyard.criteria.toml");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
@@ -164,8 +167,8 @@ fn a_zone_nothing_routes_a_card_into_is_called_out() {
         "should name the question that asked: {stderr}"
     );
     assert!(
-        stderr.contains("issues/17"),
-        "should say where routing is coming from: {stderr}"
+        stderr.contains("to_graveyard"),
+        "should say what would route a card there: {stderr}"
     );
     // The number is still reported. Refusing to print it would hide that the
     // question was asked at all, and the warning is what stops it reading as a
@@ -1012,5 +1015,341 @@ fn a_refused_query_says_what_it_would_have_accepted() {
     assert!(
         stderr.contains("phyrexian"),
         "lists the properties it does support: {stderr}"
+    );
+}
+
+// --- The effect library ---------------------------------------------------
+
+fn run_loam(criteria: &str) -> std::process::Output {
+    run_with("loam.txt", criteria, "loam-index.jsonl")
+}
+
+fn run_with(deck: &str, criteria: &str, index: &str) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+        .arg("test")
+        .arg(fixture(deck))
+        .arg(fixture(criteria))
+        .arg("--index")
+        .arg(fixture(index))
+        .output()
+        .expect("binary should run")
+}
+
+#[test]
+fn the_standard_library_matches_nothing_in_the_fixture_index() {
+    // Checked rather than assumed, because the regression numbers below depend
+    // on it. The index is hand-written and carries no oracle tags, so every
+    // `otag:` entry in the standard library matches nothing here -- and the day
+    // somebody adds tags to this fixture, this test says so before the
+    // percentages move for a reason nobody looked for.
+    let out = run("otag.criteria.toml");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    for q in json["queries"].as_array().unwrap() {
+        assert_eq!(q["cards"], 0, "{} should match nothing here", q["query"]);
+    }
+}
+
+#[test]
+fn the_autoloading_library_does_not_move_the_known_numbers() {
+    // The regression anchor for the whole feature. The standard library loads
+    // on every run without anybody asking, so the first thing it has to prove
+    // is that it changed nothing: same four percentages, same two means.
+    let out = run("simple-ramp.criteria.toml");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert!((percent(&json, "keepable opener (2-5 lands)") - 78.97).abs() < 0.01);
+    assert!((percent(&json, "turn-1 accelerant") - 51.04).abs() < 0.01);
+    assert!((percent(&json, "commander on turn 2") - 44.29).abs() < 0.01);
+    assert!((percent(&json, "any ramp by turn 3") - 94.39).abs() < 0.01);
+    let means: Vec<f64> = json["expectations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["mean"].as_f64().unwrap())
+        .collect();
+    assert_eq!(means, vec![2.5455, 2.3636]);
+
+    // And nothing applied, so nothing is claimed. An entry that matched no card
+    // said nothing about this deck and does not get to appear as though it did.
+    assert_eq!(json["effects"].as_array().unwrap().len(), 0);
+}
+
+#[test]
+fn a_standard_library_entry_matching_nothing_is_silent() {
+    // The contrast with `a_query_matching_no_cards_is_called_out`. A query in
+    // the user's file matching nothing is a typo worth shouting about; a
+    // standard library entry matching nothing is most decks, and a note about
+    // it on every run is noise about a question nobody asked.
+    let out = run("simple-ramp.criteria.toml");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !stderr.contains("otag:surveil"),
+        "the library should not narrate itself: {stderr}"
+    );
+    assert!(!stderr.contains("effect"), "stderr was: {stderr}");
+}
+
+#[test]
+fn a_hand_written_effect_matching_nothing_is_called_out() {
+    // And the other side of that contrast: an effect the user wrote themselves
+    // that picks out no card is the same confident-zero failure as a query that
+    // does, so it gets the same note.
+    let out = run("unmatched-effect.criteria.toml");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("effect \"name:\\\"Undercity Sewers\\\"\" matched no cards"),
+        "stderr was: {stderr}"
+    );
+}
+
+#[test]
+fn routing_is_exact_on_a_deck_small_enough_to_check_by_hand() {
+    // Ten cards, one surveil land, one Loam, turn 2 on the play. Worked out on
+    // paper from the shuffled positions:
+    //
+    //   binned  = P(Sewers in 1-7, Loam at 8) + P(Sewers at 8, Loam at 9)
+    //           = (1/10)(7/9) + (1/10)(1/9) = 8/90
+    //   in hand = P(Loam in 1-8) - P(Loam at 8, Sewers in 1-7)
+    //           = 8/10 - 7/90 = 65/90
+    //   library = the rest, 17/90
+    //
+    // The second binning term is the one a naive model misses: the Sewers drawn
+    // on turn 2 is played on turn 2, and it surveils the card behind it.
+    let out = run_with(
+        "surveil-tiny.txt",
+        "surveil-tiny.criteria.toml",
+        "loam-index.jsonl",
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let binned = percent(&json, "loam binned by turn 2");
+    let hand = percent(&json, "loam in hand by turn 2");
+    let library = percent(&json, "loam still in the library by turn 2");
+    assert!((binned - 800.0 / 90.0).abs() < 0.01, "binned was {binned}");
+    assert!((hand - 6500.0 / 90.0).abs() < 0.01, "in hand was {hand}");
+    assert!(
+        (library - 1700.0 / 90.0).abs() < 0.01,
+        "library was {library}"
+    );
+    // One Loam, three zones, so they partition it. A routing bug that dropped a
+    // card or counted it twice would break this without breaking any one of the
+    // three above on its own.
+    assert!(
+        (binned + hand + library - 100.0).abs() < 1e-6,
+        "{binned} + {hand} + {library}"
+    );
+}
+
+#[test]
+fn a_surveil_land_puts_loam_in_the_yard() {
+    // HANDS.md hand 9, the Life from the Loam north star: the surveil fires on
+    // the land drop, the Loam on top is binned, and the graveyard is a zone the
+    // criterion can ask about. This number was 0.00% by construction until
+    // routing existed.
+    let out = run_loam("loam-yard.criteria.toml");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let yard = percent(&json, "loam in the yard by turn 5");
+    assert!(yard > 0.0, "the yard should be reachable now: {yard}");
+    assert!(yard < 100.0, "and it is not a certainty either: {yard}");
+}
+
+#[test]
+fn routing_a_card_to_the_graveyard_switches_the_warning_off() {
+    // The pair of `a_zone_nothing_routes_a_card_into_is_called_out`. A warning
+    // that keeps firing once the thing it warns about is fixed is a permanent
+    // false alarm, and one that never fires is a lie waiting to happen -- so
+    // both directions are asserted, against the same zone in the same run.
+    let routed = run_loam("loam-yard.criteria.toml");
+    let stderr = String::from_utf8_lossy(&routed.stderr);
+    assert!(
+        !stderr.contains("nothing routes a card to the graveyard"),
+        "an effect routes one there now: {stderr}"
+    );
+    let json: serde_json::Value = serde_json::from_slice(&routed.stdout).unwrap();
+    let yard = json["zones"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|z| z["zone"] == "graveyard")
+        .expect("the graveyard is asked about");
+    assert_eq!(yard["reachable"], true);
+
+    // The same deck and the same card with no destination declared: the look
+    // still happens and every card it sees stays on top, so the graveyard is
+    // unreachable again and says so.
+    let unrouted = run_loam("loam-hand.criteria.toml");
+    let stderr = String::from_utf8_lossy(&unrouted.stderr);
+    assert!(
+        stderr.contains("nothing routes a card to the graveyard"),
+        "nothing routes one here: {stderr}"
+    );
+    let json: serde_json::Value = serde_json::from_slice(&unrouted.stdout).unwrap();
+    let yard = json["zones"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|z| z["zone"] == "graveyard")
+        .expect("the graveyard is asked about");
+    assert_eq!(yard["reachable"], false);
+}
+
+#[test]
+fn the_same_card_routed_the_other_way_keeps_loam_in_hand() {
+    // HANDS.md hand 10. Same deck, same surveil land, opposite routing, and the
+    // answer moves -- which is the whole argument for routing being part of the
+    // question rather than part of the card.
+    //
+    // The unrouted run is also the control: with every looked-at card left on
+    // top, nothing has changed about which cards arrive when, so it has to
+    // reproduce the closed form exactly. Eleven cards seen of sixty, four Loam.
+    let kept: serde_json::Value =
+        serde_json::from_slice(&run_loam("loam-hand.criteria.toml").stdout).unwrap();
+    let binned: serde_json::Value =
+        serde_json::from_slice(&run_loam("loam-yard.criteria.toml").stdout).unwrap();
+
+    let closed = (1.0 - pe_stats::pmf(60, 4, 11, 0)) * 100.0;
+    let in_hand = percent(&kept, "loam in hand by turn 5");
+    assert!(
+        (in_hand - closed).abs() < 0.01,
+        "a look that routes nothing must move nothing: {in_hand} vs {closed}"
+    );
+    assert!(
+        percent(&binned, "loam in hand by turn 5") < in_hand,
+        "a Loam in the yard is a Loam not in hand"
+    );
+    assert_eq!(percent(&kept, "loam in the yard by turn 5"), 0.0);
+}
+
+#[test]
+fn both_engines_apply_effects_identically() {
+    // The third place the two engines are held to each other, now for routing.
+    // `pe_sim` is generic over `Evaluator` and never mentions an effect, which
+    // is either why it cannot disagree or why it would ignore effects silently
+    // -- and only a clause whose answer *moves* with the feature tells those
+    // apart. The graveyard clause here is 4.9%, not 0%, so a sampler that
+    // ignored routing would miss by every point of it.
+    let exact: serde_json::Value =
+        serde_json::from_slice(&run_loam("loam-yard.criteria.toml").stdout).unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+        .arg("test")
+        .arg(fixture("loam.txt"))
+        .arg(fixture("loam-yard.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("loam-index.jsonl"))
+        .args(["--simulate", "--trials", "200000", "--seed", "5"])
+        .output()
+        .expect("binary should run");
+    let sampled: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+
+    for c in sampled["criteria"].as_array().unwrap() {
+        let name = c["name"].as_str().unwrap();
+        let got = c["percent"].as_f64().unwrap();
+        let se = c["standard_error"].as_f64().unwrap() * 100.0;
+        let want = percent(&exact, name);
+        assert!(se > 0.0, "{name} is vacuous in the sampler");
+        assert!(
+            (got - want).abs() < 4.0 * se,
+            "{name}: sampled {got} vs exact {want}, {:.2} SE away",
+            (got - want).abs() / se
+        );
+    }
+    // And the distribution of how many got binned, bucket for bucket.
+    let want = exact["expectations"][0]["mean"].as_f64().unwrap();
+    let got = sampled["expectations"][0]["mean"].as_f64().unwrap();
+    let se = sampled["expectations"][0]["standard_error"]
+        .as_f64()
+        .unwrap();
+    assert!(want > 0.0, "a mean of zero would prove nothing");
+    assert!(
+        (got - want).abs() < 4.0 * se,
+        "sampled {got} vs exact {want}"
+    );
+}
+
+#[test]
+fn the_run_says_which_effect_applied_to_which_card() {
+    // The condition attached to last-wins. Assuming the library is true is a
+    // reasonable stance; assuming it is true with no way to see what it did is
+    // not, because the first question about a surprising number is what the
+    // tool thought the cards do.
+    let out = run_loam("loam-yard.criteria.toml");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let effects = json["effects"].as_array().unwrap();
+    assert_eq!(effects.len(), 1, "{effects:?}");
+    assert_eq!(effects[0]["match"], "t:land otag:surveil");
+    assert_eq!(effects[0]["look"], 1);
+    assert_eq!(effects[0]["on"], "landdrop");
+    assert_eq!(effects[0]["cards"][0], "Undercity Sewers");
+    assert_eq!(effects[0]["copies"], 4);
+    assert_eq!(effects[0]["live"], true);
+    // And in front of a human, because the library autoloads: nobody asked for
+    // this effect, so the run mentions it unprompted.
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("Undercity Sewers") && stderr.contains("look 1"),
+        "stderr was: {stderr}"
+    );
+}
+
+#[test]
+fn a_users_effect_overrides_the_standard_library_for_the_cards_it_names() {
+    // Last-wins, per card. The standard library declares `t:land otag:surveil`
+    // with no destination; the file declares the same query with one. Both
+    // match Undercity Sewers, one entry reports it, and the destination is the
+    // later one -- so overriding the library needs no override syntax to exist.
+    let out = run_loam("loam-yard.criteria.toml");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let effects = json["effects"].as_array().unwrap();
+    assert_eq!(
+        effects.len(),
+        1,
+        "stacked instead of overriding: {effects:?}"
+    );
+    assert_eq!(effects[0]["to_graveyard"], "name:\"Life from the Loam\"");
+    assert!(
+        effects[0]["source"].as_str().unwrap().contains("loam-yard"),
+        "the later declaration wins: {effects:?}"
+    );
+    // And it looks one card, not two. Stacking would be a confidently wrong
+    // number of exactly the shape this project exists to prevent.
+    assert_eq!(effects[0]["look"], 1);
+}
+
+#[test]
+fn an_effect_that_is_not_a_land_drop_is_refused_by_name() {
+    // The mana-gated tier is two open issues deep, and an effect that fires
+    // whenever you hold the card overstates the turn by however many copies you
+    // are holding. Refused rather than approximated.
+    let out = run("cast-effect.criteria.toml");
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("\"cast\""), "should name it: {stderr}");
+    assert!(
+        stderr.contains("issues/10"),
+        "should say what it is waiting for: {stderr}"
+    );
+}
+
+#[test]
+fn the_effect_library_is_named_in_the_provenance() {
+    // An input that moves the numbers and that nobody edited. Without it, a
+    // percentage that changed because the shipped library changed is
+    // indistinguishable from one that changed because the deck did.
+    let out = run("simple-ramp.criteria.toml");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let hash = json["provenance"]["effect_library_sha256"]
+        .as_str()
+        .expect("the effect library is provenance");
+    assert_eq!(hash.len(), 64, "a sha256, like the other two: {hash}");
+    // A different deck, the same library: the hash is about the library.
+    let other: serde_json::Value =
+        serde_json::from_slice(&run_loam("loam-hand.criteria.toml").stdout).unwrap();
+    assert_eq!(other["provenance"]["effect_library_sha256"], hash);
+    assert_ne!(
+        other["provenance"]["deck_sha256"],
+        json["provenance"]["deck_sha256"]
     );
 }

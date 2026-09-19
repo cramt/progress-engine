@@ -1,0 +1,13 @@
+// The Life from the Loam north star as a sixty-card deck, small enough that the
+// enumeration over a look slot a turn is still instant.
+//
+// Four surveil lands, four Loam, and fifty-two cards that are neither. The
+// interesting question is not whether Loam is findable -- it is which zone it
+// is findable in, and HANDS.md hands 9 and 10 are the same deck asked both
+// ways.
+
+4x Undercity Sewers [Land]
+22x Mountain [Land]
+
+4x Life from the Loam [Engine]
+30x Lightning Bolt [Burn]

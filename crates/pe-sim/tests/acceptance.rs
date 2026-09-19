@@ -8,7 +8,7 @@
 
 use std::convert::Infallible;
 
-use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan, Zone};
+use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan, Schedule, Zone};
 use pe_sim::{mean_standard_error, simulate, standard_error, SimError};
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
@@ -75,9 +75,16 @@ fn the_shuffler_reproduces_the_documented_land_distribution() {
             .map(|k| Box::new(move |v: &PathView<'_>| v.count_in(0, 0, Zone::Hand) >= k) as Check)
             .collect(),
     );
-    let at_least = simulate(&g, &[7], TRIALS, 0xC0FFEE, only_criteria(8), &mut ev)
-        .unwrap()
-        .proportions;
+    let at_least = simulate(
+        &g,
+        &Schedule::plain(&[7]),
+        TRIALS,
+        0xC0FFEE,
+        only_criteria(8),
+        &mut ev,
+    )
+    .unwrap()
+    .proportions;
 
     let pmf: Vec<f64> = (0..=7)
         .map(|k| at_least[k] - at_least.get(k + 1).copied().unwrap_or(0.0))
@@ -119,9 +126,16 @@ fn sampling_agrees_with_the_exact_engine() {
         let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
             v.count_in(0, 0, Zone::Hand) >= 1 && v.count_in(0, 1, Zone::Hand) >= 1
         })]);
-        let sampled = simulate(&g, &[draws], TRIALS, 42, only_criteria(1), &mut ev)
-            .unwrap()
-            .proportions[0];
+        let sampled = simulate(
+            &g,
+            &Schedule::plain(&[draws]),
+            TRIALS,
+            42,
+            only_criteria(1),
+            &mut ev,
+        )
+        .unwrap()
+        .proportions[0];
 
         let se = standard_error(sampled, TRIALS);
         assert!(
@@ -145,9 +159,16 @@ fn checkpoints_agree_with_the_exact_engine() {
             && v.count_in(0, 1, Zone::Hand) >= 1
             && v.count_in(1, 0, Zone::Hand) >= 2
     })]);
-    let sampled = simulate(&g, &[7, 1], TRIALS, 7, only_criteria(1), &mut ev)
-        .unwrap()
-        .proportions[0];
+    let sampled = simulate(
+        &g,
+        &Schedule::plain(&[7, 1]),
+        TRIALS,
+        7,
+        only_criteria(1),
+        &mut ev,
+    )
+    .unwrap()
+    .proportions[0];
 
     let se = standard_error(sampled, TRIALS);
     assert!(
@@ -164,9 +185,16 @@ fn the_same_seed_deals_the_same_hands() {
         let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
             v.count_in(0, 0, Zone::Hand) >= 3
         })]);
-        simulate(&g, &[7], 5_000, seed, only_criteria(1), &mut ev)
-            .unwrap()
-            .proportions[0]
+        simulate(
+            &g,
+            &Schedule::plain(&[7]),
+            5_000,
+            seed,
+            only_criteria(1),
+            &mut ev,
+        )
+        .unwrap()
+        .proportions[0]
     };
     assert_eq!(run(123), run(123));
     assert_ne!(
@@ -182,9 +210,16 @@ fn drawing_the_whole_library_is_not_an_infinite_loop() {
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
         v.count_in(0, 0, Zone::Hand) == 4
     })]);
-    let p = simulate(&g, &[10], 100, 1, only_criteria(1), &mut ev)
-        .unwrap()
-        .proportions[0];
+    let p = simulate(
+        &g,
+        &Schedule::plain(&[10]),
+        100,
+        1,
+        only_criteria(1),
+        &mut ev,
+    )
+    .unwrap()
+    .proportions[0];
     assert_eq!(p, 1.0, "drawing every card must find every land");
 }
 
@@ -196,7 +231,15 @@ fn a_hand_bigger_than_the_library_is_refused_rather_than_clamped() {
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
         v.count_in(0, 0, Zone::Hand) >= 1
     })]);
-    let err = simulate(&g, &[7], 100, 1, only_criteria(1), &mut ev).unwrap_err();
+    let err = simulate(
+        &g,
+        &Schedule::plain(&[7]),
+        100,
+        1,
+        only_criteria(1),
+        &mut ev,
+    )
+    .unwrap_err();
     assert!(
         matches!(
             err,
@@ -208,7 +251,8 @@ fn a_hand_bigger_than_the_library_is_refused_rather_than_clamped() {
         "{err}"
     );
 
-    let exact = pe_criteria::run(&g, &[7], only_criteria(1), &mut ev).unwrap_err();
+    let exact =
+        pe_criteria::run(&g, &Schedule::plain(&[7]), only_criteria(1), &mut ev).unwrap_err();
     assert_eq!(
         exact.to_string(),
         err.to_string(),
@@ -223,7 +267,7 @@ fn zero_trials_is_refused_rather_than_divided_by() {
         v.count_in(0, 0, Zone::Hand) >= 1
     })]);
     assert!(matches!(
-        simulate(&g, &[7], 0, 1, only_criteria(1), &mut ev).unwrap_err(),
+        simulate(&g, &Schedule::plain(&[7]), 0, 1, only_criteria(1), &mut ev).unwrap_err(),
         SimError::NoTrials
     ));
 }
@@ -244,14 +288,26 @@ fn a_checkpoint_reached_before_any_draw_sees_an_empty_hand() {
     };
     // Nothing before the draw, the land after it, and a trailing gap of zero
     // that must not lose it again.
-    let sampled = simulate(&g, &[0, 1, 0], 100, 1, only_criteria(3), &mut criteria())
-        .unwrap()
-        .proportions;
+    let sampled = simulate(
+        &g,
+        &Schedule::plain(&[0, 1, 0]),
+        100,
+        1,
+        only_criteria(3),
+        &mut criteria(),
+    )
+    .unwrap()
+    .proportions;
     assert_eq!(sampled, vec![0.0, 1.0, 1.0], "{sampled:?}");
 
-    let exact = pe_criteria::run(&g, &[0, 1, 0], only_criteria(3), &mut criteria())
-        .unwrap()
-        .probabilities;
+    let exact = pe_criteria::run(
+        &g,
+        &Schedule::plain(&[0, 1, 0]),
+        only_criteria(3),
+        &mut criteria(),
+    )
+    .unwrap()
+    .probabilities;
     let exact: Vec<f64> = exact.iter().map(|p| p.get()).collect();
     assert_eq!(exact, sampled, "same question, same answer");
 }
@@ -266,7 +322,15 @@ fn the_sampled_distribution_reproduces_the_documented_land_distribution() {
     let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| {
         v.count_in(0, 0, Zone::Hand)
     })]);
-    let sampled = simulate(&g, &[7], TRIALS, 0xC0FFEE, only_expectations(1), &mut ev).unwrap();
+    let sampled = simulate(
+        &g,
+        &Schedule::plain(&[7]),
+        TRIALS,
+        0xC0FFEE,
+        only_expectations(1),
+        &mut ev,
+    )
+    .unwrap();
     let d = &sampled.distributions[0];
 
     let tolerance = 3.0 * 1.2331 / f64::from(TRIALS).sqrt();
@@ -314,10 +378,16 @@ fn expectations_agree_with_the_exact_engine() {
         ])
     };
 
-    let exact = pe_criteria::run(&g, &[7, 1], only_expectations(2), &mut counters()).unwrap();
+    let exact = pe_criteria::run(
+        &g,
+        &Schedule::plain(&[7, 1]),
+        only_expectations(2),
+        &mut counters(),
+    )
+    .unwrap();
     let sampled = simulate(
         &g,
-        &[7, 1],
+        &Schedule::plain(&[7, 1]),
         TRIALS,
         11,
         only_expectations(2),

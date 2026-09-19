@@ -1,0 +1,13 @@
+# A hand-written effect whose match picks out nothing. The same failure as a
+# criteria query that matches nothing, and it gets the same note -- unlike a
+# standard library entry, which matches nothing in most decks and says so to
+# nobody.
+[[effect]]
+match = 'name:"Undercity Sewers"'
+look = 1
+on = "landdrop"
+to_graveyard = "*"
+
+[[criterion]]
+name = "a land in the opener"
+require = [{ turn = 0, query = "t:land", min = 1 }]

@@ -29,16 +29,21 @@ made up — if you can write it down, it can be asked about.
 
 ## The north stars
 
-Two real decks, both of which the tool cannot answer today. When it can, it
-works.
+Two real decks. When the tool can answer both, it works. One of them it now
+can.
 
 **Lantern control.** *How often do I have Lantern of Insight by turn 5?* Needs
 the filtering that surveil lands provide to count toward how deep a turn sees.
+The filtering half is expressible: a surveil that routes everything you do not
+want to the graveyard digs one card deeper each turn it fires. What is still
+open is which zone the question means — *in hand* is answerable and *on the
+battlefield* is the mana model, and HANDS 12 is that difference as a hand.
 
 **Life from the Loam.** *How often is Loam in my graveyard by turn 5?* Needs the
 graveyard to be a thing you can ask about, and needs surveilling a card into the
 yard to count as a route there — because for this deck it is the *good* route,
-not a consolation prize.
+not a consolation prize. **Answerable**, as of the effect library and land-drop
+routing.
 
 Neither needs a mana model. Both are reachable.
 
@@ -162,6 +167,12 @@ The library ships with the tool and loads as a prelude — the same `[[effect]]`
 syntax a brewer writes for the one niche card nobody thought of. Not special
 machinery, just entries that load first.
 
+Shipped, for the land-drop tier. What the library declares is what a card
+*looks at*; where the looked-at cards go is declared in the file that asks the
+question, because the same surveil land wants Loam in the yard for one deck and
+on top of the library for another. An entry that named a destination would be
+this tool answering something nobody asked it.
+
 ### One mechanism for selection
 
 Scry, surveil, mulligan bottoming, tutoring and milling are one concept: **a
@@ -175,6 +186,15 @@ The policy is a **router**, not a filter. Each looked-at card goes to a declared
 destination, and a criterion asks about whichever destination it was routed to.
 Framing it as keep-versus-discard is wrong: for a Loam deck the discard pile is
 the win condition.
+
+Shipped for the land-drop tier, which is the tier that needs no mana: `look = n`
+examines the top *n* cards, `to_graveyard` names which of them leave, and the
+rest stay on top and arrive in hand next turn. A card left on top is the card
+the next draw takes, so a look that routes nothing is exactly a no-op — which
+is the honest answer when nobody has said where the cards should go, and the
+reason the shipped library can autoload without moving a single number.
+Mulligan bottoming and the budget's spell priority are the same mechanism with
+a different resource, and are not built.
 
 ### Mana
 
@@ -210,10 +230,11 @@ this turn" is. Every number printed before zones existed silently meant *in
 hand*, and for a graveyard deck that is the wrong question asked confidently.
 
 A clause now names its zone, and silence still means `hand` so that no file
-written before this moves. `graveyard` is askable and is correctly always empty
-until something routes a card there, and the run says so rather than letting
-that zero pass for a measurement. `battlefield` is refused by name: it would
-have to know what you could cast, and that is the mana model.
+written before this moves. `graveyard` is askable, and reachable exactly when
+some effect in the run routes a card there; in a run where none does it is
+correctly empty and the run says so rather than letting that zero pass for a
+measurement. `battlefield` is refused by name: it would have to know what you
+could cast, and that is the mana model.
 
 ## Who it is for
 
@@ -237,8 +258,15 @@ through the front door.
 - Oracle tags are fetched at sync time and dated ([#41](https://github.com/cramt/progress-engine/issues/41)) — shipped.
 - Mulligan bottoming is a declared priority list ([#7](https://github.com/cramt/progress-engine/issues/7)).
 - The effect library ships, autoloads as a prelude, and is keyed on queries
-  ([#43](https://github.com/cramt/progress-engine/issues/43)).
-- Overlapping effects resolve last-wins, per card.
+  ([#43](https://github.com/cramt/progress-engine/issues/43)) — shipped.
+- Overlapping effects resolve last-wins, per card — shipped.
+- Selection is a router over a declared priority, and the land-drop tier ships
+  first because one drop a turn bounds it
+  ([#17](https://github.com/cramt/progress-engine/issues/17)) — shipped. The
+  mana-gated tier is refused by name until
+  [#10](https://github.com/cramt/progress-engine/issues/10).
+- The standard library declares what a card looks at and never where the cards
+  go, because the destination is part of the question.
 - A mana model is in scope, staged gate-first then budget
   ([#10](https://github.com/cramt/progress-engine/issues/10)).
 - A criterion names the zone it asks about, silence means `hand`, and

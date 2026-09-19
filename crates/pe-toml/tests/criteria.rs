@@ -8,8 +8,11 @@
 //! unanswerable refuses instead, and that the exact and sampled engines running
 //! the same file still agree.
 
-use pe_criteria::{Grouping, Outcomes, RunError, Zone, ZoneError};
-use pe_toml::{Criteria, ErrorKind, MAX_TURN};
+use pe_criteria::{Grouping, Outcomes, RunError, Schedule, Trigger, Zone, ZoneError};
+use pe_toml::{
+    Criteria, Destination, EffectLibrary, ErrorKind, MAX_TURN, STANDARD_LIBRARY,
+    STANDARD_LIBRARY_ORIGIN,
+};
 
 /// A synthetic library where every query the file names has cards of its own
 /// and nothing overlaps: `each` copies per query, the rest matching nothing.
@@ -22,10 +25,10 @@ fn grouping_for(criteria: &Criteria, each: u32) -> Grouping {
 }
 
 /// The opening seven, then one card per turn up to whatever the file asked for.
-fn gaps(criteria: &Criteria) -> Vec<u32> {
-    let mut gaps = vec![7];
-    gaps.extend(std::iter::repeat_n(1, criteria.horizon() as usize));
-    gaps
+fn schedule(criteria: &Criteria) -> Schedule {
+    // On the draw, so every turn past the opener sees one more card and the
+    // helper does not have to special-case turn one.
+    Schedule::build(criteria.horizon(), true, Vec::new())
 }
 
 fn parse(source: &str) -> Criteria {
@@ -41,9 +44,9 @@ fn refuse(source: &str) -> ErrorKind {
 fn run_exact(source: &str, each: u32) -> Outcomes {
     let mut criteria = parse(source);
     let grouping = grouping_for(&criteria, each);
-    let gaps = gaps(&criteria);
+    let schedule = schedule(&criteria);
     let plan = criteria.plan();
-    pe_criteria::run(&grouping, &gaps, plan, &mut criteria).expect("should run")
+    pe_criteria::run(&grouping, &schedule, plan, &mut criteria).expect("should run")
 }
 
 fn percent(outcomes: &Outcomes, index: usize) -> f64 {
@@ -288,9 +291,9 @@ fn a_question_too_wide_to_enumerate_names_every_query_it_asks_about() {
         "#,
     );
     let grouping = grouping_for(&criteria, 6);
-    let gaps = gaps(&criteria);
+    let schedule = schedule(&criteria);
     let plan = criteria.plan();
-    let err = pe_criteria::run(&grouping, &gaps, plan, &mut criteria).expect_err("too wide");
+    let err = pe_criteria::run(&grouping, &schedule, plan, &mut criteria).expect_err("too wide");
     assert!(matches!(err, RunError::TooWide { .. }), "{err}");
     let msg = err.to_string();
     for query in ["a", "b", "c", "d", "e", "f", "g"] {
@@ -344,13 +347,13 @@ fn the_exact_and_sampled_engines_answer_the_same_file_the_same_way() {
     "#;
     let mut criteria = parse(source);
     let grouping = grouping_for(&criteria, 8);
-    let gaps = gaps(&criteria);
+    let schedule = schedule(&criteria);
     let plan = criteria.plan();
 
-    let exact = pe_criteria::run(&grouping, &gaps, plan, &mut criteria).expect("exact");
+    let exact = pe_criteria::run(&grouping, &schedule, plan, &mut criteria).expect("exact");
     let trials = 200_000;
     let sampled =
-        pe_sim::simulate(&grouping, &gaps, trials, 7, plan, &mut criteria).expect("sampled");
+        pe_sim::simulate(&grouping, &schedule, trials, 7, plan, &mut criteria).expect("sampled");
 
     for (i, want) in exact.probabilities.iter().enumerate() {
         let got = sampled.proportions[i];
@@ -742,4 +745,240 @@ fn the_file_names_itself_in_every_refusal() {
         err.to_string().starts_with("decks/goblins.criteria.toml: "),
         "{err}"
     );
+}
+
+// --- Effects --------------------------------------------------------------
+
+#[test]
+fn an_effect_is_read_off_the_same_file_as_the_questions() {
+    // `[[effect]]` lives in the criteria file because it is part of the
+    // question: the same surveil land wants the Loam in the yard for one deck
+    // and in hand for another, and only the file knows which deck it is.
+    let criteria = parse(
+        r#"
+        [[effect]]
+        match = "t:land otag:surveil"
+        look = 1
+        on = "landdrop"
+        to_graveyard = 'name:"Life from the Loam"'
+
+        [[criterion]]
+        name = "loam in the yard"
+        require = [{ turn = 5, query = 'cat:"arm"', zone = "graveyard", min = 1 }]
+        "#,
+    );
+    let effects = criteria.effects().entries();
+    assert_eq!(effects.len(), 1);
+    assert_eq!(effects[0].matches, "t:land otag:surveil");
+    assert_eq!(effects[0].look, 1);
+    assert_eq!(effects[0].trigger, Trigger::LandDrop);
+    assert_eq!(
+        effects[0].to_graveyard,
+        Some(Destination::Matching("name:\"Life from the Loam\"".into()))
+    );
+    // The effect's queries are not the file's queries. They are not questions,
+    // so a query breakdown that listed them would be reporting on something
+    // nobody asked about.
+    assert_eq!(criteria.queries(), &["cat:\"arm\""]);
+}
+
+#[test]
+fn a_look_with_no_destination_is_the_default() {
+    // A refusal to guess rather than a missing feature: nobody has said where
+    // the looked-at card should go, and every answer to that is somebody's
+    // question rather than the card's property.
+    let criteria = parse(
+        r#"
+        [[effect]]
+        match = "t:land otag:surveil"
+        look = 1
+        on = "landdrop"
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    assert_eq!(criteria.effects().entries()[0].to_graveyard, None);
+}
+
+#[test]
+fn a_star_routes_everything_which_is_what_mill_is() {
+    let criteria = parse(
+        r#"
+        [[effect]]
+        match = 't:land'
+        look = 2
+        on = "landdrop"
+        to_graveyard = "*"
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    assert_eq!(
+        criteria.effects().entries()[0].to_graveyard,
+        Some(Destination::Everything)
+    );
+}
+
+#[test]
+fn a_trigger_that_is_not_a_land_drop_is_refused_by_name() {
+    // Only the land-drop tier is modelled, because only it is free and capped
+    // at one a turn. Casting needs to know you could pay, and an opening hand
+    // of one Island and six Opt casts one Opt.
+    let with = |on: &str| {
+        refuse(&format!(
+            r#"
+            [[effect]]
+            match = 'name:"Opt"'
+            look = 1
+            on = "{on}"
+
+            [[criterion]]
+            name = "anything"
+            require = [{{ turn = 0, query = 'cat:"arm"', min = 1 }}]
+            "#
+        ))
+    };
+    let mana = with("cast");
+    assert!(matches!(&mana, ErrorKind::BadTrigger { .. }), "{mana:?}");
+    assert!(
+        mana.to_string().contains("issues/10"),
+        "should say what it waits on: {mana}"
+    );
+    let unknown = with("upkeep");
+    assert!(
+        unknown.to_string().contains("landdrop"),
+        "should list what it takes: {unknown}"
+    );
+}
+
+#[test]
+fn an_effect_that_examines_nothing_is_refused() {
+    // `look = 0` is a model of a card doing nothing, which is not a model of
+    // any card; and a look deep enough to redraw the library is a typo rather
+    // than a question.
+    let with = |look: i64| {
+        refuse(&format!(
+            r#"
+            [[effect]]
+            match = 't:land'
+            look = {look}
+            on = "landdrop"
+
+            [[criterion]]
+            name = "anything"
+            require = [{{ turn = 0, query = 'cat:"arm"', min = 1 }}]
+            "#
+        ))
+    };
+    assert!(matches!(with(0), ErrorKind::BadLook { .. }));
+    assert!(matches!(with(-1), ErrorKind::BadLook { .. }));
+    assert!(matches!(with(400), ErrorKind::BadLook { .. }));
+}
+
+#[test]
+fn an_effect_missing_a_key_says_which_one() {
+    let without_match = refuse(
+        r#"
+        [[effect]]
+        look = 1
+        on = "landdrop"
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    assert!(
+        without_match.to_string().contains("`match`"),
+        "{without_match}"
+    );
+    let without_look = refuse(
+        r#"
+        [[effect]]
+        match = 't:land'
+        on = "landdrop"
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    assert!(
+        without_look.to_string().contains("`look`"),
+        "{without_look}"
+    );
+}
+
+#[test]
+fn the_standard_library_is_a_criteria_file_like_any_other() {
+    // Not special machinery: the same parser, the same tables, the same
+    // validation. A brewer with a card nobody thought of writes the same thing
+    // this file writes.
+    let std = EffectLibrary::parse(STANDARD_LIBRARY, STANDARD_LIBRARY_ORIGIN)
+        .expect("the shipped library must parse");
+    assert!(!std.is_empty(), "a library with nothing in it is not one");
+    for entry in std.entries() {
+        assert_eq!(
+            entry.trigger,
+            Trigger::LandDrop,
+            "only the land-drop tier is modelled: {entry:?}"
+        );
+        // The library says what a card looks at, never where the cards go. A
+        // destination here would be this tool answering a question nobody asked
+        // it, and it would be wrong for half the decks that play the card.
+        assert_eq!(
+            entry.to_graveyard, None,
+            "the standard library must not route: {entry:?}"
+        );
+    }
+}
+
+#[test]
+fn a_file_of_nothing_but_effects_asks_nothing_and_that_is_fine() {
+    // The standard library asks no questions, and a file of pure effects is not
+    // a file that forgot to. Read as a criteria file it is still refused, so the
+    // leniency is in the entry point rather than in the format.
+    let source = r#"
+        [[effect]]
+        match = 't:land'
+        look = 1
+        on = "landdrop"
+    "#;
+    assert!(EffectLibrary::parse(source, "effects.toml").is_ok());
+    assert!(matches!(refuse(source), ErrorKind::AsksNothing));
+}
+
+#[test]
+fn loading_order_is_the_whole_of_last_wins() {
+    // The prelude model: the standard library first, the user's file after. The
+    // resolution of an overlap is "the last one declared", so the order these
+    // arrive in is the only thing that decides it.
+    let first = EffectLibrary::parse(
+        r#"
+        [[effect]]
+        match = 't:land'
+        look = 1
+        on = "landdrop"
+        "#,
+        "first.toml",
+    )
+    .unwrap();
+    let second = EffectLibrary::parse(
+        r#"
+        [[effect]]
+        match = 't:land'
+        look = 2
+        on = "landdrop"
+        "#,
+        "second.toml",
+    )
+    .unwrap();
+    let combined = first.followed_by(second);
+    assert_eq!(combined.entries().len(), 2, "both are kept, neither merges");
+    assert_eq!(combined.entries()[0].origin, "first.toml");
+    assert_eq!(combined.entries()[1].origin, "second.toml");
 }

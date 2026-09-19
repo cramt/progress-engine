@@ -136,8 +136,11 @@ and `--simulate` to sample instead of enumerate (slower, approximate, and
 reported with standard errors).
 
 The JSON also carries a `provenance` block — the tool's version, the date the
-card index was built, and SHA-256 hashes of the decklist and criteria files as
-they were read. A percentage that moved since last week is useless on its own,
+card index was built, and SHA-256 hashes of the decklist, the criteria file and
+the [standard effect library](#effects) as they were read. The last of those is
+the one nobody edited: it autoloads, so without it a percentage that changed
+because the shipped library changed would be indistinguishable from one that
+changed because your deck did. A percentage that moved since last week is useless on its own,
 because your deck, your criteria, the index and the tool itself each move it and
 in the output they are indistinguishable: a number changed. Naming the inputs is
 what lets a comparison say *which* one changed rather than only that something
@@ -210,25 +213,26 @@ require = [
 | `zone` | What it counts |
 |---|---|
 | `hand` | the default. Cards drawn by that turn — nothing is cast or discarded yet, so nothing has left |
-| `graveyard` | cards routed to the yard. **Currently always zero**, see below |
-| `library` | cards matching the query that are still in the deck: the deck's total minus what has been drawn |
+| `graveyard` | cards an effect routed to the yard — see [Effects](#effects). Zero in a run whose effects route nothing, and the run says so |
+| `library` | cards matching the query that are still in the deck: the deck's total minus what has been drawn or binned |
 | `battlefield` | refused. It would have to know what you could cast, and that is the mana model |
 
-`graveyard` is askable and is **correctly always empty**, because nothing in
-this engine routes a card there yet — surveil, mill and discard are [selection
-routing](https://github.com/cramt/progress-engine/issues/17) and are not built.
-That is a confident zero, which is the failure this whole tool is about, so a
-run that asks about the graveyard says so rather than letting `0.00%` pass for a
-measurement:
+`graveyard` is reachable exactly when some effect in the run routes a card
+there. In a run where none does, every count in it is zero by construction —
+which is a confident zero, the failure this whole tool is about — so the run
+says so rather than letting `0.00%` pass for a measurement:
 
 ```
 $ progress-engine test loam.txt loam.criteria.toml
-note: nothing routes a card to the graveyard in this run yet, so every count in
+note: nothing routes a card to the graveyard in this run, so every count in
       it is zero by construction rather than by measurement.
       Asked by: "loam in the yard by turn 5"
-      Routing is https://github.com/cramt/progress-engine/issues/17
+      Declare `to_graveyard` on an [[effect]] to route one there.
      loam in the yard by turn 5    0.00%
 ```
+
+Declare a destination and the note goes away, because the number is now a
+measurement.
 
 The same fact is in the JSON, as `zones`, alongside the query breakdown it is
 the sibling of. Zones are discovered from the file the way queries are, so a
@@ -252,9 +256,97 @@ otherwise produces a percentage that looks exactly like a real one:
 | `zone = "exile"`, or any other zone | a zone that fell through to a default would answer the wrong question |
 | `atLeast`, or any other unknown key | a key quietly dropped is an assertion quietly deleted |
 | a file with no `[[criterion]]` and no `[[expect]]` | it asks nothing |
+| `on = "cast"` on an effect | firing on the holding of a card overstates the turn by however many copies you hold, and knowing you cast it needs the mana model |
+| `on` anything else, or `look = 0` | a trigger nothing fires, and a look that examines nothing |
 
 Every one of those messages names the file, the question, and what was wrong
 with it.
+
+### Effects
+
+Nothing in any card's data says a surveil land surveils one. The amount has to
+be declared by somebody, and the product requirement is that the somebody is not
+you — so a small library of effects ships with the tool and **autoloads on every
+run**. There is no opt-in and no path to configure.
+
+It is keyed on queries rather than on card names, which is the only reason it is
+maintainable: keyed by card it would be thousands of entries and stale on every
+set release, and keyed by query a new printing that surveils is covered the day
+it exists. It is also not special machinery — these are `[[effect]]` tables in
+exactly the syntax you would write yourself:
+
+```toml
+[[effect]]
+match = "t:land otag:surveil"
+look = 1
+on = "landdrop"
+to_graveyard = 'name:"Life from the Loam"'
+```
+
+| Key | What it means |
+|---|---|
+| `match` | which cards this is about, in Scryfall syntax |
+| `look` | how many cards off the top it examines |
+| `on` | when it fires. `landdrop` is the only one, see below |
+| `to_graveyard` | the routing policy: which examined cards go to the yard. `"*"` is all of them, which is mill. Absent means none of them |
+
+**Land drops only, on purpose.** Playing a land is free and hard-capped at one a
+turn, so by turn *T* at most *T* of these have happened whatever your deck —
+which is what keeps the enumeration bounded and exact. The mana-gated tier (Opt,
+Preordain, tutors) is refused by name, because an opening hand of one Island and
+six Opt casts *one* Opt, and a model that fires whenever you hold the card
+overstates that turn sixfold. That needs
+[#10](https://github.com/cramt/progress-engine/issues/10).
+
+**The library never says where cards go.** Every shipped entry declares `match`,
+`look` and `on`, and no entry declares `to_graveyard`. That split is the whole
+design. The same Undercity Sewers wants Life from the Loam in the graveyard in
+one deck and on top of the library in another — so the destination is part of
+*your question*, not a property of the card, and the tool guessing at it would
+be answering something nobody asked. An effect with no destination leaves every
+card it looks at exactly where it was, which is where the next draw was going to
+find it anyway, so it moves no number at all.
+
+Write `to_graveyard` yourself and the same surveil starts binning:
+
+```
+$ progress-engine test loam.txt loam.criteria.toml
+note: effect "t:land otag:surveil" (look 1, on landdrop, name:"Life from the Loam" to the graveyard)
+      applies to 4 cards: Undercity Sewers
+     loam in the yard by turn 5    4.92%
+     loam in hand by turn 5       53.98%
+```
+
+**Overlap resolves last-wins, per card.** Query-keyed effects overlap by design:
+`t:land otag:surveil` and `name:"Undercity Sewers"` both match the same card. So
+every effect matching a card is collected and the **last declared** is applied —
+never stacked, because a card matching two entries that each look 1 must look 1,
+and looking 2 would be a confidently wrong number of exactly the shape this tool
+exists to prevent. The standard library loads first, so your own entry overrides
+it and no override syntax has to exist.
+
+Because the library autoloads, it owes you an account of itself. A run says which
+effect applied to which card, in the `effects` block of the JSON and in front of
+a human, and the library's hash sits in `provenance` beside the deck and criteria
+hashes — otherwise a number that moved because the shipped library changed would
+be indistinguishable from one that moved because your deck did.
+
+What ships today, and why each entry is there:
+
+| `match` | `look` | Why |
+|---|---|---|
+| `t:land otag:surveil` | 1 | the only land drop whose other destination this engine models. Surveil bins to the graveyard, and the graveyard is a zone a criterion can ask about |
+| `t:land otag:scry` | 1 | the same free, capped look at one card. Its other destination is the bottom of the library, which this engine cannot tell from the top, so it has no honest routing and never will until it does |
+
+**What it costs.** Turning a card over mid-turn means the order of cards within a
+turn starts to matter — drawing a surveil land and then surveilling is not the
+same turn as surveilling and then drawing it — so a turn stops being one
+checkpoint and becomes several. Each extra checkpoint multiplies the enumeration
+by roughly the number of distinct groups, so a question that enumerates
+comfortably without a routing effect can come back `too wide to answer exactly`
+with one. That is the price of an exact answer rather than a bug: the alternative
+is sampling the surveil inside an exact engine, which is a percentage nobody can
+attribute. Ask about an earlier turn or name fewer queries.
 
 ### How many, not just how often
 
@@ -805,8 +897,8 @@ dragging in the others.
 | `pe-stats` | Exact hypergeometric draw probabilities | Nothing. No Magic concepts at all. |
 | `pe-decklist` | Parsing Archidekt decklists | Decklist text. No card data. |
 | `pe-scryfall` | Card data, Scryfall bulk data and search syntax | Cards. No decklists. |
-| `pe-criteria` | Grouping cards by query, evaluating exactly | Counts and the zones they are counted in. Not cards, and not where the questions came from. |
-| `pe-toml` | Reading a criteria file and answering it | The criteria format, and counts. No cards. |
+| `pe-criteria` | Grouping cards by query, applying effects, evaluating exactly | Counts, the zones they are counted in, and where a looked-at card goes. Not cards, and not where the questions came from. |
+| `pe-toml` | Reading a criteria file and answering it, and shipping the standard effect library | The criteria format, and counts. No cards. |
 | `pe-sim` | Sampling, validated against `pe-stats` | Shuffling. |
 | `pe-cli` | The `progress-engine` binary | All of the above. |
 

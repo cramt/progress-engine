@@ -1,0 +1,23 @@
+# Worked on paper in the test beside this file. Ten cards, positions 1-10 of a
+# uniformly shuffled library; the opener is 1-7 and turn 1 plays no land it did
+# not open with.
+#
+# The three zones are asked about together on purpose: they partition the one
+# Loam, so if the routing lost or duplicated it they would not sum to 100%.
+[[effect]]
+match = "t:land otag:surveil"
+look = 1
+on = "landdrop"
+to_graveyard = 'name:"Life from the Loam"'
+
+[[criterion]]
+name = "loam binned by turn 2"
+require = [{ turn = 2, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "loam in hand by turn 2"
+require = [{ turn = 2, query = 'name:"Life from the Loam"', zone = "hand", min = 1 }]
+
+[[criterion]]
+name = "loam still in the library by turn 2"
+require = [{ turn = 2, query = 'name:"Life from the Loam"', zone = "library", min = 1 }]

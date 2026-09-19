@@ -16,13 +16,17 @@
 //! P(exactly k) for every k, exact, because enumeration visits each outcome
 //! once instead of sampling it.
 
+mod effect;
 mod grouping;
+mod schedule;
 mod zone;
 
+pub use effect::{Board, Effect, Route, Trigger, TriggerError};
 pub use grouping::{Grouping, GroupingError};
-pub use zone::{Zone, ZoneError};
+pub use schedule::Schedule;
+pub use zone::{Reachable, Zone, ZoneError};
 
-use pe_stats::{Distribution, DistributionBuilder, KahanSum, Path, Probability};
+use pe_stats::{Distribution, DistributionBuilder, KahanSum, Probability};
 
 /// One named acceptance criterion, optionally with a threshold it must meet.
 #[derive(Debug, Clone, PartialEq)]
@@ -147,45 +151,43 @@ pub struct Outcomes {
 }
 
 /// What a criterion is allowed to see: counts, never cards.
+///
+/// A borrow of the [`Board`] the engine just walked rather than of the raw
+/// path. The two say the same thing on a run with no live effect and stop
+/// saying the same thing the moment one is live, and a criterion must not be
+/// able to read past the difference: *how many cards has this path turned
+/// over* is not a question anybody asked, and *how many are in my hand* is.
 pub struct PathView<'a> {
-    grouping: &'a Grouping,
-    history: Path<'a>,
+    board: &'a Board<'a>,
 }
 
 impl<'a> PathView<'a> {
-    pub fn new(grouping: &'a Grouping, history: Path<'a>) -> Self {
-        PathView { grouping, history }
+    pub fn new(board: &'a Board<'a>) -> Self {
+        PathView { board }
     }
 
-    pub fn checkpoints(&self) -> usize {
-        self.history.len()
+    /// Turns this run covers, counting turn 0, the opening hand.
+    pub fn turns(&self) -> usize {
+        self.board.turns()
     }
 
-    /// How many cards matching `query_idx` are in `zone` at `checkpoint`.
+    /// How many cards matching `query_idx` are in `zone` at the end of `turn`.
+    ///
+    /// Indexed by turn rather than by checkpoint, and that indirection is the
+    /// whole point. A turn was one checkpoint until an effect started looking
+    /// at the top of the library, after which it is several — and every
+    /// criteria file ever written names turns.
     ///
     /// There is no zone-less form of this, on purpose. A `count(turn, query)`
     /// would mean the hand without saying so, which is the unnamed default
     /// zones exist to delete — so every call site names the zone it asks
     /// about, including the ones that still mean what they always meant.
     ///
-    /// Returns 0 for an out-of-range checkpoint rather than panicking: a
+    /// Returns 0 for a turn beyond the horizon rather than panicking: a
     /// criterion asking about turn 9 of a 5-turn run should be false, not a
     /// crash.
-    pub fn count_in(&self, checkpoint: usize, query_idx: usize, zone: Zone) -> u32 {
-        let Some(counts) = self.history.get(checkpoint) else {
-            return 0;
-        };
-        let drawn = self.grouping.count_matching(counts, query_idx);
-        match zone {
-            Zone::Hand => drawn,
-            // Correctly zero: nothing routes a card here yet (#17, #43). The
-            // run says so out loud rather than letting it pass for a
-            // measurement — see `Zone::is_reachable`.
-            Zone::Graveyard => 0,
-            // Cannot underflow: `drawn` counts a subset of the groups
-            // `matching_total` sums over.
-            Zone::Library => self.grouping.matching_total(query_idx) - drawn,
-        }
+    pub fn count_in(&self, turn: usize, query_idx: usize, zone: Zone) -> u32 {
+        self.board.count_in(turn, query_idx, zone)
     }
 }
 
@@ -299,10 +301,11 @@ fn estimate_paths(groups: usize, gaps: &[u32]) -> u128 {
 /// once, so P(exactly k) is a sum and not a sample.
 pub fn run<E>(
     grouping: &Grouping,
-    gaps: &[u32],
+    schedule: &Schedule,
     plan: Plan,
     evaluator: &mut impl Evaluator<Error = E>,
 ) -> Result<Outcomes, RunError<E>> {
+    let gaps = schedule.gaps();
     let groups = grouping.group_sizes().len();
     if groups == 0 {
         return Err(RunError::EmptyLibrary);
@@ -327,12 +330,17 @@ pub fn run<E>(
     let mut failure = None;
     let mut wrong_shape = None;
 
+    let mut board = Board::new(grouping, schedule);
     pe_stats::for_each_checkpoint_path(grouping.group_sizes(), gaps, |history, p| {
         mass.add(p);
         if failure.is_some() || wrong_shape.is_some() {
             return;
         }
-        let view = PathView::new(grouping, history);
+        // Rebuilt in place per path rather than per criterion: where a card
+        // ended up is a fact about the path, and computing it once is what
+        // stops two criteria from disagreeing about the same surveil.
+        board.walk(history);
+        let view = PathView::new(&board);
         match evaluator.evaluate(&view) {
             Ok(outcomes) => {
                 if outcomes.held.len() != plan.criteria

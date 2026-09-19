@@ -6,6 +6,7 @@
 //! JSON — that has happened — but stderr still lands in front of whoever is
 //! reading.
 
+mod effects;
 mod library;
 mod report;
 mod sync;
@@ -213,24 +214,45 @@ fn run_test(
             anyhow::bail!("{asked_by}: in query {query:?}: {e}");
         }
     }
-    let grouping = library.grouping_for(criteria.queries())?;
-    let gaps = draw_gaps(criteria.horizon(), on_the_draw);
+
+    // The standard library first, then the file's own, because last-wins is
+    // what makes the prelude overridable without an override syntax.
+    let effect_library =
+        pe_toml::EffectLibrary::parse(pe_toml::STANDARD_LIBRARY, pe_toml::STANDARD_LIBRARY_ORIGIN)?
+            .followed_by(criteria.effects().clone());
+    let resolved = effects::resolve(&effect_library, &library, criteria.queries())?;
+    for query in &resolved.unmatched {
+        eprintln!("note: effect {query:?} matched no cards in this deck");
+    }
+
+    let queries: Vec<String> = criteria
+        .queries()
+        .iter()
+        .cloned()
+        .chain(resolved.queries.iter().cloned())
+        .collect();
+    let grouping = library.grouping_for(&queries, &resolved.marked)?;
+    let schedule =
+        pe_criteria::Schedule::build(criteria.horizon(), on_the_draw, resolved.effects.clone());
     let plan = criteria.plan();
     let answers: report::Answers = if simulate {
-        let sampled = pe_sim::simulate(&grouping, &gaps, trials, seed, plan, &mut criteria)?;
+        let sampled = pe_sim::simulate(&grouping, &schedule, trials, seed, plan, &mut criteria)?;
         report::Answers {
             probabilities: sampled.proportions,
             distributions: sampled.distributions,
         }
     } else {
-        let exact = pe_criteria::run(&grouping, &gaps, plan, &mut criteria)?;
+        let exact = pe_criteria::run(&grouping, &schedule, plan, &mut criteria)?;
         report::Answers {
             probabilities: exact.probabilities.into_iter().map(|p| p.get()).collect(),
             distributions: exact.distributions,
         }
     };
 
-    let queries = criteria
+    // The file's own queries, not the effect library's. A standard library
+    // entry that matches nothing is the ordinary case and is not the user's
+    // question, so it does not get to look like a typo in their file.
+    let query_matches = criteria
         .queries()
         .iter()
         .map(|q| {
@@ -244,12 +266,21 @@ fn run_test(
     // Known from the file rather than from the run, exactly like the queries
     // above: a zone nothing routes a card into has to be reported even though
     // the enumeration never noticed anything odd about it.
+    //
+    // Reachability is a fact about this run rather than about the zone: the
+    // graveyard is a real destination exactly when some loaded effect routes a
+    // card there, and it is the same confident zero as before when none does.
+    // Asked of the schedule the engine actually ran rather than of the resolved
+    // list beside it, so the note cannot disagree with the enumeration.
+    let reachable = pe_criteria::Reachable {
+        graveyard: schedule.routes_to_graveyard(),
+    };
     let zones = criteria
         .zones()
         .iter()
         .map(|&zone| report::ZoneUse {
             zone: zone.as_str(),
-            reachable: zone.is_reachable(),
+            reachable: reachable.includes(zone),
             asked_by: criteria
                 .zone_asked_by(zone)
                 .unwrap_or("this file")
@@ -267,13 +298,17 @@ fn run_test(
             sampled: simulate.then_some(report::Sampling { trials, seed }),
         },
         &library,
-        queries,
-        zones,
+        report::Breakdown {
+            queries: query_matches,
+            zones,
+            effects: report::effects_applied(&resolved),
+        },
         report::Provenance {
             tool_version: env!("CARGO_PKG_VERSION"),
             index_updated_at: library.index_updated_at.clone(),
             deck_sha256: library.deck_sha256.clone(),
             criteria_sha256,
+            effect_library_sha256: report::sha256_hex(pe_toml::STANDARD_LIBRARY.as_bytes()),
         },
     );
     println!("{}", facet_json::to_string_pretty(&report)?);
@@ -282,29 +317,4 @@ fn run_test(
         std::process::exit(1);
     }
     Ok(())
-}
-
-/// Cards drawn between successive checkpoints.
-///
-/// `t(0)` is the opening seven. On the play turn 1 draws nothing, so `t(1)` sees
-/// the same seven — which is the honest answer, not an off-by-one.
-fn draw_gaps(max_turn: u32, on_the_draw: bool) -> Vec<u32> {
-    let seen = |n: u32| -> u32 {
-        if n == 0 {
-            7
-        } else if on_the_draw {
-            7 + n
-        } else {
-            7 + n - 1
-        }
-    };
-    (0..=max_turn)
-        .map(|n| {
-            if n == 0 {
-                seen(0)
-            } else {
-                seen(n) - seen(n - 1)
-            }
-        })
-        .collect()
 }

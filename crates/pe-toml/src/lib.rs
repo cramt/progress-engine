@@ -30,10 +30,31 @@
 
 use facet::Facet;
 use pe_criteria::{
-    Count, Criterion, Evaluator, Expectation, NotACount, PathOutcomes, PathView, Plan, Zone,
-    ZoneError,
+    Count, Criterion, Evaluator, Expectation, NotACount, PathOutcomes, PathView, Plan, Trigger,
+    TriggerError, Zone, ZoneError,
 };
 use thiserror::Error;
+
+/// The effect library that ships with the tool.
+///
+/// Not a special format and not special machinery: `[[effect]]` tables in the
+/// same syntax a brewer writes for the one niche card nobody thought of. It is
+/// loaded before the user's file, which is the whole of what "prelude" means
+/// here — last-wins does the rest, so overriding an entry needs no override
+/// syntax to exist.
+pub const STANDARD_LIBRARY: &str = include_str!("standard-effects.toml");
+
+/// What a criteria file may call the standard library in an error or a report.
+pub const STANDARD_LIBRARY_ORIGIN: &str = "the standard effect library";
+
+/// The deepest look an effect may declare.
+///
+/// Not a rule of the game — it is a bound on the work, the same kind as
+/// [`MAX_TURN`]. Every card a look examines is a card the enumeration has to
+/// turn over on every turn of the run, so a `look = 400` typo would ask for a
+/// schedule that draws the library several times over before anything got the
+/// chance to refuse it.
+pub const MAX_LOOK: u32 = 10;
 
 /// The deepest turn a criteria file may name.
 ///
@@ -56,6 +77,28 @@ struct FileDef {
     criterion: Vec<CriterionDef>,
     #[facet(default)]
     expect: Vec<ExpectDef>,
+    #[facet(default)]
+    effect: Vec<EffectDef>,
+}
+
+/// One entry of the effect library, as written.
+///
+/// Keyed on a query rather than on a card name, which is the whole reason a
+/// library of these is maintainable: keyed by card it would be thousands of
+/// entries and stale on every set release, and keyed by query a new printing
+/// that surveils is covered the day it exists.
+#[derive(Facet)]
+#[facet(deny_unknown_fields)]
+struct EffectDef {
+    /// `match` in the file; `match` is a keyword here.
+    #[facet(rename = "match")]
+    matches: Option<String>,
+    look: Option<i64>,
+    on: Option<String>,
+    /// Absent means nothing leaves the top of the library. See
+    /// [`pe_criteria::Route::Nowhere`] for why that is a refusal to guess
+    /// rather than a missing feature.
+    to_graveyard: Option<String>,
 }
 
 #[derive(Facet)]
@@ -127,7 +170,7 @@ impl Bounds {
 /// counts in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Clause {
-    checkpoint: usize,
+    turn: usize,
     query: usize,
     zone: Zone,
     bounds: Bounds,
@@ -136,7 +179,7 @@ struct Clause {
 /// Where an expectation reads its number.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Probe {
-    checkpoint: usize,
+    turn: usize,
     query: usize,
     zone: Zone,
 }
@@ -159,15 +202,109 @@ pub struct Criteria {
     clauses: Vec<Vec<Clause>>,
     expectations: Vec<Expectation>,
     probes: Vec<Probe>,
+    effects: EffectLibrary,
+}
+
+/// One effect, validated but not yet resolved against any deck.
+///
+/// The queries are still text here, because which cards they pick out is a
+/// question about a decklist and an index rather than about this file. What
+/// *is* settled by now is the shape: a trigger the engine can fire, a look
+/// that is a number of cards, and a destination that either names a query or
+/// says nothing at all.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EffectEntry {
+    /// Which cards this effect is about.
+    pub matches: String,
+    pub look: u32,
+    pub trigger: Trigger,
+    /// The routing policy: which of the looked-at cards go to the graveyard.
+    /// `None` is "none of them", and is the default.
+    pub to_graveyard: Option<Destination>,
+    /// Which file declared it. Carried so a report can say where a surprising
+    /// effect came from, and so the standard library can stay quiet about
+    /// matching nothing while a hand-written entry does not.
+    pub origin: String,
+}
+
+/// What the routing policy sends to the graveyard.
+///
+/// Two variants rather than a query that happens to match everything, because
+/// "all of them" is what mill is and there is no query in Scryfall's language
+/// that says it without a reader having to work out that it does.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Destination {
+    /// `to_graveyard = "*"`.
+    Everything,
+    /// `to_graveyard = '<query>'`.
+    Matching(String),
+}
+
+/// What a criteria file spells `to_graveyard = "*"`.
+pub const EVERYTHING: &str = "*";
+
+/// The effects a run has loaded, in load order.
+///
+/// Order is the whole semantics. Overlap is not an edge case here — query-keyed
+/// effects overlap by design, since `t:land otag:surveil` and
+/// `name:"Undercity Sewers"` both match the same card — so the rule is
+/// **last-wins, per card**: collect every effect matching a card, apply the
+/// last declared. Stacking them would make that card look two deep, which is a
+/// confidently wrong number of exactly the shape this project exists to
+/// prevent, and erroring on overlap would fire precisely when a brewer does the
+/// thing the feature is for.
+///
+/// The standard library loads first, so a user's own entry overrides it without
+/// any override syntax existing.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct EffectLibrary {
+    entries: Vec<EffectEntry>,
+}
+
+impl EffectLibrary {
+    /// Read the `[[effect]]` tables out of a file that may hold nothing else.
+    ///
+    /// Separate from [`Criteria::parse`] because the standard library asks no
+    /// questions, and a file of pure effects is not a file that forgot to.
+    pub fn parse(source: &str, origin: &str) -> Result<Self, CriteriaError> {
+        let file: FileDef = read(source).map_err(|kind| CriteriaError {
+            origin: origin.to_string(),
+            kind,
+        })?;
+        effects_of(&file, origin).map_err(|kind| CriteriaError {
+            origin: origin.to_string(),
+            kind,
+        })
+    }
+
+    /// `self`, then `later` — so `later` wins wherever both match a card.
+    pub fn followed_by(mut self, later: EffectLibrary) -> EffectLibrary {
+        self.entries.extend(later.entries);
+        self
+    }
+
+    pub fn entries(&self) -> &[EffectEntry] {
+        &self.entries
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
 }
 
 impl Criteria {
     /// Parse a criteria file. `origin` names it, for the errors.
     pub fn parse(source: &str, origin: &str) -> Result<Self, CriteriaError> {
-        build(source).map_err(|kind| CriteriaError {
+        build(source, origin).map_err(|kind| CriteriaError {
             origin: origin.to_string(),
             kind,
         })
+    }
+
+    /// The `[[effect]]` tables this file declared, in the order it declared
+    /// them.
+    pub fn effects(&self) -> &EffectLibrary {
+        &self.effects
     }
 
     pub fn criteria(&self) -> &[Criterion] {
@@ -249,7 +386,7 @@ impl Evaluator for Criteria {
             .map(|clauses| {
                 clauses
                     .iter()
-                    .all(|c| c.bounds.holds(view.count_in(c.checkpoint, c.query, c.zone)))
+                    .all(|c| c.bounds.holds(view.count_in(c.turn, c.query, c.zone)))
             })
             .collect();
         let counted = self
@@ -257,7 +394,7 @@ impl Evaluator for Criteria {
             .iter()
             .zip(&self.expectations)
             .map(|(probe, expectation)| {
-                let seen = view.count_in(probe.checkpoint, probe.query, probe.zone);
+                let seen = view.count_in(probe.turn, probe.query, probe.zone);
                 Count::new(seen).map_err(|source| EvalError {
                     name: expectation.name.clone(),
                     source,
@@ -280,8 +417,9 @@ pub struct CriteriaError {
 
 /// Every key the format has, for the error that lists them.
 const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least, require), \
-                      whose require clauses are (turn, query, zone, min, max), and [[expect]] \
-                      tables (name, turn, query, zone).";
+                      whose require clauses are (turn, query, zone, min, max), [[expect]] \
+                      tables (name, turn, query, zone), and [[effect]] tables (match, look, on, \
+                      to_graveyard).";
 
 #[derive(Debug, Error)]
 pub enum ErrorKind {
@@ -344,6 +482,21 @@ pub enum ErrorKind {
          hands this must hold in, so 70% is written 0.70"
     )]
     BadThreshold { name: String, at_least: f64 },
+    /// A trigger the engine does not fire, refused by name.
+    ///
+    /// Not a `#[source]`, for the same reason [`ErrorKind::BadZone`] is not:
+    /// the reason is the whole error, and burying it a level down would show
+    /// `effect "...": bad trigger` to anyone who prints only the outermost
+    /// layer.
+    #[error("{at}: {trigger}")]
+    BadTrigger { at: String, trigger: TriggerError },
+    #[error(
+        "{at}: `look = {look}` is not a number of cards to examine: it must be a whole number \
+         from 1 to {MAX_LOOK}.\n\
+         Each one is a card the enumeration turns over on every turn of the run, so the ceiling \
+         is a bound on the work rather than a rule of the game."
+    )]
+    BadLook { at: String, look: i64 },
     /// A zone the engine does not model, refused by name.
     ///
     /// Not a `#[source]`: the reason is the whole error, and burying it one
@@ -365,15 +518,73 @@ pub struct EvalError {
 
 // --- Parsing --------------------------------------------------------------
 
-fn build(source: &str) -> Result<Criteria, ErrorKind> {
-    // `e.kind` rather than `e`: the Display of the whole error appends a debug
-    // dump of the target type's reflection data, which is a page of noise in
-    // front of the one line that says which key was wrong.
-    let file: FileDef =
-        facet_toml::from_str(source).map_err(|e| ErrorKind::Malformed(e.kind.to_string()))?;
+/// `e.kind` rather than `e`: the Display of the whole error appends a debug
+/// dump of the target type's reflection data, which is a page of noise in front
+/// of the one line that says which key was wrong.
+fn read(source: &str) -> Result<FileDef, ErrorKind> {
+    facet_toml::from_str(source).map_err(|e| ErrorKind::Malformed(e.kind.to_string()))
+}
+
+/// Validate the `[[effect]]` tables of an already-deserialized file.
+///
+/// Everything checkable without a decklist is checked here: the trigger has to
+/// be one the engine fires, the look has to be a number of cards, and the
+/// match has to be there at all. What is left for the caller is the half that
+/// needs card data — whether the queries parse, and which cards they pick out.
+fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> {
+    let mut entries = Vec::with_capacity(file.effect.len());
+    for (i, def) in file.effect.iter().enumerate() {
+        let at = format!("[[effect]] number {}", i + 1);
+        let matches = def.matches.clone().ok_or(ErrorKind::Missing {
+            at: at.clone(),
+            key: "match",
+            why: "so there are no cards for it to be about",
+        })?;
+        let at = format!("effect {matches:?}");
+        let on = def.on.clone().ok_or(ErrorKind::Missing {
+            at: at.clone(),
+            key: "on",
+            why: "so there is no point in the game for it to happen at",
+        })?;
+        let trigger = Trigger::parse(&on).map_err(|trigger| ErrorKind::BadTrigger {
+            at: at.clone(),
+            trigger,
+        })?;
+        let look = def.look.ok_or(ErrorKind::Missing {
+            at: at.clone(),
+            key: "look",
+            why: "so there is nothing for it to examine. Write `look = 1` for \"the top card\"",
+        })?;
+        let look = u32::try_from(look)
+            .ok()
+            .filter(|l| (1..=MAX_LOOK).contains(l))
+            .ok_or(ErrorKind::BadLook {
+                at: at.clone(),
+                look,
+            })?;
+        entries.push(EffectEntry {
+            matches,
+            look,
+            trigger,
+            to_graveyard: def.to_graveyard.as_deref().map(|d| {
+                if d == EVERYTHING {
+                    Destination::Everything
+                } else {
+                    Destination::Matching(d.to_string())
+                }
+            }),
+            origin: origin.to_string(),
+        });
+    }
+    Ok(EffectLibrary { entries })
+}
+
+fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
+    let file = read(source)?;
     if file.criterion.is_empty() && file.expect.is_empty() {
         return Err(ErrorKind::AsksNothing);
     }
+    let effects = effects_of(&file, origin)?;
 
     let mut queries: Vec<String> = Vec::new();
     let mut zones: Vec<Zone> = Vec::new();
@@ -408,7 +619,7 @@ fn build(source: &str) -> Result<Criteria, ErrorKind> {
             horizon = horizon.max(turn);
             note_zone(&mut zones, zone);
             compiled.push(Clause {
-                checkpoint: turn as usize,
+                turn: turn as usize,
                 query: intern(&mut queries, query),
                 zone,
                 bounds,
@@ -439,7 +650,7 @@ fn build(source: &str) -> Result<Criteria, ErrorKind> {
         horizon = horizon.max(turn);
         note_zone(&mut zones, zone);
         probes.push(Probe {
-            checkpoint: turn as usize,
+            turn: turn as usize,
             query: intern(&mut queries, query),
             zone,
         });
@@ -454,6 +665,7 @@ fn build(source: &str) -> Result<Criteria, ErrorKind> {
         clauses,
         expectations,
         probes,
+        effects,
     })
 }
 

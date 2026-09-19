@@ -1,0 +1,23 @@
+# HANDS.md hand 10: the same hand, the other question. Wanting Loam in hand, the
+# same surveil keeps it on top, and it arrives next turn.
+#
+# Declaring no `to_graveyard` is what says so. Every looked-at card stays where
+# it was, which is where the draw was going to find it anyway -- so this run is
+# the one with no effect at all, and the difference between this file's numbers
+# and loam-yard.criteria.toml's is exactly what the routing did.
+[[effect]]
+match = "t:land otag:surveil"
+look = 1
+on = "landdrop"
+
+[[criterion]]
+name = "loam in hand by turn 5"
+require = [
+  { turn = 5, query = 'name:"Life from the Loam"', zone = "hand", min = 1 },
+]
+
+[[criterion]]
+name = "loam in the yard by turn 5"
+require = [
+  { turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 },
+]

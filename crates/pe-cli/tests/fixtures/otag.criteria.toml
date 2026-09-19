@@ -1,0 +1,12 @@
+# Verification, not a question anybody would ask of this deck. The regression
+# numbers in `simple-ramp.criteria.toml` are only safe from the autoloading
+# effect library if the standard library's `otag:` entries genuinely match
+# nothing in this hand-written index -- and *should match nothing* and *does
+# match nothing* are two different claims.
+[[criterion]]
+name = "surveil lands in the opener"
+require = [{ turn = 0, query = "t:land otag:surveil", min = 1 }]
+
+[[criterion]]
+name = "scry lands in the opener"
+require = [{ turn = 0, query = "t:land otag:scry", min = 1 }]
