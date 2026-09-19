@@ -217,12 +217,7 @@ fn unsupported_syntax_errors_rather_than_matching_nothing() {
     // Keys that read data the index does not carry, or that Scryfall answers
     // from something other than a field, name themselves rather than matching
     // nothing.
-    for term in [
-        "cube:vintage",
-        "edhrecrank<=100",
-        "cn:5",
-        "year>=2020",
-    ] {
+    for term in ["cube:vintage", "edhrecrank<=100", "cn:5", "year>=2020"] {
         assert!(
             matches!(query::parse(term), Err(ParseError::UnknownKey { .. })),
             "{term} should be refused by name"

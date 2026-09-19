@@ -119,7 +119,9 @@ pub fn run(index_path: Option<&Path>, from: Option<&Path>, force: bool) -> Resul
         let tagged = index.attach_tags(names, fetched_at, &membership);
         eprintln!("tagged {tagged} cards");
     } else {
-        eprintln!("skipping oracle tags: --from reads a bulk file, and tags come from the search API");
+        eprintln!(
+            "skipping oracle tags: --from reads a bulk file, and tags come from the search API"
+        );
     }
     index
         .write_atomically(&path)
@@ -223,9 +225,7 @@ fn fetch_tags(tags: &[String]) -> Result<HashMap<String, Vec<String>>> {
                     // answer: the tag exists and nothing is in it.
                     break;
                 }
-                Err(e) => {
-                    return Err(e).with_context(|| format!("asking Scryfall for otag:{tag}"))
-                }
+                Err(e) => return Err(e).with_context(|| format!("asking Scryfall for otag:{tag}")),
             };
 
             let page: SearchPage = facet_json::from_str(&body)
@@ -233,7 +233,10 @@ fn fetch_tags(tags: &[String]) -> Result<HashMap<String, Vec<String>>> {
 
             for card in &page.data {
                 if let Some(id) = card.oracle_id.as_deref() {
-                    membership.entry(id.to_string()).or_default().push(tag.clone());
+                    membership
+                        .entry(id.to_string())
+                        .or_default()
+                        .push(tag.clone());
                     found += 1;
                 }
             }

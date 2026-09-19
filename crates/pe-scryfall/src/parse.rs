@@ -58,9 +58,34 @@ pub enum ParseError {
 
 /// The keys a term may start with, for the error that lists them.
 const SUPPORTED_KEYS: [&str; 28] = [
-    "t", "o", "fo", "name", "kw", "cat", "mv", "cmc", "c", "color", "id", "identity", "produces",
-    "prod", "pow", "tou", "pt", "loy", "def", "r", "s", "f", "m", "devotion", "layout", "is",
-    "otag", "oracletag",
+    "t",
+    "o",
+    "fo",
+    "name",
+    "kw",
+    "cat",
+    "mv",
+    "cmc",
+    "c",
+    "color",
+    "id",
+    "identity",
+    "produces",
+    "prod",
+    "pow",
+    "tou",
+    "pt",
+    "loy",
+    "def",
+    "r",
+    "s",
+    "f",
+    "m",
+    "devotion",
+    "layout",
+    "is",
+    "otag",
+    "oracletag",
 ];
 
 fn is_properties() -> String {
