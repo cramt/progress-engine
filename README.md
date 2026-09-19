@@ -5,6 +5,10 @@ Draw-probability tests for Magic: The Gathering decklists.
 Named for Jin-Gitaxias's faction of New Phyrexia, on the grounds that obsessively
 recalculating whether your deck is perfect yet is blue-aligned behaviour.
 
+This README is what the tool does today. [VISION.md](VISION.md) is what it is
+for, what it refuses to become, and which of those two lists a given decision
+came from.
+
 ## Why
 
 Ask a simple question about a deck — *"how often do I have a white source in my opening
