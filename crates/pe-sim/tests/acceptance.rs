@@ -8,7 +8,7 @@
 
 use std::convert::Infallible;
 
-use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan};
+use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan, Zone};
 use pe_sim::{mean_standard_error, simulate, standard_error, SimError};
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
@@ -72,7 +72,7 @@ fn the_shuffler_reproduces_the_documented_land_distribution() {
     // P(X >= k) for each k, from which the distribution follows.
     let mut ev = Closures(
         (0..=7)
-            .map(|k| Box::new(move |v: &PathView<'_>| v.count(0, 0) >= k) as Check)
+            .map(|k| Box::new(move |v: &PathView<'_>| v.count_in(0, 0, Zone::Hand) >= k) as Check)
             .collect(),
     );
     let at_least = simulate(&g, &[7], TRIALS, 0xC0FFEE, only_criteria(8), &mut ev)
@@ -117,7 +117,7 @@ fn sampling_agrees_with_the_exact_engine() {
         });
 
         let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-            v.count(0, 0) >= 1 && v.count(0, 1) >= 1
+            v.count_in(0, 0, Zone::Hand) >= 1 && v.count_in(0, 1, Zone::Hand) >= 1
         })]);
         let sampled = simulate(&g, &[draws], TRIALS, 42, only_criteria(1), &mut ev)
             .unwrap()
@@ -141,7 +141,9 @@ fn checkpoints_agree_with_the_exact_engine() {
 
     let exact = pe_stats::probability_that_path(g.group_sizes(), &[7, 1], pred);
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-        v.count(0, 0) >= 1 && v.count(0, 1) >= 1 && v.count(1, 0) >= 2
+        v.count_in(0, 0, Zone::Hand) >= 1
+            && v.count_in(0, 1, Zone::Hand) >= 1
+            && v.count_in(1, 0, Zone::Hand) >= 2
     })]);
     let sampled = simulate(&g, &[7, 1], TRIALS, 7, only_criteria(1), &mut ev)
         .unwrap()
@@ -159,7 +161,9 @@ fn checkpoints_agree_with_the_exact_engine() {
 fn the_same_seed_deals_the_same_hands() {
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
     let run = |seed: u64| {
-        let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) >= 3)]);
+        let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
+            v.count_in(0, 0, Zone::Hand) >= 3
+        })]);
         simulate(&g, &[7], 5_000, seed, only_criteria(1), &mut ev)
             .unwrap()
             .proportions[0]
@@ -175,7 +179,9 @@ fn the_same_seed_deals_the_same_hands() {
 #[test]
 fn drawing_the_whole_library_is_not_an_infinite_loop() {
     let g = Grouping::build(q(&["land"]), [(0b1, 4), (0, 6)]).unwrap();
-    let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) == 4)]);
+    let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
+        v.count_in(0, 0, Zone::Hand) == 4
+    })]);
     let p = simulate(&g, &[10], 100, 1, only_criteria(1), &mut ev)
         .unwrap()
         .proportions[0];
@@ -187,7 +193,9 @@ fn a_hand_bigger_than_the_library_is_refused_rather_than_clamped() {
     // The sampler used to deal what it could and answer 100% for a question the
     // exact engine answered 0%. Both refuse now.
     let g = Grouping::build(q(&["land"]), [(0b1, 1), (0, 1)]).unwrap();
-    let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1)]);
+    let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
+        v.count_in(0, 0, Zone::Hand) >= 1
+    })]);
     let err = simulate(&g, &[7], 100, 1, only_criteria(1), &mut ev).unwrap_err();
     assert!(
         matches!(
@@ -211,7 +219,9 @@ fn a_hand_bigger_than_the_library_is_refused_rather_than_clamped() {
 #[test]
 fn zero_trials_is_refused_rather_than_divided_by() {
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
-    let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1)]);
+    let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
+        v.count_in(0, 0, Zone::Hand) >= 1
+    })]);
     assert!(matches!(
         simulate(&g, &[7], 0, 1, only_criteria(1), &mut ev).unwrap_err(),
         SimError::NoTrials
@@ -227,9 +237,9 @@ fn a_checkpoint_reached_before_any_draw_sees_an_empty_hand() {
     let g = Grouping::build(q(&["land"]), [(0b1, 1)]).unwrap();
     let criteria = || {
         Closures(vec![
-            Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1),
-            Box::new(|v: &PathView<'_>| v.count(1, 0) >= 1),
-            Box::new(|v: &PathView<'_>| v.count(2, 0) >= 1),
+            Box::new(|v: &PathView<'_>| v.count_in(0, 0, Zone::Hand) >= 1),
+            Box::new(|v: &PathView<'_>| v.count_in(1, 0, Zone::Hand) >= 1),
+            Box::new(|v: &PathView<'_>| v.count_in(2, 0, Zone::Hand) >= 1),
         ])
     };
     // Nothing before the draw, the land after it, and a trailing gap of zero
@@ -253,7 +263,9 @@ fn the_sampled_distribution_reproduces_the_documented_land_distribution() {
     // which is exactly the workaround an expectation exists to remove -- so this
     // is also the check that the direct route and the workaround agree.
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
-    let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| v.count(0, 0))]);
+    let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| {
+        v.count_in(0, 0, Zone::Hand)
+    })]);
     let sampled = simulate(&g, &[7], TRIALS, 0xC0FFEE, only_expectations(1), &mut ev).unwrap();
     let d = &sampled.distributions[0];
 
@@ -296,8 +308,9 @@ fn expectations_agree_with_the_exact_engine() {
     let g = Grouping::build(q(&["land", "dork"]), [(0b01, 36), (0b10, 10), (0, 53)]).unwrap();
     let counters = || {
         Counters(vec![
-            Box::new(|v: &PathView<'_>| v.count(0, 0)) as Tally,
-            Box::new(|v: &PathView<'_>| v.count(1, 0) + v.count(1, 1)) as Tally,
+            Box::new(|v: &PathView<'_>| v.count_in(0, 0, Zone::Hand)) as Tally,
+            Box::new(|v: &PathView<'_>| v.count_in(1, 0, Zone::Hand) + v.count_in(1, 1, Zone::Hand))
+                as Tally,
         ])
     };
 

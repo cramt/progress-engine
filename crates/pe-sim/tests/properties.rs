@@ -14,7 +14,7 @@
 
 use std::convert::Infallible;
 
-use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan, RunError};
+use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan, RunError, Zone};
 use pe_sim::{mean_standard_error, simulate, standard_error};
 use proptest::prelude::*;
 use proptest::test_runner::{Config, RngAlgorithm, TestCaseError, TestRng, TestRunner};
@@ -212,7 +212,9 @@ fn checks(thresholds: &[Threshold]) -> Closures {
             .iter()
             .copied()
             .map(|t| {
-                Box::new(move |v: &PathView<'_>| v.count(t.checkpoint, t.query) >= t.k) as Check
+                Box::new(move |v: &PathView<'_>| {
+                    v.count_in(t.checkpoint, t.query, Zone::Hand) >= t.k
+                }) as Check
             })
             .collect(),
     )
@@ -303,7 +305,9 @@ fn neither_engine_answers_a_question_the_other_refuses() {
     // messages look reasonable on their own.
     runner(256)
         .run(&maybe_undealable(), |(grouping, gaps)| {
-            let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1)]);
+            let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
+                v.count_in(0, 0, Zone::Hand) >= 1
+            })]);
             let exact = pe_criteria::run(&grouping, &gaps, only_criteria(1), &mut ev);
             // One trial: whether the sampler refuses cannot depend on how many
             // hands it was going to deal.
@@ -374,7 +378,9 @@ fn a_question_too_wide_to_enumerate_is_still_answerable_by_sampling() {
                 paths(grouping.group_sizes().len(), &gaps) > 5_000_000,
                 "generator produced an enumerable question"
             );
-            let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1)]);
+            let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
+                v.count_in(0, 0, Zone::Hand) >= 1
+            })]);
             let exact = pe_criteria::run(&grouping, &gaps, only_criteria(1), &mut ev);
             prop_assert!(
                 matches!(exact, Err(RunError::TooWide { .. })),
@@ -402,8 +408,11 @@ fn sampled_counts_never_decrease_as_turns_advance() {
             let checkpoints = q.gaps.len();
             let queries = q.queries;
             let mut ev = Closures(vec![Box::new(move |v: &PathView<'_>| {
-                (1..checkpoints)
-                    .all(|t| (0..queries).all(|qi| v.count(t, qi) >= v.count(t - 1, qi)))
+                (1..checkpoints).all(|t| {
+                    (0..queries).all(|qi| {
+                        v.count_in(t, qi, Zone::Hand) >= v.count_in(t - 1, qi, Zone::Hand)
+                    })
+                })
             })]);
             let held = simulate(&q.grouping, &q.gaps, 2_000, seed, only_criteria(1), &mut ev)
                 .map(|s| s.proportions)
@@ -448,7 +457,10 @@ fn counters(tallies: &[Tallied]) -> Counters {
         tallies
             .iter()
             .copied()
-            .map(|t| Box::new(move |v: &PathView<'_>| v.count(t.checkpoint, t.query)) as Tally)
+            .map(|t| {
+                Box::new(move |v: &PathView<'_>| v.count_in(t.checkpoint, t.query, Zone::Hand))
+                    as Tally
+            })
             .collect(),
     )
 }
@@ -527,7 +539,9 @@ fn neither_engine_answers_an_expectation_the_other_refuses() {
     // percentage points the last time it happened.
     runner(256)
         .run(&maybe_undealable(), |(grouping, gaps)| {
-            let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| v.count(0, 0))]);
+            let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| {
+                v.count_in(0, 0, Zone::Hand)
+            })]);
             let plan = only_expectations(1);
             let exact = pe_criteria::run(&grouping, &gaps, plan, &mut ev);
             let sampled = simulate(&grouping, &gaps, 1, 0xC0FFEE, plan, &mut ev);

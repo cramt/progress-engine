@@ -8,7 +8,7 @@ use std::convert::Infallible;
 
 use pe_criteria::{
     Count, Criterion, Evaluator, Expectation, Grouping, GroupingError, PathOutcomes, PathView,
-    Plan, RunError, MAX_COUNT,
+    Plan, RunError, Zone, MAX_COUNT,
 };
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
@@ -69,7 +69,7 @@ fn reproduces_the_thirty_one_versus_thirty_nine_percent_story() {
     let wide = Grouping::build(q(&["arm", "connector"]), [(0b01, 6), (0b10, 12), (0, 81)]).unwrap();
 
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-        v.count(0, 0) >= 1 && v.count(0, 1) >= 1
+        v.count_in(0, 0, Zone::Hand) >= 1 && v.count_in(0, 1, Zone::Hand) >= 1
     })]);
 
     let s = pe_criteria::run(&strict, &[11], only_criteria(1), &mut ev)
@@ -111,7 +111,7 @@ fn a_card_can_satisfy_two_queries_at_once() {
     assert_eq!(overlapping.population(), disjoint.population());
 
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-        v.count(0, 0) >= 1 && v.count(0, 1) >= 1
+        v.count_in(0, 0, Zone::Hand) >= 1 && v.count_in(0, 1, Zone::Hand) >= 1
     })]);
     let o = pe_criteria::run(&overlapping, &[11], only_criteria(1), &mut ev)
         .unwrap()
@@ -136,8 +136,14 @@ fn the_curve_out_criterion_across_turns() {
     // land by turn two.
     let g = Grouping::build(q(&["land", "dork"]), [(0b01, 36), (0b10, 10), (0, 53)]).unwrap();
     let mut ev = Closures(vec![
-        Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1 && v.count(0, 1) >= 1 && v.count(1, 0) >= 2),
-        Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1 && v.count(0, 1) >= 1),
+        Box::new(|v: &PathView<'_>| {
+            v.count_in(0, 0, Zone::Hand) >= 1
+                && v.count_in(0, 1, Zone::Hand) >= 1
+                && v.count_in(1, 0, Zone::Hand) >= 2
+        }),
+        Box::new(|v: &PathView<'_>| {
+            v.count_in(0, 0, Zone::Hand) >= 1 && v.count_in(0, 1, Zone::Hand) >= 1
+        }),
     ]);
     let r = pe_criteria::run(&g, &[7, 1], only_criteria(2), &mut ev)
         .unwrap()
@@ -153,7 +159,8 @@ fn counts_are_cumulative_across_checkpoints() {
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
         // A later checkpoint has seen everything an earlier one did.
-        v.count(1, 0) >= v.count(0, 0) && v.count(2, 0) >= v.count(1, 0)
+        v.count_in(1, 0, Zone::Hand) >= v.count_in(0, 0, Zone::Hand)
+            && v.count_in(2, 0, Zone::Hand) >= v.count_in(1, 0, Zone::Hand)
     })]);
     let r = pe_criteria::run(&g, &[7, 1, 1], only_criteria(1), &mut ev)
         .unwrap()
@@ -170,7 +177,9 @@ fn out_of_range_lookups_are_false_not_panics() {
     // A criterion asking about turn 9 of a 1-checkpoint run: the caller is often
     // JavaScript, and this should be false rather than a crash.
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
-    let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(9, 0) >= 1)]);
+    let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
+        v.count_in(9, 0, Zone::Hand) >= 1
+    })]);
     let r = pe_criteria::run(&g, &[7], only_criteria(1), &mut ev)
         .unwrap()
         .probabilities;
@@ -226,7 +235,9 @@ fn a_hand_bigger_than_the_library_is_refused_rather_than_answered_zero() {
     // Enumeration yields no paths at all here, so every criterion would collect
     // zero mass and report a confident 0%.
     let g = Grouping::build(q(&["land"]), [(0b1, 1), (0, 1)]).unwrap();
-    let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) >= 1)]);
+    let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
+        v.count_in(0, 0, Zone::Hand) >= 1
+    })]);
     let err = pe_criteria::run(&g, &[7], only_criteria(1), &mut ev).unwrap_err();
     assert!(
         matches!(
@@ -294,7 +305,9 @@ fn an_expectation_reproduces_the_closed_form_mean() {
     // every composition instead and weights each by its exact probability, so
     // the two share nothing but the answer.
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
-    let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| v.count(0, 0))]);
+    let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| {
+        v.count_in(0, 0, Zone::Hand)
+    })]);
     let r = pe_criteria::run(&g, &[7], only_expectations(1), &mut ev).unwrap();
 
     let enumerated = r.distributions[0].mean();
@@ -313,7 +326,9 @@ fn the_distribution_is_the_hypergeometric_bucket_for_bucket() {
     // k is the whole answer, and it is the half that a mean cannot show: 2.55
     // lands on average says nothing about how often you keep a one-lander.
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
-    let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| v.count(0, 0))]);
+    let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| {
+        v.count_in(0, 0, Zone::Hand)
+    })]);
     let r = pe_criteria::run(&g, &[7], only_expectations(1), &mut ev).unwrap();
     let d = &r.distributions[0];
 
@@ -346,8 +361,10 @@ fn the_distribution_sums_to_one_across_shapes() {
     for (cards, gaps) in shapes {
         let g = Grouping::build(q(&["a", "b", "c"]), cards.iter().copied()).unwrap();
         let mut ev = Counters(vec![
-            Box::new(|v: &PathView<'_>| v.count(0, 0)),
-            Box::new(|v: &PathView<'_>| v.count(0, 0) + v.count(0, 1)),
+            Box::new(|v: &PathView<'_>| v.count_in(0, 0, Zone::Hand)),
+            Box::new(|v: &PathView<'_>| {
+                v.count_in(0, 0, Zone::Hand) + v.count_in(0, 1, Zone::Hand)
+            }),
         ]);
         let r = pe_criteria::run(&g, gaps, only_expectations(2), &mut ev).unwrap();
         for (i, d) in r.distributions.iter().enumerate() {
@@ -367,11 +384,15 @@ fn a_criterion_is_the_tail_of_the_expectation_beside_it() {
     // lands" must equal the mass this distribution puts at two and above.
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
 
-    let mut counting = Counters(vec![Box::new(|v: &PathView<'_>| v.count(0, 0))]);
+    let mut counting = Counters(vec![Box::new(|v: &PathView<'_>| {
+        v.count_in(0, 0, Zone::Hand)
+    })]);
     let d = pe_criteria::run(&g, &[7], only_expectations(1), &mut counting).unwrap();
     let tail: f64 = d.distributions[0].probabilities()[2..].iter().sum();
 
-    let mut checking = Closures(vec![Box::new(|v: &PathView<'_>| v.count(0, 0) >= 2)]);
+    let mut checking = Closures(vec![Box::new(|v: &PathView<'_>| {
+        v.count_in(0, 0, Zone::Hand) >= 2
+    })]);
     let p = pe_criteria::run(&g, &[7], only_criteria(1), &mut checking).unwrap();
 
     assert!(

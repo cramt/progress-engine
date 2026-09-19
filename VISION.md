@@ -206,8 +206,14 @@ by a resource instead of by a looked-at set. Not a fourth policy language.
 ### Zones are the real question
 
 "Did I find the card" is not a well-formed question. "Is the card in this zone by
-this turn" is. Every number printed today silently means *in hand*, and for a
-graveyard deck that is the wrong question asked confidently.
+this turn" is. Every number printed before zones existed silently meant *in
+hand*, and for a graveyard deck that is the wrong question asked confidently.
+
+A clause now names its zone, and silence still means `hand` so that no file
+written before this moves. `graveyard` is askable and is correctly always empty
+until something routes a card there, and the run says so rather than letting
+that zero pass for a measurement. `battlefield` is refused by name: it would
+have to know what you could cast, and that is the mana model.
 
 ## Who it is for
 
@@ -235,6 +241,9 @@ through the front door.
 - Overlapping effects resolve last-wins, per card.
 - A mana model is in scope, staged gate-first then budget
   ([#10](https://github.com/cramt/progress-engine/issues/10)).
+- A criterion names the zone it asks about, silence means `hand`, and
+  `battlefield` is refused until castability exists rather than approximated
+  ([#40](https://github.com/cramt/progress-engine/issues/40)) — shipped.
 
 ## Not yet decided
 
@@ -242,7 +251,6 @@ through the front door.
 - What `turn 0` means after a mulligan to five.
 - Whether the report shows the mulligan-adjusted number, the keep-your-seven
   number, or both.
-- Whether `battlefield` is refused until castability exists, or approximated.
 - Whether the pod matters at all now that the tool is format-agnostic
   ([#22](https://github.com/cramt/progress-engine/issues/22),
   [#23](https://github.com/cramt/progress-engine/issues/23)).

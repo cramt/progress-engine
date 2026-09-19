@@ -17,8 +17,10 @@
 //! once instead of sampling it.
 
 mod grouping;
+mod zone;
 
 pub use grouping::{Grouping, GroupingError};
+pub use zone::{Zone, ZoneError};
 
 use pe_stats::{Distribution, DistributionBuilder, KahanSum, Path, Probability};
 
@@ -159,16 +161,31 @@ impl<'a> PathView<'a> {
         self.history.len()
     }
 
-    /// How many cards matching `query_idx` have been drawn by `checkpoint`.
+    /// How many cards matching `query_idx` are in `zone` at `checkpoint`.
     ///
-    /// Returns 0 for an out-of-range checkpoint rather than panicking: the
-    /// caller is often JavaScript, and a criterion asking about turn 9 of a
-    /// 5-turn run should be false, not a crash.
-    pub fn count(&self, checkpoint: usize, query_idx: usize) -> u32 {
+    /// There is no zone-less form of this, on purpose. A `count(turn, query)`
+    /// would mean the hand without saying so, which is the unnamed default
+    /// zones exist to delete — so every call site names the zone it asks
+    /// about, including the ones that still mean what they always meant.
+    ///
+    /// Returns 0 for an out-of-range checkpoint rather than panicking: a
+    /// criterion asking about turn 9 of a 5-turn run should be false, not a
+    /// crash.
+    pub fn count_in(&self, checkpoint: usize, query_idx: usize, zone: Zone) -> u32 {
         let Some(counts) = self.history.get(checkpoint) else {
             return 0;
         };
-        self.grouping.count_matching(counts, query_idx)
+        let drawn = self.grouping.count_matching(counts, query_idx);
+        match zone {
+            Zone::Hand => drawn,
+            // Correctly zero: nothing routes a card here yet (#17, #43). The
+            // run says so out loud rather than letting it pass for a
+            // measurement — see `Zone::is_reachable`.
+            Zone::Graveyard => 0,
+            // Cannot underflow: `drawn` counts a subset of the groups
+            // `matching_total` sums over.
+            Zone::Library => self.grouping.matching_total(query_idx) - drawn,
+        }
     }
 }
 

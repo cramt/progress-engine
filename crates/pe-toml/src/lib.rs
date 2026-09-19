@@ -15,6 +15,14 @@
 //! question cannot be read as the other kind — the confusion the JavaScript
 //! front end had to detect at runtime is not a state this format can hold.
 //!
+//! A question also names a `zone`, and what it defaults to is the one place
+//! this crate is deliberately lenient: silence means `hand`, so every criteria
+//! file written before zones existed keeps the numbers it already had. The
+//! leniency stops there. Every zone the file *does* name is resolved to a
+//! [`Zone`] at parse time, so an unmodelled one is refused by name rather than
+//! answered, and the whole zone set is readable before the engine starts for
+//! the same reason the query set is.
+//!
 //! The narrowness is the whole trick, and it is the same one the exact engine
 //! needs: a criterion that depends only on counts is a pure function of the
 //! composition, so it can be evaluated once per possible composition rather
@@ -22,7 +30,8 @@
 
 use facet::Facet;
 use pe_criteria::{
-    Count, Criterion, Evaluator, Expectation, NotACount, PathOutcomes, PathView, Plan,
+    Count, Criterion, Evaluator, Expectation, NotACount, PathOutcomes, PathView, Plan, Zone,
+    ZoneError,
 };
 use thiserror::Error;
 
@@ -66,6 +75,10 @@ struct ClauseDef {
     // complaint.
     turn: Option<i64>,
     query: Option<String>,
+    // Absent means `hand`, which is what a clause without a zone has always
+    // meant. Narrowed to a `Zone` in `build`, so an unmodelled zone is refused
+    // by name instead of answered.
+    zone: Option<String>,
     min: Option<i64>,
     max: Option<i64>,
 }
@@ -76,6 +89,7 @@ struct ExpectDef {
     name: Option<String>,
     turn: Option<i64>,
     query: Option<String>,
+    zone: Option<String>,
 }
 
 // --- The file as the engine sees it ---------------------------------------
@@ -105,10 +119,17 @@ impl Bounds {
 }
 
 /// One requirement, with its query resolved to a position in the grouping.
+///
+/// `zone` is not an `Option`. A clause that left it unresolved would be a
+/// clause whose meaning depends on who reads it, and the reader that guesses
+/// `hand` is exactly the silent default zones exist to remove. The default is
+/// applied once, at parse time, and after that every clause says which zone it
+/// counts in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Clause {
     checkpoint: usize,
     query: usize,
+    zone: Zone,
     bounds: Bounds,
 }
 
@@ -117,6 +138,7 @@ struct Clause {
 struct Probe {
     checkpoint: usize,
     query: usize,
+    zone: Zone,
 }
 
 /// A parsed criteria file, ready to answer against either engine.
@@ -125,6 +147,10 @@ pub struct Criteria {
     /// Every distinct query the file names, in the order it first names them.
     /// This is the whole set, known before a single hand is enumerated.
     queries: Vec<String>,
+    /// Every distinct zone the file asks about, discovered the same way and for
+    /// the same reason: a file that never says `graveyard` must not pay to
+    /// track one, and a run cannot warn about a zone it only learns by running.
+    zones: Vec<Zone>,
     horizon: u32,
     /// Parallel to `clauses`, and to the answers a run hands back: everything
     /// here is matched up by position. Both vectors are filled in one pass in
@@ -155,6 +181,30 @@ impl Criteria {
     /// Every query the file names, deduplicated, in first-mention order.
     pub fn queries(&self) -> &[String] {
         &self.queries
+    }
+
+    /// Every zone the file asks about, deduplicated, in first-mention order.
+    ///
+    /// Includes the zone a clause meant without saying so, because a question
+    /// that defaulted to the hand still asked about the hand.
+    pub fn zones(&self) -> &[Zone] {
+        &self.zones
+    }
+
+    /// Which question first asked about `zone`, so a zone nothing routes a card
+    /// into can be reported against the criterion that will read zero.
+    pub fn zone_asked_by(&self, zone: Zone) -> Option<&str> {
+        let from_criteria = self
+            .clauses
+            .iter()
+            .position(|cs| cs.iter().any(|c| c.zone == zone))
+            .map(|i| self.criteria[i].name.as_str());
+        from_criteria.or_else(|| {
+            self.probes
+                .iter()
+                .position(|p| p.zone == zone)
+                .map(|i| self.expectations[i].name.as_str())
+        })
     }
 
     /// The deepest turn the file names.
@@ -199,7 +249,7 @@ impl Evaluator for Criteria {
             .map(|clauses| {
                 clauses
                     .iter()
-                    .all(|c| c.bounds.holds(view.count(c.checkpoint, c.query)))
+                    .all(|c| c.bounds.holds(view.count_in(c.checkpoint, c.query, c.zone)))
             })
             .collect();
         let counted = self
@@ -207,7 +257,7 @@ impl Evaluator for Criteria {
             .iter()
             .zip(&self.expectations)
             .map(|(probe, expectation)| {
-                let seen = view.count(probe.checkpoint, probe.query);
+                let seen = view.count_in(probe.checkpoint, probe.query, probe.zone);
                 Count::new(seen).map_err(|source| EvalError {
                     name: expectation.name.clone(),
                     source,
@@ -230,8 +280,8 @@ pub struct CriteriaError {
 
 /// Every key the format has, for the error that lists them.
 const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least, require), \
-                      whose require clauses are (turn, query, min, max), and [[expect]] tables \
-                      (name, turn, query).";
+                      whose require clauses are (turn, query, zone, min, max), and [[expect]] \
+                      tables (name, turn, query, zone).";
 
 #[derive(Debug, Error)]
 pub enum ErrorKind {
@@ -294,6 +344,13 @@ pub enum ErrorKind {
          hands this must hold in, so 70% is written 0.70"
     )]
     BadThreshold { name: String, at_least: f64 },
+    /// A zone the engine does not model, refused by name.
+    ///
+    /// Not a `#[source]`: the reason is the whole error, and burying it one
+    /// level down would show `criterion "x", clause 1: bad zone` to anyone who
+    /// prints only the outermost layer.
+    #[error("{at}: {zone}")]
+    BadZone { at: String, zone: ZoneError },
 }
 
 /// A count with nowhere to go in a histogram, named against the expectation
@@ -319,6 +376,7 @@ fn build(source: &str) -> Result<Criteria, ErrorKind> {
     }
 
     let mut queries: Vec<String> = Vec::new();
+    let mut zones: Vec<Zone> = Vec::new();
     let mut horizon = 0u32;
     let mut criteria = Vec::with_capacity(file.criterion.len());
     let mut clauses = Vec::with_capacity(file.criterion.len());
@@ -345,11 +403,14 @@ fn build(source: &str) -> Result<Criteria, ErrorKind> {
                 why: "so there is nothing for it to count",
             })?;
             let turn = turn_of(clause.turn, &at)?;
+            let zone = zone_of(clause.zone.as_deref(), &at)?;
             let bounds = bounds_of(clause, &at, &query)?;
             horizon = horizon.max(turn);
+            note_zone(&mut zones, zone);
             compiled.push(Clause {
                 checkpoint: turn as usize,
                 query: intern(&mut queries, query),
+                zone,
                 bounds,
             });
         }
@@ -374,16 +435,20 @@ fn build(source: &str) -> Result<Criteria, ErrorKind> {
             why: "so there is nothing for it to count",
         })?;
         let turn = turn_of(def.turn, &at)?;
+        let zone = zone_of(def.zone.as_deref(), &at)?;
         horizon = horizon.max(turn);
+        note_zone(&mut zones, zone);
         probes.push(Probe {
             checkpoint: turn as usize,
             query: intern(&mut queries, query),
+            zone,
         });
         expectations.push(Expectation { name });
     }
 
     Ok(Criteria {
         queries,
+        zones,
         horizon,
         criteria,
         clauses,
@@ -402,6 +467,31 @@ fn intern(queries: &mut Vec<String>, query: String) -> usize {
             queries.push(query);
             queries.len() - 1
         }
+    }
+}
+
+/// Zones are collected for the same reason queries are: so a run knows the
+/// whole set before it starts, and so a file that never mentions the graveyard
+/// never has to be told anything about it.
+fn note_zone(zones: &mut Vec<Zone>, zone: Zone) {
+    if !zones.contains(&zone) {
+        zones.push(zone);
+    }
+}
+
+/// Silence means the hand.
+///
+/// The one place this format guesses, and it guesses what every criteria file
+/// written before zones existed already meant — so no existing number moves. A
+/// zone that *is* written is resolved here and nowhere else, which is what
+/// keeps `battlefield` a refusal rather than an approximation.
+fn zone_of(zone: Option<&str>, at: &str) -> Result<Zone, ErrorKind> {
+    match zone {
+        None => Ok(Zone::DEFAULT),
+        Some(name) => Zone::parse(name).map_err(|zone| ErrorKind::BadZone {
+            at: at.to_string(),
+            zone,
+        }),
     }
 }
 

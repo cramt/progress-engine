@@ -241,6 +241,21 @@ fn run_test(
             }
         })
         .collect();
+    // Known from the file rather than from the run, exactly like the queries
+    // above: a zone nothing routes a card into has to be reported even though
+    // the enumeration never noticed anything odd about it.
+    let zones = criteria
+        .zones()
+        .iter()
+        .map(|&zone| report::ZoneUse {
+            zone: zone.as_str(),
+            reachable: zone.is_reachable(),
+            asked_by: criteria
+                .zone_asked_by(zone)
+                .unwrap_or("this file")
+                .to_string(),
+        })
+        .collect();
     let report = report::Report::build(
         report::Questions {
             criteria: criteria.criteria(),
@@ -253,6 +268,7 @@ fn run_test(
         },
         &library,
         queries,
+        zones,
         report::Provenance {
             tool_version: env!("CARGO_PKG_VERSION"),
             index_updated_at: library.index_updated_at.clone(),

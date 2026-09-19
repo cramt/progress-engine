@@ -13,7 +13,7 @@
 
 use facet::Facet;
 
-use crate::zone::has_word;
+use crate::outside::has_word;
 use crate::Colors;
 
 /// What the index says about a card's legality in Commander.
@@ -142,7 +142,7 @@ pub fn is_legendary_creature(type_line: &str) -> bool {
 ///
 /// Rule 100.2a lifts the copy limit for the *supertype*, not for lands — which
 /// is why `Basic Snow Land` counts and why the one printed `Basic Creature`
-/// does too. Matched as a whole word left of the em dash, following `zone.rs`:
+/// does too. Matched as a whole word left of the em dash, following `outside.rs`:
 /// substring matching on type lines has already produced one real bug in this
 /// crate, `Plane` inside `Planeswalker`.
 pub fn has_basic_supertype(type_line: &str) -> bool {

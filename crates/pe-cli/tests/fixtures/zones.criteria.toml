@@ -1,0 +1,22 @@
+# The same query in three zones, so the two engines have something to disagree
+# about. `pe-sim` never mentions a zone; only a clause whose answer moves with
+# the zone can tell "cannot disagree" apart from "ignores zones entirely".
+[[criterion]]
+name = "two lands in hand by turn 3"
+require = [{ turn = 3, query = "t:land", zone = "hand", min = 2 }]
+
+# The complement of the above, read from the other side of the deck.
+[[criterion]]
+name = "at most three lands drawn by turn 3"
+require = [{ turn = 3, query = "t:land", zone = "library", min = 33 }]
+
+# Correctly zero: nothing routes a card to the graveyard yet.
+[[criterion]]
+name = "a land in the yard by turn 3"
+require = [{ turn = 3, query = "t:land", zone = "graveyard", min = 1 }]
+
+[[expect]]
+name = "lands left in the deck by turn 3"
+turn = 3
+query = "t:land"
+zone = "library"

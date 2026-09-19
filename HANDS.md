@@ -189,7 +189,7 @@ keep-versus-discard framing. Binning the Loam is not a consolation prize for
 failing to keep it; it is the deck working. The policy is a **router**, and the
 criterion asks about the destination.
 
-*Needs #40, #17, #43.*
+*Needs #17, #43. The zone half of the question is #40, which has shipped.*
 
 ### 10. The same hand, different question
 
@@ -199,7 +199,7 @@ Loam on top instead, and it arrives in hand next turn.
 Same card, same effect, opposite routing — because the routing is part of the
 question, not part of the card.
 
-*Needs #40, #17.*
+*Needs #17. The zone half of the question is #40, which has shipped.*
 
 ---
 

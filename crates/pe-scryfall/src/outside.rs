@@ -1,5 +1,11 @@
 //! Card types that are never in your library.
 //!
+//! Named for what it decides rather than for "zone", which now means a
+//! gameplay zone a criterion can ask about — see `pe_criteria::Zone`. Nothing
+//! here is one of those: a sticker sheet is a *deck*, not a place a card moves
+//! to during a game, and one word for both is how a caller ends up checking a
+//! criterion's zone against this list and getting a confident wrong answer.
+//!
 //! Stickers, attractions, planes and the rest are shuffled into a deck of their
 //! own or into no deck at all. Counting them as library cards inflates the
 //! library size and so moves every probability in the report: a 99-card list

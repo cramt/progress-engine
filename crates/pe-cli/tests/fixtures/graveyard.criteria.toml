@@ -1,0 +1,10 @@
+# A question about a zone nothing routes a card into yet.
+#
+# The answer is 0.00%, and it is correct: no effect in this engine puts a card
+# in the graveyard (#17, #43). That is also exactly what a deck that genuinely
+# never gets there would report, so the run has to say which of the two the
+# reader is looking at. No threshold, because the point of this fixture is the
+# note rather than the verdict.
+[[criterion]]
+name = "a land in the yard by turn 5"
+require = [{ turn = 5, query = "t:land", zone = "graveyard", min = 1 }]

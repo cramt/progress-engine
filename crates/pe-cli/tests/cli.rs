@@ -143,6 +143,71 @@ fn a_query_matching_no_cards_is_called_out() {
 }
 
 #[test]
+fn a_zone_nothing_routes_a_card_into_is_called_out() {
+    // The same failure as the empty query, arriving by a different door and
+    // harder to spot: the query matches 36 lands, the criterion is well formed,
+    // and the answer is still 0.00% for a reason that has nothing to do with
+    // the deck. Nothing routes a card to the graveyard yet, so every count in
+    // it is zero by construction, and a percentage cannot tell the reader that.
+    let out = run("graveyard.criteria.toml");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("nothing routes a card to the graveyard"),
+        "should warn about the empty graveyard, stderr was: {stderr}"
+    );
+    assert!(
+        stderr.contains("graveyard"),
+        "should name the zone: {stderr}"
+    );
+    assert!(
+        stderr.contains("a land in the yard by turn 5"),
+        "should name the question that asked: {stderr}"
+    );
+    assert!(
+        stderr.contains("issues/17"),
+        "should say where routing is coming from: {stderr}"
+    );
+    // The number is still reported. Refusing to print it would hide that the
+    // question was asked at all, and the warning is what stops it reading as a
+    // measurement.
+    assert!(
+        stderr.contains("0.00%"),
+        "the answer is still an answer: {stderr}"
+    );
+
+    // And the same fact machine-readably, alongside the query breakdown it is
+    // the sibling of. The query it names matched real cards, so the reader
+    // cannot mistake this for the other kind of zero.
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let zones = json["zones"].as_array().expect("zones array");
+    let yard = zones
+        .iter()
+        .find(|z| z["zone"] == "graveyard")
+        .expect("the graveyard should be reported");
+    assert_eq!(yard["reachable"], false);
+    assert_eq!(yard["asked_by"], "a land in the yard by turn 5");
+    assert_eq!(json["queries"][0]["cards"], 36);
+}
+
+#[test]
+fn a_file_that_names_no_zone_is_told_nothing_about_zones() {
+    // Discovered from the file: a file that never says `graveyard` never hears
+    // about one, and the hand it meant without saying so is reachable and so
+    // silent. A warning on every run is a warning nobody reads.
+    let out = run("simple-ramp.criteria.toml");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !stderr.contains("routes a card to the"),
+        "no zone note is owed here: {stderr}"
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let zones = json["zones"].as_array().expect("zones array");
+    assert_eq!(zones.len(), 1, "one zone, the implied hand: {zones:?}");
+    assert_eq!(zones[0]["zone"], "hand");
+    assert_eq!(zones[0]["reachable"], true);
+}
+
+#[test]
 fn the_query_breakdown_reports_real_match_counts() {
     // 36 Forests and 10 one-mana accelerants, which is checkable by eye against
     // the fixture decklist.
@@ -195,6 +260,76 @@ fn sampling_agrees_with_the_exact_engine_end_to_end() {
             (got - want).abs() / se
         );
     }
+}
+
+#[test]
+fn both_engines_read_the_same_zones() {
+    // The outermost of the three levels, for zones specifically. `pe_sim` is
+    // generic over `Evaluator` and never names a zone, which is either why it
+    // cannot disagree with the exact engine or why it would ignore zones
+    // silently — and the two look identical until a clause's answer actually
+    // moves with the zone it names.
+    let go = |args: &[&str]| -> serde_json::Value {
+        let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+            .arg("test")
+            .arg(fixture("simple-ramp.txt"))
+            .arg(fixture("zones.criteria.toml"))
+            .arg("--index")
+            .arg(fixture("index.jsonl"))
+            .args(args)
+            .output()
+            .expect("binary should run");
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        // Both engines owe the reader the same warning about the same zone.
+        assert!(
+            String::from_utf8_lossy(&out.stderr).contains("nothing routes a card to the graveyard"),
+            "the note is about the file, not about which engine read it"
+        );
+        serde_json::from_slice(&out.stdout).expect("stdout is JSON")
+    };
+    let exact = go(&[]);
+    let sampled = go(&["--simulate", "--trials", "50000", "--seed", "3"]);
+
+    for c in sampled["criteria"].as_array().unwrap() {
+        let name = c["name"].as_str().unwrap();
+        let got = c["percent"].as_f64().unwrap();
+        let se = c["standard_error"].as_f64().unwrap() * 100.0;
+        let want = percent(&exact, name);
+        // Not-greater-than: the graveyard clause is zero in both engines and so
+        // has a standard error of exactly zero, which is agreement rather than
+        // a failure to agree.
+        assert!(
+            (got - want).abs() <= 4.0 * se,
+            "{name}: sampled {got} vs exact {want}"
+        );
+    }
+
+    // The hand clause and the library clause are complements of one another
+    // across the same 36 lands, so if the subtraction read the wrong total the
+    // two would not sum to 100 in either engine.
+    for json in [&exact, &sampled] {
+        let hand = percent(json, "two lands in hand by turn 3");
+        let library = percent(json, "at most three lands drawn by turn 3");
+        assert!(hand > 0.0 && hand < 100.0, "not vacuous: {hand}");
+        assert!(library > 0.0 && library < 100.0, "not vacuous: {library}");
+        assert_eq!(percent(json, "a land in the yard by turn 3"), 0.0);
+    }
+
+    // And the mean of what is left in the deck, which is the same 36 lands seen
+    // from the other side: 36 minus whatever turn 3 has drawn.
+    let mean = |json: &serde_json::Value| -> f64 {
+        json["expectations"][0]["mean"].as_f64().expect("a mean")
+    };
+    assert!((mean(&exact) - mean(&sampled)).abs() < 0.1);
+    assert!(
+        (mean(&exact) - (36.0 - 9.0 * 36.0 / 99.0)).abs() < 1e-3,
+        "exact mean was {}",
+        mean(&exact)
+    );
 }
 
 #[test]
@@ -668,6 +803,12 @@ fn a_criteria_file_that_asks_nothing_refuses_by_name() {
         (
             "unknown-key.criteria.toml",
             ["atLeast", "at_least"].as_slice(),
+        ),
+        // A zone that needs castability. Approximating it with "drawn" would
+        // report a hand count under a battlefield question.
+        (
+            "battlefield.criteria.toml",
+            ["battlefield", "cast", "issues/10"].as_slice(),
         ),
     ] {
         let out = run(file);

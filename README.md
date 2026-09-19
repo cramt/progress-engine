@@ -149,9 +149,9 @@ nobody can vouch for is worse than an admitted gap.
 
 TOML, and the whole schema fits in one example. A `[[criterion]]` has a `name`,
 an optional `at_least`, and `require`: a list of clauses, all of which must
-hold. A clause is a `turn`, a `query`, and at least one of `min` and `max`. An
-`[[expect]]` is a `name`, a `turn` and a `query`, and reports a distribution
-rather than a verdict.
+hold. A clause is a `turn`, a `query`, an optional `zone`, and at least one of
+`min` and `max`. An `[[expect]]` is a `name`, a `turn`, a `query` and an
+optional `zone`, and reports a distribution rather than a verdict.
 
 ```toml
 [[criterion]]
@@ -193,6 +193,52 @@ together, because `count(a) + count(b)` counts a card matching both twice —
 language, which already has `or`, `-` and parentheses and already handles
 overlap. Making the footgun unrepresentable beats documenting it.
 
+**Which zone, and what silence means.** "Did I find the card" is not a
+well-formed question; "is the card in this zone by this turn" is. A clause that
+says nothing means `hand`, which is what every criteria file written before
+zones existed already meant, so no existing number moves:
+
+```toml
+[[criterion]]
+name = "loam in the yard by turn 5"
+at_least = 0.80
+require = [
+  { turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 },
+]
+```
+
+| `zone` | What it counts |
+|---|---|
+| `hand` | the default. Cards drawn by that turn — nothing is cast or discarded yet, so nothing has left |
+| `graveyard` | cards routed to the yard. **Currently always zero**, see below |
+| `library` | cards matching the query that are still in the deck: the deck's total minus what has been drawn |
+| `battlefield` | refused. It would have to know what you could cast, and that is the mana model |
+
+`graveyard` is askable and is **correctly always empty**, because nothing in
+this engine routes a card there yet — surveil, mill and discard are [selection
+routing](https://github.com/cramt/progress-engine/issues/17) and are not built.
+That is a confident zero, which is the failure this whole tool is about, so a
+run that asks about the graveyard says so rather than letting `0.00%` pass for a
+measurement:
+
+```
+$ progress-engine test loam.txt loam.criteria.toml
+note: nothing routes a card to the graveyard in this run yet, so every count in
+      it is zero by construction rather than by measurement.
+      Asked by: "loam in the yard by turn 5"
+      Routing is https://github.com/cramt/progress-engine/issues/17
+     loam in the yard by turn 5    0.00%
+```
+
+The same fact is in the JSON, as `zones`, alongside the query breakdown it is
+the sibling of. Zones are discovered from the file the way queries are, so a
+file that never says `graveyard` is never told anything about one.
+
+`graveyard` is **unordered**, and that is a stated limit rather than an
+oversight. Dredge cares which card is on top of the yard and this cannot say;
+"Loam in the graveyard by turn 5" does not, and that is the north star it was
+built for.
+
 Everything the format refuses, it refuses by name, because each of these
 otherwise produces a percentage that looks exactly like a real one:
 
@@ -202,7 +248,9 @@ otherwise produces a percentage that looks exactly like a real one:
 | a clause with neither `min` nor `max` | it names a query and asks nothing of it |
 | `min = 5, max = 2` | no hand can satisfy it: a confident 0% |
 | `at_least = 70` | a threshold is a share of hands, so 70% is `0.70` |
-| `atLeast`, `zone`, or any other unknown key | a key quietly dropped is an assertion quietly deleted |
+| `zone = "battlefield"` | it would have to know what you can cast, and nothing here does |
+| `zone = "exile"`, or any other zone | a zone that fell through to a default would answer the wrong question |
+| `atLeast`, or any other unknown key | a key quietly dropped is an assertion quietly deleted |
 | a file with no `[[criterion]]` and no `[[expect]]` | it asks nothing |
 
 Every one of those messages names the file, the question, and what was wrong
@@ -757,7 +805,7 @@ dragging in the others.
 | `pe-stats` | Exact hypergeometric draw probabilities | Nothing. No Magic concepts at all. |
 | `pe-decklist` | Parsing Archidekt decklists | Decklist text. No card data. |
 | `pe-scryfall` | Card data, Scryfall bulk data and search syntax | Cards. No decklists. |
-| `pe-criteria` | Grouping cards by query, evaluating exactly | Counts. Not cards, and not where the questions came from. |
+| `pe-criteria` | Grouping cards by query, evaluating exactly | Counts and the zones they are counted in. Not cards, and not where the questions came from. |
 | `pe-toml` | Reading a criteria file and answering it | The criteria format, and counts. No cards. |
 | `pe-sim` | Sampling, validated against `pe-stats` | Shuffling. |
 | `pe-cli` | The `progress-engine` binary | All of the above. |

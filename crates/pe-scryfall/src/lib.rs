@@ -14,13 +14,13 @@ pub mod bulk;
 pub mod index;
 pub mod legality;
 pub mod mana;
+mod outside;
 mod parse;
-mod zone;
 
 pub mod tags;
 
+pub use outside::{outside_library, OutsideLibrary};
 pub use parse::{parse, ParseError};
-pub use zone::{outside_library, OutsideLibrary};
 
 use index::Face;
 use legality::Legalities;

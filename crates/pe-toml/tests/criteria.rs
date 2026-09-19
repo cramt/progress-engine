@@ -8,7 +8,7 @@
 //! unanswerable refuses instead, and that the exact and sampled engines running
 //! the same file still agree.
 
-use pe_criteria::{Grouping, Outcomes, RunError};
+use pe_criteria::{Grouping, Outcomes, RunError, Zone, ZoneError};
 use pe_toml::{Criteria, ErrorKind, MAX_TURN};
 
 /// A synthetic library where every query the file names has cards of its own
@@ -304,6 +304,13 @@ fn the_exact_and_sampled_engines_answer_the_same_file_the_same_way() {
     // One criteria file, one grouping, two engines: anything this layer gets
     // wrong about which count a clause reads would move both answers together
     // and go unnoticed at the other two levels.
+    //
+    // Zones are in here deliberately. `pe_sim` is generic over `Evaluator` and
+    // never mentions a zone, which is either the reason it cannot disagree with
+    // the exact engine or the reason it silently ignores zones entirely — and
+    // only a clause whose answer *moves* with the zone tells those apart. The
+    // library clause is that clause; the graveyard one would agree at zero
+    // whether or not either engine had ever heard of it.
     let source = r#"
         [[criterion]]
         name = "an outlet in the opener"
@@ -316,10 +323,24 @@ fn the_exact_and_sampled_engines_answer_the_same_file_the_same_way() {
           { turn = 3, query = 'cat:"connector"', min = 2 },
         ]
 
+        [[criterion]]
+        name = "most arms still in the deck by turn 3"
+        require = [{ turn = 3, query = 'cat:"arm"', zone = "library", min = 7 }]
+
+        [[criterion]]
+        name = "an arm in the yard by turn 3"
+        require = [{ turn = 3, query = 'cat:"arm"', zone = "graveyard", min = 1 }]
+
         [[expect]]
         name = "arms by turn 3"
         turn = 3
         query = 'cat:"arm"'
+
+        [[expect]]
+        name = "arms left in the deck by turn 3"
+        turn = 3
+        query = 'cat:"arm"'
+        zone = "library"
     "#;
     let mut criteria = parse(source);
     let grouping = grouping_for(&criteria, 8);
@@ -334,20 +355,211 @@ fn the_exact_and_sampled_engines_answer_the_same_file_the_same_way() {
     for (i, want) in exact.probabilities.iter().enumerate() {
         let got = sampled.proportions[i];
         let se = pe_sim::standard_error(got, trials);
+        // Not-greater-than rather than strictly-less-than, because a zone
+        // nothing routes into gives both engines a standard error of exactly
+        // zero, and "agrees to within zero" is the strongest form of agreement
+        // rather than a failure to agree.
         assert!(
-            (got - want.get()).abs() < 5.0 * se,
+            (got - want.get()).abs() <= 5.0 * se,
             "criterion {i}: sampled {got} vs exact {}, {:.2} SE away",
             want.get(),
             (got - want.get()).abs() / se
         );
     }
-    let want = exact.distributions[0].mean();
-    let got = sampled.distributions[0].mean();
-    let se = pe_sim::mean_standard_error(&sampled.distributions[0], trials);
-    assert!(
-        (got - want).abs() < 5.0 * se,
-        "sampled mean {got} vs exact {want}"
+    for (i, want) in exact.distributions.iter().enumerate() {
+        let got = &sampled.distributions[i];
+        let se = pe_sim::mean_standard_error(got, trials);
+        assert!(
+            (got.mean() - want.mean()).abs() <= 5.0 * se,
+            "expectation {i}: sampled mean {} vs exact {}",
+            got.mean(),
+            want.mean()
+        );
+    }
+}
+
+// --- Zones -----------------------------------------------------------------
+
+#[test]
+fn an_unsaid_zone_is_the_hand_and_saying_so_changes_nothing() {
+    // The compatibility promise, asserted rather than assumed: every criteria
+    // file written before zones existed asked about the hand, so the two
+    // spellings below have to be the same question down to the last digit.
+    let silent = run_exact(
+        r#"
+        [[criterion]]
+        name = "an arm in the opener"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+        6,
     );
+    let spelled = run_exact(
+        r#"
+        [[criterion]]
+        name = "an arm in the opener"
+        require = [{ turn = 0, query = 'cat:"arm"', zone = "hand", min = 1 }]
+        "#,
+        6,
+    );
+    assert_eq!(percent(&silent, 0), percent(&spelled, 0));
+    assert_eq!(
+        parse(
+            r#"[[criterion]]
+                 name = "x"
+                 require = [{ turn = 0, query = "t:land", min = 1 }]"#
+        )
+        .zones(),
+        [Zone::Hand],
+        "a file that names no zone still asks about one, and it is the hand"
+    );
+}
+
+#[test]
+fn the_battlefield_is_refused_by_name_rather_than_approximated() {
+    // The tempting approximation is "held it, so it is in play", which is wrong
+    // in the direction that flatters the deck. Refusing is the feature.
+    let err = refuse(
+        r#"
+        [[criterion]]
+        name = "lantern in play by turn 5"
+        require = [{ turn = 5, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+        "#,
+    );
+    assert!(
+        matches!(
+            err,
+            ErrorKind::BadZone {
+                zone: ZoneError::Battlefield,
+                ..
+            }
+        ),
+        "{err}"
+    );
+    let msg = err.to_string();
+    assert!(msg.contains("battlefield"), "names the zone: {msg}");
+    assert!(
+        msg.contains("cast"),
+        "says what it would need to know: {msg}"
+    );
+    assert!(msg.contains("issues/10"), "points at the mana model: {msg}");
+    assert!(
+        msg.contains("clause 1"),
+        "names the clause that wrote it: {msg}"
+    );
+}
+
+#[test]
+fn an_unknown_zone_is_refused_and_lists_the_ones_that_work() {
+    // Same discipline as an unknown key or an unsupported query term: a closed
+    // set is named, because a typo that fell through to a default would report
+    // a hand count under an exile question.
+    let err = refuse(
+        r#"
+        [[criterion]]
+        name = "loam in the yrad"
+        require = [{ turn = 5, query = "t:land", zone = "yrad", min = 1 }]
+        "#,
+    );
+    assert!(
+        matches!(err, ErrorKind::BadZone { zone: ZoneError::Unknown { ref name }, .. } if name == "yrad"),
+        "{err}"
+    );
+    let msg = err.to_string();
+    for accepted in ["hand", "graveyard", "library"] {
+        assert!(msg.contains(accepted), "lists {accepted}: {msg}");
+    }
+    assert!(
+        !msg.contains("battlefield"),
+        "must not offer a zone it also refuses: {msg}"
+    );
+}
+
+#[test]
+fn the_whole_zone_set_is_known_before_anything_runs() {
+    // Discovered from the file, exactly like the query set, and for the same
+    // reason: a run has to be able to say what it was asked before it answers,
+    // and a file that never says `graveyard` must not pay to track one.
+    let criteria = parse(
+        r#"
+        [[criterion]]
+        name = "loam in the yard"
+        require = [
+          { turn = 5, query = 'name:"Loam"', zone = "graveyard", min = 1 },
+          { turn = 5, query = "t:land", min = 3 },
+        ]
+
+        [[expect]]
+        name = "lands left in the deck"
+        turn = 5
+        query = "t:land"
+        zone = "library"
+        "#,
+    );
+    assert_eq!(
+        criteria.zones(),
+        [Zone::Graveyard, Zone::Hand, Zone::Library],
+        "every zone, deduplicated, in first-mention order"
+    );
+    assert_eq!(
+        criteria.zone_asked_by(Zone::Graveyard),
+        Some("loam in the yard")
+    );
+    assert_eq!(
+        criteria.zone_asked_by(Zone::Library),
+        Some("lands left in the deck")
+    );
+}
+
+#[test]
+fn the_graveyard_is_askable_and_correctly_empty() {
+    // Honest while half-built. Nothing routes a card to the graveyard yet, so
+    // the answer is zero — and it is zero because it was computed, not because
+    // the question was dropped. The CLI is what has to say which of those the
+    // reader is looking at.
+    let out = run_exact(
+        r#"
+        [[criterion]]
+        name = "loam in the yard by turn 5"
+        require = [{ turn = 5, query = 'cat:"arm"', zone = "graveyard", min = 1 }]
+
+        [[criterion]]
+        name = "an empty yard"
+        require = [{ turn = 5, query = 'cat:"arm"', zone = "graveyard", max = 0 }]
+        "#,
+        40,
+    );
+    assert_eq!(percent(&out, 0), 0.0, "no path ever puts a card there");
+    // The complement collects every path's probability rather than none of it,
+    // so it lands on 100% within the enumeration's summation error.
+    assert!(
+        (percent(&out, 1) - 100.0).abs() < 1e-9,
+        "{}",
+        percent(&out, 1)
+    );
+}
+
+#[test]
+fn the_library_is_what_the_hand_is_not() {
+    // `library` is free rather than tracked: it is the deck's matching cards
+    // minus the ones this path has drawn. So a bound on one is exactly the
+    // complement of a bound on the other, and if it is not, the subtraction is
+    // reading the wrong total.
+    let out = run_exact(
+        r#"
+        [[criterion]]
+        name = "at most two drawn"
+        require = [{ turn = 3, query = 'cat:"arm"', max = 2 }]
+
+        [[criterion]]
+        name = "at least six left"
+        require = [{ turn = 3, query = 'cat:"arm"', zone = "library", min = 6 }]
+        "#,
+        8,
+    );
+    assert_eq!(percent(&out, 0), percent(&out, 1));
+    // And not vacuous in either direction, which is what a broken complement
+    // would look like.
+    assert!(percent(&out, 0) > 0.0 && percent(&out, 0) < 100.0);
 }
 
 // --- Files that would otherwise have answered ------------------------------
@@ -429,18 +641,9 @@ fn an_unknown_key_is_refused_and_the_message_says_what_the_format_has() {
     assert!(msg.contains("atLeast"), "names the key: {msg}");
     assert!(msg.contains("at_least"), "lists the real ones: {msg}");
 
-    // `zone` is the next question this format will answer and does not answer
-    // yet, which is exactly when a silently ignored key is most dangerous: the
-    // run would report an in-hand number under a graveyard question.
-    let msg = refuse(
-        r#"
-        [[criterion]]
-        name = "loam in the yard"
-        require = [{ turn = 5, query = "t:land", zone = "graveyard", min = 1 }]
-        "#,
-    )
-    .to_string();
-    assert!(msg.contains("zone"), "{msg}");
+    // The schema line has to list `zone` now that clauses take one, because
+    // this message is the only place a reader is told what the format has.
+    assert!(msg.contains("zone"), "lists zone as a real key: {msg}");
 }
 
 #[test]

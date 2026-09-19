@@ -11,7 +11,7 @@
 
 use std::convert::Infallible;
 
-use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan};
+use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan, Zone};
 use proptest::prelude::*;
 use proptest::test_runner::{Config, RngAlgorithm, TestCaseError, TestRng, TestRunner};
 
@@ -176,7 +176,9 @@ fn checks(thresholds: &[Threshold]) -> Closures {
             .iter()
             .copied()
             .map(|t| {
-                Box::new(move |v: &PathView<'_>| v.count(t.checkpoint, t.query) >= t.k) as Check
+                Box::new(move |v: &PathView<'_>| {
+                    v.count_in(t.checkpoint, t.query, Zone::Hand) >= t.k
+                }) as Check
             })
             .collect(),
     )
@@ -326,8 +328,8 @@ fn every_expectation_distribution_is_a_distribution() {
             let query = usize::from(query) % q.queries;
             let last = q.gaps.len() - 1;
             let mut ev = Counters(vec![
-                Box::new(move |v: &PathView<'_>| v.count(0, query)),
-                Box::new(move |v: &PathView<'_>| v.count(last, query)),
+                Box::new(move |v: &PathView<'_>| v.count_in(0, query, Zone::Hand)),
+                Box::new(move |v: &PathView<'_>| v.count_in(last, query, Zone::Hand)),
             ]);
             let r = pe_criteria::run(&q.grouping, &q.gaps, only_expectations(2), &mut ev)
                 .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
@@ -361,7 +363,9 @@ fn an_expectation_matches_the_closed_form_mean() {
         .run(&cases, |(q, query)| {
             let query = usize::from(query) % q.queries;
             let gaps = &q.gaps[..1];
-            let mut ev = Counters(vec![Box::new(move |v: &PathView<'_>| v.count(0, query))]);
+            let mut ev = Counters(vec![Box::new(move |v: &PathView<'_>| {
+                v.count_in(0, query, Zone::Hand)
+            })]);
             let r = pe_criteria::run(&q.grouping, gaps, only_expectations(1), &mut ev)
                 .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
             let closed = pe_stats::mean(
@@ -394,8 +398,9 @@ fn a_threshold_is_the_tail_of_the_distribution_it_thresholds() {
             let query = usize::from(query) % q.queries;
             let last = q.gaps.len() - 1;
 
-            let mut counting =
-                Counters(vec![Box::new(move |v: &PathView<'_>| v.count(last, query))]);
+            let mut counting = Counters(vec![Box::new(move |v: &PathView<'_>| {
+                v.count_in(last, query, Zone::Hand)
+            })]);
             let counted =
                 pe_criteria::run(&q.grouping, &q.gaps, only_expectations(1), &mut counting)
                     .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;

@@ -78,6 +78,25 @@ pub struct QueryMatch {
     pub cards: u32,
 }
 
+/// A zone the criteria file asked about, and whether anything can put a card
+/// there.
+///
+/// Reported for the same reason [`QueryMatch`] is, and against the same
+/// failure. A query that matches nothing and a zone nothing routes into both
+/// produce a perfectly formatted 0.00%, and in a percentage a zero that means
+/// *not modelled* is indistinguishable from a zero that means *never
+/// happened*. The run cannot tell the reader which deck they have unless it
+/// first tells them which question it was able to ask.
+#[derive(Facet)]
+pub struct ZoneUse {
+    pub zone: &'static str,
+    /// False when nothing in this run routes a card into the zone, so every
+    /// count in it is zero by construction rather than by measurement.
+    pub reachable: bool,
+    /// The question that first named it, so the reader knows which line to fix.
+    pub asked_by: String,
+}
+
 /// A listed card that never enters the library, so was not counted in it.
 ///
 /// Reported for the same reason an empty query is: dropping cards quietly leaves
@@ -166,6 +185,9 @@ pub struct Report {
     #[facet(skip_serializing_if = Option::is_none)]
     pub seed: Option<u64>,
     pub queries: Vec<QueryMatch>,
+    /// Every zone the criteria file asked about, including the `hand` a clause
+    /// meant without saying so.
+    pub zones: Vec<ZoneUse>,
     pub criteria: Vec<CriterionResult>,
     /// Alongside `criteria` rather than merged into it. They answer different
     /// questions in different units, and several things already read `criteria`
@@ -184,6 +206,7 @@ impl Report {
         scenario: Scenario,
         library: &Library,
         queries: Vec<QueryMatch>,
+        zones: Vec<ZoneUse>,
         provenance: Provenance,
     ) -> Self {
         let Scenario {
@@ -242,6 +265,7 @@ impl Report {
             trials: sampled.map(|s| s.trials),
             seed: sampled.map(|s| s.seed),
             queries,
+            zones,
             criteria: results,
             expectations: expected,
             asserted,
@@ -258,6 +282,23 @@ impl Report {
                 out.push_str(&format!(
                     "note: query {:?} matched no cards in this deck\n",
                     q.query
+                ));
+            }
+        }
+        // The same failure as an empty query, arriving by a different door.
+        // Nothing routes a card into the graveyard yet, so a criterion asking
+        // about it is answered with a confident zero that reads exactly like a
+        // deck that never gets there. It stays answered — silently refusing to
+        // print a number is its own kind of lie — but it does not get to be
+        // mistaken for a measurement.
+        for z in &self.zones {
+            if !z.reachable {
+                out.push_str(&format!(
+                    "note: nothing routes a card to the {} in this run yet, so every count in\n      \
+                     it is zero by construction rather than by measurement.\n      \
+                     Asked by: {:?}\n      \
+                     Routing is https://github.com/cramt/progress-engine/issues/17\n",
+                    z.zone, z.asked_by
                 ));
             }
         }
