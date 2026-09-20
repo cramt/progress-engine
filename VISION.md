@@ -32,12 +32,35 @@ made up — if you can write it down, it can be asked about.
 Two real decks. When the tool can answer both, it works. One of them it now
 can.
 
-**Lantern control.** *How often do I have Lantern of Insight by turn 5?* Needs
-the filtering that surveil lands provide to count toward how deep a turn sees.
-The filtering half is expressible: a surveil that routes everything you do not
-want to the graveyard digs one card deeper each turn it fires. What is still
-open is which zone the question means — *in hand* is answerable and *on the
-battlefield* is the mana model, and HANDS 12 is that difference as a hand.
+**Lantern control.** *How often is there a line that resolves Lantern of Insight
+by turn 5?*
+
+This was recorded for a long time as *how often do I have Lantern of Insight by
+turn 5*, which is a smaller and easier question, and stating it that way made
+the north star look nearly finished when it is not. A Lantern pilot does not
+draw the card; they assemble it by whichever of three routes turns up:
+
+| Route | Needs |
+|---|---|
+| Lantern in hand, and one mana | mana as a **gate** |
+| Trinket Mage resolved, fetching it — three mana by turn 4, or four by turn 5 so both are cast in one turn | mana as a **budget**, and tutors |
+| Urza's Saga played by turn 3, ticking to chapter III | **no mana at all** — a land drop, a two-turn delay, and a tutor onto the battlefield |
+
+Three consequences, all of which were invisible while the question was recorded
+in its easy form.
+
+**The filtering half is done.** A surveil that routes everything you do not want
+to the graveyard digs one card deeper each turn it fires.
+
+**The question is a disjunction, and a criterion cannot say "or"** — the routes
+differ in turn, in zone and in what they require, so no card query expresses
+them. That is [#49](https://github.com/cramt/progress-engine/issues/49), and it
+blocks this north star independently of the mana.
+
+**Urza's Saga is the cheap route and was underrated.** It is an Enchantment
+Land, so it arrives on a land drop, and chapter III puts Lantern onto the
+battlefield for nothing. It needs delayed effects and a tutor destination, and
+no part of the mana model.
 
 **Life from the Loam.** *How often is Loam in my graveyard by turn 5?* Needs the
 graveyard to be a thing you can ask about, and needs surveilling a card into the
@@ -45,7 +68,9 @@ yard to count as a route there — because for this deck it is the *good* route,
 not a consolation prize. **Answerable**, as of the effect library and land-drop
 routing.
 
-Neither needs a mana model. Both are reachable.
+Loam needed no mana model and is done. Lantern needs one for two of its three
+routes, and needs [#49](https://github.com/cramt/progress-engine/issues/49)
+before any of them can be written down together.
 
 [HANDS.md](HANDS.md) works both of them, and a dozen other cases, as concrete
 seven-card hands with the answer written down.
