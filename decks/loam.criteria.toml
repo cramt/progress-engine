@@ -1,0 +1,146 @@
+# "There's No Place Like Loam" — https://archidekt.com/decks/26329102
+#
+# WHAT THESE NUMBERS ARE
+# ----------------------
+# Every percentage below is the probability that a number of CARDS HAVE BEEN
+# SEEN by a given turn. It is not the probability that they were cast, played,
+# or that they resolved. progress-engine has no mana model (upstream #10), so
+# a clause saying "a Loam Access card by turn 5" means "a Loam Access card was
+# drawn by turn 5" and silently assumes you could pay for it. The Loam Access
+# package runs from 1 to 6 mana, so the gap between "seen" and "used" is real
+# and is not small. Read every figure as an UPPER BOUND.
+#
+# Other things this file does not model:
+#   * Mulligans. Turn 0 is a kept seven, always.
+#   * On the play vs on the draw. The default is on the play; in a four-player
+#     pod you are on the draw three quarters of the time, which is one extra
+#     card by turn 5. Re-run with --draw for that side.
+#   * Tutors as tutors. Spellseeker and Tolaria West are counted as one card
+#     each, matching one query. The engine counts cards seen, never cards
+#     found by other cards.
+#   * Dredge. Life from the Loam's own Dredge 3 is the deck's main engine and
+#     the engine cannot express it: the only effect trigger that exists is
+#     "landdrop", and dredge replaces a draw.
+#   * Discard outlets. Cycling a land, discarding to Cavalier of Flame, and
+#     Frantic Search all fill the yard, and none of them is a land drop, so
+#     none of them is expressible as an [[effect]] here either.
+#
+# The deck as exported is 99 cards: 1 commander (Borborygmos and Fblthp) and a
+# 98-card library. All probabilities are over that 98.
+
+# --- The category question ------------------------------------------------
+# The owner's 13-card "Loam Access" category is the real subject. One copy of
+# a sorcery in 98 cards is not a plan; thirteen ways to reach it is.
+#
+# THRESHOLD: 0.80. Thirteen cards is 13% of the library and the deck is built
+# so that the Loam engine is the game plan rather than a bonus, so "four games
+# in five, something that touches Loam has turned up by turn five" is the
+# design target being asserted. It is a claim about DRAWING one, not casting.
+
+[[criterion]]
+name = "some Loam Access by turn 5 (drawn, not cast)"
+at_least = 0.80
+require = [{ turn = 5, query = 'cat:"Loam Access"', min = 1 }]
+
+# Earlier, and stricter about what it is for: an access card is worth little
+# if you have not also made land drops, because most of the package either
+# costs real mana or returns lands.
+# THRESHOLD: 0.55. Two separate conditions on turn 3 on the play (9 cards
+# seen) is a genuine ask, and the deck runs 44 lands.
+
+[[criterion]]
+name = "Loam Access plus 3 lands by turn 3 (drawn, not cast)"
+at_least = 0.55
+require = [
+  { turn = 3, query = 'cat:"Loam Access"', min = 1 },
+  { turn = 3, query = "t:land", min = 3 },
+]
+
+# The single copy, for contrast. Deliberately informational: there is no
+# defensible threshold on "did I draw the one-of", and the whole point of the
+# 13-card package is that this number does not have to be good.
+
+[[criterion]]
+name = "Life from the Loam itself, in hand by turn 5"
+require = [
+  { turn = 5, query = 'name:"Life from the Loam"', min = 1 },
+]
+
+# --- The zone question ----------------------------------------------------
+# This deck wants Loam IN THE YARD, not in hand, so the zone is the question.
+#
+# NOTE THIS NUMBER IS NOT A MEASUREMENT. progress-engine can only route a card
+# to the graveyard from an [[effect]] that fires on a land drop -- surveil and
+# scry lands. This deck contains zero surveil lands and zero scry lands, and
+# its actual routes to the yard (Dredge 3, cycling lands, Cavalier of Flame,
+# Frantic Search, the six "Self-Mill & Filtering" cards) are all either
+# mana-gated or a replaced draw, and none of them is expressible. So the
+# engine's answer here is zero by construction. It says so in a note; that
+# note is the answer, and the 0.00% beside it is not.
+#
+# No at_least, because a threshold on an unmeasurable quantity is a FAIL that
+# means nothing.
+
+[[criterion]]
+name = "Life from the Loam in the graveyard by turn 5"
+require = [
+  { turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 },
+]
+
+[[criterion]]
+name = "any Loam Access card in the graveyard by turn 5"
+require = [
+  { turn = 5, query = 'cat:"Loam Access"', zone = "graveyard", min = 1 },
+]
+
+# --- Distributions --------------------------------------------------------
+# How many, not just how often. Same "drawn, not cast" caveat throughout.
+
+[[expect]]
+name = "Loam Access cards seen by turn 5"
+turn = 5
+query = 'cat:"Loam Access"'
+
+[[expect]]
+name = "lands in opener"
+turn = 0
+query = "t:land"
+
+[[expect]]
+name = "Loam Access cards still in library at turn 5"
+turn = 5
+query = 'cat:"Loam Access"'
+zone = "library"
+
+# --- ON THE PLAY VS ON THE DRAW -------------------------------------------
+# The figures this file produces by default are on the play (7 cards in the
+# opener, no draw on turn 1, so 11 cards seen by turn 5). In a four-player pod
+# you are on the draw three times in four, which is 12 cards by turn 5 and
+# moves "some Loam Access by turn 5" from 80.96% to 83.80%. Run with --draw.
+#
+# --- `t:land` IS CLEAN IN THIS DECK ---------------------------------------
+# Unlike the Lantern list, all 44 cards this file's `t:land` matches are real
+# lands: no modal double-faced cards, no transforming enchantments with a land
+# back. The land clause is still "lands DRAWN", not "lands PLAYED" -- by turn
+# 3 you can only have made three land drops however many you drew
+# (HANDS.md hand 4) -- so it is necessary and not sufficient.
+
+# --- THE INDEX THESE NUMBERS WERE PRODUCED AGAINST ------------------------
+# decks/index.jsonl was built with `sync --from <bulk file>`, because
+# `progress-engine sync` could not complete: it fetches six oracle tags from
+# the Scryfall search API with no delay between requests and got HTTP 429 on
+# the fifth one, four separate times, discarding the whole 24.7 MB download
+# each time. `--from` succeeds but SKIPS ORACLE TAGS ENTIRELY.
+#
+# Consequence: the autoloading effect library, whose two entries are keyed on
+# `t:land otag:surveil` and `t:land otag:scry`, matches ZERO cards on this
+# index, and the run reports `"effects": []` without warning.
+#
+# THIS MATTERS HERE, because this file asks about the graveyard. I checked
+# Archidekt's own oracle tags for every land in this deck and NONE of them
+# surveils or scrys, so a fully tagged index would also route nothing and the
+# graveyard numbers would still be 0.00% with the same note. But that is my
+# check, not the tool's, and the tool cannot currently tell the two zeroes
+# apart on this index. Rebuild with a complete `sync` and compare:
+# `provenance.index_updated_at` will stop being null, which is how you will
+# know which index produced a number.

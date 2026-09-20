@@ -29,8 +29,9 @@ made up — if you can write it down, it can be asked about.
 
 ## The north stars
 
-Two real decks. When the tool can answer both, it works. One of them it now
-can.
+Two real decks. When the tool can answer both, it works. It cannot answer either
+of them yet, and both were briefly recorded here as closer than they were —
+which is the reason this section now names the deck rather than the question.
 
 **Lantern control.** *How often is there a line that resolves Lantern of Insight
 by turn 5?*
@@ -65,15 +66,33 @@ battlefield for nothing. It needs delayed effects and a tutor destination, and
 no part of the mana model.
 
 **Life from the Loam.** *How often is Loam in my graveyard by turn 5?* Needs the
-graveyard to be a thing you can ask about, and needs surveilling a card into the
-yard to count as a route there — because for this deck it is the *good* route,
-not a consolation prize. **Answerable**, as of the effect library and land-drop
-routing.
+graveyard to be a thing you can ask about, and needs a card routed into the yard
+to count as arriving there — because for this deck that is the *good* route, not
+a consolation prize.
 
-Loam needed no mana model and is done. Lantern's three routes can now be
-written down together, and two of them need the mana model before what is
-written is the question the pilot asks: as things stand those clauses say the
-card was *drawn*, which overstates both.
+**Answerable for a deck built on surveil lands. Not answerable for the actual
+deck**, which was checked against its own list after this was first written down
+as done. It contains no surveil or scry land at all. Its routes to the graveyard
+are Loam's own Dredge 3, six mana-gated self-mill spells, and cycling lands and
+discard outlets — and the `[[effect]]` grammar expresses none of them, because
+every one is either mana-gated or a replaced draw rather than a land drop.
+
+So the machinery is real and the north star is not met. Recording it as met was
+the same mistake as recording the Lantern question in its easy form: a feature
+was built for the deck that was imagined rather than the one on the table.
+
+Both need the mana model, and that was not obvious until the real lists were
+read. Lantern's three routes can now be written down together, but two of them
+say the card was *drawn* rather than castable, which overstates them. Loam's
+self-mill is six spells and a dredge trigger, every one of which costs mana or
+replaces a draw — so the land-drop tier that was built for it does not fire on
+it once.
+
+The general lesson, worth more than either deck: **the effect tiers were chosen
+from decks nobody had opened.** Land drops were picked first because they are
+free and bounded, which is true, and because surveil lands were assumed to be
+how these decks filter, which was not. Almost everything real decks do costs
+mana.
 
 [HANDS.md](HANDS.md) works both of them, and a dozen other cases, as concrete
 seven-card hands with the answer written down.
