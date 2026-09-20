@@ -1,0 +1,6 @@
+// HANDS.md hand 4, as a library small enough that every deal is the same one.
+//
+// Nine cards, so by turn 3 the whole library is in hand: five lands drawn, and
+// three land drops to have played them on.
+5x Island [Land]
+4x Lightning Bolt [Burn]

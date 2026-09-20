@@ -7,8 +7,8 @@
 use std::convert::Infallible;
 
 use pe_criteria::{
-    Count, Criterion, Effect, Evaluator, Expectation, Grouping, GroupingError, PathOutcomes,
-    PathView, Plan, Route, RunError, Schedule, Trigger, Zone, MAX_COUNT,
+    Cost, Count, Criterion, Effect, Evaluator, Expectation, Grouping, GroupingError, ManaSource,
+    Palette, PathOutcomes, PathView, Plan, Route, RunError, Schedule, Trigger, Zone, MAX_COUNT,
 };
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
@@ -589,5 +589,159 @@ fn a_routed_card_leaves_the_hand_and_the_library_for_the_yard() {
         (r.probabilities[0].get() - 1.0).abs() < 1e-12,
         "the partition held on only {} of the mass",
         r.probabilities[0].get()
+    );
+}
+
+// --- The mana gate (#10) --------------------------------------------------
+
+/// A land that makes `letters` and is untapped on arrival.
+fn untapped(letters: &str) -> ManaSource {
+    ManaSource::Land {
+        enters_tapped: false,
+        produces: Palette::from_letters([letters]),
+    }
+}
+
+fn tapped(letters: &str) -> ManaSource {
+    ManaSource::Land {
+        enters_tapped: true,
+        produces: Palette::from_letters([letters]),
+    }
+}
+
+/// One seven-card hand, played out over three turns that draw nothing.
+///
+/// The way to write a *hand* down rather than a deck: a seven-card library is
+/// the whole opening hand, so there is one deal, every path is that deal, and a
+/// probability here is a yes or a no. The turns still happen — a land drop a
+/// turn is the thing under test — and nothing is drawn on them, which is the
+/// one liberty taken and is what HANDS.md's hands assume anyway.
+fn one_hand(cards: &[(u64, ManaSource, u32)]) -> (Grouping, Schedule) {
+    assert_eq!(
+        cards.iter().map(|(_, _, n)| n).sum::<u32>(),
+        7,
+        "a hand is seven cards"
+    );
+    (
+        Grouping::with_mana(q(&["lands"]), cards.to_vec()).unwrap(),
+        Schedule::plain(&[7, 0, 0, 0]),
+    )
+}
+
+fn holds(grouping: &Grouping, schedule: &Schedule, check: Check) -> f64 {
+    let mut ev = Closures(vec![check]);
+    pe_criteria::run(grouping, schedule, only_criteria(1), &mut ev)
+        .unwrap()
+        .probabilities[0]
+        .get()
+}
+
+#[test]
+fn land_drops_are_one_a_turn_and_do_not_bank() {
+    // HANDS.md hand 4. Five Islands and two spells, held from turn 0: five
+    // lands in hand on every turn, and one more of them in play on each.
+    let (grouping, schedule) = one_hand(&[(0b1, untapped("U"), 5), (0b0, ManaSource::Spell, 2)]);
+    for (turn, drawn, played) in [(1, 5, 1), (2, 5, 2), (3, 5, 3)] {
+        assert_eq!(
+            holds(
+                &grouping,
+                &schedule,
+                Box::new(
+                    move |v: &PathView<'_>| v.count_in(turn, 0, Zone::Hand) == drawn
+                        && v.count_in(turn, 0, Zone::Battlefield) == played
+                )
+            ),
+            1.0,
+            "turn {turn}: {drawn} drawn and {played} in play, on every deal"
+        );
+    }
+}
+
+#[test]
+fn one_dual_land_is_two_counts_and_one_mana() {
+    // HANDS.md hands 6 and 7, which are the same test told twice. Both hands
+    // hold "a white source" and "a blue source", because a Hallowed Fountain is
+    // both. One of them pays {W}{U} and the other does not, and no arithmetic
+    // over the two counts tells them apart.
+    let cost = Cost::parse("{W}{U}").unwrap();
+    let hand_six = one_hand(&[(0b1, untapped("WU"), 1), (0b0, ManaSource::Spell, 6)]);
+    let hand_seven = one_hand(&[
+        (0b1, untapped("WU"), 1),
+        (0b1, untapped("U"), 1),
+        (0b0, ManaSource::Spell, 5),
+    ]);
+    for (grouping, schedule) in [&hand_six, &hand_seven] {
+        // Two land drops by turn 3 in hand seven, one in hand six — the counts
+        // that a naive model would read, and they are not what differs.
+        assert_eq!(
+            holds(
+                grouping,
+                schedule,
+                Box::new(|v: &PathView<'_>| v.count_in(3, 0, Zone::Hand) >= 1)
+            ),
+            1.0
+        );
+    }
+    let pays = |(grouping, schedule): &(Grouping, Schedule)| {
+        let cost = cost.clone();
+        holds(
+            grouping,
+            schedule,
+            Box::new(move |v: &PathView<'_>| v.can_cast(3, &cost)),
+        )
+    };
+    assert_eq!(pays(&hand_six), 0.0, "one Fountain cannot pay two pips");
+    assert_eq!(
+        pays(&hand_seven),
+        1.0,
+        "the Fountain pays {{W}}, the Island {{U}}"
+    );
+}
+
+#[test]
+fn a_land_that_enters_tapped_makes_no_mana_the_turn_it_arrives() {
+    // The other half of hand 7, and the reason hand 12 differs by a whole turn:
+    // a tapped land is in play and pays nothing until your next turn.
+    let (grouping, schedule) = one_hand(&[(0b1, tapped("WU"), 2), (0b0, ManaSource::Spell, 5)]);
+    let castable = |turn: usize, text: &str| {
+        let cost = Cost::parse(text).unwrap();
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| v.can_cast(turn, &cost)),
+        )
+    };
+    assert_eq!(castable(1, "{W}"), 0.0, "the only land arrived tapped");
+    assert_eq!(castable(2, "{W}"), 1.0, "it untapped");
+    assert_eq!(
+        castable(2, "{W}{U}"),
+        0.0,
+        "the second one arrived this turn, tapped"
+    );
+    assert_eq!(castable(3, "{W}{U}"), 1.0);
+}
+
+#[test]
+fn a_free_spell_is_castable_with_no_lands_at_all() {
+    // Nothing in the library is a land, and turn 0 has no land drop. {0} is
+    // still payable, because it asks for nothing.
+    let (grouping, schedule) = one_hand(&[(0b0, ManaSource::Spell, 7)]);
+    let free = Cost::parse("{0}").unwrap();
+    let one = Cost::parse("{1}").unwrap();
+    assert_eq!(
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| v.can_cast(0, &free))
+        ),
+        1.0
+    );
+    assert_eq!(
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| v.can_cast(3, &one))
+        ),
+        0.0
     );
 }

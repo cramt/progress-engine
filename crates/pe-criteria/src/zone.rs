@@ -13,9 +13,7 @@ use thiserror::Error;
 /// that the engine can answer questions about that zone, so a zone it cannot
 /// model has no variant to hide in and is refused by name at the file
 /// boundary — the same discipline as an unknown key or an unsupported query
-/// term. `battlefield` is the one people will reach for and the one that needs
-/// castability, which is not modelled; exile and the stack have no route into
-/// them at all.
+/// term. Exile and the stack have no route into them at all.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Zone {
     /// The default, and what every count in this tool has always meant.
@@ -47,11 +45,27 @@ pub enum Zone {
     /// this path has seen. No state to carry, because the engine already knows
     /// both halves.
     Library,
+    /// Lands you have played.
+    ///
+    /// Answerable, and only for a query that picks out lands — which is what
+    /// makes it answerable. A land arrives on a land drop, which is free and
+    /// capped at one a turn, so *how many are in play* is a function of the
+    /// path the enumeration already walks. Every other permanent has to be
+    /// cast, and *which* spells you cast is the budget half of
+    /// [#10](https://github.com/cramt/progress-engine/issues/10) — so a
+    /// battlefield question about anything but a land is still refused by name,
+    /// at the boundary where the card data is, rather than answered with
+    /// "drawn" under another name.
+    ///
+    /// **Use-it-or-lose-it**, which is the whole reason this differs from the
+    /// hand. Drawing five lands by turn 3 puts three of them in play, not five,
+    /// because the other two drops never happened — HANDS.md hand 4.
+    Battlefield,
 }
 
 impl Zone {
     /// Every zone a criteria file may name, for the message that lists them.
-    pub const ACCEPTED: &'static str = "hand, graveyard, library";
+    pub const ACCEPTED: &'static str = "hand, graveyard, library, battlefield";
 
     /// The zone a clause means when it does not say.
     ///
@@ -65,6 +79,7 @@ impl Zone {
             Zone::Hand => "hand",
             Zone::Graveyard => "graveyard",
             Zone::Library => "library",
+            Zone::Battlefield => "battlefield",
         }
     }
 
@@ -74,7 +89,7 @@ impl Zone {
             "hand" => Ok(Zone::Hand),
             "graveyard" => Ok(Zone::Graveyard),
             "library" => Ok(Zone::Library),
-            "battlefield" => Err(ZoneError::Battlefield),
+            "battlefield" => Ok(Zone::Battlefield),
             _ => Err(ZoneError::Unknown {
                 name: name.to_string(),
             }),
@@ -99,6 +114,12 @@ impl Zone {
 pub struct Reachable {
     /// Whether some effect in this run routes a card to the graveyard.
     pub graveyard: bool,
+    /// Whether this deck holds a land at all.
+    ///
+    /// The same confident zero by a different route: a battlefield count in a
+    /// landless library is zero because nothing can ever be played, not because
+    /// the deck was unlucky.
+    pub battlefield: bool,
 }
 
 impl Reachable {
@@ -106,6 +127,7 @@ impl Reachable {
         match zone {
             Zone::Hand | Zone::Library => true,
             Zone::Graveyard => self.graveyard,
+            Zone::Battlefield => self.battlefield,
         }
     }
 }
@@ -119,21 +141,6 @@ impl std::fmt::Display for Zone {
 /// A zone name this engine will not answer questions about.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ZoneError {
-    /// Refused by name rather than approximated.
-    ///
-    /// The tempting approximation is "held it, so it is in play", and it is
-    /// wrong in the direction that flatters the deck: an opening hand with one
-    /// Island and a three-drop has the three-drop in hand on turn 0 and on the
-    /// battlefield on no turn at all. Answering anyway would report a number
-    /// that looks exactly like a measurement.
-    #[error(
-        "`zone = \"battlefield\"` is not modelled. Knowing a card is on the battlefield means \
-         knowing you could cast it, and castability needs the mana model \
-         (https://github.com/cramt/progress-engine/issues/10).\n\
-         Approximating it would report \"drawn\" under another name, so it is refused instead. \
-         Ask about `hand`, and know that is what you asked."
-    )]
-    Battlefield,
     #[error(
         "`zone = {name:?}` is not a zone this tool knows. Accepted: {}.",
         Zone::ACCEPTED

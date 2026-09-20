@@ -1,0 +1,5 @@
+# No mana question at all, on a deck full of lands whose tapped-ness is a
+# decision. Nothing was assumed, so nothing is said.
+[[criterion]]
+name = "a land drawn by turn 3"
+require = [{ turn = 3, query = "t:land", min = 1 }]

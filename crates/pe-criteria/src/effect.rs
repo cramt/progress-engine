@@ -25,6 +25,7 @@
 //! same restriction the rest of the engine runs on, and the reason this stays
 //! enumerable instead of becoming a simulation.
 
+use crate::mana::{Constraint, Cost, Source};
 use crate::{Grouping, Schedule, Zone};
 use pe_stats::Path;
 use thiserror::Error;
@@ -74,18 +75,22 @@ impl std::fmt::Display for Trigger {
 /// A trigger this engine will not fire.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum TriggerError {
-    /// Refused by name rather than approximated, exactly as
-    /// [`crate::ZoneError::Battlefield`] is, and for the same reason: the
-    /// tempting approximation is "held it, so it happened", and an opening hand
-    /// of one Island and six Opt casts one Opt. A model that fires an effect
-    /// whenever the card is in hand overstates that turn sixfold and the number
-    /// looks perfectly reasonable in a report.
+    /// Refused by name rather than approximated.
+    ///
+    /// The gate half of the mana model ships — [`Board::can_cast`] will tell
+    /// you whether Opt was castable on turn two — and this still does not,
+    /// because firing an effect needs the other half. An opening hand of one
+    /// Island and six Opt *can cast* Opt and casts exactly one of them: the
+    /// first one spends the Island. A model that fires an effect whenever the
+    /// card is in hand and the mana is there overstates that turn sixfold, and
+    /// the number looks perfectly reasonable in a report.
     #[error(
-        "`on = {name:?}` is not modelled. Knowing you cast a spell on a turn means knowing you \
-         could pay for it, and that needs the mana model \
+        "`on = {name:?}` is not modelled. Knowing you cast a spell on a turn means knowing the \
+         mana was still there after the last one, and that is the budget half of the mana model \
          (https://github.com/cramt/progress-engine/issues/10).\n\
-         Holding a card is not casting it, so firing on the holding would overstate the turn. \
-         Only `on = \"landdrop\"` is free and capped at one per turn, so only that is modelled."
+         Being able to cast a card is not casting it six times, so firing on the holding would \
+         overstate the turn. Only `on = \"landdrop\"` is free and capped at one per turn, so \
+         only that is modelled. `can_cast` answers whether you could have."
     )]
     NeedsMana { name: String },
     #[error(
@@ -164,9 +169,18 @@ pub struct Board<'a> {
     /// `routed[effect][group]`: does a card of this group leave for the yard
     /// when this effect looks at it.
     routed: Vec<Vec<bool>>,
+    /// Which groups are lands, so the gate does not walk the whole deck.
+    land_groups: Vec<usize>,
     /// `[turn][group]`, filled by [`Board::walk`].
     hand: Vec<Vec<u32>>,
     yard: Vec<Vec<u32>>,
+    /// Land drops made by the end of each turn.
+    ///
+    /// One a turn and use-it-or-lose-it, so this is not the number of lands
+    /// drawn: `drops(T) = min(lands drawn by T, drops(T-1) + 1)`. Recorded per
+    /// turn rather than recomputed, because the gate reads both this turn's and
+    /// last turn's on every question it answers.
+    drops: Vec<u32>,
     // --- scratch, reused across paths -----------------------------------
     /// Revealed and not yet consumed, in reveal order: the top of the library.
     fresh: Vec<usize>,
@@ -177,6 +191,10 @@ pub struct Board<'a> {
     played: Vec<u32>,
     live_hand: Vec<u32>,
     live_yard: Vec<u32>,
+    /// What each land group makes, parallel to `land_groups`. Fixed for the
+    /// whole run: how many are available moves with the path, what they produce
+    /// does not.
+    pool: Vec<Source>,
 }
 
 impl<'a> Board<'a> {
@@ -213,11 +231,25 @@ impl<'a> Board<'a> {
             })
             .collect();
         let turns = schedule.turns();
+        let land_groups: Vec<usize> = grouping
+            .group_mana()
+            .iter()
+            .enumerate()
+            .filter(|(_, mana)| mana.is_land())
+            .map(|(group, _)| group)
+            .collect();
+        let pool = land_groups
+            .iter()
+            .map(|&group| Source::of(grouping.group_mana()[group]))
+            .collect();
         Board {
             grouping,
             schedule,
             group_effect,
             routed,
+            land_groups,
+            pool,
+            drops: vec![0; turns],
             hand: vec![vec![0; groups]; turns],
             yard: vec![vec![0; groups]; turns],
             fresh: Vec::with_capacity(schedule.gaps().iter().sum::<u32>() as usize),
@@ -280,6 +312,16 @@ impl<'a> Board<'a> {
                     self.look(chosen, effects[chosen].look);
                 }
             }
+
+            // One drop a turn, and it is wasted if you are holding nothing to
+            // play. That is what makes this a fact about the path rather than
+            // about the hand: five lands drawn by turn 3 are three lands in
+            // play, because the other two drops never happened.
+            let held: u32 = self.land_groups.iter().map(|&g| self.live_hand[g]).sum();
+            self.drops[turn] = match turn.checked_sub(1) {
+                None => 0,
+                Some(previous) => held.min(self.drops[previous] + 1),
+            };
 
             self.hand[turn].copy_from_slice(&self.live_hand);
             self.yard[turn].copy_from_slice(&self.live_yard);
@@ -375,7 +417,97 @@ impl<'a> Board<'a> {
                     - in_hand
                     - self.grouping.count_matching(&self.yard[turn], query)
             }
+            Zone::Battlefield => self.played_by(turn, query),
         }
+    }
+
+    /// How many lands matching `query` could have been played by `turn`.
+    ///
+    /// The same use-it-or-lose-it recurrence as [`Board::drops`], run over the
+    /// matching lands alone: one drop a turn, and a drop you could not use is
+    /// gone. Answering per query rather than reading a single played-lands
+    /// figure is what lets "two Islands in play" differ from "two lands in
+    /// play" on the same path.
+    ///
+    /// It is the *most* you could have had, which is the reading a gate wants:
+    /// nobody plays their lands badly, so a question about what is in play is a
+    /// question about the line that plays them well. A criterion asking for two
+    /// disjoint sets of lands at once is then two questions each answered as if
+    /// it were the priority — [`Board::drops`] caps their total, but nothing
+    /// makes one line serve both. Asking for one land set per criterion is the
+    /// honest way to write it.
+    fn played_by(&self, turn: usize, query: usize) -> u32 {
+        let mut played = 0;
+        for t in 1..=turn {
+            let drawn = self.grouping.count_matching(&self.hand[t], query);
+            played = drawn.min(played + 1);
+        }
+        played
+    }
+
+    /// Whether `cost` could have been paid on `turn`.
+    ///
+    /// Only lands pay, because only a land arrives without being cast. What
+    /// makes this exact rather than a guess is that the choice a pilot has —
+    /// which lands to play, and in which order — is fully enumerable here:
+    ///
+    /// - **Which lands.** At most one card enters hand per turn after the
+    ///   opening, so any set of lands you have drawn and can afford drops for
+    ///   can be the set you played. No land you drew is stuck behind another.
+    /// - **Which one is tapped.** A land untaps on your next turn, so the only
+    ///   land that can still be tapped is the one played *this* turn. Everything
+    ///   else in play makes mana whatever it did on the way in.
+    ///
+    /// So there are three lines to check, and the answer is whether any of them
+    /// pays: play nothing relevant this turn and pay with what was already
+    /// down; play a land you were already holding and tap it too, which needs it
+    /// to enter untapped; or play the land that arrived this turn and tap that,
+    /// which needs the same of it.
+    pub fn can_cast(&self, turn: usize, cost: &Cost) -> bool {
+        if cost.is_free() {
+            return true;
+        }
+        let (Some(previous), Some(hand)) = (turn.checked_sub(1), self.hand.get(turn)) else {
+            // Turn 0 is the opening hand, before any land drop. Nothing is in
+            // play, so nothing but a free spell is castable.
+            return false;
+        };
+        let drops = self.drops[turn];
+        if cost.total() > drops {
+            return false;
+        }
+        let earlier = &self.hand[previous];
+
+        // Held is what was in hand when the turn began: every one of those has
+        // had a turn on which it could have been played, so any of them can be
+        // among the lands already down.
+        let held = |slot: usize| earlier[self.land_groups[slot]];
+
+        // Line one: every land paying this was already on the battlefield when
+        // the turn began, so none of them can be tapped.
+        if cost.total() <= self.drops[previous]
+            && cost.payable(&self.pool, held, Constraint::Anything)
+        {
+            return true;
+        }
+        // Line two: one of the lands paying this is the drop made this turn,
+        // taken from what was already in hand — so it has to enter untapped.
+        if cost.payable(&self.pool, held, Constraint::IncludesUntapped) {
+            return true;
+        }
+        // Line three: the drop made this turn is a land that arrived this turn,
+        // which is the only turn it could be played on. Same requirement of it,
+        // and however many arrived only one of them can be played.
+        for (slot, &group) in self.land_groups.iter().enumerate() {
+            if hand[group] == earlier[group] || self.pool[slot].tapped {
+                continue;
+            }
+            let arrived = |i: usize| held(i) + u32::from(i == slot);
+            if cost.payable(&self.pool, arrived, Constraint::Includes(slot)) {
+                return true;
+            }
+        }
+        false
     }
 
     pub fn turns(&self) -> usize {

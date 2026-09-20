@@ -1,0 +1,5 @@
+# A mana question against whichever index the caller passes. Used to check that
+# an index which cannot say what a land makes refuses rather than answering.
+[[criterion]]
+name = "three mana by turn 3"
+require = [{ turn = 3, can_cast = "{2}{G}" }]

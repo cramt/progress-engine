@@ -65,6 +65,12 @@ Land, so it arrives on a land drop, and chapter III puts Lantern onto the
 battlefield for nothing. It needs delayed effects and a tutor destination, and
 no part of the mana model.
 
+The first route is now writable: *Lantern in hand and one mana* is a clause
+asking for the card and a clause asking `can_cast = "{1}"`, which is exactly the
+gate. The other two are not — the second needs the budget, because it casts two
+spells in one turn, and the third needs delayed effects. So the north star is
+closer by one of three routes and is still not met.
+
 **Life from the Loam.** *How often is Loam in my graveyard by turn 5?* Needs the
 graveyard to be a thing you can ask about, and needs a card routed into the yard
 to count as arriving there — because for this deck that is the *good* route, not
@@ -142,6 +148,14 @@ lands" is conditional in a way no regex survives. The old conclusion was that
 they could not be supported. The right conclusion is to ask Scryfall and record
 the date of the answer, which is the same standard the card index is already
 held to.
+
+It paid twice. Asking also turned up `otag:conditional-tapland`, which is the
+179 lands whose tapped-ness is contingent or chosen — and `otag:tapland`
+excludes every one of them, so the two tags together separate *this land enters
+tapped* from *this land offers you a decision*. A model built on the one tag
+would have had to fold those together and would have been wrong about every
+shockland in either direction. Nobody could have derived that distinction; it
+was there to be asked for.
 
 ### Every number names its inputs
 
@@ -269,19 +283,38 @@ user writes, because one Hallowed Fountain counts toward both `produces:w` and
 cannot pay. It is a bipartite matching, and the engine can solve it exactly per
 composition while the user cannot express it — so it has to be a primitive.
 
+**The gate ships**, as `zone = "battlefield"` for lands and `can_cast` for a
+cost. It cost nothing in enumeration width to count lands in play and a great
+deal to price them: telling a Plains from an Island splits groups no query
+splits, and a castability question on a five-profile manabase multiplies the
+compositions by three thousand at turn six, which is over the ceiling. That is
+the honest price of an exact answer and it is why the sampling fallback existed
+first.
+
 As a **budget**, it is spent. An opening hand of one Island and six Opt casts
 *one* Opt, because the first one consumes the Island. A model where an effect
 fires whenever you hold the card overstates that turn sixfold, and the number
-looks perfectly reasonable in a report.
+looks perfectly reasonable in a report. **This is not built**, and the gate
+shipping does not weaken the argument for it: knowing you *could* cast Opt is
+exactly not knowing how many you cast.
 
-The gate is cheap: lands in play is a function of the checkpoint path the engine
-already walks. The budget is not, because an effect that draws makes *cards seen
-by turn T* path-dependent and changes the shape of the enumeration rather than
-the state carried through it. So the gate ships first and is worth having alone.
+The gate was cheap in the way that mattered: lands in play is a function of the
+checkpoint path the engine already walks. The budget is not, because an effect
+that draws makes *cards seen by turn T* path-dependent and changes the shape of
+the enumeration rather than the state carried through it.
 
 Which spell you cast when you cannot cast both is a **declared priority over
 queries** — the same mechanism as mulligan bottoming and selection routing, gated
 by a resource instead of by a looked-at set. Not a fourth policy language.
+
+**Two decisions the gate makes for the pilot**, both stated rather than hidden.
+A shockland's tapped-ness is a choice — `otag:conditional-tapland` says the card
+offers it and settles nothing else — and the run assumes the pessimistic half
+and names every card it assumed it about. And a land drop is one resource with
+two claimants: the effect library already spends it choosing which land to play,
+so a file holding both a routing effect and a mana question is refused rather
+than arbitrated. Three declared-priority mechanisms that disagree is the failure
+this document is written against, and two is not better.
 
 ### Zones are the real question
 
@@ -293,8 +326,10 @@ A clause now names its zone, and silence still means `hand` so that no file
 written before this moves. `graveyard` is askable, and reachable exactly when
 some effect in the run routes a card there; in a run where none does it is
 correctly empty and the run says so rather than letting that zero pass for a
-measurement. `battlefield` is refused by name: it would have to know what you
-could cast, and that is the mana model.
+measurement. `battlefield` is askable **for lands**, which is the half of it
+that needs no casting: a land arrives on a land drop, one a turn, and the
+enumeration already walks those. For anything that has to be cast it is still
+refused by name, because *which* spells you cast is the budget.
 
 ## Who it is for
 
@@ -334,7 +369,18 @@ through the front door.
 - The standard library declares what a card looks at and never where the cards
   go, because the destination is part of the question.
 - A mana model is in scope, staged gate-first then budget
-  ([#10](https://github.com/cramt/progress-engine/issues/10)).
+  ([#10](https://github.com/cramt/progress-engine/issues/10)). **The gate
+  ships**: lands in play, tapped-ness, and `can_cast` as a matching over the
+  lands a composition put down. The budget does not.
+- A land whose tapped-ness the pilot chooses is assumed to enter tapped, and
+  every run that depended on the assumption names the cards it made it about.
+  Understating a shockland manabase is the failure this project would rather
+  have: a number a deck can beat is better than one it cannot reach. It is a
+  stated assumption rather than a hidden one, and it is meant to become
+  declarable.
+- Castability is refused where the card data cannot price it — an index with no
+  `produces`, or without both tapland tags — rather than answered as zero or as
+  untapped, which are the two confident wrong numbers available.
 - A criterion can hold `any_of`, one level of alternation over branches of
   clauses, and its answer is the union of the branches rather than their sum
   ([#49](https://github.com/cramt/progress-engine/issues/49)) — shipped. The
@@ -343,8 +389,10 @@ through the front door.
   the disjunction is exact and adds no groups beyond the queries its branches
   already name.
 - A criterion names the zone it asks about, silence means `hand`, and
-  `battlefield` is refused until castability exists rather than approximated
-  ([#40](https://github.com/cramt/progress-engine/issues/40)) — shipped.
+  `battlefield` was refused until castability existed rather than approximated
+  ([#40](https://github.com/cramt/progress-engine/issues/40)) — shipped, and the
+  refusal has since narrowed to the part that is still true: lands are counted
+  there, and a permanent that has to be cast is not.
 
 ## Not yet decided
 

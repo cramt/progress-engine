@@ -267,6 +267,9 @@ pub struct Breakdown {
     pub queries: Vec<QueryMatch>,
     pub zones: Vec<ZoneUse>,
     pub effects: Vec<EffectUse>,
+    /// Lands whose tapped-ness this run decided for the pilot. Empty unless the
+    /// run asked a mana question, because otherwise it decided nothing.
+    pub assumed_tapped: Vec<String>,
 }
 
 /// SHA-256 of some bytes, lowercase hex.
@@ -305,6 +308,15 @@ pub struct Report {
     /// Every effect that applied to a card in this deck, standard library and
     /// hand-written alike.
     pub effects: Vec<EffectUse>,
+    /// Lands this run assumed into play tapped because the card lets the pilot
+    /// decide and nobody has.
+    ///
+    /// Reported for the same reason the effects are: it moves the numbers and
+    /// nobody asked for it. A shockland's "you may pay 2 life" is a choice, the
+    /// run makes it pessimistically, and a percentage cannot say so on its own.
+    /// Empty on every run that asks no mana question.
+    #[facet(skip_serializing_if = Vec::is_empty)]
+    pub assumed_tapped: Vec<String>,
     pub criteria: Vec<CriterionResult>,
     /// Alongside `criteria` rather than merged into it. They answer different
     /// questions in different units, and several things already read `criteria`
@@ -329,6 +341,7 @@ impl Report {
             queries,
             zones,
             effects,
+            assumed_tapped,
         } = breakdown;
         let Scenario {
             on_the_draw,
@@ -405,6 +418,7 @@ impl Report {
             queries,
             zones,
             effects,
+            assumed_tapped,
             criteria: results,
             expectations: expected,
             asserted,
@@ -460,15 +474,41 @@ impl Report {
         // there, and not before: a note that never fires is as useless as one
         // that always does.
         for z in &self.zones {
-            if !z.reachable {
-                out.push_str(&format!(
-                    "note: nothing routes a card to the {} in this run, so every count in\n      \
-                     it is zero by construction rather than by measurement.\n      \
-                     Asked by: {:?}\n      \
-                     Declare `to_graveyard` on an [[effect]] to route one there.\n",
-                    z.zone, z.asked_by
-                ));
+            if z.reachable {
+                continue;
             }
+            let fix = if z.zone == "battlefield" {
+                "This deck holds no land, so nothing can be played."
+            } else {
+                "Declare `to_graveyard` on an [[effect]] to route one there."
+            };
+            out.push_str(&format!(
+                "note: nothing routes a card to the {} in this run, so every count in\n      \
+                 it is zero by construction rather than by measurement.\n      \
+                 Asked by: {:?}\n      {fix}\n",
+                z.zone, z.asked_by
+            ));
+        }
+        // An assumption the tool made on the pilot's behalf, which moves
+        // numbers and which nobody wrote down. Printed on every run it touched,
+        // and naming the cards rather than the count: "three lands assumed
+        // tapped" is not something a reader can check, and "Hallowed Fountain"
+        // is.
+        if !self.assumed_tapped.is_empty() {
+            out.push_str(&format!(
+                "note: {} here let the pilot decide whether to enter tapped. This run assumes \
+                 they do:\n      {}.\n      \
+                 A shockland's 2 life is a decision no criteria file has made yet, so the \
+                 pessimistic\n      reading is taken: it makes no mana the turn it arrives. \
+                 Every number below that\n      depends on one of these is a floor rather than \
+                 a measurement.\n",
+                if self.assumed_tapped.len() == 1 {
+                    "one land".to_string()
+                } else {
+                    format!("{} lands", self.assumed_tapped.len())
+                },
+                self.assumed_tapped.join(", ")
+            ));
         }
         // One width across both sections, so the numbers line up down the whole
         // report rather than restarting at the second heading.
@@ -864,4 +904,90 @@ fn histogram_lines(p: &[f64], indent: usize) -> Vec<String> {
 fn round(v: f64, places: u32) -> f64 {
     let f = 10f64.powi(places as i32);
     (v * f).round() / f
+}
+
+/// Why a battlefield question about something that is not a land is refused.
+///
+/// The one approximation this would not be is "drawn", and it is wrong in the
+/// direction that flatters the deck: an opening hand with one Island and a
+/// three-drop has the three-drop in hand on turn 0 and on the battlefield on no
+/// turn at all. A land is different in kind rather than in degree — it arrives
+/// on a land drop, which is free, capped at one a turn, and something this
+/// engine walks — so the zone opens for lands and stays shut for everything
+/// else.
+pub fn battlefield_refusal(query: &str, spells: &[String]) -> String {
+    format!(
+        "`zone = \"battlefield\"` in query {query:?} is only answerable for lands, and this \
+         query matches {}\n      that {}: {}.\n      \
+         A land arrives on a land drop, which is free and one a turn, so this engine knows when \
+         it\n      got there. Everything else has to be cast, and which spells you cast when you \
+         cannot cast\n      them all is the budget half of the mana model \
+         (https://github.com/cramt/progress-engine/issues/10).\n      \
+         Narrow the query to lands, or ask about `hand` and know that is what you asked.",
+        spells.len(),
+        if spells.len() == 1 {
+            "is not"
+        } else {
+            "are not"
+        },
+        spells.join(", ")
+    )
+}
+
+/// Why a mana question beside a live land-drop effect is refused.
+///
+/// Both are answers to *which land did you play this turn*, and they are
+/// different answers. The walk plays the deepest-looking land you are holding,
+/// because before the mana model there was nothing else to tell two drops
+/// apart; the gate assumes you played whichever land pays. Running both would
+/// be two policies over one resource, which is the failure VISION.md is written
+/// against — so it is refused until one policy covers both.
+pub fn mana_beside_effects_refusal() -> String {
+    "a mana question and a live land-drop effect are both answers to which land you played \
+     this turn,\n      and this run holds both. The effect library plays the deepest-looking \
+     land in hand; the mana\n      model would play whichever land pays. Two policies over \
+     one land drop would disagree exactly\n      where it matters, so this is refused rather \
+     than arbitrated \
+     (https://github.com/cramt/progress-engine/issues/10).\n      \
+     Drop the `to_graveyard` routing, or ask the mana question in a file of its own."
+        .to_string()
+}
+
+/// Why this index cannot price a cost, or `None` when it can.
+///
+/// Both halves are silent failures of the same shape as an unfetched oracle
+/// tag: an index with no `produces` reports every land as making nothing and
+/// answers 0.00%, and an index with no tapland tag reports every land as
+/// untapped and answers a number the deck cannot reach. Neither looks like a
+/// gap in the data from the outside.
+pub fn cannot_price_mana(library: &Library) -> Option<String> {
+    if library.index_is_stale {
+        return Some(
+            "this index was built before it recorded what a land produces, so every land in it \
+             makes\n      no mana and every cost would be unpayable. \
+             Rebuild it with: progress-engine sync"
+                .to_string(),
+        );
+    }
+    let missing: Vec<&str> = [crate::library::TAPLAND, crate::library::CONDITIONAL_TAPLAND]
+        .into_iter()
+        .filter(|tag| !library.index_tags.contains(tag))
+        .collect();
+    if missing.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "this index does not carry {}, so it cannot say which lands enter tapped.\n      \
+         A land that enters tapped makes no mana the turn it arrives, which is the difference \
+         between\n      two lands and two mana — and without the tag every land here would \
+         read as untapped, which\n      is the optimistic answer rather than the measured one. \
+         This index carries: {}.\n      \
+         Fetch them with: progress-engine sync   (--from cannot: they come from the search API)",
+        missing
+            .iter()
+            .map(|t| format!("otag:{t}"))
+            .collect::<Vec<_>>()
+            .join(" or "),
+        library.index_tags.carried().join(", ")
+    ))
 }

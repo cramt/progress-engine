@@ -1,0 +1,12 @@
+# The fixture criterion this feature exists to correct, written the way it
+# should have been. `simple-ramp.criteria.toml` asks for two lands *drawn* by
+# turn 2 and a one-mana accelerant, which overstates the line: the accelerant
+# has to be cast off the turn-1 land, and the three-mana commander off two lands
+# and the accelerant.
+[[criterion]]
+name = "two lands drawn by turn 2"
+require = [{ turn = 2, query = "t:land", min = 2 }]
+
+[[criterion]]
+name = "two lands in play by turn 2"
+require = [{ turn = 2, query = "t:land", zone = "battlefield", min = 2 }]

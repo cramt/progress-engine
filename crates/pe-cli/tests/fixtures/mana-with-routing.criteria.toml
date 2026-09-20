@@ -1,0 +1,11 @@
+# A mana question beside a live land-drop effect. Both decide which land was
+# played this turn, and they decide it differently.
+[[effect]]
+match = "t:land otag:surveil"
+look = 1
+on = "landdrop"
+to_graveyard = 'name:"Life from the Loam"'
+
+[[criterion]]
+name = "two mana by turn 2"
+require = [{ turn = 2, can_cast = "{1}{U}" }]

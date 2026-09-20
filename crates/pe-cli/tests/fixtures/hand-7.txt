@@ -1,0 +1,8 @@
+// HANDS.md hand 7: the same question, one card different. The Fountain pays
+// {W} and the Island pays {U}.
+//
+// Nine cards, so by turn 3 the whole library is in hand. The query counts are
+// identical to hand-6.txt's and the answer is not.
+1x Hallowed Fountain [Land]
+1x Island [Land]
+7x Lightning Bolt [Burn]

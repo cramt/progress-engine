@@ -1,5 +1,0 @@
-# Refused, not approximated. Knowing a card is on the battlefield means knowing
-# you could cast it, and castability is the mana model (#10).
-[[criterion]]
-name = "a land in play by turn 3"
-require = [{ turn = 3, query = "t:land", zone = "battlefield", min = 1 }]

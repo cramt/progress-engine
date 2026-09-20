@@ -1,0 +1,6 @@
+# Still refused, and now for the part that is still true. A land gets onto the
+# battlefield on a land drop; a Sol Ring has to be cast, and which spells you
+# cast when you cannot cast them all is the budget half of #10.
+[[criterion]]
+name = "an accelerant in play by turn 3"
+require = [{ turn = 3, query = 'cat:"Ramp - One Mana"', zone = "battlefield", min = 1 }]

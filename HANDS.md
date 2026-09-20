@@ -10,7 +10,7 @@ those.
 Each one states the hand, what actually happens, and what a naive model says
 instead. Where those differ, that difference is the test.
 
-**Most of these are not answerable yet.** Each is marked with what it needs.
+**Several of these are not answerable yet.** Each is marked with what it needs.
 That is the point: they pin the semantics before the code exists, so that
 building the feature cannot quietly redefine the question.
 
@@ -50,7 +50,8 @@ Opt ×6
 ```
 
 **Turn 1:** play Undercity Sewers. It **enters tapped**, so it makes no mana
-this turn. Surveil 1 on entry. Cast **zero** Opts.
+this turn — which the gate now knows, from `otag:tapland`. Surveil 1 on entry.
+Cast **zero** Opts.
 
 Same shape as hand 1, one card different, and the answer changes from one Opt to
 none. The filtering and the mana pull in opposite directions — you see one more
@@ -73,7 +74,9 @@ nothing here draws or produces.
 **Naive model:** seven cantrips, so seven cards deep. This hand does nothing at
 all.
 
-*Needs #10.*
+*Answerable as a gate*: `can_cast` is false on every turn, because no land was
+ever played. How many Opts a hand with mana casts is still the budget, so the
+hand above the line is answered and hands 1 and 2 are not.
 
 ---
 
@@ -90,11 +93,30 @@ Opt ×2
 
 **Naive model:** a clause reading `turn = 3, query = "t:land"` sees five, because
 it counts cards
-drawn rather than lands played. Every mana-relevant criterion in the repo has
-this hole today, including the fixture's own "commander on turn 2".
+drawn rather than lands played. Every mana-relevant criterion in the repo had
+this hole, including the fixture's own "commander on turn 2".
 
-*Needs #10 (gate). This one is cheap — lands in play is a function of the
-checkpoint path the engine already walks.*
+*Answerable*, as `zone = "battlefield"` on a query matching lands. It was cheap
+exactly as predicted — lands in play is a function of the checkpoint path the
+engine already walks, and it adds no group and no path.
+
+```toml
+[[criterion]]
+name = "three lands in play by turn 3"
+require = [{ turn = 3, query = "t:land", zone = "battlefield", min = 3, max = 3 }]
+```
+
+This is a test, as `crates/pe-cli/tests/fixtures/hand-4.criteria.toml` against a
+nine-card library that is entirely in hand by turn 3, so the two clauses read
+100% and differ by two cards rather than by a probability.
+
+**The fixture's "commander on turn 2" did not move, and it is worth knowing
+why.** It asks for two lands by turn 2, and by turn 2 there have been two land
+drops — so *two lands drawn* and *two lands played* are the same set of hands,
+to the last digit. Every land clause in this repository asks for N lands by turn
+T with N ≤ T, which is the only reason none of the recorded numbers changed. A
+clause asking for three lands by turn 2 would have moved, and would have been
+wrong before.
 
 ### 5. Opt draws a land
 
@@ -135,7 +157,15 @@ This is why castability has to be a primitive rather than something a user
 assembles from counts. It is a bipartite matching — can these sources be
 assigned to these pips — and no arithmetic over independent counts answers it.
 
-*Needs #10.*
+*Answerable*, as `can_cast`:
+
+```toml
+[[criterion]]
+name = "{W}{U} payable on turn 3"
+require = [{ turn = 3, can_cast = "{W}{U}" }]
+```
+
+This is a test, and it is the same test as hand 7 — see there.
 
 ### 7. Hallowed Fountain plus Island, needing `{W}{U}`
 
@@ -145,12 +175,29 @@ Island
 (a {W}{U} spell)
 ```
 
-**Can cast it**, on turn 2. Fountain pays `{W}`, Island pays `{U}`.
+**Can cast it**, on turn 2. Fountain pays `{W}`, Island pays `{U}` — and the
+Fountain has to be the turn-1 drop, because a shockland that arrives on the turn
+you need it makes no mana (hand 8).
 
 The pair with hand 6: same query counts, different answer. Whatever solves this
 has to see the sources jointly.
 
-*Needs #10.*
+*Answerable*, and **the pair is the test rather than either half of it**. It is
+one criteria file — `hands-6-and-7.criteria.toml` — run against two decklists
+that differ by one card:
+
+| | `produces:w` ≥ 1 and `produces:u` ≥ 1 | `can_cast = "{W}{U}"` |
+|---|---|---|
+| hand 6: Fountain alone | 100% | **0%** |
+| hand 7: Fountain and Island | 100% | **88.89%** |
+
+The naive conjunction cannot tell the two hands apart and the gate answers them
+oppositely, which is the whole claim. The 11% shortfall in hand 7 is one deal in
+nine — the one where the Fountain is the card left out of the opening hand, so
+it arrives on turn 3, has to be played on turn 3, and enters tapped under the
+assumption in hand 8. The pair is also asserted at the engine level in
+`pe-criteria`, against hands written as seven-card libraries, where both answers
+are a flat yes and no.
 
 ### 8. Hallowed Fountain's tapped-ness is a decision
 
@@ -166,7 +213,23 @@ Assume never-pay and you understate every real shockland manabase.
 Same shape as mulligan bottoming and selection routing: a decision that needs to
 be declared in the file rather than assumed by the engine.
 
-*Needs #10. Open: whether the default is pay, don't-pay, or refuse to guess.*
+*Answered, and the data turned out to be better than this hand assumed.*
+`otag:tapland` does not contain Hallowed Fountain at all — Scryfall keeps the
+contingent ones in `otag:conditional-tapland`, 179 lands against the other tag's
+495, overlapping by nine oddities. So the two tags separate *enters tapped* from
+*offers you a decision* without any inference, and both are fetched at sync
+time.
+
+The decision is then made **pessimistically and out loud**: a conditional
+tapland is assumed to enter tapped, and every run that priced mana names the
+cards it assumed it about, on stderr and as `assumed_tapped` in the JSON. Never-
+pay understates a real shockland manabase, which is the direction this tool
+prefers to be wrong in — a number the deck can beat is a better failure than one
+it cannot reach.
+
+*Still open: making the choice declarable per file, which is what this hand
+originally asked for and is the right end state. A default nobody stated is what
+was refused; a default everybody is told about is what shipped.*
 
 ---
 
@@ -268,7 +331,15 @@ So *Lantern in hand by turn 1* and *Lantern on the battlefield by turn 1* differ
 and the difference is a whole turn. This is the question VISION.md flags as not
 yet settled: which one does the north star mean.
 
-*Needs #10, #40.*
+*Half answerable.* The mana half is: `{ turn = 1, can_cast = "{1}" }` beside a
+clause for the card in hand is the whole of "and one mana", and it reads false
+on turn 1 and true on turn 2 exactly as above. What it cannot be written beside
+is the surveil, because a routing effect and a mana question both decide which
+land you played this turn, and a file holding both is refused rather than
+arbitrated. So this hand's filtering and this hand's mana are each expressible
+and not yet in one file.
+
+*Needs #10 (the two policies reconciled).*
 
 ---
 
@@ -293,10 +364,15 @@ case in #37, which is the one hole.*
 
 ## What these are for
 
-When the features land, these become tests — hands 9, 10, 11, 13 and 14 already
-have. Until then they are the specification: if an implementation disagrees with
-a hand here, one of the two is wrong and it is worth knowing which before
-shipping a percentage.
+When the features land, these become tests — hands 4, 6, 7, 8, 9, 10, 11, 13 and
+14 already have. Until then they are the specification: if an implementation
+disagrees with a hand here, one of the two is wrong and it is worth knowing
+which before shipping a percentage.
+
+Hands 6 and 7 are the clearest argument for writing them down first. They are
+one test rather than two, because either one alone proves nothing: the claim is
+that the counts agree and the answer does not, and a test that only ran the
+hand it expected to fail would have passed against a model that always says no.
 
 They are also the regression surface for the effect library (#43). A stdlib that
 silently stops covering a card changes hand 1 from one Opt to zero, and nothing

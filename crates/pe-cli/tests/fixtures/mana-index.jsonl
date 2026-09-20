@@ -1,0 +1,5 @@
+{"schema":2,"updated_at":"2025-09-20","cards":4,"keywords":[],"tags":["tapland","conditional-tapland","surveil","scry"],"tags_fetched_at":"2025-09-20"}
+hallowed fountain	{"name":"Hallowed Fountain","ci":["U","W"],"type_line":"Land — Plains Island","cmc":0.0,"oracle":"({T}: Add {W} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.","produces":["U","W"],"tags":["conditional-tapland"],"any_number":false}
+island	{"name":"Island","ci":["U"],"type_line":"Basic Land — Island","cmc":0.0,"oracle":"({T}: Add {U}.)","produces":["U"],"any_number":true}
+tranquil cove	{"name":"Tranquil Cove","ci":["U","W"],"type_line":"Land","cmc":0.0,"oracle":"This land enters tapped.\nWhen this land enters, you gain 1 life.\n{T}: Add {W} or {U}.","produces":["U","W"],"tags":["tapland"],"any_number":false}
+lightning bolt	{"name":"Lightning Bolt","ci":["R"],"type_line":"Instant","mana_cost":"{R}","cmc":1.0,"oracle":"Lightning Bolt deals 3 damage to any target.","any_number":false}

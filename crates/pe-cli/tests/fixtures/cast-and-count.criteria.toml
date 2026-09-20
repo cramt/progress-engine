@@ -1,0 +1,6 @@
+# Two questions in one clause. `query` counts cards in a zone and `can_cast`
+# asks whether a cost could have been paid, and a clause holding both would have
+# to answer one of them silently.
+[[criterion]]
+name = "both at once"
+require = [{ turn = 3, query = "t:land", min = 1, can_cast = "{1}{G}" }]

@@ -30,6 +30,13 @@ pub const STANDARD_TAGS: &[StandardTag] = &[
                   which is the difference between two lands and two mana",
     },
     StandardTag {
+        name: "conditional-tapland",
+        because: "castability again, and the half `tapland` is not: Hallowed Fountain enters \
+                  tapped unless you pay 2 life, which is a decision rather than a property. \
+                  Scryfall keeps the two apart — no shockland is in `tapland` — so the gate \
+                  can state which way it read a choice instead of folding it into a fact",
+    },
+    StandardTag {
         name: "surveil",
         because: "filtering: how many cards deep a turn actually sees",
     },

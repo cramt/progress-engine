@@ -1,0 +1,29 @@
+# HANDS.md hand 4: land drops are use-it-or-lose-it.
+#
+# The library is nine cards and the question is turn 3, so by then every card is
+# in hand and every deal gives the same answer. Five lands are drawn. Three of
+# them are in play, because there have been three land drops and no more.
+#
+# The pair of clauses is the whole point: the hand count and the battlefield
+# count read the same query on the same turn and disagree by two cards, which is
+# exactly the hole every mana-relevant criterion in this repo used to have.
+
+[[criterion]]
+name = "five lands drawn by turn 3"
+at_least = 0.99
+require = [{ turn = 3, query = "t:land", zone = "hand", min = 5 }]
+
+[[criterion]]
+name = "three lands in play by turn 3"
+at_least = 0.99
+require = [{ turn = 3, query = "t:land", zone = "battlefield", min = 3, max = 3 }]
+
+[[criterion]]
+name = "four lands in play by turn 3"
+require = [{ turn = 3, query = "t:land", zone = "battlefield", min = 4 }]
+
+[[expect]]
+name = "lands in play by turn 3"
+turn = 3
+query = "t:land"
+zone = "battlefield"

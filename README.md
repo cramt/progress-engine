@@ -194,10 +194,11 @@ nobody can vouch for is worse than an admitted gap.
 TOML, and the whole schema fits in one example. A `[[criterion]]` has a `name`,
 an optional `at_least`, and `require`: a list of clauses, all of which must
 hold. A clause is a `turn`, a `query`, an optional `zone`, and at least one of
-`min` and `max`. A criterion can also hold `any_of`, a list of alternative
-routes, for which see [Routes](#routes-any_of). An `[[expect]]` is a `name`, a
-`turn`, a `query` and an optional `zone`, and reports a distribution rather
-than a verdict.
+`min` and `max` — or a `turn` and a `can_cast`, for which see
+[Mana, as a gate](#mana-as-a-gate). A criterion can also hold `any_of`, a list
+of alternative routes, for which see [Routes](#routes-any_of). An `[[expect]]`
+is a `name`, a `turn`, a `query` and an optional `zone`, and reports a
+distribution rather than a verdict.
 
 ```toml
 [[criterion]]
@@ -281,10 +282,8 @@ the enumeration is the same width as the same clauses written as separate
 criteria.
 
 The example above asks whether those cards were **drawn**, not whether they
-could be cast. Castability is the mana model
-([#10](https://github.com/cramt/progress-engine/issues/10)), so every route
-there overstates itself, and the file says so rather than the number implying
-otherwise.
+could be cast. Whether you could pay for them is
+[Mana, as a gate](#mana-as-a-gate) below.
 
 **Which zone, and what silence means.** "Did I find the card" is not a
 well-formed question; "is the card in this zone by this turn" is. A clause that
@@ -305,7 +304,7 @@ require = [
 | `hand` | the default. Cards drawn by that turn — nothing is cast or discarded yet, so nothing has left |
 | `graveyard` | cards an effect routed to the yard — see [Effects](#effects). Zero in a run whose effects route nothing, and the run says so |
 | `library` | cards matching the query that are still in the deck: the deck's total minus what has been drawn or binned |
-| `battlefield` | refused. It would have to know what you could cast, and that is the mana model |
+| `battlefield` | **lands you have played**, one drop a turn. Answerable only for a query that matches lands; refused for anything that would have to be cast |
 
 `graveyard` is reachable exactly when some effect in the run routes a card
 there. In a run where none does, every count in it is zero by construction —
@@ -344,8 +343,11 @@ otherwise produces a percentage that looks exactly like a real one:
 | a clause with neither `min` nor `max` | it names a query and asks nothing of it |
 | `min = 5, max = 2` | no hand can satisfy it: a confident 0% |
 | `at_least = 70` | a threshold is a share of hands, so 70% is `0.70` |
-| `zone = "battlefield"` | it would have to know what you can cast, and nothing here does |
+| `zone = "battlefield"` on a query matching a spell | a land arrives on a land drop and this engine walks those; a spell has to be cast, and which spells you cast when you cannot cast them all is the budget half of [#10](https://github.com/cramt/progress-engine/issues/10) |
 | `zone = "exile"`, or any other zone | a zone that fell through to a default would answer the wrong question |
+| `query` and `can_cast` in one clause | two different questions, one of which would have to be answered silently |
+| `can_cast = "{X}{G}"`, or any hybrid or Phyrexian symbol | each is a decision about how much to pay rather than an amount; read as zero, an X-spell is castable on turn one |
+| a mana question in a file with a live `to_graveyard` effect | both decide which land you played this turn, and they decide it differently |
 | `atLeast`, or any other unknown key | a key quietly dropped is an assertion quietly deleted |
 | a file with no `[[criterion]]` and no `[[expect]]` | it asks nothing |
 | `on = "cast"` on an effect | firing on the holding of a card overstates the turn by however many copies you hold, and knowing you cast it needs the mana model |
@@ -353,6 +355,91 @@ otherwise produces a percentage that looks exactly like a real one:
 
 Every one of those messages names the file, the question, and what was wrong
 with it.
+
+### Mana, as a gate
+
+Two lands is not two mana. A land that enters tapped makes none the turn it
+arrives, a land you drew on turn four is not a land you played on turn two, and
+one Hallowed Fountain is a white source and a blue source and one mana.
+
+So there are two questions here, and this is the first one:
+**could I have paid for it by turn N?** The other is mana as a *budget* — an
+opening hand of one Island and six Opt casts one Opt, because the first one
+spends the Island — and that needs sequencing and is not built. See
+[#10](https://github.com/cramt/progress-engine/issues/10).
+
+**Lands you have played.** `zone = "battlefield"` counts them, and a land drop
+is one a turn and use-it-or-lose-it:
+
+```toml
+[[criterion]]
+name = "three lands in play by turn 3"
+require = [{ turn = 3, query = "t:land", zone = "battlefield", min = 3 }]
+```
+
+Five lands drawn by turn 3 is three lands in play, not five, because the other
+two drops never happened. That gap is what every mana-relevant criterion in this
+repository quietly assumed away before this shipped.
+
+**Whether a cost is payable.** `can_cast` takes a mana cost as printed:
+
+```toml
+[[criterion]]
+name = "the commander on turn 3"
+at_least = 0.60
+require = [{ turn = 3, can_cast = "{1}{G}{G}" }]
+```
+
+This is a primitive rather than something you assemble from counts, and the
+reason is worth a paragraph. Written by hand it would be `produces:w` at
+`min = 1` and `produces:u` at `min = 1`, and both of those are satisfied by one
+Hallowed Fountain, which cannot pay `{W}{U}`. Whether a set of lands covers a
+set of pips is a **matching** — can these sources be assigned to these symbols —
+and no arithmetic over independent counts answers it. The engine solves it
+exactly, per composition, because a composition knows the lands jointly.
+
+Generic takes any land, `{C}` takes a land that makes `{C}`, and `{X}`, hybrid
+and Phyrexian symbols are refused by name: each is a decision about how much to
+pay rather than an amount, and reading `{X}` as zero makes an X-spell castable
+on turn one.
+
+**What it assumes about tapped lands, and how it says so.** Scryfall's
+`otag:tapland` is 495 lands that always enter tapped. It does not include the
+shocklands, which are `otag:conditional-tapland` — *"you may pay 2 life; if you
+don't, it enters tapped"* is a decision, not a property. This tool takes the
+pessimistic half of that decision, and does not take it quietly:
+
+```
+note: one land here lets the pilot decide whether to enter tapped. This run assumes they do:
+      Hallowed Fountain.
+      A shockland's 2 life is a decision no criteria file has made yet, so the pessimistic
+      reading is taken: it makes no mana the turn it arrives. Every number below that
+      depends on one of these is a floor rather than a measurement.
+```
+
+The same list is in the JSON as `assumed_tapped`. It understates a real
+shockland manabase, which is the direction this tool prefers to be wrong in: a
+number your deck can beat is a better failure than one it cannot reach. Making
+the choice declarable per file is the obvious next step and is deliberately not
+a default nobody stated.
+
+**What it costs.** Counting lands in play is free — it reads the land drops the
+enumeration already walks and adds no group and no path. `can_cast` is not free:
+it has to tell a Plains from an Island, so lands split into one group per
+*(what it produces, does it arrive tapped)*, and the enumeration widens with the
+group count. On a 99-card deck with 38 lands in five such profiles, three groups
+become seven, and the compositions go from 972 to 588,588 at turn 4 and from
+8,748 to 28,840,812 at turn 6 — which is over the ceiling, so turn 6 is
+[sampled](#when-the-question-is-too-wide) rather than enumerated. A deck whose
+manabase is three kinds of basic stays exact to turn 6 at a million
+compositions. The matching itself is cheap, about 0.65µs a hand; the width is
+what costs.
+
+**One land drop, one policy.** A `[[effect]]` that routes cards and a mana
+question are both answers to *which land did you play this turn*, and they
+answer it differently: the effect library plays the deepest-looking land you
+hold, because before this there was nothing else to tell two drops apart. A file
+holding both is refused rather than arbitrated, until one policy covers both.
 
 ### Effects
 
@@ -385,10 +472,11 @@ to_graveyard = 'name:"Life from the Loam"'
 **Land drops only, on purpose.** Playing a land is free and hard-capped at one a
 turn, so by turn *T* at most *T* of these have happened whatever your deck —
 which is what keeps the enumeration bounded and exact. The mana-gated tier (Opt,
-Preordain, tutors) is refused by name, because an opening hand of one Island and
-six Opt casts *one* Opt, and a model that fires whenever you hold the card
-overstates that turn sixfold. That needs
-[#10](https://github.com/cramt/progress-engine/issues/10).
+Preordain, tutors) is still refused by name, and the gate shipping does not
+change that: an opening hand of one Island and six Opt *can cast* Opt and casts
+exactly one of them, because the first one spends the Island. Firing an effect
+whenever the mana is there overstates that turn sixfold. That needs the budget
+half of [#10](https://github.com/cramt/progress-engine/issues/10).
 
 **The library never says where cards go.** Every shipped entry declares `match`,
 `look` and `on`, and no entry declares `to_graveyard`. That split is the whole
@@ -811,18 +899,19 @@ So they are not derived. They are **fetched**, from Scryfall's search API at
 the rest of this file is held to: not a hard-coded copy that goes stale, and not
 a guess dressed as a fact, but somebody else's answer with a date attached.
 
-`sync` fetches six tags today, each because something here reads it:
+`sync` fetches seven tags today, each because something here reads it:
 
 | Tag | Cards | Read by |
 |---|---|---|
 | `tapland` | 495 | whether two lands are actually two mana |
+| `conditional-tapland` | 179 | the half `tapland` is not: a shockland enters tapped only if you decline to pay, so the gate has to say which way it read the choice |
 | `surveil` | 334 | how many cards deep a turn sees |
 | `scry` | 475 | the same, leaving the card on top |
 | `mill` | 1,305 | the graveyard as a destination |
 | `tutor` | 1,168 | selection over the whole library |
 | `ramp` | 2,316 | the mana-curve questions |
 
-They cost nothing to carry: 5,197 of 35,486 cards are tagged, the file is the
+They cost nothing to carry: about 5,400 of 35,486 cards are tagged, the file is the
 same 24MB, and a run parses only the cards your deck names either way.
 
 **An index carries the tags it was told to fetch, and says which.** The header

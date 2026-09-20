@@ -683,37 +683,26 @@ fn an_unsaid_zone_is_the_hand_and_saying_so_changes_nothing() {
 }
 
 #[test]
-fn the_battlefield_is_refused_by_name_rather_than_approximated() {
-    // The tempting approximation is "held it, so it is in play", which is wrong
-    // in the direction that flatters the deck. Refusing is the feature.
-    let err = refuse(
+fn the_battlefield_is_a_zone_this_file_hands_on_for_checking() {
+    // Whether it is answerable is a fact about the cards rather than about the
+    // file — a land gets there on a land drop and a spell has to be cast — so
+    // this crate parses it, records that the question was asked, and hands the
+    // query to whoever holds the card data.
+    let criteria = parse(
         r#"
         [[criterion]]
-        name = "lantern in play by turn 5"
-        require = [{ turn = 5, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+        name = "a land in play by turn 3"
+        require = [{ turn = 3, query = "t:land", zone = "battlefield", min = 2 }]
         "#,
     );
-    assert!(
-        matches!(
-            err,
-            ErrorKind::BadZone {
-                zone: ZoneError::Battlefield,
-                ..
-            }
-        ),
-        "{err}"
+    assert_eq!(criteria.zones(), [Zone::Battlefield]);
+    assert_eq!(
+        criteria.battlefield_queries(),
+        [("t:land", "a land in play by turn 3")]
     );
-    let msg = err.to_string();
-    assert!(msg.contains("battlefield"), "names the zone: {msg}");
-    assert!(
-        msg.contains("cast"),
-        "says what it would need to know: {msg}"
-    );
-    assert!(msg.contains("issues/10"), "points at the mana model: {msg}");
-    assert!(
-        msg.contains("clause 1"),
-        "names the clause that wrote it: {msg}"
-    );
+    assert_eq!(criteria.mana_question(), Some("a land in play by turn 3"));
+    // And it is not the half that needs to know what a land *makes*.
+    assert_eq!(criteria.casts(), None);
 }
 
 #[test]
@@ -733,13 +722,9 @@ fn an_unknown_zone_is_refused_and_lists_the_ones_that_work() {
         "{err}"
     );
     let msg = err.to_string();
-    for accepted in ["hand", "graveyard", "library"] {
+    for accepted in ["hand", "graveyard", "library", "battlefield"] {
         assert!(msg.contains(accepted), "lists {accepted}: {msg}");
     }
-    assert!(
-        !msg.contains("battlefield"),
-        "must not offer a zone it also refuses: {msg}"
-    );
 }
 
 #[test]
@@ -950,7 +935,7 @@ fn a_clause_inside_a_branch_is_checked_like_any_other() {
         [[criterion]]
         name = "routes"
         any_of = [
-          { require = [{ turn = 3, query = "t:land", zone = "battlefield", min = 1 }] },
+          { require = [{ turn = 3, query = "t:land", zone = "exile", min = 1 }] },
         ]
         "#,
     );
@@ -958,7 +943,7 @@ fn a_clause_inside_a_branch_is_checked_like_any_other() {
         matches!(
             err,
             ErrorKind::BadZone {
-                zone: ZoneError::Battlefield,
+                zone: ZoneError::Unknown { .. },
                 ..
             }
         ),

@@ -310,13 +310,59 @@ fn run_test(
         eprintln!("{note}");
     }
 
+    // What the mana model needs of this run, checked before anything is
+    // enumerated and refused by name where it is not there. Every one of these
+    // would otherwise be answered — wrongly, and in the flattering direction:
+    // an index with no tapland tag reports every land as making mana the turn
+    // it lands, and a battlefield count of a spell reports "drawn" under
+    // another name.
+    // Named against the file as well as the question, the way a parse refusal
+    // is: a caller running several criteria files needs to know which one it
+    // was before it needs to know which criterion.
+    let origin = criteria_path.display();
+    let mana = match criteria.mana_question() {
+        None => library::ManaDetail::Ignored,
+        Some(asked_by) => {
+            for (query, asked_by) in criteria.battlefield_queries() {
+                let spells = library.non_lands_matching(query)?;
+                if !spells.is_empty() {
+                    anyhow::bail!(
+                        "{origin}: {asked_by}: {}",
+                        report::battlefield_refusal(query, &spells)
+                    );
+                }
+            }
+            // One land drop a turn is a decision, and a live effect already
+            // spends it: the walk plays the deepest-looking land you hold
+            // because with no mana model there was nothing else to choose by.
+            // Answering a mana question beside it would be a second policy
+            // deciding the same drop, and the two would disagree on exactly the
+            // hands that matter.
+            if !resolved.effects.is_empty() {
+                anyhow::bail!(
+                    "{origin}: {asked_by}: {}",
+                    report::mana_beside_effects_refusal()
+                );
+            }
+            match criteria.casts() {
+                None => library::ManaDetail::Ignored,
+                Some(asked_by) => {
+                    if let Some(refusal) = report::cannot_price_mana(&library) {
+                        anyhow::bail!("{origin}: {asked_by}: {refusal}");
+                    }
+                    library::ManaDetail::Modelled
+                }
+            }
+        }
+    };
+
     let queries: Vec<String> = criteria
         .queries()
         .iter()
         .cloned()
         .chain(resolved.queries.iter().cloned())
         .collect();
-    let grouping = library.grouping_for(&queries, &resolved.marked)?;
+    let grouping = library.grouping_for(&queries, &resolved.marked, mana)?;
     let schedule =
         pe_criteria::Schedule::build(criteria.horizon(), on_the_draw, resolved.effects.clone());
     let plan = criteria.plan();
@@ -390,6 +436,7 @@ fn run_test(
     // list beside it, so the note cannot disagree with the enumeration.
     let reachable = pe_criteria::Reachable {
         graveyard: schedule.routes_to_graveyard(),
+        battlefield: library.has_lands(),
     };
     let zones = criteria
         .zones()
@@ -418,6 +465,13 @@ fn run_test(
             queries: query_matches,
             zones,
             effects: report::effects_applied(&resolved),
+            // Only where the run actually priced mana. A deck full of
+            // shocklands answering a question about the graveyard assumed
+            // nothing about any of them.
+            assumed_tapped: match mana {
+                library::ManaDetail::Ignored => Vec::new(),
+                library::ManaDetail::Modelled => library.conditional_taplands(),
+            },
         },
         report::Provenance {
             tool_version: env!("CARGO_PKG_VERSION"),

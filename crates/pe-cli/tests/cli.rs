@@ -884,12 +884,22 @@ fn a_criteria_file_that_asks_nothing_refuses_by_name() {
             "unknown-key.criteria.toml",
             ["atLeast", "at_least"].as_slice(),
         ),
-        // A zone that needs castability. Approximating it with "drawn" would
-        // report a hand count under a battlefield question.
+        // A battlefield question about something that has to be cast.
+        // Approximating it with "drawn" would report a hand count under a
+        // battlefield question. Lands are answerable; this is not.
         (
-            "battlefield.criteria.toml",
-            ["battlefield", "cast", "issues/10"].as_slice(),
+            "battlefield-spell.criteria.toml",
+            ["battlefield", "cast", "issues/10", "Llanowar Elves"].as_slice(),
         ),
+        // Two questions in one clause, which would have to answer one of them
+        // silently.
+        (
+            "cast-and-count.criteria.toml",
+            ["query", "can_cast", "two different questions"].as_slice(),
+        ),
+        // A symbol the gate cannot pay. Read as zero, an X-spell is castable on
+        // turn one.
+        ("bad-cost.criteria.toml", ["{X}", "an X spell"].as_slice()),
     ] {
         let out = run(file);
         assert!(!out.status.success(), "{file} should fail the run");
@@ -1731,5 +1741,208 @@ fn a_threshold_inside_the_error_bar_is_flagged_rather_than_rounded() {
                 c["name"]
             );
         }
+    }
+}
+
+// --- The mana gate (#10) --------------------------------------------------
+//
+// The fixture libraries here are nine cards, which is not a deck. It is the
+// only way to write a *hand* down: nine cards and a question about turn 3 means
+// the whole library is in hand by then, so every deal answers the same way and
+// the percentage is the hand rather than a distribution over hands.
+
+fn run_mana(deck: &str, criteria: &str) -> std::process::Output {
+    run_with(deck, criteria, "mana-index.jsonl")
+}
+
+#[test]
+fn land_drops_are_use_it_or_lose_it() {
+    // HANDS.md hand 4. Five Islands drawn by turn 3, three of them in play,
+    // because three land drops have happened and no number of lands in hand
+    // adds a fourth. The two clauses read the same query on the same turn and
+    // differ by two cards, which is the hole every mana-relevant criterion in
+    // this repo had before the battlefield was answerable.
+    let out = run_mana("hand-4.txt", "hand-4.criteria.toml");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert!((percent(&json, "five lands drawn by turn 3") - 100.0).abs() < 0.01);
+    assert!((percent(&json, "three lands in play by turn 3") - 100.0).abs() < 0.01);
+    assert!(
+        percent(&json, "four lands in play by turn 3") == 0.0,
+        "a fourth drop does not exist: {json}"
+    );
+    // And as an expectation, so the whole distribution is pinned rather than a
+    // threshold on it: every deal puts exactly three lands in play.
+    let mean = expectation(&json, "lands in play by turn 3")["mean"]
+        .as_f64()
+        .unwrap();
+    assert!((mean - 3.0).abs() < 1e-9, "{mean}");
+}
+
+#[test]
+fn the_same_two_counts_pay_on_one_hand_and_not_on_the_other() {
+    // HANDS.md hands 6 and 7, which are one test. Both libraries hold a white
+    // source and a blue source by turn 3, so the conjunction a user would have
+    // to write without a castability primitive holds on both. One of them can
+    // pay {W}{U} and the other cannot, because one Hallowed Fountain is both
+    // counts and one mana.
+    let six: serde_json::Value =
+        serde_json::from_slice(&run_mana("hand-6.txt", "hands-6-and-7.criteria.toml").stdout)
+            .unwrap();
+    let seven: serde_json::Value =
+        serde_json::from_slice(&run_mana("hand-7.txt", "hands-6-and-7.criteria.toml").stdout)
+            .unwrap();
+
+    for hand in [&six, &seven] {
+        assert!(
+            (percent(hand, "a white source and a blue source by turn 3") - 100.0).abs() < 0.01,
+            "the naive counts hold on both: {hand}"
+        );
+    }
+    assert_eq!(
+        percent(&six, "{W}{U} payable on turn 3"),
+        0.0,
+        "one Fountain is one mana: {six}"
+    );
+    // Eight deals in nine. The ninth is the one where the Fountain is the card
+    // left out of the opening hand: it then arrives on turn 3, has to be played
+    // on turn 3, and enters tapped under the assumption below.
+    assert!(
+        (percent(&seven, "{W}{U} payable on turn 3") - 88.89).abs() < 0.01,
+        "{seven}"
+    );
+    // Two pips need two lands whatever colour they are, and turn 1 has one drop.
+    for hand in [&six, &seven] {
+        assert_eq!(percent(hand, "{W}{U} payable on turn 1"), 0.0);
+    }
+    // Generic takes any land, so the turn-1 question is only about tapped-ness:
+    // the Fountain pays nothing the turn it lands, and the Island pays whenever
+    // it is in the opener, which is seven deals in nine.
+    assert_eq!(percent(&six, "{1} payable on turn 1"), 0.0);
+    assert!((percent(&seven, "{1} payable on turn 1") - 77.78).abs() < 0.01);
+}
+
+#[test]
+fn a_land_that_chooses_whether_to_enter_tapped_says_which_way_it_was_read() {
+    // HANDS.md hand 8. `otag:tapland` does not hold the shocklands —
+    // `otag:conditional-tapland` does, and membership of it settles nothing on
+    // its own, because "you may pay 2 life" is the pilot's decision. The run
+    // makes it pessimistically and does not get to make it quietly: the
+    // assumption moves numbers and nobody wrote it down.
+    let out = run_mana("hand-7.txt", "hands-6-and-7.criteria.toml");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("Hallowed Fountain"),
+        "names the card it assumed about: {stderr}"
+    );
+    assert!(
+        stderr.contains("enter tapped"),
+        "says which way it assumed: {stderr}"
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(
+        json["assumed_tapped"],
+        serde_json::json!(["Hallowed Fountain"])
+    );
+
+    // And not on a run that asked no mana question, whatever the deck holds: a
+    // note that fires on every run is a note nobody reads.
+    let quiet = run_mana("hand-7.txt", "drawn-only.criteria.toml");
+    let quiet_err = String::from_utf8_lossy(&quiet.stderr);
+    assert!(
+        !quiet_err.contains("enter tapped"),
+        "nothing was assumed here: {quiet_err}"
+    );
+    let quiet_json: serde_json::Value = serde_json::from_slice(&quiet.stdout).unwrap();
+    assert!(quiet_json.get("assumed_tapped").is_none(), "{quiet_json}");
+}
+
+#[test]
+fn an_index_that_cannot_say_what_a_land_makes_refuses_the_question() {
+    // The same failure as an unfetched oracle tag, one field along: an index
+    // with no `produces` reports every land as making nothing and answers a
+    // confident 0.00%, and one with no tapland tag reports every land as
+    // untapped and answers a number the deck cannot reach. Both are refused.
+    let out = run_with(
+        "simple-ramp.txt",
+        "cast-three-mana.criteria.toml",
+        "index.jsonl",
+    );
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("progress-engine sync"),
+        "says how to fix it: {stderr}"
+    );
+    assert!(
+        stderr.contains("three mana by turn 3"),
+        "names the question that asked: {stderr}"
+    );
+}
+
+#[test]
+fn a_mana_question_beside_a_live_effect_is_refused_rather_than_arbitrated() {
+    // Two policies over one land drop. The effect library plays the
+    // deepest-looking land in hand because before the mana model there was
+    // nothing else to choose by; the gate would play whichever land pays. They
+    // disagree exactly on the hands that matter, so neither gets to win
+    // silently.
+    let out = run_loam("mana-with-routing.criteria.toml");
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("land drop"), "{stderr}");
+    assert!(stderr.contains("issues/10"), "{stderr}");
+    assert!(
+        stderr.contains("two mana by turn 2"),
+        "names the question: {stderr}"
+    );
+}
+
+#[test]
+fn lands_drawn_and_lands_played_agree_when_the_turn_allows_both() {
+    // Worked rather than assumed, because it is the reason none of the numbers
+    // in this file moved. Every land clause in the fixtures asks for N lands by
+    // turn T with N <= T, and by turn T there have been T drops — so "two lands
+    // drawn" and "two lands played" are the same set of hands. The two clauses
+    // below are the same query on the same turn in different zones, and they
+    // come back equal to the last digit.
+    let out = run("commander-on-two.criteria.toml");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let drawn = percent(&json, "two lands drawn by turn 2");
+    let played = percent(&json, "two lands in play by turn 2");
+    assert_eq!(drawn, played, "{json}");
+    assert!((drawn - 86.10).abs() < 0.01, "{drawn}");
+}
+
+#[test]
+fn both_engines_answer_a_mana_question_the_same_way() {
+    // The sampler walks the same `Board`, so a disagreement here is a
+    // disagreement about how a path is produced rather than about what the
+    // lands did. 200,000 hands of a nine-card library put the standard error
+    // at 0.07 points.
+    let exact: serde_json::Value =
+        serde_json::from_slice(&run_mana("hand-7.txt", "hands-6-and-7.criteria.toml").stdout)
+            .unwrap();
+    let sampled_out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+        .arg("test")
+        .arg(fixture("hand-7.txt"))
+        .arg(fixture("hands-6-and-7.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("mana-index.jsonl"))
+        .arg("--simulate")
+        .output()
+        .expect("binary should run");
+    let sampled: serde_json::Value = serde_json::from_slice(&sampled_out.stdout).unwrap();
+    for name in [
+        "{W}{U} payable on turn 3",
+        "{W}{U} payable on turn 1",
+        "{1} payable on turn 1",
+    ] {
+        let (a, b) = (percent(&exact, name), percent(&sampled, name));
+        assert!((a - b).abs() < 0.5, "{name}: exact {a} vs sampled {b}");
     }
 }

@@ -1,5 +1,6 @@
 //! Partitioning a library into groups of interchangeable cards.
 
+use crate::mana::ManaSource;
 use thiserror::Error;
 
 /// A `u64` mask carries one bit per query.
@@ -17,31 +18,65 @@ pub enum GroupingError {
 /// criterion, so they collapse into one group. Cards matching nothing collapse
 /// into a single group too — usually most of the deck. This is why the work
 /// depends on how many *queries* you asked about rather than on deck size.
+///
+/// **Except that mana splits a group too.** Two lands matching the same
+/// queries are still not interchangeable if one taps for white and the other
+/// for blue, because the gate can tell them apart even when no query can. So a
+/// group is a set of cards agreeing on their queries *and* on their
+/// [`ManaSource`], and the extra splitting is exactly the cost of asking a mana
+/// question: a file that asks none hands every card the same `Spell` and gets
+/// the groups it always had.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Grouping {
     queries: Vec<String>,
     group_masks: Vec<u64>,
     group_sizes: Vec<u32>,
+    group_mana: Vec<ManaSource>,
 }
 
 impl Grouping {
     /// Build from per-card match results. `matches[i]` is the mask of queries
     /// card `i` satisfies; `qty[i]` is how many copies are in the library.
+    ///
+    /// Nothing here is a mana source. Kept beside [`Grouping::with_mana`]
+    /// rather than folded into it because a caller with no card data to hand —
+    /// the property tests, chiefly — is describing a library by its queries,
+    /// and making it spell out that none of its cards are lands would be asking
+    /// it to state something it never claimed.
     pub fn build(
         queries: Vec<String>,
         cards: impl IntoIterator<Item = (u64, u32)>,
+    ) -> Result<Self, GroupingError> {
+        Self::with_mana(
+            queries,
+            cards
+                .into_iter()
+                .map(|(mask, qty)| (mask, ManaSource::Spell, qty)),
+        )
+    }
+
+    /// Build from per-card match results and what each card does for mana.
+    pub fn with_mana(
+        queries: Vec<String>,
+        cards: impl IntoIterator<Item = (u64, ManaSource, u32)>,
     ) -> Result<Self, GroupingError> {
         if queries.len() > MAX_QUERIES {
             return Err(GroupingError::TooManyQueries(queries.len()));
         }
         let mut group_masks: Vec<u64> = Vec::new();
         let mut group_sizes: Vec<u32> = Vec::new();
-        for (mask, qty) in cards {
-            match group_masks.iter().position(|m| *m == mask) {
+        let mut group_mana: Vec<ManaSource> = Vec::new();
+        for (mask, mana, qty) in cards {
+            match group_masks
+                .iter()
+                .zip(&group_mana)
+                .position(|(m, s)| *m == mask && *s == mana)
+            {
                 Some(i) => group_sizes[i] += qty,
                 None => {
                     group_masks.push(mask);
                     group_sizes.push(qty);
+                    group_mana.push(mana);
                 }
             }
         }
@@ -49,6 +84,7 @@ impl Grouping {
             queries,
             group_masks,
             group_sizes,
+            group_mana,
         })
     }
 
@@ -62,6 +98,11 @@ impl Grouping {
 
     pub fn group_masks(&self) -> &[u64] {
         &self.group_masks
+    }
+
+    /// What each group does for mana, in group order.
+    pub fn group_mana(&self) -> &[ManaSource] {
+        &self.group_mana
     }
 
     pub fn query_index(&self, query: &str) -> Option<usize> {

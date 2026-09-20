@@ -38,8 +38,8 @@
 
 use facet::Facet;
 use pe_criteria::{
-    Count, Criterion, Evaluator, Expectation, NotACount, PathOutcomes, PathView, Plan, Trigger,
-    TriggerError, Zone, ZoneError,
+    Cost, CostError, Count, Criterion, Evaluator, Expectation, NotACount, PathOutcomes, PathView,
+    Plan, Trigger, TriggerError, Zone, ZoneError,
 };
 use thiserror::Error;
 
@@ -149,6 +149,14 @@ struct ClauseDef {
     zone: Option<String>,
     min: Option<i64>,
     max: Option<i64>,
+    /// A mana cost, as printed: `can_cast = "{1}{W}{U}"`.
+    ///
+    /// A key of its own rather than a query, because it is not a question about
+    /// cards. It asks whether the lands this path put into play could have paid
+    /// that cost, which is a matching over those lands jointly — and the whole
+    /// reason it is a primitive is that a user writing `produces:w` and
+    /// `produces:u` as two clauses gets a different, wrong answer.
+    can_cast: Option<String>,
 }
 
 #[derive(Facet)]
@@ -186,7 +194,23 @@ impl Bounds {
     }
 }
 
-/// One requirement, with its query resolved to a position in the grouping.
+/// One requirement of one criterion.
+///
+/// Two kinds, because a file asks two kinds of thing and only one of them is
+/// about cards. Keeping them apart here rather than as one struct with
+/// optional halves is what makes `can_cast = "{W}{U}", min = 2` unwritable
+/// rather than something the reader has to be warned about: a cost has no
+/// bounds and no zone, and there is nowhere in this type to put them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Clause {
+    /// How many cards matching a query are in a zone by a turn.
+    Count(Tally),
+    /// Whether a cost could have been paid by a turn.
+    Cast { turn: usize, cost: Cost },
+}
+
+/// One counting requirement, with its query resolved to a position in the
+/// grouping.
 ///
 /// `zone` is not an `Option`. A clause that left it unresolved would be a
 /// clause whose meaning depends on who reads it, and the reader that guesses
@@ -194,11 +218,27 @@ impl Bounds {
 /// applied once, at parse time, and after that every clause says which zone it
 /// counts in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Clause {
+struct Tally {
     turn: usize,
     query: usize,
     zone: Zone,
     bounds: Bounds,
+}
+
+impl Clause {
+    fn holds(&self, view: &PathView<'_>) -> bool {
+        match self {
+            Clause::Count(c) => c.bounds.holds(view.count_in(c.turn, c.query, c.zone)),
+            Clause::Cast { turn, cost } => view.can_cast(*turn, cost),
+        }
+    }
+
+    fn counting(&self) -> Option<&Tally> {
+        match self {
+            Clause::Count(c) => Some(c),
+            Clause::Cast { .. } => None,
+        }
+    }
 }
 
 /// What a criterion asks of one path.
@@ -229,10 +269,7 @@ enum Predicate {
 
 impl Predicate {
     fn holds(&self, view: &PathView<'_>) -> bool {
-        let holds_all = |cs: &[Clause]| {
-            cs.iter()
-                .all(|c| c.bounds.holds(view.count_in(c.turn, c.query, c.zone)))
-        };
+        let holds_all = |cs: &[Clause]| cs.iter().all(|c| c.holds(view));
         // `any` short-circuits on the first branch that holds, which is also
         // why overlapping branches cannot be counted twice: this answers
         // whether the path is in the union, and the walk outside adds that
@@ -245,9 +282,15 @@ impl Predicate {
         }
     }
 
-    /// Every clause this criterion holds, wherever it was written. The queries
-    /// and zones a file asks about are the union over these, so a branch is no
-    /// more hidden from the pre-run analysis than a `require` clause is.
+    /// Every counting clause this criterion holds, wherever it was written. The
+    /// queries and zones a file asks about are the union over these, so a
+    /// branch is no more hidden from the pre-run analysis than a `require`
+    /// clause is.
+    fn counts(&self) -> impl Iterator<Item = &Tally> {
+        self.clauses().filter_map(Clause::counting)
+    }
+
+    /// Every clause, counting or casting.
     fn clauses(&self) -> impl Iterator<Item = &Clause> {
         const NO_CLAUSES: &[Clause] = &[];
         const NO_BRANCHES: &[Vec<Clause>] = &[];
@@ -418,7 +461,7 @@ impl Criteria {
         let from_criteria = self
             .predicates
             .iter()
-            .position(|p| p.clauses().any(|c| c.zone == zone))
+            .position(|p| p.counts().any(|c| c.zone == zone))
             .map(|i| self.criteria[i].name.as_str());
         from_criteria.or_else(|| {
             self.probes
@@ -433,6 +476,72 @@ impl Criteria {
         self.horizon
     }
 
+    /// Every query this file counts on the battlefield, with the question that
+    /// asked, in first-mention order.
+    ///
+    /// Read by the caller that holds the card data, because whether a query is
+    /// answerable there is a fact about the cards rather than about the file: a
+    /// land arrives on a land drop and anything else has to be cast. This crate
+    /// cannot tell them apart and does not guess.
+    pub fn battlefield_queries(&self) -> Vec<(&str, &str)> {
+        let mut found: Vec<(&str, &str)> = Vec::new();
+        for (predicate, criterion) in self.predicates.iter().zip(&self.criteria) {
+            for clause in predicate.counts().filter(|c| c.zone == Zone::Battlefield) {
+                let query = self.queries[clause.query].as_str();
+                if !found.iter().any(|(q, _)| *q == query) {
+                    found.push((query, criterion.name.as_str()));
+                }
+            }
+        }
+        for (probe, expectation) in self.probes.iter().zip(&self.expectations) {
+            let query = self.queries[probe.query].as_str();
+            if probe.zone == Zone::Battlefield && !found.iter().any(|(q, _)| *q == query) {
+                found.push((query, expectation.name.as_str()));
+            }
+        }
+        found
+    }
+
+    /// The first question here that asks whether a cost could be paid, if any.
+    ///
+    /// Distinct from [`Criteria::mana_question`] because the two need different
+    /// things of the card data. What is in play is a land drop count, which any
+    /// index can answer; what could be *paid* needs to know what each land
+    /// makes and whether it arrives tapped, which an index built before those
+    /// fields cannot say — and it is also what widens the enumeration, since
+    /// telling a Plains from an Island splits a group no query split.
+    pub fn casts(&self) -> Option<&str> {
+        self.predicates
+            .iter()
+            .position(|p| p.clauses().any(|c| matches!(c, Clause::Cast { .. })))
+            .map(|i| self.criteria[i].name.as_str())
+    }
+
+    /// The first question here that the mana model has to answer, if any.
+    ///
+    /// Anything asking what is in play or what could be paid for. Carried out
+    /// so a run can check, before it enumerates anything, that its card data
+    /// can actually answer that kind of question — an index that never fetched
+    /// `otag:tapland` would otherwise report every land as untapped and be
+    /// confidently, silently optimistic.
+    pub fn mana_question(&self) -> Option<&str> {
+        let asked = |clause: &Clause| match clause {
+            Clause::Cast { .. } => true,
+            Clause::Count(c) => c.zone == Zone::Battlefield,
+        };
+        let from_criteria = self
+            .predicates
+            .iter()
+            .position(|p| p.clauses().any(asked))
+            .map(|i| self.criteria[i].name.as_str());
+        from_criteria.or_else(|| {
+            self.probes
+                .iter()
+                .position(|p| p.zone == Zone::Battlefield)
+                .map(|i| self.expectations[i].name.as_str())
+        })
+    }
+
     /// Which question first named `query`, so a query that cannot be parsed or
     /// matches nothing can be reported against the thing that asked for it.
     pub fn asked_by(&self, query: &str) -> Option<&str> {
@@ -440,7 +549,7 @@ impl Criteria {
         let from_criteria = self
             .predicates
             .iter()
-            .position(|p| p.clauses().any(|c| c.query == idx))
+            .position(|p| p.counts().any(|c| c.query == idx))
             .map(|i| self.criteria[i].name.as_str());
         from_criteria.or_else(|| {
             self.probes
@@ -493,9 +602,10 @@ pub struct CriteriaError {
 
 /// Every key the format has, for the error that lists them.
 const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least, require, \
-                      any_of), whose require clauses are (turn, query, zone, min, max) and whose \
-                      any_of branches each hold a require of their own, [[expect]] tables (name, \
-                      turn, query, zone), and [[effect]] tables (match, look, on, to_graveyard).";
+                      any_of), whose require clauses are (turn, query, zone, min, max) or (turn, \
+                      can_cast) and whose any_of branches each hold a require of their own, \
+                      [[expect]] tables (name, turn, query, zone), and [[effect]] tables (match, \
+                      look, on, to_graveyard).";
 
 #[derive(Debug, Error)]
 pub enum ErrorKind {
@@ -595,6 +705,22 @@ pub enum ErrorKind {
     /// prints only the outermost layer.
     #[error("{at}: {zone}")]
     BadZone { at: String, zone: ZoneError },
+    /// A cost the gate cannot pay, refused by name for the same reason as an
+    /// unmodelled zone and printed the same way.
+    #[error("{at}: {cost}")]
+    BadCost { at: String, cost: CostError },
+    #[error(
+        "{at}: has both `query` and `can_cast`, which are two different questions.\n\
+         `query` counts cards in a zone; `can_cast` asks whether the lands in play could have \
+         paid a cost. Write them as two clauses."
+    )]
+    CountAndCast { at: String },
+    #[error(
+        "{at}: has both `can_cast` and `{key}`, and `{key}` means nothing to a mana question.\n\
+         `can_cast` is a yes or no about one turn — there is no count to bound and no zone to \
+         count in."
+    )]
+    CastWithCounting { at: String, key: &'static str },
 }
 
 /// A count with nowhere to go in a histogram, named against the expectation
@@ -795,8 +921,17 @@ impl Vocabulary {
     /// Zones are collected for the same reason: so a run knows the whole set
     /// before it starts, and so a file that never mentions the graveyard never
     /// has to be told anything about one.
-    fn intern(&mut self, query: String, turn: u32, zone: Zone) -> usize {
+    /// A turn this file asks about, whatever it asks there.
+    ///
+    /// A `can_cast` clause names no query, and a run whose horizon stopped at
+    /// the deepest *counting* clause would walk fewer turns than the file asked
+    /// about and answer the mana question against a board that never got there.
+    fn reach(&mut self, turn: u32) {
         self.horizon = self.horizon.max(turn);
+    }
+
+    fn intern(&mut self, query: String, turn: u32, zone: Zone) -> usize {
+        self.reach(turn);
         if !self.zones.contains(&zone) {
             self.zones.push(zone);
         }
@@ -820,20 +955,45 @@ impl Vocabulary {
         let mut compiled = Vec::with_capacity(defs.len());
         for (j, clause) in defs.iter().enumerate() {
             let at = at(j);
+            // The two kinds are told apart by which key is present, and a
+            // clause holding both is refused rather than resolved in some
+            // order: `query` and `can_cast` are different questions, and a
+            // clause that asked both would have to answer one of them silently.
+            if let Some(cost) = &clause.can_cast {
+                if clause.query.is_some() {
+                    return Err(ErrorKind::CountAndCast { at });
+                }
+                for (key, present) in [
+                    ("min", clause.min.is_some()),
+                    ("max", clause.max.is_some()),
+                    ("zone", clause.zone.is_some()),
+                ] {
+                    if present {
+                        return Err(ErrorKind::CastWithCounting { at, key });
+                    }
+                }
+                let turn = turn_of(clause.turn, &at)?;
+                self.reach(turn);
+                compiled.push(Clause::Cast {
+                    turn: turn as usize,
+                    cost: Cost::parse(cost).map_err(|cost| ErrorKind::BadCost { at, cost })?,
+                });
+                continue;
+            }
             let query = clause.query.clone().ok_or(ErrorKind::Missing {
                 at: at.clone(),
                 key: "query",
-                why: "so there is nothing for it to count",
+                why: "so there is nothing for it to count. Write `can_cast` for a mana question",
             })?;
             let turn = turn_of(clause.turn, &at)?;
             let zone = zone_of(clause.zone.as_deref(), &at)?;
             let bounds = bounds_of(clause, &at, &query)?;
-            compiled.push(Clause {
+            compiled.push(Clause::Count(Tally {
                 turn: turn as usize,
                 query: self.intern(query, turn, zone),
                 zone,
                 bounds,
-            });
+            }));
         }
         Ok(compiled)
     }

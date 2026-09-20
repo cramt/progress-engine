@@ -1,0 +1,5 @@
+# A symbol the gate cannot pay. Reading {X} as zero would make an X-spell
+# castable on turn one, which is a cost the deck was never asked for.
+[[criterion]]
+name = "an X spell on turn 3"
+require = [{ turn = 3, can_cast = "{X}{G}{G}" }]

@@ -18,11 +18,13 @@
 
 mod effect;
 mod grouping;
+pub mod mana;
 mod schedule;
 mod zone;
 
 pub use effect::{Board, Effect, Route, Trigger, TriggerError};
 pub use grouping::{Grouping, GroupingError};
+pub use mana::{Cost, CostError, ManaSource, Palette};
 pub use schedule::Schedule;
 pub use zone::{Reachable, Zone, ZoneError};
 
@@ -188,6 +190,16 @@ impl<'a> PathView<'a> {
     /// crash.
     pub fn count_in(&self, turn: usize, query_idx: usize, zone: Zone) -> u32 {
         self.board.count_in(turn, query_idx, zone)
+    }
+
+    /// Whether `cost` could have been paid on `turn`.
+    ///
+    /// A primitive rather than something a criteria file assembles, because it
+    /// cannot be assembled: one Hallowed Fountain counts toward `produces:w`
+    /// and toward `produces:u`, so a conjunction of independent counts is
+    /// satisfied by a hand that cannot pay. See [`crate::mana`].
+    pub fn can_cast(&self, turn: usize, cost: &Cost) -> bool {
+        self.board.can_cast(turn, cost)
     }
 }
 

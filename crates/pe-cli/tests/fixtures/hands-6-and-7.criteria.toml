@@ -1,0 +1,36 @@
+# HANDS.md hands 6 and 7, which are one test rather than two.
+#
+# Run against `hand-6.txt` and against `hand-7.txt`. Every clause below reads
+# the same on both decks except the last, which is the one that matters: the
+# counts agree and the castability does not.
+#
+# Both libraries are nine cards, so by turn 3 the whole thing is in hand and
+# there is nothing probabilistic left about the count clauses.
+
+# The naive model, written the way a user would have to write it without a
+# castability primitive. One Hallowed Fountain satisfies both, because it is a
+# white source and it is a blue source -- and it cannot pay {W}{U}.
+[[criterion]]
+name = "a white source and a blue source by turn 3"
+at_least = 0.99
+require = [
+  { turn = 3, query = "produces:w", min = 1 },
+  { turn = 3, query = "produces:u", min = 1 },
+]
+
+# The real question. The sources have to be seen jointly, which no arithmetic
+# over the two counts above does.
+[[criterion]]
+name = "{W}{U} payable on turn 3"
+require = [{ turn = 3, can_cast = "{W}{U}" }]
+
+# Two pips need two lands whatever colour they are, and turn 1 has one drop.
+[[criterion]]
+name = "{W}{U} payable on turn 1"
+require = [{ turn = 1, can_cast = "{W}{U}" }]
+
+# Generic takes any land, so this is a question about the count and about
+# tapped-ness rather than about colour.
+[[criterion]]
+name = "{1} payable on turn 1"
+require = [{ turn = 1, can_cast = "{1}" }]
