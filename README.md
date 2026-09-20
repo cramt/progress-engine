@@ -47,7 +47,10 @@ That is a unit test for a deck. Change a card, run it again, see which assertion
 Probabilities are **exact**, not simulated. Cards are grouped by which of your queries they
 match, and the tool enumerates count-vectors over those groups, weighting each by its
 multivariate hypergeometric probability. There is no shuffler, so there is no sampler bias to
-chase — and it is fast enough that the answer is instant. A question too wide to enumerate is
+chase — and it is fast enough that the answer is instant. The enumeration is sized **per
+question rather than per file**, so an easy question costs what it costs and not what the
+hardest question beside it costs — see [one enumeration per question](#one-enumeration-per-question-not-per-file).
+A question too wide to enumerate even on its own is
 answered by sampling and [says so in capital letters](#when-the-question-is-too-wide);
 everything else is exact. Enumerating rather
 than sampling also means a count's whole *distribution* falls out of the same
@@ -83,33 +86,78 @@ a specific interaction, an ordering, the best card in hand — cannot be asked h
 [issue #11](https://github.com/cramt/progress-engine/issues/11); describing it here as though
 it shipped would be this tool's own defining failure mode aimed at its documentation.
 
-### When the question is too wide
+### One enumeration per question, not per file
 
 Compositions multiply with the number of groups the queries split the library into and with
-how deep the turns go, so a criterion joining seven queries at turn six is a few billion of
-them, against a ceiling of five million. That question used to be refused. It is now
-**answered by sampling, loudly**:
+how many checkpoints the walk carries. Both used to be sized **once, for the whole file**, as
+the join of what every question in it needed — so a `can_cast` clause, which has to tell a
+Plains from an Island, split a real Commander manabase into seventeen groups and then charged
+all seventeen to the criterion beside it that only ever asked `count('cat:"Ramp"')`.
+
+Since [#31](https://github.com/cramt/progress-engine/issues/31) the questions are partitioned
+into classes and each class gets the cheapest enumeration that can answer it. Two things
+shrink:
+
+- **Groups.** A class keeps only the queries it reads, plus whatever the walk itself reads —
+  which cards a live effect applies to, where it routes them, the land-drop priority — and
+  keeps what a land makes only if something asks whether a cost could be paid. Everything else
+  merges.
+- **Checkpoints.** A class keeps only the turns it names. "Loam in hand by turn 5" is one
+  multivariate hypergeometric over eleven cards, not a path through five checkpoints. A
+  criterion that correlates two turns names both and keeps both, because the hands that get
+  there late are exactly the ones it excludes; a question about what is on the battlefield or
+  about paying a cost keeps every turn up to its own, because one land drop a turn is
+  use-it-or-lose-it and no total can say that.
+
+Measured on the two decks in `decks/`, against an index synced with oracle tags:
+
+| File | Before: groups / compositions | After: widest class | Before | After |
+|---|---|---|---|---|
+| `lantern.criteria.toml` | 7 / 4,120,116 | 6 / 72,072 | exact, 2.6s | exact, 0.20s |
+| `lantern.criteria.toml --draw` | 7 / 28,840,812 | 6 / 108,108 | **sampled** | **exact**, 0.20s |
+| `loam.criteria.toml` | 4 / 30,720 | 3 / 55 | exact, 0.19s | exact, 0.16s |
+| the same file plus `can_cast = "{1}{U}"` at turn 4 | 17 / 1,204,456,341 | 17 / 1,204,456,341 for that one clause; ≤ 72,072 for the other six questions | **all six sampled** | **one sampled, six exact** |
+
+Every number that was exact before is the same number after, to every digit the report
+prints. Narrowing is not an approximation: a coarser grouping is a marginal of the finer one,
+and the draws between two turns nobody reads have the same joint distribution merged as
+separate. It is asserted as a property over generated questions and end to end through the
+binary.
+
+The cost that remains is real and is not hidden: a `can_cast` clause on a Commander manabase
+is a billion compositions at turn four whatever else is in the file, and it is still
+[sampled](#when-the-question-is-too-wide). What changed is that it no longer takes its
+neighbours with it.
+
+### When the question is too wide
+
+A question that is still over the ceiling on its own — a criterion correlating two turns
+across seven queries, say — used to be refused. It is now **answered by sampling, loudly**:
 
 ```
 $ progress-engine test simple-ramp.txt too-wide.criteria.toml
-ESTIMATE: this question was too wide to enumerate exactly: 7918829568 compositions
-          across 12 groups, against a ceiling of 5000000. It was answered by
-          sampling 200000 hands instead.
-          Every percentage below is an ESTIMATE, not an exact answer. The ±
-          beside each one is its standard error, and a difference smaller
-          than that is not a difference.
+ESTIMATE: a question here was too wide to enumerate exactly: 103169430
+          compositions across 12 groups, against a ceiling of 5000000. It was
+          answered by sampling 200000 hands instead.
+          1 of the 3 questions here needed that, and it is the one
+          quoted with a ±:
+          everything at once by turn 6, off a turn-2 land
+          Everything else below was enumerated exactly. A difference
+          smaller than a figure's ± is not a difference.
           Pass --exact to refuse a question this wide rather than estimate it.
-PASS everything at once by turn 6   39.39% ± 0.11  (needs 10.0%)
-     a land by turn 6               99.70% ± 0.01
+PASS everything at once by turn 6, off a turn-2 land   39.16% ± 0.11  (needs 10.0%)
+     a land by turn 6                                  99.71%
 ```
 
 The loudness is the whole safety argument, and it is why this is acceptable at all. A silent
 fallback would be a number quietly changing kind — an estimate wearing an exact answer's
 clothes — which is the failure this repository is named against. So the warning is the first
-thing on stderr, every sampled figure is quoted with its error bar wherever it appears, and
-the JSON says `"method": "sampled"` with `"sampled_because": "too_wide"` and the width it
-refused beside it. A labelled estimate is a different answer to a question that was honestly
-too big ([#48](https://github.com/cramt/progress-engine/issues/48)).
+thing on stderr, it names the questions it applies to, every sampled figure is quoted with its
+error bar wherever it appears and every enumerated one is quoted without, and each answer in
+the JSON carries its own `"method"`. The top-level `"method"` is `"exact"`, `"sampled"` or
+`"mixed"`, with `"sampled_because": "too_wide"` and the width of the widest class it refused.
+A labelled estimate is a different answer to a question that was honestly too big
+([#48](https://github.com/cramt/progress-engine/issues/48)).
 
 The refusal is still there under `--exact`, for anyone who would rather have no answer than an
 approximate one — CI, and the cross-engine agreement tests, which need an oracle that either
@@ -117,7 +165,7 @@ enumerates or says nothing:
 
 ```
 $ progress-engine test simple-ramp.txt too-wide.criteria.toml --exact
-Error: this question is too wide to answer exactly: 7918829568 compositions across 12 groups.
+Error: this question is too wide to answer exactly: 103169430 compositions across 12 groups.
 It asks about 7 queries: t:land, cat:"Ramp", cat:"Ramp - One Mana", cat:"Draw", cat:"Ramp - Engine", t:creature, t:instant
 Reduce the number of distinct queries, or ask about an earlier turn.
 ```
@@ -432,13 +480,36 @@ a default nobody stated.
 enumeration already walks and adds no group and no path. `can_cast` is not free:
 it has to tell a Plains from an Island, so lands split into one group per
 *(what it produces, does it arrive tapped)*, and the enumeration widens with the
-group count. On a 99-card deck with 38 lands in five such profiles, three groups
-become seven, and the compositions go from 972 to 588,588 at turn 4 and from
-8,748 to 28,840,812 at turn 6 — which is over the ceiling, so turn 6 is
-[sampled](#when-the-question-is-too-wide) rather than enumerated. A deck whose
-manabase is three kinds of basic stays exact to turn 6 at a million
-compositions. The matching itself is cheap, about 0.65µs a hand; the width is
-what costs.
+group count. Measured on the decks in `decks/`, against an index synced with
+oracle tags, asking `can_cast = "{1}{U}"`:
+
+| Deck | Land groups | Turn 4 |
+|---|---|---|
+| `lantern.txt` | 17 | 1,204,456,341 — over the ceiling, [sampled](#when-the-question-is-too-wide) |
+| `loam.txt` | 18 | 2,018,478,528 — over the ceiling, sampled |
+
+A real Commander manabase is a dozen-plus profiles, so this is the ordinary
+case rather than a pathological one, and turn **four** is where it lands. A deck
+whose manabase is three kinds of basic stays exact much deeper — five groups is
+41,250 compositions at turn 4 and a million at turn 6. The matching itself is
+cheap, about 0.65µs a hand; the width is what costs.
+
+Since [#31](https://github.com/cramt/progress-engine/issues/31) that width is
+charged to the clause that asked for it and to nothing else: the other six
+questions in `lantern.criteria.toml` are enumerated exactly beside it, at 72,072
+compositions or fewer. What is still true is that the castability clause itself
+is an estimate past the opening turns on a real manabase, and
+[#55](https://github.com/cramt/progress-engine/issues/55) is the next narrowing
+that would change that.
+
+> An earlier version of this section quoted 588,588 at turn 4, 4,119,876 at turn
+> 5 and 28,840,812 at turn 6 for "a 99-card deck with 38 lands in five mana
+> profiles", and named no deck. The first and third are the compositions a
+> **seven**-group question costs at those turns on the play, and the middle one
+> is not a number any grouping produces — seven groups at turn 5 is 4,120,116,
+> which is 588,588 × 7, the factor one more checkpoint adds. The deck was never
+> recorded and nobody has reproduced it since, so the figures above replace it
+> with two decks that are in this repository.
 
 **One land drop, one declared policy.** A `[[effect]]` that routes cards and a
 mana question are both answers to *which land did you play this turn*, and left

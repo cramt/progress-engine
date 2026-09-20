@@ -109,6 +109,48 @@ impl Grouping {
         self.queries.iter().position(|q| q == query)
     }
 
+    /// The coarsest grouping that still tells apart everything `keep` names.
+    ///
+    /// Which cards are interchangeable depends on **who is asking**. A
+    /// criterion counting `cat:"Ramp"` cannot tell a Plains from an Island; a
+    /// `can_cast` clause can. Grouping a file once, as the join of everything
+    /// any criterion needs, makes the first question pay for the second — on a
+    /// real Commander manabase that is a dozen extra groups, and the
+    /// enumeration widens by a factor of that per checkpoint. So the engine
+    /// coarsens per class of questions instead.
+    ///
+    /// `keep` is a mask of the query bits one class reads, and it has to
+    /// include the bits the **walk** reads as well as the bits its clauses do:
+    /// which cards an effect applies to, where it routes them, and the
+    /// land-drop priority. Those decide where a card ends up, so two cards that
+    /// disagree about one of them are not interchangeable however little the
+    /// criterion cares.
+    ///
+    /// `mana` is the same choice for what a land makes. Only [`crate::Cost`]
+    /// can see it, so a class with no casting clause drops it and the manabase
+    /// collapses back to one group.
+    ///
+    /// Bits outside `keep` are **cleared, never renumbered**, so every index a
+    /// clause already holds still means what it meant. The cost of that is the
+    /// reason this is not a general-purpose constructor: a question reading a
+    /// cleared bit counts zero here, so only the class this was coarsened for
+    /// may be answered against it.
+    pub fn coarsened(&self, keep: u64, mana: bool) -> Grouping {
+        let cards = self
+            .group_masks
+            .iter()
+            .zip(&self.group_mana)
+            .zip(&self.group_sizes)
+            .map(|((mask, source), qty)| {
+                let source = if mana { *source } else { ManaSource::Spell };
+                (mask & keep, source, *qty)
+            });
+        // The same query list at the same bit positions: this is a coarser
+        // partition of the same library, not a different question.
+        Grouping::with_mana(self.queries.clone(), cards)
+            .expect("coarsening names no query the original did not")
+    }
+
     /// Total library size.
     pub fn population(&self) -> u32 {
         self.group_sizes.iter().sum()

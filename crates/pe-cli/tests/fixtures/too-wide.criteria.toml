@@ -1,16 +1,27 @@
 # A question that does not fit the exact engine, and exists to be answered
 # anyway.
 #
-# Seven queries split this 99-card library into twelve groups, and turn 6 is
-# six draws deep, which comes to a few billion compositions against a ceiling
-# of five million. Nothing here is exotic: it is one criterion naming the
-# categories the decklist already uses. That is the point -- the width comes
-# from how many distinct things are asked about at once, not from anything
-# unusual being asked.
+# Seven queries split this 99-card library into twelve groups, and the first
+# criterion correlates turn 2 with turn 6 -- so it needs the *path* through
+# both, not a total at either, and that comes to a few hundred million
+# compositions against a ceiling of five million.
+#
+# Correlating two turns is what makes it wide, and that is deliberate. Since
+# #31 the engine sizes an enumeration per class of question rather than per
+# file, so seven queries read at one turn is one hypergeometric and fits
+# comfortably. What no narrowing can avoid is a criterion that genuinely asks
+# about the history: "a land on turn two, and all of this by turn six" is not a
+# statement about how many cards had been seen by turn six.
+#
+# The other two questions here read one query at one turn, so they are
+# enumerated exactly in the same run. That is the point of the fixture as much
+# as the fallback is: an easy question does not get estimated because it shares
+# a file with a hard one.
 [[criterion]]
-name = "everything at once by turn 6"
+name = "everything at once by turn 6, off a turn-2 land"
 at_least = 0.10
 require = [
+  { turn = 2, query = "t:land", min = 1 },
   { turn = 6, query = "t:land", min = 3 },
   { turn = 6, query = 'cat:"Ramp"', min = 1 },
   { turn = 6, query = 'cat:"Ramp - One Mana"', min = 1 },
@@ -22,7 +33,8 @@ require = [
 
 # Informational, and deliberately nowhere near its own error bar: a sampled
 # answer still has to report the questions that are not close calls as ordinary
-# answers.
+# answers. This one reads one query at one turn, so it is enumerated exactly
+# beside the estimate above.
 [[criterion]]
 name = "a land by turn 6"
 require = [{ turn = 6, query = "t:land", min = 1 }]

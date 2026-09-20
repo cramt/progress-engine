@@ -177,17 +177,24 @@ query = "t:land"
 #    `otag:tapland` only selects cards -- no clause can say "untapped mana
 #    available", because that is the mana model again.
 #
-# --- A LIMIT OF THE TOOL, NOT OF THE DECK ---------------------------------
-# This file is answered exactly on the play. With --draw it is REFUSED:
+# --- A LIMIT OF THE TOOL THAT WAS ONE, AND NO LONGER IS -------------------
+# This file used to be answered exactly on the play and REFUSED with --draw:
 #   "too wide to answer exactly: 28840812 compositions across 7 groups"
-# One extra card by turn 5 crosses the enumeration ceiling. The on-the-draw
-# figures therefore have to come from --draw --simulate (200k hands), and are
-# approximate. In a four-player pod you are on the draw three times in four,
-# so the sampled numbers are the ones that describe most of your games.
+# One extra card by turn 5 crossed the enumeration ceiling, so the on-the-draw
+# figures had to come from --draw --simulate and were approximate -- which is
+# most of your games, since in a four-player pod you are on the draw three
+# times in four.
 #
-# Note also that the ceiling is computed over EVERY query in this file, the
-# [[expect]] tables included. Adding an informational expectation can make an
-# unrelated criterion unanswerable.
+# That was because the enumeration was sized once for the whole file: seven
+# groups and every checkpoint, whatever any individual question read. Since
+# upstream #31 it is sized per question. The widest question here is the
+# four-route criterion, at 6 groups over three checkpoints -- 72,072
+# compositions on the play and 108,108 on the draw -- so BOTH are now answered
+# exactly, and the [[expect]] tables below cost 12 compositions each instead of
+# widening everything else.
+#
+# The numbers on the play did not move by a digit. They were exact before and
+# they are exact now; only the enumeration behind them got smaller.
 
 # --- THE INDEX THESE NUMBERS WERE PRODUCED AGAINST ------------------------
 # decks/index.jsonl was built with `sync --from <bulk file>`, because

@@ -465,3 +465,201 @@ fn a_threshold_is_the_tail_of_the_distribution_it_thresholds() {
         })
         .unwrap();
 }
+
+/// The tolerance a narrowing is held to.
+///
+/// Not `==`, and the reason is arithmetic rather than a hedge. A narrowed
+/// enumeration sums a *different set of terms* to the same total — fewer,
+/// larger ones — so the log-gamma round trip inside each term lands in a
+/// different place in the last bits. The floor the engine measures for its own
+/// mass check is ~1e-13 over a Commander-sized library; anything above this is
+/// a narrowing that changed the question, not a rounding difference. Every
+/// figure this tool prints is rounded to six decimal places, so a difference
+/// this small cannot reach a report at all.
+const SAME_ANSWER: f64 = 1e-12;
+
+#[test]
+fn coarsening_away_a_query_nobody_reads_leaves_every_answer_alone() {
+    // The group axis of #31. A criterion counting `cat:"Ramp"` cannot tell a
+    // Plains from an Island, so the groups a `can_cast` clause needs are groups
+    // it must not be charged for — and merging them has to be *exactly* free,
+    // because a coarser grouping is a marginal of the finer one and a marginal
+    // is not an approximation.
+    runner(256)
+        .run(&(question(), loose_thresholds()), |(q, loose)| {
+            let thresholds = resolve(&loose, &q);
+            let schedule = Schedule::plain(&q.gaps);
+            let plan = only_criteria(thresholds.len());
+
+            let full = pe_criteria::run(&q.grouping, &schedule, plan, &mut checks(&thresholds))
+                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+
+            // Exactly the queries these criteria read, and nothing else.
+            let keep = thresholds
+                .iter()
+                .fold(0u64, |bits, t| bits | 1u64 << t.query);
+            let coarse = q.grouping.coarsened(keep, false);
+            prop_assert!(
+                coarse.group_sizes().len() <= q.grouping.group_sizes().len(),
+                "coarsening cannot add groups"
+            );
+            prop_assert_eq!(
+                coarse.population(),
+                q.grouping.population(),
+                "and cannot lose a card"
+            );
+
+            let narrowed = pe_criteria::run(&coarse, &schedule, plan, &mut checks(&thresholds))
+                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused narrowed: {e}")))?;
+
+            for (i, (wide, narrow)) in full
+                .probabilities
+                .iter()
+                .zip(&narrowed.probabilities)
+                .enumerate()
+            {
+                prop_assert!(
+                    (wide.get() - narrow.get()).abs() < SAME_ANSWER,
+                    "criterion {i} over {:?}: {} un-narrowed, {} narrowed",
+                    q.grouping.group_sizes(),
+                    wide.get(),
+                    narrow.get()
+                );
+            }
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+fn collapsing_checkpoints_nobody_reads_leaves_every_answer_alone() {
+    // The checkpoint axis. "Loam in hand by turn 5" is one multivariate
+    // hypergeometric over eleven cards, not a path through five checkpoints —
+    // and a criterion that *does* correlate two turns keeps both of them here,
+    // because the checkpoints it reads are exactly the ones it names.
+    runner(256)
+        .run(&(question(), loose_thresholds()), |(q, loose)| {
+            let thresholds = resolve(&loose, &q);
+            let schedule = Schedule::plain(&q.gaps);
+            let plan = only_criteria(thresholds.len());
+
+            let full = pe_criteria::run(&q.grouping, &schedule, plan, &mut checks(&thresholds))
+                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+
+            let mut observed: Vec<usize> = thresholds.iter().map(|t| t.checkpoint).collect();
+            observed.sort_unstable();
+            observed.dedup();
+            let collapsed = schedule.narrowed(&observed, pe_criteria::Reading::Cumulative);
+            prop_assert_eq!(
+                collapsed.gaps().iter().sum::<u32>(),
+                q.gaps[..=*observed.last().expect("at least one threshold")]
+                    .iter()
+                    .sum::<u32>(),
+                "the same cards are seen by the last turn anybody asked about"
+            );
+
+            let narrowed =
+                pe_criteria::run(&q.grouping, &collapsed, plan, &mut checks(&thresholds))
+                    .map_err(|e| TestCaseError::fail(format!("{q:?} was refused narrowed: {e}")))?;
+
+            for (i, (wide, narrow)) in full
+                .probabilities
+                .iter()
+                .zip(&narrowed.probabilities)
+                .enumerate()
+            {
+                prop_assert!(
+                    (wide.get() - narrow.get()).abs() < SAME_ANSWER,
+                    "criterion {i} over gaps {:?} observing {:?}: {} un-narrowed, {} narrowed",
+                    q.gaps,
+                    observed,
+                    wide.get(),
+                    narrow.get()
+                );
+            }
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+fn narrowing_both_axes_at_once_leaves_every_answer_alone() {
+    // Neither narrowing is applied on its own in a real run: a class coarsens
+    // its grouping *and* collapses its checkpoints, and the two compose. This
+    // is the property the CLI actually depends on.
+    runner(256)
+        .run(&(question(), loose_thresholds()), |(q, loose)| {
+            let thresholds = resolve(&loose, &q);
+            let schedule = Schedule::plain(&q.gaps);
+            let plan = only_criteria(thresholds.len());
+
+            let full = pe_criteria::run(&q.grouping, &schedule, plan, &mut checks(&thresholds))
+                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+
+            let keep = thresholds
+                .iter()
+                .fold(0u64, |bits, t| bits | 1u64 << t.query);
+            let mut observed: Vec<usize> = thresholds.iter().map(|t| t.checkpoint).collect();
+            observed.sort_unstable();
+            observed.dedup();
+
+            let narrowed = pe_criteria::run(
+                &q.grouping.coarsened(keep, false),
+                &schedule.narrowed(&observed, pe_criteria::Reading::Cumulative),
+                plan,
+                &mut checks(&thresholds),
+            )
+            .map_err(|e| TestCaseError::fail(format!("{q:?} was refused narrowed: {e}")))?;
+
+            for (i, (wide, narrow)) in full
+                .probabilities
+                .iter()
+                .zip(&narrowed.probabilities)
+                .enumerate()
+            {
+                prop_assert!(
+                    (wide.get() - narrow.get()).abs() < SAME_ANSWER,
+                    "criterion {i}: {} un-narrowed, {} narrowed",
+                    wide.get(),
+                    narrow.get()
+                );
+            }
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+fn answering_one_question_of_several_answers_it_the_same_way() {
+    // The stitching. A class is answered on its own enumeration and its
+    // answers are put back by position, so answering a subset has to give the
+    // same numbers in the same order as answering everything.
+    runner(128)
+        .run(&(question(), loose_thresholds()), |(q, loose)| {
+            let thresholds = resolve(&loose, &q);
+            let schedule = Schedule::plain(&q.gaps);
+            let plan = only_criteria(thresholds.len());
+
+            let together = pe_criteria::run(&q.grouping, &schedule, plan, &mut checks(&thresholds))
+                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+
+            for (i, _) in thresholds.iter().enumerate() {
+                let answering = pe_criteria::Answering::some(plan, vec![i], Vec::new())
+                    .expect("one criterion of this plan");
+                let alone = pe_criteria::run_answering(
+                    &q.grouping,
+                    &schedule,
+                    &answering,
+                    &mut checks(&thresholds),
+                )
+                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused alone: {e}")))?;
+                prop_assert_eq!(alone.probabilities.len(), 1);
+                prop_assert!(
+                    (together.probabilities[i].get() - alone.probabilities[0].get()).abs()
+                        < SAME_ANSWER
+                );
+            }
+            Ok(())
+        })
+        .unwrap();
+}

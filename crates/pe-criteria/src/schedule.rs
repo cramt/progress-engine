@@ -25,6 +25,28 @@ use crate::policy::LandDropPolicy;
 /// The opening hand, before anybody has drawn for turn.
 const OPENING_HAND: u32 = 7;
 
+/// How much of a run's turn structure one class of questions reads.
+///
+/// Two readings rather than a boolean, because the names are the whole of the
+/// argument for why one of them is allowed to be cheaper.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Reading {
+    /// Only how many cards had been seen by the turns it names.
+    ///
+    /// Nothing about the order they arrived in — which is what lets every draw
+    /// between two turns it does not name collapse into one. "Loam in hand by
+    /// turn 5" is one multivariate hypergeometric over eleven cards, not a
+    /// path through five checkpoints.
+    Cumulative,
+    /// The turn-by-turn history up to the last turn it names.
+    ///
+    /// What a question about the battlefield or about paying a cost reads: one
+    /// land drop a turn is use-it-or-lose-it, so five lands drawn by turn three
+    /// are three lands in play, and no total can say that. Also what a live
+    /// effect forces, because routing reads the order cards came off the top.
+    PerTurn,
+}
+
 /// A run's turn structure: which checkpoints belong to which turn, and what
 /// happens on each of them.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -107,6 +129,63 @@ impl Schedule {
             spans,
             effects,
             land_drop,
+        }
+    }
+
+    /// This run as one class of questions sees it: the same turns, drawing the
+    /// same cards, revealed only where that class looks.
+    ///
+    /// The turn numbering does not move. A checkpoint nobody in this class
+    /// reads is left drawing **nothing**, and the cards it would have revealed
+    /// are revealed at the next checkpoint that is read — so the counts at
+    /// every observed turn are exactly the counts the full schedule would have
+    /// produced there, and every turn index a clause already holds still means
+    /// the turn it named. A gap of zero costs one composition, so the
+    /// checkpoints this deletes stop multiplying the enumeration without
+    /// anything having to be renumbered.
+    ///
+    /// Draws after the last observed turn are dropped rather than carried: a
+    /// question about turn 3 is not made truer or falser by turn 5, and the
+    /// distribution of what had been seen by turn 3 is the same whether or not
+    /// the enumeration goes on to deal turns 4 and 5.
+    ///
+    /// [`Reading::Cumulative`] is an **upper** bound on what this will do, not
+    /// an instruction: a run with a live effect keeps every checkpoint whatever
+    /// it is asked, because routing reads the order cards came off the top and
+    /// merging two draws would hand the walk an unordered pair. Narrowing less
+    /// than a caller asked for is always sound; narrowing more is the bug this
+    /// guards against.
+    pub fn narrowed(&self, observed: &[usize], reading: Reading) -> Schedule {
+        let mut gaps = vec![0u32; self.gaps.len()];
+        let last = observed
+            .iter()
+            .copied()
+            .filter(|&t| t < self.spans.len())
+            .max();
+        if let Some(last) = last {
+            let collapse = reading == Reading::Cumulative && self.effects.is_empty();
+            if collapse {
+                // Everything drawn since the last turn this class looked at,
+                // waiting for the next one that does.
+                let mut carried = 0;
+                for turn in 0..=last {
+                    let (first, end) = self.spans[turn];
+                    carried += self.gaps[first..=end].iter().sum::<u32>();
+                    if observed.contains(&turn) {
+                        gaps[first] = carried;
+                        carried = 0;
+                    }
+                }
+            } else {
+                let end = self.spans[last].1;
+                gaps[..=end].copy_from_slice(&self.gaps[..=end]);
+            }
+        }
+        Schedule {
+            gaps,
+            spans: self.spans.clone(),
+            effects: self.effects.clone(),
+            land_drop: self.land_drop.clone(),
         }
     }
 

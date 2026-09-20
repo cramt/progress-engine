@@ -1,0 +1,22 @@
+# A criterion that genuinely correlates two turns, which is the case the
+# checkpoint narrowing must not touch.
+#
+# "Two lands in the opener and three by turn three" is not a statement about
+# how many cards had been seen by turn three: the hands that get there by
+# drawing both lands late are exactly the ones this excludes. So this class
+# keeps both checkpoints and enumerates the path between them, while the
+# single-turn criterion underneath it collapses to one hypergeometric.
+[[criterion]]
+name = "two lands on turn 1, three by turn 3"
+require = [
+  { turn = 1, query = "t:land", min = 2 },
+  { turn = 3, query = "t:land", min = 3 },
+]
+
+[[criterion]]
+name = "three lands by turn 3"
+require = [{ turn = 3, query = "t:land", min = 3 }]
+
+[[criterion]]
+name = "two lands on turn 1"
+require = [{ turn = 1, query = "t:land", min = 2 }]

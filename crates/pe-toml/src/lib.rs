@@ -600,6 +600,115 @@ impl Criteria {
             expectations: self.expectations.len(),
         }
     }
+
+    /// What each question here reads of an enumeration, in the same order the
+    /// answers come back in.
+    ///
+    /// This is the analysis that [issue
+    /// #31](https://github.com/cramt/progress-engine/issues/31) wants and that
+    /// nothing could do while criteria were a script: the queries, the turns
+    /// and the kind of every clause are readable without running anything, so
+    /// a caller can build one enumeration per class of question instead of one
+    /// wide enough for all of them at once.
+    pub fn reads(&self) -> QuestionReads {
+        QuestionReads {
+            criteria: self
+                .predicates
+                .iter()
+                .map(|p| Reads::of(p.clauses()))
+                .collect(),
+            expectations: self
+                .probes
+                .iter()
+                .map(|probe| {
+                    let mut reads = Reads::default();
+                    reads.count(probe.turn, probe.query, probe.zone);
+                    reads
+                })
+                .collect(),
+        }
+    }
+}
+
+/// What every question in one file reads, question by question.
+///
+/// Two lists rather than one, for the same reason [`Plan`] is two counts: they
+/// index different halves of the answer, and a caller holding them as one
+/// sequence could file a criterion's requirement under an expectation's name
+/// and still typecheck.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct QuestionReads {
+    pub criteria: Vec<Reads>,
+    pub expectations: Vec<Reads>,
+}
+
+/// What one question reads of an enumeration: which queries, which turns, and
+/// which of the two things only the mana model can answer.
+///
+/// The point of writing it down is that a question that reads *less* can be
+/// answered by a *cheaper* enumeration, exactly. A criterion counting
+/// `cat:"Ramp"` at turn 3 needs a grouping that can tell Ramp from not-Ramp
+/// and nothing else, and needs to know how many cards had been seen by turn 3
+/// rather than how they arrived.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Reads {
+    queries: u64,
+    turns: Vec<usize>,
+    casts: bool,
+    battlefield: bool,
+}
+
+impl Reads {
+    fn of<'a>(clauses: impl Iterator<Item = &'a Clause>) -> Reads {
+        let mut reads = Reads::default();
+        for clause in clauses {
+            match clause {
+                Clause::Count(c) => reads.count(c.turn, c.query, c.zone),
+                Clause::Cast { turn, .. } => {
+                    reads.casts = true;
+                    reads.at(*turn);
+                }
+            }
+        }
+        reads
+    }
+
+    fn count(&mut self, turn: usize, query: usize, zone: Zone) {
+        self.queries |= 1u64 << query;
+        self.battlefield |= zone == Zone::Battlefield;
+        self.at(turn);
+    }
+
+    fn at(&mut self, turn: usize) {
+        if !self.turns.contains(&turn) {
+            self.turns.push(turn);
+            self.turns.sort_unstable();
+        }
+    }
+
+    /// The grouping bits this question counts, as a mask.
+    pub fn queries(&self) -> u64 {
+        self.queries
+    }
+
+    /// Every turn it names, ascending. A criterion correlating two turns names
+    /// both, which is how it keeps the path enumeration a criterion about one
+    /// turn does not need.
+    pub fn turns(&self) -> &[usize] {
+        &self.turns
+    }
+
+    /// Whether it asks whether a cost could have been paid, which is the only
+    /// thing in the language that can tell a Plains from an Island.
+    pub fn casts(&self) -> bool {
+        self.casts
+    }
+
+    /// Whether it counts cards on the battlefield, which reads the land drops
+    /// turn by turn rather than a total.
+    pub fn battlefield(&self) -> bool {
+        self.battlefield
+    }
 }
 
 impl Evaluator for Criteria {

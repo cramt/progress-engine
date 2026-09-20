@@ -137,12 +137,27 @@ to enumerate is now answered by sampling, because the intended caller is a
 graphical builder that cannot pass a flag and cannot act on advice to ask
 something smaller. What makes that acceptable is not that the answer is good
 enough; it is that the answer cannot be mistaken for the other kind. The run
-says, above every number, that it estimated rather than enumerated; every
-sampled figure is quoted with its error bar; the JSON says which engine answered
-and why. `--exact` restores the refusal for anyone who would rather have no
-answer than an approximate one. A silent fallback would have been a number
-quietly changing kind, which is the same failure in a new costume; a labelled
-one is a different answer to a question that was honestly too big.
+says, above the numbers, which of them it estimated rather than enumerated;
+every sampled figure is quoted with its error bar and every enumerated one
+without; the JSON says, per answer, which engine produced it and why.
+`--exact` restores the refusal for anyone who would rather have no answer than
+an approximate one. A silent fallback would have been a number quietly changing
+kind, which is the same failure in a new costume; a labelled one is a different
+answer to a question that was honestly too big.
+
+**Which question was too big is now a question worth asking.** The fallback
+used to be a property of the run, because the enumeration was one enumeration,
+sized for the whole file as the join of what its hardest question needed. So a
+criterion counting `cat:"Ramp"` was estimated because it shared a file with a
+`can_cast` clause, and refusing — or sampling — an easy question on account of
+a hard one beside it is not honest either. The file is now partitioned into
+classes of questions that read the same things, each class is enumerated on the
+narrowest grouping and the fewest checkpoints that can answer it, and only a
+class that is still over the ceiling falls back. Nothing about the numbers
+changes when it narrows: a coarser grouping is a marginal of the finer one, and
+draws between two turns nobody reads have the same joint distribution merged as
+separate. That is what makes it a narrowing rather than an approximation, and
+it is asserted as a property rather than assumed.
 
 ### Ask, don't guess
 
@@ -296,10 +311,20 @@ composition while the user cannot express it — so it has to be a primitive.
 **The gate ships**, as `zone = "battlefield"` for lands and `can_cast` for a
 cost. It cost nothing in enumeration width to count lands in play and a great
 deal to price them: telling a Plains from an Island splits groups no query
-splits, and a castability question on a five-profile manabase multiplies the
-compositions by three thousand at turn six, which is over the ceiling. That is
-the honest price of an exact answer and it is why the sampling fallback existed
-first.
+splits, and on either real deck in `decks/` a castability question is a dozen
+and a half groups — 1.2 billion compositions at **turn four**, against a
+ceiling of five million. That is the honest price of an exact answer and it is
+why the sampling fallback existed first.
+
+Two prices, and only one of them was honest. The split is what castability
+costs, and it was also what every other criterion in the same file cost, because
+the grouping was decided once for the file. That half is fixed: the split is now
+charged to the clause that asked for it. The half that remains is that the
+clause itself is an estimate past the opening turns on a real manabase, and the
+narrowing that would fix it is
+[#55](https://github.com/cramt/progress-engine/issues/55) — a cost can only
+tell apart the colours it demands, so `{1}{U}` cannot distinguish a Plains from
+a Forest and should not pay to.
 
 As a **budget**, it is spent. An opening hand of one Island and six Opt casts
 *one* Opt, because the first one consumes the Island. A model where an effect
@@ -426,6 +451,14 @@ through the front door.
   each enumerated path contributing its probability once, in the same walk, so
   the disjunction is exact and adds no groups beyond the queries its branches
   already name.
+- The enumeration is sized per class of question rather than per file
+  ([#31](https://github.com/cramt/progress-engine/issues/31)) — shipped. A
+  class keeps only the queries it reads, only the turns it names, and what a
+  land makes only where something asks whether a cost could be paid; everything
+  else merges. A question over the ceiling on its own is still estimated, and
+  now it is the only one: `decks/lantern.criteria.toml` went from 4,120,116
+  compositions to 72,072 on the play and from sampled to exact on the draw,
+  with every number it already reported unchanged to every printed digit.
 - A criterion names the zone it asks about, silence means `hand`, and
   `battlefield` was refused until castability existed rather than approximated
   ([#40](https://github.com/cramt/progress-engine/issues/40)) — shipped, and the

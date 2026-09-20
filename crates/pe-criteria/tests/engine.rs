@@ -830,3 +830,148 @@ fn a_land_the_priority_never_names_is_still_played() {
         "both lands are played by turn 2, ranked or not"
     );
 }
+
+// --- Narrowing (#31) ------------------------------------------------------
+
+/// A 99-card library whose lands split by what they make: the shape that makes
+/// `can_cast` expensive, and the shape a criterion counting lands cannot see.
+fn manabase() -> Grouping {
+    Grouping::with_mana(
+        q(&["t:land", "cat:Ramp"]),
+        vec![
+            (0b01, untapped("W"), 8),
+            (0b01, untapped("U"), 8),
+            (0b01, tapped("WU"), 6),
+            (0b01, untapped("B"), 8),
+            (0b01, tapped("BG"), 6),
+            (0b10, ManaSource::Spell, 10),
+            (0b00, ManaSource::Spell, 53),
+        ],
+    )
+    .unwrap()
+}
+
+#[test]
+fn counting_lands_does_not_pay_for_telling_them_apart() {
+    // The group axis of #31, on the case that motivated it. Five mana profiles
+    // is five groups a `can_cast` clause needs and a land count cannot see, so
+    // dropping them has to be exactly free — not nearly free.
+    let grouping = manabase();
+    assert_eq!(grouping.group_sizes().len(), 7);
+    let schedule = Schedule::plain(&[7, 1, 1]);
+    let count = || {
+        Box::new(|v: &PathView<'_>| {
+            v.count_in(2, 0, Zone::Hand) >= 4 && v.count_in(2, 1, Zone::Hand) >= 1
+        }) as Check
+    };
+
+    let coarse = grouping.coarsened(0b11, false);
+    assert_eq!(
+        coarse.group_sizes().len(),
+        3,
+        "lands, ramp and everything else"
+    );
+    assert_eq!(coarse.population(), grouping.population());
+
+    let wide = holds(&grouping, &schedule, count());
+    let narrow = holds(&coarse, &schedule, count());
+    assert!(
+        (wide - narrow).abs() < 1e-12,
+        "{wide} un-narrowed, {narrow} narrowed"
+    );
+}
+
+#[test]
+fn a_cost_keeps_the_manabase_and_drops_the_queries() {
+    // The other direction. A `can_cast` clause reads no query at all — what it
+    // reads is what each land makes — so its class keeps the mana detail and
+    // throws every query away, and still answers identically.
+    let grouping = manabase();
+    let schedule = Schedule::plain(&[7, 1, 1]);
+    let cost = Cost::parse("{1}{W}{U}").unwrap();
+    let cast = || {
+        let cost = cost.clone();
+        Box::new(move |v: &PathView<'_>| v.can_cast(2, &cost)) as Check
+    };
+
+    let coarse = grouping.coarsened(0, true);
+    assert!(
+        coarse.group_sizes().len() < grouping.group_sizes().len(),
+        "the queries merge and the profiles do not"
+    );
+
+    let wide = holds(&grouping, &schedule, cast());
+    let narrow = holds(&coarse, &schedule, cast());
+    assert!(
+        (wide - narrow).abs() < 1e-12,
+        "{wide} un-narrowed, {narrow} narrowed"
+    );
+}
+
+#[test]
+fn what_is_in_play_is_read_turn_by_turn_and_not_collapsed() {
+    // The checkpoint axis has a floor. One land drop a turn is
+    // use-it-or-lose-it, so five lands drawn by turn four are four lands in
+    // play, and no total at turn four can say that — which is why a
+    // battlefield clause asks for `PerTurn` and gets every turn up to its own.
+    let grouping = manabase();
+    let schedule = Schedule::plain(&[7, 1, 1]);
+    let in_play = || Box::new(|v: &PathView<'_>| v.count_in(2, 0, Zone::Battlefield) >= 2) as Check;
+
+    let per_turn = schedule.narrowed(&[2], pe_criteria::Reading::PerTurn);
+    assert_eq!(per_turn.gaps(), &[7, 1, 1]);
+    let wide = holds(&grouping, &schedule, in_play());
+    let narrow = holds(&grouping, &per_turn, in_play());
+    assert!((wide - narrow).abs() < 1e-12, "{wide} vs {narrow}");
+
+    // And the collapsed reading really would have answered something else, so
+    // the distinction is load-bearing rather than defensive.
+    let collapsed = schedule.narrowed(&[2], pe_criteria::Reading::Cumulative);
+    assert_eq!(collapsed.gaps(), &[0, 0, 9]);
+    let wrong = holds(&grouping, &collapsed, in_play());
+    assert!(
+        (wrong - wide).abs() > 0.01,
+        "collapsing the history would have moved this: {wrong} vs {wide}"
+    );
+}
+
+#[test]
+fn a_live_effect_keeps_every_checkpoint_whatever_it_is_asked() {
+    // Narrowing less than a caller asked for is always sound; narrowing more
+    // is the bug. Routing reads the order cards came off the top, so a
+    // schedule with a live effect refuses to merge two draws into one even
+    // where the class asking would have allowed it.
+    let effects = vec![Effect {
+        matched_by: 0,
+        look: 1,
+        trigger: Trigger::LandDrop,
+        route: Route::Everything,
+    }];
+    let schedule = Schedule::build(2, false, effects, None);
+    assert_eq!(schedule.gaps(), &[7, 0, 1, 1, 1]);
+    assert_eq!(
+        schedule
+            .narrowed(&[2], pe_criteria::Reading::Cumulative)
+            .gaps(),
+        &[7, 0, 1, 1, 1],
+        "every checkpoint survives, because the order is the question"
+    );
+}
+
+#[test]
+fn draws_after_the_last_turn_anybody_asked_about_are_dropped() {
+    let schedule = Schedule::plain(&[7, 1, 1, 1, 1]);
+    assert_eq!(
+        schedule
+            .narrowed(&[2], pe_criteria::Reading::PerTurn)
+            .gaps(),
+        &[7, 1, 1, 0, 0]
+    );
+    assert_eq!(
+        schedule
+            .narrowed(&[1, 3], pe_criteria::Reading::Cumulative)
+            .gaps(),
+        &[0, 8, 0, 2, 0],
+        "eight cards by turn one, ten by turn three, and nothing about turn two"
+    );
+}

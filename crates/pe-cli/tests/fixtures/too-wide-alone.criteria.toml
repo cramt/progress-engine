@@ -1,0 +1,15 @@
+# The two easy questions out of `too-wide.criteria.toml`, in a file of their
+# own.
+#
+# They are here to be compared against the same two questions sitting beside a
+# criterion nothing can enumerate. Refusing an easy question because it shares
+# a file with a hard one is not honest, and neither is estimating it -- so
+# these numbers and those numbers have to be the same numbers.
+[[criterion]]
+name = "a land by turn 6"
+require = [{ turn = 6, query = "t:land", min = 1 }]
+
+[[expect]]
+name = "lands by turn 6"
+turn = 6
+query = "t:land"

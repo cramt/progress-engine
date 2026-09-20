@@ -27,7 +27,7 @@ pub use effect::{Board, Effect, Route, Trigger, TriggerError};
 pub use grouping::{Grouping, GroupingError};
 pub use mana::{Cost, CostError, ManaSource, Palette};
 pub use policy::LandDropPolicy;
-pub use schedule::Schedule;
+pub use schedule::{Reading, Schedule};
 pub use zone::{Reachable, Zone, ZoneError};
 
 use pe_stats::{Distribution, DistributionBuilder, KahanSum, Probability};
@@ -129,6 +129,72 @@ pub struct Plan {
     pub expectations: usize,
 }
 
+/// Which of a run's questions one enumeration is wide enough to answer.
+///
+/// A file is not one question, and enumerating it as though it were is what
+/// [issue #31](https://github.com/cramt/progress-engine/issues/31) is about: a
+/// grouping wide enough for a `can_cast` clause and a path long enough for a
+/// cross-turn criterion get charged to every other question in the file. So the
+/// caller partitions the questions into classes, builds the cheapest
+/// enumeration each class needs, and names that class here.
+///
+/// The indices are positions in the [`Plan`], and the answers come back
+/// parallel to **these lists** rather than to the plan. That is on purpose: an
+/// [`Outcomes`] padded out to the plan's length would hold a 0% for every
+/// question this enumeration was not wide enough to ask, and a zero that means
+/// *not asked* is exactly the confident wrong number this tool exists to
+/// prevent.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Answering {
+    plan: Plan,
+    criteria: Vec<usize>,
+    expectations: Vec<usize>,
+}
+
+impl Answering {
+    /// Every question in the plan, which is what an un-narrowed run asks.
+    pub fn all(plan: Plan) -> Answering {
+        Answering {
+            criteria: (0..plan.criteria).collect(),
+            expectations: (0..plan.expectations).collect(),
+            plan,
+        }
+    }
+
+    /// A subset of the plan's questions. `None` where an index is out of range
+    /// or repeated, because either would file one answer under two names.
+    pub fn some(plan: Plan, criteria: Vec<usize>, expectations: Vec<usize>) -> Option<Answering> {
+        let sound = |picks: &[usize], total: usize| {
+            picks.iter().all(|&i| i < total)
+                && picks
+                    .iter()
+                    .enumerate()
+                    .all(|(n, i)| !picks[..n].contains(i))
+        };
+        (sound(&criteria, plan.criteria) && sound(&expectations, plan.expectations)).then_some(
+            Answering {
+                plan,
+                criteria,
+                expectations,
+            },
+        )
+    }
+
+    pub fn plan(&self) -> Plan {
+        self.plan
+    }
+
+    /// Positions in the plan of the criteria this run answers.
+    pub fn criteria(&self) -> &[usize] {
+        &self.criteria
+    }
+
+    /// Positions in the plan of the expectations this run answers.
+    pub fn expectations(&self) -> &[usize] {
+        &self.expectations
+    }
+}
+
 /// What every registered question answered on one path.
 ///
 /// Two lists rather than one list of tagged values, so a criterion slot can only
@@ -146,11 +212,14 @@ pub struct PathOutcomes {
 }
 
 /// Everything a run answered.
+///
+/// Parallel to the [`Answering`] the run was given, which for an un-narrowed
+/// run is the whole plan in registration order.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Outcomes {
-    /// One per criterion, in registration order.
+    /// One per criterion answered.
     pub probabilities: Vec<Probability>,
-    /// One per expectation, in registration order.
+    /// One per expectation answered.
     pub distributions: Vec<Distribution>,
 }
 
@@ -310,6 +379,27 @@ fn estimate_paths(groups: usize, gaps: &[u32]) -> u128 {
         .fold(1u128, |a, b| a.saturating_mul(b))
 }
 
+/// The refusals that are facts about the whole run rather than about any one
+/// question: an empty library, and a hand bigger than it.
+///
+/// Worth calling before a file is narrowed, because narrowing cannot make
+/// either of these answerable and it can hide them. A class asking only about
+/// turn 2 draws eight cards whatever the horizon says, so it would happily
+/// answer against a library of forty that the file's own turn 60 could never
+/// be dealt from — turning a refusal into a number by asking a smaller
+/// question than the file did.
+pub fn feasible<E>(grouping: &Grouping, schedule: &Schedule) -> Result<(), RunError<E>> {
+    if grouping.group_sizes().is_empty() {
+        return Err(RunError::EmptyLibrary);
+    }
+    let population = grouping.population();
+    let draws: u32 = schedule.gaps().iter().sum();
+    if draws > population {
+        return Err(RunError::NotEnoughCards { population, draws });
+    }
+    Ok(())
+}
+
 /// Exact probability that each criterion holds, and the exact distribution of
 /// each expectation.
 ///
@@ -324,16 +414,29 @@ pub fn run<E>(
     plan: Plan,
     evaluator: &mut impl Evaluator<Error = E>,
 ) -> Result<Outcomes, RunError<E>> {
+    run_answering(grouping, schedule, &Answering::all(plan), evaluator)
+}
+
+/// [`run`], for one class of a file's questions against the cheapest
+/// enumeration that class needs.
+///
+/// The evaluator still answers the whole file on every path — it is data, it
+/// cannot be asked half a question, and a second entry point into it would be a
+/// second reading of the same criteria file. What this does is keep only the
+/// answers `answering` names, which are the only ones this enumeration is wide
+/// enough for: a query outside the class's grouping counts zero here, and a
+/// turn outside its schedule holds a stale total. Those are not answers and are
+/// not reported as any.
+pub fn run_answering<E>(
+    grouping: &Grouping,
+    schedule: &Schedule,
+    answering: &Answering,
+    evaluator: &mut impl Evaluator<Error = E>,
+) -> Result<Outcomes, RunError<E>> {
+    let plan = answering.plan();
     let gaps = schedule.gaps();
     let groups = grouping.group_sizes().len();
-    if groups == 0 {
-        return Err(RunError::EmptyLibrary);
-    }
-    let population = grouping.population();
-    let draws: u32 = gaps.iter().sum();
-    if draws > population {
-        return Err(RunError::NotEnoughCards { population, draws });
-    }
+    feasible(grouping, schedule)?;
     let paths = estimate_paths(groups, gaps);
     if paths > MAX_PATHS {
         return Err(RunError::TooWide {
@@ -343,8 +446,8 @@ pub fn run<E>(
         });
     }
 
-    let mut totals = vec![KahanSum::new(); plan.criteria];
-    let mut histograms = vec![DistributionBuilder::new(); plan.expectations];
+    let mut totals = vec![KahanSum::new(); answering.criteria().len()];
+    let mut histograms = vec![DistributionBuilder::new(); answering.expectations().len()];
     let mut mass = KahanSum::new();
     let mut failure = None;
     let mut wrong_shape = None;
@@ -368,13 +471,13 @@ pub fn run<E>(
                     wrong_shape = Some((outcomes.held.len(), outcomes.counted.len()));
                     return;
                 }
-                for (total, hit) in totals.iter_mut().zip(outcomes.held) {
-                    if hit {
+                for (total, &i) in totals.iter_mut().zip(answering.criteria()) {
+                    if outcomes.held[i] {
                         total.add(p);
                     }
                 }
-                for (histogram, value) in histograms.iter_mut().zip(outcomes.counted) {
-                    histogram.add(value.get(), p);
+                for (histogram, &i) in histograms.iter_mut().zip(answering.expectations()) {
+                    histogram.add(outcomes.counted[i].get(), p);
                 }
             }
             Err(e) => failure = Some(e),

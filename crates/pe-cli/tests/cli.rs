@@ -1579,10 +1579,11 @@ fn run_flags(criteria: &str, args: &[&str]) -> std::process::Output {
 
 #[test]
 fn a_question_too_wide_to_enumerate_is_answered_by_sampling() {
-    // #48. Seven queries at turn 6 is a few billion compositions against a
-    // ceiling of five million, and until now that was the end of the run. A
-    // block editor cannot pass a flag and cannot act on advice to ask something
-    // smaller, so a refusal there is a dead end rather than a lesson.
+    // #48. A criterion correlating turn 2 with turn 6 across seven queries is a
+    // hundred million compositions against a ceiling of five million, and until
+    // now that was the end of the run. A block editor cannot pass a flag and
+    // cannot act on advice to ask something smaller, so a refusal there is a
+    // dead end rather than a lesson.
     //
     // This test is as much about the warning as about the number. An estimate
     // that reads like an exact answer is the failure this repository is named
@@ -1596,9 +1597,11 @@ fn a_question_too_wide_to_enumerate_is_answered_by_sampling() {
     );
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).expect("stdout is JSON");
 
-    assert_eq!(json["method"], "sampled");
+    // #31: the file is several enumerations, so one question going over the
+    // ceiling no longer takes the others with it.
+    assert_eq!(json["method"], "mixed");
     assert_eq!(json["sampled_because"], "too_wide");
-    assert_eq!(json["too_wide"]["paths"], 7_918_829_568u64);
+    assert_eq!(json["too_wide"]["paths"], 103_169_430u64);
     assert_eq!(json["too_wide"]["groups"], 12);
     assert_eq!(json["too_wide"]["ceiling"], 5_000_000u64);
     assert_eq!(json["trials"], 200_000);
@@ -1607,17 +1610,26 @@ fn a_question_too_wide_to_enumerate_is_answered_by_sampling() {
         "a fallback is reproducible or it is a rumour"
     );
 
-    // Every number it reports says how uncertain it is, or the JSON is claiming
-    // an exactness the run did not have.
+    // The estimated number says how uncertain it is, or the JSON is claiming an
+    // exactness the run did not have — and the enumerated ones must not be
+    // given an error bar they never had.
     for c in json["criteria"].as_array().unwrap() {
-        assert!(
+        let sampled = c["method"] == "sampled";
+        assert_eq!(
             c["standard_error"].as_f64().is_some(),
-            "{} has no error bar",
-            c["name"]
+            sampled,
+            "{} is {} and its error bar disagrees",
+            c["name"],
+            c["method"]
         );
     }
     for e in json["expectations"].as_array().unwrap() {
-        assert!(e["standard_error"].as_f64().is_some(), "{}", e["name"]);
+        assert_eq!(
+            e["standard_error"].as_f64().is_some(),
+            e["method"] == "sampled",
+            "{}",
+            e["name"]
+        );
     }
 
     let stderr = String::from_utf8_lossy(&out.stderr);
@@ -1630,7 +1642,7 @@ fn a_question_too_wide_to_enumerate_is_answered_by_sampling() {
         "it says what happened: {stderr}"
     );
     assert!(
-        stderr.contains("7918829568") && stderr.contains("12 groups"),
+        stderr.contains("103169430") && stderr.contains("12 groups"),
         "it says how wide the question was: {stderr}"
     );
     assert!(
@@ -1672,7 +1684,7 @@ fn exact_refuses_a_question_too_wide_rather_than_estimating_it() {
         "the refusal is unchanged: {stderr}"
     );
     assert!(
-        stderr.contains("7918829568 compositions across 12 groups"),
+        stderr.contains("103169430 compositions across 12 groups"),
         "and still names the width: {stderr}"
     );
     assert!(
@@ -2108,5 +2120,86 @@ fn both_engines_answer_a_mana_question_the_same_way() {
     ] {
         let (a, b) = (percent(&exact, name), percent(&sampled, name));
         assert!((a - b).abs() < 0.5, "{name}: exact {a} vs sampled {b}");
+    }
+}
+
+#[test]
+fn an_easy_question_does_not_pay_for_a_hard_one_beside_it() {
+    // #31, end to end and in the form the issue put it: refusing an easy
+    // question because it shares a file with a hard one is not honest, and
+    // neither is estimating it. The same two questions are asked twice — once
+    // beside a criterion nothing can enumerate, once alone — and the numbers
+    // have to be the same numbers, not close ones.
+    let beside = run_flags("too-wide.criteria.toml", &[]);
+    let alone = run_flags("too-wide-alone.criteria.toml", &[]);
+    assert!(beside.status.success() && alone.status.success());
+    let beside: serde_json::Value = serde_json::from_slice(&beside.stdout).unwrap();
+    let alone: serde_json::Value = serde_json::from_slice(&alone.stdout).unwrap();
+
+    assert_eq!(beside["method"], "mixed");
+    assert_eq!(alone["method"], "exact", "nothing here is wide at all");
+
+    let find = |json: &serde_json::Value, kind: &str, name: &str| -> serde_json::Value {
+        json[kind]
+            .as_array()
+            .expect("an array")
+            .iter()
+            .find(|q| q["name"] == name)
+            .unwrap_or_else(|| panic!("no {kind} named {name}"))
+            .clone()
+    };
+
+    let shared = find(&beside, "criteria", "a land by turn 6");
+    let solo = find(&alone, "criteria", "a land by turn 6");
+    assert_eq!(shared["method"], "exact", "it was never the wide one");
+    assert_eq!(shared["probability"], solo["probability"]);
+    assert!(
+        shared["standard_error"].is_null(),
+        "an enumerated answer has no error to report"
+    );
+
+    let shared = find(&beside, "expectations", "lands by turn 6");
+    let solo = find(&alone, "expectations", "lands by turn 6");
+    assert_eq!(shared["method"], "exact");
+    assert_eq!(shared["mean"], solo["mean"]);
+    assert_eq!(shared["distribution"], solo["distribution"]);
+}
+
+#[test]
+fn a_criterion_correlating_two_turns_is_not_narrowed_away() {
+    // The narrowing collapses the draws between two turns nobody reads. A
+    // criterion that reads both is the case where that would answer a
+    // different question, so it keeps them — and the way to see that it did is
+    // that the conjunction comes out strictly below either half, which a
+    // collapsed enumeration could not produce.
+    let exact = run_flags("cross-turn.criteria.toml", &[]);
+    assert!(exact.status.success());
+    let exact: serde_json::Value = serde_json::from_slice(&exact.stdout).unwrap();
+    assert_eq!(exact["method"], "exact");
+
+    let both = percent(&exact, "two lands on turn 1, three by turn 3");
+    let late = percent(&exact, "three lands by turn 3");
+    let early = percent(&exact, "two lands on turn 1");
+    assert!(both < late, "{both} vs {late}");
+    assert!(both < early, "{both} vs {early}");
+
+    // And the independent check: the sampler walks real hands turn by turn and
+    // has no notion of a narrowing at all, so it is the oracle for whether the
+    // enumerated number is the right one.
+    let sampled = run_flags(
+        "cross-turn.criteria.toml",
+        &["--simulate", "--trials", "200000", "--seed", "7"],
+    );
+    let sampled: serde_json::Value = serde_json::from_slice(&sampled.stdout).unwrap();
+    for c in sampled["criteria"].as_array().unwrap() {
+        let name = c["name"].as_str().unwrap();
+        let got = c["percent"].as_f64().unwrap();
+        let se = c["standard_error"].as_f64().unwrap() * 100.0;
+        let want = percent(&exact, name);
+        assert!(
+            (got - want).abs() < 4.0 * se,
+            "{name}: sampled {got} vs enumerated {want}, {:.2} SE away",
+            (got - want).abs() / se
+        );
     }
 }

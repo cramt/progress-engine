@@ -28,6 +28,15 @@ pub struct CriterionResult {
     /// would be a coin toss wearing a verdict's clothes.
     #[facet(skip_serializing_if = Option::is_none)]
     pub inconclusive: Option<bool>,
+    /// `"exact"` or `"sampled"`, for this answer rather than for the run.
+    ///
+    /// A file is not one question, and since #31 it is not one enumeration
+    /// either: each class of questions is answered on the narrowest
+    /// enumeration that can answer it, so one criterion can be over the ceiling
+    /// while the one beside it is enumerated exactly. The top-level `method`
+    /// still says what happened to the run as a whole; this says what happened
+    /// to this number, which is the one a reader is about to quote.
+    pub method: &'static str,
 }
 
 /// What an expectation answered: how many, on average, and how that was spread.
@@ -53,6 +62,9 @@ pub struct ExpectationResult {
     /// have different error bars if one is tightly spread and the other is not.
     #[facet(skip_serializing_if = Option::is_none)]
     pub standard_error: Option<f64>,
+    /// `"exact"` or `"sampled"`, for this answer rather than for the run. See
+    /// [`CriterionResult::method`].
+    pub method: &'static str,
 }
 
 /// What the criteria file registered, in registration order within each kind.
@@ -76,6 +88,40 @@ pub struct Answers {
     pub probabilities: Vec<f64>,
     /// One per expectation.
     pub distributions: Vec<Distribution>,
+    /// Which of them are estimates.
+    pub estimated: Estimated,
+}
+
+/// Which answers came from the sampler rather than from the enumeration.
+///
+/// One flag per question rather than one for the run, because since #31 a run
+/// can be both: the file is partitioned into classes, each class gets the
+/// narrowest enumeration that answers it, and only a class that is still over
+/// the ceiling falls back. A criterion that was enumerated must not be quoted
+/// with an error bar it never had, and one that was sampled must never be
+/// quoted without one.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Estimated {
+    pub criteria: Vec<bool>,
+    pub expectations: Vec<bool>,
+}
+
+impl Estimated {
+    /// Nothing estimated: one flag per question, all false.
+    pub fn none(plan: pe_criteria::Plan) -> Estimated {
+        Estimated {
+            criteria: vec![false; plan.criteria],
+            expectations: vec![false; plan.expectations],
+        }
+    }
+
+    pub fn any(&self) -> bool {
+        self.criteria.iter().chain(&self.expectations).any(|e| *e)
+    }
+
+    pub fn all(&self) -> bool {
+        self.criteria.iter().chain(&self.expectations).all(|e| *e)
+    }
 }
 
 /// How many library cards a query actually matched.
@@ -233,6 +279,11 @@ pub struct Sampling {
 /// caller that most needs this is the one that cannot read prose: a builder
 /// embedding the engine wants to know how far over the ceiling the question
 /// went before it decides whether to narrow it.
+///
+/// Since #31 this is the width of **the widest class that was refused**, not of
+/// the run: a file is enumerated a class at a time, so the questions that fit
+/// are answered exactly beside this one and are not described by it. Which
+/// questions it cost is in their own `method`, and in the warning.
 #[derive(Facet)]
 pub struct TooWide {
     /// Compositions the exact engine would have had to walk. A `f64` because
@@ -292,6 +343,18 @@ pub struct LandDropUse {
     pub then: &'static str,
     /// How a tie inside one entry was settled, stated rather than buried.
     pub tie_break: &'static str,
+}
+
+/// What one answer says about where it came from.
+const SAMPLED: &str = "sampled";
+const EXACT: &str = "exact";
+
+fn method_of(estimated: bool) -> &'static str {
+    if estimated {
+        SAMPLED
+    } else {
+        EXACT
+    }
 }
 
 /// SHA-256 of some bytes, lowercase hex.
@@ -378,24 +441,31 @@ impl Report {
             on_the_draw,
             sampled,
         } = scenario;
+        // Per answer rather than per run: the enumerated ones get no error bar
+        // and the sampled ones never go without.
         let results: Vec<CriterionResult> = questions
             .criteria
             .iter()
             .zip(&answers.probabilities)
-            .map(|(c, &p)| CriterionResult {
-                name: c.name.clone(),
-                probability: round(p, 6),
-                percent: round(p * 100.0, 2),
-                standard_error: sampled.map(|s| round(pe_sim::standard_error(p, s.trials), 6)),
-                at_least: c.at_least,
-                // A criterion with no threshold is informational; it reports a
-                // number and cannot fail.
-                pass: c.at_least.is_none_or(|t| p >= t),
-                inconclusive: sampled.and_then(|s| {
-                    let threshold = c.at_least?;
-                    let se = pe_sim::standard_error(p, s.trials);
-                    Some((p - threshold).abs() <= INCONCLUSIVE_ERRORS * se)
-                }),
+            .zip(&answers.estimated.criteria)
+            .map(|((c, &p), &estimated)| {
+                let how = sampled.filter(|_| estimated);
+                CriterionResult {
+                    name: c.name.clone(),
+                    probability: round(p, 6),
+                    percent: round(p * 100.0, 2),
+                    standard_error: how.map(|s| round(pe_sim::standard_error(p, s.trials), 6)),
+                    at_least: c.at_least,
+                    // A criterion with no threshold is informational; it reports
+                    // a number and cannot fail.
+                    pass: c.at_least.is_none_or(|t| p >= t),
+                    inconclusive: how.and_then(|s| {
+                        let threshold = c.at_least?;
+                        let se = pe_sim::standard_error(p, s.trials);
+                        Some((p - threshold).abs() <= INCONCLUSIVE_ERRORS * se)
+                    }),
+                    method: method_of(estimated),
+                }
             })
             .collect();
 
@@ -403,11 +473,15 @@ impl Report {
             .expectations
             .iter()
             .zip(&answers.distributions)
-            .map(|(e, d)| ExpectationResult {
+            .zip(&answers.estimated.expectations)
+            .map(|((e, d), &estimated)| ExpectationResult {
                 name: e.name.clone(),
                 mean: round(d.mean(), 4),
                 distribution: d.probabilities().iter().map(|p| round(*p, 6)).collect(),
-                standard_error: sampled.map(|s| round(pe_sim::mean_standard_error(d, s.trials), 6)),
+                standard_error: sampled
+                    .filter(|_| estimated)
+                    .map(|s| round(pe_sim::mean_standard_error(d, s.trials), 6)),
+                method: method_of(estimated),
             })
             .collect();
 
@@ -427,10 +501,15 @@ impl Report {
                 })
                 .collect(),
             on_the_draw,
-            method: if sampled.is_some() {
-                "sampled"
-            } else {
-                "exact"
+            // Three states, because a run can now be both. Narrowing means the
+            // file is several enumerations, so the question that went over the
+            // ceiling no longer takes its neighbours down with it — and a
+            // reader has to be able to tell that from a run where everything
+            // was sampled.
+            method: match (answers.estimated.any(), answers.estimated.all()) {
+                (false, _) => "exact",
+                (true, true) => "sampled",
+                (true, false) => "mixed",
             },
             sampled_because: sampled.map(|s| match s.why {
                 WhySampled::Requested => "requested",
@@ -672,13 +751,38 @@ impl Report {
         // form cannot be lost to a report that says `too_wide` and forgot to
         // say how wide.
         if let Some(w) = &self.too_wide {
+            let estimated = self.estimated_names();
+            let total = self.criteria.len() + self.expectations.len();
+            // Which questions, when it is not all of them. Since #31 a file is
+            // several enumerations, so "this question was too wide" is true of
+            // some of them and not others, and a reader quoting one of the
+            // exact numbers below has to be able to tell which they have.
+            let scope = if estimated.len() == total {
+                "Every percentage below is an ESTIMATE, not an exact answer.\n          \
+                 The ± beside each one is its standard error, and a difference\n          \
+                 smaller than that is not a difference."
+                    .to_string()
+            } else {
+                format!(
+                    "{} of the {total} questions here needed that, and {}\n          \
+                     quoted with a ±:\n          \
+                     {}\n          \
+                     Everything else below was enumerated exactly. A difference\n          \
+                     smaller than a figure's ± is not a difference.",
+                    estimated.len(),
+                    if estimated.len() == 1 {
+                        "it is the one"
+                    } else {
+                        "they are the ones"
+                    },
+                    estimated.join("\n          "),
+                )
+            };
             return Some(format!(
-                "ESTIMATE: this question was too wide to enumerate exactly: {:.0} compositions\n          \
-                 across {} groups, against a ceiling of {:.0}. It was answered by\n          \
-                 sampling {trials} hands instead.\n          \
-                 Every percentage below is an ESTIMATE, not an exact answer. The ±\n          \
-                 beside each one is its standard error, and a difference smaller\n          \
-                 than that is not a difference.\n          \
+                "ESTIMATE: a question here was too wide to enumerate exactly: {:.0}\n          \
+                 compositions across {} groups, against a ceiling of {:.0}. It was\n          \
+                 answered by sampling {trials} hands instead.\n          \
+                 {scope}\n          \
                  Pass --exact to refuse a question this wide rather than estimate it.\n",
                 w.paths, w.groups, w.ceiling,
             ));
@@ -687,6 +791,22 @@ impl Report {
             "note: sampled rather than enumerated, because --simulate asked for it. Every\n      \
              percentage below is an estimate from {trials} hands, ± its standard error.\n"
         ))
+    }
+
+    /// The questions this run estimated, by name, in the order they are
+    /// printed.
+    fn estimated_names(&self) -> Vec<&str> {
+        self.criteria
+            .iter()
+            .filter(|c| c.method == SAMPLED)
+            .map(|c| c.name.as_str())
+            .chain(
+                self.expectations
+                    .iter()
+                    .filter(|e| e.method == SAMPLED)
+                    .map(|e| e.name.as_str()),
+            )
+            .collect()
     }
 }
 

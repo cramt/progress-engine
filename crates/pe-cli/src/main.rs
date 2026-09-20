@@ -9,6 +9,7 @@
 mod effects;
 mod landdrop;
 mod library;
+mod narrow;
 mod report;
 mod sync;
 
@@ -238,6 +239,137 @@ enum Engine {
     Sample,
 }
 
+/// The knobs that decide how a question gets answered, as opposed to what it
+/// asks.
+///
+/// One struct rather than three arguments because two of them are only
+/// meaningful together: a trial count without a seed does not identify the
+/// hands, and a seed without one does not reproduce them.
+#[derive(Clone, Copy)]
+struct Run {
+    engine: Engine,
+    trials: u32,
+    seed: u64,
+}
+
+/// Answer every question in the file, each on the narrowest enumeration that
+/// can answer it.
+///
+/// This is [#31](https://github.com/cramt/progress-engine/issues/31) at the
+/// call site. The file used to be one enumeration, sized as the join of what
+/// every question in it needs, so a `can_cast` clause over a Commander
+/// manabase — seventeen groups, 1.2 billion compositions at turn four — took
+/// every other criterion in the file over the ceiling with it and the whole
+/// run was estimated. Each class is now enumerated on its own, and only the
+/// classes still over the ceiling fall back.
+///
+/// The sampler runs **once**, over the whole file and the un-narrowed
+/// grouping, and its answers are used only where enumeration refused. Keeping
+/// it un-narrowed is what keeps it a second implementation: an oracle that
+/// walked the same narrowed grouping as the engine it checks would be
+/// agreeing with itself.
+fn answer(
+    run: Run,
+    classes: &[narrow::Class],
+    grouping: &pe_criteria::Grouping,
+    schedule: &pe_criteria::Schedule,
+    plan: pe_criteria::Plan,
+    criteria: &mut pe_toml::Criteria,
+) -> Result<(report::Answers, Option<report::Sampling>)> {
+    let mut probabilities: Vec<Option<f64>> = vec![None; plan.criteria];
+    let mut distributions: Vec<Option<pe_stats::Distribution>> = vec![None; plan.expectations];
+    let mut estimated = report::Estimated::none(plan);
+    // Why the run sampled at all, and — where it was the ceiling — the widest
+    // class that hit it, because that is the number a caller deciding whether
+    // to narrow its question needs.
+    let mut why: Option<report::WhySampled> = None;
+
+    if run.engine == Engine::Sample {
+        why = Some(report::WhySampled::Requested);
+        estimated.criteria.fill(true);
+        estimated.expectations.fill(true);
+    }
+    for class in classes.iter().filter(|_| run.engine != Engine::Sample) {
+        let answering = class
+            .answering(plan)
+            .context("a class named a question this file does not hold")?;
+        let narrowed = class.grouping(grouping);
+        let walk = class.schedule(schedule);
+        match pe_criteria::run_answering(&narrowed, &walk, &answering, criteria) {
+            Ok(exact) => {
+                for (&i, p) in answering.criteria().iter().zip(exact.probabilities) {
+                    probabilities[i] = Some(p.get());
+                }
+                for (&i, d) in answering.expectations().iter().zip(exact.distributions) {
+                    distributions[i] = Some(d);
+                }
+            }
+            // Only this one refusal falls back. Every other way a run can be
+            // refused is a question the sampler would answer no better: an
+            // empty library, a hand bigger than the deck, and a mass that did
+            // not sum to one are all facts about what was asked rather than
+            // about how expensive it was to enumerate.
+            Err(pe_criteria::RunError::TooWide { paths, groups, .. })
+                if run.engine == Engine::ExactOrSample =>
+            {
+                let wider = !matches!(why, Some(report::WhySampled::TooWide { paths: p, .. }) if p >= paths);
+                if wider {
+                    why = Some(report::WhySampled::TooWide { paths, groups });
+                }
+                for &i in answering.criteria() {
+                    estimated.criteria[i] = true;
+                }
+                for &i in answering.expectations() {
+                    estimated.expectations[i] = true;
+                }
+            }
+            Err(e) => return Err(e.into()),
+        }
+    }
+
+    let sampled = match why {
+        None => None,
+        Some(why) => {
+            let sampled =
+                pe_sim::simulate(grouping, schedule, run.trials, run.seed, plan, criteria)?;
+            for (i, estimated) in estimated.criteria.iter().enumerate() {
+                if *estimated {
+                    probabilities[i] = Some(sampled.proportions[i]);
+                }
+            }
+            for (i, estimated) in estimated.expectations.iter().enumerate() {
+                if *estimated {
+                    distributions[i] = Some(sampled.distributions[i].clone());
+                }
+            }
+            Some(report::Sampling {
+                trials: run.trials,
+                seed: run.seed,
+                why,
+            })
+        }
+    };
+
+    // A hole here would be a question no class claimed, and it would print as
+    // a confident zero. The partition covers every question by construction,
+    // so this is a bug rather than a state, and it says so.
+    let missing = "a question this run answered with neither engine";
+    Ok((
+        report::Answers {
+            probabilities: probabilities
+                .into_iter()
+                .collect::<Option<Vec<_>>>()
+                .context(missing)?,
+            distributions: distributions
+                .into_iter()
+                .collect::<Option<Vec<_>>>()
+                .context(missing)?,
+            estimated,
+        },
+        sampled,
+    ))
+}
+
 fn run_test(
     deck: &std::path::Path,
     criteria_path: &std::path::Path,
@@ -412,50 +544,43 @@ fn run_test(
         land_drop.as_ref().map(|p| p.policy.clone()),
     );
     let plan = criteria.plan();
-    // Exact first, always, for every question that fits: either enumeration
-    // answered it, or here is why this run has to sample instead. There is no
-    // third outcome and no way to reach the sampler without naming one of the
-    // two reasons, which is what keeps the warning downstream from being
-    // something a code path can forget to print.
-    let enumerated: std::result::Result<pe_criteria::Outcomes, report::WhySampled> = match engine {
-        Engine::Sample => Err(report::WhySampled::Requested),
-        Engine::ExactOnly | Engine::ExactOrSample => {
-            match pe_criteria::run(&grouping, &schedule, plan, &mut criteria) {
-                Ok(exact) => Ok(exact),
-                // Only this one refusal falls back. Every other way a run can
-                // be refused is a question the sampler would answer no better:
-                // an empty library, a hand bigger than the deck, and a mass
-                // that did not sum to one are all facts about what was asked
-                // rather than about how expensive it was to enumerate.
-                Err(pe_criteria::RunError::TooWide { paths, groups, .. })
-                    if engine == Engine::ExactOrSample =>
-                {
-                    Err(report::WhySampled::TooWide { paths, groups })
-                }
-                Err(e) => return Err(e.into()),
-            }
-        }
+    // Refused about the run rather than about one of its classes. Narrowing
+    // asks a smaller question than the file did, so a class about turn 2 would
+    // happily answer against a library the file's own horizon could never be
+    // dealt from — turning a refusal into a number by changing the question.
+    pe_criteria::feasible::<pe_toml::EvalError>(&grouping, &schedule)?;
+
+    // What the walk reads for itself, so every class keeps it however little
+    // its own clauses care: a live effect decides which zone a card ends up
+    // in, and a declared priority decides which land was played.
+    let shared = narrow::Shared {
+        effects: (!resolved.effects.is_empty()).then(|| {
+            resolved.effects.iter().fold(0u64, |bits, effect| {
+                let destination = match effect.route {
+                    pe_criteria::Route::Matching(query) => 1u64 << query,
+                    pe_criteria::Route::Everything | pe_criteria::Route::Nowhere => 0,
+                };
+                bits | 1u64 << effect.matched_by | destination
+            })
+        }),
+        land_drop: land_drop
+            .as_ref()
+            .map(|p| p.policy.tiers().fold(0u64, |bits, q| bits | 1u64 << q)),
     };
-    let (answers, sampled) = match enumerated {
-        Ok(exact) => (
-            report::Answers {
-                probabilities: exact.probabilities.into_iter().map(|p| p.get()).collect(),
-                distributions: exact.distributions,
-            },
-            None,
-        ),
-        Err(why) => {
-            let sampled =
-                pe_sim::simulate(&grouping, &schedule, trials, seed, plan, &mut criteria)?;
-            (
-                report::Answers {
-                    probabilities: sampled.proportions,
-                    distributions: sampled.distributions,
-                },
-                Some(report::Sampling { trials, seed, why }),
-            )
-        }
-    };
+    let classes = narrow::partition(&criteria.reads(), &shared);
+
+    let (answers, sampled) = answer(
+        Run {
+            engine,
+            trials,
+            seed,
+        },
+        &classes,
+        &grouping,
+        &schedule,
+        plan,
+        &mut criteria,
+    )?;
 
     // The file's own queries, not the effect library's. A standard library
     // entry that matches nothing is the ordinary case and is not the user's
