@@ -255,7 +255,12 @@ pub enum RunError<E> {
 }
 
 /// Above this, enumeration stops being instant and starts being a hang.
-const MAX_PATHS: u128 = 5_000_000;
+///
+/// Public because a refusal at this ceiling is no longer the end of the story:
+/// a caller that falls back to sampling has to be able to tell a reader how far
+/// over the line the question went, and a second copy of the number in the CLI
+/// would be a constant that could drift from the one that actually refused.
+pub const MAX_PATHS: u128 = 5_000_000;
 
 /// How far the total probability mass may sit from 1 before the run is a bug
 /// rather than arithmetic.

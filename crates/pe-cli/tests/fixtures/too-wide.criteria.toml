@@ -1,0 +1,33 @@
+# A question that does not fit the exact engine, and exists to be answered
+# anyway.
+#
+# Seven queries split this 99-card library into twelve groups, and turn 6 is
+# six draws deep, which comes to a few billion compositions against a ceiling
+# of five million. Nothing here is exotic: it is one criterion naming the
+# categories the decklist already uses. That is the point -- the width comes
+# from how many distinct things are asked about at once, not from anything
+# unusual being asked.
+[[criterion]]
+name = "everything at once by turn 6"
+at_least = 0.10
+require = [
+  { turn = 6, query = "t:land", min = 3 },
+  { turn = 6, query = 'cat:"Ramp"', min = 1 },
+  { turn = 6, query = 'cat:"Ramp - One Mana"', min = 1 },
+  { turn = 6, query = 'cat:"Draw"', min = 1 },
+  { turn = 6, query = 'cat:"Ramp - Engine"', min = 0 },
+  { turn = 6, query = "t:creature", min = 1 },
+  { turn = 6, query = "t:instant", min = 0 },
+]
+
+# Informational, and deliberately nowhere near its own error bar: a sampled
+# answer still has to report the questions that are not close calls as ordinary
+# answers.
+[[criterion]]
+name = "a land by turn 6"
+require = [{ turn = 6, query = "t:land", min = 1 }]
+
+[[expect]]
+name = "lands by turn 6"
+turn = 6
+query = "t:land"

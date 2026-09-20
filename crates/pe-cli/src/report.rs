@@ -17,6 +17,16 @@ pub struct CriterionResult {
     #[facet(skip_serializing_if = Option::is_none)]
     pub standard_error: Option<f64>,
     pub pass: bool,
+    /// Sampled runs only: the threshold sits inside this figure's error bar, so
+    /// `pass` is a fact about this seed as much as about this deck.
+    ///
+    /// The verdict is still computed the same way, because a comparison that
+    /// sometimes declines to have an opinion is harder to act on than one that
+    /// is always reproducible. But 79.9% +/- 0.3 against a threshold of 80% has
+    /// not really passed or failed, and rounding it one way without saying so
+    /// would be a coin toss wearing a verdict's clothes.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub inconclusive: Option<bool>,
 }
 
 /// What an expectation answered: how many, on average, and how that was spread.
@@ -189,15 +199,50 @@ pub struct Provenance {
     pub effect_library_sha256: String,
 }
 
-/// The two knobs a sampled run has and an exact run has no honest answer for.
+/// Why a run sampled rather than enumerated.
 ///
-/// Kept together so neither can be reported without the other: trials without a
-/// seed does not identify the hands that were dealt, and a seed without trials
-/// does not reproduce them.
+/// The two are not the same event and must not report as one. Asking for
+/// sampling is a choice somebody made and can unmake; falling back to it is the
+/// tool telling the caller that the question they asked has no exact answer at
+/// this ceiling. A caller reading `method: "sampled"` alone cannot tell which
+/// happened, and only one of the two is a reason to rewrite the question.
+#[derive(Clone, Copy)]
+pub enum WhySampled {
+    /// `--simulate`: the caller asked for the sampling engine.
+    Requested,
+    /// Exact enumeration was refused at this width, so the run fell back.
+    TooWide { paths: u128, groups: usize },
+}
+
+/// The knobs a sampled run has and an exact run has no honest answer for.
+///
+/// Kept together so none can be reported without the others: trials without a
+/// seed does not identify the hands that were dealt, a seed without trials does
+/// not reproduce them, and neither says whether anybody chose this engine.
 #[derive(Clone, Copy)]
 pub struct Sampling {
     pub trials: u32,
     pub seed: u64,
+    pub why: WhySampled,
+}
+
+/// The width that exact enumeration refused, as the report states it.
+///
+/// Reported as numbers rather than only inside the warning's prose, because the
+/// caller that most needs this is the one that cannot read prose: a builder
+/// embedding the engine wants to know how far over the ceiling the question
+/// went before it decides whether to narrow it.
+#[derive(Facet)]
+pub struct TooWide {
+    /// Compositions the exact engine would have had to walk. A `f64` because
+    /// the estimate saturates well past what a JSON reader can hold as an
+    /// integer, and an order of magnitude that survives every parser is worth
+    /// more here than digits that only some of them keep.
+    pub paths: f64,
+    pub groups: usize,
+    /// The ceiling it was measured against, so `paths` has a scale without the
+    /// reader having to know this tool's constants.
+    pub ceiling: f64,
 }
 
 /// The run these numbers describe: which seat, and which engine answered.
@@ -236,6 +281,16 @@ pub struct Report {
     pub excluded: Vec<ExcludedCard>,
     pub on_the_draw: bool,
     pub method: &'static str,
+    /// Sampled runs only: `"requested"` or `"too_wide"`.
+    ///
+    /// A string rather than a bool, because there will be more ways to end up
+    /// here than there are today and a `fell_back: false` would have to be
+    /// reinterpreted rather than extended.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub sampled_because: Option<&'static str>,
+    /// Present exactly when `sampled_because` is `"too_wide"`.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub too_wide: Option<TooWide>,
     #[facet(skip_serializing_if = Option::is_none)]
     pub trials: Option<u32>,
     /// Present only for sampled runs, alongside `trials`: a sampled figure is
@@ -291,6 +346,11 @@ impl Report {
                 // A criterion with no threshold is informational; it reports a
                 // number and cannot fail.
                 pass: c.at_least.is_none_or(|t| p >= t),
+                inconclusive: sampled.and_then(|s| {
+                    let threshold = c.at_least?;
+                    let se = pe_sim::standard_error(p, s.trials);
+                    Some((p - threshold).abs() <= INCONCLUSIVE_ERRORS * se)
+                }),
             })
             .collect();
 
@@ -327,6 +387,18 @@ impl Report {
             } else {
                 "exact"
             },
+            sampled_because: sampled.map(|s| match s.why {
+                WhySampled::Requested => "requested",
+                WhySampled::TooWide { .. } => "too_wide",
+            }),
+            too_wide: sampled.and_then(|s| match s.why {
+                WhySampled::Requested => None,
+                WhySampled::TooWide { paths, groups } => Some(TooWide {
+                    paths: paths as f64,
+                    groups,
+                    ceiling: pe_criteria::MAX_PATHS as f64,
+                }),
+            }),
             trials: sampled.map(|s| s.trials),
             seed: sampled.map(|s| s.seed),
             queries,
@@ -343,6 +415,13 @@ impl Report {
 
     pub fn human(&self) -> String {
         let mut out = String::new();
+        // First, above everything, because it does not qualify one number: it
+        // changes what kind of thing every number below is. A reader who skims
+        // the notes and reads the percentages must still have been told, and
+        // the only place that survives skimming is the top.
+        if let Some(note) = self.estimate_note() {
+            out.push_str(&note);
+        }
         for q in &self.queries {
             if q.cards == 0 {
                 out.push_str(&format!(
@@ -411,9 +490,15 @@ impl Report {
                 Some(t) => format!("  (needs {:.1}%)", t * 100.0),
                 None => String::new(),
             };
+            // On the line rather than in a footnote. A sampled percentage
+            // printed to two decimals looks exactly as certain as an enumerated
+            // one, and the error bar is the only thing on the page that says it
+            // is not.
             out.push_str(&format!(
-                "{status}{:width$}  {:>6.2}%{target}\n",
-                c.name, c.percent
+                "{status}{:width$}  {:>6.2}%{}{target}\n",
+                c.name,
+                c.percent,
+                error_bar(c.standard_error)
             ));
         }
 
@@ -422,10 +507,45 @@ impl Report {
         // no verdict to give rather than that its verdict was omitted.
         let indent = 5 + width + 2;
         for e in &self.expectations {
-            out.push_str(&format!("     {:width$}  mean {:.2}\n", e.name, e.mean));
+            out.push_str(&format!(
+                "     {:width$}  mean {:.2}{}\n",
+                e.name,
+                e.mean,
+                // In the mean's own units rather than in percentage points: an
+                // expectation counts cards, and a standard error scaled like a
+                // proportion's would be a different quantity under the same
+                // symbol.
+                match e.standard_error {
+                    Some(se) => format!(" ± {}", error_bar_value(se)),
+                    None => String::new(),
+                }
+            ));
             for line in histogram_lines(&e.distribution, indent) {
                 out.push_str(&format!("{:indent$}{line}\n", ""));
             }
+        }
+
+        // After the verdicts rather than before them, because this note is only
+        // readable next to the line it is about: the PASS or FAIL it qualifies
+        // has to have been printed first.
+        for c in &self.criteria {
+            let (Some(true), Some(threshold), Some(se)) =
+                (c.inconclusive, c.at_least, c.standard_error)
+            else {
+                continue;
+            };
+            out.push_str(&format!(
+                "\nnote: {:?} is {:.2}% ± {} against a threshold of\n      \
+                 {:.1}%, so the threshold is inside the error bar. {} is this seed's answer\n      \
+                 rather than this deck's, and another seed could return the other one.\n      \
+                 Widen the margin, raise --trials, or ask a question the exact engine\n      \
+                 can answer.\n",
+                c.name,
+                c.percent,
+                error_bar_value(se * 100.0),
+                threshold * 100.0,
+                if c.pass { "PASS" } else { "FAIL" },
+            ));
         }
 
         out.push('\n');
@@ -442,7 +562,80 @@ impl Report {
         });
         out
     }
+
+    /// What to say, before any number, about numbers that are estimates.
+    ///
+    /// Two different events, and the difference is the whole of why an
+    /// automatic fallback is allowed to exist. `--simulate` is a choice
+    /// somebody made, so it gets a note in the same voice as every other note.
+    /// Falling back is the tool answering a question nobody could have known
+    /// was too wide until it tried, with a number of a different kind from the
+    /// one that was asked for — so it gets a heading of its own, in a column
+    /// nothing else in this output uses, and it says the word estimate.
+    fn estimate_note(&self) -> Option<String> {
+        let trials = self.trials?;
+        // Keyed off the width rather than off the label beside it, so the loud
+        // form cannot be lost to a report that says `too_wide` and forgot to
+        // say how wide.
+        if let Some(w) = &self.too_wide {
+            return Some(format!(
+                "ESTIMATE: this question was too wide to enumerate exactly: {:.0} compositions\n          \
+                 across {} groups, against a ceiling of {:.0}. It was answered by\n          \
+                 sampling {trials} hands instead.\n          \
+                 Every percentage below is an ESTIMATE, not an exact answer. The ±\n          \
+                 beside each one is its standard error, and a difference smaller\n          \
+                 than that is not a difference.\n          \
+                 Pass --exact to refuse a question this wide rather than estimate it.\n",
+                w.paths, w.groups, w.ceiling,
+            ));
+        }
+        Some(format!(
+            "note: sampled rather than enumerated, because --simulate asked for it. Every\n      \
+             percentage below is an estimate from {trials} hands, ± its standard error.\n"
+        ))
+    }
 }
+
+/// A sampled figure's error bar, in the same units as the figure.
+///
+/// Empty for an exact run, which has no error to report and must not be given
+/// one: a `± 0.00` reads as a measurement that happened to be precise rather
+/// than as a number that was never sampled.
+fn error_bar(standard_error: Option<f64>) -> String {
+    match standard_error {
+        Some(se) => format!(" ± {}", error_bar_value(se * 100.0)),
+        None => String::new(),
+    }
+}
+
+/// A standard error printed to enough places to be a number.
+///
+/// Two decimals suit a percentage and lose an expectation's mean entirely: a
+/// mean is counted in cards, where a hundred-thousand-hand error bar really is
+/// four thousandths of one, and `± 0.00` reads as a figure that was measured
+/// exactly rather than as a small uncertainty. So the precision follows the
+/// number instead of the other way round.
+fn error_bar_value(standard_error: f64) -> String {
+    // An exactly-zero error is a real measurement rather than a small one: a
+    // criterion that held in no hand at all has nothing to be uncertain about,
+    // and trailing zeroes hunting for a digit that is not there would suggest
+    // otherwise.
+    if standard_error == 0.0 {
+        return "0.00".to_string();
+    }
+    let places = (2..=6)
+        .find(|&p| standard_error >= 0.5 * 10f64.powi(-p))
+        .unwrap_or(6) as usize;
+    format!("{standard_error:.places$}")
+}
+
+/// How many standard errors around a threshold count as too close to call.
+///
+/// Two, so the flag fires roughly when a 95% interval straddles the threshold.
+/// One would call a third of genuine passes inconclusive and train the reader
+/// to ignore the note; three would stay quiet while the verdict flips from seed
+/// to seed.
+const INCONCLUSIVE_ERRORS: f64 = 2.0;
 
 /// What to tell a human about the cards that never reach the library.
 ///

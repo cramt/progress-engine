@@ -47,7 +47,9 @@ That is a unit test for a deck. Change a card, run it again, see which assertion
 Probabilities are **exact**, not simulated. Cards are grouped by which of your queries they
 match, and the tool enumerates count-vectors over those groups, weighting each by its
 multivariate hypergeometric probability. There is no shuffler, so there is no sampler bias to
-chase — and it is fast enough that the answer is instant. Enumerating rather
+chase — and it is fast enough that the answer is instant. A question too wide to enumerate is
+answered by sampling and [says so in capital letters](#when-the-question-is-too-wide);
+everything else is exact. Enumerating rather
 than sampling also means a count's whole *distribution* falls out of the same
 walk instead of having to be estimated: see [how many, not just how
 often](#how-many-not-just-how-often).
@@ -70,14 +72,51 @@ file cannot behave differently the second time it is read.
 deals where the default enumerates, and wherever both can answer they must agree, which is
 asserted at three levels: unit, through the criteria layer both engines share, and end to end
 through the binary. Two independent routes to the same number is how a mistake in either one
-gets caught rather than believed, and that is reason enough for the crate to exist.
+gets caught rather than believed, and that is reason enough for the crate to exist. It stays a
+flag: it is how you ask for sampling on a question that did not need it.
 
-It is also the escape hatch for questions too wide to enumerate. Compositions multiply with the
-number of groups the queries split the library into and with how deep the turns go, so a
-criterion joining seven queries at turn six is refused rather than answered in an hour:
+What `--simulate` is *not* is a way to inspect individual cards. There is no host language, so
+there is nothing for a card-level criterion to be written in: a clause names a query and a
+count and that is the whole vocabulary, in both engines. Anything that turns on *which* cards —
+a specific interaction, an ordering, the best card in hand — cannot be asked here at all, and
+`--simulate` does not change that. The wanted feature is
+[issue #11](https://github.com/cramt/progress-engine/issues/11); describing it here as though
+it shipped would be this tool's own defining failure mode aimed at its documentation.
+
+### When the question is too wide
+
+Compositions multiply with the number of groups the queries split the library into and with
+how deep the turns go, so a criterion joining seven queries at turn six is a few billion of
+them, against a ceiling of five million. That question used to be refused. It is now
+**answered by sampling, loudly**:
 
 ```
-$ progress-engine test simple-ramp.txt wide.criteria.toml
+$ progress-engine test simple-ramp.txt too-wide.criteria.toml
+ESTIMATE: this question was too wide to enumerate exactly: 7918829568 compositions
+          across 12 groups, against a ceiling of 5000000. It was answered by
+          sampling 200000 hands instead.
+          Every percentage below is an ESTIMATE, not an exact answer. The ±
+          beside each one is its standard error, and a difference smaller
+          than that is not a difference.
+          Pass --exact to refuse a question this wide rather than estimate it.
+PASS everything at once by turn 6   39.39% ± 0.11  (needs 10.0%)
+     a land by turn 6               99.70% ± 0.01
+```
+
+The loudness is the whole safety argument, and it is why this is acceptable at all. A silent
+fallback would be a number quietly changing kind — an estimate wearing an exact answer's
+clothes — which is the failure this repository is named against. So the warning is the first
+thing on stderr, every sampled figure is quoted with its error bar wherever it appears, and
+the JSON says `"method": "sampled"` with `"sampled_because": "too_wide"` and the width it
+refused beside it. A labelled estimate is a different answer to a question that was honestly
+too big ([#48](https://github.com/cramt/progress-engine/issues/48)).
+
+The refusal is still there under `--exact`, for anyone who would rather have no answer than an
+approximate one — CI, and the cross-engine agreement tests, which need an oracle that either
+enumerates or says nothing:
+
+```
+$ progress-engine test simple-ramp.txt too-wide.criteria.toml --exact
 Error: this question is too wide to answer exactly: 7918829568 compositions across 12 groups.
 It asks about 7 queries: t:land, cat:"Ramp", cat:"Ramp - One Mana", cat:"Draw", cat:"Ramp - Engine", t:creature, t:instant
 Reduce the number of distinct queries, or ask about an earlier turn.
@@ -87,17 +126,18 @@ The refusal names all seven, because all seven are in the file and the file is d
 to name five, and six groups: queries were learned by running the JavaScript, so they arrived
 a few at a time, the estimate went over the ceiling part-way through, and the last two were
 never reached. The number reported what the run had found out before it gave up rather than
-what had been asked ([#36](https://github.com/cramt/progress-engine/issues/36)). Sampling does
-not care how many groups there are, so it answers that question approximately instead of not
-at all.
+what had been asked ([#36](https://github.com/cramt/progress-engine/issues/36)).
 
-What `--simulate` is *not* is a way to inspect individual cards. There is no host language, so
-there is nothing for a card-level criterion to be written in: a clause names a query and a
-count and that is the whole vocabulary, in both engines. Anything that turns on *which* cards —
-a specific interaction, an ordering, the best card in hand — cannot be asked here at all, and
-`--simulate` does not change that. The wanted feature is
-[issue #11](https://github.com/cramt/progress-engine/issues/11); describing it here as though
-it shipped would be this tool's own defining failure mode aimed at its documentation.
+**A threshold inside the error bar is not a verdict.** A criterion at 79.9% ± 0.3 against a
+threshold of 80% has not really passed or failed, and rounding it one way without saying so
+would be a coin toss wearing a verdict's clothes. The comparison is still made — a rule that
+sometimes declines to answer is harder to build on than one that is always reproducible — but
+when the threshold sits within two standard errors of the figure, the run flags it as its own
+note and the JSON carries `"inconclusive": true`.
+
+Falling back makes the tool usable at the ceiling. It does not raise it, and every feature on
+the roadmap pushes width up, so the cheapest sufficient enumeration per criterion
+([#31](https://github.com/cramt/progress-engine/issues/31)) still matters.
 
 ## Status
 
@@ -132,8 +172,9 @@ A criterion with no `at_least` is informational: it reports a number and cannot
 fail. The two blocks with means under them are `[[expect]]` rather than
 `[[criterion]]`, and they are the subject of [how many, not just how
 often](#how-many-not-just-how-often). Add `--draw` to model being on the draw,
-and `--simulate` to sample instead of enumerate (slower, approximate, and
-reported with standard errors).
+`--simulate` to sample instead of enumerate (slower, approximate, and reported
+with standard errors), and `--exact` to refuse a question too wide to enumerate
+rather than [estimating it](#when-the-question-is-too-wide).
 
 The JSON also carries a `provenance` block — the tool's version, the date the
 card index was built, and SHA-256 hashes of the decklist, the criteria file and
@@ -394,10 +435,12 @@ turn starts to matter — drawing a surveil land and then surveilling is not the
 same turn as surveilling and then drawing it — so a turn stops being one
 checkpoint and becomes several. Each extra checkpoint multiplies the enumeration
 by roughly the number of distinct groups, so a question that enumerates
-comfortably without a routing effect can come back `too wide to answer exactly`
-with one. That is the price of an exact answer rather than a bug: the alternative
-is sampling the surveil inside an exact engine, which is a percentage nobody can
-attribute. Ask about an earlier turn or name fewer queries.
+comfortably without a routing effect can go over the ceiling with one, and come
+back as an [estimate](#when-the-question-is-too-wide) rather than an exact
+answer. That is the price of exactness rather than a bug: the alternative is
+sampling the surveil inside an exact engine, which is a percentage nobody can
+attribute. Ask about an earlier turn or name fewer queries to get the enumerated
+answer back.
 
 ### How many, not just how often
 
@@ -874,6 +917,11 @@ Error: this question draws 7 cards from a library of 2
 The second is refused identically under `--simulate`. Left to themselves the two
 engines disagree by the whole answer: enumeration finds no dealable hand and
 reports 0%, while sampling deals what it can and reports whatever that gives.
+
+Neither falls back to sampling the way a
+[too-wide question](#when-the-question-is-too-wide) does, and the difference is
+the point: a question that was only expensive still has an answer worth
+estimating, and one that was never modelled does not.
 
 ## Decklist format
 

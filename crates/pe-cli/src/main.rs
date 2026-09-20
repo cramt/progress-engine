@@ -55,8 +55,14 @@ enum Command {
         /// engine is the default for good reason.
         #[facet(args::named, default)]
         simulate: bool,
-        /// Hands to deal when sampling.
-        #[facet(args::named, default = 200_000)]
+        /// Refuse questions too wide to enumerate instead of estimating them.
+        ///
+        /// The default answers them by sampling and says so. This is for
+        /// anyone who would rather have no answer than an approximate one.
+        #[facet(args::named, default)]
+        exact: bool,
+        /// Hands to deal when sampling, however the run got there.
+        #[facet(args::named, default = DEFAULT_TRIALS)]
         trials: u32,
         /// Seed, so a sampled run is reproducible.
         #[facet(args::named, default = 0)]
@@ -81,6 +87,28 @@ enum Command {
         force: bool,
     },
 }
+
+/// Hands to deal when nobody said how many.
+///
+/// It is the default for `--simulate` and it is what a fallback run uses, which
+/// is one number on purpose: a question that fell back was not asked to sample,
+/// so nobody picked a trial count for it, and a second constant would let the
+/// two drift apart for no reason a reader could reconstruct.
+///
+/// Chosen against the finest threshold a criteria file can state. Thresholds
+/// are written and printed to one decimal place — `needs 70.0%` — so 0.1
+/// percentage points is the smallest difference anybody can ask for. The
+/// standard error of a proportion peaks at p = 0.5, where 200,000 hands put it
+/// at 0.11pp, and it is under 0.09pp outside the 40-60% band where most
+/// thresholds sit. So the error bar is about one threshold step wide rather
+/// than a multiple of it. Ten times the hands would buy one more digit at ten
+/// times the wait, on exactly the questions that landed here because they were
+/// already the expensive ones.
+///
+/// Measured rather than assumed: 200,000 hands of a 99-card library to turn 6
+/// is 0.7s in release, and 1.0s on a 60-card deck routing a card a turn to the
+/// graveyard. The trial count is not what makes a wide question slow.
+const DEFAULT_TRIALS: u32 = 200_000;
 
 /// A decklist entry as `parse` emits it.
 ///
@@ -156,20 +184,57 @@ fn main() -> Result<()> {
             criteria,
             draw,
             simulate,
+            exact,
             trials,
             seed,
             index,
-        } => run_test(
-            &deck,
-            &criteria,
-            draw,
-            index.as_deref(),
-            simulate,
-            trials,
-            seed,
-        ),
+        } => {
+            // The two flags are answers to the same question, and a run that
+            // honoured both would have to pick one silently.
+            if simulate && exact {
+                anyhow::bail!(
+                    "--simulate and --exact ask for opposite things: one samples every \
+                     question, the other refuses\nto sample any. Pass neither to enumerate \
+                     what fits and estimate what does not."
+                );
+            }
+            let engine = if simulate {
+                Engine::Sample
+            } else if exact {
+                Engine::ExactOnly
+            } else {
+                Engine::ExactOrSample
+            };
+            run_test(
+                &deck,
+                &criteria,
+                draw,
+                index.as_deref(),
+                engine,
+                trials,
+                seed,
+            )
+        }
         Command::Sync { index, from, force } => sync::run(index.as_deref(), from.as_deref(), force),
     }
+}
+
+/// Which engine a run may use, resolved from the flags before anything runs.
+///
+/// Three states rather than two booleans, because `--simulate --exact` is the
+/// fourth state and it does not mean anything. Resolving it at the boundary
+/// leaves the run itself with no contradiction to arbitrate.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Engine {
+    /// Enumerate, and refuse what does not fit. Yesterday's behaviour, and what
+    /// the cross-engine agreement tests need: an oracle that quietly became an
+    /// estimate would be checking the sampler against itself.
+    ExactOnly,
+    /// Enumerate what fits, estimate what does not, and say loudly which
+    /// happened. The default.
+    ExactOrSample,
+    /// Sample everything, because somebody asked.
+    Sample,
 }
 
 fn run_test(
@@ -177,7 +242,7 @@ fn run_test(
     criteria_path: &std::path::Path,
     on_the_draw: bool,
     index_path: Option<&std::path::Path>,
-    simulate: bool,
+    engine: Engine,
     trials: u32,
     seed: u64,
 ) -> Result<()> {
@@ -235,17 +300,48 @@ fn run_test(
     let schedule =
         pe_criteria::Schedule::build(criteria.horizon(), on_the_draw, resolved.effects.clone());
     let plan = criteria.plan();
-    let answers: report::Answers = if simulate {
-        let sampled = pe_sim::simulate(&grouping, &schedule, trials, seed, plan, &mut criteria)?;
-        report::Answers {
-            probabilities: sampled.proportions,
-            distributions: sampled.distributions,
+    // Exact first, always, for every question that fits: either enumeration
+    // answered it, or here is why this run has to sample instead. There is no
+    // third outcome and no way to reach the sampler without naming one of the
+    // two reasons, which is what keeps the warning downstream from being
+    // something a code path can forget to print.
+    let enumerated: std::result::Result<pe_criteria::Outcomes, report::WhySampled> = match engine {
+        Engine::Sample => Err(report::WhySampled::Requested),
+        Engine::ExactOnly | Engine::ExactOrSample => {
+            match pe_criteria::run(&grouping, &schedule, plan, &mut criteria) {
+                Ok(exact) => Ok(exact),
+                // Only this one refusal falls back. Every other way a run can
+                // be refused is a question the sampler would answer no better:
+                // an empty library, a hand bigger than the deck, and a mass
+                // that did not sum to one are all facts about what was asked
+                // rather than about how expensive it was to enumerate.
+                Err(pe_criteria::RunError::TooWide { paths, groups, .. })
+                    if engine == Engine::ExactOrSample =>
+                {
+                    Err(report::WhySampled::TooWide { paths, groups })
+                }
+                Err(e) => return Err(e.into()),
+            }
         }
-    } else {
-        let exact = pe_criteria::run(&grouping, &schedule, plan, &mut criteria)?;
-        report::Answers {
-            probabilities: exact.probabilities.into_iter().map(|p| p.get()).collect(),
-            distributions: exact.distributions,
+    };
+    let (answers, sampled) = match enumerated {
+        Ok(exact) => (
+            report::Answers {
+                probabilities: exact.probabilities.into_iter().map(|p| p.get()).collect(),
+                distributions: exact.distributions,
+            },
+            None,
+        ),
+        Err(why) => {
+            let sampled =
+                pe_sim::simulate(&grouping, &schedule, trials, seed, plan, &mut criteria)?;
+            (
+                report::Answers {
+                    probabilities: sampled.proportions,
+                    distributions: sampled.distributions,
+                },
+                Some(report::Sampling { trials, seed, why }),
+            )
         }
     };
 
@@ -295,7 +391,7 @@ fn run_test(
         &answers,
         report::Scenario {
             on_the_draw,
-            sampled: simulate.then_some(report::Sampling { trials, seed }),
+            sampled,
         },
         &library,
         report::Breakdown {

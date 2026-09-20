@@ -94,11 +94,24 @@ valid and matches nothing, a keyword typo that returns 0%, an index silently
 missing a field, a criterion that asks about something the engine does not
 simulate — each produces a percentage that looks exactly like a real one.
 
-So the tool refuses. `RunError::TooWide` refuses questions too wide to enumerate.
-An empty library is refused rather than answered with 0%. A query naming a
-keyword the index has never seen is refused by name. A query naming an oracle
-tag this index never fetched is refused, because *nobody asked about that tag*
-and *no card is in it* are the same empty result and very different facts.
+So the tool refuses. An empty library is refused rather than answered with 0%. A
+query naming a keyword the index has never seen is refused by name. A query
+naming an oracle tag this index never fetched is refused, because *nobody asked
+about that tag* and *no card is in it* are the same empty result and very
+different facts.
+
+The one refusal that has since been traded away is `RunError::TooWide`, and what
+it was traded for says what the principle is really about. A question too wide
+to enumerate is now answered by sampling, because the intended caller is a
+graphical builder that cannot pass a flag and cannot act on advice to ask
+something smaller. What makes that acceptable is not that the answer is good
+enough; it is that the answer cannot be mistaken for the other kind. The run
+says, above every number, that it estimated rather than enumerated; every
+sampled figure is quoted with its error bar; the JSON says which engine answered
+and why. `--exact` restores the refusal for anyone who would rather have no
+answer than an approximate one. A silent fallback would have been a number
+quietly changing kind, which is the same failure in a new costume; a labelled
+one is a different answer to a question that was honestly too big.
 
 ### Ask, don't guess
 

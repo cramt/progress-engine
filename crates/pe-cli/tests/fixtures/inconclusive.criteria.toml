@@ -1,0 +1,10 @@
+# A threshold a sampled run cannot honestly rule on.
+#
+# The exact answer is 78.97%, so a threshold of 79% sits well inside the error
+# bar of any sampled run short enough to be worth waiting for. The verdict is
+# whatever this seed dealt; the deck has no opinion either way, and the run has
+# to say so rather than round one way and print a word in capitals.
+[[criterion]]
+name = "keepable opener (2-5 lands)"
+at_least = 0.79
+require = [{ turn = 0, query = "t:land", min = 2, max = 5 }]

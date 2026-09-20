@@ -1430,3 +1430,229 @@ fn the_effect_library_is_named_in_the_provenance() {
         json["provenance"]["deck_sha256"]
     );
 }
+
+/// The `test` subcommand against the standard fixture deck, with extra flags.
+fn run_flags(criteria: &str, args: &[&str]) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+        .arg("test")
+        .arg(fixture("simple-ramp.txt"))
+        .arg(fixture(criteria))
+        .arg("--index")
+        .arg(fixture("index.jsonl"))
+        .args(args)
+        .output()
+        .expect("binary should run")
+}
+
+#[test]
+fn a_question_too_wide_to_enumerate_is_answered_by_sampling() {
+    // #48. Seven queries at turn 6 is a few billion compositions against a
+    // ceiling of five million, and until now that was the end of the run. A
+    // block editor cannot pass a flag and cannot act on advice to ask something
+    // smaller, so a refusal there is a dead end rather than a lesson.
+    //
+    // This test is as much about the warning as about the number. An estimate
+    // that reads like an exact answer is the failure this repository is named
+    // against, and the fallback is only acceptable because it is impossible to
+    // miss.
+    let out = run_flags("too-wide.criteria.toml", &[]);
+    assert!(
+        out.status.success(),
+        "the question gets an answer: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).expect("stdout is JSON");
+
+    assert_eq!(json["method"], "sampled");
+    assert_eq!(json["sampled_because"], "too_wide");
+    assert_eq!(json["too_wide"]["paths"], 7_918_829_568u64);
+    assert_eq!(json["too_wide"]["groups"], 12);
+    assert_eq!(json["too_wide"]["ceiling"], 5_000_000u64);
+    assert_eq!(json["trials"], 200_000);
+    assert_eq!(
+        json["seed"], 0,
+        "a fallback is reproducible or it is a rumour"
+    );
+
+    // Every number it reports says how uncertain it is, or the JSON is claiming
+    // an exactness the run did not have.
+    for c in json["criteria"].as_array().unwrap() {
+        assert!(
+            c["standard_error"].as_f64().is_some(),
+            "{} has no error bar",
+            c["name"]
+        );
+    }
+    for e in json["expectations"].as_array().unwrap() {
+        assert!(e["standard_error"].as_f64().is_some(), "{}", e["name"]);
+    }
+
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("ESTIMATE"),
+        "the warning has to be unmissable: {stderr}"
+    );
+    assert!(
+        stderr.contains("too wide to enumerate exactly"),
+        "it says what happened: {stderr}"
+    );
+    assert!(
+        stderr.contains("7918829568") && stderr.contains("12 groups"),
+        "it says how wide the question was: {stderr}"
+    );
+    assert!(
+        stderr.contains("5000000"),
+        "and how wide it was allowed to be: {stderr}"
+    );
+    assert!(
+        stderr.contains("200000 hands"),
+        "and what it did instead: {stderr}"
+    );
+    assert!(
+        stderr.contains("--exact"),
+        "and how to get the refusal back: {stderr}"
+    );
+    // The warning is above the numbers rather than under them, because a reader
+    // who skims stops at the first percentage.
+    let banner = stderr.find("ESTIMATE").expect("the banner");
+    let first_verdict = stderr.find('%').expect("a percentage");
+    assert!(banner < first_verdict, "the warning comes first: {stderr}");
+    // And the numbers themselves carry the error bar, so a line copied out of
+    // the middle of the report cannot lose it.
+    assert!(
+        stderr.contains("% ± "),
+        "every sampled percentage is quoted with its error: {stderr}"
+    );
+}
+
+#[test]
+fn exact_refuses_a_question_too_wide_rather_than_estimating_it() {
+    // The other half of #48, and the reason the fallback is safe to have: the
+    // cross-engine agreement tests need an oracle that either enumerates or
+    // says nothing. An oracle that quietly became an estimate would be checking
+    // the sampler against itself.
+    let out = run_flags("too-wide.criteria.toml", &["--exact"]);
+    assert!(!out.status.success(), "--exact refuses rather than answers");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("too wide to answer exactly"),
+        "the refusal is unchanged: {stderr}"
+    );
+    assert!(
+        stderr.contains("7918829568 compositions across 12 groups"),
+        "and still names the width: {stderr}"
+    );
+    assert!(
+        stderr.contains("t:creature"),
+        "and still names the queries that made it: {stderr}"
+    );
+    assert!(
+        !stderr.contains("ESTIMATE"),
+        "nothing was estimated: {stderr}"
+    );
+    assert!(
+        out.stdout.is_empty(),
+        "no report, because there is no answer"
+    );
+}
+
+#[test]
+fn a_question_that_fits_is_answered_exactly_either_way() {
+    // The regression this feature is most likely to cause is a fallback that
+    // fires when it should not, and the symptom would be a number that moved by
+    // a tenth of a percent and a `method` nobody looked at.
+    let fallback_allowed = run_flags("simple-ramp.criteria.toml", &[]);
+    let exact_only = run_flags("simple-ramp.criteria.toml", &["--exact"]);
+    assert!(fallback_allowed.status.success());
+    assert!(exact_only.status.success());
+    assert_eq!(
+        fallback_allowed.stdout, exact_only.stdout,
+        "--exact changes nothing about a question that fits"
+    );
+
+    let json: serde_json::Value = serde_json::from_slice(&fallback_allowed.stdout).unwrap();
+    assert_eq!(json["method"], "exact");
+    assert!(json.get("sampled_because").is_none());
+    assert!(json.get("too_wide").is_none());
+    assert!((percent(&json, "keepable opener (2-5 lands)") - 78.97).abs() < 0.01);
+
+    let stderr = String::from_utf8_lossy(&fallback_allowed.stderr);
+    assert!(
+        !stderr.contains("ESTIMATE"),
+        "nothing to warn about: {stderr}"
+    );
+    assert!(
+        !stderr.contains('±'),
+        "an exact answer has no error bar: {stderr}"
+    );
+}
+
+#[test]
+fn asking_for_both_engines_at_once_is_a_usage_error() {
+    // --simulate and --exact are answers to the same question. A run that
+    // honoured both would have to pick one silently, which is the one thing
+    // this feature exists to avoid.
+    let out = run_flags("simple-ramp.criteria.toml", &["--simulate", "--exact"]);
+    assert!(!out.status.success());
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("--simulate and --exact"),
+        "it names both: {stderr}"
+    );
+}
+
+#[test]
+fn a_threshold_inside_the_error_bar_is_flagged_rather_than_rounded() {
+    // 78.97% exactly, against a threshold of 79%. No number of hands short of
+    // the whole enumeration can tell those apart, so the PASS or FAIL printed
+    // here is a fact about the seed. The verdict is still computed — a
+    // comparison that sometimes declines to answer is harder to build on than
+    // one that is always reproducible — but it does not get to stand there
+    // unqualified.
+    let out = run_flags(
+        "inconclusive.criteria.toml",
+        &["--simulate", "--trials", "5000", "--seed", "1"],
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let c = &json["criteria"][0];
+    assert_eq!(c["inconclusive"], true);
+    let (percent, se) = (
+        c["percent"].as_f64().unwrap(),
+        c["standard_error"].as_f64().unwrap() * 100.0,
+    );
+    assert!(
+        (percent - 79.0).abs() <= 2.0 * se,
+        "the fixture is only interesting while this holds: {percent} ± {se}"
+    );
+
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("inside the error bar"),
+        "the close call is called out: {stderr}"
+    );
+    assert!(
+        stderr.contains("is this seed's answer"),
+        "and says what that means: {stderr}"
+    );
+
+    // A verdict nowhere near its threshold is not worth a note, and a note on
+    // every line is a note nobody reads.
+    let clear = run_flags(
+        "simple-ramp.criteria.toml",
+        &["--simulate", "--trials", "5000", "--seed", "1"],
+    );
+    assert!(
+        !String::from_utf8_lossy(&clear.stderr).contains("inside the error bar"),
+        "no close calls here"
+    );
+    let clear: serde_json::Value = serde_json::from_slice(&clear.stdout).unwrap();
+    for c in clear["criteria"].as_array().unwrap() {
+        if c["at_least"].as_f64().is_some() {
+            assert_eq!(
+                c["inconclusive"], false,
+                "{} is not a close call",
+                c["name"]
+            );
+        }
+    }
+}
