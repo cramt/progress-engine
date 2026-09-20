@@ -499,8 +499,9 @@ Error: lantern.criteria.toml: Lantern castable on turn 1: a mana question and a 
 preferences become grouping queries, so an entry that separates lands the mana
 model or an effect already separated is free, and one that splits a group
 nobody else split costs a group — exactly as `can_cast` does. Measured on a
-99-card deck with 38 lands in five printings and three mana profiles, asking
-`can_cast = "{1}{U}"`:
+narrower manabase than the one above, so the figures are not comparable with
+it: 99 cards, 38 lands in five printings but only three mana profiles — one
+blue, one black, one tapped dual — asking `can_cast = "{1}{U}"`:
 
 | Turn | no policy | `t:land -otag:tapland -otag:conditional-tapland` (4 groups) | plus a `t:land otag:surveil` tier (5 groups) |
 |---|---|---|---|
