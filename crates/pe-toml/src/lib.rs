@@ -8,12 +8,20 @@
 //! for, and the hash in the provenance block is a promise about a file that
 //! cannot behave differently the second time it is read.
 //!
-//! A file registers two kinds of question. A `[[criterion]]` is a conjunction
-//! of clauses and is answered with a probability. An `[[expect]]` names one
-//! count and is answered with a mean and the distribution behind it. They are
-//! separate tables rather than one table with an optional threshold, so a
-//! question cannot be read as the other kind — the confusion the JavaScript
-//! front end had to detect at runtime is not a state this format can hold.
+//! A file registers two kinds of question. A `[[criterion]]` is answered with a
+//! probability: `require` is a conjunction of clauses, `any_of` is a
+//! disjunction of branches, and a criterion may hold either or both. An
+//! `[[expect]]` names one count and is answered with a mean and the
+//! distribution behind it. They are separate tables rather than one table with
+//! an optional threshold, so a question cannot be read as the other kind — the
+//! confusion the JavaScript front end had to detect at runtime is not a state
+//! this format can hold.
+//!
+//! A disjunction is still counts and still data. Each branch is a function of
+//! the composition, so their union is one too: a path satisfies some branch or
+//! it satisfies none, and the walk adds that path's probability once either
+//! way. That is why `any_of` needs no second pass and cannot double-count the
+//! hands two routes both cover.
 //!
 //! A question also names a `zone`, and what it defaults to is the one place
 //! this crate is deliberately lenient: silence means `hand`, so every criteria
@@ -108,6 +116,23 @@ struct CriterionDef {
     at_least: Option<f64>,
     #[facet(default)]
     require: Vec<ClauseDef>,
+    /// An `Option` rather than a defaulted `Vec`, which `require` can afford to
+    /// be: a written-out `any_of = []` is a disjunction of no branches and
+    /// holds on no hand, and it has to be distinguishable from a criterion that
+    /// never mentioned `any_of` at all so it can be refused by name.
+    any_of: Option<Vec<BranchDef>>,
+}
+
+/// One route through a disjunction, as written.
+///
+/// A table holding a `require` rather than a bare list of clauses, so that
+/// `[[criterion.any_of]]` is a section a person can write and the key inside it
+/// means what it means everywhere else: all of these clauses, together.
+#[derive(Facet)]
+#[facet(deny_unknown_fields)]
+struct BranchDef {
+    #[facet(default)]
+    require: Vec<ClauseDef>,
 }
 
 #[derive(Facet)]
@@ -176,6 +201,65 @@ struct Clause {
     bounds: Bounds,
 }
 
+/// What a criterion asks of one path.
+///
+/// Three variants rather than two possibly-empty lists, for the same reason
+/// [`Bounds`] has three: of the four combinations one is not a question. A
+/// criterion with neither a conjunction nor a disjunction asks nothing and
+/// would report a confident 100%, so it is refused at parse time and is not
+/// representable here.
+///
+/// The disjunction is a list of branches and each branch is a conjunction, one
+/// level deep. That is what the routes a deck actually has look like — this
+/// turn or that turn, this zone or that zone — and a branch that could itself
+/// hold an `any_of` would buy nothing a second branch does not already buy.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Predicate {
+    /// `require` alone.
+    All(Vec<Clause>),
+    /// `any_of` alone: the union of the branches, not their sum.
+    Any(Vec<Vec<Clause>>),
+    /// Both, which is the useful combination: shared preconditions, then
+    /// alternative routes off them.
+    AllAndAny {
+        all: Vec<Clause>,
+        any: Vec<Vec<Clause>>,
+    },
+}
+
+impl Predicate {
+    fn holds(&self, view: &PathView<'_>) -> bool {
+        let holds_all = |cs: &[Clause]| {
+            cs.iter()
+                .all(|c| c.bounds.holds(view.count_in(c.turn, c.query, c.zone)))
+        };
+        // `any` short-circuits on the first branch that holds, which is also
+        // why overlapping branches cannot be counted twice: this answers
+        // whether the path is in the union, and the walk outside adds that
+        // path's probability once.
+        let holds_any = |bs: &[Vec<Clause>]| bs.iter().any(|b| holds_all(b));
+        match self {
+            Predicate::All(all) => holds_all(all),
+            Predicate::Any(any) => holds_any(any),
+            Predicate::AllAndAny { all, any } => holds_all(all) && holds_any(any),
+        }
+    }
+
+    /// Every clause this criterion holds, wherever it was written. The queries
+    /// and zones a file asks about are the union over these, so a branch is no
+    /// more hidden from the pre-run analysis than a `require` clause is.
+    fn clauses(&self) -> impl Iterator<Item = &Clause> {
+        const NO_CLAUSES: &[Clause] = &[];
+        const NO_BRANCHES: &[Vec<Clause>] = &[];
+        let (all, any): (&[Clause], &[Vec<Clause>]) = match self {
+            Predicate::All(all) => (all, NO_BRANCHES),
+            Predicate::Any(any) => (NO_CLAUSES, any),
+            Predicate::AllAndAny { all, any } => (all, any),
+        };
+        all.iter().chain(any.iter().flatten())
+    }
+}
+
 /// Where an expectation reads its number.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Probe {
@@ -195,11 +279,11 @@ pub struct Criteria {
     /// track one, and a run cannot warn about a zone it only learns by running.
     zones: Vec<Zone>,
     horizon: u32,
-    /// Parallel to `clauses`, and to the answers a run hands back: everything
-    /// here is matched up by position. Both vectors are filled in one pass in
-    /// `parse` and are immutable afterwards.
+    /// Parallel to `predicates`, and to the answers a run hands back:
+    /// everything here is matched up by position. Both vectors are filled in
+    /// one pass in `parse` and are immutable afterwards.
     criteria: Vec<Criterion>,
-    clauses: Vec<Vec<Clause>>,
+    predicates: Vec<Predicate>,
     expectations: Vec<Expectation>,
     probes: Vec<Probe>,
     effects: EffectLibrary,
@@ -332,9 +416,9 @@ impl Criteria {
     /// into can be reported against the criterion that will read zero.
     pub fn zone_asked_by(&self, zone: Zone) -> Option<&str> {
         let from_criteria = self
-            .clauses
+            .predicates
             .iter()
-            .position(|cs| cs.iter().any(|c| c.zone == zone))
+            .position(|p| p.clauses().any(|c| c.zone == zone))
             .map(|i| self.criteria[i].name.as_str());
         from_criteria.or_else(|| {
             self.probes
@@ -354,9 +438,9 @@ impl Criteria {
     pub fn asked_by(&self, query: &str) -> Option<&str> {
         let idx = self.queries.iter().position(|q| q == query)?;
         let from_criteria = self
-            .clauses
+            .predicates
             .iter()
-            .position(|cs| cs.iter().any(|c| c.query == idx))
+            .position(|p| p.clauses().any(|c| c.query == idx))
             .map(|i| self.criteria[i].name.as_str());
         from_criteria.or_else(|| {
             self.probes
@@ -380,15 +464,7 @@ impl Evaluator for Criteria {
     type Error = EvalError;
 
     fn evaluate(&mut self, view: &PathView<'_>) -> Result<PathOutcomes, EvalError> {
-        let held = self
-            .clauses
-            .iter()
-            .map(|clauses| {
-                clauses
-                    .iter()
-                    .all(|c| c.bounds.holds(view.count_in(c.turn, c.query, c.zone)))
-            })
-            .collect();
+        let held = self.predicates.iter().map(|p| p.holds(view)).collect();
         let counted = self
             .probes
             .iter()
@@ -416,10 +492,10 @@ pub struct CriteriaError {
 }
 
 /// Every key the format has, for the error that lists them.
-const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least, require), \
-                      whose require clauses are (turn, query, zone, min, max), [[expect]] \
-                      tables (name, turn, query, zone), and [[effect]] tables (match, look, on, \
-                      to_graveyard).";
+const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least, require, \
+                      any_of), whose require clauses are (turn, query, zone, min, max) and whose \
+                      any_of branches each hold a require of their own, [[expect]] tables (name, \
+                      turn, query, zone), and [[effect]] tables (match, look, on, to_graveyard).";
 
 #[derive(Debug, Error)]
 pub enum ErrorKind {
@@ -442,10 +518,25 @@ pub enum ErrorKind {
         position: usize,
     },
     #[error(
-        "criterion {name:?} has no `require` clauses, so there is nothing for it to hold or \
-         fail on and it would report 100% of every deck"
+        "criterion {name:?} has neither `require` clauses nor `any_of` branches, so there is \
+         nothing for it to hold or fail on and it would report 100% of every deck"
     )]
     NoClauses { name: String },
+    /// Distinct from [`ErrorKind::NoClauses`] because it fails the other way
+    /// round: an empty conjunction holds on every hand, an empty disjunction on
+    /// none. Both are confident numbers about a question nobody asked.
+    #[error(
+        "criterion {name:?} has an empty `any_of`, so there is no route for it to take and it \
+         would report a confident 0% of every deck.\n\
+         Write a [[criterion.any_of]] branch for each route, or drop the key"
+    )]
+    EmptyAnyOf { name: String },
+    #[error(
+        "criterion {name:?}, any_of branch {position} has no `require` clauses, so that branch \
+         holds on every hand and the whole criterion would report 100% whatever the other \
+         branches say"
+    )]
+    EmptyBranch { name: String, position: usize },
     #[error("{at}: no `{key}`, {why}")]
     Missing {
         at: String,
@@ -586,11 +677,9 @@ fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
     }
     let effects = effects_of(&file, origin)?;
 
-    let mut queries: Vec<String> = Vec::new();
-    let mut zones: Vec<Zone> = Vec::new();
-    let mut horizon = 0u32;
+    let mut vocabulary = Vocabulary::default();
     let mut criteria = Vec::with_capacity(file.criterion.len());
-    let mut clauses = Vec::with_capacity(file.criterion.len());
+    let mut predicates = Vec::with_capacity(file.criterion.len());
 
     for (i, def) in file.criterion.iter().enumerate() {
         let name = def.name.clone().ok_or(ErrorKind::Unnamed {
@@ -602,34 +691,45 @@ fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
                 return Err(ErrorKind::BadThreshold { name, at_least });
             }
         }
-        if def.require.is_empty() {
-            return Err(ErrorKind::NoClauses { name });
-        }
-        let mut compiled = Vec::with_capacity(def.require.len());
-        for (j, clause) in def.require.iter().enumerate() {
-            let at = format!("criterion {name:?}, clause {}", j + 1);
-            let query = clause.query.clone().ok_or(ErrorKind::Missing {
-                at: at.clone(),
-                key: "query",
-                why: "so there is nothing for it to count",
-            })?;
-            let turn = turn_of(clause.turn, &at)?;
-            let zone = zone_of(clause.zone.as_deref(), &at)?;
-            let bounds = bounds_of(clause, &at, &query)?;
-            horizon = horizon.max(turn);
-            note_zone(&mut zones, zone);
-            compiled.push(Clause {
-                turn: turn as usize,
-                query: intern(&mut queries, query),
-                zone,
-                bounds,
-            });
-        }
+        // `require` first, so a file that predates `any_of` interns its queries
+        // in exactly the order it always did.
+        let all = vocabulary.conjunction(&def.require, |j| {
+            format!("criterion {name:?}, clause {}", j + 1)
+        })?;
+        let any = match &def.any_of {
+            None => Vec::new(),
+            Some(branches) if branches.is_empty() => return Err(ErrorKind::EmptyAnyOf { name }),
+            Some(branches) => {
+                let mut compiled = Vec::with_capacity(branches.len());
+                for (k, branch) in branches.iter().enumerate() {
+                    if branch.require.is_empty() {
+                        return Err(ErrorKind::EmptyBranch {
+                            name,
+                            position: k + 1,
+                        });
+                    }
+                    compiled.push(vocabulary.conjunction(&branch.require, |j| {
+                        format!(
+                            "criterion {name:?}, any_of branch {}, clause {}",
+                            k + 1,
+                            j + 1
+                        )
+                    })?);
+                }
+                compiled
+            }
+        };
+        let predicate = match (all.is_empty(), any.is_empty()) {
+            (true, true) => return Err(ErrorKind::NoClauses { name }),
+            (false, true) => Predicate::All(all),
+            (true, false) => Predicate::Any(any),
+            (false, false) => Predicate::AllAndAny { all, any },
+        };
         criteria.push(Criterion {
             name,
             at_least: def.at_least,
         });
-        clauses.push(compiled);
+        predicates.push(predicate);
     }
 
     let mut expectations = Vec::with_capacity(file.expect.len());
@@ -647,47 +747,95 @@ fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
         })?;
         let turn = turn_of(def.turn, &at)?;
         let zone = zone_of(def.zone.as_deref(), &at)?;
-        horizon = horizon.max(turn);
-        note_zone(&mut zones, zone);
         probes.push(Probe {
             turn: turn as usize,
-            query: intern(&mut queries, query),
+            query: vocabulary.intern(query, turn, zone),
             zone,
         });
         expectations.push(Expectation { name });
     }
 
+    let Vocabulary {
+        queries,
+        zones,
+        horizon,
+    } = vocabulary;
     Ok(Criteria {
         queries,
         zones,
         horizon,
         criteria,
-        clauses,
+        predicates,
         expectations,
         probes,
         effects,
     })
 }
 
-/// Queries are deduplicated across the whole file, so two criteria asking about
-/// `t:land` cost one group bit rather than two — and the enumeration the engine
-/// has to walk grows with the number of *distinct* queries.
-fn intern(queries: &mut Vec<String>, query: String) -> usize {
-    match queries.iter().position(|q| *q == query) {
-        Some(i) => i,
-        None => {
-            queries.push(query);
-            queries.len() - 1
-        }
-    }
+/// What the whole file asks about, accumulated as it is read.
+///
+/// One of these per file rather than one per criterion, because these three are
+/// facts about the file: the enumeration is built from the queries, the zone
+/// notes from the zones, and the run horizon from the deepest turn. A clause
+/// inside an `any_of` branch contributes to all three exactly as a `require`
+/// clause does, which is what keeps a disjunction from widening the
+/// enumeration beyond the union of the queries its branches name.
+#[derive(Default)]
+struct Vocabulary {
+    queries: Vec<String>,
+    zones: Vec<Zone>,
+    horizon: u32,
 }
 
-/// Zones are collected for the same reason queries are: so a run knows the
-/// whole set before it starts, and so a file that never mentions the graveyard
-/// never has to be told anything about it.
-fn note_zone(zones: &mut Vec<Zone>, zone: Zone) {
-    if !zones.contains(&zone) {
-        zones.push(zone);
+impl Vocabulary {
+    /// Queries are deduplicated across the whole file, so two criteria asking
+    /// about `t:land` cost one group bit rather than two — and the enumeration
+    /// the engine has to walk grows with the number of *distinct* queries.
+    ///
+    /// Zones are collected for the same reason: so a run knows the whole set
+    /// before it starts, and so a file that never mentions the graveyard never
+    /// has to be told anything about one.
+    fn intern(&mut self, query: String, turn: u32, zone: Zone) -> usize {
+        self.horizon = self.horizon.max(turn);
+        if !self.zones.contains(&zone) {
+            self.zones.push(zone);
+        }
+        match self.queries.iter().position(|q| *q == query) {
+            Some(i) => i,
+            None => {
+                self.queries.push(query);
+                self.queries.len() - 1
+            }
+        }
+    }
+
+    /// One list of clauses, all of which must hold. `at` names the position for
+    /// the errors, and is a closure because a clause of a `require` and a
+    /// clause of an `any_of` branch are in different places by the same rules.
+    fn conjunction(
+        &mut self,
+        defs: &[ClauseDef],
+        at: impl Fn(usize) -> String,
+    ) -> Result<Vec<Clause>, ErrorKind> {
+        let mut compiled = Vec::with_capacity(defs.len());
+        for (j, clause) in defs.iter().enumerate() {
+            let at = at(j);
+            let query = clause.query.clone().ok_or(ErrorKind::Missing {
+                at: at.clone(),
+                key: "query",
+                why: "so there is nothing for it to count",
+            })?;
+            let turn = turn_of(clause.turn, &at)?;
+            let zone = zone_of(clause.zone.as_deref(), &at)?;
+            let bounds = bounds_of(clause, &at, &query)?;
+            compiled.push(Clause {
+                turn: turn as usize,
+                query: self.intern(query, turn, zone),
+                zone,
+                bounds,
+            });
+        }
+        Ok(compiled)
     }
 }
 

@@ -84,6 +84,83 @@ fn requiring_a_second_land_by_turn_two_is_strictly_harder() {
 }
 
 #[test]
+fn three_routes_to_one_outcome_report_their_union() {
+    // #49, end to end. The three routes in this fixture overlap badly enough
+    // that adding them comes to 145%, which is the number a reader would have
+    // had to compute by hand from three separate runs before a criterion could
+    // say "or". The engine answers the union in the same walk.
+    let out = run("any-of.criteria.toml");
+    assert!(out.status.success(), "should exit 0: {:?}", out.status);
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+
+    let union = percent(&json, "a route to four mana by turn 3");
+    let routes = [
+        percent(&json, "route: four lands"),
+        percent(&json, "route: an accelerant and three lands"),
+        percent(&json, "route: two lands and a ramp spell"),
+    ];
+    let sum: f64 = routes.iter().sum();
+    assert!(sum > 100.0, "the routes overlap enough to matter: {sum}");
+    assert!(union <= 100.0, "a probability, not a total: {union}");
+    assert!(union < sum, "{union} vs the sum {sum}");
+    let widest = routes.iter().cloned().fold(f64::MIN, f64::max);
+    assert!(union > widest, "{union} vs the widest route {widest}");
+    assert!((union - 82.93).abs() < 0.01, "{union}");
+
+    // `require` and `any_of` on one criterion is the conjunction of the two, so
+    // adding a precondition to the same three routes can only narrow them.
+    let gated = percent(&json, "a keepable opener with a route to four mana");
+    assert!(gated < union, "{gated} vs {union}");
+
+    // #47's question, answered in the report rather than in a comment: a
+    // disjunction adds no query beyond the union of what its branches name, so
+    // the grouping the engine enumerates over is the same width it would be
+    // without one.
+    let queries: Vec<&str> = json["queries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|q| q["query"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        queries,
+        ["t:land", "cat:\"Ramp - One Mana\"", "cat:\"Ramp\""]
+    );
+}
+
+#[test]
+fn a_disjunction_the_two_engines_have_to_agree_about() {
+    // The third level the engines are held to each other at, now with a
+    // criterion whose answer is a union. A sampler that ignored `any_of` would
+    // land on one branch or on nothing, and either is far more than five
+    // standard errors from 82.93%.
+    let out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+        .arg("test")
+        .arg(fixture("simple-ramp.txt"))
+        .arg(fixture("any-of.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("index.jsonl"))
+        .arg("--simulate")
+        .arg("--trials")
+        .arg("200000")
+        .arg("--seed")
+        .arg("7")
+        .output()
+        .expect("binary should run");
+    let sampled: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let exact: serde_json::Value =
+        serde_json::from_slice(&run("any-of.criteria.toml").stdout).unwrap();
+    for name in [
+        "a route to four mana by turn 3",
+        "a keepable opener with a route to four mana",
+    ] {
+        let (got, want) = (percent(&sampled, name), percent(&exact, name));
+        // 200k trials puts one standard error near 0.1 percentage points.
+        assert!((got - want).abs() < 0.5, "{name}: sampled {got} vs {want}");
+    }
+}
+
+#[test]
 fn the_verdict_goes_to_stderr() {
     // stdout is JSON only, so a caller piping it through jq cannot lose the
     // verdict. That has burned this project's predecessor.

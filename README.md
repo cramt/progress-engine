@@ -153,8 +153,10 @@ nobody can vouch for is worse than an admitted gap.
 TOML, and the whole schema fits in one example. A `[[criterion]]` has a `name`,
 an optional `at_least`, and `require`: a list of clauses, all of which must
 hold. A clause is a `turn`, a `query`, an optional `zone`, and at least one of
-`min` and `max`. An `[[expect]]` is a `name`, a `turn`, a `query` and an
-optional `zone`, and reports a distribution rather than a verdict.
+`min` and `max`. A criterion can also hold `any_of`, a list of alternative
+routes, for which see [Routes](#routes-any_of). An `[[expect]]` is a `name`, a
+`turn`, a `query` and an optional `zone`, and reports a distribution rather
+than a verdict.
 
 ```toml
 [[criterion]]
@@ -195,6 +197,53 @@ together, because `count(a) + count(b)` counts a card matching both twice —
 `t:land or t:artifact` gets the union right. The combining belongs in the query
 language, which already has `or`, `-` and parentheses and already handles
 overlap. Making the footgun unrepresentable beats documenting it.
+
+#### Routes: `any_of`
+
+`require` is a conjunction, and some questions are a disjunction of them. The
+alternatives are **routes to the same outcome** rather than alternative cards —
+they differ in turn, in zone and in what they need, so no card query expresses
+them and `t:land or t:artifact` is the wrong tool:
+
+```toml
+[[criterion]]
+name = "a lantern by turn 5"
+at_least = 0.80
+
+  [[criterion.any_of]]
+  require = [{ turn = 5, query = 'name:"Lantern of Insight"', min = 1 }]
+
+  [[criterion.any_of]]
+  require = [{ turn = 4, query = 'name:"Trinket Mage"', min = 1 }]
+
+  [[criterion.any_of]]
+  require = [{ turn = 3, query = "name:\"Urza's Saga\"", min = 1 }]
+```
+
+The criterion holds when **any** branch holds, and a branch holds when **all**
+its clauses hold. Both spellings work here too — the expanded
+`[[criterion.any_of]]` sections above, and `any_of = [{ require = [...] }, ...]`
+as inline tables.
+
+Write `require` and `any_of` on the same criterion and they are anded:
+`require` is the precondition every route shares, `any_of` is the routes.
+
+**The answer is the union, never the sum.** Routes overlap — a hand can hold
+the Lantern *and* the Trinket Mage — so adding the branches would count that
+hand twice, and on likely routes the total goes over 100%. Every path through
+the enumeration either satisfies some branch or satisfies none, and contributes
+its probability exactly once either way, so what comes back is P(A or B or C)
+with no arithmetic for anyone to get wrong. This is also why it stays exact and
+needs no second pass: a disjunction is answered in the same walk as everything
+else, and it adds no query beyond the union of the ones its branches name, so
+the enumeration is the same width as the same clauses written as separate
+criteria.
+
+The example above asks whether those cards were **drawn**, not whether they
+could be cast. Castability is the mana model
+([#10](https://github.com/cramt/progress-engine/issues/10)), so every route
+there overstates itself, and the file says so rather than the number implying
+otherwise.
 
 **Which zone, and what silence means.** "Did I find the card" is not a
 well-formed question; "is the card in this zone by this turn" is. A clause that
@@ -248,7 +297,9 @@ otherwise produces a percentage that looks exactly like a real one:
 
 | Written | Why it is refused |
 |---|---|
-| a criterion with no `require` clauses | an empty conjunction holds on every hand: a confident 100% |
+| a criterion with neither `require` nor `any_of` | it asks nothing, so it holds on every hand: a confident 100% |
+| `any_of = []` | a disjunction of no routes holds on none of them: a confident 0% |
+| an `any_of` branch with no `require` clauses | that branch holds on every hand, so the criterion reports 100% whatever the other branches say |
 | a clause with neither `min` nor `max` | it names a query and asks nothing of it |
 | `min = 5, max = 2` | no hand can satisfy it: a confident 0% |
 | `at_least = 70` | a threshold is a share of hands, so 70% is `0.70` |

@@ -1,0 +1,68 @@
+# Three routes to the same outcome, which is the shape a criterion could not
+# say until #49.
+#
+# Like the Lantern case that asked for it, these clauses ask what was *drawn*
+# rather than what could be cast -- castability is #10 -- so every route here
+# is an overstatement of the real thing. The disjunction is what this fixture
+# is about, and it was missing independently of the mana.
+#
+# The routes overlap heavily: a hand with four lands and a one-mana accelerant
+# is on two of them at once. That is the point. The three marginals are in the
+# file beneath the union so the report shows the union coming in under their
+# sum, which on this deck is well over 100%.
+
+[[criterion]]
+name = "a route to four mana by turn 3"
+at_least = 0.80
+
+  [[criterion.any_of]]
+  require = [{ turn = 3, query = "t:land", min = 4 }]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 1, query = 'cat:"Ramp - One Mana"', min = 1 },
+    { turn = 3, query = "t:land", min = 3 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 2, query = "t:land", min = 2 },
+    { turn = 3, query = 'cat:"Ramp"', min = 1 },
+  ]
+
+[[criterion]]
+name = "route: four lands"
+require = [{ turn = 3, query = "t:land", min = 4 }]
+
+[[criterion]]
+name = "route: an accelerant and three lands"
+require = [
+  { turn = 1, query = 'cat:"Ramp - One Mana"', min = 1 },
+  { turn = 3, query = "t:land", min = 3 },
+]
+
+[[criterion]]
+name = "route: two lands and a ramp spell"
+require = [
+  { turn = 2, query = "t:land", min = 2 },
+  { turn = 3, query = 'cat:"Ramp"', min = 1 },
+]
+
+# The combination the shape is for: a precondition every route shares, and then
+# the routes. Written with inline tables, because the expanded spelling above
+# and this one are the same document and a criteria file must not be able to
+# tell them apart.
+[[criterion]]
+name = "a keepable opener with a route to four mana"
+require = [{ turn = 0, query = "t:land", min = 2, max = 5 }]
+any_of = [
+  { require = [{ turn = 3, query = "t:land", min = 4 }] },
+  { require = [
+      { turn = 1, query = 'cat:"Ramp - One Mana"', min = 1 },
+      { turn = 3, query = "t:land", min = 3 },
+  ] },
+  { require = [
+      { turn = 2, query = "t:land", min = 2 },
+      { turn = 3, query = 'cat:"Ramp"', min = 1 },
+  ] },
+]

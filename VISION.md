@@ -52,10 +52,12 @@ in its easy form.
 **The filtering half is done.** A surveil that routes everything you do not want
 to the graveyard digs one card deeper each turn it fires.
 
-**The question is a disjunction, and a criterion cannot say "or"** — the routes
+**The question is a disjunction, and a criterion can now say "or"** — the routes
 differ in turn, in zone and in what they require, so no card query expresses
-them. That is [#49](https://github.com/cramt/progress-engine/issues/49), and it
-blocks this north star independently of the mana.
+them. That was [#49](https://github.com/cramt/progress-engine/issues/49), and
+`any_of` ships: the three routes are writable in one criterion, and the answer
+is the union of them rather than a sum nobody could have taken safely. It no
+longer blocks this north star. What is left is the mana.
 
 **Urza's Saga is the cheap route and was underrated.** It is an Enchantment
 Land, so it arrives on a land drop, and chapter III puts Lantern onto the
@@ -68,9 +70,10 @@ yard to count as a route there — because for this deck it is the *good* route,
 not a consolation prize. **Answerable**, as of the effect library and land-drop
 routing.
 
-Loam needed no mana model and is done. Lantern needs one for two of its three
-routes, and needs [#49](https://github.com/cramt/progress-engine/issues/49)
-before any of them can be written down together.
+Loam needed no mana model and is done. Lantern's three routes can now be
+written down together, and two of them need the mana model before what is
+written is the question the pilot asks: as things stand those clauses say the
+card was *drawn*, which overstates both.
 
 [HANDS.md](HANDS.md) works both of them, and a dozen other cases, as concrete
 seven-card hands with the answer written down.
@@ -294,6 +297,13 @@ through the front door.
   go, because the destination is part of the question.
 - A mana model is in scope, staged gate-first then budget
   ([#10](https://github.com/cramt/progress-engine/issues/10)).
+- A criterion can hold `any_of`, one level of alternation over branches of
+  clauses, and its answer is the union of the branches rather than their sum
+  ([#49](https://github.com/cramt/progress-engine/issues/49)) — shipped. The
+  routes overlap by design, so a sum would exceed 1; the union falls out of
+  each enumerated path contributing its probability once, in the same walk, so
+  the disjunction is exact and adds no groups beyond the queries its branches
+  already name.
 - A criterion names the zone it asks about, silence means `hand`, and
   `battlefield` is refused until castability exists rather than approximated
   ([#40](https://github.com/cramt/progress-engine/issues/40)) — shipped.

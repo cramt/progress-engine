@@ -308,6 +308,11 @@ fn the_exact_and_sampled_engines_answer_the_same_file_the_same_way() {
     // wrong about which count a clause reads would move both answers together
     // and go unnoticed at the other two levels.
     //
+    // A disjunction is in here for the same reason, and its probability is
+    // neither 0 nor 1 on purpose: an engine that ignored `any_of` entirely, or
+    // that took the first branch and stopped, would land somewhere a sampler
+    // could not follow it to.
+    //
     // Zones are in here deliberately. `pe_sim` is generic over `Evaluator` and
     // never mentions a zone, which is either the reason it cannot disagree with
     // the exact engine or the reason it silently ignores zones entirely — and
@@ -334,6 +339,13 @@ fn the_exact_and_sampled_engines_answer_the_same_file_the_same_way() {
         name = "an arm in the yard by turn 3"
         require = [{ turn = 3, query = 'cat:"arm"', zone = "graveyard", min = 1 }]
 
+        [[criterion]]
+        name = "either route by turn 3"
+        any_of = [
+          { require = [{ turn = 0, query = 'cat:"arm"', min = 2 }] },
+          { require = [{ turn = 3, query = 'cat:"connector"', min = 2 }] },
+        ]
+
         [[expect]]
         name = "arms by turn 3"
         turn = 3
@@ -351,6 +363,13 @@ fn the_exact_and_sampled_engines_answer_the_same_file_the_same_way() {
     let plan = criteria.plan();
 
     let exact = pe_criteria::run(&grouping, &schedule, plan, &mut criteria).expect("exact");
+    // The disjunction has to be a question the sampler could get wrong. At 0 or
+    // 1 it agrees with anything.
+    let disjunction = exact.probabilities[4].get();
+    assert!(
+        (0.05..0.95).contains(&disjunction),
+        "the any_of criterion should be genuinely uncertain, was {disjunction}"
+    );
     let trials = 200_000;
     let sampled =
         pe_sim::simulate(&grouping, &schedule, trials, 7, plan, &mut criteria).expect("sampled");
@@ -379,6 +398,252 @@ fn the_exact_and_sampled_engines_answer_the_same_file_the_same_way() {
             want.mean()
         );
     }
+}
+
+// --- Disjunction -----------------------------------------------------------
+
+#[test]
+fn both_toml_spellings_of_any_of_are_the_same_question() {
+    // The same promise `require` makes, one level deeper: a generator emits
+    // inline tables and a person writes sections, and TOML says the two are one
+    // document. The nested [[criterion.any_of.require]] form is the one a hand
+    // reaches for and the one most likely to be read by a different parser, so
+    // it is asserted rather than assumed.
+    let inline = r#"
+        [[criterion]]
+        name = "either route"
+        at_least = 0.3
+        any_of = [
+          { require = [{ turn = 1, query = 'cat:"arm"', min = 1 }] },
+          { require = [
+              { turn = 2, query = 'cat:"connector"', min = 1 },
+              { turn = 3, query = 'cat:"arm"', min = 2 },
+          ] },
+        ]
+    "#;
+    let expanded = r#"
+        [[criterion]]
+        name = "either route"
+        at_least = 0.3
+
+          [[criterion.any_of]]
+          require = [{ turn = 1, query = 'cat:"arm"', min = 1 }]
+
+          [[criterion.any_of]]
+
+            [[criterion.any_of.require]]
+            turn = 2
+            query = 'cat:"connector"'
+            min = 1
+
+            [[criterion.any_of.require]]
+            turn = 3
+            query = 'cat:"arm"'
+            min = 2
+    "#;
+    assert_eq!(parse(inline).queries(), parse(expanded).queries());
+    assert_eq!(parse(inline).horizon(), parse(expanded).horizon());
+    let answer = percent(&run_exact(inline, 6), 0);
+    assert_eq!(answer, percent(&run_exact(expanded, 6), 0));
+    assert!((0.0..100.0).contains(&answer), "{answer} is a real number");
+}
+
+#[test]
+fn a_disjunction_is_the_union_and_not_the_sum_of_its_routes() {
+    // The routes a deck has are not mutually exclusive — a hand can hold the
+    // card *and* the tutor for it — so adding the branches would double-count
+    // every hand that has both, and with routes this likely the total would
+    // exceed 100%. A percentage above one is the confidently-wrong number this
+    // project exists to prevent, so it gets an assertion of its own.
+    let out = run_exact(
+        r#"
+        [[criterion]]
+        name = "either route"
+        any_of = [
+          { require = [{ turn = 0, query = 'cat:"arm"', min = 1 }] },
+          { require = [{ turn = 3, query = 'cat:"connector"', min = 1 }] },
+        ]
+
+        [[criterion]]
+        name = "route a"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+
+        [[criterion]]
+        name = "route b"
+        require = [{ turn = 3, query = 'cat:"connector"', min = 1 }]
+
+        [[criterion]]
+        name = "both routes"
+        require = [
+          { turn = 0, query = 'cat:"arm"', min = 1 },
+          { turn = 3, query = 'cat:"connector"', min = 1 },
+        ]
+        "#,
+        20,
+    );
+    let (union, a, b, both) = (
+        percent(&out, 0),
+        percent(&out, 1),
+        percent(&out, 2),
+        percent(&out, 3),
+    );
+    assert!(
+        a + b > 100.0,
+        "the branches overlap enough to matter: {a} + {b}"
+    );
+    assert!(union <= 100.0, "a probability, not a total: {union}");
+    // Inclusion-exclusion, computed the long way round from three separate
+    // criteria and matched against the one the engine answered in a single
+    // walk. Nothing in `Predicate` does this arithmetic; it falls out of each
+    // path contributing its probability once.
+    assert!(
+        (union - (a + b - both)).abs() < 1e-9,
+        "union {union} vs |a| + |b| - |a and b| = {}",
+        a + b - both
+    );
+    assert!(union > a.max(b), "and it is more than either route alone");
+}
+
+#[test]
+fn a_branch_that_subsumes_another_adds_nothing_to_it() {
+    // The same query at two turns: everything the opener has, turn 3 has too.
+    // The union is exactly the wider branch, and a sum would be nearly twice
+    // it.
+    let out = run_exact(
+        r#"
+        [[criterion]]
+        name = "either turn"
+        any_of = [
+          { require = [{ turn = 0, query = 'cat:"arm"', min = 1 }] },
+          { require = [{ turn = 3, query = 'cat:"arm"', min = 1 }] },
+        ]
+
+        [[criterion]]
+        name = "the wider branch alone"
+        require = [{ turn = 3, query = 'cat:"arm"', min = 1 }]
+        "#,
+        20,
+    );
+    assert_eq!(percent(&out, 0), percent(&out, 1));
+}
+
+#[test]
+fn require_and_any_of_are_a_conjunction_of_the_two() {
+    // The combination the shape is for: a precondition every route shares,
+    // then the routes. It has to be no likelier than either half on its own.
+    let out = run_exact(
+        r#"
+        [[criterion]]
+        name = "precondition and a route"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        any_of = [
+          { require = [{ turn = 2, query = 'cat:"connector"', min = 1 }] },
+          { require = [{ turn = 3, query = 'cat:"spark"', min = 1 }] },
+        ]
+
+        [[criterion]]
+        name = "the precondition alone"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+
+        [[criterion]]
+        name = "the routes alone"
+        any_of = [
+          { require = [{ turn = 2, query = 'cat:"connector"', min = 1 }] },
+          { require = [{ turn = 3, query = 'cat:"spark"', min = 1 }] },
+        ]
+        "#,
+        12,
+    );
+    let (both, precondition, routes) = (percent(&out, 0), percent(&out, 1), percent(&out, 2));
+    assert!(both < precondition, "{both} vs {precondition}");
+    assert!(both < routes, "{both} vs {routes}");
+    assert!(both > 0.0, "and it is not a confident zero");
+}
+
+#[test]
+fn one_branch_is_legal_and_is_just_that_branch() {
+    // A generator building a disjunction one route at a time passes through
+    // this state, and it is a well-formed question rather than a half-written
+    // one.
+    let single = run_exact(
+        r#"
+        [[criterion]]
+        name = "one route"
+        any_of = [{ require = [{ turn = 2, query = 'cat:"arm"', min = 2 }] }]
+        "#,
+        9,
+    );
+    let plain = run_exact(
+        r#"
+        [[criterion]]
+        name = "the same thing"
+        require = [{ turn = 2, query = 'cat:"arm"', min = 2 }]
+        "#,
+        9,
+    );
+    assert_eq!(percent(&single, 0), percent(&plain, 0));
+}
+
+#[test]
+fn a_branch_names_its_queries_and_turns_to_the_whole_file() {
+    // A query only a branch mentions still has to be in the set the grouping is
+    // built from and the too-wide refusal lists, and a turn only a branch
+    // mentions still has to be inside the run horizon. Otherwise the criterion
+    // reads a count of zero from a query nobody grouped and fails quietly.
+    let c = parse(
+        r#"
+        [[criterion]]
+        name = "routes"
+        require = [{ turn = 0, query = "t:land", min = 1 }]
+        any_of = [
+          { require = [{ turn = 4, query = 'cat:"Ramp"', zone = "graveyard", min = 1 }] },
+          { require = [{ turn = 6, query = "t:land", min = 3 }] },
+        ]
+        "#,
+    );
+    assert_eq!(c.queries(), ["t:land", r#"cat:"Ramp""#]);
+    assert_eq!(c.horizon(), 6, "the deepest turn any branch names");
+    assert_eq!(c.asked_by(r#"cat:"Ramp""#), Some("routes"));
+    assert_eq!(c.zones(), [Zone::Hand, Zone::Graveyard]);
+    assert_eq!(c.zone_asked_by(Zone::Graveyard), Some("routes"));
+}
+
+#[test]
+fn a_disjunction_costs_no_query_a_conjunction_would_not() {
+    // #47 is the reason this is measured rather than assumed. The queries are
+    // what the enumeration is built from, so a disjunction over routes that
+    // name the same queries as a set of separate criteria has to hand the
+    // engine the same set — the alternation is in the predicate, not in the
+    // grouping.
+    let routes = r#"
+        [[criterion]]
+        name = "a"
+        require = [{ turn = 5, query = 'name:"Lantern of Insight"', min = 1 }]
+
+        [[criterion]]
+        name = "b"
+        require = [{ turn = 4, query = 'name:"Trinket Mage"', min = 1 }]
+
+        [[criterion]]
+        name = "c"
+        require = [{ turn = 3, query = "name:\"Urza's Saga\"", min = 1 }]
+    "#;
+    let disjunction = r#"
+        [[criterion]]
+        name = "a castable lantern by turn 5"
+        any_of = [
+          { require = [{ turn = 5, query = 'name:"Lantern of Insight"', min = 1 }] },
+          { require = [{ turn = 4, query = 'name:"Trinket Mage"', min = 1 }] },
+          { require = [{ turn = 3, query = "name:\"Urza's Saga\"", min = 1 }] },
+        ]
+    "#;
+    assert_eq!(parse(routes).queries(), parse(disjunction).queries());
+    // And the grouping the engine walks is the same width, group for group.
+    let (separate, together) = (parse(routes), parse(disjunction));
+    assert_eq!(
+        grouping_for(&separate, 4).group_sizes().len(),
+        grouping_for(&together, 4).group_sizes().len()
+    );
 }
 
 // --- Zones -----------------------------------------------------------------
@@ -588,13 +853,117 @@ fn a_criterion_with_no_clauses_is_refused_by_name() {
         "#,
     );
     assert!(matches!(&err, ErrorKind::NoClauses { name } if name == "nothing at all"));
-    assert!(err.to_string().contains("nothing at all"));
+    let msg = err.to_string();
+    assert!(msg.contains("nothing at all"), "{msg}");
+    // Both keys are named, because "no clauses" stopped being the only way to
+    // write a criterion that asks nothing the day `any_of` existed.
+    assert!(msg.contains("require") && msg.contains("any_of"), "{msg}");
 
     // And the same for a `require` that is written out but empty.
     assert!(matches!(
         refuse("[[criterion]]\nname = \"x\"\nrequire = []\n"),
         ErrorKind::NoClauses { .. }
     ));
+}
+
+#[test]
+fn an_empty_any_of_is_refused_by_name() {
+    // The other direction of the same mistake: an empty conjunction holds on
+    // every hand, an empty disjunction on none. Refused even beside a `require`
+    // that would otherwise carry the criterion, because a disjunction of no
+    // routes is not a thing anybody meant to ask.
+    let err = refuse(
+        r#"
+        [[criterion]]
+        name = "no route at all"
+        any_of = []
+        "#,
+    );
+    assert!(matches!(&err, ErrorKind::EmptyAnyOf { name } if name == "no route at all"));
+    assert!(err.to_string().contains("no route at all"));
+
+    assert!(matches!(
+        refuse(
+            r#"
+            [[criterion]]
+            name = "a precondition and no route"
+            require = [{ turn = 0, query = "t:land", min = 2 }]
+            any_of = []
+            "#
+        ),
+        ErrorKind::EmptyAnyOf { .. }
+    ));
+}
+
+#[test]
+fn a_branch_with_no_clauses_is_refused_by_name() {
+    // A branch that asks nothing holds on every hand, so the whole criterion
+    // would report 100% whatever the other branches say — and the report would
+    // show a route nobody has that always works.
+    let err = refuse(
+        r#"
+        [[criterion]]
+        name = "two routes, one of them empty"
+        any_of = [
+          { require = [{ turn = 3, query = "t:land", min = 3 }] },
+          { require = [] },
+        ]
+        "#,
+    );
+    assert!(
+        matches!(&err, ErrorKind::EmptyBranch { name, position: 2 } if name == "two routes, one of them empty"),
+        "{err}"
+    );
+    let msg = err.to_string();
+    assert!(msg.contains("two routes, one of them empty"), "{msg}");
+    assert!(msg.contains("branch 2"), "{msg}");
+
+    // A [[criterion.any_of]] section with nothing in it at all is the same
+    // mistake written the other way.
+    assert!(matches!(
+        refuse("[[criterion]]\nname = \"x\"\n[[criterion.any_of]]\n"),
+        ErrorKind::EmptyBranch { position: 1, .. }
+    ));
+}
+
+#[test]
+fn a_clause_inside_a_branch_is_checked_like_any_other() {
+    // Validation does not get thinner one level down. A branch clause with no
+    // bounds, a bad turn or an unmodelled zone is refused exactly as a
+    // `require` clause is, and the message says which branch it was in.
+    let err = refuse(
+        r#"
+        [[criterion]]
+        name = "routes"
+        any_of = [
+          { require = [{ turn = 3, query = "t:land", min = 1 }] },
+          { require = [{ turn = 4, query = 'cat:"Ramp"' }] },
+        ]
+        "#,
+    );
+    assert!(matches!(err, ErrorKind::NoBounds { .. }), "{err}");
+    let msg = err.to_string();
+    assert!(msg.contains("any_of branch 2, clause 1"), "{msg}");
+
+    let err = refuse(
+        r#"
+        [[criterion]]
+        name = "routes"
+        any_of = [
+          { require = [{ turn = 3, query = "t:land", zone = "battlefield", min = 1 }] },
+        ]
+        "#,
+    );
+    assert!(
+        matches!(
+            err,
+            ErrorKind::BadZone {
+                zone: ZoneError::Battlefield,
+                ..
+            }
+        ),
+        "{err}"
+    );
 }
 
 #[test]
