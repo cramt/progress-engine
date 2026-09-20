@@ -953,6 +953,12 @@ fn sync_builds_an_index_from_a_bulk_file() {
     // The header must not claim any: an index that looked tagged but was not
     // would answer otag: with a confident nothing.
     assert!(header.get("tags").is_none(), "a --from sync claims no tags");
+    // And it says so at the time, with what it costs. The documented offline
+    // route quietly building an index that switches the effect library off is
+    // half of #50.
+    assert!(stderr.contains("skipping oracle tags"), "{stderr}");
+    assert!(stderr.contains("This index will carry none"), "{stderr}");
+    assert!(stderr.contains("effect library"), "{stderr}");
     assert_eq!(body.lines().count(), 12);
 
     let _ = std::fs::remove_dir_all(&dir);
@@ -1113,17 +1119,55 @@ fn run_with(deck: &str, criteria: &str, index: &str) -> std::process::Output {
 }
 
 #[test]
-fn the_standard_library_matches_nothing_in_the_fixture_index() {
-    // Checked rather than assumed, because the regression numbers below depend
-    // on it. The index is hand-written and carries no oracle tags, so every
-    // `otag:` entry in the standard library matches nothing here -- and the day
-    // somebody adds tags to this fixture, this test says so before the
-    // percentages move for a reason nobody looked for.
-    let out = run("otag.criteria.toml");
-    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
-    for q in json["queries"].as_array().unwrap() {
-        assert_eq!(q["cards"], 0, "{} should match nothing here", q["query"]);
-    }
+fn the_three_ways_an_otag_question_comes_back_empty_are_three_different_answers() {
+    // #50. All three produce no cards, and only one of them is a fact about the
+    // deck. Asserted together because the point is that they are told apart:
+    // any two of these collapsing into one message is the confident zero this
+    // tool exists to prevent, and it is only visible side by side.
+
+    // One: the index carries tags, and not this one. Refused by name, with what
+    // it does carry, because the fix is a spelling or a sync rather than a
+    // different deck.
+    let unfetched = run_with(
+        "loam.txt",
+        "unfetched-tag.criteria.toml",
+        "loam-index.jsonl",
+    );
+    let stderr = String::from_utf8_lossy(&unfetched.stderr);
+    assert!(!unfetched.status.success(), "{stderr}");
+    assert!(stderr.contains("does not carry otag:mill"), "{stderr}");
+    assert!(
+        stderr.contains("scry, surveil, tapland"),
+        "it says what it does carry: {stderr}"
+    );
+    assert!(
+        unfetched.stdout.is_empty(),
+        "and produces no JSON that could be read as an answer"
+    );
+
+    // Two: the index carries no tags at all, which no spelling fixes and which
+    // the header states plainly. The criterion that asked is named, and so is
+    // the command that fixes it.
+    let tagless = run("otag.criteria.toml");
+    let stderr = String::from_utf8_lossy(&tagless.stderr);
+    assert!(!tagless.status.success(), "{stderr}");
+    assert!(stderr.contains("carries no oracle tags at all"), "{stderr}");
+    assert!(stderr.contains("surveil lands in the opener"), "{stderr}");
+    assert!(stderr.contains("progress-engine sync"), "{stderr}");
+    assert!(tagless.stdout.is_empty());
+
+    // Three: the tag is carried, and no card in this deck is in it. The only
+    // one of the three that is an answer, and it gets the note every query
+    // matching nothing gets.
+    let empty = run_with("loam.txt", "empty-tag.criteria.toml", "loam-index.jsonl");
+    let stderr = String::from_utf8_lossy(&empty.stderr);
+    assert!(empty.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("note: query \"otag:scry\" matched no cards in this deck"),
+        "{stderr}"
+    );
+    let json: serde_json::Value = serde_json::from_slice(&empty.stdout).unwrap();
+    assert_eq!(json["queries"][0]["cards"], 0);
 }
 
 #[test]
@@ -1151,18 +1195,51 @@ fn the_autoloading_library_does_not_move_the_known_numbers() {
 }
 
 #[test]
-fn a_standard_library_entry_matching_nothing_is_silent() {
+fn a_standard_library_entry_matching_nothing_is_silent_when_the_index_could_have_answered() {
     // The contrast with `a_query_matching_no_cards_is_called_out`. A query in
     // the user's file matching nothing is a typo worth shouting about; a
     // standard library entry matching nothing is most decks, and a note about
     // it on every run is noise about a question nobody asked.
+    //
+    // This index carries scry, and this deck has no scry land -- so the silence
+    // is granted over a question that was genuinely asked and genuinely
+    // answered, which is the only case it was ever meant to cover (#50).
+    let out = run_with(
+        "surveil-tiny.txt",
+        "two-lands.criteria.toml",
+        "loam-index.jsonl",
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !stderr.contains("otag:scry"),
+        "the library should not narrate itself: {stderr}"
+    );
+    assert!(!stderr.contains("carries no oracle tags"), "{stderr}");
+    // And the run is live rather than inert: the surveil entry in the same
+    // library did match, so the silence above is about that entry and not about
+    // an effect library that never ran.
+    assert!(stderr.contains("otag:surveil"), "{stderr}");
+}
+
+#[test]
+fn a_standard_library_entry_that_a_tagless_index_silenced_says_so() {
+    // The other half of #50, and the reason the silence above had to become
+    // conditional. The standard library is keyed entirely on `otag:`, so
+    // against an index carrying no tags it matches nothing, applies nothing and
+    // reports `"effects": []` -- a whole autoloading feature switched off, by a
+    // fact about the index rather than about the deck, saying nothing.
     let out = run("simple-ramp.criteria.toml");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
-        !stderr.contains("otag:surveil"),
-        "the library should not narrate itself: {stderr}"
+        stderr.contains("this index carries no oracle tags"),
+        "{stderr}"
     );
-    assert!(!stderr.contains("effect"), "stderr was: {stderr}");
+    assert!(stderr.contains("\"t:land otag:surveil\""), "{stderr}");
+    assert!(stderr.contains("\"t:land otag:scry\""), "{stderr}");
+    assert!(stderr.contains("progress-engine sync"), "{stderr}");
+    // It is a note and not a refusal: nobody asked for these entries, and the
+    // questions this file does ask are answerable without them.
+    assert!(out.status.success(), "{stderr}");
 }
 
 #[test]

@@ -1,8 +1,10 @@
-# Verification, not a question anybody would ask of this deck. The regression
-# numbers in `simple-ramp.criteria.toml` are only safe from the autoloading
-# effect library if the standard library's `otag:` entries genuinely match
-# nothing in this hand-written index -- and *should match nothing* and *does
-# match nothing* are two different claims.
+# Two questions the hand-written `index.jsonl` cannot answer, because it carries
+# no oracle tags at all.
+#
+# It used to answer them with 0.00% -- true of this index, and indistinguishable
+# from a deck with no such lands (#50). The regression numbers in
+# `simple-ramp.criteria.toml` still depend on the standard library matching
+# nothing here, and what proves it now is the refusal rather than the zero.
 [[criterion]]
 name = "surveil lands in the opener"
 require = [{ turn = 0, query = "t:land otag:surveil", min = 1 }]

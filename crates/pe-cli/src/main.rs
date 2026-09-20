@@ -274,9 +274,21 @@ fn run_test(
     // question that asked for it. The grouping sees a list of strings and has
     // no idea which criterion each one came from; the criteria file does.
     for query in criteria.queries() {
-        if let Err(e) = pe_scryfall::parse(query) {
-            let asked_by = criteria.asked_by(query).unwrap_or("this file");
-            anyhow::bail!("{asked_by}: in query {query:?}: {e}");
+        let asked_by = criteria.asked_by(query).unwrap_or("this file");
+        let parsed = match pe_scryfall::parse(query) {
+            Ok(parsed) => parsed,
+            Err(e) => anyhow::bail!("{asked_by}: in query {query:?}: {e}"),
+        };
+        // A query that parses can still be one this index cannot answer. Only
+        // the index knows which oracle tags it carries, so this is the first
+        // point where the question and the data are in the same place — and it
+        // is still before anything is grouped, so the refusal names the
+        // criterion that asked rather than a position in a query list.
+        if let Some(gap) = parsed.tag_gap(&library.index_tags) {
+            anyhow::bail!(
+                "{asked_by}: in query {query:?}: {}",
+                report::tag_gap_refusal(&gap, &library)
+            );
         }
     }
 
@@ -288,6 +300,14 @@ fn run_test(
     let resolved = effects::resolve(&effect_library, &library, criteria.queries())?;
     for query in &resolved.unmatched {
         eprintln!("note: effect {query:?} matched no cards in this deck");
+    }
+    // Not a refusal, unlike the same gap in a criteria query above: nobody
+    // asked for these. The standard library autoloads, so refusing the run
+    // would make a tagless index answer nothing at all rather than answer the
+    // question that was actually asked — but it loads *and moves numbers*, so
+    // it does not get to fall silent either.
+    for note in report::tag_blind_notes(&resolved, &library) {
+        eprintln!("{note}");
     }
 
     let queries: Vec<String> = criteria

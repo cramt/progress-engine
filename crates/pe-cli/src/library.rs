@@ -8,7 +8,7 @@ use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 use pe_criteria::{Grouping, GroupingError};
-use pe_scryfall::index::{Card, Index, IndexFile};
+use pe_scryfall::index::{Card, Index, IndexFile, TagVocabulary};
 use pe_scryfall::OutsideLibrary;
 
 pub struct Entry {
@@ -56,6 +56,14 @@ pub struct Library {
     /// confident 0%, which is indistinguishable from a deck with no white
     /// sources. The whole point of this tool is that those two look different.
     pub index_is_stale: bool,
+    /// Which oracle tags this index carries, carried out of the header for the
+    /// same reason as the date: the file is read once, here.
+    ///
+    /// Every `otag:` term in this run is checked against it — the criteria
+    /// file's own and the effect library's alike — because an index that never
+    /// fetched a tag and a deck with no card in it produce the same empty
+    /// result, and only this says which one happened.
+    pub index_tags: TagVocabulary,
     /// Kept rather than dropped: excluding a card silently is the same failure
     /// as a query that matches nothing — a confident number nobody can question.
     pub excluded: Vec<Excluded>,
@@ -72,6 +80,7 @@ impl Library {
             .unwrap_or_else(Index::default_path);
         let index = IndexFile::open(&path)?;
         let stale = index.is_stale();
+        let index_tags = index.tag_vocabulary();
 
         // Strict about unknown cards: you cannot compute a land count for a
         // card you cannot look up, so a typo here would silently skew every
@@ -126,6 +135,7 @@ impl Library {
             commanders,
             deck_sha256: crate::report::sha256_hex(text.as_bytes()),
             index_is_stale: stale,
+            index_tags,
             index_updated_at: index.updated_at().map(str::to_owned),
             excluded,
         })

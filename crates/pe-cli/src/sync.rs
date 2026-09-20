@@ -13,6 +13,7 @@
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
+use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
 use facet::Facet;
@@ -72,6 +73,8 @@ pub fn run(index_path: Option<&Path>, from: Option<&Path>, force: bool) -> Resul
         .map(Path::to_path_buf)
         .unwrap_or_else(Index::default_path);
 
+    let wanted_tags = pe_scryfall::tags::standard_tag_names();
+
     let (records, updated_at) = match from {
         // A local file, so the tests and a no-network machine can exercise
         // everything downstream of the download.
@@ -82,7 +85,7 @@ pub fn run(index_path: Option<&Path>, from: Option<&Path>, force: bool) -> Resul
         None => {
             let bulk = find_bulk_file()?;
             let updated_at = bulk.updated_at.clone();
-            if !force && already_current(&path, updated_at.as_deref()) {
+            if !force && already_current(&path, updated_at.as_deref(), &wanted_tags) {
                 eprintln!(
                     "index is already current ({}); pass --force to rebuild it",
                     updated_at.as_deref().unwrap_or("no date")
@@ -111,23 +114,64 @@ pub fn run(index_path: Option<&Path>, from: Option<&Path>, force: bool) -> Resul
     // though it asked. `--from` exists for tests and offline machines, and an
     // index that quietly carried no tags would make `otag:` match nothing there
     // with no indication why.
+    let mut missing = Vec::new();
     if from.is_none() {
-        let names = pe_scryfall::tags::standard_tag_names();
-        eprintln!("fetching {} oracle tags", names.len());
-        let membership = fetch_tags(&names)?;
-        let fetched_at = now_utc();
-        let tagged = index.attach_tags(names, fetched_at, &membership);
-        eprintln!("tagged {tagged} cards");
+        eprintln!("fetching {} oracle tags", wanted_tags.len());
+        let fetch = fetch_tags(&wanted_tags);
+        let tagged = index.attach_tags(fetch.fetched.clone(), now_utc(), &fetch.membership);
+        eprintln!(
+            "tagged {tagged} cards with {} of {} tags",
+            fetch.fetched.len(),
+            wanted_tags.len()
+        );
+        missing = fetch.failed;
     } else {
         eprintln!(
-            "skipping oracle tags: --from reads a bulk file, and tags come from the search API"
+            "skipping oracle tags: --from reads a bulk file, and tags come from the search API.\n\
+             This index will carry none, so every otag: query against it is refused rather than\n\
+             answered, and the standard effect library — which is keyed entirely on otag: — \
+             matches\n\
+             nothing. Run `progress-engine sync` without --from to fetch them."
         );
     }
+    // Written before the tag phase is judged, always. The download is the
+    // expensive half and the tags are the flaky one, so a tag that failed must
+    // not cost the 25MB that succeeded (#50). What the header claims is exactly
+    // what was fetched, so a query naming a missing tag is refused by name
+    // rather than answered with a confident zero.
     index
         .write_atomically(&path)
         .with_context(|| format!("writing the index to {}", path.display()))?;
     eprintln!("wrote {} cards to {}", report.kept, path.display());
+    if !missing.is_empty() {
+        return Err(partial_sync(&path, wanted_tags.len(), &missing));
+    }
     Ok(())
+}
+
+/// What an incomplete sync says on its way out.
+///
+/// Non-zero, because a sync missing tags is not a sync: a run against this
+/// index will refuse the questions those tags answer, and a caller scripting
+/// `sync && test` would otherwise carry on into a refusal it could have
+/// prevented. It is still an index, and it says so — the failure is named, the
+/// remedy is one command, and neither costs the download again.
+fn partial_sync(path: &Path, wanted: usize, failed: &[FailedTag]) -> anyhow::Error {
+    let named: Vec<String> = failed
+        .iter()
+        .map(|f| format!("  otag:{}: {}", f.name, f.why))
+        .collect();
+    anyhow::anyhow!(
+        "this sync did not finish: {} of {wanted} oracle tags could not be fetched.\n{}\n\
+         The index at {} was written with the {} that did succeed, so the download is not \
+         lost.\n\
+         A query naming a missing tag is refused by name until a later sync fetches it; \
+         run\n`progress-engine sync` again to finish the job.",
+        failed.len(),
+        named.join("\n"),
+        path.display(),
+        wanted - failed.len(),
+    )
 }
 
 /// Whether the index on disk was built from the same bulk file.
@@ -135,14 +179,24 @@ pub fn run(index_path: Option<&Path>, from: Option<&Path>, force: bool) -> Resul
 /// Compared on Scryfall's own timestamp for the file rather than on the local
 /// clock: "when we last ran" and "which data we have" are different facts, and
 /// only the second one is a reason to skip the work.
-fn already_current(path: &Path, updated_at: Option<&str>) -> bool {
+///
+/// Current also means *complete*. A sync whose tag phase was cut short writes
+/// the index it managed and asks to be run again; skipping that re-run because
+/// the bulk data had not moved would answer the request with "already current"
+/// and leave the tags missing forever.
+fn already_current(path: &Path, updated_at: Option<&str>, wanted_tags: &[String]) -> bool {
     let Some(updated_at) = updated_at else {
         return false;
     };
     // Only the header is read, which is one line: asking "is this already the
     // data I have?" must not cost as much as using it.
     match IndexFile::open(path) {
-        Ok(existing) => existing.updated_at() == Some(updated_at) && !existing.is_stale(),
+        Ok(existing) => {
+            let tags = existing.tag_vocabulary();
+            existing.updated_at() == Some(updated_at)
+                && !existing.is_stale()
+                && wanted_tags.iter().all(|t| tags.contains(t))
+        }
         Err(_) => false,
     }
 }
@@ -187,7 +241,61 @@ struct SearchCard {
 /// Scryfall asks for 50-100ms between requests. Tag fetching is the only place
 /// here that makes many small calls in a row, so it is the only place that has
 /// to care.
-const REQUEST_GAP: std::time::Duration = std::time::Duration::from_millis(100);
+const REQUEST_GAP: Duration = Duration::from_millis(100);
+
+/// The gap for the rest of the run once Scryfall has said, once, that it was
+/// not enough.
+///
+/// 100ms is inside the stated ask and was still rate-limited 23 pages into the
+/// sixth tag (#50), so the ask is a floor rather than a guarantee. Widening
+/// after the first 429 costs a few seconds on a sync that already takes a
+/// minute, and the alternative is walking back into the same wall on the next
+/// page having learnt nothing from it.
+const SLOWED_GAP: Duration = Duration::from_millis(250);
+
+/// How many times one page is asked for before its tag is given up on.
+const MAX_ATTEMPTS: u32 = 5;
+
+/// The wait after the first rate limit, doubled on each one after it.
+///
+/// Doubling rather than repeating, because a fixed retry against a limiter that
+/// is still counting is the same request arriving again: 1, 2, 4 and 8 seconds
+/// gives the window time to move, and totals 15 seconds against a download that
+/// took longer than that.
+const FIRST_BACKOFF: Duration = Duration::from_secs(1);
+
+/// The longest this will wait before giving up on a tag.
+///
+/// Two minutes rather than one, measured rather than picked: the 429 this was
+/// written against sent `Retry-After: 60`, and a ceiling at exactly the number
+/// Scryfall sends would fail a whole tag the first time it rounded up. Past
+/// this it stops rather than ignoring the number — coming back sooner than
+/// asked is the rudeness the backoff exists to avoid, and a sync that blocks
+/// silently for ten minutes is not a better answer than one that writes the
+/// tags it has and names the ones it does not.
+const MAX_BACKOFF: Duration = Duration::from_secs(120);
+
+/// What a tag fetch produced, including what it failed to produce.
+///
+/// The three fields are one thought: `membership` is only meaningful beside the
+/// list of tags it is complete for, and `failed` is what stops the caller from
+/// reading that list as *all of them*. A partial fetch is an ordinary outcome
+/// here rather than an error, because the expensive half of the sync has
+/// already succeeded by the time this runs.
+struct TagFetch {
+    /// Oracle id to the tags it is in. Only tags in `fetched` appear: a tag
+    /// that failed halfway would otherwise leave cards carrying a membership
+    /// the header does not vouch for.
+    membership: HashMap<String, Vec<String>>,
+    fetched: Vec<String>,
+    failed: Vec<FailedTag>,
+}
+
+/// A tag this sync asked for and did not get, with the reason it did not.
+struct FailedTag {
+    name: String,
+    why: String,
+}
 
 /// Which oracle ids are in each of `tags`, as Scryfall answers today.
 ///
@@ -195,61 +303,174 @@ const REQUEST_GAP: std::time::Duration = std::time::Duration::from_millis(100);
 /// empty entry rather than being dropped: the index records that it asked, and
 /// "asked, no members" has to survive as a different fact from "never asked".
 ///
-/// A tag Scryfall rejects outright is an error and stops the sync. Writing an
-/// index that silently lacks a tag the user asked for would produce exactly the
-/// confident empty result this tool exists to prevent — better to fail the
-/// sync, while the person is standing there.
-fn fetch_tags(tags: &[String]) -> Result<HashMap<String, Vec<String>>> {
+/// A tag that cannot be fetched at all stops that tag and nothing else. It used
+/// to stop the sync, which meant one transient 429 threw away a 25MB download
+/// that had already parsed — the whole cost of the run paid for the cheapest
+/// thing in it (#50). What a failed tag costs now is the tag: it is left out of
+/// the index and out of the header, so `otag:` on it is refused by name instead
+/// of answered with a confident zero.
+fn fetch_tags(tags: &[String]) -> TagFetch {
     let mut membership: HashMap<String, Vec<String>> = HashMap::new();
+    let mut fetched = Vec::new();
+    let mut failed = Vec::new();
+    let mut pace = Pace::new();
 
     for tag in tags {
-        let mut url = format!(
-            "https://api.scryfall.com/cards/search?q=otag%3A{}&unique=cards",
-            urlencode(tag)
-        );
-        let mut found = 0usize;
-        loop {
-            std::thread::sleep(REQUEST_GAP);
-            let response = ureq::get(&url)
-                .header("User-Agent", USER_AGENT)
-                .header("Accept", "application/json")
-                .call();
-
-            let body = match response {
-                Ok(mut r) => r
-                    .body_mut()
-                    .read_to_string()
-                    .with_context(|| format!("reading Scryfall's answer for otag:{tag}"))?,
-                Err(ureq::Error::StatusCode(404)) => {
-                    // Scryfall answers an empty search with 404, which is a real
-                    // answer: the tag exists and nothing is in it.
-                    break;
+        match fetch_tag(tag, &mut pace) {
+            Ok(ids) => {
+                eprintln!("  otag:{tag}: {} cards", ids.len());
+                for id in ids {
+                    membership.entry(id).or_default().push(tag.clone());
                 }
-                Err(e) => return Err(e).with_context(|| format!("asking Scryfall for otag:{tag}")),
-            };
-
-            let page: SearchPage = facet_json::from_str(&body)
-                .with_context(|| format!("parsing Scryfall's answer for otag:{tag}"))?;
-
-            for card in &page.data {
-                if let Some(id) = card.oracle_id.as_deref() {
-                    membership
-                        .entry(id.to_string())
-                        .or_default()
-                        .push(tag.clone());
-                    found += 1;
-                }
+                fetched.push(tag.clone());
             }
-
-            match (page.has_more, page.next_page) {
-                (true, Some(next)) => url = next,
-                _ => break,
+            // Named where it happened, so the summary at the end is a reminder
+            // rather than the first anybody hears of it.
+            Err(e) => {
+                eprintln!("  otag:{tag}: FAILED: {e:#}");
+                failed.push(FailedTag {
+                    name: tag.clone(),
+                    why: format!("{e:#}"),
+                });
             }
         }
-        eprintln!("  otag:{tag}: {found} cards");
     }
 
-    Ok(membership)
+    TagFetch {
+        membership,
+        fetched,
+        failed,
+    }
+}
+
+/// Every oracle id in one tag, across as many pages as Scryfall has.
+///
+/// Collected before anything is recorded: a tag is either fetched whole or not
+/// at all, because half a tag written into the index would be a membership list
+/// that is wrong rather than missing.
+fn fetch_tag(tag: &str, pace: &mut Pace) -> Result<Vec<String>> {
+    let mut url = format!(
+        "https://api.scryfall.com/cards/search?q=otag%3A{}&unique=cards",
+        urlencode(tag)
+    );
+    let mut ids = Vec::new();
+    loop {
+        // Scryfall answers an empty search with 404, which is a real answer:
+        // the tag exists and nothing is in it.
+        let Some(body) = fetch_page(&url, tag, pace)? else {
+            break;
+        };
+        let page: SearchPage = facet_json::from_str(&body)
+            .with_context(|| format!("parsing Scryfall's answer for otag:{tag}"))?;
+        ids.extend(page.data.iter().filter_map(|c| c.oracle_id.clone()));
+        match (page.has_more, page.next_page) {
+            (true, Some(next)) => url = next,
+            _ => break,
+        }
+    }
+    Ok(ids)
+}
+
+/// One page, asked for again while Scryfall says to come back later.
+///
+/// `Ok(None)` is the 404 for a search that matched nothing.
+fn fetch_page(url: &str, tag: &str, pace: &mut Pace) -> Result<Option<String>> {
+    for attempt in 1..=MAX_ATTEMPTS {
+        pace.wait();
+        let mut response = ureq::get(url)
+            .header("User-Agent", USER_AGENT)
+            .header("Accept", "application/json")
+            // A status is read here rather than raised as an error, because
+            // ureq's `StatusCode` error carries the number and nothing else —
+            // and the header that says how long to wait is one of the things it
+            // has dropped by then.
+            .config()
+            .http_status_as_error(false)
+            .build()
+            .call()
+            .with_context(|| format!("asking Scryfall for otag:{tag}"))?;
+
+        let status = response.status().as_u16();
+        if status == 404 {
+            return Ok(None);
+        }
+        if response.status().is_success() {
+            return Ok(Some(response.body_mut().read_to_string().with_context(
+                || format!("reading Scryfall's answer for otag:{tag}"),
+            )?));
+        }
+        if !worth_retrying(status) {
+            bail!("Scryfall answered with HTTP {status}, which is an answer rather than a delay");
+        }
+        pace.slow_down();
+        let wait = retry_after(response.headers()).unwrap_or_else(|| backoff(attempt));
+        if wait > MAX_BACKOFF {
+            bail!(
+                "Scryfall answered with HTTP {status} and asked for {}s, which is longer \
+                 than this sync will hold the line for",
+                wait.as_secs()
+            );
+        }
+        if attempt < MAX_ATTEMPTS {
+            eprintln!(
+                "    HTTP {status}; waiting {:.1}s and asking again ({attempt} of {MAX_ATTEMPTS})",
+                wait.as_secs_f64()
+            );
+            std::thread::sleep(wait);
+        }
+    }
+    bail!("Scryfall was still rate-limiting after {MAX_ATTEMPTS} attempts")
+}
+
+/// Whether a status says *later* rather than *no*.
+///
+/// 429 is the one #50 was reported against. The 5xx family is here for the same
+/// reason and on the same evidence: a gateway having a bad minute is a delay,
+/// and treating it as a verdict would throw the download away over something
+/// that fixes itself.
+fn worth_retrying(status: u16) -> bool {
+    status == 429 || (500..600).contains(&status)
+}
+
+/// How long to wait before attempt `attempt` + 1, when nobody said.
+fn backoff(attempt: u32) -> Duration {
+    FIRST_BACKOFF
+        .saturating_mul(1u32 << (attempt - 1))
+        .min(MAX_BACKOFF)
+}
+
+/// How long Scryfall asked us to wait, when it said.
+///
+/// Seconds only. `Retry-After` may also carry an HTTP date, which is not worth
+/// a parser here: the backoff it falls through to waits a comparable time, and
+/// a date parser that is subtly wrong would wait the wrong one while looking
+/// authoritative.
+fn retry_after(headers: &ureq::http::HeaderMap) -> Option<Duration> {
+    let value = headers.get("retry-after")?.to_str().ok()?;
+    Some(Duration::from_secs(value.trim().parse().ok()?))
+}
+
+/// The wait between requests, for the run rather than for one call.
+///
+/// A struct because the gap is not a constant any more: it widens the first
+/// time Scryfall pushes back and stays widened, which is a fact about this run
+/// that every later request has to see.
+struct Pace {
+    gap: Duration,
+}
+
+impl Pace {
+    fn new() -> Self {
+        Pace { gap: REQUEST_GAP }
+    }
+
+    fn wait(&self) {
+        std::thread::sleep(self.gap);
+    }
+
+    fn slow_down(&mut self) {
+        self.gap = self.gap.max(SLOWED_GAP);
+    }
 }
 
 /// Today's UTC date as `YYYY-MM-DD`, or `None` if the clock is before 1970.
@@ -415,4 +636,70 @@ fn check(report: &BuildReport, index: &Index, downloaded: bool) -> Result<()> {
 
 fn megabytes(bytes: u64) -> String {
     format!("{:.1} MB", bytes as f64 / 1_000_000.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The waits, in order, against a limiter that keeps saying no.
+    ///
+    /// Written out rather than computed, because the property that matters is
+    /// not "it doubles" — it is that four retries fit inside a wait a person
+    /// standing at the terminal will sit through, and a formula asserted
+    /// against itself would not notice that changing.
+    #[test]
+    fn the_backoff_doubles_and_stops() {
+        let waits: Vec<u64> = (1..MAX_ATTEMPTS).map(|a| backoff(a).as_secs()).collect();
+        assert_eq!(waits, vec![1, 2, 4, 8]);
+        assert_eq!(waits.iter().sum::<u64>(), 15);
+        assert!(backoff(30) <= MAX_BACKOFF, "and it never runs away");
+    }
+
+    #[test]
+    fn a_delay_is_retried_and_a_verdict_is_not() {
+        assert!(worth_retrying(429), "the one #50 was reported against");
+        assert!(worth_retrying(503), "a gateway having a bad minute");
+        // 404 never reaches this: it is an empty tag, which is an answer.
+        assert!(!worth_retrying(400), "a bad request is not a delay");
+        assert!(!worth_retrying(403), "nor is being refused");
+    }
+
+    #[test]
+    fn scryfalls_own_wait_beats_our_guess() {
+        let mut headers = ureq::http::HeaderMap::new();
+        headers.insert("retry-after", "7".parse().unwrap());
+        assert_eq!(retry_after(&headers), Some(Duration::from_secs(7)));
+
+        // The HTTP-date form is not parsed, and says so by falling through to
+        // the backoff rather than by waiting zero seconds.
+        headers.insert(
+            "retry-after",
+            "Wed, 21 Oct 2026 07:28:00 GMT".parse().unwrap(),
+        );
+        assert_eq!(retry_after(&headers), None);
+        assert_eq!(retry_after(&ureq::http::HeaderMap::new()), None);
+    }
+
+    /// A tag that failed must cost the tag and nothing else.
+    ///
+    /// The message is the whole feature: it has to name what is missing, say
+    /// that the index on disk is usable, and not read as a complete sync.
+    #[test]
+    fn a_partial_sync_names_what_it_lacks_and_keeps_the_rest() {
+        let failed = vec![FailedTag {
+            name: "tutor".into(),
+            why: "Scryfall was still rate-limiting after 5 attempts".into(),
+        }];
+        let message = format!(
+            "{:#}",
+            partial_sync(Path::new("/tmp/index.jsonl"), 6, &failed)
+        );
+        assert!(message.contains("1 of 6"), "{message}");
+        assert!(message.contains("otag:tutor"), "{message}");
+        assert!(message.contains("rate-limiting"), "{message}");
+        assert!(message.contains("/tmp/index.jsonl"), "{message}");
+        assert!(message.contains("the 5 that did succeed"), "{message}");
+        assert!(message.contains("progress-engine sync"), "{message}");
+    }
 }

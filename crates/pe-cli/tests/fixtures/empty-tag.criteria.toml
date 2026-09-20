@@ -1,0 +1,8 @@
+# A tag this index does carry, that no card in this deck is in.
+#
+# The third of the three ways an `otag:` question comes back empty, and the only
+# one that is a fact about the deck: it is answered, with the note every query
+# matching nothing gets.
+[[criterion]]
+name = "a scry land in the opener"
+require = [{ turn = 0, query = "otag:scry", min = 1 }]

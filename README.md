@@ -587,6 +587,30 @@ puts it somewhere else, and `--from <file>` builds from a bulk file already on
 disk rather than downloading one. A run with no index at all says so and names
 the command that fixes it.
 
+**`--from` builds an index with no oracle tags, and that costs you the effect
+library.** Tags are not in the bulk data — they come from Scryfall's search API,
+which `--from` by definition does not call — so an index built that way carries
+none. Everything keyed on `otag:` is therefore inert on it: the
+[standard effect library](#effects) is keyed entirely on `otag:`, so
+it matches nothing, applies nothing and reports `"effects": []`. `sync` says so
+when it builds one, and a run against one says so again rather than answering an
+`otag:` question with a confident zero
+([#50](https://github.com/cramt/progress-engine/issues/50)). `--from` is for
+tests and offline machines; a working index comes from a plain `sync`.
+
+**A tag that fails does not cost the download.** The bulk file is 25MB and the
+six tag searches are about forty small requests, so the cheap half is the flaky
+one: a single HTTP 429 twenty-three pages into the sixth tag used to fail the
+whole command and throw away a download that had already parsed. Now a
+rate-limited request is retried with an exponential backoff — 1, 2, 4, 8
+seconds, or whatever `Retry-After` asks for — and the gap between requests
+widens for the rest of the run after the first refusal. A tag that still cannot
+be fetched costs that tag: the index is written with the tags that succeeded,
+its header lists exactly those, the ones that failed are named, and the command
+exits non-zero so nobody mistakes it for a full sync. Running `sync` again
+finishes the job, and does not report the index as already current while a tag
+is missing.
+
 **A run costs what your deck costs, not what Magic costs.** The index is a
 header line and then one card per line, each behind the key it is filed under:
 
@@ -806,6 +830,32 @@ lists them, so `otag:` can tell *this index never asked about that tag* apart
 from *no card is in it* — the same empty result, and very different facts. A
 query naming a tag the index does not carry is an error naming the tag, for the
 same reason `kw:tramp` is.
+
+There are three ways an `otag:` question comes back with no cards, and they are
+three different answers:
+
+```
+$ progress-engine test loam.txt mill.criteria.toml
+Error: a mill card in the opener: in query "otag:mill": this index does not carry otag:mill, so counting it would be zero by construction
+      rather than by measurement. This index carries: scry, surveil, tapland.
+
+$ progress-engine test simple-ramp.txt surveil.criteria.toml     # an index built with --from
+Error: surveil lands in the opener: in query "t:land otag:surveil": this index carries no oracle tags at all, so otag:surveil would match nothing here
+      whether or not this deck plays such a card.
+      `sync --from` builds an index like this one: tags come from Scryfall's search API,
+      not from the bulk file. Fetch them with: progress-engine sync
+
+$ progress-engine test loam.txt scry.criteria.toml
+note: query "otag:scry" matched no cards in this deck
+```
+
+Only the third is an answer, and only the third is a fact about the deck. The
+second used to be the first two silently behaving like the third
+([#50](https://github.com/cramt/progress-engine/issues/50)): the index that
+`--from` builds answered every `otag:` question with a confident zero and
+switched the whole effect library off on the way past. The same distinction
+reaches the effect library, which is not refused — nobody asked for it — but
+does say when this index is the reason it matched nothing.
 
 Note that `is:fetchland` (the ten-card cycle) and `otag:fetchland` (54 cards
 that fetch) are different questions, and Scryfall means both.

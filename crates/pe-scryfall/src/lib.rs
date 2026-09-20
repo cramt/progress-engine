@@ -556,7 +556,7 @@ impl Query {
         }
     }
 
-    /// Which `otag:` terms name a tag this index does not carry.
+    /// Which `otag:` terms this index cannot answer, and why.
     ///
     /// The same contract as [`Self::unknown_keywords`], and it matters more
     /// here. A mistyped keyword is at least a keyword; an index simply never
@@ -564,20 +564,32 @@ impl Query {
     /// cards and no indication that it was never asked. Both readings produce
     /// an empty set, so the vocabulary is the only thing that tells them apart.
     ///
-    /// An index carrying no tags at all yields nothing, because it is not
-    /// evidence that any particular tag is unreal — the caller is expected to
-    /// say *this index carries no tags, re-sync* rather than name each term.
-    pub fn unknown_tags(&self, vocabulary: &index::TagVocabulary) -> Vec<String> {
+    /// Unlike keywords, an index carrying *none* is not silence: keywords are
+    /// derived from the cards, so an old index genuinely cannot know whether
+    /// `flyign` is real, but tags are fetched and the header states which. "No
+    /// tags were fetched" is therefore a fact the index asserts about itself,
+    /// and it is reported as [`index::TagGap::NoneFetched`] rather than
+    /// swallowed — an index that answers `otag:` with a confident nothing while
+    /// admitting in its own header that it never asked is this tool's defining
+    /// failure mode wearing its own cache as a costume.
+    pub fn tag_gap(&self, vocabulary: &index::TagVocabulary) -> Option<index::TagGap> {
         let mut out = Vec::new();
-        if !vocabulary.is_empty() {
-            self.collect_unknown_tags(vocabulary, &mut out);
+        self.collect_unknown_tags(vocabulary, &mut out);
+        if out.is_empty() {
+            return None;
         }
-        out
+        Some(if vocabulary.is_empty() {
+            index::TagGap::NoneFetched(out)
+        } else {
+            index::TagGap::NotCarried(out)
+        })
     }
 
     fn collect_unknown_tags(&self, vocabulary: &index::TagVocabulary, out: &mut Vec<String>) {
         match self {
-            Query::Tag(t) if !vocabulary.contains(t) => out.push(t.clone()),
+            // Named twice is still one gap: a query is refused with the term
+            // once, not once per mention.
+            Query::Tag(t) if !vocabulary.contains(t) && !out.contains(t) => out.push(t.clone()),
             Query::Not(inner) => inner.collect_unknown_tags(vocabulary, out),
             Query::And(parts) | Query::Or(parts) => {
                 for part in parts {

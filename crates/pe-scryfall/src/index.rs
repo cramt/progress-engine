@@ -796,11 +796,49 @@ impl TagVocabulary {
         self.known.contains(&tag.to_lowercase())
     }
 
-    /// Whether the index carries any tags at all. Not public for the same
-    /// reason as [`KeywordVocabulary::is_empty`]: an index that fetched no tags
-    /// proves nothing about whether any given tag is real.
+    /// Every tag this index carries, sorted.
+    ///
+    /// For a refusal that has to say what it *does* have: "no such tag" sends
+    /// somebody hunting for a typo, and the list beside it settles in one line
+    /// whether they made one.
+    pub fn carried(&self) -> Vec<&str> {
+        let mut out: Vec<&str> = self.known.iter().map(String::as_str).collect();
+        out.sort_unstable();
+        out
+    }
+
+    /// Whether the index carries any tags at all. Not public, because the
+    /// answer callers need is the classified one from [`crate::Query::tag_gap`]
+    /// — an index carrying nothing and an index carrying the wrong things are
+    /// different facts with different fixes, and a bare predicate here would
+    /// let a caller collapse them back into one.
     pub(crate) fn is_empty(&self) -> bool {
         self.known.is_empty()
+    }
+}
+
+/// Why an index cannot answer an `otag:` term.
+///
+/// Two variants because the two have different causes and different fixes, and
+/// a caller handed one list of names could not tell them apart. A tag missing
+/// from an index that carries others is a typo or a tag nobody added to the
+/// standard list; an index carrying no tags at all is what `--from` builds and
+/// what a sync whose tag phase never ran leaves behind, and no spelling
+/// correction fixes it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TagGap {
+    /// The index carries tags, and these are not among them.
+    NotCarried(Vec<String>),
+    /// The index carries no tags at all, so every `otag:` term is unanswerable.
+    NoneFetched(Vec<String>),
+}
+
+impl TagGap {
+    /// The `otag:` terms this gap is about, in the order the query named them.
+    pub fn tags(&self) -> &[String] {
+        match self {
+            TagGap::NotCarried(tags) | TagGap::NoneFetched(tags) => tags,
+        }
     }
 }
 

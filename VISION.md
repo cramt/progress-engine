@@ -316,6 +316,12 @@ through the front door.
   rules go.
 - Criteria are TOML, structured, no expression language ([#44](https://github.com/cramt/progress-engine/issues/44)) — shipped.
 - Oracle tags are fetched at sync time and dated ([#41](https://github.com/cramt/progress-engine/issues/41)) — shipped.
+- A tag that cannot be fetched costs that tag and not the download, and an index
+  carrying no tags at all says so when something asks for one
+  ([#50](https://github.com/cramt/progress-engine/issues/50)) — shipped. The
+  empty-vocabulary reasoning that is right for keywords is wrong for tags:
+  keywords are derived from the cards, so an old index genuinely cannot know,
+  while "this index fetched none" is a fact its own header states.
 - Mulligan bottoming is a declared priority list ([#7](https://github.com/cramt/progress-engine/issues/7)).
 - The effect library ships, autoloads as a prelude, and is keyed on queries
   ([#43](https://github.com/cramt/progress-engine/issues/43)) — shipped.

@@ -13,6 +13,7 @@
 
 use anyhow::{Context, Result};
 use pe_criteria::{Effect, Route};
+use pe_scryfall::index::TagGap;
 use pe_scryfall::Query;
 use pe_toml::{Destination, EffectEntry, EffectLibrary, STANDARD_LIBRARY_ORIGIN};
 
@@ -59,6 +60,23 @@ pub struct Resolved {
     /// An entry *they* wrote matching nothing is the same failure as a criteria
     /// query matching nothing, and gets the same treatment.
     pub unmatched: Vec<String>,
+    /// Entries that matched nothing because the *index* cannot answer them.
+    ///
+    /// Standard library ones too, which is the whole point. Silence was granted
+    /// to an entry whose deck has no surveil land — a fact about the deck, and
+    /// the ordinary case. An entry matching nothing because this index carries
+    /// no oracle tags is a fact about the index, it applies to every deck
+    /// equally, and it silently switches the effect library off: the standard
+    /// library is keyed entirely on `otag:`, so a tagless index reports no
+    /// effects and narrates none of it. That is a different fact and it is said
+    /// out loud.
+    pub tag_blind: Vec<Blind>,
+}
+
+/// An effect the index cannot answer, and why it cannot.
+pub struct Blind {
+    pub matches: String,
+    pub gap: TagGap,
 }
 
 /// Resolve `library` against `deck`.
@@ -88,6 +106,7 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
 
     let mut applied = Vec::new();
     let mut unmatched = Vec::new();
+    let mut tag_blind = Vec::new();
     let mut live: Vec<usize> = Vec::new();
     for (i, entry) in library.entries().iter().enumerate() {
         let mine: Vec<usize> = owner
@@ -99,8 +118,20 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
         // Matched by *some* entry but lost the card to a later one: reported as
         // a miss would be a lie, so only an entry nothing at all matched counts.
         let matched_anything = matchers[i].matches_any(deck);
-        if !matched_anything && entry.origin != STANDARD_LIBRARY_ORIGIN {
-            unmatched.push(entry.matches.clone());
+        if !matched_anything {
+            // Asked in this order because the two reasons are not equally
+            // informative: an entry that cannot be evaluated at all did not
+            // fail to find cards, it never looked.
+            match matchers[i].tag_gap(&deck.index_tags) {
+                Some(gap) => tag_blind.push(Blind {
+                    matches: entry.matches.clone(),
+                    gap,
+                }),
+                None if entry.origin != STANDARD_LIBRARY_ORIGIN => {
+                    unmatched.push(entry.matches.clone())
+                }
+                None => {}
+            }
         }
         if mine.is_empty() {
             continue;
@@ -182,6 +213,7 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
         queries,
         marked,
         unmatched,
+        tag_blind,
     })
 }
 

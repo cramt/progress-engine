@@ -1,0 +1,8 @@
+# A tag that is real, spelled correctly, and not one this index fetched.
+#
+# `loam-index.jsonl` carries scry, surveil and tapland. `otag:mill` against it
+# would count zero cards for a reason that has nothing to do with the deck, so
+# it is refused by name rather than answered.
+[[criterion]]
+name = "a mill card in the opener"
+require = [{ turn = 0, query = "otag:mill", min = 1 }]

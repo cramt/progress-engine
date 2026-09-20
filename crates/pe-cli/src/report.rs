@@ -2,6 +2,7 @@
 
 use facet::Facet;
 use pe_criteria::{Criterion, Expectation};
+use pe_scryfall::index::TagGap;
 use pe_stats::Distribution;
 use sha2::{Digest, Sha256};
 
@@ -658,6 +659,86 @@ pub fn stale_index_note(library: &Library) -> Option<String> {
          with: progress-engine sync"
             .to_string()
     })
+}
+
+/// Why a query naming an oracle tag this index cannot answer is refused.
+///
+/// Refused rather than answered, for the reason the whole tool exists: a count
+/// of a tag nobody fetched is zero by construction, and it reads exactly like a
+/// deck that plays no such card. The two halves of the message are the two
+/// facts a reader needs — what this index knows, and which command changes it.
+pub fn tag_gap_refusal(gap: &TagGap, library: &Library) -> String {
+    let named: Vec<String> = gap.tags().iter().map(|t| format!("otag:{t}")).collect();
+    let named = named.join(", ");
+    match gap {
+        TagGap::NotCarried(_) => format!(
+            "this index does not carry {named}, so counting it would be zero by \
+             construction\n      rather than by measurement. This index carries: {}.\n      \
+             Check the spelling; a tag outside that list has to be added to \
+             pe-scryfall's\n      standard tags and fetched by `progress-engine sync`.",
+            library.index_tags.carried().join(", ")
+        ),
+        TagGap::NoneFetched(_) => format!(
+            "this index carries no oracle tags at all, so {named} would match nothing \
+             here\n      whether or not this deck plays such a card.\n      \
+             `sync --from` builds an index like this one: tags come from Scryfall's search \
+             API,\n      not from the bulk file. Fetch them with: progress-engine sync"
+        ),
+    }
+}
+
+/// What to tell a human about effects this index cannot evaluate.
+///
+/// Separate from the "matched no cards" note beside it, because they are
+/// different failures: that one is a fact about the deck, this one is a fact
+/// about the index, and only the second one is why `"effects": []` is not the
+/// answer it looks like. The no-tags case is reported once for all the entries
+/// it silences rather than once each — it is one fact about one file.
+pub fn tag_blind_notes(resolved: &crate::effects::Resolved, library: &Library) -> Vec<String> {
+    let mut notes = Vec::new();
+    let blinded: Vec<&str> = resolved
+        .tag_blind
+        .iter()
+        .filter(|b| matches!(b.gap, TagGap::NoneFetched(_)))
+        .map(|b| b.matches.as_str())
+        .collect();
+    if !blinded.is_empty() {
+        notes.push(format!(
+            "note: this index carries no oracle tags, so {} effect library {}\n      \
+             cannot match any card here: {}.\n      \
+             The effect library is keyed on otag:, so this run models no looks and no \
+             routing\n      at all — any zone they would have fed is empty by construction.\n      \
+             Fetch the tags with: progress-engine sync   (--from cannot: they come from the \
+             search API)",
+            blinded.len(),
+            if blinded.len() == 1 {
+                "entry"
+            } else {
+                "entries"
+            },
+            blinded
+                .iter()
+                .map(|m| format!("{m:?}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+    for blind in &resolved.tag_blind {
+        if let TagGap::NotCarried(tags) = &blind.gap {
+            notes.push(format!(
+                "note: effect {:?} names {}, which this index does not carry,\n      \
+                 so it matched nothing here rather than nothing being there. \
+                 This index carries: {}.",
+                blind.matches,
+                tags.iter()
+                    .map(|t| format!("otag:{t}"))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                library.index_tags.carried().join(", ")
+            ));
+        }
+    }
+    notes
 }
 
 /// The resolved effect library, in the shape the report prints.

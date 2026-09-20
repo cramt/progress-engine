@@ -4,7 +4,7 @@
 //! matches nothing yields a confidently wrong probability, which is the failure
 //! this crate exists to prevent.
 
-use pe_scryfall::index::{Card, Index, IndexFile};
+use pe_scryfall::index::{Card, Index, IndexFile, TagGap};
 use pe_scryfall::legality::Legalities;
 use pe_scryfall::{self as query, CardView, Colors, ParseError, Query};
 
@@ -471,4 +471,49 @@ fn an_index_silent_about_keywords_accuses_no_query_of_a_typo() {
     let index = written(&[("Plains", &[])]);
     let q = query::parse("kw:flying").expect("query should parse");
     assert!(q.unknown_keywords(&index.keyword_vocabulary()).is_empty());
+}
+
+/// An index carrying `tags`, written out and reopened, as above.
+fn written_with_tags(tags: &[&str]) -> IndexFile {
+    let index = Index {
+        schema: Some(pe_scryfall::index::SCHEMA),
+        tags: tags.iter().map(|t| (*t).to_string()).collect(),
+        ..Index::default()
+    };
+    let text = index.to_lines().expect("an index should serialise");
+    IndexFile::parse(std::path::Path::new("<memory>"), text).expect("and read back")
+}
+
+#[test]
+fn a_tag_the_index_did_not_fetch_is_named_rather_than_counted_as_zero() {
+    let index = written_with_tags(&["surveil", "scry"]);
+    let q = query::parse("t:land (otag:mill or otag:surveil)").expect("query should parse");
+    assert_eq!(
+        q.tag_gap(&index.tag_vocabulary()),
+        Some(TagGap::NotCarried(vec!["mill".to_string()]))
+    );
+}
+
+#[test]
+fn an_index_with_no_tags_says_so_rather_than_shrugging() {
+    // Unlike a keyword vocabulary, an empty tag list is not silence: keywords
+    // are derived from the cards, so an old index cannot know, whereas the tag
+    // list is what sync fetched and the header states it. So `--from`'s tagless
+    // index answers an `otag:` question with *I never asked*, which is what it
+    // failed to do in #50.
+    let index = written_with_tags(&[]);
+    let q = query::parse("otag:surveil or otag:surveil").expect("query should parse");
+    assert_eq!(
+        q.tag_gap(&index.tag_vocabulary()),
+        // Once, though it was named twice: a query is refused with the term,
+        // not once per mention.
+        Some(TagGap::NoneFetched(vec!["surveil".to_string()]))
+    );
+}
+
+#[test]
+fn a_tag_the_index_carries_is_no_gap_at_all() {
+    let index = written_with_tags(&["surveil"]);
+    let q = query::parse("t:land otag:surveil").expect("query should parse");
+    assert_eq!(q.tag_gap(&index.tag_vocabulary()), None);
 }
