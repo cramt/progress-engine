@@ -1931,21 +1931,139 @@ fn an_index_that_cannot_say_what_a_land_makes_refuses_the_question() {
 }
 
 #[test]
-fn a_mana_question_beside_a_live_effect_is_refused_rather_than_arbitrated() {
-    // Two policies over one land drop. The effect library plays the
-    // deepest-looking land in hand because before the mana model there was
-    // nothing else to choose by; the gate would play whichever land pays. They
-    // disagree exactly on the hands that matter, so neither gets to win
-    // silently.
+fn a_mana_question_beside_a_live_effect_is_refused_with_the_remedy_named() {
+    // Two answers to one land drop, and still refused rather than arbitrated —
+    // but the refusal names what to write rather than telling you to ask the
+    // two halves in separate files. Picking one silently is the failure; asking
+    // is the remedy.
     let out = run_loam("mana-with-routing.criteria.toml");
     assert!(!out.status.success(), "should refuse");
     let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(stderr.contains("land drop"), "{stderr}");
-    assert!(stderr.contains("issues/10"), "{stderr}");
+    assert!(stderr.contains("which land you played"), "{stderr}");
+    assert!(
+        stderr.contains("[land_drop]") && stderr.contains("prefer"),
+        "names the remedy: {stderr}"
+    );
     assert!(
         stderr.contains("two mana by turn 2"),
         "names the question: {stderr}"
     );
+}
+
+fn run_hand_twelve(criteria: &str) -> std::process::Output {
+    run_with("hand-12.txt", criteria, "lantern-index.jsonl")
+}
+
+#[test]
+fn a_declared_priority_lets_one_file_hold_the_filtering_and_the_mana() {
+    // HANDS.md hand 12, which is the thing the refusal above was costing. Two
+    // files, one deck, one question each way: the only difference between them
+    // is which land they play first, and on turn 1 that is a factor of two.
+    //
+    // Worked on paper. Twelve cards, seven in the opener, so a named card is
+    // out of the opening hand with probability 5/12. Lantern castable on turn 1
+    // needs an untapped land in play, which is the Island; under "surveil
+    // first" that happens only when the Sewers was left out, so it is the
+    // openers holding the Island and the Lantern and not the Sewers,
+    // C(9,5)/C(12,7) = 126/792. Under "untapped first" the Sewers is irrelevant
+    // and it is C(10,5)/C(12,7) = 252/792, exactly twice as many.
+    let surveil_first = run_hand_twelve("hand-12-surveil-first.criteria.toml");
+    let untapped_first = run_hand_twelve("hand-12-untapped-first.criteria.toml");
+    assert!(surveil_first.status.success(), "should answer, not refuse");
+    assert!(untapped_first.status.success(), "should answer, not refuse");
+    let surveil: serde_json::Value = serde_json::from_slice(&surveil_first.stdout).unwrap();
+    let untapped: serde_json::Value = serde_json::from_slice(&untapped_first.stdout).unwrap();
+
+    let turn_one = "Lantern castable on turn 1";
+    assert!((percent(&surveil, turn_one) - 100.0 * 126.0 / 792.0).abs() < 0.01);
+    assert!((percent(&untapped, turn_one) - 100.0 * 252.0 / 792.0).abs() < 0.01);
+
+    // And the routing half is live in both, on the same file, which is what
+    // could not be written at all before: the surveil fires either way, one
+    // turn apart, and by turn 2 it has looked either way.
+    let binned = "a Bolt binned by turn 2";
+    assert!((percent(&surveil, binned) - percent(&untapped, binned)).abs() < 0.01);
+    assert!(percent(&surveil, binned) > 0.0);
+
+    // The turn-2 answer reverses, which is the Lantern tradeoff rather than a
+    // rounding artefact: playing the tapland first costs turn 1 and pays for
+    // itself by turn 2, because the surveil dug a card deeper before the draw.
+    let turn_two = "Lantern castable on turn 2";
+    assert!(
+        percent(&surveil, turn_two) > percent(&untapped, turn_two),
+        "filtering first should be ahead by turn 2: {} vs {}",
+        percent(&surveil, turn_two),
+        percent(&untapped, turn_two)
+    );
+}
+
+#[test]
+fn a_run_that_resolved_a_land_drop_by_policy_says_which_policy() {
+    // The non-negotiable half of #54. A number that depended on a declared
+    // priority and did not name it is indistinguishable from one the tool
+    // decided for you, which is the failure this whole project is written
+    // against — so the list is on stderr and in the JSON, beside the
+    // tapped-ness assumptions it is the sibling of.
+    let out = run_hand_twelve("hand-12-surveil-first.criteria.toml");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("land drop"), "{stderr}");
+    assert!(stderr.contains("otag:surveil"), "names the list: {stderr}");
+    assert!(
+        stderr.contains("then any other land"),
+        "names the tier nobody wrote: {stderr}"
+    );
+    assert!(stderr.contains("Ties:"), "states the tie rule: {stderr}");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(
+        json["land_drop"]["prefer"],
+        serde_json::json!(["otag:surveil"])
+    );
+    assert!(json["land_drop"]["tie_break"].is_string(), "{json}");
+
+    // And a run that declared none does not grow the field: "nobody arbitrated
+    // this" is a different fact from "the list was empty".
+    let quiet: serde_json::Value =
+        serde_json::from_slice(&run_loam("loam-yard.criteria.toml").stdout).unwrap();
+    assert!(quiet.get("land_drop").is_none(), "{quiet}");
+}
+
+#[test]
+fn both_engines_answer_a_declared_land_drop_the_same_way() {
+    // The sampler walks the same `Board`, so it learned the policy by learning
+    // nothing: a disagreement here is a disagreement about how a path is
+    // produced rather than about which land was played.
+    let exact: serde_json::Value =
+        serde_json::from_slice(&run_hand_twelve("hand-12-surveil-first.criteria.toml").stdout)
+            .unwrap();
+    let sampled_out = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+        .arg("test")
+        .arg(fixture("hand-12.txt"))
+        .arg(fixture("hand-12-surveil-first.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("lantern-index.jsonl"))
+        .arg("--simulate")
+        .output()
+        .expect("binary should run");
+    let sampled: serde_json::Value = serde_json::from_slice(&sampled_out.stdout).unwrap();
+    for name in [
+        "Lantern castable on turn 1",
+        "Lantern castable on turn 2",
+        "a Bolt binned by turn 2",
+    ] {
+        let (a, b) = (percent(&exact, name), percent(&sampled, name));
+        assert!((a - b).abs() < 0.5, "{name}: exact {a} vs sampled {b}");
+    }
+}
+
+#[test]
+fn a_preference_that_names_no_land_here_says_so_and_still_answers() {
+    // The same treatment a criteria query matching nothing gets: a fact about
+    // the deck rather than an error in the file. The tier below it does the
+    // work, and the run does not pretend the list decided anything it did not.
+    let out = run_hand_twelve("hand-12-idle-preference.criteria.toml");
+    assert!(out.status.success(), "should answer");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("matches no land in this deck"), "{stderr}");
 }
 
 #[test]

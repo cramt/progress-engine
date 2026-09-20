@@ -1,0 +1,5 @@
+{"schema":2,"updated_at":"2025-09-20","cards":4,"keywords":[],"tags":["tapland","conditional-tapland","surveil","scry"],"tags_fetched_at":"2025-09-20"}
+undercity sewers	{"name":"Undercity Sewers","ci":["U","B"],"type_line":"Land — Island Swamp","cmc":0.0,"oracle":"This land enters tapped.\nWhen this land enters, surveil 1.\n{T}: Add {U} or {B}.","produces":["B","U"],"tags":["surveil","tapland"],"any_number":false}
+island	{"name":"Island","ci":["U"],"type_line":"Basic Land — Island","cmc":0.0,"oracle":"({T}: Add {U}.)","produces":["U"],"any_number":true}
+lantern of insight	{"name":"Lantern of Insight","ci":[],"type_line":"Artifact","mana_cost":"{1}","cmc":1.0,"oracle":"Players play with the top card of their libraries revealed.\n{T}, Sacrifice Lantern of Insight: Target player shuffles.","any_number":false}
+lightning bolt	{"name":"Lightning Bolt","ci":["R"],"type_line":"Instant","mana_cost":"{R}","cmc":1.0,"oracle":"Lightning Bolt deals 3 damage to any target.","any_number":false}

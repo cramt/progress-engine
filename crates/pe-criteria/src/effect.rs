@@ -149,6 +149,18 @@ pub struct Effect {
     pub route: Route,
 }
 
+/// The land drops of a run whose file declared which land to play.
+///
+/// `tiers` is the priority as groups: one list per tier, highest first, each
+/// already sorted by the tie rule so the walk can take the first group it is
+/// holding. `played_at` is what that came to on this path — `[turn][group]`,
+/// the lands actually played by the end of each turn, which is the thing a
+/// run without a declaration has no honest way to state.
+struct Declared {
+    tiers: Vec<Vec<usize>>,
+    played_at: Vec<Vec<u32>>,
+}
+
 /// The state one path through the enumeration leaves the zones in.
 ///
 /// Rebuilt in place for every path rather than allocated per path: the exact
@@ -171,9 +183,23 @@ pub struct Board<'a> {
     routed: Vec<Vec<bool>>,
     /// Which groups are lands, so the gate does not walk the whole deck.
     land_groups: Vec<usize>,
+    /// Everything that only exists where the file declared a priority.
+    ///
+    /// One `Option` rather than a field each, because the ranking and the
+    /// record of what it played are the same fact in two shapes: a board
+    /// holding one without the other would be a policy that decided drops
+    /// nothing could read, or a record of drops nothing decided.
+    ///
+    /// `None` is what selects every older behaviour below — the effects
+    /// choosing the drop among themselves, and the gate assuming the line that
+    /// pays.
+    declared: Option<Declared>,
     /// `[turn][group]`, filled by [`Board::walk`].
     hand: Vec<Vec<u32>>,
     yard: Vec<Vec<u32>>,
+    /// Which group the drop of each turn went to, for the one land that can
+    /// still be tapped: the one played this turn.
+    drop_at: Vec<Option<usize>>,
     /// Land drops made by the end of each turn.
     ///
     /// One a turn and use-it-or-lose-it, so this is not the number of lands
@@ -189,6 +215,10 @@ pub struct Board<'a> {
     kept: Vec<usize>,
     /// How many lands of each effect have been played. A land is played once.
     played: Vec<u32>,
+    /// The same count per group, which is what a policy plays from: it ranks
+    /// lands rather than effects, and a land it already played is not in hand
+    /// to be played again.
+    live_played: Vec<u32>,
     live_hand: Vec<u32>,
     live_yard: Vec<u32>,
     /// What each land group makes, parallel to `land_groups`. Fixed for the
@@ -207,7 +237,7 @@ impl<'a> Board<'a> {
         // Written as last-wins anyway, because that is the rule this is
         // implementing and a reader should not have to know the bits are
         // disjoint to believe it.
-        let group_effect = grouping
+        let group_effect: Vec<Option<usize>> = grouping
             .group_masks()
             .iter()
             .map(|mask| {
@@ -242,6 +272,34 @@ impl<'a> Board<'a> {
             .iter()
             .map(|&group| Source::of(grouping.group_mana()[group]))
             .collect();
+        // The tie rule, applied once here rather than on every path: a group
+        // belongs to the first tier that names it, and the order inside a tier
+        // is the deeper look first — the rule the effect walk already used, so
+        // a list that does not mention your surveil land still fires it — then
+        // the group the decklist reached first.
+        let declared = schedule.land_drop().map(|policy| {
+            let is_land =
+                |group: usize| grouping.group_masks()[group] & (1u64 << policy.any_land()) != 0;
+            let look_of = |group: usize| group_effect[group].map_or(0, |e| effects[e].look);
+            let mut claimed = vec![false; groups];
+            Declared {
+                tiers: policy
+                    .tiers()
+                    .map(|query| {
+                        let mut tier: Vec<usize> = (0..groups)
+                            .filter(|&g| !claimed[g] && is_land(g))
+                            .filter(|&g| grouping.group_masks()[g] & (1u64 << query) != 0)
+                            .collect();
+                        for &g in &tier {
+                            claimed[g] = true;
+                        }
+                        tier.sort_by_key(|&g| (std::cmp::Reverse(look_of(g)), g));
+                        tier
+                    })
+                    .collect(),
+                played_at: vec![vec![0; groups]; turns],
+            }
+        });
         Board {
             grouping,
             schedule,
@@ -252,10 +310,13 @@ impl<'a> Board<'a> {
             drops: vec![0; turns],
             hand: vec![vec![0; groups]; turns],
             yard: vec![vec![0; groups]; turns],
+            drop_at: vec![None; turns],
+            declared,
             fresh: Vec::with_capacity(schedule.gaps().iter().sum::<u32>() as usize),
             fresh_head: 0,
             kept: Vec::new(),
             played: vec![0; effects.len()],
+            live_played: vec![0; groups],
             live_hand: vec![0; groups],
             live_yard: vec![0; groups],
         }
@@ -267,11 +328,13 @@ impl<'a> Board<'a> {
         self.fresh_head = 0;
         self.kept.clear();
         self.played.fill(0);
+        self.live_played.fill(0);
         self.live_hand.fill(0);
         self.live_yard.fill(0);
+        self.drop_at.fill(None);
 
         let effects = self.schedule.effects();
-        for turn in 0..self.schedule.turns() {
+        for turn in 0usize..self.schedule.turns() {
             let (first, last) = self.schedule.checkpoints_of(turn);
             // Everything this turn reveals, in the order the checkpoints
             // revealed it. Appended before the draw resolves, which is safe
@@ -305,30 +368,69 @@ impl<'a> Board<'a> {
                 self.live_hand[group] += 1;
             }
 
-            // The land drop, and there is exactly one of them a turn.
-            if turn > 0 {
-                if let Some(chosen) = self.land_drop() {
-                    self.played[chosen] += 1;
-                    self.look(chosen, effects[chosen].look);
+            // The land drop, and there is exactly one of them a turn. Which
+            // land it is has two answers, and which one this run uses is the
+            // whole of issue #54: a file that declared a priority gets the land
+            // it declared, and every part of the run reads that same drop.
+            match turn.checked_sub(1) {
+                None => self.drops[turn] = 0,
+                Some(previous) if self.declared.is_some() => {
+                    let chosen = self.declared_drop();
+                    self.drop_at[turn] = chosen;
+                    if let Some(group) = chosen {
+                        self.live_played[group] += 1;
+                        if let Some(effect) = self.group_effect[group] {
+                            self.look(effect, effects[effect].look);
+                        }
+                    }
+                    self.drops[turn] = self.drops[previous] + u32::from(chosen.is_some());
+                }
+                Some(previous) => {
+                    if let Some(chosen) = self.land_drop() {
+                        self.played[chosen] += 1;
+                        self.look(chosen, effects[chosen].look);
+                    }
+                    // One drop a turn, and it is wasted if you are holding
+                    // nothing to play. That is what makes this a fact about the
+                    // path rather than about the hand: five lands drawn by turn
+                    // 3 are three lands in play, because the other two drops
+                    // never happened.
+                    let held: u32 = self.land_groups.iter().map(|&g| self.live_hand[g]).sum();
+                    self.drops[turn] = held.min(self.drops[previous] + 1);
                 }
             }
 
-            // One drop a turn, and it is wasted if you are holding nothing to
-            // play. That is what makes this a fact about the path rather than
-            // about the hand: five lands drawn by turn 3 are three lands in
-            // play, because the other two drops never happened.
-            let held: u32 = self.land_groups.iter().map(|&g| self.live_hand[g]).sum();
-            self.drops[turn] = match turn.checked_sub(1) {
-                None => 0,
-                Some(previous) => held.min(self.drops[previous] + 1),
-            };
-
             self.hand[turn].copy_from_slice(&self.live_hand);
             self.yard[turn].copy_from_slice(&self.live_yard);
+            if let Some(declared) = &mut self.declared {
+                declared.played_at[turn].copy_from_slice(&self.live_played);
+            }
         }
     }
 
-    /// Which effect's land gets played this turn, if any.
+    /// Which land the declared priority plays this turn, if any.
+    ///
+    /// The first tier holding a land this path has drawn and not yet played,
+    /// and within a tier the first group — which [`Board::new`] has already
+    /// sorted by the tie rule. A land nobody ranked is in the last tier rather
+    /// than out of the list, because declining a drop is not something a
+    /// priority list can be read as asking for.
+    ///
+    /// This answers with a *group*, not with an effect, which is the
+    /// difference that settles the argument: the effect that fires is whatever
+    /// the played land carries, and the mana the turn has is whatever the
+    /// played land makes. One decision, read by both.
+    fn declared_drop(&self) -> Option<usize> {
+        let tiers = &self.declared.as_ref()?.tiers;
+        tiers
+            .iter()
+            .flatten()
+            .copied()
+            .find(|&group| self.live_hand[group] > self.live_played[group])
+    }
+
+    /// Which effect's land gets played this turn, if any, in a run that
+    /// declared no priority.
     ///
     /// One drop per turn, so holding three surveil lands on turn one plays one
     /// of them. A land already played is not in hand to be played again, which
@@ -336,9 +438,14 @@ impl<'a> Board<'a> {
     ///
     /// Where two effects are both available the deeper look wins, ties going to
     /// the later declaration. That is a decision the engine makes on the
-    /// pilot's behalf and it is stated rather than discovered: with no mana
-    /// model there is nothing else to tell two land drops apart, so looking
-    /// further is the only sense in which one is better.
+    /// pilot's behalf and it is stated rather than discovered: with nothing
+    /// declared there is nothing else to tell two land drops apart, so looking
+    /// further is the only sense in which one is better. It is also why a mana
+    /// question cannot be asked beside a live effect without a priority — this
+    /// plays the land that looks deepest and the gate assumes the land that
+    /// pays, and the two are not the same land. The tie rule inside a declared
+    /// tier is this same one, so declaring a priority never silently switches
+    /// off an effect it did not mention.
     fn land_drop(&self) -> Option<usize> {
         let effects = self.schedule.effects();
         let mut best: Option<usize> = None;
@@ -421,7 +528,15 @@ impl<'a> Board<'a> {
         }
     }
 
-    /// How many lands matching `query` could have been played by `turn`.
+    /// How many lands matching `query` were played by `turn` — or, where
+    /// nobody declared which lands they would play, could have been.
+    ///
+    /// **With a priority declared it is a count, not an argument**: the drops
+    /// are on record, one per turn, and a criterion asking about two disjoint
+    /// sets of lands gets one answer per set off the same line rather than two
+    /// answers each pretending to be the priority. That is the whole of the
+    /// paragraph below going away, and it goes away because somebody said what
+    /// they would have played.
     ///
     /// The same use-it-or-lose-it recurrence as [`Board::drops`], run over the
     /// matching lands alone: one drop a turn, and a drop you could not use is
@@ -437,6 +552,16 @@ impl<'a> Board<'a> {
     /// makes one line serve both. Asking for one land set per criterion is the
     /// honest way to write it.
     fn played_by(&self, turn: usize, query: usize) -> u32 {
+        // A policy run has nothing to work out: the lands it played are the
+        // lands the priority chose, turn by turn, and counting them is reading
+        // them off. The recurrence below is what the question means when
+        // nobody declared which land they would have played.
+        if let Some(declared) = &self.declared {
+            return match declared.played_at.get(turn) {
+                Some(counts) => self.grouping.count_matching(counts, query),
+                None => 0,
+            };
+        }
         let mut played = 0;
         for t in 1..=turn {
             let drawn = self.grouping.count_matching(&self.hand[t], query);
@@ -447,9 +572,20 @@ impl<'a> Board<'a> {
 
     /// Whether `cost` could have been paid on `turn`.
     ///
-    /// Only lands pay, because only a land arrives without being cast. What
-    /// makes this exact rather than a guess is that the choice a pilot has —
-    /// which lands to play, and in which order — is fully enumerable here:
+    /// Only lands pay, because only a land arrives without being cast.
+    ///
+    /// **Where a policy was declared there is nothing to work out**, and that
+    /// is the point of declaring one: the lands in play are the lands the
+    /// priority played, the only one that can still be tapped is this turn's,
+    /// and the matching runs over exactly those. It is also the only reading
+    /// that can sit beside a routing effect, because it is the drop the effect
+    /// walk made rather than a second opinion about it.
+    ///
+    /// Everything below is the other reading: what this question means when
+    /// nobody said which land they would have played. It is the most generous
+    /// one, because nobody plays their lands badly, and what makes it exact
+    /// rather than a guess is that the choice a pilot has — which lands to
+    /// play, and in which order — is fully enumerable here:
     ///
     /// - **Which lands.** At most one card enters hand per turn after the
     ///   opening, so any set of lands you have drawn and can afford drops for
@@ -466,6 +602,24 @@ impl<'a> Board<'a> {
     pub fn can_cast(&self, turn: usize, cost: &Cost) -> bool {
         if cost.is_free() {
             return true;
+        }
+        if let Some(declared) = &self.declared {
+            let Some(counts) = declared.played_at.get(turn) else {
+                return false;
+            };
+            // The land played this turn is the only one that has not untapped,
+            // so it is the only one a tapped-ness assumption can take out of
+            // the pool. Everything else in play makes mana whatever it did on
+            // the way in.
+            let tapped_now = self.drop_at[turn].and_then(|group| {
+                self.land_groups
+                    .iter()
+                    .position(|&land| land == group)
+                    .filter(|&slot| self.pool[slot].tapped)
+            });
+            let usable =
+                |slot: usize| counts[self.land_groups[slot]] - u32::from(tapped_now == Some(slot));
+            return cost.payable(&self.pool, usable, Constraint::Anything);
         }
         let (Some(previous), Some(hand)) = (turn.checked_sub(1), self.hand.get(turn)) else {
             // Turn 0 is the opening hand, before any land drop. Nothing is in

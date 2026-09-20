@@ -19,12 +19,14 @@
 mod effect;
 mod grouping;
 pub mod mana;
+mod policy;
 mod schedule;
 mod zone;
 
 pub use effect::{Board, Effect, Route, Trigger, TriggerError};
 pub use grouping::{Grouping, GroupingError};
 pub use mana::{Cost, CostError, ManaSource, Palette};
+pub use policy::LandDropPolicy;
 pub use schedule::Schedule;
 pub use zone::{Reachable, Zone, ZoneError};
 

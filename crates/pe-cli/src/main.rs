@@ -7,6 +7,7 @@
 //! reading.
 
 mod effects;
+mod landdrop;
 mod library;
 mod report;
 mod sync;
@@ -305,12 +306,40 @@ fn run_test(
         }
     }
 
+    // The land-drop priority, resolved before the effects so that its queries
+    // sit directly behind the criteria file's own and the effect library's
+    // grouping bits still land where `effects::resolve` puts them.
+    landdrop::check(criteria.land_drop(), &library)?;
+    let land_drop = match criteria.land_drop() {
+        [] => None,
+        prefer => Some(landdrop::resolve(prefer, &library, criteria.queries())?),
+    };
+    let asked: Vec<String> = criteria
+        .queries()
+        .iter()
+        .cloned()
+        .chain(land_drop.iter().flat_map(|p| p.queries.iter().cloned()))
+        .collect();
+    if let Some(policy) = &land_drop {
+        for query in &policy.unmatched {
+            eprintln!("note: land-drop preference {query:?} matches no land in this deck");
+        }
+        for (query, spells) in &policy.non_lands {
+            eprintln!(
+                "note: land-drop preference {query:?} also matches {} you cannot play as a land \
+                 drop: {}.\n      A land drop plays lands, so the priority ignores them.",
+                if spells.len() == 1 { "a card" } else { "cards" },
+                spells.join(", ")
+            );
+        }
+    }
+
     // The standard library first, then the file's own, because last-wins is
     // what makes the prelude overridable without an override syntax.
     let effect_library =
         pe_toml::EffectLibrary::parse(pe_toml::STANDARD_LIBRARY, pe_toml::STANDARD_LIBRARY_ORIGIN)?
             .followed_by(criteria.effects().clone());
-    let resolved = effects::resolve(&effect_library, &library, criteria.queries())?;
+    let resolved = effects::resolve(&effect_library, &library, &asked)?;
     for query in &resolved.unmatched {
         eprintln!("note: effect {query:?} matched no cards in this deck");
     }
@@ -346,12 +375,13 @@ fn run_test(
                 }
             }
             // One land drop a turn is a decision, and a live effect already
-            // spends it: the walk plays the deepest-looking land you hold
-            // because with no mana model there was nothing else to choose by.
-            // Answering a mana question beside it would be a second policy
-            // deciding the same drop, and the two would disagree on exactly the
-            // hands that matter.
-            if !resolved.effects.is_empty() {
+            // spends it: with no declared priority the walk plays the
+            // deepest-looking land you hold, because there was nothing else to
+            // choose by. Answering a mana question beside that would be a
+            // second policy deciding the same drop, and the two would disagree
+            // on exactly the hands that matter. Declaring the priority makes
+            // them one decision, which is the remedy the refusal names.
+            if !resolved.effects.is_empty() && land_drop.is_none() {
                 anyhow::bail!(
                     "{origin}: {asked_by}: {}",
                     report::mana_beside_effects_refusal()
@@ -369,15 +399,18 @@ fn run_test(
         }
     };
 
-    let queries: Vec<String> = criteria
-        .queries()
+    let queries: Vec<String> = asked
         .iter()
         .cloned()
         .chain(resolved.queries.iter().cloned())
         .collect();
     let grouping = library.grouping_for(&queries, &resolved.marked, mana)?;
-    let schedule =
-        pe_criteria::Schedule::build(criteria.horizon(), on_the_draw, resolved.effects.clone());
+    let schedule = pe_criteria::Schedule::build(
+        criteria.horizon(),
+        on_the_draw,
+        resolved.effects.clone(),
+        land_drop.as_ref().map(|p| p.policy.clone()),
+    );
     let plan = criteria.plan();
     // Exact first, always, for every question that fits: either enumeration
     // answered it, or here is why this run has to sample instead. There is no
@@ -485,6 +518,16 @@ fn run_test(
                 library::ManaDetail::Ignored => Vec::new(),
                 library::ManaDetail::Modelled => library.conditional_taplands(),
             },
+            // Read off the schedule the engine actually walked, like the zone
+            // reachability above, so the note cannot claim a policy the
+            // enumeration did not use.
+            land_drop: schedule.land_drop().map(|_| report::LandDropUse {
+                prefer: land_drop
+                    .as_ref()
+                    .map_or_else(Vec::new, |p| p.prefer.clone()),
+                then: "any other land",
+                tie_break: pe_criteria::LandDropPolicy::TIE_BREAK,
+            }),
         },
         report::Provenance {
             tool_version: env!("CARGO_PKG_VERSION"),

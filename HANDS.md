@@ -331,15 +331,50 @@ So *Lantern in hand by turn 1* and *Lantern on the battlefield by turn 1* differ
 and the difference is a whole turn. This is the question VISION.md flags as not
 yet settled: which one does the north star mean.
 
-*Half answerable.* The mana half is: `{ turn = 1, can_cast = "{1}" }` beside a
-clause for the card in hand is the whole of "and one mana", and it reads false
-on turn 1 and true on turn 2 exactly as above. What it cannot be written beside
-is the surveil, because a routing effect and a mana question both decide which
-land you played this turn, and a file holding both is refused rather than
-arbitrated. So this hand's filtering and this hand's mana are each expressible
-and not yet in one file.
+**Now add an Island to the hand, and the tool has to be told something it
+cannot work out.** Both lands are a legal drop on turn 1, and they buy opposite
+things: the Sewers digs a card and makes no mana this turn, the Island makes
+mana and digs nothing. That is not a fact about the cards, it is a decision the
+pilot makes, and it is the same shape as mulligan bottoming and selection
+routing — so it is declared, in the file, as a priority over queries:
 
-*Needs #10 (the two policies reconciled).*
+```toml
+[land_drop]
+prefer = ["otag:surveil"]        # or ["t:land -otag:tapland"]
+```
+
+*Answerable*, and **the pair is the test rather than either half of it**. One
+deck — `hand-12.txt`, twelve cards: Undercity Sewers, Island, Lantern of
+Insight and nine Lightning Bolt — and two criteria files identical but for that
+list. Both hold the surveil's `to_graveyard` routing *and* `can_cast = "{1}"`,
+which is the combination that was refused before
+[#54](https://github.com/cramt/progress-engine/issues/54).
+
+| | surveil first | untapped first |
+|---|---|---|
+| Lantern castable on turn 1 | **15.91%** | **31.82%** |
+| Lantern castable on turn 2 | **62.05%** | 58.86% |
+| a Bolt binned by turn 2 | 54.55% | 54.55% |
+
+Turn 1 is worked on paper: seven of twelve cards are in the opener, so
+"untapped first" wants the Island and the Lantern, which is C(10,5)/C(12,7) =
+252/792, and "surveil first" wants the Island and the Lantern *and not the
+Sewers*, which is C(9,5)/C(12,7) = 126/792 — exactly half, because the Sewers
+takes the drop whenever it turns up.
+
+**The reversal on turn 2 is the whole Lantern tradeoff, priced.** Playing the
+tapland first costs the entire first turn and pays for itself immediately: the
+surveil bins a Bolt before the turn-2 draw, so the draw digs a card deeper and
+finds the Lantern more often. Filtering versus tempo is a number now instead of
+an argument, and neither policy is the tool's opinion — both are the file's.
+
+The binned Bolt does not move between the two, and that is the check that the
+routing survived the arbitration: the surveil fires either way, one turn apart,
+and by turn 2 it has looked either way.
+
+*Answerable today.* Asserted in `crates/pe-cli/tests/cli.rs` as the pair above,
+and at the engine level in `pe-criteria` as this hand written as a seven-card
+library, where the two priorities answer turn 1 with a flat yes and no.
 
 ---
 
@@ -364,8 +399,8 @@ case in #37, which is the one hole.*
 
 ## What these are for
 
-When the features land, these become tests — hands 4, 6, 7, 8, 9, 10, 11, 13 and
-14 already have. Until then they are the specification: if an implementation
+When the features land, these become tests — hands 4, 6, 7, 8, 9, 10, 11, 12, 13
+and 14 already have. Until then they are the specification: if an implementation
 disagrees with a hand here, one of the two is wrong and it is worth knowing
 which before shipping a percentage.
 

@@ -67,9 +67,15 @@ no part of the mana model.
 
 The first route is now writable: *Lantern in hand and one mana* is a clause
 asking for the card and a clause asking `can_cast = "{1}"`, which is exactly the
-gate. The other two are not — the second needs the budget, because it casts two
-spells in one turn, and the third needs delayed effects. So the north star is
-closer by one of three routes and is still not met.
+gate — and it is writable **beside the deck's filtering** rather than in a file
+of its own, now that the land drop those two argued over is declared rather than
+refused ([#54](https://github.com/cramt/progress-engine/issues/54)). HANDS.md
+hand 12 is that route worked out, and it prices the trade the deck actually
+makes: playing the surveil land first halves the turn-1 number and wins the
+turn-2 one. The other two routes are still not writable — the second needs the
+budget, because it casts two spells in one turn, and the third needs delayed
+effects. So the north star is closer by one of three routes and is still not
+met.
 
 **Life from the Loam.** *How often is Loam in my graveyard by turn 5?* Needs the
 graveyard to be a thing you can ask about, and needs a card routed into the yard
@@ -267,8 +273,12 @@ rest stay on top and arrive in hand next turn. A card left on top is the card
 the next draw takes, so a look that routes nothing is exactly a no-op — which
 is the honest answer when nobody has said where the cards should go, and the
 reason the shipped library can autoload without moving a single number.
-Mulligan bottoming and the budget's spell priority are the same mechanism with
-a different resource, and are not built.
+**The land drop is the second resource it covers.** `[land_drop] prefer = [...]`
+is the same declared priority over queries, ranking the lands you could play
+rather than the cards you just looked at — which is what lets one file hold a
+routing effect and a mana question, since both then read the drop the list
+chose. Mulligan bottoming and the budget's spell priority are the third and
+fourth resources and are not built; the mechanism they will use exists.
 
 ### Mana
 
@@ -307,14 +317,30 @@ Which spell you cast when you cannot cast both is a **declared priority over
 queries** — the same mechanism as mulligan bottoming and selection routing, gated
 by a resource instead of by a looked-at set. Not a fourth policy language.
 
-**Two decisions the gate makes for the pilot**, both stated rather than hidden.
-A shockland's tapped-ness is a choice — `otag:conditional-tapland` says the card
+**Two decisions about the pilot's lands, and they are settled differently.** A
+shockland's tapped-ness is a choice — `otag:conditional-tapland` says the card
 offers it and settles nothing else — and the run assumes the pessimistic half
-and names every card it assumed it about. And a land drop is one resource with
-two claimants: the effect library already spends it choosing which land to play,
-so a file holding both a routing effect and a mana question is refused rather
-than arbitrated. Three declared-priority mechanisms that disagree is the failure
-this document is written against, and two is not better.
+and names every card it assumed it about.
+
+The other was a land drop being one resource with two claimants: the effect
+library spends it choosing which land to look with, the gate spends it choosing
+which land pays, and a file holding both was refused rather than arbitrated.
+**It is now declared**, as `[land_drop] prefer = [...]` — the same declared
+priority over queries as mulligan bottoming and selection routing, over a third
+resource rather than a fourth policy language. The list is read in order, a land
+it does not name is played last, a tie inside one entry goes to the deeper look
+and then to the decklist's order, and **every run that resolved a drop this way
+prints the list** beside the tapped-ness assumptions. Declaring nothing and
+holding both claimants is still refused, because *which land would you have
+played* is a question the pilot answers and the tool does not: what changed is
+that the refusal now names the remedy instead of telling you to ask the two
+halves in separate files.
+
+The width behaves the way `can_cast` taught us to expect: a preference that
+separates lands something already separated is free, and one that draws a new
+line costs a group. In the case this exists for — a routing effect and a mana
+question in one file — the natural list is free, because routing has already
+split the land it routes with.
 
 ### Zones are the real question
 
@@ -370,6 +396,14 @@ through the front door.
   ([#17](https://github.com/cramt/progress-engine/issues/17)) — shipped. The
   mana-gated tier is refused by name until
   [#10](https://github.com/cramt/progress-engine/issues/10).
+- Which land you play when you could play either is a declared priority over
+  queries, `[land_drop] prefer = [...]`
+  ([#54](https://github.com/cramt/progress-engine/issues/54)) — shipped, and it
+  is the second resource on the one mechanism rather than a third language. The
+  list is total: an unnamed land is played last, and a tie inside one entry goes
+  to the deeper look and then to the decklist's order. A run that used it prints
+  it. Holding a routing effect and a mana question with no list declared is
+  still refused — the remedy is named, and the tool does not pick for you.
 - The standard library declares what a card looks at and never where the cards
   go, because the destination is part of the question.
 - A mana model is in scope, staged gate-first then budget

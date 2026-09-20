@@ -1,0 +1,11 @@
+// HANDS.md hand 12: a surveil land and a Lantern of Insight, plus one Island
+// so that there is a second land to prefer and therefore a decision to declare.
+//
+// Twelve cards, which is the smallest library that leaves room for the look
+// slot a live effect costs on each of two turns. The two criteria files beside
+// this one ask the same questions of the same deck and differ only in which
+// land they play first.
+1x Undercity Sewers [Land]
+1x Island [Land]
+1x Lantern of Insight [Lantern - Vision]
+9x Lightning Bolt [Burn]

@@ -28,7 +28,7 @@ fn grouping_for(criteria: &Criteria, each: u32) -> Grouping {
 fn schedule(criteria: &Criteria) -> Schedule {
     // On the draw, so every turn past the opener sees one more card and the
     // helper does not have to special-case turn one.
-    Schedule::build(criteria.horizon(), true, Vec::new())
+    Schedule::build(criteria.horizon(), true, Vec::new(), None)
 }
 
 fn parse(source: &str) -> Criteria {
@@ -1335,4 +1335,56 @@ fn loading_order_is_the_whole_of_last_wins() {
     assert_eq!(combined.entries().len(), 2, "both are kept, neither merges");
     assert_eq!(combined.entries()[0].origin, "first.toml");
     assert_eq!(combined.entries()[1].origin, "second.toml");
+}
+
+// --- The land-drop priority (#54) -----------------------------------------
+
+const ONE_CLAUSE: &str = r#"
+[[criterion]]
+name = "a land by turn 1"
+require = [{ turn = 1, query = "t:land", min = 1 }]
+"#;
+
+#[test]
+fn a_land_drop_priority_is_read_in_the_order_it_was_written() {
+    // Order is the whole content of the mechanism, so it is asserted rather
+    // than assumed: a list read back sorted, deduplicated or reversed would be
+    // a different policy answering under the same name.
+    let criteria = parse(&format!(
+        "[land_drop]\nprefer = ['otag:surveil', 't:land -otag:tapland']\n{ONE_CLAUSE}"
+    ));
+    assert_eq!(
+        criteria.land_drop(),
+        ["otag:surveil", "t:land -otag:tapland"]
+    );
+    // And a file that declares none says so by being empty rather than by
+    // having a default filled in for it. Nobody has decided which land they
+    // would play, which is a state this tool reports rather than resolves.
+    assert!(parse(ONE_CLAUSE).land_drop().is_empty());
+}
+
+#[test]
+fn a_priority_that_arbitrates_nothing_is_refused_by_name() {
+    // Both of these would appear in the report as a declared policy while
+    // settling no drop at all: the run would say a number came from a list that
+    // never decided anything.
+    assert!(matches!(
+        refuse(&format!("[land_drop]\nprefer = []\n{ONE_CLAUSE}")),
+        ErrorKind::NoPreference
+    ));
+    assert!(matches!(
+        refuse(&format!("[land_drop]\n{ONE_CLAUSE}")),
+        ErrorKind::NoPreference
+    ));
+    let repeated = refuse(&format!(
+        "[land_drop]\nprefer = ['t:land', 'otag:surveil', 't:land']\n{ONE_CLAUSE}"
+    ));
+    assert!(
+        matches!(
+            &repeated,
+            ErrorKind::RepeatedPreference { query, first, position }
+                if query == "t:land" && *first == 1 && *position == 3
+        ),
+        "{repeated}"
+    );
 }

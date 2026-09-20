@@ -270,6 +270,28 @@ pub struct Breakdown {
     /// Lands whose tapped-ness this run decided for the pilot. Empty unless the
     /// run asked a mana question, because otherwise it decided nothing.
     pub assumed_tapped: Vec<String>,
+    /// The priority that decided the land drop, where the file declared one.
+    ///
+    /// Beside the tapped-ness assumptions rather than anywhere else, because
+    /// it is the same kind of fact: something that chose between two lands and
+    /// moved every number that depended on which one was played.
+    pub land_drop: Option<LandDropUse>,
+}
+
+/// The declared priority this run resolved its land drops by.
+///
+/// Carried as the list rather than as a flag. "Resolved by policy" is not the
+/// claim worth reporting — *which* policy is, because two different lists over
+/// the same deck are two different numbers, and a reader comparing them has to
+/// be able to see which one produced the page in front of them.
+#[derive(Facet)]
+pub struct LandDropUse {
+    /// What the file wrote, highest priority first.
+    pub prefer: Vec<String>,
+    /// The tier the file did not write: everything else that is a land.
+    pub then: &'static str,
+    /// How a tie inside one entry was settled, stated rather than buried.
+    pub tie_break: &'static str,
 }
 
 /// SHA-256 of some bytes, lowercase hex.
@@ -317,6 +339,14 @@ pub struct Report {
     /// Empty on every run that asks no mana question.
     #[facet(skip_serializing_if = Vec::is_empty)]
     pub assumed_tapped: Vec<String>,
+    /// The priority this run resolved its land drops by, where a file declared
+    /// one.
+    ///
+    /// Absent on a run that declared none, which is not the same fact as an
+    /// empty list: it says the drop was not arbitrated at all, because nothing
+    /// in that run needed it to be.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub land_drop: Option<LandDropUse>,
     pub criteria: Vec<CriterionResult>,
     /// Alongside `criteria` rather than merged into it. They answer different
     /// questions in different units, and several things already read `criteria`
@@ -342,6 +372,7 @@ impl Report {
             zones,
             effects,
             assumed_tapped,
+            land_drop,
         } = breakdown;
         let Scenario {
             on_the_draw,
@@ -419,6 +450,7 @@ impl Report {
             zones,
             effects,
             assumed_tapped,
+            land_drop,
             criteria: results,
             expectations: expected,
             asserted,
@@ -487,6 +519,27 @@ impl Report {
                  it is zero by construction rather than by measurement.\n      \
                  Asked by: {:?}\n      {fix}\n",
                 z.zone, z.asked_by
+            ));
+        }
+        // Which land this run played, on every turn it played one. A land drop
+        // is one resource with two claimants — the effect that looks at cards
+        // and the mana that pays for them — and a run that resolved it by a
+        // declared priority says so, because a number that depended on that
+        // choice and did not name it is the failure this tool exists to
+        // prevent. Printed whether or not anything else moved: the list is an
+        // input, exactly like the deck and the criteria file.
+        if let Some(policy) = &self.land_drop {
+            out.push_str(
+                "note: the land drop here is decided by the priority this file declared, and \
+                 every\n      number below that depends on which land was played depends on \
+                 it:\n",
+            );
+            for (i, query) in policy.prefer.iter().enumerate() {
+                out.push_str(&format!("      {}. {query:?}\n", i + 1));
+            }
+            out.push_str(&format!(
+                "      then {}. Ties: {}.\n",
+                policy.then, policy.tie_break
             ));
         }
         // An assumption the tool made on the pilot's behalf, which moves
@@ -954,22 +1007,31 @@ pub fn battlefield_refusal(query: &str, spells: &[String]) -> String {
     )
 }
 
-/// Why a mana question beside a live land-drop effect is refused.
+/// Why a mana question beside a live land-drop effect, with no priority
+/// declared, is refused.
 ///
-/// Both are answers to *which land did you play this turn*, and they are
-/// different answers. The walk plays the deepest-looking land you are holding,
-/// because before the mana model there was nothing else to tell two drops
-/// apart; the gate assumes you played whichever land pays. Running both would
-/// be two policies over one resource, which is the failure VISION.md is written
-/// against — so it is refused until one policy covers both.
+/// Both are answers to *which land did you play this turn*, and with nothing
+/// declared they are different answers. The walk plays the deepest-looking land
+/// you are holding, because there is nothing else to tell two drops apart; the
+/// gate assumes you played whichever land pays. Running both would be two
+/// policies over one resource, which is the failure VISION.md is written
+/// against.
+///
+/// **What it does not do is pick one.** Which land you would have played is a
+/// decision the pilot makes and the tool cannot derive, so the refusal names
+/// the declaration that settles it — [`crate::landdrop`] — rather than choosing
+/// a default and mentioning it in a note nobody reads. That is *ask, don't
+/// guess* applied to a policy instead of to card data.
 pub fn mana_beside_effects_refusal() -> String {
     "a mana question and a live land-drop effect are both answers to which land you played \
-     this turn,\n      and this run holds both. The effect library plays the deepest-looking \
-     land in hand; the mana\n      model would play whichever land pays. Two policies over \
-     one land drop would disagree exactly\n      where it matters, so this is refused rather \
-     than arbitrated \
-     (https://github.com/cramt/progress-engine/issues/10).\n      \
-     Drop the `to_graveyard` routing, or ask the mana question in a file of its own."
+     this turn,\n      and this file declares no priority between them. With none declared \
+     the effect plays the\n      deepest-looking land in hand and the mana question assumes \
+     whichever land pays, which are\n      two answers to one drop — so this is refused \
+     rather than arbitrated.\n      \
+     Declare the priority and both read the same drop:\n\n      \
+     [land_drop]\n      prefer = ['otag:surveil', 't:land -otag:tapland']\n\n      \
+     The list is read in order, the first entry a land in hand matches wins, and any land the \
+     list\n      does not name is played last."
         .to_string()
 }
 

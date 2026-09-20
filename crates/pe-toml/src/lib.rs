@@ -87,6 +87,25 @@ struct FileDef {
     expect: Vec<ExpectDef>,
     #[facet(default)]
     effect: Vec<EffectDef>,
+    /// The priority over the one land drop a turn. One table, not a list of
+    /// them: a run has one land drop to arbitrate, and two tables would be two
+    /// policies over one resource, which is the thing this key exists to stop.
+    land_drop: Option<LandDropDef>,
+}
+
+/// The declared priority over the land drop, as written.
+///
+/// The same mechanism as mulligan bottoming
+/// ([#7](https://github.com/cramt/progress-engine/issues/7)) and selection
+/// routing ([#17](https://github.com/cramt/progress-engine/issues/17)): a list
+/// of queries in the order the pilot would take them. Not a fourth policy
+/// language, and deliberately not richer than the other two — anything that
+/// had to look at the hand rather than at counts would take the engine out of
+/// being exact.
+#[derive(Facet)]
+#[facet(deny_unknown_fields)]
+struct LandDropDef {
+    prefer: Option<Vec<String>>,
 }
 
 /// One entry of the effect library, as written.
@@ -330,6 +349,10 @@ pub struct Criteria {
     expectations: Vec<Expectation>,
     probes: Vec<Probe>,
     effects: EffectLibrary,
+    /// The land-drop priority, still as text: which cards a query picks out is
+    /// a question about a decklist rather than about this file, exactly as it
+    /// is for an effect's `match`.
+    land_drop: Vec<String>,
 }
 
 /// One effect, validated but not yet resolved against any deck.
@@ -432,6 +455,16 @@ impl Criteria {
     /// them.
     pub fn effects(&self) -> &EffectLibrary {
         &self.effects
+    }
+
+    /// The land-drop priority this file declared, highest first, or empty
+    /// where it declared none.
+    ///
+    /// Empty is the older state and not a lesser one: it means nobody has said
+    /// which land they would play, which is answerable on its own and refused
+    /// the moment two parts of the run need the answer to differ.
+    pub fn land_drop(&self) -> &[String] {
+        &self.land_drop
     }
 
     pub fn criteria(&self) -> &[Criterion] {
@@ -604,8 +637,8 @@ pub struct CriteriaError {
 const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least, require, \
                       any_of), whose require clauses are (turn, query, zone, min, max) or (turn, \
                       can_cast) and whose any_of branches each hold a require of their own, \
-                      [[expect]] tables (name, turn, query, zone), and [[effect]] tables (match, \
-                      look, on, to_graveyard).";
+                      [[expect]] tables (name, turn, query, zone), [[effect]] tables (match, \
+                      look, on, to_graveyard), and one [land_drop] table (prefer).";
 
 #[derive(Debug, Error)]
 pub enum ErrorKind {
@@ -709,6 +742,27 @@ pub enum ErrorKind {
     /// unmodelled zone and printed the same way.
     #[error("{at}: {cost}")]
     BadCost { at: String, cost: CostError },
+    /// A policy that arbitrates nothing, refused rather than recorded.
+    ///
+    /// The report says which runs resolved a land drop by policy, and a table
+    /// with no entries would put that line above numbers no declaration
+    /// touched — a provenance claim that is not true.
+    #[error(
+        "[land_drop] declares no `prefer` entries, so it settles no land drop and every number \
+         below it would be answered as if it were not there.\n\
+         Write `prefer = ['<query>', ...]` in the order you would play them, or drop the table"
+    )]
+    NoPreference,
+    #[error(
+        "[land_drop]: `prefer` entry {position} repeats entry {first} ({query:?}), so it can \
+         never decide a drop: the earlier one already took every land it names.\n\
+         A priority list is read in order and the first entry that matches wins"
+    )]
+    RepeatedPreference {
+        query: String,
+        first: usize,
+        position: usize,
+    },
     #[error(
         "{at}: has both `query` and `can_cast`, which are two different questions.\n\
          `query` counts cards in a zone; `can_cast` asks whether the lands in play could have \
@@ -802,6 +856,7 @@ fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
         return Err(ErrorKind::AsksNothing);
     }
     let effects = effects_of(&file, origin)?;
+    let land_drop = land_drop_of(&file)?;
 
     let mut vocabulary = Vocabulary::default();
     let mut criteria = Vec::with_capacity(file.criterion.len());
@@ -895,7 +950,36 @@ fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
         expectations,
         probes,
         effects,
+        land_drop,
     })
+}
+
+/// Validate the `[land_drop]` table of an already-deserialized file.
+///
+/// Everything checkable without a decklist, which is less than it is for an
+/// effect: a preference is one query and a query means nothing until there are
+/// cards. What is checkable is that the table says something — an empty list
+/// is a policy that decides nothing, and a repeated entry is one that can never
+/// be reached, and both would read as a declared priority in the report while
+/// arbitrating no drop at all.
+fn land_drop_of(file: &FileDef) -> Result<Vec<String>, ErrorKind> {
+    let Some(def) = &file.land_drop else {
+        return Ok(Vec::new());
+    };
+    let prefer = def.prefer.clone().unwrap_or_default();
+    if prefer.is_empty() {
+        return Err(ErrorKind::NoPreference);
+    }
+    for (i, query) in prefer.iter().enumerate() {
+        if let Some(first) = prefer[..i].iter().position(|q| q == query) {
+            return Err(ErrorKind::RepeatedPreference {
+                query: query.clone(),
+                first: first + 1,
+                position: i + 1,
+            });
+        }
+    }
+    Ok(prefer)
 }
 
 /// What the whole file asks about, accumulated as it is read.

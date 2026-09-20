@@ -1,0 +1,19 @@
+# A priority whose first entry picks out no land in this deck: this list plays
+# scry lands first, and there are none here. It decides nothing, the tier below
+# it decides everything, and the run says so rather than reporting a policy
+# that did no work.
+[land_drop]
+prefer = ["otag:scry"]
+
+[[effect]]
+match = "t:land otag:surveil"
+look = 1
+on = "landdrop"
+to_graveyard = 'name:"Lightning Bolt"'
+
+[[criterion]]
+name = "Lantern castable on turn 2"
+require = [
+  { turn = 2, query = 'name:"Lantern of Insight"', min = 1 },
+  { turn = 2, can_cast = "{1}" },
+]

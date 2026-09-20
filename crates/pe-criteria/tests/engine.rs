@@ -7,8 +7,9 @@
 use std::convert::Infallible;
 
 use pe_criteria::{
-    Cost, Count, Criterion, Effect, Evaluator, Expectation, Grouping, GroupingError, ManaSource,
-    Palette, PathOutcomes, PathView, Plan, Route, RunError, Schedule, Trigger, Zone, MAX_COUNT,
+    Cost, Count, Criterion, Effect, Evaluator, Expectation, Grouping, GroupingError,
+    LandDropPolicy, ManaSource, Palette, PathOutcomes, PathView, Plan, Route, RunError, Schedule,
+    Trigger, Zone, MAX_COUNT,
 };
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
@@ -507,14 +508,14 @@ fn a_look_that_routes_nothing_moves_nothing() {
     };
     let plain = pe_criteria::run(
         &g,
-        &Schedule::build(3, true, Vec::new()),
+        &Schedule::build(3, true, Vec::new(), None),
         only_expectations(1),
         &mut tally(),
     )
     .unwrap();
     let looking = pe_criteria::run(
         &g,
-        &Schedule::build(3, true, vec![surveil(Route::Nowhere)]),
+        &Schedule::build(3, true, vec![surveil(Route::Nowhere)], None),
         only_expectations(1),
         &mut tally(),
     )
@@ -547,7 +548,7 @@ fn one_land_drop_a_turn_caps_how_deep_a_turn_can_get() {
         })]);
         let r = pe_criteria::run(
             &g,
-            &Schedule::build(turn as u32, true, vec![surveil(Route::Everything)]),
+            &Schedule::build(turn as u32, true, vec![surveil(Route::Everything)], None),
             only_expectations(1),
             &mut ev,
         )
@@ -580,7 +581,7 @@ fn a_routed_card_leaves_the_hand_and_the_library_for_the_yard() {
     })]);
     let r = pe_criteria::run(
         &g,
-        &Schedule::build(3, true, vec![surveil(Route::Matching(0))]),
+        &Schedule::build(3, true, vec![surveil(Route::Matching(0))], None),
         only_criteria(1),
         &mut ev,
     )
@@ -743,5 +744,89 @@ fn a_free_spell_is_castable_with_no_lands_at_all() {
             Box::new(move |v: &PathView<'_>| v.can_cast(3, &one))
         ),
         0.0
+    );
+}
+
+// --- The declared land drop (#54) -----------------------------------------
+
+/// HANDS.md hand 12 as one hand: a surveil land that enters tapped, an Island
+/// that does not, and a Lantern of Insight that costs `{1}`.
+///
+/// Bit 0 picks out the surveil land, bit 1 the Island, bit 2 either land —
+/// which is the tier a policy always ends in, because a land nobody ranked is
+/// still a land.
+fn hand_twelve() -> Grouping {
+    Grouping::with_mana(
+        q(&["surveil", "untapped", "lands"]),
+        vec![
+            (0b101, tapped("UB"), 1),
+            (0b110, untapped("U"), 1),
+            (0b000, ManaSource::Spell, 5),
+        ],
+    )
+    .unwrap()
+}
+
+#[test]
+fn which_land_the_priority_plays_decides_the_turn_the_spell_is_castable() {
+    // The hand holds both lands, so both policies play both of them — one on
+    // turn 1 and the other on turn 2 — and the only difference is the order.
+    // That order is a whole turn of Lantern of Insight, which is the
+    // disagreement the refusal was standing in for.
+    let grouping = hand_twelve();
+    let one = Cost::parse("{1}").unwrap();
+    let castable = |prefer: usize, turn: usize| {
+        let schedule = Schedule::plain_under(&[7, 0, 0], LandDropPolicy::new(vec![prefer], 2));
+        let cost = one.clone();
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| v.can_cast(turn, &cost)),
+        )
+    };
+    assert_eq!(
+        castable(0, 1),
+        0.0,
+        "surveil first: the only land in play arrived tapped"
+    );
+    assert_eq!(castable(0, 2), 1.0, "and it has untapped by turn 2");
+    assert_eq!(
+        castable(1, 1),
+        1.0,
+        "untapped first: the Island pays on turn 1"
+    );
+    // The same board read as a count rather than as a cost: the priority also
+    // decides *which* land is on the battlefield on turn 1, which is the fact
+    // an optimistic reading of the same hand cannot state.
+    let in_play = |prefer: usize, query: usize| {
+        let schedule = Schedule::plain_under(&[7, 0, 0], LandDropPolicy::new(vec![prefer], 2));
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| v.count_in(1, query, Zone::Battlefield) == 1),
+        )
+    };
+    assert_eq!(in_play(0, 0), 1.0, "surveil first plays the surveil land");
+    assert_eq!(in_play(0, 1), 0.0);
+    assert_eq!(in_play(1, 1), 1.0, "untapped first plays the Island");
+    assert_eq!(in_play(1, 0), 0.0);
+}
+
+#[test]
+fn a_land_the_priority_never_names_is_still_played() {
+    // A priority list is a preference, not a whitelist. This one names only the
+    // surveil land and the hand holds none, so every drop falls through to the
+    // tier the file did not write — and declining a drop is not something a
+    // list can be read as asking for.
+    let grouping = hand_twelve();
+    let schedule = Schedule::plain_under(&[7, 0, 0], LandDropPolicy::new(vec![0], 2));
+    assert_eq!(
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(|v: &PathView<'_>| v.count_in(2, 2, Zone::Battlefield) == 2)
+        ),
+        1.0,
+        "both lands are played by turn 2, ranked or not"
     );
 }

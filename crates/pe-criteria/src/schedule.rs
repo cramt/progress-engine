@@ -20,6 +20,7 @@
 //! percentage nobody can attribute.
 
 use crate::effect::Effect;
+use crate::policy::LandDropPolicy;
 
 /// The opening hand, before anybody has drawn for turn.
 const OPENING_HAND: u32 = 7;
@@ -33,6 +34,11 @@ pub struct Schedule {
     /// always the draw; anything after it is a look slot.
     spans: Vec<(usize, usize)>,
     effects: Vec<Effect>,
+    /// Who gets the land drop, where the file said. `None` is a run that never
+    /// declared one, and it is the state every run was in before
+    /// [`LandDropPolicy`] existed: the effects choose among themselves by look
+    /// depth and the gate assumes whichever line pays.
+    land_drop: Option<LandDropPolicy>,
 }
 
 impl Schedule {
@@ -48,6 +54,19 @@ impl Schedule {
             gaps: gaps.to_vec(),
             spans: (0..gaps.len()).map(|t| (t, t)).collect(),
             effects: Vec::new(),
+            land_drop: None,
+        }
+    }
+
+    /// [`Schedule::plain`] with a land-drop priority declared.
+    ///
+    /// For a hand written as raw gaps — a seven-card library played out over
+    /// turns that draw nothing — which is how HANDS.md's hands are asserted:
+    /// one deal, every path is that deal, and a probability is a yes or a no.
+    pub fn plain_under(gaps: &[u32], land_drop: LandDropPolicy) -> Schedule {
+        Schedule {
+            land_drop: Some(land_drop),
+            ..Schedule::plain(gaps)
         }
     }
 
@@ -58,7 +77,16 @@ impl Schedule {
     /// that routes nowhere leaves every card it looks at on top, which is where
     /// the card already was, so paying a checkpoint a turn for it would widen
     /// the enumeration to compute a value it cannot change.
-    pub fn build(horizon: u32, on_the_draw: bool, effects: Vec<Effect>) -> Schedule {
+    /// `land_drop` is the priority the file declared over the one drop a turn,
+    /// and it is a parameter rather than something bolted on afterwards
+    /// because a run that forgot to pass it would silently answer the mana
+    /// question against a different land than the one the effects played.
+    pub fn build(
+        horizon: u32,
+        on_the_draw: bool,
+        effects: Vec<Effect>,
+        land_drop: Option<LandDropPolicy>,
+    ) -> Schedule {
         // One land drop a turn, so one effect fires a turn, so the deepest
         // single look is the most cards a turn can examine.
         let look_slots = effects.iter().map(|e| e.look).max().unwrap_or(0) as usize;
@@ -78,6 +106,7 @@ impl Schedule {
             gaps,
             spans,
             effects,
+            land_drop,
         }
     }
 
@@ -87,6 +116,11 @@ impl Schedule {
 
     pub fn effects(&self) -> &[Effect] {
         &self.effects
+    }
+
+    /// The declared priority over the land drop, if this run has one.
+    pub fn land_drop(&self) -> Option<&LandDropPolicy> {
+        self.land_drop.as_ref()
     }
 
     /// Turns this run covers, counting turn 0, the opening hand.

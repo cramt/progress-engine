@@ -286,6 +286,22 @@ impl Library {
         Ok(names)
     }
 
+    /// How many library cards matching `query` can be played as a land drop.
+    ///
+    /// The other half of [`Library::non_lands_matching`], and the half a
+    /// land-drop preference needs: a preference picking out no land at all
+    /// decides no drop in this deck, and only the card data knows that.
+    pub fn lands_matching(&self, query: &str) -> Result<u32> {
+        let q =
+            pe_scryfall::parse(query).map_err(|e| anyhow::anyhow!("in query {query:?}: {e}"))?;
+        Ok(self
+            .entries
+            .iter()
+            .filter(|e| q.matches(&e.card.view(&e.categories)) && is_land(&e.card))
+            .map(|e| e.qty)
+            .sum())
+    }
+
     pub fn has_lands(&self) -> bool {
         self.entries.iter().any(|e| is_land(&e.card))
     }

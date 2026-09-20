@@ -198,7 +198,10 @@ hold. A clause is a `turn`, a `query`, an optional `zone`, and at least one of
 [Mana, as a gate](#mana-as-a-gate). A criterion can also hold `any_of`, a list
 of alternative routes, for which see [Routes](#routes-any_of). An `[[expect]]`
 is a `name`, a `turn`, a `query` and an optional `zone`, and reports a
-distribution rather than a verdict.
+distribution rather than a verdict. A file may also hold `[[effect]]` tables,
+for which see [Effects](#effects), and one `[land_drop]` table saying which
+land you would play when you could play either, for which see
+[Mana, as a gate](#mana-as-a-gate).
 
 ```toml
 [[criterion]]
@@ -304,7 +307,7 @@ require = [
 | `hand` | the default. Cards drawn by that turn — nothing is cast or discarded yet, so nothing has left |
 | `graveyard` | cards an effect routed to the yard — see [Effects](#effects). Zero in a run whose effects route nothing, and the run says so |
 | `library` | cards matching the query that are still in the deck: the deck's total minus what has been drawn or binned |
-| `battlefield` | **lands you have played**, one drop a turn. Answerable only for a query that matches lands; refused for anything that would have to be cast |
+| `battlefield` | **lands you have played**, one drop a turn — the ones your `[land_drop]` priority played, or the most you could have played if you declared none. Answerable only for a query that matches lands; refused for anything that would have to be cast |
 
 `graveyard` is reachable exactly when some effect in the run routes a card
 there. In a run where none does, every count in it is zero by construction —
@@ -347,7 +350,9 @@ otherwise produces a percentage that looks exactly like a real one:
 | `zone = "exile"`, or any other zone | a zone that fell through to a default would answer the wrong question |
 | `query` and `can_cast` in one clause | two different questions, one of which would have to be answered silently |
 | `can_cast = "{X}{G}"`, or any hybrid or Phyrexian symbol | each is a decision about how much to pay rather than an amount; read as zero, an X-spell is castable on turn one |
-| a mana question in a file with a live `to_graveyard` effect | both decide which land you played this turn, and they decide it differently |
+| a mana question in a file with a live `to_graveyard` effect and no `[land_drop]` | both decide which land you played this turn, and they decide it differently. Declare the priority and they are one decision |
+| `[land_drop]` with no `prefer` entries | it settles no drop, and the run would report a policy that decided nothing |
+| a `prefer` entry repeating an earlier one | the earlier one already took every land it names, so it can never decide a drop |
 | `atLeast`, or any other unknown key | a key quietly dropped is an assertion quietly deleted |
 | a file with no `[[criterion]]` and no `[[expect]]` | it asks nothing |
 | `on = "cast"` on an effect | firing on the holding of a card overstates the turn by however many copies you hold, and knowing you cast it needs the mana model |
@@ -435,11 +440,86 @@ manabase is three kinds of basic stays exact to turn 6 at a million
 compositions. The matching itself is cheap, about 0.65µs a hand; the width is
 what costs.
 
-**One land drop, one policy.** A `[[effect]]` that routes cards and a mana
-question are both answers to *which land did you play this turn*, and they
-answer it differently: the effect library plays the deepest-looking land you
-hold, because before this there was nothing else to tell two drops apart. A file
-holding both is refused rather than arbitrated, until one policy covers both.
+**One land drop, one declared policy.** A `[[effect]]` that routes cards and a
+mana question are both answers to *which land did you play this turn*, and left
+alone they answer it differently: the effect plays the deepest-looking land you
+hold, the gate assumes whichever land pays. Neither of those is a fact about
+your deck — it is a decision you make every game — so you declare it, and both
+halves then read the same drop:
+
+```toml
+[land_drop]
+prefer = ["t:land otag:surveil", "t:land -otag:tapland"]
+```
+
+The list is read in order and the **first entry a land in hand matches wins**.
+A land the list does not name is played **last**, not never: a priority list is
+a preference, and a drop you decline is a drop you never get back. A **tie**
+inside one entry goes to the deeper look — so a list that does not mention your
+surveil land still fires the surveil — and then to the card your decklist names
+first.
+
+This is the same mechanism as mulligan bottoming
+([#7](https://github.com/cramt/progress-engine/issues/7)) and selection routing:
+a declared priority over queries, evaluated against counts. There is not a
+fourth policy language and there will not be one.
+
+**Every run that resolves a land drop this way says so**, beside the
+tapped-ness assumptions and for the same reason — a number that turned on a
+choice has to name the choice:
+
+```
+note: the land drop here is decided by the priority this file declared, and every
+      number below that depends on which land was played depends on it:
+      1. "otag:surveil"
+      then any other land. Ties: a tie inside one entry goes to the deeper look, then to the
+      card this decklist names first.
+```
+
+The same list is in the JSON as `land_drop`. A file that declares none has no
+`land_drop` field at all, which is a different fact from an empty one: nothing
+in that run needed the drop arbitrated.
+
+**Declare nothing and hold both, and it is still refused** — with the remedy
+named rather than a default chosen, because *which land would you have played*
+is a question only you can answer:
+
+```
+$ progress-engine test lantern.txt lantern.criteria.toml
+Error: lantern.criteria.toml: Lantern castable on turn 1: a mana question and a live land-drop
+      effect are both answers to which land you played this turn, and this file declares no
+      priority between them. [...]
+      Declare the priority and both read the same drop:
+
+      [land_drop]
+      prefer = ['otag:surveil', 't:land -otag:tapland']
+```
+
+**What it costs.** Nothing, unless the list draws a line nothing else drew. The
+preferences become grouping queries, so an entry that separates lands the mana
+model or an effect already separated is free, and one that splits a group
+nobody else split costs a group — exactly as `can_cast` does. Measured on a
+99-card deck with 38 lands in five printings and three mana profiles, asking
+`can_cast = "{1}{U}"`:
+
+| Turn | no policy | `t:land -otag:tapland -otag:conditional-tapland` (4 groups) | plus a `t:land otag:surveil` tier (5 groups) |
+|---|---|---|---|
+| 4 | 7,680 — 0.15s | 7,680 — 0.15s | 41,250 — 0.25s |
+| 5 | 30,720 — 0.21s | 30,720 — 0.21s | 206,250 — 0.74s |
+| 6 | 122,880 — 0.47s | 122,880 — 0.49s | 1,031,250 — 3.21s |
+| 7 | 491,520 — 1.56s | 491,520 — 1.64s | 5,156,250 — over the ceiling, sampled |
+
+The first list is free because tapped-ness is a line the gate already draws. The
+second costs a group because nothing else told a surveil land from any other
+tapland — *unless the file also routes with it*, and then that group exists
+already: the same surveil tier beside a live `to_graveyard` effect is 25,781,250
+compositions across 5 groups with or without it, to the path. Which is the case
+this feature exists for.
+
+A list is still read in a run that observes no land drop at all — no mana
+question and no live effect — and there it costs groups and moves no number,
+because nothing in that run can tell which land you played. Declare one where
+something reads it.
 
 ### Effects
 
