@@ -1,0 +1,7 @@
+# The same index, the same check, a keyword that is real and in the pool.
+#
+# The half of the refusal that has to keep working: Life from the Loam has
+# Dredge, the header lists it, and the question is answered rather than refused.
+[[criterion]]
+name = "dredge in the opener"
+require = [{ turn = 0, query = "kw:dredge", min = 1 }]

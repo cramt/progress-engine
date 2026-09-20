@@ -727,6 +727,26 @@ pub fn tag_gap_refusal(gap: &TagGap, library: &Library) -> String {
     }
 }
 
+/// Why a query naming a keyword no card in this index has is refused.
+///
+/// The precedent the tag refusal was built on, finally wired to something. The
+/// index's keyword list is the whole card pool's, not this deck's, so a keyword
+/// missing from it is missing from Magic as this index knows Magic — which
+/// leaves exactly two readings, a typo or a set newer than the file, and one
+/// command tells them apart. No list of what it does carry, unlike the tag
+/// refusal: that one names six tags, this one would name two thousand keywords.
+pub fn unknown_keyword_refusal(unknown: &[String]) -> String {
+    let named: Vec<String> = unknown.iter().map(|k| format!("kw:{k}")).collect();
+    format!(
+        "no card in this index has {}, so counting it would be zero by construction\n      \
+         rather than by measurement — which reads exactly like a deck that plays none. \
+         The\n      index lists every keyword the whole card pool carries, so this is a \
+         misspelling\n      unless it is newer than the index. Check the spelling; \
+         rebuild with: progress-engine sync",
+        named.join(", ")
+    )
+}
+
 /// What to tell a human about effects this index cannot evaluate.
 ///
 /// Separate from the "matched no cards" note beside it, because they are

@@ -120,7 +120,7 @@ missing a field, a criterion that asks about something the engine does not
 simulate — each produces a percentage that looks exactly like a real one.
 
 So the tool refuses. An empty library is refused rather than answered with 0%. A
-query naming a keyword the index has never seen is refused by name. A query
+query naming a keyword no card in the index has is refused by name. A query
 naming an oracle tag this index never fetched is refused, because *nobody asked
 about that tag* and *no card is in it* are the same empty result and very
 different facts.
@@ -357,6 +357,10 @@ through the front door.
   empty-vocabulary reasoning that is right for keywords is wrong for tags:
   keywords are derived from the cards, so an old index genuinely cannot know,
   while "this index fetched none" is a fact its own header states.
+- A keyword the index's card pool does not carry is refused by name
+  ([#53](https://github.com/cramt/progress-engine/issues/53)) — shipped. It was
+  written here as the precedent for the tag refusal while having no caller at
+  all: the check existed, was unit-tested, and nothing ran it.
 - Mulligan bottoming is a declared priority list ([#7](https://github.com/cramt/progress-engine/issues/7)).
 - The effect library ships, autoloads as a prelude, and is keyed on queries
   ([#43](https://github.com/cramt/progress-engine/issues/43)) — shipped.

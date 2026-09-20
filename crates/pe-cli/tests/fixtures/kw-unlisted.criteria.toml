@@ -1,0 +1,9 @@
+# A real keyword against an index whose header never listed any.
+#
+# `index.jsonl` is hand-written and carries no keyword vocabulary, which is not
+# the same fact as carrying no tags: keywords are derived from the cards, so an
+# index that never wrote them down is silent rather than authoritative and gets
+# to refuse nothing. Birds of Paradise still has Flying, and still counts.
+[[criterion]]
+name = "a flier in the opener"
+require = [{ turn = 0, query = "kw:flying", min = 1 }]

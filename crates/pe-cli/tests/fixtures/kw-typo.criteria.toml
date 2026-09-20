@@ -1,0 +1,8 @@
+# A misspelled keyword against an index that lists its keywords.
+#
+# `loam-index.jsonl` says the pool carries Dredge, so it is authoritative about
+# what a keyword is here: nothing in Magic-as-this-index-knows-it is called
+# `flyign`, and counting it would be zero by construction. Refused by name.
+[[criterion]]
+name = "a typoed keyword"
+require = [{ turn = 0, query = "kw:flyign", min = 1 }]

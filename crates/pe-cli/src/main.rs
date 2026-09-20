@@ -290,6 +290,19 @@ fn run_test(
                 report::tag_gap_refusal(&gap, &library)
             );
         }
+        // The same seam for `kw:`, and a separate check rather than a second
+        // arm of the one above, because the two indexes are authoritative about
+        // different things. An index carrying no tags is a fact it asserts about
+        // itself; an index listing no keywords is a fact it never recorded, so
+        // it refuses nothing — `unknown_keywords` already knows that and
+        // returns nothing there rather than calling every keyword a typo.
+        let unknown = parsed.unknown_keywords(&library.index_keywords);
+        if !unknown.is_empty() {
+            anyhow::bail!(
+                "{asked_by}: in query {query:?}: {}",
+                report::unknown_keyword_refusal(&unknown)
+            );
+        }
     }
 
     // The standard library first, then the file's own, because last-wins is

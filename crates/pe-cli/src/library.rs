@@ -8,7 +8,7 @@ use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 use pe_criteria::{Grouping, GroupingError, ManaSource, Palette};
-use pe_scryfall::index::{Card, Index, IndexFile, TagVocabulary};
+use pe_scryfall::index::{Card, Index, IndexFile, KeywordVocabulary, TagVocabulary};
 use pe_scryfall::OutsideLibrary;
 
 /// Scryfall's oracle tag for a land that always enters tapped.
@@ -98,6 +98,15 @@ pub struct Library {
     /// fetched a tag and a deck with no card in it produce the same empty
     /// result, and only this says which one happened.
     pub index_tags: TagVocabulary,
+    /// Every keyword the pool this index was built from carries, read off the
+    /// header beside the tags and for the same reason: `kw:flyign` and a deck
+    /// playing no flier both count zero, and only this tells them apart.
+    ///
+    /// An empty one is not the same fact as an empty tag list. Tags are
+    /// fetched, so an index carrying none says so about itself; keywords are
+    /// derived from the cards, so an index that never wrote them down is silent
+    /// rather than authoritative, and refuses nothing.
+    pub index_keywords: KeywordVocabulary,
     /// Kept rather than dropped: excluding a card silently is the same failure
     /// as a query that matches nothing — a confident number nobody can question.
     pub excluded: Vec<Excluded>,
@@ -115,6 +124,7 @@ impl Library {
         let index = IndexFile::open(&path)?;
         let stale = index.is_stale();
         let index_tags = index.tag_vocabulary();
+        let index_keywords = index.keyword_vocabulary();
 
         // Strict about unknown cards: you cannot compute a land count for a
         // card you cannot look up, so a typo here would silently skew every
@@ -170,6 +180,7 @@ impl Library {
             deck_sha256: crate::report::sha256_hex(text.as_bytes()),
             index_is_stale: stale,
             index_tags,
+            index_keywords,
             index_updated_at: index.updated_at().map(str::to_owned),
             excluded,
         })

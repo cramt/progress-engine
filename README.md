@@ -1014,6 +1014,27 @@ alchemy, paupercommander, duel, oldschool, premodern, predh, tlr)
 That is why the format table is a closed struct rather than a map: a map would
 make every misspelling a silent 0%.
 
+A keyword is checked against the index rather than against the parser, because
+the set of real keywords grows with every set and a list hard-coded beside the
+parser would start refusing real queries the day it fell behind. So `kw:flyign`
+is refused where `cat:"Rmap"` above could only be noted — the index knows every
+keyword the card pool carries, and a typo among them is that confident 0%
+wearing a valid query:
+
+```
+$ progress-engine test loam.txt kw-typo.criteria.toml --index loam-index.jsonl
+Error: a typoed keyword: in query "kw:flyign": no card in this index has kw:flyign, so counting it would be zero by construction
+      rather than by measurement — which reads exactly like a deck that plays none. The
+      index lists every keyword the whole card pool carries, so this is a misspelling
+      unless it is newer than the index. Check the spelling; rebuild with: progress-engine sync
+```
+
+An index whose header never listed any keywords refuses nothing. Keywords are
+derived from the cards, so an index that never wrote them down is silent rather
+than authoritative, and silence is not evidence that any keyword is unreal —
+unlike oracle tags, which are fetched, and where carrying none is a fact the
+header states about itself.
+
 ### Cards that are never in your library
 
 Sticker sheets, attractions, planes, phenomena, schemes, vanguards, conspiracies,

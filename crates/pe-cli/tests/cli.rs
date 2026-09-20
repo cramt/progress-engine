@@ -1181,6 +1181,52 @@ fn the_three_ways_an_otag_question_comes_back_empty_are_three_different_answers(
 }
 
 #[test]
+fn a_keyword_no_card_in_the_index_has_is_refused_rather_than_counted() {
+    // #53. The precedent the otag refusal above was built on, and it had no
+    // caller: `kw:flyign` parsed, matched nothing, and reported 0.00% with the
+    // same note a real keyword nobody plays would get. Same three cases, same
+    // seam, one difference — an index silent about keywords refuses nothing,
+    // because keywords are derived from the cards rather than fetched.
+
+    // One: the index lists its keywords, and this is not one of them. Refused
+    // by name, before anything is enumerated, with no JSON to read as an answer.
+    let typo = run_with("loam.txt", "kw-typo.criteria.toml", "loam-index.jsonl");
+    let stderr = String::from_utf8_lossy(&typo.stderr);
+    assert!(!typo.status.success(), "{stderr}");
+    assert!(stderr.contains("kw:flyign"), "names the keyword: {stderr}");
+    assert!(
+        stderr.contains("a typoed keyword"),
+        "and the criterion that asked: {stderr}"
+    );
+    assert!(stderr.contains("progress-engine sync"), "{stderr}");
+    assert!(
+        typo.stdout.is_empty(),
+        "and produces no JSON that could be read as an answer"
+    );
+
+    // Two: the keyword is real and in the pool. Answered, with no note.
+    let real = run_with("loam.txt", "kw-real.criteria.toml", "loam-index.jsonl");
+    let stderr = String::from_utf8_lossy(&real.stderr);
+    assert!(real.status.success(), "{stderr}");
+    assert!(!stderr.contains("kw:dredge"), "not refused: {stderr}");
+    let json: serde_json::Value = serde_json::from_slice(&real.stdout).unwrap();
+    assert_eq!(json["queries"][0]["cards"], 4);
+
+    // Three: the index never wrote a keyword list down, so it knows nothing
+    // about keywords and says nothing about this one. Refusing here would fail
+    // a correct query over a gap in the file rather than a gap in the deck.
+    let unlisted = run("kw-unlisted.criteria.toml");
+    let stderr = String::from_utf8_lossy(&unlisted.stderr);
+    assert!(unlisted.status.success(), "{stderr}");
+    assert!(!stderr.contains("kw:flying"), "not refused: {stderr}");
+    let json: serde_json::Value = serde_json::from_slice(&unlisted.stdout).unwrap();
+    assert_eq!(
+        json["queries"][0]["cards"], 1,
+        "and the keyword still matches: Birds of Paradise"
+    );
+}
+
+#[test]
 fn the_autoloading_library_does_not_move_the_known_numbers() {
     // The regression anchor for the whole feature. The standard library loads
     // on every run without anybody asking, so the first thing it has to prove
