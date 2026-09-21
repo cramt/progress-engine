@@ -1,0 +1,7 @@
+[application]
+# The default template subclasses a WebView activity. Dioxus Native draws
+# straight to a Surface, so it needs a plain NativeActivity instead.
+android_main_activity = "MainActivity.kt.hbs"
+
+# Matches the API level the NDK toolchain in flake.nix links against.
+android_min_sdk_version = 26
