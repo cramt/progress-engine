@@ -1,0 +1,33 @@
+[package]
+name = "delver-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Sandboxed host for the Delver X card-recognition engine"
+publish = false
+
+[lib]
+name = "delver_engine"
+path = "src/lib.rs"
+
+[dependencies]
+deno_core = "0.412"
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt", "macros", "time"] }
+deno_error = "=0.7.1"
+ureq = "3"
+sevenz-rust2 = "0.23"
+facet = "0.50.0-rc.7"
+facet-msgpack = "0.50.0-rc.7"
+facet-json = "0.50.0-rc.7"
+facet-value = "0.50.0-rc.7"
+
+[[example]]
+name = "query"
+path = "examples/query.rs"
+
+[[example]]
+name = "recognize"
+path = "examples/recognize.rs"
