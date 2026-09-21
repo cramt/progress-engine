@@ -17,9 +17,9 @@ to put all of it behind a V8 isolate with no host access.
 nix develop                 # rust, imagemagick, wasm-tools, node
 ./.fixtures/fetch-cards.sh  # grab a few reference scans from Scryfall
 
-cargo run --example query   # boot and query the catalogue
-cargo run --example recognize   # identify a card in an image
-cargo test                  # includes the accuracy numbers the Node probe set
+cargo run -p gitaxian-probe-engine --example query      # boot and query the catalogue
+cargo run -p gitaxian-probe-engine --example recognize  # identify a card in an image
+cargo test -p gitaxian-probe-engine                     # the accuracy numbers, below
 ```
 
 There is nothing to download first: `Engine::open` pulls the engine, the catalogue
@@ -46,6 +46,8 @@ let rows = engine.query(
      JOIN data.editions e ON e._id = c.edition
      WHERE n.name = 'Black Lotus'",
 )?;
+// -> rows are Vec<Vec<String>>: the engine sends every column as text,
+//    whatever the column was declared as.
 
 // Recognition takes raw RGBA. Decoding is the caller's problem.
 let cards = engine.recognize(&Image { data: &rgba, width, height })?;
@@ -53,7 +55,7 @@ let cards = engine.recognize(&Image { data: &rgba, width, height })?;
 //                 rec_conf: 32, set_conf: 100, similar: [...], .. }]
 
 let card = engine.card_by_id(cards[0].data_id)?;
-engine.close();   // required — tears down the 32-thread pool
+engine.close();   // optional — `Drop` does this too; call it to pick the moment
 ```
 
 `Engine::open` returns only once the catalogue is queryable *and* the recogniser has
@@ -62,14 +64,15 @@ refuses to run if `core.wasm`'s import surface has changed (see *Drift*).
 
 | Method | |
 |---|---|
-| `Engine::open(EngineConfig)` | boot; `model` is `Alpha`, `Lambda`/`Gamma` need a `token` |
+| `Engine::open(EngineConfig)` | boot. `model` is `Model::Alpha`; the gated tiers carry their own `Jwt` and are refused (see *Scope*) |
 | `query(sql)` / `exec(sql)` | direct SQLite against the catalogue and collection |
 | `card_by_id(data_id)` | resolve a recognition result to catalogue columns |
 | `recognize(&Image)` | identify cards in a still RGBA image |
 | `locate(&Image)` | find the card quad only — the crop detector, no identification |
+| `tier()` / `version()` / `fingerprint()` | which weights, which upstream build, which import surface |
 | `worker_count()` | live pthread isolates; 32 once booted |
 | `take_logs()` | whatever any isolate wrote to `console`, tagged by isolate |
-| `close()` | free buffers and kill the worker pool |
+| `close()` | free buffers and kill the worker pool. `Drop` calls it |
 
 The streaming path the Node probe exercised — `pushFrame`/`recognitionStatus`/
 `takeDetections`, `takeScanImage` and `segmentationMask` — is not carried here;
@@ -212,6 +215,13 @@ number, and cannot separate printings that share an illustration. See FINDINGS �
 `tests/engine.rs` pins both numbers, so a port that quietly changes the engine's
 behaviour fails the suite rather than the review.
 
+It only pins them where it can run. Every engine case needs the upstream blobs, and
+the accuracy ones need `magick` too; without either they skip and the suite still
+passes, which is not the same claim. `nix flake check` is one such place - it has no
+network, so it builds the crate and runs the pure tests and nothing here. Set
+`PROBE_REQUIRE_ENGINE=1` anywhere these numbers are meant to hold and a skip becomes
+a failure.
+
 ## Drift
 
 The engine is rebuilt upstream on its own schedule and the minified import names are
@@ -236,9 +246,21 @@ on a mismatch. When that fires, re-verify the ABI against FINDINGS before passin
 | `js/main-prelude.js`, `js/worker-prelude.js` | the two halves of the `Worker` shim |
 | `js/engine.js` | the bootstrap sequence and job protocol, in-sandbox |
 
+## Threading
+
+`JsRuntime` pins its isolate to the thread that built it, so `Engine` is `!Send` and
+every call blocks its thread - `recognize` for a few hundred milliseconds while the
+pool works. Embedding it anywhere with a UI therefore means giving the engine a
+thread of its own and talking to it over a channel; that is V8's constraint, not a
+choice this crate makes. `EngineConfig` *is* `Send`, so the config can be built
+wherever and handed across.
+
 ## Scope
 
-`alpha` tier only. `lambda` and `gamma` are gated behind `_rec_set_jwt_token`;
-that gate was not touched and isn't in scope here.
+`alpha` tier only. `Model::Lambda` and `Model::Gamma` carry the `Jwt` that unlocks
+them, but `Engine::open` refuses both: the glue calls `_rec_alpha_init` and selects
+model 0 whatever the tier, so booting one would feed lambda or gamma weights to
+alpha's init and report success. The `_rec_set_jwt_token` gate was not touched and
+resolving the per-tier init export is what it would take.
 
 No Delver binaries are committed — the crate pulls them from the origin at run time.

@@ -30,7 +30,7 @@ the narrow tag has come up empty, which it has not yet.
 |---|---|---|
 | **Ichormoon Gauntlet** | This repo. Criteria in, exact draw probabilities out. Binary is `gauntlet`. | yes |
 | **Reality Chip** | The shared core: card data, Scryfall client, decklist parsing, the maths. `crates/reality-chip/`. | no — see below |
-| **Gitaxian Probe** | Card scanning. Point a camera at cards, learn what they are. | yes |
+| **Gitaxian Probe** | Card scanning. Point a camera at cards, learn what they are. `crates/gitaxian-probe/`. | yes |
 | **Experimental Augury** | The Monte Carlo cross-checking oracle, if `gauntlet-sim` is ever extracted. | yes |
 
 A gauntlet is a set of trials you put something through, which is what a
@@ -108,7 +108,13 @@ follows the directory:
 ```
 crates/ichormoon-gauntlet/{cli,criteria,toml,sim}    packages gauntlet-*
 crates/reality-chip/{scryfall,decklist,stats}        packages chip-*
+crates/gitaxian-probe/{engine}                       packages gitaxian-probe-*
 ```
+
+The first two shorten the directory to its distinctive word. Gitaxian Probe does
+not, because `probe-engine` names nothing: the distinctive word here *is* the
+pair, and a lone `probe` reads as a generic. Shorten when the short form is
+still the name; keep the whole name when it is not.
 
 The grouping is not tidiness. It is what turns the eventual extraction into
 `git filter-repo --subdirectory-filter crates/reality-chip` — one command, with
@@ -131,3 +137,23 @@ Two things are queued behind that extraction and neither has been done:
 
 Do the extraction when there is a second consumer. One consumer is not enough
 evidence about where the seam goes.
+
+### The second consumer arrived and wanted neither half
+
+Gitaxian Probe landed on 2026-09-21 and is the second product in the tree, so
+the two items above were supposed to come due. They did not, and the reason is
+worth keeping.
+
+Delver ships its own catalogue — 124k cards of SQLite, unpacked inside the
+sandbox — and every row carries a `scryfall_id`. `card_by_id` already selects
+it. So the probe gets printing-level identity for free from the engine it is
+hosting: it does not need the printing-level bulk file item 2 is about, and it
+does not call Scryfall at all, so it does not need the shared client in item 1
+either. What it hands the rest of the family is a `scryfall_id`, which is a
+join key into whatever index the consumer already has.
+
+That is the opposite of the prediction, and it leaves the split with the same
+evidence it had before: one real consumer of `chip-scryfall`, which is
+Ichormoon Gauntlet. The oracle index being in the wrong directory is still
+true and still visible; it is just not urgent, and the seam is still guessed
+rather than observed. Wait for a consumer that actually calls Scryfall.

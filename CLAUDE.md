@@ -1,8 +1,18 @@
-# Ichormoon Gauntlet
+# progress-engine
 
-A Magic: The Gathering draw-probability engine. It answers *how often does this
-deck do this by turn N* by exact enumeration, with a sampling engine alongside
-as a cross-checking oracle.
+Two products, one workspace. Read NAMES_FOR_FUTURE.md for why they are named
+what they are and where a third would go.
+
+**Ichormoon Gauntlet** (`crates/ichormoon-gauntlet/`, binary `gauntlet`) is what
+most of this file is about: a Magic: The Gathering draw-probability engine. It
+answers *how often does this deck do this by turn N* by exact enumeration, with
+a sampling engine alongside as a cross-checking oracle.
+
+**Gitaxian Probe** (`crates/gitaxian-probe/`) is card scanning - a host that
+runs Delver X's downloaded recognition engine inside a deno_core sandbox. It
+shares the workspace and nothing else yet; its own README and FINDINGS.md are
+the authority on it, and the notes below about decks, criteria and the two
+engines do not apply to it.
 
 ## Read before changing behaviour
 
@@ -35,6 +45,13 @@ nix develop --command cargo fmt --all
 four checks are fmt, clippy, test and build; a fmt failure aborts the others, so
 an unformatted commit reports red without ever having run the tests. This has
 hidden broken clippy and tests across four commits before.
+
+The probe adds two wrinkles. Its V8 comes from a fixed-output derivation in the
+flake pinned to the `v8` crate version *and* the feature variant deno_core asks
+for, so a bump to either needs the hash re-prefetched - `flake.nix` says how.
+And its engine tests skip when the upstream blobs or the card fixtures are
+missing, which is every sandboxed build: run them with `PROBE_REQUIRE_ENGINE=1`
+before claiming its accuracy numbers, or a green suite has checked nothing.
 
 ## Verifying a change
 
