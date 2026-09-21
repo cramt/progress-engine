@@ -1,0 +1,8 @@
+// HANDS.md hand 2: hand 1 with the Island swapped for a tapland.
+//
+// One card different and the answer changes from one Opt to none: Undercity
+// Sewers enters tapped, so it makes no mana the turn it arrives. It surveils
+// on the way in, which is the trade a filtering deck actually makes — one more
+// card seen, nothing cast.
+1x Undercity Sewers [Land]
+6x Opt [Cantrip]

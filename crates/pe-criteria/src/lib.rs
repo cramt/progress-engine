@@ -25,10 +25,10 @@ mod zone;
 
 pub use effect::{Board, Effect, Route, Trigger, TriggerError};
 pub use grouping::{Grouping, GroupingError};
-pub use mana::{Cost, CostError, LandDetail, ManaSource, Palette};
-pub use policy::LandDropPolicy;
-pub use schedule::{Reading, Schedule};
-pub use zone::{Reachable, Zone, ZoneError};
+pub use mana::{Cost, CostError, Demand, LandDetail, ManaSource, Palette};
+pub use policy::{CastingPolicy, LandDropPolicy};
+pub use schedule::{Policies, Reading, Schedule};
+pub use zone::{Counted, Reachable, Zone, ZoneError};
 
 use pe_stats::{Distribution, DistributionBuilder, KahanSum, Probability};
 
@@ -244,23 +244,24 @@ impl<'a> PathView<'a> {
         self.board.turns()
     }
 
-    /// How many cards matching `query_idx` are in `zone` at the end of `turn`.
+    /// How many cards matching `query_idx` this path has put where `counted`
+    /// says, by the end of `turn`.
     ///
     /// Indexed by turn rather than by checkpoint, and that indirection is the
     /// whole point. A turn was one checkpoint until an effect started looking
     /// at the top of the library, after which it is several — and every
     /// criteria file ever written names turns.
     ///
-    /// There is no zone-less form of this, on purpose. A `count(turn, query)`
+    /// There is no default form of this, on purpose. A `count(turn, query)`
     /// would mean the hand without saying so, which is the unnamed default
-    /// zones exist to delete — so every call site names the zone it asks
-    /// about, including the ones that still mean what they always meant.
+    /// zones exist to delete — so every call site names what it is counting,
+    /// including the ones that still mean what they always meant.
     ///
     /// Returns 0 for a turn beyond the horizon rather than panicking: a
     /// criterion asking about turn 9 of a 5-turn run should be false, not a
     /// crash.
-    pub fn count_in(&self, turn: usize, query_idx: usize, zone: Zone) -> u32 {
-        self.board.count_in(turn, query_idx, zone)
+    pub fn count_at(&self, turn: usize, query_idx: usize, counted: Counted) -> u32 {
+        self.board.count_at(turn, query_idx, counted)
     }
 
     /// Whether `cost` could have been paid on `turn`.

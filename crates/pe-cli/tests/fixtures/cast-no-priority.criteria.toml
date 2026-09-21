@@ -1,0 +1,9 @@
+# A `cast` clause with no `[casting]` table: refused, with the remedy named.
+#
+# Which spell you cast out of one turn's mana is a decision the pilot makes,
+# and answering this by casting whatever the clause happened to ask about would
+# report a line nobody chose.
+
+[[criterion]]
+name = "one Opt cast by turn 1"
+require = [{ turn = 1, cast = 'name:"Opt"', min = 1 }]

@@ -71,3 +71,51 @@ impl LandDropPolicy {
         "a tie inside one entry goes to the deeper look, then to the card this decklist names \
          first";
 }
+
+/// A declared priority over the turn's mana, resolved to grouping queries.
+///
+/// One more resource on the one mechanism, beside the looked-at set and the
+/// land drop above — the only one of the three that depletes as you spend it.
+/// One Island and one Opt and one Preordain: which do you cast? The file says,
+/// in the order it would cast them, and the walk takes the first thing it is
+/// holding that the pool still covers.
+///
+/// **There is no catch-all, and that is the one place this differs from
+/// [`LandDropPolicy`].** A land the list does not name is still played, because
+/// declining a land drop is not something a preference can be read as asking
+/// for and because "any other land" costs one query bit. Pricing *every* spell
+/// in a deck is not one bit: it splits the library by mana cost, forty ways on
+/// a Commander list, and the enumeration it produces answers nothing anybody
+/// asked. So the list is the line — the spells you are asking about — and a
+/// spell it does not name is one this run declines to cast. That is the same
+/// reading the gate already takes of the land drop ("nobody plays their lands
+/// badly"), and it is stated in every run that uses one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CastingPolicy {
+    prefer: Vec<usize>,
+}
+
+impl CastingPolicy {
+    /// `prefer` is grouping query indices, highest priority first.
+    pub fn new(prefer: Vec<usize>) -> CastingPolicy {
+        CastingPolicy { prefer }
+    }
+
+    /// Every tier in priority order.
+    pub fn tiers(&self) -> impl Iterator<Item = usize> + '_ {
+        self.prefer.iter().copied()
+    }
+
+    /// What a run says about the spells this list is silent on.
+    pub const THEN: &'static str = "a spell this list does not name is not cast at all";
+
+    /// How a tie inside one entry is settled.
+    ///
+    /// The cheaper spell first, which is the same shape of rule as the land
+    /// drop's deeper look: inside one entry the file has said it wants these
+    /// equally, so the only sense in which one is better is that paying for it
+    /// leaves more of the pool for the rest.
+    pub const TIE_BREAK: &'static str =
+        "a tie inside one entry goes to the cheaper cost, then to the card this decklist names \
+         first";
+}

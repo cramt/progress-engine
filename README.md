@@ -99,9 +99,12 @@ into classes and each class gets the cheapest enumeration that can answer it. Th
 shrink:
 
 - **Groups.** A class keeps only the queries it reads, plus whatever the walk itself reads —
-  which cards a live effect applies to, where it routes them, the land-drop priority — and
-  keeps what a land makes only if something asks whether a cost could be paid. Everything else
-  merges.
+  which cards a live effect applies to, where it routes them, the land-drop priority, the
+  casting priority — and keeps what a land makes only if something asks whether a cost could
+  be paid. Everything else merges. The budget is the one that reaches every class: a spell it
+  paid for is a spell that left the hand, so a criterion counting `cat:"Ramp"` beside a
+  declared `[casting]` list depends on the manabase whether or not it ever mentions one. A
+  file that declares none pays nothing for it.
 - **Colours** ([#55](https://github.com/cramt/progress-engine/issues/55)). A cost can only
   tell apart the colours it demands. `Cost::payable` runs Hall's condition over the pip kinds
   in the cost and nothing else, so to `{1}{U}` a Plains, a Swamp and a Forest are one source:
@@ -275,15 +278,19 @@ nobody can vouch for is worse than an admitted gap.
 
 TOML, and the whole schema fits in one example. A `[[criterion]]` has a `name`,
 an optional `at_least`, and `require`: a list of clauses, all of which must
-hold. A clause is a `turn`, a `query`, an optional `zone`, and at least one of
-`min` and `max` — or a `turn` and a `can_cast`, for which see
-[Mana, as a gate](#mana-as-a-gate). A criterion can also hold `any_of`, a list
-of alternative routes, for which see [Routes](#routes-any_of). An `[[expect]]`
-is a `name`, a `turn`, a `query` and an optional `zone`, and reports a
-distribution rather than a verdict. A file may also hold `[[effect]]` tables,
-for which see [Effects](#effects), and one `[land_drop]` table saying which
-land you would play when you could play either, for which see
-[Mana, as a gate](#mana-as-a-gate).
+hold. A clause asks one of three things, told apart by which key it names: a
+`turn`, a `query`, an optional `zone` and at least one of `min` and `max`
+counts cards; a `turn` and a `can_cast` asks whether a cost was payable, for
+which see [Mana, as a gate](#mana-as-a-gate); and a `turn`, a `cast` and at
+least one of `min` and `max` counts the spells you paid for, for which see
+[Mana, as a budget](#mana-as-a-budget). A criterion can also hold `any_of`, a
+list of alternative routes, for which see [Routes](#routes-any_of). An
+`[[expect]]` is a `name`, a `turn` and either a `query` with an optional `zone`
+or a `cast`, and reports a distribution rather than a verdict. A file may also
+hold `[[effect]]` tables, for which see [Effects](#effects), one `[land_drop]`
+table saying which land you would play when you could play either, and one
+`[casting]` table saying which spells you would cast when the mana cannot pay
+for all of them.
 
 ```toml
 [[criterion]]
@@ -368,7 +375,8 @@ criteria.
 
 The example above asks whether those cards were **drawn**, not whether they
 could be cast. Whether you could pay for them is
-[Mana, as a gate](#mana-as-a-gate) below.
+[Mana, as a gate](#mana-as-a-gate) below, and whether you actually did is
+[Mana, as a budget](#mana-as-a-budget).
 
 **Which zone, and what silence means.** "Did I find the card" is not a
 well-formed question; "is the card in this zone by this turn" is. A clause that
@@ -428,16 +436,19 @@ otherwise produces a percentage that looks exactly like a real one:
 | a clause with neither `min` nor `max` | it names a query and asks nothing of it |
 | `min = 5, max = 2` | no hand can satisfy it: a confident 0% |
 | `at_least = 70` | a threshold is a share of hands, so 70% is `0.70` |
-| `zone = "battlefield"` on a query matching a spell | a land arrives on a land drop and this engine walks those; a spell has to be cast, and which spells you cast when you cannot cast them all is the budget half of [#10](https://github.com/cramt/progress-engine/issues/10) |
+| `zone = "battlefield"` on a query matching a spell | a land arrives on a land drop and this engine walks those; a spell has to be cast, and where it goes afterwards is not modelled. `cast` counts the castings, which is the part that is known |
 | `zone = "exile"`, or any other zone | a zone that fell through to a default would answer the wrong question |
-| `query` and `can_cast` in one clause | two different questions, one of which would have to be answered silently |
+| two of `query`, `can_cast` and `cast` in one clause | three different questions, two of which would have to be answered silently |
+| `cast` and `zone` in one clause | a casting is not a zone, and where the spell went afterwards is not modelled |
+| `cast` with no `[casting]` table | which spell you cast out of one turn's mana is a decision, and a tool that picked would report a line nobody chose |
+| `[casting]` naming a card whose cost holds `{X}`, hybrid or no symbols at all | a bill read too cheaply does not only get that spell wrong — it leaves mana the rest of the line then spends |
 | `can_cast = "{X}{G}"`, or any hybrid or Phyrexian symbol | each is a decision about how much to pay rather than an amount; read as zero, an X-spell is castable on turn one |
 | a mana question in a file with a live `to_graveyard` effect and no `[land_drop]` | both decide which land you played this turn, and they decide it differently. Declare the priority and they are one decision |
-| `[land_drop]` with no `prefer` entries | it settles no drop, and the run would report a policy that decided nothing |
-| a `prefer` entry repeating an earlier one | the earlier one already took every land it names, so it can never decide a drop |
+| `[land_drop]` or `[casting]` with no `prefer` entries | it settles nothing, and the run would report a policy that decided nothing |
+| a `prefer` entry repeating an earlier one | the earlier one already took every card it names, so it can never decide anything |
 | `atLeast`, or any other unknown key | a key quietly dropped is an assertion quietly deleted |
 | a file with no `[[criterion]]` and no `[[expect]]` | it asks nothing |
-| `on = "cast"` on an effect | firing on the holding of a card overstates the turn by however many copies you hold, and knowing you cast it needs the mana model |
+| `on = "cast"` on an effect | the budget knows you cast it; what it does not know is what casting it drew, and a replacement draw is over the enumeration ceiling on every question this tool exists for ([#57](https://github.com/cramt/progress-engine/issues/57)) |
 | `on` anything else, or `look = 0` | a trigger nothing fires, and a look that examines nothing |
 
 Every one of those messages names the file, the question, and what was wrong
@@ -452,8 +463,7 @@ one Hallowed Fountain is a white source and a blue source and one mana.
 So there are two questions here, and this is the first one:
 **could I have paid for it by turn N?** The other is mana as a *budget* — an
 opening hand of one Island and six Opt casts one Opt, because the first one
-spends the Island — and that needs sequencing and is not built. See
-[#10](https://github.com/cramt/progress-engine/issues/10).
+spends the Island — and that is [the next section](#mana-as-a-budget).
 
 **Lands you have played.** `zone = "battlefield"` counts them, and a land drop
 is one a turn and use-it-or-lose-it:
@@ -656,6 +666,179 @@ question and no live effect — and there it costs groups and moves no number,
 because nothing in that run can tell which land you played. Declare one where
 something reads it.
 
+### Mana, as a budget
+
+`can_cast = "{U}"` being true does not mean you can do it six times. An opening
+hand of one Island and six Opt casts **one** Opt on turn 1: the first one spends
+the Island and the other five are dead cards. A model that fires whenever you
+hold the card reports six filters and six draws, which overstates the turn by a
+factor of six and looks entirely reasonable in a report. That is HANDS.md hand
+1, and it is the hand this half exists for.
+
+**Say which spells you would cast.** The pool is contested — one Island, one Opt
+and one Preordain is one spell cast and two left in hand — so the priority is
+declared in the file, exactly as the land drop is:
+
+```toml
+[casting]
+prefer = ['name:"Trinket Mage"', 'name:"Lantern of Insight"']
+```
+
+**Then count what it paid for**, with `cast`:
+
+```toml
+[[criterion]]
+name = "Trinket Mage cast by turn 3"
+require = [{ turn = 3, cast = 'name:"Trinket Mage"', min = 1 }]
+
+[[expect]]
+name = "Opts cast by turn 5"
+turn = 5
+cast = 'name:"Opt"'
+```
+
+Worked on the hand it exists for — three seven-card decklists that differ by one
+card, one criteria file, and the opening hand is the whole library so every
+answer is a yes or a no:
+
+```
+$ progress-engine test hand-1.txt six-opts.criteria.toml    # Island, Opt x6
+     an Opt cast on turn 1         100.00%
+     two Opts cast on turn 1         0.00%
+     six Opts in the opening hand  100.00%
+     Opts cast by turn 1           mean 1.00
+                                   1: 100.0%
+```
+
+Swap the Island for an Undercity Sewers — a tapland — and *an Opt cast on turn 1*
+is **0.00%** while the last row is still 100%. Play seven Opts and no land and it
+is 0.00% on every turn there is. The third row is the number a model that fired
+on the holding would have reported as castings: the cards really are all there,
+and holding them is what casting them is not.
+
+The list is read in order and the **first entry the pool can still pay for is
+cast**, then the next, until the mana runs out. The bill is **added up and
+settled once** rather than asked spell by spell: casting a `{1}{W}` and a
+`{1}{U}` out of two lands is one payment of four sources, which two independent
+`can_cast` answers would both have called payable. A spell that is cast
+**leaves the hand**, so the same copy cannot be cast twice and the count of what
+you are still holding goes down. A **tie** inside one entry goes to the cheaper
+cost — inside one entry you said you wanted them equally, so the only sense in
+which one is better is that paying for it leaves more of the pool — and then to
+the card your decklist names first.
+
+**A spell the list does not name is not cast**, and that is the one place this
+differs from `[land_drop]`, where a land nobody ranked is still played. The
+reason is width: "any other land" costs one query bit, and "any other spell"
+would make every card in your deck carry its own mana cost into the grouping,
+which splits a Commander library forty ways along a line nobody asked about. So
+the list is **the line you are asking about** rather than a preference over your
+whole deck, which is the same reading the gate already takes of the land drop —
+nobody plays their lands badly, and nobody casts the spell you did not ask
+about.
+
+**A gate beside a budget asks what the line left.** In a file that declares
+`[casting]`, `can_cast` is answered against what the declared line did *not*
+spend. One pool, one accounting: answering it against the whole turn's lands
+while a declared line had already taken them would be two claimants on one
+resource. A file that declares no casting priority spends nothing, so nothing
+moves.
+
+**Every run that cast by policy says so**, beside the land drop and the
+tapped-ness assumptions, and it carries one claim the others do not:
+
+```
+note: the spells cast here are decided by the priority this file declared, and every
+      number below that depends on what was cast depends on it:
+      1. "name:\"Opt\""
+      Then a spell this list does not name is not cast at all. Ties: a tie inside one
+      entry goes to the cheaper cost, then to the card this decklist names first.
+```
+
+The same list is in the JSON as `casting`. A file that declares none has no
+`casting` field at all, which is the other fact: that run cast nothing.
+
+**What it does not model is the draw.** Opt is *scry 1, draw 1*, and only the
+casting is counted — `on = "cast"` on an `[[effect]]` is still refused by name.
+That is a measurement rather than a shrug. Every card the walk might or might
+not draw needs a checkpoint of its own, because an unordered pair cannot say
+which of two revealed cards the draw took; each checkpoint multiplies the
+enumeration by the group count; and a turn with *T* mana can cast *T* cantrips,
+so one extra checkpoint per turn is the **floor**. Measured on the classes in
+the table below:
+
+| Line | groups | exact to, today | exact to, with one replacement draw a turn |
+|---|---|---|---|
+| a `{1}` one-drop | 4 | turn 8 — turn 9 is 7,864,320 | turn **4** (turn 5 would be 31,457,280) |
+| `{1}{G}{G}` | 6 | turn 5 | turn **2** (turn 3 would be 6,158,592) |
+| a two-spell line with a colour | 7 | turn 5 | turn **2** (turn 3 would be 28,840,812) |
+
+Both north stars ask about turn 5, so a replacement draw would be sampled on
+every question this tool exists to answer. That is a percentage changing kind
+rather than a feature, so it is refused and the refusal carries the numbers:
+[#57](https://github.com/cramt/progress-engine/issues/57).
+
+**Tutoring is not here either.** Trinket Mage fetches a Lantern of Insight out
+of the library, which makes the library smaller and its composition non-uniform
+— a deterministic removal from a named group rather than a draw, and that is
+[#18](https://github.com/cramt/progress-engine/issues/18). The budget prices
+the mana half of that route and the run says what it left out.
+
+**What it costs.** More than the gate, and the reason is worth stating: a cast
+spell leaves the hand, so a criterion counting `cat:"Ramp"` beside a budget
+depends on what the pool paid for three turns earlier — which depends on the
+manabase and on what each named spell costs. So **a file that declares
+`[casting]` prices the manabase on every question in it** and reads every turn
+rather than a total. A file that declares none pays nothing.
+
+Measured on the decks in `decks/`, against an index synced with oracle tags:
+
+| Deck and line | Turn | groups / compositions | |
+|---|---|---|---|
+| `lantern.txt`, `cast` Lantern of Insight (`{1}`) | 4 | 4 / 7,680 | **exact**, 0.16s |
+| | 5 | 4 / 30,720 | **exact**, 0.18s |
+| | 6 | 4 / 122,880 | **exact**, 0.25s |
+| | 7 | 4 / 491,520 | **exact**, 0.52s |
+| | 8 | 4 / 1,966,080 | **exact** |
+| | 9 | 4 / 7,864,320 | sampled — 57% over |
+| `lantern.txt`, `cast` Trinket Mage (`{2}{U}`) then Lantern | 3 | 7 / 84,084 | **exact**, 0.26s |
+| | 4 | 7 / 588,588 | **exact**, 0.84s |
+| | 5 | 7 / 4,120,116 | **exact**, 4.4s |
+| | 6 | 7 / 28,840,812 | sampled |
+| `loam.txt`, `cast` Life from the Loam (`{1}{G}{G}`) | 4 | 6 / 171,072 | **exact**, 0.44s |
+| | 5 | 6 / 1,026,432 | **exact**, 1.9s |
+| | 6 | 6 / 6,158,592 | sampled — 23% over |
+
+**The cheapest budget question is wider-reaching than the cheapest gate
+question**, which was not the expected result. `can_cast = "{1}{U}"` names a
+colour, so it keeps four land groups and goes over the ceiling at turn 7; `cast`
+on a card that costs `{1}` demands no pip at all, so the manabase is two groups
+— tapped and untapped — and four groups stay exact through turn 8. Asking what
+you cast can be *cheaper* than asking what you could have paid, because the
+colour comes from the card rather than from the question.
+
+A colour puts it back where the gate is: `{1}{G}{G}` is six groups and exact
+through turn 5, and a two-spell line with a colour in it is seven and exact
+through turn 5. The ceiling is unchanged for the gate — `{1}{U}` on either deck
+is still 5 groups, 1,031,250 compositions and exact at turn 6, and still 3% over
+at turn 7.
+
+Reproduce any row with the `enumerations` block:
+
+```
+$ progress-engine sync --index /tmp/index.jsonl
+$ progress-engine test decks/lantern.txt /tmp/route-b.toml --index /tmp/index.jsonl \
+    | jq -c '.enumerations[]'
+{"criteria":["Trinket Mage cast by turn 3"],"expectations":[],
+ "queries":["name:\"Trinket Mage\"","name:\"Lantern of Insight\""],"turns":[3],
+ "reading":"per-turn","pips":["{U}"],"groups":7,"compositions":84084,"method":"exact"}
+```
+
+Note the `pips`: the criteria file names no colour anywhere, and the enumeration
+still tells a blue source from every other land, because the card data says
+Trinket Mage costs `{2}{U}`. That is a grouping decision nothing in the file
+states, which is exactly the kind this block exists to report.
+
 ### Effects
 
 Nothing in any card's data says a surveil land surveils one. The amount has to
@@ -686,12 +869,14 @@ to_graveyard = 'name:"Life from the Loam"'
 
 **Land drops only, on purpose.** Playing a land is free and hard-capped at one a
 turn, so by turn *T* at most *T* of these have happened whatever your deck —
-which is what keeps the enumeration bounded and exact. The mana-gated tier (Opt,
-Preordain, tutors) is still refused by name, and the gate shipping does not
-change that: an opening hand of one Island and six Opt *can cast* Opt and casts
-exactly one of them, because the first one spends the Island. Firing an effect
-whenever the mana is there overstates that turn sixfold. That needs the budget
-half of [#10](https://github.com/cramt/progress-engine/issues/10).
+which is what keeps the enumeration bounded and exact. `on = "cast"` is still
+refused by name, and what it is refused for has changed: the budget knows how
+many Opts you cast ([Mana, as a budget](#mana-as-a-budget)), so the count is no
+longer the problem. What an Opt *does* is — a replacement draw makes how many
+cards you have seen by turn *T* depend on the path rather than on the schedule,
+which is one extra enumeration checkpoint per turn at the floor and puts every
+question this tool exists for over the ceiling
+([#57](https://github.com/cramt/progress-engine/issues/57)).
 
 **The library never says where cards go.** Every shipped entry declares `match`,
 `look` and `on`, and no entry declares `to_graveyard`. That split is the whole

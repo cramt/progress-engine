@@ -384,6 +384,9 @@ pub struct Breakdown {
     /// it is the same kind of fact: something that chose between two lands and
     /// moved every number that depended on which one was played.
     pub land_drop: Option<LandDropUse>,
+    /// The priority that decided which spells were cast, where the file
+    /// declared one. The same kind of fact again, over the turn's mana.
+    pub casting: Option<CastingUse>,
 }
 
 /// The declared priority this run resolved its land drops by.
@@ -397,6 +400,25 @@ pub struct LandDropUse {
     /// What the file wrote, highest priority first.
     pub prefer: Vec<String>,
     /// The tier the file did not write: everything else that is a land.
+    pub then: &'static str,
+    /// How a tie inside one entry was settled, stated rather than buried.
+    pub tie_break: &'static str,
+}
+
+/// The declared priority this run spent its mana by.
+///
+/// Reported for the same reason as the land drop, and it carries more weight:
+/// *which* spells a line casts decides what is left in hand, so every count in
+/// a run that declared one depends on this list. `then` is the field that is
+/// not a mirror of the land drop's — silence about a spell means it is not
+/// cast, where silence about a land still plays it — and it is stated rather
+/// than left for a reader to infer from a number that came out lower than they
+/// expected.
+#[derive(Facet)]
+pub struct CastingUse {
+    /// What the file wrote, highest priority first.
+    pub prefer: Vec<String>,
+    /// What this run did about the spells the list is silent on.
     pub then: &'static str,
     /// How a tie inside one entry was settled, stated rather than buried.
     pub tie_break: &'static str,
@@ -475,6 +497,13 @@ pub struct Report {
     /// in that run needed it to be.
     #[facet(skip_serializing_if = Option::is_none)]
     pub land_drop: Option<LandDropUse>,
+    /// The priority this run spent its mana by, where a file declared one.
+    ///
+    /// Absent on a run that declared none, and that absence is the stronger
+    /// fact of the two: it says this run cast nothing at all, so every count
+    /// below is of a hand nobody ever spent.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub casting: Option<CastingUse>,
     pub criteria: Vec<CriterionResult>,
     /// Alongside `criteria` rather than merged into it. They answer different
     /// questions in different units, and several things already read `criteria`
@@ -502,6 +531,7 @@ impl Report {
             enumerations,
             assumed_tapped,
             land_drop,
+            casting,
         } = breakdown;
         let Scenario {
             on_the_draw,
@@ -597,6 +627,7 @@ impl Report {
             enumerations,
             assumed_tapped,
             land_drop,
+            casting,
             criteria: results,
             expectations: expected,
             asserted,
@@ -685,6 +716,25 @@ impl Report {
             }
             out.push_str(&format!(
                 "      then {}. Ties: {}.\n",
+                policy.then, policy.tie_break
+            ));
+        }
+        // Which spells this run spent its mana on. The same argument as the
+        // land drop and a louder one: the pool is a budget, so casting the
+        // first thing on this list is what makes the second thing on it
+        // uncastable — and a card the list never names is one this run did not
+        // cast at all, which is a number no reader could reconstruct from the
+        // deck and the criteria file alone.
+        if let Some(policy) = &self.casting {
+            out.push_str(
+                "note: the spells cast here are decided by the priority this file declared, and \
+                 every\n      number below that depends on what was cast depends on it:\n",
+            );
+            for (i, query) in policy.prefer.iter().enumerate() {
+                out.push_str(&format!("      {}. {query:?}\n", i + 1));
+            }
+            out.push_str(&format!(
+                "      Then {}. Ties: {}.\n",
                 policy.then, policy.tie_break
             ));
         }
@@ -1219,6 +1269,30 @@ pub fn mana_beside_effects_refusal() -> String {
      [land_drop]\n      prefer = ['otag:surveil', 't:land -otag:tapland']\n\n      \
      The list is read in order, the first entry a land in hand matches wins, and any land the \
      list\n      does not name is played last."
+        .to_string()
+}
+
+/// Why counting castings with no casting priority declared is refused.
+///
+/// The budget's version of the refusal above, and the same argument over the
+/// other resource. One Island, one Opt and one Preordain: which do you cast?
+/// The mana pays for one of them, the answer differs by which, and nothing in
+/// a decklist says. A tool that picked — the cheapest, the first one listed,
+/// the one the criterion happened to ask about — would be reporting a line
+/// nobody chose, and the percentage would look exactly like a measured one.
+///
+/// It names the remedy rather than choosing a default, which is the whole
+/// pattern: `[land_drop]` for the drop, `[casting]` for the mana, and the same
+/// shape of list for both.
+pub fn casting_without_priority() -> String {
+    "counting the spells you cast means knowing which ones you would cast, and this file \
+     declares\n      no priority. One Island, one Opt and one Preordain is one spell cast and \
+     two left in hand,\n      and which one it was is a decision this tool will not make for \
+     you.\n      Declare it, highest priority first:\n\n      \
+     [casting]\n      prefer = ['name:\"Opt\"', 'name:\"Preordain\"']\n\n      \
+     The list is read in order and the first entry the pool can still pay for is cast. A \
+     spell\n      the list does not name is not cast at all — the list is the line you are \
+     asking about,\n      not a preference over your whole deck."
         .to_string()
 }
 

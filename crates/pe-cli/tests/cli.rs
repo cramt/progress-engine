@@ -895,7 +895,7 @@ fn a_criteria_file_that_asks_nothing_refuses_by_name() {
         // silently.
         (
             "cast-and-count.criteria.toml",
-            ["query", "can_cast", "two different questions"].as_slice(),
+            ["query", "can_cast", "are different questions"].as_slice(),
         ),
         // A symbol the gate cannot pay. Read as zero, an X-spell is castable on
         // turn one.
@@ -1530,16 +1530,26 @@ fn a_users_effect_overrides_the_standard_library_for_the_cards_it_names() {
 
 #[test]
 fn an_effect_that_is_not_a_land_drop_is_refused_by_name() {
-    // The mana-gated tier is two open issues deep, and an effect that fires
-    // whenever you hold the card overstates the turn by however many copies you
-    // are holding. Refused rather than approximated.
+    // Still refused, and the reason has moved: the budget answers how many you
+    // cast, and what casting one then *draws* is the part that would cost an
+    // enumeration checkpoint a turn. So the refusal names the draw and the
+    // issue that measures it, rather than the mana model that has since
+    // shipped.
     let out = run("cast-effect.criteria.toml");
     assert!(!out.status.success(), "should refuse");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("\"cast\""), "should name it: {stderr}");
     assert!(
-        stderr.contains("issues/10"),
+        stderr.contains("draws"),
+        "should say what it is actually missing: {stderr}"
+    );
+    assert!(
+        stderr.contains("issues/57"),
         "should say what it is waiting for: {stderr}"
+    );
+    assert!(
+        stderr.contains("[casting]"),
+        "should name the half that does work: {stderr}"
     );
 }
 
@@ -2387,4 +2397,168 @@ fn a_sampled_question_still_says_what_it_would_have_cost() {
     // the two have to agree rather than be two measurements of one run.
     assert_eq!(refused[0]["compositions"], json["too_wide"]["paths"]);
     assert_eq!(refused[0]["groups"], json["too_wide"]["groups"]);
+}
+
+// --- The declared budget (#10) --------------------------------------------
+
+fn run_budget(deck: &str) -> std::process::Output {
+    run_with(deck, "six-opts.criteria.toml", "budget-index.jsonl")
+}
+
+#[test]
+fn one_island_and_six_opts_casts_one_opt_end_to_end() {
+    // HANDS.md hands 1, 2 and 3, which are one test rather than three: the same
+    // file against three seven-card hands that differ by a single card, and the
+    // claim is that the count of castings moves while the count of cards in
+    // hand does not.
+    //
+    // Hand 1 plays the Island, taps it and casts one Opt. Hand 2 swaps the
+    // Island for Undercity Sewers, which enters tapped, and casts none. Hand 3
+    // holds seven Opts and no land, and does nothing at all. All three hold six
+    // or more Opts in the opening hand, which is the number a model that fired
+    // on the holding would have reported as castings.
+    let hands = [
+        ("hand-1.txt", 100.0, 1.0),
+        ("hand-2.txt", 0.0, 0.0),
+        ("hand-3.txt", 0.0, 0.0),
+    ];
+    for (deck, first, mean) in hands {
+        let out = run_budget(deck);
+        assert!(
+            out.status.success(),
+            "{deck} should answer: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+        assert!(
+            (percent(&json, "an Opt cast on turn 1") - first).abs() < 0.01,
+            "{deck}: an Opt on turn 1 is {}",
+            percent(&json, "an Opt cast on turn 1")
+        );
+        assert_eq!(
+            percent(&json, "two Opts cast on turn 1"),
+            0.0,
+            "{deck}: one land is never two Opts"
+        );
+        assert_eq!(
+            percent(&json, "six Opts in the opening hand"),
+            100.0,
+            "{deck}: the cards are all there, which is what holding them is not"
+        );
+        assert!(
+            (expectation(&json, "Opts cast by turn 1")["mean"]
+                .as_f64()
+                .unwrap()
+                - mean)
+                .abs()
+                < 1e-9,
+            "{deck}: mean castings"
+        );
+    }
+}
+
+#[test]
+fn the_budget_agrees_with_the_sampler() {
+    // The oracle. A budget is a new thing for the walk to do on every path, so
+    // it is a new way for the two engines to disagree — and they share the
+    // board, so a disagreement here would be about how a path is produced
+    // rather than about what happens along it.
+    for deck in ["hand-1.txt", "hand-2.txt", "hand-3.txt"] {
+        let exact: serde_json::Value = serde_json::from_slice(&run_budget(deck).stdout).unwrap();
+        let sampled = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+            .arg("test")
+            .arg(fixture(deck))
+            .arg(fixture("six-opts.criteria.toml"))
+            .arg("--index")
+            .arg(fixture("budget-index.jsonl"))
+            .arg("--simulate")
+            .arg("--trials")
+            .arg("20000")
+            .output()
+            .expect("binary should run");
+        let sampled: serde_json::Value = serde_json::from_slice(&sampled.stdout).unwrap();
+        for name in [
+            "an Opt cast on turn 1",
+            "two Opts cast on turn 1",
+            "six Opts in the opening hand",
+        ] {
+            assert!(
+                (percent(&exact, name) - percent(&sampled, name)).abs() < 1.0,
+                "{deck}, {name}: {} exact against {} sampled",
+                percent(&exact, name),
+                percent(&sampled, name)
+            );
+        }
+    }
+}
+
+#[test]
+fn a_run_that_cast_by_policy_says_which_policy() {
+    // The non-negotiable half, and the same one #54 has: a number that turned
+    // on a declared priority and did not name it is indistinguishable from one
+    // the tool decided for you. The budget's version carries one extra claim,
+    // because its list is not a preference over the whole deck — a spell it
+    // does not name is not cast, and no reader could work that out from the
+    // percentage.
+    let out = run_budget("hand-1.txt");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("spells cast here are decided"), "{stderr}");
+    assert!(
+        stderr.contains("name:\\\"Opt\\\""),
+        "names the list: {stderr}"
+    );
+    assert!(
+        stderr.contains("is not cast at all"),
+        "states what silence means: {stderr}"
+    );
+    assert!(stderr.contains("Ties:"), "states the tie rule: {stderr}");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(
+        json["casting"]["prefer"],
+        serde_json::json!(["name:\"Opt\""])
+    );
+    assert!(json["casting"]["tie_break"].is_string(), "{json}");
+
+    // And a run that declared none has no field at all, which is the other
+    // fact: it cast nothing, rather than casting by some default.
+    let plain: serde_json::Value =
+        serde_json::from_slice(&run("simple-ramp.criteria.toml").stdout).unwrap();
+    assert!(plain.get("casting").is_none(), "{plain}");
+}
+
+#[test]
+fn counting_castings_with_no_priority_is_refused_with_the_remedy_named() {
+    // The budget's version of the land drop's refusal, over the other
+    // resource. Which spell you cast out of one turn's mana is a decision, and
+    // a tool that picked would report a line nobody chose.
+    let out = run_with(
+        "hand-1.txt",
+        "cast-no-priority.criteria.toml",
+        "budget-index.jsonl",
+    );
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("[casting]"), "names the remedy: {stderr}");
+    assert!(stderr.contains("prefer"), "{stderr}");
+    assert!(
+        stderr.contains("one Opt cast"),
+        "names the question that asked: {stderr}"
+    );
+}
+
+#[test]
+fn the_enumerations_block_names_the_colours_the_deck_made_it_read() {
+    // The width a budget costs, said out loud. The criteria file names no
+    // colour at all — it asks how many Opts were cast — and the enumeration
+    // still tells a blue source from every other land, because the *card data*
+    // says Opt costs {U}. That is a grouping decision nothing in the file
+    // states, which is exactly the kind this block exists to report.
+    let json: serde_json::Value = serde_json::from_slice(&run_budget("hand-1.txt").stdout).unwrap();
+    let enumerations = json["enumerations"].as_array().unwrap();
+    assert!(!enumerations.is_empty());
+    for class in enumerations {
+        assert_eq!(class["pips"], serde_json::json!(["{U}"]), "{class}");
+        assert_eq!(class["reading"], "per-turn", "a budget reads the turns");
+        assert_eq!(class["method"], "exact");
+    }
 }

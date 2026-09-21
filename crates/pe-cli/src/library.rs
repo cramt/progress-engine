@@ -7,7 +7,7 @@
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
-use pe_criteria::{Grouping, GroupingError, ManaSource, Palette};
+use pe_criteria::{Demand, Grouping, GroupingError, ManaSource, Palette};
 use pe_scryfall::index::{Card, Index, IndexFile, KeywordVocabulary, TagVocabulary};
 use pe_scryfall::OutsideLibrary;
 
@@ -54,11 +54,18 @@ pub struct Marked {
 /// for that, which is what this says: the detail is a cost, and it is only
 /// worth paying where somebody asked.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ManaDetail {
+pub enum ManaDetail<'a> {
     /// Nothing here is a mana source. The groups are exactly the query groups.
     Ignored,
-    /// Lands carry what they produce and whether they arrive tapped.
-    Modelled,
+    /// Lands carry what they produce and whether they arrive tapped, and a
+    /// spell the declared casting priority names carries what it costs.
+    ///
+    /// `castable` is one entry per [`Library::entries`] position, `None` for
+    /// every card this run never casts — which is all of them in a run that
+    /// declared no casting priority. Held here rather than beside this enum so
+    /// that "prices spells it does not model mana for" is a state nobody can
+    /// build.
+    Modelled { castable: &'a [Option<Demand>] },
 }
 
 /// A listed card that never enters the library, and which type made it so.
@@ -237,7 +244,13 @@ impl Library {
             }
             let source = match mana {
                 ManaDetail::Ignored => ManaSource::Spell,
-                ManaDetail::Modelled => mana_source(&e.card),
+                // A card the priority names is a payer rather than a source,
+                // and the two cannot be the same card: `resolve` refuses to
+                // price a land, because a land is played rather than cast.
+                ManaDetail::Modelled { castable } => match castable.get(card).copied().flatten() {
+                    Some(cost) => ManaSource::Castable { cost },
+                    None => mana_source(&e.card),
+                },
             };
             (mask, source, e.qty)
         });
@@ -302,6 +315,24 @@ impl Library {
             .sum())
     }
 
+    /// Positions in [`Library::entries`] of the cards matching `query`.
+    ///
+    /// By position rather than by name, because the caller that wants this is
+    /// building a per-entry table — what each card costs — and a name is not a
+    /// key: forty of them name more than one card, and a decklist can hold the
+    /// same card under two categories.
+    pub fn positions_matching(&self, query: &str) -> Result<Vec<usize>> {
+        let q =
+            pe_scryfall::parse(query).map_err(|e| anyhow::anyhow!("in query {query:?}: {e}"))?;
+        Ok(self
+            .entries
+            .iter()
+            .enumerate()
+            .filter(|(_, e)| q.matches(&e.card.view(&e.categories)))
+            .map(|(i, _)| i)
+            .collect())
+    }
+
     pub fn has_lands(&self) -> bool {
         self.entries.iter().any(|e| is_land(&e.card))
     }
@@ -326,7 +357,7 @@ impl Library {
 /// card would be the expensive way to ask a one-word question. Both faces
 /// count: Scryfall joins them with `//`, and a modal double-faced land is a
 /// land drop if you choose the back.
-fn is_land(card: &Card) -> bool {
+pub fn is_land(card: &Card) -> bool {
     card.type_line
         .split(|c: char| !c.is_ascii_alphanumeric())
         .any(|word| word.eq_ignore_ascii_case("land"))

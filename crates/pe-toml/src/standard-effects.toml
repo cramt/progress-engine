@@ -26,9 +26,12 @@
 #
 # Only `on = "landdrop"` exists. A land drop is free and capped at one a turn,
 # which is what keeps this both bounded and exact. The mana-gated tier — Opt,
-# Preordain, tutors — is refused by name until the mana model exists, because
-# knowing you cast Opt on turn two means knowing you had an untapped blue
-# source, and holding a card is not casting it.
+# Preordain, tutors — is still refused by name, and the mana model shipping did
+# not change that: *how many* you cast is answered, by `[casting]` and `cast`,
+# and what casting one then draws is not. A replacement draw makes how many
+# cards you have seen by a turn a fact about the path rather than about the
+# schedule, which costs an enumeration checkpoint a turn and goes over the
+# ceiling on every question this tool exists for. See issue #57.
 
 # Surveil lands: Undercity Sewers, Hedge Maze, Commercial District and their
 # cycle-mates, plus every future printing that joins them.

@@ -63,6 +63,37 @@ pub enum Zone {
     Battlefield,
 }
 
+/// What a clause is counting: cards sitting in a zone, or cards you paid for.
+///
+/// A casting is deliberately **not** a [`Zone`] variant. Where a spell ends up
+/// after it resolves is a fact about the card — a permanent stays on the
+/// battlefield, an instant goes to the graveyard, and either can be answered
+/// by something this engine does not model — whereas *you cast it* is a fact
+/// about the turn, and it is the fact the budget knows. Spelling it as a zone
+/// would be this tool answering a question it cannot: a Lantern counted on the
+/// battlefield would still be there after somebody blew it up.
+///
+/// So `cast` is its own clause key, and every count in the language goes
+/// through this: one place in the engine that answers *how many of these do I
+/// have, and in what sense*.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Counted {
+    /// Cards in a zone at the end of a turn.
+    In(Zone),
+    /// Cards you have cast by the end of a turn, paid for out of the pool.
+    Cast,
+}
+
+impl Counted {
+    /// The zone this counts in, where it counts one at all.
+    pub fn zone(self) -> Option<Zone> {
+        match self {
+            Counted::In(zone) => Some(zone),
+            Counted::Cast => None,
+        }
+    }
+}
+
 impl Zone {
     /// Every zone a criteria file may name, for the message that lists them.
     pub const ACCEPTED: &'static str = "hand, graveyard, library, battlefield";

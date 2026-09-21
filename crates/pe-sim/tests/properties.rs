@@ -15,7 +15,7 @@
 use std::convert::Infallible;
 
 use pe_criteria::{
-    Count, Evaluator, Grouping, PathOutcomes, PathView, Plan, RunError, Schedule, Zone,
+    Count, Counted, Evaluator, Grouping, PathOutcomes, PathView, Plan, RunError, Schedule, Zone,
 };
 use pe_sim::{mean_standard_error, simulate, standard_error};
 use proptest::prelude::*;
@@ -215,7 +215,7 @@ fn checks(thresholds: &[Threshold]) -> Closures {
             .copied()
             .map(|t| {
                 Box::new(move |v: &PathView<'_>| {
-                    v.count_in(t.checkpoint, t.query, Zone::Hand) >= t.k
+                    v.count_at(t.checkpoint, t.query, Counted::In(Zone::Hand)) >= t.k
                 }) as Check
             })
             .collect(),
@@ -308,7 +308,7 @@ fn neither_engine_answers_a_question_the_other_refuses() {
     runner(256)
         .run(&maybe_undealable(), |(grouping, gaps)| {
             let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-                v.count_in(0, 0, Zone::Hand) >= 1
+                v.count_at(0, 0, Counted::In(Zone::Hand)) >= 1
             })]);
             let exact = pe_criteria::run(
                 &grouping,
@@ -393,7 +393,7 @@ fn a_question_too_wide_to_enumerate_is_still_answerable_by_sampling() {
                 "generator produced an enumerable question"
             );
             let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-                v.count_in(0, 0, Zone::Hand) >= 1
+                v.count_at(0, 0, Counted::In(Zone::Hand)) >= 1
             })]);
             let exact = pe_criteria::run(
                 &grouping,
@@ -435,7 +435,8 @@ fn sampled_counts_never_decrease_as_turns_advance() {
             let mut ev = Closures(vec![Box::new(move |v: &PathView<'_>| {
                 (1..checkpoints).all(|t| {
                     (0..queries).all(|qi| {
-                        v.count_in(t, qi, Zone::Hand) >= v.count_in(t - 1, qi, Zone::Hand)
+                        v.count_at(t, qi, Counted::In(Zone::Hand))
+                            >= v.count_at(t - 1, qi, Counted::In(Zone::Hand))
                     })
                 })
             })]);
@@ -490,8 +491,9 @@ fn counters(tallies: &[Tallied]) -> Counters {
             .iter()
             .copied()
             .map(|t| {
-                Box::new(move |v: &PathView<'_>| v.count_in(t.checkpoint, t.query, Zone::Hand))
-                    as Tally
+                Box::new(move |v: &PathView<'_>| {
+                    v.count_at(t.checkpoint, t.query, Counted::In(Zone::Hand))
+                }) as Tally
             })
             .collect(),
     )
@@ -579,7 +581,7 @@ fn neither_engine_answers_an_expectation_the_other_refuses() {
     runner(256)
         .run(&maybe_undealable(), |(grouping, gaps)| {
             let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| {
-                v.count_in(0, 0, Zone::Hand)
+                v.count_at(0, 0, Counted::In(Zone::Hand))
             })]);
             let plan = only_expectations(1);
             let exact = pe_criteria::run(&grouping, &Schedule::plain(&gaps), plan, &mut ev);

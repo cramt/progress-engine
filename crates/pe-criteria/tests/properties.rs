@@ -13,8 +13,8 @@ use std::convert::Infallible;
 
 use pe_criteria::mana::Pip;
 use pe_criteria::{
-    Cost, Count, Evaluator, Grouping, ManaSource, Palette, PathOutcomes, PathView, Plan, Schedule,
-    Zone,
+    Cost, Count, Counted, Evaluator, Grouping, ManaSource, Palette, PathOutcomes, PathView, Plan,
+    Schedule, Zone,
 };
 use proptest::prelude::*;
 use proptest::test_runner::{Config, RngAlgorithm, TestCaseError, TestRng, TestRunner};
@@ -175,7 +175,7 @@ fn checks(thresholds: &[Threshold]) -> Closures {
             .copied()
             .map(|t| {
                 Box::new(move |v: &PathView<'_>| {
-                    v.count_in(t.checkpoint, t.query, Zone::Hand) >= t.k
+                    v.count_at(t.checkpoint, t.query, Counted::In(Zone::Hand)) >= t.k
                 }) as Check
             })
             .collect(),
@@ -346,8 +346,8 @@ fn every_expectation_distribution_is_a_distribution() {
             let query = usize::from(query) % q.queries;
             let last = q.gaps.len() - 1;
             let mut ev = Counters(vec![
-                Box::new(move |v: &PathView<'_>| v.count_in(0, query, Zone::Hand)),
-                Box::new(move |v: &PathView<'_>| v.count_in(last, query, Zone::Hand)),
+                Box::new(move |v: &PathView<'_>| v.count_at(0, query, Counted::In(Zone::Hand))),
+                Box::new(move |v: &PathView<'_>| v.count_at(last, query, Counted::In(Zone::Hand))),
             ]);
             let r = pe_criteria::run(
                 &q.grouping,
@@ -387,7 +387,7 @@ fn an_expectation_matches_the_closed_form_mean() {
             let query = usize::from(query) % q.queries;
             let gaps = &q.gaps[..1];
             let mut ev = Counters(vec![Box::new(move |v: &PathView<'_>| {
-                v.count_in(0, query, Zone::Hand)
+                v.count_at(0, query, Counted::In(Zone::Hand))
             })]);
             let r = pe_criteria::run(
                 &q.grouping,
@@ -427,7 +427,7 @@ fn a_threshold_is_the_tail_of_the_distribution_it_thresholds() {
             let last = q.gaps.len() - 1;
 
             let mut counting = Counters(vec![Box::new(move |v: &PathView<'_>| {
-                v.count_in(last, query, Zone::Hand)
+                v.count_at(last, query, Counted::In(Zone::Hand))
             })]);
             let counted = pe_criteria::run(
                 &q.grouping,
@@ -822,8 +822,9 @@ fn a_battlefield_count_beside_a_cost_survives_the_restriction_too() {
             let questions = |cost: Cost| {
                 Closures(vec![
                     Box::new(move |v: &PathView<'_>| v.can_cast(last, &cost)) as Check,
-                    Box::new(move |v: &PathView<'_>| v.count_in(last, 0, Zone::Battlefield) >= k)
-                        as Check,
+                    Box::new(move |v: &PathView<'_>| {
+                        v.count_at(last, 0, Counted::In(Zone::Battlefield)) >= k
+                    }) as Check,
                 ])
             };
 

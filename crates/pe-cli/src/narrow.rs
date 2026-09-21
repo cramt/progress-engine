@@ -49,6 +49,42 @@ pub struct Shared {
     /// The declared land-drop priority, and the query saying what a land is.
     /// `None` when the file declared none.
     pub land_drop: Option<u64>,
+    /// The declared casting priority. `None` when the file declared none, and
+    /// then this run casts nothing at all.
+    ///
+    /// Not another `Option<u64>` beside the two above, and the difference is
+    /// the point: a budget makes a class read *what a land makes* as well as
+    /// which cards the policy names, and that is a second fact. Bundling it
+    /// here rather than adding a loose palette field keeps "a class that
+    /// prices spells prices lands too" a thing the type says.
+    pub casting: Option<Casting>,
+}
+
+/// What a declared casting priority makes every class read.
+///
+/// **Every** class, which is the expensive half of the budget and is not
+/// optional. A spell that is cast leaves the hand, so *how many cards
+/// matching anything are in my hand on turn 4* depends on which spells the
+/// pool paid for on turns 1 to 3 — and that depends on the manabase, on what
+/// each named spell costs, and on the order the turns went in. A class
+/// counting `cat:"Ramp"` beside a budget cannot be answered on a cumulative
+/// total of a merged manabase, because the merge changes what was cast and the
+/// total cannot say which turn had the mana.
+///
+/// That is the cost stated up front rather than discovered: a file that
+/// declares `[casting]` pays the mana grouping on every question in it. A file
+/// that declares none pays nothing, and none of its numbers move.
+#[derive(Debug, Clone, Copy)]
+pub struct Casting {
+    /// The priority's own queries, which decide which spells are cast and in
+    /// what order.
+    pub queries: u64,
+    /// The pip kinds every cost in the declared line demands, joined.
+    ///
+    /// The half of the palette narrowing that only the deck can state. A
+    /// `can_cast = "{1}{U}"` clause names its own colour; *how many Opts did I
+    /// cast* names none, and the blue is in the card data.
+    pub demands: Palette,
 }
 
 impl Shared {
@@ -164,24 +200,44 @@ impl Need {
     fn of(reads: &Reads, shared: &Shared) -> Need {
         // One land drop a turn is use-it-or-lose-it, so what is in play and
         // what could be paid are facts about the whole history rather than
-        // about a total. Everything else is a count of cards seen.
-        let history = reads.demands().is_some() || reads.battlefield();
+        // about a total. A budget is the same fact twice over: the pool
+        // refreshes every turn and a spell it paid for is gone from the hand,
+        // so no total says what was cast. Everything else is a count of cards
+        // seen.
+        let history = reads.demands().is_some() || reads.battlefield() || shared.casting.is_some();
         let mut keep = reads.queries();
         // A live effect moves cards between zones, so every count in the run
-        // depends on which cards it applies to and where it sends them.
+        // depends on which cards it applies to and where it sends them. A
+        // casting priority takes cards out of the hand, which is the same
+        // argument with a different destination — so every class keeps it,
+        // however little its own clauses care.
         keep |= shared.effects.unwrap_or(0);
-        // The priority only moves a number where something reads the drops it
-        // made, or where an effect fires off the land it chose.
+        keep |= shared.casting.map_or(0, |c| c.queries);
+        // The land-drop priority only moves a number where something reads the
+        // drops it made, where an effect fires off the land it chose, or where
+        // a budget spends what it taps for.
         if history || shared.effects.is_some() {
             keep |= shared.land_drop.unwrap_or(0);
         }
+        // What the class's own costs demand, joined with what the declared
+        // line demands — because a budget reads the manabase for a reason the
+        // clause never states, and a palette narrowed to the clause alone
+        // would merge a blue source into the pile on a turn the line needed it.
+        let demanded = match (reads.demands(), shared.casting) {
+            (None, None) => None,
+            (clause, line) => Some(
+                clause
+                    .unwrap_or(Palette::EMPTY)
+                    .union(line.map_or(Palette::EMPTY, |c| c.demands)),
+            ),
+        };
         Need {
             keep,
             // A cost can only tell apart the colours it demands, so that is
             // all its enumeration keeps — unless something else in this run
             // gets to choose which land was played, and then the manabase is
             // being read for a reason no cost can state.
-            mana: match reads.demands() {
+            mana: match demanded {
                 None => LandDetail::Ignored,
                 Some(_) if shared.picks_a_land() => LandDetail::Pips(Palette::ALL),
                 Some(demanded) => LandDetail::Pips(demanded),
@@ -247,6 +303,7 @@ pub fn partition(reads: &QuestionReads, shared: &Shared) -> Vec<Class> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pe_criteria::Policies;
 
     fn reads_of(source: &str) -> QuestionReads {
         pe_toml::Criteria::parse(source, "test")
@@ -319,7 +376,7 @@ mod tests {
             &Shared::default(),
         );
         assert_eq!(classes[0].turns, vec![5]);
-        let full = Schedule::build(5, false, Vec::new(), None);
+        let full = Schedule::build(5, false, Vec::new(), Policies::default());
         assert_eq!(full.gaps(), &[7, 0, 1, 1, 1, 1]);
         // Eleven cards seen by turn five, and nothing about the order.
         assert_eq!(classes[0].schedule(&full).gaps(), &[0, 0, 0, 0, 0, 11]);
@@ -394,6 +451,7 @@ mod tests {
         let shared = Shared {
             effects: None,
             land_drop: Some(bit(3)),
+            casting: None,
         };
         let classes = partition(
             &reads_of(
@@ -428,7 +486,7 @@ mod tests {
         assert_eq!(classes[0].reading, Reading::PerTurn);
         // But nothing here asks what a land makes.
         assert_eq!(classes[0].mana, LandDetail::Ignored);
-        let full = Schedule::build(5, false, Vec::new(), None);
+        let full = Schedule::build(5, false, Vec::new(), Policies::default());
         assert_eq!(classes[0].schedule(&full).gaps(), &[7, 0, 1, 1, 1, 0]);
     }
 
@@ -437,6 +495,7 @@ mod tests {
         let shared = Shared {
             effects: Some(bit(9) | bit(10)),
             land_drop: Some(bit(11)),
+            casting: None,
         };
         let classes = partition(
             &reads_of(
@@ -458,6 +517,7 @@ mod tests {
         let shared = Shared {
             effects: None,
             land_drop: Some(bit(11)),
+            casting: None,
         };
         let classes = partition(
             &reads_of(
@@ -470,6 +530,69 @@ mod tests {
             &shared,
         );
         assert_eq!(classes[0].keep, bit(0));
+    }
+
+    #[test]
+    fn a_budget_is_kept_by_every_class_and_prices_the_manabase() {
+        // The expensive half of #10, asserted rather than described. A class
+        // counting Ramp cannot see a casting priority in its own clauses and
+        // has to keep it anyway: the spells the line paid for are spells that
+        // left the hand, so its own count depends on them — and on what the
+        // lands make, because that is what decided whether they were paid for.
+        let shared = Shared {
+            effects: None,
+            land_drop: None,
+            casting: Some(Casting {
+                queries: bit(7),
+                demands: Palette::from_letters(["U"]),
+            }),
+        };
+        let classes = partition(
+            &reads_of(
+                r#"
+                [[criterion]]
+                name = "ramp"
+                require = [{ turn = 3, query = 'cat:"Ramp"', min = 1 }]
+                "#,
+            ),
+            &shared,
+        );
+        assert_eq!(classes[0].keep, bit(0) | bit(7));
+        assert_eq!(
+            classes[0].mana,
+            LandDetail::Pips(Palette::from_letters(["U"])),
+            "the colour comes from the card data, not from this criterion"
+        );
+        assert_eq!(classes[0].reading, Reading::PerTurn);
+    }
+
+    #[test]
+    fn a_budget_joins_its_colours_with_the_clauses_own() {
+        // Two sources of demand, one enumeration. The clause names black and
+        // the declared line spends blue, and a grouping that kept either alone
+        // would merge a land the other one needed to tell apart.
+        let shared = Shared {
+            effects: None,
+            land_drop: None,
+            casting: Some(Casting {
+                queries: bit(7),
+                demands: Palette::from_letters(["U"]),
+            }),
+        };
+        let classes = partition(
+            &reads_of(
+                r#"
+                [[criterion]]
+                name = "castable"
+                require = [{ turn = 4, can_cast = "{B}" }]
+                "#,
+            ),
+            &shared,
+        );
+        assert_eq!(
+            classes[0].mana,
+            LandDetail::Pips(Palette::from_letters(["UB"]))
+        );
     }
 
     #[test]

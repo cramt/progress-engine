@@ -1,0 +1,9 @@
+// HANDS.md hand 1: one Island and six Opt, which is the canonical budget hand.
+//
+// Seven cards, so the opening hand is the whole library and every path is this
+// deal — a probability here is a yes or a no, which is what makes the number
+// checkable by hand. Turn 1 plays the Island, taps it and casts one Opt. The
+// other five are dead, and a model that fires an effect whenever the card is
+// in hand reports six.
+1x Island [Land]
+6x Opt [Cantrip]

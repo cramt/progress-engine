@@ -20,10 +20,43 @@
 //! percentage nobody can attribute.
 
 use crate::effect::Effect;
-use crate::policy::LandDropPolicy;
+use crate::policy::{CastingPolicy, LandDropPolicy};
 
 /// The opening hand, before anybody has drawn for turn.
 const OPENING_HAND: u32 = 7;
+
+/// The declared priorities a run arbitrates its contested resources by.
+///
+/// One struct rather than two more positional arguments, because they are the
+/// same kind of fact and a caller that swapped them would still typecheck the
+/// day a third arrives. `None` on either is the older behaviour, and both
+/// older behaviours are real answers rather than gaps: no land-drop priority
+/// means nobody said which land they would play, and no casting priority means
+/// nobody said which spells they would cast, so the run does not cast any.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Policies {
+    pub land_drop: Option<LandDropPolicy>,
+    pub casting: Option<CastingPolicy>,
+}
+
+impl Policies {
+    /// Just a land-drop priority, which is every run that had one before the
+    /// budget existed.
+    pub fn land_drop(policy: LandDropPolicy) -> Policies {
+        Policies {
+            land_drop: Some(policy),
+            casting: None,
+        }
+    }
+
+    /// Just a casting priority.
+    pub fn casting(policy: CastingPolicy) -> Policies {
+        Policies {
+            land_drop: None,
+            casting: Some(policy),
+        }
+    }
+}
 
 /// How much of a run's turn structure one class of questions reads.
 ///
@@ -56,11 +89,14 @@ pub struct Schedule {
     /// always the draw; anything after it is a look slot.
     spans: Vec<(usize, usize)>,
     effects: Vec<Effect>,
-    /// Who gets the land drop, where the file said. `None` is a run that never
-    /// declared one, and it is the state every run was in before
+    /// Who gets the land drop and who gets the mana, where the file said.
+    ///
+    /// `None` on the land drop is the state every run was in before
     /// [`LandDropPolicy`] existed: the effects choose among themselves by look
-    /// depth and the gate assumes whichever line pays.
-    land_drop: Option<LandDropPolicy>,
+    /// depth and the gate assumes whichever line pays. `None` on the casting
+    /// is the state every run was in before the budget: nothing is cast, so
+    /// nothing leaves the hand and the pool is never spent.
+    policies: Policies,
 }
 
 impl Schedule {
@@ -76,18 +112,18 @@ impl Schedule {
             gaps: gaps.to_vec(),
             spans: (0..gaps.len()).map(|t| (t, t)).collect(),
             effects: Vec::new(),
-            land_drop: None,
+            policies: Policies::default(),
         }
     }
 
-    /// [`Schedule::plain`] with a land-drop priority declared.
+    /// [`Schedule::plain`] with a priority declared.
     ///
     /// For a hand written as raw gaps — a seven-card library played out over
     /// turns that draw nothing — which is how HANDS.md's hands are asserted:
     /// one deal, every path is that deal, and a probability is a yes or a no.
-    pub fn plain_under(gaps: &[u32], land_drop: LandDropPolicy) -> Schedule {
+    pub fn plain_with(gaps: &[u32], policies: Policies) -> Schedule {
         Schedule {
-            land_drop: Some(land_drop),
+            policies,
             ..Schedule::plain(gaps)
         }
     }
@@ -99,15 +135,18 @@ impl Schedule {
     /// that routes nowhere leaves every card it looks at on top, which is where
     /// the card already was, so paying a checkpoint a turn for it would widen
     /// the enumeration to compute a value it cannot change.
-    /// `land_drop` is the priority the file declared over the one drop a turn,
-    /// and it is a parameter rather than something bolted on afterwards
-    /// because a run that forgot to pass it would silently answer the mana
-    /// question against a different land than the one the effects played.
+    ///
+    /// `policies` are the priorities the file declared over the two resources
+    /// that two parts of a run would otherwise both spend. They are parameters
+    /// rather than something bolted on afterwards, because a run that forgot
+    /// to pass one would silently answer the mana question against a different
+    /// land than the one the effects played, or leave a spell sitting in the
+    /// hand it was cast out of.
     pub fn build(
         horizon: u32,
         on_the_draw: bool,
         effects: Vec<Effect>,
-        land_drop: Option<LandDropPolicy>,
+        policies: Policies,
     ) -> Schedule {
         // One land drop a turn, so one effect fires a turn, so the deepest
         // single look is the most cards a turn can examine.
@@ -128,7 +167,7 @@ impl Schedule {
             gaps,
             spans,
             effects,
-            land_drop,
+            policies,
         }
     }
 
@@ -163,7 +202,13 @@ impl Schedule {
             .filter(|&t| t < self.spans.len())
             .max();
         if let Some(last) = last {
-            let collapse = reading == Reading::Cumulative && self.effects.is_empty();
+            // A casting priority takes the same veto a live effect does, and
+            // for a stronger reason: a card that is cast leaves the hand, so
+            // every count in this run depends on which turn had the mana, and
+            // two draws merged into one total cannot say.
+            let collapse = reading == Reading::Cumulative
+                && self.effects.is_empty()
+                && self.policies.casting.is_none();
             if collapse {
                 // Everything drawn since the last turn this class looked at,
                 // waiting for the next one that does.
@@ -185,7 +230,7 @@ impl Schedule {
             gaps,
             spans: self.spans.clone(),
             effects: self.effects.clone(),
-            land_drop: self.land_drop.clone(),
+            policies: self.policies.clone(),
         }
     }
 
@@ -199,7 +244,12 @@ impl Schedule {
 
     /// The declared priority over the land drop, if this run has one.
     pub fn land_drop(&self) -> Option<&LandDropPolicy> {
-        self.land_drop.as_ref()
+        self.policies.land_drop.as_ref()
+    }
+
+    /// The declared priority over the turn's mana, if this run has one.
+    pub fn casting(&self) -> Option<&CastingPolicy> {
+        self.policies.casting.as_ref()
     }
 
     /// Turns this run covers, counting turn 0, the opening hand.

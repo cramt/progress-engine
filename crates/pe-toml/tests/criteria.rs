@@ -8,7 +8,7 @@
 //! unanswerable refuses instead, and that the exact and sampled engines running
 //! the same file still agree.
 
-use pe_criteria::{Grouping, Outcomes, RunError, Schedule, Trigger, Zone, ZoneError};
+use pe_criteria::{Grouping, Outcomes, Policies, RunError, Schedule, Trigger, Zone, ZoneError};
 use pe_toml::{
     Criteria, Destination, EffectLibrary, ErrorKind, MAX_TURN, STANDARD_LIBRARY,
     STANDARD_LIBRARY_ORIGIN,
@@ -28,7 +28,7 @@ fn grouping_for(criteria: &Criteria, each: u32) -> Grouping {
 fn schedule(criteria: &Criteria) -> Schedule {
     // On the draw, so every turn past the opener sees one more card and the
     // helper does not have to special-case turn one.
-    Schedule::build(criteria.horizon(), true, Vec::new(), None)
+    Schedule::build(criteria.horizon(), true, Vec::new(), Policies::default())
 }
 
 fn parse(source: &str) -> Criteria {
@@ -1199,7 +1199,7 @@ fn a_trigger_that_is_not_a_land_drop_is_refused_by_name() {
     let mana = with("cast");
     assert!(matches!(&mana, ErrorKind::BadTrigger { .. }), "{mana:?}");
     assert!(
-        mana.to_string().contains("issues/10"),
+        mana.to_string().contains("issues/57"),
         "should say what it waits on: {mana}"
     );
     let unknown = with("upkeep");
@@ -1370,11 +1370,11 @@ fn a_priority_that_arbitrates_nothing_is_refused_by_name() {
     // never decided anything.
     assert!(matches!(
         refuse(&format!("[land_drop]\nprefer = []\n{ONE_CLAUSE}")),
-        ErrorKind::NoPreference
+        ErrorKind::NoPreference { .. }
     ));
     assert!(matches!(
         refuse(&format!("[land_drop]\n{ONE_CLAUSE}")),
-        ErrorKind::NoPreference
+        ErrorKind::NoPreference { .. }
     ));
     let repeated = refuse(&format!(
         "[land_drop]\nprefer = ['t:land', 'otag:surveil', 't:land']\n{ONE_CLAUSE}"
@@ -1382,7 +1382,12 @@ fn a_priority_that_arbitrates_nothing_is_refused_by_name() {
     assert!(
         matches!(
             &repeated,
-            ErrorKind::RepeatedPreference { query, first, position }
+            ErrorKind::RepeatedPreference {
+                query,
+                first,
+                position,
+                ..
+            }
                 if query == "t:land" && *first == 1 && *position == 3
         ),
         "{repeated}"

@@ -6,6 +6,7 @@
 //! JSON — that has happened — but stderr still lands in front of whoever is
 //! reading.
 
+mod casting;
 mod effects;
 mod landdrop;
 mod library;
@@ -510,12 +511,50 @@ fn run_test(
         [] => None,
         prefer => Some(landdrop::resolve(prefer, &library, criteria.queries())?),
     };
-    let asked: Vec<String> = criteria
+    let mut asked: Vec<String> = criteria
         .queries()
         .iter()
         .cloned()
         .chain(land_drop.iter().flat_map(|p| p.queries.iter().cloned()))
         .collect();
+    // The casting priority next, on the same terms and for the same reason:
+    // its queries sit behind everything already asked for, so no bit a clause
+    // holds moves. It is resolved here rather than later because pricing it is
+    // where a cost this engine cannot pay gets refused, and that has to happen
+    // before anything is grouped.
+    casting::check(criteria.casting(), &library)?;
+    let casting = match criteria.casting() {
+        [] => None,
+        prefer => Some(casting::resolve(prefer, &library, &asked)?),
+    };
+    asked.extend(casting.iter().flat_map(|p| p.queries.iter().cloned()));
+    if let Some(policy) = &casting {
+        for query in &policy.unmatched {
+            eprintln!("note: casting preference {query:?} matches no castable card in this deck");
+        }
+        for (query, lands) in &policy.lands {
+            eprintln!(
+                "note: casting preference {query:?} also matches {} you play rather than cast: \
+                 {}.\n      A land arrives on a land drop, so the priority ignores them — \
+                 [land_drop] is where that decision lives.",
+                if lands.len() == 1 { "a land" } else { "lands" },
+                lands.join(", ")
+            );
+        }
+    }
+    // A `cast` clause with nobody to cast is the budget's version of the land
+    // drop's two claimants, and it is refused for the same reason: which
+    // spells you cast out of one turn's mana is a decision the pilot makes,
+    // and a tool that picked would be reporting a line nobody chose.
+    if let Some(asked_by) = criteria.counts_castings() {
+        if casting.is_none() {
+            anyhow::bail!(
+                "{}: {asked_by}: {}",
+                criteria_path.display(),
+                report::casting_without_priority()
+            );
+        }
+    }
     if let Some(policy) = &land_drop {
         for query in &policy.unmatched {
             eprintln!("note: land-drop preference {query:?} matches no land in this deck");
@@ -558,39 +597,46 @@ fn run_test(
     // is: a caller running several criteria files needs to know which one it
     // was before it needs to know which criterion.
     let origin = criteria_path.display();
-    let mana = match criteria.mana_question() {
-        None => library::ManaDetail::Ignored,
-        Some(asked_by) => {
-            for (query, asked_by) in criteria.battlefield_queries() {
-                let spells = library.non_lands_matching(query)?;
-                if !spells.is_empty() {
-                    anyhow::bail!(
-                        "{origin}: {asked_by}: {}",
-                        report::battlefield_refusal(query, &spells)
-                    );
-                }
-            }
-            // One land drop a turn is a decision, and a live effect already
-            // spends it: with no declared priority the walk plays the
-            // deepest-looking land you hold, because there was nothing else to
-            // choose by. Answering a mana question beside that would be a
-            // second policy deciding the same drop, and the two would disagree
-            // on exactly the hands that matter. Declaring the priority makes
-            // them one decision, which is the remedy the refusal names.
-            if !resolved.effects.is_empty() && land_drop.is_none() {
+    // A declared casting priority is a mana question whether or not any clause
+    // asks one, because the budget spends the pool: what was cast decides what
+    // is left in hand, and every count in the file reads that.
+    let table = "[casting]";
+    if let Some(asked_by) = criteria
+        .mana_question()
+        .or_else(|| casting.as_ref().map(|_| table))
+    {
+        for (query, asked_by) in criteria.battlefield_queries() {
+            let spells = library.non_lands_matching(query)?;
+            if !spells.is_empty() {
                 anyhow::bail!(
                     "{origin}: {asked_by}: {}",
-                    report::mana_beside_effects_refusal()
+                    report::battlefield_refusal(query, &spells)
                 );
             }
-            match criteria.casts() {
-                None => library::ManaDetail::Ignored,
-                Some(asked_by) => {
-                    if let Some(refusal) = report::cannot_price_mana(&library) {
-                        anyhow::bail!("{origin}: {asked_by}: {refusal}");
-                    }
-                    library::ManaDetail::Modelled
-                }
+        }
+        // One land drop a turn is a decision, and a live effect already
+        // spends it: with no declared priority the walk plays the
+        // deepest-looking land you hold, because there was nothing else to
+        // choose by. Answering a mana question beside that would be a
+        // second policy deciding the same drop, and the two would disagree
+        // on exactly the hands that matter. Declaring the priority makes
+        // them one decision, which is the remedy the refusal names.
+        if !resolved.effects.is_empty() && land_drop.is_none() {
+            anyhow::bail!(
+                "{origin}: {asked_by}: {}",
+                report::mana_beside_effects_refusal()
+            );
+        }
+    }
+    let no_costs: [Option<pe_criteria::Demand>; 0] = [];
+    let mana = match criteria.casts().or_else(|| casting.as_ref().map(|_| table)) {
+        None => library::ManaDetail::Ignored,
+        Some(asked_by) => {
+            if let Some(refusal) = report::cannot_price_mana(&library) {
+                anyhow::bail!("{origin}: {asked_by}: {refusal}");
+            }
+            library::ManaDetail::Modelled {
+                castable: casting.as_ref().map_or(&no_costs, |c| c.costs.as_slice()),
             }
         }
     };
@@ -605,7 +651,10 @@ fn run_test(
         criteria.horizon(),
         on_the_draw,
         resolved.effects.clone(),
-        land_drop.as_ref().map(|p| p.policy.clone()),
+        pe_criteria::Policies {
+            land_drop: land_drop.as_ref().map(|p| p.policy.clone()),
+            casting: casting.as_ref().map(|p| p.policy.clone()),
+        },
     );
     let plan = criteria.plan();
     // Refused about the run rather than about one of its classes. Narrowing
@@ -630,6 +679,13 @@ fn run_test(
         land_drop: land_drop
             .as_ref()
             .map(|p| p.policy.tiers().fold(0u64, |bits, q| bits | 1u64 << q)),
+        // The budget is the widest of the three: it reads which spells the
+        // line names *and* what the manabase makes, on every class, because a
+        // spell it paid for is one that left the hand.
+        casting: casting.as_ref().map(|p| narrow::Casting {
+            queries: p.policy.tiers().fold(0u64, |bits, q| bits | 1u64 << q),
+            demands: p.demands,
+        }),
     };
     let classes = narrow::partition(&criteria.reads(), &shared);
 
@@ -710,7 +766,7 @@ fn run_test(
             // nothing about any of them.
             assumed_tapped: match mana {
                 library::ManaDetail::Ignored => Vec::new(),
-                library::ManaDetail::Modelled => library.conditional_taplands(),
+                library::ManaDetail::Modelled { .. } => library.conditional_taplands(),
             },
             // Read off the schedule the engine actually walked, like the zone
             // reachability above, so the note cannot claim a policy the
@@ -721,6 +777,14 @@ fn run_test(
                     .map_or_else(Vec::new, |p| p.prefer.clone()),
                 then: "any other land",
                 tie_break: pe_criteria::LandDropPolicy::TIE_BREAK,
+            }),
+            // Read off the schedule for the same reason, and printed even
+            // where no clause counts a casting: the line decides what is left
+            // in hand, so it is an input to every number below it.
+            casting: schedule.casting().map(|_| report::CastingUse {
+                prefer: casting.as_ref().map_or_else(Vec::new, |p| p.prefer.clone()),
+                then: pe_criteria::CastingPolicy::THEN,
+                tie_break: pe_criteria::CastingPolicy::TIE_BREAK,
             }),
         },
         report::Provenance {

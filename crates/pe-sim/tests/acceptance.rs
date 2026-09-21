@@ -8,7 +8,10 @@
 
 use std::convert::Infallible;
 
-use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan, Schedule, Zone};
+use pe_criteria::{
+    CastingPolicy, Cost, Count, Counted, Evaluator, Grouping, ManaSource, Palette, PathOutcomes,
+    PathView, Plan, Policies, Schedule, Zone,
+};
 use pe_sim::{mean_standard_error, simulate, standard_error, SimError};
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
@@ -72,7 +75,10 @@ fn the_shuffler_reproduces_the_documented_land_distribution() {
     // P(X >= k) for each k, from which the distribution follows.
     let mut ev = Closures(
         (0..=7)
-            .map(|k| Box::new(move |v: &PathView<'_>| v.count_in(0, 0, Zone::Hand) >= k) as Check)
+            .map(|k| {
+                Box::new(move |v: &PathView<'_>| v.count_at(0, 0, Counted::In(Zone::Hand)) >= k)
+                    as Check
+            })
             .collect(),
     );
     let at_least = simulate(
@@ -124,7 +130,8 @@ fn sampling_agrees_with_the_exact_engine() {
         });
 
         let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-            v.count_in(0, 0, Zone::Hand) >= 1 && v.count_in(0, 1, Zone::Hand) >= 1
+            v.count_at(0, 0, Counted::In(Zone::Hand)) >= 1
+                && v.count_at(0, 1, Counted::In(Zone::Hand)) >= 1
         })]);
         let sampled = simulate(
             &g,
@@ -155,9 +162,9 @@ fn checkpoints_agree_with_the_exact_engine() {
 
     let exact = pe_stats::probability_that_path(g.group_sizes(), &[7, 1], pred);
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-        v.count_in(0, 0, Zone::Hand) >= 1
-            && v.count_in(0, 1, Zone::Hand) >= 1
-            && v.count_in(1, 0, Zone::Hand) >= 2
+        v.count_at(0, 0, Counted::In(Zone::Hand)) >= 1
+            && v.count_at(0, 1, Counted::In(Zone::Hand)) >= 1
+            && v.count_at(1, 0, Counted::In(Zone::Hand)) >= 2
     })]);
     let sampled = simulate(
         &g,
@@ -183,7 +190,7 @@ fn the_same_seed_deals_the_same_hands() {
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
     let run = |seed: u64| {
         let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-            v.count_in(0, 0, Zone::Hand) >= 3
+            v.count_at(0, 0, Counted::In(Zone::Hand)) >= 3
         })]);
         simulate(
             &g,
@@ -208,7 +215,7 @@ fn the_same_seed_deals_the_same_hands() {
 fn drawing_the_whole_library_is_not_an_infinite_loop() {
     let g = Grouping::build(q(&["land"]), [(0b1, 4), (0, 6)]).unwrap();
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-        v.count_in(0, 0, Zone::Hand) == 4
+        v.count_at(0, 0, Counted::In(Zone::Hand)) == 4
     })]);
     let p = simulate(
         &g,
@@ -229,7 +236,7 @@ fn a_hand_bigger_than_the_library_is_refused_rather_than_clamped() {
     // exact engine answered 0%. Both refuse now.
     let g = Grouping::build(q(&["land"]), [(0b1, 1), (0, 1)]).unwrap();
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-        v.count_in(0, 0, Zone::Hand) >= 1
+        v.count_at(0, 0, Counted::In(Zone::Hand)) >= 1
     })]);
     let err = simulate(
         &g,
@@ -264,7 +271,7 @@ fn a_hand_bigger_than_the_library_is_refused_rather_than_clamped() {
 fn zero_trials_is_refused_rather_than_divided_by() {
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-        v.count_in(0, 0, Zone::Hand) >= 1
+        v.count_at(0, 0, Counted::In(Zone::Hand)) >= 1
     })]);
     assert!(matches!(
         simulate(&g, &Schedule::plain(&[7]), 0, 1, only_criteria(1), &mut ev).unwrap_err(),
@@ -281,9 +288,9 @@ fn a_checkpoint_reached_before_any_draw_sees_an_empty_hand() {
     let g = Grouping::build(q(&["land"]), [(0b1, 1)]).unwrap();
     let criteria = || {
         Closures(vec![
-            Box::new(|v: &PathView<'_>| v.count_in(0, 0, Zone::Hand) >= 1),
-            Box::new(|v: &PathView<'_>| v.count_in(1, 0, Zone::Hand) >= 1),
-            Box::new(|v: &PathView<'_>| v.count_in(2, 0, Zone::Hand) >= 1),
+            Box::new(|v: &PathView<'_>| v.count_at(0, 0, Counted::In(Zone::Hand)) >= 1),
+            Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::In(Zone::Hand)) >= 1),
+            Box::new(|v: &PathView<'_>| v.count_at(2, 0, Counted::In(Zone::Hand)) >= 1),
         ])
     };
     // Nothing before the draw, the land after it, and a trailing gap of zero
@@ -320,7 +327,7 @@ fn the_sampled_distribution_reproduces_the_documented_land_distribution() {
     // is also the check that the direct route and the workaround agree.
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
     let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| {
-        v.count_in(0, 0, Zone::Hand)
+        v.count_at(0, 0, Counted::In(Zone::Hand))
     })]);
     let sampled = simulate(
         &g,
@@ -372,9 +379,11 @@ fn expectations_agree_with_the_exact_engine() {
     let g = Grouping::build(q(&["land", "dork"]), [(0b01, 36), (0b10, 10), (0, 53)]).unwrap();
     let counters = || {
         Counters(vec![
-            Box::new(|v: &PathView<'_>| v.count_in(0, 0, Zone::Hand)) as Tally,
-            Box::new(|v: &PathView<'_>| v.count_in(1, 0, Zone::Hand) + v.count_in(1, 1, Zone::Hand))
-                as Tally,
+            Box::new(|v: &PathView<'_>| v.count_at(0, 0, Counted::In(Zone::Hand))) as Tally,
+            Box::new(|v: &PathView<'_>| {
+                v.count_at(1, 0, Counted::In(Zone::Hand))
+                    + v.count_at(1, 1, Counted::In(Zone::Hand))
+            }) as Tally,
         ])
     };
 
@@ -419,4 +428,74 @@ fn expectations_agree_with_the_exact_engine() {
             );
         }
     }
+}
+
+#[test]
+fn the_budget_agrees_with_the_exact_engine() {
+    // A budget is a new thing for the walk to do on every path, so it is a new
+    // way for the two engines to disagree. They share the board, so what this
+    // catches is the path being *produced* differently — a sampled hand whose
+    // turn boundaries do not line up with the enumerated one's would spend its
+    // mana on a different turn and cast a different number of spells.
+    //
+    // Nineteen lands, twelve one-drops and a library that runs out of neither,
+    // asked as "at least two cast by turn 4", which is a question whose answer
+    // is neither 0 nor 1.
+    let grouping = Grouping::with_mana(
+        q(&["cantrip"]),
+        vec![
+            (
+                0b1,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                },
+                12,
+            ),
+            (
+                0b0,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                },
+                19,
+            ),
+            (0b0, ManaSource::Spell, 68),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::build(
+        4,
+        true,
+        Vec::new(),
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let question = || {
+        Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(4, 0, Counted::Cast) >= 2) as Check,
+        ])
+    };
+    let exact = pe_criteria::run(&grouping, &schedule, only_criteria(1), &mut question())
+        .unwrap()
+        .probabilities[0]
+        .get();
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        TRIALS,
+        11,
+        only_criteria(1),
+        &mut question(),
+    )
+    .unwrap()
+    .proportions[0];
+    assert!(
+        exact > 0.05 && exact < 0.95,
+        "a question worth asking: {exact}"
+    );
+    let se = standard_error(sampled, TRIALS);
+    assert!(
+        (sampled - exact).abs() < 4.0 * se,
+        "sampled {sampled} vs exact {exact} ({}x SE)",
+        (sampled - exact).abs() / se
+    );
 }

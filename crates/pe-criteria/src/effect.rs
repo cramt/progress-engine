@@ -25,8 +25,8 @@
 //! same restriction the rest of the engine runs on, and the reason this stays
 //! enumerable instead of becoming a simulation.
 
-use crate::mana::{Constraint, Cost, Source};
-use crate::{Grouping, Schedule, Zone};
+use crate::mana::{Constraint, Cost, Demand, Source};
+use crate::{Counted, Grouping, Schedule, Zone};
 use pe_stats::Path;
 use thiserror::Error;
 
@@ -75,22 +75,32 @@ impl std::fmt::Display for Trigger {
 /// A trigger this engine will not fire.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum TriggerError {
-    /// Refused by name rather than approximated.
+    /// Refused by name rather than approximated, and **what it is refused for
+    /// has changed.**
     ///
-    /// The gate half of the mana model ships — [`Board::can_cast`] will tell
-    /// you whether Opt was castable on turn two — and this still does not,
-    /// because firing an effect needs the other half. An opening hand of one
-    /// Island and six Opt *can cast* Opt and casts exactly one of them: the
-    /// first one spends the Island. A model that fires an effect whenever the
-    /// card is in hand and the mana is there overstates that turn sixfold, and
-    /// the number looks perfectly reasonable in a report.
+    /// Both halves of the mana model now ship. The gate says whether Opt was
+    /// castable on turn two; the budget says how many Opts the turn actually
+    /// paid for, which is one however many you are holding. So *how often does
+    /// this fire* is no longer the missing piece.
+    ///
+    /// What is missing is what firing it **does**. Every card in this tier
+    /// draws — Opt, Preordain, Brainstorm — and a replacement draw makes *cards
+    /// seen by turn T* a fact about the path rather than about the schedule.
+    /// The enumeration reveals cards one checkpoint each so that it can tell
+    /// the order they came off the top, so a card the walk might or might not
+    /// draw needs a checkpoint of its own; each one multiplies the enumeration
+    /// by the group count; and a turn with T mana can cast T cantrips. On both
+    /// decks in `decks/` that is over the ceiling by turn three for any line
+    /// with a colour in it, against north stars that ask about turn five.
     #[error(
-        "`on = {name:?}` is not modelled. Knowing you cast a spell on a turn means knowing the \
-         mana was still there after the last one, and that is the budget half of the mana model \
-         (https://github.com/cramt/progress-engine/issues/10).\n\
-         Being able to cast a card is not casting it six times, so firing on the holding would \
-         overstate the turn. Only `on = \"landdrop\"` is free and capped at one per turn, so \
-         only that is modelled. `can_cast` answers whether you could have."
+        "`on = {name:?}` is not modelled, and the reason is the draw rather than the mana. \
+         How many spells a turn pays for is answered — declare `[casting] prefer = [...]` and \
+         count them with `cast`.\n\
+         What a cast spell then draws is not: a replacement draw makes how many cards you have \
+         seen by a turn depend on the path rather than on the schedule, which costs an \
+         enumeration checkpoint per turn and goes over the ceiling on every question this tool \
+         exists for (https://github.com/cramt/progress-engine/issues/57).\n\
+         Only `on = \"landdrop\"` is free, capped at one per turn, and draws nothing."
     )]
     NeedsMana { name: String },
     #[error(
@@ -149,6 +159,29 @@ pub struct Effect {
     pub route: Route,
 }
 
+/// The spells of a run whose file declared which ones to cast.
+///
+/// The budget half of [#10](https://github.com/cramt/progress-engine/issues/10).
+/// A gate asks whether the pool *could* have paid; this spends it, and the
+/// difference is the whole of HANDS.md hand 1 — one Island and six Opt can
+/// cast Opt and casts exactly one, because the first one takes the Island.
+///
+/// `tiers` is the priority as groups, highest first, each already sorted by
+/// the tie rule. `cost` is what a group's card puts on the pool, `None` for
+/// every group the priority does not name — those are never cast, which is the
+/// list being a line rather than a preference over the whole deck. `cast_at`
+/// is what that came to on this path, and `spent` is what the line took out of
+/// each turn, so a `can_cast` clause beside it reads what is left rather than
+/// what the turn started with.
+struct Casting {
+    tiers: Vec<Vec<usize>>,
+    cost: Vec<Option<Demand>>,
+    cast_at: Vec<Vec<u32>>,
+    spent: Vec<Demand>,
+    /// Copies cast so far on this path, per group. Scratch, reused.
+    live_cast: Vec<u32>,
+}
+
 /// The land drops of a run whose file declared which land to play.
 ///
 /// `tiers` is the priority as groups: one list per tier, highest first, each
@@ -194,6 +227,13 @@ pub struct Board<'a> {
     /// choosing the drop among themselves, and the gate assuming the line that
     /// pays.
     declared: Option<Declared>,
+    /// Everything that only exists where the file declared a casting priority.
+    ///
+    /// `None` is a run that casts nothing at all, which is every run there was
+    /// before the budget: no card leaves the hand, no pool is spent, and a
+    /// `can_cast` clause asks what the lands could have paid rather than what
+    /// they have left.
+    casting: Option<Casting>,
     /// `[turn][group]`, filled by [`Board::walk`].
     hand: Vec<Vec<u32>>,
     yard: Vec<Vec<u32>>,
@@ -300,6 +340,40 @@ impl<'a> Board<'a> {
                 played_at: vec![vec![0; groups]; turns],
             }
         });
+        // The same tie rule applied once, over the other contested resource:
+        // a group belongs to the first tier that names it, and inside a tier
+        // the cheaper spell is cast first — which is the rule that gets you
+        // more of what you said you wanted — and then the group the decklist
+        // reached first. A group the list never names has no cost recorded and
+        // is never cast.
+        let casting = schedule.casting().map(|policy| {
+            let cost: Vec<Option<Demand>> = grouping
+                .group_mana()
+                .iter()
+                .map(|mana| mana.castable())
+                .collect();
+            let mut claimed = vec![false; groups];
+            Casting {
+                tiers: policy
+                    .tiers()
+                    .map(|query| {
+                        let mut tier: Vec<usize> = (0..groups)
+                            .filter(|&g| !claimed[g] && cost[g].is_some())
+                            .filter(|&g| grouping.group_masks()[g] & (1u64 << query) != 0)
+                            .collect();
+                        for &g in &tier {
+                            claimed[g] = true;
+                        }
+                        tier.sort_by_key(|&g| (cost[g].map_or(0, Demand::total), g));
+                        tier
+                    })
+                    .collect(),
+                cost,
+                cast_at: vec![vec![0; groups]; turns],
+                spent: vec![Demand::FREE; turns],
+                live_cast: vec![0; groups],
+            }
+        });
         Board {
             grouping,
             schedule,
@@ -307,6 +381,7 @@ impl<'a> Board<'a> {
             routed,
             land_groups,
             pool,
+            casting,
             drops: vec![0; turns],
             hand: vec![vec![0; groups]; turns],
             yard: vec![vec![0; groups]; turns],
@@ -332,6 +407,9 @@ impl<'a> Board<'a> {
         self.live_hand.fill(0);
         self.live_yard.fill(0);
         self.drop_at.fill(None);
+        if let Some(casting) = &mut self.casting {
+            casting.live_cast.fill(0);
+        }
 
         let effects = self.schedule.effects();
         for turn in 0usize..self.schedule.turns() {
@@ -400,12 +478,82 @@ impl<'a> Board<'a> {
                 }
             }
 
+            // Recorded **before** the spells, because the budget asks the
+            // board what this turn can pay with and gets its answer from these
+            // very slots. Left until after, it would read whatever the
+            // previous path left behind — which is not a stale number so much
+            // as another deal's board, and it cast spells off lands that hand
+            // never played.
             self.hand[turn].copy_from_slice(&self.live_hand);
             self.yard[turn].copy_from_slice(&self.live_yard);
             if let Some(declared) = &mut self.declared {
                 declared.played_at[turn].copy_from_slice(&self.live_played);
             }
+            // The spells, after the land, because you play your land and then
+            // cast off it.
+            if self.casting.is_some() {
+                self.cast(turn);
+                // And the hand again, because a card you cast is not a card
+                // you are holding. Only the hand moves: casting spends lands
+                // rather than playing them, so nothing above changes under it.
+                self.hand[turn].copy_from_slice(&self.live_hand);
+                if let Some(casting) = &mut self.casting {
+                    casting.cast_at[turn].copy_from_slice(&casting.live_cast);
+                }
+            }
         }
+    }
+
+    /// Spend this turn's mana on the spells the file said to cast.
+    ///
+    /// The whole budget, and it is short because the two hard parts are
+    /// elsewhere: *which* spell is a declared priority, and *can this be paid*
+    /// is one matching over the summed bill. What is left is a walk down the
+    /// list taking whatever the pool still covers.
+    ///
+    /// Two things make it a budget rather than a gate. The bill **accumulates**
+    /// across the turn — casting a second Opt asks whether `{U}{U}` is payable,
+    /// not whether `{U}` is, which is the only reason one Island casts one Opt
+    /// — and a spell that is cast **leaves the hand**, so the same copy cannot
+    /// be cast again next turn.
+    ///
+    /// Greedy down the list, and that is the policy rather than a shortcut: the
+    /// file said which spell it wanted first, so the engine takes it first even
+    /// where skipping it would have bought two cheaper ones. A pilot who wants
+    /// the two cheaper ones says so by listing them first.
+    fn cast(&mut self, turn: usize) {
+        // Moved out and put back rather than borrowed, because paying is a
+        // question about the whole board and casting writes to part of it.
+        let Some(mut casting) = self.casting.take() else {
+            return;
+        };
+        // Turn 0 is the opening hand: no land has been played, so there is no
+        // mana and nothing to spend it on.
+        if turn > 0 {
+            let mut spent = Demand::FREE;
+            for tier in &casting.tiers {
+                for &group in tier {
+                    let Some(cost) = casting.cost[group] else {
+                        continue;
+                    };
+                    while self.live_hand[group] > 0 {
+                        let trial = spent.plus(cost);
+                        // The count first, because it settles most turns
+                        // without a matching: a bill for more sources than you
+                        // have land drops cannot be paid however they are
+                        // coloured, and this runs on every path.
+                        if trial.total() > self.drops[turn] || !self.can_pay(turn, trial) {
+                            break;
+                        }
+                        spent = trial;
+                        self.live_hand[group] -= 1;
+                        casting.live_cast[group] += 1;
+                    }
+                }
+            }
+            casting.spent[turn] = spent;
+        }
+        self.casting = Some(casting);
     }
 
     /// Which land the declared priority plays this turn, if any.
@@ -504,28 +652,48 @@ impl<'a> Board<'a> {
         }
     }
 
-    /// How many cards matching `query` are in `zone` at the end of `turn`.
+    /// How many cards matching `query` this path has put where `counted` says,
+    /// by the end of `turn`.
     ///
     /// Returns 0 for a turn beyond the horizon rather than panicking: a
     /// criterion asking about turn 9 of a 5-turn run should be false, not a
     /// crash.
-    pub fn count_in(&self, turn: usize, query: usize, zone: Zone) -> u32 {
+    pub fn count_at(&self, turn: usize, query: usize, counted: Counted) -> u32 {
         let Some(hand) = self.hand.get(turn) else {
             return 0;
+        };
+        let zone = match counted {
+            Counted::Cast => return self.cast_by(turn, query),
+            Counted::In(zone) => zone,
         };
         let in_hand = self.grouping.count_matching(hand, query);
         match zone {
             Zone::Hand => in_hand,
             Zone::Graveyard => self.grouping.count_matching(&self.yard[turn], query),
-            // Cannot underflow: hand and yard are disjoint subsets of the same
-            // groups `matching_total` sums over.
+            // Cannot underflow: the hand, the yard and the spells this path
+            // cast are disjoint subsets of the same groups `matching_total`
+            // sums over — a card is drawn once, and casting it takes it out of
+            // the hand rather than copying it.
             Zone::Library => {
                 self.grouping.matching_total(query)
                     - in_hand
                     - self.grouping.count_matching(&self.yard[turn], query)
+                    - self.cast_by(turn, query)
             }
             Zone::Battlefield => self.played_by(turn, query),
         }
+    }
+
+    /// How many cards matching `query` this path has cast by `turn`.
+    ///
+    /// Zero in a run with no declared casting priority, and that zero is a
+    /// fact rather than a gap: nobody said which spells they would cast, so
+    /// the run cast none. The report says so.
+    fn cast_by(&self, turn: usize, query: usize) -> u32 {
+        self.casting
+            .as_ref()
+            .and_then(|c| c.cast_at.get(turn))
+            .map_or(0, |counts| self.grouping.count_matching(counts, query))
     }
 
     /// How many lands matching `query` were played by `turn` — or, where
@@ -600,6 +768,27 @@ impl<'a> Board<'a> {
     /// to enter untapped; or play the land that arrived this turn and tap that,
     /// which needs the same of it.
     pub fn can_cast(&self, turn: usize, cost: &Cost) -> bool {
+        // **Beside a budget this asks what is left, not what there was.** One
+        // pool, one accounting: a run that declared a casting priority has
+        // already spent some of this turn on it, and answering "could you have
+        // paid {U}" out of the whole turn's lands while a declared line
+        // already took them would be two claimants on one resource — the thing
+        // the land drop taught us not to do. So the line's bill is added to
+        // this one and the pair is asked together. A file that declares no
+        // casting priority spends nothing, so nothing moves.
+        let spent = self
+            .casting
+            .as_ref()
+            .and_then(|c| c.spent.get(turn))
+            .copied()
+            .unwrap_or(Demand::FREE);
+        self.can_pay(turn, spent.plus(cost.demand()))
+    }
+
+    /// The matching behind [`Board::can_cast`], over a bill rather than a
+    /// written cost — because the budget pays several spells out of one turn
+    /// and that is one bill.
+    fn can_pay(&self, turn: usize, cost: Demand) -> bool {
         if cost.is_free() {
             return true;
         }
@@ -617,6 +806,10 @@ impl<'a> Board<'a> {
                     .position(|&land| land == group)
                     .filter(|&slot| self.pool[slot].tapped)
             });
+            // Cannot underflow: `drop_at[turn]` names the land this turn
+            // played, so `counts` was written with that land in it. The walk
+            // records the drop before anything reads it, which is the
+            // invariant this subtraction rests on.
             let usable =
                 |slot: usize| counts[self.land_groups[slot]] - u32::from(tapped_now == Some(slot));
             return cost.payable(&self.pool, usable, Constraint::Anything);

@@ -157,18 +157,26 @@ impl Palette {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct PipSet(u8);
 
-/// What one card in the library does for mana before anything is cast.
+/// What one card in the library does about mana: what it makes, or what it
+/// costs.
 ///
-/// Two variants, and the missing third is the point. A Sol Ring makes mana and
-/// is not here, because getting it onto the battlefield costs mana — that is
-/// the budget half, and a variant for it would be this type promising an answer
-/// the engine does not have. A land arrives on a land drop, which is free and
-/// capped at one a turn, and that cap is the whole reason the gate is cheap.
+/// A Sol Ring is still not here as a *source*, and the reason is unchanged:
+/// what it adds to a pool once it resolves is not modelled. What is new is
+/// that a card can be on the paying end. A spell the run's declared casting
+/// priority names carries the bill it puts on the pool, because two spells are
+/// interchangeable to the budget exactly when they cost the same — so the cost
+/// is part of a group's identity, the way a land's palette is.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub enum ManaSource {
-    /// Anything you would have to cast. Contributes nothing to the gate.
+    /// Anything the run never casts: it neither makes mana nor spends any.
+    ///
+    /// The default, and what every card is in a run that declared no casting
+    /// priority — because *which* spells you cast is a decision, and a run
+    /// that was not told cannot spend the pool on anyone's behalf.
     #[default]
     Spell,
+    /// A spell the declared casting priority names, with the bill it presents.
+    Castable { cost: Demand },
     /// A land: one drop a turn, free.
     Land {
         /// Whether it makes no mana on the turn it arrives.
@@ -199,13 +207,22 @@ pub enum ManaSource {
 /// differently would change which one it played. So a narrower palette is
 /// something a caller proves and passes in, and [`Palette::ALL`] is what a
 /// caller that cannot prove one is entitled to.
+/// **It is also what makes a spell castable at all.** A budget spends the pool
+/// on the cards its priority names, so [`LandDetail::Ignored`] — which is a
+/// class saying "nothing here is about mana" — erases a castable card's bill
+/// along with every land's palette. That is sound only where nothing in the
+/// run casts anything: once a card leaves the hand to be cast, *every* count
+/// in the run depends on which cards were paid for, so a casting run prices
+/// every one of its classes. The caller states that, the same way it states
+/// the palette.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LandDetail {
     /// None of it. Every card becomes a [`ManaSource::Spell`] and the whole
     /// manabase collapses into the groups its queries already made, which is
     /// what a class with no casting clause gets.
     Ignored,
-    /// Whether a land enters tapped, and which of *these* pip kinds it makes.
+    /// Whether a land enters tapped, which of *these* pip kinds it makes, and
+    /// what a castable spell costs.
     Pips(Palette),
 }
 
@@ -214,14 +231,26 @@ impl ManaSource {
         matches!(self, ManaSource::Land { .. })
     }
 
+    /// What this card costs, where the run's priority casts it at all.
+    pub fn castable(self) -> Option<Demand> {
+        match self {
+            ManaSource::Castable { cost } => Some(cost),
+            ManaSource::Spell | ManaSource::Land { .. } => None,
+        }
+    }
+
     /// This source as an enumeration keeping only `detail` sees it.
     ///
     /// A land is still a land at every detail but [`LandDetail::Ignored`]:
     /// only a land arrives without being cast, so merging one into a spell
     /// would take a payer out of the pool rather than merge two equal ones.
+    /// A castable spell keeps its bill on the same terms, and for the mirror
+    /// reason: two spells that cost differently are not interchangeable to a
+    /// pool that has to pay for them.
     pub fn seen_as(self, detail: LandDetail) -> ManaSource {
         match (detail, self) {
             (LandDetail::Ignored, _) | (_, ManaSource::Spell) => ManaSource::Spell,
+            (LandDetail::Pips(_), ManaSource::Castable { cost }) => ManaSource::Castable { cost },
             (
                 LandDetail::Pips(kept),
                 ManaSource::Land {
@@ -247,10 +276,32 @@ impl ManaSource {
 
     fn palette(self) -> Palette {
         match self {
-            ManaSource::Spell => Palette::EMPTY,
+            ManaSource::Spell | ManaSource::Castable { .. } => Palette::EMPTY,
             ManaSource::Land { produces, .. } => produces,
         }
     }
+}
+
+/// An amount of mana owed: so much generic, so many of each pip kind.
+///
+/// Split out of [`Cost`] because **the budget adds bills together**. Casting
+/// Opt and then Lantern of Insight out of one turn's lands is not two
+/// independent questions — it is one payment of `{U}` plus `{1}`, made from
+/// one pool, and whether it can be made is Hall's condition on the sum. Asking
+/// the two separately is the same mistake `produces:w` and `produces:u` make
+/// about one Hallowed Fountain, one turn later: each is satisfiable and the
+/// pair is not.
+///
+/// `Copy`, `Eq` and `Hash` because a castable card carries its demand into the
+/// grouping. Two spells are interchangeable to the budget exactly when they
+/// cost the same, so this is part of a group's identity the way a land's
+/// palette is.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Demand {
+    /// How many sources of no particular kind this needs.
+    generic: u32,
+    /// Demand per pip, indexed by `Pip as usize`.
+    pips: [u32; 6],
 }
 
 /// A mana cost, as a demand waiting to be paid.
@@ -263,20 +314,10 @@ impl ManaSource {
 /// name rather than accepted and quietly ignored.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cost {
-    /// How many sources of no particular kind this needs.
-    generic: u32,
-    /// Demand per pip, indexed by `Pip as usize`.
-    pips: [u32; 6],
-    /// Sources needed in total: generic plus every pip. A payment is exactly
-    /// this many lands, no more and no fewer.
-    total: u32,
-    /// The pip kinds actually demanded.
-    ///
-    /// Precomputed because [`Cost::payable`] walks the subsets of this and
-    /// nothing else: a subset holding a colour this cost never asks for adds
-    /// supply without adding demand, so it can only be satisfied when the
-    /// subset without it already was.
-    demanded: Vec<Pip>,
+    /// What is owed. Everything about paying it lives on [`Demand`], because
+    /// the budget pays several of these at once and the text is the only part
+    /// of a cost that belongs to one card.
+    demand: Demand,
     /// How it was written, for the report and the errors.
     text: String,
 }
@@ -321,10 +362,7 @@ impl Cost {
     /// one of them refusing would be a distinction nobody asked for.
     pub fn parse(text: &str) -> Result<Cost, CostError> {
         let mut cost = Cost {
-            generic: 0,
-            pips: [0; 6],
-            total: 0,
-            demanded: Vec::new(),
+            demand: Demand::default(),
             text: text.to_string(),
         };
         let chars: Vec<char> = text.chars().collect();
@@ -365,29 +403,25 @@ impl Cost {
                 text: text.to_string(),
             });
         }
-        cost.total = cost.generic + cost.pips.iter().sum::<u32>();
-        if cost.total > MAX_COST {
+        let total = cost.demand.total();
+        if total > MAX_COST {
             return Err(CostError::TooLarge {
                 text: text.to_string(),
-                total: cost.total,
+                total,
             });
         }
-        cost.demanded = Pip::ALL
-            .into_iter()
-            .filter(|p| cost.pips[*p as usize] > 0)
-            .collect();
         Ok(cost)
     }
 
     fn add(&mut self, symbol: &str, text: &str) -> Result<(), CostError> {
         if let Ok(n) = symbol.parse::<u32>() {
-            self.generic = self.generic.saturating_add(n);
+            self.demand.generic = self.demand.generic.saturating_add(n);
             return Ok(());
         }
         let mut letters = symbol.chars();
         match (letters.next().and_then(Pip::from_letter), letters.next()) {
             (Some(pip), None) => {
-                self.pips[pip as usize] += 1;
+                self.demand.pips[pip as usize] += 1;
                 Ok(())
             }
             _ => Err(CostError::Unpayable {
@@ -397,13 +431,18 @@ impl Cost {
         }
     }
 
+    /// What this cost owes, which is the part of it the budget adds up.
+    pub fn demand(&self) -> Demand {
+        self.demand
+    }
+
     /// How many sources paying this needs. A payment uses exactly this many.
     pub fn total(&self) -> u32 {
-        self.total
+        self.demand.total()
     }
 
     pub fn is_free(&self) -> bool {
-        self.total == 0
+        self.demand.is_free()
     }
 
     /// The pip kinds this cost demands, and therefore the only ones it can
@@ -414,7 +453,7 @@ impl Cost {
     /// That is the narrowing [`LandDetail`] is for, and this is the half of it
     /// only a cost can state.
     pub fn demands(&self) -> Palette {
-        Palette::of(self.demanded.iter().copied())
+        self.demand.demands()
     }
 
     /// The cost as it was written, for a report that has to name it.
@@ -422,7 +461,73 @@ impl Cost {
         &self.text
     }
 
-    /// Whether `sources` can cover this cost, with `constraint` on which of
+    /// Whether `sources` can cover this cost. See [`Demand::payable`].
+    pub fn payable(
+        &self,
+        sources: &[Source],
+        count: impl Fn(usize) -> u32,
+        constraint: Constraint,
+    ) -> bool {
+        self.demand.payable(sources, count, constraint)
+    }
+}
+
+impl Demand {
+    /// Owing nothing, which is what a budget starts every turn holding.
+    pub const FREE: Demand = Demand {
+        generic: 0,
+        pips: [0; 6],
+    };
+
+    /// Both bills at once: the payment a pilot casting both spells has to make.
+    ///
+    /// Addition rather than two answers, because the two spells come out of one
+    /// pool. Saturating, so a criteria file naming a hundred one-drops asks an
+    /// unpayable question rather than an overflowing one.
+    pub fn plus(self, other: Demand) -> Demand {
+        let mut sum = self;
+        sum.generic = sum.generic.saturating_add(other.generic);
+        for (pip, add) in sum.pips.iter_mut().zip(other.pips) {
+            *pip = pip.saturating_add(add);
+        }
+        sum
+    }
+
+    /// How many sources paying this needs. A payment uses exactly this many.
+    pub fn total(self) -> u32 {
+        self.generic
+            .saturating_add(self.pips.iter().copied().fold(0u32, u32::saturating_add))
+    }
+
+    pub fn is_free(self) -> bool {
+        self.total() == 0
+    }
+
+    /// The pip kinds this demand names, and therefore the only ones it can
+    /// tell apart.
+    pub fn demands(self) -> Palette {
+        let (demanded, kinds) = self.kinds();
+        Palette::of(demanded[..kinds].iter().copied())
+    }
+
+    /// The demanded pip kinds, as a stack array and a length.
+    ///
+    /// Not a `Vec` and not cached on the type: [`Demand`] is `Copy` and lives
+    /// in a grouping, and the subsets below are walked once per question per
+    /// path, where an allocation costs more than six comparisons.
+    fn kinds(self) -> ([Pip; 6], usize) {
+        let mut demanded = [Pip::White; 6];
+        let mut kinds = 0;
+        for pip in Pip::ALL {
+            if self.pips[pip as usize] > 0 {
+                demanded[kinds] = pip;
+                kinds += 1;
+            }
+        }
+        (demanded, kinds)
+    }
+
+    /// Whether `sources` can cover this demand, with `constraint` on which of
     /// them the payment has to use.
     ///
     /// Hall's condition, over the pip kinds this cost demands and nothing else.
@@ -486,17 +591,17 @@ impl Cost {
             available += count_of(i);
         }
         let paid = u32::from(spent.is_some());
-        if available + paid < self.total {
+        if available + paid < self.total() {
             return false;
         }
         // Every non-empty subset of the kinds this cost demands. Hall's
         // condition on any other subset is implied: adding an undemanded kind
         // adds sources that serve it without adding a pip to cover.
-        let kinds = self.demanded.len();
+        let (demanded, kinds) = self.kinds();
         for mask in 1u32..(1 << kinds) {
             let mut demand = 0u32;
             let mut set = PipSet(0);
-            for (bit, pip) in self.demanded.iter().enumerate() {
+            for (bit, pip) in demanded[..kinds].iter().enumerate() {
                 if mask & (1 << bit) != 0 {
                     demand += demand_of(*pip);
                     set.0 |= pip.bit();
@@ -543,7 +648,8 @@ impl Cost {
                 break;
             }
             // All pips, so the obliged source has to be paying one of them.
-            for pip in &self.demanded {
+            let (demanded, kinds) = self.kinds();
+            for pip in &demanded[..kinds] {
                 if source.produces.makes(*pip) && self.covers(sources, count, Some((i, Some(*pip))))
                 {
                     return true;
@@ -821,7 +927,6 @@ mod tests {
         let braced = Cost::parse("{1}{W}{U}").unwrap();
         let shorthand = Cost::parse("1WU").unwrap();
         assert_eq!(braced.total(), shorthand.total());
-        assert_eq!(braced.pips, shorthand.pips);
-        assert_eq!(braced.generic, shorthand.generic);
+        assert_eq!(braced.demand, shorthand.demand);
     }
 }

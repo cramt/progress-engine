@@ -10,9 +10,12 @@ those.
 Each one states the hand, what actually happens, and what a naive model says
 instead. Where those differ, that difference is the test.
 
-**Several of these are not answerable yet.** Each is marked with what it needs.
-That is the point: they pin the semantics before the code exists, so that
-building the feature cannot quietly redefine the question.
+**One of these is not answerable yet**, and it is marked with what it needs and
+with the measurement that says why it was refused rather than estimated. That
+is the point: they pin the semantics before the code exists, so that building
+the feature cannot quietly redefine the question — and hands 1, 2 and 3 are the
+worked case, written down as one Opt on turn 1 long before anything could say
+so, and answered as one Opt on turn 1 when something finally could.
 
 ## A caveat that applies throughout
 
@@ -40,7 +43,34 @@ the turn by six times.
 
 The mana is spent by the first Opt. Holding a card is not casting it.
 
-*Needs #10 (budget), #43.*
+*Answerable*, as `cast`, and the hand is a test — `hand-1.txt` against
+`six-opts.criteria.toml`, seven cards so that every path is this deal and the
+answer is a yes or a no:
+
+```toml
+[casting]
+prefer = ['name:"Opt"']
+
+[[criterion]]
+name = "an Opt cast on turn 1"
+require = [{ turn = 1, cast = 'name:"Opt"', min = 1 }]
+```
+
+| | hand 1 | hand 2 | hand 3 |
+|---|---|---|---|
+| an Opt cast on turn 1 | **100%** | **0%** | **0%** |
+| two Opts cast on turn 1 | 0% | 0% | 0% |
+| six Opts in the opening hand | 100% | 100% | 100% |
+
+The last row is the naive model's number, on the same run: the cards really are
+all there, and holding them is what casting them is not.
+
+**What this does not claim is the scry and the draw.** One Opt is cast; what
+that Opt then *does* is the replacement-draw tier, and it is not built — see
+hand 5. So the count of castings is exact and the cards it would have dug are
+not modelled.
+
+*Answerable as of #10's budget half. The draw is #57, which needs #18.*
 
 ### 2. One Undercity Sewers, six Opt
 
@@ -60,7 +90,10 @@ card and cast nothing.
 This is the tradeoff a Lantern deck actually makes, and the tool should be able
 to price it.
 
-*Needs #10, #17, #43.*
+*Answerable*, and it is the second column of the table in hand 1 — the same
+criteria file against `hand-2.txt`, which differs from `hand-1.txt` by one
+card. The surveil still fires, from the standard effect library, on the land
+drop that made no mana.
 
 ### 3. Seven Opt, no lands
 
@@ -74,9 +107,11 @@ nothing here draws or produces.
 **Naive model:** seven cantrips, so seven cards deep. This hand does nothing at
 all.
 
-*Answerable as a gate*: `can_cast` is false on every turn, because no land was
-ever played. How many Opts a hand with mana casts is still the budget, so the
-hand above the line is answered and hands 1 and 2 are not.
+*Answerable*, and it was answerable as a gate before the budget existed:
+`can_cast` is false on every turn, because no land was ever played. What is new
+is that the same file now says it as a count — zero Opts cast, on every turn of
+the run — which is the third column of hand 1's table and is the claim a reader
+of "seven cantrips" would have got wrong.
 
 ---
 
@@ -134,7 +169,32 @@ already spent, so the drawn Island is **not** mana this turn.
 Drawing a land and being able to use it are one turn apart, and a model that
 conflates them is optimistic in a way that compounds every turn.
 
-*Needs #10, #43.*
+**Half of it is answerable and the half that is not is the draw.** *The land
+drop is already spent* is hand 4, and it ships. *Opt draws the second Island*
+does not: the budget knows Opt was cast and does not model what casting it
+then did.
+
+*Needs the replacement-draw tier, which is refused rather than sampled, and the
+reason is a measurement.* The enumeration reveals cards in library order, one
+checkpoint each, and a card the walk might or might not draw needs a checkpoint
+of its own — an unordered pair cannot say which of two revealed cards the draw
+took. Each such checkpoint multiplies the enumeration by the number of groups,
+and a turn with *T* mana can cast *T* cantrips, so the floor is one extra
+checkpoint per turn. Measured off the group counts real runs report, on
+`decks/lantern.txt` and `decks/loam.txt`, that floor is:
+
+| Line | groups | exact to, today | exact to, with one replacement draw a turn |
+|---|---|---|---|
+| a `{1}` one-drop | 4 | turn 8 | turn **4** (turn 5 is 31,457,280, 6× the ceiling) |
+| `{1}{G}{G}` | 6 | turn 5 | turn **2** (turn 3 is 6,158,592) |
+| a two-spell line with a colour | 7 | turn 5 | turn **2** (turn 3 is 28,840,812) |
+
+Both north stars ask about turn 5. So a replacement draw would be sampled on
+every question this tool exists to answer, which is not a feature — it is a
+percentage that changed kind. It is
+[#57](https://github.com/cramt/progress-engine/issues/57), and what it needs is
+[#18](https://github.com/cramt/progress-engine/issues/18)'s population that is
+not fixed, not more checkpoints.
 
 ---
 
@@ -399,10 +459,16 @@ case in #37, which is the one hole.*
 
 ## What these are for
 
-When the features land, these become tests — hands 4, 6, 7, 8, 9, 10, 11, 12, 13
-and 14 already have. Until then they are the specification: if an implementation
-disagrees with a hand here, one of the two is wrong and it is worth knowing
-which before shipping a percentage.
+When the features land, these become tests — hands 1, 2, 3, 4, 6, 7, 8, 9, 10,
+11, 12, 13 and 14 already have, which is every one of them but hand 5. Until
+then they are the specification: if an implementation disagrees with a hand
+here, one of the two is wrong and it is worth knowing which before shipping a
+percentage.
+
+Hands 1, 2 and 3 are one test rather than three, for the reason hands 6 and 7
+are: the claim is that one number moves while another does not, and a file that
+only ran the hand it expected to fail would have passed against a model that
+always says nothing was cast.
 
 Hands 6 and 7 are the clearest argument for writing them down first. They are
 one test rather than two, because either one alone proves nothing: the claim is

@@ -7,9 +7,9 @@
 use std::convert::Infallible;
 
 use pe_criteria::{
-    Cost, Count, Criterion, Effect, Evaluator, Expectation, Grouping, GroupingError, LandDetail,
-    LandDropPolicy, ManaSource, Palette, PathOutcomes, PathView, Plan, Route, RunError, Schedule,
-    Trigger, Zone, MAX_COUNT,
+    CastingPolicy, Cost, Count, Counted, Criterion, Effect, Evaluator, Expectation, Grouping,
+    GroupingError, LandDetail, LandDropPolicy, ManaSource, Palette, PathOutcomes, PathView, Plan,
+    Policies, Route, RunError, Schedule, Trigger, Zone, MAX_COUNT,
 };
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
@@ -70,7 +70,8 @@ fn reproduces_the_thirty_one_versus_thirty_nine_percent_story() {
     let wide = Grouping::build(q(&["arm", "connector"]), [(0b01, 6), (0b10, 12), (0, 81)]).unwrap();
 
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-        v.count_in(0, 0, Zone::Hand) >= 1 && v.count_in(0, 1, Zone::Hand) >= 1
+        v.count_at(0, 0, Counted::In(Zone::Hand)) >= 1
+            && v.count_at(0, 1, Counted::In(Zone::Hand)) >= 1
     })]);
 
     let s = pe_criteria::run(&strict, &Schedule::plain(&[11]), only_criteria(1), &mut ev)
@@ -112,7 +113,8 @@ fn a_card_can_satisfy_two_queries_at_once() {
     assert_eq!(overlapping.population(), disjoint.population());
 
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-        v.count_in(0, 0, Zone::Hand) >= 1 && v.count_in(0, 1, Zone::Hand) >= 1
+        v.count_at(0, 0, Counted::In(Zone::Hand)) >= 1
+            && v.count_at(0, 1, Counted::In(Zone::Hand)) >= 1
     })]);
     let o = pe_criteria::run(
         &overlapping,
@@ -148,12 +150,13 @@ fn the_curve_out_criterion_across_turns() {
     let g = Grouping::build(q(&["land", "dork"]), [(0b01, 36), (0b10, 10), (0, 53)]).unwrap();
     let mut ev = Closures(vec![
         Box::new(|v: &PathView<'_>| {
-            v.count_in(0, 0, Zone::Hand) >= 1
-                && v.count_in(0, 1, Zone::Hand) >= 1
-                && v.count_in(1, 0, Zone::Hand) >= 2
+            v.count_at(0, 0, Counted::In(Zone::Hand)) >= 1
+                && v.count_at(0, 1, Counted::In(Zone::Hand)) >= 1
+                && v.count_at(1, 0, Counted::In(Zone::Hand)) >= 2
         }),
         Box::new(|v: &PathView<'_>| {
-            v.count_in(0, 0, Zone::Hand) >= 1 && v.count_in(0, 1, Zone::Hand) >= 1
+            v.count_at(0, 0, Counted::In(Zone::Hand)) >= 1
+                && v.count_at(0, 1, Counted::In(Zone::Hand)) >= 1
         }),
     ]);
     let r = pe_criteria::run(&g, &Schedule::plain(&[7, 1]), only_criteria(2), &mut ev)
@@ -170,8 +173,9 @@ fn counts_are_cumulative_across_checkpoints() {
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
         // A later checkpoint has seen everything an earlier one did.
-        v.count_in(1, 0, Zone::Hand) >= v.count_in(0, 0, Zone::Hand)
-            && v.count_in(2, 0, Zone::Hand) >= v.count_in(1, 0, Zone::Hand)
+        v.count_at(1, 0, Counted::In(Zone::Hand)) >= v.count_at(0, 0, Counted::In(Zone::Hand))
+            && v.count_at(2, 0, Counted::In(Zone::Hand))
+                >= v.count_at(1, 0, Counted::In(Zone::Hand))
     })]);
     let r = pe_criteria::run(&g, &Schedule::plain(&[7, 1, 1]), only_criteria(1), &mut ev)
         .unwrap()
@@ -189,7 +193,7 @@ fn out_of_range_lookups_are_false_not_panics() {
     // JavaScript, and this should be false rather than a crash.
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-        v.count_in(9, 0, Zone::Hand) >= 1
+        v.count_at(9, 0, Counted::In(Zone::Hand)) >= 1
     })]);
     let r = pe_criteria::run(&g, &Schedule::plain(&[7]), only_criteria(1), &mut ev)
         .unwrap()
@@ -247,7 +251,7 @@ fn a_hand_bigger_than_the_library_is_refused_rather_than_answered_zero() {
     // zero mass and report a confident 0%.
     let g = Grouping::build(q(&["land"]), [(0b1, 1), (0, 1)]).unwrap();
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-        v.count_in(0, 0, Zone::Hand) >= 1
+        v.count_at(0, 0, Counted::In(Zone::Hand)) >= 1
     })]);
     let err = pe_criteria::run(&g, &Schedule::plain(&[7]), only_criteria(1), &mut ev).unwrap_err();
     assert!(
@@ -317,7 +321,7 @@ fn an_expectation_reproduces_the_closed_form_mean() {
     // the two share nothing but the answer.
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
     let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| {
-        v.count_in(0, 0, Zone::Hand)
+        v.count_at(0, 0, Counted::In(Zone::Hand))
     })]);
     let r = pe_criteria::run(&g, &Schedule::plain(&[7]), only_expectations(1), &mut ev).unwrap();
 
@@ -338,7 +342,7 @@ fn the_distribution_is_the_hypergeometric_bucket_for_bucket() {
     // lands on average says nothing about how often you keep a one-lander.
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
     let mut ev = Counters(vec![Box::new(|v: &PathView<'_>| {
-        v.count_in(0, 0, Zone::Hand)
+        v.count_at(0, 0, Counted::In(Zone::Hand))
     })]);
     let r = pe_criteria::run(&g, &Schedule::plain(&[7]), only_expectations(1), &mut ev).unwrap();
     let d = &r.distributions[0];
@@ -372,9 +376,10 @@ fn the_distribution_sums_to_one_across_shapes() {
     for (cards, gaps) in shapes {
         let g = Grouping::build(q(&["a", "b", "c"]), cards.iter().copied()).unwrap();
         let mut ev = Counters(vec![
-            Box::new(|v: &PathView<'_>| v.count_in(0, 0, Zone::Hand)),
+            Box::new(|v: &PathView<'_>| v.count_at(0, 0, Counted::In(Zone::Hand))),
             Box::new(|v: &PathView<'_>| {
-                v.count_in(0, 0, Zone::Hand) + v.count_in(0, 1, Zone::Hand)
+                v.count_at(0, 0, Counted::In(Zone::Hand))
+                    + v.count_at(0, 1, Counted::In(Zone::Hand))
             }),
         ]);
         let r =
@@ -397,7 +402,7 @@ fn a_criterion_is_the_tail_of_the_expectation_beside_it() {
     let g = Grouping::build(q(&["land"]), [(0b1, 36), (0, 63)]).unwrap();
 
     let mut counting = Counters(vec![Box::new(|v: &PathView<'_>| {
-        v.count_in(0, 0, Zone::Hand)
+        v.count_at(0, 0, Counted::In(Zone::Hand))
     })]);
     let d = pe_criteria::run(
         &g,
@@ -409,7 +414,7 @@ fn a_criterion_is_the_tail_of_the_expectation_beside_it() {
     let tail: f64 = d.distributions[0].probabilities()[2..].iter().sum();
 
     let mut checking = Closures(vec![Box::new(|v: &PathView<'_>| {
-        v.count_in(0, 0, Zone::Hand) >= 2
+        v.count_at(0, 0, Counted::In(Zone::Hand)) >= 2
     })]);
     let p = pe_criteria::run(&g, &Schedule::plain(&[7]), only_criteria(1), &mut checking).unwrap();
 
@@ -503,19 +508,19 @@ fn a_look_that_routes_nothing_moves_nothing() {
     let g = surveil_deck();
     let tally = || {
         Counters(vec![Box::new(|v: &PathView<'_>| {
-            v.count_in(3, 0, Zone::Hand)
+            v.count_at(3, 0, Counted::In(Zone::Hand))
         })])
     };
     let plain = pe_criteria::run(
         &g,
-        &Schedule::build(3, true, Vec::new(), None),
+        &Schedule::build(3, true, Vec::new(), Policies::default()),
         only_expectations(1),
         &mut tally(),
     )
     .unwrap();
     let looking = pe_criteria::run(
         &g,
-        &Schedule::build(3, true, vec![surveil(Route::Nowhere)], None),
+        &Schedule::build(3, true, vec![surveil(Route::Nowhere)], Policies::default()),
         only_expectations(1),
         &mut tally(),
     )
@@ -544,11 +549,16 @@ fn one_land_drop_a_turn_caps_how_deep_a_turn_can_get() {
     let g = surveil_deck();
     for turn in 1..=3usize {
         let mut ev = Counters(vec![Box::new(move |v: &PathView<'_>| {
-            v.count_in(turn, 0, Zone::Graveyard)
+            v.count_at(turn, 0, Counted::In(Zone::Graveyard))
         })]);
         let r = pe_criteria::run(
             &g,
-            &Schedule::build(turn as u32, true, vec![surveil(Route::Everything)], None),
+            &Schedule::build(
+                turn as u32,
+                true,
+                vec![surveil(Route::Everything)],
+                Policies::default(),
+            ),
             only_expectations(1),
             &mut ev,
         )
@@ -574,14 +584,19 @@ fn a_routed_card_leaves_the_hand_and_the_library_for_the_yard() {
     // counted as drawn, shows up here and nowhere else.
     let g = surveil_deck();
     let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
-        v.count_in(3, 0, Zone::Hand)
-            + v.count_in(3, 0, Zone::Graveyard)
-            + v.count_in(3, 0, Zone::Library)
+        v.count_at(3, 0, Counted::In(Zone::Hand))
+            + v.count_at(3, 0, Counted::In(Zone::Graveyard))
+            + v.count_at(3, 0, Counted::In(Zone::Library))
             == 5
     })]);
     let r = pe_criteria::run(
         &g,
-        &Schedule::build(3, true, vec![surveil(Route::Matching(0))], None),
+        &Schedule::build(
+            3,
+            true,
+            vec![surveil(Route::Matching(0))],
+            Policies::default(),
+        ),
         only_criteria(1),
         &mut ev,
     )
@@ -648,8 +663,8 @@ fn land_drops_are_one_a_turn_and_do_not_bank() {
                 &grouping,
                 &schedule,
                 Box::new(
-                    move |v: &PathView<'_>| v.count_in(turn, 0, Zone::Hand) == drawn
-                        && v.count_in(turn, 0, Zone::Battlefield) == played
+                    move |v: &PathView<'_>| v.count_at(turn, 0, Counted::In(Zone::Hand)) == drawn
+                        && v.count_at(turn, 0, Counted::In(Zone::Battlefield)) == played
                 )
             ),
             1.0,
@@ -678,7 +693,7 @@ fn one_dual_land_is_two_counts_and_one_mana() {
             holds(
                 grouping,
                 schedule,
-                Box::new(|v: &PathView<'_>| v.count_in(3, 0, Zone::Hand) >= 1)
+                Box::new(|v: &PathView<'_>| v.count_at(3, 0, Counted::In(Zone::Hand)) >= 1)
             ),
             1.0
         );
@@ -776,7 +791,10 @@ fn which_land_the_priority_plays_decides_the_turn_the_spell_is_castable() {
     let grouping = hand_twelve();
     let one = Cost::parse("{1}").unwrap();
     let castable = |prefer: usize, turn: usize| {
-        let schedule = Schedule::plain_under(&[7, 0, 0], LandDropPolicy::new(vec![prefer], 2));
+        let schedule = Schedule::plain_with(
+            &[7, 0, 0],
+            Policies::land_drop(LandDropPolicy::new(vec![prefer], 2)),
+        );
         let cost = one.clone();
         holds(
             &grouping,
@@ -799,11 +817,16 @@ fn which_land_the_priority_plays_decides_the_turn_the_spell_is_castable() {
     // decides *which* land is on the battlefield on turn 1, which is the fact
     // an optimistic reading of the same hand cannot state.
     let in_play = |prefer: usize, query: usize| {
-        let schedule = Schedule::plain_under(&[7, 0, 0], LandDropPolicy::new(vec![prefer], 2));
+        let schedule = Schedule::plain_with(
+            &[7, 0, 0],
+            Policies::land_drop(LandDropPolicy::new(vec![prefer], 2)),
+        );
         holds(
             &grouping,
             &schedule,
-            Box::new(move |v: &PathView<'_>| v.count_in(1, query, Zone::Battlefield) == 1),
+            Box::new(move |v: &PathView<'_>| {
+                v.count_at(1, query, Counted::In(Zone::Battlefield)) == 1
+            }),
         )
     };
     assert_eq!(in_play(0, 0), 1.0, "surveil first plays the surveil land");
@@ -819,12 +842,15 @@ fn a_land_the_priority_never_names_is_still_played() {
     // tier the file did not write — and declining a drop is not something a
     // list can be read as asking for.
     let grouping = hand_twelve();
-    let schedule = Schedule::plain_under(&[7, 0, 0], LandDropPolicy::new(vec![0], 2));
+    let schedule = Schedule::plain_with(
+        &[7, 0, 0],
+        Policies::land_drop(LandDropPolicy::new(vec![0], 2)),
+    );
     assert_eq!(
         holds(
             &grouping,
             &schedule,
-            Box::new(|v: &PathView<'_>| v.count_in(2, 2, Zone::Battlefield) == 2)
+            Box::new(|v: &PathView<'_>| v.count_at(2, 2, Counted::In(Zone::Battlefield)) == 2)
         ),
         1.0,
         "both lands are played by turn 2, ranked or not"
@@ -861,7 +887,8 @@ fn counting_lands_does_not_pay_for_telling_them_apart() {
     let schedule = Schedule::plain(&[7, 1, 1]);
     let count = || {
         Box::new(|v: &PathView<'_>| {
-            v.count_in(2, 0, Zone::Hand) >= 4 && v.count_in(2, 1, Zone::Hand) >= 1
+            v.count_at(2, 0, Counted::In(Zone::Hand)) >= 4
+                && v.count_at(2, 1, Counted::In(Zone::Hand)) >= 1
         }) as Check
     };
 
@@ -916,7 +943,9 @@ fn what_is_in_play_is_read_turn_by_turn_and_not_collapsed() {
     // battlefield clause asks for `PerTurn` and gets every turn up to its own.
     let grouping = manabase();
     let schedule = Schedule::plain(&[7, 1, 1]);
-    let in_play = || Box::new(|v: &PathView<'_>| v.count_in(2, 0, Zone::Battlefield) >= 2) as Check;
+    let in_play = || {
+        Box::new(|v: &PathView<'_>| v.count_at(2, 0, Counted::In(Zone::Battlefield)) >= 2) as Check
+    };
 
     let per_turn = schedule.narrowed(&[2], pe_criteria::Reading::PerTurn);
     assert_eq!(per_turn.gaps(), &[7, 1, 1]);
@@ -947,7 +976,7 @@ fn a_live_effect_keeps_every_checkpoint_whatever_it_is_asked() {
         trigger: Trigger::LandDrop,
         route: Route::Everything,
     }];
-    let schedule = Schedule::build(2, false, effects, None);
+    let schedule = Schedule::build(2, false, effects, Policies::default());
     assert_eq!(schedule.gaps(), &[7, 0, 1, 1, 1]);
     assert_eq!(
         schedule
@@ -1071,7 +1100,10 @@ fn a_declared_priority_is_not_allowed_to_merge_two_lands_it_ranks_apart() {
     )
     .unwrap();
     // One tier: every land, ranked by the order the decklist reached them.
-    let schedule = Schedule::plain_under(&[3, 0], LandDropPolicy::new(Vec::new(), 0));
+    let schedule = Schedule::plain_with(
+        &[3, 0],
+        Policies::land_drop(LandDropPolicy::new(Vec::new(), 0)),
+    );
     let cost = Cost::parse("{U}").unwrap();
     let cast = || {
         let cost = cost.clone();
@@ -1134,4 +1166,268 @@ fn two_lands_a_cost_cannot_tell_apart_arrive_the_same_way() {
     );
     assert_eq!(holds(&whole, &schedule, cast()), 1.0);
     assert_eq!(holds(&demanded, &schedule, cast()), 1.0);
+}
+
+// --- The declared budget (#10) --------------------------------------------
+
+/// What `{U}` costs, as the budget carries it.
+fn opt() -> ManaSource {
+    ManaSource::Castable {
+        cost: Cost::parse("{U}").unwrap().demand(),
+    }
+}
+
+/// HANDS.md hands 1, 2 and 3 as one grouping each: a land of some kind and six
+/// Opt, or seven Opt and no land at all.
+///
+/// Bit 0 picks out the Opts, which is the whole priority — the list is the
+/// line, and a card it does not name is not cast.
+fn six_opts(land: Option<ManaSource>) -> (Grouping, Schedule) {
+    let mut cards = vec![(0b1, opt(), if land.is_some() { 6 } else { 7 })];
+    cards.extend(land.map(|l| (0b0, l, 1)));
+    (
+        Grouping::with_mana(q(&["opts"]), cards).unwrap(),
+        Schedule::plain_with(
+            &[7, 0, 0, 0],
+            Policies::casting(CastingPolicy::new(vec![0])),
+        ),
+    )
+}
+
+#[test]
+fn one_island_and_six_opts_casts_one_opt() {
+    // HANDS.md hand 1, which is the hand this whole half exists for. Six Opts
+    // are in hand on turn 1 and one of them is cast, because the first one
+    // spends the Island — so a model reading the hand count reports six times
+    // the truth, and it reports it as a perfectly reasonable-looking number.
+    let (grouping, schedule) = six_opts(Some(untapped("U")));
+    let cast_by = |turn: usize, n: u32| {
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| v.count_at(turn, 0, Counted::Cast) == n),
+        )
+    };
+    assert_eq!(cast_by(0, 0), 1.0, "turn 0 has played no land");
+    assert_eq!(cast_by(1, 1), 1.0, "one Island, one Opt");
+    // And the naive reading, on the same path: the cards are all there, and
+    // holding them is what it is not.
+    assert_eq!(
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::In(Zone::Hand)) == 5)
+        ),
+        1.0,
+        "six drawn, one cast, five left holding"
+    );
+    // The turns do not bank and they do not compound: one land is one mana
+    // every turn, so it is one more Opt every turn.
+    assert_eq!(cast_by(2, 2), 1.0);
+    assert_eq!(cast_by(3, 3), 1.0);
+}
+
+#[test]
+fn a_tapland_casts_nothing_the_turn_it_arrives() {
+    // HANDS.md hand 2: the same hand with one card changed, and the answer
+    // changes from one Opt to none. This is the trade a filtering deck makes —
+    // one more card seen, nothing cast — and it is the half of it the gate
+    // could already see.
+    let (grouping, schedule) = six_opts(Some(tapped("UB")));
+    let cast_by = |turn: usize, n: u32| {
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| v.count_at(turn, 0, Counted::Cast) == n),
+        )
+    };
+    assert_eq!(cast_by(1, 0), 1.0, "it entered tapped");
+    assert_eq!(cast_by(2, 1), 1.0, "and it untapped");
+}
+
+#[test]
+fn seven_opts_and_no_land_casts_nothing_ever() {
+    // HANDS.md hand 3. Seven cantrips, and the hand does nothing whatever:
+    // there is no mana and there never will be, because nothing here draws or
+    // produces. The naive reading is seven cards deep.
+    let (grouping, schedule) = six_opts(None);
+    for turn in 0..=3 {
+        assert_eq!(
+            holds(
+                &grouping,
+                &schedule,
+                Box::new(move |v: &PathView<'_>| v.count_at(turn, 0, Counted::Cast) == 0)
+            ),
+            1.0,
+            "turn {turn}"
+        );
+    }
+}
+
+#[test]
+fn a_budget_pays_for_the_spells_jointly_rather_than_one_at_a_time() {
+    // The reason a bill is added rather than asked twice. One Hallowed
+    // Fountain and one Island pay `{1}{W}` and they pay `{1}{U}`, and they do
+    // not pay both — which is exactly what two independent `can_cast` answers
+    // would have claimed, because each of them is true on its own.
+    let white = ManaSource::Castable {
+        cost: Cost::parse("{1}{W}").unwrap().demand(),
+    };
+    let blue = ManaSource::Castable {
+        cost: Cost::parse("{1}{U}").unwrap().demand(),
+    };
+    let grouping = Grouping::with_mana(
+        q(&["white spell", "blue spell"]),
+        vec![
+            (0b01, white, 1),
+            (0b10, blue, 1),
+            (0b00, untapped("WU"), 1),
+            (0b00, untapped("U"), 1),
+            (0b00, ManaSource::Spell, 3),
+        ],
+    )
+    .unwrap();
+    // Both spells are wanted and the file says which one first. Two lands pay
+    // for one two-drop and leave nothing, so the answer is which one.
+    let line = |prefer: Vec<usize>, turn: usize, first: u32, second: u32| {
+        let schedule =
+            Schedule::plain_with(&[7, 0, 0, 0], Policies::casting(CastingPolicy::new(prefer)));
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| {
+                v.count_at(turn, 0, Counted::Cast) == first
+                    && v.count_at(turn, 1, Counted::Cast) == second
+            }),
+        )
+    };
+    assert_eq!(
+        line(vec![0, 1], 2, 1, 0),
+        1.0,
+        "white first, and the pool is then empty"
+    );
+    assert_eq!(
+        line(vec![1, 0], 2, 0, 1),
+        1.0,
+        "blue first, same board, other answer"
+    );
+    // And the one the line could not afford is cast a turn later, because a
+    // budget is spent per turn rather than banked: the lands untap, and the
+    // spell that lost the argument is still in hand to win it.
+    assert_eq!(line(vec![0, 1], 3, 1, 1), 1.0);
+}
+
+#[test]
+fn a_gate_beside_a_budget_asks_what_the_line_left() {
+    // One pool, one accounting. The Island pays for the Opt, so `can_cast` on
+    // the same turn is asking whether a second `{U}` exists — and it does not.
+    // Answering it against the whole turn's lands would be two claimants on
+    // one resource, which is the mistake the land drop taught us not to make.
+    let (grouping, schedule) = six_opts(Some(untapped("U")));
+    let cost = Cost::parse("{U}").unwrap();
+    assert_eq!(
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| v.can_cast(1, &cost))
+        ),
+        0.0,
+        "the Opt took the Island"
+    );
+    // Turn 2 has two lands and casts one more Opt, so there is still nothing
+    // spare; turn 3 is three lands and three Opts cast in total.
+    let two = Cost::parse("{U}").unwrap();
+    assert_eq!(
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| v.can_cast(2, &two))
+        ),
+        0.0
+    );
+}
+
+#[test]
+fn the_budget_and_the_gate_answer_hand_twelve_the_same_way() {
+    // HANDS.md hand 12, asked the other way round, and the two answers have to
+    // be the same number: there is one Lantern of Insight and it costs `{1}`,
+    // so *being able to cast it while holding it* and *casting it* are the same
+    // event. The gate reads 62.05% on turn 2 under "surveil first" and the
+    // budget has to agree to the digit.
+    //
+    // This is the check that caught the walk recording its board *after* the
+    // budget had already spent from it — which read the previous path's lands
+    // and cast spells off a board that hand never had. It showed up as a
+    // criterion holding that cannot hold: a spell still in hand on a turn whose
+    // mana could have paid for it.
+    let grouping = Grouping::with_mana(
+        q(&["surveil", "lantern", "t:land", "bolt"]),
+        vec![
+            (0b0101, tapped("UB"), 1),
+            (0b0100, untapped("U"), 1),
+            (
+                0b0010,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}").unwrap().demand(),
+                },
+                1,
+            ),
+            (0b1000, ManaSource::Spell, 9),
+        ],
+    )
+    .unwrap();
+    let surveil = Effect {
+        matched_by: 0,
+        look: 1,
+        trigger: Trigger::LandDrop,
+        route: Route::Matching(3),
+    };
+    let land_drop = LandDropPolicy::new(vec![0], 2);
+    let gate = Schedule::build(
+        2,
+        false,
+        vec![surveil],
+        Policies::land_drop(land_drop.clone()),
+    );
+    let budget = Schedule::build(
+        2,
+        false,
+        vec![surveil],
+        Policies {
+            land_drop: Some(land_drop),
+            casting: Some(CastingPolicy::new(vec![1])),
+        },
+    );
+    let one = Cost::parse("{1}").unwrap();
+    let castable = {
+        let one = one.clone();
+        holds(
+            &grouping,
+            &gate,
+            Box::new(move |v: &PathView<'_>| {
+                v.count_at(2, 1, Counted::In(Zone::Hand)) >= 1 && v.can_cast(2, &one)
+            }),
+        )
+    };
+    let cast = holds(
+        &grouping,
+        &budget,
+        Box::new(|v: &PathView<'_>| v.count_at(2, 1, Counted::Cast) >= 1),
+    );
+    assert!((castable - 0.6204545454545).abs() < 1e-9, "{castable}");
+    assert!((cast - castable).abs() < 1e-12, "{cast} against {castable}");
+
+    // And the one that cannot hold: a spell the turn's mana could still pay for
+    // is not a spell you are holding, because the line already cast it.
+    assert_eq!(
+        holds(
+            &grouping,
+            &budget,
+            Box::new(
+                move |v: &PathView<'_>| v.count_at(2, 1, Counted::In(Zone::Hand)) >= 1
+                    && v.can_cast(2, &one)
+            )
+        ),
+        0.0
+    );
 }

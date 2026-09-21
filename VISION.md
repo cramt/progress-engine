@@ -72,10 +72,21 @@ of its own, now that the land drop those two argued over is declared rather than
 refused ([#54](https://github.com/cramt/progress-engine/issues/54)). HANDS.md
 hand 12 is that route worked out, and it prices the trade the deck actually
 makes: playing the surveil land first halves the turn-1 number and wins the
-turn-2 one. The other two routes are still not writable — the second needs the
-budget, because it casts two spells in one turn, and the third needs delayed
-effects. So the north star is closer by one of three routes and is still not
-met.
+turn-2 one.
+
+**The second route is now half-writable, and the half it is missing is the
+tutor.** `[casting] prefer = ['name:"Trinket Mage"', 'name:"Lantern of
+Insight"']` spends the pool the way the pilot would, and `cast` counts what it
+paid for: on `decks/lantern.txt` Trinket Mage resolves by turn 3 on 5.30% of
+hands, exactly, on 84,084 compositions. What it cannot do is fetch — Trinket
+Mage puts a card from the library into your hand, which shrinks the library and
+names the card, and that is
+[#18](https://github.com/cramt/progress-engine/issues/18) rather than this
+issue. So the route is priced and not yet answered, and the run says which:
+*both cast by turn 5* reads 0.81%, which is the deck drawing both halves
+naturally, because nothing tutors for the second one. The third route still
+needs delayed effects. So the north star is closer by one and a half of three
+routes and is still not met.
 
 **Life from the Loam.** *How often is Loam in my graveyard by turn 5?* Needs the
 graveyard to be a thing you can ask about, and needs a card routed into the yard
@@ -93,12 +104,14 @@ So the machinery is real and the north star is not met. Recording it as met was
 the same mistake as recording the Lantern question in its easy form: a feature
 was built for the deck that was imagined rather than the one on the table.
 
-Both need the mana model, and that was not obvious until the real lists were
-read. Lantern's three routes can now be written down together, but two of them
-say the card was *drawn* rather than castable, which overstates them. Loam's
-self-mill is six spells and a dredge trigger, every one of which costs mana or
-replaces a draw — so the land-drop tier that was built for it does not fire on
-it once.
+Both needed the mana model, and that was not obvious until the real lists were
+read. Lantern's three routes can now be written down together, and two of them
+are priced rather than assumed: a clause can ask whether the mana was there and
+a clause can ask what it was spent on. Loam's self-mill is six spells and a
+dredge trigger, every one of which costs mana or replaces a draw — the mana half
+of that is now expressible and the replaced draw is not, which is the honest
+state of it and is why the land-drop tier built for this deck still does not
+fire on it once.
 
 The general lesson, worth more than either deck: **the effect tiers were chosen
 from decks nobody had opened.** Land drops were picked first because they are
@@ -302,8 +315,11 @@ reason the shipped library can autoload without moving a single number.
 is the same declared priority over queries, ranking the lands you could play
 rather than the cards you just looked at — which is what lets one file hold a
 routing effect and a mana question, since both then read the drop the list
-chose. Mulligan bottoming and the budget's spell priority are the third and
-fourth resources and are not built; the mechanism they will use exists.
+chose.
+**The turn's mana is the third.** `[casting] prefer = [...]` ranks the spells
+you would cast when the pool cannot pay for all of them — the same list, over a
+resource that depletes rather than over a set you looked at. Mulligan bottoming
+is the fourth and is not built; the mechanism it will use exists.
 
 ### Mana
 
@@ -357,18 +373,58 @@ cannot justify, which is strictly worse than the estimate it replaces.
 As a **budget**, it is spent. An opening hand of one Island and six Opt casts
 *one* Opt, because the first one consumes the Island. A model where an effect
 fires whenever you hold the card overstates that turn sixfold, and the number
-looks perfectly reasonable in a report. **This is not built**, and the gate
-shipping does not weaken the argument for it: knowing you *could* cast Opt is
-exactly not knowing how many you cast.
+looks perfectly reasonable in a report.
 
-The gate was cheap in the way that mattered: lands in play is a function of the
-checkpoint path the engine already walks. The budget is not, because an effect
-that draws makes *cards seen by turn T* path-dependent and changes the shape of
-the enumeration rather than the state carried through it.
+**The spending ships**, as `cast`. A clause counts the spells a turn's lands
+actually paid for, the bill of a line is added up and settled as one matching
+rather than asked spell by spell, and a spell that is cast leaves the hand — so
+the same copy cannot be cast twice and the count of what you are still holding
+goes down. HANDS.md hands 1, 2 and 3 are that, worked and asserted: one Island
+and six Opt casts one, a tapland casts none, and seven Opts and no land do
+nothing at all, on a run that also reports six Opts in hand so the naive number
+is visible beside the real one.
 
 Which spell you cast when you cannot cast both is a **declared priority over
 queries** — the same mechanism as mulligan bottoming and selection routing, gated
-by a resource instead of by a looked-at set. Not a fourth policy language.
+by a resource instead of by a looked-at set. Not a fourth policy language. It
+differs from the land drop's list in exactly one way, and that difference is
+stated in every run that uses one: **a spell the list does not name is not
+cast**. A land nobody ranked is still played, because declining a drop is not
+something a preference can be read as asking for and because "any other land"
+costs one query bit; "any other spell" would make every card in the deck carry
+its own mana cost into the grouping, which shatters a Commander library along a
+line nobody asked about. So the list is *the line you are asking about*, which
+is the same reading the gate already takes of the land drop.
+
+**What it costs is every class, not one.** A cast spell leaves the hand, so a
+criterion counting `cat:"Ramp"` beside a budget depends on what the pool paid
+for three turns earlier — which depends on the manabase and on what each named
+spell costs. A file that declares `[casting]` therefore prices the manabase on
+every question in it and reads every turn rather than a total. A file that
+declares none pays nothing, and on the 1,848 deck-criteria-index combinations
+in this repository the budget moved no digit of any number.
+
+**What it does not do is draw.** As soon as Opt draws a card, *cards seen by
+turn T* stops being a fixed schedule and becomes path-dependent, which changes
+the shape of the enumeration rather than the state carried along it — and that
+is a measurement rather than a worry. Every card the walk might or might not
+draw needs a checkpoint of its own, each checkpoint multiplies the enumeration
+by the group count, and a turn with *T* mana can cast *T* cantrips. On the two
+decks in `decks/` that puts the cheapest possible line over the ceiling at turn
+five and anything with a colour in it over at turn three, against north stars
+that both ask about turn five. A feature that is sampled on every question it
+exists for is not a feature, so it is refused by name and the refusal carries
+the numbers: [#57](https://github.com/cramt/progress-engine/issues/57), which
+wants [#18](https://github.com/cramt/progress-engine/issues/18)'s
+non-fixed population rather than more checkpoints. HANDS.md hand 5 is the hand
+that stays open, and it is the only one that does.
+
+**And a gate beside a budget asks what the line left.** One pool, one
+accounting: in a file that declares `[casting]`, `can_cast` is answered against
+what the declared line did *not* spend. Answering it against the whole turn's
+lands would be two claimants on one resource — the mistake the land drop taught
+us not to make — and a file that declares no casting priority spends nothing, so
+nothing moves.
 
 **Two decisions about the pilot's lands, and they are settled differently.** A
 shockland's tapped-ness is a choice — `otag:conditional-tapland` says the card
@@ -417,7 +473,11 @@ correctly empty and the run says so rather than letting that zero pass for a
 measurement. `battlefield` is askable **for lands**, which is the half of it
 that needs no casting: a land arrives on a land drop, one a turn, and the
 enumeration already walks those. For anything that has to be cast it is still
-refused by name, because *which* spells you cast is the budget.
+refused by name — not because which spells you cast is unknown, which the
+budget now answers, but because where a spell *goes* after it resolves is not
+modelled at all. `cast` counts the castings and says so in those words, and a
+Lantern counted on the battlefield would still be there after somebody blew it
+up.
 
 ## Who it is for
 
@@ -469,9 +529,17 @@ through the front door.
 - The standard library declares what a card looks at and never where the cards
   go, because the destination is part of the question.
 - A mana model is in scope, staged gate-first then budget
-  ([#10](https://github.com/cramt/progress-engine/issues/10)). **The gate
-  ships**: lands in play, tapped-ness, and `can_cast` as a matching over the
-  lands a composition put down. The budget does not.
+  ([#10](https://github.com/cramt/progress-engine/issues/10)). **Both halves
+  ship, minus the draw**: lands in play, tapped-ness and `can_cast` as a
+  matching over the lands a composition put down; then `cast`, which spends
+  those lands on a declared line and counts what they paid for. What a cast
+  spell then *does* — Opt's draw — is refused by name and measured rather than
+  sampled ([#57](https://github.com/cramt/progress-engine/issues/57)).
+- Which spell you cast when the pool cannot pay for both is a declared priority
+  over queries, `[casting] prefer = [...]`, and a spell the list does not name
+  is not cast at all. That is the one way it differs from the land drop's list,
+  it is the difference between a line and a preference, and every run that used
+  one prints it.
 - A land whose tapped-ness the pilot chooses is assumed to enter tapped, and
   every run that depended on the assumption names the cards it made it about.
   Understating a shockland manabase is the failure this project would rather

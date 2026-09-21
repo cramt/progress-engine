@@ -1,0 +1,26 @@
+# HANDS.md hands 1, 2 and 3: the budget, asked of three seven-card hands.
+#
+# The same file runs against all three decklists, because the claim is that one
+# number moves and the other does not. `cast` counts the spells the pool
+# actually paid for; `query` counts the cards in hand, which is what a model
+# with no budget would have reported as castings.
+
+[casting]
+prefer = ['name:"Opt"']
+
+[[criterion]]
+name = "an Opt cast on turn 1"
+require = [{ turn = 1, cast = 'name:"Opt"', min = 1 }]
+
+[[criterion]]
+name = "two Opts cast on turn 1"
+require = [{ turn = 1, cast = 'name:"Opt"', min = 2 }]
+
+[[criterion]]
+name = "six Opts in the opening hand"
+require = [{ turn = 0, query = 'name:"Opt"', min = 6 }]
+
+[[expect]]
+name = "Opts cast by turn 1"
+turn = 1
+cast = 'name:"Opt"'

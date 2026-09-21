@@ -1,0 +1,5 @@
+// HANDS.md hand 3: seven Opt and no land at all.
+//
+// There is no mana and there never will be, because nothing here draws or
+// produces. Seven cantrips, and the hand does nothing whatever.
+7x Opt [Cantrip]
