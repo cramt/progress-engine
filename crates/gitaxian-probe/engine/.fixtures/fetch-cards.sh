@@ -3,7 +3,7 @@
 # camera would see it: whole card, contrasting background, room around the edges.
 set -euo pipefail
 cd "$(dirname "$0")"
-UA='delver-probe/0.1'
+UA='gitaxian-probe/0.1'
 command -v magick >/dev/null || { echo "ImageMagick not found - run this inside \`nix develop\`" >&2; exit 1; }
 while IFS='|' read -r slug name set; do
   [ -z "$slug" ] && continue

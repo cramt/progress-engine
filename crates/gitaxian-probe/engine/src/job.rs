@@ -65,7 +65,8 @@ mod tests {
     /// Captured off a real run (`PROBE_LOG=1`, one blob per line of the drain
     /// loop), which is the only authority on what the engine actually writes:
     /// every one of the 55 blobs a boot-query-recognise run produced decodes to
-    /// exactly what `js/msgpack.js` used to produce for it.
+    /// exactly what the hand-rolled tag walker in JS produced for it before
+    /// this replaced it.
     const REAL: &[(&str, &str)] = &[
         // a progress update, with no data at all
         (
