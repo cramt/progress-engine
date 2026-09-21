@@ -38,8 +38,8 @@
 
 use facet::Facet;
 use pe_criteria::{
-    Cost, CostError, Count, Criterion, Evaluator, Expectation, NotACount, PathOutcomes, PathView,
-    Plan, Trigger, TriggerError, Zone, ZoneError,
+    Cost, CostError, Count, Criterion, Evaluator, Expectation, NotACount, Palette, PathOutcomes,
+    PathView, Plan, Trigger, TriggerError, Zone, ZoneError,
 };
 use thiserror::Error;
 
@@ -654,7 +654,7 @@ pub struct QuestionReads {
 pub struct Reads {
     queries: u64,
     turns: Vec<usize>,
-    casts: bool,
+    demands: Option<Palette>,
     battlefield: bool,
 }
 
@@ -664,8 +664,17 @@ impl Reads {
         for clause in clauses {
             match clause {
                 Clause::Count(c) => reads.count(c.turn, c.query, c.zone),
-                Clause::Cast { turn, .. } => {
-                    reads.casts = true;
+                Clause::Cast { turn, cost } => {
+                    // Joined over every cost in the question, because one
+                    // enumeration answers all of them: a criterion asking for
+                    // `{1}{U}` on turn 3 and `{B}` on turn 4 can tell a blue
+                    // source from a black one from anything else, and nothing
+                    // finer than that.
+                    let demanded = cost.demands();
+                    reads.demands = Some(match reads.demands {
+                        Some(already) => already.union(demanded),
+                        None => demanded,
+                    });
                     reads.at(*turn);
                 }
             }
@@ -698,10 +707,16 @@ impl Reads {
         &self.turns
     }
 
-    /// Whether it asks whether a cost could have been paid, which is the only
-    /// thing in the language that can tell a Plains from an Island.
-    pub fn casts(&self) -> bool {
-        self.casts
+    /// What its costs demand, where it asks whether a cost could have been
+    /// paid at all — the only thing in the language that can tell a Plains
+    /// from an Island.
+    ///
+    /// `None` and `Some(Palette::EMPTY)` are different questions and the
+    /// distinction is the point: nothing here asks about mana, versus
+    /// something asks `can_cast = "{2}"`, which reads how many lands are in
+    /// play and untapped but cannot tell one colour from another.
+    pub fn demands(&self) -> Option<Palette> {
+        self.demands
     }
 
     /// Whether it counts cards on the battlefield, which reads the land drops

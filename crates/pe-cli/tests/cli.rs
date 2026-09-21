@@ -2203,3 +2203,188 @@ fn a_criterion_correlating_two_turns_is_not_narrowed_away() {
         );
     }
 }
+
+/// A run's own account of how it enumerated, as the JSON carries it.
+fn enumerations(json: &serde_json::Value) -> &Vec<serde_json::Value> {
+    json["enumerations"]
+        .as_array()
+        .expect("every run reports how it enumerated")
+}
+
+#[test]
+fn a_cost_is_enumerated_on_the_colours_it_demands() {
+    // #55 end to end. Twelve cards in five mana profiles, asked whether
+    // `{1}{U}` could have been paid: three of those profiles make no blue, so
+    // they are one source to this question however differently they read on
+    // the card. The run says which colours it kept and how wide that left it.
+    let out = run_with(
+        "manabase.txt",
+        "blue-on-three.criteria.toml",
+        "mana-index.jsonl",
+    );
+    assert!(out.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["method"], "exact");
+
+    let walked = enumerations(&json);
+    assert_eq!(walked.len(), 1, "one question, one enumeration");
+    assert_eq!(walked[0]["pips"], serde_json::json!(["{U}"]));
+    assert_eq!(walked[0]["groups"], 5);
+    assert_eq!(walked[0]["method"], "exact");
+    assert_eq!(
+        walked[0]["criteria"],
+        serde_json::json!(["{1}{U} on turn 3"])
+    );
+
+    // The independent check, and the only one that is not this engine
+    // agreeing with itself: the sampler deals real hands over the un-narrowed
+    // manabase and knows nothing about any of this.
+    let sampled = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+        .arg("test")
+        .arg(fixture("manabase.txt"))
+        .arg(fixture("blue-on-three.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("mana-index.jsonl"))
+        .args(["--simulate", "--trials", "400000", "--seed", "3"])
+        .output()
+        .expect("binary should run");
+    let sampled: serde_json::Value = serde_json::from_slice(&sampled.stdout).unwrap();
+    let name = "{1}{U} on turn 3";
+    let (exact, estimate) = (percent(&json, name), percent(&sampled, name));
+    let se = sampled["criteria"][0]["standard_error"].as_f64().unwrap() * 100.0;
+    assert!(
+        (exact - estimate).abs() < 4.0 * se,
+        "narrowed {exact} vs sampled {estimate}, {:.2} SE away",
+        (exact - estimate).abs() / se
+    );
+}
+
+#[test]
+fn a_declared_priority_is_enumerated_on_the_whole_palette() {
+    // The negative control at the boundary that decides it. The same cost
+    // over the same manabase, with the land drop declared: the priority plays
+    // the first land it is holding and ranks two lands this cost cannot tell
+    // apart, so merging them would change which one was played. The run keeps
+    // all six pips and pays for them.
+    let out = run_with(
+        "manabase.txt",
+        "blue-on-three-ranked.criteria.toml",
+        "mana-index.jsonl",
+    );
+    assert!(out.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let walked = enumerations(&json);
+    assert_eq!(
+        walked[0]["pips"],
+        serde_json::json!(["{W}", "{U}", "{B}", "{R}", "{G}", "{C}"]),
+        "a priority reads the manabase for a reason no cost can state"
+    );
+    let ranked = walked[0]["groups"].as_u64().unwrap();
+
+    let narrowed = run_with(
+        "manabase.txt",
+        "blue-on-three.criteria.toml",
+        "mana-index.jsonl",
+    );
+    let narrowed: serde_json::Value = serde_json::from_slice(&narrowed.stdout).unwrap();
+    assert!(
+        ranked > enumerations(&narrowed)[0]["groups"].as_u64().unwrap(),
+        "and it costs groups, which is the price of being right"
+    );
+
+    // Still the right answer for the question it is now asking, which is a
+    // different question: the drops are the ones the file declared.
+    let sampled = Command::new(env!("CARGO_BIN_EXE_progress-engine"))
+        .arg("test")
+        .arg(fixture("manabase.txt"))
+        .arg(fixture("blue-on-three-ranked.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("mana-index.jsonl"))
+        .args(["--simulate", "--trials", "400000", "--seed", "3"])
+        .output()
+        .expect("binary should run");
+    let sampled: serde_json::Value = serde_json::from_slice(&sampled.stdout).unwrap();
+    let name = "{1}{U} on turn 3";
+    let (exact, estimate) = (percent(&json, name), percent(&sampled, name));
+    let se = sampled["criteria"][0]["standard_error"].as_f64().unwrap() * 100.0;
+    assert!(
+        (exact - estimate).abs() < 4.0 * se,
+        "declared {exact} vs sampled {estimate}, {:.2} SE away",
+        (exact - estimate).abs() / se
+    );
+}
+
+#[test]
+fn a_run_says_how_it_enumerated_question_by_question() {
+    // The other half of #55, and the same argument as the provenance block:
+    // since #31 a file is several enumerations and only the widest *refused*
+    // one reached the output, so the group and composition counts this project
+    // quotes about its own narrowings could not be reproduced from a run that
+    // performed them.
+    let out = run("simple-ramp.criteria.toml");
+    assert!(out.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let walked = enumerations(&json);
+    assert!(walked.len() > 1, "this file is several questions");
+
+    // Every question in the file is answered by exactly one of them.
+    let mut answered: Vec<&str> = Vec::new();
+    for class in walked {
+        assert!(class["groups"].as_u64().unwrap() >= 1);
+        assert!(class["compositions"].as_f64().unwrap() >= 1.0);
+        assert_eq!(class["method"], "exact");
+        assert!(
+            class["pips"].is_null(),
+            "nothing here asks whether a cost could be paid"
+        );
+        for kind in ["criteria", "expectations"] {
+            for name in class[kind].as_array().unwrap() {
+                answered.push(name.as_str().unwrap());
+            }
+        }
+    }
+    let mut asked: Vec<&str> = json["criteria"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain(json["expectations"].as_array().unwrap())
+        .map(|q| q["name"].as_str().unwrap())
+        .collect();
+    asked.sort_unstable();
+    answered.sort_unstable();
+    assert_eq!(asked, answered, "every question, enumerated exactly once");
+
+    // And the narrowing it reports is the one it performed: a class keeps the
+    // queries it reads and no others.
+    let opener = walked
+        .iter()
+        .find(|c| c["criteria"] == serde_json::json!(["keepable opener (2-5 lands)"]))
+        .expect("the opener criterion has an enumeration of its own");
+    assert_eq!(opener["queries"], serde_json::json!(["t:land"]));
+    assert_eq!(opener["turns"], serde_json::json!([0]));
+    assert_eq!(opener["reading"], "cumulative");
+    assert_eq!(opener["groups"], 2, "lands and everything else");
+}
+
+#[test]
+fn a_sampled_question_still_says_what_it_would_have_cost() {
+    // A class that went over the ceiling is the one a caller most needs the
+    // width of, and the one a run used to describe only in prose. It reports
+    // the width it would have walked and `"sampled"` beside it, so the reason
+    // it is an estimate is a number rather than an adjective.
+    let out = run_flags("too-wide.criteria.toml", &[]);
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["method"], "mixed");
+    let walked = enumerations(&json);
+    let refused: Vec<&serde_json::Value> =
+        walked.iter().filter(|c| c["method"] == "sampled").collect();
+    assert_eq!(refused.len(), 1, "one class went over, not the file");
+    assert!(
+        refused[0]["compositions"].as_f64().unwrap()
+            > json["too_wide"]["ceiling"].as_f64().unwrap()
+    );
+    // The widest refused class is what the top-level `too_wide` describes, so
+    // the two have to agree rather than be two measurements of one run.
+    assert_eq!(refused[0]["compositions"], json["too_wide"]["paths"]);
+    assert_eq!(refused[0]["groups"], json["too_wide"]["groups"]);
+}

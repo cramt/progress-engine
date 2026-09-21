@@ -154,10 +154,20 @@ a hard one beside it is not honest either. The file is now partitioned into
 classes of questions that read the same things, each class is enumerated on the
 narrowest grouping and the fewest checkpoints that can answer it, and only a
 class that is still over the ceiling falls back. Nothing about the numbers
-changes when it narrows: a coarser grouping is a marginal of the finer one, and
+changes when it narrows: a coarser grouping is a marginal of the finer one,
 draws between two turns nobody reads have the same joint distribution merged as
-separate. That is what makes it a narrowing rather than an approximation, and
-it is asserted as a property rather than assumed.
+separate, and two lands a cost cannot tell apart are one source to the matching
+it runs. That is what makes it a narrowing rather than an approximation, and all
+three are asserted as properties rather than assumed.
+
+**And a run says how it enumerated.** A file being several enumerations means
+*how wide was this* has an answer per question rather than per run, and for a
+while the only one that reached the output was the width of the class the run
+refused — so the figures this project quotes about its own narrowings could not
+be reproduced from a run that performed them. The `enumerations` block is that
+closed: per class, what it reads, how many groups and compositions it cost, and
+whether it was walked or sampled. Same argument as the provenance block, aimed
+at the numbers about the numbers.
 
 ### Ask, don't guess
 
@@ -309,22 +319,40 @@ cannot pay. It is a bipartite matching, and the engine can solve it exactly per
 composition while the user cannot express it — so it has to be a primitive.
 
 **The gate ships**, as `zone = "battlefield"` for lands and `can_cast` for a
-cost. It cost nothing in enumeration width to count lands in play and a great
-deal to price them: telling a Plains from an Island splits groups no query
-splits, and on either real deck in `decks/` a castability question is a dozen
-and a half groups — 1.2 billion compositions at **turn four**, against a
-ceiling of five million. That is the honest price of an exact answer and it is
-why the sampling fallback existed first.
+cost. It cost nothing in enumeration width to count lands in play and, at first,
+a great deal to price them: telling a Plains from an Island splits groups no
+query splits, and on either real deck in `decks/` a castability question was a
+dozen and a half groups — 1.2 billion compositions at **turn four**, against a
+ceiling of five million.
 
-Two prices, and only one of them was honest. The split is what castability
-costs, and it was also what every other criterion in the same file cost, because
-the grouping was decided once for the file. That half is fixed: the split is now
-charged to the clause that asked for it. The half that remains is that the
-clause itself is an estimate past the opening turns on a real manabase, and the
-narrowing that would fix it is
-[#55](https://github.com/cramt/progress-engine/issues/55) — a cost can only
-tell apart the colours it demands, so `{1}{U}` cannot distinguish a Plains from
-a Forest and should not pay to.
+Most of that price was not honest, and the parts that were not have been taken
+out. The first was
+that the split was charged to every other criterion in the same file, because
+the grouping was decided once for the file; that is
+[#31](https://github.com/cramt/progress-engine/issues/31), and the split is now
+charged to the clause that asked for it. The second was that the split was
+finer than the question: `Cost::payable` runs Hall's condition over the pip
+kinds the cost demands and nothing else, so `{1}{U}` cannot tell a Plains from a
+Forest and was paying to. Keying the manabase on the palette **intersected with
+what the class's costs demand** is
+[#55](https://github.com/cramt/progress-engine/issues/55): sixteen land profiles
+become four, turn four becomes 41,250 compositions, and both north-star decks
+answer `{1}{U}` exactly through turn six where they used to estimate it from
+turn four.
+
+What a narrowing has to survive before it ships is *everything the walk does*,
+not only the clause that motivated it. Two lands with the same restricted
+palette are interchangeable to the drop count, to what is in play, and to
+whether a land arrived this turn, because all of those read sums over land
+groups and a sum does not care how its terms were labelled. They are **not**
+interchangeable to a declared land-drop priority, which plays the first land its
+ranking reaches and ends that ranking in *the card your decklist names first* —
+merging renumbers it and plays a different land. So a run that declares one
+keeps the whole palette and pays for it, which is a real cost on a real deck and
+is stated rather than quietly taken
+([#56](https://github.com/cramt/progress-engine/issues/56)). A narrowing that
+cannot be proved is not applied: a silently unsound one changes an answer it
+cannot justify, which is strictly worse than the estimate it replaces.
 
 As a **budget**, it is spent. An opening hand of one Island and six Opt casts
 *one* Opt, because the first one consumes the Island. A model where an effect
@@ -366,6 +394,15 @@ separates lands something already separated is free, and one that draws a new
 line costs a group. In the case this exists for — a routing effect and a mana
 question in one file — the natural list is free, because routing has already
 split the land it routes with.
+
+**What it is not free of is the colour narrowing**, and that is the one real
+cost of declaring a priority. The ranking ends in *the card your decklist names
+first*, so it reads the manabase in a way no cost does, and #55 cannot merge two
+lands it ranks apart. On `decks/lantern.txt` that is 41,250 compositions without
+a priority against 1.2 billion with one — an exact answer against an estimate,
+at turn four. It is recoverable by merging only lands the ranking already places
+side by side, which is
+[#56](https://github.com/cramt/progress-engine/issues/56).
 
 ### Zones are the real question
 
@@ -459,6 +496,20 @@ through the front door.
   now it is the only one: `decks/lantern.criteria.toml` went from 4,120,116
   compositions to 72,072 on the play and from sampled to exact on the draw,
   with every number it already reported unchanged to every printed digit.
+- A cost is enumerated on the colours it demands and no others
+  ([#55](https://github.com/cramt/progress-engine/issues/55)) — shipped. A
+  Plains, a Swamp and a Forest are one source to `{1}{U}`, so both decks in
+  `decks/` answer that clause on five groups and 41,250 compositions at turn
+  four rather than on seventeen and 1.2 billion — exact where it was an
+  estimate, through turn six. It is applied only where nothing but the cost
+  chooses which land was played: a declared `[land_drop]` priority ranks lands a
+  cost cannot tell apart, so merging them would play a different land, and there
+  the whole palette is kept and paid for
+  ([#56](https://github.com/cramt/progress-engine/issues/56)).
+- Every run reports how it enumerated: per class of question, what it reads, how
+  many groups and compositions it cost, and whether it was walked or sampled.
+  The width figures in README and here are read off that block rather than
+  measured beside it.
 - A criterion names the zone it asks about, silence means `hand`, and
   `battlefield` was refused until castability existed rather than approximated
   ([#40](https://github.com/cramt/progress-engine/issues/40)) — shipped, and the

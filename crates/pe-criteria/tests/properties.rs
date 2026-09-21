@@ -11,7 +11,11 @@
 
 use std::convert::Infallible;
 
-use pe_criteria::{Count, Evaluator, Grouping, PathOutcomes, PathView, Plan, Schedule, Zone};
+use pe_criteria::mana::Pip;
+use pe_criteria::{
+    Cost, Count, Evaluator, Grouping, ManaSource, Palette, PathOutcomes, PathView, Plan, Schedule,
+    Zone,
+};
 use proptest::prelude::*;
 use proptest::test_runner::{Config, RngAlgorithm, TestCaseError, TestRng, TestRunner};
 
@@ -77,19 +81,6 @@ fn runner(cases: u32) -> TestRunner {
     )
 }
 
-/// How many checkpoint paths a question enumerates. The same formula the engine
-/// uses to refuse questions that are too wide, mirrored here so the generators
-/// can stay inside a budget the test suite can afford.
-fn paths(groups: usize, gaps: &[u32]) -> u128 {
-    let bins = (groups as u128).saturating_sub(1);
-    gaps.iter()
-        .map(|&gap| {
-            let n = u128::from(gap) + bins;
-            (0..bins).fold(1u128, |acc, i| acc.saturating_mul(n - i) / (i + 1))
-        })
-        .fold(1u128, |a, b| a.saturating_mul(b))
-}
-
 /// Far below the engine's own 5,000,000, because these run a few hundred times.
 const PATH_BUDGET: u128 = 8_000;
 
@@ -130,6 +121,10 @@ fn question() -> impl Strategy<Value = Question> {
 }
 
 fn feasible_gaps(groups: &[u32], opening: u32, extras: &[u32]) -> Vec<u32> {
+    feasible_gaps_within(groups, opening, extras, PATH_BUDGET)
+}
+
+fn feasible_gaps_within(groups: &[u32], opening: u32, extras: &[u32], budget: u128) -> Vec<u32> {
     let population: u32 = groups.iter().sum();
     let mut gaps = Vec::with_capacity(extras.len() + 1);
     let mut drawn = 0;
@@ -138,7 +133,10 @@ fn feasible_gaps(groups: &[u32], opening: u32, extras: &[u32]) -> Vec<u32> {
         drawn += gap;
         gaps.push(gap);
     }
-    while gaps.len() > 1 && paths(groups.len(), &gaps) > PATH_BUDGET {
+    // The engine's own count rather than a copy of the formula: a generator
+    // budgeting against a second opinion could produce a question the engine
+    // then refuses.
+    while gaps.len() > 1 && pe_criteria::compositions(groups.len(), &gaps) > budget {
         gaps.pop();
     }
     gaps
@@ -498,7 +496,7 @@ fn coarsening_away_a_query_nobody_reads_leaves_every_answer_alone() {
             let keep = thresholds
                 .iter()
                 .fold(0u64, |bits, t| bits | 1u64 << t.query);
-            let coarse = q.grouping.coarsened(keep, false);
+            let coarse = q.grouping.coarsened(keep, pe_criteria::LandDetail::Ignored);
             prop_assert!(
                 coarse.group_sizes().len() <= q.grouping.group_sizes().len(),
                 "coarsening cannot add groups"
@@ -604,7 +602,7 @@ fn narrowing_both_axes_at_once_leaves_every_answer_alone() {
             observed.dedup();
 
             let narrowed = pe_criteria::run(
-                &q.grouping.coarsened(keep, false),
+                &q.grouping.coarsened(keep, pe_criteria::LandDetail::Ignored),
                 &schedule.narrowed(&observed, pe_criteria::Reading::Cumulative),
                 plan,
                 &mut checks(&thresholds),
@@ -657,6 +655,202 @@ fn answering_one_question_of_several_answers_it_the_same_way() {
                 prop_assert!(
                     (together.probabilities[i].get() - alone.probabilities[0].get()).abs()
                         < SAME_ANSWER
+                );
+            }
+            Ok(())
+        })
+        .unwrap();
+}
+
+// --- Restricting the palette (#55) ----------------------------------------
+
+/// A looser budget than [`PATH_BUDGET`], because a castability question is
+/// only worth asking past turn 0 — the gate is false on the opening hand by
+/// construction — and a six-group manabase spends its whole allowance on the
+/// opening seven. A few hundred of these still run in seconds.
+const MANA_BUDGET: u128 = 50_000;
+
+/// A manabase and a cost to ask of it.
+///
+/// Generated as *palettes* rather than as cards, because the thing under test
+/// is what the grouping does with a land's colours: five profiles that differ
+/// in colours nobody demanded are five groups a cost cannot tell apart, and
+/// the whole claim is that merging them changes nothing.
+#[derive(Debug, Clone)]
+struct ManaQuestion {
+    grouping: Grouping,
+    gaps: Vec<u32>,
+    cost: Cost,
+}
+
+fn cost_text() -> impl Strategy<Value = String> {
+    (
+        0u32..=2,
+        prop::collection::vec(
+            prop::sample::select(vec!['W', 'U', 'B', 'R', 'G', 'C']),
+            0..=3,
+        ),
+    )
+        .prop_map(|(generic, pips)| {
+            let mut text = String::new();
+            if generic > 0 || pips.is_empty() {
+                text.push_str(&format!("{{{generic}}}"));
+            }
+            for pip in pips {
+                text.push_str(&format!("{{{pip}}}"));
+            }
+            text
+        })
+}
+
+fn mana_question() -> impl Strategy<Value = ManaQuestion> {
+    (
+        // One entry per kind of land: what it makes, whether it enters tapped,
+        // how many copies.
+        prop::collection::vec((0u8..(1 << 6), any::<bool>(), 1u32..=8), 1..=5),
+        1u32..=30,
+        0u32..=7,
+        prop::collection::vec(0u32..=2, 1..=3),
+        cost_text(),
+    )
+        .prop_map(|(lands, spells, opening, extras, text)| {
+            let mut cards: Vec<(u64, ManaSource, u32)> = lands
+                .into_iter()
+                .map(|(bits, enters_tapped, qty)| {
+                    let produces = Palette::of(
+                        Pip::ALL
+                            .into_iter()
+                            .filter(|p| bits & (1 << (*p as u8)) != 0),
+                    );
+                    (
+                        0b1,
+                        ManaSource::Land {
+                            enters_tapped,
+                            produces,
+                        },
+                        qty,
+                    )
+                })
+                .collect();
+            cards.push((0b0, ManaSource::Spell, spells));
+            let grouping = Grouping::with_mana(vec!["t:land".to_string()], cards).unwrap();
+            let gaps = feasible_gaps_within(grouping.group_sizes(), opening, &extras, MANA_BUDGET);
+            ManaQuestion {
+                grouping,
+                gaps,
+                cost: Cost::parse(&text).expect("a cost built from payable symbols"),
+            }
+        })
+}
+
+fn castable(cost: &Cost, turns: usize) -> Closures {
+    Closures(
+        (0..turns)
+            .map(|turn| {
+                let cost = cost.clone();
+                Box::new(move |v: &PathView<'_>| v.can_cast(turn, &cost)) as Check
+            })
+            .collect(),
+    )
+}
+
+#[test]
+fn a_cost_is_answered_the_same_on_the_colours_it_demands_alone() {
+    // The narrowing of #55, as a property over generated manabases. A cost
+    // runs Hall's condition over the pips it demands and nothing else, so two
+    // lands agreeing on *those* pips and on tapped-ness are one source to it —
+    // and an enumeration keyed on the whole palette is finer than the question
+    // it is answering. This asserts the coarser one gives the same number, not
+    // a close one.
+    runner(192)
+        .run(&mana_question(), |q| {
+            let schedule = Schedule::plain(&q.gaps);
+            let turns = q.gaps.len();
+            let plan = only_criteria(turns);
+
+            // The un-narrowed grouping itself, not a coarsening of it: the
+            // claim is about what the CLI compares, which is the manabase as
+            // the library built it against the one the class asked for.
+            let whole = &q.grouping;
+            let demanded = q
+                .grouping
+                .coarsened(u64::MAX, pe_criteria::LandDetail::Pips(q.cost.demands()));
+            prop_assert!(
+                demanded.group_sizes().len() <= whole.group_sizes().len(),
+                "restricting a palette cannot add a group"
+            );
+            prop_assert_eq!(demanded.population(), whole.population());
+
+            let full = pe_criteria::run(whole, &schedule, plan, &mut castable(&q.cost, turns))
+                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            let narrowed =
+                pe_criteria::run(&demanded, &schedule, plan, &mut castable(&q.cost, turns))
+                    .map_err(|e| TestCaseError::fail(format!("{q:?} was refused narrowed: {e}")))?;
+
+            for (turn, (wide, narrow)) in full
+                .probabilities
+                .iter()
+                .zip(&narrowed.probabilities)
+                .enumerate()
+            {
+                prop_assert!(
+                    (wide.get() - narrow.get()).abs() < SAME_ANSWER,
+                    "{} on turn {turn} over {:?}: {} on the whole palette, {} on {:?}",
+                    q.cost.as_str(),
+                    q.grouping.group_sizes(),
+                    wide.get(),
+                    narrow.get(),
+                    q.cost.demands().symbols(),
+                );
+            }
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+fn a_battlefield_count_beside_a_cost_survives_the_restriction_too() {
+    // The composition the CLI actually builds: a class asking a cost *and*
+    // counting what is in play keeps its query bits as well, and both answers
+    // have to survive the merge. Counting lands in play reads the same drops
+    // the gate does, so a restriction that moved one would move the other.
+    runner(128)
+        .run(&(mana_question(), 1u32..=3), |(q, k)| {
+            let schedule = Schedule::plain(&q.gaps);
+            let last = q.gaps.len() - 1;
+            let plan = only_criteria(2);
+            let questions = |cost: Cost| {
+                Closures(vec![
+                    Box::new(move |v: &PathView<'_>| v.can_cast(last, &cost)) as Check,
+                    Box::new(move |v: &PathView<'_>| v.count_in(last, 0, Zone::Battlefield) >= k)
+                        as Check,
+                ])
+            };
+
+            // The un-narrowed grouping itself, not a coarsening of it: the
+            // claim is about what the CLI compares, which is the manabase as
+            // the library built it against the one the class asked for.
+            let whole = &q.grouping;
+            let demanded = q
+                .grouping
+                .coarsened(u64::MAX, pe_criteria::LandDetail::Pips(q.cost.demands()));
+
+            let full = pe_criteria::run(whole, &schedule, plan, &mut questions(q.cost.clone()))
+                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            let narrowed =
+                pe_criteria::run(&demanded, &schedule, plan, &mut questions(q.cost.clone()))
+                    .map_err(|e| TestCaseError::fail(format!("{q:?} was refused narrowed: {e}")))?;
+            for (i, (wide, narrow)) in full
+                .probabilities
+                .iter()
+                .zip(&narrowed.probabilities)
+                .enumerate()
+            {
+                prop_assert!(
+                    (wide.get() - narrow.get()).abs() < SAME_ANSWER,
+                    "question {i}: {} un-narrowed, {} narrowed",
+                    wide.get(),
+                    narrow.get()
                 );
             }
             Ok(())

@@ -1,6 +1,6 @@
 //! Partitioning a library into groups of interchangeable cards.
 
-use crate::mana::ManaSource;
+use crate::mana::{LandDetail, ManaSource};
 use thiserror::Error;
 
 /// A `u64` mask carries one bit per query.
@@ -126,25 +126,31 @@ impl Grouping {
     /// disagree about one of them are not interchangeable however little the
     /// criterion cares.
     ///
-    /// `mana` is the same choice for what a land makes. Only [`crate::Cost`]
-    /// can see it, so a class with no casting clause drops it and the manabase
-    /// collapses back to one group.
+    /// `mana` is the same choice for what a land makes, and it has three
+    /// useful settings rather than two. Only [`crate::Cost`] can see a
+    /// palette at all, so a class with no casting clause asks for
+    /// [`LandDetail::Ignored`] and the manabase collapses back to one group.
+    /// A class that does ask about a cost need only keep the pips that cost
+    /// demands — [`LandDetail`] is where that argument lives — and
+    /// [`LandDetail::Pips`] with [`crate::Palette::ALL`] is the whole palette,
+    /// for a caller that cannot prove a narrower one.
     ///
     /// Bits outside `keep` are **cleared, never renumbered**, so every index a
-    /// clause already holds still means what it meant. The cost of that is the
-    /// reason this is not a general-purpose constructor: a question reading a
-    /// cleared bit counts zero here, so only the class this was coarsened for
-    /// may be answered against it.
-    pub fn coarsened(&self, keep: u64, mana: bool) -> Grouping {
+    /// clause already holds still means what it meant. Land groups are a
+    /// different story: merging two of them renumbers the rest, and
+    /// [`crate::Board`] rebuilds its own slot numbering — and the
+    /// [`crate::mana::Constraint::Includes`] that indexes it — from whatever
+    /// grouping it is handed, so those indices stay internally consistent. The
+    /// cost of all of it is the reason this is not a general-purpose
+    /// constructor: a question reading a cleared bit counts zero here, so only
+    /// the class this was coarsened for may be answered against it.
+    pub fn coarsened(&self, keep: u64, mana: LandDetail) -> Grouping {
         let cards = self
             .group_masks
             .iter()
             .zip(&self.group_mana)
             .zip(&self.group_sizes)
-            .map(|((mask, source), qty)| {
-                let source = if mana { *source } else { ManaSource::Spell };
-                (mask & keep, source, *qty)
-            });
+            .map(|((mask, source), qty)| (mask & keep, source.seen_as(mana), *qty));
         // The same query list at the same bit positions: this is a coarser
         // partition of the same library, not a different question.
         Grouping::with_mana(self.queries.clone(), cards)

@@ -95,13 +95,21 @@ Plains from an Island, split a real Commander manabase into seventeen groups and
 all seventeen to the criterion beside it that only ever asked `count('cat:"Ramp"')`.
 
 Since [#31](https://github.com/cramt/progress-engine/issues/31) the questions are partitioned
-into classes and each class gets the cheapest enumeration that can answer it. Two things
+into classes and each class gets the cheapest enumeration that can answer it. Three things
 shrink:
 
 - **Groups.** A class keeps only the queries it reads, plus whatever the walk itself reads —
   which cards a live effect applies to, where it routes them, the land-drop priority — and
   keeps what a land makes only if something asks whether a cost could be paid. Everything else
   merges.
+- **Colours** ([#55](https://github.com/cramt/progress-engine/issues/55)). A cost can only
+  tell apart the colours it demands. `Cost::payable` runs Hall's condition over the pip kinds
+  in the cost and nothing else, so to `{1}{U}` a Plains, a Swamp and a Forest are one source:
+  each pays a generic and none pays the pip. So the manabase is keyed on the palette
+  **intersected with what the class's costs demand**, which is at most four land groups for a
+  one-colour cost however many printings are behind them. See [what castability
+  costs](#mana-as-a-gate) for the case this exists for, and for the one run where it is
+  refused.
 - **Checkpoints.** A class keeps only the turns it names. "Loam in hand by turn 5" is one
   multivariate hypergeometric over eleven cards, not a path through five checkpoints. A
   criterion that correlates two turns names both and keeps both, because the hands that get
@@ -109,25 +117,32 @@ shrink:
   about paying a cost keeps every turn up to its own, because one land drop a turn is
   use-it-or-lose-it and no total can say that.
 
-Measured on the two decks in `decks/`, against an index synced with oracle tags:
+Measured on the two decks in `decks/`, against an index synced with oracle tags. The first
+three rows are what #31 bought and the last two are #55, so *before* means before that row's
+own narrowing:
 
 | File | Before: groups / compositions | After: widest class | Before | After |
 |---|---|---|---|---|
 | `lantern.criteria.toml` | 7 / 4,120,116 | 6 / 72,072 | exact, 2.6s | exact, 0.20s |
 | `lantern.criteria.toml --draw` | 7 / 28,840,812 | 6 / 108,108 | **sampled** | **exact**, 0.20s |
 | `loam.criteria.toml` | 4 / 30,720 | 3 / 55 | exact, 0.19s | exact, 0.16s |
-| the same file plus `can_cast = "{1}{U}"` at turn 4 | 17 / 1,204,456,341 | 17 / 1,204,456,341 for that one clause; ≤ 72,072 for the other six questions | **all six sampled** | **one sampled, six exact** |
+| `lantern.txt`, `can_cast = "{1}{U}"` at turn 4 | 17 / 1,204,456,341 | 5 / 41,250 | **sampled**, 0.68s | **exact**, 0.27s |
+| `loam.txt`, the same clause | 18 / 2,018,478,528 | 5 / 41,250 | **sampled**, 0.81s | **exact**, 0.25s |
 
 Every number that was exact before is the same number after, to every digit the report
 prints. Narrowing is not an approximation: a coarser grouping is a marginal of the finer one,
-and the draws between two turns nobody reads have the same joint distribution merged as
-separate. It is asserted as a property over generated questions and end to end through the
-binary.
+the draws between two turns nobody reads have the same joint distribution merged as separate,
+and two lands a cost cannot tell apart are one source to the matching it runs. All three are
+asserted as properties over generated questions, and end to end through the binary against the
+sampler — which walks the un-narrowed grouping and so is a second implementation rather than
+this one agreeing with itself.
 
-The cost that remains is real and is not hidden: a `can_cast` clause on a Commander manabase
-is a billion compositions at turn four whatever else is in the file, and it is still
-[sampled](#when-the-question-is-too-wide). What changed is that it no longer takes its
-neighbours with it.
+**A run says how it enumerated**, because a file is several enumerations and a figure quoted
+without its width is a figure nobody can reproduce. Every run's JSON carries an
+`enumerations` block, one entry per class: the questions it answered, the queries and turns it
+reads, the pips it kept, its group and composition counts, and whether it was walked or
+sampled. Every group and composition count in this README comes from one of those, and the
+command that produces it is printed beside it.
 
 ### When the question is too wide
 
@@ -223,6 +238,25 @@ often](#how-many-not-just-how-often). Add `--draw` to model being on the draw,
 `--simulate` to sample instead of enumerate (slower, approximate, and reported
 with standard errors), and `--exact` to refuse a question too wide to enumerate
 rather than [estimating it](#when-the-question-is-too-wide).
+
+The JSON also carries an `enumerations` block — one entry per class of question,
+saying what that class reads, how wide it was, and whether it was walked or
+sampled:
+
+```
+$ progress-engine test simple-ramp.txt simple-ramp.criteria.toml | jq -c '.enumerations[]'
+{"criteria":["keepable opener (2-5 lands)"],"expectations":["lands in opener"],
+ "queries":["t:land"],"turns":[0],"reading":"cumulative","groups":2,
+ "compositions":8,"method":"exact"}
+...
+```
+
+A file is several enumerations rather than one — see [one enumeration per
+question](#one-enumeration-per-question-not-per-file) — so *how wide was this*
+has an answer per question, and without this block the only one that reached
+the output was the widest class the run **refused**. It is there for the same
+reason the provenance block is: a figure whose inputs are not named cannot be
+reproduced or compared, and that includes the figures about the figures.
 
 The JSON also carries a `provenance` block — the tool's version, the date the
 card index was built, and SHA-256 hashes of the decklist, the criteria file and
@@ -477,30 +511,48 @@ the choice declarable per file is the obvious next step and is deliberately not
 a default nobody stated.
 
 **What it costs.** Counting lands in play is free — it reads the land drops the
-enumeration already walks and adds no group and no path. `can_cast` is not free:
-it has to tell a Plains from an Island, so lands split into one group per
-*(what it produces, does it arrive tapped)*, and the enumeration widens with the
-group count. Measured on the decks in `decks/`, against an index synced with
-oracle tags, asking `can_cast = "{1}{U}"`:
+enumeration already walks and adds no group and no path. `can_cast` is not free,
+but it is far cheaper than it was. A cost can only tell apart the colours it
+demands, so the manabase is keyed on *(the pips this class's costs demand, does
+it arrive tapped)* rather than on the whole palette: for `{1}{U}` that is at most
+four land groups — makes blue untapped, makes blue tapped, makes something else
+untapped, makes something else tapped — however many printings sit behind them.
 
-| Deck | Land groups | Turn 4 |
-|---|---|---|
-| `lantern.txt` | 17 | 1,204,456,341 — over the ceiling, [sampled](#when-the-question-is-too-wide) |
-| `loam.txt` | 18 | 2,018,478,528 — over the ceiling, sampled |
+Measured on the decks in `decks/`, against an index synced with oracle tags,
+asking `can_cast = "{1}{U}"`, before and after
+[#55](https://github.com/cramt/progress-engine/issues/55):
 
-A real Commander manabase is a dozen-plus profiles, so this is the ordinary
-case rather than a pathological one, and turn **four** is where it lands. A deck
-whose manabase is three kinds of basic stays exact much deeper — five groups is
-41,250 compositions at turn 4 and a million at turn 6. The matching itself is
-cheap, about 0.65µs a hand; the width is what costs.
+| Deck | Turn | Before: groups / compositions | After | Before | After |
+|---|---|---|---|---|---|
+| `lantern.txt` | 4 | 17 / 1,204,456,341 | 5 / 41,250 | sampled, 0.68s | **exact**, 0.27s |
+| `lantern.txt` | 5 | 17 / 20,475,757,797 | 5 / 206,250 | sampled, 0.76s | **exact**, 0.74s |
+| `lantern.txt` | 6 | 17 / 348,087,882,549 | 5 / 1,031,250 | sampled, 0.84s | **exact**, 3.2s |
+| `lantern.txt` | 7 | 17 / 5,917,494,003,333 | 5 / 5,156,250 | sampled | sampled — over the ceiling by 3% |
+| `loam.txt` | 4 | 18 / 2,018,478,528 | 5 / 41,250 | sampled, 0.81s | **exact**, 0.25s |
+| `loam.txt` | 6 | 18 / 653,987,043,072 | 5 / 1,031,250 | sampled, 0.86s | **exact**, 3.1s |
 
-Since [#31](https://github.com/cramt/progress-engine/issues/31) that width is
-charged to the clause that asked for it and to nothing else: the other six
-questions in `lantern.criteria.toml` are enumerated exactly beside it, at 72,072
-compositions or fewer. What is still true is that the castability clause itself
-is an estimate past the opening turns on a real manabase, and
-[#55](https://github.com/cramt/progress-engine/issues/55) is the next narrowing
-that would change that.
+Reproduce any row with the `enumerations` block:
+
+```
+$ progress-engine sync --index /tmp/index.jsonl
+$ printf '[[criterion]]\nname = "u"\nrequire = [{ turn = 4, can_cast = "{1}{U}" }]\n' > /tmp/u.toml
+$ progress-engine test decks/lantern.txt /tmp/u.toml --index /tmp/index.jsonl | jq -c '.enumerations[]'
+{"criteria":["u"],"expectations":[],"queries":[],"turns":[4],"reading":"per-turn",
+ "pips":["{U}"],"groups":5,"compositions":41250,"method":"exact"}
+```
+
+Note where the time went: sampling 200,000 hands is about 0.8s whatever the
+question, so an exact answer at turn 6 is *slower* than the estimate it
+replaces. That is the trade this makes on purpose — the matching itself is
+cheap, about 0.65µs a hand, and the width is what costs.
+
+Five groups is the ceiling for a clause that asks only a one-colour cost — four
+land groups and everything else — so `{1}{U}` alone is exact through turn
+**six** on any deck whatever its manabase, and goes over at turn seven by 3%.
+Two colours in one class is at most eight land groups, and the join is per
+class: two criteria asking different costs are two enumerations, each narrowed
+to its own. A clause that also counts something keeps that query's bit as well,
+exactly as it did before.
 
 > An earlier version of this section quoted 588,588 at turn 4, 4,119,876 at turn
 > 5 and 28,840,812 at turn 6 for "a 99-card deck with 38 lands in five mana
@@ -566,27 +618,38 @@ Error: lantern.criteria.toml: Lantern castable on turn 1: a mana question and a 
       prefer = ['otag:surveil', 't:land -otag:tapland']
 ```
 
-**What it costs.** Nothing, unless the list draws a line nothing else drew. The
-preferences become grouping queries, so an entry that separates lands the mana
-model or an effect already separated is free, and one that splits a group
-nobody else split costs a group — exactly as `can_cast` does. Measured on a
-narrower manabase than the one above, so the figures are not comparable with
-it: 99 cards, 38 lands in five printings but only three mana profiles — one
-blue, one black, one tapped dual — asking `can_cast = "{1}{U}"`:
+**What it costs, beside a mana question: the colour narrowing.** This is the
+price and it is not small. A priority plays the first land in hand that its list
+reaches, and the tie inside one entry goes to *the card your decklist names
+first* — so it reads the manabase for a reason no cost can state. Merging a
+Plains with a Swamp because `{1}{U}` cannot tell them apart would renumber that
+ranking and play the wrong land, so a run that declares a priority keeps the
+whole palette and pays for it. Measured on `decks/lantern.txt` — a 99-card
+library whose 40 land-typed cards make sixteen distinct mana profiles — asking
+`can_cast = "{1}{U}"`:
 
-| Turn | no policy | `t:land -otag:tapland -otag:conditional-tapland` (4 groups) | plus a `t:land otag:surveil` tier (5 groups) |
+| Turn | no policy (5 groups) | `t:land -otag:tapland -otag:conditional-tapland` (17) | plus a `t:land otag:surveil` tier (19) |
 |---|---|---|---|
-| 4 | 7,680 — 0.15s | 7,680 — 0.15s | 41,250 — 0.25s |
-| 5 | 30,720 — 0.21s | 30,720 — 0.21s | 206,250 — 0.74s |
-| 6 | 122,880 — 0.47s | 122,880 — 0.49s | 1,031,250 — 3.21s |
-| 7 | 491,520 — 1.56s | 491,520 — 1.64s | 5,156,250 — over the ceiling, sampled |
+| 4 | 41,250 — exact, 0.26s | 1,204,456,341 — sampled | 3,297,121,300 — sampled |
+| 5 | 206,250 — exact, 0.74s | 20,475,757,797 — sampled | 62,645,304,700 — sampled |
+| 6 | 1,031,250 — exact, 3.21s | 348,087,882,549 — sampled | 1,190,260,789,300 — sampled |
+| 7 | 5,156,250 — sampled | 5,917,494,003,333 — sampled | 22,614,954,996,700 — sampled |
 
-The first list is free because tapped-ness is a line the gate already draws. The
-second costs a group because nothing else told a surveil land from any other
-tapland — *unless the file also routes with it*, and then that group exists
-already: the same surveil tier beside a live `to_graveyard` effect is 25,781,250
-compositions across 5 groups with or without it, to the path. Which is the case
-this feature exists for.
+So on this deck the priority costs the exact answer outright, and the two lists
+cost about the same as each other: the untapped tier separates nothing the mana
+model had not already separated, and the surveil tier adds two groups. Recovering
+the narrowing under a declared priority — by merging only lands the ranking
+already places side by side — is
+[#56](https://github.com/cramt/progress-engine/issues/56), and until it exists
+the honest thing is the number the run actually walked.
+
+**What it costs where nothing prices mana.** Nothing, unless the list draws a
+line nothing else drew. The preferences become grouping queries, so an entry
+separating lands an effect already separated is free, and one that splits a
+group nobody else split costs a group. The case this feature exists for is the
+free one: a surveil tier beside a live `to_graveyard` effect on `lantern.txt` is
+20 groups and 841,984,000,000,000 compositions with the tier and without it, to
+the path, because routing has already split the land it routes with.
 
 A list is still read in a run that observes no land drop at all — no mana
 question and no live effect — and there it costs groups and moves no number,

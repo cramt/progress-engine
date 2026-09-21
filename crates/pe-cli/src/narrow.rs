@@ -24,8 +24,15 @@
 //! routes them, and which land the declared priority plays. Two cards that
 //! disagree about any of those end up in different zones, so they are not
 //! interchangeable however little the criterion cares about the difference.
+//!
+//! The third narrowing, [#55](https://github.com/cramt/progress-engine/issues/55),
+//! is the same idea aimed at the manabase: a grouping keyed on the whole
+//! palette is finer than any one cost can see, so it is restricted to the pips
+//! the class's costs actually demand. That one is only applied where the
+//! **walk** reads nothing about a land that the cost cannot — see
+//! [`Shared::picks_a_land`], which is where it is refused.
 
-use pe_criteria::{Answering, Grouping, Plan, Reading, Schedule};
+use pe_criteria::{Answering, Grouping, LandDetail, Palette, Plan, Reading, Schedule};
 use pe_toml::{QuestionReads, Reads};
 
 /// Grouping bits the walk itself reads, whatever any criterion asks about.
@@ -44,15 +51,49 @@ pub struct Shared {
     pub land_drop: Option<u64>,
 }
 
+impl Shared {
+    /// Whether anything but the cost gets to choose **which** land was played.
+    ///
+    /// This is the gate on the palette narrowing and the reason it is not
+    /// applied everywhere. Two lands with the same restricted palette are
+    /// interchangeable to [`pe_criteria::Cost`], and they are interchangeable
+    /// to the rest of the walk — the drop count, what is in play, whether a
+    /// land arrived this turn — because all of those read sums over land
+    /// groups and a sum does not care how its terms were labelled. They are
+    /// **not** interchangeable to a declared priority, which plays the first
+    /// land it is holding in a ranking that ends *"then the card this decklist
+    /// names first"*. Merging renumbers that ranking: ranked `Plains, Island,
+    /// Swamp` and asked for `{U}`, the Plains and the Swamp merge into a group
+    /// that now sits where the Plains did, so a hand holding an Island and a
+    /// Swamp plays the Swamp where the file said Island — and the answer
+    /// moves, by 29% to 16% on the hand
+    /// `a_declared_priority_is_not_allowed_to_merge_two_lands_it_ranks_apart`
+    /// deals. The tie rule is a promise the run prints; the narrowing is an
+    /// optimisation. The optimisation loses.
+    ///
+    /// Recovering it by merging only lands the ranking already places side by
+    /// side is [#56](https://github.com/cramt/progress-engine/issues/56).
+    ///
+    /// A live effect is refused for the same kind of reason and costs nothing
+    /// to refuse: a run with a live effect and no declared priority cannot ask
+    /// a mana question at all — it is refused by name, because the effect and
+    /// the gate would be two policies over one land drop — so the only
+    /// castable class this can cost is one that already has a priority.
+    fn picks_a_land(&self) -> bool {
+        self.land_drop.is_some() || self.effects.is_some()
+    }
+}
+
 /// One class of questions and the enumeration that answers it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Class {
     /// The grouping bits this class can tell apart. Everything else merges.
     keep: u64,
-    /// Whether the lands have to keep what they produce and whether they
-    /// arrive tapped. True exactly where something asks whether a cost could
-    /// have been paid.
-    mana: bool,
+    /// How much of what a land makes this class can tell apart:
+    /// [`LandDetail::Ignored`] unless something here asks whether a cost could
+    /// have been paid, and then only the pips those costs demand — where that
+    /// is provable.
+    mana: LandDetail,
     reading: Reading,
     /// The turns whose counts this class reads. For [`Reading::PerTurn`] it is
     /// the last one, because that reading keeps every turn up to it anyway.
@@ -76,13 +117,45 @@ impl Class {
     pub fn answering(&self, plan: Plan) -> Option<Answering> {
         Answering::some(plan, self.criteria.clone(), self.expectations.clone())
     }
+
+    /// The queries this class can tell apart, by name, in grouping order.
+    ///
+    /// For the report: a class is identified by what it reads, and a bit
+    /// number is not something a reader can check against their own file.
+    pub fn queries<'a>(&self, full: &'a Grouping) -> Vec<&'a str> {
+        full.queries()
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| self.keep & (1u64 << i) != 0)
+            .map(|(_, q)| q.as_str())
+            .collect()
+    }
+
+    /// The pip kinds this class can tell lands apart by: `None` where nothing
+    /// here prices mana, and the palette it kept where something does — which
+    /// is empty for a cost that is all generic.
+    pub fn pips(&self) -> Option<Palette> {
+        match self.mana {
+            LandDetail::Ignored => None,
+            LandDetail::Pips(palette) => Some(palette),
+        }
+    }
+
+    /// The turns whose counts this class reads, and how it reads them.
+    pub fn turns(&self) -> &[usize] {
+        &self.turns
+    }
+
+    pub fn reading(&self) -> Reading {
+        self.reading
+    }
 }
 
 /// What one question needs of an enumeration, once the walk's own bits are in.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Need {
     keep: u64,
-    mana: bool,
+    mana: LandDetail,
     reading: Reading,
     turns: Vec<usize>,
 }
@@ -92,7 +165,7 @@ impl Need {
         // One land drop a turn is use-it-or-lose-it, so what is in play and
         // what could be paid are facts about the whole history rather than
         // about a total. Everything else is a count of cards seen.
-        let history = reads.casts() || reads.battlefield();
+        let history = reads.demands().is_some() || reads.battlefield();
         let mut keep = reads.queries();
         // A live effect moves cards between zones, so every count in the run
         // depends on which cards it applies to and where it sends them.
@@ -104,7 +177,15 @@ impl Need {
         }
         Need {
             keep,
-            mana: reads.casts(),
+            // A cost can only tell apart the colours it demands, so that is
+            // all its enumeration keeps — unless something else in this run
+            // gets to choose which land was played, and then the manabase is
+            // being read for a reason no cost can state.
+            mana: match reads.demands() {
+                None => LandDetail::Ignored,
+                Some(_) if shared.picks_a_land() => LandDetail::Pips(Palette::ALL),
+                Some(demanded) => LandDetail::Pips(demanded),
+            },
             reading: if history {
                 Reading::PerTurn
             } else {
@@ -199,7 +280,8 @@ mod tests {
         assert_eq!(classes[0].keep, bit(0));
         assert_eq!(classes[1].keep, bit(1));
         // Neither can tell a Plains from an Island, so neither pays for it.
-        assert!(!classes[0].mana && !classes[1].mana);
+        assert_eq!(classes[0].mana, LandDetail::Ignored);
+        assert_eq!(classes[1].mana, LandDetail::Ignored);
     }
 
     #[test]
@@ -260,10 +342,73 @@ mod tests {
             &Shared::default(),
         );
         assert_eq!(classes.len(), 2);
-        assert!(classes[0].mana, "the cost is what can see a land's colour");
+        // The cost is what can see a land's colour — and it sees exactly the
+        // one it demands. A Plains, a Swamp and a Forest are one source to
+        // `{1}{U}`: each pays a generic and none pays the pip.
+        assert_eq!(
+            classes[0].mana,
+            LandDetail::Pips(Palette::from_letters(["U"]))
+        );
         assert_eq!(classes[0].reading, Reading::PerTurn);
-        assert!(!classes[1].mana, "counting Ramp cannot");
+        assert_eq!(classes[1].mana, LandDetail::Ignored, "counting Ramp cannot");
         assert_eq!(classes[1].reading, Reading::Cumulative);
+    }
+
+    #[test]
+    fn two_costs_in_one_question_join_their_demands() {
+        let classes = partition(
+            &reads_of(
+                r#"
+                [[criterion]]
+                name = "either half"
+                require = [
+                  { turn = 3, can_cast = "{1}{U}" },
+                  { turn = 4, can_cast = "{B}{B}" },
+                ]
+
+                [[criterion]]
+                name = "the other one"
+                require = [{ turn = 4, can_cast = "{2}" }]
+                "#,
+            ),
+            &Shared::default(),
+        );
+        // One enumeration answers both clauses of the first criterion, so it
+        // has to tell blue from black from everything else.
+        assert_eq!(
+            classes[0].mana,
+            LandDetail::Pips(Palette::from_letters(["UB"]))
+        );
+        // And a cost with no pips at all demands none: any two lands pay {2},
+        // so the whole manabase is two groups — tapped and not.
+        assert_eq!(classes[1].mana, LandDetail::Pips(Palette::EMPTY));
+    }
+
+    #[test]
+    fn a_declared_priority_keeps_the_whole_palette() {
+        // The negative control, and the crux of #55. A priority plays the
+        // first land it is holding, ties going to the card the decklist names
+        // first — so merging two lands it ranks differently changes which one
+        // it played, and a `{1}{U}` question cannot merge a Plains with a
+        // Swamp any more. The class keeps the whole palette instead.
+        let shared = Shared {
+            effects: None,
+            land_drop: Some(bit(3)),
+        };
+        let classes = partition(
+            &reads_of(
+                r#"
+                [[criterion]]
+                name = "castable"
+                require = [{ turn = 4, can_cast = "{1}{U}" }]
+                "#,
+            ),
+            &shared,
+        );
+        assert_eq!(classes[0].mana, LandDetail::Pips(Palette::ALL));
+        // And it keeps the priority's own queries, because they decide which
+        // land was played.
+        assert_eq!(classes[0].keep, bit(3));
     }
 
     #[test]
@@ -282,7 +427,7 @@ mod tests {
         // the totals at turn four cannot say which.
         assert_eq!(classes[0].reading, Reading::PerTurn);
         // But nothing here asks what a land makes.
-        assert!(!classes[0].mana);
+        assert_eq!(classes[0].mana, LandDetail::Ignored);
         let full = Schedule::build(5, false, Vec::new(), None);
         assert_eq!(classes[0].schedule(&full).gaps(), &[7, 0, 1, 1, 1, 0]);
     }

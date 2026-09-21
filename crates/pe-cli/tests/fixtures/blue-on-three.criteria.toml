@@ -1,0 +1,6 @@
+# One cost, over a manabase with five profiles. `{1}{U}` runs Hall's condition
+# over one pip kind, so a Forest, a Mountain and a Jungle Hollow are the same
+# source to it: each pays the generic and none pays the pip.
+[[criterion]]
+name = "{1}{U} on turn 3"
+require = [{ turn = 3, can_cast = "{1}{U}" }]

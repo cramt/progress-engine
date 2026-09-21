@@ -1,0 +1,11 @@
+# The same question with the land drop declared, which is the case the
+# narrowing must NOT apply to. A priority plays the first land it is holding,
+# ties going to the card this decklist names first, so two lands one cost
+# cannot tell apart are still two lands the priority ranks apart — and merging
+# them would change which one was played.
+[land_drop]
+prefer = ["t:land -otag:tapland"]
+
+[[criterion]]
+name = "{1}{U} on turn 3"
+require = [{ turn = 3, can_cast = "{1}{U}" }]

@@ -1,0 +1,11 @@
+// Five mana profiles in twelve cards: the shape that makes a `can_cast` clause
+// expensive, small enough to enumerate on the whole palette as well as on the
+// colours one cost demands. Two of the five make blue; three do not, and no
+// question about {U} can tell those three apart.
+1x Island [Land]
+1x Hallowed Fountain [Land]
+1x Tranquil Cove [Land]
+1x Forest [Land]
+1x Mountain [Land]
+1x Jungle Hollow [Land]
+6x Lightning Bolt [Burn]

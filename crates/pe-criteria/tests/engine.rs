@@ -7,7 +7,7 @@
 use std::convert::Infallible;
 
 use pe_criteria::{
-    Cost, Count, Criterion, Effect, Evaluator, Expectation, Grouping, GroupingError,
+    Cost, Count, Criterion, Effect, Evaluator, Expectation, Grouping, GroupingError, LandDetail,
     LandDropPolicy, ManaSource, Palette, PathOutcomes, PathView, Plan, Route, RunError, Schedule,
     Trigger, Zone, MAX_COUNT,
 };
@@ -865,7 +865,7 @@ fn counting_lands_does_not_pay_for_telling_them_apart() {
         }) as Check
     };
 
-    let coarse = grouping.coarsened(0b11, false);
+    let coarse = grouping.coarsened(0b11, LandDetail::Ignored);
     assert_eq!(
         coarse.group_sizes().len(),
         3,
@@ -894,7 +894,7 @@ fn a_cost_keeps_the_manabase_and_drops_the_queries() {
         Box::new(move |v: &PathView<'_>| v.can_cast(2, &cost)) as Check
     };
 
-    let coarse = grouping.coarsened(0, true);
+    let coarse = grouping.coarsened(0, LandDetail::Pips(Palette::ALL));
     assert!(
         coarse.group_sizes().len() < grouping.group_sizes().len(),
         "the queries merge and the profiles do not"
@@ -974,4 +974,164 @@ fn draws_after_the_last_turn_anybody_asked_about_are_dropped() {
         &[0, 8, 0, 2, 0],
         "eight cards by turn one, ten by turn three, and nothing about turn two"
     );
+}
+
+// --- Restricting the palette to the pips a cost demands (#55) -------------
+
+#[test]
+fn a_cost_keeps_only_the_colours_it_demands() {
+    // The narrowing of #55 on the case that motivated it. `{1}{U}` runs
+    // Hall's condition over one pip kind, so a Plains, a Swamp and a
+    // black-green tapland are three groups the question cannot tell apart:
+    // each pays one generic and none pays the {U}. What survives is whether it
+    // makes blue and whether it enters tapped.
+    let grouping = manabase();
+    let schedule = Schedule::plain(&[7, 1, 1]);
+    let cost = Cost::parse("{1}{U}").unwrap();
+    let cast = || {
+        let cost = cost.clone();
+        Box::new(move |v: &PathView<'_>| v.can_cast(2, &cost)) as Check
+    };
+
+    let whole = grouping.coarsened(0, LandDetail::Pips(Palette::ALL));
+    let demanded = grouping.coarsened(0, LandDetail::Pips(cost.demands()));
+    assert_eq!(whole.group_sizes().len(), 6, "five profiles and the spells");
+    assert_eq!(
+        demanded.group_sizes().len(),
+        5,
+        "blue and not-blue, tapped and not, and the spells"
+    );
+    assert_eq!(demanded.population(), whole.population());
+
+    let wide = holds(&whole, &schedule, cast());
+    let narrow = holds(&demanded, &schedule, cast());
+    // A narrowed enumeration sums a different set of terms to the same total —
+    // fewer, larger ones — so the last bits of the log-gamma round trip land
+    // elsewhere. Every figure this tool prints is rounded to six places, so a
+    // difference this small cannot reach a report at all.
+    assert!(
+        (wide - narrow).abs() < 1e-12,
+        "{wide} on the whole palette, {narrow} on the pips it demands"
+    );
+    assert!(wide > 0.0 && wide < 1.0, "and not a degenerate one: {wide}");
+
+    // Two costs in one class join their demands, and the join is still
+    // coarser than the manabase.
+    let both = grouping.coarsened(
+        0,
+        LandDetail::Pips(cost.demands().union(Cost::parse("{B}").unwrap().demands())),
+    );
+    assert_eq!(both.group_sizes().len(), 6);
+}
+
+#[test]
+fn a_cost_of_pure_generic_cannot_tell_any_two_lands_apart() {
+    // `{2}` is paid by any two lands, so the whole manabase collapses to
+    // tapped and untapped — but *not* into the spells, because only a land
+    // arrives without being cast.
+    let grouping = manabase();
+    let schedule = Schedule::plain(&[7, 1, 1]);
+    let cost = Cost::parse("{2}").unwrap();
+    let cast = || {
+        let cost = cost.clone();
+        Box::new(move |v: &PathView<'_>| v.can_cast(2, &cost)) as Check
+    };
+    let demanded = grouping.coarsened(0, LandDetail::Pips(cost.demands()));
+    assert_eq!(demanded.group_sizes().len(), 3);
+    let whole = holds(
+        &grouping.coarsened(0, LandDetail::Pips(Palette::ALL)),
+        &schedule,
+        cast(),
+    );
+    assert!((whole - holds(&demanded, &schedule, cast())).abs() < 1e-12);
+}
+
+#[test]
+fn a_declared_priority_is_not_allowed_to_merge_two_lands_it_ranks_apart() {
+    // The negative control, and the reason #55 is not applied everywhere.
+    //
+    // The priority plays the first land it is holding, and the tie inside one
+    // entry goes to the card the decklist names first. Rank `Plains, Island,
+    // Swamp` and ask for `{U}`: the Plains and the Swamp are the same source
+    // to that cost, so restricting the palette merges them — into a group
+    // sitting where the *Plains* did. A hand holding an Island and a Swamp
+    // then plays the Swamp where the file said Island, and the answer moves.
+    //
+    // Nothing here is a bug in the restriction. It is the restriction being
+    // unsound in this run, which is why `narrow::Shared::picks_a_land` refuses
+    // to apply it and the class keeps the whole palette instead.
+    let grouping = Grouping::with_mana(
+        q(&["t:land"]),
+        vec![
+            (0b1, untapped("W"), 2),
+            (0b1, untapped("U"), 2),
+            (0b1, untapped("B"), 2),
+            (0b0, ManaSource::Spell, 6),
+        ],
+    )
+    .unwrap();
+    // One tier: every land, ranked by the order the decklist reached them.
+    let schedule = Schedule::plain_under(&[3, 0], LandDropPolicy::new(Vec::new(), 0));
+    let cost = Cost::parse("{U}").unwrap();
+    let cast = || {
+        let cost = cost.clone();
+        Box::new(move |v: &PathView<'_>| v.can_cast(1, &cost)) as Check
+    };
+
+    let whole = holds(
+        &grouping.coarsened(0b1, LandDetail::Pips(Palette::ALL)),
+        &schedule,
+        cast(),
+    );
+    let restricted = holds(
+        &grouping.coarsened(0b1, LandDetail::Pips(cost.demands())),
+        &schedule,
+        cast(),
+    );
+    assert!(
+        (whole - restricted).abs() > 0.01,
+        "restricting the palette under a declared priority changes which land was played, \
+         and this is the case that proves it: {whole} whole, {restricted} restricted"
+    );
+    // And the direction is the one the argument predicts: merging can only
+    // hide the Island behind a group the priority reaches first.
+    assert!(restricted < whole);
+}
+
+#[test]
+fn two_lands_a_cost_cannot_tell_apart_arrive_the_same_way() {
+    // The `drop_at` half of what #55 had to prove. Line three of the gate asks
+    // whether a land of *this* group arrived this turn, and merging two groups
+    // sums their counts — so the test has to stay equivalent. It does because
+    // a hand only ever grows: the merged count rises exactly when one of its
+    // members does.
+    //
+    // A Forest arriving on turn 2 pays the generic of `{1}{U}` beside an
+    // Island already down, and the run must say so whether the Forest is its
+    // own group or merged with the Plains.
+    let grouping = Grouping::with_mana(
+        q(&["t:land"]),
+        vec![
+            (0b1, untapped("U"), 1),
+            (0b1, untapped("W"), 1),
+            (0b1, untapped("G"), 1),
+            (0b0, ManaSource::Spell, 4),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::plain(&[7, 0, 0]);
+    let cost = Cost::parse("{1}{U}").unwrap();
+    let cast = || {
+        let cost = cost.clone();
+        Box::new(move |v: &PathView<'_>| v.can_cast(2, &cost)) as Check
+    };
+    let whole = grouping.coarsened(0b1, LandDetail::Pips(Palette::ALL));
+    let demanded = grouping.coarsened(0b1, LandDetail::Pips(cost.demands()));
+    assert_eq!(
+        demanded.group_sizes().len(),
+        3,
+        "blue, not-blue, and spells"
+    );
+    assert_eq!(holds(&whole, &schedule, cast()), 1.0);
+    assert_eq!(holds(&demanded, &schedule, cast()), 1.0);
 }

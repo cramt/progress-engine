@@ -297,6 +297,61 @@ pub struct TooWide {
     pub ceiling: f64,
 }
 
+/// One enumeration this run walked, and which questions it was for.
+///
+/// Since [#31](https://github.com/cramt/progress-engine/issues/31) a file is
+/// several enumerations rather than one, and until now the only one that
+/// reached the JSON was the widest class that was *refused*. So a run could
+/// not say how it had answered the questions it did answer: the group and
+/// composition counts this project quotes about its own narrowings were not
+/// reproducible from the output of a run that performed them. This is that
+/// fixed, and it is the same argument the provenance block is — every number
+/// names its inputs, including the numbers about the numbers.
+///
+/// `groups` and `compositions` are the width of *this* class, after
+/// narrowing, and `compositions` is computed by the same function the ceiling
+/// is checked against rather than by a second copy of the arithmetic.
+#[derive(Facet)]
+pub struct Enumeration {
+    /// The criteria this enumeration answered, by name, and then the
+    /// expectations. A reader chasing one figure finds it in exactly one of
+    /// these lists.
+    pub criteria: Vec<String>,
+    pub expectations: Vec<String>,
+    /// The queries this class can tell apart. Not the file's whole list: a
+    /// class keeps the queries it reads plus the ones the walk reads for
+    /// itself, and everything else merged.
+    pub queries: Vec<String>,
+    /// The turns whose counts it reads. Under `"per-turn"` it also walks every
+    /// turn up to the last of these, because one land drop a turn is
+    /// use-it-or-lose-it and no total can say that.
+    pub turns: Vec<usize>,
+    /// `"cumulative"` — how many cards had been seen by the turns it names —
+    /// or `"per-turn"`.
+    pub reading: &'static str,
+    /// The pip kinds this enumeration told lands apart by, where it priced
+    /// mana at all. Absent where it did not, and **empty** where it did and
+    /// the costs are all generic: `{2}` is paid by any two lands, so that
+    /// enumeration tells a land from a spell and tapped from untapped and
+    /// nothing else. Tapped-ness is kept whenever this field is present,
+    /// because the land played this turn is the only one that can still be
+    /// tapped.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub pips: Option<Vec<String>>,
+    pub groups: usize,
+    /// Compositions this class walks. A `f64` for the same reason
+    /// [`TooWide::paths`] is: the count saturates well past what a JSON reader
+    /// holds as an integer, and an order of magnitude that survives every
+    /// parser is worth more than digits only some of them keep.
+    pub compositions: f64,
+    /// `"exact"` where this enumeration was walked, `"sampled"` where it was
+    /// not — because it went over the ceiling, or because `--simulate` asked
+    /// for the other engine. In both of those cases the width beside it is
+    /// what this class *would* have cost, which is the number a caller
+    /// deciding whether to narrow their question needs.
+    pub method: &'static str,
+}
+
 /// The run these numbers describe: which seat, and which engine answered.
 ///
 /// Grouped because they travel together everywhere. A percentage means nothing
@@ -318,6 +373,8 @@ pub struct Breakdown {
     pub queries: Vec<QueryMatch>,
     pub zones: Vec<ZoneUse>,
     pub effects: Vec<EffectUse>,
+    /// How this run enumerated, one entry per class of question.
+    pub enumerations: Vec<Enumeration>,
     /// Lands whose tapped-ness this run decided for the pilot. Empty unless the
     /// run asked a mana question, because otherwise it decided nothing.
     pub assumed_tapped: Vec<String>,
@@ -393,6 +450,14 @@ pub struct Report {
     /// Every effect that applied to a card in this deck, standard library and
     /// hand-written alike.
     pub effects: Vec<EffectUse>,
+    /// How this run enumerated: one entry per class of question, with the
+    /// width it cost and whether it was walked or sampled.
+    ///
+    /// Always present, including on a run that sampled everything: the
+    /// partition is a fact about the file rather than about the engine that
+    /// answered it, and a caller comparing two runs of the same file needs to
+    /// see it either way.
+    pub enumerations: Vec<Enumeration>,
     /// Lands this run assumed into play tapped because the card lets the pilot
     /// decide and nobody has.
     ///
@@ -434,6 +499,7 @@ impl Report {
             queries,
             zones,
             effects,
+            enumerations,
             assumed_tapped,
             land_drop,
         } = breakdown;
@@ -528,6 +594,7 @@ impl Report {
             queries,
             zones,
             effects,
+            enumerations,
             assumed_tapped,
             land_drop,
             criteria: results,

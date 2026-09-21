@@ -25,7 +25,7 @@ mod zone;
 
 pub use effect::{Board, Effect, Route, Trigger, TriggerError};
 pub use grouping::{Grouping, GroupingError};
-pub use mana::{Cost, CostError, ManaSource, Palette};
+pub use mana::{Cost, CostError, LandDetail, ManaSource, Palette};
 pub use policy::LandDropPolicy;
 pub use schedule::{Reading, Schedule};
 pub use zone::{Reachable, Zone, ZoneError};
@@ -363,9 +363,18 @@ pub const MAX_PATHS: u128 = 5_000_000;
 /// which is what actually goes wrong.
 const MASS_TOLERANCE: f64 = 1e-9;
 
-/// Estimated number of compositions, used only to refuse impossible questions
-/// before spending an hour on them.
-fn estimate_paths(groups: usize, gaps: &[u32]) -> u128 {
+/// How many compositions an enumeration over `groups` groups and `gaps` draws
+/// would walk. Used to refuse impossible questions before spending an hour on
+/// them, and to report how far over the line a refused one went.
+///
+/// Public because that second reading is now a number a run states about
+/// itself rather than only a reason it gave for refusing. Since
+/// [#31](https://github.com/cramt/progress-engine/issues/31) a file is several
+/// enumerations, so "how wide was this" has one answer per class — and a
+/// second copy of this arithmetic in the caller could drift from the one the
+/// ceiling is actually checked against, which would be a reported width no
+/// refusal agrees with.
+pub fn compositions(groups: usize, gaps: &[u32]) -> u128 {
     // Compositions of `gap` over `groups` bins: C(gap + groups - 1, groups - 1).
     // Saturating rather than bare arithmetic: `run` refuses an empty grouping
     // before reaching here, but underflowing the bin count would spin the fold
@@ -437,7 +446,7 @@ pub fn run_answering<E>(
     let gaps = schedule.gaps();
     let groups = grouping.group_sizes().len();
     feasible(grouping, schedule)?;
-    let paths = estimate_paths(groups, gaps);
+    let paths = compositions(groups, gaps);
     if paths > MAX_PATHS {
         return Err(RunError::TooWide {
             paths,

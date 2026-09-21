@@ -252,6 +252,18 @@ struct Run {
     seed: u64,
 }
 
+/// Everything one file's questions came to: the answers, how they were
+/// sampled where they were, and how the run enumerated to get them.
+///
+/// One struct rather than a tuple because the third one is about the first
+/// two and a positional triple would leave a caller to remember which is
+/// which.
+struct Answered {
+    answers: report::Answers,
+    sampled: Option<report::Sampling>,
+    enumerations: Vec<report::Enumeration>,
+}
+
 /// Answer every question in the file, each on the narrowest enumeration that
 /// can answer it.
 ///
@@ -268,6 +280,10 @@ struct Run {
 /// it un-narrowed is what keeps it a second implementation: an oracle that
 /// walked the same narrowed grouping as the engine it checks would be
 /// agreeing with itself.
+///
+/// Every class also reports the width it cost, walked or not, which is how a
+/// reader reproduces the figures this project quotes about its own narrowings
+/// from a run they performed themselves.
 fn answer(
     run: Run,
     classes: &[narrow::Class],
@@ -275,10 +291,20 @@ fn answer(
     schedule: &pe_criteria::Schedule,
     plan: pe_criteria::Plan,
     criteria: &mut pe_toml::Criteria,
-) -> Result<(report::Answers, Option<report::Sampling>)> {
+) -> Result<Answered> {
     let mut probabilities: Vec<Option<f64>> = vec![None; plan.criteria];
     let mut distributions: Vec<Option<pe_stats::Distribution>> = vec![None; plan.expectations];
     let mut estimated = report::Estimated::none(plan);
+    let mut enumerations: Vec<report::Enumeration> = Vec::with_capacity(classes.len());
+    // Taken before the loop, because the evaluator is borrowed mutably inside
+    // it: the names are what a class's entry is filed under, and a position in
+    // a plan is not something a reader can check against their own file.
+    let criteria_names: Vec<String> = criteria.criteria().iter().map(|c| c.name.clone()).collect();
+    let expectation_names: Vec<String> = criteria
+        .expectations()
+        .iter()
+        .map(|e| e.name.clone())
+        .collect();
     // Why the run sampled at all, and — where it was the ceiling — the widest
     // class that hit it, because that is the number a caller deciding whether
     // to narrow its question needs.
@@ -289,12 +315,36 @@ fn answer(
         estimated.criteria.fill(true);
         estimated.expectations.fill(true);
     }
-    for class in classes.iter().filter(|_| run.engine != Engine::Sample) {
+    for class in classes {
         let answering = class
             .answering(plan)
             .context("a class named a question this file does not hold")?;
         let narrowed = class.grouping(grouping);
         let walk = class.schedule(schedule);
+        let groups = narrowed.group_sizes().len();
+        let mut enumerated = report::Enumeration {
+            criteria: named(&criteria_names, answering.criteria()),
+            expectations: named(&expectation_names, answering.expectations()),
+            queries: class
+                .queries(grouping)
+                .into_iter()
+                .map(str::to_string)
+                .collect(),
+            turns: class.turns().to_vec(),
+            reading: match class.reading() {
+                pe_criteria::Reading::Cumulative => "cumulative",
+                pe_criteria::Reading::PerTurn => "per-turn",
+            },
+            pips: class.pips().map(pe_criteria::Palette::symbols),
+            groups,
+            compositions: pe_criteria::compositions(groups, walk.gaps()) as f64,
+            method: "exact",
+        };
+        if run.engine == Engine::Sample {
+            enumerated.method = "sampled";
+            enumerations.push(enumerated);
+            continue;
+        }
         match pe_criteria::run_answering(&narrowed, &walk, &answering, criteria) {
             Ok(exact) => {
                 for (&i, p) in answering.criteria().iter().zip(exact.probabilities) {
@@ -322,9 +372,11 @@ fn answer(
                 for &i in answering.expectations() {
                     estimated.expectations[i] = true;
                 }
+                enumerated.method = "sampled";
             }
             Err(e) => return Err(e.into()),
         }
+        enumerations.push(enumerated);
     }
 
     let sampled = match why {
@@ -354,8 +406,8 @@ fn answer(
     // a confident zero. The partition covers every question by construction,
     // so this is a bug rather than a state, and it says so.
     let missing = "a question this run answered with neither engine";
-    Ok((
-        report::Answers {
+    Ok(Answered {
+        answers: report::Answers {
             probabilities: probabilities
                 .into_iter()
                 .collect::<Option<Vec<_>>>()
@@ -367,7 +419,19 @@ fn answer(
             estimated,
         },
         sampled,
-    ))
+        enumerations,
+    })
+}
+
+/// A class's questions, by name, in the order the report prints them.
+///
+/// Nothing is dropped here: `Answering::some` refused any index outside the
+/// same plan these names were taken from, so every one of them lands.
+fn named(names: &[String], which: &[usize]) -> Vec<String> {
+    which
+        .iter()
+        .filter_map(|&i| names.get(i).cloned())
+        .collect()
 }
 
 fn run_test(
@@ -569,7 +633,11 @@ fn run_test(
     };
     let classes = narrow::partition(&criteria.reads(), &shared);
 
-    let (answers, sampled) = answer(
+    let Answered {
+        answers,
+        sampled,
+        enumerations,
+    } = answer(
         Run {
             engine,
             trials,
@@ -636,6 +704,7 @@ fn run_test(
             queries: query_matches,
             zones,
             effects: report::effects_applied(&resolved),
+            enumerations,
             // Only where the run actually priced mana. A deck full of
             // shocklands answering a question about the graveyard assumed
             // nothing about any of them.

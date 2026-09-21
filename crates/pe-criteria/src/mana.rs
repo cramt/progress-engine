@@ -51,6 +51,17 @@ impl Pip {
         1 << (self as u8)
     }
 
+    fn letter(self) -> char {
+        match self {
+            Pip::White => 'W',
+            Pip::Blue => 'U',
+            Pip::Black => 'B',
+            Pip::Red => 'R',
+            Pip::Green => 'G',
+            Pip::Colorless => 'C',
+        }
+    }
+
     fn from_letter(c: char) -> Option<Pip> {
         match c.to_ascii_uppercase() {
             'W' => Some(Pip::White),
@@ -74,6 +85,14 @@ pub struct Palette(u8);
 impl Palette {
     pub const EMPTY: Palette = Palette(0);
 
+    /// Every kind of mana a source can make, which is what a grouping keeps
+    /// when nothing has proved it may keep less.
+    ///
+    /// Spelled out rather than folded from [`Pip::ALL`], which is not
+    /// something a `const` can do — so a test asserts the two agree, and a
+    /// seventh pip cannot leave this one behind.
+    pub const ALL: Palette = Palette(0b0011_1111);
+
     /// Read a palette from Scryfall's `produced_mana` letters.
     ///
     /// Anything that is not a WUBRG or C letter is dropped rather than
@@ -93,12 +112,39 @@ impl Palette {
         Palette(bits)
     }
 
+    /// A palette holding exactly `pips`.
+    pub fn of(pips: impl IntoIterator<Item = Pip>) -> Palette {
+        Palette(pips.into_iter().fold(0, |bits, pip| bits | pip.bit()))
+    }
+
     pub fn makes(self, pip: Pip) -> bool {
         self.0 & pip.bit() != 0
     }
 
     pub fn is_empty(self) -> bool {
         self.0 == 0
+    }
+
+    /// Both palettes at once: what this source makes, as far as `other` can
+    /// see it.
+    pub fn intersect(self, other: Palette) -> Palette {
+        Palette(self.0 & other.0)
+    }
+
+    /// The union, which is how a class joins what several costs demand.
+    pub fn union(self, other: Palette) -> Palette {
+        Palette(self.0 | other.0)
+    }
+
+    /// One symbol per kind, as a cost writes them: `["{W}", "{U}"]`, and
+    /// empty for a palette that makes nothing. For the report, which has to
+    /// name what an enumeration could tell apart.
+    pub fn symbols(self) -> Vec<String> {
+        Pip::ALL
+            .into_iter()
+            .filter(|p| self.makes(*p))
+            .map(|p| format!("{{{}}}", p.letter()))
+            .collect()
     }
 
     /// Whether this source can pay any pip in `demand`.
@@ -136,9 +182,57 @@ pub enum ManaSource {
     },
 }
 
+/// How much of what a land makes one enumeration is allowed to tell apart.
+///
+/// The whole palette is finer than any single cost can see. [`Cost::payable`]
+/// runs Hall's condition over the pip kinds the cost demands and nothing else,
+/// so for `{1}{U}` a Plains, a Swamp and a Forest are the same source: each
+/// pays one generic and no `{U}`. Restricting every palette to the pips the
+/// question actually demands is therefore a coarsening the question cannot
+/// observe, and on a real Commander manabase it is the difference between
+/// sixteen land profiles and four —
+/// [#55](https://github.com/cramt/progress-engine/issues/55).
+///
+/// Which pips those are is the **caller's** claim, not this type's: a walk
+/// that picks the land drop by a declared priority reads land groups for a
+/// reason the cost knows nothing about, and merging two lands it ranks
+/// differently would change which one it played. So a narrower palette is
+/// something a caller proves and passes in, and [`Palette::ALL`] is what a
+/// caller that cannot prove one is entitled to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LandDetail {
+    /// None of it. Every card becomes a [`ManaSource::Spell`] and the whole
+    /// manabase collapses into the groups its queries already made, which is
+    /// what a class with no casting clause gets.
+    Ignored,
+    /// Whether a land enters tapped, and which of *these* pip kinds it makes.
+    Pips(Palette),
+}
+
 impl ManaSource {
     pub fn is_land(self) -> bool {
         matches!(self, ManaSource::Land { .. })
+    }
+
+    /// This source as an enumeration keeping only `detail` sees it.
+    ///
+    /// A land is still a land at every detail but [`LandDetail::Ignored`]:
+    /// only a land arrives without being cast, so merging one into a spell
+    /// would take a payer out of the pool rather than merge two equal ones.
+    pub fn seen_as(self, detail: LandDetail) -> ManaSource {
+        match (detail, self) {
+            (LandDetail::Ignored, _) | (_, ManaSource::Spell) => ManaSource::Spell,
+            (
+                LandDetail::Pips(kept),
+                ManaSource::Land {
+                    enters_tapped,
+                    produces,
+                },
+            ) => ManaSource::Land {
+                enters_tapped,
+                produces: produces.intersect(kept),
+            },
+        }
     }
 
     fn enters_tapped(self) -> bool {
@@ -310,6 +404,17 @@ impl Cost {
 
     pub fn is_free(&self) -> bool {
         self.total == 0
+    }
+
+    /// The pip kinds this cost demands, and therefore the only ones it can
+    /// tell apart.
+    ///
+    /// Empty for a cost that is all generic: `{2}` is paid by any two sources
+    /// whatever they make, so every land in the deck is the same land to it.
+    /// That is the narrowing [`LandDetail`] is for, and this is the half of it
+    /// only a cost can state.
+    pub fn demands(&self) -> Palette {
+        Palette::of(self.demanded.iter().copied())
     }
 
     /// The cost as it was written, for a report that has to name it.
@@ -570,6 +675,129 @@ mod tests {
             &[("W", true, 1), ("U", false, 1)],
             Constraint::IncludesUntapped
         ));
+    }
+
+    #[test]
+    fn every_pip_is_in_the_whole_palette() {
+        assert_eq!(Palette::of(Pip::ALL), Palette::ALL);
+        assert!(Pip::ALL.into_iter().all(|p| Palette::ALL.makes(p)));
+        // And restricting to it is the identity, which is what makes
+        // `LandDetail::Pips(Palette::ALL)` the un-narrowed case rather than a
+        // fourth state to keep consistent.
+        for letters in ["", "U", "WU", "WUBRGC"] {
+            let palette = Palette::from_letters([letters]);
+            assert_eq!(palette.intersect(Palette::ALL), palette);
+        }
+    }
+
+    /// The lemma [`LandDetail::Pips`] rests on, checked over every pool of
+    /// three sources this engine can describe: what a cost can see of a source
+    /// is the palette intersected with the pips it demands, and whether the
+    /// source enters tapped. Two sources agreeing on those are the same source
+    /// to it, so restricting the pool cannot move an answer.
+    #[test]
+    fn a_cost_cannot_see_a_colour_it_does_not_demand() {
+        for text in [
+            "{1}{U}",
+            "{W}{U}",
+            "{2}",
+            "{C}{G}",
+            "{3}{B}{B}",
+            "{U}{U}{U}",
+        ] {
+            let cost = Cost::parse(text).unwrap();
+            let demanded = cost.demands();
+            for bits in 0u32..(1 << 9) {
+                // Three sources, each with one of eight palettes, and the
+                // counts that make Hall's condition bite.
+                let palettes = [
+                    Palette(((bits & 0b111) as u8) << 1),
+                    Palette((((bits >> 3) & 0b111) as u8) << 2),
+                    Palette(((bits >> 6) & 0b111) as u8),
+                ];
+                for tapped in [false, true] {
+                    let sources: Vec<Source> = palettes
+                        .iter()
+                        .map(|&produces| Source { produces, tapped })
+                        .collect();
+                    let restricted: Vec<Source> = sources
+                        .iter()
+                        .map(|s| Source {
+                            produces: s.produces.intersect(demanded),
+                            tapped: s.tapped,
+                        })
+                        .collect();
+                    for counts in [[0u32, 1, 2], [1, 1, 1], [2, 0, 1], [3, 1, 0]] {
+                        for constraint in [
+                            Constraint::Anything,
+                            Constraint::IncludesUntapped,
+                            Constraint::Includes(0),
+                            Constraint::Includes(2),
+                        ] {
+                            assert_eq!(
+                                cost.payable(&sources, |i| counts[i], constraint),
+                                cost.payable(&restricted, |i| counts[i], constraint),
+                                "{text} over {palettes:?} {counts:?} {constraint:?}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// The other half: sources a cost cannot tell apart are additive, so
+    /// merging two entries that agree on palette and tapped-ness into one with
+    /// their counts summed is the same question.
+    #[test]
+    fn two_sources_a_cost_cannot_tell_apart_are_one_source() {
+        for text in ["{1}{U}", "{W}{U}", "{2}", "{U}{U}"] {
+            let cost = Cost::parse(text).unwrap();
+            for letters in ["", "U", "W", "WU"] {
+                for tapped in [false, true] {
+                    let produces = Palette::from_letters([letters]);
+                    let same = Source { produces, tapped };
+                    let island = Source {
+                        produces: Palette::from_letters(["U"]),
+                        tapped: false,
+                    };
+                    for split in [[0u32, 0], [1, 0], [0, 1], [1, 1], [2, 1]] {
+                        for others in 0u32..3 {
+                            let apart = [same, same, island];
+                            let merged = [same, island];
+                            let apart_counts = [split[0], split[1], others];
+                            let merged_counts = [split[0] + split[1], others];
+                            for constraint in [Constraint::Anything, Constraint::IncludesUntapped] {
+                                assert_eq!(
+                                    cost.payable(&apart, |i| apart_counts[i], constraint),
+                                    cost.payable(&merged, |i| merged_counts[i], constraint),
+                                    "{text} over {letters:?} {apart_counts:?} {constraint:?}"
+                                );
+                            }
+                            // The obligation too: forcing the payment through
+                            // either copy is forcing it through the merged
+                            // group, because they are the same source.
+                            let either =
+                                cost.payable(&apart, |i| apart_counts[i], Constraint::Includes(0))
+                                    || cost.payable(
+                                        &apart,
+                                        |i| apart_counts[i],
+                                        Constraint::Includes(1),
+                                    );
+                            assert_eq!(
+                                either,
+                                cost.payable(
+                                    &merged,
+                                    |i| merged_counts[i],
+                                    Constraint::Includes(0)
+                                ),
+                                "{text} forced through {letters:?} {apart_counts:?}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
     }
 
     #[test]
