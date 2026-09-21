@@ -6,3 +6,6 @@ result-*
 # crates/gitaxian-probe/engine/.fixtures/fetch-cards.sh. Not ours to vendor.
 crates/gitaxian-probe/engine/.fixtures/*.jpg
 crates/gitaxian-probe/engine/.fixtures/*.json
+
+# dx builds the Android app into a dist/ beside its crate.
+crates/gitaxian-probe/app/dist/

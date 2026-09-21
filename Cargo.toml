@@ -39,6 +39,17 @@ deno_core = "0.412"
 deno_error = "=0.7.1"
 sevenz-rust2 = "0.23"
 
+dioxus-native = { version = "0.8.0-alpha.1", default-features = false, features = [
+  "prelude",
+  "system-fonts",
+] }
+android-activity = { version = "0.6.0", features = ["native-activity"] }
+# Stubs out the real IDNA tables, which otherwise drag the whole of ICU into the
+# APK for URL parsing this app never does. Upstream's own examples carry the
+# same pin. Drop it if dioxus-native's `net` feature is ever enabled.
+# https://github.com/hsivonen/idna_adapter
+idna_adapter = "=1.0.0"
+
 chip-decklist = { path = "crates/reality-chip/decklist" }
 chip-scryfall = { path = "crates/reality-chip/scryfall" }
 gauntlet-criteria = { path = "crates/ichormoon-gauntlet/criteria" }
@@ -46,3 +57,10 @@ gauntlet-toml = { path = "crates/ichormoon-gauntlet/toml" }
 gauntlet-sim = { path = "crates/ichormoon-gauntlet/sim" }
 chip-stats = { path = "crates/reality-chip/stats" }
 gitaxian-probe-engine = { path = "crates/gitaxian-probe/engine" }
+
+# gitaxian-probe-app ships as an APK, where binary size is the budget that
+# matters. The workspace's other products are CLIs and do not care.
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
