@@ -35,7 +35,10 @@ pub fn app() -> Element {
 }
 
 const CSS: &str = r#"
-html, body {
+/* #main is Dioxus's mount node. Leave it out and it keeps its auto height, so
+   .screen's height:100% resolves against nothing and the app collapses to
+   content height with the rest of the screen left unpainted. */
+html, body, #main {
     margin: 0;
     padding: 0;
     height: 100%;

@@ -111,10 +111,19 @@ Inherited from Dioxus Native on Android generally, not from this setup:
 
 ## What was actually verified
 
-`dx build --android --renderer native --target aarch64-linux-android` exits 0 and
-produces `app-debug.apk`. Inside it, `lib/arm64-v8a/libmain.so` is an AArch64
-ELF64 shared object exporting `android_main` and `ANativeActivity_onCreate`, with
-~7000 Skia symbols linked in and `ANativeActivity_showSoftInput` referenced.
+Built, installed and run on a OnePlus CPH2719 (Android 16, API 36, arm64-v8a):
+the app launches, paints its gradient full-screen, and counts taps. Frames reach
+the compositor (`BufferQueueProducer ... queueBuffer: fps=8.58`) with no
+`AndroidRuntime` or native-crash entries in logcat.
 
-It has **not** been run on a physical device — no phone was attached when this was
-built. The APK is verified as correctly assembled, not as working on screen.
+That it is genuinely not a WebView, if you ever doubt the subtitle:
+
+- zero `wry` / `tao` / `webkit2gtk` / `dioxus-desktop` entries in `Cargo.lock`
+- `MainActivity` subclasses `android.app.NativeActivity`
+- `lib/arm64-v8a/libmain.so` exports `android_main` and `ANativeActivity_onCreate`
+  and carries ~7000 Skia symbols
+- `cargo tree --target aarch64-linux-android` shows `anyrender_skia` and zero
+  occurrences of `anyrender_vello`
+
+The `SAFE_TOP_PX` / `SAFE_BOTTOM_PX` defaults were checked on that same phone —
+the bars clear the status bar and the gesture pill.
