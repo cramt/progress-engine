@@ -6,6 +6,8 @@
 //! One engine for the whole run: booting costs ~5s and 32 OS threads, so the
 //! cases share an instance rather than each paying for their own.
 
+mod skip;
+
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -23,7 +25,7 @@ fn ready() -> bool {
     match Bundle::fetch(&Source::default(), Tier::Alpha, None) {
         Ok(_) => true,
         Err(e) => {
-            eprintln!("skipped: the engine could not be fetched: {e:#}");
+            skip::skipped(&format!("the engine could not be fetched: {e:#}"));
             false
         }
     }
@@ -86,7 +88,7 @@ fn engine_boots_queries_and_recognises() {
 
     let frame = root().join(".fixtures/lotus-frame.jpg");
     let Some((data, width, height)) = frame.exists().then(|| to_rgba(&frame)).flatten() else {
-        eprintln!("skipped recognition: run .fixtures/fetch-cards.sh inside `nix develop`");
+        skip::skipped("no lotus frame; run .fixtures/fetch-cards.sh inside `nix develop`");
         return;
     };
     let image = Image {
@@ -135,7 +137,9 @@ fn accuracy_matches_the_node_harness() {
         })
         .collect();
     if fixtures.len() != cases.len() {
-        eprintln!("skipped: run .fixtures/fetch-cards.sh inside `nix develop`");
+        skip::skipped(
+            "not all six frames decoded; run .fixtures/fetch-cards.sh inside `nix develop`",
+        );
         return;
     }
 

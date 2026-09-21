@@ -1,3 +1,5 @@
+mod skip;
+
 use gitaxian_probe_engine::{wasm, Artifact, Source};
 
 /// `core.wasm` exactly as upstream serves it, from the cache or the network.
@@ -10,7 +12,7 @@ fn core_wasm() -> Option<Vec<u8>> {
 #[test]
 fn fingerprint_matches_the_verified_build() {
     let Some(buf) = core_wasm() else {
-        eprintln!("skipped: no core.wasm");
+        skip::skipped("core.wasm could not be fetched");
         return;
     };
     assert_eq!(wasm::import_fingerprint(&buf).unwrap(), "3411ecc782a61347");
@@ -19,7 +21,7 @@ fn fingerprint_matches_the_verified_build() {
 #[test]
 fn tag_patch_adds_exactly_two_exports() {
     let Some(buf) = core_wasm() else {
-        eprintln!("skipped: no core.wasm");
+        skip::skipped("core.wasm could not be fetched");
         return;
     };
     let patched = wasm::export_internal_tags(&buf).unwrap();
