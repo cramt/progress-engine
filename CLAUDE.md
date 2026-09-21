@@ -10,7 +10,7 @@ as a cross-checking oracle.
   refuses to be, the two north-star questions, and the principles every design
   decision is judged against. Read it in full before adding a feature, changing
   what a number means, or deciding whether to refuse a question.
-- **[HANDS.md](HANDS.md)** — fourteen worked seven-card hands as executable
+- **[HANDS.md](HANDS.md)** — sixteen worked seven-card hands as executable
   specification. Most are tests; each says whether it is. Reach for it when
   touching mana, land drops, zones, routing, or query semantics: it is where
   "this hand should produce this number" is settled.
