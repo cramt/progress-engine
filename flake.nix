@@ -39,7 +39,10 @@
       #   nix store prefetch-file --json \
       #     https://github.com/denoland/rusty_v8/releases/download/v<ver>/librusty_v8_simdutf_release_<target>.a.gz
       v8Version = "150.4.0";
-      v8Target =
+
+      # The rust target triple for this system. Both prebuilt archives below are
+      # published per triple and spell it the same way.
+      rustTarget =
         {
           x86_64-linux = "x86_64-unknown-linux-gnu";
           aarch64-linux = "aarch64-unknown-linux-gnu";
@@ -60,7 +63,7 @@
         pname = "librusty_v8";
         version = v8Version;
         src = pkgs.fetchurl {
-          url = "https://github.com/denoland/rusty_v8/releases/download/v${v8Version}/librusty_v8_simdutf_release_${v8Target}.a.gz";
+          url = "https://github.com/denoland/rusty_v8/releases/download/v${v8Version}/librusty_v8_simdutf_release_${rustTarget}.a.gz";
           hash = v8Hash;
         };
         # RUSTY_V8_ARCHIVE wants the unpacked .a, not the .gz it ships as.
@@ -94,10 +97,47 @@
       # pkg-config at build time rather than at run time.
       desktopGraphics = with pkgs; [fontconfig wayland libxkbcommon libGL vulkan-loader];
 
+      # gitaxian-probe-app links Skia through skia-bindings, whose build script
+      # downloads a prebuilt archive and, when that fails, falls back to
+      # fetching the whole Skia source tree and building it. In a nix sandbox
+      # both downloads fail, and the error you see is the second one - so this
+      # looks like "it wants to build Skia from source" when it only wants the
+      # prebuilt it could not reach.
+      #
+      # `SKIA_BINARIES_URL` takes a file:// URL and reads it straight off disk,
+      # so the prebuilt becomes a fixed-output derivation like librusty_v8.
+      #
+      # The key is not guessable: it is the rust-skia commit, the target triple
+      # and the *resolved* cargo feature set, in that order. Read it off a real
+      # build rather than deriving it -
+      #   cat target/debug/build/skia-bindings-*/out/skia/key.txt
+      # - and the build also prints the whole URL as `FROM: ...`. When
+      # skia-bindings or the feature set moves, both the key and these hashes
+      # change together.
+      skiaTag = "0.97.2";
+      skiaKey = "da8fc6731fc439bc3b6a";
+      skiaFeatures = "gl-jpegd-jpege-pdf-textlayout";
+      skiaHash =
+        {
+          x86_64-linux = "sha256-7nf70Bg+hU4pcnZwXk6GhYN8bH0DBEcslxRfzY9/LPw=";
+          aarch64-linux = "sha256-JYfcrxGqtoDvhjfUGS/HelB8keOoi+u3nXmTpP76HRs=";
+          x86_64-darwin = "sha256-/pLmaRaUek1maiTQWAQ09CWFhT0iHSrwBqUqcrVbKDs=";
+          aarch64-darwin = "sha256-xMXVBZq5ImqvPVM3qP1C7w5C6f48vDyNpDELSjoeQlQ=";
+        }
+        .${system};
+
+      skiaBinaries = pkgs.fetchurl {
+        url = "https://github.com/rust-skia/skia-binaries/releases/download/${skiaTag}/skia-binaries-${skiaKey}-${rustTarget}-${skiaFeatures}.tar.gz";
+        hash = skiaHash;
+      };
+
       commonArgs = {
         inherit src;
         strictDeps = true;
-        env.RUSTY_V8_ARCHIVE = "${librustyV8}";
+        env = {
+          RUSTY_V8_ARCHIVE = "${librustyV8}";
+          SKIA_BINARIES_URL = "file://${skiaBinaries}";
+        };
         nativeBuildInputs = with pkgs; [
           pkg-config
           python3 # stylo generates Rust from Python in its build scripts
