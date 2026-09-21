@@ -1,16 +1,17 @@
-use dioxus_native::prelude::*;
+use dioxus::prelude::*;
 
-// Blitz does not resolve env(safe-area-inset-*) on Android yet, so these are
-// measured by eye on one phone rather than reported by the OS. Symptom of
-// getting them wrong: the header slides under the notch, or the footer sits
-// beneath the gesture pill and eats swipes.
-// https://github.com/DioxusLabs/blitz/pull/370
+// Measured by eye on one phone rather than reported by the OS. A WebView can
+// resolve env(safe-area-inset-*) properly, unlike Blitz - but only once the
+// generated page carries `viewport-fit=cover`, which dx controls. Until then
+// these stay hardcoded. Symptom of getting them wrong: the header slides under
+// the notch, or the footer sits beneath the gesture pill and eats swipes.
 const SAFE_TOP_PX: u32 = 48;
 const SAFE_BOTTOM_PX: u32 = 32;
 
 pub fn app() -> Element {
     let mut taps = use_signal(|| 0);
     let mut engine_status = use_signal(|| "engine not started".to_string());
+    let mut camera_status = use_signal(|| "camera off".to_string());
 
     rsx! {
         style { {CSS} }
@@ -21,8 +22,8 @@ pub fn app() -> Element {
             header { class: "bar", "safe area top" }
 
             main { class: "body",
-                h1 { "hello from blitz" }
-                p { class: "sub", "no webview, painted by skia" }
+                h1 { "gitaxian probe" }
+                p { class: "sub", "card scanning, one day" }
                 button {
                     class: "tap",
                     onclick: move |_| taps += 1,
@@ -32,17 +33,73 @@ pub fn app() -> Element {
                     class: "tap",
                     onclick: move |_| {
                         engine_status.set("starting...".to_string());
-                        engine_status.set(crate::probe::open_and_describe());
+                        // Off the painting thread: this downloads tens of
+                        // megabytes on a cold cache, and Android's input
+                        // watchdog gives up after five seconds.
+                        spawn(async move {
+                            let line = tokio::task::spawn_blocking(
+                                crate::probe::open_and_describe,
+                            )
+                            .await
+                            .unwrap_or_else(|error| format!("host panicked: {error}"));
+                            engine_status.set(line);
+                        });
                     },
                     "start engine"
                 }
                 p { class: "sub", "{engine_status}" }
+
+                // The preview is a plain <video>. This is the half of the app
+                // that a WebView gives away: getUserMedia is live preview,
+                // permission prompt and frame source in one, where Blitz would
+                // have meant NDK Camera2 by hand.
+                video {
+                    id: "preview",
+                    class: "preview",
+                    autoplay: true,
+                    playsinline: true,
+                    muted: true,
+                }
+                button {
+                    class: "tap",
+                    onclick: move |_| {
+                        camera_status.set("asking...".to_string());
+                        spawn(async move {
+                            let result = document::eval(CAMERA_JS).await;
+                            camera_status.set(match result {
+                                Ok(value) => value.as_str().unwrap_or("camera on").to_string(),
+                                Err(error) => format!("camera failed: {error:?}"),
+                            });
+                        });
+                    },
+                    "start camera"
+                }
+                p { class: "sub", "{camera_status}" }
             }
 
             footer { class: "bar", "safe area bottom" }
         }
     }
 }
+
+/// Ask for the back camera and show it. Returns a line for the UI either way -
+/// a rejected permission and an absent camera both land in the catch.
+const CAMERA_JS: &str = r#"
+    const video = document.getElementById("preview");
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: false,
+        });
+        video.srcObject = stream;
+        await video.play();
+        const track = stream.getVideoTracks()[0];
+        const { width, height } = track.getSettings();
+        dioxus.send(`camera on: ${width}x${height}`);
+    } catch (error) {
+        dioxus.send(`camera failed: ${error.name}: ${error.message}`);
+    }
+"#;
 
 const CSS: &str = r#"
 /* #main is Dioxus's mount node. Leave it out and it keeps its auto height, so
@@ -114,5 +171,15 @@ h1 {
 
 .tap:active {
     background: #cfcfcf;
+}
+
+/* Sized by the stream once it arrives; until then it is an empty box rather
+   than a gap, so it is obvious whether the element exists at all. */
+.preview {
+    width: 82%;
+    max-height: 38vh;
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.35);
+    object-fit: cover;
 }
 "#;

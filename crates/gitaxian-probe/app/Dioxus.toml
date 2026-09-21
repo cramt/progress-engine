@@ -1,8 +1,4 @@
 [application]
-# The default template subclasses a WebView activity. Dioxus Native draws
-# straight to a Surface, so it needs a plain NativeActivity instead.
-android_main_activity = "MainActivity.kt.hbs"
-
 # Matches the API level the NDK toolchain in flake.nix links against. 28 is
 # V8's floor: its bundled libc++ calls aligned_alloc, which bionic only has
 # from 28.
@@ -19,3 +15,20 @@ camera = { description = "Scan cards with the camera" }
 # database on first run.
 [android.permissions]
 "android.permission.INTERNET" = { description = "Download the card recognition engine" }
+
+# facet's tagged pointer claims bit 63 of a pointer as its "this is a wide
+# pointer" flag, on the stated assumption that user-space addresses never set
+# it. Android arm64 breaks that assumption: it tags heap pointers in the top
+# byte (Top-Byte-Ignore), and when a tag sets bit 63 facet reads an ordinary
+# thin pointer as wide and panics in `as_mut_byte_ptr`.
+#
+# It is allocation-dependent, so it surfaces at a different point on every run
+# - including inside the engine's own msgpack job decode, which is not code we
+# can route around. x86_64 has no TBI, which is why an emulator never sees it.
+#
+# Turning tagging off is Android's documented opt-out, and it is inherited
+# across the exec into the engine host process. Remove once facet tags a low
+# alignment bit instead of bit 63.
+# https://github.com/facet-rs/facet/issues/2659
+[android.raw]
+application_attrs = 'android:allowNativeHeapPointerTagging="false"'

@@ -19,10 +19,17 @@ facet.workspace = true
 facet-json.workspace = true
 facet-msgpack.workspace = true
 facet-value.workspace = true
+gitaxian-probe-proto.workspace = true
 sevenz-rust2.workspace = true
 sha2.workspace = true
 tokio.workspace = true
 ureq.workspace = true
+
+# Shipped inside the Android APK as `lib*.so` and exec'd from
+# nativeLibraryDir, because V8 needs a process of its own there.
+[[bin]]
+name = "probe-host"
+path = "src/bin/probe-host.rs"
 
 [[example]]
 name = "query"
@@ -31,3 +38,7 @@ path = "examples/query.rs"
 [[example]]
 name = "recognize"
 path = "examples/recognize.rs"
+
+# Compiles src/tls_align.c, but only for aarch64-linux-android.
+[build-dependencies]
+cc = "1"

@@ -179,10 +179,31 @@
         name = "source";
       };
 
-      # gitaxian-probe-app is Dioxus Native: on the desktop it paints through
-      # skia and dlopens the graphics stack, and fontconfig is found with
-      # pkg-config at build time rather than at run time.
-      desktopGraphics = with pkgs; [fontconfig wayland libxkbcommon libGL vulkan-loader];
+      # gitaxian-probe-app renders in a WebView, which on the desktop is
+      # webkit2gtk via wry - so the host build wants gtk3, webkit and dbus at
+      # pkg-config time. This is the bill for dropping Blitz: Skia needed only
+      # the graphics stack below, and a WebView needs a browser.
+      #
+      # The graphics libraries stay because winit/tao still dlopen them at run
+      # time and nothing on the link line points at them.
+      desktopGraphics = with pkgs; [
+        fontconfig
+        wayland
+        libxkbcommon
+        libGL
+        vulkan-loader
+        # wry, on Linux only. Android reaches the system WebView over JNI and
+        # needs none of this.
+        glib
+        gtk3
+        webkitgtk_4_1
+        libsoup_3
+        dbus
+        openssl
+        # tao brings tray-icon and global-hotkey on Linux, which link libxdo.
+        # None of this exists on Android.
+        xdotool
+      ];
 
       # gitaxian-probe-app links Skia through skia-bindings, whose build script
       # downloads a prebuilt archive and, when that fails, falls back to

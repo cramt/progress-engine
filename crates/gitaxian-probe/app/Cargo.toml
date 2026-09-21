@@ -1,6 +1,6 @@
 [package]
 name = "gitaxian-probe-app"
-description = "Dioxus Native shell for Gitaxian Probe - hello world, for now"
+description = "Dioxus shell for Gitaxian Probe - hello world, for now"
 version.workspace = true
 # Not the workspace's 2021: blitz-dom is edition 2024 and stylo's build scripts
 # want a toolchain new enough for it.
@@ -9,8 +9,8 @@ license.workspace = true
 repository.workspace = true
 publish = false
 
-# Android loads the app as a shared library through NativeActivity; the binary
-# target is the same app on the desktop, so both entry points stay in sync.
+# Android loads the app as a shared library; the binary target is the same app
+# on the desktop, so both entry points stay in sync.
 [lib]
 name = "gitaxian_probe_app"
 crate-type = ["cdylib", "rlib"]
@@ -19,20 +19,17 @@ crate-type = ["cdylib", "rlib"]
 name = "gitaxian-probe-app"
 path = "src/main.rs"
 
-[features]
-default = ["skia"]
-
-# Pick exactly one renderer. On Android only skia is usable today: vello paints a
-# black screen and vello-hybrid stutters badly.
-# https://github.com/DioxusLabs/blitz/issues/377
-skia = ["dioxus-native/skia"]
-vello = ["dioxus-native/vello"]
-vello-hybrid = ["dioxus-native/vello-hybrid"]
-
 [dependencies]
-dioxus-native.workspace = true
-gitaxian-probe-engine.workspace = true
+dioxus.workspace = true
+gitaxian-probe-proto.workspace = true
 idna_adapter.workspace = true
+# For spawn_blocking: opening the engine blocks for tens of seconds and must
+# not run on the thread dioxus paints from, or Android kills the app with an
+# ANR before it finishes.
+tokio.workspace = true
 
-[target.'cfg(target_os = "android")'.dependencies]
-android-activity.workspace = true
+# Only the desktop calls the engine in-process. Android must not even link it:
+# cargo passes `-lrusty_v8` for the engine rlib whether or not anything calls
+# it, which put a second unused copy of V8 in the APK and doubled libmain.so.
+[target.'cfg(not(target_os = "android"))'.dependencies]
+gitaxian-probe-engine.workspace = true

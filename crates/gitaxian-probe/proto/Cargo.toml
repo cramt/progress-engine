@@ -1,0 +1,17 @@
+[package]
+name = "gitaxian-probe-proto"
+description = "The line protocol between a Gitaxian Probe app and its engine host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+# Deliberately tiny, and deliberately not a dependent of gitaxian-probe-engine.
+# The app needs these types but must not link V8: depending on the engine crate
+# pulls `-lrusty_v8` in whether or not a line of it is called, which doubled
+# the APK when these types lived there.
+# No dependencies at all - see the module docs. facet-json panics on
+# aarch64-linux-android, and a dependency-free protocol crate is also what
+# keeps V8 from following these types into the app.
+[dependencies]
