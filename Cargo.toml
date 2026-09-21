@@ -64,3 +64,10 @@ gitaxian-probe-engine = { path = "crates/gitaxian-probe/engine" }
 opt-level = "s"
 lto = true
 strip = true
+
+# deno_core has no Android arm in uv_compat/tty.rs. `vendor/deno_core` is not
+# committed - the flake patches the crate and symlinks the result here, so this
+# resolves only inside `nix develop`. See flake.nix for the why and the removal
+# condition.
+[patch.crates-io]
+deno_core = { path = "vendor/deno_core" }

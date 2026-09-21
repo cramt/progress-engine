@@ -10,6 +10,7 @@ const SAFE_BOTTOM_PX: u32 = 32;
 
 pub fn app() -> Element {
     let mut taps = use_signal(|| 0);
+    let mut engine_status = use_signal(|| "engine not started".to_string());
 
     rsx! {
         style { {CSS} }
@@ -27,6 +28,15 @@ pub fn app() -> Element {
                     onclick: move |_| taps += 1,
                     "tapped {taps} times"
                 }
+                button {
+                    class: "tap",
+                    onclick: move |_| {
+                        engine_status.set("starting...".to_string());
+                        engine_status.set(crate::probe::open_and_describe());
+                    },
+                    "start engine"
+                }
+                p { class: "sub", "{engine_status}" }
             }
 
             footer { class: "bar", "safe area bottom" }

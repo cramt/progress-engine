@@ -3,5 +3,19 @@
 # straight to a Surface, so it needs a plain NativeActivity instead.
 android_main_activity = "MainActivity.kt.hbs"
 
-# Matches the API level the NDK toolchain in flake.nix links against.
-android_min_sdk_version = 26
+# Matches the API level the NDK toolchain in flake.nix links against. 28 is
+# V8's floor: its bundled libc++ calls aligned_alloc, which bionic only has
+# from 28.
+android_min_sdk_version = 28
+
+# dx maps these onto <uses-permission> for Android and plist keys for Apple
+# platforms, so the manifest stays generated rather than hand-edited.
+[permissions]
+camera = { description = "Scan cards with the camera" }
+
+# INTERNET has no entry in dx's unified permission list - that list covers the
+# ones a user is prompted for, and INTERNET is install-time on Android. It goes
+# through the raw escape hatch instead. The engine downloads its model and card
+# database on first run.
+[android.permissions]
+"android.permission.INTERNET" = { description = "Download the card recognition engine" }

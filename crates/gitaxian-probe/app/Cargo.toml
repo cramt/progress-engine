@@ -31,6 +31,7 @@ vello-hybrid = ["dioxus-native/vello-hybrid"]
 
 [dependencies]
 dioxus-native.workspace = true
+gitaxian-probe-engine.workspace = true
 idna_adapter.workspace = true
 
 [target.'cfg(target_os = "android")'.dependencies]

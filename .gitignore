@@ -9,3 +9,6 @@ crates/gitaxian-probe/engine/.fixtures/*.json
 
 # dx builds the Android app into a dist/ beside its crate.
 crates/gitaxian-probe/app/dist/
+
+# symlink to the nix-patched deno_core; see flake.nix
+vendor/
