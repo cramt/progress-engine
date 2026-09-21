@@ -1,0 +1,34 @@
+# Delver's proprietary artefacts - fetched by ./fetch.sh, not redistributed here.
+# They are also rebuilt daily upstream, so any committed copy is stale on arrival.
+core.js
+core.wasm
+core.tags.wasm
+data.7z
+data.db
+model-*.7z
+model-*.dat
+*.md5
+*.size
+version.txt
+
+# Card scans pulled from Scryfall by .fixtures/fetch-cards.sh
+.fixtures/*.jpg
+.fixtures/*.json
+
+# The app bundle, crawled to confirm the call sequence. Not ours to vendor.
+.app/
+
+node_modules/
+
+# nix
+result
+result-*
+.direnv/
+
+# editor / tooling noise
+*.swp
+.vscode/
+npm-debug.log*
+
+# rust
+/target
