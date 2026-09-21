@@ -1,3 +1,8 @@
 /target
 result
 result-*
+
+# Card scans gitaxian-probe's tests recognise, pulled from Scryfall by
+# crates/gitaxian-probe/engine/.fixtures/fetch-cards.sh. Not ours to vendor.
+crates/gitaxian-probe/engine/.fixtures/*.jpg
+crates/gitaxian-probe/engine/.fixtures/*.json

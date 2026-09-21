@@ -554,7 +554,7 @@ backing store is exactly the thing designed to be referenced from several thread
 The bootstrap awaits a 32-worker handshake, jobs land as files announced by an event,
 and recognition settles over several frames. `src/pump.rs` therefore loops — deliver
 queued worker messages, fire due timers, let V8 drain microtasks, check whether the
-promise settled — rather than awaiting anything. `__delverPump()` returns the time
+promise settled — rather than awaiting anything. `__probePump()` returns the time
 until the next timer so idle threads park on a condvar instead of spinning; 32
 spinning threads is not a rounding error.
 
@@ -574,19 +574,19 @@ once a handler exists, so the window does not open.
   UTF-8 decoder, which sidesteps decoding views backed by a `SharedArrayBuffer`.
 - The §7 job results stay MessagePack, but nothing in `js/` parses them. The glue
   reads the blob out of the wasm filesystem — the one thing only it can do — and
-  passes it to `op_delver_decode_job`, which runs it through `facet-msgpack` against
+  passes it to `op_probe_decode_job`, which runs it through `facet-msgpack` against
   the declared shape in `src/job.rs` and returns JSON. A blob that is not a job
   result is now a named decode error instead of whatever object the tag bytes
   happened to build.
 
 ### What the blob can reach
 
-Seventeen `op_delver_*` ops, and of those only one touches the host filesystem —
-`op_delver_artifact`, which serves bytes by name from an allowlist and refuses
+Seventeen `op_probe_*` ops, and of those only one touches the host filesystem —
+`op_probe_artifact`, which serves bytes by name from an allowlist and refuses
 anything else. deno_core's own builtins that reach the host (`op_panic`, `op_print`,
 `op_pipe`, the resource-table read/write ops) are disabled by extension middleware.
 Unit tests assert that `fetch`, `XMLHttpRequest`, `process`, `require`, `indexedDB`
-and friends are undefined in the isolate, and that the `op_delver_*` surface is
+and friends are undefined in the isolate, and that the `op_probe_*` surface is
 exactly what was declared.
 
 ### Equivalence, measured

@@ -10,7 +10,7 @@ use std::process::Command;
 use std::time::Instant;
 
 use anyhow::{bail, Context, Result};
-use delver_engine::{Engine, EngineConfig, Image};
+use gitaxian_probe_engine::{Engine, EngineConfig, Image};
 
 fn magick(args: &[&str]) -> Result<Vec<u8>> {
     let out = Command::new("magick").args(args).output().map_err(|e| {
@@ -51,7 +51,7 @@ fn main() -> Result<()> {
     println!(
         "engine ready ({}, {:?} model)\n",
         engine.version(),
-        engine.model()
+        engine.tier()
     );
 
     let image = Image {

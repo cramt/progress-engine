@@ -13,18 +13,33 @@ use std::time::Duration;
 use anyhow::{anyhow, bail, Result};
 use deno_core::{v8, JsRuntime, PollEventLoopOptions};
 
+/// How long the main isolate idles between turns when no timer is due sooner.
+/// It holds no work of its own while the pool runs, so this is how often it
+/// looks at the pool's progress rather than a wait on anything local.
+pub const MAIN_IDLE: Duration = Duration::from_micros(200);
+
 pub fn pump_handle(js: &mut JsRuntime) -> Result<v8::Global<v8::Function>> {
-    let global = js.execute_script("delver:pump-handle", "globalThis.__delverPump")?;
+    let global = js.execute_script("probe:pump-handle", "globalThis.__probePump")?;
     deno_core::scope!(scope, js);
     let local = v8::Local::new(scope, global);
     let func = v8::Local::<v8::Function>::try_from(local)
-        .map_err(|_| anyhow!("__delverPump is not a function"))?;
+        .map_err(|_| anyhow!("__probePump is not a function"))?;
     Ok(v8::Global::new(scope, func))
 }
 
-/// One turn of the crank. Returns milliseconds until the next timer is due, or
-/// -1 when the isolate has nothing scheduled.
-pub fn pump_once(js: &mut JsRuntime, pump: &v8::Global<v8::Function>) -> Result<f64> {
+/// How long to idle after a turn of the crank: until the next timer is due,
+/// capped so that a message arriving without one is still noticed promptly.
+///
+/// Both loops that turn the crank need this and used to spell it out
+/// separately, against a bare `f64` in which a negative value meant "nothing
+/// scheduled" and everything else meant milliseconds.
+pub fn idle_for(next_timer: Option<Duration>, cap: Duration) -> Duration {
+    next_timer.map_or(cap, |next| next.min(cap))
+}
+
+/// One turn of the crank. Returns how long until the next timer is due, or
+/// `None` when the isolate has nothing scheduled.
+pub fn pump_once(js: &mut JsRuntime, pump: &v8::Global<v8::Function>) -> Result<Option<Duration>> {
     let next = {
         deno_core::scope!(scope, js);
         let func = v8::Local::new(scope, pump);
@@ -32,7 +47,10 @@ pub fn pump_once(js: &mut JsRuntime, pump: &v8::Global<v8::Function>) -> Result<
         let result = func
             .call(scope, recv, &[])
             .ok_or_else(|| anyhow!("pump call failed - isolate terminated"))?;
-        result.number_value(scope).unwrap_or(-1.0)
+        // The glue reports milliseconds until the next timer, or a negative
+        // number when it has none.
+        let ms = result.number_value(scope).unwrap_or(-1.0);
+        (ms >= 0.0).then(|| Duration::from_micros((ms * 1000.0) as u64))
     };
 
     // A noop waker is right here: we re-poll on our own schedule rather than
@@ -52,8 +70,8 @@ pub enum Settled {
     Failed(String),
 }
 
-/// Inspect a value returned by `execute_script`. Engine methods hand back
-/// promises of JSON strings; anything already settled is read straight out.
+/// Inspect a value returned by an engine method. They hand back promises of
+/// JSON strings; anything already settled is read straight out.
 pub fn settled(js: &mut JsRuntime, value: &v8::Global<v8::Value>) -> Settled {
     deno_core::scope!(scope, js);
     let local = v8::Local::new(scope, value);
@@ -87,16 +105,11 @@ pub fn run_until(
             Settled::Pending => {}
         }
         if std::time::Instant::now() > deadline {
-            bail!("timed out after {:?} waiting for the engine", timeout);
+            bail!("timed out after {timeout:?} waiting for the engine");
         }
         // Sleeping at all matters: the main isolate is idle while 32 worker
         // threads do the actual work, and spinning here starves them.
-        let idle = Duration::from_micros(200);
-        let wait = if next < 0.0 {
-            idle
-        } else {
-            idle.min(Duration::from_micros((next * 1000.0).max(0.0) as u64))
-        };
+        let wait = idle_for(next, MAIN_IDLE);
         if wait > Duration::ZERO {
             std::thread::sleep(wait);
         }

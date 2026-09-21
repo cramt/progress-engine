@@ -45,7 +45,7 @@
     return s.length > MAX_ARG ? `${s.slice(0, MAX_ARG)}... (${s.length} chars)` : s;
   };
   const format = (args) => args.map(render).join(" ");
-  const at = (level) => (...args) => ops.op_delver_log(level, format(args));
+  const at = (level) => (...args) => ops.op_probe_log(level, format(args));
   globalThis.console = {
     log: at(0), info: at(0), debug: at(0), dir: at(0),
     warn: at(1), error: at(1), trace: at(1),
@@ -59,7 +59,7 @@
   const timers = new Map();
   globalThis.setTimeout = (fn, delay, ...args) => {
     const id = nextTimer++;
-    timers.set(id, { due: ops.op_delver_now() + (delay || 0), fn, args });
+    timers.set(id, { due: ops.op_probe_now() + (delay || 0), fn, args });
     return id;
   };
   globalThis.clearTimeout = (id) => timers.delete(id);
@@ -69,7 +69,7 @@
   // host loop knows how long it may sleep instead of spinning.
   const runTimers = () => {
     if (timers.size === 0) return -1;
-    const now = ops.op_delver_now();
+    const now = ops.op_probe_now();
     for (const [id, timer] of [...timers]) {
       if (timer.due > now) continue;
       timers.delete(id);
@@ -88,19 +88,19 @@
   };
 
   globalThis.performance = {
-    timeOrigin: ops.op_delver_time_origin(),
-    now: () => ops.op_delver_now(),
+    timeOrigin: ops.op_probe_time_origin(),
+    now: () => ops.op_probe_now(),
   };
   globalThis.crypto = {
     getRandomValues(view) {
-      ops.op_delver_random(view);
+      ops.op_probe_random(view);
       return view;
     },
   };
   // No userAgent: core.js reads it only to decide whether Atomics.waitAsync
   // needs the pre-Chrome-91 polyfill, and V8 has the real thing.
   globalThis.navigator = {
-    hardwareConcurrency: ops.op_delver_cores(),
+    hardwareConcurrency: ops.op_probe_cores(),
     language: "en-US",
   };
 
@@ -116,5 +116,5 @@
     },
   };
 
-  globalThis.__delverRunTimers = runTimers;
+  globalThis.__probeRunTimers = runTimers;
 })(globalThis);

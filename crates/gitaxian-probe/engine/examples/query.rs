@@ -2,15 +2,15 @@
 //!
 //!     cargo run --example query
 
-use std::rc::Rc;
+use std::sync::Arc;
 use std::time::Instant;
 
-use delver_engine::{Engine, EngineConfig};
+use gitaxian_probe_engine::{Engine, EngineConfig};
 
 fn main() -> anyhow::Result<()> {
     let started = Instant::now();
     let mut engine = Engine::open(EngineConfig {
-        on_progress: Some(Rc::new(|p| {
+        on_progress: Some(Arc::new(|p: gitaxian_probe_engine::Progress| {
             let percent = if p.percent > 0 {
                 format!("{}% ", p.percent)
             } else {
@@ -46,7 +46,7 @@ fn main() -> anyhow::Result<()> {
     )?;
     println!("\nBlack Lotus printings:");
     for row in &rows {
-        let cell = |i: usize| row[i].as_str().unwrap_or_default().to_string();
+        let cell = |i: usize| row[i].clone();
         println!("  {:<24} #{:<5} {}", cell(1), cell(2), cell(3));
     }
 

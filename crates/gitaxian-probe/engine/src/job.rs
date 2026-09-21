@@ -3,7 +3,7 @@
 //! Engine results are MessagePack, not JSON (FINDINGS.md §7). They are written
 //! into the wasm filesystem, so only the sandbox can pick them up - but it does
 //! not have to understand them: the glue hands the bytes straight back out
-//! through `op_delver_decode_job` and gets JSON in return.
+//! through `op_probe_decode_job` and gets JSON in return.
 //!
 //! Parsing here rather than in JavaScript is what makes the shape below the
 //! only shape a result can have. A blob that is not one of these is a decode
@@ -62,7 +62,7 @@ mod tests {
             .collect()
     }
 
-    /// Captured off a real run (`DELVER_LOG=1`, one blob per line of the drain
+    /// Captured off a real run (`PROBE_LOG=1`, one blob per line of the drain
     /// loop), which is the only authority on what the engine actually writes:
     /// every one of the 55 blobs a boot-query-recognise run produced decodes to
     /// exactly what `js/msgpack.js` used to produce for it.

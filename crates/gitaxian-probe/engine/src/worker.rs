@@ -16,7 +16,12 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use deno_core::v8;
 
-use crate::sandbox::{build_runtime, Artifacts, HostState, LogSink, Role, Stores};
+use crate::pump;
+use crate::sandbox::{build_runtime, Artifacts, HostState, LogSink, RoleState, Stores};
+
+/// How long a pool thread parks when no timer is due. Its mailbox wakes it on
+/// delivery, so this is only the ceiling on noticing a timer.
+const WORKER_IDLE: Duration = Duration::from_millis(1);
 
 /// A one-way queue with a parked reader. Plain `mpsc` would do for delivery,
 /// but a worker that has nothing to do must be able to sleep until it does
@@ -75,13 +80,37 @@ impl WorkerPort {
 pub struct SpawnContext {
     pub artifacts: Arc<Artifacts>,
     pub stores: Stores,
-    pub cores: u32,
+    /// What `navigator.hardwareConcurrency` reports in this isolate.
+    pub reported_concurrency: u32,
     /// Shared clock origin, so `performance.now()` means the same thing in
     /// every isolate. The engine compares timestamps across threads.
     pub epoch: Instant,
     /// The engine's log sink, so a pthread's `console` output reaches the same
     /// place the main isolate's does instead of dying with the thread.
     pub logs: LogSink,
+    /// Why any worker failed to start.
+    ///
+    /// A pthread that cannot build its sandbox used to print to stderr and
+    /// return, and the main isolate then waited out the full boot timeout for
+    /// a 32-worker handshake that could never complete - reporting a timeout
+    /// for what was actually a named failure. Boot reads this when it gives up.
+    pub failures: Failures,
+}
+
+pub type Failures = Arc<Mutex<Vec<String>>>;
+
+/// Turn a boot or call failure into one that says what the workers did, when
+/// they are the reason it failed.
+pub fn explain(error: anyhow::Error, failures: &Failures) -> anyhow::Error {
+    let failures = failures.lock().unwrap();
+    if failures.is_empty() {
+        return error;
+    }
+    anyhow::anyhow!(
+        "{error} ({} of the pool failed to start: {})",
+        failures.len(),
+        failures.join("; ")
+    )
 }
 
 struct WorkerHandle {
@@ -127,7 +156,7 @@ impl WorkerRegistry {
 
         let tag = format!("{name}{id}");
         let join = std::thread::Builder::new()
-            .name(format!("delver-{name}-{id}"))
+            .name(format!("probe-{name}-{id}"))
             .spawn(move || run_worker(ctx, tag, port, inbox, thread_stop, thread_isolate))?;
 
         self.workers.insert(
@@ -194,16 +223,22 @@ fn run_worker(
     stop: Arc<AtomicBool>,
     isolate_slot: Arc<Mutex<Option<v8::IsolateHandle>>>,
 ) {
+    // A worker that dies here never acknowledges the shared memory, so the
+    // main isolate's handshake cannot complete. Recording why turns the boot
+    // timeout that follows into an error that names the cause.
+    let failed = |what: &str, e: &dyn std::fmt::Display| {
+        let line = format!("{tag}: {what}: {e}");
+        ctx.logs.push(&tag, line.clone());
+        ctx.failures.lock().unwrap().push(line);
+    };
+
     let host = HostState {
         artifacts: ctx.artifacts.clone(),
-        cores: ctx.cores,
+        reported_concurrency: ctx.reported_concurrency,
         epoch: ctx.epoch,
-        progress: None,
-        image: None,
-        workers: None,
-        port: Some(port),
         logs: ctx.logs.clone(),
-        tag,
+        tag: tag.clone(),
+        role: RoleState::Pthread { port },
     };
 
     let tokio = match tokio::runtime::Builder::new_current_thread()
@@ -211,28 +246,19 @@ fn run_worker(
         .build()
     {
         Ok(rt) => rt,
-        Err(e) => {
-            eprintln!("[delver] worker tokio runtime failed: {e}");
-            return;
-        }
+        Err(e) => return failed("tokio runtime failed", &e),
     };
     let _guard = tokio.enter();
 
-    let mut js = match build_runtime(Role::Pthread, ctx.stores.clone(), host) {
+    let mut js = match build_runtime(ctx.stores.clone(), host) {
         Ok(js) => js,
-        Err(e) => {
-            eprintln!("[delver] worker sandbox failed to start: {e}");
-            return;
-        }
+        Err(e) => return failed("sandbox failed to start", &e),
     };
     *isolate_slot.lock().unwrap() = Some(js.v8_isolate().thread_safe_handle());
 
     let pump = match crate::pump::pump_handle(&mut js) {
         Ok(p) => p,
-        Err(e) => {
-            eprintln!("[delver] worker pump missing: {e}");
-            return;
-        }
+        Err(e) => return failed("pump missing", &e),
     };
 
     while !stop.load(Ordering::Relaxed) {
@@ -240,19 +266,7 @@ fn run_worker(
             // A terminated isolate unwinds out of the pump; that is shutdown,
             // not an error.
             Err(_) => break,
-            Ok(next_timer_ms) => {
-                let idle = Duration::from_millis(1);
-                let wait = if next_timer_ms < 0.0 {
-                    idle
-                } else {
-                    idle.min(Duration::from_micros(
-                        (next_timer_ms * 1000.0).max(0.0) as u64
-                    ))
-                };
-                if wait > Duration::ZERO {
-                    inbox.wait(wait);
-                }
-            }
+            Ok(next_timer) => inbox.wait(pump::idle_for(next_timer, WORKER_IDLE)),
         }
     }
 

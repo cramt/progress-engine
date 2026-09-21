@@ -22,7 +22,7 @@
     if (i !== -1) list.splice(i, 1);
   };
   globalThis.postMessage = (msg, transfer) => {
-    ops.op_delver_self_post(
+    ops.op_probe_self_post(
       core.serialize(
         msg,
         transfer && transfer.length ? { transferredArrayBuffers: transfer } : undefined,
@@ -35,7 +35,7 @@
     // message can be delivered into the void.
     if (typeof globalThis.onmessage !== "function" && listeners.message.length === 0) return;
     for (;;) {
-      const buf = ops.op_delver_self_recv();
+      const buf = ops.op_probe_self_recv();
       if (buf.length === 0) break;
       const event = { data: core.deserialize(buf) };
       if (typeof globalThis.onmessage === "function") globalThis.onmessage(event);
@@ -43,8 +43,8 @@
     }
   };
 
-  globalThis.__delverPump = () => {
+  globalThis.__probePump = () => {
     drainSelf();
-    return globalThis.__delverRunTimers();
+    return globalThis.__probeRunTimers();
   };
 })(globalThis);

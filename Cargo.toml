@@ -17,7 +17,9 @@ repository = "https://github.com/cramt/progress-engine"
 anyhow = "1"
 facet = { version = "0.46", features = ["nonzero"] }
 facet-json = "0.46"
+facet-msgpack = "0.46"
 facet-toml = "0.46"
+facet-value = "0.46"
 figue = "4"
 libm = "0.2"
 proptest = { version = "1", default-features = false, features = ["std", "bit-set"] }
@@ -29,7 +31,13 @@ sha2 = "0.10"
 thiserror = "2"
 ureq = { version = "3", default-features = false, features = ["rustls"] }
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
-tokio = { version = "1", features = ["rt", "time"] }
+tokio = { version = "1", features = ["rt", "time", "macros"] }
+
+deno_core = "0.412"
+# deno_core re-exports deno_error and the two must agree exactly: a caret range
+# resolves to a newer one and op2 stops matching its own error type.
+deno_error = "=0.7.1"
+sevenz-rust2 = "0.23"
 
 chip-decklist = { path = "crates/reality-chip/decklist" }
 chip-scryfall = { path = "crates/reality-chip/scryfall" }
@@ -37,3 +45,4 @@ gauntlet-criteria = { path = "crates/ichormoon-gauntlet/criteria" }
 gauntlet-toml = { path = "crates/ichormoon-gauntlet/toml" }
 gauntlet-sim = { path = "crates/ichormoon-gauntlet/sim" }
 chip-stats = { path = "crates/reality-chip/stats" }
+gitaxian-probe-engine = { path = "crates/gitaxian-probe/engine" }

@@ -8,7 +8,7 @@
 //!
 //! Where the bytes are kept is the caller's choice. [`ArtifactCache`] is the
 //! seam; [`DirCache`] is the only implementation here, and an unconfigured
-//! engine caches in `/tmp/delver-engine`.
+//! engine caches in `/tmp/gitaxian-probe`.
 //!
 //! Upstream rebuilds on its own schedule, so the build string in `version.txt`
 //! is the cache namespace: a rebuild is a miss rather than a stale hit, and the
@@ -22,7 +22,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, bail, Context, Result};
 
-use crate::{Model, Progress};
+use crate::{Progress, Tier};
 
 /// Where the artefacts are served from.
 pub const DEFAULT_ORIGIN: &str = "https://mtg.delver.app";
@@ -82,12 +82,12 @@ pub enum Artifact {
     CatalogueMd5,
     CatalogueSize,
     /// The weights for one tier, unpacked. Upstream serves them packed.
-    Model(Model),
+    Model(Tier),
     /// Byte count of the unpacked weights. There is a `model-<tier>.md5`
     /// upstream as well, but FINDINGS.md §1 has it as an opaque build token
     /// rather than a digest of anything served, so it is not fetched: the size
     /// is the only sidecar that can actually check a download.
-    ModelSize(Model),
+    ModelSize(Tier),
     /// The build string. Never cached - it is the key everything else is
     /// cached under, so there is nowhere to put it.
     Version,
@@ -112,20 +112,20 @@ impl Artifact {
             Artifact::CatalogueMd5 => "data.md5",
             Artifact::CatalogueSize => "data.size",
             Artifact::Version => "version.txt",
-            Artifact::Model(Model::Alpha) => "model-alpha.dat",
-            Artifact::Model(Model::Lambda) => "model-lambda.dat",
-            Artifact::Model(Model::Gamma) => "model-gamma.dat",
-            Artifact::ModelSize(Model::Alpha) => "model-alpha.size",
-            Artifact::ModelSize(Model::Lambda) => "model-lambda.size",
-            Artifact::ModelSize(Model::Gamma) => "model-gamma.size",
+            Artifact::Model(Tier::Alpha) => "model-alpha.dat",
+            Artifact::Model(Tier::Lambda) => "model-lambda.dat",
+            Artifact::Model(Tier::Gamma) => "model-gamma.dat",
+            Artifact::ModelSize(Tier::Alpha) => "model-alpha.size",
+            Artifact::ModelSize(Tier::Lambda) => "model-lambda.size",
+            Artifact::ModelSize(Tier::Gamma) => "model-gamma.size",
         }
     }
 
     fn remote(self) -> Remote {
         match self {
-            Artifact::Model(Model::Alpha) => Remote::Packed("model-alpha.7z"),
-            Artifact::Model(Model::Lambda) => Remote::Packed("model-lambda.7z"),
-            Artifact::Model(Model::Gamma) => Remote::Packed("model-gamma.7z"),
+            Artifact::Model(Tier::Alpha) => Remote::Packed("model-alpha.7z"),
+            Artifact::Model(Tier::Lambda) => Remote::Packed("model-lambda.7z"),
+            Artifact::Model(Tier::Gamma) => Remote::Packed("model-gamma.7z"),
             other => Remote::Verbatim(other.file_name()),
         }
     }
@@ -173,7 +173,7 @@ impl DirCache {
         Self { root: root.into() }
     }
 
-    /// `/tmp/delver-engine`, where an unconfigured engine caches - or the
+    /// `/tmp/gitaxian-probe`, where an unconfigured engine caches - or the
     /// platform temp directory on anything without a `/tmp`.
     ///
     /// Deliberately not `$TMPDIR`: `nix develop` points that at a fresh
@@ -186,7 +186,7 @@ impl DirCache {
         } else {
             std::env::temp_dir()
         };
-        Self::new(root.join("delver-engine"))
+        Self::new(root.join("gitaxian-probe"))
     }
 
     pub fn root(&self) -> &Path {
@@ -290,7 +290,11 @@ impl Default for Origin {
 }
 
 impl Origin {
-    fn download(&self, name: &str, report: Option<&dyn Fn(Progress)>) -> Result<Vec<u8>> {
+    fn download(
+        &self,
+        name: &str,
+        report: Option<&(dyn Fn(Progress) + Send + Sync)>,
+    ) -> Result<Vec<u8>> {
         let url = format!("{}/{name}", self.base.trim_end_matches('/'));
         let agent: ureq::Agent = ureq::Agent::config_builder()
             .user_agent(self.user_agent.clone())
@@ -414,7 +418,7 @@ impl Source {
         &self,
         version: &Version,
         artifact: Artifact,
-        report: Option<&dyn Fn(Progress)>,
+        report: Option<&(dyn Fn(Progress) + Send + Sync)>,
     ) -> Result<Vec<u8>> {
         if artifact == Artifact::Version {
             return Ok(version.as_str().as_bytes().to_vec());
@@ -456,7 +460,7 @@ impl Source {
 /// have been checked against their sidecars.
 pub struct Bundle {
     pub version: Version,
-    pub tier: Model,
+    pub tier: Tier,
     pub core_js: String,
     /// `core.wasm` as upstream ships it, unpatched.
     pub core_wasm: Vec<u8>,
@@ -470,7 +474,11 @@ pub struct Bundle {
 }
 
 impl Bundle {
-    pub fn fetch(source: &Source, tier: Model, report: Option<&dyn Fn(Progress)>) -> Result<Self> {
+    pub fn fetch(
+        source: &Source,
+        tier: Tier,
+        report: Option<&(dyn Fn(Progress) + Send + Sync)>,
+    ) -> Result<Self> {
         let version = source.version()?;
         let get = |artifact| source.get(&version, artifact, report);
 
@@ -516,7 +524,7 @@ impl Bundle {
     }
 }
 
-fn check_weights(weights: &[u8], size: &[u8], tier: Model) -> Result<()> {
+fn check_weights(weights: &[u8], size: &[u8], tier: Tier) -> Result<()> {
     let want: usize = String::from_utf8_lossy(size)
         .trim()
         .parse()
@@ -585,7 +593,7 @@ mod tests {
     fn a_bundle_hands_out_only_the_engines_own_files() {
         let bundle = Bundle {
             version: Version::parse("1.76.beta").unwrap(),
-            tier: Model::Alpha,
+            tier: Tier::Alpha,
             core_js: String::new(),
             core_wasm: Vec::new(),
             catalogue: b"packed".to_vec(),
@@ -604,7 +612,7 @@ mod tests {
 
     #[test]
     fn a_dir_cache_round_trips_and_reports_a_miss() {
-        let root = std::env::temp_dir().join(format!("delver-cache-test-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("probe-cache-test-{}", std::process::id()));
         let cache = DirCache::new(&root);
         let id = ArtifactId {
             version: Version::parse("1.76.beta").unwrap(),

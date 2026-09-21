@@ -9,7 +9,9 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use delver_engine::{Bundle, Engine, EngineConfig, Image, Model, Source, KNOWN_FINGERPRINT};
+use gitaxian_probe_engine::{
+    Bundle, Engine, EngineConfig, Image, Model, Source, Tier, KNOWN_FINGERPRINT,
+};
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -18,7 +20,7 @@ fn root() -> PathBuf {
 /// Whether the engine's files can be had at all. A fetch that works but an
 /// engine that will not boot is a failure, not a skip.
 fn ready() -> bool {
-    match Bundle::fetch(&Source::default(), Model::Alpha, None) {
+    match Bundle::fetch(&Source::default(), Tier::Alpha, None) {
         Ok(_) => true,
         Err(e) => {
             eprintln!("skipped: the engine could not be fetched: {e:#}");
@@ -67,7 +69,7 @@ fn engine_boots_queries_and_recognises() {
     // The catalogue is deserialised into the `data` schema, so queries must be
     // schema-qualified: unqualified `cards` is the user's empty collection.
     let rows = engine.query("SELECT count(*) FROM data.cards").unwrap();
-    let count: i64 = rows[0][0].as_str().unwrap().parse().unwrap();
+    let count: i64 = rows[0][0].parse().unwrap();
     assert!(
         count > 100_000,
         "expected a populated catalogue, got {count} cards"
@@ -79,7 +81,7 @@ fn engine_boots_queries_and_recognises() {
              WHERE n.name = 'Black Lotus' LIMIT 1",
         )
         .unwrap();
-    let id: i64 = lotus[0][0].as_str().unwrap().parse().unwrap();
+    let id: i64 = lotus[0][0].parse().unwrap();
     assert_eq!(engine.card_by_id(id).unwrap().unwrap().name, "Black Lotus");
 
     let frame = root().join(".fixtures/lotus-frame.jpg");

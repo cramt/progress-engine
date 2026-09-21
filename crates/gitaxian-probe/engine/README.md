@@ -1,4 +1,4 @@
-# delver-probe
+# gitaxian probe
 
 Running the [Delver X](https://mtg.delver.app) MTG card-recognition engine headlessly:
 a Rust library that runs the downloaded blob inside a deno_core sandbox.
@@ -23,7 +23,7 @@ cargo test                  # includes the accuracy numbers the Node probe set
 ```
 
 There is nothing to download first: `Engine::open` pulls the engine, the catalogue
-and the alpha model itself and caches them under `/tmp/delver-engine`. The first run
+and the alpha model itself and caches them under `/tmp/gitaxian-probe`. The first run
 costs ~39 MB down and ~51 MB on disk; later ones cost one nine-byte request. See
 *Fetching and caching*.
 
@@ -33,7 +33,7 @@ the same way everywhere; outside the dev shell the scripts say what is missing.
 ## Rust API
 
 ```rust
-use delver_engine::{Engine, EngineConfig, Image};
+use gitaxian_probe_engine::{Engine, EngineConfig, Image};
 
 let mut engine = Engine::open(EngineConfig::default())?;
 
@@ -93,15 +93,15 @@ hit. If the origin can't be reached, the newest build already in the cache is us
 instead, which is what makes a machine that has run once keep working offline.
 
 Where the bytes live is the `ArtifactCache` trait. The default is `DirCache`, one
-directory per build under `/tmp/delver-engine`:
+directory per build under `/tmp/gitaxian-probe`:
 
 ```rust
-use delver_engine::{DirCache, EngineConfig, Engine, Source};
+use gitaxian_probe_engine::{DirCache, EngineConfig, Engine, Source};
 use std::sync::Arc;
 
 Engine::open(EngineConfig {
     source: Source {
-        cache: Arc::new(DirCache::new("/var/cache/delver")),
+        cache: Arc::new(DirCache::new("/var/cache/gitaxian-probe")),
         offline: false,   // true: never hit the network, cache must already have it
         ..Default::default()
     },
@@ -127,9 +127,9 @@ is real, and the unpacked weights are checked against it on every open.
 
 `console.log` works in `js/engine.js` and anywhere else that runs in there, including
 a pthread isolate. It does not reach a terminal on its own: the isolate has no stdout,
-so the line goes through `op_delver_log` into a buffer that `take_logs()` drains.
+so the line goes through `op_probe_log` into a buffer that `take_logs()` drains.
 
-Set `DELVER_LOG=1` to have every line mirrored to stderr as it happens, which is the
+Set `PROBE_LOG=1` to have every line mirrored to stderr as it happens, which is the
 only version that helps when the call you are debugging never returns:
 
 Nothing logs by default, so the output is whatever you added. Drop a line into
@@ -140,7 +140,7 @@ console.log("query", sql, { closed, mask: maskPtr });
 ```
 
 ```console
-$ DELVER_LOG=1 cargo run --example query
+$ PROBE_LOG=1 cargo run --example query
 [main] query SELECT count(*) FROM data.cards {"closed":false,"mask":124950504}
 ```
 
@@ -152,7 +152,7 @@ passing test; a failing one prints the captured lines by itself, worker threads
 included.
 
 ```sh
-DELVER_LOG=1 cargo test -- --nocapture
+PROBE_LOG=1 cargo test -- --nocapture
 ```
 
 Arguments are rendered one line per call, not as a browser console would: typed arrays
@@ -172,14 +172,14 @@ get back only what the Emscripten glue cannot run without:
 | `setTimeout` / `clearTimeout` | deno_core ships no timers; emscripten needs them to break call stacks |
 | `Worker` | the 32-thread pool, as real OS threads running real isolates |
 | `global.fileEvents` | the shipped EM_ASM hook that announces a finished job |
-| `op_delver_artifact` | the artefact bytes, by name, from a fixed allowlist |
-| `op_delver_decode_job` | MessagePack job results parsed into JSON — the wrapper's, not `core.js`'s |
+| `op_probe_artifact` | the artefact bytes, by name, from a fixed allowlist |
+| `op_probe_decode_job` | MessagePack job results parsed into JSON — the wrapper's, not `core.js`'s |
 
 Seventeen ops in total, listed in `src/sandbox.rs`. deno_core's own builtins that reach
 the host — `op_panic`, `op_print`, `op_pipe`, the resource-table read/write ops — are
 disabled by middleware rather than left unused. `cargo test` asserts both halves: that
 `fetch`, `XMLHttpRequest`, `process`, `require`, `indexedDB` and friends are undefined
-inside the isolate, and that the only `op_delver_*` ops present are the declared ones.
+inside the isolate, and that the only `op_probe_*` ops present are the declared ones.
 
 Deliberately *not* defined, because `core.js` branches on them: `window`
 (`ENVIRONMENT_IS_WEB`, and the file-written hook), `process` (`ENVIRONMENT_IS_NODE`),

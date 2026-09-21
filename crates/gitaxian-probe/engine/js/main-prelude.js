@@ -23,19 +23,19 @@
     #listeners = { message: [], error: [] };
 
     constructor(_script, opts = {}) {
-      this.#id = ops.op_delver_worker_spawn(opts.name || "");
+      this.#id = ops.op_probe_worker_spawn(opts.name || "");
       this.onmessage = null;
       this.onerror = null;
       workers.set(this.#id, this);
     }
 
     postMessage(msg, transfer) {
-      ops.op_delver_worker_post(this.#id, encode(msg, transfer));
+      ops.op_probe_worker_post(this.#id, encode(msg, transfer));
     }
 
     terminate() {
       workers.delete(this.#id);
-      ops.op_delver_worker_terminate(this.#id);
+      ops.op_probe_worker_terminate(this.#id);
     }
 
     addEventListener(type, fn) {
@@ -64,7 +64,7 @@
       for (;;) {
         // An empty buffer means "nothing pending"; a real message always
         // carries at least a serializer header.
-        const buf = ops.op_delver_worker_recv(worker._id);
+        const buf = ops.op_probe_worker_recv(worker._id);
         if (buf.length === 0) break;
         worker._deliver(core.deserialize(buf));
       }
@@ -72,8 +72,8 @@
   };
 
   globalThis.Worker = Worker;
-  globalThis.__delverPump = () => {
+  globalThis.__probePump = () => {
     drainWorkers();
-    return globalThis.__delverRunTimers();
+    return globalThis.__probeRunTimers();
   };
 })(globalThis);

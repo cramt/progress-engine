@@ -1,4 +1,4 @@
-use delver_engine::{wasm, Artifact, Source};
+use gitaxian_probe_engine::{wasm, Artifact, Source};
 
 /// `core.wasm` exactly as upstream serves it, from the cache or the network.
 fn core_wasm() -> Option<Vec<u8>> {

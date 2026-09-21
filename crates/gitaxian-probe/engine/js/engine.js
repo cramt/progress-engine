@@ -10,14 +10,14 @@
   const ops = core.ops;
   // Results are MessagePack (FINDINGS.md S7). The host parses them against a
   // declared shape and hands back JSON, so nothing here has to know the format.
-  const decodeMsgpack = (u8) => JSON.parse(ops.op_delver_decode_job(u8));
+  const decodeMsgpack = (u8) => JSON.parse(ops.op_probe_decode_job(u8));
 
   // Engine ABI constants and the per-tier init export/id are the host's to
   // decide (src/lib.rs); this glue only carries them, never defines them. The
   // tier -> init -> token mapping lives in Rust on purpose - see Model there for
   // why keeping it out of here is what keeps the JWT gate from being a one-line
   // edit in the sandbox.
-  const ABI = JSON.parse(ops.op_delver_abi());
+  const ABI = JSON.parse(ops.op_probe_abi());
 
   const fail = (message) => {
     throw new Error(message);
@@ -121,7 +121,7 @@
     if (!mod) fail("engine is not open");
   };
   const progress = (stage, percent, message) =>
-    ops.op_delver_progress(stage, percent, message);
+    ops.op_probe_progress(stage, percent, message);
 
   const call = (name, ...args) => {
     alive();
@@ -153,7 +153,7 @@
   // creating recognition.output with a JSON status blob.
   const startRecogniser = async (timeoutMs = 60000) => {
     mod._rec_init_rec();
-    const deadline = ops.op_delver_now() + timeoutMs;
+    const deadline = ops.op_probe_now() + timeoutMs;
     let delay = 10;
     for (;;) {
       if (mod.FS.analyzePath("recognition.output").exists) {
@@ -161,7 +161,7 @@
         if (parsed.status === "success") return parsed;
         fail(parsed.message || "recogniser failed to start");
       }
-      if (ops.op_delver_now() > deadline) fail("recogniser did not start within timeout");
+      if (ops.op_probe_now() > deadline) fail("recogniser did not start within timeout");
       await sleep(delay);
       delay = Math.min(delay * 2, 250);
     }
@@ -195,17 +195,19 @@
     }
   };
 
-  globalThis.__delver = {
-    // `init` and `modelId` are resolved host-side (Model in src/lib.rs), which
-    // is also where the token requirement was already enforced; this trusts
-    // both rather than re-deriving them.
-    async boot({ model }) {
+  globalThis.__probe = {
+    /**
+     * `tier` is the weights to load, named by the host (Model in src/lib.rs),
+     * which is also where the gated tiers are refused. This glue never decides
+     * which tier it is running, only which file that name reads.
+     */
+    async boot(tier) {
       if (mod) fail("engine is already open");
 
       progress("load", 0, "instantiating");
       // The host has already fingerprinted core.wasm and exported its two
       // internal tags; these are the patched bytes.
-      const wasm = ops.op_delver_wasm();
+      const wasm = ops.op_probe_wasm();
       mod = await createCore({
         // This build declares `var wasmBinary` as a bare local, so
         // Module.wasmBinary is ignored; instantiateWasm is the only injection
@@ -226,13 +228,13 @@
       }
 
       // _install refuses to unpack unless the version sidecars sit alongside it.
-      mod.FS.writeFile("opfs/cache/data.7z", ops.op_delver_artifact("data.7z"));
+      mod.FS.writeFile("opfs/cache/data.7z", ops.op_probe_artifact("data.7z"));
       for (const [dst, src] of [
         ["opfs/cache/data.md5", "data.md5"],
         ["opfs/cache/data.size", "data.size"],
         ["opfs/cache/version.txt", "version.txt"],
       ]) {
-        const bytes = ops.op_delver_artifact(src);
+        const bytes = ops.op_probe_artifact(src);
         if (bytes.length) mod.FS.writeFile(dst, bytes);
       }
 
@@ -270,8 +272,8 @@
       progress("recogniser", 0, "starting recogniser");
       await startRecogniser();
 
-      progress("model", 0, `loading ${model} model`);
-      const modelBytes = ops.op_delver_artifact(`model-${model}.dat`);
+      progress("model", 0, `loading ${tier} model`);
+      const modelBytes = ops.op_probe_artifact(`model-${tier}.dat`);
       await withBuffer(modelBytes, (ptr, len) => mod._rec_alpha_init(ptr, len));
       await call("_rec_set_model", 0);
 
@@ -280,8 +282,8 @@
       progress("ready", 100, "ready");
 
       return JSON.stringify({
-        version: text(ops.op_delver_artifact("version.txt")).trim() || "unknown",
-        model,
+        version: text(ops.op_probe_artifact("version.txt")).trim() || "unknown",
+        tier,
       });
     },
 
@@ -308,7 +310,7 @@
     /** Find the card quad without identifying it - the crop detector. */
     async locate(width, height) {
       alive();
-      const data = ops.op_delver_take_image();
+      const data = ops.op_probe_take_image();
       assertImage(width, height, data);
       const ptr = mod._malloc(data.length);
       if (!ptr) fail(`could not allocate ${data.length} bytes in the wasm heap`);
@@ -333,16 +335,16 @@
      */
     async recognize(width, height, maxFrames, settleTimeoutMs) {
       alive();
-      const data = ops.op_delver_take_image();
+      const data = ops.op_probe_take_image();
       assertImage(width, height, data);
       mod._rec_clear_tracking();
 
       for (let frame = 0; frame < maxFrames; frame++) {
         pushFrame(data, width, height, frame === 0);
 
-        const deadline = ops.op_delver_now() + settleTimeoutMs;
+        const deadline = ops.op_probe_now() + settleTimeoutMs;
         let status = ABI.recRunning;
-        while (ops.op_delver_now() < deadline) {
+        while (ops.op_probe_now() < deadline) {
           await sleep(20);
           status = mod._rec_status();
           if (status !== ABI.recRunning) break;

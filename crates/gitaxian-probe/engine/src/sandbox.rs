@@ -6,7 +6,6 @@
 //! run without, and the list is the whole security story: the downloaded blob
 //! reaches the host only through these ops.
 
-use std::rc::Rc;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
@@ -32,16 +31,16 @@ pub struct Progress {
 ///
 /// Every isolate shares one of these, so a line from a pthread lands in the
 /// same place as a line from the main isolate. Buffered for `take_logs`, and
-/// mirrored to stderr when `DELVER_LOG` is set - a buffer you can only read
+/// mirrored to stderr when `PROBE_LOG` is set - a buffer you can only read
 /// once the call returns is no use when the call is the thing that hung.
 ///
-/// The tee is the host's decision, not new reach for the blob: `op_delver_log`
+/// The tee is the host's decision, not new reach for the blob: `op_probe_log`
 /// was already there, and stdout/stderr stay unreachable from inside.
 #[derive(Clone, Default)]
 pub struct LogSink(Arc<Mutex<Vec<String>>>);
 
 impl LogSink {
-    fn push(&self, tag: &str, line: String) {
+    pub(crate) fn push(&self, tag: &str, line: String) {
         let line = format!("[{tag}] {line}");
         if log_to_stderr() {
             eprintln!("{line}");
@@ -56,7 +55,7 @@ impl LogSink {
 
 fn log_to_stderr() -> bool {
     static LIVE: OnceLock<bool> = OnceLock::new();
-    *LIVE.get_or_init(|| std::env::var("DELVER_LOG").is_ok_and(|v| !v.is_empty() && v != "0"))
+    *LIVE.get_or_init(|| std::env::var("PROBE_LOG").is_ok_and(|v| !v.is_empty() && v != "0"))
 }
 
 /// The engine's files, in memory, plus the two things the host derives from
@@ -87,7 +86,7 @@ impl Artifacts {
         })
     }
 
-    /// What `op_delver_artifact` hands back. The bundle is the allowlist: it
+    /// What `op_probe_artifact` hands back. The bundle is the allowlist: it
     /// holds exactly the files the engine may read, so an unknown name - any
     /// traversal, any absolute path - has nothing to resolve to.
     fn read(&self, name: &str) -> Vec<u8> {
@@ -98,21 +97,73 @@ impl Artifacts {
     }
 }
 
-type ProgressFn = Rc<dyn Fn(Progress)>;
+/// Progress callbacks are `Arc` and `Send` so that `EngineConfig` can be built
+/// on one thread and handed to the thread the engine will live on - which a
+/// GUI has to do, because `JsRuntime` pins its isolate to its thread.
+pub type ProgressFn = Arc<dyn Fn(Progress) + Send + Sync>;
 
-/// Everything an isolate's ops can reach. A pthread isolate gets a `port` and
-/// no `workers`; the main isolate gets the reverse.
+/// What an isolate can reach that depends on which isolate it is.
+///
+/// The main isolate owns the pool, reports progress and stages frames; a
+/// pthread isolate has a port and none of that. Held as four `Option` fields
+/// those were sixteen combinations with two worth having, and every op that
+/// wanted one paid an unwrap for a state the other role could not be in. As a
+/// sum it is the role itself, which is why `build_runtime` no longer takes a
+/// `Role` beside the state that already says what the role is.
+pub enum RoleState {
+    Main {
+        workers: WorkerRegistry,
+        progress: Option<ProgressFn>,
+        /// The frame staged for the next recognition call. Taken, not copied:
+        /// an image is used once.
+        image: Option<Vec<u8>>,
+    },
+    Pthread {
+        port: WorkerPort,
+    },
+}
+
+/// Everything an isolate's ops can reach.
 pub struct HostState {
     pub artifacts: Arc<Artifacts>,
-    pub cores: u32,
+    /// What `navigator.hardwareConcurrency` reports inside the sandbox. This
+    /// does not size the pool; the build fixes that at 32.
+    pub reported_concurrency: u32,
     pub epoch: Instant,
-    pub progress: Option<ProgressFn>,
-    pub image: Option<Vec<u8>>,
-    pub workers: Option<WorkerRegistry>,
-    pub port: Option<WorkerPort>,
     pub logs: LogSink,
     /// Which isolate this is, prefixed onto its log lines: `main`, or `pthread3`.
     pub tag: String,
+    pub role: RoleState,
+}
+
+impl HostState {
+    pub fn workers(&mut self) -> Option<&mut WorkerRegistry> {
+        match &mut self.role {
+            RoleState::Main { workers, .. } => Some(workers),
+            RoleState::Pthread { .. } => None,
+        }
+    }
+
+    fn port(&self) -> Option<&WorkerPort> {
+        match &self.role {
+            RoleState::Pthread { port } => Some(port),
+            RoleState::Main { .. } => None,
+        }
+    }
+
+    fn take_image(&mut self) -> Option<Vec<u8>> {
+        match &mut self.role {
+            RoleState::Main { image, .. } => image.take(),
+            RoleState::Pthread { .. } => None,
+        }
+    }
+
+    fn progress(&self) -> Option<ProgressFn> {
+        match &self.role {
+            RoleState::Main { progress, .. } => progress.clone(),
+            RoleState::Pthread { .. } => None,
+        }
+    }
 }
 
 /// Cross-isolate stores. These are what let a structured clone carry the shared
@@ -127,7 +178,7 @@ pub struct Stores {
 // ---- ops -------------------------------------------------------------------
 
 #[op2(fast)]
-fn op_delver_log(state: &mut OpState, #[smi] level: u8, #[string] message: String) {
+fn op_probe_log(state: &mut OpState, #[smi] level: u8, #[string] message: String) {
     let host = state.borrow::<HostState>();
     let line = if level == 0 {
         message
@@ -138,7 +189,7 @@ fn op_delver_log(state: &mut OpState, #[smi] level: u8, #[string] message: Strin
 }
 
 #[op2(fast)]
-fn op_delver_now(state: &mut OpState) -> f64 {
+fn op_probe_now(state: &mut OpState) -> f64 {
     state.borrow::<HostState>().epoch.elapsed().as_secs_f64() * 1000.0
 }
 
@@ -147,7 +198,7 @@ fn op_delver_now(state: &mut OpState) -> f64 {
 /// every isolate has to agree on both halves: the engine compares these
 /// timestamps across threads.
 #[op2(fast)]
-fn op_delver_time_origin(state: &mut OpState) -> f64 {
+fn op_probe_time_origin(state: &mut OpState) -> f64 {
     let epoch = state.borrow::<HostState>().epoch;
     let now_unix = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -157,12 +208,12 @@ fn op_delver_time_origin(state: &mut OpState) -> f64 {
 
 #[op2(fast)]
 #[smi]
-fn op_delver_cores(state: &mut OpState) -> u32 {
-    state.borrow::<HostState>().cores
+fn op_probe_cores(state: &mut OpState) -> u32 {
+    state.borrow::<HostState>().reported_concurrency
 }
 
 #[op2(fast)]
-fn op_delver_random(#[buffer] out: &mut [u8]) {
+fn op_probe_random(#[buffer] out: &mut [u8]) {
     // The engine seeds its RNG through crypto.getRandomValues; nothing here is
     // used for anything the host cares about cryptographically.
     for byte in out.iter_mut() {
@@ -195,13 +246,13 @@ fn rand_byte() -> u8 {
 
 #[op2]
 #[buffer]
-fn op_delver_artifact(state: &mut OpState, #[string] name: String) -> Vec<u8> {
+fn op_probe_artifact(state: &mut OpState, #[string] name: String) -> Vec<u8> {
     state.borrow::<HostState>().artifacts.read(&name)
 }
 
 #[op2]
 #[buffer]
-fn op_delver_wasm(state: &mut OpState) -> Vec<u8> {
+fn op_probe_wasm(state: &mut OpState) -> Vec<u8> {
     state.borrow::<HostState>().artifacts.wasm.clone()
 }
 
@@ -210,7 +261,7 @@ fn op_delver_wasm(state: &mut OpState) -> Vec<u8> {
 /// Rust too and passed to `boot`; this is the tier-independent half.
 #[op2]
 #[string]
-fn op_delver_abi() -> String {
+fn op_probe_abi() -> String {
     format!(
         r#"{{"outputSlots":{},"maskBytes":{},"recRunning":{},"recFinishedWithDetections":{}}}"#,
         crate::OUTPUT_SLOTS,
@@ -221,13 +272,13 @@ fn op_delver_abi() -> String {
 }
 
 #[op2(fast)]
-fn op_delver_progress(
+fn op_probe_progress(
     state: &mut OpState,
     #[string] stage: String,
     #[smi] percent: u32,
     #[string] message: String,
 ) {
-    let Some(report) = state.borrow::<HostState>().progress.clone() else {
+    let Some(report) = state.borrow::<HostState>().progress() else {
         return;
     };
     report(Progress {
@@ -244,7 +295,7 @@ fn op_delver_progress(
 /// something to walk tag by tag in JavaScript.
 #[op2]
 #[string]
-fn op_delver_decode_job(state: &mut OpState, #[buffer] bytes: &[u8]) -> Result<String, JsErrorBox> {
+fn op_probe_decode_job(state: &mut OpState, #[buffer] bytes: &[u8]) -> Result<String, JsErrorBox> {
     crate::job::decode_to_json(bytes).map_err(|e| {
         // The glue's drain loop treats any throw as "not ready yet" and backs
         // off, so without this a malformed result is an unexplained timeout.
@@ -258,11 +309,10 @@ fn op_delver_decode_job(state: &mut OpState, #[buffer] bytes: &[u8]) -> Result<S
 /// copied: an image is used once.
 #[op2]
 #[buffer]
-fn op_delver_take_image(state: &mut OpState) -> Vec<u8> {
+fn op_probe_take_image(state: &mut OpState) -> Vec<u8> {
     state
         .borrow_mut::<HostState>()
-        .image
-        .take()
+        .take_image()
         .unwrap_or_default()
 }
 
@@ -270,11 +320,10 @@ fn op_delver_take_image(state: &mut OpState) -> Vec<u8> {
 
 #[op2(fast)]
 #[smi]
-fn op_delver_worker_spawn(state: &mut OpState, #[string] name: String) -> Result<u32, JsErrorBox> {
-    let host = state.borrow_mut::<HostState>();
-    let workers = host
-        .workers
-        .as_mut()
+fn op_probe_worker_spawn(state: &mut OpState, #[string] name: String) -> Result<u32, JsErrorBox> {
+    let workers = state
+        .borrow_mut::<HostState>()
+        .workers()
         .ok_or_else(|| JsErrorBox::generic("this isolate cannot spawn workers"))?;
     workers
         .spawn(&name)
@@ -282,15 +331,14 @@ fn op_delver_worker_spawn(state: &mut OpState, #[string] name: String) -> Result
 }
 
 #[op2(fast)]
-fn op_delver_worker_post(
+fn op_probe_worker_post(
     state: &mut OpState,
     #[smi] id: u32,
     #[buffer] data: &[u8],
 ) -> Result<(), JsErrorBox> {
-    let host = state.borrow_mut::<HostState>();
-    let workers = host
-        .workers
-        .as_mut()
+    let workers = state
+        .borrow_mut::<HostState>()
+        .workers()
         .ok_or_else(|| JsErrorBox::generic("this isolate has no workers"))?;
     workers.post(id, data.to_vec());
     Ok(())
@@ -299,18 +347,17 @@ fn op_delver_worker_post(
 /// Next message from that worker, or an empty buffer when none is pending.
 #[op2]
 #[buffer]
-fn op_delver_worker_recv(state: &mut OpState, #[smi] id: u32) -> Vec<u8> {
-    let host = state.borrow_mut::<HostState>();
-    host.workers
-        .as_mut()
+fn op_probe_worker_recv(state: &mut OpState, #[smi] id: u32) -> Vec<u8> {
+    state
+        .borrow_mut::<HostState>()
+        .workers()
         .and_then(|w| w.recv(id))
         .unwrap_or_default()
 }
 
 #[op2(fast)]
-fn op_delver_worker_terminate(state: &mut OpState, #[smi] id: u32) {
-    let host = state.borrow_mut::<HostState>();
-    if let Some(workers) = host.workers.as_mut() {
+fn op_probe_worker_terminate(state: &mut OpState, #[smi] id: u32) {
+    if let Some(workers) = state.borrow_mut::<HostState>().workers() {
         workers.terminate(id);
     }
 }
@@ -318,19 +365,18 @@ fn op_delver_worker_terminate(state: &mut OpState, #[smi] id: u32) {
 // ---- worker ops (pthread isolate) ------------------------------------------
 
 #[op2(fast)]
-fn op_delver_self_post(state: &mut OpState, #[buffer] data: &[u8]) {
-    if let Some(port) = state.borrow::<HostState>().port.as_ref() {
+fn op_probe_self_post(state: &mut OpState, #[buffer] data: &[u8]) {
+    if let Some(port) = state.borrow::<HostState>().port() {
         port.post(data.to_vec());
     }
 }
 
 #[op2]
 #[buffer]
-fn op_delver_self_recv(state: &mut OpState) -> Vec<u8> {
+fn op_probe_self_recv(state: &mut OpState) -> Vec<u8> {
     state
         .borrow::<HostState>()
-        .port
-        .as_ref()
+        .port()
         .and_then(|p| p.recv())
         .unwrap_or_default()
 }
@@ -338,31 +384,24 @@ fn op_delver_self_recv(state: &mut OpState) -> Vec<u8> {
 // ---- runtime construction --------------------------------------------------
 
 const OPS: &[deno_core::OpDecl] = &[
-    op_delver_log(),
-    op_delver_now(),
-    op_delver_time_origin(),
-    op_delver_cores(),
-    op_delver_random(),
-    op_delver_artifact(),
-    op_delver_wasm(),
-    op_delver_abi(),
-    op_delver_progress(),
-    op_delver_take_image(),
-    op_delver_decode_job(),
-    op_delver_worker_spawn(),
-    op_delver_worker_post(),
-    op_delver_worker_recv(),
-    op_delver_worker_terminate(),
-    op_delver_self_post(),
-    op_delver_self_recv(),
+    op_probe_log(),
+    op_probe_now(),
+    op_probe_time_origin(),
+    op_probe_cores(),
+    op_probe_random(),
+    op_probe_artifact(),
+    op_probe_wasm(),
+    op_probe_abi(),
+    op_probe_progress(),
+    op_probe_take_image(),
+    op_probe_decode_job(),
+    op_probe_worker_spawn(),
+    op_probe_worker_post(),
+    op_probe_worker_recv(),
+    op_probe_worker_terminate(),
+    op_probe_self_post(),
+    op_probe_self_recv(),
 ];
-
-pub enum Role {
-    /// Runs the engine itself and owns the pthread pool.
-    Main,
-    /// One Emscripten pthread.
-    Pthread,
-}
 
 /// deno_core's own builtins ship with the isolate. Most are plumbing the
 /// runtime needs - structured clone, promise inspection, type predicates - but
@@ -386,10 +425,11 @@ const DISABLED_BUILTINS: &[&str] = &[
     "op_resources",
 ];
 
-pub fn build_runtime(role: Role, stores: Stores, host: HostState) -> Result<JsRuntime> {
+pub fn build_runtime(stores: Stores, host: HostState) -> Result<JsRuntime> {
     let core_js = host.artifacts.bundle.core_js.clone();
+    let is_main = matches!(host.role, RoleState::Main { .. });
     let ext = Extension {
-        name: "delver",
+        name: "gitaxian_probe",
         ops: std::borrow::Cow::Borrowed(OPS),
         op_state_fn: Some(Box::new(move |state: &mut OpState| {
             state.put(host);
@@ -411,24 +451,25 @@ pub fn build_runtime(role: Role, stores: Stores, host: HostState) -> Result<JsRu
         ..Default::default()
     });
 
-    js.execute_script("delver:bootstrap.js", include_str!("../js/bootstrap.js"))?;
-    match role {
-        Role::Main => js.execute_script(
-            "delver:main-prelude.js",
+    js.execute_script("probe:bootstrap.js", include_str!("../js/bootstrap.js"))?;
+    if is_main {
+        js.execute_script(
+            "probe:main-prelude.js",
             include_str!("../js/main-prelude.js"),
-        )?,
-        Role::Pthread => js.execute_script(
-            "delver:worker-prelude.js",
+        )?;
+    } else {
+        js.execute_script(
+            "probe:worker-prelude.js",
             include_str!("../js/worker-prelude.js"),
-        )?,
-    };
+        )?;
+    }
 
     // The untrusted blob. It is a classic script, so `createCore` lands on the
     // global; in a pthread isolate it self-invokes off globalThis.name.
-    js.execute_script("delver:core.js", core_js)?;
+    js.execute_script("probe:core.js", core_js)?;
 
-    if matches!(role, Role::Main) {
-        js.execute_script("delver:engine.js", include_str!("../js/engine.js"))?;
+    if is_main {
+        js.execute_script("probe:engine.js", include_str!("../js/engine.js"))?;
     }
     Ok(js)
 }
@@ -439,7 +480,7 @@ mod tests {
 
     fn probe(script: &str) -> Option<String> {
         let source = crate::Source::default();
-        let bundle = match Bundle::fetch(&source, crate::Model::Alpha, None) {
+        let bundle = match Bundle::fetch(&source, crate::Tier::Alpha, None) {
             Ok(bundle) => bundle,
             Err(e) => {
                 eprintln!("skipped: could not get the engine: {e:#}");
@@ -447,22 +488,31 @@ mod tests {
             }
         };
         let artifacts = Arc::new(Artifacts::new(bundle, false, crate::KNOWN_FINGERPRINT).ok()?);
+        let spawn = Arc::new(crate::worker::SpawnContext {
+            artifacts: artifacts.clone(),
+            stores: Stores::default(),
+            reported_concurrency: 4,
+            epoch: Instant::now(),
+            logs: Default::default(),
+            failures: Default::default(),
+        });
         let host = HostState {
             artifacts,
-            cores: 4,
+            reported_concurrency: 4,
             epoch: Instant::now(),
-            progress: None,
-            image: None,
-            workers: None,
-            port: None,
             logs: Default::default(),
             tag: "probe".into(),
+            // A pthread isolate would self-invoke core.js; the main role only
+            // defines it, which is all this needs. Nothing here spawns.
+            role: RoleState::Main {
+                workers: WorkerRegistry::new(spawn),
+                progress: None,
+                image: None,
+            },
         };
-        // Role::Pthread would self-invoke core.js; Main only defines it, which
-        // is all this needs.
-        let mut js = build_runtime(Role::Main, Stores::default(), host).ok()?;
+        let mut js = build_runtime(Stores::default(), host).ok()?;
         let value = js
-            .execute_script("delver:probe", script.to_string())
+            .execute_script("probe:probe", script.to_string())
             .unwrap();
         deno_core::scope!(scope, &mut js);
         Some(deno_core::v8::Local::new(scope, value).to_rust_string_lossy(scope))
@@ -506,13 +556,13 @@ mod tests {
     }
 
     /// Everything the blob can reach into the host with, enumerated. Ops that
-    /// are not `op_delver_*` come from deno_core itself and are isolate
+    /// are not `op_probe_*` come from deno_core itself and are isolate
     /// plumbing - structured clone, promise inspection, the resource table
     /// (into which this host registers nothing).
     #[test]
     fn the_host_surface_is_the_declared_ops() {
         let Some(found) = probe(
-            "Object.keys(Deno.core.ops).filter(n => n.startsWith('op_delver_')).sort().join(',')",
+            "Object.keys(Deno.core.ops).filter(n => n.startsWith('op_probe_')).sort().join(',')",
         ) else {
             eprintln!("skipped: no engine available");
             return;

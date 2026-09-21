@@ -1,28 +1,28 @@
 [package]
-name = "delver-engine"
-version = "0.1.0"
-edition = "2021"
+name = "gitaxian-probe-engine"
 description = "Sandboxed host for the Delver X card-recognition engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 publish = false
 
 [lib]
-name = "delver_engine"
+name = "gitaxian_probe_engine"
 path = "src/lib.rs"
 
 [dependencies]
-deno_core = "0.412"
-anyhow = "1"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-sha2 = "0.10"
-tokio = { version = "1", features = ["rt", "macros", "time"] }
-deno_error = "=0.7.1"
-ureq = "3"
-sevenz-rust2 = "0.23"
-facet = "0.50.0-rc.7"
-facet-msgpack = "0.50.0-rc.7"
-facet-json = "0.50.0-rc.7"
-facet-value = "0.50.0-rc.7"
+anyhow.workspace = true
+deno_core.workspace = true
+deno_error.workspace = true
+facet.workspace = true
+facet-json.workspace = true
+facet-msgpack.workspace = true
+facet-value.workspace = true
+sevenz-rust2.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+ureq.workspace = true
 
 [[example]]
 name = "query"
