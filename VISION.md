@@ -506,7 +506,7 @@ side by side, which is
 
 ### The library is not a fixed population
 
-`pe_stats::for_each_checkpoint_path(groups, gaps, f)` took the group sizes once
+`chip_stats::for_each_checkpoint_path(groups, gaps, f)` took the group sizes once
 and computed what remained as `groups - drawn`, so the population was a constant
 of the whole path by construction. A tutor needs it not to be: Trinket Mage does
 not draw you a Lantern, it takes the Lantern out of the library and puts it in
@@ -527,7 +527,7 @@ split is the scope decision:
   subtraction, and it branches the path the way a draw does. That is not built,
   and it is filed rather than approximated.
 
-`pe-stats` stays Magic-free, which was the condition the issue set. What it
+`chip-stats` stays Magic-free, which was the condition the issue set. What it
 gained is a vocabulary word — **removals** — beside populations, groups and
 draws, and its known-answer tests state it in exactly those terms: two groups of
 two, draw one, remove one from group 0, draw one more, and the answer is 3/4

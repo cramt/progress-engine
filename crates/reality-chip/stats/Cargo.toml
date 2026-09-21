@@ -1,0 +1,13 @@
+[package]
+name = "chip-stats"
+description = "Exact hypergeometric draw probabilities. Knows nothing about Magic."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+libm.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

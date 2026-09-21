@@ -116,6 +116,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f079e83a288787bcd14a6aea84cee5c87a67c5a3e660c30f557a3d24761b3527"
 
 [[package]]
+name = "chip-decklist"
+version = "0.1.0"
+dependencies = [
+ "facet",
+ "regex",
+ "thiserror",
+]
+
+[[package]]
+name = "chip-scryfall"
+version = "0.1.0"
+dependencies = [
+ "facet",
+ "facet-json",
+ "thiserror",
+]
+
+[[package]]
+name = "chip-stats"
+version = "0.1.0"
+dependencies = [
+ "libm",
+ "proptest",
+]
+
+[[package]]
 name = "const-fnv1a-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -481,6 +507,9 @@ name = "gauntlet-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chip-decklist",
+ "chip-scryfall",
+ "chip-stats",
  "facet",
  "facet-json",
  "figue",
@@ -488,9 +517,6 @@ dependencies = [
  "gauntlet-criteria",
  "gauntlet-sim",
  "gauntlet-toml",
- "pe-decklist",
- "pe-scryfall",
- "pe-stats",
  "serde_json",
  "sha2",
  "ureq",
@@ -500,7 +526,7 @@ dependencies = [
 name = "gauntlet-criteria"
 version = "0.1.0"
 dependencies = [
- "pe-stats",
+ "chip-stats",
  "proptest",
  "thiserror",
 ]
@@ -509,8 +535,8 @@ dependencies = [
 name = "gauntlet-sim"
 version = "0.1.0"
 dependencies = [
+ "chip-stats",
  "gauntlet-criteria",
- "pe-stats",
  "proptest",
  "rand",
  "rand_chacha",
@@ -521,11 +547,11 @@ dependencies = [
 name = "gauntlet-toml"
 version = "0.1.0"
 dependencies = [
+ "chip-stats",
  "facet",
  "facet-toml",
  "gauntlet-criteria",
  "gauntlet-sim",
- "pe-stats",
  "thiserror",
 ]
 
@@ -783,32 +809,6 @@ dependencies = [
  "redox_syscall",
  "smallvec 1.16.0",
  "windows-link",
-]
-
-[[package]]
-name = "pe-decklist"
-version = "0.1.0"
-dependencies = [
- "facet",
- "regex",
- "thiserror",
-]
-
-[[package]]
-name = "pe-scryfall"
-version = "0.1.0"
-dependencies = [
- "facet",
- "facet-json",
- "thiserror",
-]
-
-[[package]]
-name = "pe-stats"
-version = "0.1.0"
-dependencies = [
- "libm",
- "proptest",
 ]
 
 [[package]]

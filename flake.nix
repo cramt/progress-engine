@@ -27,7 +27,7 @@
 
       # crane's default source filter keeps only Rust and Cargo files, which
       # drops the fixtures the tests read: decklists, the checked-in Scryfall
-      # index and the bulk records pe-scryfall is tested against. Without them
+      # index and the bulk records chip-scryfall is tested against. Without them
       # the build fails late, during compilation, with a confusing "no such
       # file" for a file that plainly exists.
       #

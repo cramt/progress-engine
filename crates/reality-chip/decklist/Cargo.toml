@@ -1,0 +1,12 @@
+[package]
+name = "chip-decklist"
+description = "The canonical parser for Archidekt-format decklists."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+facet.workspace = true
+regex.workspace = true
+thiserror.workspace = true

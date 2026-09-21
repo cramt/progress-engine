@@ -1,0 +1,14 @@
+[package]
+name = "gauntlet-criteria"
+description = "Grouping cards by query and evaluating acceptance criteria exactly."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+chip-stats.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

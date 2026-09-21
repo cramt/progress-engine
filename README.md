@@ -1716,34 +1716,44 @@ MIT
 ## Crate layout
 
 A workspace, split so each piece can be understood — and depended on — without
-dragging in the others.
+dragging in the others. Crates are grouped by which progress-engine product
+owns them:
+
+```
+crates/ichormoon-gauntlet/{cli,criteria,toml,sim}    this tool
+crates/reality-chip/{scryfall,decklist,stats}        the shared family core
+```
+
+`reality-chip` is the part a sibling tool depends on, kept in its own directory
+so that extracting it later is a subdirectory filter rather than a salvage job.
+See [NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md).
 
 | Crate | Responsibility | Knows about |
 |---|---|---|
-| `pe-stats` | Exact hypergeometric draw probabilities | Nothing. No Magic concepts at all. |
-| `pe-decklist` | Parsing Archidekt decklists | Decklist text. No card data. |
-| `pe-scryfall` | Card data, Scryfall bulk data and search syntax | Cards. No decklists. |
+| `chip-stats` | Exact hypergeometric draw probabilities | Nothing. No Magic concepts at all. |
+| `chip-decklist` | Parsing Archidekt decklists | Decklist text. No card data. |
+| `chip-scryfall` | Card data, Scryfall bulk data and search syntax | Cards. No decklists. |
 | `gauntlet-criteria` | Grouping cards by query, applying effects, evaluating exactly | Counts, the zones they are counted in, and where a looked-at card goes. Not cards, and not where the questions came from. |
 | `gauntlet-toml` | Reading a criteria file and answering it, and shipping the standard effect library | The criteria format, and counts. No cards. |
-| `gauntlet-sim` | Sampling, validated against `pe-stats` | Shuffling. |
+| `gauntlet-sim` | Sampling, validated against `chip-stats` | Shuffling. |
 | `gauntlet-cli` | The `gauntlet` binary | All of the above. |
 
-The seam worth knowing about is between `pe-scryfall` and `pe-decklist`: a query
+The seam worth knowing about is between `chip-scryfall` and `chip-decklist`: a query
 can filter on `cat:"Exile Outlet"`, which is decklist data, not card data. Rather
 than have the card crate depend on the decklist crate, `CardView` takes
 categories as a plain `&[String]`. The CLI is what joins the two, which keeps
 both halves independently testable.
 
 The same seam decides where each kind of "outside the library" lives. Companions
-and sideboards are decklist data, so `pe-decklist` answers those; sticker sheets
-and attractions are card data, so `pe-scryfall` answers those. Neither crate
+and sideboards are decklist data, so `chip-decklist` answers those; sticker sheets
+and attractions are card data, so `chip-scryfall` answers those. Neither crate
 learns about the other, and `gauntlet-cli` applies both at the point where a decklist
 entry finally meets its card.
 
 Legality is on the card side of that seam and stays entirely there. Whether a
 card is banned, whether it may be repeated at all, whether its type line puts it
 in the command zone and whether its identity fits inside a given one are all
-facts one card settles alone, so they live in `pe-scryfall::legality`, which is
+facts one card settles alone, so they live in `chip-scryfall::legality`, which is
 what `f:`, `banned:`, `restricted:`, `is:commander` and `is:partner` read. The
 half that needed the decklist — copy counts, which lines were nominated,
 how many cards there are altogether — used to live in `gauntlet-cli` and has been
@@ -1751,7 +1761,7 @@ removed ([#42](https://github.com/cramt/progress-engine/issues/42)): selecting
 cards by what a format says about them is a query, and pronouncing on a whole
 list is not something a draw-probability engine has any business doing.
 
-`pe-stats` deliberately has no idea what a card is. Its tests are pure
+`chip-stats` deliberately has no idea what a card is. Its tests are pure
 known-answer arithmetic, so a failure there is unambiguously a maths bug rather
 than a card-data bug. The same reasoning puts the evaluator behind a trait in
 `gauntlet-criteria`: the enumeration is tested with plain Rust closures, so a failure
@@ -1773,6 +1783,6 @@ same trait. That is why swapping the criteria format out from under them was a
 new crate and a deleted one rather than a change to either engine — and why
 there is one evaluator serving both rather than two that can disagree.
 
-`gauntlet-sim` exists to check `pe-stats`, not to replace it. Where both can answer,
+`gauntlet-sim` exists to check `chip-stats`, not to replace it. Where both can answer,
 they must agree — and that agreement is asserted at three levels: unit, through
 the criteria layer both engines share, and end to end through the binary.

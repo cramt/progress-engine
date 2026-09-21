@@ -1,0 +1,33 @@
+[package]
+name = "gauntlet-cli"
+description = "The Ichormoon Gauntlet command line interface."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "gauntlet"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+figue.workspace = true
+facet.workspace = true
+facet-json.workspace = true
+gauntlet-criteria.workspace = true
+chip-decklist.workspace = true
+gauntlet-toml.workspace = true
+
+chip-scryfall.workspace = true
+ureq.workspace = true
+flate2.workspace = true
+chip-stats.workspace = true
+gauntlet-sim.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+# The end-to-end tests read the binary's stdout with a JSON parser that is not
+# the one under test. Checking facet-json's output with facet-json would only
+# prove it agrees with itself.
+serde_json.workspace = true

@@ -29,7 +29,7 @@ the narrow tag has come up empty, which it has not yet.
 | Name | What it is | In tag |
 |---|---|---|
 | **Ichormoon Gauntlet** | This repo. Criteria in, exact draw probabilities out. Binary is `gauntlet`. | yes |
-| **Reality Chip** | The shared core: card data, Scryfall client, decklist parsing, the maths. Today's `pe-*` crates. | no — see below |
+| **Reality Chip** | The shared core: card data, Scryfall client, decklist parsing, the maths. `crates/reality-chip/`. | no — see below |
 | **Gitaxian Probe** | Card scanning. Point a camera at cards, learn what they are. | yes |
 | **Experimental Augury** | The Monte Carlo cross-checking oracle, if `gauntlet-sim` is ever extracted. | yes |
 
@@ -100,20 +100,29 @@ Taken as bare words, so those need the full card name: `gauntlet`, `ingester`,
 entry. It would only matter if this crate were published, and it would publish
 as `ichormoon-gauntlet`.
 
-## Crate prefixes
+## Crate layout
 
-`gauntlet-*` is this tool. `pe-*` is the shared family layer — `pe-scryfall`,
-`pe-decklist`, `pe-stats` — and the prefix is honest today because those crates
-belong to progress-engine rather than to any one product. They become `chip-*`
-when Reality Chip is extracted into its own repo, and not before: renaming them
-now would claim a split that has not happened.
+Crates are grouped by product, one directory each, and the package prefix
+follows the directory:
+
+```
+crates/ichormoon-gauntlet/{cli,criteria,toml,sim}    packages gauntlet-*
+crates/reality-chip/{scryfall,decklist,stats}        packages chip-*
+```
+
+The grouping is not tidiness. It is what turns the eventual extraction into
+`git filter-repo --subdirectory-filter crates/reality-chip` — one command, with
+history intact — instead of picking three crates out of a flat tree by hand.
 
 Two things are queued behind that extraction and neither has been done:
 
-1. `pe-scryfall` is really two crates. The Scryfall client — bulk download, the
-   `POST /cards/collection` batching, the `Skipped`/`Anomaly` discipline — is
-   shared. The oracle index, the search-syntax parser, `legality.rs`, `mana.rs`
-   and `tags.rs` are Ichormoon Gauntlet's and a scanner wants none of them.
+1. `chip-scryfall` is really two crates, and the layout is what makes that
+   visible. The Scryfall client — bulk download, the `POST /cards/collection`
+   batching, the `Skipped`/`Anomaly` discipline — is genuinely shared. The
+   oracle index, the search-syntax parser, `legality.rs`, `mana.rs` and
+   `tags.rs` are Ichormoon Gauntlet's, and a scanner wants none of them. They
+   sit under `reality-chip/` today, where being in the wrong directory is a
+   thing you can see rather than a caveat in a document.
 2. The index is oracle-level: `Index.cards` is keyed by name with one `set`
    field per card. Card scanning needs printing-level identity —
    `collector_number`, `illustration_id`, `image_uris` — which is a different

@@ -1,0 +1,68 @@
+# The standard effect library.
+#
+# This ships with the tool and loads before your criteria file. It is not a
+# format of its own and not special machinery: these are `[[effect]]` tables in
+# exactly the syntax you would write for the one niche card nobody thought of,
+# and they load first so that anything you write overrides them. Overlap
+# resolves last-wins, per card, so overriding an entry is writing it again.
+#
+# Two rules decide what may live here, and both of them delete entries rather
+# than add them.
+#
+# **It only says what a card looks at.** Not where the cards go. Those are
+# different questions and only one of them is about the card: the same surveil
+# land wants Life from the Loam in the graveyard in one deck and on top of the
+# library in another, so a destination declared here would be this tool
+# answering a question nobody asked it. Write `to_graveyard` in your own file;
+# an effect with no destination leaves every card it looks at on top, which is
+# where it already was, and therefore moves no number.
+#
+# **Every entry names its reason**, in the style of the oracle tag list in
+# `chip-scryfall/src/tags.rs`. An entry nothing needs can then be deleted rather
+# than argued about, and a list of plausible-looking Magic vocabulary cannot
+# accumulate here unexamined. `otag:ramp` is not here: ramp does not look at
+# cards, and an entry claiming it did would be a number that moved for a reason
+# that is not true.
+#
+# Every entry here is `on = "landdrop"`, and that is a fact about what a *look*
+# can do rather than about what a trigger can be. A land drop is free and capped
+# at one a turn, which is what keeps a look bounded and exact. `on = "cast"`
+# fires — the budget knows which spells a turn paid for — but what it may do is
+# a `fetch` and not a `look`: a fetch names a card and removes it, which is a
+# subtraction, and a look turns over a card nobody has seen, which is a
+# replacement draw. A replacement draw makes how many cards you have seen by a
+# turn a fact about the path rather than about the schedule, which costs an
+# enumeration checkpoint a turn and goes over the ceiling on every question this
+# tool exists for. See issue #57.
+#
+# **And a `fetch` will never be declared here.** Trinket Mage finds a mana value
+# 1 artifact; *which* one it finds is the question you are asking, exactly as a
+# surveil's destination is. So the same rule covers both: this file says what a
+# card does and never what you would choose.
+
+# Surveil lands: Undercity Sewers, Hedge Maze, Commercial District and their
+# cycle-mates, plus every future printing that joins them.
+#
+# Because: these are the only land drop in the game whose looked-at card has a
+# destination this engine models. Surveil's other destination is the graveyard,
+# and the graveyard is a zone a criterion can ask about — which makes this the
+# entry the Life from the Loam north star runs on. It surveils on entry whether
+# or not the land is tapped, so it needs nothing from the mana model.
+[[effect]]
+match = "t:land otag:surveil"
+look = 1
+on = "landdrop"
+
+# Scry lands: the Theros temples and the rest of the cycle.
+#
+# Because: they look at exactly one card on the same free, capped land drop, so
+# what the pilot sees by a given turn is the same as with a surveil land. Their
+# other destination is the bottom of the library, and this engine cannot tell
+# the bottom of a library from the top of one — so a `to_graveyard` written
+# against this entry would be modelling a scry as a surveil, which is a
+# different card. Left with no destination, it is the honest half of the
+# answer.
+[[effect]]
+match = "t:land otag:scry"
+look = 1
+on = "landdrop"

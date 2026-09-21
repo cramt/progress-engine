@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*"]
+members = ["crates/*/*"]
 
 [workspace.metadata.crane]
 # crane reads the package name from the root Cargo.toml, which a virtual
@@ -31,9 +31,9 @@ ureq = { version = "3", default-features = false, features = ["rustls"] }
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 tokio = { version = "1", features = ["rt", "time"] }
 
-pe-decklist = { path = "crates/pe-decklist" }
-pe-scryfall = { path = "crates/pe-scryfall" }
-gauntlet-criteria = { path = "crates/gauntlet-criteria" }
-gauntlet-toml = { path = "crates/gauntlet-toml" }
-gauntlet-sim = { path = "crates/gauntlet-sim" }
-pe-stats = { path = "crates/pe-stats" }
+chip-decklist = { path = "crates/reality-chip/decklist" }
+chip-scryfall = { path = "crates/reality-chip/scryfall" }
+gauntlet-criteria = { path = "crates/ichormoon-gauntlet/criteria" }
+gauntlet-toml = { path = "crates/ichormoon-gauntlet/toml" }
+gauntlet-sim = { path = "crates/ichormoon-gauntlet/sim" }
+chip-stats = { path = "crates/reality-chip/stats" }
