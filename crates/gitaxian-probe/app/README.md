@@ -22,6 +22,25 @@ cd crates/gitaxian-probe/app
 dx serve --android --renderer native --target aarch64-linux-android --device
 ```
 
+There is an emulator too, in a shell of its own because it is a different ABI:
+
+```sh
+nix develop .#android-emulator
+avdmanager create avd -n probe-x86_64 -k "system-images;android-35;default;x86_64"
+$ANDROID_HOME/emulator/emulator -avd probe-x86_64 -no-window -gpu swiftshader_indirect &
+cd crates/gitaxian-probe/app
+dx build --android --renderer native --target x86_64-linux-android
+```
+
+`RUSTY_V8_ARCHIVE` is read verbatim and carries no target templating, so one
+shell serves exactly one ABI - hence `.#android` for the phone and
+`.#android-emulator` for the AVD, both built from the same `androidShellFor`.
+The host has `/dev/kvm` and `vmx`, so the x86_64 image runs accelerated.
+
+The emulator is worth having for anything that is not the camera: it answered
+questions a locked phone could not, including the first end-to-end engine run.
+It is no use for the camera itself.
+
 `dx` reads `Dioxus.toml` and `MainActivity.kt.hbs` from the crate directory, which
 is why the Android command runs from in here rather than the workspace root.
 

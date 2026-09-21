@@ -104,14 +104,23 @@
         hash = "sha256-dyeCauR5vbZF6Acjn7EtH44uI956bPFvXuWSaQ0dhQY=";
       };
 
-      # Only aarch64: RUSTY_V8_ARCHIVE is read verbatim and carries no target
-      # templating, so one shell can serve exactly one ABI. aarch64 is the
-      # phone, and with `includeEmulator = false` the x86_64 ABI is never
-      # built anyway. The x86_64 assets exist in the same release if that
-      # changes.
+      # One archive per ABI, because RUSTY_V8_ARCHIVE is read verbatim and
+      # carries no target templating - hence one devshell each. aarch64 is the
+      # phone, x86_64 is the emulator. Both come from the same release, and the
+      # two `src_binding` files happen to be byte-identical, so the x86_64 one
+      # is not fetched twice.
       librustyV8Android =
         v8ArchiveFor v8AndroidBase "aarch64-linux-android"
         "sha256-Di0djEEBzG/3JC3XJSg15jiE0run6cjGRjRD7mYl/ug=";
+
+      librustyV8AndroidX86 =
+        v8ArchiveFor v8AndroidBase "x86_64-linux-android"
+        "sha256-exOLoP+QVOrHrQm/E96Do3LSR4iTXBAzueMkPPNUrFw=";
+
+      librustyV8AndroidX86Binding = pkgs.fetchurl {
+        url = "${v8AndroidBase}/v${v8Version}/src_binding_simdutf_release_x86_64-linux-android.rs";
+        hash = "sha256-dyeCauR5vbZF6Acjn7EtH44uI956bPFvXuWSaQ0dhQY=";
+      };
 
       # deno_core reaches Android and then refuses to compile for it:
       # `uv_compat/tty.rs` gates `mod global_termios` on #[cfg(unix)], Android
@@ -258,12 +267,19 @@
         platformVersions = ["34" "35"];
         buildToolsVersions = [androidBuildTools];
         includeNDK = true;
-        # No emulator: this app is developed against a real phone, and the
-        # images are gigabytes. dx does not cope gracefully - it calls
-        # start_simulators() whenever `--device` is unset and unwraps on
-        # spawning the missing `emulator`, so always pass `--device`.
-        includeEmulator = false;
-        includeSystemImages = false;
+
+        # The emulator is x86_64, so it is a different ABI from the phone and
+        # needs its own V8 archive and its own shell - see
+        # `devShells.android-emulator`. The host has /dev/kvm and vmx, so the
+        # image runs accelerated rather than interpreting arm64.
+        #
+        # Note this does not make `--device` optional: dx calls
+        # start_simulators() whenever it is unset, and that path boots the
+        # *first* AVD rather than talking to whatever is plugged in.
+        includeEmulator = true;
+        includeSystemImages = true;
+        systemImageTypes = ["default"];
+        abiVersions = ["x86_64"];
       };
 
       # `includeNDK` puts the NDK inside the SDK output, so one derivation
@@ -316,6 +332,103 @@
         "RANLIB_${under}" = "${ndkBin}/llvm-ranlib";
       };
 
+      # One shell per Android ABI. They differ only in which V8 archive and
+      # compiler-rt they point at, but `RUSTY_V8_ARCHIVE` is read verbatim with
+      # no target templating, so one shell cannot serve both: `.#android` is
+      # the phone and `.#android-emulator` is the x86_64 AVD.
+      androidShellFor = {
+        target,
+        arch,
+        v8Archive,
+        v8Binding,
+      }:
+        pkgs.mkShell (
+          pkgs.lib.mergeAttrsList (map androidCrossEnv androidTargets)
+          // {
+            name = "gitaxian-probe-android-${arch}";
+
+            packages = [
+              rustToolchain
+              dx
+              androidPkgs.jdk17 # gradle and aapt2 need a JVM
+              androidPkgs.gradle
+              androidComposition.androidsdk
+              androidComposition.platform-tools # adb
+              pkgs.pkg-config
+              pkgs.python3 # stylo generates Rust from Python
+              pkgs.ninja # skia-bindings, if it falls back to a source build
+              pkgs.clang
+              pkgs.cargo-ndk
+            ];
+            buildInputs = desktopGraphics;
+
+            # The Android V8, not the host one the default shell uses. A cargo
+            # build for the host triple from inside this shell will therefore
+            # fail to link - that is the trade for these not being per-target.
+            RUSTY_V8_ARCHIVE = "${v8Archive}";
+            RUSTY_V8_SRC_BINDING_PATH = "${v8Binding}";
+
+            # Two complete libc++ implementations end up in one .so: the prebuilt
+            # V8 was built by Chromium against its own bundled third_party/libc++
+            # and carries it inside the archive, while skia-bindings asks for the
+            # NDK's with `vec!["log", "android", "c++_static", "c++abi"]`
+            # (build_support/platform/android.rs). Every std::logic_error and
+            # std::runtime_error symbol is then defined twice and ld.lld refuses.
+            #
+            # This tells the linker to keep the first definition and drop the
+            # rest, which is an ODR violation. It survives here only because Skia
+            # and V8 never hand each other C++ objects - they meet through Rust -
+            # so each uses its own copy internally and the duplicated symbols are
+            # exception types neither throws across the boundary.
+            #
+            # The actual fix is a V8 built with use_custom_libcxx=false so it
+            # shares the NDK runtime, which means building V8 rather than using a
+            # prebuilt. Drop this the day that archive exists.
+            RUSTFLAGS = "-C link-arg=-Wl,--allow-multiple-definition";
+
+            ANDROID_HOME = sdkRoot;
+            ANDROID_SDK_ROOT = sdkRoot;
+            ANDROID_NDK_ROOT = ndkRoot;
+            ANDROID_NDK_HOME = ndkRoot;
+            # rust-skia's build script looks for this exact name, not the two above.
+            ANDROID_NDK = ndkRoot;
+            JAVA_HOME = "${androidPkgs.jdk17}";
+
+            # Gradle would otherwise download its own aapt2, a prebuilt binary
+            # whose interpreter path does not exist on NixOS.
+            GRADLE_OPTS = "-Dorg.gradle.project.android.aapt2FromMavenOverride=${sdkRoot}/build-tools/${androidBuildTools}/aapt2";
+
+            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath desktopGraphics;
+
+            shellHook = ''
+              ${linkPatchedDenoCore}
+
+              # V8's CpuFeatures::FlushICache calls __clear_cache, which
+              # lives in compiler-rt rather than libc. rustc passes
+              # -nodefaultlibs, so the clang driver never adds compiler-rt on its
+              # own and the symbol goes undefined - but only when linking an
+              # executable. A cdylib link appears to succeed because shared
+              # objects tolerate undefined symbols, and dx builds the bin.
+              #
+              # The archive is passed by path rather than -L/-l because the clang
+              # major version sits in the directory name and would otherwise be
+              # another thing to bump by hand.
+              # https://github.com/denoland/rusty_v8/issues/1640
+              builtins_archive=$(echo ${ndkBin}/../lib/clang/*/lib/linux/libclang_rt.builtins-${arch}-android.a)
+              export RUSTFLAGS="$RUSTFLAGS -C link-arg=$builtins_archive"
+
+              echo "gitaxian-probe android shell (${target})"
+              echo "  dx     $(dx --version 2>/dev/null || echo '??')"
+              echo "  rustc  $(rustc --version)"
+              echo "  ndk    ${ndkRoot}"
+              echo
+              echo "  cd crates/gitaxian-probe/app"
+              echo "  desktop : cargo run -p gitaxian-probe-app"
+              echo "  android : dx serve --android --renderer native --target ${target} --device"
+            '';
+          }
+        );
+
       cargoArtifacts = craneLib.buildDepsOnly commonArgs;
       gauntlet = craneLib.buildPackage (commonArgs // {inherit cargoArtifacts;});
     in {
@@ -365,91 +478,18 @@
         shellHook = linkPatchedDenoCore;
       };
 
-      devShells.android = pkgs.mkShell (
-        pkgs.lib.mergeAttrsList (map androidCrossEnv androidTargets)
-        // {
-          name = "gitaxian-probe-android";
+      devShells.android = androidShellFor {
+        target = "aarch64-linux-android";
+        arch = "aarch64";
+        v8Archive = librustyV8Android;
+        v8Binding = librustyV8AndroidBinding;
+      };
 
-          packages = [
-            rustToolchain
-            dx
-            androidPkgs.jdk17 # gradle and aapt2 need a JVM
-            androidPkgs.gradle
-            androidComposition.androidsdk
-            androidComposition.platform-tools # adb
-            pkgs.pkg-config
-            pkgs.python3 # stylo generates Rust from Python
-            pkgs.ninja # skia-bindings, if it falls back to a source build
-            pkgs.clang
-            pkgs.cargo-ndk
-          ];
-          buildInputs = desktopGraphics;
-
-          # The Android V8, not the host one the default shell uses. A cargo
-          # build for the host triple from inside this shell will therefore
-          # fail to link - that is the trade for these not being per-target.
-          RUSTY_V8_ARCHIVE = "${librustyV8Android}";
-          RUSTY_V8_SRC_BINDING_PATH = "${librustyV8AndroidBinding}";
-
-          # Two complete libc++ implementations end up in one .so: the prebuilt
-          # V8 was built by Chromium against its own bundled third_party/libc++
-          # and carries it inside the archive, while skia-bindings asks for the
-          # NDK's with `vec!["log", "android", "c++_static", "c++abi"]`
-          # (build_support/platform/android.rs). Every std::logic_error and
-          # std::runtime_error symbol is then defined twice and ld.lld refuses.
-          #
-          # This tells the linker to keep the first definition and drop the
-          # rest, which is an ODR violation. It survives here only because Skia
-          # and V8 never hand each other C++ objects - they meet through Rust -
-          # so each uses its own copy internally and the duplicated symbols are
-          # exception types neither throws across the boundary.
-          #
-          # The actual fix is a V8 built with use_custom_libcxx=false so it
-          # shares the NDK runtime, which means building V8 rather than using a
-          # prebuilt. Drop this the day that archive exists.
-          RUSTFLAGS = "-C link-arg=-Wl,--allow-multiple-definition";
-
-          ANDROID_HOME = sdkRoot;
-          ANDROID_SDK_ROOT = sdkRoot;
-          ANDROID_NDK_ROOT = ndkRoot;
-          ANDROID_NDK_HOME = ndkRoot;
-          # rust-skia's build script looks for this exact name, not the two above.
-          ANDROID_NDK = ndkRoot;
-          JAVA_HOME = "${androidPkgs.jdk17}";
-
-          # Gradle would otherwise download its own aapt2, a prebuilt binary
-          # whose interpreter path does not exist on NixOS.
-          GRADLE_OPTS = "-Dorg.gradle.project.android.aapt2FromMavenOverride=${sdkRoot}/build-tools/${androidBuildTools}/aapt2";
-
-          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath desktopGraphics;
-
-          shellHook = ''
-            ${linkPatchedDenoCore}
-
-            # V8's arm64 CpuFeatures::FlushICache calls __clear_cache, which
-            # lives in compiler-rt rather than libc. rustc passes
-            # -nodefaultlibs, so the clang driver never adds compiler-rt on its
-            # own and the symbol goes undefined - but only when linking an
-            # executable. A cdylib link appears to succeed because shared
-            # objects tolerate undefined symbols, and dx builds the bin.
-            #
-            # The archive is passed by path rather than -L/-l because the clang
-            # major version sits in the directory name and would otherwise be
-            # another thing to bump by hand.
-            # https://github.com/denoland/rusty_v8/issues/1640
-            builtins_archive=$(echo ${ndkBin}/../lib/clang/*/lib/linux/libclang_rt.builtins-aarch64-android.a)
-            export RUSTFLAGS="$RUSTFLAGS -C link-arg=$builtins_archive"
-
-            echo "gitaxian-probe android shell"
-            echo "  dx     $(dx --version 2>/dev/null || echo '??')"
-            echo "  rustc  $(rustc --version)"
-            echo "  ndk    ${ndkRoot}"
-            echo
-            echo "  cd crates/gitaxian-probe/app"
-            echo "  desktop : cargo run -p gitaxian-probe-app"
-            echo "  android : dx serve --android --renderer native --target aarch64-linux-android --device"
-          '';
-        }
-      );
+      devShells.android-emulator = androidShellFor {
+        target = "x86_64-linux-android";
+        arch = "x86_64";
+        v8Archive = librustyV8AndroidX86;
+        v8Binding = librustyV8AndroidX86Binding;
+      };
     });
 }
