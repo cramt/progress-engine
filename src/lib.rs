@@ -3,7 +3,7 @@
 //! The engine ships as a JavaScript glue file and an 8.5 MB WebAssembly blob,
 //! both downloaded from a vendor that rebuilds them on its own schedule. This
 //! crate runs that pair inside a deno_core isolate whose entire host surface is
-//! the fourteen ops in [`sandbox`]: no filesystem, no network, no process, no
+//! the seventeen ops in [`sandbox`]: no filesystem, no network, no process, no
 //! module loader. The blob reads the artefact files only because the host hands
 //! it the bytes, and it reaches nothing else at all.
 //!
@@ -22,6 +22,7 @@
 //! ```
 
 pub mod artifacts;
+mod job;
 mod pump;
 mod sandbox;
 pub mod wasm;

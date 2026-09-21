@@ -237,6 +237,23 @@ fn op_delver_progress(
     });
 }
 
+/// Decode one `main.output` / `worker_N.output` blob into JSON.
+///
+/// The bytes live in the wasm filesystem, so the glue is the only one who can
+/// read them - but MessagePack is the host's to parse (see [`crate::job`]), not
+/// something to walk tag by tag in JavaScript.
+#[op2]
+#[string]
+fn op_delver_decode_job(state: &mut OpState, #[buffer] bytes: &[u8]) -> Result<String, JsErrorBox> {
+    crate::job::decode_to_json(bytes).map_err(|e| {
+        // The glue's drain loop treats any throw as "not ready yet" and backs
+        // off, so without this a malformed result is an unexplained timeout.
+        let host = state.borrow::<HostState>();
+        host.logs.push(&host.tag, format!("{e:#}"));
+        JsErrorBox::generic(format!("{e:#}"))
+    })
+}
+
 /// Hand the sandbox the frame the host staged for this call. Taken, not
 /// copied: an image is used once.
 #[op2]
@@ -331,6 +348,7 @@ const OPS: &[deno_core::OpDecl] = &[
     op_delver_abi(),
     op_delver_progress(),
     op_delver_take_image(),
+    op_delver_decode_job(),
     op_delver_worker_spawn(),
     op_delver_worker_post(),
     op_delver_worker_recv(),
@@ -410,7 +428,6 @@ pub fn build_runtime(role: Role, stores: Stores, host: HostState) -> Result<JsRu
     js.execute_script("delver:core.js", core_js)?;
 
     if matches!(role, Role::Main) {
-        js.execute_script("delver:msgpack.js", include_str!("../js/msgpack.js"))?;
         js.execute_script("delver:engine.js", include_str!("../js/engine.js"))?;
     }
     Ok(js)

@@ -421,11 +421,11 @@ src/sandbox.rs               the isolate: every op the blob can reach, and the l
 src/worker.rs                the pthread pool as OS threads and isolates
 src/pump.rs                  driving the engine from the host
 src/wasm.rs                  import fingerprint + the tag-export patch (+18 bytes)
+src/job.rs                   the job protocol on the wire: MessagePack in, JSON out
 js/bootstrap.js              browser globals over the ops: console, timers, crypto
 js/main-prelude.js           Worker -> host-spawned isolates
 js/worker-prelude.js         the pthread side of that shim
 js/engine.js                 the wrapper: bootstrap, SQL, recognition, job protocol
-js/msgpack.js                decoding worker_N.output
 examples/                    query.rs, recognize.rs
 tests/                       end-to-end, plus the accuracy numbers the Node probe set
 ```
@@ -513,7 +513,7 @@ from pixels alone. A larger model tier cannot fix a missing input.
 
 Section 6 gets the engine running in Node, where the downloaded blob has everything
 Node has. `src/` runs the same artefacts inside a `deno_core` isolate instead, which
-starts from nothing and is handed fourteen ops. Same bootstrap, same job protocol,
+starts from nothing and is handed seventeen ops. Same bootstrap, same job protocol,
 same results; the difference is what the blob can reach.
 
 ### The four Node shims, restated
@@ -572,10 +572,16 @@ once a handler exists, so the window does not open.
   between threads.
 - Leaving `TextDecoder` undefined is deliberate: emscripten falls back to its own
   UTF-8 decoder, which sidesteps decoding views backed by a `SharedArrayBuffer`.
+- The §7 job results stay MessagePack, but nothing in `js/` parses them. The glue
+  reads the blob out of the wasm filesystem — the one thing only it can do — and
+  passes it to `op_delver_decode_job`, which runs it through `facet-msgpack` against
+  the declared shape in `src/job.rs` and returns JSON. A blob that is not a job
+  result is now a named decode error instead of whatever object the tag bytes
+  happened to build.
 
 ### What the blob can reach
 
-Fourteen `op_delver_*` ops, and of those only one touches the host filesystem —
+Seventeen `op_delver_*` ops, and of those only one touches the host filesystem —
 `op_delver_artifact`, which serves bytes by name from an allowlist and refuses
 anything else. deno_core's own builtins that reach the host (`op_panic`, `op_print`,
 `op_pipe`, the resource-table read/write ops) are disabled by extension middleware.

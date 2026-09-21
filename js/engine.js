@@ -8,7 +8,9 @@
 ((globalThis) => {
   const core = Deno.core;
   const ops = core.ops;
-  const decodeMsgpack = globalThis.__delverDecodeMsgpack;
+  // Results are MessagePack (FINDINGS.md S7). The host parses them against a
+  // declared shape and hands back JSON, so nothing here has to know the format.
+  const decodeMsgpack = (u8) => JSON.parse(ops.op_delver_decode_job(u8));
 
   // Engine ABI constants and the per-tier init export/id are the host's to
   // decide (src/lib.rs); this glue only carries them, never defines them. The

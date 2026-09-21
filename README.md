@@ -173,8 +173,9 @@ get back only what the Emscripten glue cannot run without:
 | `Worker` | the 32-thread pool, as real OS threads running real isolates |
 | `global.fileEvents` | the shipped EM_ASM hook that announces a finished job |
 | `op_delver_artifact` | the artefact bytes, by name, from a fixed allowlist |
+| `op_delver_decode_job` | MessagePack job results parsed into JSON — the wrapper's, not `core.js`'s |
 
-Fourteen ops in total, listed in `src/sandbox.rs`. deno_core's own builtins that reach
+Seventeen ops in total, listed in `src/sandbox.rs`. deno_core's own builtins that reach
 the host — `op_panic`, `op_print`, `op_pipe`, the resource-table read/write ops — are
 disabled by middleware rather than left unused. `cargo test` asserts both halves: that
 `fetch`, `XMLHttpRequest`, `process`, `require`, `indexedDB` and friends are undefined
@@ -229,10 +230,11 @@ on a mismatch. When that fires, re-verify the ABI against FINDINGS before passin
 | `src/worker.rs` | the pthread pool — OS threads, isolates, termination |
 | `src/pump.rs` | driving the engine: deliver messages, fire timers, drain microtasks |
 | `src/wasm.rs` | import fingerprint and the tag-export patch, in Rust |
+| `src/job.rs` | the job protocol's wire format — MessagePack in, JSON out |
 | `src/artifacts.rs` | fetching the upstream blobs, and the cache they land in |
 | `js/bootstrap.js` | the browser globals, built on those ops |
 | `js/main-prelude.js`, `js/worker-prelude.js` | the two halves of the `Worker` shim |
-| `js/engine.js`, `js/msgpack.js` | the bootstrap sequence and job protocol, in-sandbox |
+| `js/engine.js` | the bootstrap sequence and job protocol, in-sandbox |
 
 ## Scope
 
