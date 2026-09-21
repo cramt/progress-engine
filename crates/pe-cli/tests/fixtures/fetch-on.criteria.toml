@@ -1,0 +1,27 @@
+# The same file with the fetch declared, and nothing else different.
+[[effect]]
+match = "otag:fetchland"
+on = "landdrop"
+fetch = ["t:land t:basic"]
+to = "battlefield"
+
+[land_drop]
+prefer = ["otag:fetchland", "t:land"]
+
+[[criterion]]
+name = "a fetchland drawn by turn 3"
+require = [{ turn = 3, query = "otag:fetchland", min = 1 }]
+
+[[criterion]]
+name = "a fetchland on the battlefield by turn 3"
+require = [{ turn = 3, query = "otag:fetchland", zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "a land in play on turn 1"
+require = [{ turn = 1, query = "t:land", zone = "battlefield", min = 1 }]
+
+[[expect]]
+name = "basics left in the library on turn 3"
+turn = 3
+query = "t:land t:basic"
+zone = "library"

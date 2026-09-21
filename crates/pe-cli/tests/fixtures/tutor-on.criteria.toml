@@ -1,0 +1,24 @@
+# The same file with the tutor declared, and nothing else different.
+[[effect]]
+match = 'name:"Trinket Mage"'
+on = "cast"
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+
+[casting]
+prefer = ['name:"Trinket Mage"', 'name:"Lantern of Insight"']
+
+[[criterion]]
+name = "Trinket Mage cast by turn 4"
+require = [{ turn = 4, cast = 'name:"Trinket Mage"', min = 1 }]
+
+[[criterion]]
+name = "Trinket Mage and a Lantern both cast by turn 4"
+require = [
+  { turn = 4, cast = 'name:"Trinket Mage"', min = 1 },
+  { turn = 4, cast = 'name:"Lantern of Insight"', min = 1 },
+]
+
+[[criterion]]
+name = "Lantern of Insight still in the library on turn 4"
+require = [{ turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 }]

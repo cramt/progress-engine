@@ -1,0 +1,15 @@
+# A fetch onto the battlefield naming something that is not a land. Refused at
+# the same seam `zone = "battlefield"` is: a land arrives on a land drop, and
+# everything else has to be cast.
+[[effect]]
+match = "otag:fetchland"
+on = "landdrop"
+fetch = ['name:"Lightning Bolt"']
+to = "battlefield"
+
+[land_drop]
+prefer = ["otag:fetchland", "t:land"]
+
+[[criterion]]
+name = "a land in play on turn 1"
+require = [{ turn = 1, query = "t:land", zone = "battlefield", min = 1 }]

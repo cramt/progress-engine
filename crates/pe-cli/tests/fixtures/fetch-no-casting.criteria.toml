@@ -1,0 +1,11 @@
+# A tutor on a spell nobody said they would cast. Refused: a spell this run
+# does not cast never resolved, so it never went and got anything.
+[[effect]]
+match = 'name:"Trinket Mage"'
+on = "cast"
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+
+[[criterion]]
+name = "a Lantern in hand by turn 4"
+require = [{ turn = 4, query = 'name:"Lantern of Insight"', min = 1 }]

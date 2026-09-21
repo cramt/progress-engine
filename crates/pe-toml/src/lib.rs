@@ -38,8 +38,8 @@
 
 use facet::Facet;
 use pe_criteria::{
-    Cost, CostError, Count, Counted, Criterion, Evaluator, Expectation, NotACount, Palette,
-    PathOutcomes, PathView, Plan, Trigger, TriggerError, Zone, ZoneError,
+    Cost, CostError, Count, Counted, Criterion, Evaluator, Expectation, Fetched, NotACount,
+    Palette, PathOutcomes, PathView, Plan, Trigger, TriggerError, Zone, ZoneError,
 };
 use thiserror::Error;
 
@@ -143,6 +143,18 @@ struct EffectDef {
     /// [`pe_criteria::Route::Nowhere`] for why that is a refusal to guess
     /// rather than a missing feature.
     to_graveyard: Option<String>,
+    /// The declared priority over what this goes and gets out of the library,
+    /// highest first — the same list shape as `[land_drop]` and `[casting]`,
+    /// over the resource a tutor contests.
+    ///
+    /// It is written here rather than in the standard library for the reason
+    /// `to_graveyard` is: *which* mana value 1 artifact Trinket Mage fetches is
+    /// the question you are asking, not a fact about the card.
+    fetch: Option<Vec<String>>,
+    /// Where the fetched card is put. Required beside `fetch` and meaningless
+    /// without it: a card that left the library has to be somewhere, and a
+    /// default would be this tool choosing a zone on your behalf.
+    to: Option<String>,
 }
 
 #[derive(Facet)]
@@ -406,6 +418,8 @@ pub struct EffectEntry {
     /// The routing policy: which of the looked-at cards go to the graveyard.
     /// `None` is "none of them", and is the default.
     pub to_graveyard: Option<Destination>,
+    /// What this goes and gets out of the library, if anything.
+    pub fetch: Option<FetchDecl>,
     /// Which file declared it. Carried so a report can say where a surprising
     /// effect came from, and so the standard library can stay quiet about
     /// matching nothing while a hand-written entry does not.
@@ -427,6 +441,38 @@ pub enum Destination {
 
 /// What a criteria file spells `to_graveyard = "*"`.
 pub const EVERYTHING: &str = "*";
+
+/// A declared tutor, as written: what it would go and get, in the order it
+/// would take them, and where it puts what it finds.
+///
+/// The queries are still text for the same reason an effect's `match` is:
+/// which cards they pick out is a question about a decklist and an index, and
+/// this file knows neither.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FetchDecl {
+    pub prefer: Vec<String>,
+    pub to: Fetched,
+}
+
+/// Every destination a fetch may name, for the message that lists them.
+pub const FETCH_DESTINATIONS: &str = "hand, battlefield";
+
+/// Read a fetch destination from what a criteria file wrote.
+fn fetched_of(name: &str) -> Option<Fetched> {
+    match name {
+        "hand" => Some(Fetched::Hand),
+        "battlefield" => Some(Fetched::Battlefield),
+        _ => None,
+    }
+}
+
+/// What a fetch destination is called in a file and in a report.
+pub fn fetched_name(to: Fetched) -> &'static str {
+    match to {
+        Fetched::Hand => "hand",
+        Fetched::Battlefield => "battlefield",
+    }
+}
 
 /// The effects a run has loaded, in load order.
 ///
@@ -993,6 +1039,38 @@ pub enum ErrorKind {
          count in."
     )]
     CastWithCounting { at: String, key: &'static str },
+    /// A destination with nothing arriving at it. Refused rather than ignored,
+    /// because a `to` written beside a `to_graveyard` reads like it says where
+    /// the routed cards go, and it does not.
+    #[error(
+        "{at}: has `to = {to:?}` and no `fetch`, so nothing is going there.\n\
+         `to` says where a fetched card is put. Where a *looked-at* card goes is \
+         `to_graveyard`."
+    )]
+    ToWithoutFetch { at: String, to: String },
+    #[error(
+        "{at}: `to = {to:?}` is not somewhere this tool can put a fetched card. Accepted: {}.\n\
+         A card that left the library has to be somewhere a criterion can count it, and a \
+         destination this engine cannot model would be a card vanishing.",
+        FETCH_DESTINATIONS
+    )]
+    BadFetchDestination { at: String, to: String },
+    /// Rampant Growth, and it is refused rather than approximated.
+    ///
+    /// A land arriving off a spell is not a land drop, so what it taps for on
+    /// the turn it lands is a fact about the card that put it there — tapped
+    /// for Rampant Growth, untapped for Nature's Lore — and no tag this index
+    /// carries separates them. Both are plausible and one of them is wrong,
+    /// which is the confident wrong number in its usual costume.
+    #[error(
+        "{at}: has `on = \"cast\"` and `to = \"battlefield\"`, which is a land arriving off a \
+         spell rather than on a land drop, and that is not modelled.\n\
+         Whether such a land enters tapped is a fact about the spell that fetched it and no tag \
+         separates the two, so the turn's mana would be either overstated or understated with \
+         nothing saying which. `to = \"hand\"` is answerable, and so is `on = \"landdrop\"` with \
+         `to = \"battlefield\"`, which is a fetchland."
+    )]
+    FetchOntoTheBattlefieldFromASpell { at: String },
 }
 
 /// A count with nowhere to go in a histogram, named against the expectation
@@ -1039,18 +1117,43 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
             at: at.clone(),
             trigger,
         })?;
-        let look = def.look.ok_or(ErrorKind::Missing {
-            at: at.clone(),
-            key: "look",
-            why: "so there is nothing for it to examine. Write `look = 1` for \"the top card\"",
-        })?;
-        let look = u32::try_from(look)
-            .ok()
-            .filter(|l| (1..=MAX_LOOK).contains(l))
-            .ok_or(ErrorKind::BadLook {
+        let fetch = fetch_of(def, &at)?;
+        // `look` is required unless this effect only fetches, and the two are
+        // different things: a look turns over a card nobody has seen, a fetch
+        // names one. An entry doing neither would be a checkpoint spent on an
+        // effect that cannot move a number.
+        let look = match (def.look, &fetch) {
+            (Some(look), _) => u32::try_from(look)
+                .ok()
+                .filter(|l| (1..=MAX_LOOK).contains(l))
+                .ok_or(ErrorKind::BadLook {
+                    at: at.clone(),
+                    look,
+                })?,
+            (None, Some(_)) => 0,
+            (None, None) => {
+                return Err(ErrorKind::Missing {
+                    at: at.clone(),
+                    key: "look",
+                    why: "so there is nothing for it to examine. Write `look = 1` for \"the top \
+                          card\", or `fetch = ['<query>']` for a card it goes and gets out of \
+                          the library",
+                })
+            }
+        };
+        // A look on a cast is the replacement draw, and it is the one thing
+        // this trigger will not do. A fetch on a cast is a subtraction.
+        if trigger == Trigger::Cast && look > 0 {
+            return Err(ErrorKind::BadTrigger {
                 at: at.clone(),
-                look,
-            })?;
+                trigger: TriggerError::LooksOnCast,
+            });
+        }
+        if let Some(fetch) = &fetch {
+            if trigger == Trigger::Cast && fetch.to == Fetched::Battlefield {
+                return Err(ErrorKind::FetchOntoTheBattlefieldFromASpell { at: at.clone() });
+            }
+        }
         entries.push(EffectEntry {
             matches,
             look,
@@ -1062,10 +1165,56 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
                     Destination::Matching(d.to_string())
                 }
             }),
+            fetch,
             origin: origin.to_string(),
         });
     }
     Ok(EffectLibrary { entries })
+}
+
+/// Validate the `fetch` and `to` keys of one `[[effect]]` table.
+///
+/// They stand or fall together: a priority with nowhere to put what it finds
+/// and a destination with nothing arriving at it are each half a declaration,
+/// and half a declaration is where a default nobody stated gets invented.
+fn fetch_of(def: &EffectDef, at: &str) -> Result<Option<FetchDecl>, ErrorKind> {
+    let table = "an `[[effect]]` `fetch`";
+    match (&def.fetch, &def.to) {
+        (None, None) => Ok(None),
+        (None, Some(to)) => Err(ErrorKind::ToWithoutFetch {
+            at: at.to_string(),
+            to: to.clone(),
+        }),
+        (Some(prefer), to) => {
+            if prefer.is_empty() {
+                return Err(ErrorKind::NoPreference { table });
+            }
+            for (i, query) in prefer.iter().enumerate() {
+                if let Some(first) = prefer[..i].iter().position(|q| q == query) {
+                    return Err(ErrorKind::RepeatedPreference {
+                        table,
+                        query: query.clone(),
+                        first: first + 1,
+                        position: i + 1,
+                    });
+                }
+            }
+            let to = to.as_ref().ok_or(ErrorKind::Missing {
+                at: at.to_string(),
+                key: "to",
+                why: "so a card it found would have left the library with nowhere to be. \
+                      Write `to = \"hand\"` for a tutor, `to = \"battlefield\"` for a fetchland",
+            })?;
+            let to = fetched_of(to).ok_or_else(|| ErrorKind::BadFetchDestination {
+                at: at.to_string(),
+                to: to.clone(),
+            })?;
+            Ok(Some(FetchDecl {
+                prefer: prefer.clone(),
+                to,
+            }))
+        }
+    }
 }
 
 fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {

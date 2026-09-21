@@ -7,9 +7,9 @@
 use std::convert::Infallible;
 
 use pe_criteria::{
-    CastingPolicy, Cost, Count, Counted, Criterion, Effect, Evaluator, Expectation, Grouping,
-    GroupingError, LandDetail, LandDropPolicy, ManaSource, Palette, PathOutcomes, PathView, Plan,
-    Policies, Route, RunError, Schedule, Trigger, Zone, MAX_COUNT,
+    CastingPolicy, Cost, Count, Counted, Criterion, Effect, Evaluator, Expectation, Fetch, Fetched,
+    Grouping, GroupingError, LandDetail, LandDropPolicy, ManaSource, Palette, PathOutcomes,
+    PathView, Plan, Policies, Route, RunError, Schedule, Trigger, Zone, MAX_COUNT,
 };
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
@@ -495,6 +495,7 @@ fn surveil(route: Route) -> Effect {
         look: 1,
         trigger: Trigger::LandDrop,
         route,
+        fetch: None,
     }
 }
 
@@ -975,6 +976,7 @@ fn a_live_effect_keeps_every_checkpoint_whatever_it_is_asked() {
         look: 1,
         trigger: Trigger::LandDrop,
         route: Route::Everything,
+        fetch: None,
     }];
     let schedule = Schedule::build(2, false, effects, Policies::default());
     assert_eq!(schedule.gaps(), &[7, 0, 1, 1, 1]);
@@ -1381,12 +1383,13 @@ fn the_budget_and_the_gate_answer_hand_twelve_the_same_way() {
         look: 1,
         trigger: Trigger::LandDrop,
         route: Route::Matching(3),
+        fetch: None,
     };
     let land_drop = LandDropPolicy::new(vec![0], 2);
     let gate = Schedule::build(
         2,
         false,
-        vec![surveil],
+        vec![surveil.clone()],
         Policies::land_drop(land_drop.clone()),
     );
     let budget = Schedule::build(
@@ -1430,4 +1433,189 @@ fn the_budget_and_the_gate_answer_hand_twelve_the_same_way() {
         ),
         0.0
     );
+}
+
+// --- tutors -----------------------------------------------------------------
+
+/// A seven-card library: one tutor costing `{U}`, one card it fetches, one
+/// untapped blue source and four blanks. The opening hand is the whole
+/// library, so every path is this deal and every probability is a yes or a no
+/// — the same trick HANDS.md's hands are asserted with.
+fn tutor_hand() -> Grouping {
+    Grouping::with_mana(
+        q(&["tutor", "target"]),
+        vec![
+            (
+                0b01,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                },
+                1,
+            ),
+            (0b10, ManaSource::Spell, 1),
+            (
+                0b00,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                },
+                1,
+            ),
+            (0b00, ManaSource::Spell, 4),
+        ],
+    )
+    .unwrap()
+}
+
+fn tutor(to: Fetched) -> Effect {
+    Effect {
+        matched_by: 0,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to,
+        }),
+    }
+}
+
+#[test]
+fn a_tutor_puts_the_card_it_names_in_your_hand() {
+    // The whole feature, on a hand small enough to check by eye. The target is
+    // *not* in the opening seven — the seven cards are the whole library minus
+    // it, which cannot happen, so instead: the library is seven and the hand
+    // is six, and the one card left out is the target. The tutor is cast on
+    // turn 1 off the Island and goes and gets it.
+    //
+    // Two answers on one deal: without the tutor declared the target is in the
+    // library and stays there; with it, it is in hand on turn 1.
+    let g = tutor_hand();
+    let held = || {
+        Closures(vec![Box::new(|v: &PathView<'_>| {
+            v.count_at(1, 1, Counted::In(Zone::Hand)) >= 1
+        })])
+    };
+    let line = || Policies::casting(CastingPolicy::new(vec![0]));
+    // Six cards of seven, so exactly one card is missing from the hand and it
+    // is the target on one deal in seven.
+    let gaps = [6, 0];
+    let without = pe_criteria::run(
+        &g,
+        &Schedule::plain_with(&gaps, line()),
+        only_criteria(1),
+        &mut held(),
+    )
+    .unwrap()
+    .probabilities[0]
+        .get();
+    let with = pe_criteria::run(
+        &g,
+        &Schedule::plain_with_fetches(&gaps, vec![tutor(Fetched::Hand)], line()),
+        only_criteria(1),
+        &mut held(),
+    )
+    .unwrap()
+    .probabilities[0]
+        .get();
+    // Drawn: six of seven cards, so the target is in hand unless it is the one
+    // left out — six sevenths.
+    assert!(
+        (without - 6.0 / 7.0).abs() < 1e-12,
+        "drawn alone was {without}"
+    );
+    // Fetched: the one deal that misses the target also holds the tutor and
+    // the Island, because six of seven cards is everything else. So the tutor
+    // covers exactly the case the draw missed, and it is certain.
+    assert!((with - 1.0).abs() < 1e-12, "with the tutor it was {with}");
+}
+
+#[test]
+fn a_tutor_takes_its_card_out_of_the_library() {
+    // The other half, and the half that needed pe-stats to change. A fetched
+    // card is gone from the library whether or not anything asks about the
+    // hand, so the count that has to move is the library's.
+    let g = tutor_hand();
+    let left = || {
+        Counters(vec![Box::new(|v: &PathView<'_>| {
+            v.count_at(1, 1, Counted::In(Zone::Library))
+        })])
+    };
+    let line = || Policies::casting(CastingPolicy::new(vec![0]));
+    let gaps = [6, 0];
+    let without = pe_criteria::run(
+        &g,
+        &Schedule::plain_with(&gaps, line()),
+        only_expectations(1),
+        &mut left(),
+    )
+    .unwrap()
+    .distributions[0]
+        .mean();
+    let with = pe_criteria::run(
+        &g,
+        &Schedule::plain_with_fetches(&gaps, vec![tutor(Fetched::Hand)], line()),
+        only_expectations(1),
+        &mut left(),
+    )
+    .unwrap()
+    .distributions[0]
+        .mean();
+    // One seventh of deals leave it behind, and the tutor gets every one of
+    // them, so nothing is left in the library at all.
+    assert!((without - 1.0 / 7.0).abs() < 1e-12, "was {without}");
+    assert!(with.abs() < 1e-12, "the tutor left {with} behind");
+}
+
+#[test]
+fn a_tutor_that_finds_nothing_fetches_nothing() {
+    // The total case. A priority naming a card the library no longer holds
+    // takes nothing, rather than taking a card that is not there — which in a
+    // subtraction is a population that grows.
+    let g = Grouping::with_mana(
+        q(&["tutor", "target"]),
+        vec![
+            (
+                0b01,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                },
+                2,
+            ),
+            (0b10, ManaSource::Spell, 1),
+            (
+                0b00,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                },
+                2,
+            ),
+            (0b00, ManaSource::Spell, 2),
+        ],
+    )
+    .unwrap();
+    // Two tutors, one target, and the whole seven-card library in hand. Both
+    // tutors resolve over two turns; the second finds nothing.
+    let counted = || {
+        Counters(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(2, 1, Counted::In(Zone::Hand))) as Tally,
+            Box::new(|v: &PathView<'_>| v.count_at(2, 1, Counted::In(Zone::Library))),
+        ])
+    };
+    let out = pe_criteria::run(
+        &g,
+        &Schedule::plain_with_fetches(
+            &[7, 0, 0],
+            vec![tutor(Fetched::Hand)],
+            Policies::casting(CastingPolicy::new(vec![0])),
+        ),
+        only_expectations(2),
+        &mut counted(),
+    )
+    .unwrap();
+    // The whole library is in hand, so the one target is too — and there is
+    // nothing left for either tutor to find.
+    assert!((out.distributions[0].mean() - 1.0).abs() < 1e-12);
+    assert!(out.distributions[1].mean().abs() < 1e-12);
 }

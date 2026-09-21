@@ -128,6 +128,25 @@ impl Schedule {
         }
     }
 
+    /// [`Schedule::plain_with`] with effects live that turn over nothing.
+    ///
+    /// Sound only for those. A look needs a checkpoint per looked-at card and
+    /// raw gaps do not have one, so anything that examines the top of the
+    /// library has to come through [`Schedule::build`]. A fetch turns over no
+    /// card at all — it names one — which is the whole of why a tutor costs no
+    /// width, and it is what lets a hand written as a seven-card library
+    /// assert one.
+    pub fn plain_with_fetches(gaps: &[u32], effects: Vec<Effect>, policies: Policies) -> Schedule {
+        debug_assert!(
+            effects.iter().all(|e| e.look == 0),
+            "a look needs a checkpoint, and raw gaps have none to give it"
+        );
+        Schedule {
+            effects,
+            ..Schedule::plain_with(gaps, policies)
+        }
+    }
+
     /// The schedule for `horizon` turns with `effects` live.
     ///
     /// Every effect handed here is expected to be one that can actually move a

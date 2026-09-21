@@ -23,7 +23,7 @@ mod policy;
 mod schedule;
 mod zone;
 
-pub use effect::{Board, Effect, Route, Trigger, TriggerError};
+pub use effect::{Board, Effect, Fetch, Fetched, Route, Trigger, TriggerError};
 pub use grouping::{Grouping, GroupingError};
 pub use mana::{Cost, CostError, Demand, LandDetail, ManaSource, Palette};
 pub use policy::{CastingPolicy, LandDropPolicy};
@@ -463,36 +463,84 @@ pub fn run_answering<E>(
     let mut wrong_shape = None;
 
     let mut board = Board::new(grouping, schedule);
-    pe_stats::for_each_checkpoint_path(grouping.group_sizes(), gaps, |history, p| {
-        mass.add(p);
-        if failure.is_some() || wrong_shape.is_some() {
-            return;
+    // One structure answering both halves of the walk, because they are the
+    // same fact asked twice: what this path has taken out of the library, and
+    // what it came to. Two closures could not share the board that knows.
+    struct Walking<'b, 'g, V, E> {
+        board: &'b mut Board<'g>,
+        evaluator: &'b mut V,
+        plan: Plan,
+        criteria: &'b [usize],
+        expectations: &'b [usize],
+        totals: &'b mut [KahanSum],
+        histograms: &'b mut [DistributionBuilder],
+        mass: &'b mut KahanSum,
+        failure: &'b mut Option<E>,
+        wrong_shape: &'b mut Option<(usize, usize)>,
+    }
+    impl<V: Evaluator<Error = E>, E> pe_stats::Walk for Walking<'_, '_, V, E> {
+        fn removals(&mut self, reached: pe_stats::Path<'_>, out: &mut [u32]) {
+            // The same walk that produces the answers, replayed over the
+            // prefix. Not a second reading of what a tutor does: a fetch
+            // decided here and a fetch decided at the leaf are one line of
+            // code, so they cannot drift.
+            self.board.walk(reached);
+            out.copy_from_slice(self.board.removed());
         }
-        // Rebuilt in place per path rather than per criterion: where a card
-        // ended up is a fact about the path, and computing it once is what
-        // stops two criteria from disagreeing about the same surveil.
-        board.walk(history);
-        let view = PathView::new(&board);
-        match evaluator.evaluate(&view) {
-            Ok(outcomes) => {
-                if outcomes.held.len() != plan.criteria
-                    || outcomes.counted.len() != plan.expectations
-                {
-                    wrong_shape = Some((outcomes.held.len(), outcomes.counted.len()));
-                    return;
-                }
-                for (total, &i) in totals.iter_mut().zip(answering.criteria()) {
-                    if outcomes.held[i] {
-                        total.add(p);
+        fn path(&mut self, reached: pe_stats::Path<'_>, p: f64) {
+            self.mass.add(p);
+            if self.failure.is_some() || self.wrong_shape.is_some() {
+                return;
+            }
+            // Rebuilt in place per path rather than per criterion: where a
+            // card ended up is a fact about the path, and computing it once is
+            // what stops two criteria from disagreeing about the same surveil.
+            self.board.walk(reached);
+            let view = PathView::new(self.board);
+            match self.evaluator.evaluate(&view) {
+                Ok(outcomes) => {
+                    if outcomes.held.len() != self.plan.criteria
+                        || outcomes.counted.len() != self.plan.expectations
+                    {
+                        *self.wrong_shape = Some((outcomes.held.len(), outcomes.counted.len()));
+                        return;
+                    }
+                    for (total, &i) in self.totals.iter_mut().zip(self.criteria) {
+                        if outcomes.held[i] {
+                            total.add(p);
+                        }
+                    }
+                    for (histogram, &i) in self.histograms.iter_mut().zip(self.expectations) {
+                        histogram.add(outcomes.counted[i].get(), p);
                     }
                 }
-                for (histogram, &i) in histograms.iter_mut().zip(answering.expectations()) {
-                    histogram.add(outcomes.counted[i].get(), p);
-                }
+                Err(e) => *self.failure = Some(e),
             }
-            Err(e) => failure = Some(e),
         }
-    });
+    }
+    // A run with no tutor in it does not pay for one. The prefix replay above
+    // is cheap but it is not free, and every number this repository already
+    // reports comes off the walk that does not do it.
+    let fetches = board.fetches();
+    let mut walking = Walking {
+        board: &mut board,
+        evaluator,
+        plan,
+        criteria: answering.criteria(),
+        expectations: answering.expectations(),
+        totals: &mut totals,
+        histograms: &mut histograms,
+        mass: &mut mass,
+        failure: &mut failure,
+        wrong_shape: &mut wrong_shape,
+    };
+    if fetches {
+        pe_stats::for_each_checkpoint_path_removing(grouping.group_sizes(), gaps, &mut walking);
+    } else {
+        pe_stats::for_each_checkpoint_path(grouping.group_sizes(), gaps, |history, p| {
+            pe_stats::Walk::path(&mut walking, history, p)
+        });
+    }
 
     if let Some(e) = failure {
         return Err(RunError::Evaluator(e));

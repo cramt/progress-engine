@@ -56,6 +56,14 @@ pub const STANDARD_TAGS: &[StandardTag] = &[
         name: "ramp",
         because: "the mana curve questions this tool was built to answer",
     },
+    StandardTag {
+        name: "fetchland",
+        because: "deck thinning: a fetchland removes a land from the library rather than \
+                  looking at one, so it is the case that makes the library a population that \
+                  shrinks. `is:fetchland` is the ten-card allied/enemy cycle; this tag is the \
+                  54 cards that actually do it, Prismatic Vista and Terramorphic Expanse \
+                  included, and no query over card text separates them",
+    },
 ];
 
 /// Just the names, for the fetcher and for the index header.

@@ -448,8 +448,11 @@ otherwise produces a percentage that looks exactly like a real one:
 | a `prefer` entry repeating an earlier one | the earlier one already took every card it names, so it can never decide anything |
 | `atLeast`, or any other unknown key | a key quietly dropped is an assertion quietly deleted |
 | a file with no `[[criterion]]` and no `[[expect]]` | it asks nothing |
-| `on = "cast"` on an effect | the budget knows you cast it; what it does not know is what casting it drew, and a replacement draw is over the enumeration ceiling on every question this tool exists for ([#57](https://github.com/cramt/progress-engine/issues/57)) |
-| `on` anything else, or `look = 0` | a trigger nothing fires, and a look that examines nothing |
+| `look` on an `on = "cast"` effect | the budget knows you cast it; what it does not know is what casting it drew, and a replacement draw is over the enumeration ceiling on every question this tool exists for ([#57](https://github.com/cramt/progress-engine/issues/57)). A `fetch` on a cast is answered |
+| `fetch` with no `to`, or `to` with no `fetch` | half a declaration, and half a declaration is where a default nobody stated gets invented |
+| `fetch ... to = "battlefield"` on an `on = "cast"` effect, or naming a card that is not a land | a land arriving off a spell enters tapped for Rampant Growth and untapped for Nature's Lore, and no tag separates them; anything that is not a land has to be cast to get there at all |
+| a `fetch` beside a `can_cast`, a `cast` or a `[casting]` table, where it puts a land onto the battlefield | what a fetched land taps for on the turn it arrives is a fact about the spell that fetched it, and `otag:fetchland` holds both kinds |
+| `on` anything else, or `look = 0`, or an effect that neither looks nor fetches | a trigger nothing fires, and an effect that cannot move a number |
 
 Every one of those messages names the file, the question, and what was wrong
 with it.
@@ -759,7 +762,9 @@ The same list is in the JSON as `casting`. A file that declares none has no
 `casting` field at all, which is the other fact: that run cast nothing.
 
 **What it does not model is the draw.** Opt is *scry 1, draw 1*, and only the
-casting is counted — `on = "cast"` on an `[[effect]]` is still refused by name.
+casting is counted — a `look` on an `on = "cast"` effect is still refused by
+name, though a `fetch` on one is not: see
+[Tutors](#tutors-and-a-library-that-shrinks).
 That is a measurement rather than a shrug. Every card the walk might or might
 not draw needs a checkpoint of its own, because an unordered pair cannot say
 which of two revealed cards the draw took; each checkpoint multiplies the
@@ -778,11 +783,9 @@ every question this tool exists to answer. That is a percentage changing kind
 rather than a feature, so it is refused and the refusal carries the numbers:
 [#57](https://github.com/cramt/progress-engine/issues/57).
 
-**Tutoring is not here either.** Trinket Mage fetches a Lantern of Insight out
-of the library, which makes the library smaller and its composition non-uniform
-— a deterministic removal from a named group rather than a draw, and that is
-[#18](https://github.com/cramt/progress-engine/issues/18). The budget prices
-the mana half of that route and the run says what it left out.
+**Tutoring is**, and it is the next section. A cast spell can go and get a named
+card out of the library, which is a deterministic removal rather than a draw —
+see [Tutors, and a library that shrinks](#tutors-and-a-library-that-shrinks).
 
 **What it costs.** More than the gate, and the reason is worth stating: a cast
 spell leaves the hand, so a criterion counting `cat:"Ramp"` beside a budget
@@ -864,19 +867,22 @@ to_graveyard = 'name:"Life from the Loam"'
 |---|---|
 | `match` | which cards this is about, in Scryfall syntax |
 | `look` | how many cards off the top it examines |
-| `on` | when it fires. `landdrop` is the only one, see below |
+| `on` | when it fires: `landdrop` or `cast`, see below |
 | `to_graveyard` | the routing policy: which examined cards go to the yard. `"*"` is all of them, which is mill. Absent means none of them |
+| `fetch` | the cards it goes and gets out of the library, highest priority first. See [Tutors](#tutors-and-a-library-that-shrinks) |
+| `to` | where a fetched card is put: `hand` or `battlefield` |
 
-**Land drops only, on purpose.** Playing a land is free and hard-capped at one a
-turn, so by turn *T* at most *T* of these have happened whatever your deck —
-which is what keeps the enumeration bounded and exact. `on = "cast"` is still
-refused by name, and what it is refused for has changed: the budget knows how
-many Opts you cast ([Mana, as a budget](#mana-as-a-budget)), so the count is no
-longer the problem. What an Opt *does* is — a replacement draw makes how many
-cards you have seen by turn *T* depend on the path rather than on the schedule,
-which is one extra enumeration checkpoint per turn at the floor and puts every
-question this tool exists for over the ceiling
-([#57](https://github.com/cramt/progress-engine/issues/57)).
+**Looking is a land drop, fetching can be a cast.** Playing a land is free and
+hard-capped at one a turn, so by turn *T* at most *T* of those have happened
+whatever your deck — which is what keeps a `look` bounded and exact. `on =
+"cast"` fires too, because the budget knows which spells a turn paid for
+([Mana, as a budget](#mana-as-a-budget)) — but a **`look` on a cast is refused
+by name**, and that has not changed. A replacement draw makes how many cards you
+have seen by turn *T* depend on the path rather than on the schedule, which is
+one extra enumeration checkpoint per turn at the floor and puts every question
+this tool exists for over the ceiling
+([#57](https://github.com/cramt/progress-engine/issues/57)). A `fetch` on a cast
+is a subtraction and costs nothing.
 
 **The library never says where cards go.** Every shipped entry declares `match`,
 `look` and `on`, and no entry declares `to_graveyard`. That split is the whole
@@ -929,6 +935,153 @@ answer. That is the price of exactness rather than a bug: the alternative is
 sampling the surveil inside an exact engine, which is a percentage nobody can
 attribute. Ask about an earlier turn or name fewer queries to get the enumerated
 answer back.
+
+### Tutors, and a library that shrinks
+
+Trinket Mage does not draw you a Lantern of Insight. It takes the Lantern **out
+of the library** and puts it in your hand, and everything after that is against
+a smaller deck with a different composition. For a long time this engine could
+not say so: the enumeration took the group sizes once and computed what remained
+as `groups - drawn`, so the population was a constant of the whole path by
+construction.
+
+A tutor is a **deterministic removal from a named group**. Given what the path
+has done so far there is one answer, so it costs no branch — it is a subtraction
+from the pool the next draw comes out of, not a second distribution laid over
+it. Which means it is free: Route B on `decks/lantern.txt` is seven groups and
+4,120,116 compositions at turn 5 with the fetch and without it, to the
+composition.
+
+**Say what it fetches:**
+
+```toml
+[[effect]]
+match = 'name:"Trinket Mage"'
+on = "cast"
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+```
+
+`fetch` is a **declared priority over queries**, read in order, and the first
+entry the library still holds is the one it takes — the same mechanism as
+`[land_drop]`, `[casting]` and selection routing, over a fourth resource rather
+than a fifth policy language. A tie inside one entry goes to the card your
+decklist names first. A tutor that finds none of them fetches nothing, which is
+what a tutor does when the card is already gone.
+
+**Every run that fetched says what it fetched**, on stderr and as `fetch` and
+`to` in the JSON, beside the land drop and the casting line. A number that hinged
+on a declared policy and did not name it is the bug this project exists to
+prevent.
+
+```
+note: effect "name:\"Trinket Mage\"" (on cast)
+      applies to 1 card: Trinket Mage
+      and fetches, to your hand, the first of these the library still holds:
+      1. "name:\"Lantern of Insight\""
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+```
+
+**What it is worth, on the deck it was built for.** `decks/lantern-route-b.criteria.toml`
+is the Lantern north star's second route on its own. Delete the `[[effect]]`
+block and re-run:
+
+| On `decks/lantern.txt`, on the play | drawn | fetched |
+|---|---|---|
+| Trinket Mage cast by turn 3 | **5.30%** | **5.30%** |
+| Trinket Mage and a Lantern both cast by turn 5 | 0.81% | **8.05%** |
+| Lanterns still in the library on turn 5 (mean) | 0.8889 | **0.8100** |
+
+The first row does not move and must not: what a spell does when it resolves
+cannot change whether the pool paid for it. The second row is the route, and
+0.81% was the deck drawing both halves naturally.
+
+**A fetchland is not a filter, and the distinction matters.** Scry and surveil
+examine N cards off the top; a fetchland removes a card from the library and
+shuffles, then is not there any more. Modelling it as "look at N" would produce
+numbers that are wrong and plausible. So it is a tutor with `to = "battlefield"`,
+which puts the land it found down **in place of** the fetchland that went and
+got it:
+
+```toml
+[[effect]]
+match = "otag:fetchland"
+on = "landdrop"
+fetch = ["t:land"]
+to = "battlefield"
+
+[land_drop]
+prefer = ["otag:fetchland", "t:land"]
+```
+
+`otag:fetchland` is 54 cards, against the ten-card `is:fetchland` cycle, and the
+index fetches it at sync time. The `[land_drop]` table is **required** beside a
+land-drop fetch rather than optional: the fetch happens on the drop and replaces
+the land that made it, so a run that cannot say which land you played cannot say
+what you fetched either.
+
+**Does deck thinning improve your subsequent draws?** Everyone has an opinion and
+almost nobody has the number. `decks/loam-thinning.criteria.toml` is the number,
+exactly, for a deck where fetchlands are a large part of why it functions:
+
+| On `decks/loam.txt`, on the play | as a land | fetching | moved by |
+|---|---|---|---|
+| some Loam Access by turn 5 | 80.9583% | 81.0158% | +0.0575 pp |
+| some Loam Access by turn 8 | 88.3546% | 88.4310% | +0.0764 pp |
+| two Loam Access by turn 8 | 58.9176% | 59.0695% | +0.1519 pp |
+| lands drawn by turn 8 (mean) | 6.2857 | 6.2680 | −0.0177 |
+| fetchlands in play by turn 8 (mean) | 0.5714 | 0.0000 | |
+
+**Yes, exactly, and negligibly.** The largest of those is one game in 658. The
+bottom row is why: four fetchlands in 98 cards is 0.57 of one cracked by turn 8
+on average, each removing one land from a library of about ninety. And the row
+above it is the honest other half, which goes the *wrong* way — the land the
+fetch found is already in play, so it is one fewer land left to draw. Thinning
+trades a little of your land count for a little spell density. It is real, it is
+now exact, and it is not why you play fetchlands.
+
+**What a fetched land taps for is refused by name.** A Scalding Tarn fetches
+untapped and a Terramorphic Expanse fetches tapped, `otag:fetchland` holds both,
+and nothing on the land it *found* tells them apart — so a `can_cast` or a
+`cast` clause beside a battlefield fetch is refused rather than answered in
+whichever direction happens to flatter. What left the library is exact; what it
+makes is not modelled. For the same reason `on = "cast"` with `to =
+"battlefield"` — Rampant Growth — is refused at the file boundary: whether that
+land enters tapped is a fact about the spell, and no tag separates Rampant
+Growth from Nature's Lore.
+
+**What it costs: no width, and about five per cent of the wall clock.** A
+removal is decided once per path prefix rather than branched over, so the
+enumeration is the one that was already there. Measured on `decks/lantern.txt`,
+Route B's two-spell line, on the play:
+
+| Turn | groups / compositions | drawn | fetching |
+|---|---|---|---|
+| 3 | 7 / 84,084 | **exact**, 0.27s | **exact**, 0.27s |
+| 4 | 7 / 588,588 | **exact**, 0.88s | **exact**, 0.96s |
+| 5 | 7 / 4,120,116 | **exact**, 4.9s | **exact**, 5.1s |
+| 6 | 7 / 28,840,812 | sampled | sampled |
+
+**The ceiling falls exactly where it did**: exact through turn 5, over at turn 6
+by a factor of six, on both. The five per cent is a replay of the walk at each
+checkpoint of each prefix, which is how the run learns what the path has fetched
+without a second reading of the tutor's list, and a run that declares no tutor
+does not do it at all.
+
+**A land-drop fetch does cost width**, and for a reason that is not the removal:
+it is a live effect, and a live effect stops a class from collapsing its
+checkpoints into one total, because routing reads the order cards came off the
+top. `decks/loam-thinning.criteria.toml` asks *some Loam Access by turn 8* on 2
+groups and 15 compositions with no effect declared and on 4 groups and 1,966,080
+with one — 0.3s against 6.6s, both exact. That is the per-turn reading, and it
+would be the same price for a surveil land.
+
+**What is not here is exiling off the top.** Devourer of Destiny exiles three
+cards, and those are a *random sample* — so what remains is a distribution
+rather than a subtraction, and it branches the path the way a draw does. That is
+the expensive half of
+[#18](https://github.com/cramt/progress-engine/issues/18) and it is filed rather
+than approximated.
 
 ### How many, not just how often
 
@@ -1299,7 +1452,7 @@ So they are not derived. They are **fetched**, from Scryfall's search API at
 the rest of this file is held to: not a hard-coded copy that goes stale, and not
 a guess dressed as a fact, but somebody else's answer with a date attached.
 
-`sync` fetches seven tags today, each because something here reads it:
+`sync` fetches eight tags today, each because something here reads it:
 
 | Tag | Cards | Read by |
 |---|---|---|
@@ -1309,9 +1462,10 @@ a guess dressed as a fact, but somebody else's answer with a date attached.
 | `scry` | 475 | the same, leaving the card on top |
 | `mill` | 1,305 | the graveyard as a destination |
 | `tutor` | 1,168 | selection over the whole library |
-| `ramp` | 2,316 | the mana-curve questions |
+| `ramp` | 2,315 | the mana-curve questions |
+| `fetchland` | 54 | deck thinning: the cards that remove a land from the library rather than looking at one. `is:fetchland` is the ten-card cycle; this is Prismatic Vista and Terramorphic Expanse too, and no query over card text separates them |
 
-They cost nothing to carry: about 5,400 of 35,486 cards are tagged, the file is the
+They cost nothing to carry: 5,355 of 35,486 cards are tagged, the file is the
 same 24MB, and a run parses only the cards your deck names either way.
 
 **An index carries the tags it was told to fetch, and says which.** The header
@@ -1590,6 +1744,16 @@ than a card-data bug. The same reasoning puts the evaluator behind a trait in
 `pe-criteria`: the enumeration is tested with plain Rust closures, so a failure
 there is an engine bug and a failure in `pe-toml` is a criteria-format bug.
 Keeping those distinguishable is worth the indirection.
+
+Its vocabulary is **populations, groups, draws and removals**, and tutoring
+added the last of those without adding a Magic concept. A removal is a
+deterministic subtraction from a named group between two checkpoints, decided by
+the caller from the path so far; the walk asks for one at every checkpoint and
+deals the next gap out of `groups - drawn - removed`. The known-answer test for
+it is two groups of two: draw one, remove one from group 0, draw one more, and
+P(exactly one card of group 0 in hand) is 3/4 where the plain walk says 4/6.
+Nothing in that signature knows what a tutor is, which is the condition
+[#18](https://github.com/cramt/progress-engine/issues/18) set on itself.
 
 `pe-toml` holds the only `impl Evaluator`, and both engines take it through the
 same trait. That is why swapping the criteria format out from under them was a

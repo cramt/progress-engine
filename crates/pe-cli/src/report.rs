@@ -175,6 +175,18 @@ pub struct EffectUse {
     /// every looked-at card stays on top and this effect moves no number.
     #[facet(skip_serializing_if = Option::is_none)]
     pub to_graveyard: Option<String>,
+    /// What this goes and gets out of the library, highest priority first, or
+    /// absent where it fetches nothing.
+    ///
+    /// Reported for the same reason `[land_drop]` and `[casting]` are, and
+    /// with the same weight: a tutor decides which card left the library, so
+    /// every number under it depends on this list. A run that fetched and did
+    /// not say what it fetched is the bug this project exists to prevent.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub fetch: Option<Vec<String>>,
+    /// Where the fetched card is put: `hand` or `battlefield`.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub to: Option<&'static str>,
     /// Which file declared it: the standard library, or the criteria file.
     pub source: String,
     /// The cards it applied to, after the overlap was resolved. A card matched
@@ -660,19 +672,41 @@ impl Report {
         // An entry that matched nothing says nothing and is not mentioned.
         for e in &self.effects {
             let route = match (&e.to_graveyard, e.live) {
+                (None, _) if e.fetch.is_some() => String::new(),
                 (None, _) => ", everything stays on top".to_string(),
                 (Some(q), true) => format!(", {q} to the graveyard"),
                 (Some(q), false) => format!(", {q} to the graveyard — which no card here matches"),
             };
+            let look = match e.look {
+                0 => String::new(),
+                n => format!("look {n}, "),
+            };
             out.push_str(&format!(
-                "note: effect {:?} (look {}, on {}{route})\n      applies to {} card{}: {}\n",
+                "note: effect {:?} ({look}on {}{route})\n      applies to {} card{}: {}\n",
                 e.matches,
-                e.look,
                 e.on,
                 e.copies,
                 if e.copies == 1 { "" } else { "s" },
                 e.cards.join(", ")
             ));
+            // A tutor names what it went and got, in the order it would take
+            // them. Same discipline as the land drop and the casting line
+            // below, over the fourth contested resource: the library this run
+            // reports is one card smaller because of this list, so the list is
+            // an input to every number under it.
+            if let (Some(prefer), Some(to)) = (&e.fetch, e.to) {
+                out.push_str(&format!(
+                    "      and fetches, to your {to}, the first of these the library still \
+                     holds:\n"
+                ));
+                for (i, query) in prefer.iter().enumerate() {
+                    out.push_str(&format!("      {}. {query:?}\n", i + 1));
+                }
+                out.push_str(
+                    "      Ties: the card this decklist names first. A tutor that finds none of \
+                     them fetches nothing.\n",
+                );
+            }
         }
         // The same failure as an empty query, arriving by a different door. A
         // criterion asking about a zone no effect in this run routes into is
@@ -1101,6 +1135,8 @@ pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
             look: a.look,
             on: a.on,
             to_graveyard: a.to_graveyard.clone(),
+            fetch: a.fetch.as_ref().map(|(prefer, _)| prefer.clone()),
+            to: a.fetch.as_ref().map(|(_, to)| *to),
             source: a.origin.clone(),
             cards: a.cards.clone(),
             copies: a.copies,
@@ -1294,6 +1330,88 @@ pub fn casting_without_priority() -> String {
      spell\n      the list does not name is not cast at all — the list is the line you are \
      asking about,\n      not a preference over your whole deck."
         .to_string()
+}
+
+/// Why a land-drop tutor with no declared land-drop priority is refused.
+///
+/// A fetchland goes and gets its land *on* the drop and leaves the battlefield
+/// doing it, so what is standing there at the end of the turn is a fact about
+/// which land you played. With no priority declared the walk plays the
+/// deepest-looking land in hand, which is a rule adopted when nothing else
+/// could tell two drops apart and is not one anybody chose — and a run that
+/// fetched off it would report a thinned library nobody asked for.
+pub fn fetch_without_land_drop(matches: &str) -> String {
+    format!(
+        "effect {matches:?} fetches on a land drop, and this file declares no priority over \
+         the drop.\n      \
+         A fetchland goes and gets its land on the turn it is played and is not there \
+         afterwards,\n      so which land you played decides both what you fetched and what \
+         is standing there.\n      \
+         Declare it, highest priority first:\n\n      \
+         [land_drop]\n      prefer = ['otag:fetchland', 't:land']\n\n      \
+         The list is read in order, the first entry a land in hand matches wins, and any land \
+         the list\n      does not name is played last."
+    )
+}
+
+/// Why a cast tutor with no declared casting priority is refused.
+///
+/// The same argument over the other resource. A spell this run does not cast
+/// is a spell that never resolved, so it never fetched either, and a run that
+/// fired the tutor anyway would be putting a card in your hand off a spell
+/// nobody paid for.
+pub fn fetch_without_casting(matches: &str) -> String {
+    format!(
+        "effect {matches:?} fetches when it is cast, and this file declares no casting \
+         priority.\n      \
+         A spell this run does not cast is one that never resolved, so it never went and got \
+         anything.\n      \
+         Declare the line, highest priority first:\n\n      \
+         [casting]\n      prefer = ['name:\"Trinket Mage\"', 'name:\"Lantern of Insight\"']\n\n      \
+         The list is read in order and the first entry the pool can still pay for is cast. A \
+         spell\n      the list does not name is not cast at all."
+    )
+}
+
+/// Why a battlefield fetch may only name lands.
+///
+/// The same refusal `zone = "battlefield"` is already under, at the same seam:
+/// a land arrives on a land drop, which this engine models, and everything
+/// else has to be cast, which — once it is on the battlefield rather than
+/// merely paid for — it does not.
+pub fn fetch_battlefield_refusal(query: &str, spells: &[String]) -> String {
+    format!(
+        "`fetch = {query:?}` with `to = \"battlefield\"` names {} this engine cannot put \
+         there: {}.\n      \
+         A land arrives on a land drop, which is free and capped at one a turn, so the walk \
+         knows\n      where it is. Anything else has to be cast, and where a spell goes after \
+         it resolves is\n      not modelled at all.",
+        if spells.len() == 1 { "a card" } else { "cards" },
+        spells.join(", ")
+    )
+}
+
+/// Why a mana question beside a fetched land is refused.
+///
+/// The one thing a fetch cannot say. `otag:fetchland` holds Scalding Tarn,
+/// which puts its Island down untapped, and Terramorphic Expanse, which does
+/// not — and the difference is a property of the card that did the fetching
+/// rather than of the land it found, so no tag on the fetched land settles it.
+/// Both answers are plausible and one of them is wrong, which is this
+/// project's defining failure in its usual costume. What the fetch *does* say
+/// exactly is what left the library, so the thinning is answerable and the
+/// mana is not.
+pub fn mana_beside_a_fetched_land(matches: &str) -> String {
+    format!(
+        "effect {matches:?} puts a land onto the battlefield out of the library, and what that \
+         land\n      taps for on the turn it arrives is not modelled. A Scalding Tarn fetches \
+         untapped and a\n      Terramorphic Expanse fetches tapped; `otag:fetchland` holds \
+         both and nothing on the land\n      it found tells them apart, so a mana answer here \
+         would be optimistic or pessimistic with\n      nothing saying which.\n      \
+         What the fetch does say exactly is what left the library. Ask this file's thinning \
+         question\n      without a `can_cast`, a `cast` or a `[casting]` table, and ask the \
+         mana in a file of its own."
+    )
 }
 
 /// Why this index cannot price a cost, or `None` when it can.

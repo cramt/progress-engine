@@ -9,8 +9,8 @@
 use std::convert::Infallible;
 
 use pe_criteria::{
-    CastingPolicy, Cost, Count, Counted, Evaluator, Grouping, ManaSource, Palette, PathOutcomes,
-    PathView, Plan, Policies, Schedule, Zone,
+    CastingPolicy, Cost, Count, Counted, Effect, Evaluator, Fetch, Fetched, Grouping, ManaSource,
+    Palette, PathOutcomes, PathView, Plan, Policies, Route, Schedule, Trigger, Zone,
 };
 use pe_sim::{mean_standard_error, simulate, standard_error, SimError};
 
@@ -497,5 +497,185 @@ fn the_budget_agrees_with_the_exact_engine() {
         (sampled - exact).abs() < 4.0 * se,
         "sampled {sampled} vs exact {exact} ({}x SE)",
         (sampled - exact).abs() / se
+    );
+}
+
+#[test]
+fn a_tutor_agrees_with_the_exact_engine() {
+    // The acceptance test for #18, and the one that matters: a fetch makes the
+    // library a population that shrinks, and the two engines shrink it by
+    // completely different means. The exact one subtracts from the pool the
+    // next gap is dealt out of; the sampler reaches into the undealt tail of a
+    // shuffled deck and swaps the card past the end. If those two ever mean
+    // different things, this is where it shows.
+    //
+    // Twelve tutors costing {U}, one card worth fetching, nineteen blue
+    // sources. Asked as "the fetched card is in hand by turn 4", which is a
+    // question the deck answers by drawing it *or* by going and getting it.
+    let grouping = Grouping::with_mana(
+        q(&["tutor", "target"]),
+        vec![
+            (
+                0b01,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                },
+                12,
+            ),
+            (0b10, ManaSource::Spell, 4),
+            (
+                0b00,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                },
+                19,
+            ),
+            (0b00, ManaSource::Spell, 64),
+        ],
+    )
+    .unwrap();
+    let tutor = Effect {
+        matched_by: 0,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to: Fetched::Hand,
+        }),
+    };
+    let schedule = Schedule::build(
+        4,
+        true,
+        vec![tutor],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let question = || {
+        Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(4, 1, Counted::In(Zone::Hand)) >= 1) as Check,
+        ])
+    };
+    let exact = pe_criteria::run(&grouping, &schedule, only_criteria(1), &mut question())
+        .unwrap()
+        .probabilities[0]
+        .get();
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        TRIALS,
+        7,
+        only_criteria(1),
+        &mut question(),
+    )
+    .unwrap()
+    .proportions[0];
+    assert!(
+        exact > 0.05 && exact < 0.95,
+        "a question worth asking: {exact}"
+    );
+    let se = standard_error(sampled, TRIALS);
+    assert!(
+        (sampled - exact).abs() < 4.0 * se,
+        "sampled {sampled} vs exact {exact} ({}x SE)",
+        (sampled - exact).abs() / se
+    );
+}
+
+#[test]
+fn a_tutor_thins_the_library_in_both_engines() {
+    // The half of a fetch that is not about the card it found. Four copies of
+    // the target and twelve tutors: every tutor that resolves takes one of
+    // them out of the library, so the expected number *drawn* has to fall —
+    // and it has to fall by the same amount in both engines, which is the
+    // thing a sampler that forgot to remove the card would get wrong while
+    // still agreeing about what is in hand.
+    let library = |fetching: bool| {
+        let grouping = Grouping::with_mana(
+            q(&["tutor", "target"]),
+            vec![
+                (
+                    0b01,
+                    ManaSource::Castable {
+                        cost: Cost::parse("{U}").unwrap().demand(),
+                    },
+                    12,
+                ),
+                (0b10, ManaSource::Spell, 4),
+                (
+                    0b00,
+                    ManaSource::Land {
+                        enters_tapped: false,
+                        produces: Palette::from_letters(["U"]),
+                    },
+                    19,
+                ),
+                (0b00, ManaSource::Spell, 24),
+            ],
+        )
+        .unwrap();
+        let effects = match fetching {
+            false => Vec::new(),
+            true => vec![Effect {
+                matched_by: 0,
+                look: 0,
+                trigger: Trigger::Cast,
+                route: Route::Nowhere,
+                fetch: Some(Fetch {
+                    prefer: vec![1],
+                    to: Fetched::Hand,
+                }),
+            }],
+        };
+        let schedule = Schedule::build(
+            4,
+            true,
+            effects,
+            Policies::casting(CastingPolicy::new(vec![0])),
+        );
+        (grouping, schedule)
+    };
+    // Still in the library, which is the count a fetch reduces without anyone
+    // having drawn anything.
+    let question = || {
+        Counters(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(4, 1, Counted::In(Zone::Library))) as Tally,
+        ])
+    };
+    let left = |fetching: bool| {
+        let (grouping, schedule) = library(fetching);
+        let exact = pe_criteria::run(&grouping, &schedule, only_expectations(1), &mut question())
+            .unwrap()
+            .distributions[0]
+            .mean();
+        // Fewer hands than the tests above: this compares two means rather
+        // than pinning one, and the prefix replay a fetch costs is paid per
+        // checkpoint per hand.
+        let trials = TRIALS / 4;
+        let sampled = simulate(
+            &grouping,
+            &schedule,
+            trials,
+            13,
+            only_expectations(1),
+            &mut question(),
+        )
+        .unwrap()
+        .distributions[0]
+            .clone();
+        let se = mean_standard_error(&sampled, trials);
+        assert!(
+            (sampled.mean() - exact).abs() < 4.0 * se,
+            "sampled {} vs exact {exact} ({}x SE)",
+            sampled.mean(),
+            (sampled.mean() - exact).abs() / se
+        );
+        exact
+    };
+    let without = left(false);
+    let with = left(true);
+    assert!(
+        with < without - 0.01,
+        "a fetch has to leave fewer behind: {with} against {without}"
     );
 }

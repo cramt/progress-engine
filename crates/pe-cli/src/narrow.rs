@@ -43,9 +43,10 @@ use pe_toml::{QuestionReads, Reads};
 /// checkpoints may collapse at all.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Shared {
-    /// Which cards each live effect applies to, and where it routes them.
-    /// `None` when nothing in this run routes a card anywhere.
-    pub effects: Option<u64>,
+    /// Which cards each live effect applies to, where it routes them, and
+    /// whether any of them fires on the land drop. `None` when nothing in this
+    /// run moves a card at all.
+    pub effects: Option<Effects>,
     /// The declared land-drop priority, and the query saying what a land is.
     /// `None` when the file declared none.
     pub land_drop: Option<u64>,
@@ -58,6 +59,24 @@ pub struct Shared {
     /// here rather than adding a loose palette field keeps "a class that
     /// prices spells prices lands too" a thing the type says.
     pub casting: Option<Casting>,
+}
+
+/// What the live effects make every class read.
+///
+/// Two fields rather than a bare mask, because *which* cards an effect moves
+/// and *when it fires* are different facts and only the second one decides
+/// whether the manabase may be narrowed. A surveil land fires on the drop, so
+/// which land was played is a live question and no cost may merge two lands a
+/// ranking could tell apart. A tutor on a cast spends mana rather than the
+/// drop, and the budget has already said which spells those are — so it costs
+/// its own query bits and nothing else.
+#[derive(Debug, Clone, Copy)]
+pub struct Effects {
+    /// Which cards each live effect applies to, where it routes them, and what
+    /// it would go and fetch.
+    pub queries: u64,
+    /// Whether any of them fires on the land drop.
+    pub on_the_drop: bool,
 }
 
 /// What a declared casting priority makes every class read.
@@ -110,13 +129,21 @@ impl Shared {
     /// Recovering it by merging only lands the ranking already places side by
     /// side is [#56](https://github.com/cramt/progress-engine/issues/56).
     ///
-    /// A live effect is refused for the same kind of reason and costs nothing
-    /// to refuse: a run with a live effect and no declared priority cannot ask
-    /// a mana question at all — it is refused by name, because the effect and
-    /// the gate would be two policies over one land drop — so the only
-    /// castable class this can cost is one that already has a priority.
+    /// An effect that fires **on the drop** is refused for the same kind of
+    /// reason and costs nothing to refuse: a run with one and no declared
+    /// priority cannot ask a mana question at all — it is refused by name,
+    /// because the effect and the gate would be two policies over one land
+    /// drop — so the only castable class this can cost is one that already has
+    /// a priority.
+    ///
+    /// An effect that fires on a **cast** is not that. It spends mana rather
+    /// than the land drop, and the budget beside it has already said which
+    /// spells the pool paid for, so it chooses no land and the manabase may
+    /// still be narrowed to the pips the costs demand. Reading this as *any*
+    /// live effect cost `decks/lantern.txt` 19 groups and 62 billion
+    /// compositions for a tutor that never looked at a land.
     fn picks_a_land(&self) -> bool {
-        self.land_drop.is_some() || self.effects.is_some()
+        self.land_drop.is_some() || self.effects.is_some_and(|e| e.on_the_drop)
     }
 }
 
@@ -211,12 +238,12 @@ impl Need {
         // casting priority takes cards out of the hand, which is the same
         // argument with a different destination — so every class keeps it,
         // however little its own clauses care.
-        keep |= shared.effects.unwrap_or(0);
+        keep |= shared.effects.map_or(0, |e| e.queries);
         keep |= shared.casting.map_or(0, |c| c.queries);
         // The land-drop priority only moves a number where something reads the
         // drops it made, where an effect fires off the land it chose, or where
         // a budget spends what it taps for.
-        if history || shared.effects.is_some() {
+        if history || shared.effects.is_some_and(|e| e.on_the_drop) {
             keep |= shared.land_drop.unwrap_or(0);
         }
         // What the class's own costs demand, joined with what the declared
@@ -493,7 +520,10 @@ mod tests {
     #[test]
     fn a_live_effect_is_kept_by_every_class() {
         let shared = Shared {
-            effects: Some(bit(9) | bit(10)),
+            effects: Some(Effects {
+                queries: bit(9) | bit(10),
+                on_the_drop: true,
+            }),
             land_drop: Some(bit(11)),
             casting: None,
         };

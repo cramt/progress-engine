@@ -586,6 +586,58 @@ fn run_test(
     for note in report::tag_blind_notes(&resolved, &library) {
         eprintln!("{note}");
     }
+    for (effect, query) in resolved
+        .applied
+        .iter()
+        .flat_map(|a| a.fetch_misses.iter().map(move |q| (&a.matches, q)))
+    {
+        eprintln!(
+            "note: effect {effect:?} would fetch {query:?}, which matches no card in this deck"
+        );
+    }
+
+    // What a tutor needs of the run that declares it, refused by name before
+    // anything is enumerated. Each of these would otherwise be answered — and
+    // in the flattering direction, because a fetch that fires puts a card in
+    // your hand.
+    let origin = criteria_path.display();
+    for (applied, effect) in resolved
+        .applied
+        .iter()
+        .filter(|a| a.live)
+        .zip(&resolved.effects)
+    {
+        let Some(fetch) = &effect.fetch else { continue };
+        match effect.trigger {
+            // A land-drop fetch happens *on* the drop and replaces the land
+            // that made it, so a run that cannot say which land it played
+            // cannot say what it fetched either. Same shape of refusal as a
+            // mana question beside a live effect, and the same remedy.
+            pe_criteria::Trigger::LandDrop if land_drop.is_none() => anyhow::bail!(
+                "{origin}: {}",
+                report::fetch_without_land_drop(&applied.matches)
+            ),
+            // And a cast fetch fires when the declared line casts the card, so
+            // with no line there is nothing to fire it.
+            pe_criteria::Trigger::Cast if casting.is_none() => anyhow::bail!(
+                "{origin}: {}",
+                report::fetch_without_casting(&applied.matches)
+            ),
+            _ => {}
+        }
+        if fetch.to == pe_criteria::Fetched::Battlefield {
+            for query in applied.fetch.iter().flat_map(|(prefer, _)| prefer) {
+                let spells = library.non_lands_matching(query)?;
+                if !spells.is_empty() {
+                    anyhow::bail!(
+                        "{origin}: effect {:?}: {}",
+                        applied.matches,
+                        report::fetch_battlefield_refusal(query, &spells)
+                    );
+                }
+            }
+        }
+    }
 
     // What the mana model needs of this run, checked before anything is
     // enumerated and refused by name where it is not there. Every one of these
@@ -596,7 +648,6 @@ fn run_test(
     // Named against the file as well as the question, the way a parse refusal
     // is: a caller running several criteria files needs to know which one it
     // was before it needs to know which criterion.
-    let origin = criteria_path.display();
     // A declared casting priority is a mana question whether or not any clause
     // asks one, because the budget spends the pool: what was cast decides what
     // is left in hand, and every count in the file reads that.
@@ -621,7 +672,14 @@ fn run_test(
         // second policy deciding the same drop, and the two would disagree
         // on exactly the hands that matter. Declaring the priority makes
         // them one decision, which is the remedy the refusal names.
-        if !resolved.effects.is_empty() && land_drop.is_none() {
+        // Only an effect that fires *on the drop* is a second claimant on it.
+        // A tutor that fires when a spell is cast spends the mana, not the
+        // land drop, and the budget has already said which spells those are.
+        let on_the_drop = resolved
+            .effects
+            .iter()
+            .any(|e| e.trigger == pe_criteria::Trigger::LandDrop);
+        if on_the_drop && land_drop.is_none() {
             anyhow::bail!(
                 "{origin}: {asked_by}: {}",
                 report::mana_beside_effects_refusal()
@@ -634,6 +692,30 @@ fn run_test(
         Some(asked_by) => {
             if let Some(refusal) = report::cannot_price_mana(&library) {
                 anyhow::bail!("{origin}: {asked_by}: {refusal}");
+            }
+            // A fetched land is on the battlefield — countable, and counted —
+            // but what it *taps for* on the turn it arrives is not readable
+            // from any tag this index carries: a Scalding Tarn puts its Island
+            // down untapped and a Terramorphic Expanse does not, and
+            // `otag:fetchland` holds both. So the library it thinned is
+            // answered and the pool it filled is refused, rather than answered
+            // in whichever direction happens to flatter.
+            if let Some(named) = resolved
+                .applied
+                .iter()
+                .filter(|a| a.live)
+                .zip(&resolved.effects)
+                .find(|(_, e)| {
+                    e.fetch
+                        .as_ref()
+                        .is_some_and(|f| f.to == pe_criteria::Fetched::Battlefield)
+                })
+                .map(|(a, _)| a.matches.as_str())
+            {
+                anyhow::bail!(
+                    "{origin}: {asked_by}: {}",
+                    report::mana_beside_a_fetched_land(named)
+                );
             }
             library::ManaDetail::Modelled {
                 castable: casting.as_ref().map_or(&no_costs, |c| c.costs.as_slice()),
@@ -667,14 +749,26 @@ fn run_test(
     // its own clauses care: a live effect decides which zone a card ends up
     // in, and a declared priority decides which land was played.
     let shared = narrow::Shared {
-        effects: (!resolved.effects.is_empty()).then(|| {
-            resolved.effects.iter().fold(0u64, |bits, effect| {
+        effects: (!resolved.effects.is_empty()).then(|| narrow::Effects {
+            queries: resolved.effects.iter().fold(0u64, |bits, effect| {
                 let destination = match effect.route {
                     pe_criteria::Route::Matching(query) => 1u64 << query,
                     pe_criteria::Route::Everything | pe_criteria::Route::Nowhere => 0,
                 };
-                bits | 1u64 << effect.matched_by | destination
-            })
+                // And what a tutor would go and get, for the same reason: it
+                // decides which card left the library, so every count in the
+                // run depends on which groups the priority can tell apart.
+                let fetched = effect
+                    .fetch
+                    .iter()
+                    .flat_map(|f| &f.prefer)
+                    .fold(0u64, |b, &q| b | 1u64 << q);
+                bits | 1u64 << effect.matched_by | destination | fetched
+            }),
+            on_the_drop: resolved
+                .effects
+                .iter()
+                .any(|e| e.trigger == pe_criteria::Trigger::LandDrop),
         }),
         land_drop: land_drop
             .as_ref()

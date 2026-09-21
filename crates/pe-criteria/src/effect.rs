@@ -11,19 +11,23 @@
 //! Two restrictions keep this exact, and both are load-bearing rather than
 //! temporary.
 //!
-//! **One trigger.** Only [`Trigger::LandDrop`] exists. A land drop is free and
-//! hard-capped at one per turn, so an effect that fires on one cannot compound:
-//! by turn `T` at most `T` of them have happened, whatever the deck. The
-//! mana-gated tier — Opt, tutors, anything with a cost — has no such cap, and
-//! knowing you could cast Opt on turn two means knowing you had an untapped
-//! blue source, which is the mana model. So `on = "cast"` is refused by name
-//! rather than guessed at.
+//! **What a trigger is allowed to do.** A land drop is free and hard-capped at
+//! one per turn, so an effect that fires on one cannot compound: by turn `T` at
+//! most `T` of them have happened, whatever the deck. A cast fires as often as
+//! the pool pays for it, which the budget knows — so [`Trigger::Cast`] exists,
+//! and what it may do is a [`Fetch`] and not a look. A fetch is a deterministic
+//! removal from a named group, which is a subtraction from the population the
+//! later gaps are drawn out of; a look on a cast is a replacement draw, which
+//! changes the *shape* of the enumeration rather than the population carried
+//! through it, and is still refused by name.
 //!
 //! **Counts, never cards.** A looked-at card is routed by which group it is in,
 //! and a group is a set of cards no criterion can tell apart. So given the
 //! composition, routing is a deterministic function of counts — which is the
 //! same restriction the rest of the engine runs on, and the reason this stays
-//! enumerable instead of becoming a simulation.
+//! enumerable instead of becoming a simulation. A fetch obeys it too: it takes
+//! the first group its declared priority reaches that the library still holds,
+//! which is a function of counts and branches nothing.
 
 use crate::mana::{Constraint, Cost, Demand, Source};
 use crate::{Counted, Grouping, Schedule, Zone};
@@ -32,38 +36,87 @@ use thiserror::Error;
 
 /// When an effect gets to happen.
 ///
-/// One variant, and it is not an oversight. A variant here is a promise that
-/// the engine knows when the effect fires, and the other two tiers of
-/// availability are not knowable yet: the mana-gated tier needs castability,
-/// and the free-non-land tier (cycling for zero) is rare enough that guessing
-/// at it would cost more in wrong numbers than it pays in coverage.
+/// Two variants, and the list is short for the same reason it has always been:
+/// a variant here is a promise that the engine knows when the effect fires. The
+/// free-non-land tier — cycling for zero — is still missing, and it is rare
+/// enough that guessing at it would cost more in wrong numbers than it pays in
+/// coverage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Trigger {
     /// The turn a matching land is played. Free, and one per turn.
     LandDrop,
+    /// The turn the declared line casts a matching spell.
+    ///
+    /// Knowable because the budget knows it: `[casting] prefer = [...]` names
+    /// the line and the pool is spent on it, so *how many of these resolved by
+    /// turn T* is a count the walk already keeps. What such an effect is
+    /// allowed to **do** is the restriction — see [`Fetch`]. A look on a cast
+    /// is a replacement draw and is still refused, because that is the one
+    /// that changes the shape of the enumeration rather than the population
+    /// carried through it.
+    Cast,
 }
 
 impl Trigger {
     /// Every trigger an effect may name, for the message that lists them.
-    pub const ACCEPTED: &'static str = "landdrop";
+    pub const ACCEPTED: &'static str = "landdrop, cast";
 
     pub fn as_str(self) -> &'static str {
         match self {
             Trigger::LandDrop => "landdrop",
+            Trigger::Cast => "cast",
         }
     }
 
     pub fn parse(name: &str) -> Result<Trigger, TriggerError> {
         match name {
             "landdrop" => Ok(Trigger::LandDrop),
-            "cast" | "spell" | "mana" => Err(TriggerError::NeedsMana {
-                name: name.to_string(),
-            }),
+            "cast" => Ok(Trigger::Cast),
             _ => Err(TriggerError::Unknown {
                 name: name.to_string(),
             }),
         }
     }
+}
+
+/// A card this effect goes and gets out of the library.
+///
+/// The cheap half of
+/// [#18](https://github.com/cramt/progress-engine/issues/18): a **deterministic
+/// removal from a named group**, which is a subtraction rather than a
+/// distribution. Exiling three cards off the top is the other half — those are
+/// a random sample, so what remains is a distribution and the path branches the
+/// way a draw does — and it is not here.
+///
+/// `prefer` is the declared priority over grouping queries, highest first, the
+/// same mechanism as the land drop and the casting line rather than a fifth
+/// policy language. The search is total in the only way that matters: a tutor
+/// that finds nothing fetches nothing, which is what an empty library of
+/// targets means.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Fetch {
+    pub prefer: Vec<usize>,
+    pub to: Fetched,
+}
+
+/// Where a fetched card is put.
+///
+/// Deliberately not [`crate::Zone`]. A zone is somewhere a criterion counts
+/// cards; this is somewhere the engine can *put* one, and the two lists differ
+/// — the library is a zone and is not a destination, and a variant here is a
+/// promise that the walk really moves the card there rather than counting it
+/// somewhere plausible.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Fetched {
+    /// Trinket Mage: the card goes to your hand, where the budget can then
+    /// cast it out of the same turn's mana if the line named it.
+    Hand,
+    /// A fetchland: the land arrives on the battlefield **in place of** the
+    /// land whose drop fetched it, because that land sacrificed itself to do
+    /// it. Only reachable from [`Trigger::LandDrop`], and only for a priority
+    /// that names lands — the same restriction `zone = "battlefield"` is
+    /// already under, and for the same reason.
+    Battlefield,
 }
 
 impl std::fmt::Display for Trigger {
@@ -72,37 +125,36 @@ impl std::fmt::Display for Trigger {
     }
 }
 
-/// A trigger this engine will not fire.
+/// A trigger this engine will not fire, or will not fire for what was asked of
+/// it.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum TriggerError {
-    /// Refused by name rather than approximated, and **what it is refused for
-    /// has changed.**
+    /// `on = "cast"` fires — the budget knows which spells a turn paid for —
+    /// and what it is allowed to do when it does is the restriction.
     ///
-    /// Both halves of the mana model now ship. The gate says whether Opt was
-    /// castable on turn two; the budget says how many Opts the turn actually
-    /// paid for, which is one however many you are holding. So *how often does
-    /// this fire* is no longer the missing piece.
+    /// A **fetch** is a deterministic removal from a named group. Nothing
+    /// about the enumeration changes shape: the population the later gaps are
+    /// drawn from is one card smaller, which is a subtraction.
     ///
-    /// What is missing is what firing it **does**. Every card in this tier
-    /// draws — Opt, Preordain, Brainstorm — and a replacement draw makes *cards
-    /// seen by turn T* a fact about the path rather than about the schedule.
-    /// The enumeration reveals cards one checkpoint each so that it can tell
-    /// the order they came off the top, so a card the walk might or might not
-    /// draw needs a checkpoint of its own; each one multiplies the enumeration
-    /// by the group count; and a turn with T mana can cast T cantrips. On both
-    /// decks in `decks/` that is over the ceiling by turn three for any line
-    /// with a colour in it, against north stars that ask about turn five.
+    /// A **look** on a cast is a replacement draw, and that is the one that
+    /// changes shape. The enumeration reveals cards one checkpoint each so it
+    /// can tell the order they came off the top, so a card the walk might or
+    /// might not draw needs a checkpoint of its own; each one multiplies the
+    /// enumeration by the group count; and a turn with T mana can cast T
+    /// cantrips. On both decks in `decks/` that is over the ceiling by turn
+    /// three for any line with a colour in it, against north stars that ask
+    /// about turn five.
     #[error(
-        "`on = {name:?}` is not modelled, and the reason is the draw rather than the mana. \
-         How many spells a turn pays for is answered — declare `[casting] prefer = [...]` and \
-         count them with `cast`.\n\
-         What a cast spell then draws is not: a replacement draw makes how many cards you have \
-         seen by a turn depend on the path rather than on the schedule, which costs an \
-         enumeration checkpoint per turn and goes over the ceiling on every question this tool \
-         exists for (https://github.com/cramt/progress-engine/issues/57).\n\
-         Only `on = \"landdrop\"` is free, capped at one per turn, and draws nothing."
+        "`on = \"cast\"` fires — the budget knows which spells a turn paid for — but a `look` \
+         on a cast is a replacement draw, and that is not modelled.\n\
+         A replacement draw makes how many cards you have seen by a turn depend on the path \
+         rather than on the schedule, which costs an enumeration checkpoint per turn and goes \
+         over the ceiling on every question this tool exists for \
+         (https://github.com/cramt/progress-engine/issues/57).\n\
+         What a cast spell may do here is `fetch`, which removes a named card from the library \
+         rather than turning over an unknown one."
     )]
-    NeedsMana { name: String },
+    LooksOnCast,
     #[error(
         "`on = {name:?}` is not a trigger this tool knows. Accepted: {}.",
         Trigger::ACCEPTED
@@ -150,13 +202,16 @@ impl Route {
 /// once, against real card data, before the enumeration starts. Carrying the
 /// raw match query here instead would make every path re-decide the overlap,
 /// which is a second opinion about the same question.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Effect {
     pub matched_by: usize,
-    /// How many cards off the top this examines. At least one.
+    /// How many cards off the top this examines. Zero for an effect that only
+    /// fetches, which turns over nothing at all.
     pub look: u32,
     pub trigger: Trigger,
     pub route: Route,
+    /// What this goes and gets out of the library, if anything.
+    pub fetch: Option<Fetch>,
 }
 
 /// The spells of a run whose file declared which ones to cast.
@@ -216,6 +271,16 @@ pub struct Board<'a> {
     routed: Vec<Vec<bool>>,
     /// Which groups are lands, so the gate does not walk the whole deck.
     land_groups: Vec<usize>,
+    /// `fetch_tiers[effect]` is that effect's declared priority as groups,
+    /// highest tier first, each tier in decklist order. Empty for an effect
+    /// that fetches nothing. Resolved once here rather than on every path, for
+    /// the same reason last-wins is: a priority re-read per path is a second
+    /// opinion about the same list.
+    fetch_tiers: Vec<Vec<Vec<usize>>>,
+    /// Whether anything in this run removes a card from the library without
+    /// drawing it. Read by the enumeration, which only pays for the shrinking
+    /// population where there is one.
+    fetches: bool,
     /// Everything that only exists where the file declared a priority.
     ///
     /// One `Option` rather than a field each, because the ranking and the
@@ -253,6 +318,30 @@ pub struct Board<'a> {
     fresh_head: usize,
     /// Looked at and left on top, shallower than anything in `fresh`.
     kept: Vec<usize>,
+    /// Cards of each group this path has turned over, drawn or merely looked
+    /// at. Not the same as *drawn*: a card kept on top has been revealed and is
+    /// still in the library, and a tutor must not be able to find it twice.
+    revealed: Vec<u32>,
+    /// Cards of each group a fetch took out of the **unrevealed** library.
+    ///
+    /// Reported to the enumeration, which subtracts it from what the later
+    /// gaps are dealt out of. A fetch that takes a card off the top instead
+    /// does not appear here, because that card was already accounted for by
+    /// the checkpoint that revealed it.
+    removed: Vec<u32>,
+    /// Lands on the battlefield, per group.
+    ///
+    /// Separate from `live_played`, which counts what left your hand: a
+    /// fetchland is played and then is not in play, and those are the same
+    /// number in every run that fetches nothing.
+    live_field: Vec<u32>,
+    /// Cards of each group a fetch put straight onto the battlefield, per turn.
+    ///
+    /// The library count needs it and no other zone does: such a card left the
+    /// library without ever being in your hand, so subtracting the hand, the
+    /// yard and what was cast leaves it counted in a library it is not in.
+    landed: Vec<Vec<u32>>,
+    live_landed: Vec<u32>,
     /// How many lands of each effect have been played. A land is played once.
     played: Vec<u32>,
     /// The same count per group, which is what a policy plays from: it ranks
@@ -374,6 +463,34 @@ impl<'a> Board<'a> {
                 live_cast: vec![0; groups],
             }
         });
+        // The same tie rule a third time, over the one resource a tutor
+        // contests: which of the cards it could find it actually takes. A
+        // group belongs to the first tier that names it, and inside a tier the
+        // group the decklist reached first — which is group order, because
+        // that is the order the groups were built in.
+        let fetch_tiers: Vec<Vec<Vec<usize>>> = effects
+            .iter()
+            .map(|effect| match &effect.fetch {
+                None => Vec::new(),
+                Some(fetch) => {
+                    let mut claimed = vec![false; groups];
+                    fetch
+                        .prefer
+                        .iter()
+                        .map(|&query| {
+                            let tier: Vec<usize> = (0..groups)
+                                .filter(|&g| !claimed[g])
+                                .filter(|&g| grouping.group_masks()[g] & (1u64 << query) != 0)
+                                .collect();
+                            for &g in &tier {
+                                claimed[g] = true;
+                            }
+                            tier
+                        })
+                        .collect()
+                }
+            })
+            .collect();
         Board {
             grouping,
             schedule,
@@ -382,6 +499,8 @@ impl<'a> Board<'a> {
             land_groups,
             pool,
             casting,
+            fetches: effects.iter().any(|e| e.fetch.is_some()),
+            fetch_tiers,
             drops: vec![0; turns],
             hand: vec![vec![0; groups]; turns],
             yard: vec![vec![0; groups]; turns],
@@ -390,6 +509,11 @@ impl<'a> Board<'a> {
             fresh: Vec::with_capacity(schedule.gaps().iter().sum::<u32>() as usize),
             fresh_head: 0,
             kept: Vec::new(),
+            revealed: vec![0; groups],
+            removed: vec![0; groups],
+            live_field: vec![0; groups],
+            landed: vec![vec![0; groups]; turns],
+            live_landed: vec![0; groups],
             played: vec![0; effects.len()],
             live_played: vec![0; groups],
             live_hand: vec![0; groups],
@@ -397,7 +521,32 @@ impl<'a> Board<'a> {
         }
     }
 
+    /// Whether anything in this run takes a card out of the library without
+    /// drawing it.
+    ///
+    /// The enumeration asks, because a walk that fetches nothing is the walk
+    /// that could not: the shrinking population costs a prefix replay per
+    /// checkpoint, and a run with no tutor in it should not pay that to learn
+    /// that nothing moved.
+    pub fn fetches(&self) -> bool {
+        self.fetches
+    }
+
+    /// How many cards of each group this path has taken out of the unrevealed
+    /// library, after the checkpoints the last [`Board::walk`] was given.
+    pub fn removed(&self) -> &[u32] {
+        &self.removed
+    }
+
     /// Play one path out, turn by turn, filling the per-turn zone counts.
+    ///
+    /// `history` may be a **prefix** of a path rather than a whole one, and
+    /// that is what makes the shrinking population work: the enumeration asks
+    /// what a path has removed before it deals the next gap, and the only
+    /// honest answer is the one this same walk gives. A turn whose checkpoints
+    /// the prefix does not reach is not played at all — playing half of one
+    /// would land a drop off cards nobody has seen, and the removal it decided
+    /// would not survive the next checkpoint.
     pub fn walk(&mut self, history: Path<'_>) {
         self.fresh.clear();
         self.fresh_head = 0;
@@ -406,6 +555,10 @@ impl<'a> Board<'a> {
         self.live_played.fill(0);
         self.live_hand.fill(0);
         self.live_yard.fill(0);
+        self.live_field.fill(0);
+        self.revealed.fill(0);
+        self.removed.fill(0);
+        self.live_landed.fill(0);
         self.drop_at.fill(None);
         if let Some(casting) = &mut self.casting {
             casting.live_cast.fill(0);
@@ -414,6 +567,9 @@ impl<'a> Board<'a> {
         let effects = self.schedule.effects();
         for turn in 0usize..self.schedule.turns() {
             let (first, last) = self.schedule.checkpoints_of(turn);
+            if last >= history.len() {
+                break;
+            }
             // Everything this turn reveals, in the order the checkpoints
             // revealed it. Appended before the draw resolves, which is safe
             // because `fresh` is a queue: the draw still takes the topmost
@@ -425,6 +581,7 @@ impl<'a> Board<'a> {
                     let before = previous.map_or(0, |p| p[group]);
                     for _ in 0..(total - before) {
                         self.fresh.push(group);
+                        self.revealed[group] += 1;
                     }
                 }
             }
@@ -454,12 +611,30 @@ impl<'a> Board<'a> {
                 None => self.drops[turn] = 0,
                 Some(previous) if self.declared.is_some() => {
                     let chosen = self.declared_drop();
-                    self.drop_at[turn] = chosen;
+                    // What is standing there when the turn is over, which is
+                    // the land you played unless it went and got another one
+                    // in exchange for itself.
+                    let mut landed = chosen;
                     if let Some(group) = chosen {
                         self.live_played[group] += 1;
                         if let Some(effect) = self.group_effect[group] {
-                            self.look(effect, effects[effect].look);
+                            if effects[effect].trigger == Trigger::LandDrop {
+                                self.look(effect, effects[effect].look);
+                                if let Some((got, to)) = self.fetch(effect) {
+                                    match to {
+                                        Fetched::Hand => self.live_hand[got] += 1,
+                                        Fetched::Battlefield => {
+                                            landed = Some(got);
+                                            self.live_landed[got] += 1;
+                                        }
+                                    }
+                                }
+                            }
                         }
+                    }
+                    self.drop_at[turn] = landed;
+                    if let Some(group) = landed {
+                        self.live_field[group] += 1;
                     }
                     self.drops[turn] = self.drops[previous] + u32::from(chosen.is_some());
                 }
@@ -468,6 +643,11 @@ impl<'a> Board<'a> {
                         self.played[chosen] += 1;
                         self.look(chosen, effects[chosen].look);
                     }
+                    // Nothing fetches here. A run with no declared priority
+                    // cannot say which land it played, so a land-drop fetch is
+                    // refused at the boundary rather than guessed at, and
+                    // `live_field` stays the empty thing nothing in this
+                    // branch reads.
                     // One drop a turn, and it is wasted if you are holding
                     // nothing to play. That is what makes this a fact about the
                     // path rather than about the hand: five lands drawn by turn
@@ -486,8 +666,12 @@ impl<'a> Board<'a> {
             // never played.
             self.hand[turn].copy_from_slice(&self.live_hand);
             self.yard[turn].copy_from_slice(&self.live_yard);
+            self.landed[turn].copy_from_slice(&self.live_landed);
             if let Some(declared) = &mut self.declared {
-                declared.played_at[turn].copy_from_slice(&self.live_played);
+                // What is standing there, not what left your hand. A fetchland
+                // is both played and not in play, and every run that fetches
+                // no land has the two identical.
+                declared.played_at[turn].copy_from_slice(&self.live_field);
             }
             // The spells, after the land, because you play your land and then
             // cast off it.
@@ -548,12 +732,85 @@ impl<'a> Board<'a> {
                         spent = trial;
                         self.live_hand[group] -= 1;
                         casting.live_cast[group] += 1;
+                        // The tutor resolves before the line moves on, which
+                        // is the order the pilot plays it in and the only
+                        // order that lets four mana cast Trinket Mage and
+                        // then the Lantern it just fetched.
+                        self.fetch_on_cast(group);
                     }
                 }
             }
             casting.spent[turn] = spent;
         }
         self.casting = Some(casting);
+    }
+
+    /// Resolve the tutor on a spell that has just been cast, if it carries
+    /// one.
+    ///
+    /// Once per casting: two Trinket Mages fetch twice, and one fetching twice
+    /// would be a card appearing from nowhere.
+    fn fetch_on_cast(&mut self, group: usize) {
+        let Some(effect) = self.group_effect[group] else {
+            return;
+        };
+        if self.schedule.effects()[effect].trigger != Trigger::Cast {
+            return;
+        }
+        if let Some((got, to)) = self.fetch(effect) {
+            match to {
+                Fetched::Hand => self.live_hand[got] += 1,
+                Fetched::Battlefield => {
+                    self.live_field[got] += 1;
+                    self.live_landed[got] += 1;
+                }
+            }
+        }
+    }
+
+    /// Go and get a card, by the priority this effect declared.
+    ///
+    /// The first tier holding a card this path has not already taken, and
+    /// inside a tier the group the decklist named first — the same shape of
+    /// rule as the land drop's and the casting line's, over the third
+    /// contested resource. A tier that finds nothing falls through to the
+    /// next; a priority that finds nothing at all fetches nothing, which is
+    /// what a tutor does when the card is already gone.
+    ///
+    /// **The unrevealed library first.** A card left on top by an earlier look
+    /// is one you were about to draw anyway, so taking that copy is the worse
+    /// line and this takes it only when it is the only one left — the same
+    /// reading of a decision the pilot gets to make that the gate already
+    /// takes of the land drop.
+    fn fetch(&mut self, effect: usize) -> Option<(usize, Fetched)> {
+        let to = self.schedule.effects()[effect].fetch.as_ref()?.to;
+        for tier in 0..self.fetch_tiers[effect].len() {
+            let deep = self.fetch_tiers[effect]
+                .get(tier)
+                .and_then(|groups| groups.iter().copied().find(|&g| self.unrevealed(g) > 0));
+            if let Some(group) = deep {
+                self.removed[group] += 1;
+                return Some((group, to));
+            }
+            let on_top = self.kept.iter().position(|kept| {
+                self.fetch_tiers[effect]
+                    .get(tier)
+                    .is_some_and(|groups| groups.contains(kept))
+            });
+            if let Some(i) = on_top {
+                return Some((self.kept.remove(i), to));
+            }
+        }
+        None
+    }
+
+    /// Cards of `group` this path has neither turned over nor fetched.
+    ///
+    /// The pool a tutor searches and the pool the next gap is dealt from are
+    /// the same pool, which is the invariant that keeps the two engines
+    /// agreeing about a fetch.
+    fn unrevealed(&self, group: usize) -> u32 {
+        self.grouping.group_sizes()[group] - self.revealed[group] - self.removed[group]
     }
 
     /// Which land the declared priority plays this turn, if any.
@@ -674,11 +931,18 @@ impl<'a> Board<'a> {
             // cast are disjoint subsets of the same groups `matching_total`
             // sums over — a card is drawn once, and casting it takes it out of
             // the hand rather than copying it.
+            // Cannot underflow: the hand, the yard, the spells this path cast
+            // and the cards a fetch put straight onto the battlefield are
+            // disjoint subsets of the same groups `matching_total` sums over —
+            // a card is drawn once, casting it takes it out of the hand rather
+            // than copying it, and a fetch takes its card out of a library
+            // nothing has drawn from yet.
             Zone::Library => {
                 self.grouping.matching_total(query)
                     - in_hand
                     - self.grouping.count_matching(&self.yard[turn], query)
                     - self.cast_by(turn, query)
+                    - self.grouping.count_matching(&self.landed[turn], query)
             }
             Zone::Battlefield => self.played_by(turn, query),
         }

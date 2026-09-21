@@ -4,23 +4,27 @@
 # ----------------------
 # Every percentage below is the probability that a number of CARDS HAVE BEEN
 # SEEN by a given turn. It is not the probability that they were cast, played,
-# or that they resolved. progress-engine has no mana model (upstream #10), so
-# a clause saying "a Loam Access card by turn 5" means "a Loam Access card was
-# drawn by turn 5" and silently assumes you could pay for it. The Loam Access
-# package runs from 1 to 6 mana, so the gap between "seen" and "used" is real
-# and is not small. Read every figure as an UPPER BOUND.
+# or that they resolved. This file asks no mana question, so a clause saying
+# "a Loam Access card by turn 5" means "a Loam Access card was drawn by turn 5"
+# and silently assumes you could pay for it. The Loam Access package runs from
+# 1 to 6 mana, so the gap between "seen" and "used" is real and is not small.
+# Read every figure as an UPPER BOUND. The mana model ships; asking it here
+# would price the manabase on every question in this file, and none of these
+# questions is about mana.
 #
 # Other things this file does not model:
 #   * Mulligans. Turn 0 is a kept seven, always.
 #   * On the play vs on the draw. The default is on the play; in a four-player
 #     pod you are on the draw three quarters of the time, which is one extra
 #     card by turn 5. Re-run with --draw for that side.
-#   * Tutors as tutors. Spellseeker and Tolaria West are counted as one card
-#     each, matching one query. The engine counts cards seen, never cards
-#     found by other cards.
+#   * Tutors as tutors, *in this file*. Spellseeker and Tolaria West are
+#     counted as one card each, matching one query. What a tutor fetches can
+#     now be declared — `loam-thinning.criteria.toml` beside this one declares
+#     it for the four fetchlands, and measures what deck thinning is actually
+#     worth here.
 #   * Dredge. Life from the Loam's own Dredge 3 is the deck's main engine and
-#     the engine cannot express it: the only effect trigger that exists is
-#     "landdrop", and dredge replaces a draw.
+#     the engine cannot express it: dredge replaces a draw, and a replacement
+#     draw is refused by name (upstream #57).
 #   * Discard outlets. Cycling a land, discarding to Cavalier of Flame, and
 #     Frantic Search all fill the yard, and none of them is a land drop, so
 #     none of them is expressible as an [[effect]] here either.

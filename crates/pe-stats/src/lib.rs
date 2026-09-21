@@ -197,33 +197,109 @@ pub type Path<'a> = &'a [Vec<u32>];
 /// each gap is drawn from what the previous checkpoints left behind, the chain
 /// is Markov and stays exact.
 pub fn for_each_checkpoint_path(groups: &[u32], gaps: &[u32], mut f: impl FnMut(Path<'_>, f64)) {
+    struct Drawing<F>(F);
+    impl<F: FnMut(Path<'_>, f64)> Walk for Drawing<F> {
+        fn removals(&mut self, _reached: Path<'_>, _out: &mut [u32]) {}
+        fn path(&mut self, reached: Path<'_>, p: f64) {
+            (self.0)(reached, p)
+        }
+    }
+    for_each_checkpoint_path_removing(groups, gaps, &mut Drawing(&mut f));
+}
+
+/// A walk over checkpoint paths whose population does not stay fixed.
+///
+/// [`for_each_checkpoint_path`] computes what is left as `groups - drawn`, so
+/// the population is a constant of the whole path by construction. Some
+/// questions need it not to be: cards can leave a group without having been
+/// drawn, and everything after that is against a smaller population with a
+/// different composition.
+///
+/// Two methods rather than two closures because the caller needs one piece of
+/// state answering both — the thing that decides a removal is the thing that
+/// knows what the path did — and two closures cannot share a borrow of it.
+///
+/// **Removals are deterministic.** Given the checkpoints reached so far there
+/// is one answer, so a removal costs no branch: it is a subtraction from the
+/// pool the next gap draws out of, not a second distribution laid over it. A
+/// removal that *were* a random sample is a draw, and a draw is what `gaps`
+/// already says.
+pub trait Walk {
+    /// Cumulative removals from each group by the end of the checkpoints in
+    /// `reached`, written into `out`.
+    ///
+    /// Cumulative rather than incremental, because the caller recomputes from
+    /// the path and a total is what it naturally holds. Called once per
+    /// prefix, in descent order, before the gap that follows it is dealt.
+    ///
+    /// It must not shrink as `reached` grows, and it must not claim more of a
+    /// group than that group has left. A caller deciding removals from the
+    /// same counts this walk hands it cannot break either, which is why
+    /// neither is a runtime refusal.
+    fn removals(&mut self, reached: Path<'_>, out: &mut [u32]);
+
+    /// One complete path and the joint probability of it, as
+    /// [`for_each_checkpoint_path`]'s callback.
+    fn path(&mut self, reached: Path<'_>, p: f64);
+}
+
+/// [`for_each_checkpoint_path`], against a population that shrinks as the walk
+/// removes from it.
+///
+/// Each gap is drawn from `groups - drawn - removed`, and `removed` is asked
+/// for at every checkpoint. Nothing else changes: the chain is still Markov,
+/// every gap is still one multivariate hypergeometric, and the path
+/// probabilities still sum to 1 — over a sample space that is now conditioned
+/// on the removals, which is the point.
+pub fn for_each_checkpoint_path_removing(groups: &[u32], gaps: &[u32], walk: &mut impl Walk) {
     let population: u32 = groups.iter().sum();
     if gaps.iter().sum::<u32>() > population {
         return;
     }
     let mut history: Vec<Vec<u32>> = Vec::with_capacity(gaps.len());
     let mut drawn = vec![0u32; groups.len()];
-    descend(groups, gaps, 0, &mut drawn, &mut history, 1.0, &mut f);
+    // One slot per depth, allocated once: the walk visits millions of nodes and
+    // a fresh vector at each of them would cost more than the removals do.
+    let mut removed = vec![vec![0u32; groups.len()]; gaps.len() + 1];
+    descend(
+        groups,
+        gaps,
+        0,
+        &mut drawn,
+        &mut removed,
+        &mut history,
+        1.0,
+        walk,
+    );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn descend(
     groups: &[u32],
     gaps: &[u32],
     depth: usize,
     drawn: &mut Vec<u32>,
+    removed: &mut Vec<Vec<u32>>,
     history: &mut Vec<Vec<u32>>,
     acc: f64,
-    f: &mut impl FnMut(Path<'_>, f64),
+    walk: &mut impl Walk,
 ) {
     if depth == gaps.len() {
-        f(history, acc);
+        walk.path(history, acc);
         return;
     }
-    // What is still in the library, per group.
+    // What is still in the library, per group: what was never drawn, less what
+    // left without being drawn. `saturating_sub` because over-removing is a
+    // caller bug rather than a state this walk can be in, and wrapping it
+    // would hand the enumeration a group of four billion cards.
     let available: Vec<u32> = groups
         .iter()
         .zip(drawn.iter())
-        .map(|(total, used)| total - used)
+        .zip(removed[depth].iter())
+        .map(|((total, used), gone)| {
+            debug_assert!(used + gone <= *total, "removed more than the group holds");
+            total.saturating_sub(*used).saturating_sub(*gone)
+        })
         .collect();
 
     for_each_composition(&available, gaps[depth], |take, p| {
@@ -231,7 +307,30 @@ fn descend(
             *d += t;
         }
         history.push(drawn.clone());
-        descend(groups, gaps, depth + 1, drawn, history, acc * p, f);
+        // Asked after this checkpoint is on the record and before the next gap
+        // is dealt, so a removal decided here is one the rest of the path
+        // cannot draw. It starts from what had already been removed, so a walk
+        // that removes nothing writes nothing.
+        //
+        // Not asked at the last checkpoint, and that is worth a third of the
+        // run rather than being tidiness: there is no gap after it for a
+        // removal to shrink, and the last checkpoint is where all the leaves
+        // are.
+        if depth + 1 < gaps.len() {
+            let (here, next) = removed.split_at_mut(depth + 1);
+            next[0].copy_from_slice(&here[depth]);
+            walk.removals(history, &mut next[0]);
+        }
+        descend(
+            groups,
+            gaps,
+            depth + 1,
+            drawn,
+            removed,
+            history,
+            acc * p,
+            walk,
+        );
         history.pop();
         for (d, t) in drawn.iter_mut().zip(take.iter()) {
             *d -= t;

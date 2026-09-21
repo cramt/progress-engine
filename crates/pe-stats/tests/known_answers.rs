@@ -304,3 +304,151 @@ fn compensated_summation_keeps_what_naive_addition_throws_away() {
         "recovered {recovered}"
     );
 }
+
+// --- removals ---------------------------------------------------------------
+//
+// A population that shrinks without being drawn from. Deliberately small
+// enough that every answer below is worked out by hand in the comment beside
+// it, and deliberately stated in this crate's own vocabulary — groups, draws,
+// removals — with nothing about what a removal represents.
+
+/// A walk that takes `each` more cards out of group `from` at every
+/// checkpoint, up to `most` of them in total and never more of the group than
+/// is still there.
+struct TakesFrom<F> {
+    sizes: &'static [u32],
+    from: usize,
+    each: u32,
+    most: u32,
+    seen: F,
+}
+
+impl<F: FnMut(h::Path<'_>, f64)> h::Walk for TakesFrom<F> {
+    fn removals(&mut self, reached: h::Path<'_>, out: &mut [u32]) {
+        let drawn = reached[reached.len() - 1][self.from];
+        let want = reached.len() as u32 * self.each;
+        out[self.from] = want.min(self.most).min(self.sizes[self.from] - drawn);
+    }
+    fn path(&mut self, reached: h::Path<'_>, p: f64) {
+        (self.seen)(reached, p)
+    }
+}
+
+#[test]
+fn a_removal_changes_what_the_next_draw_is_drawn_from() {
+    // Two groups of two. Draw one, remove one from group 0, draw one more.
+    //
+    //   drew group 0 (1/2): [0, 2] is left, so the second draw is group 1.
+    //   drew group 1 (1/2): [1, 1] is left, so it is even.
+    //
+    // P(exactly one card of group 0 in hand) = 1/2 + 1/2 * 1/2 = 3/4.
+    let mut held = h::KahanSum::new();
+    let mut mass = h::KahanSum::new();
+    h::for_each_checkpoint_path_removing(
+        &[2, 2],
+        &[1, 1],
+        &mut TakesFrom {
+            sizes: &[2, 2],
+            from: 0,
+            each: 1,
+            most: 1,
+            seen: |hist: h::Path<'_>, p: f64| {
+                mass.add(p);
+                if hist[1][0] == 1 {
+                    held.add(p);
+                }
+            },
+        },
+    );
+    assert!(close(mass.total(), 1.0, 1e-12), "mass {}", mass.total());
+    assert!(close(held.total(), 0.75, 1e-12), "was {}", held.total());
+
+    // The same two draws with nothing removed is a plain hypergeometric over
+    // four cards, and it is a different number: C(2,1)C(2,1)/C(4,2) = 4/6.
+    let plain = h::probability_that_path(&[2, 2], &[1, 1], |hist| hist[1][0] == 1);
+    assert!(close(plain.get(), 4.0 / 6.0, 1e-12), "was {}", plain.get());
+}
+
+#[test]
+fn removing_a_whole_group_first_is_the_same_as_never_having_had_it() {
+    // A removal is a subtraction and nothing else, so taking every card of a
+    // group out before anything is drawn has to leave exactly the walk over
+    // the remaining groups. Checkpoint 0 draws nothing, which is where the
+    // removal lands.
+    let mut with = Vec::new();
+    h::for_each_checkpoint_path_removing(
+        &[5, 3, 7],
+        &[0, 4, 2],
+        &mut TakesFrom {
+            sizes: &[5, 3, 7],
+            from: 1,
+            each: 3,
+            most: 3,
+            seen: |hist: h::Path<'_>, p: f64| with.push((hist[2][0], hist[2][2], p)),
+        },
+    );
+    let mut without = Vec::new();
+    h::for_each_checkpoint_path(&[5, 7], &[0, 4, 2], |hist, p| {
+        without.push((hist[2][0], hist[2][1], p))
+    });
+    assert_eq!(with.len(), without.len(), "the same paths, group 1 aside");
+    for (a, b) in with.iter().zip(&without) {
+        assert_eq!((a.0, a.1), (b.0, b.1));
+        assert!(close(a.2, b.2, 1e-12), "{} vs {}", a.2, b.2);
+    }
+}
+
+#[test]
+fn removals_that_never_fire_leave_every_path_untouched() {
+    // The guarantee every number already in this repository rests on: a walk
+    // that removes nothing is the walk that could not.
+    let groups = [12, 8, 79];
+    let gaps = [7, 1, 1];
+    let mut removing = Vec::new();
+    h::for_each_checkpoint_path_removing(
+        &groups,
+        &gaps,
+        &mut TakesFrom {
+            sizes: &[12, 8, 79],
+            from: 0,
+            each: 0,
+            most: 0,
+            seen: |hist: h::Path<'_>, p: f64| removing.push((hist.last().unwrap().clone(), p)),
+        },
+    );
+    let mut plain = Vec::new();
+    h::for_each_checkpoint_path(&groups, &gaps, |hist, p| {
+        plain.push((hist.last().unwrap().clone(), p))
+    });
+    assert_eq!(removing.len(), plain.len());
+    for (a, b) in removing.iter().zip(&plain) {
+        assert_eq!(a.0, b.0);
+        assert_eq!(a.1.to_bits(), b.1.to_bits(), "bit for bit, not close to");
+    }
+}
+
+#[test]
+fn a_removal_leaves_the_mass_at_one() {
+    // Every gap is still one multivariate hypergeometric over whatever is
+    // left, so the paths still partition the sample space — conditioned on the
+    // removals, which is the whole claim.
+    for each in 0..=2u32 {
+        let mut mass = h::KahanSum::new();
+        h::for_each_checkpoint_path_removing(
+            &[9, 6, 11],
+            &[5, 2, 2, 1],
+            &mut TakesFrom {
+                sizes: &[9, 6, 11],
+                from: 2,
+                each,
+                most: 6,
+                seen: |_: h::Path<'_>, p: f64| mass.add(p),
+            },
+        );
+        assert!(
+            close(mass.total(), 1.0, 1e-12),
+            "removing {each} a checkpoint summed to {}",
+            mass.total()
+        );
+    }
+}

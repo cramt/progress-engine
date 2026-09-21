@@ -12,7 +12,7 @@
 //! this one*, and the bits are disjoint because a card has one effect.
 
 use anyhow::{Context, Result};
-use pe_criteria::{Effect, Route};
+use pe_criteria::{Effect, Fetch, Route};
 use pe_scryfall::index::TagGap;
 use pe_scryfall::Query;
 use pe_toml::{Destination, EffectEntry, EffectLibrary, STANDARD_LIBRARY_ORIGIN};
@@ -30,6 +30,14 @@ pub struct Applied {
     pub look: u32,
     pub on: &'static str,
     pub to_graveyard: Option<String>,
+    /// The declared tutor priority, as written, and where it puts what it
+    /// finds. A run that fetched has to say what it fetched: a number that
+    /// hinged on a declared policy and did not name it is the bug this project
+    /// exists to prevent.
+    pub fetch: Option<(Vec<String>, &'static str)>,
+    /// Which of the fetch's preferences pick out no card in this deck, so a
+    /// tier that decides nothing is a fact about the deck rather than silence.
+    pub fetch_misses: Vec<String>,
     pub origin: String,
     /// The cards this effect actually got, after the overlap was resolved. A
     /// card matched by a later entry is not here — it is under that entry.
@@ -141,11 +149,28 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
         // route naming a card the deck does not play sends nothing anywhere,
         // and paying a checkpoint a turn to discover that is paying to compute
         // a zero.
-        let reachable = match &entry.to_graveyard {
+        let routes = match &entry.to_graveyard {
             None => false,
             Some(Destination::Everything) => true,
             Some(Destination::Matching(q)) => parse(q, entry, "to_graveyard")?.matches_any(deck),
         };
+        // A tutor with nothing to find moves no number either, and the tiers
+        // that found nothing are worth saying out loud: a priority naming a
+        // card this deck does not play is the same failure as a criteria query
+        // matching nothing.
+        let mut fetch_misses = Vec::new();
+        if let Some(fetch) = &entry.fetch {
+            for query in &fetch.prefer {
+                if !parse(query, entry, "fetch")?.matches_any(deck) {
+                    fetch_misses.push(query.clone());
+                }
+            }
+        }
+        let fetches = entry
+            .fetch
+            .as_ref()
+            .is_some_and(|f| f.prefer.len() > fetch_misses.len());
+        let reachable = routes || fetches;
         if reachable {
             live.push(i);
         }
@@ -157,6 +182,11 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
                 Destination::Everything => pe_toml::EVERYTHING.to_string(),
                 Destination::Matching(q) => q.clone(),
             }),
+            fetch: entry
+                .fetch
+                .as_ref()
+                .map(|f| (f.prefer.clone(), pe_toml::fetched_name(f.to))),
+            fetch_misses,
             origin: entry.origin.clone(),
             cards: mine
                 .iter()
@@ -182,6 +212,15 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
                 queries.push(q.clone());
             }
         }
+        // And a tutor's priority, on the same terms: the engine picks a group
+        // by which of these queries it matches, so each one is a bit.
+        if let Some(fetch) = &library.entries()[i].fetch {
+            for q in &fetch.prefer {
+                if bit_of(q, &queries).is_none() {
+                    queries.push(q.clone());
+                }
+            }
+        }
     }
     let first_mark = asked.len() + queries.len();
 
@@ -204,6 +243,14 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
                     Route::Matching(bit_of(q, &queries).expect("just collected"))
                 }
             },
+            fetch: entry.fetch.as_ref().map(|f| Fetch {
+                prefer: f
+                    .prefer
+                    .iter()
+                    .map(|q| bit_of(q, &queries).expect("just collected"))
+                    .collect(),
+                to: f.to,
+            }),
         });
     }
 

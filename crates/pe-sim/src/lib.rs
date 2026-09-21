@@ -117,14 +117,26 @@ pub fn simulate<E>(
     // than to a count that the caller would have to remember to divide.
     let share = 1.0 / f64::from(trials);
 
+    // The same question the exact engine asks: does anything here take a card
+    // out of the library without drawing it. A run with no tutor deals exactly
+    // as it always did, down to the order of the random draws.
+    let fetches = board.fetches();
+    let mut removed = vec![0u32; groups];
+    let mut wanted = vec![0u32; groups];
+
     for _ in 0..trials {
-        // Partial Fisher-Yates: only shuffle as far as we actually draw.
-        let n = deck.len();
+        // Partial Fisher-Yates: only shuffle as far as we actually draw. `n`
+        // is the undealt tail, and a fetch shortens it: the card it took is
+        // swapped past the end, which is what makes it unavailable to every
+        // later draw in the same hand.
+        let mut n = deck.len();
         let mut cumulative = vec![0u32; groups];
         let mut history: Vec<Vec<u32>> = Vec::with_capacity(gaps.len());
         let mut checkpoint = 0usize;
+        removed.fill(0);
 
-        for i in 0..(total_draws as usize).min(n) {
+        let mut i = 0usize;
+        loop {
             // Snapshot before dealing, because a checkpoint can be reached
             // before any card is: a leading gap of zero means "the hand as it
             // stands", and recording it after the next draw reports a card the
@@ -132,10 +144,35 @@ pub fn simulate<E>(
             while checkpoint < gaps.len() && reached_at[checkpoint] as usize <= i {
                 history.push(cumulative.clone());
                 checkpoint += 1;
+                if !fetches {
+                    continue;
+                }
+                // The same prefix replay the exact engine does, and for the
+                // same reason: what this path has fetched is whatever the one
+                // walk says it fetched, asked before the next card is dealt.
+                board.walk(&history);
+                wanted.copy_from_slice(board.removed());
+                for (group, want) in wanted.iter().enumerate() {
+                    while removed[group] < *want {
+                        // The card is in the undealt tail by construction: the
+                        // board counted it there out of the same totals this
+                        // deck was built from.
+                        let at = (i..n)
+                            .find(|&k| deck[k] as usize == group)
+                            .expect("the board fetched a card the library still held");
+                        deck.swap(at, n - 1);
+                        n -= 1;
+                        removed[group] += 1;
+                    }
+                }
+            }
+            if i >= (total_draws as usize).min(n) {
+                break;
             }
             let j = rng.random_range(i..n);
             deck.swap(i, j);
             cumulative[deck[i] as usize] += 1;
+            i += 1;
         }
         // Whatever the last draw reached, plus any trailing gaps of zero.
         while checkpoint < gaps.len() {

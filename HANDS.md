@@ -17,6 +17,11 @@ the feature cannot quietly redefine the question — and hands 1, 2 and 3 are th
 worked case, written down as one Opt on turn 1 long before anything could say
 so, and answered as one Opt on turn 1 when something finally could.
 
+Several of them are **pairs**, and that is deliberate rather than tidy. The
+claim a hand makes is usually that one number moves while another does not, and
+a test that ran only the half it expected to fail would pass against a model
+that always says no.
+
 ## A caveat that applies throughout
 
 The model sequences at sorcery speed. Opt is an instant and you would really
@@ -438,6 +443,110 @@ library, where the two priorities answer turn 1 with a flat yes and no.
 
 ---
 
+## The library is not a fixed population
+
+### 15. Trinket Mage, and the Lantern is still in the deck
+
+```
+Island ×4
+Trinket Mage
+(library: Lantern of Insight)
+```
+
+**Turn 4:** four lands in play, `{2}{U}` paid, Trinket Mage resolves. It puts
+Lantern of Insight from the library into your hand — and the library is now one
+card smaller and holds no Lantern at all.
+
+**Naive model:** you drew a tutor. A tutor is one card matching one query, and
+whether it found anything is the reader's arithmetic rather than the tool's.
+Every criteria file in this repository said so in a comment for a year.
+
+The two things that move are not the same thing, and both have to. The Lantern
+is **in hand**, which is the point of the card. The Lantern is **out of the
+library**, which is the point of the engine: `for_each_checkpoint_path` computed
+what remained as `groups - drawn`, so the population was a constant of the whole
+path by construction.
+
+*Answerable*, as an `[[effect]]` with a `fetch`, and **the pair is the test
+rather than either half of it**. One deck — `hand-tutor.txt`, twelve cards: four
+Islands, one Trinket Mage at `{2}{U}`, one Lantern of Insight at `{1}` and six
+Lightning Bolt — and two criteria files identical but for the effect block:
+
+```toml
+[[effect]]
+match = 'name:"Trinket Mage"'
+on = "cast"
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+```
+
+| | drawn | fetched |
+|---|---|---|
+| Trinket Mage cast by turn 4 | **74.24%** | **74.24%** |
+| Trinket Mage and a Lantern both cast by turn 4 | 59.09% | **71.82%** |
+| Lantern still in the library on turn 4 | 16.67% | **1.52%** |
+
+The first row is the one that must **not** move, and it is why this is a pair:
+what a spell does when it resolves cannot change whether the pool paid for it. A
+model that fired the tutor on the holding rather than on the casting would have
+moved it.
+
+The third row is worked on paper: turn 4 on the play has seen ten of the twelve
+cards, so a named card is still in the library on 2/12 = 16.67% of deals. The
+fetch empties all but the deals where the Mage was never cast.
+
+On the real deck this is the Lantern north star's Route B, and it is the
+difference between a route being priced and a route being answered: *Trinket
+Mage and a Lantern both cast by turn 5* on `decks/lantern.txt` reads **0.81%**
+without the fetch and **8.05%** with it. The first figure was the deck drawing
+both halves naturally.
+
+### 16. A fetchland is not a filter
+
+```
+Misty Rainforest
+(library: basics)
+```
+
+**Turn 1:** play Misty Rainforest, crack it, and a basic arrives **in place of
+it**. You have one land in play, as you would have had; the library has one
+fewer land in it, which it would not have had.
+
+**Naive model:** it looks at cards, so it is a scry or a surveil. It is not.
+Scry and surveil examine N cards off the top and route them; a fetchland removes
+a card from the library and shuffles. Modelling it as "look at N" produces
+numbers that are wrong and plausible.
+
+*Answerable*, and the pair again — `hand-fetchland.txt`, twelve cards: two Misty
+Rainforest, four Island, one Forest, five Lightning Bolt:
+
+| | as a land | fetching |
+|---|---|---|
+| a fetchland drawn by turn 3 | **95.45%** | **95.45%** |
+| a fetchland on the battlefield by turn 3 | 95.45% | **18.48%** |
+| a land in play on turn 1 | **100%** | **100%** |
+| basics left in the library on turn 3 | 1.25 | **0.22** |
+
+Three rows that must not move and one that must. A card is drawn when it is
+drawn; a land drop still puts a land down; and the fetchland is *not there*
+afterwards — except on the deals where the basics ran out, because a tutor that
+finds nothing fetches nothing.
+
+**And on a real deck the thinning is negligible.** `decks/loam-thinning.criteria.toml`
+is this hand at scale, and the largest number it moves is *two Loam Access cards
+by turn 8*, from 58.9176% to 59.0695% — one game in 658. Four fetchlands in 98
+cards is 0.57 of one cracked by turn 8, each taking one land out of a library of
+about ninety. The mean lands *drawn* falls at the same time, because the land
+the fetch found is already in play and is one fewer left to draw. Thinning is
+real, it is exact, and it is not why you play fetchlands.
+
+**What is not answerable is the mana.** A Scalding Tarn fetches untapped and a
+Terramorphic Expanse fetches tapped, `otag:fetchland` holds both, and nothing on
+the land it found tells them apart — so a `can_cast` or a `cast` clause beside a
+battlefield fetch is refused by name rather than answered optimistically.
+
+---
+
 ## Degenerate hands
 
 ### 13. Every card is a commander
@@ -460,10 +569,10 @@ case in #37, which is the one hole.*
 ## What these are for
 
 When the features land, these become tests — hands 1, 2, 3, 4, 6, 7, 8, 9, 10,
-11, 12, 13 and 14 already have, which is every one of them but hand 5. Until
-then they are the specification: if an implementation disagrees with a hand
-here, one of the two is wrong and it is worth knowing which before shipping a
-percentage.
+11, 12, 13, 14, 15 and 16 already have, which is every one of them but hand 5.
+Until then they are the specification: if an implementation disagrees with a
+hand here, one of the two is wrong and it is worth knowing which before shipping
+a percentage.
 
 Hands 1, 2 and 3 are one test rather than three, for the reason hands 6 and 7
 are: the claim is that one number moves while another does not, and a file that

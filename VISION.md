@@ -44,7 +44,7 @@ draw the card; they assemble it by whichever of three routes turns up:
 | Route | Needs |
 |---|---|
 | Lantern in hand, and one mana | mana as a **gate** |
-| Trinket Mage resolved, fetching it — three mana by turn 4, or four by turn 5 so both are cast in one turn | mana as a **budget**, and tutors |
+| Trinket Mage resolved, fetching it — three mana by turn 4, or four by turn 5 so both are cast in one turn | mana as a **budget**, and tutors — both ship |
 | Urza's Saga played by turn 3, ticking to chapter III | **no mana at all** — a land drop, a two-turn delay, and a tutor onto the battlefield |
 
 Three consequences, all of which were invisible while the question was recorded
@@ -74,19 +74,19 @@ hand 12 is that route worked out, and it prices the trade the deck actually
 makes: playing the surveil land first halves the turn-1 number and wins the
 turn-2 one.
 
-**The second route is now half-writable, and the half it is missing is the
-tutor.** `[casting] prefer = ['name:"Trinket Mage"', 'name:"Lantern of
-Insight"']` spends the pool the way the pilot would, and `cast` counts what it
-paid for: on `decks/lantern.txt` Trinket Mage resolves by turn 3 on 5.30% of
-hands, exactly, on 84,084 compositions. What it cannot do is fetch — Trinket
-Mage puts a card from the library into your hand, which shrinks the library and
-names the card, and that is
-[#18](https://github.com/cramt/progress-engine/issues/18) rather than this
-issue. So the route is priced and not yet answered, and the run says which:
-*both cast by turn 5* reads 0.81%, which is the deck drawing both halves
-naturally, because nothing tutors for the second one. The third route still
-needs delayed effects. So the north star is closer by one and a half of three
-routes and is still not met.
+**The second route is now writable end to end.** `[casting] prefer =
+['name:"Trinket Mage"', 'name:"Lantern of Insight"']` spends the pool the way
+the pilot would and `cast` counts what it paid for; an `[[effect]]` with `on =
+"cast"` and `fetch = ['name:"Lantern of Insight"']` says what the spell then
+went and got. On `decks/lantern.txt` Trinket Mage resolves by turn 3 on 5.30% of
+hands, exactly, on 84,084 compositions — **unchanged by the fetch, and it has to
+be**, because what a spell does when it resolves cannot change whether the pool
+paid for it. What the fetch moves is the route: *Trinket Mage and a Lantern both
+cast by turn 5* read **0.81%** when nothing tutored, which was the deck drawing
+both halves naturally, and reads **8.05%** now, on the same seven groups and the
+same 4,120,116 compositions. `decks/lantern-route-b.criteria.toml` is that
+question on its own. The third route still needs delayed effects. So the north
+star is two of three routes and is still not met.
 
 **Life from the Loam.** *How often is Loam in my graveyard by turn 5?* Needs the
 graveyard to be a thing you can ask about, and needs a card routed into the yard
@@ -318,8 +318,12 @@ routing effect and a mana question, since both then read the drop the list
 chose.
 **The turn's mana is the third.** `[casting] prefer = [...]` ranks the spells
 you would cast when the pool cannot pay for all of them — the same list, over a
-resource that depletes rather than over a set you looked at. Mulligan bottoming
-is the fourth and is not built; the mechanism it will use exists.
+resource that depletes rather than over a set you looked at.
+**A tutor's target is the fourth.** `fetch = [...]` on an `[[effect]]` ranks
+the cards it would go and get, over the whole library rather than over a set you
+looked at, and the first one the library still holds is the one it takes.
+Mulligan bottoming is the fifth and is not built; the mechanism it will use has
+now been built four times and not varied.
 
 ### Mana
 
@@ -460,6 +464,60 @@ at turn four. It is recoverable by merging only lands the ranking already places
 side by side, which is
 [#56](https://github.com/cramt/progress-engine/issues/56).
 
+### The library is not a fixed population
+
+`pe_stats::for_each_checkpoint_path(groups, gaps, f)` took the group sizes once
+and computed what remained as `groups - drawn`, so the population was a constant
+of the whole path by construction. A tutor needs it not to be: Trinket Mage does
+not draw you a Lantern, it takes the Lantern out of the library and puts it in
+your hand, and the library gets both smaller *and* differently composed.
+
+**Half of that ships, and the half is the cheap one.** The issue this comes from
+([#18](https://github.com/cramt/progress-engine/issues/18)) splits it, and the
+split is the scope decision:
+
+- A **tutor** is a *deterministic* removal from a named group. Given the
+  checkpoints reached so far there is one answer, so it costs no branch: it is a
+  subtraction from the pool the next gap is dealt out of, and the enumeration is
+  the same width it always was. `decks/lantern.criteria.toml`'s Route B is seven
+  groups and 4,120,116 compositions at turn 5 with the tutor and without it, to
+  the composition.
+- **Exiling off the top** is itself a draw. The three cards Devourer of Destiny
+  exiles are a random sample, so what remains is a distribution rather than a
+  subtraction, and it branches the path the way a draw does. That is not built,
+  and it is filed rather than approximated.
+
+`pe-stats` stays Magic-free, which was the condition the issue set. What it
+gained is a vocabulary word — **removals** — beside populations, groups and
+draws, and its known-answer tests state it in exactly those terms: two groups of
+two, draw one, remove one from group 0, draw one more, and the answer is 3/4
+where the plain walk says 4/6. Nothing in the signature knows what a tutor is.
+
+**The sampler follows, and the agreement is the acceptance test.** The two
+engines shrink the library by completely different means — the exact one
+subtracts from the pool the next gap is dealt out of, the sampler reaches into
+the undealt tail of a shuffled deck and swaps the card past the end — so a fetch
+is a new way for them to disagree, and they are asserted against each other on
+both what ends up in hand and what is left behind.
+
+**Whoever declares a tutor says what it fetches, and the run names it.** Same
+discipline as `[land_drop]` and `[casting]`, and it is a declared priority over
+queries rather than a fifth policy language. What it is allowed to do is
+restricted rather than open: `to = "hand"` is a tutor, `to = "battlefield"` on a
+land drop is a fetchland replacing itself, and a land arriving off a *spell* is
+refused by name because whether it enters tapped is a fact about the spell that
+fetched it and no tag separates Rampant Growth from Nature's Lore.
+
+**And deck thinning finally has a number.** Does a fetchland meaningfully
+improve your subsequent draws? On `decks/loam.txt`, where fetchlands are a large
+part of why the deck functions, the answer is **yes, exactly, and negligibly**:
+the largest figure `decks/loam-thinning.criteria.toml` moves is *two Loam Access
+cards by turn 8*, from 58.9176% to 59.0695%, which is one game in 658. Four
+fetchlands in 98 cards is 0.57 of one cracked by turn 8, each removing one land
+from a library of about ninety. The mean lands *drawn* falls at the same time,
+because the land the fetch found is already in play. It is a trade rather than a
+free roll, and both sides of it are now printed instead of argued.
+
 ### Zones are the real question
 
 "Did I find the card" is not a well-formed question. "Is the card in this zone by
@@ -540,6 +598,22 @@ through the front door.
   is not cast at all. That is the one way it differs from the land drop's list,
   it is the difference between a line and a preference, and every run that used
   one prints it.
+- The library is a population that can shrink without being drawn from
+  ([#18](https://github.com/cramt/progress-engine/issues/18)) — **the tutor half
+  ships**. `fetch = [...]` on an `[[effect]]` is the fourth declared priority
+  over queries, `to` says where the card is put, and both are printed by every
+  run that used one. It is a deterministic removal, so it costs no enumeration
+  width: Route B on `decks/lantern.txt` is 4,120,116 compositions at turn 5 with
+  the fetch and without it. Exiling off the top is the other half, it is a draw
+  rather than a subtraction, and it is filed rather than estimated.
+- `on = "cast"` fires, and what it may do is a `fetch` rather than a `look`. The
+  budget knows which spells a turn paid for; a replacement draw is still refused
+  by name and still measured ([#57](https://github.com/cramt/progress-engine/issues/57)).
+- A fetched land is counted where it is and not tapped for. `otag:fetchland` is
+  54 cards and holds both Scalding Tarn, which fetches untapped, and
+  Terramorphic Expanse, which does not — so what left the library is answered
+  exactly and what the land makes is refused rather than guessed in whichever
+  direction flatters.
 - A land whose tapped-ness the pilot chooses is assumed to enter tapped, and
   every run that depended on the assumption names the cards it made it about.
   Understating a shockland manabase is the failure this project would rather

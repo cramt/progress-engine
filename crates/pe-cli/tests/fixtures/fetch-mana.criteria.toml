@@ -1,0 +1,14 @@
+# A fetched land beside a mana question. Refused: what a fetched land taps for
+# on the turn it arrives is not modelled.
+[[effect]]
+match = "otag:fetchland"
+on = "landdrop"
+fetch = ["t:land t:basic"]
+to = "battlefield"
+
+[land_drop]
+prefer = ["otag:fetchland", "t:land"]
+
+[[criterion]]
+name = "{1}{U} payable on turn 3"
+require = [{ turn = 3, can_cast = "{1}{U}" }]

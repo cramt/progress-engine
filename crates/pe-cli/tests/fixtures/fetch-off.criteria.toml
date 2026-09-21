@@ -1,0 +1,24 @@
+# A deck with fetchlands in it, modelled as though a fetchland were a land.
+#
+# The pair with `fetch-on.criteria.toml`, which is this file with an
+# `[[effect]]` block on top and nothing else different.
+[land_drop]
+prefer = ["otag:fetchland", "t:land"]
+
+[[criterion]]
+name = "a fetchland drawn by turn 3"
+require = [{ turn = 3, query = "otag:fetchland", min = 1 }]
+
+[[criterion]]
+name = "a fetchland on the battlefield by turn 3"
+require = [{ turn = 3, query = "otag:fetchland", zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "a land in play on turn 1"
+require = [{ turn = 1, query = "t:land", zone = "battlefield", min = 1 }]
+
+[[expect]]
+name = "basics left in the library on turn 3"
+turn = 3
+query = "t:land t:basic"
+zone = "library"

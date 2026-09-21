@@ -1,0 +1,10 @@
+// A tutor and the card it fetches, plus enough blue mana to cast it.
+//
+// Twelve cards: Trinket Mage costs {2}{U}, so three Islands is the earliest it
+// resolves, and the single Lantern of Insight is the card it goes and gets.
+// The two criteria files beside this one ask the same questions of this deck
+// and differ only in whether the tutor is declared.
+4x Island [Land]
+1x Trinket Mage [Tutor]
+1x Lantern of Insight [Lantern - Vision]
+6x Lightning Bolt [Burn]

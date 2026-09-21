@@ -1,0 +1,71 @@
+# "Third Lantern Control" — https://archidekt.com/decks/25088186
+# Route B of the north star, on its own.
+#
+# VISION.md lists three routes to a resolved Lantern of Insight. This file is
+# the second one, and it is here rather than in `lantern.criteria.toml` because
+# it is the only one that needs the mana model: three mana by turn 4, or four
+# by turn 5 so that both halves are cast in one turn.
+#
+# WHAT IS MODELLED HERE THAT IS NOT MODELLED THERE
+# ------------------------------------------------
+# `lantern.criteria.toml` counts cards SEEN and says so. This file counts what
+# the turn's lands actually PAID FOR, and what the spell it paid for then went
+# and got:
+#
+#   [casting]  — which spells this line casts, in the order it casts them.
+#                A spell this list does not name is not cast at all.
+#   [[effect]] — Trinket Mage puts a mana value 1 artifact into your hand, and
+#                the artifact this deck wants is the Lantern. That is a
+#                deterministic removal from the library: the Lantern stops
+#                being a card you might draw and starts being one you have.
+#
+# WHAT THE TUTOR IS WORTH, MEASURED
+# ----------------------------------
+# Delete the `[[effect]]` block and re-run. On the play, against an index
+# synced with oracle tags:
+#
+#                                                  drawn      fetched
+#   Trinket Mage cast by turn 3                     5.30%       5.30%
+#   Trinket Mage and a Lantern both cast by turn 5  0.81%       8.05%
+#
+# The first row does not move, and it must not: what a spell does when it
+# resolves cannot change whether the pool paid for it. The second row is the
+# route, and without the fetch it was the deck drawing both halves naturally.
+#
+# STILL NOT MODELLED
+# ------------------
+#   * Mulligans. Turn 0 is a kept seven.
+#   * The other two routes. Route A is a Lantern in hand and one mana; route C
+#     is Urza's Saga, which needs delayed effects.
+#   * A shockland's 2 life. The run assumes every conditional tapland enters
+#     tapped and names the ten cards it assumed it about, so these are floors.
+#   * Anything about the game but your own draws.
+
+[[effect]]
+match = 'name:"Trinket Mage"'
+on = "cast"
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+
+[casting]
+prefer = ['name:"Trinket Mage"', 'name:"Lantern of Insight"']
+
+# THRESHOLD: none. This is one route of three, and asserting on it alone would
+# be asserting that the deck wins by its second-cheapest line.
+
+[[criterion]]
+name = "Trinket Mage cast by turn 3"
+require = [{ turn = 3, cast = 'name:"Trinket Mage"', min = 1 }]
+
+[[criterion]]
+name = "Trinket Mage and a Lantern both cast by turn 5"
+require = [
+  { turn = 5, cast = 'name:"Trinket Mage"', min = 1 },
+  { turn = 5, cast = 'name:"Lantern of Insight"', min = 1 },
+]
+
+[[expect]]
+name = "Lanterns still in the library on turn 5"
+turn = 5
+query = 'name:"Lantern of Insight"'
+zone = "library"

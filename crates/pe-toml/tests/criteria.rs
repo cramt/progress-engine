@@ -1178,10 +1178,11 @@ fn a_star_routes_everything_which_is_what_mill_is() {
 }
 
 #[test]
-fn a_trigger_that_is_not_a_land_drop_is_refused_by_name() {
-    // Only the land-drop tier is modelled, because only it is free and capped
-    // at one a turn. Casting needs to know you could pay, and an opening hand
-    // of one Island and six Opt casts one Opt.
+fn a_look_on_a_cast_is_refused_and_a_trigger_nobody_fires_is_refused_by_name() {
+    // `on = "cast"` fires: the budget knows which spells a turn paid for. What
+    // it may do when it fires is the restriction — a fetch is a subtraction
+    // from the library and a look is a replacement draw, which is the one that
+    // costs an enumeration checkpoint a turn.
     let with = |on: &str| {
         refuse(&format!(
             r#"
@@ -1206,6 +1207,180 @@ fn a_trigger_that_is_not_a_land_drop_is_refused_by_name() {
     assert!(
         unknown.to_string().contains("landdrop"),
         "should list what it takes: {unknown}"
+    );
+    assert!(
+        unknown.to_string().contains("cast"),
+        "and cast is now one of them: {unknown}"
+    );
+}
+
+#[test]
+fn a_tutor_declares_what_it_fetches_and_where_it_puts_it() {
+    let criteria = parse(
+        r#"
+        [[effect]]
+        match = 'name:"Trinket Mage"'
+        on = "cast"
+        fetch = ['name:"Lantern of Insight"', 'otag:tutor']
+        to = "hand"
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    let entry = &criteria.effects().entries()[0];
+    // A fetch turns over nothing, so it examines nothing, so the schedule it
+    // needs is the one that was already there.
+    assert_eq!(entry.look, 0);
+    let fetch = entry.fetch.as_ref().expect("declared");
+    assert_eq!(fetch.prefer.len(), 2, "a priority, read in order");
+    assert_eq!(fetch.to, pe_criteria::Fetched::Hand);
+}
+
+#[test]
+fn half_a_tutor_is_refused_either_way_round() {
+    // A priority with nowhere to put what it finds and a destination with
+    // nothing arriving at it are each half a declaration, and half a
+    // declaration is where a default nobody stated gets invented.
+    let nowhere = refuse(
+        r#"
+        [[effect]]
+        match = 'name:"Trinket Mage"'
+        on = "cast"
+        fetch = ['name:"Lantern of Insight"']
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    assert!(
+        matches!(&nowhere, ErrorKind::Missing { key: "to", .. }),
+        "{nowhere:?}"
+    );
+    let nothing = refuse(
+        r#"
+        [[effect]]
+        match = 't:land otag:surveil'
+        look = 1
+        on = "landdrop"
+        to = "hand"
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    assert!(
+        matches!(&nothing, ErrorKind::ToWithoutFetch { .. }),
+        "{nothing:?}"
+    );
+    // And it says what `to` is not, because beside a routing key it reads like
+    // it means something it does not.
+    assert!(
+        nothing.to_string().contains("to_graveyard"),
+        "should name the key that does route: {nothing}"
+    );
+}
+
+#[test]
+fn a_fetch_destination_this_engine_cannot_model_is_refused_by_name() {
+    let bad = refuse(
+        r#"
+        [[effect]]
+        match = 'name:"Entomb"'
+        on = "cast"
+        fetch = ['name:"Life from the Loam"']
+        to = "graveyard"
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    assert!(
+        matches!(&bad, ErrorKind::BadFetchDestination { .. }),
+        "{bad:?}"
+    );
+    assert!(
+        bad.to_string().contains("hand, battlefield"),
+        "should list what it takes: {bad}"
+    );
+}
+
+#[test]
+fn a_land_arriving_off_a_spell_is_refused_by_name() {
+    // Rampant Growth. What a land put down by a spell taps for on the turn it
+    // arrives is a fact about the spell, not about the land, and no tag this
+    // index carries separates Rampant Growth from Nature's Lore.
+    let bad = refuse(
+        r#"
+        [[effect]]
+        match = 'name:"Rampant Growth"'
+        on = "cast"
+        fetch = ['t:land t:basic']
+        to = "battlefield"
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    assert!(
+        matches!(&bad, ErrorKind::FetchOntoTheBattlefieldFromASpell { .. }),
+        "{bad:?}"
+    );
+    assert!(
+        bad.to_string().contains("fetchland"),
+        "should name the shape that does work: {bad}"
+    );
+}
+
+#[test]
+fn an_effect_that_neither_looks_nor_fetches_is_refused() {
+    // It would cost a checkpoint a turn to compute a value it cannot change.
+    let nothing = refuse(
+        r#"
+        [[effect]]
+        match = 't:land'
+        on = "landdrop"
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    assert!(
+        matches!(&nothing, ErrorKind::Missing { key: "look", .. }),
+        "{nothing:?}"
+    );
+    assert!(
+        nothing.to_string().contains("fetch"),
+        "should name the other thing an effect can do: {nothing}"
+    );
+}
+
+#[test]
+fn a_tutor_priority_that_repeats_itself_is_refused() {
+    // The same rule the other three lists are under: an entry the earlier one
+    // already took can never decide anything.
+    let repeated = refuse(
+        r#"
+        [[effect]]
+        match = 'name:"Trinket Mage"'
+        on = "cast"
+        fetch = ['name:"Lantern of Insight"', 'name:"Lantern of Insight"']
+        to = "hand"
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    assert!(
+        matches!(&repeated, ErrorKind::RepeatedPreference { .. }),
+        "{repeated:?}"
     );
 }
 

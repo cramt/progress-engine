@@ -1,0 +1,106 @@
+# "There's No Place Like Loam" — https://archidekt.com/decks/26329102
+# Does a fetchland meaningfully improve your subsequent draws?
+#
+# That is an argument people have with vibes and almost nobody has the number.
+# This file is the number, exactly, for this deck.
+#
+# WHAT A FETCHLAND IS, TO THIS ENGINE
+# ------------------------------------
+# Not a filter. #17 and #43 model effects that look at N cards off the top; a
+# fetchland does something else. It removes a card from the library and
+# shuffles — a *deterministic removal from a named group*, which is a plain
+# subtraction rather than a distribution. Modelling it as "look at N" produces
+# numbers that are wrong and plausible.
+#
+# So the `[[effect]]` below says three things and each one is checkable:
+#   on = "landdrop"   it happens when you play the land, which is free and
+#                     capped at one a turn
+#   fetch = [...]     the declared priority over what it goes and gets, read
+#                     in order, first match wins
+#   to = "battlefield" the land it found arrives **in place of** the fetchland,
+#                     because the fetchland sacrificed itself to get it
+#
+# `otag:fetchland` is 54 cards, against the ten-card `is:fetchland` cycle, and
+# it picks out four of them here: Misty Rainforest, Prismatic Vista, Scalding
+# Tarn, Wooded Foothills.
+#
+# WHAT IT COMES TO
+# -----------------
+# Delete the `[[effect]]` block and re-run. On the play, against an index
+# synced with oracle tags, over a 98-card library:
+#
+#                                      as a land     fetching       moved by
+#   some Loam Access by turn 5          80.9583%     81.0158%     +0.0575 pp
+#   some Loam Access by turn 8          88.3546%     88.4310%     +0.0764 pp
+#   two Loam Access by turn 8           58.9176%     59.0695%     +0.1519 pp
+#   lands drawn by turn 8 (mean)          6.2857       6.2680       -0.0177
+#   fetchlands in play by turn 8 (mean)   0.5714       0.0000
+#
+# **Deck thinning is real and it is negligible.** The largest of those is one
+# game in 658. The bottom row is why: four fetchlands in 98 cards is 0.57 of
+# one cracked by turn 8 on average, each taking one land out of a library of
+# about ninety — so the density the later draws come out of moves by a fraction
+# of a percent, on a fraction of your games, for a fraction of your draws.
+#
+# The row above it is the honest other half, and it goes the *wrong* way: the
+# land the fetch found is already in play, so it is one fewer land left to
+# draw, and the mean lands drawn falls. Thinning does not make you draw more
+# spells *and* keep your land count. It trades a little of the second for a
+# little of the first.
+#
+# Fetchlands are a large part of why this deck functions. None of that reason
+# is the thinning.
+#
+# NOT MODELLED
+# ------------
+#   * What the fetched land taps for on the turn it arrives. A Scalding Tarn
+#     fetches untapped and a Terramorphic Expanse fetches tapped, and
+#     `otag:fetchland` holds both, so a mana question in this file is refused
+#     by name rather than answered in whichever direction flatters.
+#   * The life. Fetching costs one, cracking a shock costs two, and a Loam deck
+#     pays both happily; none of it is a draw probability.
+#   * Which basic. The priority below says "any land", because this deck's
+#     question is about how many cards are left rather than which colours.
+
+[[effect]]
+match = "otag:fetchland"
+on = "landdrop"
+fetch = ["t:land"]
+to = "battlefield"
+
+# Required beside a land-drop fetch, and not a formality: the fetch happens on
+# the drop and replaces the land that made it, so a run that cannot say which
+# land you played cannot say what you fetched either.
+[land_drop]
+prefer = ["otag:fetchland", "t:land"]
+
+# THRESHOLD: 0.80, the same one `loam.criteria.toml` asserts on the same
+# question. It is here so that the pair can be read side by side: the threshold
+# does not move because the number does not move.
+
+[[criterion]]
+name = "some Loam Access by turn 5 (drawn, not cast)"
+at_least = 0.80
+require = [{ turn = 5, query = 'cat:"Loam Access"', min = 1 }]
+
+[[criterion]]
+name = "some Loam Access by turn 8 (drawn, not cast)"
+require = [{ turn = 8, query = 'cat:"Loam Access"', min = 1 }]
+
+[[criterion]]
+name = "two Loam Access by turn 8"
+require = [{ turn = 8, query = 'cat:"Loam Access"', min = 2 }]
+
+[[expect]]
+name = "lands drawn by turn 8"
+turn = 8
+query = "t:land"
+
+# The check that the model is doing what it says. A fetchland is not on the
+# battlefield afterwards, because it sacrificed itself; delete the effect and
+# this reads 0.57 instead of 0.
+[[expect]]
+name = "fetchlands in play by turn 8"
+turn = 8
+query = "otag:fetchland"
+zone = "battlefield"

@@ -1,0 +1,10 @@
+// A fetchland and the basics it goes and gets.
+//
+// Twelve cards. The two criteria files beside this one ask the same questions
+// of this deck and differ only in whether the fetch is declared, which is what
+// makes the pair the test: the fetchland is drawn just as often either way,
+// and it is on the battlefield only when nothing cracked it.
+2x Misty Rainforest [Land - Fixing]
+4x Island [Land]
+1x Forest [Land]
+5x Lightning Bolt [Burn]

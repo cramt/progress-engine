@@ -1,0 +1,11 @@
+# A fetchland with nobody saying which land gets the drop. Refused: the fetch
+# happens on the drop and replaces the land that made it.
+[[effect]]
+match = "otag:fetchland"
+on = "landdrop"
+fetch = ["t:land t:basic"]
+to = "battlefield"
+
+[[criterion]]
+name = "a land in play on turn 1"
+require = [{ turn = 1, query = "t:land", zone = "battlefield", min = 1 }]

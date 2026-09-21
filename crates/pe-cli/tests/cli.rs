@@ -1529,18 +1529,19 @@ fn a_users_effect_overrides_the_standard_library_for_the_cards_it_names() {
 }
 
 #[test]
-fn an_effect_that_is_not_a_land_drop_is_refused_by_name() {
-    // Still refused, and the reason has moved: the budget answers how many you
-    // cast, and what casting one then *draws* is the part that would cost an
-    // enumeration checkpoint a turn. So the refusal names the draw and the
-    // issue that measures it, rather than the mana model that has since
-    // shipped.
+fn a_look_on_a_cast_is_refused_by_name() {
+    // `on = "cast"` now fires — the budget knows which spells a turn paid for
+    // — and the refusal has narrowed to the half that is still true. A *look*
+    // on a cast is a replacement draw, which costs an enumeration checkpoint a
+    // turn; a *fetch* on a cast is a subtraction, and that is what ships. So
+    // the refusal names the draw, the issue that measures it, and the key that
+    // does work.
     let out = run("cast-effect.criteria.toml");
     assert!(!out.status.success(), "should refuse");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("\"cast\""), "should name it: {stderr}");
     assert!(
-        stderr.contains("draws"),
+        stderr.contains("replacement draw"),
         "should say what it is actually missing: {stderr}"
     );
     assert!(
@@ -1548,7 +1549,7 @@ fn an_effect_that_is_not_a_land_drop_is_refused_by_name() {
         "should say what it is waiting for: {stderr}"
     );
     assert!(
-        stderr.contains("[casting]"),
+        stderr.contains("fetch"),
         "should name the half that does work: {stderr}"
     );
 }
@@ -2561,4 +2562,170 @@ fn the_enumerations_block_names_the_colours_the_deck_made_it_read() {
         assert_eq!(class["reading"], "per-turn", "a budget reads the turns");
         assert_eq!(class["method"], "exact");
     }
+}
+
+// --- tutors -----------------------------------------------------------------
+
+fn run_tutor(deck: &str, criteria: &str) -> std::process::Output {
+    run_with(deck, criteria, "tutor-index.jsonl")
+}
+
+#[test]
+fn a_tutor_fetches_the_card_it_names_and_the_run_says_what_it_fetched() {
+    // #18's cheap half, and **the pair is the test rather than either half of
+    // it**. One deck, two criteria files differing only by an `[[effect]]`
+    // block, three numbers: one that must not move, one that must, and one
+    // that must move the other way.
+    //
+    // Twelve cards, four Islands, one Trinket Mage at `{2}{U}` and one Lantern
+    // of Insight at `{1}`. Turn 4 on the play has seen ten of the twelve, so a
+    // named card is still in the library on exactly 2/12 of deals — which is
+    // the third row, and it is the row the fetch empties.
+    let off: serde_json::Value =
+        serde_json::from_slice(&run_tutor("hand-tutor.txt", "tutor-off.criteria.toml").stdout)
+            .unwrap();
+    let out = run_tutor("hand-tutor.txt", "tutor-on.criteria.toml");
+    let on: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+
+    // The tutor is cast just as often either way. It has to be: what it does
+    // when it resolves cannot change whether the pool paid for it.
+    let cast = "Trinket Mage cast by turn 4";
+    assert_eq!(percent(&off, cast), 74.24);
+    assert_eq!(
+        percent(&on, cast),
+        74.24,
+        "casting it cannot depend on this"
+    );
+    // And the line it exists for does move, by more than a rounding error.
+    let both = "Trinket Mage and a Lantern both cast by turn 4";
+    assert_eq!(percent(&off, both), 59.09, "drawing both halves");
+    assert_eq!(percent(&on, both), 71.82, "fetching the second one");
+    // The other half of a fetch, and the half that needed the population to
+    // stop being fixed: the card is gone from the library. 2/12 is 16.67%.
+    let left = "Lantern of Insight still in the library on turn 4";
+    assert_eq!(percent(&off, left), 16.67);
+    assert_eq!(
+        percent(&on, left),
+        1.52,
+        "all but the deals that cast nothing"
+    );
+
+    // And the run names the policy it used, because a number that hinged on a
+    // declared priority and did not name it is the bug this project exists to
+    // prevent.
+    let effect = &on["effects"][0];
+    assert_eq!(effect["fetch"][0], "name:\"Lantern of Insight\"");
+    assert_eq!(effect["to"], "hand");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("fetches, to your hand"),
+        "should say so on stderr too: {stderr}"
+    );
+    assert!(
+        stderr.contains("Lantern of Insight"),
+        "and name what it went and got: {stderr}"
+    );
+    // A file that declares no tutor has no `effects` entry at all, which is the
+    // other fact: that run fetched nothing.
+    assert_eq!(off["effects"].as_array().expect("array").len(), 0);
+}
+
+#[test]
+fn a_fetchland_leaves_the_battlefield_and_thins_the_library() {
+    // The same pair over the other trigger, and it is the claim the deck-
+    // thinning argument turns on. Twelve cards: two Misty Rainforests, five
+    // basics, five Bolts.
+    //
+    // Three rows again. The fetchland is **drawn** just as often either way —
+    // it is a card, and declaring what it does cannot change when it turns up.
+    // It is **on the battlefield** far less often, because it sacrificed
+    // itself. And the basics left in the library fall, which is the thinning.
+    let off: serde_json::Value =
+        serde_json::from_slice(&run_tutor("hand-fetchland.txt", "fetch-off.criteria.toml").stdout)
+            .unwrap();
+    let on: serde_json::Value =
+        serde_json::from_slice(&run_tutor("hand-fetchland.txt", "fetch-on.criteria.toml").stdout)
+            .unwrap();
+
+    let drawn = "a fetchland drawn by turn 3";
+    assert_eq!(percent(&off, drawn), 95.45);
+    assert_eq!(
+        percent(&on, drawn),
+        95.45,
+        "a card is drawn when it is drawn"
+    );
+    // Not zero: with two fetchlands and five basics in twelve cards, the
+    // basics sometimes run out, and a tutor that finds nothing fetches
+    // nothing — so the fetchland stays where it is.
+    let played = "a fetchland on the battlefield by turn 3";
+    assert_eq!(percent(&off, played), 95.45);
+    assert_eq!(
+        percent(&on, played),
+        18.48,
+        "cracked unless there is nothing left"
+    );
+    // And a land drop is still a land drop: whatever is standing there on turn
+    // 1, something is.
+    let land = "a land in play on turn 1";
+    assert_eq!(percent(&off, land), 100.0);
+    assert_eq!(percent(&on, land), 100.0);
+
+    let basics = "basics left in the library on turn 3";
+    let mean = |j: &serde_json::Value| expectation(j, basics)["mean"].as_f64().unwrap();
+    assert!((mean(&off) - 1.25).abs() < 1e-9, "was {}", mean(&off));
+    assert!(
+        mean(&on) < mean(&off) - 0.5,
+        "the thinning, which is the whole argument: {} against {}",
+        mean(&on),
+        mean(&off)
+    );
+}
+
+#[test]
+fn a_tutor_that_nothing_would_fire_is_refused_by_name() {
+    // Both triggers, and the same argument each way: a fetch happens at a
+    // point in the game the run has to be able to name. A land-drop fetch
+    // replaces the land that made the drop, so a run with no declared priority
+    // cannot say what it fetched; a cast fetch fires when the declared line
+    // casts the card, so with no line there is nothing to fire it.
+    let drop = run_tutor("hand-fetchland.txt", "fetch-no-land-drop.criteria.toml");
+    assert!(!drop.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&drop.stderr);
+    assert!(
+        stderr.contains("[land_drop]") && stderr.contains("otag:fetchland"),
+        "names the remedy and the effect: {stderr}"
+    );
+
+    let cast = run_tutor("hand-tutor.txt", "fetch-no-casting.criteria.toml");
+    assert!(!cast.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&cast.stderr);
+    assert!(
+        stderr.contains("[casting]") && stderr.contains("Trinket Mage"),
+        "names the remedy and the effect: {stderr}"
+    );
+}
+
+#[test]
+fn a_fetched_land_is_counted_and_not_tapped_for() {
+    // The line between the half of a fetchland this engine answers exactly and
+    // the half it will not answer at all. What left the library is a
+    // subtraction; what the land it found taps for on the turn it arrives is a
+    // fact about the *spell* that fetched it — Scalding Tarn untapped,
+    // Terramorphic Expanse tapped — and `otag:fetchland` holds both.
+    let out = run_tutor("hand-fetchland.txt", "fetch-mana.criteria.toml");
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("Terramorphic Expanse"),
+        "names the card that makes it a real distinction: {stderr}"
+    );
+    // And the other refusal at the same seam: a battlefield fetch may only
+    // name lands, because a spell has to be cast to get there.
+    let spell = run_tutor("hand-fetchland.txt", "fetch-non-land.criteria.toml");
+    assert!(!spell.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&spell.stderr);
+    assert!(
+        stderr.contains("Lightning Bolt"),
+        "names the card it cannot put there: {stderr}"
+    );
 }

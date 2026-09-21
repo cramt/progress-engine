@@ -2,10 +2,17 @@
 #
 # WHAT THESE NUMBERS ARE
 # ----------------------
-# progress-engine counts cards SEEN, never cards cast. There is no mana model
-# (upstream #10). So every branch below that involves casting something is an
-# UPPER BOUND on how often the line is actually available: the card was drawn
-# by that turn, and whether you could pay for it is not modelled.
+# THIS FILE counts cards SEEN, never cards cast. So every branch below that
+# involves casting something is an UPPER BOUND on how often the line is
+# actually available: the card was drawn by that turn, and whether you could
+# pay for it is not asked here.
+#
+# That is a property of this file rather than of the tool. The mana model and
+# the tutor both ship; `lantern-route-b.criteria.toml` beside this one asks the
+# second route with both of them on, and reads 8.05% where this file's route 2
+# is an upper bound. The two are kept apart because pricing the mana prices the
+# manabase on every question in the file, and the four-route union below is
+# wide enough already.
 #
 # The one exception is the Urza's Saga branch, and it is the reason the branch
 # is written separately. Urza's Saga is a land, so it arrives on a land drop,
@@ -17,10 +24,12 @@
 # Also not modelled:
 #   * Mulligans. Turn 0 is a kept seven.
 #   * On the play vs on the draw (default is on the play; --draw for the other).
-#   * Tutors as tutors. A tutor is counted as one card matching one query. The
-#     engine does not know it fetches anything, so the branches below encode
-#     "I drew a card that can go get it" and the turn arithmetic is mine, not
-#     the tool's.
+#   * Tutors as tutors, *in this file*. A tutor here is counted as one card
+#     matching one query, so the branches below encode "I drew a card that can
+#     go get it" and the turn arithmetic is mine rather than the tool's. The
+#     engine can now be told what a tutor fetches — see
+#     `lantern-route-b.criteria.toml`, which declares it for Trinket Mage and
+#     answers the route rather than bounding it.
 #   * Nothing about the game beyond your own draws: interaction, being attacked,
 #     an opponent exiling the Lantern.
 #
