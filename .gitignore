@@ -1,5 +1,7 @@
-# Delver's proprietary artefacts - fetched by ./fetch.sh, not redistributed here.
-# They are also rebuilt daily upstream, so any committed copy is stale on arrival.
+# Delver's proprietary artefacts. The crate fetches these into its own cache
+# (/tmp/delver-engine by default), so nothing below should appear here any more
+# - these entries only cover copies left by the fetch.sh this replaced, and any
+# a cache pointed at the repo would write.
 core.js
 core.wasm
 core.tags.wasm

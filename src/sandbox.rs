@@ -6,18 +6,18 @@
 //! run without, and the list is the whole security story: the downloaded blob
 //! reaches the host only through these ops.
 
-use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use deno_core::{
     op2, CompiledWasmModuleStore, Extension, JsRuntime, OpState, RuntimeOptions,
     SharedArrayBufferStore,
 };
 use deno_error::JsErrorBox;
 
+use crate::artifacts::Bundle;
 use crate::worker::{WorkerPort, WorkerRegistry};
 
 /// Progress report from the boot sequence.
@@ -59,42 +59,19 @@ fn log_to_stderr() -> bool {
     *LIVE.get_or_init(|| std::env::var("DELVER_LOG").is_ok_and(|v| !v.is_empty() && v != "0"))
 }
 
-/// The files the sandbox is allowed to ask the host for. Anything else - any
-/// path traversal, any absolute path - is refused before it reaches the disk.
-fn artifact_allowed(name: &str) -> bool {
-    matches!(name, "data.7z" | "data.md5" | "data.size" | "version.txt")
-        || (name.starts_with("model-")
-            && name.ends_with(".dat")
-            && name[6..name.len() - 4]
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric()))
-}
-
+/// The engine's files, in memory, plus the two things the host derives from
+/// them before the blob is allowed to see anything.
 pub struct Artifacts {
-    pub dir: PathBuf,
+    pub bundle: Bundle,
     /// core.wasm with its two internal tags exported (FINDINGS.md §10). The
-    /// file on disk is never modified.
+    /// bundle keeps the bytes upstream actually shipped.
     pub wasm: Vec<u8>,
-    pub core_js: String,
     pub fingerprint: String,
 }
 
 impl Artifacts {
-    pub fn load(dir: &Path, allow_unknown_build: bool, known: &str) -> Result<Self> {
-        let missing: Vec<_> = ["core.js", "core.wasm", "data.7z"]
-            .into_iter()
-            .filter(|f| !dir.join(f).exists())
-            .collect();
-        if !missing.is_empty() {
-            bail!(
-                "missing engine artefacts in {}: {} - run ./fetch.sh",
-                dir.display(),
-                missing.join(", ")
-            );
-        }
-
-        let stock = std::fs::read(dir.join("core.wasm")).context("reading core.wasm")?;
-        let fingerprint = crate::wasm::import_fingerprint(&stock)?;
+    pub fn new(bundle: Bundle, allow_unknown_build: bool, known: &str) -> Result<Self> {
+        let fingerprint = crate::wasm::import_fingerprint(&bundle.core_wasm)?;
         if fingerprint != known && !allow_unknown_build {
             bail!(
                 "core.wasm import surface is {fingerprint}, expected {known}. The engine was \
@@ -104,18 +81,20 @@ impl Artifacts {
         }
 
         Ok(Self {
-            dir: dir.to_path_buf(),
-            wasm: crate::wasm::export_internal_tags(&stock)?,
-            core_js: std::fs::read_to_string(dir.join("core.js")).context("reading core.js")?,
+            wasm: crate::wasm::export_internal_tags(&bundle.core_wasm)?,
+            bundle,
             fingerprint,
         })
     }
 
+    /// What `op_delver_artifact` hands back. The bundle is the allowlist: it
+    /// holds exactly the files the engine may read, so an unknown name - any
+    /// traversal, any absolute path - has nothing to resolve to.
     fn read(&self, name: &str) -> Vec<u8> {
-        if !artifact_allowed(name) {
-            return Vec::new();
-        }
-        std::fs::read(self.dir.join(name)).unwrap_or_default()
+        self.bundle
+            .file(name)
+            .map(<[u8]>::to_vec)
+            .unwrap_or_default()
     }
 }
 
@@ -390,7 +369,7 @@ const DISABLED_BUILTINS: &[&str] = &[
 ];
 
 pub fn build_runtime(role: Role, stores: Stores, host: HostState) -> Result<JsRuntime> {
-    let core_js = host.artifacts.core_js.clone();
+    let core_js = host.artifacts.bundle.core_js.clone();
     let ext = Extension {
         name: "delver",
         ops: std::borrow::Cow::Borrowed(OPS),
@@ -442,8 +421,15 @@ mod tests {
     use super::*;
 
     fn probe(script: &str) -> Option<String> {
-        let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let artifacts = Arc::new(Artifacts::load(&dir, false, crate::KNOWN_FINGERPRINT).ok()?);
+        let source = crate::Source::default();
+        let bundle = match Bundle::fetch(&source, crate::Model::Alpha, None) {
+            Ok(bundle) => bundle,
+            Err(e) => {
+                eprintln!("skipped: could not get the engine: {e:#}");
+                return None;
+            }
+        };
+        let artifacts = Arc::new(Artifacts::new(bundle, false, crate::KNOWN_FINGERPRINT).ok()?);
         let host = HostState {
             artifacts,
             cores: 4,
@@ -477,7 +463,7 @@ mod tests {
               .filter((path) => path.split(".")
                 .reduce((o, k) => (o == null ? undefined : o[k]), globalThis) !== undefined))"#;
         let Some(found) = probe(script) else {
-            eprintln!("skipped: run ./fetch.sh");
+            eprintln!("skipped: no engine available");
             return;
         };
         assert_eq!(
@@ -511,7 +497,7 @@ mod tests {
         let Some(found) = probe(
             "Object.keys(Deno.core.ops).filter(n => n.startsWith('op_delver_')).sort().join(',')",
         ) else {
-            eprintln!("skipped: run ./fetch.sh");
+            eprintln!("skipped: no engine available");
             return;
         };
         let mut declared: Vec<_> = OPS.iter().map(|op| op.name).collect();

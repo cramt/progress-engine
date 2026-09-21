@@ -1,7 +1,10 @@
-use delver_engine::wasm;
+use delver_engine::{wasm, Artifact, Source};
 
+/// `core.wasm` exactly as upstream serves it, from the cache or the network.
 fn core_wasm() -> Option<Vec<u8>> {
-    std::fs::read("core.wasm").ok()
+    let source = Source::default();
+    let version = source.version().ok()?;
+    source.get(&version, Artifact::CoreWasm, None).ok()
 }
 
 #[test]

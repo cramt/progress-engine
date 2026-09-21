@@ -198,7 +198,6 @@
     // is also where the token requirement was already enforced; this trusts
     // both rather than re-deriving them.
     async boot({ model }) {
-      console.log("lmao testing 123")
       if (mod) fail("engine is already open");
 
       progress("load", 0, "instantiating");

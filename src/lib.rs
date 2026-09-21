@@ -7,6 +7,10 @@
 //! module loader. The blob reads the artefact files only because the host hands
 //! it the bytes, and it reaches nothing else at all.
 //!
+//! [`Engine::open`] downloads what it needs, so there is nothing to run first.
+//! Where those files are kept between runs is [`artifacts::ArtifactCache`], and
+//! an unconfigured engine keeps them in `/tmp/delver-engine`.
+//!
 //! ```no_run
 //! use delver_engine::{Engine, EngineConfig};
 //!
@@ -17,12 +21,12 @@
 //! # Ok::<(), anyhow::Error>(())
 //! ```
 
+pub mod artifacts;
 mod pump;
 mod sandbox;
 pub mod wasm;
 mod worker;
 
-use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -31,6 +35,9 @@ use anyhow::{bail, Context, Result};
 use deno_core::{v8, JsRuntime};
 use serde::{Deserialize, Serialize};
 
+pub use artifacts::{
+    Artifact, ArtifactCache, ArtifactId, Bundle, DirCache, Origin, Source, Version,
+};
 pub use sandbox::Progress;
 
 use sandbox::{Artifacts, HostState, LogSink, Role, Stores};
@@ -50,7 +57,7 @@ pub(crate) const REC_RUNNING: i32 = -1;
 pub(crate) const REC_FINISHED_WITH_DETECTIONS: i32 = 1;
 
 /// The tokenless tier, and the two JWT-gated ones.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Model {
     Alpha,
     Lambda,
@@ -68,8 +75,10 @@ impl Model {
 }
 
 pub struct EngineConfig {
-    /// Directory holding core.js, core.wasm, data.7z and model-*.dat.
-    pub dir: PathBuf,
+    /// Where the engine's files come from and where they are kept between
+    /// runs. The default downloads them from the origin into
+    /// `/tmp/delver-engine`.
+    pub source: Source,
     pub model: Model,
     /// Required for [`Model::Lambda`] and [`Model::Gamma`].
     pub token: Option<String>,
@@ -87,7 +96,7 @@ pub struct EngineConfig {
 impl Default for EngineConfig {
     fn default() -> Self {
         Self {
-            dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            source: Source::default(),
             model: Model::Alpha,
             token: None,
             cores: std::thread::available_parallelism().map_or(4, |n| n.get() as u32),
@@ -181,17 +190,13 @@ impl Engine {
     /// running, model loaded. Returns only once all of that holds, so the
     /// engine handed back is never half-built.
     pub fn open(config: EngineConfig) -> Result<Self> {
-        let artifacts = Arc::new(Artifacts::load(
-            &config.dir,
+        let bundle = Bundle::fetch(&config.source, config.model, config.on_progress.as_deref())
+            .context("fetching the engine")?;
+        let artifacts = Arc::new(Artifacts::new(
+            bundle,
             config.allow_unknown_build,
             KNOWN_FINGERPRINT,
         )?);
-        let model_file = config
-            .dir
-            .join(format!("model-{}.dat", config.model.name()));
-        if !model_file.exists() {
-            bail!("missing {} - run ./fetch.sh", model_file.display());
-        }
 
         let fingerprint = artifacts.fingerprint.clone();
         let stores = Stores::default();

@@ -16,7 +16,6 @@
             cargo
             rustfmt
             clippy
-            p7zip          # fetch.sh unpacks Delver's .7z blobs
             imagemagick    # examples and tests decode card images to raw RGBA
             wasm-tools     # validating the tag patch
             curl

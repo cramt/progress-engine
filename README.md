@@ -14,14 +14,18 @@ to put all of it behind a V8 isolate with no host access.
 ## Quick start
 
 ```sh
-nix develop                 # rust, p7zip, imagemagick, wasm-tools, node
-./fetch.sh                  # pull engine + card DB + alpha model from the origin
+nix develop                 # rust, imagemagick, wasm-tools, node
 ./.fixtures/fetch-cards.sh  # grab a few reference scans from Scryfall
 
 cargo run --example query   # boot and query the catalogue
 cargo run --example recognize   # identify a card in an image
 cargo test                  # includes the accuracy numbers the Node probe set
 ```
+
+There is nothing to download first: `Engine::open` pulls the engine, the catalogue
+and the alpha model itself and caches them under `/tmp/delver-engine`. The first run
+costs ~39 MB down and ~51 MB on disk; later ones cost one nine-byte request. See
+*Fetching and caching*.
 
 Everything the crate and its scripts shell out to comes from the flake, so they run
 the same way everywhere; outside the dev shell the scripts say what is missing.
@@ -70,6 +74,54 @@ refuses to run if `core.wasm`'s import surface has changed (see *Drift*).
 The streaming path the Node probe exercised — `pushFrame`/`recognitionStatus`/
 `takeDetections`, `takeScanImage` and `segmentationMask` — is not carried here;
 `recognize()` drives the streaming detector internally instead.
+
+### Fetching and caching
+
+`Engine::open` downloads what it needs. There is no fetch step to run first and no
+directory to point it at.
+
+| Fetched | | Cached as |
+|---|---|---|
+| `core.js`, `core.wasm` | the engine | verbatim |
+| `data.7z` + `data.md5`, `data.size` | the catalogue, still packed — the engine unpacks it itself | verbatim |
+| `model-<tier>.7z` | the weights | unpacked to `model-<tier>.dat` |
+| `version.txt` | the build string | not cached — it *is* the cache key |
+
+`version.txt` is nine bytes and is fetched on every open, because upstream rebuilds on
+its own schedule. It namespaces the cache, so a rebuild is a miss rather than a stale
+hit. If the origin can't be reached, the newest build already in the cache is used
+instead, which is what makes a machine that has run once keep working offline.
+
+Where the bytes live is the `ArtifactCache` trait. The default is `DirCache`, one
+directory per build under `/tmp/delver-engine`:
+
+```rust
+use delver_engine::{DirCache, EngineConfig, Engine, Source};
+use std::sync::Arc;
+
+Engine::open(EngineConfig {
+    source: Source {
+        cache: Arc::new(DirCache::new("/var/cache/delver")),
+        offline: false,   // true: never hit the network, cache must already have it
+        ..Default::default()
+    },
+    ..Default::default()
+})?;
+```
+
+Implement `ArtifactCache` for anything else — an in-memory map, object storage, a
+build-tool cache. Two required methods, `get` and `put`, plus `newest_version` if you
+want the offline fallback. The cache owes fidelity: what `put` stored is what `get`
+returns, or `get` says it has nothing. `DirCache` gets that by writing beside the
+target and renaming in, so a run killed mid-download leaves a stray `.partial` rather
+than a truncated file that later reads as a hit.
+
+`Source::origin` moves the whole thing somewhere else — a mirror, or a local file
+server for tests.
+
+Note that `<name>.md5` is not checked, because it can't be: FINDINGS §1 has it as an
+opaque build token that matches neither the archive nor the unpacked file. `<name>.size`
+is real, and the unpacked weights are checked against it on every open.
 
 ### Debugging inside the sandbox
 
@@ -177,14 +229,14 @@ on a mismatch. When that fires, re-verify the ABI against FINDINGS before passin
 | `src/worker.rs` | the pthread pool — OS threads, isolates, termination |
 | `src/pump.rs` | driving the engine: deliver messages, fire timers, drain microtasks |
 | `src/wasm.rs` | import fingerprint and the tag-export patch, in Rust |
+| `src/artifacts.rs` | fetching the upstream blobs, and the cache they land in |
 | `js/bootstrap.js` | the browser globals, built on those ops |
 | `js/main-prelude.js`, `js/worker-prelude.js` | the two halves of the `Worker` shim |
 | `js/engine.js`, `js/msgpack.js` | the bootstrap sequence and job protocol, in-sandbox |
-| `fetch.sh` | downloads and unpacks the upstream blobs |
 
 ## Scope
 
 `alpha` tier only. `lambda` and `gamma` are gated behind `_rec_set_jwt_token`;
 that gate was not touched and isn't in scope here.
 
-No Delver binaries are committed — `fetch.sh` pulls them from the origin.
+No Delver binaries are committed — the crate pulls them from the origin at run time.

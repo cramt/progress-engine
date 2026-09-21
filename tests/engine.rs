@@ -1,4 +1,7 @@
-//! End-to-end against the real engine, inside the sandbox. Needs ./fetch.sh.
+//! End-to-end against the real engine, inside the sandbox.
+//!
+//! The engine downloads itself on first use and is cached from then on, so the
+//! only reason to skip is having neither a network nor a cache.
 //!
 //! One engine for the whole run: booting costs ~5s and 32 OS threads, so the
 //! cases share an instance rather than each paying for their own.
@@ -6,16 +9,22 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use delver_engine::{Engine, EngineConfig, Image, Model, KNOWN_FINGERPRINT};
+use delver_engine::{Bundle, Engine, EngineConfig, Image, Model, Source, KNOWN_FINGERPRINT};
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
+/// Whether the engine's files can be had at all. A fetch that works but an
+/// engine that will not boot is a failure, not a skip.
 fn ready() -> bool {
-    ["core.js", "core.wasm", "data.7z", "model-alpha.dat"]
-        .iter()
-        .all(|f| root().join(f).exists())
+    match Bundle::fetch(&Source::default(), Model::Alpha, None) {
+        Ok(_) => true,
+        Err(e) => {
+            eprintln!("skipped: the engine could not be fetched: {e:#}");
+            false
+        }
+    }
 }
 
 fn to_rgba(file: &Path) -> Option<(Vec<u8>, u32, u32)> {
@@ -40,12 +49,10 @@ fn to_rgba(file: &Path) -> Option<(Vec<u8>, u32, u32)> {
 #[test]
 fn engine_boots_queries_and_recognises() {
     if !ready() {
-        eprintln!("skipped: run ./fetch.sh");
         return;
     }
     let mut engine = Engine::open(EngineConfig {
-        dir: root(),
-        model: Model::Lambda,
+        model: Model::Alpha,
         ..Default::default()
     })
     .expect("engine should boot");
@@ -108,7 +115,6 @@ fn engine_boots_queries_and_recognises() {
 #[test]
 fn accuracy_matches_the_node_harness() {
     if !ready() {
-        eprintln!("skipped: run ./fetch.sh");
         return;
     }
     let cases = [
@@ -131,11 +137,7 @@ fn accuracy_matches_the_node_harness() {
         return;
     }
 
-    let mut engine = Engine::open(EngineConfig {
-        dir: root(),
-        ..Default::default()
-    })
-    .expect("engine should boot");
+    let mut engine = Engine::open(EngineConfig::default()).expect("engine should boot");
 
     let (mut names, mut printings) = (0, 0);
     for (want_name, want_edition, (data, width, height)) in &fixtures {

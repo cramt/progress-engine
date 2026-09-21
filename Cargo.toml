@@ -17,6 +17,8 @@ serde_json = "1"
 sha2 = "0.10"
 tokio = { version = "1", features = ["rt", "macros", "time"] }
 deno_error = "=0.7.1"
+ureq = "3"
+sevenz-rust2 = "0.23"
 
 [[example]]
 name = "query"
