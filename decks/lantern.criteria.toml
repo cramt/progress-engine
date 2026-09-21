@@ -1,221 +1,524 @@
 # "Third Lantern Control" — https://archidekt.com/decks/25088186
 #
+# THE QUESTION
+# ------------
+# VISION.md's first north star: *how often is there a line that resolves
+# Lantern of Insight by turn 5?* Not "do I hold it" — a Lantern pilot does not
+# draw the card, they assemble it by whichever of four routes turns up, and
+# three of those routes are somebody spending mana.
+#
 # WHAT THESE NUMBERS ARE
 # ----------------------
-# THIS FILE counts cards SEEN, never cards cast. So every branch below that
-# involves casting something is an UPPER BOUND on how often the line is
-# actually available: the card was drawn by that turn, and whether you could
-# pay for it is not asked here.
+# Cards paid for, not cards seen. An earlier version of this file said the
+# opposite — "progress-engine counts cards SEEN, never cards cast; there is no
+# mana model" — and built every route around that absence, with hand-written
+# `{ turn = 4, query = "t:land", min = 3 }` clauses it labelled a crude mana
+# proxy. Those are gone. `can_cast` asks the question they were standing in
+# for, jointly and exactly: can the lands this hand actually put down pay this
+# cost, on this turn.
 #
-# That is a property of this file rather than of the tool. The mana model and
-# the tutor both ship; `lantern-route-b.criteria.toml` beside this one asks the
-# second route with both of them on, and reads 8.05% where this file's route 2
-# is an upper bound. The two are kept apart because pricing the mana prices the
-# manabase on every question in the file, and the four-route union below is
-# wide enough already.
+# The proxies were not a small error. Measured below, on the same deck:
 #
-# The one exception is the Urza's Saga branch, and it is the reason the branch
-# is written separately. Urza's Saga is a land, so it arrives on a land drop,
-# and chapter III fetches Lantern of Insight onto the battlefield for no mana
-# at all. "Drawn by turn 3" really is close to "available on turn 5" there.
-# It still assumes you spend the turn-3 land drop on Saga rather than on a
-# colour you needed, which is a choice the engine cannot see.
+#   a tutor that can find the Lantern, drawn by turn 5       45.23%
+#   ...and castable in time to matter                        28.34% ± 0.10
 #
-# Also not modelled:
-#   * Mulligans. Turn 0 is a kept seven.
-#   * On the play vs on the draw (default is on the play; --draw for the other).
-#   * Tutors as tutors, *in this file*. A tutor here is counted as one card
-#     matching one query, so the branches below encode "I drew a card that can
-#     go get it" and the turn arithmetic is mine rather than the tool's. The
-#     engine can now be told what a tutor fetches — see
-#     `lantern-route-b.criteria.toml`, which declares it for Trinket Mage and
-#     answers the route rather than bounding it.
-#   * Nothing about the game beyond your own draws: interaction, being attacked,
-#     an opponent exiling the Lantern.
+#   a tutor that puts it straight onto the battlefield, drawn 21.09%
+#   ...and castable by turn 5                                 5.55% ± 0.05
 #
-# Each tutor route also carries a clause saying Lantern of Insight is still in
-# the LIBRARY at that turn, so that "I drew a tutor" cannot be counted as a
-# line when the Lantern is already in hand. It turns out to move the total by
-# nothing, because route 1 covers exactly the complement -- which is the union
-# behaving correctly rather than the clause being pointless.
+# The second pair is a factor of nearly four. That gap is the whole
+# argument for pricing mana rather than counting lands. A figure quoted with a
+# ± is sampled rather than enumerated; see the width note at the foot of this
+# file.
 #
-# The deck as exported is 100 cards: 1 commander (Rashmi and Ragavan) and a
-# 99-card library. All probabilities are over that 99.
+# Every clause below is one of three kinds:
+#   query    a count of cards in a zone — hand unless it says otherwise
+#   can_cast whether this turn's lands could have paid a cost, as a matching
+#            over the lands jointly (HANDS.md hands 6 and 7)
+#   zone = "library"  what has *not* been drawn, which is how a tutor route
+#            says the Lantern is still there to be found
+#
+# WHAT IS STILL NOT MODELLED, AND MOVES THESE NUMBERS
+# ---------------------------------------------------
+#   * Mana rocks. `can_cast` is a matching over LANDS, because only a land
+#     arrives without being cast. This deck plays Sol Ring, Arcane Signet,
+#     Fellwar Stone, Mind Stone and three Talismans — seven cards that make
+#     mana and none of which counts here. Every mana number in this file is
+#     therefore a FLOOR, and on an artifact deck that is not a rounding error.
+#   * Improvise. Whir of Invention taps artifacts to help pay for itself, so
+#     its branch is the floor of a floor.
+#   * Mulligans. Turn 0 is a kept seven (#7).
+#   * On the play unless you pass --draw. In a four-player pod you are on the
+#     draw three games in four, so --draw is the number you live in; both
+#     seats are quoted throughout.
+#   * Shocklands and MDFC backs that offer a choice. The run assumes the
+#     pessimistic half — enters tapped — and names the ten cards it assumed it
+#     about. Another floor, in the direction this tool prefers.
+#   * Urza's Saga's chapter counters. Route 4 is the only upper bound left
+#     here; see its criterion.
+#   * Anything about the game but your own draws: interaction, an opponent
+#     exiling the Lantern, a counterspell on the tutor.
 
-# --- The north-star question ----------------------------------------------
-# "How often is there a line to Lantern of Insight by turn 5?"
+# --- The north star -------------------------------------------------------
+# Four routes, as one criterion, because they overlap and a sum of four
+# overlapping numbers is not a probability anybody can take. `any_of` is a
+# union: a path that satisfies two branches contributes once.
 #
-# THE TUTOR SET IS NOT THE OWNER'S CATEGORY, AND THAT IS THE POINT.
-# The owner's "Tutor Package" is 11 cards. Only 7 of them can reach Lantern
-# of Insight, which is a mana value 1 artifact:
-#   Trinket Mage            {2}{U}  artifact mv<=1 to hand
-#   Fabricate               {2}{U}  any artifact to hand
-#   Artificer's Intuition   {1}{U}  + {U} and discard an artifact
-#   Dizzy Spell             {U}     transmute {1}{U}{U}, mv 1
-#   Tezzeret, Cruel Captain {3}     -3, starts on 4 loyalty
-#   Whir of Invention       {X}{U}{U}{U}  X=1, onto the battlefield
-#   Tezzeret the Seeker     {3}{U}{U}  -X for X=1, onto the battlefield
-# The four that cannot:
-#   Trophy Mage      finds mana value exactly 3
-#   Expedition Map   finds a land (it can find Urza's Saga; see below)
-#   Goblin Engineer  puts the artifact in the graveyard, not in hand
-#   Repurposing Bay  needs an artifact to sacrifice first
-# Counting all 11 would inflate this criterion. The difference is measured by
-# the "coarse" criterion further down.
+# Route 1  Lantern in hand, and one mana.
+# Route 2  A tutor that puts it in HAND — cast by turn 4 with the Lantern
+#          still in the library, then the Lantern itself on turn 5; or both in
+#          one turn on turn 5, which is the line that
+#          `lantern-route-b.criteria.toml` prices with the budget.
+# Route 3  A tutor that puts it straight onto the BATTLEFIELD, so the turn it
+#          resolves is the turn the Lantern arrives.
+# Route 4  Urza's Saga, played as a land, chapter III fetching it for free.
 #
-# THRESHOLD: 0.75. One copy of Lantern plus seven cards that find it plus a
-# free land-drop route is the deck's entire premise, so three games in four is
-# the design target. Remember this is an upper bound.
+# THE TUTOR SET IS NOT THE OWNER'S CATEGORY, AND THAT IS THE POINT. The
+# owner's "Tutor Package" is 11 cards. Seven of them can reach a mana value 1
+# artifact, and they do it at five different prices:
+#
+#   Trinket Mage             {2}{U}      cast, ETB finds it, to hand
+#   Fabricate                {2}{U}      cast, finds it, to hand
+#   Tezzeret, Cruel Captain  {3}         cast, −3 off 4 loyalty, to hand
+#   Dizzy Spell              {1}{U}{U}   transmute — an ability from hand, not
+#                                        a cast, and the cost is the transmute
+#   Artificer's Intuition    {1}{U}+{U}  cast the enchantment and activate it
+#                                        the same turn; also needs an artifact
+#                                        card to discard, which is NOT checked
+#   Tezzeret the Seeker      {3}{U}{U}   cast, −1 off 4 loyalty, to the field
+#   Whir of Invention        {X}{U}{U}{U} X = 1, to the field
+#
+# The four that cannot: Trophy Mage finds mana value exactly 3, Expedition Map
+# finds a land, Goblin Engineer puts the artifact in the graveyard, and
+# Repurposing Bay needs an artifact to sacrifice first. The criterion below
+# this one runs the same routes over all eleven and measures what counting
+# them costs.
+#
+# THRESHOLD: 0.75, unchanged from when this file asked a much easier question.
+# One Lantern, seven cards that find it, and a free land-drop route is the
+# deck's entire premise, so three games in four is the design target its owner
+# is implicitly claiming. It FAILS: 48.09% ± 0.11 on the play and 55.01% ±
+# 0.11 on the draw, so the target is missed by 27 points in the seat you are
+# in one game in four and by 20 in the seat you are in the other three.
+#
+# The deck did not get worse — the question got honest. The 54.35% this file
+# used to report was the same four routes with the mana assumed free and the
+# tutors assumed to have found something.
 
 [[criterion]]
-name = "a line to Lantern of Insight by turn 5 (upper bound: no mana model)"
+name = "a line that resolves Lantern of Insight by turn 5"
 at_least = 0.75
 
-  # Route 1: just drew it. Lantern costs {1}; any land casts it.
+  # Route 1. Lantern costs {1}, so any untapped land casts it.
   [[criterion.any_of]]
   require = [
     { turn = 5, query = 'name:"Lantern of Insight"', min = 1 },
+    { turn = 5, can_cast = "{1}" },
   ]
 
-  # Route 2: a three-mana-or-less tutor that puts it in HAND, drawn by turn 4,
-  # so it is cast on turn 4 and Lantern on turn 5. The land clause is a crude
-  # mana proxy and it is NECESSARY, NOT SUFFICIENT: it counts lands drawn, not
-  # lands played (HANDS.md hand 4), and it says nothing about colours.
+  # Route 2, {2}{U} tier, split across two turns: tutor on 4, Lantern on 5.
+  # The library clause is what makes this a tutor route rather than a card
+  # count — a tutor cannot find a Lantern you have already drawn, and route 1
+  # covers that hand anyway.
   [[criterion.any_of]]
   require = [
-    { turn = 4, query = '''name:"Trinket Mage" or name:"Fabricate" or name:"Artificer's Intuition" or name:"Dizzy Spell" or name:"Tezzeret, Cruel Captain"''', min = 1 },
-    { turn = 4, query = "t:land", min = 3 },
+    { turn = 4, query = 'name:"Trinket Mage" or name:"Fabricate"', min = 1 },
+    { turn = 4, can_cast = "{2}{U}" },
+    { turn = 5, can_cast = "{1}" },
     { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
   ]
 
-  # Route 3: a four-or-five-mana tutor that puts it straight onto the
-  # BATTLEFIELD, so it can arrive the turn the tutor is cast. Same land caveat,
-  # one land higher.
+  # The same tier in one turn: {2}{U} and {1} out of turn five's lands, which
+  # is one payment of {3}{U} and not two independent ones.
   [[criterion.any_of]]
   require = [
-    { turn = 5, query = 'name:"Whir of Invention" or name:"Tezzeret the Seeker"', min = 1 },
-    { turn = 5, query = "t:land", min = 4 },
+    { turn = 5, query = 'name:"Trinket Mage" or name:"Fabricate"', min = 1 },
+    { turn = 5, can_cast = "{3}{U}" },
     { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
   ]
 
-  # Route 4: Urza's Saga, drawn by turn 3, played as the turn-3 land drop,
-  # chapter III on turn 5 puts Lantern onto the battlefield. NO MANA AT ALL.
-  # This is the only branch here that the missing mana model does not weaken.
+  # Route 2, {3} tier. Tezzeret, Cruel Captain enters on four loyalty and −3
+  # is available immediately, so casting it is finding the artifact.
   [[criterion.any_of]]
   require = [
-    { turn = 3, query = "name:\"Urza's Saga\"", min = 1 },
+    { turn = 4, query = 'name:"Tezzeret, Cruel Captain"', min = 1 },
+    { turn = 4, can_cast = "{3}" },
+    { turn = 5, can_cast = "{1}" },
+    { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
   ]
 
-# --- The same question with the owner's category, uncorrected -------------
-# STRUCTURALLY IDENTICAL to the criterion above -- same four routes, same
-# turns, same land clauses. The ONLY difference is that routes 2 and 3 ask
-# about the whole 11-card "Tutor Package" instead of the 7 cards that can
-# actually find a mana value 1 artifact. The gap between the two numbers is
-# the price of an unstated definition, which is the thing this tool exists to
-# make visible. No at_least: this is a measuring stick, not a target.
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = 'name:"Tezzeret, Cruel Captain"', min = 1 },
+    { turn = 5, can_cast = "{4}" },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
 
-[[criterion]]
-name = "same four routes, all 11 Tutor Package cards (OVERCOUNTS)"
+  # Route 2, {1}{U}{U} tier. Neither of these is a cast that tutors: Dizzy
+  # Spell's transmute is an activated ability from hand, and Artificer's
+  # Intuition is {1}{U} to resolve plus {U} to activate in the same turn. Both
+  # come to {1}{U}{U}, which is why they share a branch. The Intuition half is
+  # generous: its activation also discards an artifact card, and nothing here
+  # checks that you held one.
+  [[criterion.any_of]]
+  require = [
+    { turn = 4, query = '''name:"Dizzy Spell" or name:"Artificer's Intuition"''', min = 1 },
+    { turn = 4, can_cast = "{1}{U}{U}" },
+    { turn = 5, can_cast = "{1}" },
+    { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
 
   [[criterion.any_of]]
-  require = [{ turn = 5, query = 'name:"Lantern of Insight"', min = 1 }]
+  require = [
+    { turn = 5, query = '''name:"Dizzy Spell" or name:"Artificer's Intuition"''', min = 1 },
+    { turn = 5, can_cast = "{2}{U}{U}" },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  # Route 3. Onto the battlefield, so there is no second payment: the turn the
+  # tutor resolves is the turn the Lantern is there.
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = 'name:"Tezzeret the Seeker"', min = 1 },
+    { turn = 5, can_cast = "{3}{U}{U}" },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  # Whir of Invention at X = 1. The cost is transcribed rather than derived,
+  # and it has to be: `{X}` is a decision about how much to pay, so the engine
+  # refuses to read it — put `name:"Whir of Invention"` in a `[casting]`
+  # priority and the run stops with the cost quoted back at you. Improvise is
+  # not modelled either, so this branch is a floor.
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = 'name:"Whir of Invention"', min = 1 },
+    { turn = 5, can_cast = "{1}{U}{U}{U}" },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  # Route 4, and the only branch here that asks for no mana at all: Urza's
+  # Saga is an Enchantment Land, so it arrives on a land drop, and chapter III
+  # puts the Lantern onto the battlefield for free. See the criterion below
+  # for why this branch is still an upper bound.
+  [[criterion.any_of]]
+  require = [{ turn = 3, query = "name:\"Urza's Saga\"", min = 1 }]
+
+# --- The same routes, the owner's category, uncorrected -------------------
+# STRUCTURALLY IDENTICAL to the criterion above: same routes, same turns, same
+# costs, same library clause. The only difference is that every tutor branch
+# asks `cat:"Tutor Package"` instead of naming the cards that can actually
+# find a mana value 1 artifact. Expedition Map therefore counts as a {2}{U}
+# tutor, a {3} tutor, a {1}{U}{U} tutor and a {1}{U}{U}{U} tutor, which is
+# exactly the shape of the mistake.
+#
+# The gap is the price of an unstated definition, which is the thing this tool
+# exists to make visible. No at_least: a measuring stick, not a target.
+
+[[criterion]]
+name = "same routes, all 11 Tutor Package cards (OVERCOUNTS)"
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = 'name:"Lantern of Insight"', min = 1 },
+    { turn = 5, can_cast = "{1}" },
+  ]
 
   [[criterion.any_of]]
   require = [
     { turn = 4, query = 'cat:"Tutor Package"', min = 1 },
-    { turn = 4, query = "t:land", min = 3 },
+    { turn = 4, can_cast = "{2}{U}" },
+    { turn = 5, can_cast = "{1}" },
     { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
   ]
 
   [[criterion.any_of]]
   require = [
     { turn = 5, query = 'cat:"Tutor Package"', min = 1 },
-    { turn = 5, query = "t:land", min = 4 },
+    { turn = 5, can_cast = "{3}{U}" },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 4, query = 'cat:"Tutor Package"', min = 1 },
+    { turn = 4, can_cast = "{3}" },
+    { turn = 5, can_cast = "{1}" },
+    { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = 'cat:"Tutor Package"', min = 1 },
+    { turn = 5, can_cast = "{4}" },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 4, query = 'cat:"Tutor Package"', min = 1 },
+    { turn = 4, can_cast = "{1}{U}{U}" },
+    { turn = 5, can_cast = "{1}" },
+    { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = 'cat:"Tutor Package"', min = 1 },
+    { turn = 5, can_cast = "{2}{U}{U}" },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = 'cat:"Tutor Package"', min = 1 },
+    { turn = 5, can_cast = "{3}{U}{U}" },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = 'cat:"Tutor Package"', min = 1 },
+    { turn = 5, can_cast = "{1}{U}{U}{U}" },
     { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
   ]
 
   [[criterion.any_of]]
   require = [{ turn = 3, query = "name:\"Urza's Saga\"", min = 1 }]
 
-# --- The free route on its own --------------------------------------------
-# Worth isolating because it is the only number in this file that does not
-# assume free mana.
-# THRESHOLD: none. One copy of a land in 99 cards by turn 3 is what it is;
-# asserting on it would be asserting on arithmetic.
+# --- The routes on their own, each beside its naive phrasing ---------------
+# The union above is one number and it hides which half of the deck earned it.
+# Each route is repeated here alone, and each is paired with the question
+# somebody would have asked before the mana model shipped. The pair is the
+# point: the gap between the two numbers is what the tool is for.
+#
+# No thresholds. Asserting on one route would be asserting that this deck wins
+# by one of its four lines.
+
+# Route 1, and the pair VISION.md calls out by name. *How often do I have
+# Lantern of Insight by turn 5* was recorded as the north star for a long time
+# and is the smaller, easier question: it is the second criterion here.
+[[criterion]]
+name = "route 1: Lantern in hand and a mana for it, turn 5"
+require = [
+  { turn = 5, query = 'name:"Lantern of Insight"', min = 1 },
+  { turn = 5, can_cast = "{1}" },
+]
+
+# The easy question. It is 11.11% on the play, which is one card in 99 seen
+# eleven times, and it is not an answer to anything a pilot does.
+[[criterion]]
+name = "route 1 naive: Lantern in hand by turn 5, no mana asked"
+require = [{ turn = 5, query = 'name:"Lantern of Insight"', min = 1 }]
+
+# And the third number the pair needs, because 11.06% is a JOINT and not a
+# product: 0.111111 x 0.996919 = 0.110769, and the answer is lower than that
+# because a hand holding the Lantern has one fewer slot that could have been a
+# land. Two clauses in one `require` are evaluated against the same hand.
+[[criterion]]
+name = "route 1 control: {1} payable by turn 5, no Lantern asked"
+require = [{ turn = 5, can_cast = "{1}" }]
 
 [[criterion]]
-name = "Urza's Saga drawn by turn 3 (no mana assumed)"
+name = "route 2: a tutor that puts it in hand, cast in time"
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 4, query = 'name:"Trinket Mage" or name:"Fabricate"', min = 1 },
+    { turn = 4, can_cast = "{2}{U}" },
+    { turn = 5, can_cast = "{1}" },
+    { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = 'name:"Trinket Mage" or name:"Fabricate"', min = 1 },
+    { turn = 5, can_cast = "{3}{U}" },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 4, query = 'name:"Tezzeret, Cruel Captain"', min = 1 },
+    { turn = 4, can_cast = "{3}" },
+    { turn = 5, can_cast = "{1}" },
+    { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = 'name:"Tezzeret, Cruel Captain"', min = 1 },
+    { turn = 5, can_cast = "{4}" },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 4, query = '''name:"Dizzy Spell" or name:"Artificer's Intuition"''', min = 1 },
+    { turn = 4, can_cast = "{1}{U}{U}" },
+    { turn = 5, can_cast = "{1}" },
+    { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = '''name:"Dizzy Spell" or name:"Artificer's Intuition"''', min = 1 },
+    { turn = 5, can_cast = "{2}{U}{U}" },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+# The old file's route 2, near enough: a card that can go get it turned up.
+# This is what "I drew a tutor" is worth before anybody asks who pays.
+[[criterion]]
+name = "route 2 naive: one of those five tutors drawn by turn 5"
+require = [
+  { turn = 5, query = '''name:"Trinket Mage" or name:"Fabricate" or name:"Tezzeret, Cruel Captain" or name:"Dizzy Spell" or name:"Artificer's Intuition"''', min = 1 },
+]
+
+[[criterion]]
+name = "route 3: a tutor that puts it onto the battlefield, cast by turn 5"
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = 'name:"Tezzeret the Seeker"', min = 1 },
+    { turn = 5, can_cast = "{3}{U}{U}" },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = 'name:"Whir of Invention"', min = 1 },
+    { turn = 5, can_cast = "{1}{U}{U}{U}" },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+# The four-to-one pair, near enough. Five mana with two blue pips, or four
+# with three, on turn five, in a deck whose conditional lands are all assumed
+# tapped: these are the two cards the old land-count proxy flattered most.
+[[criterion]]
+name = "route 3 naive: either of those two drawn by turn 5"
+require = [{ turn = 5, query = 'name:"Tezzeret the Seeker" or name:"Whir of Invention"', min = 1 }]
+
+# Route 4 alone, and it has no naive twin because there is no mana to price:
+# Urza's Saga arrives on a land drop and chapter III costs nothing.
+#
+# STILL AN UPPER BOUND, and the only one left in this file. Three things it
+# assumes and cannot check: that the turn-3 land drop went to the Saga rather
+# than to a colour the rest of the hand needed; that the Saga survives to its
+# third chapter, which is two turns of an opponent's removal; and that chapter
+# counters exist at all, which they do not — delayed effects are not modelled,
+# so "drawn by turn 3" stands in for "ticked to III by turn 5".
+[[criterion]]
+name = "route 4: Urza's Saga drawn by turn 3 (upper bound)"
 require = [{ turn = 3, query = "name:\"Urza's Saga\"", min = 1 }]
 
 # --- Distributions --------------------------------------------------------
 
 [[expect]]
-name = "Lantern-capable tutors seen by turn 5 (drawn, not cast)"
+name = "Lantern-capable tutors seen by turn 5"
 turn = 5
 query = '''name:"Trinket Mage" or name:"Fabricate" or name:"Artificer's Intuition" or name:"Dizzy Spell" or name:"Tezzeret, Cruel Captain" or name:"Whir of Invention" or name:"Tezzeret the Seeker"'''
 
 [[expect]]
-name = "whole Tutor Package seen by turn 5 (drawn, not cast)"
+name = "whole Tutor Package seen by turn 5"
 turn = 5
 query = 'cat:"Tutor Package"'
 
+# The MDFC pair; see the note below. The first row is what `t:land` says, the
+# second is what you could actually have played.
 [[expect]]
-name = "lands in opener"
+name = "t:land in the opener"
 turn = 0
 query = "t:land"
 
-# --- TWO MORE WAYS THESE NUMBERS ARE OPTIMISTIC ---------------------------
+[[expect]]
+name = "opener cards you could really play as a land"
+turn = 0
+query = "t:land -is:mdfc -is:transform"
+
+[[expect]]
+name = "t:land on the battlefield by turn 5"
+turn = 5
+query = "t:land"
+zone = "battlefield"
+
+[[expect]]
+name = "of those, cards that could really have been played as a land"
+turn = 5
+query = "t:land -is:mdfc -is:transform"
+zone = "battlefield"
+
+# --- `t:land` ON A DECK WITH MDFCs, RE-CHECKED ----------------------------
+# An earlier version of this file said `t:land` matched 40 cards of which only
+# 32 were playable as a land drop, and concluded: "there is no query that says
+# front face is a land, so this cannot be corrected here." Half of that is
+# still true and half is not.
 #
-# 1. `t:land` matches 40 cards in this deck, and only 32 of them are lands you
-#    can play as your land drop:
-#      32  actual lands
-#       7  modal double-faced cards (Jwari Disruption, Spikefield Hazard,
-#          Sea Gate Restoration, Silundi Vision, Bala Ged Recovery,
-#          Shatterskull Smashing, Valakut Awakening) -- a land only if you
-#          choose not to cast the front half, and several enter tapped
-#       1  Search for Azcanta // Azcanta, the Sunken Ruin, which is a {1}{U}
-#          enchantment that TRANSFORMS. You can never play it as a land.
-#    This matches Scryfall's own `t:land`, which searches every face, so it is
-#    not a bug in the tool -- but it means the land clauses in routes 2 and 3
-#    are satisfied by hands that cannot actually make that much mana. There is
-#    no query that says "front face is a land", so this cannot be corrected
-#    here. Both land clauses should be read as generous.
+# STILL TRUE: `t:land` matches 40. It reads the joined type line, the way
+# Scryfall's own `t:land` reads every face, so it takes in seven modal
+# double-faced cards — Jwari Disruption, Spikefield Hazard, Sea Gate
+# Restoration, Silundi Vision, Bala Ged Recovery, Shatterskull Smashing,
+# Valakut Awakening — and Search for Azcanta // Azcanta, the Sunken Ruin.
 #
-# 2. Nothing here models tapped lands. Hedge Maze, the Triome, the Bridges and
-#    several MDFC backs all enter tapped. Even with a fully tagged index,
-#    `otag:tapland` only selects cards -- no clause can say "untapped mana
-#    available", because that is the mana model again.
+# NO LONGER TRUE: it can be corrected here. `is:` now carries `mdfc` and
+# `transform`, so `t:land -is:mdfc -is:transform` is 32 on this deck, exactly
+# the cards you can put onto the battlefield from your hand as a land. The
+# `[[expect]]` pair above is the two readings side by side: 2.83 lands in the
+# opener against 2.26, and 4.08 on the battlefield by turn 5 against 3.43.
 #
-# --- A LIMIT OF THE TOOL THAT WAS ONE, AND NO LONGER IS -------------------
-# This file used to be answered exactly on the play and REFUSED with --draw:
-#   "too wide to answer exactly: 28840812 compositions across 7 groups"
-# One extra card by turn 5 crossed the enumeration ceiling, so the on-the-draw
-# figures had to come from --draw --simulate and were approximate -- which is
-# most of your games, since in a four-player pod you are on the draw three
-# times in four.
+# DO NOT WRITE `-is:dfc`. It is 32 here too and it is not the same query: on
+# `decks/loam.txt` it also removes Argoth, Sanctum of Nature, a meld card
+# whose front face is a land you play normally. There is still no `front:`
+# key, and the spelling above works because every double-faced land in this
+# list happens to have the land on the back.
 #
-# That was because the enumeration was sized once for the whole file: seven
-# groups and every checkpoint, whatever any individual question read. Since
-# upstream #31 it is sized per question. The widest question here is the
-# four-route criterion, at 6 groups over three checkpoints -- 72,072
-# compositions on the play and 108,108 on the draw -- so BOTH are now answered
-# exactly, and the [[expect]] tables below cost 12 compositions each instead of
-# widening everything else.
+# WHAT THE MANA MODEL DOES WITH THEM, which is the half nobody had checked.
+# The engine's own "is this a land" test reads the same joined type line, so
+# all 40 are land drops to it. For the seven MDFCs that is a legal line — you
+# may play the back face instead of casting the front — and the model prices
+# it honestly: every one of them is tagged `tapland` or `conditional-tapland`,
+# so it makes no mana the turn it arrives, and it produces the back face's
+# colour. Search for Azcanta is the one that is simply wrong: it is a {1}{U}
+# enchantment that transforms, it can never be played as a land, and the run
+# plays it as an untapped blue source on 0.11 of your games by turn 5. It also
+# makes the standard library's surveil entry fire on a land drop that cannot
+# happen. Filed as #61.
+
+# --- HOW WIDE THESE QUESTIONS ARE, AND WHICH ONE WAS ESTIMATED ------------
+# Read this off the run rather than from here: `jq '.enumerations'`.
 #
-# The numbers on the play did not move by a digit. They were exact before and
-# they are exact now; only the enumeration behind them got smaller.
+# Four of this file's sixteen questions are over the enumeration ceiling and
+# are SAMPLED, and they are the four written as `any_of`. Every sampled figure
+# is quoted with an error bar and every enumerated one without, and the run
+# names the four on stderr before it prints a number.
+#
+# The north star is 12 groups and 659,902,464 compositions on the play,
+# 7,918,829,568 on the draw — 132 and 1,584 times the 5,000,000 ceiling —
+# because nine of its ten branches read a cost, and pricing a cost splits the
+# manabase five ways before a single card query splits anything. Each named
+# card is then one more group, and at turn 5 a group costs the fourth power of
+# itself on the play and the fifth on the draw.
+#
+# That is the trade this file makes on purpose. The previous version of it was
+# exact on both seats because it asked about counts; asked properly, the same
+# question is one an estimate answers and an enumeration does not. Pass
+# `--exact` to have it refused instead, which is the right flag for anyone who
+# would rather have no answer than an approximate one.
+#
+# The other twelve questions are exact, on both seats, and that is what
+# upstream #31 bought: a class pays only for what it reads, so route 1 is 4
+# groups and 30,720 compositions on the play and 122,880 on the draw, route 4
+# is 2 groups and 10, and the `[[expect]]` tables cost between 8 and 256
+# apiece. Sized once for the whole file this would be 16 groups and
+# 11,176,771,584 compositions, and every number in it would be an estimate.
 
 # --- THE INDEX THESE NUMBERS WERE PRODUCED AGAINST ------------------------
-# decks/index.jsonl was built with `sync --from <bulk file>`, because
-# `progress-engine sync` could not complete: it fetches six oracle tags from
-# the Scryfall search API with no delay between requests and got HTTP 429 on
-# the fifth one, four separate times, discarding the whole 24.7 MB download
-# each time. `--from` succeeds but SKIPS ORACLE TAGS ENTIRELY.
+# `decks/index.jsonl`, committed beside this file, synced from Scryfall with
+# all eight oracle tags. An earlier note here said `sync` could not complete —
+# it fetched the tags with no delay and took HTTP 429 on the fifth one, four
+# times running, discarding the whole download each time — so the committed
+# index was built with `--from` and carried no tags at all.
 #
-# Consequence: the autoloading effect library, whose two entries are keyed on
-# `t:land otag:surveil` and `t:land otag:scry`, matches ZERO cards on this
-# index, and the run reports `"effects": []` without warning. For this file
-# that changes nothing -- it asks about no zone but `hand` and `library` -- but
-# it would silently change any graveyard question. If you rebuild the index
-# with a complete `sync`, re-run and compare: `provenance.index_updated_at`
-# will stop being null, which is how you will know.
+# That is fixed: a 429 now costs the backoff and not the download. The sync
+# that produced this index hit one, waited 60 seconds, and finished with 8 of
+# 8 tags. So `otag:tapland` and `otag:conditional-tapland` answer rather than
+# being refused, which is what makes every `can_cast` in this file possible,
+# and `provenance.index_updated_at` is a date rather than null.

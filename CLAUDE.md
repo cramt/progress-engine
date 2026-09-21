@@ -42,11 +42,15 @@ hidden broken clippy and tests across four commits before.
   `lantern.txt` and `loam.txt`, with criteria files beside them. Report group
   counts, composition counts and wall times from a run rather than estimating
   them; `enumerations` in the JSON output carries them.
-- **`decks/index.jsonl` has no oracle tags** (`updated_at` is null), so it
-  cannot answer any question involving mana or the effect library — those read
-  `otag:tapland` and `otag:surveil`. Sync a tagged index to `/tmp` first.
-  Scryfall card lookups go through `POST /cards/collection`, 75 identifiers per
-  request.
+- **`decks/index.jsonl` carries all eight oracle tags**, so the committed
+  criteria files answer against the committed index and a clone can reproduce
+  every number in them: `progress-engine test decks/lantern.txt
+  decks/lantern.criteria.toml --index decks/index.jsonl`. It was built with
+  `--from` and carried none until the `sync` in #59; if you rebuild it, check
+  `provenance.index_updated_at` is a date rather than null before committing,
+  because a tagless index makes `otag:tapland` and `otag:surveil` refuse and
+  takes every mana and effect question with them. Scryfall card lookups go
+  through `POST /cards/collection`, 75 identifiers per request.
 - **A previously-exact number that moves needs a justification.** The repo's
   criteria files across both decks and both seats make a sweep you can diff
   before and after; do that and say what you found.

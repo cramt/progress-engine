@@ -88,6 +88,21 @@ same 4,120,116 compositions. `decks/lantern-route-b.criteria.toml` is that
 question on its own. The third route still needs delayed effects. So the north
 star is two of three routes and is still not met.
 
+**And the union of them now has a number.**
+`decks/lantern.criteria.toml` is the whole question — four routes, because the
+tutors that put the Lantern in your hand and the tutors that put it straight
+onto the battlefield are priced differently — and it reads **48.09% ± 0.11** on
+the play and **55.01% ± 0.11** on the draw. It is estimated rather than
+enumerated, at 12 groups and 659,902,464 compositions, and that is the honest
+state of the question rather than a defect in the file: nine of its ten branches
+price a cost, and pricing one splits the manabase before any card query splits
+anything. The same file records what the mana costs the deck, by asking each
+route twice: *a tutor that can find the Lantern, drawn by turn 5* is 45.23% and
+*castable in time to matter* is 28.34%; for the two that tutor onto the
+battlefield it is 21.09% against 5.55%, which is a factor of four. Those gaps
+are what the file's old hand-written `{ turn = 4, query = "t:land", min = 3 }`
+clauses were standing in for.
+
 **Life from the Loam.** *How often is Loam in my graveyard by turn 5?* Needs the
 graveyard to be a thing you can ask about, and needs a card routed into the yard
 to count as arriving there — because for this deck that is the *good* route, not
@@ -100,9 +115,34 @@ are Loam's own Dredge 3, six mana-gated self-mill spells, and cycling lands and
 discard outlets — and the `[[effect]]` grammar expresses none of them, because
 every one is either mana-gated or a replaced draw rather than a land drop.
 
+**That check is now the tool's rather than a reader's.** It was written into a
+comment in `decks/loam.criteria.toml` because the committed index carried no
+oracle tags, and on a tagless index `otag:surveil` matching nothing and nobody
+having fetched that tag are the same empty result. The index carries all eight
+tags now, so the standard library's two entries are evaluated against real
+membership and match zero cards in that list. Same zero, different fact.
+
+**One route out of five is expressible, and it is the one nobody had thought to
+write down.** A sorcery goes to the graveyard when it resolves, so paying
+`{1}{G}` for Life from the Loam puts Life from the Loam in the graveyard. Asked
+that way — a clause for the card and a clause for `can_cast = "{1}{G}"` — the
+deck reads **9.56%** on the play against **11.22%** for holding the card with no
+question asked about the mana, and 87.81% for the mana with no question asked
+about the card. It is a genuine joint and not a product, for the same reason the
+Lantern's is: a hand holding the Loam has one fewer slot that could have been a
+land. It is also a lower bound on the north star, because dredge, discard and
+the self-mill package can only add to it.
+
 So the machinery is real and the north star is not met. Recording it as met was
 the same mistake as recording the Lantern question in its easy form: a feature
 was built for the deck that was imagined rather than the one on the table.
+
+**And the self-mill package is nearer than it looked.** Aftermath Analyst mills
+three on resolution: nothing reaches the hand, the cards come off the top in
+library order, and they are routed to a zone — which is `look` plus
+`to_graveyard`, the mechanism the land-drop tier already runs, on a different
+trigger. It is refused as a replacement draw, and for a pure mill it is not one
+([#62](https://github.com/cramt/progress-engine/issues/62)).
 
 Both needed the mana model, and that was not obvious until the real lists were
 read. Lantern's three routes can now be written down together, and two of them
@@ -479,7 +519,7 @@ split is the scope decision:
 - A **tutor** is a *deterministic* removal from a named group. Given the
   checkpoints reached so far there is one answer, so it costs no branch: it is a
   subtraction from the pool the next gap is dealt out of, and the enumeration is
-  the same width it always was. `decks/lantern.criteria.toml`'s Route B is seven
+  the same width it always was. `decks/lantern-route-b.criteria.toml` is seven
   groups and 4,120,116 compositions at turn 5 with the tutor and without it, to
   the composition.
 - **Exiling off the top** is itself a draw. The three cards Devourer of Destiny
@@ -635,9 +675,15 @@ through the front door.
   class keeps only the queries it reads, only the turns it names, and what a
   land makes only where something asks whether a cost could be paid; everything
   else merges. A question over the ceiling on its own is still estimated, and
-  now it is the only one: `decks/lantern.criteria.toml` went from 4,120,116
-  compositions to 72,072 on the play and from sampled to exact on the draw,
-  with every number it already reported unchanged to every printed digit.
+  now it is the only one. `decks/lantern.criteria.toml` is the case that shows
+  what that is worth once a file asks its real question: its north star is a
+  union of four routes, nine of whose ten branches price a cost, and at 12
+  groups and 659,902,464 compositions no narrowing brings it under the ceiling.
+  The other twelve questions in that file are exact, at between 10 and 122,880
+  compositions each. Sized per file they would all have been estimates.
+  `decks/loam.criteria.toml` is the other half of the same claim: 8 groups and
+  14,057,472 as one enumeration, which is sampled, against a widest class of 6
+  groups and 1,026,432, which is not.
 - A cost is enumerated on the colours it demands and no others
   ([#55](https://github.com/cramt/progress-engine/issues/55)) — shipped. A
   Plains, a Swamp and a Forest are one source to `{1}{U}`, so both decks in

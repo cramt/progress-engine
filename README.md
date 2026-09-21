@@ -120,17 +120,26 @@ shrink:
   about paying a cost keeps every turn up to its own, because one land drop a turn is
   use-it-or-lose-it and no total can say that.
 
-Measured on the two decks in `decks/`, against an index synced with oracle tags. The first
-three rows are what #31 bought and the last two are #55, so *before* means before that row's
-own narrowing:
+Measured on the two decks in `decks/`, against the tagged index committed beside them. The
+first four rows are what #31 bought and the last two are #55, so *before* means before that
+row's own narrowing:
 
 | File | Before: groups / compositions | After: widest class | Before | After |
 |---|---|---|---|---|
-| `lantern.criteria.toml` | 7 / 4,120,116 | 6 / 72,072 | exact, 2.6s | exact, 0.20s |
-| `lantern.criteria.toml --draw` | 7 / 28,840,812 | 6 / 108,108 | **sampled** | **exact**, 0.20s |
-| `loam.criteria.toml` | 4 / 30,720 | 3 / 55 | exact, 0.19s | exact, 0.16s |
+| `lantern.criteria.toml` | 16 / 11,176,771,584 | 12 / 659,902,464 | sampled | sampled, 2.2s |
+| `lantern.criteria.toml --draw` | 16 / 178,828,345,344 | 12 / 7,918,829,568 | sampled | sampled, 2.4s |
+| `loam.criteria.toml` | 8 / 14,057,472 | 6 / 1,026,432 | **sampled** | **exact**, 3.9s |
+| `loam.criteria.toml --draw` | 8 / 112,459,776 | 6 / 6,158,592 | sampled | sampled, 7.9s |
 | `lantern.txt`, `can_cast = "{1}{U}"` at turn 4 | 17 / 1,204,456,341 | 5 / 41,250 | **sampled**, 0.68s | **exact**, 0.27s |
 | `loam.txt`, the same clause | 18 / 2,018,478,528 | 5 / 41,250 | **sampled**, 0.81s | **exact**, 0.25s |
+
+The first two rows are what narrowing looks like once a file asks the question it exists for
+rather than a proxy for it. `lantern.criteria.toml` is the Lantern north star written as a
+union of four routes, nine of whose ten branches price a cost, and no narrowing gets that
+under the ceiling: it is 132 times over. What #31 buys there is **the other twelve questions
+in the file**, which are enumerated exactly and cost between 10 and 122,880 compositions
+apiece — before #31 every one of them would have been estimated on account of the question
+beside it. The run says which four were not, by name, and quotes only those with a ±.
 
 Every number that was exact before is the same number after, to every digit the report
 prints. Narrowing is not an approximation: a coarser grouping is a marginal of the finer one,
