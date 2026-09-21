@@ -3,7 +3,7 @@
 // The premier category is marked {top}; Archidekt categories excluded from the
 // deck are marked {noDeck}.
 // NOTE: the owner's 9-entry 'Tokens & Extras' category was DROPPED rather than
-// emitted as [Tokens & Extras{noDeck}]. progress-engine looks token names up in
+// emitted as [Tokens & Extras{noDeck}]. gauntlet looks token names up in
 // the card index even though the decklist says they are outside the deck, and
 // the index (correctly) contains no tokens, so the run died with
 //   Error: unknown card(s): Bear, Beast, Copy, Eldrazi Spawn, Treefolk

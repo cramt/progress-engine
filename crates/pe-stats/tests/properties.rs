@@ -32,7 +32,7 @@ fn runner(cases: u32) -> TestRunner {
 }
 
 /// How many checkpoint paths a question enumerates: compositions of each gap
-/// over the groups, multiplied across gaps. Same formula `pe_criteria` uses to
+/// over the groups, multiplied across gaps. Same formula `gauntlet_criteria` uses to
 /// refuse questions that are too wide, kept here so the generators can stay
 /// inside a budget the test suite can afford.
 fn paths(groups: usize, gaps: &[u32]) -> u128 {

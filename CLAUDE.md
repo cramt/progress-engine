@@ -1,4 +1,4 @@
-# progress-engine
+# Ichormoon Gauntlet
 
 A Magic: The Gathering draw-probability engine. It answers *how often does this
 deck do this by turn N* by exact enumeration, with a sampling engine alongside
@@ -16,6 +16,9 @@ as a cross-checking oracle.
   "this hand should produce this number" is settled.
 - **[README.md](README.md)** — the user-facing doc, and where tracked numbers
   live.
+- **[NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md)** — the progress-engine family:
+  which names are spent, which are banked, and the Scryfall art-tag rule a new
+  one has to pass. Read it before naming a crate, a binary or a sibling repo.
 
 ## Build and test
 
@@ -44,7 +47,7 @@ hidden broken clippy and tests across four commits before.
   them; `enumerations` in the JSON output carries them.
 - **`decks/index.jsonl` carries all eight oracle tags**, so the committed
   criteria files answer against the committed index and a clone can reproduce
-  every number in them: `progress-engine test decks/lantern.txt
+  every number in them: `gauntlet test decks/lantern.txt
   decks/lantern.criteria.toml --index decks/index.jsonl`. It was built with
   `--from` and carried none until the `sync` in #59; if you rebuild it, check
   `provenance.index_updated_at` is a date rather than null before committing,
@@ -55,7 +58,7 @@ hidden broken clippy and tests across four commits before.
   criteria files across both decks and both seats make a sweep you can diff
   before and after; do that and say what you found.
 - **The two engines must agree.** Teaching the exact engine something means
-  teaching `pe-sim` the same thing. Agreement is asserted at three levels and is
+  teaching `gauntlet-sim` the same thing. Agreement is asserted at three levels and is
   the acceptance test for touching the enumeration.
 
 ## Conventions

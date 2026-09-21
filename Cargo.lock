@@ -477,6 +477,59 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
+name = "gauntlet-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "facet",
+ "facet-json",
+ "figue",
+ "flate2",
+ "gauntlet-criteria",
+ "gauntlet-sim",
+ "gauntlet-toml",
+ "pe-decklist",
+ "pe-scryfall",
+ "pe-stats",
+ "serde_json",
+ "sha2",
+ "ureq",
+]
+
+[[package]]
+name = "gauntlet-criteria"
+version = "0.1.0"
+dependencies = [
+ "pe-stats",
+ "proptest",
+ "thiserror",
+]
+
+[[package]]
+name = "gauntlet-sim"
+version = "0.1.0"
+dependencies = [
+ "gauntlet-criteria",
+ "pe-stats",
+ "proptest",
+ "rand",
+ "rand_chacha",
+ "thiserror",
+]
+
+[[package]]
+name = "gauntlet-toml"
+version = "0.1.0"
+dependencies = [
+ "facet",
+ "facet-toml",
+ "gauntlet-criteria",
+ "gauntlet-sim",
+ "pe-stats",
+ "thiserror",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -733,35 +786,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pe-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "facet",
- "facet-json",
- "figue",
- "flate2",
- "pe-criteria",
- "pe-decklist",
- "pe-scryfall",
- "pe-sim",
- "pe-stats",
- "pe-toml",
- "serde_json",
- "sha2",
- "ureq",
-]
-
-[[package]]
-name = "pe-criteria"
-version = "0.1.0"
-dependencies = [
- "pe-stats",
- "proptest",
- "thiserror",
-]
-
-[[package]]
 name = "pe-decklist"
 version = "0.1.0"
 dependencies = [
@@ -780,35 +804,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "pe-sim"
-version = "0.1.0"
-dependencies = [
- "pe-criteria",
- "pe-stats",
- "proptest",
- "rand",
- "rand_chacha",
- "thiserror",
-]
-
-[[package]]
 name = "pe-stats"
 version = "0.1.0"
 dependencies = [
  "libm",
  "proptest",
-]
-
-[[package]]
-name = "pe-toml"
-version = "0.1.0"
-dependencies = [
- "facet",
- "facet-toml",
- "pe-criteria",
- "pe-sim",
- "pe-stats",
- "thiserror",
 ]
 
 [[package]]

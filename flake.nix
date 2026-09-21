@@ -47,12 +47,12 @@
       };
 
       cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-      progress-engine = craneLib.buildPackage (commonArgs // {inherit cargoArtifacts;});
+      gauntlet = craneLib.buildPackage (commonArgs // {inherit cargoArtifacts;});
     in {
-      packages.default = progress-engine;
+      packages.default = gauntlet;
 
       checks = {
-        inherit progress-engine;
+        inherit gauntlet;
         clippy = craneLib.cargoClippy (commonArgs
           // {
             inherit cargoArtifacts;

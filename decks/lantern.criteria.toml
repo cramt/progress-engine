@@ -10,7 +10,7 @@
 # WHAT THESE NUMBERS ARE
 # ----------------------
 # Cards paid for, not cards seen. An earlier version of this file said the
-# opposite — "progress-engine counts cards SEEN, never cards cast; there is no
+# opposite — "gauntlet counts cards SEEN, never cards cast; there is no
 # mana model" — and built every route around that absence, with hand-written
 # `{ turn = 4, query = "t:land", min = 3 }` clauses it labelled a crude mana
 # proxy. Those are gone. `can_cast` asks the question they were standing in

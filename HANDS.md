@@ -146,7 +146,7 @@ name = "three lands in play by turn 3"
 require = [{ turn = 3, query = "t:land", zone = "battlefield", min = 3, max = 3 }]
 ```
 
-This is a test, as `crates/pe-cli/tests/fixtures/hand-4.criteria.toml` against a
+This is a test, as `crates/gauntlet-cli/tests/fixtures/hand-4.criteria.toml` against a
 nine-card library that is entirely in hand by turn 3, so the two clauses read
 100% and differ by two cards rather than by a probability.
 
@@ -261,7 +261,7 @@ oppositely, which is the whole claim. The 11% shortfall in hand 7 is one deal in
 nine — the one where the Fountain is the card left out of the opening hand, so
 it arrives on turn 3, has to be played on turn 3, and enters tapped under the
 assumption in hand 8. The pair is also asserted at the engine level in
-`pe-criteria`, against hands written as seven-card libraries, where both answers
+`gauntlet-criteria`, against hands written as seven-card libraries, where both answers
 are a flat yes and no.
 
 ### 8. Hallowed Fountain's tapped-ness is a decision
@@ -331,7 +331,7 @@ The `match`, `look` and `on` come from the standard library and are repeated
 here only because last-wins overrides a whole entry at a time. The
 `to_graveyard` is the part the library will never declare.
 
-This is a test, as `crates/pe-cli/tests/fixtures/loam-yard.criteria.toml`, with
+This is a test, as `crates/gauntlet-cli/tests/fixtures/loam-yard.criteria.toml`, with
 a ten-card cut-down beside it whose three zone counts are worked out on paper
 in the test that reads them.
 
@@ -437,8 +437,8 @@ The binned Bolt does not move between the two, and that is the check that the
 routing survived the arbitration: the surveil fires either way, one turn apart,
 and by turn 2 it has looked either way.
 
-*Answerable today.* Asserted in `crates/pe-cli/tests/cli.rs` as the pair above,
-and at the engine level in `pe-criteria` as this hand written as a seven-card
+*Answerable today.* Asserted in `crates/gauntlet-cli/tests/cli.rs` as the pair above,
+and at the engine level in `gauntlet-criteria` as this hand written as a seven-card
 library, where the two priorities answer turn 1 with a flat yes and no.
 
 ---

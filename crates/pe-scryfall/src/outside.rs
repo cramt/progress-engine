@@ -1,7 +1,7 @@
 //! Card types that are never in your library.
 //!
 //! Named for what it decides rather than for "zone", which now means a
-//! gameplay zone a criterion can ask about — see `pe_criteria::Zone`. Nothing
+//! gameplay zone a criterion can ask about — see `gauntlet_criteria::Zone`. Nothing
 //! here is one of those: a sticker sheet is a *deck*, not a place a card moves
 //! to during a game, and one word for both is how a caller ends up checking a
 //! criterion's zone against this list and getting a confident wrong answer.

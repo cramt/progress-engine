@@ -24,7 +24,7 @@ fn colors(letters: &str) -> Colors {
 
 #[test]
 fn an_absent_legality_field_is_unknown_rather_than_illegal() {
-    // Exactly the shape of the pe-cli fixture index, which predates the field.
+    // Exactly the shape of the gauntlet-cli fixture index, which predates the field.
     let solemn =
         card(r#"{"name":"Solemn Simulacrum","type_line":"Artifact Creature — Golem","cmc":4.0}"#);
     assert_eq!(solemn.commander_legality(), CommanderLegality::Unknown);

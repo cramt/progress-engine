@@ -1,6 +1,6 @@
 //! The card index: what a card is, as this tool stores it.
 //!
-//! Built by `progress-engine sync` from Scryfall's bulk data (see
+//! Built by `gauntlet sync` from Scryfall's bulk data (see
 //! [`crate::bulk`]) and read by everything else. The reduction from Scryfall's
 //! sixty-odd fields to the seventeen here happens once, at sync time, so that
 //! the shape a query sees is decided in one place rather than re-derived by
@@ -47,7 +47,7 @@ const SEPARATOR: char = '\t';
 pub enum IndexError {
     #[error(
         "no Scryfall index at {0}.\n\
-         Build one with: progress-engine sync"
+         Build one with: gauntlet sync"
     )]
     Missing(PathBuf),
     #[error("reading {path}: {source}")]
@@ -64,7 +64,7 @@ pub enum IndexError {
     },
     #[error(
         "the index at {0} is empty: it has no header line.\n\
-         Rebuild it with: progress-engine sync"
+         Rebuild it with: gauntlet sync"
     )]
     NoHeader(PathBuf),
     /// The header's card count and the number of card lines disagree.
@@ -77,7 +77,7 @@ pub enum IndexError {
     #[error(
         "the index at {path} is truncated: its header claims {expected} cards \
          but {found} lines follow.\n\
-         Rebuild it with: progress-engine sync"
+         Rebuild it with: gauntlet sync"
     )]
     Truncated {
         path: PathBuf,
@@ -94,7 +94,7 @@ pub enum IndexError {
     #[error(
         "the index at {path} files {name:?} under {key:?}, which is not the key \
          that name produces.\n\
-         Rebuild it with: progress-engine sync"
+         Rebuild it with: gauntlet sync"
     )]
     KeyMismatch {
         path: PathBuf,

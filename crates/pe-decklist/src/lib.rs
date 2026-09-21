@@ -4,7 +4,7 @@
 //! carried the warning that motivated this crate: *"One copy of this regex, not
 //! two — the two callers must agree on what a decklist is, or a deck could
 //! validate at 100 cards and then deal a different 100."* `scryfall check` and
-//! `scryfall play` now both shell out to `progress-engine parse`.
+//! `scryfall play` now both shell out to `gauntlet parse`.
 
 use std::num::NonZeroU32;
 use std::sync::OnceLock;

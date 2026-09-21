@@ -1,9 +1,13 @@
-# progress-engine
+# Ichormoon Gauntlet
 
 Draw-probability tests for Magic: The Gathering decklists.
 
-Named for Jin-Gitaxias's faction of New Phyrexia, on the grounds that obsessively
-recalculating whether your deck is perfect yet is blue-aligned behaviour.
+Part of **progress-engine**, a family of Magic tooling named for Jin-Gitaxias's
+faction of New Phyrexia, on the grounds that obsessively recalculating whether
+your deck is perfect yet is blue-aligned behaviour. A gauntlet is a set of
+trials you put something through, which is what a criteria file is.
+[NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md) carries the rest of the family and
+the rule for naming the next one.
 
 This README is what the tool does today. [VISION.md](VISION.md) is what it is
 for, what it refuses to become, and which of those two lists a given decision
@@ -162,7 +166,7 @@ A question that is still over the ceiling on its own — a criterion correlating
 across seven queries, say — used to be refused. It is now **answered by sampling, loudly**:
 
 ```
-$ progress-engine test simple-ramp.txt too-wide.criteria.toml
+$ gauntlet test simple-ramp.txt too-wide.criteria.toml
 ESTIMATE: a question here was too wide to enumerate exactly: 103169430
           compositions across 12 groups, against a ceiling of 5000000. It was
           answered by sampling 200000 hands instead.
@@ -191,7 +195,7 @@ approximate one — CI, and the cross-engine agreement tests, which need an orac
 enumerates or says nothing:
 
 ```
-$ progress-engine test simple-ramp.txt too-wide.criteria.toml --exact
+$ gauntlet test simple-ramp.txt too-wide.criteria.toml --exact
 Error: this question is too wide to answer exactly: 103169430 compositions across 12 groups.
 It asks about 7 queries: t:land, cat:"Ramp", cat:"Ramp - One Mana", cat:"Draw", cat:"Ramp - Engine", t:creature, t:instant
 Reduce the number of distinct queries, or ask about an earlier turn.
@@ -220,12 +224,12 @@ Working today:
 
 | Command | What it does |
 |---|---|
-| `progress-engine sync` | Build the card index from Scryfall bulk data |
-| `progress-engine parse <deck>` | The canonical Archidekt decklist parser, as JSON |
-| `progress-engine test <deck> <criteria.toml>` | Evaluate criteria and report PASS/FAIL |
+| `gauntlet sync` | Build the card index from Scryfall bulk data |
+| `gauntlet parse <deck>` | The canonical Archidekt decklist parser, as JSON |
+| `gauntlet test <deck> <criteria.toml>` | Evaluate criteria and report PASS/FAIL |
 
 ```
-$ progress-engine test simple-ramp.txt simple-ramp.criteria.toml
+$ gauntlet test simple-ramp.txt simple-ramp.criteria.toml
 PASS keepable opener (2-5 lands)   78.97%  (needs 70.0%)
 PASS turn-1 accelerant             51.04%  (needs 35.0%)
 PASS commander on turn 2           44.29%  (needs 30.0%)
@@ -256,7 +260,7 @@ saying what that class reads, how wide it was, and whether it was walked or
 sampled:
 
 ```
-$ progress-engine test simple-ramp.txt simple-ramp.criteria.toml | jq -c '.enumerations[]'
+$ gauntlet test simple-ramp.txt simple-ramp.criteria.toml | jq -c '.enumerations[]'
 {"criteria":["keepable opener (2-5 lands)"],"expectations":["lands in opener"],
  "queries":["t:land"],"turns":[0],"reading":"cumulative","groups":2,
  "compositions":8,"method":"exact"}
@@ -414,7 +418,7 @@ which is a confident zero, the failure this whole tool is about — so the run
 says so rather than letting `0.00%` pass for a measurement:
 
 ```
-$ progress-engine test loam.txt loam.criteria.toml
+$ gauntlet test loam.txt loam.criteria.toml
 note: nothing routes a card to the graveyard in this run, so every count in
       it is zero by construction rather than by measurement.
       Asked by: "loam in the yard by turn 5"
@@ -556,9 +560,9 @@ asking `can_cast = "{1}{U}"`, before and after
 Reproduce any row with the `enumerations` block:
 
 ```
-$ progress-engine sync --index /tmp/index.jsonl
+$ gauntlet sync --index /tmp/index.jsonl
 $ printf '[[criterion]]\nname = "u"\nrequire = [{ turn = 4, can_cast = "{1}{U}" }]\n' > /tmp/u.toml
-$ progress-engine test decks/lantern.txt /tmp/u.toml --index /tmp/index.jsonl | jq -c '.enumerations[]'
+$ gauntlet test decks/lantern.txt /tmp/u.toml --index /tmp/index.jsonl | jq -c '.enumerations[]'
 {"criteria":["u"],"expectations":[],"queries":[],"turns":[4],"reading":"per-turn",
  "pips":["{U}"],"groups":5,"compositions":41250,"method":"exact"}
 ```
@@ -630,7 +634,7 @@ named rather than a default chosen, because *which land would you have played*
 is a question only you can answer:
 
 ```
-$ progress-engine test lantern.txt lantern.criteria.toml
+$ gauntlet test lantern.txt lantern.criteria.toml
 Error: lantern.criteria.toml: Lantern castable on turn 1: a mana question and a live land-drop
       effect are both answers to which land you played this turn, and this file declares no
       priority between them. [...]
@@ -714,7 +718,7 @@ card, one criteria file, and the opening hand is the whole library so every
 answer is a yes or a no:
 
 ```
-$ progress-engine test hand-1.txt six-opts.criteria.toml    # Island, Opt x6
+$ gauntlet test hand-1.txt six-opts.criteria.toml    # Island, Opt x6
      an Opt cast on turn 1         100.00%
      two Opts cast on turn 1         0.00%
      six Opts in the opening hand  100.00%
@@ -838,8 +842,8 @@ at turn 7.
 Reproduce any row with the `enumerations` block:
 
 ```
-$ progress-engine sync --index /tmp/index.jsonl
-$ progress-engine test decks/lantern.txt /tmp/route-b.toml --index /tmp/index.jsonl \
+$ gauntlet sync --index /tmp/index.jsonl
+$ gauntlet test decks/lantern.txt /tmp/route-b.toml --index /tmp/index.jsonl \
     | jq -c '.enumerations[]'
 {"criteria":["Trinket Mage cast by turn 3"],"expectations":[],
  "queries":["name:\"Trinket Mage\"","name:\"Lantern of Insight\""],"turns":[3],
@@ -905,7 +909,7 @@ find it anyway, so it moves no number at all.
 Write `to_graveyard` yourself and the same surveil starts binning:
 
 ```
-$ progress-engine test loam.txt loam.criteria.toml
+$ gauntlet test loam.txt loam.criteria.toml
 note: effect "t:land otag:surveil" (look 1, on landdrop, name:"Life from the Loam" to the graveyard)
       applies to 4 cards: Undercity Sewers
      loam in the yard by turn 5    4.92%
@@ -1182,7 +1186,7 @@ reads as missing data — drops ends that would print as `0.0%`, and states the
 remainder rather than dropping it:
 
 ```
-$ progress-engine test simple-ramp.txt lands-by-turn.criteria.toml
+$ gauntlet test simple-ramp.txt lands-by-turn.criteria.toml
      lands by turn 20  mean 9.45
                        4: 0.6%    5: 2.0%    6: 5.1%    7: 9.9%    8: 15.1%
                        9: 18.4%   10: 18.0%  11: 14.2%  12: 9.0%   13: 4.7%
@@ -1221,7 +1225,7 @@ never has. `test` has to know what a card *is*, and `sync` is where that comes
 from:
 
 ```
-$ progress-engine sync
+$ gauntlet sync
 downloading oracle_cards, updated 2026-09-04T09:01:54.392+00:00 (24.5 MB)
 read 38631 records
   skipped 3321: not a card (token, emblem or art card)
@@ -1487,17 +1491,17 @@ There are three ways an `otag:` question comes back with no cards, and they are
 three different answers:
 
 ```
-$ progress-engine test loam.txt mill.criteria.toml
+$ gauntlet test loam.txt mill.criteria.toml
 Error: a mill card in the opener: in query "otag:mill": this index does not carry otag:mill, so counting it would be zero by construction
       rather than by measurement. This index carries: scry, surveil, tapland.
 
-$ progress-engine test simple-ramp.txt surveil.criteria.toml     # an index built with --from
+$ gauntlet test simple-ramp.txt surveil.criteria.toml     # an index built with --from
 Error: surveil lands in the opener: in query "t:land otag:surveil": this index carries no oracle tags at all, so otag:surveil would match nothing here
       whether or not this deck plays such a card.
       `sync --from` builds an index like this one: tags come from Scryfall's search API,
-      not from the bulk file. Fetch them with: progress-engine sync
+      not from the bulk file. Fetch them with: gauntlet sync
 
-$ progress-engine test loam.txt scry.criteria.toml
+$ gauntlet test loam.txt scry.criteria.toml
 note: query "otag:scry" matched no cards in this deck
 ```
 
@@ -1557,7 +1561,7 @@ a confident 0% rather than a complaint. So every run reports what each query
 matched, and says so loudly when that is zero:
 
 ```
-$ progress-engine test simple-ramp.txt typo.criteria.toml
+$ gauntlet test simple-ramp.txt typo.criteria.toml
 note: query "cat:\"Rmap\"" matched no cards in this deck
 FAIL misspelled category   0.00%  (needs 30.0%)
 ```
@@ -1585,11 +1589,11 @@ keyword the card pool carries, and a typo among them is that confident 0%
 wearing a valid query:
 
 ```
-$ progress-engine test loam.txt kw-typo.criteria.toml --index loam-index.jsonl
+$ gauntlet test loam.txt kw-typo.criteria.toml --index loam-index.jsonl
 Error: a typoed keyword: in query "kw:flyign": no card in this index has kw:flyign, so counting it would be zero by construction
       rather than by measurement — which reads exactly like a deck that plays none. The
       index lists every keyword the whole card pool carries, so this is a misspelling
-      unless it is newer than the index. Check the spelling; rebuild with: progress-engine sync
+      unless it is newer than the index. Check the spelling; rebuild with: gauntlet sync
 ```
 
 An index whose header never listed any keywords refuses nothing. Keywords are
@@ -1607,7 +1611,7 @@ with ten attractions answers questions about a 109-card library that does not
 exist. They are left out of the library, and never quietly:
 
 ```
-$ progress-engine test unfinity.txt criteria.toml
+$ gauntlet test unfinity.txt criteria.toml
 note: 11 cards never in the library and not counted: 1x Ancestral Hot Dog Minotaur (Stickers), 3x Bumper Cars (Attraction), ...
 ```
 
@@ -1630,10 +1634,10 @@ Two more routes to a confident number about nothing, both refused rather than
 answered:
 
 ```
-$ progress-engine test all-commander.txt criteria.toml
+$ gauntlet test all-commander.txt criteria.toml
 Error: the library is empty: every card in the list is a commander or outside the deck
 
-$ progress-engine test two-card-deck.txt criteria.toml
+$ gauntlet test two-card-deck.txt criteria.toml
 Error: this question draws 7 cards from a library of 2
 ```
 
@@ -1719,10 +1723,10 @@ dragging in the others.
 | `pe-stats` | Exact hypergeometric draw probabilities | Nothing. No Magic concepts at all. |
 | `pe-decklist` | Parsing Archidekt decklists | Decklist text. No card data. |
 | `pe-scryfall` | Card data, Scryfall bulk data and search syntax | Cards. No decklists. |
-| `pe-criteria` | Grouping cards by query, applying effects, evaluating exactly | Counts, the zones they are counted in, and where a looked-at card goes. Not cards, and not where the questions came from. |
-| `pe-toml` | Reading a criteria file and answering it, and shipping the standard effect library | The criteria format, and counts. No cards. |
-| `pe-sim` | Sampling, validated against `pe-stats` | Shuffling. |
-| `pe-cli` | The `progress-engine` binary | All of the above. |
+| `gauntlet-criteria` | Grouping cards by query, applying effects, evaluating exactly | Counts, the zones they are counted in, and where a looked-at card goes. Not cards, and not where the questions came from. |
+| `gauntlet-toml` | Reading a criteria file and answering it, and shipping the standard effect library | The criteria format, and counts. No cards. |
+| `gauntlet-sim` | Sampling, validated against `pe-stats` | Shuffling. |
+| `gauntlet-cli` | The `gauntlet` binary | All of the above. |
 
 The seam worth knowing about is between `pe-scryfall` and `pe-decklist`: a query
 can filter on `cat:"Exile Outlet"`, which is decklist data, not card data. Rather
@@ -1733,7 +1737,7 @@ both halves independently testable.
 The same seam decides where each kind of "outside the library" lives. Companions
 and sideboards are decklist data, so `pe-decklist` answers those; sticker sheets
 and attractions are card data, so `pe-scryfall` answers those. Neither crate
-learns about the other, and `pe-cli` applies both at the point where a decklist
+learns about the other, and `gauntlet-cli` applies both at the point where a decklist
 entry finally meets its card.
 
 Legality is on the card side of that seam and stays entirely there. Whether a
@@ -1742,7 +1746,7 @@ in the command zone and whether its identity fits inside a given one are all
 facts one card settles alone, so they live in `pe-scryfall::legality`, which is
 what `f:`, `banned:`, `restricted:`, `is:commander` and `is:partner` read. The
 half that needed the decklist — copy counts, which lines were nominated,
-how many cards there are altogether — used to live in `pe-cli` and has been
+how many cards there are altogether — used to live in `gauntlet-cli` and has been
 removed ([#42](https://github.com/cramt/progress-engine/issues/42)): selecting
 cards by what a format says about them is a query, and pronouncing on a whole
 list is not something a draw-probability engine has any business doing.
@@ -1750,8 +1754,8 @@ list is not something a draw-probability engine has any business doing.
 `pe-stats` deliberately has no idea what a card is. Its tests are pure
 known-answer arithmetic, so a failure there is unambiguously a maths bug rather
 than a card-data bug. The same reasoning puts the evaluator behind a trait in
-`pe-criteria`: the enumeration is tested with plain Rust closures, so a failure
-there is an engine bug and a failure in `pe-toml` is a criteria-format bug.
+`gauntlet-criteria`: the enumeration is tested with plain Rust closures, so a failure
+there is an engine bug and a failure in `gauntlet-toml` is a criteria-format bug.
 Keeping those distinguishable is worth the indirection.
 
 Its vocabulary is **populations, groups, draws and removals**, and tutoring
@@ -1764,11 +1768,11 @@ P(exactly one card of group 0 in hand) is 3/4 where the plain walk says 4/6.
 Nothing in that signature knows what a tutor is, which is the condition
 [#18](https://github.com/cramt/progress-engine/issues/18) set on itself.
 
-`pe-toml` holds the only `impl Evaluator`, and both engines take it through the
+`gauntlet-toml` holds the only `impl Evaluator`, and both engines take it through the
 same trait. That is why swapping the criteria format out from under them was a
 new crate and a deleted one rather than a change to either engine — and why
 there is one evaluator serving both rather than two that can disagree.
 
-`pe-sim` exists to check `pe-stats`, not to replace it. Where both can answer,
+`gauntlet-sim` exists to check `pe-stats`, not to replace it. Where both can answer,
 they must agree — and that agreement is asserted at three levels: unit, through
 the criteria layer both engines share, and end to end through the binary.

@@ -5,7 +5,7 @@ members = ["crates/*"]
 [workspace.metadata.crane]
 # crane reads the package name from the root Cargo.toml, which a virtual
 # workspace manifest does not have. Without this it warns and uses a placeholder.
-name = "progress-engine"
+name = "ichormoon-gauntlet"
 
 [workspace.package]
 version = "0.1.0"
@@ -33,7 +33,7 @@ tokio = { version = "1", features = ["rt", "time"] }
 
 pe-decklist = { path = "crates/pe-decklist" }
 pe-scryfall = { path = "crates/pe-scryfall" }
-pe-criteria = { path = "crates/pe-criteria" }
-pe-toml = { path = "crates/pe-toml" }
-pe-sim = { path = "crates/pe-sim" }
+gauntlet-criteria = { path = "crates/gauntlet-criteria" }
+gauntlet-toml = { path = "crates/gauntlet-toml" }
+gauntlet-sim = { path = "crates/gauntlet-sim" }
 pe-stats = { path = "crates/pe-stats" }

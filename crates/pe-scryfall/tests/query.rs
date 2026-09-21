@@ -395,7 +395,7 @@ fn kw_asks_what_a_card_has_where_o_asks_what_it_says() {
 
 #[test]
 fn a_card_the_index_never_gave_keywords_has_none_rather_than_panicking() {
-    // Exactly the shape of the pe-cli fixture index, which predates the field.
+    // Exactly the shape of the gauntlet-cli fixture index, which predates the field.
     let solemn: Card = facet_json::from_str(
         r#"{"name":"Solemn Simulacrum","type_line":"Artifact Creature — Golem","cmc":4.0}"#,
     )
