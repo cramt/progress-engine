@@ -257,8 +257,8 @@ from being estimated.
 JSON goes to stdout, the verdict to stderr, and the exit code reflects it — so a
 caller piping stdout through `jq` cannot lose the failure.
 
-A criterion with no `at_least` is informational: it reports a number and cannot
-fail. The two blocks with means under them are `[[expect]]` rather than
+A criterion with no `at_least` and no `at_most` is informational: it reports a
+number and cannot fail. The two blocks with means under them are `[[expect]]` rather than
 `[[criterion]]`, and they are the subject of [how many, not just how
 often](#how-many-not-just-how-often). Add `--draw` to model being on the draw,
 `--simulate` to sample instead of enumerate (slower, approximate, and reported
@@ -300,8 +300,8 @@ nobody can vouch for is worse than an admitted gap.
 ### The criteria file
 
 TOML, and the whole schema fits in one example. A `[[criterion]]` has a `name`,
-an optional `at_least`, and `require`: a list of clauses, all of which must
-hold. A clause asks one of three things, told apart by which key it names: a
+an optional `at_least` and `at_most`, and `require`: a list of clauses, all of
+which must hold. A clause asks one of three things, told apart by which key it names: a
 `turn`, a `query`, an optional `zone` and at least one of `min` and `max`
 counts cards; a `turn` and a `can_cast` asks whether a cost was payable, for
 which see [Mana, as a gate](#mana-as-a-gate); and a `turn`, a `cast` and at
@@ -341,6 +341,22 @@ name = "lands in opener"
 turn = 0
 query = "t:land"
 ```
+
+`at_least` is a floor and `at_most` a ceiling, and both are shares of hands.
+A ceiling is for the number that should stay small, because a probability
+drifting *up* is sometimes the regression:
+
+```toml
+[[criterion]]
+name = "flooded opener (6+ lands)"
+at_most = 0.15
+require = [{ turn = 0, query = "t:land", min = 6 }]
+```
+
+Write both and the criterion is a range. A missed range says which end it
+missed, `(needs 40.0% to 60.0%: over it)`, and the JSON carries the same thing
+as `missed: "at_least"` or `"at_most"` on every failed criterion. Both bounds
+are inclusive.
 
 Both spellings of `require` above are the same TOML document, which matters
 because the text format is an API rather than a user interface: a generator
@@ -460,6 +476,7 @@ otherwise produces a percentage that looks exactly like a real one:
 | a clause with neither `min` nor `max` | it names a query and asks nothing of it |
 | `min = 5, max = 2` | no hand can satisfy it: a confident 0% |
 | `at_least = 70` | a threshold is a share of hands, so 70% is `0.70` |
+| `at_least = 0.6, at_most = 0.4` | no probability sits between them, so it fails every deck and blames the deck for it |
 | `zone = "battlefield"` on a query matching a spell | a land arrives on a land drop and this engine walks those; a spell has to be cast, and where it goes afterwards is not modelled. `cast` counts the castings, which is the part that is known. The exceptions are the two ways this walk models a permanent arriving: the `[casting]` line casting it, and a [delayed effect](#delayed-effects-urzas-saga) putting it there. An instant or sorcery stays refused, because it resolves and goes nowhere this engine tracks |
 | `zone = "exile"`, or any other zone | a zone that fell through to a default would answer the wrong question |
 | two of `query`, `can_cast` and `cast` in one clause | three different questions, two of which would have to be answered silently |

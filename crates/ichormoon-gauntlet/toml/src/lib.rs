@@ -210,6 +210,7 @@ struct EffectDef {
 struct CriterionDef {
     name: Option<String>,
     at_least: Option<f64>,
+    at_most: Option<f64>,
     #[facet(default)]
     require: Vec<ClauseDef>,
     /// An `Option` rather than a defaulted `Vec`, which `require` can afford to
@@ -986,8 +987,8 @@ pub struct CriteriaError {
 }
 
 /// Every key the format has, for the error that lists them.
-const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least, require, \
-                      any_of), whose require clauses are (turn, query, zone, min, max), (turn, \
+const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least, at_most, \
+                      require, any_of), whose require clauses are (turn, query, zone, min, max), (turn, \
                       cast, min, max) or (turn, can_cast), and whose any_of branches each hold \
                       a require of their own, \
                       [[expect]] tables (name, turn, query, zone) or (name, turn, cast), [[effect]] \
@@ -1069,10 +1070,26 @@ pub enum ErrorKind {
     )]
     BadTurn { at: String, turn: i64 },
     #[error(
-        "criterion {name:?}: `at_least = {at_least}` is not a probability. It is the share of \
-         hands this must hold in, so 70% is written 0.70"
+        "criterion {name:?}: `{key} = {value}` is not a probability. It is the share of hands \
+         this must hold in, so 70% is written 0.70"
     )]
-    BadThreshold { name: String, at_least: f64 },
+    BadThreshold {
+        name: String,
+        key: &'static str,
+        value: f64,
+    },
+    /// A range no probability can sit in, which would fail every deck for a
+    /// reason nothing in the report states, the same way `min = 5, max = 2`
+    /// would report a confident 0%.
+    #[error(
+        "criterion {name:?}: `at_least = {at_least}` and `at_most = {at_most}` leave no \
+         probability between them, so this would fail on every deck"
+    )]
+    EmptyThreshold {
+        name: String,
+        at_least: f64,
+        at_most: f64,
+    },
     /// A trigger the engine does not fire, refused by name.
     ///
     /// Not a `#[source]`, for the same reason [`ErrorKind::BadZone`] is not:
@@ -1578,9 +1595,18 @@ fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
             table: "[[criterion]]",
             position: i + 1,
         })?;
-        if let Some(at_least) = def.at_least {
-            if !(0.0..=1.0).contains(&at_least) {
-                return Err(ErrorKind::BadThreshold { name, at_least });
+        for (key, bound) in [("at_least", def.at_least), ("at_most", def.at_most)] {
+            if let Some(value) = bound.filter(|t| !(0.0..=1.0).contains(t)) {
+                return Err(ErrorKind::BadThreshold { name, key, value });
+            }
+        }
+        if let (Some(at_least), Some(at_most)) = (def.at_least, def.at_most) {
+            if at_least > at_most {
+                return Err(ErrorKind::EmptyThreshold {
+                    name,
+                    at_least,
+                    at_most,
+                });
             }
         }
         // `require` first, so a file that predates `any_of` interns its queries
@@ -1620,6 +1646,7 @@ fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
         criteria.push(Criterion {
             name,
             at_least: def.at_least,
+            at_most: def.at_most,
         });
         predicates.push(predicate);
     }

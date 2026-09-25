@@ -185,6 +185,67 @@ fn a_missed_threshold_fails_the_run() {
 }
 
 #[test]
+fn a_ceiling_or_a_range_fails_on_the_end_it_missed() {
+    let out = run("bounds.criteria.toml");
+    assert!(!out.status.success(), "two assertions miss");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["asserted"], 4, "an at_most alone is an assertion");
+    assert_eq!(json["failed"], 2);
+    let by_name = |name: &str| {
+        json["criteria"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == name)
+            .unwrap_or_else(|| panic!("no criterion named {name}"))
+            .clone()
+    };
+    let flooded = by_name("flooded opener (6+ lands)");
+    assert_eq!(flooded["pass"], true);
+    assert_eq!(flooded["at_most"], 0.15);
+    assert!(flooded.get("missed").is_none(), "a pass misses nothing");
+    let in_range = by_name("keepable opener, in range");
+    assert_eq!(in_range["pass"], true);
+    // The same 78.97% as the ramp deck's keepable opener, over a range whose
+    // top it clears.
+    let over = by_name("keepable opener, too often");
+    assert_eq!(over["pass"], false);
+    assert_eq!(over["missed"], "at_most");
+    assert_eq!(
+        by_name("screwed opener, ceiling missed")["missed"],
+        "at_most"
+    );
+
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("(needs at most 15.0%)"), "{stderr}");
+    assert!(stderr.contains("(needs 70.0% to 85.0%)"), "{stderr}");
+    assert!(
+        stderr.contains("(needs 40.0% to 60.0%: over it)"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("FAIL: 2 of 4 assertions missed"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn a_file_with_no_ceiling_reports_none() {
+    // A file that predates `at_most` gets back the JSON it always did: no
+    // `at_most` key, and no `missed` on a pass.
+    let json: serde_json::Value =
+        serde_json::from_slice(&run("simple-ramp.criteria.toml").stdout).unwrap();
+    for c in json["criteria"].as_array().unwrap() {
+        assert!(c.get("at_most").is_none(), "{c}");
+        assert!(c.get("missed").is_none(), "{c}");
+    }
+    // A missed floor names itself the same way a missed ceiling does.
+    let json: serde_json::Value =
+        serde_json::from_slice(&run("impossible.criteria.toml").stdout).unwrap();
+    assert_eq!(json["criteria"][0]["missed"], "at_least");
+}
+
+#[test]
 fn an_unparseable_query_names_itself_and_the_question_that_asked_for_it() {
     let out = run("badquery.criteria.toml");
     assert!(!out.status.success());
