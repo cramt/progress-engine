@@ -32,12 +32,55 @@ pub use zone::{Counted, Reachable, Zone, ZoneError};
 
 use chip_stats::{Distribution, DistributionBuilder, KahanSum, Probability};
 
-/// One named acceptance criterion, optionally with a threshold it must meet.
+/// One named acceptance criterion, optionally with the bounds it must sit in.
+///
+/// Two one-sided bounds rather than one threshold, because a probability
+/// drifting *up* is sometimes the regression: "all-land openers under 5%" is an
+/// assertion about flooding that `at_least` could never state. Both together
+/// are a range, and the file refuses one no probability could land in.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Criterion {
     pub name: String,
-    /// The assertion: this criterion must hold at least this often.
+    /// This criterion must hold at least this often.
     pub at_least: Option<f64>,
+    /// This criterion must hold at most this often.
+    pub at_most: Option<f64>,
+}
+
+impl Criterion {
+    /// Whether this criterion asserts anything, or only reports a number.
+    pub fn asserts(&self) -> bool {
+        self.at_least.is_some() || self.at_most.is_some()
+    }
+
+    /// Which bound `probability` misses, if any. `None` is a pass, and is what
+    /// a criterion with no bounds always returns: it cannot fail.
+    pub fn missed(&self, probability: f64) -> Option<Bound> {
+        if self.at_least.is_some_and(|t| probability < t) {
+            Some(Bound::AtLeast)
+        } else if self.at_most.is_some_and(|t| probability > t) {
+            Some(Bound::AtMost)
+        } else {
+            None
+        }
+    }
+}
+
+/// One end of a criterion's assertion, named the way the file names it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Bound {
+    AtLeast,
+    AtMost,
+}
+
+impl Bound {
+    /// The key a criteria file writes this bound under.
+    pub fn key(self) -> &'static str {
+        match self {
+            Bound::AtLeast => "at_least",
+            Bound::AtMost => "at_most",
+        }
+    }
 }
 
 /// One named quantity to report the mean and the full distribution of.

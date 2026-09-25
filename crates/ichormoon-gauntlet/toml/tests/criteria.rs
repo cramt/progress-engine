@@ -1047,6 +1047,69 @@ fn a_threshold_outside_zero_to_one_is_refused() {
     );
     assert!(matches!(err, ErrorKind::BadThreshold { .. }), "{err}");
     assert!(err.to_string().contains("0.70"), "{err}");
+
+    // The same mistake at the other end, named by the key it was made under.
+    let err = refuse(
+        r#"
+        [[criterion]]
+        name = "flooding, in percent"
+        at_most = 15
+        require = [{ turn = 0, query = "t:land", min = 6 }]
+        "#,
+    );
+    assert!(
+        matches!(err, ErrorKind::BadThreshold { key: "at_most", .. }),
+        "{err}"
+    );
+    assert!(err.to_string().contains("at_most = 15"), "{err}");
+}
+
+#[test]
+fn a_criterion_can_be_bounded_from_above_or_from_both_sides() {
+    let criteria = parse(
+        r#"
+        [[criterion]]
+        name = "flooded opener"
+        at_most = 0.15
+        require = [{ turn = 0, query = "t:land", min = 6 }]
+
+        [[criterion]]
+        name = "two lands on turn two"
+        at_least = 0.40
+        at_most = 0.60
+        require = [{ turn = 2, query = "t:land", min = 2 }]
+
+        [[criterion]]
+        name = "exactly this often"
+        at_least = 0.5
+        at_most = 0.5
+        require = [{ turn = 0, query = "t:land", min = 1 }]
+        "#,
+    );
+    let c = criteria.criteria();
+    assert_eq!((c[0].at_least, c[0].at_most), (None, Some(0.15)));
+    assert_eq!((c[1].at_least, c[1].at_most), (Some(0.40), Some(0.60)));
+    // A range one point wide is odd but satisfiable, so it is not refused.
+    assert_eq!((c[2].at_least, c[2].at_most), (Some(0.5), Some(0.5)));
+}
+
+#[test]
+fn a_range_no_probability_fits_in_is_refused() {
+    // Written backwards, it fails every deck, and the report would blame the
+    // deck for it.
+    let err = refuse(
+        r#"
+        [[criterion]]
+        name = "backwards"
+        at_least = 0.60
+        at_most = 0.40
+        require = [{ turn = 0, query = "t:land", min = 2 }]
+        "#,
+    );
+    assert!(matches!(err, ErrorKind::EmptyThreshold { .. }), "{err}");
+    let msg = err.to_string();
+    assert!(msg.contains("at_least = 0.6"), "{msg}");
+    assert!(msg.contains("at_most = 0.4"), "{msg}");
 }
 
 #[test]

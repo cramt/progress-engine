@@ -1,0 +1,26 @@
+# Assertions that point down, and ranges that point both ways (#12).
+#
+# Against simple-ramp.txt, whose keepable-opener figure is 78.97% exactly, so
+# each verdict below is fixed and the two failures miss by a mile.
+
+[[criterion]]
+name = "flooded opener (6+ lands)"
+at_most = 0.15
+require = [{ turn = 0, query = "t:land", min = 6 }]
+
+[[criterion]]
+name = "keepable opener, in range"
+at_least = 0.70
+at_most = 0.85
+require = [{ turn = 0, query = "t:land", min = 2, max = 5 }]
+
+[[criterion]]
+name = "keepable opener, too often"
+at_least = 0.40
+at_most = 0.60
+require = [{ turn = 0, query = "t:land", min = 2, max = 5 }]
+
+[[criterion]]
+name = "screwed opener, ceiling missed"
+at_most = 0.01
+require = [{ turn = 0, query = "t:land", max = 1 }]

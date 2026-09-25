@@ -3,7 +3,7 @@
 use chip_scryfall::index::TagGap;
 use chip_stats::Distribution;
 use facet::Facet;
-use gauntlet_criteria::{Criterion, Expectation};
+use gauntlet_criteria::{Bound, Criterion, Expectation};
 use sha2::{Digest, Sha256};
 
 use crate::library::Library;
@@ -14,10 +14,19 @@ pub struct CriterionResult {
     pub probability: f64,
     pub percent: f64,
     pub at_least: Option<f64>,
+    /// Absent rather than null when the file wrote none, so a file that
+    /// predates it reports byte for byte what it always did.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub at_most: Option<f64>,
     /// Present only for sampled runs: never quote a sampled figure without it.
     #[facet(skip_serializing_if = Option::is_none)]
     pub standard_error: Option<f64>,
     pub pass: bool,
+    /// On a failure only, which bound was missed: `"at_least"` or `"at_most"`.
+    /// A range is two thresholds, and "FAIL" alone does not say whether the
+    /// deck got there too rarely or too often.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub missed: Option<&'static str>,
     /// Sampled runs only: the threshold sits inside this figure's error bar, so
     /// `pass` is a fact about this seed as much as about this deck.
     ///
@@ -566,6 +575,7 @@ impl Report {
             .zip(&answers.estimated.criteria)
             .map(|((c, &p), &estimated)| {
                 let how = sampled.filter(|_| estimated);
+                let missed = c.missed(p);
                 CriterionResult {
                     name: c.name.clone(),
                     probability: round(p, 6),
@@ -573,11 +583,15 @@ impl Report {
                     standard_error: how
                         .map(|s| round(gauntlet_sim::standard_error(p, s.trials), 6)),
                     at_least: c.at_least,
+                    at_most: c.at_most,
                     // A criterion with no threshold is informational; it reports
                     // a number and cannot fail.
-                    pass: c.at_least.is_none_or(|t| p >= t),
+                    pass: missed.is_none(),
+                    missed: missed.map(Bound::key),
+                    // Either end of a range can be the close call, and the
+                    // nearer one is the one that decides it.
                     inconclusive: how.and_then(|s| {
-                        let threshold = c.at_least?;
+                        let threshold = nearest_bound(c.at_least, c.at_most, p)?;
                         let se = gauntlet_sim::standard_error(p, s.trials);
                         Some((p - threshold).abs() <= INCONCLUSIVE_ERRORS * se)
                     }),
@@ -602,7 +616,7 @@ impl Report {
             })
             .collect();
 
-        let asserted = results.iter().filter(|r| r.at_least.is_some()).count();
+        let asserted = questions.criteria.iter().filter(|c| c.asserts()).count();
         let failed = results.iter().filter(|r| !r.pass).count();
 
         Report {
@@ -830,14 +844,27 @@ impl Report {
             .max(9);
 
         for c in &self.criteria {
-            let status = match (c.at_least, c.pass) {
+            let status = match (c.at_least.or(c.at_most), c.pass) {
                 (None, _) => "     ",
                 (Some(_), true) => "PASS ",
                 (Some(_), false) => "FAIL ",
             };
-            let target = match c.at_least {
-                Some(t) => format!("  (needs {:.1}%)", t * 100.0),
-                None => String::new(),
+            // A lone `at_least` reads as it always has. The other shapes say
+            // which way they point, and a missed range says which end.
+            let target = match (c.at_least, c.at_most) {
+                (None, None) => String::new(),
+                (Some(lo), None) => format!("  (needs {:.1}%)", lo * 100.0),
+                (None, Some(hi)) => format!("  (needs at most {:.1}%)", hi * 100.0),
+                (Some(lo), Some(hi)) => format!(
+                    "  (needs {:.1}% to {:.1}%{})",
+                    lo * 100.0,
+                    hi * 100.0,
+                    match c.missed {
+                        Some(k) if k == Bound::AtLeast.key() => ": under it",
+                        Some(_) => ": over it",
+                        None => "",
+                    }
+                ),
             };
             // On the line rather than in a footnote. A sampled percentage
             // printed to two decimals looks exactly as certain as an enumerated
@@ -878,9 +905,11 @@ impl Report {
         // readable next to the line it is about: the PASS or FAIL it qualifies
         // has to have been printed first.
         for c in &self.criteria {
-            let (Some(true), Some(threshold), Some(se)) =
-                (c.inconclusive, c.at_least, c.standard_error)
-            else {
+            let (Some(true), Some(threshold), Some(se)) = (
+                c.inconclusive,
+                nearest_bound(c.at_least, c.at_most, c.probability),
+                c.standard_error,
+            ) else {
                 continue;
             };
             out.push_str(&format!(
@@ -1052,6 +1081,15 @@ fn error_bar_value(standard_error: f64) -> String {
 /// to ignore the note; three would stay quiet while the verdict flips from seed
 /// to seed.
 const INCONCLUSIVE_ERRORS: f64 = 2.0;
+
+/// Of a criterion's bounds, the one `p` sits closest to: the one a sampling
+/// error could carry it across.
+fn nearest_bound(at_least: Option<f64>, at_most: Option<f64>, p: f64) -> Option<f64> {
+    at_least
+        .into_iter()
+        .chain(at_most)
+        .min_by(|a, b| (p - a).abs().total_cmp(&(p - b).abs()))
+}
 
 /// What to tell a human about the cards that never reach the library.
 ///

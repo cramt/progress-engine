@@ -7,8 +7,8 @@
 use std::convert::Infallible;
 
 use gauntlet_criteria::{
-    CastingPolicy, Cost, Count, Counted, Criterion, Delay, Effect, Evaluator, Expectation, Fetch,
-    Fetched, Grouping, GroupingError, LandDetail, LandDropPolicy, ManaSource, Palette,
+    Bound, CastingPolicy, Cost, Count, Counted, Criterion, Delay, Effect, Evaluator, Expectation,
+    Fetch, Fetched, Grouping, GroupingError, LandDetail, LandDropPolicy, ManaSource, Palette,
     PathOutcomes, PathView, Plan, Policies, Route, RunError, Schedule, Trigger, Zone, MAX_COUNT,
 };
 
@@ -232,8 +232,40 @@ fn criterion_carries_its_threshold() {
     let c = Criterion {
         name: "t1 dork".into(),
         at_least: Some(0.55),
+        at_most: None,
     };
     assert_eq!(c.at_least, Some(0.55));
+}
+
+#[test]
+fn a_criterion_names_the_end_of_its_range_that_was_missed() {
+    let range = Criterion {
+        name: "keepable, not flooded".into(),
+        at_least: Some(0.40),
+        at_most: Some(0.60),
+    };
+    assert!(range.asserts());
+    assert_eq!(range.missed(0.39), Some(Bound::AtLeast));
+    assert_eq!(range.missed(0.40), None, "a bound is inclusive");
+    assert_eq!(range.missed(0.60), None, "at both ends");
+    assert_eq!(range.missed(0.61), Some(Bound::AtMost));
+
+    let ceiling = Criterion {
+        name: "all-land opener".into(),
+        at_least: None,
+        at_most: Some(0.05),
+    };
+    assert_eq!(ceiling.missed(0.0), None);
+    assert_eq!(ceiling.missed(0.06), Some(Bound::AtMost));
+
+    let informational = Criterion {
+        name: "any ramp".into(),
+        at_least: None,
+        at_most: None,
+    };
+    assert!(!informational.asserts());
+    assert_eq!(informational.missed(0.0), None);
+    assert_eq!(informational.missed(1.0), None);
 }
 
 #[test]
