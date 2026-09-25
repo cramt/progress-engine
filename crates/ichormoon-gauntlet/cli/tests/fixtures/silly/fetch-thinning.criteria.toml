@@ -1,0 +1,32 @@
+# Deck thinning, measured. Every fetchland is played the turn it can be and
+# cracked for an Island, which leaves the library one card smaller without
+# anything being drawn — so every later draw is out of fewer cards, and the one
+# Lantern is a slightly bigger share of them. fetch-none.criteria.toml is this
+# file with the fetch taken out; the difference between the two is the
+# thinning and nothing else.
+[[effect]]
+match = "otag:fetchland"
+on = "landdrop"
+fetch = ["t:land t:basic"]
+to = "battlefield"
+
+[land_drop]
+prefer = ["otag:fetchland", "t:land"]
+
+[[criterion]]
+name = "Lantern drawn by turn 3"
+require = [{ turn = 3, query = 'name:"Lantern of Insight"', min = 1 }]
+
+[[criterion]]
+name = "Lantern drawn by turn 5"
+require = [{ turn = 5, query = 'name:"Lantern of Insight"', min = 1 }]
+
+[[criterion]]
+name = "Lantern drawn by turn 8"
+require = [{ turn = 8, query = 'name:"Lantern of Insight"', min = 1 }]
+
+[[expect]]
+name = "Islands left in the library on turn 8"
+turn = 8
+query = "t:land t:basic"
+zone = "library"

@@ -3177,7 +3177,7 @@ fn a_second_saga_is_worth_less_than_the_first() {
     assert!(both > two && both > first, "{both}");
 }
 
-fn run_surveil(deck: &str, criteria: &str, draw: bool) -> serde_json::Value {
+fn run_silly_with(deck: &str, criteria: &str, draw: bool) -> serde_json::Value {
     let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
         .arg("test")
         .arg(fixture(&format!("silly/{deck}.txt")))
@@ -3220,7 +3220,7 @@ fn ninety_nine_surveil_lands_dig_one_card_deeper_a_turn_and_cost_turn_one() {
         ("lantern-surveil-lands", "surveil-keep", [0.0, 8.0, 11.0]),
     ];
     for (deck, criteria, expected) in rows {
-        let json = run_surveil(deck, criteria, false);
+        let json = run_silly_with(deck, criteria, false);
         for (turn, hundredths) in [1, 2, 5].into_iter().zip(expected) {
             assert_close(
                 probability(&json, &format!("Lantern in play by turn {turn}")),
@@ -3231,7 +3231,7 @@ fn ninety_nine_surveil_lands_dig_one_card_deeper_a_turn_and_cost_turn_one() {
     }
     // On the draw the turn-1 draw comes before the turn-1 surveil, so every
     // window is one card later: 16/100 by turn 5 against the Islands' 12.
-    let draw = run_surveil("lantern-surveil-lands", "surveil", true);
+    let draw = run_silly_with("lantern-surveil-lands", "surveil", true);
     assert_close(
         probability(&draw, "Lantern in play by turn 5"),
         0.16,
@@ -3247,7 +3247,7 @@ fn a_surveil_that_keeps_the_lantern_bins_everything_else() {
     // so the Lantern is one of them on 5 games in 100: 4.95 lands binned on
     // average, and the Lantern itself never.
     for draw in [false, true] {
-        let json = run_surveil("lantern-surveil-lands", "surveil", draw);
+        let json = run_silly_with("lantern-surveil-lands", "surveil", draw);
         assert_eq!(
             probability(&json, "Lantern in the graveyard by turn 5"),
             0.0,
@@ -3259,4 +3259,134 @@ fn a_surveil_that_keeps_the_lantern_bins_everything_else() {
             "draw={draw}: {binned}"
         );
     }
+}
+
+/// Deck thinning by hand: 20 fetchlands, 1 Lantern and 79 Islands, the
+/// fetchlands played first and each cracked for an Island.
+///
+/// Exact, by walking every combination of (fetchlands drawn, Lantern drawn,
+/// Islands drawn, fetchlands played, Islands fetched). The only rule that
+/// makes it thinning: a draw takes each unseen card with equal chance, and a
+/// fetch takes an Island out of the unseen cards without drawing it, so every
+/// later draw is out of one card fewer. Returns, for each turn up to
+/// `horizon`, the chance the Lantern has been drawn and the mean Islands left
+/// in the library.
+fn thinning(draw: bool, fetching: bool, horizon: usize) -> Vec<(f64, f64)> {
+    use std::collections::HashMap;
+    const FETCH: u32 = 20;
+    const ISLANDS: u32 = 79;
+    let choose = |n: u32, k: u32| choose(u64::from(n), u64::from(k));
+    // (fetchlands drawn, lantern drawn, islands drawn, played, fetched)
+    type State = (u32, u32, u32, u32, u32);
+    let mut states: HashMap<State, f64> = HashMap::new();
+    for f in 0..=7 {
+        for l in 0..=1 {
+            if f + l > 7 {
+                continue;
+            }
+            let i = 7 - f - l;
+            let p = choose(FETCH, f) * choose(1, l) * choose(ISLANDS, i) / choose(100, 7);
+            *states.entry((f, l, i, 0, 0)).or_default() += p;
+        }
+    }
+    let mut out = Vec::new();
+    for turn in 1..=horizon {
+        if draw || turn >= 2 {
+            let mut next: HashMap<State, f64> = HashMap::new();
+            for (&(f, l, i, p, r), &pr) in &states {
+                let unseen = [FETCH - f, 1 - l, ISLANDS - i - r];
+                let total: u32 = unseen.iter().sum();
+                for (kind, &n) in unseen.iter().enumerate() {
+                    if n == 0 {
+                        continue;
+                    }
+                    let key = (
+                        f + u32::from(kind == 0),
+                        l + u32::from(kind == 1),
+                        i + u32::from(kind == 2),
+                        p,
+                        r,
+                    );
+                    *next.entry(key).or_default() += pr * f64::from(n) / f64::from(total);
+                }
+            }
+            states = next;
+        }
+        let mut next: HashMap<State, f64> = HashMap::new();
+        for (&(f, l, i, p, r), &pr) in &states {
+            // One land drop, and it goes to a fetchland whenever one is held.
+            let key = if f > p {
+                let found = fetching && ISLANDS - i - r > 0;
+                (f, l, i, p + 1, r + u32::from(found))
+            } else {
+                (f, l, i, p, r)
+            };
+            *next.entry(key).or_default() += pr;
+        }
+        states = next;
+        let lantern = states
+            .iter()
+            .filter(|(k, _)| k.1 == 1)
+            .map(|(_, p)| p)
+            .sum();
+        let islands = states
+            .iter()
+            .map(|(&(_, _, i, _, r), p)| p * f64::from(ISLANDS - i - r))
+            .sum();
+        out.push((lantern, islands));
+    }
+    out
+}
+
+#[test]
+fn twenty_fetchlands_thin_the_deck_by_exactly_what_the_arithmetic_says() {
+    // Without the fetch this is the one-Lantern deck again: by turn T on the
+    // play you have seen 6 + T cards, so the Lantern is drawn on 9, 11 and 14
+    // games in 100 by turns 3, 5 and 8, and 12 and 15 on the draw by 5 and 8.
+    // With it, every cracked fetchland takes an Island out of the library
+    // without drawing it, and each later draw is out of one card fewer.
+    for draw in [false, true] {
+        let none = run_silly_with("lantern-fetchlands", "fetch-none", draw);
+        let thin = run_silly_with("lantern-fetchlands", "fetch-thinning", draw);
+        let exact = thinning(draw, true, 8);
+        let plain = thinning(draw, false, 8);
+        let seen = |turn: u64| seen(turn, draw) as f64 / 100.0;
+        for turn in [3, 5, 8] {
+            let name = format!("Lantern drawn by turn {turn}");
+            let what = format!("{name}, draw={draw}");
+            assert_close(probability(&none, &name), seen(turn), &what);
+            assert_close(probability(&none, &name), plain[turn as usize - 1].0, &what);
+            assert_close(probability(&thin, &name), exact[turn as usize - 1].0, &what);
+            assert!(
+                probability(&thin, &name) > probability(&none, &name),
+                "{what}"
+            );
+        }
+        // The Islands the fetches took: 79 x 86/100 = 67.94 left on turn 8
+        // on the play without fetching, and 2.80 fewer with it.
+        let islands = |j: &serde_json::Value| {
+            expectation(j, "Islands left in the library on turn 8")["mean"]
+                .as_f64()
+                .unwrap()
+        };
+        assert!((islands(&none) - plain[7].1).abs() < 1e-3, "draw={draw}");
+        assert!((islands(&thin) - exact[7].1).abs() < 1e-3, "draw={draw}");
+    }
+
+    // How big thinning is, pinned. By turn 5 on the play it is worth 0.0653
+    // of a point: 11.0653% against 11%. It cannot be worth much more, and the
+    // ceiling is plain arithmetic: fetch on every turn from turn 1 and the
+    // draws on turns 2 to 5 come out of 92, 90, 88 and 86 cards instead of
+    // 93, 92, 91 and 90, so the Lantern is missed with chance
+    //   (93/100)(91/92)(89/90)(87/88)(85/86),
+    // and found on 11.112% of games. Twenty fetchlands in a hundred cards buy
+    // a little over half of that ceiling, because you do not always hold one.
+    let thin = probability(
+        &run_silly_with("lantern-fetchlands", "fetch-thinning", false),
+        "Lantern drawn by turn 5",
+    );
+    let ceiling =
+        1.0 - (93.0 / 100.0) * (91.0 / 92.0) * (89.0 / 90.0) * (87.0 / 88.0) * (85.0 / 86.0);
+    assert_close(thin, 0.110653, "thinned, by turn 5");
+    assert!(thin < ceiling, "{thin} against a ceiling of {ceiling}");
 }

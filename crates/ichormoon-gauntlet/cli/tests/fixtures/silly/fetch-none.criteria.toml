@@ -1,0 +1,22 @@
+# fetch-thinning.criteria.toml with the fetch taken out, and nothing else
+# different: the fetchlands are still played first, and simply stay there.
+[land_drop]
+prefer = ["otag:fetchland", "t:land"]
+
+[[criterion]]
+name = "Lantern drawn by turn 3"
+require = [{ turn = 3, query = 'name:"Lantern of Insight"', min = 1 }]
+
+[[criterion]]
+name = "Lantern drawn by turn 5"
+require = [{ turn = 5, query = 'name:"Lantern of Insight"', min = 1 }]
+
+[[criterion]]
+name = "Lantern drawn by turn 8"
+require = [{ turn = 8, query = 'name:"Lantern of Insight"', min = 1 }]
+
+[[expect]]
+name = "Islands left in the library on turn 8"
+turn = 8
+query = "t:land t:basic"
+zone = "library"

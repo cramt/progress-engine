@@ -1,0 +1,4 @@
+// 20 fetchlands, 79 Islands for them to find, and one Lantern of Insight.
+20x Misty Rainforest [Land]
+79x Island [Land]
+1x Lantern of Insight [Lantern]
