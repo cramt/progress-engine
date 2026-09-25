@@ -20,12 +20,12 @@
 # The proxies were not a small error. Measured below, on the same deck:
 #
 #   a tutor that can find the Lantern, drawn by turn 5       45.23%
-#   ...and castable in time to matter                        28.34% ± 0.10
+#   ...and castable in time to matter                        27.15% ± 0.10
 #
 #   a tutor that puts it straight onto the battlefield, drawn 21.09%
-#   ...and castable by turn 5                                 5.55% ± 0.05
+#   ...and castable by turn 5                                 4.98% ± 0.05
 #
-# The second pair is a factor of nearly four. That gap is the whole
+# The second pair is a factor of more than four. That gap is the whole
 # argument for pricing mana rather than counting lands. A figure quoted with a
 # ± is sampled rather than enumerated; see the width note at the foot of this
 # file.
@@ -98,9 +98,9 @@
 # THRESHOLD: 0.75, unchanged from when this file asked a much easier question.
 # One Lantern, seven cards that find it, and a free land-drop route is the
 # deck's entire premise, so three games in four is the design target its owner
-# is implicitly claiming. It FAILS: 48.09% ± 0.11 on the play and 55.01% ±
-# 0.11 on the draw, so the target is missed by 27 points in the seat you are
-# in one game in four and by 20 in the seat you are in the other three.
+# is implicitly claiming. It FAILS: 46.64% ± 0.11 on the play and 53.64% ±
+# 0.11 on the draw, so the target is missed by 28 points in the seat you are
+# in one game in four and by 21 in the seat you are in the other three.
 #
 # The deck did not get worse — the question got honest. The 54.35% this file
 # used to report was the same four routes with the mana assumed free and the
@@ -342,8 +342,8 @@ require = [
 name = "route 1 naive: Lantern in hand by turn 5, no mana asked"
 require = [{ turn = 5, query = 'name:"Lantern of Insight"', min = 1 }]
 
-# And the third number the pair needs, because 11.06% is a JOINT and not a
-# product: 0.111111 x 0.996919 = 0.110769, and the answer is lower than that
+# And the third number the pair needs, because 11.04% is a JOINT and not a
+# product: 0.111111 x 0.996248 = 0.110694, and the answer is lower than that
 # because a hand holding the Lantern has one fewer slot that could have been a
 # land. Two clauses in one `require` are evaluated against the same hand.
 [[criterion]]
@@ -494,10 +494,12 @@ name = "opener cards you could really play as a land"
 turn = 0
 query = "t:land -is:mdfc -is:transform"
 
+# Not `t:land`: that also matches Search for Azcanta, whose land is a back
+# face it transforms into, and a battlefield count of it is refused (#61).
 [[expect]]
-name = "t:land on the battlefield by turn 5"
+name = "lands you can play, on the battlefield by turn 5"
 turn = 5
-query = "t:land"
+query = "t:land -is:transform"
 zone = "battlefield"
 
 [[expect]]
@@ -522,7 +524,9 @@ zone = "battlefield"
 # `transform`, so `t:land -is:mdfc -is:transform` is 32 on this deck, exactly
 # the cards you can put onto the battlefield from your hand as a land. The
 # `[[expect]]` pair above is the two readings side by side: 2.83 lands in the
-# opener against 2.26, and 4.08 on the battlefield by turn 5 against 3.43.
+# opener against 2.26, and 4.01 on the battlefield by turn 5 against 3.43 —
+# asked as `t:land -is:transform`, because a battlefield count of `t:land`
+# takes in Search for Azcanta and is refused.
 #
 # DO NOT WRITE `-is:dfc`. It is 32 here too and it is not the same query: on
 # `decks/loam.txt` it also removes Argoth, Sanctum of Nature, a meld card
@@ -531,16 +535,20 @@ zone = "battlefield"
 # list happens to have the land on the back.
 #
 # WHAT THE MANA MODEL DOES WITH THEM, which is the half nobody had checked.
-# The engine's own "is this a land" test reads the same joined type line, so
-# all 40 are land drops to it. For the seven MDFCs that is a legal line — you
-# may play the back face instead of casting the front — and the model prices
-# it honestly: every one of them is tagged `tapland` or `conditional-tapland`,
-# so it makes no mana the turn it arrives, and it produces the back face's
-# colour. Search for Azcanta is the one that is simply wrong: it is a {1}{U}
-# enchantment that transforms, it can never be played as a land, and the run
-# plays it as an untapped blue source on 0.11 of your games by turn 5. It also
-# makes the standard library's surveil entry fire on a land drop that cannot
-# happen. Filed as #61.
+# The engine's own "is this a land drop" test reads the front face, and a
+# modal card's back: 39 of the 40. For the seven MDFCs that is a legal line —
+# you may play the back face instead of casting the front — and the model
+# prices it honestly: every one of them is tagged `tapland` or
+# `conditional-tapland`, so it makes no mana the turn it arrives, and it
+# produces the back face's colour.
+#
+# Search for Azcanta is the one it leaves out, and until #61 it did not: it
+# read the joined type line too, and played a {1}{U} enchantment that can only
+# become a land by transforming as an untapped blue source on 0.11 of your
+# games by turn 5. That free blue was worth 1.4 points of the north star —
+# 48.09% on the play before, 46.64% after — and more than a tenth of route 3,
+# which needs two blue pips. The standard library's surveil entry no longer
+# claims it either.
 
 # --- HOW WIDE THESE QUESTIONS ARE, AND WHICH ONE WAS ESTIMATED ------------
 # Read this off the run rather than from here: `jq '.enumerations'`.

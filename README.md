@@ -1005,13 +1005,13 @@ block and re-run:
 
 | On `decks/lantern.txt`, on the play | drawn | fetched |
 |---|---|---|
-| Trinket Mage cast by turn 3 | **5.30%** | **5.30%** |
-| Trinket Mage and a Lantern both cast by turn 5 | 0.81% | **8.05%** |
+| Trinket Mage cast by turn 3 | **5.03%** | **5.03%** |
+| Trinket Mage and a Lantern both cast by turn 5 | 0.78% | **7.76%** |
 | Lanterns still in the library on turn 5 (mean) | 0.8889 | **0.8100** |
 
 The first row does not move and must not: what a spell does when it resolves
 cannot change whether the pool paid for it. The second row is the route, and
-0.81% was the deck drawing both halves naturally.
+0.78% was the deck drawing both halves naturally.
 
 **A fetchland is not a filter, and the distinction matters.** Scry and surveil
 examine N cards off the top; a fetchland removes a card from the library and

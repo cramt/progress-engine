@@ -1288,8 +1288,8 @@ fn round(v: f64, places: u32) -> f64 {
 /// on a land drop, which is free, capped at one a turn, and something this
 /// engine walks — so the zone opens for lands and stays shut for everything
 /// else.
-pub fn battlefield_refusal(query: &str, spells: &[String]) -> String {
-    format!(
+pub fn battlefield_refusal(query: &str, spells: &[String], back_faces: &[String]) -> String {
+    let mut out = format!(
         "`zone = \"battlefield\"` in query {query:?} is only answerable for lands, and this \
          query matches {}\n      that {}: {}.\n      \
          A land arrives on a land drop, which is free and one a turn, so this engine knows when \
@@ -1304,7 +1304,21 @@ pub fn battlefield_refusal(query: &str, spells: &[String]) -> String {
             "are not"
         },
         spells.join(", ")
-    )
+    );
+    // The case that reads as a contradiction: a card with "Land" on it,
+    // refused for not being a land. Its land is a back face it transforms
+    // into, which no land drop plays.
+    if !back_faces.is_empty() {
+        out.push_str(&format!(
+            "\n      {} {} a land only on a back face reached by transforming, not by a land \
+             drop\n      (https://github.com/cramt/progress-engine/issues/61). `t:land` \
+             matches it because Scryfall\n      reads every face; write `t:land -is:transform` \
+             for the lands you can play.",
+            back_faces.join(", "),
+            if back_faces.len() == 1 { "is" } else { "are" },
+        ));
+    }
+    out
 }
 
 /// Why a mana question beside a live land-drop effect, with no priority

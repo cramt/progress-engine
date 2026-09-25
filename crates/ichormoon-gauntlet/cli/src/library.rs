@@ -341,6 +341,30 @@ impl Library {
         Ok(names)
     }
 
+    /// Cards matching `query` with a land on them that no land drop plays: a
+    /// transforming, meld or flip card whose land is a back face.
+    ///
+    /// `t:land` matches them, because Scryfall reads every face. Named apart
+    /// so a refusal can say why a card with "Land" printed on it is not a
+    /// land here, rather than leaving the reader to find #61.
+    pub fn back_face_lands(&self, query: &str) -> Result<Vec<String>> {
+        let q =
+            chip_scryfall::parse(query).map_err(|e| anyhow::anyhow!("in query {query:?}: {e}"))?;
+        let mut names: Vec<String> = self
+            .entries
+            .iter()
+            .filter(|e| {
+                q.matches(&e.card.view(&e.categories))
+                    && !is_land(&e.card)
+                    && names(&e.card.type_line, "land")
+            })
+            .map(|e| e.card.name.clone())
+            .collect();
+        names.sort_unstable();
+        names.dedup();
+        Ok(names)
+    }
+
     /// How many library cards matching `query` can be played as a land drop.
     ///
     /// The other half of [`Library::non_lands_matching`], and the half a
@@ -392,38 +416,58 @@ impl Library {
     }
 }
 
-/// Whether this card can be put into play with a land drop.
-///
-/// Read off the type line rather than from a query, because it is asked of
-/// every card in the deck on every run that models mana and a parsed query per
-/// card would be the expensive way to ask a one-word question. Both faces
-/// count: Scryfall joins them with `//`, and a modal double-faced land is a
-/// land drop if you choose the back.
-/// Whether a card stays on the battlefield once it resolves.
-///
-/// Read off the type line by word, the same way [`is_land`] is: an artifact,
-/// a creature, an enchantment, a planeswalker, a battle or a land.
-pub fn is_permanent(card: &Card) -> bool {
-    card.type_line
+/// Whether a type line names this card type, read by word.
+fn names(type_line: &str, kind: &str) -> bool {
+    type_line
         .split(|c: char| !c.is_ascii_alphanumeric())
-        .any(|word| {
-            [
-                "artifact",
-                "creature",
-                "enchantment",
-                "planeswalker",
-                "battle",
-                "land",
-            ]
-            .iter()
-            .any(|kind| word.eq_ignore_ascii_case(kind))
-        })
+        .any(|word| word.eq_ignore_ascii_case(kind))
 }
 
+/// The face you play from your hand: the front, or the whole card where the
+/// index carries no faces.
+fn front(card: &Card) -> &str {
+    card.faces
+        .first()
+        .map_or(card.type_line.as_str(), |f| f.type_line.as_str())
+}
+
+/// Whether this card can be put into play with a land drop.
+///
+/// Read off the type lines rather than from a query, because it is asked of
+/// every card in the deck on every run that models mana and a parsed query per
+/// card would be the expensive way to ask a one-word question.
+///
+/// **Not the same question as `t:land`**, and that is the whole of
+/// [#61](https://github.com/cramt/progress-engine/issues/61). Scryfall's `t:`
+/// reads both faces joined by `//`, which is right for *is there a land on
+/// this card* and wrong for *does this card arrive on a land drop*. It does
+/// when its **front** face is a land, or when it is a **modal** double-faced
+/// card with a land face — you may play Jwari Disruption's back instead of
+/// casting the front. A transforming, meld or flip back is reached some other
+/// way: Search for Azcanta is a `{1}{U}` enchantment that becomes a land only
+/// by transforming, and read off the joined line it was a free untapped blue
+/// source on one game in nine.
 pub fn is_land(card: &Card) -> bool {
-    card.type_line
-        .split(|c: char| !c.is_ascii_alphanumeric())
-        .any(|word| word.eq_ignore_ascii_case("land"))
+    names(front(card), "land")
+        || (card.layout == "modal_dfc" && card.faces.iter().any(|f| names(&f.type_line, "land")))
+}
+
+/// Whether a card stays on the battlefield once it resolves.
+///
+/// Read off the face you cast, by word: an artifact, a creature, an
+/// enchantment, a planeswalker, a battle or a land. A transforming card is
+/// the permanent its front face is.
+pub fn is_permanent(card: &Card) -> bool {
+    [
+        "artifact",
+        "creature",
+        "enchantment",
+        "planeswalker",
+        "battle",
+        "land",
+    ]
+    .iter()
+    .any(|kind| names(front(card), kind))
 }
 
 /// What a card does for mana before anything is cast.

@@ -1,0 +1,4 @@
+// 99 Jwari Disruption and one Lantern. A modal double-faced card, whose
+// back face you may play as a land that enters tapped.
+99x Jwari Disruption // Jwari Ruins [Land]
+1x Lantern of Insight [Lantern]

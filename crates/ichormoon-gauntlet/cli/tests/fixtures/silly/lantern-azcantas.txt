@@ -1,0 +1,4 @@
+// 99 Search for Azcanta and one Lantern. Azcanta's land is a back face it
+// transforms into, so there is not one land drop in this deck (#61).
+99x Search for Azcanta // Azcanta, the Sunken Ruin [Land]
+1x Lantern of Insight [Lantern]

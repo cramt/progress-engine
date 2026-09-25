@@ -107,12 +107,25 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
 
     // Last-wins, decided per card: every entry is tried and the last one to
     // match keeps it.
+    //
+    // An effect that fires on a land drop only owns a card a land drop can
+    // play. Its query is Scryfall's, so `t:land` takes in Search for Azcanta,
+    // whose land is a back face it transforms into — and an effect claiming a
+    // card that is never played as a land would fire on a drop nobody can
+    // make, the moment a destination was declared (#61).
     let owner: Vec<Option<usize>> = deck
         .entries
         .iter()
         .map(|card| {
             let view = card.card.view(&card.categories);
-            matchers.iter().rposition(|q| q.matches(&view))
+            matchers
+                .iter()
+                .zip(library.entries())
+                .rposition(|(q, entry)| {
+                    q.matches(&view)
+                        && (entry.trigger != gauntlet_criteria::Trigger::LandDrop
+                            || crate::library::is_land(&card.card))
+                })
         })
         .collect();
 

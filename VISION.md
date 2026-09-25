@@ -83,12 +83,12 @@ turn-2 one.
 ['name:"Trinket Mage"', 'name:"Lantern of Insight"']` spends the pool the way
 the pilot would and `cast` counts what it paid for; an `[[effect]]` with `on =
 "cast"` and `fetch = ['name:"Lantern of Insight"']` says what the spell then
-went and got. On `decks/lantern.txt` Trinket Mage resolves by turn 3 on 5.30% of
+went and got. On `decks/lantern.txt` Trinket Mage resolves by turn 3 on 5.03% of
 hands, exactly, on 84,084 compositions — **unchanged by the fetch, and it has to
 be**, because what a spell does when it resolves cannot change whether the pool
 paid for it. What the fetch moves is the route: *Trinket Mage and a Lantern both
-cast by turn 5* read **0.81%** when nothing tutored, which was the deck drawing
-both halves naturally, and reads **8.05%** now, on the same seven groups and the
+cast by turn 5* read **0.78%** when nothing tutored, which was the deck drawing
+both halves naturally, and reads **7.76%** now, on the same seven groups and the
 same 4,120,116 compositions. `decks/lantern-route-b.criteria.toml` is that
 question on its own.
 
@@ -105,20 +105,24 @@ together.
 **And the union of them now has a number.**
 `decks/lantern.criteria.toml` is the whole question — four routes, because the
 tutors that put the Lantern in your hand and the tutors that put it straight
-onto the battlefield are priced differently — and it reads **48.09% ± 0.11** on
-the play and **55.01% ± 0.11** on the draw. It is estimated rather than
+onto the battlefield are priced differently — and it reads **46.64% ± 0.11** on
+the play and **53.64% ± 0.11** on the draw. It read 48.09% and 55.01% until
+[#61](https://github.com/cramt/progress-engine/issues/61): the engine played
+Search for Azcanta — a `{1}{U}` enchantment whose land is a back face it
+transforms into — as an untapped blue land drop, and 1.4 points of the answer
+were spells cast off a blue source that cannot exist. It is estimated rather than
 enumerated, at 12 groups and 659,902,464 compositions, and that is the honest
 state of the question rather than a defect in the file: nine of its ten branches
 price a cost, and pricing one splits the manabase before any card query splits
 anything. The same file records what the mana costs the deck, by asking each
 route twice: *a tutor that can find the Lantern, drawn by turn 5* is 45.23% and
-*castable in time to matter* is 28.34%; for the two that tutor onto the
-battlefield it is 21.09% against 5.55%, which is a factor of four. Those gaps
+*castable in time to matter* is 27.15%; for the two that tutor onto the
+battlefield it is 21.09% against 4.98%, which is a factor of four. Those gaps
 are what the file's old hand-written `{ turn = 4, query = "t:land", min = 3 }`
 clauses were standing in for.
 
 **Making the Saga exact did not move the union**, to six digits on the same
-200,000 hands: 0.480885 before and after. The hands the stand-in overstated are
+200,000 hands: 0.480885 before and after, measured before the fix below. The hands the stand-in overstated are
 Sagas whose chapter III looks for a Lantern already drawn, and every one of
 those is a hand route 1 already counts. So the union was never inflated by the
 Saga; the Saga's own number was.

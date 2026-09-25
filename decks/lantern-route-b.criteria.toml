@@ -25,8 +25,8 @@
 # synced with oracle tags:
 #
 #                                                  drawn      fetched
-#   Trinket Mage cast by turn 3                     5.30%       5.30%
-#   Trinket Mage and a Lantern both cast by turn 5  0.81%       8.05%
+#   Trinket Mage cast by turn 3                     5.03%       5.03%
+#   Trinket Mage and a Lantern both cast by turn 5  0.78%       7.76%
 #
 # The first row does not move, and it must not: what a spell does when it
 # resolves cannot change whether the pool paid for it. The second row is the

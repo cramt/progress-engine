@@ -1,0 +1,9 @@
+# `t:land` on the battlefield, asked of a deck holding Search for Azcanta. The
+# query matches it — Scryfall reads every face — and no land drop plays it, so
+# the count is refused, and the refusal says why (#61).
+[land_drop]
+prefer = ["t:land"]
+
+[[criterion]]
+name = "a land in play by turn 2"
+require = [{ turn = 2, query = "t:land", zone = "battlefield", min = 1 }]

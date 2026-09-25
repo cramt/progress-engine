@@ -578,8 +578,8 @@ fetch empties all but the deals where the Mage was never cast.
 
 On the real deck this is the Lantern north star's Route B, and it is the
 difference between a route being priced and a route being answered: *Trinket
-Mage and a Lantern both cast by turn 5* on `decks/lantern.txt` reads **0.81%**
-without the fetch and **8.05%** with it. The first figure was the deck drawing
+Mage and a Lantern both cast by turn 5* on `decks/lantern.txt` reads **0.78%**
+without the fetch and **7.76%** with it. The first figure was the deck drawing
 both halves naturally.
 
 ### 16. A fetchland is not a filter

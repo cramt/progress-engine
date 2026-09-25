@@ -693,7 +693,7 @@ fn run_test(
             if !spells.is_empty() {
                 anyhow::bail!(
                     "{origin}: {asked_by}: {}",
-                    report::battlefield_refusal(query, &spells)
+                    report::battlefield_refusal(query, &spells, &library.back_face_lands(query)?)
                 );
             }
         }

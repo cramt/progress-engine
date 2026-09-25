@@ -3390,3 +3390,67 @@ fn twenty_fetchlands_thin_the_deck_by_exactly_what_the_arithmetic_says() {
     assert_close(thin, 0.110653, "thinned, by turn 5");
     assert!(thin < ceiling, "{thin} against a ceiling of {ceiling}");
 }
+
+// --- #61: a back face is not a land drop -------------------------------------
+
+#[test]
+fn ninety_nine_search_for_azcanta_is_a_deck_with_no_lands() {
+    // Search for Azcanta is a {1}{U} enchantment whose land is a back face it
+    // transforms into. `t:land` matches it, because Scryfall reads every face,
+    // and the engine used to read the same joined type line and play it as an
+    // untapped blue land drop. It is not one: 99 of them and a Lantern is a
+    // deck with no land drops at all, and the Lantern is never cast.
+    for draw in [false, true] {
+        let json = run_silly_with("lantern-azcantas", "surveil-keep", draw);
+        for turn in [1, 2, 5] {
+            assert_eq!(
+                probability(&json, &format!("Lantern in play by turn {turn}")),
+                0.0,
+                "turn {turn}, draw={draw}"
+            );
+        }
+    }
+    // And the surveil it carries — `t:land otag:surveil` in the file, and in
+    // the standard library — fires on a land drop, so it claims no card that
+    // is never played as one. Declared with a destination, it used to route
+    // cards off a drop nobody could make.
+    let json = run_silly_with("lantern-azcantas", "surveil", false);
+    assert_eq!(json["effects"].as_array().expect("array").len(), 0);
+}
+
+#[test]
+fn a_modal_double_faced_land_is_still_a_land_drop() {
+    // The other half of the rule, and the half that must not move: you may
+    // play Jwari Disruption's back face instead of casting the front, so 99
+    // of them is 99 land drops. Jwari Ruins enters tapped, so this is the
+    // tapped-land deck — nothing on turn 1, then the Lantern the turn it is
+    // drawn: 8/100 by turn 2 and 11/100 by turn 5 on the play.
+    let json = run_silly_with("lantern-mdfcs", "surveil-keep", false);
+    for (turn, hundredths) in [(1, 0.0), (2, 8.0), (5, 11.0)] {
+        assert_close(
+            probability(&json, &format!("Lantern in play by turn {turn}")),
+            hundredths / 100.0,
+            &format!("turn {turn}"),
+        );
+    }
+}
+
+#[test]
+fn a_battlefield_count_of_a_back_face_land_is_refused_and_says_why() {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture("silly/lantern-azcantas.txt"))
+        .arg(fixture("silly/tland-battlefield.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("tutor-index.jsonl"))
+        .output()
+        .expect("binary should run");
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("back face reached by transforming")
+            && stderr.contains("issues/61")
+            && stderr.contains("t:land -is:transform"),
+        "names the case, the issue and the spelling that works: {stderr}"
+    );
+}
