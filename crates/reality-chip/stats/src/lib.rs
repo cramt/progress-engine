@@ -273,6 +273,80 @@ pub fn for_each_checkpoint_path_removing(groups: &[u32], gaps: &[u32], walk: &mu
     );
 }
 
+/// [`for_each_checkpoint_path`], resumed from a first checkpoint that has
+/// already been reached.
+///
+/// `first` is the per-group counts at checkpoint 0, and `gaps` are the draws
+/// *after* it, so the histories handed to `f` are exactly the ones the full
+/// walk over `[first.sum(), gaps...]` would hand it for the paths that start at
+/// `first` — and the probabilities are conditional on having started there.
+/// Multiplying them by the probability of `first` itself gives back the full
+/// walk's terms, one for one.
+///
+/// What this is for is a caller that has to do something *between* the first
+/// checkpoint and the rest of the walk that the walk cannot express: branch on
+/// a choice made about the cards already drawn, say, where each branch deals
+/// the same later draws but takes different removals out of them. Splitting the
+/// walk at its first checkpoint lets that caller enumerate the first
+/// checkpoint itself, branch, and resume — without the walk having to know
+/// what a branch is.
+pub fn for_each_checkpoint_path_after(
+    groups: &[u32],
+    first: &[u32],
+    gaps: &[u32],
+    mut f: impl FnMut(Path<'_>, f64),
+) {
+    struct Drawing<F>(F);
+    impl<F: FnMut(Path<'_>, f64)> Walk for Drawing<F> {
+        fn removals(&mut self, _reached: Path<'_>, _out: &mut [u32]) {}
+        fn path(&mut self, reached: Path<'_>, p: f64) {
+            (self.0)(reached, p)
+        }
+    }
+    for_each_checkpoint_path_removing_after(groups, first, gaps, &mut Drawing(&mut f));
+}
+
+/// [`for_each_checkpoint_path_removing`], resumed from a first checkpoint that
+/// has already been reached. See [`for_each_checkpoint_path_after`].
+///
+/// `walk` is asked for its removals after `first` exactly as the full walk
+/// would ask it, before the first of `gaps` is dealt.
+pub fn for_each_checkpoint_path_removing_after(
+    groups: &[u32],
+    first: &[u32],
+    gaps: &[u32],
+    walk: &mut impl Walk,
+) {
+    debug_assert_eq!(groups.len(), first.len(), "one count per group");
+    debug_assert!(
+        groups.iter().zip(first).all(|(g, f)| f <= g),
+        "the first checkpoint drew more of a group than it holds"
+    );
+    let population: u32 = groups.iter().sum();
+    if first.iter().sum::<u32>() + gaps.iter().sum::<u32>() > population {
+        return;
+    }
+    let mut history: Vec<Vec<u32>> = Vec::with_capacity(gaps.len() + 1);
+    history.push(first.to_vec());
+    let mut drawn = first.to_vec();
+    let mut removed = vec![vec![0u32; groups.len()]; gaps.len() + 1];
+    // The question the full walk asks after checkpoint 0, asked here for the
+    // same reason: the first gap is dealt out of whatever it says.
+    if !gaps.is_empty() {
+        walk.removals(&history, &mut removed[0]);
+    }
+    descend(
+        groups,
+        gaps,
+        0,
+        &mut drawn,
+        &mut removed,
+        &mut history,
+        1.0,
+        walk,
+    );
+}
+
 #[allow(clippy::too_many_arguments)]
 fn descend(
     groups: &[u32],

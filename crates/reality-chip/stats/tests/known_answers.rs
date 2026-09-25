@@ -452,3 +452,76 @@ fn a_removal_leaves_the_mass_at_one() {
         );
     }
 }
+
+#[test]
+fn a_walk_resumed_after_its_first_checkpoint_is_the_same_walk() {
+    // Splitting the walk at checkpoint 0 and weighting each resumed walk by the
+    // chance of having reached that first checkpoint has to give back the full
+    // walk's terms, one for one: the resumed histories are the same
+    // histories, and the probabilities are the same conditioned on the start.
+    let groups = [5, 3, 7];
+    let gaps = [4, 1, 2];
+    let mut full = Vec::new();
+    h::for_each_checkpoint_path(&groups, &gaps, |hist, p| full.push((hist.to_vec(), p)));
+
+    let mut split = Vec::new();
+    h::for_each_composition(&groups, gaps[0], |first, p_first| {
+        h::for_each_checkpoint_path_after(&groups, first, &gaps[1..], |hist, p| {
+            split.push((hist.to_vec(), p_first * p))
+        });
+    });
+    assert_eq!(full.len(), split.len());
+    for (a, b) in full.iter().zip(&split) {
+        assert_eq!(a.0, b.0, "the same history, in the same order");
+        assert!(close(a.1, b.1, 1e-12), "{} vs {}", a.1, b.1);
+    }
+}
+
+#[test]
+fn a_resumed_walk_asks_for_its_removals_where_the_full_walk_does() {
+    // The removing walk, split the same way: TakesFrom decides from the
+    // history it is handed, so it has to be asked after checkpoint 0 exactly
+    // as the full walk asks it, or the first gap is dealt out of the wrong
+    // library.
+    let mut full = Vec::new();
+    h::for_each_checkpoint_path_removing(
+        &[9, 6, 11],
+        &[5, 2, 2],
+        &mut TakesFrom {
+            sizes: &[9, 6, 11],
+            from: 2,
+            each: 1,
+            most: 6,
+            seen: |hist: h::Path<'_>, p: f64| full.push((hist.to_vec(), p)),
+        },
+    );
+    let mut split = Vec::new();
+    h::for_each_composition(&[9, 6, 11], 5, |first, p_first| {
+        h::for_each_checkpoint_path_removing_after(
+            &[9, 6, 11],
+            first,
+            &[2, 2],
+            &mut TakesFrom {
+                sizes: &[9, 6, 11],
+                from: 2,
+                each: 1,
+                most: 6,
+                seen: |hist: h::Path<'_>, p: f64| split.push((hist.to_vec(), p_first * p)),
+            },
+        );
+    });
+    assert_eq!(full.len(), split.len());
+    for (a, b) in full.iter().zip(&split) {
+        assert_eq!(a.0, b.0);
+        assert!(close(a.1, b.1, 1e-12), "{} vs {}", a.1, b.1);
+    }
+}
+
+#[test]
+fn a_walk_resumed_with_nothing_after_it_is_its_first_checkpoint() {
+    let mut seen = Vec::new();
+    h::for_each_checkpoint_path_after(&[3, 4], &[1, 2], &[], |hist, p| {
+        seen.push((hist.to_vec(), p))
+    });
+    assert_eq!(seen, vec![(vec![vec![1, 2]], 1.0)]);
+}
