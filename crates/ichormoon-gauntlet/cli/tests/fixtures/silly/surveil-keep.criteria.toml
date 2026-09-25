@@ -1,0 +1,29 @@
+# surveil.criteria.toml with the routing taken out: the surveil still looks, and
+# keeps everything on top, which is the same as never having looked. What is
+# left of a surveil land is that it enters tapped.
+[[effect]]
+match = "t:land otag:surveil"
+look = 1
+on = "landdrop"
+
+[land_drop]
+prefer = ["t:land"]
+
+[casting]
+prefer = ['name:"Lantern of Insight"']
+
+[[criterion]]
+name = "Lantern in play by turn 1"
+require = [{ turn = 1, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Lantern in play by turn 2"
+require = [{ turn = 2, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Lantern in play by turn 5"
+require = [{ turn = 5, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Lantern in the graveyard by turn 5"
+require = [{ turn = 5, query = 'name:"Lantern of Insight"', zone = "graveyard", min = 1 }]

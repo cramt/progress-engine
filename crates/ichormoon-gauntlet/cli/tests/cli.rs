@@ -3176,3 +3176,87 @@ fn a_second_saga_is_worth_less_than_the_first() {
     let two = probability(&run_silly("two-lanterns", false), BY_5);
     assert!(both > two && both > first, "{both}");
 }
+
+fn run_surveil(deck: &str, criteria: &str, draw: bool) -> serde_json::Value {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture(&format!("silly/{deck}.txt")))
+        .arg(fixture(&format!("silly/{criteria}.criteria.toml")))
+        .arg("--index")
+        .arg(fixture("tutor-index.jsonl"))
+        .args(draw.then_some("--draw"))
+        .output()
+        .expect("binary should run");
+    assert!(
+        out.status.success(),
+        "{deck} with {criteria} should run: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    serde_json::from_slice(&out.stdout).expect("stdout should be JSON")
+}
+
+#[test]
+fn ninety_nine_surveil_lands_dig_one_card_deeper_a_turn_and_cost_turn_one() {
+    // 99 Undercity Sewers and one Lantern, every surveil binning whatever is
+    // not the Lantern and keeping the Lantern on top. Each land drop looks at
+    // the next unseen card, and either bins it or leaves it to be drawn next
+    // turn, so each turn reaches two new cards rather than one: by turn t on
+    // the play the Lantern is in hand if it is among the first 5 + 2t cards,
+    // against 6 + t with Islands. Every Sewers enters tapped, so nothing is
+    // cast on turn 1, and from turn 2 on the Lantern is cast the turn it is in
+    // hand.
+    //
+    //                       turn 1    turn 2      turn 5
+    //   99 Islands           7/100     8/100      11/100
+    //   99 Sewers, binning   0         9/100      15/100
+    //   99 Sewers, keeping   0         8/100      11/100
+    //
+    // The third row is the same lands with the routing taken out: a surveil
+    // that keeps everything on top is a surveil that never looked, so all that
+    // is left is the tapped land, and it costs turn 1 and nothing after.
+    let rows = [
+        ("one-lantern", "surveil", [7.0, 8.0, 11.0]),
+        ("lantern-surveil-lands", "surveil", [0.0, 9.0, 15.0]),
+        ("lantern-surveil-lands", "surveil-keep", [0.0, 8.0, 11.0]),
+    ];
+    for (deck, criteria, expected) in rows {
+        let json = run_surveil(deck, criteria, false);
+        for (turn, hundredths) in [1, 2, 5].into_iter().zip(expected) {
+            assert_close(
+                probability(&json, &format!("Lantern in play by turn {turn}")),
+                hundredths / 100.0,
+                &format!("{deck} with {criteria}, turn {turn}"),
+            );
+        }
+    }
+    // On the draw the turn-1 draw comes before the turn-1 surveil, so every
+    // window is one card later: 16/100 by turn 5 against the Islands' 12.
+    let draw = run_surveil("lantern-surveil-lands", "surveil", true);
+    assert_close(
+        probability(&draw, "Lantern in play by turn 5"),
+        0.16,
+        "draw",
+    );
+}
+
+#[test]
+fn a_surveil_that_keeps_the_lantern_bins_everything_else() {
+    // Five land drops by turn 5, five surveils, and each one bins the land it
+    // looked at — unless it was looking at the Lantern, which it keeps. The
+    // surveils look at the 8th, 10th, 12th, 14th and 16th cards on the play,
+    // so the Lantern is one of them on 5 games in 100: 4.95 lands binned on
+    // average, and the Lantern itself never.
+    for draw in [false, true] {
+        let json = run_surveil("lantern-surveil-lands", "surveil", draw);
+        assert_eq!(
+            probability(&json, "Lantern in the graveyard by turn 5"),
+            0.0,
+            "the routing keeps it"
+        );
+        let binned = expectation(&json, "lands binned by turn 5");
+        assert!(
+            (binned["mean"].as_f64().unwrap() - 4.95).abs() < 1e-9,
+            "draw={draw}: {binned}"
+        );
+    }
+}
