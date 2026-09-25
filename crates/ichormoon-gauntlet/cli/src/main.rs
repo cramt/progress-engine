@@ -10,6 +10,7 @@ mod casting;
 mod effects;
 mod landdrop;
 mod library;
+mod mulligan;
 mod narrow;
 mod report;
 mod sync;
@@ -263,6 +264,9 @@ struct Answered {
     answers: report::Answers,
     sampled: Option<report::Sampling>,
     enumerations: Vec<report::Enumeration>,
+    /// How often the declared mulligan kept each hand size, and which engine
+    /// said so. `None` where the file declared no mulligan.
+    kept: Option<(Vec<f64>, &'static str)>,
 }
 
 /// Answer every question in the file, each on the narrowest enumeration that
@@ -292,9 +296,14 @@ fn answer(
     schedule: &gauntlet_criteria::Schedule,
     plan: gauntlet_criteria::Plan,
     criteria: &mut gauntlet_toml::Criteria,
+    mulligan_bits: Option<u64>,
 ) -> Result<Answered> {
     let mut probabilities: Vec<Option<f64>> = vec![None; plan.criteria];
     let mut distributions: Vec<Option<chip_stats::Distribution>> = vec![None; plan.expectations];
+    // The keep-your-seven number beside each criterion, where a mulligan was
+    // declared. Filled by whichever engine answered that criterion, so it is
+    // always the same kind of number as the one it sits beside.
+    let mut seven: Vec<Option<f64>> = vec![None; plan.criteria];
     let mut estimated = report::Estimated::none(plan);
     let mut enumerations: Vec<report::Enumeration> = Vec::with_capacity(classes.len());
     // Taken before the loop, because the evaluator is borrowed mutably inside
@@ -340,6 +349,9 @@ fn answer(
             groups,
             compositions: gauntlet_criteria::compositions(groups, walk.gaps()) as f64,
             method: "exact",
+            deals: walk
+                .mulligan()
+                .map(|policy| policy.deepest(walk.gaps().first().copied().unwrap_or(0)) + 1),
         };
         if run.engine == Engine::Sample {
             enumerated.method = "sampled";
@@ -350,6 +362,11 @@ fn answer(
             Ok(exact) => {
                 for (&i, p) in answering.criteria().iter().zip(exact.probabilities) {
                     probabilities[i] = Some(p.get());
+                }
+                if let Some(mulligan) = &exact.mulligan {
+                    for (&i, p) in answering.criteria().iter().zip(&mulligan.seven) {
+                        seven[i] = Some(p.get());
+                    }
                 }
                 for (&i, d) in answering.expectations().iter().zip(exact.distributions) {
                     distributions[i] = Some(d);
@@ -380,6 +397,7 @@ fn answer(
         enumerations.push(enumerated);
     }
 
+    let mut kept = None;
     let sampled = match why {
         None => None,
         Some(why) => {
@@ -388,7 +406,16 @@ fn answer(
             for (i, estimated) in estimated.criteria.iter().enumerate() {
                 if *estimated {
                     probabilities[i] = Some(sampled.proportions[i]);
+                    if let Some(mulligan) = &sampled.mulligan {
+                        seven[i] = Some(mulligan.seven[i]);
+                    }
                 }
+            }
+            if run.engine == Engine::Sample {
+                kept = sampled
+                    .mulligan
+                    .as_ref()
+                    .map(|m| (m.kept.clone(), "sampled"));
             }
             for (i, estimated) in estimated.expectations.iter().enumerate() {
                 if *estimated {
@@ -402,6 +429,18 @@ fn answer(
             })
         }
     };
+
+    // How often each hand size was kept is a question of its own, and a small
+    // one: it reads the mulligan's queries and the opener, nothing else, so it
+    // is enumerated exactly even where every class it describes was sampled.
+    // Asked separately rather than read off the first class, because every
+    // class answers it identically and the narrowest enumeration that can is
+    // the one that should.
+    if kept.is_none() {
+        if let Some(bits) = mulligan_bits {
+            kept = Some((kept_at(grouping, schedule, bits, plan, criteria)?, "exact"));
+        }
+    }
 
     // A hole here would be a question no class claimed, and it would print as
     // a confident zero. The partition covers every question by construction,
@@ -418,10 +457,36 @@ fn answer(
                 .collect::<Option<Vec<_>>>()
                 .context(missing)?,
             estimated,
+            seven,
         },
         sampled,
         enumerations,
+        kept,
     })
+}
+
+/// How often the declared mulligan keeps each hand size, largest first.
+///
+/// Enumerated on a grouping that can tell apart only what the mulligan reads,
+/// over the opener alone: the keep decision is made at turn 0 and no later
+/// draw can change it.
+fn kept_at(
+    grouping: &gauntlet_criteria::Grouping,
+    schedule: &gauntlet_criteria::Schedule,
+    bits: u64,
+    plan: gauntlet_criteria::Plan,
+    criteria: &mut gauntlet_toml::Criteria,
+) -> Result<Vec<f64>> {
+    let narrowed = grouping.coarsened(bits, gauntlet_criteria::LandDetail::Ignored);
+    let opener = schedule.narrowed(&[0], gauntlet_criteria::Reading::Cumulative);
+    let nothing = gauntlet_criteria::Answering::some(plan, Vec::new(), Vec::new())
+        .context("an empty selection of questions is always in range")?;
+    let outcomes = gauntlet_criteria::run_answering(&narrowed, &opener, &nothing, criteria)?;
+    let kept = outcomes
+        .mulligan
+        .context("a run with a declared mulligan reports what it kept")?
+        .kept;
+    Ok(kept.into_iter().map(|p| p.get()).collect())
 }
 
 /// A class's questions, by name, in the order the report prints them.
@@ -537,6 +602,21 @@ fn run_test(
         prefer => Some(casting::resolve(prefer, &library, &asked)?),
     };
     asked.extend(casting.iter().flat_map(|p| p.queries.iter().cloned()));
+    // The mulligan next, on the same terms: its queries sit behind everything
+    // already asked for, so no bit a clause or another priority holds moves.
+    let mulligan = match criteria.mulligan() {
+        None => None,
+        Some(declared) => {
+            mulligan::check(declared, &library)?;
+            Some(mulligan::resolve(declared, &library, &asked)?)
+        }
+    };
+    asked.extend(mulligan.iter().flat_map(|m| m.queries.iter().cloned()));
+    if let Some(resolved) = &mulligan {
+        for query in &resolved.unmatched {
+            eprintln!("note: mulligan query {query:?} matches no card in this deck");
+        }
+    }
     if let Some(policy) = &casting {
         for query in &policy.unmatched {
             eprintln!("note: casting preference {query:?} matches no castable card in this deck");
@@ -780,6 +860,7 @@ fn run_test(
         gauntlet_criteria::Policies {
             land_drop: land_drop.as_ref().map(|p| p.policy.clone()),
             casting: casting.as_ref().map(|p| p.policy.clone()),
+            mulligan: mulligan.as_ref().map(|m| m.policy.clone()),
         },
     );
     let plan = criteria.plan();
@@ -824,6 +905,7 @@ fn run_test(
             queries: p.policy.tiers().fold(0u64, |bits, q| bits | 1u64 << q),
             demands: p.demands,
         }),
+        mulligan: mulligan.as_ref().map(|m| m.bits),
     };
     let classes = narrow::partition(&criteria.reads(), &shared);
 
@@ -831,6 +913,7 @@ fn run_test(
         answers,
         sampled,
         enumerations,
+        kept,
     } = answer(
         Run {
             engine,
@@ -842,6 +925,7 @@ fn run_test(
         &schedule,
         plan,
         &mut criteria,
+        mulligan.as_ref().map(|m| m.bits),
     )?;
 
     // The file's own queries, not the effect library's. A standard library
@@ -924,6 +1008,31 @@ fn run_test(
                 then: gauntlet_criteria::CastingPolicy::THEN,
                 tie_break: gauntlet_criteria::CastingPolicy::TIE_BREAK,
             }),
+            // Read off the schedule too. A mulligan decides which hand every
+            // other number is of, so it is printed above all of them.
+            mulligan: schedule
+                .mulligan()
+                .zip(criteria.mulligan())
+                .map(|(policy, declared)| {
+                    let (shares, method) = kept.clone().unwrap_or_default();
+                    let opener = schedule.gaps().first().copied().unwrap_or(0);
+                    report::MulliganUse {
+                        keep: declared.keep.iter().map(mulligan::describe).collect(),
+                        bottom: declared.bottom.clone(),
+                        then: gauntlet_criteria::MulliganPolicy::THEN,
+                        tie_break: gauntlet_criteria::MulliganPolicy::TIE_BREAK,
+                        down_to: policy.down_to(),
+                        kept: shares
+                            .iter()
+                            .enumerate()
+                            .map(|(depth, &share)| report::KeptAt {
+                                cards: opener - depth as u32,
+                                share: report::round(share, 6),
+                            })
+                            .collect(),
+                        method,
+                    }
+                }),
         },
         report::Provenance {
             tool_version: env!("CARGO_PKG_VERSION"),

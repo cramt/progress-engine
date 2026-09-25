@@ -130,8 +130,10 @@ Saga; the Saga's own number was.
 **So every route is priced, and the north star is answered as a floor, not
 met.** The number still leaves out inputs that move it, all named in the file
 and all in the same direction: the deck's seven mana rocks, which `can_cast`
-does not count because only a land arrives without being cast; mulligans; and
-the ten lands that may enter untapped for 2 life, all assumed to enter tapped.
+does not count because only a land arrives without being cast; mulligans, which
+are declarable now and which the file does not declare, because the keep rule is
+the pilot's to state and not this tool's to guess; and the ten lands that may
+enter untapped for 2 life, all assumed to enter tapped.
 A deck that fails its 75% target by 27 points as a floor has not been shown to
 pass it. The largest of those — mana rocks, on an artifact deck — is where the
 next honest movement in this number is.
@@ -395,8 +397,17 @@ resource that depletes rather than over a set you looked at.
 **A tutor's target is the fourth.** `fetch = [...]` on an `[[effect]]` ranks
 the cards it would go and get, over the whole library rather than over a set you
 looked at, and the first one the library still holds is the one it takes.
-Mulligan bottoming is the fifth and is not built; the mechanism it will use has
-now been built four times and not varied.
+**Mulligan bottoming is the fifth**, as `[mulligan] bottom = [...]`, beside a
+keep rule written as count clauses and a floor that is kept whatever it holds.
+It varies the mechanism in exactly one place, and the variation is forced: a
+tie inside one entry is settled at random and priced, where every other list
+settles it by the card the decklist names first. The other lists get away with
+an order because what they choose is read by the questions that already tell
+those cards apart; a mulligan decides which hand *every* question is of, so the
+narrowest class merges cards one entry holds, and merging two cards an order
+put in different places puts back a different card. A uniform choice commutes
+with merging, and an order does not — the property test that holds narrowing to
+the unnarrowed answer fails against the order and passes against the coin.
 
 ### Mana
 
@@ -640,7 +651,22 @@ through the front door.
   ([#53](https://github.com/cramt/progress-engine/issues/53)) — shipped. It was
   written here as the precedent for the tag refusal while having no caller at
   all: the check existed, was unit-tested, and nothing ran it.
-- Mulligan bottoming is a declared priority list ([#7](https://github.com/cramt/progress-engine/issues/7)).
+- Mulligans are declared, as `[mulligan]` with a `keep` rule, a `bottom`
+  priority and a `down_to` floor, and none of the three has a default
+  ([#7](https://github.com/cramt/progress-engine/issues/7)) — shipped. It stays
+  exact: under the London mulligan every depth is a fresh deal, so the answer is
+  a sum of one enumeration per depth weighted by the chance of reaching it, and
+  the sampler plays the same mulligans game by game as the check. A tie inside
+  one `bottom` entry is priced rather than broken, for the reason
+  [One mechanism for selection](#one-mechanism-for-selection) gives.
+- **Turn 0 after a mulligan is the hand that was kept**: five cards after a
+  mulligan to five. The cards that went back are on the bottom of the library,
+  where a tutor still finds them and no draw in the horizon reaches them.
+- **A run with a mulligan is judged on the mulligan's number, and prints the
+  keep-your-seven number beside it**, labelled, in the text and the JSON. A run
+  with none keeps every seven, exactly as before, and says so above its numbers:
+  a default that moved no number in this repository is kept, and a default that
+  goes unmentioned is not.
 - The effect library ships, autoloads as a prelude, and is keyed on queries
   ([#43](https://github.com/cramt/progress-engine/issues/43)) — shipped.
 - Overlapping effects resolve last-wins, per card — shipped.
@@ -740,9 +766,12 @@ through the front door.
 ## Not yet decided
 
 - Whether a user can *disable* a stdlib effect rather than override it.
-- What `turn 0` means after a mulligan to five.
-- Whether the report shows the mulligan-adjusted number, the keep-your-seven
-  number, or both.
+- Which mulligan the north-star files declare. The feature ships; the keep rule
+  is the pilot's, and neither file states one yet, so both still answer on a
+  kept seven and say so.
+- Choosing the mulligan rather than declaring it — the best keep threshold and
+  the best cards to put back for a weighted set of criteria
+  ([#63](https://github.com/cramt/progress-engine/issues/63)).
 - Whether the pod matters at all now that the tool is format-agnostic
   ([#22](https://github.com/cramt/progress-engine/issues/22),
   [#23](https://github.com/cramt/progress-engine/issues/23)).

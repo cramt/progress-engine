@@ -409,6 +409,18 @@ pub struct Board<'a> {
     /// whole run: how many are available moves with the path, what they produce
     /// does not.
     pool: Vec<Source>,
+    /// The declared mulligan's bottoming priority as groups, one list per
+    /// tier and the catch-all last — every group no entry names. Empty where
+    /// the run declared no mulligan. Resolved once here, as every other
+    /// priority is, so no path re-reads the list.
+    bottom_tiers: Vec<Vec<usize>>,
+    /// Cards of each group the opener put back, set by whoever dealt it
+    /// before [`Board::walk`] plays the path out. Zero on a run that kept its
+    /// seven, which is every run without a mulligan.
+    bottomed: Vec<u32>,
+    /// What is still on the bottom of the library on this path: `bottomed`,
+    /// less anything a tutor went and found there.
+    live_bottomed: Vec<u32>,
 }
 
 impl<'a> Board<'a> {
@@ -546,6 +558,30 @@ impl<'a> Board<'a> {
                 }
             })
             .collect();
+        // The mulligan's bottoming list, resolved by the same rule as the other
+        // three: a group belongs to the first tier that names it. What no entry
+        // names is one more tier at the end, because a hand that has to put
+        // back three cards has to put back three cards whatever the list says.
+        // No order inside a tier: a tie there is priced rather than broken,
+        // for the reason `MulliganPolicy::TIE_BREAK` gives.
+        let bottom_tiers = schedule.mulligan().map_or_else(Vec::new, |policy| {
+            let mut claimed = vec![false; groups];
+            let mut tiers: Vec<Vec<usize>> = policy
+                .tiers()
+                .map(|query| {
+                    let tier: Vec<usize> = (0..groups)
+                        .filter(|&g| !claimed[g])
+                        .filter(|&g| grouping.group_masks()[g] & (1u64 << query) != 0)
+                        .collect();
+                    for &g in &tier {
+                        claimed[g] = true;
+                    }
+                    tier
+                })
+                .collect();
+            tiers.push((0..groups).filter(|&g| !claimed[g]).collect());
+            tiers
+        });
         Board {
             grouping,
             schedule,
@@ -575,7 +611,97 @@ impl<'a> Board<'a> {
             live_yard: vec![0; groups],
             pending: Vec::new(),
             sacrificed: vec![vec![0; groups]; turns],
+            bottom_tiers,
+            bottomed: vec![0; groups],
+            live_bottomed: vec![0; groups],
         }
+    }
+
+    /// Put `bottomed` back from the opener of every path walked from here on.
+    ///
+    /// The caller deals the opener and decides what goes back, because that
+    /// is where the two engines differ: the enumeration walks every way a tie
+    /// could fall, and the sampler tosses the coin. Everything after that —
+    /// what the hand holds on turn 0, and what a tutor can still find — is
+    /// this board's, and is the same for both.
+    pub fn bottom(&mut self, bottomed: &[u32]) {
+        self.bottomed.copy_from_slice(bottomed);
+    }
+
+    /// Every way `depth` cards could go back from `opener`, with the chance of
+    /// each.
+    ///
+    /// The declared list is walked tier by tier and each tier gives up
+    /// everything it holds until what is left to put back is less than that.
+    /// That tier gives up the remainder uniformly among the cards it holds —
+    /// the tie, priced — which is one multivariate hypergeometric over its
+    /// groups. Every other tier is all or nothing, so only one of them can
+    /// branch, and a hand with no tie in it has exactly one way to bottom.
+    pub fn bottomings(&self, opener: &[u32], depth: u32, mut f: impl FnMut(&[u32], f64)) {
+        let mut bottomed = vec![0u32; opener.len()];
+        let mut left = depth;
+        for tier in &self.bottom_tiers {
+            if left == 0 {
+                break;
+            }
+            let held: u32 = tier.iter().map(|&g| opener[g]).sum();
+            if held <= left {
+                for &g in tier {
+                    bottomed[g] = opener[g];
+                }
+                left -= held;
+                continue;
+            }
+            let sizes: Vec<u32> = tier.iter().map(|&g| opener[g]).collect();
+            chip_stats::for_each_composition(&sizes, left, |take, q| {
+                for (&g, &t) in tier.iter().zip(take) {
+                    bottomed[g] = t;
+                }
+                f(&bottomed, q);
+            });
+            return;
+        }
+        // A policy's depth never exceeds its opener, and the catch-all tier
+        // holds every group the list did not, so the loop above ran out of
+        // cards to put back rather than out of tiers.
+        debug_assert_eq!(left, 0, "put back fewer cards than the depth asked for");
+        f(&bottomed, 1.0);
+    }
+
+    /// What `depth` cards go back from an opener dealt in `dealt` order,
+    /// written into `out`.
+    ///
+    /// The sampler's half of [`Board::bottomings`], and deliberately a
+    /// different algorithm. A tier that gives up only part of what it holds
+    /// gives up the cards of it that were dealt first, and since the deal is a
+    /// uniform shuffle, that is a uniform choice among them: the same coin,
+    /// tossed rather than priced. The two engines agreeing on it is the test.
+    pub fn bottom_in_order(&self, dealt: &[usize], depth: u32, out: &mut [u32]) {
+        out.fill(0);
+        let mut left = depth;
+        for tier in &self.bottom_tiers {
+            for &group in dealt {
+                if left == 0 {
+                    return;
+                }
+                if tier.contains(&group) {
+                    out[group] += 1;
+                    left -= 1;
+                }
+            }
+        }
+    }
+
+    /// Whether a hand holding `hand` (one count per group) is one the declared
+    /// mulligan keeps. True where the run declared none, because then every
+    /// seven is kept.
+    pub fn keeps(&self, hand: &[u32]) -> bool {
+        self.schedule.mulligan().is_none_or(|policy| {
+            policy
+                .keep()
+                .iter()
+                .all(|k| k.holds(self.grouping.count_matching(hand, k.query)))
+        })
     }
 
     /// Whether anything in this run takes a card out of the library without
@@ -618,6 +744,7 @@ impl<'a> Board<'a> {
         self.live_landed.fill(0);
         self.drop_at.fill(None);
         self.pending.clear();
+        self.live_bottomed.copy_from_slice(&self.bottomed);
         if let Some(casting) = &mut self.casting {
             casting.live_cast.fill(0);
         }
@@ -659,6 +786,18 @@ impl<'a> Board<'a> {
                     self.kept.remove(0)
                 };
                 self.live_hand[group] += 1;
+            }
+            // What the mulligan put back leaves the opener before anything
+            // else reads it, so turn 0 is the hand that was kept: five cards
+            // after a mulligan to five, not the seven it was dealt from. The
+            // cards are on the bottom of the library, which is where every
+            // count of the library already finds them — they are not in the
+            // hand, the yard or play.
+            if turn == 0 {
+                for (held, back) in self.live_hand.iter_mut().zip(&self.bottomed) {
+                    debug_assert!(*back <= *held, "put back a card the opener did not hold");
+                    *held -= back;
+                }
             }
 
             // The land drop, and there is exactly one of them a turn. Which
@@ -902,6 +1041,16 @@ impl<'a> Board<'a> {
             });
             if let Some(i) = on_top {
                 return Some((self.kept.remove(i), to));
+            }
+            // And a card the mulligan put on the bottom is still in the
+            // library, so a search still finds it — last, because it is the one
+            // copy no draw would ever have reached.
+            let underneath = self.fetch_tiers[effect]
+                .get(tier)
+                .and_then(|groups| groups.iter().copied().find(|&g| self.live_bottomed[g] > 0));
+            if let Some(group) = underneath {
+                self.live_bottomed[group] -= 1;
+                return Some((group, to));
             }
         }
         None

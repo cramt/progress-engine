@@ -9,9 +9,9 @@
 use std::convert::Infallible;
 
 use gauntlet_criteria::{
-    CastingPolicy, Cost, Count, Counted, Delay, Effect, Evaluator, Fetch, Fetched, Grouping,
-    LandDropPolicy, ManaSource, Palette, PathOutcomes, PathView, Plan, Policies, Route, Schedule,
-    Trigger, Zone,
+    CastingPolicy, Cost, Count, Counted, Delay, Effect, Evaluator, Fetch, Fetched, Grouping, Keep,
+    LandDropPolicy, ManaSource, MulliganPolicy, Palette, PathOutcomes, PathView, Plan, Policies,
+    Route, Schedule, Trigger, Zone,
 };
 use gauntlet_sim::{mean_standard_error, simulate, standard_error, SimError};
 
@@ -774,5 +774,133 @@ fn a_delayed_fetch_agrees_with_the_exact_engine() {
             "sampled {sampled} vs exact {exact} ({}x SE)",
             (sampled - exact).abs() / se
         );
+    }
+}
+
+#[test]
+fn a_mulligan_agrees_with_the_exact_engine() {
+    // The acceptance test for #7. The two engines get to a mulligan's number
+    // by different roads: the exact one sums an enumeration per depth,
+    // weighted by the chance of reaching it, and prices a tie inside one
+    // bottoming entry by walking every way it could fall; the sampler plays
+    // the games — deals, puts back the first-dealt cards of the entry, asks
+    // the rule, deals again. Everything a mulligan touches is in here at once:
+    //
+    // - a tie that matters: the bottoming entry is "a land", the deck's lands
+    //   are Islands and Mountains, and only an Island pays for the tutor;
+    // - a tutor, so the card that went back decides what a later turn can
+    //   fetch, and the branch has to come before the rest of the path;
+    // - the keep-your-seven number beside each answer, and how often each
+    //   hand size was kept.
+    let island = ManaSource::Land {
+        enters_tapped: false,
+        produces: Palette::from_letters(["U"]),
+    };
+    let mountain = ManaSource::Land {
+        enters_tapped: false,
+        produces: Palette::from_letters(["R"]),
+    };
+    let grouping = Grouping::with_mana(
+        q(&["land", "tutor", "target"]),
+        vec![
+            (0b001, island, 8),
+            (0b001, mountain, 8),
+            (
+                0b010,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                },
+                4,
+            ),
+            (0b100, ManaSource::Spell, 2),
+            (0b000, ManaSource::Spell, 18),
+        ],
+    )
+    .unwrap();
+    let tutor = Effect {
+        matched_by: 1,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: Some(Fetch {
+            prefer: vec![2],
+            to: Fetched::Hand,
+        }),
+        delay: None,
+    };
+    let mulligan = MulliganPolicy::new(
+        vec![Keep {
+            query: 0,
+            min: 2,
+            max: Some(4),
+        }],
+        vec![0],
+        5,
+    );
+    let schedule = Schedule::build(
+        3,
+        false,
+        vec![tutor],
+        Policies {
+            casting: Some(CastingPolicy::new(vec![1])),
+            mulligan: Some(mulligan),
+            ..Policies::default()
+        },
+    );
+    let question = || {
+        Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(3, 2, Counted::In(Zone::Hand)) >= 1) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(2, 1, Counted::Cast) >= 1) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 0, Counted::In(Zone::Battlefield)) >= 3)
+                as Check,
+        ])
+    };
+    let exact =
+        gauntlet_criteria::run(&grouping, &schedule, only_criteria(3), &mut question()).unwrap();
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        TRIALS,
+        17,
+        only_criteria(3),
+        &mut question(),
+    )
+    .unwrap();
+    let agree = |what: &str, exact: f64, sampled: f64| {
+        let se = standard_error(sampled, TRIALS);
+        assert!(
+            (sampled - exact).abs() < 4.0 * se.max(1e-6),
+            "{what}: sampled {sampled} vs exact {exact} ({}x SE)",
+            (sampled - exact).abs() / se
+        );
+    };
+    let mulligan = exact.mulligan.as_ref().expect("declared");
+    let sampled_mulligan = sampled.mulligan.as_ref().expect("declared");
+    for (i, (e, s)) in exact
+        .probabilities
+        .iter()
+        .zip(&sampled.proportions)
+        .enumerate()
+    {
+        assert!(
+            e.get() > 0.05 && e.get() < 0.95,
+            "criterion {i} is a question worth asking: {}",
+            e.get()
+        );
+        agree(&format!("criterion {i}"), e.get(), *s);
+        agree(
+            &format!("criterion {i}, keep seven"),
+            mulligan.seven[i].get(),
+            sampled_mulligan.seven[i],
+        );
+    }
+    assert_eq!(mulligan.kept.len(), 3, "seven, six and five");
+    assert!(
+        mulligan.kept[1].get() > 0.05,
+        "a mulligan that fires: {:?}",
+        mulligan.kept
+    );
+    for (depth, (e, s)) in mulligan.kept.iter().zip(&sampled_mulligan.kept).enumerate() {
+        agree(&format!("kept at depth {depth}"), e.get(), *s);
     }
 }

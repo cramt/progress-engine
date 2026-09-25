@@ -37,6 +37,22 @@ pub struct CriterionResult {
     /// still says what happened to the run as a whole; this says what happened
     /// to this number, which is the one a reader is about to quote.
     pub method: &'static str,
+    /// Where the file declared a mulligan: this criterion's probability had
+    /// every first seven been kept instead, from the same engine as
+    /// `probability`.
+    ///
+    /// Beside the verdict rather than instead of it. `pass` is judged on
+    /// `probability`, which is the mulligan's number, because that is the
+    /// question `at_least` was always asking; this is here because the two
+    /// differ by enough that a reader comparing against an older run needs to
+    /// see which one moved.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub keep_seven: Option<f64>,
+    /// `keep_seven` as a percentage, rounded once from the unrounded figure
+    /// exactly as `percent` is, so the two never disagree about a last digit
+    /// a reader compares across runs.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub keep_seven_percent: Option<f64>,
 }
 
 /// What an expectation answered: how many, on average, and how that was spread.
@@ -90,6 +106,9 @@ pub struct Answers {
     pub distributions: Vec<Distribution>,
     /// Which of them are estimates.
     pub estimated: Estimated,
+    /// One per criterion: its keep-your-seven number, where a mulligan was
+    /// declared and the engine that answered the criterion reported one.
+    pub seven: Vec<Option<f64>>,
 }
 
 /// Which answers came from the sampler rather than from the enumeration.
@@ -370,6 +389,13 @@ pub struct Enumeration {
     /// what this class *would* have cost, which is the number a caller
     /// deciding whether to narrow their question needs.
     pub method: &'static str,
+    /// Where the file declared a mulligan: how many times this enumeration is
+    /// dealt, once per hand size from seven down to the floor. The ceiling is
+    /// checked against `compositions`, which is one deal; the work is up to
+    /// this many of them, and more where a tie in the bottoming list branches
+    /// a deal. Absent on a run that keeps every seven, which deals once.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub deals: Option<u32>,
 }
 
 /// The run these numbers describe: which seat, and which engine answered.
@@ -407,6 +433,39 @@ pub struct Breakdown {
     /// The priority that decided which spells were cast, where the file
     /// declared one. The same kind of fact again, over the turn's mana.
     pub casting: Option<CastingUse>,
+    /// The mulligan that decided which hand every number is of, where the
+    /// file declared one.
+    pub mulligan: Option<MulliganUse>,
+}
+
+/// The declared mulligan this run kept its hands by, and what it came to.
+///
+/// Carried as the rule rather than as a flag, for the reason the land drop's
+/// list is: two mulligans over one deck are two different sets of numbers, and
+/// a reader has to be able to see which produced the page in front of them.
+#[derive(Facet)]
+pub struct MulliganUse {
+    /// The keep rule, one clause per entry, as the run reads it.
+    pub keep: Vec<String>,
+    /// What the file wrote, first to go back first.
+    pub bottom: Vec<String>,
+    /// What this run did about the cards the list does not name.
+    pub then: &'static str,
+    /// How a tie inside one entry was settled.
+    pub tie_break: &'static str,
+    /// The smallest hand gone to, kept whatever it holds.
+    pub down_to: u32,
+    /// The share of games kept at each hand size, largest first. Sums to 1.
+    pub kept: Vec<KeptAt>,
+    /// `"exact"` or `"sampled"`, for `kept`.
+    pub method: &'static str,
+}
+
+/// How often one hand size was the one kept.
+#[derive(Facet)]
+pub struct KeptAt {
+    pub cards: u32,
+    pub share: f64,
 }
 
 /// The declared priority this run resolved its land drops by.
@@ -524,6 +583,13 @@ pub struct Report {
     /// below is of a hand nobody ever spent.
     #[facet(skip_serializing_if = Option::is_none)]
     pub casting: Option<CastingUse>,
+    /// The mulligan every number here is of, where the file declared one.
+    ///
+    /// Absent on a run that declared none, and every number in that run keeps
+    /// whatever seven it was dealt — which the human half of the report says
+    /// in so many words.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub mulligan: Option<MulliganUse>,
     pub criteria: Vec<CriterionResult>,
     /// Alongside `criteria` rather than merged into it. They answer different
     /// questions in different units, and several things already read `criteria`
@@ -552,6 +618,7 @@ impl Report {
             assumed_tapped,
             land_drop,
             casting,
+            mulligan,
         } = breakdown;
         let Scenario {
             on_the_draw,
@@ -564,7 +631,8 @@ impl Report {
             .iter()
             .zip(&answers.probabilities)
             .zip(&answers.estimated.criteria)
-            .map(|((c, &p), &estimated)| {
+            .zip(&answers.seven)
+            .map(|(((c, &p), &estimated), &seven)| {
                 let how = sampled.filter(|_| estimated);
                 CriterionResult {
                     name: c.name.clone(),
@@ -582,6 +650,8 @@ impl Report {
                         Some((p - threshold).abs() <= INCONCLUSIVE_ERRORS * se)
                     }),
                     method: method_of(estimated),
+                    keep_seven: seven.map(|s| round(s, 6)),
+                    keep_seven_percent: seven.map(|s| round(s * 100.0, 2)),
                 }
             })
             .collect();
@@ -649,6 +719,7 @@ impl Report {
             assumed_tapped,
             land_drop,
             casting,
+            mulligan,
             criteria: results,
             expectations: expected,
             asserted,
@@ -797,6 +868,45 @@ impl Report {
                 policy.then, policy.tie_break
             ));
         }
+        // Which hand every number is of. Above the tapped-ness assumptions and
+        // beside the other declared priorities, because it is the same kind of
+        // fact and the largest one: a mulligan decides which seven the land
+        // drop, the casting line and every count below were played from.
+        match &self.mulligan {
+            Some(m) => {
+                out.push_str(
+                    "note: every number below is of the hand the mulligan this file declared \
+                     keeps.\n      A hand is kept when it holds ",
+                );
+                out.push_str(&m.keep.join(", and "));
+                out.push_str(".\n      After a mulligan, cards go back in this order:\n");
+                for (i, query) in m.bottom.iter().enumerate() {
+                    out.push_str(&format!("      {}. {query:?}\n", i + 1));
+                }
+                out.push_str(&format!(
+                    "      then {}.\n      Ties: {}.\n      A hand of {} {}.\n",
+                    m.then,
+                    m.tie_break,
+                    m.down_to,
+                    gauntlet_criteria::MulliganPolicy::FLOOR,
+                ));
+                let shares: Vec<String> = m
+                    .kept
+                    .iter()
+                    .map(|k| format!("{} cards {:.2}%", k.cards, k.share * 100.0))
+                    .collect();
+                out.push_str(&format!(
+                    "      Kept at {}{}.\n      Each criterion also shows, in brackets, its \
+                     number had every first seven been kept.\n",
+                    shares.join(", "),
+                    if m.method == SAMPLED { ", sampled" } else { "" },
+                ));
+            }
+            None => out.push_str(
+                "note: every number below keeps whatever seven it is dealt: this file declares \
+                 no\n      [mulligan], so no hand is ever sent back.\n",
+            ),
+        }
         // An assumption the tool made on the pilot's behalf, which moves
         // numbers and which nobody wrote down. Printed on every run it touched,
         // and naming the cards rather than the count: "three lands assumed
@@ -843,8 +953,15 @@ impl Report {
             // printed to two decimals looks exactly as certain as an enumerated
             // one, and the error bar is the only thing on the page that says it
             // is not.
+            // The keep-your-seven number, labelled, where a mulligan moved it:
+            // the verdict is the mulligan's, and a reader comparing with a run
+            // from before the mulligan was declared needs to see both.
+            let seven = match c.keep_seven_percent {
+                Some(s) => format!("  [keep 7: {s:.2}%]"),
+                None => String::new(),
+            };
             out.push_str(&format!(
-                "{status}{:width$}  {:>6.2}%{}{target}\n",
+                "{status}{:width$}  {:>6.2}%{}{target}{seven}\n",
                 c.name,
                 c.percent,
                 error_bar(c.standard_error)
@@ -1323,7 +1440,7 @@ fn histogram_lines(p: &[f64], indent: usize) -> Vec<String> {
     lines
 }
 
-fn round(v: f64, places: u32) -> f64 {
+pub fn round(v: f64, places: u32) -> f64 {
     let f = 10f64.powi(places as i32);
     (v * f).round() / f
 }

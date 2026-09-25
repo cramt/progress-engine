@@ -20,7 +20,7 @@
 //! percentage nobody can attribute.
 
 use crate::effect::Effect;
-use crate::policy::{CastingPolicy, LandDropPolicy};
+use crate::policy::{CastingPolicy, LandDropPolicy, MulliganPolicy};
 
 /// The opening hand, before anybody has drawn for turn.
 const OPENING_HAND: u32 = 7;
@@ -37,6 +37,10 @@ const OPENING_HAND: u32 = 7;
 pub struct Policies {
     pub land_drop: Option<LandDropPolicy>,
     pub casting: Option<CastingPolicy>,
+    /// Which openers are kept and what goes back. `None` is every run there
+    /// was before [#7](https://github.com/cramt/progress-engine/issues/7):
+    /// the first seven are kept whatever they hold.
+    pub mulligan: Option<MulliganPolicy>,
 }
 
 impl Policies {
@@ -45,15 +49,15 @@ impl Policies {
     pub fn land_drop(policy: LandDropPolicy) -> Policies {
         Policies {
             land_drop: Some(policy),
-            casting: None,
+            ..Policies::default()
         }
     }
 
     /// Just a casting priority.
     pub fn casting(policy: CastingPolicy) -> Policies {
         Policies {
-            land_drop: None,
             casting: Some(policy),
+            ..Policies::default()
         }
     }
 }
@@ -213,7 +217,18 @@ impl Schedule {
     /// merging two draws would hand the walk an unordered pair. Narrowing less
     /// than a caller asked for is always sound; narrowing more is the bug this
     /// guards against.
+    ///
+    /// A declared mulligan observes turn 0 whatever the class asked, because
+    /// the keep decision and what goes back are both read off the opener: a
+    /// seven merged into the draws after it is a hand nobody can decide about.
     pub fn narrowed(&self, observed: &[usize], reading: Reading) -> Schedule {
+        let with_opener: Vec<usize>;
+        let observed = if self.policies.mulligan.is_some() && !observed.contains(&0) {
+            with_opener = std::iter::once(0).chain(observed.iter().copied()).collect();
+            &with_opener[..]
+        } else {
+            observed
+        };
         let mut gaps = vec![0u32; self.gaps.len()];
         let last = observed
             .iter()
@@ -269,6 +284,11 @@ impl Schedule {
     /// The declared priority over the turn's mana, if this run has one.
     pub fn casting(&self) -> Option<&CastingPolicy> {
         self.policies.casting.as_ref()
+    }
+
+    /// The declared mulligan, if this run has one.
+    pub fn mulligan(&self) -> Option<&MulliganPolicy> {
+        self.policies.mulligan.as_ref()
     }
 
     /// Turns this run covers, counting turn 0, the opening hand.

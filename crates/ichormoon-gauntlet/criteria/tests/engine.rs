@@ -8,8 +8,9 @@ use std::convert::Infallible;
 
 use gauntlet_criteria::{
     CastingPolicy, Cost, Count, Counted, Criterion, Delay, Effect, Evaluator, Expectation, Fetch,
-    Fetched, Grouping, GroupingError, LandDetail, LandDropPolicy, ManaSource, Palette,
-    PathOutcomes, PathView, Plan, Policies, Route, RunError, Schedule, Trigger, Zone, MAX_COUNT,
+    Fetched, Grouping, GroupingError, Keep, LandDetail, LandDropPolicy, ManaSource, MulliganPolicy,
+    Palette, PathOutcomes, PathView, Plan, Policies, Route, RunError, Schedule, Trigger, Zone,
+    MAX_COUNT,
 };
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
@@ -1409,6 +1410,7 @@ fn the_budget_and_the_gate_answer_hand_twelve_the_same_way() {
         Policies {
             land_drop: Some(land_drop),
             casting: Some(CastingPolicy::new(vec![1])),
+            mulligan: None,
         },
     );
     let one = Cost::parse("{1}").unwrap();
@@ -1725,4 +1727,244 @@ fn a_saga_fetches_on_its_third_chapter_and_its_mana_goes_with_it() {
     assert!((pays(3, "{3}") - tenth).abs() < 1e-12, "{}", pays(3, "{3}"));
     assert_eq!(pays(4, "{3}"), 0.0, "the Saga's mana outlived it");
     assert!((pays(4, "{2}") - tenth).abs() < 1e-12, "{}", pays(4, "{2}"));
+}
+
+// --- Mulligans (#7) ----------------------------------------------------------
+
+/// Six lands and six spells, and a mulligan that keeps two to four lands,
+/// puts lands back first and stops at five.
+fn twelve_card_mulligan(gaps: &[u32]) -> (Grouping, Schedule) {
+    let grouping = Grouping::build(q(&["land"]), [(0b1, 6), (0, 6)]).unwrap();
+    let policy = MulliganPolicy::new(
+        vec![Keep {
+            query: 0,
+            min: 2,
+            max: Some(4),
+        }],
+        vec![0],
+        5,
+    );
+    let schedule = Schedule::plain_with(
+        gaps,
+        Policies {
+            mulligan: Some(policy),
+            ..Policies::default()
+        },
+    );
+    (grouping, schedule)
+}
+
+#[test]
+fn a_mulligan_on_a_two_group_deck_is_the_number_on_paper() {
+    // The known answer #7 and #64 ask for, small enough to do by hand.
+    //
+    // Seven from twelve is C(12,7) = 792 hands, and by lands held:
+    //
+    //   k        0   1    2    3    4    5   6
+    //   hands    0   6   90  300  300   90   6
+    //
+    // At seven the rule keeps k in 2..=4: 690 of 792.
+    // At six one land goes back, so it keeps k-1 in 2..=4, k in 3..=5: 690
+    // again — but a different 690.
+    // At five, two go back and the hand is kept whatever it holds.
+    //
+    // "Three or more lands in the hand kept":
+    //   at seven, k in 3..=4:                 600
+    //   at six, kept and k-1 >= 3, so 4..=5:  390
+    //   at five, k - 2 >= 3, so 5..=6:         96
+    let (grouping, schedule) = twelve_card_mulligan(&[7]);
+    let mut ev = Closures(vec![Box::new(|v: &PathView<'_>| {
+        v.count_at(0, 0, Counted::In(Zone::Hand)) >= 3
+    })]);
+    let out = gauntlet_criteria::run(&grouping, &schedule, only_criteria(1), &mut ev).unwrap();
+
+    let hands = 792.0;
+    let keep7 = 690.0 / hands;
+    let keep6 = 690.0 / hands;
+    let reach6 = 1.0 - keep7;
+    let reach5 = reach6 * (1.0 - keep6);
+    let expected = 600.0 / hands + reach6 * 390.0 / hands + reach5 * 96.0 / hands;
+    let got = out.probabilities[0].get();
+    assert!((got - expected).abs() < 1e-12, "{got} vs {expected}");
+
+    let mulligan = out.mulligan.expect("a mulligan was declared");
+    let kept: Vec<f64> = mulligan.kept.iter().map(|p| p.get()).collect();
+    for (got, want) in kept.iter().zip([keep7, reach6 * keep6, reach5]) {
+        assert!((got - want).abs() < 1e-12, "kept {kept:?}");
+    }
+    // Beside it, the number had every seven been kept: k >= 3 is 696 of 792.
+    let seven = mulligan.seven[0].get();
+    assert!((seven - 696.0 / hands).abs() < 1e-12, "{seven}");
+}
+
+#[test]
+fn turn_zero_after_a_mulligan_is_the_hand_that_was_kept() {
+    // The question #7 left open, settled: turn 0 is the hand you kept, five
+    // cards after a mulligan to five, not the seven it was dealt from.
+    let (grouping, schedule) = twelve_card_mulligan(&[7, 1]);
+    let mut ev = Counters(vec![
+        Box::new(|v: &PathView<'_>| v.count_at(0, 0, Counted::In(Zone::Hand))),
+        Box::new(|v: &PathView<'_>| v.count_at(0, 0, Counted::In(Zone::Library))),
+    ]);
+    let out = gauntlet_criteria::run(&grouping, &schedule, only_expectations(2), &mut ev).unwrap();
+    // Every hand kept at six or five put lands back, and those lands are in
+    // the library — on the bottom of it, where every count of the library
+    // already finds them. So the lands in hand and in the library still sum
+    // to six on every path.
+    let hand = out.distributions[0].mean();
+    let library = out.distributions[1].mean();
+    assert!((hand + library - 6.0).abs() < 1e-12, "{hand} + {library}");
+    // And no kept hand holds more lands than the rule allows, except at the
+    // floor, where a five is kept whatever it holds.
+    let p = out.distributions[0].probabilities();
+    assert!(p.len() <= 5, "at most four lands in any kept hand: {p:?}");
+}
+
+#[test]
+fn a_mulligan_with_nothing_to_throw_back_is_the_first_seven() {
+    // A rule every seven passes: the answer and the number beside it are the
+    // same, and every game keeps at seven.
+    let grouping = Grouping::build(q(&["land"]), [(0b1, 6), (0, 6)]).unwrap();
+    let policy = MulliganPolicy::new(
+        vec![Keep {
+            query: 0,
+            min: 0,
+            max: None,
+        }],
+        vec![0],
+        5,
+    );
+    let schedule = Schedule::plain_with(
+        &[7, 1],
+        Policies {
+            mulligan: Some(policy),
+            ..Policies::default()
+        },
+    );
+    let check = || {
+        Closures(vec![Box::new(|v: &PathView<'_>| {
+            v.count_at(1, 0, Counted::In(Zone::Hand)) >= 3
+        })])
+    };
+    let with =
+        gauntlet_criteria::run(&grouping, &schedule, only_criteria(1), &mut check()).unwrap();
+    let without = gauntlet_criteria::run(
+        &grouping,
+        &Schedule::plain(&[7, 1]),
+        only_criteria(1),
+        &mut check(),
+    )
+    .unwrap();
+    let m = with.mulligan.expect("declared");
+    assert!((with.probabilities[0].get() - without.probabilities[0].get()).abs() < 1e-12);
+    assert!((m.seven[0].get() - without.probabilities[0].get()).abs() < 1e-12);
+    assert!((m.kept[0].get() - 1.0).abs() < 1e-12, "{:?}", m.kept);
+}
+
+#[test]
+fn a_tie_inside_one_bottoming_entry_is_priced_rather_than_broken() {
+    // One entry naming two cards the hand holds one each of, and one card to
+    // put back. Neither is preferred, so each goes back half the time — and a
+    // question about one of them sees exactly that half.
+    //
+    // Seven cards, dealt whole: A, B and five fillers. The rule keeps nothing
+    // at seven (it wants six cards or fewer, which only a mulligan makes), so
+    // every game goes to six and puts back A or B.
+    let grouping = Grouping::build(
+        q(&["a", "b", "either", "filler"]),
+        [(0b0101, 1), (0b0110, 1), (0b1000, 5)],
+    )
+    .unwrap();
+    let policy = MulliganPolicy::new(
+        vec![Keep {
+            query: 3,
+            min: 0,
+            max: Some(4),
+        }],
+        vec![2],
+        6,
+    );
+    let schedule = Schedule::plain_with(
+        &[7],
+        Policies {
+            mulligan: Some(policy),
+            ..Policies::default()
+        },
+    );
+    let mut ev = Closures(vec![
+        Box::new(|v: &PathView<'_>| v.count_at(0, 0, Counted::In(Zone::Hand)) == 1),
+        Box::new(|v: &PathView<'_>| v.count_at(0, 1, Counted::In(Zone::Hand)) == 1),
+        Box::new(|v: &PathView<'_>| v.count_at(0, 2, Counted::In(Zone::Hand)) == 1),
+    ]);
+    let out = gauntlet_criteria::run(&grouping, &schedule, only_criteria(3), &mut ev).unwrap();
+    let p: Vec<f64> = out.probabilities.iter().map(|p| p.get()).collect();
+    assert!((p[0] - 0.5).abs() < 1e-12, "A kept half the time: {p:?}");
+    assert!((p[1] - 0.5).abs() < 1e-12, "B kept half the time: {p:?}");
+    assert!(
+        (p[2] - 1.0).abs() < 1e-12,
+        "exactly one of them kept always: {p:?}"
+    );
+}
+
+#[test]
+fn a_tutor_still_finds_a_card_the_mulligan_put_on_the_bottom() {
+    // A card on the bottom of the library is in the library, and a search
+    // finds it. Two cards: a tutor that costs nothing and fetches the target,
+    // and one copy of the target. The rule throws back any seven holding the
+    // target... which is every seven of a seven-card deck, so it goes to six
+    // and the target is put back first. Turn 1 casts the tutor, which goes
+    // and gets the target from underneath everything.
+    let grouping = Grouping::with_mana(
+        q(&["tutor", "target"]),
+        vec![
+            (
+                0b01,
+                ManaSource::Castable {
+                    cost: Cost::parse("{0}").unwrap().demand(),
+                },
+                1,
+            ),
+            (0b10, ManaSource::Spell, 1),
+            (0b00, ManaSource::Spell, 5),
+        ],
+    )
+    .unwrap();
+    let tutor = Effect {
+        matched_by: 0,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to: Fetched::Hand,
+        }),
+        delay: None,
+    };
+    let policy = MulliganPolicy::new(
+        vec![Keep {
+            query: 1,
+            min: 0,
+            max: Some(0),
+        }],
+        vec![1],
+        6,
+    );
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0],
+        vec![tutor],
+        Policies {
+            casting: Some(CastingPolicy::new(vec![0])),
+            mulligan: Some(policy),
+            ..Policies::default()
+        },
+    );
+    let mut ev = Closures(vec![
+        Box::new(|v: &PathView<'_>| v.count_at(0, 1, Counted::In(Zone::Hand)) == 0),
+        Box::new(|v: &PathView<'_>| v.count_at(0, 1, Counted::In(Zone::Library)) == 1),
+        Box::new(|v: &PathView<'_>| v.count_at(1, 1, Counted::In(Zone::Hand)) == 1),
+        Box::new(|v: &PathView<'_>| v.count_at(1, 1, Counted::In(Zone::Library)) == 0),
+    ]);
+    let out = gauntlet_criteria::run(&grouping, &schedule, only_criteria(4), &mut ev).unwrap();
+    let p: Vec<f64> = out.probabilities.iter().map(|p| p.get()).collect();
+    assert_eq!(p, vec![1.0, 1.0, 1.0, 1.0], "{p:?}");
 }

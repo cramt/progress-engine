@@ -94,6 +94,41 @@ struct FileDef {
     /// The priority over the turn's mana. One table for the same reason
     /// `land_drop` is one: a run has one pool to arbitrate.
     casting: Option<CastingDef>,
+    /// Which openers are kept and what goes back. One table, because a game
+    /// has one opening hand.
+    mulligan: Option<MulliganDef>,
+}
+
+/// The declared mulligan, as written.
+///
+/// The fifth resource on the mechanism the other four already use
+/// ([#7](https://github.com/cramt/progress-engine/issues/7)): `bottom` is a
+/// list of queries in the order cards go back, exactly the shape of
+/// `[land_drop] prefer`. `keep` is the one new thing, and it is not a new
+/// language either — it is count clauses, the same `query`, `min` and `max` a
+/// criterion writes, over the one hand a keep decision is about.
+#[derive(Facet)]
+#[facet(deny_unknown_fields)]
+struct MulliganDef {
+    #[facet(default)]
+    keep: Vec<KeepDef>,
+    bottom: Option<Vec<String>>,
+    // Signed, and narrowed later, for the reason a clause's `turn` is.
+    down_to: Option<i64>,
+}
+
+/// One clause of a keep rule, as written.
+///
+/// No `turn` and no `zone`, and their absence is the rule rather than a
+/// default: a keep decision is made about the hand you would keep, before the
+/// first turn, and there is no other point in the game or other zone it could
+/// be about. A key the table does not have is refused by name.
+#[derive(Facet)]
+#[facet(deny_unknown_fields)]
+struct KeepDef {
+    query: Option<String>,
+    min: Option<i64>,
+    max: Option<i64>,
 }
 
 /// The declared priority over the land drop, as written.
@@ -408,7 +443,33 @@ pub struct Criteria {
     /// never sees a spell's mana cost: the caller holding the index prices the
     /// list and refuses what it cannot pay.
     casting: Vec<String>,
+    /// The declared mulligan, queries still as text for the same reason.
+    mulligan: Option<MulliganDecl>,
 }
+
+/// A declared mulligan, validated but not yet resolved against any deck.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MulliganDecl {
+    /// Every one of these holds of a hand that is kept.
+    pub keep: Vec<KeepDecl>,
+    /// Queries in the order cards go back.
+    pub bottom: Vec<String>,
+    /// The smallest hand gone to, and kept whatever it holds.
+    pub down_to: u32,
+}
+
+/// One clause of a keep rule: at least `min` and at most `max` cards of the
+/// kept hand match `query`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeepDecl {
+    pub query: String,
+    pub min: u32,
+    pub max: Option<u32>,
+}
+
+/// The largest opening hand there is, and so the deepest `down_to` means
+/// anything below it: a floor of seven never mulligans.
+const OPENER: i64 = 7;
 
 /// One effect, validated but not yet resolved against any deck.
 ///
@@ -567,6 +628,15 @@ impl Criteria {
     /// you would be reporting a line nobody chose.
     pub fn casting(&self) -> &[String] {
         &self.casting
+    }
+
+    /// The mulligan this file declared, or `None` where it declared none.
+    ///
+    /// `None` keeps every first seven, which is what every number this tool
+    /// printed before [#7](https://github.com/cramt/progress-engine/issues/7)
+    /// assumed — and a run that answers that way says so.
+    pub fn mulligan(&self) -> Option<&MulliganDecl> {
+        self.mulligan.as_ref()
     }
 
     /// The first question here that counts spells this run cast, if any.
@@ -895,8 +965,10 @@ const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least
                       a require of their own, \
                       [[expect]] tables (name, turn, query, zone) or (name, turn, cast), [[effect]] \
                       tables (match, on, look, to_graveyard, fetch, to, after, sacrifice), one \
-                      [land_drop] table (prefer) \
-                      and one [casting] table (prefer).";
+                      [land_drop] table (prefer), \
+                      one [casting] table (prefer) \
+                      and one [mulligan] table (keep, bottom, down_to), whose keep clauses are \
+                      (query, min, max).";
 
 #[derive(Debug, Error)]
 pub enum ErrorKind {
@@ -1006,22 +1078,41 @@ pub enum ErrorKind {
     /// with no entries would put that line above numbers no declaration
     /// touched — a provenance claim that is not true.
     #[error(
-        "{table} declares no `prefer` entries, so it settles nothing and every number below it \
+        "{table} declares no `{key}` entries, so it settles nothing and every number below it \
          would be answered as if it were not there.\n\
-         Write `prefer = ['<query>', ...]` in the order you would take them, or drop the table"
+         Write `{key} = ['<query>', ...]` in the order you would take them, or drop the table"
     )]
-    NoPreference { table: &'static str },
+    NoPreference {
+        table: &'static str,
+        key: &'static str,
+    },
     #[error(
-        "{table}: `prefer` entry {position} repeats entry {first} ({query:?}), so it can never \
+        "{table}: `{key}` entry {position} repeats entry {first} ({query:?}), so it can never \
          decide anything: the earlier one already took every card it names.\n\
          A priority list is read in order and the first entry that matches wins"
     )]
     RepeatedPreference {
         table: &'static str,
+        key: &'static str,
         query: String,
         first: usize,
         position: usize,
     },
+    /// A mulligan with nothing to decide by.
+    #[error(
+        "[mulligan] has no `keep` clauses, so every seven passes and nothing is ever put back: \
+         the numbers would be keep-your-seven numbers printed under a mulligan's name.\n\
+         Write the hands you keep as count clauses, `keep = [{{ query = \"t:land\", min = 2, \
+         max = 5 }}]`, or drop the table"
+    )]
+    KeepsEverything,
+    #[error(
+        "[mulligan]: `down_to = {down_to}` is not a hand to stop at: it must be a whole number \
+         from 1 to 6.\n\
+         It is the smallest hand you would mulligan to, and that hand is kept whatever it \
+         holds. Seven would never mulligan at all."
+    )]
+    BadDownTo { down_to: i64 },
     /// Three keys, one question each, and a clause naming two of them would
     /// have to answer one of them silently.
     #[error(
@@ -1375,12 +1466,16 @@ fn fetch_of(def: &EffectDef, at: &str) -> Result<Option<FetchDecl>, ErrorKind> {
         }),
         (Some(prefer), to) => {
             if prefer.is_empty() {
-                return Err(ErrorKind::NoPreference { table });
+                return Err(ErrorKind::NoPreference {
+                    table,
+                    key: "prefer",
+                });
             }
             for (i, query) in prefer.iter().enumerate() {
                 if let Some(first) = prefer[..i].iter().position(|q| q == query) {
                     return Err(ErrorKind::RepeatedPreference {
                         table,
+                        key: "prefer",
                         query: query.clone(),
                         first: first + 1,
                         position: i + 1,
@@ -1413,6 +1508,7 @@ fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
     let effects = effects_of(&file, origin)?;
     let land_drop = land_drop_of(&file)?;
     let casting = casting_of(&file)?;
+    let mulligan = file.mulligan.as_ref().map(mulligan_of).transpose()?;
 
     let mut vocabulary = Vocabulary::default();
     let mut criteria = Vec::with_capacity(file.criterion.len());
@@ -1525,6 +1621,7 @@ fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
         effects,
         land_drop,
         casting,
+        mulligan,
     })
 }
 
@@ -1537,30 +1634,90 @@ fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
 /// be reached, and both would read as a declared priority in the report while
 /// arbitrating no drop at all.
 fn land_drop_of(file: &FileDef) -> Result<Vec<String>, ErrorKind> {
-    preference_of(file.land_drop.as_ref().map(|d| &d.prefer), "[land_drop]")
+    preference_of(
+        file.land_drop.as_ref().map(|d| &d.prefer),
+        "[land_drop]",
+        "prefer",
+    )
 }
 
 /// The same validation for `[casting]`, which is the same shape of table over
 /// a different resource.
 fn casting_of(file: &FileDef) -> Result<Vec<String>, ErrorKind> {
-    preference_of(file.casting.as_ref().map(|d| &d.prefer), "[casting]")
+    preference_of(
+        file.casting.as_ref().map(|d| &d.prefer),
+        "[casting]",
+        "prefer",
+    )
+}
+
+/// Validate the `[mulligan]` table.
+///
+/// Every part is required, because every part is a decision about how the
+/// pilot plays and a default for any of them would be the tool making it: no
+/// keep rule keeps every seven, no bottoming list puts back cards nobody
+/// chose, and no floor leaves a rule no hand passes mulliganing into nothing.
+fn mulligan_of(def: &MulliganDef) -> Result<MulliganDecl, ErrorKind> {
+    if def.keep.is_empty() {
+        return Err(ErrorKind::KeepsEverything);
+    }
+    let mut keep = Vec::with_capacity(def.keep.len());
+    for (i, clause) in def.keep.iter().enumerate() {
+        let at = format!("[mulligan], keep clause {}", i + 1);
+        let query = clause.query.clone().ok_or(ErrorKind::Missing {
+            at: at.clone(),
+            key: "query",
+            why: "so there is nothing for it to count in the hand you would keep",
+        })?;
+        let (min, max) = match bounds(clause.min, clause.max, &at, &query)? {
+            Bounds::AtLeast(min) => (min, None),
+            Bounds::AtMost(max) => (0, Some(max)),
+            Bounds::Between { min, max } => (min, Some(max)),
+        };
+        keep.push(KeepDecl { query, min, max });
+    }
+    let bottom = match &def.bottom {
+        None => {
+            return Err(ErrorKind::Missing {
+                at: "[mulligan]".to_string(),
+                key: "bottom",
+                why: "so nothing says which cards go back after a mulligan. Write them in the                       order you would put them back, `bottom = ['t:land', 'mv>=5']`",
+            })
+        }
+        Some(bottom) => preference_of(Some(&Some(bottom.clone())), "[mulligan]", "bottom")?,
+    };
+    let down_to = def.down_to.ok_or(ErrorKind::Missing {
+        at: "[mulligan]".to_string(),
+        key: "down_to",
+        why: "so there is no hand you would keep whatever it holds, and a rule no hand passes               would mulligan forever. Write `down_to = 5` to keep any five",
+    })?;
+    if !(1..OPENER).contains(&down_to) {
+        return Err(ErrorKind::BadDownTo { down_to });
+    }
+    Ok(MulliganDecl {
+        keep,
+        bottom,
+        down_to: down_to as u32,
+    })
 }
 
 fn preference_of(
     prefer: Option<&Option<Vec<String>>>,
     table: &'static str,
+    key: &'static str,
 ) -> Result<Vec<String>, ErrorKind> {
     let Some(prefer) = prefer else {
         return Ok(Vec::new());
     };
     let prefer = prefer.clone().unwrap_or_default();
     if prefer.is_empty() {
-        return Err(ErrorKind::NoPreference { table });
+        return Err(ErrorKind::NoPreference { table, key });
     }
     for (i, query) in prefer.iter().enumerate() {
         if let Some(first) = prefer[..i].iter().position(|q| q == query) {
             return Err(ErrorKind::RepeatedPreference {
                 table,
+                key,
                 query: query.clone(),
                 first: first + 1,
                 position: i + 1,
@@ -1737,6 +1894,10 @@ fn turn_of(turn: Option<i64>, at: &str) -> Result<u32, ErrorKind> {
 }
 
 fn bounds_of(clause: &ClauseDef, at: &str, query: &str) -> Result<Bounds, ErrorKind> {
+    bounds(clause.min, clause.max, at, query)
+}
+
+fn bounds(min: Option<i64>, max: Option<i64>, at: &str, query: &str) -> Result<Bounds, ErrorKind> {
     let count = |key: &'static str, value: i64| -> Result<u32, ErrorKind> {
         u32::try_from(value).map_err(|_| ErrorKind::BadCount {
             at: at.to_string(),
@@ -1744,7 +1905,7 @@ fn bounds_of(clause: &ClauseDef, at: &str, query: &str) -> Result<Bounds, ErrorK
             value,
         })
     };
-    match (clause.min, clause.max) {
+    match (min, max) {
         (None, None) => Err(ErrorKind::NoBounds {
             at: at.to_string(),
             query: query.to_string(),

@@ -20,10 +20,10 @@ engines do not apply to it.
   refuses to be, the two north-star questions, and the principles every design
   decision is judged against. Read it in full before adding a feature, changing
   what a number means, or deciding whether to refuse a question.
-- **[HANDS.md](HANDS.md)** — seventeen worked seven-card hands as executable
+- **[HANDS.md](HANDS.md)** — eighteen worked hands as executable
   specification. Most are tests; each says whether it is. Reach for it when
-  touching mana, land drops, zones, routing, or query semantics: it is where
-  "this hand should produce this number" is settled.
+  touching mana, land drops, zones, routing, mulligans, or query semantics: it
+  is where "this hand should produce this number" is settled.
 - **[README.md](README.md)** — the user-facing doc, and where tracked numbers
   live.
 - **[NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md)** — the progress-engine family:

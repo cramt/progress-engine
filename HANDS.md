@@ -628,6 +628,53 @@ battlefield fetch is refused by name rather than answered optimistically.
 
 ---
 
+## Mulligans
+
+### 18. Six lands and six spells, dealt until the rule is happy
+
+```
+Land ×6
+Spell ×6
+
+[mulligan]
+keep = [{ query = "t:land", min = 2, max = 4 }]
+bottom = ["t:land"]
+down_to = 5
+```
+
+Not one hand but every hand this library can deal, because a mulligan is a
+decision about which of them you play. Seven from twelve is 792 hands, and by
+lands held:
+
+| lands dealt | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|---|
+| hands | 0 | 6 | 90 | 300 | 300 | 90 | 6 |
+
+At seven the rule keeps two to four lands: 690 of 792. At six one land goes
+back first, so the rule is asking for three to five *dealt* — 690 again, and a
+different 690. At five the hand is kept whatever it holds.
+
+**Turn 0 is the hand that was kept.** Asked *three or more lands in hand on turn
+0*, the answer is
+
+```
+600/792 + (102/792)(390/792) + (102/792)(102/792)(96/792) = 0.8230…
+```
+
+— 600 of the sevens kept, 390 of the sixes kept with three lands left, and 96 of
+the fives, which keep three or four lands only from a deal of five or six. The
+naive reading, *three lands among the seven dealt*, is 696/792 = 0.8788, and it
+is printed beside the answer rather than instead of it, because it is what
+every number meant before a mulligan could be declared.
+
+And the lands that went back are **in the library**, on the bottom of it: lands
+in hand plus lands in the library is six on every deal.
+
+*A test: `a_mulligan_on_a_two_group_deck_is_the_number_on_paper` and
+`turn_zero_after_a_mulligan_is_the_hand_that_was_kept` in the engine suite.*
+
+---
+
 ## Degenerate hands
 
 ### 13. Every card is a commander
@@ -650,7 +697,7 @@ case in #37, which is the one hole.*
 ## What these are for
 
 When the features land, these become tests — hands 1, 2, 3, 4, 6, 7, 8, 9, 10,
-11, 12, 13, 14, 15, 16 and 17 already have, which is every one of them but
+11, 12, 13, 14, 15, 16, 17 and 18 already have, which is every one of them but
 hand 5.
 Until then they are the specification: if an implementation disagrees with a
 hand here, one of the two is wrong and it is worth knowing which before shipping

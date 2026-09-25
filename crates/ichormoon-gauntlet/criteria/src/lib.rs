@@ -26,7 +26,7 @@ mod zone;
 pub use effect::{Board, Delay, Effect, Fetch, Fetched, Route, Trigger, TriggerError};
 pub use grouping::{Grouping, GroupingError};
 pub use mana::{Cost, CostError, Demand, LandDetail, ManaSource, Palette};
-pub use policy::{CastingPolicy, LandDropPolicy};
+pub use policy::{CastingPolicy, Keep, LandDropPolicy, MulliganPolicy};
 pub use schedule::{Policies, Reading, Schedule};
 pub use zone::{Counted, Reachable, Zone, ZoneError};
 
@@ -221,6 +221,25 @@ pub struct Outcomes {
     pub probabilities: Vec<Probability>,
     /// One per expectation answered.
     pub distributions: Vec<Distribution>,
+    /// What the declared mulligan did, where the run declared one. Every
+    /// number above is then the mulligan's number.
+    pub mulligan: Option<Mulliganed>,
+}
+
+/// What a declared mulligan did to a run.
+///
+/// The keep-your-seven number travels beside the mulligan's rather than being
+/// dropped, because the two differ by enough that switching from one to the
+/// other silently would look like the deck changed. Every number names its
+/// inputs, and the mulligan is one.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Mulliganed {
+    /// P(the hand kept is `opener - d` cards), for every depth `d` from 0 to
+    /// the policy's floor. Sums to 1: the floor is kept whatever it holds.
+    pub kept: Vec<Probability>,
+    /// One per criterion answered, parallel to [`Outcomes::probabilities`]:
+    /// how often it holds had every first seven been kept.
+    pub seven: Vec<Probability>,
 }
 
 /// What a criterion is allowed to see: counts, never cards.
@@ -512,6 +531,9 @@ pub fn run_answering<E>(
             queries: grouping.queries().to_vec(),
         });
     }
+    if schedule.mulligan().is_some() {
+        return run_mulligan(grouping, schedule, answering, evaluator);
+    }
 
     let mut totals = vec![KahanSum::new(); answering.criteria().len()];
     let mut histograms = vec![DistributionBuilder::new(); answering.expectations().len()];
@@ -520,64 +542,9 @@ pub fn run_answering<E>(
     let mut wrong_shape = None;
 
     let mut board = Board::new(grouping, schedule);
-    // One structure answering both halves of the walk, because they are the
-    // same fact asked twice: what this path has taken out of the library, and
-    // what it came to. Two closures could not share the board that knows.
-    struct Walking<'b, 'g, V, E> {
-        board: &'b mut Board<'g>,
-        evaluator: &'b mut V,
-        plan: Plan,
-        criteria: &'b [usize],
-        expectations: &'b [usize],
-        totals: &'b mut [KahanSum],
-        histograms: &'b mut [DistributionBuilder],
-        mass: &'b mut KahanSum,
-        failure: &'b mut Option<E>,
-        wrong_shape: &'b mut Option<(usize, usize)>,
-    }
-    impl<V: Evaluator<Error = E>, E> chip_stats::Walk for Walking<'_, '_, V, E> {
-        fn removals(&mut self, reached: chip_stats::Path<'_>, out: &mut [u32]) {
-            // The same walk that produces the answers, replayed over the
-            // prefix. Not a second reading of what a tutor does: a fetch
-            // decided here and a fetch decided at the leaf are one line of
-            // code, so they cannot drift.
-            self.board.walk(reached);
-            out.copy_from_slice(self.board.removed());
-        }
-        fn path(&mut self, reached: chip_stats::Path<'_>, p: f64) {
-            self.mass.add(p);
-            if self.failure.is_some() || self.wrong_shape.is_some() {
-                return;
-            }
-            // Rebuilt in place per path rather than per criterion: where a
-            // card ended up is a fact about the path, and computing it once is
-            // what stops two criteria from disagreeing about the same surveil.
-            self.board.walk(reached);
-            let view = PathView::new(self.board);
-            match self.evaluator.evaluate(&view) {
-                Ok(outcomes) => {
-                    if outcomes.held.len() != self.plan.criteria
-                        || outcomes.counted.len() != self.plan.expectations
-                    {
-                        *self.wrong_shape = Some((outcomes.held.len(), outcomes.counted.len()));
-                        return;
-                    }
-                    for (total, &i) in self.totals.iter_mut().zip(self.criteria) {
-                        if outcomes.held[i] {
-                            total.add(p);
-                        }
-                    }
-                    for (histogram, &i) in self.histograms.iter_mut().zip(self.expectations) {
-                        histogram.add(outcomes.counted[i].get(), p);
-                    }
-                }
-                Err(e) => *self.failure = Some(e),
-            }
-        }
-    }
-    // A run with no tutor in it does not pay for one. The prefix replay above
-    // is cheap but it is not free, and every number this repository already
-    // reports comes off the walk that does not do it.
+    // A run with no tutor in it does not pay for one. The prefix replay in
+    // `Walking::removals` is cheap but it is not free, and every number this
+    // repository already reports comes off the walk that does not do it.
     let fetches = board.fetches();
     let mut walking = Walking {
         board: &mut board,
@@ -587,6 +554,10 @@ pub fn run_answering<E>(
         expectations: answering.expectations(),
         totals: &mut totals,
         histograms: &mut histograms,
+        seven: None,
+        weight: 1.0,
+        counts: true,
+        mass_weight: 1.0,
         mass: &mut mass,
         failure: &mut failure,
         wrong_shape: &mut wrong_shape,
@@ -599,6 +570,163 @@ pub fn run_answering<E>(
         });
     }
 
+    settle(failure, wrong_shape, plan, &mass)?;
+    Ok(Outcomes {
+        probabilities: totals
+            .into_iter()
+            .map(|t| Probability::new(t.total()))
+            .collect(),
+        distributions: histograms
+            .into_iter()
+            .map(DistributionBuilder::build)
+            .collect(),
+        mulligan: None,
+    })
+}
+
+/// [`run_answering`] under a declared mulligan: one enumeration per depth,
+/// weighted by the chance of reaching it.
+///
+/// Under the London mulligan every redraw is a fresh deal of the whole
+/// library, so depth `d` is the ordinary enumeration with `d` cards put back
+/// and a hand kept only if the rule says so — and reaching depth `d` at all is
+/// the product of having thrown back every hand before it. Nothing here is
+/// sampled, and nothing is new arithmetic: each term is a walk this engine
+/// already knew how to do.
+///
+/// The walk is split at the opener, because that is where the mulligan
+/// branches. What goes back is decided from the opener's counts, and where a
+/// tie inside one bottoming entry makes that a coin toss, each side of the coin
+/// is its own branch with its own weight — and each branch then deals the same
+/// later draws out of the same library, but plays them from a different hand.
+/// A tutor on turn 2 can depend on which card went back, so the branch has to
+/// come before the rest of the path is dealt rather than after.
+///
+/// A hand the rule throws back at depth `d > 0` is not walked past its opener,
+/// because nothing about its later turns is asked. At depth 0 every hand is
+/// walked, because the keep-your-seven number beside the mulligan's is exactly
+/// the depth-0 walk with the keep rule ignored.
+fn run_mulligan<E>(
+    grouping: &Grouping,
+    schedule: &Schedule,
+    answering: &Answering,
+    evaluator: &mut impl Evaluator<Error = E>,
+) -> Result<Outcomes, RunError<E>> {
+    let plan = answering.plan();
+    let gaps = schedule.gaps();
+    let sizes = grouping.group_sizes();
+    let policy = schedule
+        .mulligan()
+        .expect("only called for a run that declared a mulligan");
+    // The opener is the first checkpoint, which a mulligan run always keeps as
+    // its own: `Schedule::narrowed` observes turn 0 whenever there is a
+    // mulligan to decide there.
+    let (opener, later) = gaps
+        .split_first()
+        .expect("a schedule has at least the opening hand");
+    let deepest = policy.deepest(*opener);
+
+    let mut totals = vec![KahanSum::new(); answering.criteria().len()];
+    let mut seven = vec![KahanSum::new(); answering.criteria().len()];
+    let mut histograms = vec![DistributionBuilder::new(); answering.expectations().len()];
+    let mut failure = None;
+    let mut wrong_shape = None;
+    let mut kept: Vec<Probability> = Vec::with_capacity(deepest as usize + 1);
+    let mut reach = 1.0;
+
+    let mut board = Board::new(grouping, schedule);
+    let fetches = board.fetches();
+    let mut options: Vec<(Vec<u32>, f64)> = Vec::new();
+    let mut hand = vec![0u32; sizes.len()];
+    for depth in 0..=deepest {
+        let floor = depth == deepest;
+        let mut mass = KahanSum::new();
+        let mut keeps = KahanSum::new();
+        chip_stats::for_each_composition(sizes, *opener, |first, p_first| {
+            options.clear();
+            board.bottomings(first, depth, |back, q| options.push((back.to_vec(), q)));
+            for (back, q) in &options {
+                let weight = p_first * q;
+                for ((h, f), b) in hand.iter_mut().zip(first).zip(back) {
+                    *h = f - b;
+                }
+                let kept_here = floor || board.keeps(&hand);
+                if kept_here {
+                    keeps.add(weight);
+                }
+                if !kept_here && depth > 0 {
+                    // Thrown back, so no later turn of it is asked about. Its
+                    // continuations sum to one by construction, so its whole
+                    // weight is accounted for without dealing them.
+                    mass.add(weight);
+                    continue;
+                }
+                board.bottom(back);
+                let mut walking = Walking {
+                    board: &mut board,
+                    evaluator: &mut *evaluator,
+                    plan,
+                    criteria: answering.criteria(),
+                    expectations: answering.expectations(),
+                    totals: &mut totals,
+                    histograms: &mut histograms,
+                    seven: (depth == 0).then_some(&mut seven[..]),
+                    weight: reach * weight,
+                    counts: kept_here,
+                    // The mass is kept per depth and unweighted by the reach,
+                    // so each depth's enumeration is checked on its own terms.
+                    mass_weight: weight,
+                    mass: &mut mass,
+                    failure: &mut failure,
+                    wrong_shape: &mut wrong_shape,
+                };
+                if fetches {
+                    chip_stats::for_each_checkpoint_path_removing_after(
+                        sizes,
+                        first,
+                        later,
+                        &mut walking,
+                    );
+                } else {
+                    chip_stats::for_each_checkpoint_path_after(sizes, first, later, |h, p| {
+                        chip_stats::Walk::path(&mut walking, h, p)
+                    });
+                }
+            }
+        });
+        settle(failure.take(), wrong_shape.take(), plan, &mass)?;
+        let keeps = keeps.total();
+        kept.push(Probability::new(reach * keeps));
+        reach *= 1.0 - keeps;
+    }
+
+    Ok(Outcomes {
+        probabilities: totals
+            .into_iter()
+            .map(|t| Probability::new(t.total()))
+            .collect(),
+        distributions: histograms
+            .into_iter()
+            .map(DistributionBuilder::build)
+            .collect(),
+        mulligan: Some(Mulliganed {
+            kept,
+            seven: seven
+                .into_iter()
+                .map(|t| Probability::new(t.total()))
+                .collect(),
+        }),
+    })
+}
+
+/// The refusals a walk can only reach by walking: an evaluator that failed or
+/// answered the wrong number of questions, and a mass that did not sum to one.
+fn settle<E>(
+    failure: Option<E>,
+    wrong_shape: Option<(usize, usize)>,
+    plan: Plan,
+    mass: &KahanSum,
+) -> Result<(), RunError<E>> {
     if let Some(e) = failure {
         return Err(RunError::Evaluator(e));
     }
@@ -615,14 +743,89 @@ pub fn run_answering<E>(
     if (total - 1.0).abs() > MASS_TOLERANCE {
         return Err(RunError::MassNotOne { total });
     }
-    Ok(Outcomes {
-        probabilities: totals
-            .into_iter()
-            .map(|t| Probability::new(t.total()))
-            .collect(),
-        distributions: histograms
-            .into_iter()
-            .map(DistributionBuilder::build)
-            .collect(),
-    })
+    Ok(())
+}
+
+/// One structure answering both halves of the walk, because they are the same
+/// fact asked twice: what this path has taken out of the library, and what it
+/// came to. Two closures could not share the board that knows.
+struct Walking<'b, 'g, V, E> {
+    board: &'b mut Board<'g>,
+    evaluator: &'b mut V,
+    plan: Plan,
+    criteria: &'b [usize],
+    expectations: &'b [usize],
+    totals: &'b mut [KahanSum],
+    histograms: &'b mut [DistributionBuilder],
+    /// Where the keep-your-seven number collects, on the walk that has one.
+    seven: Option<&'b mut [KahanSum]>,
+    /// What every path's probability is multiplied by before it is added to
+    /// an answer: 1 for a plain run, and for a mulligan the chance of having
+    /// reached this depth and dealt this opener and put these cards back.
+    weight: f64,
+    /// Whether this path's answers count at all. False for a hand the
+    /// mulligan throws back, which is walked only for the number beside it.
+    counts: bool,
+    /// What a path's probability is multiplied by before it is added to the
+    /// mass. The mass is a check on one enumeration, so it is weighted by what
+    /// that enumeration dealt and not by the chance of reaching it.
+    mass_weight: f64,
+    mass: &'b mut KahanSum,
+    failure: &'b mut Option<E>,
+    wrong_shape: &'b mut Option<(usize, usize)>,
+}
+
+impl<V: Evaluator<Error = E>, E> chip_stats::Walk for Walking<'_, '_, V, E> {
+    fn removals(&mut self, reached: chip_stats::Path<'_>, out: &mut [u32]) {
+        // The same walk that produces the answers, replayed over the prefix.
+        // Not a second reading of what a tutor does: a fetch decided here and
+        // a fetch decided at the leaf are one line of code, so they cannot
+        // drift.
+        self.board.walk(reached);
+        out.copy_from_slice(self.board.removed());
+    }
+    fn path(&mut self, reached: chip_stats::Path<'_>, p: f64) {
+        self.mass.add(self.mass_weight * p);
+        if self.failure.is_some() || self.wrong_shape.is_some() {
+            return;
+        }
+        // Rebuilt in place per path rather than per criterion: where a card
+        // ended up is a fact about the path, and computing it once is what
+        // stops two criteria from disagreeing about the same surveil.
+        self.board.walk(reached);
+        let view = PathView::new(self.board);
+        match self.evaluator.evaluate(&view) {
+            Ok(outcomes) => {
+                if outcomes.held.len() != self.plan.criteria
+                    || outcomes.counted.len() != self.plan.expectations
+                {
+                    *self.wrong_shape = Some((outcomes.held.len(), outcomes.counted.len()));
+                    return;
+                }
+                if let Some(seven) = self.seven.as_deref_mut() {
+                    // The seven's own probability, with no mulligan weight on
+                    // it: it is the number had this hand been kept.
+                    let p_seven = self.mass_weight * p;
+                    for (total, &i) in seven.iter_mut().zip(self.criteria) {
+                        if outcomes.held[i] {
+                            total.add(p_seven);
+                        }
+                    }
+                }
+                if !self.counts {
+                    return;
+                }
+                let p = self.weight * p;
+                for (total, &i) in self.totals.iter_mut().zip(self.criteria) {
+                    if outcomes.held[i] {
+                        total.add(p);
+                    }
+                }
+                for (histogram, &i) in self.histograms.iter_mut().zip(self.expectations) {
+                    histogram.add(outcomes.counted[i].get(), p);
+                }
+            }
+            Err(e) => *self.failure = Some(e),
+        }
+    }
 }

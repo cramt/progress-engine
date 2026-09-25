@@ -13,8 +13,8 @@ use std::convert::Infallible;
 
 use gauntlet_criteria::mana::Pip;
 use gauntlet_criteria::{
-    Cost, Count, Counted, Evaluator, Grouping, ManaSource, Palette, PathOutcomes, PathView, Plan,
-    Schedule, Zone,
+    Cost, Count, Counted, Evaluator, Grouping, Keep, ManaSource, MulliganPolicy, Palette,
+    PathOutcomes, PathView, Plan, Policies, Schedule, Zone,
 };
 use proptest::prelude::*;
 use proptest::test_runner::{Config, RngAlgorithm, TestCaseError, TestRng, TestRunner};
@@ -627,6 +627,197 @@ fn narrowing_both_axes_at_once_leaves_every_answer_alone() {
                     "criterion {i}: {} un-narrowed, {} narrowed",
                     wide.get(),
                     narrow.get()
+                );
+            }
+            Ok(())
+        })
+        .unwrap();
+}
+
+/// A question with a mulligan worth declaring: an opener big enough to go
+/// below the floor, and enough overlapping groups that one bottoming entry
+/// holds cards a narrower class merges — which is the case a tie rule has to
+/// survive, and which [`question`] almost never deals.
+fn mulligan_question() -> impl Strategy<Value = Question> {
+    (2usize..=3)
+        .prop_flat_map(|queries| {
+            (
+                Just(queries),
+                prop::collection::vec((0u64..(1u64 << queries), 1u32..=12), 3..=6),
+                6u32..=8,
+                prop::collection::vec(0u32..=2, 0..=2),
+            )
+        })
+        .prop_map(|(queries, cards, opening, extras)| {
+            let names = (0..queries).map(|i| format!("q{i}")).collect();
+            let grouping = Grouping::build(names, cards).unwrap();
+            let gaps = feasible_gaps(grouping.group_sizes(), opening, &extras);
+            Question {
+                grouping,
+                gaps,
+                queries,
+            }
+        })
+}
+
+/// A mulligan generated loose: which query the keep rule counts and its
+/// bounds, which query goes back first, and how far down to go.
+fn loose_mulligan() -> impl Strategy<Value = (u8, u32, u32, u8, u32)> {
+    (any::<u8>(), 0u32..=3, 0u32..=4, any::<u8>(), 3u32..=6)
+}
+
+fn mulligan_of(loose: (u8, u32, u32, u8, u32), q: &Question) -> MulliganPolicy {
+    let (keep_query, min, extra, bottom_query, down_to) = loose;
+    MulliganPolicy::new(
+        vec![Keep {
+            query: usize::from(keep_query) % q.queries,
+            min,
+            max: Some(min + extra),
+        }],
+        vec![usize::from(bottom_query) % q.queries],
+        down_to,
+    )
+}
+
+#[test]
+fn a_mulligan_survives_both_narrowings() {
+    // The reason a tie inside one bottoming entry is settled at random rather
+    // than by the card the decklist names first. A class keeps the mulligan's
+    // own queries, so which *entry* a card goes back from is the same in every
+    // class — but two cards one entry cannot tell apart can still differ in a
+    // query the class does not read, and merging them has to leave every
+    // answer where it was. A uniform choice among a tier's cards commutes with
+    // merging its groups; an order over them does not.
+    runner(512)
+        .run(
+            &(mulligan_question(), loose_thresholds(), loose_mulligan()),
+            |(q, loose, mulligan)| {
+                let thresholds = resolve(&loose, &q);
+                let policy = mulligan_of(mulligan, &q);
+                let bits = policy
+                    .keep()
+                    .iter()
+                    .map(|k| k.query)
+                    .chain(policy.tiers())
+                    .fold(0u64, |b, i| b | 1u64 << i);
+                let schedule = Schedule::plain_with(
+                    &q.gaps,
+                    Policies {
+                        mulligan: Some(policy),
+                        ..Policies::default()
+                    },
+                );
+                let plan = only_criteria(thresholds.len());
+
+                let full =
+                    gauntlet_criteria::run(&q.grouping, &schedule, plan, &mut checks(&thresholds))
+                        .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+                let kept = &full
+                    .mulligan
+                    .as_ref()
+                    .expect("a mulligan was declared")
+                    .kept;
+                let total: f64 = kept.iter().map(|p| p.get()).sum();
+                prop_assert!(
+                    (total - 1.0).abs() < SAME_ANSWER,
+                    "every game keeps a hand at some depth: {kept:?}"
+                );
+
+                let keep = thresholds.iter().fold(bits, |b, t| b | 1u64 << t.query);
+                let mut observed: Vec<usize> = thresholds.iter().map(|t| t.checkpoint).collect();
+                observed.sort_unstable();
+                observed.dedup();
+                let narrowed = gauntlet_criteria::run(
+                    &q.grouping
+                        .coarsened(keep, gauntlet_criteria::LandDetail::Ignored),
+                    &schedule.narrowed(&observed, gauntlet_criteria::Reading::Cumulative),
+                    plan,
+                    &mut checks(&thresholds),
+                )
+                .map_err(|e| TestCaseError::fail(format!("{q:?} was refused narrowed: {e}")))?;
+
+                for (i, (wide, narrow)) in full
+                    .probabilities
+                    .iter()
+                    .zip(&narrowed.probabilities)
+                    .enumerate()
+                {
+                    prop_assert!(
+                        (wide.get() - narrow.get()).abs() < SAME_ANSWER,
+                        "criterion {i} over {:?}: {} un-narrowed, {} narrowed",
+                        q.grouping.group_sizes(),
+                        wide.get(),
+                        narrow.get()
+                    );
+                }
+                let seven = |o: &gauntlet_criteria::Outcomes| {
+                    o.mulligan
+                        .as_ref()
+                        .map(|m| m.seven.iter().map(|p| p.get()).collect::<Vec<_>>())
+                };
+                let (wide, narrow) = (seven(&full), seven(&narrowed));
+                for (w, n) in wide.iter().flatten().zip(narrow.iter().flatten()) {
+                    prop_assert!((w - n).abs() < SAME_ANSWER, "keep-seven {w} vs {n}");
+                }
+                Ok(())
+            },
+        )
+        .unwrap();
+}
+
+#[test]
+fn a_mulligan_that_never_fires_moves_no_number() {
+    // A keep rule every seven passes is a mulligan that never happens, and
+    // the answers under it have to be the answers without it — which is also
+    // the keep-your-seven number it reports beside them.
+    runner(128)
+        .run(&(question(), loose_thresholds()), |(q, loose)| {
+            let thresholds = resolve(&loose, &q);
+            let plan = only_criteria(thresholds.len());
+            let plain = gauntlet_criteria::run(
+                &q.grouping,
+                &Schedule::plain(&q.gaps),
+                plan,
+                &mut checks(&thresholds),
+            )
+            .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            let everything = MulliganPolicy::new(
+                vec![Keep {
+                    query: 0,
+                    min: 0,
+                    max: None,
+                }],
+                vec![0],
+                1,
+            );
+            let schedule = Schedule::plain_with(
+                &q.gaps,
+                Policies {
+                    mulligan: Some(everything),
+                    ..Policies::default()
+                },
+            );
+            let under =
+                gauntlet_criteria::run(&q.grouping, &schedule, plan, &mut checks(&thresholds))
+                    .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            let seven = &under.mulligan.as_ref().expect("declared").seven;
+            for ((a, b), s) in plain
+                .probabilities
+                .iter()
+                .zip(&under.probabilities)
+                .zip(seven)
+            {
+                prop_assert!(
+                    (a.get() - b.get()).abs() < SAME_ANSWER,
+                    "{} vs {}",
+                    a.get(),
+                    b.get()
+                );
+                prop_assert!(
+                    (a.get() - s.get()).abs() < SAME_ANSWER,
+                    "{} vs seven {}",
+                    a.get(),
+                    s.get()
                 );
             }
             Ok(())

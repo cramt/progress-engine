@@ -119,3 +119,123 @@ impl CastingPolicy {
         "a tie inside one entry goes to the cheaper cost, then to the card this decklist names \
          first";
 }
+
+/// A declared mulligan: which hands you keep, what you put back, and how far
+/// down you are prepared to go.
+///
+/// The fifth resource on the one mechanism, and the one
+/// [#7](https://github.com/cramt/progress-engine/issues/7) settled first. Every
+/// number this tool printed before it assumed you keep whatever seven you are
+/// dealt, which is not how anyone plays and is least true of the decks this
+/// tool was built for.
+///
+/// Three parts, each a declaration rather than something the engine decides:
+///
+/// - **`keep`** is a conjunction of counts over the hand you would keep, the
+///   same shape as any clause a criteria file writes at turn 0. It is read
+///   *after* bottoming, because the hand you are deciding about is the one you
+///   would actually play: at six, "two to five lands" is a statement about six
+///   cards.
+/// - **`bottom`** is a declared priority over queries, the same list shape as
+///   the land drop, the casting line and a tutor's target. Keeping at depth `d`
+///   puts `d` cards back, taken from the first entry the hand holds, then the
+///   next.
+/// - **`down_to`** is the smallest hand you will go to, and it is kept whatever
+///   it holds. There is no default: a keep rule with no floor mulligans a hand
+///   that can never pass into nothing, and a floor the tool chose would be the
+///   tool playing your deck.
+///
+/// **This stays exact.** Under the London mulligan every redraw is a fresh deal
+/// of seven from the whole library, so the depths are independent and the
+/// answer factors into one enumeration per depth:
+///
+/// ```text
+/// P(C) = Σ_d  P(reach d) · P(keep at d, and C | dealt at depth d)
+/// P(reach d+1) = P(reach d) · (1 − P(keep at d))
+/// ```
+///
+/// Given the seven, bottoming is a deterministic function of counts except
+/// inside one entry of the list — see [`MulliganPolicy::TIE_BREAK`] for why that
+/// one is priced rather than decided.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MulliganPolicy {
+    keep: Vec<Keep>,
+    bottom: Vec<usize>,
+    down_to: u32,
+}
+
+/// One count a kept hand has to satisfy.
+///
+/// `max` is an `Option` rather than `u32::MAX` so that "no upper bound" is a
+/// state rather than a number somebody could have typed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Keep {
+    /// A grouping query index.
+    pub query: usize,
+    pub min: u32,
+    pub max: Option<u32>,
+}
+
+impl Keep {
+    pub fn holds(self, count: u32) -> bool {
+        count >= self.min && self.max.is_none_or(|max| count <= max)
+    }
+}
+
+impl MulliganPolicy {
+    /// `keep` is the rule a kept hand satisfies, `bottom` is grouping query
+    /// indices in the order cards go back, and `down_to` is the hand size kept
+    /// unconditionally.
+    pub fn new(keep: Vec<Keep>, bottom: Vec<usize>, down_to: u32) -> MulliganPolicy {
+        MulliganPolicy {
+            keep,
+            bottom,
+            down_to,
+        }
+    }
+
+    pub fn keep(&self) -> &[Keep] {
+        &self.keep
+    }
+
+    /// Every bottoming tier in priority order. The catch-all is not here: the
+    /// board adds it, because "everything else" is a set of groups rather than
+    /// a query.
+    pub fn tiers(&self) -> impl Iterator<Item = usize> + '_ {
+        self.bottom.iter().copied()
+    }
+
+    pub fn down_to(&self) -> u32 {
+        self.down_to
+    }
+
+    /// The deepest mulligan this policy takes out of an opener of `opener`
+    /// cards: at that depth the hand is kept whatever it holds.
+    pub fn deepest(&self, opener: u32) -> u32 {
+        opener.saturating_sub(self.down_to)
+    }
+
+    /// What a run says about the cards the list does not name.
+    pub const THEN: &'static str =
+        "a card this list does not name goes back after every card it does";
+
+    /// How a tie inside one entry is settled.
+    ///
+    /// **At random, and priced exactly.** Every other list on this mechanism
+    /// breaks a tie by the card the decklist names first, and here that rule
+    /// would be unsound: the engine answers each class of question on the
+    /// coarsest grouping that can tell its cards apart, and merging two groups
+    /// the tie rule would have ordered differently puts back a different card
+    /// — a narrowing that changes the answer. A card chosen uniformly among the
+    /// ones an entry cannot tell apart is the one rule that commutes with
+    /// merging them, because a hypergeometric over merged groups is the
+    /// marginal of the one over the groups themselves. So the enumeration walks
+    /// every way the coin could fall, weighted by its chance, and the sampler
+    /// tosses it. A pilot who cares which of two lands goes back names one of
+    /// them in an earlier entry.
+    pub const TIE_BREAK: &'static str =
+        "a tie inside one entry is settled at random, and every way it could fall is priced";
+
+    /// What happens at the floor.
+    pub const FLOOR: &'static str = "is kept whatever it holds";
+}

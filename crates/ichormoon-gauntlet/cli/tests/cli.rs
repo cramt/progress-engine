@@ -3591,3 +3591,148 @@ fn every_run_says_how_close_it_came_to_the_ceiling() {
         "{stderr}"
     );
 }
+
+// --- [mulligan] (#7) ---------------------------------------------------------
+
+#[test]
+fn a_mulligan_is_reported_with_the_keep_your_seven_number_beside_it() {
+    let out = run("mulligan.criteria.toml");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "{stderr}");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).expect("JSON");
+
+    // Checked by hand: 36 lands in 99, the lands go back first, keep two to
+    // five, stop at five. Kept at seven is the old "keepable opener"
+    // criterion's own number, because nothing has gone back yet.
+    let kept: Vec<(u64, f64)> = json["mulligan"]["kept"]
+        .as_array()
+        .expect("kept")
+        .iter()
+        .map(|k| (k["cards"].as_u64().unwrap(), k["share"].as_f64().unwrap()))
+        .collect();
+    let want = [(7, 0.789725), (6, 0.105246), (5, 0.105029)];
+    assert_eq!(kept.len(), want.len(), "{kept:?}");
+    for ((cards, share), (want_cards, want_share)) in kept.iter().zip(want) {
+        assert_eq!(*cards, want_cards);
+        assert!((share - want_share).abs() < 1e-6, "{kept:?}");
+    }
+    assert_eq!(json["mulligan"]["method"], "exact");
+    assert_eq!(json["mulligan"]["down_to"], 5);
+    // And every enumeration says it was dealt once per hand size, because
+    // that is what the mulligan costs and `compositions` is one deal.
+    for enumeration in json["enumerations"].as_array().expect("enumerations") {
+        assert_eq!(enumeration["deals"], 3, "{enumeration}");
+    }
+
+    // The verdict is judged on the mulligan's number, and the number had every
+    // seven been kept sits beside it, labelled, from the same engine.
+    let two = json["criteria"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "two lands in the hand kept")
+        .expect("criterion");
+    assert!((two["probability"].as_f64().unwrap() - 0.917593).abs() < 1e-6);
+    assert!((two["keep_seven"].as_f64().unwrap() - 0.798529).abs() < 1e-6);
+    assert_eq!(
+        two["pass"], true,
+        "91.76% against 90%, where 79.85% would fail"
+    );
+
+    // Turn 0 is the hand that was kept: five cards after a mulligan to five.
+    let cards = json["expectations"][0]["distribution"]
+        .as_array()
+        .expect("distribution");
+    assert!(
+        (cards[5].as_f64().unwrap() - 0.105029).abs() < 1e-6,
+        "{cards:?}"
+    );
+    assert!(
+        (cards[7].as_f64().unwrap() - 0.789725).abs() < 1e-6,
+        "{cards:?}"
+    );
+
+    assert!(
+        stderr.contains("every number below is of the hand the mulligan"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("[keep 7: 79.85%]"), "{stderr}");
+    assert!(stderr.contains("Kept at 7 cards 78.97%"), "{stderr}");
+}
+
+#[test]
+fn a_mulligan_the_two_engines_have_to_agree_about() {
+    let exact = run("mulligan.criteria.toml");
+    let sampled = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture("simple-ramp.txt"))
+        .arg(fixture("mulligan.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("index.jsonl"))
+        .arg("--simulate")
+        .output()
+        .expect("binary should run");
+    let exact: serde_json::Value = serde_json::from_slice(&exact.stdout).expect("JSON");
+    let sampled: serde_json::Value = serde_json::from_slice(&sampled.stdout).expect("JSON");
+    assert_eq!(sampled["mulligan"]["method"], "sampled");
+    for (e, s) in exact["criteria"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .zip(sampled["criteria"].as_array().unwrap())
+    {
+        let se = s["standard_error"]
+            .as_f64()
+            .expect("a sampled figure has one");
+        for key in ["probability", "keep_seven"] {
+            let (e, s) = (e[key].as_f64().unwrap(), s[key].as_f64().unwrap());
+            assert!(
+                (e - s).abs() < 4.0 * se,
+                "{key} of {}: exact {e}, sampled {s} ± {se}",
+                e
+            );
+        }
+    }
+}
+
+#[test]
+fn a_run_with_no_mulligan_says_it_kept_every_seven() {
+    // #7's objection to an implicit default was that it reintroduces the
+    // keep-your-seven number silently. It is still the default — no file in
+    // this repository moves — but it is not silent.
+    let out = run("simple-ramp.criteria.toml");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("every number below keeps whatever seven it is dealt"),
+        "{stderr}"
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).expect("JSON");
+    assert!(json.get("mulligan").is_none(), "no mulligan block: {json}");
+    assert!(
+        json["enumerations"][0].get("deals").is_none(),
+        "one deal, and not said"
+    );
+    assert!(
+        json["criteria"][0].get("keep_seven").is_none(),
+        "and no number beside a number that is already the seven's"
+    );
+}
+
+#[test]
+fn a_mulligan_query_this_index_cannot_answer_is_refused_against_its_clause() {
+    let out = run_with(
+        "loam.txt",
+        "mulligan-unfetched-tag.criteria.toml",
+        "loam-index.jsonl",
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("[mulligan]: keep clause 2, query \"otag:mill\""),
+        "{stderr}"
+    );
+    assert!(
+        out.stdout.is_empty(),
+        "no JSON that could be read as an answer"
+    );
+}

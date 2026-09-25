@@ -1,0 +1,31 @@
+# The keep rule simple-ramp.criteria.toml's "keepable opener" criterion was
+# standing in for, declared as what it is (#7): a rule that sends hands back,
+# rather than a percentage printed beside numbers that kept every seven anyway.
+#
+# Kept at seven is exactly the old criterion's number, 78.97%, because at seven
+# nothing has gone back and the rule is the same count. Below seven it is
+# checkable by hand: the lands go back first, so at six a hand needs three to
+# five lands dealt, and five is kept whatever it holds.
+
+[mulligan]
+keep = [{ query = "t:land", min = 2, max = 5 }]
+bottom = ["t:land"]
+down_to = 5
+
+[[criterion]]
+name = "two lands in the hand kept"
+at_least = 0.90
+require = [{ turn = 0, query = "t:land", min = 2 }]
+
+[[criterion]]
+name = "turn-1 accelerant"
+at_least = 0.35
+require = [
+  { turn = 1, query = "t:land", min = 1 },
+  { turn = 1, query = 'cat:"Ramp - One Mana"', min = 1 },
+]
+
+[[expect]]
+name = "cards in the hand kept"
+turn = 0
+query = "t:land or -t:land"

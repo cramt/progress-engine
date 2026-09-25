@@ -62,6 +62,20 @@ pub struct Sampled {
     pub proportions: Vec<f64>,
     /// One per expectation: how often each value came up, as a fraction.
     pub distributions: Vec<Distribution>,
+    /// What the declared mulligan did, where the run declared one: every
+    /// figure above is then of the hand the mulligan kept.
+    pub mulligan: Option<SampledMulligan>,
+}
+
+/// What a declared mulligan did to a sampled run. The same two things the
+/// exact engine reports, measured rather than summed.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct SampledMulligan {
+    /// The fraction of games kept at each depth, from seven down to the floor.
+    pub kept: Vec<f64>,
+    /// One per criterion: the fraction of first sevens in which it held had
+    /// that seven been kept, whatever the mulligan then did with it.
+    pub seven: Vec<f64>,
 }
 
 /// Deal `trials` hands and report how often each criterion held, and how the
@@ -130,79 +144,131 @@ pub fn simulate<E>(
     let mut removed = vec![0u32; groups];
     let mut wanted = vec![0u32; groups];
 
-    for _ in 0..trials {
-        // Partial Fisher-Yates: only shuffle as far as we actually draw. `n`
-        // is the undealt tail, and a fetch shortens it: the card it took is
-        // swapped past the end, which is what makes it unavailable to every
-        // later draw in the same hand.
-        let mut n = deck.len();
-        let mut cumulative = vec![0u32; groups];
-        let mut history: Vec<Vec<u32>> = Vec::with_capacity(gaps.len());
-        let mut checkpoint = 0usize;
-        removed.fill(0);
+    // A declared mulligan is played, not summed: a game deals a seven, puts
+    // back what the list says, asks the keep rule, and deals again from the
+    // whole library if the rule says no. That is a different computation from
+    // the exact engine's sum over depths, which is the point of having two.
+    let deepest = schedule
+        .mulligan()
+        .map_or(0, |m| m.deepest(gaps.first().copied().unwrap_or(0)));
+    let mut back = vec![0u32; groups];
+    let mut hand = vec![0u32; groups];
+    let mut dealt: Vec<usize> = Vec::new();
+    let mut kept_at = vec![0u32; deepest as usize + 1];
+    let mut seven_hits = vec![0u32; plan.criteria];
 
-        let mut i = 0usize;
-        loop {
-            // Snapshot before dealing, because a checkpoint can be reached
-            // before any card is: a leading gap of zero means "the hand as it
-            // stands", and recording it after the next draw reports a card the
-            // player has not seen yet.
-            while checkpoint < gaps.len() && reached_at[checkpoint] as usize <= i {
+    for _ in 0..trials {
+        let mut depth = 0u32;
+        'deal: loop {
+            // Partial Fisher-Yates: only shuffle as far as we actually draw. `n`
+            // is the undealt tail, and a fetch shortens it: the card it took is
+            // swapped past the end, which is what makes it unavailable to every
+            // later draw in the same hand.
+            let mut n = deck.len();
+            let mut cumulative = vec![0u32; groups];
+            let mut history: Vec<Vec<u32>> = Vec::with_capacity(gaps.len());
+            let mut checkpoint = 0usize;
+            removed.fill(0);
+            // Whether this deal is the one the mulligan keeps. Decided at the
+            // opener; true for every game of a run that declared none.
+            let mut kept = true;
+
+            let mut i = 0usize;
+            loop {
+                // Snapshot before dealing, because a checkpoint can be reached
+                // before any card is: a leading gap of zero means "the hand as it
+                // stands", and recording it after the next draw reports a card the
+                // player has not seen yet.
+                while checkpoint < gaps.len() && reached_at[checkpoint] as usize <= i {
+                    history.push(cumulative.clone());
+                    checkpoint += 1;
+                    // The opener has just been dealt: decide about it before
+                    // anything replays the path, because what went back is what a
+                    // tutor later can and cannot find.
+                    if checkpoint == 1 && schedule.mulligan().is_some() {
+                        dealt.clear();
+                        dealt.extend(deck[..i].iter().map(|&g| g as usize));
+                        board.bottom_in_order(&dealt, depth, &mut back);
+                        board.bottom(&back);
+                        for ((h, c), b) in hand.iter_mut().zip(&cumulative).zip(&back) {
+                            *h = c - b;
+                        }
+                        kept = depth == deepest || board.keeps(&hand);
+                        // A hand thrown back after the first is not played on:
+                        // nothing about its later turns is asked. The first is
+                        // played either way, for the number had it been kept.
+                        if !kept && depth > 0 {
+                            depth += 1;
+                            continue 'deal;
+                        }
+                    }
+                    if !fetches {
+                        continue;
+                    }
+                    // The same prefix replay the exact engine does, and for the
+                    // same reason: what this path has fetched is whatever the one
+                    // walk says it fetched, asked before the next card is dealt.
+                    board.walk(&history);
+                    wanted.copy_from_slice(board.removed());
+                    for (group, want) in wanted.iter().enumerate() {
+                        while removed[group] < *want {
+                            // The card is in the undealt tail by construction: the
+                            // board counted it there out of the same totals this
+                            // deck was built from.
+                            let at = (i..n)
+                                .find(|&k| deck[k] as usize == group)
+                                .expect("the board fetched a card the library still held");
+                            deck.swap(at, n - 1);
+                            n -= 1;
+                            removed[group] += 1;
+                        }
+                    }
+                }
+                if i >= (total_draws as usize).min(n) {
+                    break;
+                }
+                let j = rng.random_range(i..n);
+                deck.swap(i, j);
+                cumulative[deck[i] as usize] += 1;
+                i += 1;
+            }
+            // Whatever the last draw reached, plus any trailing gaps of zero.
+            while checkpoint < gaps.len() {
                 history.push(cumulative.clone());
                 checkpoint += 1;
-                if !fetches {
-                    continue;
-                }
-                // The same prefix replay the exact engine does, and for the
-                // same reason: what this path has fetched is whatever the one
-                // walk says it fetched, asked before the next card is dealt.
-                board.walk(&history);
-                wanted.copy_from_slice(board.removed());
-                for (group, want) in wanted.iter().enumerate() {
-                    while removed[group] < *want {
-                        // The card is in the undealt tail by construction: the
-                        // board counted it there out of the same totals this
-                        // deck was built from.
-                        let at = (i..n)
-                            .find(|&k| deck[k] as usize == group)
-                            .expect("the board fetched a card the library still held");
-                        deck.swap(at, n - 1);
-                        n -= 1;
-                        removed[group] += 1;
+            }
+
+            board.walk(&history);
+            let view = PathView::new(&board);
+            let results = evaluator.evaluate(&view).map_err(SimError::Evaluator)?;
+            if results.held.len() != plan.criteria || results.counted.len() != plan.expectations {
+                return Err(SimError::WrongShape {
+                    plan,
+                    held: results.held.len(),
+                    counted: results.counted.len(),
+                });
+            }
+            if depth == 0 {
+                for (h, &r) in seven_hits.iter_mut().zip(&results.held) {
+                    if r {
+                        *h += 1;
                     }
                 }
             }
-            if i >= (total_draws as usize).min(n) {
-                break;
+            if !kept {
+                depth += 1;
+                continue 'deal;
             }
-            let j = rng.random_range(i..n);
-            deck.swap(i, j);
-            cumulative[deck[i] as usize] += 1;
-            i += 1;
-        }
-        // Whatever the last draw reached, plus any trailing gaps of zero.
-        while checkpoint < gaps.len() {
-            history.push(cumulative.clone());
-            checkpoint += 1;
-        }
-
-        board.walk(&history);
-        let view = PathView::new(&board);
-        let results = evaluator.evaluate(&view).map_err(SimError::Evaluator)?;
-        if results.held.len() != plan.criteria || results.counted.len() != plan.expectations {
-            return Err(SimError::WrongShape {
-                plan,
-                held: results.held.len(),
-                counted: results.counted.len(),
-            });
-        }
-        for (h, r) in hits.iter_mut().zip(results.held) {
-            if r {
-                *h += 1;
+            kept_at[depth as usize] += 1;
+            for (h, r) in hits.iter_mut().zip(results.held) {
+                if r {
+                    *h += 1;
+                }
             }
-        }
-        for (histogram, value) in histograms.iter_mut().zip(results.counted) {
-            histogram.add(value.get(), share);
+            for (histogram, value) in histograms.iter_mut().zip(results.counted) {
+                histogram.add(value.get(), share);
+            }
+            break;
         }
     }
 
@@ -215,6 +281,16 @@ pub fn simulate<E>(
             .into_iter()
             .map(DistributionBuilder::build)
             .collect(),
+        mulligan: schedule.mulligan().map(|_| SampledMulligan {
+            kept: kept_at
+                .into_iter()
+                .map(|k| f64::from(k) / f64::from(trials))
+                .collect(),
+            seven: seven_hits
+                .into_iter()
+                .map(|h| f64::from(h) / f64::from(trials))
+                .collect(),
+        }),
     })
 }
 

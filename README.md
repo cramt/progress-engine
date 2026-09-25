@@ -230,6 +230,8 @@ Working today:
 
 ```
 $ gauntlet test simple-ramp.txt simple-ramp.criteria.toml
+note: every number below keeps whatever seven it is dealt: this file declares no
+      [mulligan], so no hand is ever sent back.
 PASS keepable opener (2-5 lands)   78.97%  (needs 70.0%)
 PASS turn-1 accelerant             51.04%  (needs 35.0%)
 PASS commander on turn 2           44.29%  (needs 30.0%)
@@ -309,9 +311,10 @@ list of alternative routes, for which see [Routes](#routes-any_of). An
 `[[expect]]` is a `name`, a `turn` and either a `query` with an optional `zone`
 or a `cast`, and reports a distribution rather than a verdict. A file may also
 hold `[[effect]]` tables, for which see [Effects](#effects), one `[land_drop]`
-table saying which land you would play when you could play either, and one
+table saying which land you would play when you could play either, one
 `[casting]` table saying which spells you would cast when the mana cannot pay
-for all of them.
+for all of them, and one `[mulligan]` table saying which openers you keep and
+what you put back, for which see [Mulligans](#mulligans).
 
 ```toml
 [[criterion]]
@@ -1177,6 +1180,125 @@ hand 17 works it on a sixteen-card deck.
 What it does not model: the Saga surviving two turns of an opponent, chapter
 III's other targets, and the shuffle — a card an earlier surveil left on top
 stays on top, which the tutors above already do.
+
+### Mulligans
+
+Every number this tool printed before `[mulligan]` existed assumed you keep
+whatever seven you are dealt. Nobody plays that way, and the decks this tool was
+built for play it least of all, so "commander on turn 2: 44.29%" was a precise
+answer to a question nobody asked. The fixture's own *keepable opener*
+criterion shows the workaround — a keep rule wearing a criterion's clothes,
+printed beside numbers that kept every seven anyway. Declared as what it is:
+
+```toml
+[mulligan]
+keep = [{ query = "t:land", min = 2, max = 5 }]
+bottom = ["t:land"]
+down_to = 5
+```
+
+```
+$ gauntlet test simple-ramp.txt simple-ramp.criteria.toml   # with the table above
+note: every number below is of the hand the mulligan this file declared keeps.
+      A hand is kept when it holds 2 to 5 of "t:land".
+      After a mulligan, cards go back in this order:
+      1. "t:land"
+      then a card this list does not name goes back after every card it does.
+      Ties: a tie inside one entry is settled at random, and every way it could fall is priced.
+      A hand of 5 is kept whatever it holds.
+      Kept at 7 cards 78.97%, 6 cards 10.52%, 5 cards 10.50%.
+      Each criterion also shows, in brackets, its number had every first seven been kept.
+PASS keepable opener (2-5 lands)   91.76%  (needs 70.0%)  [keep 7: 78.97%]
+PASS turn-1 accelerant             47.14%  (needs 35.0%)  [keep 7: 51.04%]
+PASS commander on turn 2           46.16%  (needs 30.0%)  [keep 7: 44.29%]
+     any ramp by turn 3            93.46%  [keep 7: 94.39%]
+```
+
+Three parts, and every one is required, because every one is a decision about
+how the pilot plays and a default for any of them would be the tool making it:
+
+- **`keep`** is count clauses — `query`, `min`, `max`, the same as any clause —
+  and a hand is kept when all of them hold. They are read of the hand you would
+  *keep*, after bottoming: at six, "two to five lands" is a statement about six
+  cards. There is no `turn` and no `zone`, because a keep decision is only ever
+  about the opener, and writing either is refused by the schema.
+- **`bottom`** is a declared priority over queries, the fifth resource on the
+  mechanism `[land_drop]`, `[casting]` and a tutor's `fetch` already use: keeping
+  at depth *d* puts *d* cards back, taken from the first entry the hand holds,
+  then the next. A card no entry names goes back after every card one does,
+  because a hand that has to put three back puts three back.
+- **`down_to`** is the smallest hand you will go to, kept whatever it holds.
+  Without it, a rule no hand passes would mulligan into nothing.
+
+**It stays exact.** Under the London mulligan every redraw is a fresh deal of
+seven from the whole library, so the depths are independent and the answer is a
+sum of enumerations the engine already knew how to do:
+
+```
+P(C) = Σ_d  P(reach d) · P(keep at d, and C | dealt at depth d)
+P(reach d+1) = P(reach d) · (1 − P(keep at d))
+```
+
+The walk is split at the opener, because that is where a mulligan decides
+anything, and a hand the rule throws back is not dealt past it. Kept at seven is
+exactly the old *keepable opener* criterion, 78.97%, because at seven nothing has
+gone back; the rest is checkable by hand, and `cli.rs` checks it.
+
+**A tie inside one `bottom` entry is priced, not broken.** Every other list on
+this mechanism settles a tie by the card the decklist names first. Here that rule
+would be unsound: each class of question is enumerated on the coarsest grouping
+that can tell its cards apart, and merging two lands a "decklist first" rule
+ordered differently puts back a different land — a narrowing that changes the
+answer. A card chosen uniformly among the ones an entry cannot separate is the
+one rule that survives merging, because a hypergeometric over merged groups is
+the marginal of the one over the groups themselves. So the enumeration walks every
+way the coin could fall, weighted by its chance, and the sampler tosses it. The
+property test that holds narrowing to the unnarrowed answer fails against the
+"decklist first" rule and passes against this one. A pilot who cares which of two
+lands goes back names one of them in an earlier entry.
+
+**Turn 0 is the hand you kept** — five cards after a mulligan to five, not the
+seven it was dealt from. The cards that went back are on the bottom of the
+library, which is where every count of the library already finds them; a tutor
+searching the library still finds one, last, since it is the copy no draw would
+ever have reached.
+
+**The verdict is the mulligan's, and the seven's number sits beside it.** The two
+differ by enough that switching from one to the other silently would look like
+the deck changed, so every criterion carries both — `keep_seven` in the JSON,
+`[keep 7: …]` on the line — from the same engine, and `at_least` is judged on the
+mulligan's, because that is the question it was always asking. The `mulligan`
+block in the JSON carries the rule, the list, and the share of games kept at each
+hand size. A file with no `[mulligan]` gets exactly the numbers it always got, and
+says, above them, that it kept every seven.
+
+**Measured on the real decks,** with the rule above appended to each committed
+file: kept at seven 83.96% on `decks/lantern.txt` and 87.47% on `decks/loam.txt`.
+Every exact criterion's keep-seven number is the old number to the last digit. No
+class crossed the ceiling it was not already over: `t:land` was already in the
+widest classes, and the others grow by one group — a cumulative class that read
+12 compositions reads 540, because the opener is now its own checkpoint. What the
+mulligan costs is **deals**, one per hand size, and every entry in the
+`enumerations` block says how many: the loam file went from 0.7s to 4.3s on the
+play and 1.4s to 8.1s on the draw, and the lantern file from 0.7s to 1.1s on
+the play and 1.7s on the draw.
+
+Not modelled, and named rather than approximated:
+
+- **The shuffle.** A fetch or tutor shuffles the library, which would return the
+  cards you put on the bottom to the pile the next draw comes from. Here they
+  stay on the bottom, which is the stance the tool already takes of a card an
+  earlier surveil left on top.
+- **A keep rule that is a disjunction.** `keep` is a conjunction; "a Lantern
+  *or* a way to find one" is not writable yet.
+- **Bottoming by what the hand needs.** The list is a fixed priority, so
+  `bottom = ["t:land"]` puts lands back even from a hand with two of them, which
+  is why the floor above keeps 5.2% of hands with no land at all. Choosing the
+  best cards to put back for a given objective is
+  [#63](https://github.com/cramt/progress-engine/issues/63).
+- **Free mulligans, Serum Powder, Commander's old rule.** The depths are a
+  sum, so a free mulligan is a shift in them rather than a new mechanism; it is
+  not built.
 
 ### How many, not just how often
 

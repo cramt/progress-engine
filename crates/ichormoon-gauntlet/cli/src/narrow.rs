@@ -59,6 +59,15 @@ pub struct Shared {
     /// here rather than adding a loose palette field keeps "a class that
     /// prices spells prices lands too" a thing the type says.
     pub casting: Option<Casting>,
+    /// Every query the declared mulligan reads, its keep rule and its
+    /// bottoming list. `None` when the file declared none.
+    ///
+    /// Kept by every class unconditionally, and it is the cheapest of the
+    /// four: which opener was kept and what went back from it decide every
+    /// card in every zone on every turn, so no question can be answered
+    /// without them — but they are a handful of query bits, read once, at
+    /// turn 0.
+    pub mulligan: Option<u64>,
 }
 
 /// What the live effects make every class read.
@@ -240,6 +249,8 @@ impl Need {
         // however little its own clauses care.
         keep |= shared.effects.map_or(0, |e| e.queries);
         keep |= shared.casting.map_or(0, |c| c.queries);
+        // Which hand was kept decides everything after it.
+        keep |= shared.mulligan.unwrap_or(0);
         // The land-drop priority only moves a number where something reads the
         // drops it made, where an effect fires off the land it chose, or where
         // a budget spends what it taps for.
@@ -479,6 +490,7 @@ mod tests {
             effects: None,
             land_drop: Some(bit(3)),
             casting: None,
+            mulligan: None,
         };
         let classes = partition(
             &reads_of(
@@ -526,6 +538,7 @@ mod tests {
             }),
             land_drop: Some(bit(11)),
             casting: None,
+            mulligan: None,
         };
         let classes = partition(
             &reads_of(
@@ -548,6 +561,7 @@ mod tests {
             effects: None,
             land_drop: Some(bit(11)),
             casting: None,
+            mulligan: None,
         };
         let classes = partition(
             &reads_of(
@@ -576,6 +590,7 @@ mod tests {
                 queries: bit(7),
                 demands: Palette::from_letters(["U"]),
             }),
+            mulligan: None,
         };
         let classes = partition(
             &reads_of(
@@ -608,6 +623,7 @@ mod tests {
                 queries: bit(7),
                 demands: Palette::from_letters(["U"]),
             }),
+            mulligan: None,
         };
         let classes = partition(
             &reads_of(
@@ -623,6 +639,43 @@ mod tests {
             classes[0].mana,
             LandDetail::Pips(Palette::from_letters(["UB"]))
         );
+    }
+
+    #[test]
+    fn a_mulligan_is_kept_by_every_class_and_keeps_the_opener() {
+        // Which seven was kept, and what went back from it, decides every
+        // count on every turn — so a class about turn 5 alone still reads the
+        // mulligan's queries, and still sees the opener as its own
+        // checkpoint, because the keep decision is made there.
+        let shared = Shared {
+            mulligan: Some(bit(4) | bit(5)),
+            ..Shared::default()
+        };
+        let classes = partition(
+            &reads_of(
+                r#"
+                [[criterion]]
+                name = "loam by five"
+                require = [{ turn = 5, query = 'name:"Life from the Loam"', min = 1 }]
+                "#,
+            ),
+            &shared,
+        );
+        assert_eq!(classes[0].keep, bit(0) | bit(4) | bit(5));
+        assert_eq!(classes[0].reading, Reading::Cumulative);
+        let policy = gauntlet_criteria::MulliganPolicy::new(Vec::new(), Vec::new(), 5);
+        let full = Schedule::build(
+            5,
+            false,
+            Vec::new(),
+            Policies {
+                mulligan: Some(policy),
+                ..Policies::default()
+            },
+        );
+        // The seven on its own, then the four draws after it merged: the draws
+        // still collapse, and the opener does not.
+        assert_eq!(classes[0].schedule(&full).gaps(), &[7, 0, 0, 0, 0, 4]);
     }
 
     #[test]

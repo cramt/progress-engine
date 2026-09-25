@@ -1732,3 +1732,141 @@ fn a_malformed_file_names_the_line_and_shows_it() {
     ));
     assert!(typed.contains("line 7:"), "{typed}");
 }
+
+// --- [mulligan] (#7) ---------------------------------------------------------
+
+#[test]
+fn a_mulligan_is_read_as_written() {
+    let criteria = parse(&format!(
+        r#"
+        [mulligan]
+        keep = [
+          {{ query = "t:land", min = 2, max = 5 }},
+          {{ query = 'name:"Life from the Loam"', min = 1 }},
+          {{ query = "mv>=5", max = 2 }},
+        ]
+        bottom = ["t:land", "mv>=5"]
+        down_to = 5
+        {ONE_CLAUSE}"#
+    ));
+    let mulligan = criteria.mulligan().expect("declared");
+    assert_eq!(mulligan.down_to, 5);
+    assert_eq!(mulligan.bottom, vec!["t:land", "mv>=5"]);
+    let keep: Vec<(&str, u32, Option<u32>)> = mulligan
+        .keep
+        .iter()
+        .map(|k| (k.query.as_str(), k.min, k.max))
+        .collect();
+    assert_eq!(
+        keep,
+        vec![
+            ("t:land", 2, Some(5)),
+            ("name:\"Life from the Loam\"", 1, None),
+            ("mv>=5", 0, Some(2)),
+        ]
+    );
+    // And a file that declares none keeps every seven.
+    assert!(parse(ONE_CLAUSE).mulligan().is_none());
+}
+
+#[test]
+fn the_keep_rule_may_be_written_as_tables() {
+    let criteria = parse(&format!(
+        r#"
+        [mulligan]
+        bottom = ["t:land"]
+        down_to = 6
+
+        [[mulligan.keep]]
+        query = "t:land"
+        min = 2
+        {ONE_CLAUSE}"#
+    ));
+    assert_eq!(criteria.mulligan().expect("declared").keep.len(), 1);
+}
+
+#[test]
+fn every_part_of_a_mulligan_is_required() {
+    // Each of these would be the tool choosing how the pilot plays: no rule
+    // keeps every seven, no list puts back cards nobody chose, and no floor
+    // lets a rule no hand passes mulligan into nothing.
+    assert!(matches!(
+        refuse(&format!(
+            "[mulligan]\nbottom = ['t:land']\ndown_to = 5\n{ONE_CLAUSE}"
+        )),
+        ErrorKind::KeepsEverything
+    ));
+    let no_bottom = refuse(&format!(
+        "[mulligan]\nkeep = [{{ query = 't:land', min = 2 }}]\ndown_to = 5\n{ONE_CLAUSE}"
+    ));
+    assert!(
+        matches!(&no_bottom, ErrorKind::Missing { key: "bottom", .. }),
+        "{no_bottom}"
+    );
+    let no_floor = refuse(&format!(
+        "[mulligan]\nkeep = [{{ query = 't:land', min = 2 }}]\nbottom = ['t:land']\n{ONE_CLAUSE}"
+    ));
+    assert!(
+        matches!(&no_floor, ErrorKind::Missing { key: "down_to", .. }),
+        "{no_floor}"
+    );
+}
+
+#[test]
+fn a_mulligan_that_cannot_mean_anything_is_refused() {
+    for down_to in [0, 7, 8, -1] {
+        let refused = refuse(&format!(
+            "[mulligan]\nkeep = [{{ query = 't:land', min = 2 }}]\nbottom = ['t:land']\n\
+             down_to = {down_to}\n{ONE_CLAUSE}"
+        ));
+        assert!(
+            matches!(refused, ErrorKind::BadDownTo { .. }),
+            "down_to = {down_to}: {refused}"
+        );
+    }
+    let unbounded = refuse(&format!(
+        "[mulligan]\nkeep = [{{ query = 't:land' }}]\nbottom = ['t:land']\ndown_to = 5\n\
+         {ONE_CLAUSE}"
+    ));
+    assert!(
+        matches!(unbounded, ErrorKind::NoBounds { .. }),
+        "{unbounded}"
+    );
+    let empty = refuse(&format!(
+        "[mulligan]\nkeep = [{{ query = 't:land', min = 5, max = 2 }}]\nbottom = ['t:land']\n\
+         down_to = 5\n{ONE_CLAUSE}"
+    ));
+    assert!(matches!(empty, ErrorKind::EmptyRange { .. }), "{empty}");
+    let repeated = refuse(&format!(
+        "[mulligan]\nkeep = [{{ query = 't:land', min = 2 }}]\nbottom = ['t:land', 't:land']\n\
+         down_to = 5\n{ONE_CLAUSE}"
+    ));
+    assert!(
+        matches!(
+            &repeated,
+            ErrorKind::RepeatedPreference { key: "bottom", .. }
+        ),
+        "{repeated}"
+    );
+    assert!(
+        repeated.to_string().contains("`bottom` entry 2"),
+        "{repeated}"
+    );
+}
+
+#[test]
+fn a_keep_clause_is_about_the_hand_and_says_no_turn() {
+    // A keep decision is made about the opener, before the first turn, so a
+    // `turn` or a `zone` in it would be a question it cannot ask — refused by
+    // the schema rather than ignored.
+    for extra in ["turn = 0", "zone = 'hand'"] {
+        let refused = refuse(&format!(
+            "[mulligan]\nkeep = [{{ query = 't:land', min = 2, {extra} }}]\n\
+             bottom = ['t:land']\ndown_to = 5\n{ONE_CLAUSE}"
+        ));
+        assert!(
+            matches!(refused, ErrorKind::Malformed(_)),
+            "{extra}: {refused}"
+        );
+    }
+}

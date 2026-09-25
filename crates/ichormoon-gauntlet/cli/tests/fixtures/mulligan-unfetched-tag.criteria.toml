@@ -1,0 +1,12 @@
+# A keep rule naming a tag this index never fetched. `otag:mill` would match
+# nothing, and in a keep rule that throws back every hand that wanted one — a
+# mulligan that reads as brutal where it is only blind. Refused against the
+# clause that wrote it.
+[mulligan]
+keep = [{ query = "t:land", min = 2 }, { query = "otag:mill", min = 1 }]
+bottom = ["t:land"]
+down_to = 5
+
+[[criterion]]
+name = "a land in the opener"
+require = [{ turn = 0, query = "t:land", min = 1 }]
