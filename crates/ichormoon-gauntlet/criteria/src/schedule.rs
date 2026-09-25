@@ -21,6 +21,7 @@
 
 use crate::effect::Effect;
 use crate::policy::{CastingPolicy, LandDropPolicy, MulliganPolicy};
+use crate::strategy::Chosen;
 
 /// The opening hand, before anybody has drawn for turn.
 const OPENING_HAND: u32 = 7;
@@ -41,6 +42,12 @@ pub struct Policies {
     /// was before [#7](https://github.com/cramt/progress-engine/issues/7):
     /// the first seven are kept whatever they hold.
     pub mulligan: Option<MulliganPolicy>,
+    /// A mulligan the tool chose for a weighted objective rather than one the
+    /// pilot declared
+    /// ([#63](https://github.com/cramt/progress-engine/issues/63)). Never
+    /// beside `mulligan`: a run plays one strategy, and a file declaring both
+    /// plays the pilot's and reports the chosen one beside it.
+    pub chosen: Option<Chosen>,
 }
 
 impl Policies {
@@ -223,7 +230,8 @@ impl Schedule {
     /// seven merged into the draws after it is a hand nobody can decide about.
     pub fn narrowed(&self, observed: &[usize], reading: Reading) -> Schedule {
         let with_opener: Vec<usize>;
-        let observed = if self.policies.mulligan.is_some() && !observed.contains(&0) {
+        let decides = self.policies.mulligan.is_some() || self.policies.chosen.is_some();
+        let observed = if decides && !observed.contains(&0) {
             with_opener = std::iter::once(0).chain(observed.iter().copied()).collect();
             &with_opener[..]
         } else {
@@ -289,6 +297,11 @@ impl Schedule {
     /// The declared mulligan, if this run has one.
     pub fn mulligan(&self) -> Option<&MulliganPolicy> {
         self.policies.mulligan.as_ref()
+    }
+
+    /// The mulligan strategy the tool chose, if this run plays one.
+    pub fn chosen(&self) -> Option<&Chosen> {
+        self.policies.chosen.as_ref()
     }
 
     /// Turns this run covers, counting turn 0, the opening hand.

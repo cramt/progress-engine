@@ -3736,3 +3736,138 @@ fn a_mulligan_query_this_index_cannot_answer_is_refused_against_its_clause() {
         "no JSON that could be read as an answer"
     );
 }
+
+// --- optimise (#63) ------------------------------------------------------------
+
+#[test]
+fn a_chosen_mulligan_is_played_and_says_what_it_traded() {
+    let out = run("optimise.criteria.toml");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "{stderr}");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).expect("JSON");
+    let optimised = &json["optimised"];
+    assert_eq!(optimised["played"], true);
+    assert!(json.get("mulligan").is_none(), "no declared rule");
+
+    // Every objective criterion's number is the one the run reports for it,
+    // from two computations that share nothing past the tables: the
+    // optimiser's own forward pass, and the run playing its table.
+    let mut score = 0.0;
+    for o in optimised["objective"].as_array().expect("objective") {
+        let name = o["criterion"].as_str().unwrap();
+        let p = o["probability"].as_f64().unwrap();
+        assert!((p - percent(&json, name) / 100.0).abs() < 1e-4, "{name}");
+        assert!(p <= o["alone"].as_f64().unwrap() + 1e-9, "{name}: {o}");
+        score += o["weight"].as_f64().unwrap() * p;
+    }
+    assert!((optimised["score"].as_f64().unwrap() - score).abs() < 1e-5);
+    // Checked against the keep-your-seven number it improves on.
+    assert!(percent(&json, "commander on turn 2") > 44.29 + 20.0);
+
+    let kept: f64 = optimised["kept"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|k| k["share"].as_f64().unwrap())
+        .sum();
+    assert!((kept - 1.0).abs() < 1e-5, "{kept}");
+    assert_eq!(optimised["thresholds"].as_array().unwrap().len(), 2);
+    // The whole table: every opener the strategy tells apart, once.
+    let openers = optimised["strategy"]["openers"].as_array().unwrap();
+    let dealt: f64 = openers.iter().map(|o| o["share"].as_f64().unwrap()).sum();
+    assert!((dealt - 1.0).abs() < 1e-6, "{dealt}");
+    assert!(openers
+        .iter()
+        .all(|o| o["decisions"].as_array().unwrap().len() == 3));
+    for enumeration in json["enumerations"].as_array().unwrap() {
+        assert_eq!(enumeration["deals"], 3, "{enumeration}");
+    }
+
+    assert!(stderr.contains("chosen for this objective"), "{stderr}");
+    assert!(stderr.contains("[keep 7: 44.29%]"), "{stderr}");
+    assert!(
+        !stderr.contains("keeps whatever seven it is dealt"),
+        "a run that plays a strategy did not keep every seven: {stderr}"
+    );
+}
+
+#[test]
+fn a_chosen_mulligan_the_two_engines_have_to_agree_about() {
+    let exact = run("optimise.criteria.toml");
+    let sampled = run_flags("optimise.criteria.toml", &["--simulate"]);
+    let exact: serde_json::Value = serde_json::from_slice(&exact.stdout).expect("JSON");
+    let sampled: serde_json::Value = serde_json::from_slice(&sampled.stdout).expect("JSON");
+    for (e, s) in exact["criteria"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .zip(sampled["criteria"].as_array().unwrap())
+    {
+        let se = s["standard_error"]
+            .as_f64()
+            .expect("a sampled figure has one");
+        let (pe, ps) = (
+            e["probability"].as_f64().unwrap(),
+            s["probability"].as_f64().unwrap(),
+        );
+        assert!(
+            (pe - ps).abs() < 4.0 * se,
+            "{}: exact {pe}, sampled {ps} ± {se}",
+            e["name"]
+        );
+    }
+}
+
+#[test]
+fn a_chosen_mulligan_beside_a_declared_one_is_reported_not_played() {
+    let beside = run("optimise-beside.criteria.toml");
+    let declared = run("mulligan.criteria.toml");
+    let stderr = String::from_utf8_lossy(&beside.stderr);
+    assert!(beside.status.success(), "{stderr}");
+    let json: serde_json::Value = serde_json::from_slice(&beside.stdout).expect("JSON");
+    let optimised = &json["optimised"];
+    assert_eq!(optimised["played"], false);
+    assert!(
+        json.get("mulligan").is_some(),
+        "the declared rule is played"
+    );
+    let mut declared_score = 0.0;
+    for o in optimised["objective"].as_array().unwrap() {
+        let name = o["criterion"].as_str().unwrap();
+        let d = o["declared"].as_f64().expect("the declared rule's number");
+        assert!((d - percent(&json, name) / 100.0).abs() < 1e-4, "{name}");
+        declared_score += o["weight"].as_f64().unwrap() * d;
+    }
+    assert!((optimised["score_declared"].as_f64().unwrap() - declared_score).abs() < 1e-5);
+    assert!(
+        optimised["score"].as_f64().unwrap() >= declared_score,
+        "the best strategy is at least the declared one"
+    );
+    // The numbers under the declared rule are the declared rule's, whatever
+    // was chosen beside them: the same file without the objective agrees.
+    let declared: serde_json::Value = serde_json::from_slice(&declared.stdout).expect("JSON");
+    assert!(
+        (percent(&json, "turn-1 accelerant") - percent(&declared, "turn-1 accelerant")).abs()
+            < 1e-9
+    );
+    assert!(
+        stderr.contains("beside the rule declared above"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("under the declared rule"), "{stderr}");
+}
+
+#[test]
+fn an_objective_the_exact_engine_cannot_enumerate_is_refused_by_name() {
+    let out = run("optimise-too-wide.criteria.toml");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("`optimise` weighs \"everything at once by turn 6, off a turn-2 land\", which is too wide"),
+        "{stderr}"
+    );
+    assert!(
+        out.stdout.is_empty(),
+        "no JSON that could be read as an answer"
+    );
+}

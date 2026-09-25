@@ -1291,14 +1291,124 @@ Not modelled, and named rather than approximated:
   earlier surveil left on top.
 - **A keep rule that is a disjunction.** `keep` is a conjunction; "a Lantern
   *or* a way to find one" is not writable yet.
-- **Bottoming by what the hand needs.** The list is a fixed priority, so
-  `bottom = ["t:land"]` puts lands back even from a hand with two of them, which
-  is why the floor above keeps 5.2% of hands with no land at all. Choosing the
-  best cards to put back for a given objective is
-  [#63](https://github.com/cramt/progress-engine/issues/63).
+- **Bottoming by what the hand needs, in a declared rule.** The list is a
+  fixed priority, so `bottom = ["t:land"]` puts lands back even from a hand with
+  two of them, which is why the floor above keeps 5.2% of hands with no land at
+  all. A strategy the tool [chooses](#choosing-the-mulligan) puts back whatever
+  serves its objective, hand by hand.
 - **Free mulligans, Serum Powder, Commander's old rule.** The depths are a
   sum, so a free mulligan is a shift in them rather than a new mechanism; it is
   not built.
+
+### Choosing the mulligan
+
+A declared rule is the pilot's strategy. The other question is **what the best
+strategy is**, for the questions a deck is being built to answer, and how much
+better it is than the one declared
+([#63](https://github.com/cramt/progress-engine/issues/63)). "Best" means
+nothing until it says what for, so the file says — criteria by name, and what
+each is worth:
+
+```toml
+[mulligan]
+optimise = { "commander on turn 2" = 3, "keepable opener (2-5 lands)" = 1 }
+down_to = 5
+```
+
+A game scores the weights of the criteria it met, and the strategy maximises the
+expected score. Only the ratios matter: `3 : 1` says a commander on turn 2 is
+worth three games that merely kept a keepable hand. That is taste, so the file
+declares it and the tool does the arithmetic. Someone who wants two things
+*together* writes the conjunction as its own criterion and weighs that.
+
+```
+$ gauntlet test simple-ramp.txt optimise.criteria.toml
+note: every number below is of the hand the mulligan chosen for this objective keeps:
+      1 × "keepable opener (2-5 lands)"
+    + 3 × "commander on turn 2"
+      Expected score 3.3281 of 4.
+      Keep 7 cards scoring at least 2.8794.
+      Keep 6 cards scoring at least 2.1274.
+      A hand of 5 is kept whatever it holds.
+      Cards go back the way that scores best. Ties: ways that score the same are all taken, each card with the chance a uniform choice gives it.
+      Kept at 7 cards 40.16%, 6 cards 24.03%, 5 cards 35.81%.
+                                     chosen   alone
+      "keepable opener (2-5 lands)"   92.65%   99.14%
+      "commander on turn 2"           80.05%   80.05%
+      A strategy values only what this run models: a hand whose strength is a card this
+      tool cannot yet play — a cantrip, a cycling land — is undervalued by it.
+PASS keepable opener (2-5 lands)   92.65%  (needs 70.0%)  [keep 7: 78.97%]
+PASS turn-1 accelerant             82.46%  (needs 35.0%)  [keep 7: 51.04%]
+PASS commander on turn 2           80.05%  (needs 30.0%)  [keep 7: 44.29%]
+     any ramp by turn 3            96.68%  [keep 7: 94.39%]
+```
+
+**It is exact, and it is a threshold per depth.** A kept hand's value is
+linear — each weighted criterion's chance given that hand and what went back —
+and each of those conditionals is the rest of the game dealt from the library
+the hand left, which is the walk the engine already does, split at the opener.
+Under the London mulligan every redraw is a fresh deal, so backward induction
+over the depths is the whole search:
+
+```
+V_floor = E_h[ value(best_bottom(h)) ]
+keep h at depth d  ⇔  value(best_bottom(h)) ≥ V_{d+1}
+V_d     = E_h[ max(value(best_bottom(h)), V_{d+1}) ]
+```
+
+The thresholds printed are the V's: keep a seven worth at least 2.8794 points,
+because that is what mulliganing it is worth. `best_bottom` tries every way of
+putting the cards back, so a land-light hand at six puts a spell back and a
+flooded one puts a land back — the thing a fixed `bottom` list cannot do.
+
+**Every number is under the strategy, not only the ones it was chosen for.**
+*Turn-1 accelerant* was not in the objective and still moved from 51.04% to
+82.46%, because it is dealt the hands the strategy kept
+([#64](https://github.com/cramt/progress-engine/issues/64)). A class reads the
+opener on the join of its own grouping and the strategy's — seven cards, so the
+join is small — and plays the rest of the game on its own grouping, where the
+library is the deck minus that hand. The sampler plays the same table game by
+game and the two engines agree; the optimiser's own number for each objective
+criterion and the run's number for it are two computations, and they agree to
+the last printed digit on both decks and both seats in `decks/`.
+
+**What each weight costs is printed.** Beside each objective criterion is what it
+would get if the strategy served it alone: *keepable opener* gives up 6.5
+points so that the commander line keeps all of its. A weight that does not say
+what its writer meant shows up here first.
+
+**Beside a declared rule, both.** A file with `keep` and `optimise` plays the
+declared rule — it is the pilot's strategy — and reports the chosen one beside
+it, with each objective criterion under both and the gap as a score: on the
+table above, 3.3281 chosen against 2.3024 declared.
+
+**A sampled criterion cannot enter the objective,** and is refused by name. An
+optimum found over sampled conditionals keeps the openers that were lucky in the
+sample and reports a score that is too high, with nothing in the number to say
+so. The Lantern north star is refused this way today. Nor may the optimiser run
+away: pricing every opener and every way of putting back is capped at twenty
+times the enumeration ceiling, and `walked` in the JSON says what it cost.
+
+**The whole strategy is in the JSON** — `optimised.strategy`, every opener the
+strategy tells apart with its chance and, per hand size, whether it is kept, what
+it scores and what goes back — so a reader can check the choice rather than
+trust it.
+
+**Measured on the real decks**, with objectives made of criteria each file
+already answers exactly (the north stars are sampled, so they cannot be weighed
+yet). On `decks/lantern.txt`, routes 1, 2 and 4 weighted 3 : 1 : 1: 6 groups and
+338 openers, 134,469 paths walked on the play and 535,727 on the draw, 1.5s and
+1.7s for the whole file. On `decks/loam.txt`, Loam in hand, the `{1}{G}` control
+and Loam Access with three lands weighted 3 : 1 : 1: 7 groups and 1,253 openers,
+2.0 million paths on the play and 10.2 million on the draw, 5.5s and 11.2s. Both
+strategies mulligan hard — the Lantern one keeps 13.7% of sevens — because
+nothing in either objective charges for a smaller hand. That is what the
+objective said; a criterion like *four cards in hand on turn 5*, weighted, is how
+a file says otherwise.
+
+**A strategy values only what this run models.** A hand whose strength is a card
+this tool cannot yet play — a cantrip, a cycling land — is undervalued by it, and
+every run that chose one says so beside its thresholds.
 
 ### How many, not just how often
 

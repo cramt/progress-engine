@@ -157,6 +157,39 @@ impl Grouping {
             .expect("coarsening names no query the original did not")
     }
 
+    /// Where each of this grouping's groups lands in `coarse`, which has to be
+    /// this grouping coarsened to `keep` and `detail` — or a coarsening of one.
+    ///
+    /// `None` where some group has nowhere to go, which is `coarse` not being
+    /// coarser than this at all. Read by a class that decides something on
+    /// one grouping and answers it on another: a mulligan strategy chooses on
+    /// the openers it can tell apart, and each class plays the rest of the
+    /// game on its own, and the two have to agree which of their groups are
+    /// the same cards.
+    ///
+    /// Sound because every narrowing composes: bits are cleared, never
+    /// renumbered, and a land's palette is only ever intersected, so a group
+    /// coarsened twice lands where it would have landed coarsened once.
+    pub fn projection(
+        &self,
+        coarse: &Grouping,
+        keep: u64,
+        detail: LandDetail,
+    ) -> Option<Vec<usize>> {
+        self.group_masks
+            .iter()
+            .zip(&self.group_mana)
+            .map(|(mask, mana)| {
+                let (mask, mana) = (mask & keep, mana.seen_as(detail));
+                coarse
+                    .group_masks
+                    .iter()
+                    .zip(&coarse.group_mana)
+                    .position(|(m, s)| *m == mask && *s == mana)
+            })
+            .collect()
+    }
+
     /// Total library size.
     pub fn population(&self) -> u32 {
         self.group_sizes.iter().sum()

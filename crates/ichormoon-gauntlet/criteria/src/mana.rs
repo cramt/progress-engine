@@ -226,6 +226,17 @@ pub enum LandDetail {
     Pips(Palette),
 }
 
+impl LandDetail {
+    /// The coarsest detail that sees everything either of these does: two
+    /// classes answered on one grouping have to keep what each of them kept.
+    pub fn join(self, other: LandDetail) -> LandDetail {
+        match (self, other) {
+            (LandDetail::Ignored, detail) | (detail, LandDetail::Ignored) => detail,
+            (LandDetail::Pips(a), LandDetail::Pips(b)) => LandDetail::Pips(a.union(b)),
+        }
+    }
+}
+
 impl ManaSource {
     pub fn is_land(self) -> bool {
         matches!(self, ManaSource::Land { .. })

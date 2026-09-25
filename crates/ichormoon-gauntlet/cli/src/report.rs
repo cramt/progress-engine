@@ -436,6 +436,97 @@ pub struct Breakdown {
     /// The mulligan that decided which hand every number is of, where the
     /// file declared one.
     pub mulligan: Option<MulliganUse>,
+    /// The strategy chosen for the file's objective, where it declared one.
+    pub optimised: Option<OptimisedUse>,
+}
+
+/// The mulligan chosen for a weighted objective, and what it trades (#63).
+///
+/// Everything a reader needs to check the choice rather than trust it: the
+/// objective as written, the score, the threshold at each depth, how often
+/// each hand size is kept, what each objective criterion gets under the
+/// strategy beside what it would get if the strategy served it alone, and the
+/// whole table the strategy is.
+#[derive(Facet)]
+pub struct OptimisedUse {
+    /// Whether this is the strategy every number in the run is played under.
+    /// False where the file declared a rule of its own, which is then the
+    /// one played, and this is reported beside it.
+    pub played: bool,
+    pub objective: Vec<ObjectiveUse>,
+    /// The objective's expected score under the chosen strategy.
+    pub score: f64,
+    /// The same score under the rule the file declared, where it declared
+    /// one — the gap between the pilot's strategy and the best available, as
+    /// a number.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub score_declared: Option<f64>,
+    /// The score a hand needs to be kept at each hand size above the floor.
+    pub thresholds: Vec<Threshold>,
+    pub down_to: u32,
+    /// The share of games kept at each hand size, largest first.
+    pub kept: Vec<KeptAt>,
+    /// Paths walked to price every opener and every way of putting back.
+    pub walked: f64,
+    /// What a tie between ways of putting back was settled by.
+    pub tie_break: &'static str,
+    /// The whole strategy: what it does with every opener it can tell apart.
+    pub strategy: StrategyTable,
+}
+
+/// One criterion of an objective, and what the strategy did to it.
+#[derive(Facet)]
+pub struct ObjectiveUse {
+    pub criterion: String,
+    pub weight: f64,
+    /// Its chance under the chosen strategy.
+    pub probability: f64,
+    /// Its chance under the strategy that would serve it alone.
+    pub alone: f64,
+    /// Its chance under the rule the file declared, where it declared one.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub declared: Option<f64>,
+}
+
+#[derive(Facet)]
+pub struct Threshold {
+    pub cards: u32,
+    /// A hand of this size is kept when it scores at least this.
+    pub keep_at_least: f64,
+}
+
+/// A strategy as a lookup table.
+#[derive(Facet)]
+pub struct StrategyTable {
+    /// What each of the strategy's groups is. An opener below is a count per
+    /// group, in this order.
+    pub groups: Vec<String>,
+    pub openers: Vec<OpenerUse>,
+}
+
+#[derive(Facet)]
+pub struct OpenerUse {
+    pub hand: Vec<u32>,
+    /// The chance of being dealt it.
+    pub share: f64,
+    /// One per hand size, largest first.
+    pub decisions: Vec<DecisionUse>,
+}
+
+#[derive(Facet)]
+pub struct DecisionUse {
+    pub keep: bool,
+    /// What the hand scores, put back the best way.
+    pub value: f64,
+    /// The ways of putting back that score it, as counts per group, and the
+    /// chance each is the one taken.
+    pub bottom: Vec<BottomUse>,
+}
+
+#[derive(Facet)]
+pub struct BottomUse {
+    pub cards: Vec<u32>,
+    pub share: f64,
 }
 
 /// The declared mulligan this run kept its hands by, and what it came to.
@@ -501,6 +592,92 @@ pub struct CastingUse {
     pub then: &'static str,
     /// How a tie inside one entry was settled, stated rather than buried.
     pub tie_break: &'static str,
+}
+
+impl OptimisedUse {
+    fn human(&self) -> String {
+        let mut out = String::new();
+        out.push_str(if self.played {
+            "note: every number below is of the hand the mulligan chosen for this objective \
+             keeps:\n"
+        } else {
+            "note: the best mulligan for this objective, beside the rule declared above, which \
+             the\n      numbers below are still played under:\n"
+        });
+        let terms: Vec<String> = self
+            .objective
+            .iter()
+            .map(|o| format!("{} × {:?}", trim(o.weight), o.criterion))
+            .collect();
+        out.push_str(&format!("      {}\n", terms.join("\n    + ")));
+        let most: f64 = self.objective.iter().map(|o| o.weight).sum();
+        out.push_str(&format!(
+            "      Expected score {:.4} of {}{}.\n",
+            self.score,
+            trim(most),
+            match self.score_declared {
+                Some(d) => format!(", against {d:.4} under the declared rule"),
+                None => String::new(),
+            }
+        ));
+        for t in &self.thresholds {
+            out.push_str(&format!(
+                "      Keep {} cards scoring at least {:.4}.\n",
+                t.cards, t.keep_at_least
+            ));
+        }
+        out.push_str(&format!(
+            "      A hand of {} {}.\n      Cards go back the way that scores best. Ties: {}.\n",
+            self.down_to,
+            gauntlet_criteria::MulliganPolicy::FLOOR,
+            self.tie_break
+        ));
+        let shares: Vec<String> = self
+            .kept
+            .iter()
+            .map(|k| format!("{} cards {:.2}%", k.cards, k.share * 100.0))
+            .collect();
+        out.push_str(&format!("      Kept at {}.\n", shares.join(", ")));
+        let width = self
+            .objective
+            .iter()
+            .map(|o| o.criterion.chars().count())
+            .max()
+            .unwrap_or(0)
+            + 2;
+        out.push_str(&format!(
+            "      {:width$}  chosen   alone{}\n",
+            "",
+            if self.played { "" } else { "  declared" }
+        ));
+        for o in &self.objective {
+            out.push_str(&format!(
+                "      {:width$}  {:>6.2}%  {:>6.2}%{}\n",
+                format!("{:?}", o.criterion),
+                o.probability * 100.0,
+                o.alone * 100.0,
+                match o.declared {
+                    Some(d) => format!("  {:>6.2}%", d * 100.0),
+                    None => String::new(),
+                }
+            ));
+        }
+        out.push_str(
+            "      A strategy values only what this run models: a hand whose strength is a card \
+             this\n      tool cannot yet play — a cantrip, a cycling land — is undervalued by \
+             it.\n",
+        );
+        out
+    }
+}
+
+/// A weight as it was probably written: `3`, not `3.0`.
+fn trim(weight: f64) -> String {
+    if weight.fract() == 0.0 {
+        format!("{weight:.0}")
+    } else {
+        format!("{weight}")
+    }
 }
 
 /// What one answer says about where it came from.
@@ -590,6 +767,9 @@ pub struct Report {
     /// in so many words.
     #[facet(skip_serializing_if = Option::is_none)]
     pub mulligan: Option<MulliganUse>,
+    /// The strategy chosen for the file's objective, where it declared one.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub optimised: Option<OptimisedUse>,
     pub criteria: Vec<CriterionResult>,
     /// Alongside `criteria` rather than merged into it. They answer different
     /// questions in different units, and several things already read `criteria`
@@ -619,6 +799,7 @@ impl Report {
             land_drop,
             casting,
             mulligan,
+            optimised,
         } = breakdown;
         let Scenario {
             on_the_draw,
@@ -720,6 +901,7 @@ impl Report {
             land_drop,
             casting,
             mulligan,
+            optimised,
             criteria: results,
             expectations: expected,
             asserted,
@@ -902,10 +1084,14 @@ impl Report {
                     if m.method == SAMPLED { ", sampled" } else { "" },
                 ));
             }
+            None if self.optimised.as_ref().is_some_and(|o| o.played) => {}
             None => out.push_str(
                 "note: every number below keeps whatever seven it is dealt: this file declares \
                  no\n      [mulligan], so no hand is ever sent back.\n",
             ),
+        }
+        if let Some(o) = &self.optimised {
+            out.push_str(&o.human());
         }
         // An assumption the tool made on the pilot's behalf, which moves
         // numbers and which nobody wrote down. Printed on every run it touched,

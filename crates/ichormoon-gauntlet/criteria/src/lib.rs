@@ -21,6 +21,7 @@ mod grouping;
 pub mod mana;
 mod policy;
 mod schedule;
+mod strategy;
 mod zone;
 
 pub use effect::{Board, Delay, Effect, Fetch, Fetched, Route, Trigger, TriggerError};
@@ -28,6 +29,10 @@ pub use grouping::{Grouping, GroupingError};
 pub use mana::{Cost, CostError, Demand, LandDetail, ManaSource, Palette};
 pub use policy::{CastingPolicy, Keep, LandDropPolicy, MulliganPolicy};
 pub use schedule::{Policies, Reading, Schedule};
+pub use strategy::{
+    optimise, run_chosen, Chosen, Conditionals, Continuation, Decision, Objective, Optimised,
+    Strategy, Table, MAX_OPTIMISE_PATHS,
+};
 pub use zone::{Counted, Reachable, Zone, ZoneError};
 
 use chip_stats::{Distribution, DistributionBuilder, KahanSum, Probability};
@@ -519,6 +524,13 @@ pub fn run_answering<E>(
     answering: &Answering,
     evaluator: &mut impl Evaluator<Error = E>,
 ) -> Result<Outcomes, RunError<E>> {
+    // A chosen strategy reads its openers on a grouping this class may not
+    // tell apart, so it cannot be played from here: `run_chosen` is handed the
+    // run's whole grouping and joins the two.
+    assert!(
+        schedule.chosen().is_none(),
+        "a chosen mulligan strategy is played by run_chosen"
+    );
     let plan = answering.plan();
     let gaps = schedule.gaps();
     let groups = grouping.group_sizes().len();
@@ -721,7 +733,7 @@ fn run_mulligan<E>(
 
 /// The refusals a walk can only reach by walking: an evaluator that failed or
 /// answered the wrong number of questions, and a mass that did not sum to one.
-fn settle<E>(
+pub(crate) fn settle<E>(
     failure: Option<E>,
     wrong_shape: Option<(usize, usize)>,
     plan: Plan,
@@ -749,30 +761,30 @@ fn settle<E>(
 /// One structure answering both halves of the walk, because they are the same
 /// fact asked twice: what this path has taken out of the library, and what it
 /// came to. Two closures could not share the board that knows.
-struct Walking<'b, 'g, V, E> {
-    board: &'b mut Board<'g>,
-    evaluator: &'b mut V,
-    plan: Plan,
-    criteria: &'b [usize],
-    expectations: &'b [usize],
-    totals: &'b mut [KahanSum],
-    histograms: &'b mut [DistributionBuilder],
+pub(crate) struct Walking<'b, 'g, V, E> {
+    pub(crate) board: &'b mut Board<'g>,
+    pub(crate) evaluator: &'b mut V,
+    pub(crate) plan: Plan,
+    pub(crate) criteria: &'b [usize],
+    pub(crate) expectations: &'b [usize],
+    pub(crate) totals: &'b mut [KahanSum],
+    pub(crate) histograms: &'b mut [DistributionBuilder],
     /// Where the keep-your-seven number collects, on the walk that has one.
-    seven: Option<&'b mut [KahanSum]>,
+    pub(crate) seven: Option<&'b mut [KahanSum]>,
     /// What every path's probability is multiplied by before it is added to
     /// an answer: 1 for a plain run, and for a mulligan the chance of having
     /// reached this depth and dealt this opener and put these cards back.
-    weight: f64,
+    pub(crate) weight: f64,
     /// Whether this path's answers count at all. False for a hand the
     /// mulligan throws back, which is walked only for the number beside it.
-    counts: bool,
+    pub(crate) counts: bool,
     /// What a path's probability is multiplied by before it is added to the
     /// mass. The mass is a check on one enumeration, so it is weighted by what
     /// that enumeration dealt and not by the chance of reaching it.
-    mass_weight: f64,
-    mass: &'b mut KahanSum,
-    failure: &'b mut Option<E>,
-    wrong_shape: &'b mut Option<(usize, usize)>,
+    pub(crate) mass_weight: f64,
+    pub(crate) mass: &'b mut KahanSum,
+    pub(crate) failure: &'b mut Option<E>,
+    pub(crate) wrong_shape: &'b mut Option<(usize, usize)>,
 }
 
 impl<V: Evaluator<Error = E>, E> chip_stats::Walk for Walking<'_, '_, V, E> {

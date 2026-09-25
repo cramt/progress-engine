@@ -115,6 +115,11 @@ struct MulliganDef {
     bottom: Option<Vec<String>>,
     // Signed, and narrowed later, for the reason a clause's `turn` is.
     down_to: Option<i64>,
+    /// Criteria by name, and how much each is worth: the objective a chosen
+    /// strategy maximises (#63). A map rather than a list because a weight
+    /// means nothing without the question it weighs, and a question weighed
+    /// twice is not a thing to be able to write.
+    optimise: Option<std::collections::BTreeMap<String, f64>>,
 }
 
 /// One clause of a keep rule, as written.
@@ -448,14 +453,36 @@ pub struct Criteria {
 }
 
 /// A declared mulligan, validated but not yet resolved against any deck.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MulliganDecl {
-    /// Every one of these holds of a hand that is kept.
+    /// Every one of these holds of a hand that is kept. Empty where the file
+    /// declared no rule of its own and asked for one to be chosen.
     pub keep: Vec<KeepDecl>,
-    /// Queries in the order cards go back.
+    /// Queries in the order cards go back. Empty exactly when `keep` is.
     pub bottom: Vec<String>,
     /// The smallest hand gone to, and kept whatever it holds.
     pub down_to: u32,
+    /// The objective a strategy is chosen for, in the order the file declares
+    /// its criteria. Empty where none was asked for.
+    pub optimise: Vec<Weighted>,
+}
+
+impl MulliganDecl {
+    /// Whether the pilot declared a rule of their own. Where they did, that
+    /// is the strategy every number is played under, and a chosen one is
+    /// reported beside it; where they did not, the chosen one is played.
+    pub fn declares_a_rule(&self) -> bool {
+        !self.keep.is_empty()
+    }
+}
+
+/// One criterion in a mulligan's objective, and what it is worth.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Weighted {
+    /// Its position among the file's criteria.
+    pub criterion: usize,
+    pub name: String,
+    pub weight: f64,
 }
 
 /// One clause of a keep rule: at least `min` and at most `max` cards of the
@@ -967,8 +994,8 @@ const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least
                       tables (match, on, look, to_graveyard, fetch, to, after, sacrifice), one \
                       [land_drop] table (prefer), \
                       one [casting] table (prefer) \
-                      and one [mulligan] table (keep, bottom, down_to), whose keep clauses are \
-                      (query, min, max).";
+                      and one [mulligan] table (keep, bottom, down_to, optimise), whose keep \
+                      clauses are (query, min, max).";
 
 #[derive(Debug, Error)]
 pub enum ErrorKind {
@@ -1100,12 +1127,40 @@ pub enum ErrorKind {
     },
     /// A mulligan with nothing to decide by.
     #[error(
-        "[mulligan] has no `keep` clauses, so every seven passes and nothing is ever put back: \
-         the numbers would be keep-your-seven numbers printed under a mulligan's name.\n\
+        "[mulligan] has no `keep` clauses and no `optimise`, so every seven passes and nothing is \
+         ever put back: the numbers would be keep-your-seven numbers printed under a \
+         mulligan's name.\n\
          Write the hands you keep as count clauses, `keep = [{{ query = \"t:land\", min = 2, \
-         max = 5 }}]`, or drop the table"
+         max = 5 }}]`, or ask for the best strategy for some criteria, `optimise = {{ \"<criterion \
+         name>\" = 1 }}`, or drop the table"
     )]
     KeepsEverything,
+    #[error(
+        "[mulligan] has `bottom` and no `keep`, so the list puts cards back from hands nothing \
+         decides to keep.\n\
+         A strategy chosen by `optimise` puts back whatever serves its objective best; a \
+         `bottom` list belongs to a keep rule you declare yourself"
+    )]
+    BottomWithoutKeep,
+    #[error(
+        "[mulligan]: `optimise` names no criteria, so there is nothing to choose a strategy for"
+    )]
+    EmptyObjective,
+    #[error(
+        "[mulligan]: `optimise` weighs {name:?}, which {why}.\n\
+         The objective weighs [[criterion]] tables by name. This file's criteria: {known}"
+    )]
+    UnknownObjective {
+        name: String,
+        why: &'static str,
+        known: String,
+    },
+    #[error(
+        "[mulligan]: `optimise` weighs {name:?} at {weight}, which is not a weight: it must be a \
+         number above zero. Only the ratios matter, so `3` against `1` says one of these games \
+         is worth three of the other"
+    )]
+    BadWeight { name: String, weight: f64 },
     #[error(
         "[mulligan]: `down_to = {down_to}` is not a hand to stop at: it must be a whole number \
          from 1 to 6.\n\
@@ -1508,7 +1563,11 @@ fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
     let effects = effects_of(&file, origin)?;
     let land_drop = land_drop_of(&file)?;
     let casting = casting_of(&file)?;
-    let mulligan = file.mulligan.as_ref().map(mulligan_of).transpose()?;
+    let mulligan = file
+        .mulligan
+        .as_ref()
+        .map(|def| mulligan_of(def, &file))
+        .transpose()?;
 
     let mut vocabulary = Vocabulary::default();
     let mut criteria = Vec::with_capacity(file.criterion.len());
@@ -1657,9 +1716,15 @@ fn casting_of(file: &FileDef) -> Result<Vec<String>, ErrorKind> {
 /// pilot plays and a default for any of them would be the tool making it: no
 /// keep rule keeps every seven, no bottoming list puts back cards nobody
 /// chose, and no floor leaves a rule no hand passes mulliganing into nothing.
-fn mulligan_of(def: &MulliganDef) -> Result<MulliganDecl, ErrorKind> {
+fn mulligan_of(def: &MulliganDef, file: &FileDef) -> Result<MulliganDecl, ErrorKind> {
+    let optimise = objective_of(def.optimise.as_ref(), file)?;
     if def.keep.is_empty() {
-        return Err(ErrorKind::KeepsEverything);
+        if optimise.is_empty() {
+            return Err(ErrorKind::KeepsEverything);
+        }
+        if def.bottom.is_some() {
+            return Err(ErrorKind::BottomWithoutKeep);
+        }
     }
     let mut keep = Vec::with_capacity(def.keep.len());
     for (i, clause) in def.keep.iter().enumerate() {
@@ -1677,6 +1742,7 @@ fn mulligan_of(def: &MulliganDef) -> Result<MulliganDecl, ErrorKind> {
         keep.push(KeepDecl { query, min, max });
     }
     let bottom = match &def.bottom {
+        None if keep.is_empty() => Vec::new(),
         None => {
             return Err(ErrorKind::Missing {
                 at: "[mulligan]".to_string(),
@@ -1698,7 +1764,75 @@ fn mulligan_of(def: &MulliganDef) -> Result<MulliganDecl, ErrorKind> {
         keep,
         bottom,
         down_to: down_to as u32,
+        optimise,
     })
+}
+
+/// The objective a strategy is chosen for, resolved to the file's criteria and
+/// put in the order the file declares them.
+fn objective_of(
+    optimise: Option<&std::collections::BTreeMap<String, f64>>,
+    file: &FileDef,
+) -> Result<Vec<Weighted>, ErrorKind> {
+    let Some(optimise) = optimise else {
+        return Ok(Vec::new());
+    };
+    if optimise.is_empty() {
+        return Err(ErrorKind::EmptyObjective);
+    }
+    let names: Vec<&str> = file
+        .criterion
+        .iter()
+        .filter_map(|c| c.name.as_deref())
+        .collect();
+    let known = || {
+        names
+            .iter()
+            .map(|n| format!("{n:?}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let mut weighted = Vec::with_capacity(optimise.len());
+    for (name, &weight) in optimise {
+        let unknown = |why| ErrorKind::UnknownObjective {
+            name: name.clone(),
+            why,
+            known: known(),
+        };
+        let mut at = file
+            .criterion
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.name.as_deref() == Some(name.as_str()));
+        let criterion = match (at.next(), at.next()) {
+            (Some((i, _)), None) => i,
+            (Some(_), Some(_)) => {
+                return Err(unknown(
+                    "names two criteria, so the weight could be read as either one's",
+                ))
+            }
+            (None, _) if file.expect.iter().any(|e| e.name.as_deref() == Some(name)) => {
+                return Err(unknown(
+                    "is an [[expect]]: an objective scores how often something holds, and an \
+                     expectation counts how many",
+                ))
+            }
+            (None, _) => return Err(unknown("is not the name of any criterion here")),
+        };
+        if !weight.is_finite() || weight <= 0.0 {
+            return Err(ErrorKind::BadWeight {
+                name: name.clone(),
+                weight,
+            });
+        }
+        weighted.push(Weighted {
+            criterion,
+            name: name.clone(),
+            weight,
+        });
+    }
+    weighted.sort_by_key(|w| w.criterion);
+    Ok(weighted)
 }
 
 fn preference_of(

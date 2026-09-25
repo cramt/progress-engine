@@ -148,9 +148,25 @@ pub fn simulate<E>(
     // back what the list says, asks the keep rule, and deals again from the
     // whole library if the rule says no. That is a different computation from
     // the exact engine's sum over depths, which is the point of having two.
-    let deepest = schedule
-        .mulligan()
-        .map_or(0, |m| m.deepest(gaps.first().copied().unwrap_or(0)));
+    let opener = gaps.first().copied().unwrap_or(0);
+    let chosen = schedule.chosen().map(|c| &*c.0);
+    let deepest = match (schedule.mulligan(), chosen) {
+        (Some(declared), _) => declared.deepest(opener),
+        (None, Some(strategy)) => strategy.deepest(),
+        (None, None) => 0,
+    };
+    let decides = schedule.mulligan().is_some() || chosen.is_some();
+    // Where each of this library's groups falls among the ones a chosen
+    // strategy reads its openers on. The strategy's grouping is a coarsening
+    // of whatever this run was handed, or the run is a bug.
+    let to_strategy: Vec<usize> = match chosen {
+        Some(strategy) => strategy
+            .project(grouping)
+            .expect("a chosen strategy reads a coarsening of the run's grouping"),
+        None => Vec::new(),
+    };
+    let mut opener_strategy = vec![0u32; chosen.map_or(0, |s| s.grouping().group_sizes().len())];
+    let mut taken = opener_strategy.clone();
     let mut back = vec![0u32; groups];
     let mut hand = vec![0u32; groups];
     let mut dealt: Vec<usize> = Vec::new();
@@ -185,15 +201,58 @@ pub fn simulate<E>(
                     // The opener has just been dealt: decide about it before
                     // anything replays the path, because what went back is what a
                     // tutor later can and cannot find.
-                    if checkpoint == 1 && schedule.mulligan().is_some() {
+                    if checkpoint == 1 && decides {
                         dealt.clear();
                         dealt.extend(deck[..i].iter().map(|&g| g as usize));
-                        board.bottom_in_order(&dealt, depth, &mut back);
-                        board.bottom(&back);
-                        for ((h, c), b) in hand.iter_mut().zip(&cumulative).zip(&back) {
-                            *h = c - b;
+                        match chosen {
+                            None => {
+                                board.bottom_in_order(&dealt, depth, &mut back);
+                                for ((h, c), b) in hand.iter_mut().zip(&cumulative).zip(&back) {
+                                    *h = c - b;
+                                }
+                                kept = depth == deepest || board.keeps(&hand);
+                            }
+                            // The strategy's table, played: read the opener on
+                            // its groups, look the decision up, and where it
+                            // ties between ways of putting back, toss for it
+                            // with the chance the table gives each. Which
+                            // cards of a strategy group go back is the ones
+                            // dealt first, which a shuffle makes uniform.
+                            Some(strategy) => {
+                                opener_strategy.fill(0);
+                                for &g in &dealt {
+                                    opener_strategy[to_strategy[g]] += 1;
+                                }
+                                let decision = strategy.decide(&opener_strategy, depth);
+                                kept = decision.keep;
+                                let toss: f64 = if decision.bottoms.len() > 1 {
+                                    rng.random()
+                                } else {
+                                    0.0
+                                };
+                                let mut left = toss;
+                                let way = decision
+                                    .bottoms
+                                    .iter()
+                                    .find(|(_, q)| {
+                                        left -= q;
+                                        left < 0.0
+                                    })
+                                    .or(decision.bottoms.last())
+                                    .map(|(way, _)| way)
+                                    .expect("a decision has a way to put back");
+                                back.fill(0);
+                                taken.fill(0);
+                                for &g in &dealt {
+                                    let s = to_strategy[g];
+                                    if taken[s] < way[s] {
+                                        taken[s] += 1;
+                                        back[g] += 1;
+                                    }
+                                }
+                            }
                         }
-                        kept = depth == deepest || board.keeps(&hand);
+                        board.bottom(&back);
                         // A hand thrown back after the first is not played on:
                         // nothing about its later turns is asked. The first is
                         // played either way, for the number had it been kept.
@@ -281,7 +340,7 @@ pub fn simulate<E>(
             .into_iter()
             .map(DistributionBuilder::build)
             .collect(),
-        mulligan: schedule.mulligan().map(|_| SampledMulligan {
+        mulligan: decides.then(|| SampledMulligan {
             kept: kept_at
                 .into_iter()
                 .map(|k| f64::from(k) / f64::from(trials))

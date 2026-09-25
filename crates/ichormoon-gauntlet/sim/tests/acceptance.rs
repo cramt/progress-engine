@@ -8,12 +8,14 @@
 
 use std::convert::Infallible;
 
+use gauntlet_criteria::{Answering, Chosen, Conditionals, LandDetail, Objective, Table};
 use gauntlet_criteria::{
     CastingPolicy, Cost, Count, Counted, Delay, Effect, Evaluator, Fetch, Fetched, Grouping, Keep,
     LandDropPolicy, ManaSource, MulliganPolicy, Palette, PathOutcomes, PathView, Plan, Policies,
     Route, Schedule, Trigger, Zone,
 };
 use gauntlet_sim::{mean_standard_error, simulate, standard_error, SimError};
+use std::sync::Arc;
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
 type Tally = Box<dyn FnMut(&PathView<'_>) -> u32>;
@@ -902,5 +904,136 @@ fn a_mulligan_agrees_with_the_exact_engine() {
     );
     for (depth, (e, s)) in mulligan.kept.iter().zip(&sampled_mulligan.kept).enumerate() {
         agree(&format!("kept at depth {depth}"), e.get(), *s);
+    }
+}
+
+#[test]
+fn a_chosen_strategy_agrees_with_the_exact_engine_on_a_class_it_does_not_read() {
+    // The acceptance test for #63 and #64 together. A strategy is chosen for
+    // one question on the grouping that question reads — lands against
+    // everything else — and then a *different* question is answered under it,
+    // on a grouping that cannot see lands at all but can see a card some of
+    // the lands are. The exact engine reads each opener on the join of the
+    // two, lets the strategy decide on its own groups, and spreads what goes
+    // back across the finer ones by a uniform choice; the sampler reads the
+    // opener it dealt and puts back the lands it dealt first. If the spread is
+    // wrong, the second question is where it shows.
+    let full = Grouping::build(
+        q(&["land", "x"]),
+        [(0b11, 5), (0b01, 6), (0b10, 4), (0b00, 15)],
+    )
+    .unwrap();
+    let plain = Schedule::build(2, false, Vec::new(), Policies::default());
+    let with_opener = plain.narrowed(&[0, 2], gauntlet_criteria::Reading::Cumulative);
+    let questions = || {
+        Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(2, 0, Counted::In(Zone::Hand)) >= 3) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(2, 1, Counted::In(Zone::Hand)) >= 1) as Check,
+        ])
+    };
+    let plan = only_criteria(2);
+
+    // The objective's class: lands, and nothing else.
+    let lands = full.coarsened(0b01, LandDetail::Ignored);
+    let objective_answering = Answering::some(plan, vec![0], Vec::new()).unwrap();
+    let mut ev = questions();
+    let mut conditionals = Conditionals::new(
+        &lands,
+        &with_opener,
+        &objective_answering,
+        &mut ev,
+        Table::default(),
+    )
+    .unwrap();
+    conditionals.fill(2).unwrap();
+    let table = conditionals.into_table();
+    let identity: Vec<usize> = (0..lands.group_sizes().len()).collect();
+    let chosen = gauntlet_criteria::optimise(
+        lands.clone(),
+        0b01,
+        LandDetail::Ignored,
+        7,
+        5,
+        &[Objective {
+            weight: 1.0,
+            table: &table,
+            to_class: &identity,
+            class_groups: lands.group_sizes().len(),
+            position: 0,
+        }],
+    );
+    assert!(
+        chosen.strategy.kept()[0] < 0.95,
+        "a strategy that mulligans: {:?}",
+        chosen.strategy.kept()
+    );
+    let strategy = Chosen(Arc::new(chosen.strategy.clone()));
+    let played = Schedule::build(
+        2,
+        false,
+        Vec::new(),
+        Policies {
+            chosen: Some(strategy),
+            ..Policies::default()
+        },
+    );
+
+    // Each question on its own class, as a run would ask it.
+    let mut exact = Vec::new();
+    let mut seven = Vec::new();
+    for (i, keep) in [(0usize, 0b01u64), (1, 0b10)] {
+        let answering = Answering::some(plan, vec![i], Vec::new()).unwrap();
+        let class_schedule = played.narrowed(&[2], gauntlet_criteria::Reading::Cumulative);
+        let out = gauntlet_criteria::run_chosen(
+            &full,
+            keep,
+            LandDetail::Ignored,
+            &class_schedule,
+            &answering,
+            &mut questions(),
+            Table::default(),
+        )
+        .unwrap();
+        exact.push(out.probabilities[0].get());
+        seven.push(out.mulligan.unwrap().seven[0].get());
+    }
+    assert!(
+        (exact[0] - chosen.under[0]).abs() < 1e-12,
+        "the run plays the strategy's own number: {} vs {}",
+        exact[0],
+        chosen.under[0]
+    );
+
+    let sampled = simulate(&full, &played, TRIALS, 23, plan, &mut questions()).unwrap();
+    let mulligan = sampled.mulligan.as_ref().expect("a strategy was played");
+    for i in 0..2 {
+        let se = standard_error(sampled.proportions[i], TRIALS);
+        assert!(
+            (sampled.proportions[i] - exact[i]).abs() < 4.0 * se,
+            "question {i}: sampled {} vs exact {} ({}x SE)",
+            sampled.proportions[i],
+            exact[i],
+            (sampled.proportions[i] - exact[i]).abs() / se
+        );
+        let se = standard_error(mulligan.seven[i], TRIALS);
+        assert!(
+            (mulligan.seven[i] - seven[i]).abs() < 4.0 * se,
+            "question {i}, keep seven: sampled {} vs exact {}",
+            mulligan.seven[i],
+            seven[i]
+        );
+    }
+    for (depth, (e, s)) in chosen
+        .strategy
+        .kept()
+        .iter()
+        .zip(&mulligan.kept)
+        .enumerate()
+    {
+        let se = standard_error(*s, TRIALS);
+        assert!(
+            (e - s).abs() < 4.0 * se.max(1e-6),
+            "kept at depth {depth}: {s} vs {e}"
+        );
     }
 }

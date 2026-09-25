@@ -213,6 +213,26 @@ impl Class {
         }
     }
 
+    /// The grouping bits this class keeps.
+    pub fn keep(&self) -> u64 {
+        self.keep
+    }
+
+    /// How much of what a land makes this class keeps.
+    pub fn mana(&self) -> LandDetail {
+        self.mana
+    }
+
+    /// The shortest schedule that still answers it with the opener as a
+    /// checkpoint of its own, which is what a mulligan decides on.
+    pub fn schedule_with_opener(&self, full: &Schedule) -> Schedule {
+        let mut turns = self.turns.clone();
+        if !turns.contains(&0) {
+            turns.insert(0, 0);
+        }
+        full.narrowed(&turns, self.reading)
+    }
+
     /// The turns whose counts this class reads, and how it reads them.
     pub fn turns(&self) -> &[usize] {
         &self.turns

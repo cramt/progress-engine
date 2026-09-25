@@ -1870,3 +1870,125 @@ fn a_keep_clause_is_about_the_hand_and_says_no_turn() {
         );
     }
 }
+
+// --- optimise (#63) ------------------------------------------------------------
+
+const TWO_CRITERIA: &str = r#"
+[[criterion]]
+name = "a land by turn 1"
+require = [{ turn = 1, query = "t:land", min = 1 }]
+
+[[criterion]]
+name = "two lands by turn 2"
+require = [{ turn = 2, query = "t:land", min = 2 }]
+
+[[expect]]
+name = "lands by turn 2"
+turn = 2
+query = "t:land"
+"#;
+
+#[test]
+fn an_objective_is_read_in_the_order_the_file_declares_its_criteria() {
+    let criteria = parse(&format!(
+        "[mulligan]\noptimise = {{ \"two lands by turn 2\" = 3, \"a land by turn 1\" = 1.5 }}\n\
+         down_to = 5\n{TWO_CRITERIA}"
+    ));
+    let mulligan = criteria.mulligan().expect("declared");
+    assert!(
+        !mulligan.declares_a_rule(),
+        "an objective alone is not a rule"
+    );
+    let objective: Vec<(usize, &str, f64)> = mulligan
+        .optimise
+        .iter()
+        .map(|w| (w.criterion, w.name.as_str(), w.weight))
+        .collect();
+    assert_eq!(
+        objective,
+        vec![
+            (0, "a land by turn 1", 1.5),
+            (1, "two lands by turn 2", 3.0)
+        ]
+    );
+    assert!(mulligan.keep.is_empty() && mulligan.bottom.is_empty());
+}
+
+#[test]
+fn an_objective_beside_a_declared_rule_is_both() {
+    let criteria = parse(&format!(
+        "[mulligan]\nkeep = [{{ query = 't:land', min = 2 }}]\nbottom = ['t:land']\n\
+         optimise = {{ \"a land by turn 1\" = 1 }}\ndown_to = 5\n{TWO_CRITERIA}"
+    ));
+    let mulligan = criteria.mulligan().expect("declared");
+    assert!(mulligan.declares_a_rule());
+    assert_eq!(mulligan.optimise.len(), 1);
+}
+
+#[test]
+fn an_objective_that_cannot_mean_anything_is_refused() {
+    let refused = |optimise: &str| {
+        refuse(&format!(
+            "[mulligan]\noptimise = {optimise}\ndown_to = 5\n{TWO_CRITERIA}"
+        ))
+    };
+    assert!(matches!(refused("{}"), ErrorKind::EmptyObjective));
+    let unknown = refused("{ \"three lands\" = 1 }");
+    assert!(
+        matches!(&unknown, ErrorKind::UnknownObjective { name, .. } if name == "three lands"),
+        "{unknown}"
+    );
+    assert!(
+        unknown.to_string().contains("\"two lands by turn 2\""),
+        "it lists what it would have taken: {unknown}"
+    );
+    let expectation = refused("{ \"lands by turn 2\" = 1 }");
+    assert!(
+        expectation.to_string().contains("is an [[expect]]"),
+        "{expectation}"
+    );
+    for weight in ["0", "-1", "nan"] {
+        let bad = refused(&format!("{{ \"a land by turn 1\" = {weight} }}"));
+        assert!(
+            matches!(bad, ErrorKind::BadWeight { .. }),
+            "{weight}: {bad}"
+        );
+    }
+    // Without a keep rule, a bottoming list has nothing to put back from.
+    let orphan = refuse(&format!(
+        "[mulligan]\nbottom = ['t:land']\noptimise = {{ \"a land by turn 1\" = 1 }}\n\
+         down_to = 5\n{TWO_CRITERIA}"
+    ));
+    assert!(matches!(orphan, ErrorKind::BottomWithoutKeep), "{orphan}");
+    // And a floor is still required: the induction needs a last depth.
+    let floorless = refuse(&format!(
+        "[mulligan]\noptimise = {{ \"a land by turn 1\" = 1 }}\n{TWO_CRITERIA}"
+    ));
+    assert!(
+        matches!(&floorless, ErrorKind::Missing { key: "down_to", .. }),
+        "{floorless}"
+    );
+}
+
+#[test]
+fn a_weight_on_a_name_two_criteria_share_is_refused() {
+    let doubled = refuse(
+        r#"
+        [mulligan]
+        optimise = { "twin" = 1 }
+        down_to = 5
+
+        [[criterion]]
+        name = "twin"
+        require = [{ turn = 1, query = "t:land", min = 1 }]
+
+        [[criterion]]
+        name = "twin"
+        require = [{ turn = 2, query = "t:land", min = 2 }]
+        "#,
+    );
+    assert!(
+        doubled.to_string().contains("names two criteria"),
+        "{doubled}"
+    );
+}

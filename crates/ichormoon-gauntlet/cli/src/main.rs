@@ -12,6 +12,7 @@ mod landdrop;
 mod library;
 mod mulligan;
 mod narrow;
+mod optimise;
 mod report;
 mod sync;
 
@@ -264,8 +265,8 @@ struct Answered {
     answers: report::Answers,
     sampled: Option<report::Sampling>,
     enumerations: Vec<report::Enumeration>,
-    /// How often the declared mulligan kept each hand size, and which engine
-    /// said so. `None` where the file declared no mulligan.
+    /// How often the mulligan kept each hand size, where the sampler
+    /// answered everything and so is the engine that should say.
     kept: Option<(Vec<f64>, &'static str)>,
 }
 
@@ -296,7 +297,7 @@ fn answer(
     schedule: &gauntlet_criteria::Schedule,
     plan: gauntlet_criteria::Plan,
     criteria: &mut gauntlet_toml::Criteria,
-    mulligan_bits: Option<u64>,
+    mut tables: std::collections::HashMap<usize, gauntlet_criteria::Table>,
 ) -> Result<Answered> {
     let mut probabilities: Vec<Option<f64>> = vec![None; plan.criteria];
     let mut distributions: Vec<Option<chip_stats::Distribution>> = vec![None; plan.expectations];
@@ -325,7 +326,7 @@ fn answer(
         estimated.criteria.fill(true);
         estimated.expectations.fill(true);
     }
-    for class in classes {
+    for (position, class) in classes.iter().enumerate() {
         let answering = class
             .answering(plan)
             .context("a class named a question this file does not hold")?;
@@ -349,16 +350,36 @@ fn answer(
             groups,
             compositions: gauntlet_criteria::compositions(groups, walk.gaps()) as f64,
             method: "exact",
-            deals: walk
-                .mulligan()
-                .map(|policy| policy.deepest(walk.gaps().first().copied().unwrap_or(0)) + 1),
+            deals: match (walk.mulligan(), walk.chosen()) {
+                (Some(policy), _) => {
+                    Some(policy.deepest(walk.gaps().first().copied().unwrap_or(0)) + 1)
+                }
+                (None, Some(chosen)) => Some(chosen.0.deepest() + 1),
+                (None, None) => None,
+            },
         };
         if run.engine == Engine::Sample {
             enumerated.method = "sampled";
             enumerations.push(enumerated);
             continue;
         }
-        match gauntlet_criteria::run_answering(&narrowed, &walk, &answering, criteria) {
+        // A chosen strategy reads its openers on a grouping this class may not
+        // tell apart, so it is played from the run's whole grouping, joined
+        // with the class's own at the opener and nowhere else.
+        let answered = if walk.chosen().is_some() {
+            gauntlet_criteria::run_chosen(
+                grouping,
+                class.keep(),
+                class.mana(),
+                &walk,
+                &answering,
+                criteria,
+                tables.remove(&position).unwrap_or_default(),
+            )
+        } else {
+            gauntlet_criteria::run_answering(&narrowed, &walk, &answering, criteria)
+        };
+        match answered {
             Ok(exact) => {
                 for (&i, p) in answering.criteria().iter().zip(exact.probabilities) {
                     probabilities[i] = Some(p.get());
@@ -429,18 +450,6 @@ fn answer(
             })
         }
     };
-
-    // How often each hand size was kept is a question of its own, and a small
-    // one: it reads the mulligan's queries and the opener, nothing else, so it
-    // is enumerated exactly even where every class it describes was sampled.
-    // Asked separately rather than read off the first class, because every
-    // class answers it identically and the narrowest enumeration that can is
-    // the one that should.
-    if kept.is_none() {
-        if let Some(bits) = mulligan_bits {
-            kept = Some((kept_at(grouping, schedule, bits, plan, criteria)?, "exact"));
-        }
-    }
 
     // A hole here would be a question no class claimed, and it would print as
     // a confident zero. The partition covers every question by construction,
@@ -604,7 +613,9 @@ fn run_test(
     asked.extend(casting.iter().flat_map(|p| p.queries.iter().cloned()));
     // The mulligan next, on the same terms: its queries sit behind everything
     // already asked for, so no bit a clause or another priority holds moves.
-    let mulligan = match criteria.mulligan() {
+    // Only a rule the pilot declared has queries of its own. An objective
+    // names criteria, whose queries the file already asked for.
+    let mulligan = match criteria.mulligan().filter(|m| m.declares_a_rule()) {
         None => None,
         Some(declared) => {
             mulligan::check(declared, &library)?;
@@ -853,15 +864,17 @@ fn run_test(
         .chain(resolved.queries.iter().cloned())
         .collect();
     let grouping = library.grouping_for(&queries, &resolved.marked, mana)?;
-    let schedule = gauntlet_criteria::Schedule::build(
+    let policies = gauntlet_criteria::Policies {
+        land_drop: land_drop.as_ref().map(|p| p.policy.clone()),
+        casting: casting.as_ref().map(|p| p.policy.clone()),
+        mulligan: mulligan.as_ref().map(|m| m.policy.clone()),
+        chosen: None,
+    };
+    let mut schedule = gauntlet_criteria::Schedule::build(
         criteria.horizon(),
         on_the_draw,
         resolved.effects.clone(),
-        gauntlet_criteria::Policies {
-            land_drop: land_drop.as_ref().map(|p| p.policy.clone()),
-            casting: casting.as_ref().map(|p| p.policy.clone()),
-            mulligan: mulligan.as_ref().map(|m| m.policy.clone()),
-        },
+        policies.clone(),
     );
     let plan = criteria.plan();
     // Refused about the run rather than about one of its classes. Narrowing
@@ -909,6 +922,40 @@ fn run_test(
     };
     let classes = narrow::partition(&criteria.reads(), &shared);
 
+    // The strategy an objective asks for is chosen before anything is
+    // answered, because where the file declared no rule of its own it is the
+    // strategy every answer is played under.
+    let declared = criteria.mulligan().cloned();
+    let mut chose = match declared.as_ref().filter(|m| !m.optimise.is_empty()) {
+        None => None,
+        Some(declared) => Some(optimise::choose(
+            declared,
+            &classes,
+            &grouping,
+            &schedule,
+            plan,
+            &mut criteria,
+            &criteria_path.display().to_string(),
+        )?),
+    };
+    if let Some(chose) = chose.as_ref().filter(|_| mulligan.is_none()) {
+        schedule = gauntlet_criteria::Schedule::build(
+            criteria.horizon(),
+            on_the_draw,
+            resolved.effects.clone(),
+            gauntlet_criteria::Policies {
+                chosen: Some(gauntlet_criteria::Chosen(std::sync::Arc::new(
+                    chose.optimised.strategy.clone(),
+                ))),
+                ..policies
+            },
+        );
+    }
+    let tables = match (&mut chose, mulligan.is_none()) {
+        (Some(chose), true) => std::mem::take(&mut chose.tables),
+        _ => std::collections::HashMap::new(),
+    };
+
     let Answered {
         answers,
         sampled,
@@ -925,8 +972,24 @@ fn run_test(
         &schedule,
         plan,
         &mut criteria,
-        mulligan.as_ref().map(|m| m.bits),
+        tables,
     )?;
+    // How often each hand size was kept is a question of its own, and a small
+    // one: it reads the mulligan's queries and the opener, nothing else, so it
+    // is enumerated exactly even where every class it describes was sampled.
+    // Asked separately rather than read off the first class, because every
+    // class answers it identically and the narrowest enumeration that can is
+    // the one that should. A chosen strategy already knows: the optimiser
+    // worked it out on the way to choosing it.
+    let kept = match (kept, &mulligan, &chose) {
+        (Some(sampled), _, _) => Some(sampled),
+        (None, Some(declared), _) => Some((
+            kept_at(&grouping, &schedule, declared.bits, plan, &mut criteria)?,
+            "exact",
+        )),
+        (None, None, Some(chose)) => Some((chose.optimised.strategy.kept().to_vec(), "exact")),
+        (None, None, None) => None,
+    };
 
     // The file's own queries, not the effect library's. A standard library
     // entry that matches nothing is the ordinary case and is not the user's
@@ -1033,6 +1096,9 @@ fn run_test(
                         method,
                     }
                 }),
+            optimised: chose
+                .as_ref()
+                .map(|chose| optimise::report(chose, mulligan.is_none(), &answers)),
         },
         report::Provenance {
             tool_version: env!("CARGO_PKG_VERSION"),

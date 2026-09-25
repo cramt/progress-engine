@@ -6,12 +6,14 @@
 
 use std::convert::Infallible;
 
+use gauntlet_criteria::{Answering, Chosen, Conditionals, Objective, Table};
 use gauntlet_criteria::{
     CastingPolicy, Cost, Count, Counted, Criterion, Delay, Effect, Evaluator, Expectation, Fetch,
     Fetched, Grouping, GroupingError, Keep, LandDetail, LandDropPolicy, ManaSource, MulliganPolicy,
     Palette, PathOutcomes, PathView, Plan, Policies, Route, RunError, Schedule, Trigger, Zone,
     MAX_COUNT,
 };
+use std::sync::Arc;
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
 type Tally = Box<dyn FnMut(&PathView<'_>) -> u32>;
@@ -1410,7 +1412,7 @@ fn the_budget_and_the_gate_answer_hand_twelve_the_same_way() {
         Policies {
             land_drop: Some(land_drop),
             casting: Some(CastingPolicy::new(vec![1])),
-            mulligan: None,
+            ..Policies::default()
         },
     );
     let one = Cost::parse("{1}").unwrap();
@@ -1967,4 +1969,247 @@ fn a_tutor_still_finds_a_card_the_mulligan_put_on_the_bottom() {
     let out = gauntlet_criteria::run(&grouping, &schedule, only_criteria(4), &mut ev).unwrap();
     let p: Vec<f64> = out.probabilities.iter().map(|p| p.get()).collect();
     assert_eq!(p, vec![1.0, 1.0, 1.0, 1.0], "{p:?}");
+}
+
+// --- The best mulligan for an objective (#63) --------------------------------
+
+/// Conditionals for every question of `evaluator`, on one grouping that is
+/// its own class, filled to `deepest`.
+fn filled<V: Evaluator>(
+    grouping: &Grouping,
+    schedule: &Schedule,
+    plan: Plan,
+    evaluator: &mut V,
+    deepest: u32,
+) -> Table
+where
+    V::Error: std::fmt::Debug,
+{
+    let answering = Answering::all(plan);
+    let mut conditionals =
+        Conditionals::new(grouping, schedule, &answering, evaluator, Table::default()).unwrap();
+    conditionals.fill(deepest).unwrap();
+    conditionals.into_table()
+}
+
+fn every_bit(grouping: &Grouping) -> u64 {
+    (0..grouping.queries().len()).fold(0, |b, i| b | 1u64 << i)
+}
+
+#[test]
+fn the_best_mulligan_for_one_question_is_the_number_on_paper() {
+    // The known answer #63 asks for. Six lands and six spells, one question:
+    // three or more lands in the hand kept. Seven from twelve is 792 hands,
+    // and 696 of them hold three lands or more.
+    //
+    // The best way to put cards back is spells first, and a hand with three
+    // lands never has to give one up: at six it has at least four spells to
+    // spare, at five at least three. So at every depth the question holds on
+    // exactly the 696 hands that dealt three lands, a = 696/792, and
+    //
+    //   V_2 = a                    the floor keeps anything
+    //   V_1 = a + (1 - a) V_2
+    //   V_0 = a + (1 - a) V_1
+    //
+    // and the thresholds are V_1 at seven and V_2 at six: a hand is kept
+    // exactly when it scores 1.
+    let grouping = Grouping::build(q(&["land"]), [(0b1, 6), (0, 6)]).unwrap();
+    let schedule = Schedule::plain(&[7]);
+    let question = || {
+        Closures(vec![Box::new(|v: &PathView<'_>| {
+            v.count_at(0, 0, Counted::In(Zone::Hand)) >= 3
+        })])
+    };
+    let table = filled(&grouping, &schedule, only_criteria(1), &mut question(), 2);
+    let identity: Vec<usize> = (0..grouping.group_sizes().len()).collect();
+    let chosen = gauntlet_criteria::optimise(
+        grouping.clone(),
+        every_bit(&grouping),
+        LandDetail::Ignored,
+        7,
+        5,
+        &[Objective {
+            weight: 1.0,
+            table: &table,
+            to_class: &identity,
+            class_groups: grouping.group_sizes().len(),
+            position: 0,
+        }],
+    );
+    let a = 696.0 / 792.0;
+    let v2 = a;
+    let v1 = a + (1.0 - a) * v2;
+    let v0 = a + (1.0 - a) * v1;
+    let strategy = &chosen.strategy;
+    assert!(
+        (strategy.score() - v0).abs() < 1e-12,
+        "{} vs {v0}",
+        strategy.score()
+    );
+    assert_eq!(strategy.thresholds().len(), 2);
+    assert!((strategy.thresholds()[0] - v1).abs() < 1e-12);
+    assert!((strategy.thresholds()[1] - v2).abs() < 1e-12);
+    for (got, want) in strategy
+        .kept()
+        .iter()
+        .zip([a, (1.0 - a) * a, (1.0 - a) * (1.0 - a)])
+    {
+        assert!((got - want).abs() < 1e-12, "{:?}", strategy.kept());
+    }
+    assert!((chosen.under[0] - v0).abs() < 1e-12);
+    assert!(
+        (chosen.alone[0] - v0).abs() < 1e-12,
+        "one question is its own optimum"
+    );
+
+    // Spells go back first: a hand of three lands and four spells, at the
+    // floor, puts two spells back.
+    let decision = strategy.decide(&[3, 4], 2);
+    assert!(decision.keep);
+    assert_eq!(decision.bottoms, vec![(vec![0, 2], 1.0)]);
+    // And at seven a two-land hand goes back.
+    assert!(!strategy.decide(&[2, 5], 0).keep);
+
+    // Played as a run, the question comes out at the strategy's own score.
+    let played = Schedule::plain_with(
+        &[7],
+        Policies {
+            chosen: Some(Chosen(Arc::new(chosen.strategy.clone()))),
+            ..Policies::default()
+        },
+    );
+    let out = gauntlet_criteria::run_chosen(
+        &grouping,
+        every_bit(&grouping),
+        LandDetail::Ignored,
+        &played,
+        &Answering::all(only_criteria(1)),
+        &mut question(),
+        Table::default(),
+    )
+    .unwrap();
+    assert!((out.probabilities[0].get() - v0).abs() < 1e-12);
+    let m = out.mulligan.unwrap();
+    assert!((m.seven[0].get() - a).abs() < 1e-12, "the first seven kept");
+}
+
+#[test]
+fn two_questions_pulling_apart_are_traded_at_their_weights() {
+    // Lands and spells again, and two questions that want opposite hands:
+    // three lands or more kept, and two or fewer. No hand serves both, so the
+    // strategy has to choose, and the weights say how.
+    let grouping = Grouping::build(q(&["land"]), [(0b1, 6), (0, 6)]).unwrap();
+    let schedule = Schedule::plain(&[7, 1]);
+    let questions = || {
+        Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(0, 0, Counted::In(Zone::Hand)) >= 3) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(0, 0, Counted::In(Zone::Hand)) <= 2) as Check,
+        ])
+    };
+    let table = filled(&grouping, &schedule, only_criteria(2), &mut questions(), 2);
+    let identity: Vec<usize> = (0..grouping.group_sizes().len()).collect();
+    let objective = |w0: f64, w1: f64| {
+        gauntlet_criteria::optimise(
+            grouping.clone(),
+            every_bit(&grouping),
+            LandDetail::Ignored,
+            7,
+            5,
+            &[
+                Objective {
+                    weight: w0,
+                    table: &table,
+                    to_class: &identity,
+                    class_groups: 2,
+                    position: 0,
+                },
+                Objective {
+                    weight: w1,
+                    table: &table,
+                    to_class: &identity,
+                    class_groups: 2,
+                    position: 1,
+                },
+            ],
+        )
+    };
+    let even = objective(1.0, 1.0);
+    // The score is the weighted sum of the numbers under the strategy.
+    let score = even.under[0] + even.under[1];
+    assert!((even.strategy.score() - score).abs() < 1e-12);
+    // And neither question does better under a strategy serving both than
+    // under the one serving it alone.
+    for k in 0..2 {
+        assert!(
+            even.under[k] <= even.alone[k] + 1e-12,
+            "{k}: {:?} {:?}",
+            even.under,
+            even.alone
+        );
+    }
+    // Weighting one question up moves its number up, never down.
+    let lands = objective(10.0, 1.0);
+    assert!(lands.under[0] >= even.under[0] - 1e-12);
+    assert!(lands.under[1] <= even.under[1] + 1e-12);
+}
+
+#[test]
+fn no_declared_rule_beats_the_chosen_strategy_on_its_own_objective() {
+    // The optimum is an optimum: every declared keep rule is one strategy
+    // among the ones the induction searched, so none can score higher.
+    let grouping = Grouping::build(q(&["land", "ramp"]), [(0b01, 7), (0b10, 3), (0, 8)]).unwrap();
+    let schedule = Schedule::plain(&[7, 1, 1]);
+    let questions = || {
+        Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(2, 0, Counted::In(Zone::Hand)) >= 3) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(1, 1, Counted::In(Zone::Hand)) >= 1) as Check,
+        ])
+    };
+    let table = filled(&grouping, &schedule, only_criteria(2), &mut questions(), 2);
+    let identity: Vec<usize> = (0..grouping.group_sizes().len()).collect();
+    let weights = [2.0, 1.0];
+    let chosen = gauntlet_criteria::optimise(
+        grouping.clone(),
+        every_bit(&grouping),
+        LandDetail::Ignored,
+        7,
+        5,
+        &[0, 1].map(|k| Objective {
+            weight: weights[k],
+            table: &table,
+            to_class: &identity,
+            class_groups: 3,
+            position: k,
+        }),
+    );
+    for (min, max, bottom) in [(2, 5, 0), (1, 7, 1), (3, 4, 0), (0, 7, 0), (2, 3, 1)] {
+        let declared = Schedule::plain_with(
+            &[7, 1, 1],
+            Policies {
+                mulligan: Some(MulliganPolicy::new(
+                    vec![Keep {
+                        query: 0,
+                        min,
+                        max: Some(max),
+                    }],
+                    vec![bottom],
+                    5,
+                )),
+                ..Policies::default()
+            },
+        );
+        let out = gauntlet_criteria::run(&grouping, &declared, only_criteria(2), &mut questions())
+            .unwrap();
+        let score: f64 = out
+            .probabilities
+            .iter()
+            .zip(weights)
+            .map(|(p, w)| p.get() * w)
+            .sum();
+        assert!(
+            score <= chosen.strategy.score() + 1e-12,
+            "keep {min}..={max} bottoming {bottom} scores {score}, the optimum {}",
+            chosen.strategy.score()
+        );
+    }
 }

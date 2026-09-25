@@ -667,6 +667,22 @@ through the front door.
   with none keeps every seven, exactly as before, and says so above its numbers:
   a default that moved no number in this repository is kept, and a default that
   goes unmentioned is not.
+- **The best mulligan for a weighted objective is chosen exactly**
+  ([#63](https://github.com/cramt/progress-engine/issues/63)) — shipped, as
+  `[mulligan] optimise = { "<criterion>" = weight, ... }`. The weights are the
+  file's, because "best" is taste; the tool does the arithmetic, which is
+  backward induction over the depths on each criterion's exact conditional given
+  the kept hand, and prints a threshold per depth, the kept shares, and each
+  weighted criterion beside what it would get optimised alone. A criterion the
+  exact engine cannot enumerate is refused from an objective by name rather than
+  optimised over a sample.
+- **Every number is played under the run's strategy, declared or chosen**
+  ([#64](https://github.com/cramt/progress-engine/issues/64)) — shipped. A
+  criterion outside the objective is still dealt the hands the strategy kept, so
+  its number is a consequence of the strategy and is judged under it; a class
+  reads the opener on the join of its grouping and the strategy's and plays the
+  rest on its own. Where a file declares a rule *and* an objective, the rule is
+  played and the chosen strategy is reported beside it with the gap as a score.
 - The effect library ships, autoloads as a prelude, and is keyed on queries
   ([#43](https://github.com/cramt/progress-engine/issues/43)) — shipped.
 - Overlapping effects resolve last-wins, per card — shipped.
@@ -769,9 +785,9 @@ through the front door.
 - Which mulligan the north-star files declare. The feature ships; the keep rule
   is the pilot's, and neither file states one yet, so both still answer on a
   kept seven and say so.
-- Choosing the mulligan rather than declaring it — the best keep threshold and
-  the best cards to put back for a weighted set of criteria
-  ([#63](https://github.com/cramt/progress-engine/issues/63)).
+- How to weigh a criterion the exact engine can only estimate. Refused today;
+  an exact lower-bound form of it, or per-opener sampling with an error bar,
+  are the two ways in.
 - Whether the pod matters at all now that the tool is format-agnostic
   ([#22](https://github.com/cramt/progress-engine/issues/22),
   [#23](https://github.com/cramt/progress-engine/issues/23)).

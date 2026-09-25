@@ -12,12 +12,14 @@
 use std::convert::Infallible;
 
 use gauntlet_criteria::mana::Pip;
+use gauntlet_criteria::{Answering, Chosen, Conditionals, LandDetail, Objective, Table};
 use gauntlet_criteria::{
     Cost, Count, Counted, Evaluator, Grouping, Keep, ManaSource, MulliganPolicy, Palette,
     PathOutcomes, PathView, Plan, Policies, Schedule, Zone,
 };
 use proptest::prelude::*;
 use proptest::test_runner::{Config, RngAlgorithm, TestCaseError, TestRng, TestRunner};
+use std::sync::Arc;
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
 type Tally = Box<dyn FnMut(&PathView<'_>) -> u32>;
@@ -822,6 +824,126 @@ fn a_mulligan_that_never_fires_moves_no_number() {
             }
             Ok(())
         })
+        .unwrap();
+}
+
+#[test]
+fn a_chosen_strategy_survives_narrowing_and_beats_every_declared_rule() {
+    // Three claims at once about a strategy chosen for one question, on
+    // questions nobody wrote:
+    //
+    // - played on its own class, the question it was chosen for comes out at
+    //   the optimiser's own number;
+    // - every question comes out the same on its own narrow class as on the
+    //   whole grouping, which is what lets a run answer each class alone;
+    // - no declared rule scores higher on that question, because a declared
+    //   rule is one of the strategies the induction searched.
+    runner(128)
+        .run(
+            &(mulligan_question(), loose_thresholds(), loose_mulligan()),
+            |(q, loose, mulligan)| {
+                let thresholds = resolve(&loose, &q);
+                let plan = only_criteria(thresholds.len());
+                let down_to = mulligan.4;
+                let opener = q.gaps[0];
+                let deepest = opener.saturating_sub(down_to);
+                let target = thresholds[0];
+                let bit = 1u64 << target.query;
+                let plain = Schedule::plain(&q.gaps);
+                let class = q.grouping.coarsened(bit, LandDetail::Ignored);
+                let answering = Answering::some(plan, vec![0], Vec::new()).unwrap();
+                let mut ev = checks(&thresholds);
+                let mut conditionals =
+                    Conditionals::new(&class, &plain, &answering, &mut ev, Table::default())
+                        .map_err(|e| TestCaseError::fail(format!("{q:?}: {e}")))?;
+                conditionals
+                    .fill(deepest)
+                    .map_err(|e| TestCaseError::fail(format!("{q:?}: {e}")))?;
+                let table = conditionals.into_table();
+                let identity: Vec<usize> = (0..class.group_sizes().len()).collect();
+                let chosen = gauntlet_criteria::optimise(
+                    class.clone(),
+                    bit,
+                    LandDetail::Ignored,
+                    opener,
+                    down_to,
+                    &[Objective {
+                        weight: 1.0,
+                        table: &table,
+                        to_class: &identity,
+                        class_groups: class.group_sizes().len(),
+                        position: 0,
+                    }],
+                );
+                let played = Schedule::plain_with(
+                    &q.gaps,
+                    Policies {
+                        chosen: Some(Chosen(Arc::new(chosen.strategy.clone()))),
+                        ..Policies::default()
+                    },
+                );
+                let every = (0..q.queries).fold(0u64, |b, i| b | 1u64 << i);
+                let wide = gauntlet_criteria::run_chosen(
+                    &q.grouping,
+                    every,
+                    LandDetail::Ignored,
+                    &played,
+                    &Answering::all(plan),
+                    &mut checks(&thresholds),
+                    Table::default(),
+                )
+                .map_err(|e| TestCaseError::fail(format!("{q:?}: {e}")))?;
+                prop_assert!(
+                    (wide.probabilities[0].get() - chosen.under[0]).abs() < SAME_ANSWER,
+                    "the question it was chosen for: {} played, {} chosen",
+                    wide.probabilities[0].get(),
+                    chosen.under[0]
+                );
+                for (i, t) in thresholds.iter().enumerate() {
+                    let one = Answering::some(plan, vec![i], Vec::new()).unwrap();
+                    let keep = 1u64 << t.query;
+                    let observed = [t.checkpoint];
+                    let narrow = gauntlet_criteria::run_chosen(
+                        &q.grouping,
+                        keep,
+                        LandDetail::Ignored,
+                        &played.narrowed(&observed, gauntlet_criteria::Reading::Cumulative),
+                        &one,
+                        &mut checks(&thresholds),
+                        Table::default(),
+                    )
+                    .map_err(|e| TestCaseError::fail(format!("{q:?}: {e}")))?;
+                    prop_assert!(
+                        (wide.probabilities[i].get() - narrow.probabilities[0].get()).abs()
+                            < SAME_ANSWER,
+                        "criterion {i}: {} on the whole grouping, {} on its own class",
+                        wide.probabilities[i].get(),
+                        narrow.probabilities[0].get()
+                    );
+                }
+                let declared = Schedule::plain_with(
+                    &q.gaps,
+                    Policies {
+                        mulligan: Some(mulligan_of(mulligan, &q)),
+                        ..Policies::default()
+                    },
+                );
+                let under_rule = gauntlet_criteria::run(
+                    &q.grouping,
+                    &declared,
+                    only_criteria(1),
+                    &mut checks(&thresholds[..1]),
+                )
+                .map_err(|e| TestCaseError::fail(format!("{q:?}: {e}")))?;
+                prop_assert!(
+                    under_rule.probabilities[0].get() <= chosen.strategy.score() + SAME_ANSWER,
+                    "a declared rule scored {} against the optimum {}",
+                    under_rule.probabilities[0].get(),
+                    chosen.strategy.score()
+                );
+                Ok(())
+            },
+        )
         .unwrap();
 }
 
