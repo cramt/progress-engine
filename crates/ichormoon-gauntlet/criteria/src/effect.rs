@@ -111,12 +111,57 @@ pub enum Fetched {
     /// Trinket Mage: the card goes to your hand, where the budget can then
     /// cast it out of the same turn's mana if the line named it.
     Hand,
-    /// A fetchland: the land arrives on the battlefield **in place of** the
-    /// land whose drop fetched it, because that land sacrificed itself to do
-    /// it. Only reachable from [`Trigger::LandDrop`], and only for a priority
-    /// that names lands — the same restriction `zone = "battlefield"` is
-    /// already under, and for the same reason.
+    /// Onto the battlefield, and two cards arrive there this way.
+    ///
+    /// A fetchland: the land arrives **in place of** the land whose drop
+    /// fetched it, because that land sacrificed itself to do it. Only
+    /// reachable from [`Trigger::LandDrop`], and only for a priority that
+    /// names lands — the same restriction `zone = "battlefield"` is already
+    /// under, and for the same reason.
+    ///
+    /// Urza's Saga: a [`Delay`]ed fetch, so the card arrives **beside** the
+    /// land that waited two turns for it, and it is an artifact rather than a
+    /// land. What it may find is the opposite restriction, for the mirror of
+    /// the same reason: a land arriving off a chapter ability would put mana in
+    /// the pool on a turn nothing says whether it entered tapped.
     Battlefield,
+}
+
+/// An effect that waits: it is set up by its trigger and resolves some whole
+/// number of turns later.
+///
+/// Urza's Saga, and it is the only card this was written for. It arrives on a
+/// land drop with a lore counter, gains one after each of your next two draw
+/// steps, and chapter III — two turns after the drop — searches the library.
+/// So the trigger is the land drop, the effect is a [`Fetch`], and the wait is
+/// `turns = 2`.
+///
+/// **It resolves after the draw step and before the land drop**, because a lore
+/// counter goes on as the precombat main phase begins and its chapter ability
+/// resolves before you could play a land into it. The draw is already in hand,
+/// so a card drawn that turn is not in the library for the fetch to find.
+///
+/// Nothing is revealed and nothing branches: a delayed fetch is the same
+/// subtraction from a named group an immediate one is, taken on a later turn.
+/// Which is why this stays exact, and why a delayed **look** is refused — that
+/// would need a checkpoint on a turn the schedule has no way to know the
+/// effect fires on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Delay {
+    /// Whole turns between the trigger and the effect. Never zero: an effect
+    /// that waits no turns is an effect with no `Delay`.
+    pub turns: u32,
+    /// Whether the card that set this up leaves the battlefield when it
+    /// resolves. A Saga is sacrificed after its last chapter.
+    ///
+    /// It leaves at the end of the turn it resolves on, in the sense that
+    /// matters here: its mana is still that turn's, because a Saga's chapter
+    /// ability waits on the stack while you tap it, and mana made in the main
+    /// phase stays in the pool for the rest of it. From the next turn on it is
+    /// not there to tap. It is not counted in the graveyard, which is the same
+    /// stance a cracked fetchland takes: a card that left play is not counted
+    /// anywhere a criterion asks about, rather than somewhere plausible.
+    pub sacrifice: bool,
 }
 
 impl std::fmt::Display for Trigger {
@@ -212,6 +257,8 @@ pub struct Effect {
     pub route: Route,
     /// What this goes and gets out of the library, if anything.
     pub fetch: Option<Fetch>,
+    /// How long it waits after its trigger, if it waits at all.
+    pub delay: Option<Delay>,
 }
 
 /// The spells of a run whose file declared which ones to cast.
@@ -350,6 +397,14 @@ pub struct Board<'a> {
     live_played: Vec<u32>,
     live_hand: Vec<u32>,
     live_yard: Vec<u32>,
+    /// Delayed effects this path has set up and not yet resolved: the turn each
+    /// one fires on, the effect, and the group of the card that set it up.
+    /// Scratch, reused.
+    pending: Vec<(usize, usize, usize)>,
+    /// `[turn][group]`: lands a delayed effect sacrificed on that turn. Off the
+    /// battlefield by the end of it, and still tapped for mana during it, so
+    /// the pool reads this back in and no zone count does.
+    sacrificed: Vec<Vec<u32>>,
     /// What each land group makes, parallel to `land_groups`. Fixed for the
     /// whole run: how many are available moves with the path, what they produce
     /// does not.
@@ -518,6 +573,8 @@ impl<'a> Board<'a> {
             live_played: vec![0; groups],
             live_hand: vec![0; groups],
             live_yard: vec![0; groups],
+            pending: Vec::new(),
+            sacrificed: vec![vec![0; groups]; turns],
         }
     }
 
@@ -560,6 +617,7 @@ impl<'a> Board<'a> {
         self.removed.fill(0);
         self.live_landed.fill(0);
         self.drop_at.fill(None);
+        self.pending.clear();
         if let Some(casting) = &mut self.casting {
             casting.live_cast.fill(0);
         }
@@ -610,6 +668,11 @@ impl<'a> Board<'a> {
             match turn.checked_sub(1) {
                 None => self.drops[turn] = 0,
                 Some(previous) if self.declared.is_some() => {
+                    // Whatever an earlier drop set up for this turn resolves
+                    // first: a chapter ability goes on the stack as the main
+                    // phase begins, before the land it could be played beside.
+                    self.sacrificed[turn].fill(0);
+                    self.resolve_pending(turn);
                     let chosen = self.declared_drop();
                     // What is standing there when the turn is over, which is
                     // the land you played unless it went and got another one
@@ -618,7 +681,12 @@ impl<'a> Board<'a> {
                     if let Some(group) = chosen {
                         self.live_played[group] += 1;
                         if let Some(effect) = self.group_effect[group] {
-                            if effects[effect].trigger == Trigger::LandDrop {
+                            if let (Trigger::LandDrop, Some(delay)) =
+                                (effects[effect].trigger, effects[effect].delay)
+                            {
+                                self.pending
+                                    .push((turn + delay.turns as usize, effect, group));
+                            } else if effects[effect].trigger == Trigger::LandDrop {
                                 self.look(effect, effects[effect].look);
                                 if let Some((got, to)) = self.fetch(effect) {
                                     match to {
@@ -743,6 +811,41 @@ impl<'a> Board<'a> {
             casting.spent[turn] = spent;
         }
         self.casting = Some(casting);
+    }
+
+    /// Resolve every delayed effect set up to fire on `turn`, in the order the
+    /// drops that set them up were made.
+    ///
+    /// A delayed fetch puts its card **beside** the land that waited for it
+    /// rather than in its place: the Saga was on the battlefield for two turns
+    /// making mana, which a fetchland never is. Whether that land then leaves
+    /// is its [`Delay::sacrifice`].
+    fn resolve_pending(&mut self, turn: usize) {
+        let mut i = 0;
+        while i < self.pending.len() {
+            let (fires, effect, source) = self.pending[i];
+            if fires != turn {
+                i += 1;
+                continue;
+            }
+            self.pending.remove(i);
+            if let Some((got, to)) = self.fetch(effect) {
+                match to {
+                    Fetched::Hand => self.live_hand[got] += 1,
+                    Fetched::Battlefield => {
+                        self.live_field[got] += 1;
+                        self.live_landed[got] += 1;
+                    }
+                }
+            }
+            if self.schedule.effects()[effect]
+                .delay
+                .is_some_and(|d| d.sacrifice)
+            {
+                self.live_field[source] -= 1;
+                self.sacrificed[turn][source] += 1;
+            }
+        }
     }
 
     /// Resolve the tutor on a spell that has just been cast, if it carries
@@ -1074,8 +1177,15 @@ impl<'a> Board<'a> {
             // played, so `counts` was written with that land in it. The walk
             // records the drop before anything reads it, which is the
             // invariant this subtraction rests on.
-            let usable =
-                |slot: usize| counts[self.land_groups[slot]] - u32::from(tapped_now == Some(slot));
+            //
+            // A land sacrificed this turn is added back: it is gone by the end
+            // of the turn, which is what `counts` records, and it was tapped
+            // before it went, which is what the pool is.
+            let sacrificed = &self.sacrificed[turn];
+            let usable = |slot: usize| {
+                let group = self.land_groups[slot];
+                counts[group] + sacrificed[group] - u32::from(tapped_now == Some(slot))
+            };
             return cost.payable(&self.pool, usable, Constraint::Anything);
         }
         let (Some(previous), Some(hand)) = (turn.checked_sub(1), self.hand.get(turn)) else {

@@ -628,7 +628,23 @@ fn run_test(
             ),
             _ => {}
         }
-        if fetch.to == gauntlet_criteria::Fetched::Battlefield {
+        // A delayed fetch is the other way onto the battlefield, and it is
+        // refused the opposite half: a Saga puts an artifact beside itself,
+        // and a land arriving that way is a land nobody knows the tapped-ness
+        // of. It is checked here, before the fetchland's rule below, because
+        // the two are about different cards arriving for different reasons.
+        if fetch.to == gauntlet_criteria::Fetched::Battlefield && effect.delay.is_some() {
+            for query in applied.fetch.iter().flat_map(|(prefer, _)| prefer) {
+                let lands = library.lands_matching(query)?;
+                if lands > 0 {
+                    anyhow::bail!(
+                        "{origin}: effect {:?}: {}",
+                        applied.matches,
+                        report::delayed_fetch_land_refusal(query, lands)
+                    );
+                }
+            }
+        } else if fetch.to == gauntlet_criteria::Fetched::Battlefield {
             for query in applied.fetch.iter().flat_map(|(prefer, _)| prefer) {
                 let spells = library.non_lands_matching(query)?;
                 if !spells.is_empty() {
@@ -659,8 +675,21 @@ fn run_test(
         .mana_question()
         .or_else(|| casting.as_ref().map(|_| table))
     {
+        // What a delayed fetch puts onto the battlefield is on the
+        // battlefield, and counted there: a Lantern off Urza's Saga's third
+        // chapter is the one way a spell arrives that this walk models.
+        let delivered: Vec<&str> = resolved
+            .applied
+            .iter()
+            .filter(|a| a.live && a.delay.is_some())
+            .filter_map(|a| a.fetch.as_ref())
+            .filter(|(_, to)| {
+                *to == gauntlet_toml::fetched_name(gauntlet_criteria::Fetched::Battlefield)
+            })
+            .flat_map(|(prefer, _)| prefer.iter().map(String::as_str))
+            .collect();
         for (query, asked_by) in criteria.battlefield_queries() {
-            let spells = library.non_lands_matching(query)?;
+            let spells = library.stranded_matching(query, &delivered, criteria.casting())?;
             if !spells.is_empty() {
                 anyhow::bail!(
                     "{origin}: {asked_by}: {}",
@@ -708,10 +737,14 @@ fn run_test(
                 .iter()
                 .filter(|a| a.live)
                 .zip(&resolved.effects)
+                // A delayed fetch was refused above if it could find a land,
+                // so what it puts on the battlefield makes no mana and this
+                // question is not about it.
                 .find(|(_, e)| {
-                    e.fetch
-                        .as_ref()
-                        .is_some_and(|f| f.to == gauntlet_criteria::Fetched::Battlefield)
+                    e.delay.is_none()
+                        && e.fetch
+                            .as_ref()
+                            .is_some_and(|f| f.to == gauntlet_criteria::Fetched::Battlefield)
                 })
                 .map(|(a, _)| a.matches.as_str())
             {

@@ -36,7 +36,7 @@
 # ------------------
 #   * Mulligans. Turn 0 is a kept seven.
 #   * The other two routes. Route A is a Lantern in hand and one mana; route C
-#     is Urza's Saga, which needs delayed effects.
+#     is Urza's Saga, which is lantern-route-c.criteria.toml.
 #   * A shockland's 2 life. The run assumes every conditional tapland enters
 #     tapped and names the ten cards it assumed it about, so these are floors.
 #   * Anything about the game but your own draws.

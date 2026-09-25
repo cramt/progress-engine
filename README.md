@@ -449,7 +449,7 @@ otherwise produces a percentage that looks exactly like a real one:
 | a clause with neither `min` nor `max` | it names a query and asks nothing of it |
 | `min = 5, max = 2` | no hand can satisfy it: a confident 0% |
 | `at_least = 70` | a threshold is a share of hands, so 70% is `0.70` |
-| `zone = "battlefield"` on a query matching a spell | a land arrives on a land drop and this engine walks those; a spell has to be cast, and where it goes afterwards is not modelled. `cast` counts the castings, which is the part that is known |
+| `zone = "battlefield"` on a query matching a spell | a land arrives on a land drop and this engine walks those; a spell has to be cast, and where it goes afterwards is not modelled. `cast` counts the castings, which is the part that is known. The one exception is a spell a [delayed effect](#delayed-effects-urzas-saga) puts there and the `[casting]` line never casts, which the walk does count |
 | `zone = "exile"`, or any other zone | a zone that fell through to a default would answer the wrong question |
 | two of `query`, `can_cast` and `cast` in one clause | three different questions, two of which would have to be answered silently |
 | `cast` and `zone` in one clause | a casting is not a zone, and where the spell went afterwards is not modelled |
@@ -466,6 +466,10 @@ otherwise produces a percentage that looks exactly like a real one:
 | `fetch ... to = "battlefield"` on an `on = "cast"` effect, or naming a card that is not a land | a land arriving off a spell enters tapped for Rampant Growth and untapped for Nature's Lore, and no tag separates them; anything that is not a land has to be cast to get there at all |
 | a `fetch` beside a `can_cast`, a `cast` or a `[casting]` table, where it puts a land onto the battlefield | what a fetched land taps for on the turn it arrives is a fact about the spell that fetched it, and `otag:fetchland` holds both kinds |
 | `on` anything else, or `look = 0`, or an effect that neither looks nor fetches | a trigger nothing fires, and an effect that cannot move a number |
+| `after` on an `on = "cast"` effect, or beside a `look` | a delayed look turns over cards on a turn the schedule cannot know in advance, and a cast has nothing in play to wait with |
+| `after = 0`, or more than 100 | an effect that waits no turns is written without `after` |
+| `sacrifice = true` with no `after` | a land that sacrifices itself the moment it is played is a fetchland, and is already written `to = "battlefield"` |
+| a delayed `fetch ... to = "battlefield"` whose priority matches a land | a land arriving off an ability is not a land drop, and whether it enters tapped is a fact no tag carries |
 
 Every one of those messages names the file, the question, and what was wrong
 with it.
@@ -1095,6 +1099,75 @@ rather than a subtraction, and it branches the path the way a draw does. That is
 the expensive half of
 [#18](https://github.com/cramt/progress-engine/issues/18) and it is filed rather
 than approximated.
+
+### Delayed effects: Urza's Saga
+
+Urza's Saga is an Enchantment Land. It arrives on a land drop with a lore
+counter, gains one after each of your next two draw steps, and chapter III
+searches the library for an artifact with mana cost `{0}` or `{1}` and puts it
+onto the battlefield. Then the Saga is sacrificed. For a Lantern deck that is
+the one route to the Lantern that costs no mana at all, and until this shipped
+it was stood in for with *Urza's Saga drawn by turn 3* — an upper bound, because
+chapter counters did not exist.
+
+It is a tutor that waits:
+
+```toml
+[[effect]]
+match = "name:\"Urza's Saga\""
+on = "landdrop"
+after = 2               # whole turns between the drop and the effect
+sacrifice = true        # the Saga leaves the battlefield once it has resolved
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[land_drop]
+prefer = ["name:\"Urza's Saga\"", "t:land"]
+```
+
+**When it fires is the whole of it.** Two turns after the drop, *after* that
+turn's draw step and *before* its land drop, because a lore counter goes on as
+the precombat main phase begins. So a Lantern drawn on the turn chapter III
+resolves is already in your hand and not in the library for it to find — and
+the route is exactly *the Saga in play by turn t, and the Lantern still in the
+library on turn t+2*.
+
+**What it moves.** The Lantern leaves the library and arrives **beside** the
+Saga, not in place of it the way a fetchland's land does. A `zone =
+"battlefield"` question about the Lantern is answered for this reason alone: a
+spell a delayed fetch can put there, and that the `[casting]` line never casts,
+is one this walk counts arriving. Anything else on the battlefield that is not
+a land is still refused.
+
+**What it costs.** `sacrifice = true` takes the Saga off the battlefield at the
+end of the turn it resolves. Its `{C}` is still that turn's — you tap it with
+chapter III on the stack, and the mana stays in the pool for the main phase —
+and no later turn's. It is not counted in the graveyard, which is the stance a
+cracked fetchland takes too.
+
+**Why it stays exact.** Nothing is revealed and nothing branches: a delayed
+fetch is the same subtraction from a named group an immediate one is, taken on
+a later turn. A delayed *look* would need a checkpoint on a turn the schedule
+cannot know, and it is refused.
+
+On `decks/lantern.txt`, exact, in 0.05s:
+
+| | play | draw |
+|---|---|---|
+| Urza's Saga drawn by turn 3 (the old stand-in) | 9.09% | 10.10% |
+| Lantern onto the battlefield by it, turn 3 | 6.49% | 7.34% |
+| ...turn 5 | **8.32%** | **9.14%** |
+
+Checkable by hand — one Saga and one Lantern in 99, so on the play by turn 5 it
+is (7 × 90 + 89 + 88) / (99 × 98). `decks/lantern-route-c.criteria.toml` is
+this question on its own; `decks/lantern.criteria.toml` writes the same route as
+clauses with no effect declared, because declaring a land drop there would
+change what its other routes read, and the two agree to the last digit. HANDS.md
+hand 17 works it on a sixteen-card deck.
+
+What it does not model: the Saga surviving two turns of an opponent, chapter
+III's other targets, and the shuffle — a card an earlier surveil left on top
+stays on top, which the tutors above already do.
 
 ### How many, not just how often
 

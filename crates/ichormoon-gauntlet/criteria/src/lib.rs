@@ -23,7 +23,7 @@ mod policy;
 mod schedule;
 mod zone;
 
-pub use effect::{Board, Effect, Fetch, Fetched, Route, Trigger, TriggerError};
+pub use effect::{Board, Delay, Effect, Fetch, Fetched, Route, Trigger, TriggerError};
 pub use grouping::{Grouping, GroupingError};
 pub use mana::{Cost, CostError, Demand, LandDetail, ManaSource, Palette};
 pub use policy::{CastingPolicy, LandDropPolicy};

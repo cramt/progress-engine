@@ -2729,3 +2729,199 @@ fn a_fetched_land_is_counted_and_not_tapped_for() {
         "names the card it cannot put there: {stderr}"
     );
 }
+
+// --- delayed effects --------------------------------------------------------
+
+fn run_saga(criteria: &str, flags: &[&str]) -> serde_json::Value {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture("hand-saga.txt"))
+        .arg(fixture(criteria))
+        .arg("--index")
+        .arg(fixture("tutor-index.jsonl"))
+        .args(flags)
+        .output()
+        .expect("binary should run");
+    assert!(
+        out.status.success(),
+        "{criteria} {flags:?} should run: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    serde_json::from_slice(&out.stdout).expect("stdout should be JSON")
+}
+
+#[test]
+fn urzas_saga_fetches_on_its_third_chapter_and_the_numbers_are_checkable_by_hand() {
+    // Sixteen cards: one Urza's Saga, one Lantern of Insight, four Islands and
+    // ten Bolts, the Saga played the moment it is held. Chapter III resolves
+    // after the draw step two turns later, and finds the Lantern if the
+    // library still holds it. So "the Lantern is on the battlefield by turn 3"
+    // on the play is the Saga in the opening seven and the Lantern not among
+    // the first nine cards: 7/16 x 7/15 = 20.42%. By turn 5 two more drops can
+    // set it up — the Saga eighth with the Lantern past the tenth, the Saga
+    // ninth with it past the eleventh — for (49 + 6 + 5)/240 = 25.00%.
+    let play = run_saga("saga-on.criteria.toml", &[]);
+    assert_eq!(
+        percent(&play, "Lantern on the battlefield by turn 3"),
+        20.42
+    );
+    assert_eq!(percent(&play, "Lantern on the battlefield by turn 5"), 25.0);
+    // Sacrificed after chapter III: on the battlefield on turn 5 only if it
+    // was played on turn 4 or 5, which on the play is it being the 10th or
+    // 11th card, 2/16.
+    assert_eq!(percent(&play, "Saga on the battlefield on turn 5"), 12.5);
+    // On the draw every turn has seen one card more: 8/16 x 6/15, then
+    // (48 + 5 + 4)/240.
+    let draw = run_saga("saga-on.criteria.toml", &["--draw"]);
+    assert_eq!(percent(&draw, "Lantern on the battlefield by turn 3"), 20.0);
+    assert_eq!(
+        percent(&draw, "Lantern on the battlefield by turn 5"),
+        23.75
+    );
+
+    // And the run says the effect waited, and what it cost.
+    let effect = &play["effects"][0];
+    assert_eq!(effect["after"], 2);
+    assert_eq!(effect["sacrifice"], true);
+    assert_eq!(effect["to"], "battlefield");
+}
+
+#[test]
+fn the_saga_route_written_as_clauses_agrees_with_the_saga_declared() {
+    // The seam lantern.criteria.toml stands on. Its fourth route is written
+    // with no effect at all — the Saga in play by turn t, the Lantern still in
+    // the library on turn t+2 — because a declared land drop would change what
+    // its other routes read. That phrasing and the declared effect are two
+    // routes to one number, and here they have to be the same number exactly,
+    // in both seats.
+    for flags in [&[][..], &["--draw"][..]] {
+        let declared = run_saga("saga-on.criteria.toml", flags);
+        let clauses = run_saga("saga-gates.criteria.toml", flags);
+        let name = "Lantern on the battlefield by turn 5";
+        assert_eq!(
+            percent(&declared, name),
+            percent(&clauses, name),
+            "{flags:?}"
+        );
+    }
+}
+
+#[test]
+fn a_delayed_fetch_agrees_with_the_sampler() {
+    // The third level of agreement, through the real binary: what the exact
+    // walk says a Saga does is what the sampled one says, to within the
+    // sampler's own error.
+    let exact = run_saga("saga-on.criteria.toml", &[]);
+    let sampled = run_saga(
+        "saga-on.criteria.toml",
+        &["--simulate", "--trials", "200000", "--seed", "5"],
+    );
+    for name in [
+        "Lantern on the battlefield by turn 3",
+        "Lantern on the battlefield by turn 5",
+        "Saga on the battlefield on turn 5",
+    ] {
+        let p = percent(&exact, name) / 100.0;
+        let se = (p * (1.0 - p) / 200_000.0).sqrt() * 100.0;
+        let diff = (percent(&sampled, name) - percent(&exact, name)).abs();
+        assert!(diff < 4.0 * se + 0.01, "{name}: {diff} against {se}");
+    }
+}
+
+#[test]
+fn a_battlefield_question_about_a_spell_opens_only_where_a_saga_can_put_it() {
+    // Without the chapter declared nothing in the run puts a Lantern onto the
+    // battlefield, so the question is the old refusal, word for word.
+    let out = run_tutor("hand-saga.txt", "saga-off.criteria.toml");
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("only answerable for lands") && stderr.contains("Lantern of Insight"),
+        "{stderr}"
+    );
+    // And a chapter asked to find a land is refused the other way round: that
+    // land did not arrive on a land drop, so what it taps for is unknown.
+    let out = run_tutor("hand-saga.txt", "saga-fetch-land.criteria.toml");
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("matches 5 lands") && stderr.contains("-t:land"),
+        "{stderr}"
+    );
+}
+
+// --- the committed decks ----------------------------------------------------
+
+/// A file under the workspace's `decks/`, which a clone can reproduce every
+/// number in: the index beside the lists carries all eight oracle tags.
+fn deck_file(name: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../decks")
+        .join(name)
+}
+
+fn run_lantern(criteria: &str, flags: &[&str]) -> serde_json::Value {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(deck_file("lantern.txt"))
+        .arg(deck_file(criteria))
+        .arg("--index")
+        .arg(deck_file("index.jsonl"))
+        .args(flags)
+        .output()
+        .expect("binary should run");
+    // The north star fails its threshold, and says so with the exit code; a
+    // run that could not answer at all prints no JSON, which is what is
+    // checked here.
+    serde_json::from_slice(&out.stdout).unwrap_or_else(|_| {
+        panic!(
+            "{criteria} {flags:?} should answer: {}",
+            String::from_utf8_lossy(&out.stderr)
+        )
+    })
+}
+
+#[test]
+fn the_lantern_decks_saga_route_is_the_same_number_both_ways() {
+    // VISION.md's first north star, route 4, on the real list. The route file
+    // declares Urza's Saga's third chapter as an effect; lantern.criteria.toml
+    // writes the same route as clauses, because declaring a land drop there
+    // would change what its other routes read. Two runs, one number, and it
+    // is checkable by hand: one Saga and one Lantern in 99, so on the play
+    // (7 x 90 + 89 + 88) / (99 x 98) = 8.32%, and on the draw
+    // (8 x 89 + 88 + 87) / (99 x 98) = 9.14%.
+    let declared = "Lantern put onto the battlefield by Urza's Saga, turn 5";
+    let play = run_lantern("lantern-route-c.criteria.toml", &[]);
+    assert_eq!(percent(&play, declared), 8.32);
+    let draw = run_lantern("lantern-route-c.criteria.toml", &["--draw"]);
+    assert_eq!(percent(&draw, declared), 9.14);
+
+    let whole = run_lantern("lantern.criteria.toml", &[]);
+    let clauses = "route 4: Urza's Saga puts it onto the battlefield by turn 5";
+    assert_eq!(
+        whole["criteria"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == clauses)
+            .unwrap()["probability"],
+        play["criteria"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == declared)
+            .unwrap()["probability"],
+        "the clause phrasing and the declared effect disagree"
+    );
+    // And it is exact: a route with no mana in it is narrow enough to walk.
+    let method = |name: &str| {
+        whole["criteria"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == name)
+            .unwrap()["method"]
+            .clone()
+    };
+    assert_eq!(method(clauses), "exact");
+}

@@ -441,6 +441,87 @@ and by turn 2 it has looked either way.
 and at the engine level in `gauntlet-criteria` as this hand written as a seven-card
 library, where the two priorities answer turn 1 with a flat yes and no.
 
+### 17. Urza's Saga, and the Lantern it goes and gets
+
+```
+Urza's Saga
+Island
+(library: Lantern of Insight)
+```
+
+**Turn 1:** play Urza's Saga as your land. It enters with a lore counter:
+chapter I, and it taps for `{C}`.
+
+**Turn 2:** after the draw step, a second counter. Chapter II. Play the Island.
+
+**Turn 3:** after the draw step, a third counter, and chapter III resolves
+**before you could play a land**: search the library for an artifact with mana
+cost `{0}` or `{1}`, put it onto the battlefield. Lantern of Insight is on the
+battlefield, having cost nothing. Then the Saga is sacrificed. You can tap it
+for `{C}` with chapter III on the stack, and that mana stays in the pool for the
+rest of the main phase, so turn 3 has the Saga's mana and turn 4 does not.
+
+**Naive model:** Urza's Saga drawn by turn 3. That was what
+`lantern.criteria.toml` wrote for a year, labelled an upper bound, because
+chapter counters did not exist. It is wrong in the flattering direction: a
+chapter III that looks for a Lantern you already drew finds nothing, and the
+route it stood in for is not a route to anything new.
+
+Three things have to be true of one hand, and each is a separate test:
+
+- **When it fires.** Two turns after the drop, *after* that turn's draw. A
+  Lantern drawn on turn 3 is not in the library for chapter III on turn 3.
+- **What it moves.** The Lantern leaves the library and arrives on the
+  battlefield **beside** the Saga — not in place of it, which is the
+  difference from hand 16's fetchland.
+- **What it costs.** The Saga is gone from the next turn on, and its mana with
+  it.
+
+*Answerable*, as an `[[effect]]` that waits:
+
+```toml
+[[effect]]
+match = "name:\"Urza's Saga\""
+on = "landdrop"
+after = 2
+sacrifice = true
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+```
+
+and **the number is checkable on paper**, which is the test. `hand-saga.txt`
+is sixteen cards — the Saga, a Lantern, four Islands, ten Lightning Bolt —
+with the Saga played the moment it is held:
+
+| | play | draw |
+|---|---|---|
+| Urza's Saga drawn by turn 3 (the naive model) | 56.25% | 62.50% |
+| Lantern on the battlefield by turn 3 | **20.42%** | **20.00%** |
+| Lantern on the battlefield by turn 5 | **25.00%** | **23.75%** |
+| Saga still on the battlefield on turn 5 | 12.50% | 12.50% |
+
+On the play by turn 3 the Saga has to be in the opening seven and the Lantern
+past the ninth card: 7/16 × 7/15 = 20.42%. By turn 5 two more drops can set it
+up — the Saga eighth with the Lantern past the tenth, the Saga ninth with it
+past the eleventh — for (49 + 6 + 5)/240 = 25.00%. The last row is the
+sacrifice: the Saga is still there on turn 5 only if it was played on turn 4
+or 5 — the tenth or eleventh card on the play, the eleventh or twelfth on the
+draw — which is 2/16 in either seat.
+
+**And it is the same number written without the effect.** The Saga in play by
+turn *t* and the Lantern still in the library on turn *t*+2, for *t* = 1, 2, 3,
+as three `any_of` branches: that is how `lantern.criteria.toml` asks it,
+because declaring a land drop there would change what its other routes read.
+The two phrasings agree to the last digit in both seats, on this hand and on
+the real list, where the route reads **8.32%** on the play against the 9.09%
+the naive model reported.
+
+*Answerable today.* Asserted in `crates/ichormoon-gauntlet/cli/tests/cli.rs`
+(the table, the agreement of the two phrasings, and the sampler), in
+`gauntlet-criteria` as a ten-card library where the timing, the fetch and the
+sacrifice are each a flat yes or no, and in `gauntlet-sim` against the exact
+engine.
+
 ---
 
 ## The library is not a fixed population
@@ -569,7 +650,8 @@ case in #37, which is the one hole.*
 ## What these are for
 
 When the features land, these become tests — hands 1, 2, 3, 4, 6, 7, 8, 9, 10,
-11, 12, 13, 14, 15 and 16 already have, which is every one of them but hand 5.
+11, 12, 13, 14, 15, 16 and 17 already have, which is every one of them but
+hand 5.
 Until then they are the specification: if an implementation disagrees with a
 hand here, one of the two is wrong and it is worth knowing which before shipping
 a percentage.

@@ -53,8 +53,9 @@
 #   * Shocklands and MDFC backs that offer a choice. The run assumes the
 #     pessimistic half — enters tapped — and names the ten cards it assumed it
 #     about. Another floor, in the direction this tool prefers.
-#   * Urza's Saga's chapter counters. Route 4 is the only upper bound left
-#     here; see its criterion.
+#   * The Saga surviving to chapter III. Route 4 is exact now that chapter
+#     counters are modelled, but two turns of an opponent's removal on the
+#     Saga, or on the Lantern it found, is interaction; see the next line.
 #   * Anything about the game but your own draws: interaction, an opponent
 #     exiling the Lantern, a counterspell on the tutor.
 
@@ -70,7 +71,8 @@
 #          `lantern-route-b.criteria.toml` prices with the budget.
 # Route 3  A tutor that puts it straight onto the BATTLEFIELD, so the turn it
 #          resolves is the turn the Lantern arrives.
-# Route 4  Urza's Saga, played as a land, chapter III fetching it for free.
+# Route 4  Urza's Saga, played as a land, chapter III fetching it for free
+#          two turns later — if the Lantern is still in the library then.
 #
 # THE TUTOR SET IS NOT THE OWNER'S CATEGORY, AND THAT IS THE POINT. The
 # owner's "Tutor Package" is 11 cards. Seven of them can reach a mana value 1
@@ -195,12 +197,28 @@ at_least = 0.75
     { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
   ]
 
-  # Route 4, and the only branch here that asks for no mana at all: Urza's
+  # Route 4, and the only branches here that ask for no mana at all: Urza's
   # Saga is an Enchantment Land, so it arrives on a land drop, and chapter III
-  # puts the Lantern onto the battlefield for free. See the criterion below
-  # for why this branch is still an upper bound.
+  # — after the draw step two turns later — puts the Lantern onto the
+  # battlefield for free, if the library still holds it. One branch per turn
+  # the Saga can be played on and still reach chapter III by turn 5.
   [[criterion.any_of]]
-  require = [{ turn = 3, query = "name:\"Urza's Saga\"", min = 1 }]
+  require = [
+    { turn = 1, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 },
+    { turn = 3, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 2, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 },
+    { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 3, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
 
 # --- The same routes, the owner's category, uncorrected -------------------
 # STRUCTURALLY IDENTICAL to the criterion above: same routes, same turns, same
@@ -282,7 +300,22 @@ name = "same routes, all 11 Tutor Package cards (OVERCOUNTS)"
   ]
 
   [[criterion.any_of]]
-  require = [{ turn = 3, query = "name:\"Urza's Saga\"", min = 1 }]
+  require = [
+    { turn = 1, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 },
+    { turn = 3, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 2, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 },
+    { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 3, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
 
 # --- The routes on their own, each beside its naive phrasing ---------------
 # The union above is one number and it hides which half of the deck earned it.
@@ -397,17 +430,44 @@ name = "route 3: a tutor that puts it onto the battlefield, cast by turn 5"
 name = "route 3 naive: either of those two drawn by turn 5"
 require = [{ turn = 5, query = 'name:"Tezzeret the Seeker" or name:"Whir of Invention"', min = 1 }]
 
-# Route 4 alone, and it has no naive twin because there is no mana to price:
-# Urza's Saga arrives on a land drop and chapter III costs nothing.
+# Route 4 alone. No mana to price — Urza's Saga arrives on a land drop and
+# chapter III costs nothing — so its naive twin is the other thing the old
+# file got wrong: it stood in for the route with "drawn by turn 3", because
+# delayed effects were not modelled and chapter counters did not exist.
 #
-# STILL AN UPPER BOUND, and the only one left in this file. Three things it
-# assumes and cannot check: that the turn-3 land drop went to the Saga rather
-# than to a colour the rest of the hand needed; that the Saga survives to its
-# third chapter, which is two turns of an opponent's removal; and that chapter
-# counters exist at all, which they do not — delayed effects are not modelled,
-# so "drawn by turn 3" stands in for "ticked to III by turn 5".
+# Now they do, and this is exact. Chapter III resolves after the draw step two
+# turns after the Saga was played, so the route is the Saga in play by turn t
+# and the Lantern still in the library on turn t+2, for t = 1, 2, 3.
+# `lantern-route-c.criteria.toml` asks the same question with the Saga's
+# chapters declared as an effect, and gets the same number to the last digit.
+#
+# Two of the three things the upper bound assumed are gone: chapter III is
+# modelled, and a Saga played for this route is its own line, so it does not
+# need the turn-3 drop to have gone to a colour. The third is interaction —
+# the Saga surviving two turns of an opponent — which nothing here models.
 [[criterion]]
-name = "route 4: Urza's Saga drawn by turn 3 (upper bound)"
+name = "route 4: Urza's Saga puts it onto the battlefield by turn 5"
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 1, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 },
+    { turn = 3, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 2, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 },
+    { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 3, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+[[criterion]]
+name = "route 4 naive: Urza's Saga drawn by turn 3 (the old upper bound)"
 require = [{ turn = 3, query = "name:\"Urza's Saga\"", min = 1 }]
 
 # --- Distributions --------------------------------------------------------
@@ -485,14 +545,14 @@ zone = "battlefield"
 # --- HOW WIDE THESE QUESTIONS ARE, AND WHICH ONE WAS ESTIMATED ------------
 # Read this off the run rather than from here: `jq '.enumerations'`.
 #
-# Four of this file's sixteen questions are over the enumeration ceiling and
-# are SAMPLED, and they are the four written as `any_of`. Every sampled figure
-# is quoted with an error bar and every enumerated one without, and the run
-# names the four on stderr before it prints a number.
+# Four of this file's seventeen questions are over the enumeration ceiling and
+# are SAMPLED, and they are the four whose `any_of` branches price a cost.
+# Every sampled figure is quoted with an error bar and every enumerated one
+# without, and the run names the four on stderr before it prints a number.
 #
 # The north star is 12 groups and 659,902,464 compositions on the play,
 # 7,918,829,568 on the draw — 132 and 1,584 times the 5,000,000 ceiling —
-# because nine of its ten branches read a cost, and pricing a cost splits the
+# because nine of its twelve branches read a cost, and pricing a cost splits the
 # manabase five ways before a single card query splits anything. Each named
 # card is then one more group, and at turn 5 a group costs the fourth power of
 # itself on the play and the fifth on the draw.
@@ -503,10 +563,10 @@ zone = "battlefield"
 # `--exact` to have it refused instead, which is the right flag for anyone who
 # would rather have no answer than an approximate one.
 #
-# The other twelve questions are exact, on both seats, and that is what
+# The other thirteen questions are exact, on both seats, and that is what
 # upstream #31 bought: a class pays only for what it reads, so route 1 is 4
 # groups and 30,720 compositions on the play and 122,880 on the draw, route 4
-# is 2 groups and 10, and the `[[expect]]` tables cost between 8 and 256
+# is 3 groups and 2,916 on the play and 8,748 on the draw, and the `[[expect]]` tables cost between 8 and 256
 # apiece. Sized once for the whole file this would be 16 groups and
 # 11,176,771,584 compositions, and every number in it would be an estimate.
 

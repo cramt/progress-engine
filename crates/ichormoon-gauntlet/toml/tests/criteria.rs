@@ -9,7 +9,7 @@
 //! the same file still agree.
 
 use gauntlet_criteria::{
-    Grouping, Outcomes, Policies, RunError, Schedule, Trigger, Zone, ZoneError,
+    Delay, Grouping, Outcomes, Policies, RunError, Schedule, Trigger, Zone, ZoneError,
 };
 use gauntlet_toml::{
     Criteria, Destination, EffectLibrary, ErrorKind, MAX_TURN, STANDARD_LIBRARY,
@@ -1570,4 +1570,114 @@ fn a_priority_that_arbitrates_nothing_is_refused_by_name() {
         ),
         "{repeated}"
     );
+}
+
+/// One `[[effect]]` table with `extra` keys spliced in, and one criterion so the
+/// file asks something.
+fn saga_with(extra: &str) -> String {
+    format!(
+        r#"
+        [[effect]]
+        match = "name:\"Urza's Saga\""
+        {extra}
+
+        [[criterion]]
+        name = "anything"
+        require = [{{ turn = 0, query = 'cat:"arm"', min = 1 }}]
+        "#
+    )
+}
+
+#[test]
+fn a_saga_is_a_land_drop_that_fetches_two_turns_later() {
+    let criteria = Criteria::parse(
+        &saga_with(
+            r#"on = "landdrop"
+            after = 2
+            sacrifice = true
+            fetch = ['name:"Lantern of Insight"']
+            to = "battlefield""#,
+        ),
+        "saga.toml",
+    )
+    .unwrap();
+    let entry = &criteria.effects().entries()[0];
+    assert_eq!(
+        entry.delay,
+        Some(Delay {
+            turns: 2,
+            sacrifice: true
+        })
+    );
+    assert_eq!(entry.look, 0);
+    // And an effect that does not wait carries no delay at all, rather than a
+    // delay of zero turns.
+    let now = Criteria::parse(
+        &saga_with(
+            r#"on = "landdrop"
+            fetch = ['t:land']
+            to = "battlefield""#,
+        ),
+        "fetchland.toml",
+    )
+    .unwrap();
+    assert_eq!(now.effects().entries()[0].delay, None);
+}
+
+#[test]
+fn what_cannot_wait_is_refused_by_what_it_would_have_needed() {
+    for (keys, why) in [
+        // A delayed look turns over cards on a turn the schedule cannot know.
+        (
+            r#"on = "landdrop"
+            after = 2
+            look = 1
+            to_graveyard = "*""#,
+            "look",
+        ),
+        // A cast has nothing in play to wait with.
+        (
+            r#"on = "cast"
+            after = 2
+            fetch = ['name:"Lantern of Insight"']
+            to = "hand""#,
+            "cast",
+        ),
+    ] {
+        let bad = refuse(&saga_with(keys));
+        assert!(
+            matches!(&bad, ErrorKind::UnmodelledDelay { .. }),
+            "{keys}: {bad:?}"
+        );
+        assert!(bad.to_string().contains(why), "{keys}: {bad}");
+    }
+}
+
+#[test]
+fn a_wait_is_a_number_of_turns_and_a_sacrifice_needs_one() {
+    for after in ["0", "-1", "101"] {
+        let bad = refuse(&saga_with(&format!(
+            r#"on = "landdrop"
+            after = {after}
+            fetch = ['name:"Lantern of Insight"']
+            to = "battlefield""#
+        )));
+        assert!(
+            matches!(&bad, ErrorKind::BadAfter { .. }),
+            "{after}: {bad:?}"
+        );
+    }
+    // A land sacrificed the moment it is played for another is a fetchland,
+    // and a fetchland is already written without `sacrifice`.
+    let bad = refuse(&saga_with(
+        r#"on = "landdrop"
+        sacrifice = true
+        fetch = ['t:land']
+        to = "battlefield""#,
+    ));
+    assert!(
+        matches!(&bad, ErrorKind::SacrificeWithoutDelay { .. }),
+        "{bad:?}"
+    );
+    assert!(bad.to_string().contains("fetchland"), "{bad}");
 }

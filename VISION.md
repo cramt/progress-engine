@@ -29,9 +29,11 @@ made up — if you can write it down, it can be asked about.
 
 ## The north stars
 
-Two real decks. When the tool can answer both, it works. It cannot answer either
-of them yet, and both were briefly recorded here as closer than they were —
-which is the reason this section now names the deck rather than the question.
+Two real decks. When the tool can answer both, it works. It answers the first
+as a floor — every route written down and priced, with named inputs it still
+cannot count — and cannot answer the second, and both were briefly recorded
+here as closer than they were, which is the reason this section now names the
+deck rather than the question.
 
 **Lantern control.** *How often is there a line that resolves Lantern of Insight
 by turn 5?*
@@ -62,8 +64,11 @@ longer blocks this north star. What is left is the mana.
 
 **Urza's Saga is the cheap route and was underrated.** It is an Enchantment
 Land, so it arrives on a land drop, and chapter III puts Lantern onto the
-battlefield for nothing. It needs delayed effects and a tutor destination, and
-no part of the mana model.
+battlefield for nothing. It needed delayed effects and a tutor destination, and
+no part of the mana model — and both ship: an `[[effect]]` with `on =
+"landdrop"`, `after = 2` and `sacrifice = true` fires two turns after the drop,
+after that turn's draw step, and takes the Saga and its mana off the
+battlefield once it has. HANDS.md hand 17 is the route worked out on paper.
 
 The first route is now writable: *Lantern in hand and one mana* is a clause
 asking for the card and a clause asking `can_cast = "{1}"`, which is exactly the
@@ -85,8 +90,17 @@ paid for it. What the fetch moves is the route: *Trinket Mage and a Lantern both
 cast by turn 5* read **0.81%** when nothing tutored, which was the deck drawing
 both halves naturally, and reads **8.05%** now, on the same seven groups and the
 same 4,120,116 compositions. `decks/lantern-route-b.criteria.toml` is that
-question on its own. The third route still needs delayed effects. So the north
-star is two of three routes and is still not met.
+question on its own.
+
+**The third route is now answered exactly, and it was overstated.** For a year
+the file stood in for it with *Urza's Saga drawn by turn 3*, labelled an upper
+bound, because chapter counters did not exist. The route itself — the Saga in
+play by turn *t* and the Lantern still in the library on turn *t*+2, which is
+when chapter III looks — reads **8.32%** on the play and **9.14%** on the draw,
+against **9.09%** and **10.10%** for the stand-in, exactly, and checkable by
+hand. `decks/lantern-route-c.criteria.toml` asks it with the chapter declared
+as an effect and gets the same number to the last digit; a test holds the two
+together.
 
 **And the union of them now has a number.**
 `decks/lantern.criteria.toml` is the whole question — four routes, because the
@@ -102,6 +116,21 @@ route twice: *a tutor that can find the Lantern, drawn by turn 5* is 45.23% and
 battlefield it is 21.09% against 5.55%, which is a factor of four. Those gaps
 are what the file's old hand-written `{ turn = 4, query = "t:land", min = 3 }`
 clauses were standing in for.
+
+**Making the Saga exact did not move the union**, to six digits on the same
+200,000 hands: 0.480885 before and after. The hands the stand-in overstated are
+Sagas whose chapter III looks for a Lantern already drawn, and every one of
+those is a hand route 1 already counts. So the union was never inflated by the
+Saga; the Saga's own number was.
+
+**So every route is priced, and the north star is answered as a floor, not
+met.** The number still leaves out inputs that move it, all named in the file
+and all in the same direction: the deck's seven mana rocks, which `can_cast`
+does not count because only a land arrives without being cast; mulligans; and
+the ten lands that may enter untapped for 2 life, all assumed to enter tapped.
+A deck that fails its 75% target by 27 points as a floor has not been shown to
+pass it. The largest of those — mana rocks, on an artifact deck — is where the
+next honest movement in this number is.
 
 **Life from the Loam.** *How often is Loam in my graveyard by turn 5?* Needs the
 graveyard to be a thing you can ask about, and needs a card routed into the yard
@@ -145,7 +174,7 @@ trigger. It is refused as a replacement draw, and for a pure mill it is not one
 ([#62](https://github.com/cramt/progress-engine/issues/62)).
 
 Both needed the mana model, and that was not obvious until the real lists were
-read. Lantern's three routes can now be written down together, and two of them
+read. Lantern's three routes can now be written down together, and all three
 are priced rather than assumed: a clause can ask whether the mana was there and
 a clause can ask what it was spent on. Loam's self-mill is six spells and a
 dredge trigger, every one of which costs mana or replaces a draw — the mana half

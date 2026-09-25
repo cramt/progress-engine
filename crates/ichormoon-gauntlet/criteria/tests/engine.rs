@@ -7,9 +7,9 @@
 use std::convert::Infallible;
 
 use gauntlet_criteria::{
-    CastingPolicy, Cost, Count, Counted, Criterion, Effect, Evaluator, Expectation, Fetch, Fetched,
-    Grouping, GroupingError, LandDetail, LandDropPolicy, ManaSource, Palette, PathOutcomes,
-    PathView, Plan, Policies, Route, RunError, Schedule, Trigger, Zone, MAX_COUNT,
+    CastingPolicy, Cost, Count, Counted, Criterion, Delay, Effect, Evaluator, Expectation, Fetch,
+    Fetched, Grouping, GroupingError, LandDetail, LandDropPolicy, ManaSource, Palette,
+    PathOutcomes, PathView, Plan, Policies, Route, RunError, Schedule, Trigger, Zone, MAX_COUNT,
 };
 
 type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
@@ -503,6 +503,7 @@ fn surveil(route: Route) -> Effect {
         trigger: Trigger::LandDrop,
         route,
         fetch: None,
+        delay: None,
     }
 }
 
@@ -984,6 +985,7 @@ fn a_live_effect_keeps_every_checkpoint_whatever_it_is_asked() {
         trigger: Trigger::LandDrop,
         route: Route::Everything,
         fetch: None,
+        delay: None,
     }];
     let schedule = Schedule::build(2, false, effects, Policies::default());
     assert_eq!(schedule.gaps(), &[7, 0, 1, 1, 1]);
@@ -1391,6 +1393,7 @@ fn the_budget_and_the_gate_answer_hand_twelve_the_same_way() {
         trigger: Trigger::LandDrop,
         route: Route::Matching(3),
         fetch: None,
+        delay: None,
     };
     let land_drop = LandDropPolicy::new(vec![0], 2);
     let gate = Schedule::build(
@@ -1484,6 +1487,7 @@ fn tutor(to: Fetched) -> Effect {
             prefer: vec![1],
             to,
         }),
+        delay: None,
     }
 }
 
@@ -1625,4 +1629,100 @@ fn a_tutor_that_finds_nothing_fetches_nothing() {
     // nothing left for either tutor to find.
     assert!((out.distributions[0].mean() - 1.0).abs() < 1e-12);
     assert!(out.distributions[1].mean().abs() < 1e-12);
+}
+
+// --- delayed effects --------------------------------------------------------
+
+/// Urza's Saga's third chapter, as an effect: set up by the land drop, two
+/// turns later a fetch onto the battlefield, and the Saga sacrificed.
+fn saga() -> Effect {
+    Effect {
+        matched_by: 3,
+        look: 0,
+        trigger: Trigger::LandDrop,
+        route: Route::Nowhere,
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to: Fetched::Battlefield,
+        }),
+        delay: Some(Delay {
+            turns: 2,
+            sacrifice: true,
+        }),
+    }
+}
+
+#[test]
+fn a_saga_fetches_on_its_third_chapter_and_its_mana_goes_with_it() {
+    // Ten cards: Urza's Saga, Lantern of Insight, two Islands and six blanks.
+    // The opening hand is nine of them and no turn draws, so every deal is the
+    // whole library bar one card, and the deal that leaves the Lantern out is
+    // the one where it is still in the library for chapter III to find: one
+    // deal in ten, and on that deal every question below is a yes or a no.
+    //
+    // The line: the Saga is played on turn 1 because the priority says so,
+    // an Island on turns 2 and 3. Chapter III resolves on turn 3, after the
+    // draw and before that turn's land, so the Lantern arrives on turn 3 and
+    // not a turn sooner. The Saga taps for {C} in response and is sacrificed,
+    // so turn 3 has three mana and turn 4, with nothing new to play, has two.
+    let saga_land = ManaSource::Land {
+        enters_tapped: false,
+        produces: Palette::from_letters(["C"]),
+    };
+    let grouping = Grouping::with_mana(
+        q(&["saga", "lantern", "land", "<effect saga>"]),
+        vec![
+            (0b1101, saga_land, 1),
+            (0b0010, ManaSource::Spell, 1),
+            (0b0100, untapped("U"), 2),
+            (0b0000, ManaSource::Spell, 6),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::plain_with_fetches(
+        &[9, 0, 0, 0, 0],
+        vec![saga()],
+        Policies::land_drop(LandDropPolicy::new(vec![0], 2)),
+    );
+    let tenth = 1.0 / 10.0;
+    let left_out = |v: &PathView<'_>| v.count_at(0, 1, Counted::In(Zone::Hand)) == 0;
+    let check = |f: Check| holds(&grouping, &schedule, f);
+
+    // When it arrives. Every other deal has the Lantern in hand already, so
+    // chapter III finds nothing and nothing arrives.
+    for (turn, expected) in [(2, 0.0), (3, tenth), (4, tenth)] {
+        let got = check(Box::new(move |v: &PathView<'_>| {
+            v.count_at(turn, 1, Counted::In(Zone::Battlefield)) >= 1
+        }));
+        assert!(
+            (got - expected).abs() < 1e-12,
+            "Lantern on the battlefield on turn {turn}: {got}, not {expected}"
+        );
+    }
+    // Where it came from: out of the library, and nowhere else.
+    let still_there = check(Box::new(|v: &PathView<'_>| {
+        v.count_at(3, 1, Counted::In(Zone::Library)) >= 1
+    }));
+    assert_eq!(still_there, 0.0, "a fetched Lantern is not in the library");
+
+    // The Saga: in play on turn 2 on every deal that holds it, which is nine
+    // in ten, and gone by the end of turn 3 on all of them.
+    let saga_on = |turn: usize| {
+        check(Box::new(move |v: &PathView<'_>| {
+            v.count_at(turn, 0, Counted::In(Zone::Battlefield)) >= 1
+        }))
+    };
+    assert!((saga_on(2) - 0.9).abs() < 1e-12, "{}", saga_on(2));
+    assert_eq!(saga_on(3), 0.0, "sacrificed after chapter III");
+
+    // Its mana is turn 3's and not turn 4's.
+    let pays = |turn: usize, cost: &str| {
+        let cost = Cost::parse(cost).unwrap();
+        check(Box::new(move |v: &PathView<'_>| {
+            left_out(v) && v.can_cast(turn, &cost)
+        }))
+    };
+    assert!((pays(3, "{3}") - tenth).abs() < 1e-12, "{}", pays(3, "{3}"));
+    assert_eq!(pays(4, "{3}"), 0.0, "the Saga's mana outlived it");
+    assert!((pays(4, "{2}") - tenth).abs() < 1e-12, "{}", pays(4, "{2}"));
 }

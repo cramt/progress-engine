@@ -9,8 +9,9 @@
 use std::convert::Infallible;
 
 use gauntlet_criteria::{
-    CastingPolicy, Cost, Count, Counted, Effect, Evaluator, Fetch, Fetched, Grouping, ManaSource,
-    Palette, PathOutcomes, PathView, Plan, Policies, Route, Schedule, Trigger, Zone,
+    CastingPolicy, Cost, Count, Counted, Delay, Effect, Evaluator, Fetch, Fetched, Grouping,
+    LandDropPolicy, ManaSource, Palette, PathOutcomes, PathView, Plan, Policies, Route, Schedule,
+    Trigger, Zone,
 };
 use gauntlet_sim::{mean_standard_error, simulate, standard_error, SimError};
 
@@ -544,6 +545,7 @@ fn a_tutor_agrees_with_the_exact_engine() {
             prefer: vec![1],
             to: Fetched::Hand,
         }),
+        delay: None,
     };
     let schedule = Schedule::build(
         4,
@@ -625,6 +627,7 @@ fn a_tutor_thins_the_library_in_both_engines() {
                     prefer: vec![1],
                     to: Fetched::Hand,
                 }),
+                delay: None,
             }],
         };
         let schedule = Schedule::build(
@@ -679,4 +682,97 @@ fn a_tutor_thins_the_library_in_both_engines() {
         with < without - 0.01,
         "a fetch has to leave fewer behind: {with} against {without}"
     );
+}
+
+#[test]
+fn a_delayed_fetch_agrees_with_the_exact_engine() {
+    // Urza's Saga, and the acceptance test for a delay: the fetch happens two
+    // turns after the drop that set it up, so the population shrinks on a turn
+    // no card was played on, and the Saga's own mana leaves with it. Asked as
+    // "the artifact is on the battlefield by turn 5, and turn 5 can pay {3}",
+    // which reads the fetch, the sacrifice and the pool on the same path.
+    //
+    // Four Sagas rather than one so the delayed fetch fires often enough to
+    // be worth comparing, and four targets so it usually has something left
+    // to find.
+    let grouping = Grouping::with_mana(
+        q(&["saga", "target", "land", "<effect saga>"]),
+        vec![
+            (
+                0b1101,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["C"]),
+                },
+                4,
+            ),
+            (0b0010, ManaSource::Spell, 4),
+            (
+                0b0100,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                },
+                30,
+            ),
+            (0b0000, ManaSource::Spell, 61),
+        ],
+    )
+    .unwrap();
+    let saga = Effect {
+        matched_by: 3,
+        look: 0,
+        trigger: Trigger::LandDrop,
+        route: Route::Nowhere,
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to: Fetched::Battlefield,
+        }),
+        delay: Some(Delay {
+            turns: 2,
+            sacrifice: true,
+        }),
+    };
+    let schedule = Schedule::build(
+        5,
+        false,
+        vec![saga],
+        Policies::land_drop(LandDropPolicy::new(vec![0], 2)),
+    );
+    let three = Cost::parse("{3}").unwrap();
+    let question = || {
+        let three = three.clone();
+        Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(5, 1, Counted::In(Zone::Battlefield)) >= 1)
+                as Check,
+            Box::new(move |v: &PathView<'_>| {
+                v.count_at(5, 1, Counted::In(Zone::Battlefield)) >= 1 && v.can_cast(5, &three)
+            }),
+        ])
+    };
+    let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(2), &mut question())
+        .unwrap()
+        .probabilities;
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        TRIALS / 4,
+        17,
+        only_criteria(2),
+        &mut question(),
+    )
+    .unwrap()
+    .proportions;
+    for (exact, sampled) in exact.iter().map(|p| p.get()).zip(sampled) {
+        assert!(
+            exact > 0.05 && exact < 0.95,
+            "a question worth asking: {exact}"
+        );
+        let se = standard_error(sampled, TRIALS / 4);
+        assert!(
+            (sampled - exact).abs() < 4.0 * se,
+            "sampled {sampled} vs exact {exact} ({}x SE)",
+            (sampled - exact).abs() / se
+        );
+    }
 }

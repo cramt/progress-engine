@@ -299,6 +299,48 @@ impl Library {
         Ok(names)
     }
 
+    /// Cards matching `query` that are not lands and that nothing in this run
+    /// can put onto the battlefield.
+    ///
+    /// The refusal behind `zone = "battlefield"` again, narrowed by exactly the
+    /// cards a delayed fetch can find: `delivered` is those fetches'
+    /// priorities, and a card one of them matches gets onto the battlefield
+    /// the way a Saga's third chapter puts it there, which the walk counts.
+    /// `cast` is the `[casting]` line, and a card it names stays refused even
+    /// then: the budget moves a cast spell out of your hand and not onto the
+    /// battlefield, so a battlefield count of it would miss every copy that
+    /// arrived the ordinary way.
+    pub fn stranded_matching(
+        &self,
+        query: &str,
+        delivered: &[&str],
+        cast: &[String],
+    ) -> Result<Vec<String>> {
+        let parse =
+            |q: &str| chip_scryfall::parse(q).map_err(|e| anyhow::anyhow!("in query {q:?}: {e}"));
+        let q = parse(query)?;
+        let delivered = delivered
+            .iter()
+            .map(|q| parse(q))
+            .collect::<Result<Vec<_>>>()?;
+        let cast = cast.iter().map(|q| parse(q)).collect::<Result<Vec<_>>>()?;
+        let mut names: Vec<String> = self
+            .entries
+            .iter()
+            .filter(|e| {
+                let view = e.card.view(&e.categories);
+                q.matches(&view)
+                    && !is_land(&e.card)
+                    && !(delivered.iter().any(|d| d.matches(&view))
+                        && !cast.iter().any(|c| c.matches(&view)))
+            })
+            .map(|e| e.card.name.clone())
+            .collect();
+        names.sort_unstable();
+        names.dedup();
+        Ok(names)
+    }
+
     /// How many library cards matching `query` can be played as a land drop.
     ///
     /// The other half of [`Library::non_lands_matching`], and the half a

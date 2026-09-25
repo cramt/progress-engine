@@ -1,0 +1,12 @@
+// Urza's Saga, the artifact its third chapter goes and gets, and lands.
+//
+// Sixteen cards, so a run to turn 5 on the draw still has a library left after
+// the fetch. The Saga is an Enchantment Land, so it arrives on a land drop;
+// chapter III resolves two turns later and puts Lantern of Insight onto the
+// battlefield, if the library still holds it. The criteria files beside this
+// one ask that question with the Saga declared, without it, and in the
+// clause-by-clause phrasing lantern.criteria.toml uses, which must agree.
+1x Urza's Saga [Land - Saga]
+1x Lantern of Insight [Lantern - Vision]
+4x Island [Land]
+10x Lightning Bolt [Burn]

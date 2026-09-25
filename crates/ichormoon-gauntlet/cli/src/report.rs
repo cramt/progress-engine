@@ -187,6 +187,14 @@ pub struct EffectUse {
     /// Where the fetched card is put: `hand` or `battlefield`.
     #[facet(skip_serializing_if = Option::is_none)]
     pub to: Option<&'static str>,
+    /// Whole turns between the trigger and the effect, or absent where it
+    /// happens when it is triggered. Urza's Saga's third chapter is 2.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub after: Option<u32>,
+    /// Whether the card that set a delayed effect up leaves the battlefield
+    /// when it resolves. Absent beside an effect that does not wait.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub sacrifice: Option<bool>,
     /// Which file declared it: the standard library, or the criteria file.
     pub source: String,
     /// The cards it applied to, after the overlap was resolved. A card matched
@@ -682,6 +690,22 @@ impl Report {
                 0 => String::new(),
                 n => format!("look {n}, "),
             };
+            // A delayed effect says how long it waited and what it cost, in the
+            // same parenthesis as the trigger it waited from: a Lantern that
+            // arrived on turn five because of a land played on turn three is a
+            // number with two turns in it, and the note names both.
+            let route = match (e.after, e.sacrifice) {
+                (Some(n), sacrifice) => format!(
+                    ", {n} turn{} later{}{route}",
+                    if n == 1 { "" } else { "s" },
+                    if sacrifice == Some(true) {
+                        ", then sacrificed"
+                    } else {
+                        ""
+                    }
+                ),
+                (None, _) => route,
+            };
             out.push_str(&format!(
                 "note: effect {:?} ({look}on {}{route})\n      applies to {} card{}: {}\n",
                 e.matches,
@@ -1138,6 +1162,8 @@ pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
             to_graveyard: a.to_graveyard.clone(),
             fetch: a.fetch.as_ref().map(|(prefer, _)| prefer.clone()),
             to: a.fetch.as_ref().map(|(_, to)| *to),
+            after: a.delay.map(|d| d.turns),
+            sacrifice: a.delay.map(|d| d.sacrifice),
             source: a.origin.clone(),
             cards: a.cards.clone(),
             copies: a.copies,
@@ -1389,6 +1415,25 @@ pub fn fetch_battlefield_refusal(query: &str, spells: &[String]) -> String {
          it resolves is\n      not modelled at all.",
         if spells.len() == 1 { "a card" } else { "cards" },
         spells.join(", ")
+    )
+}
+
+/// Why a delayed fetch onto the battlefield may not find a land.
+///
+/// The mirror of [`fetch_battlefield_refusal`]. A fetchland may only find lands
+/// because a land drop is the one way onto the battlefield the walk models; a
+/// Saga's chapter is the other way, and what it may not find is a land, because
+/// a land arriving off an ability puts mana in the pool on a turn nothing says
+/// whether it entered tapped — the same gap as a land off a spell.
+pub fn delayed_fetch_land_refusal(query: &str, lands: u32) -> String {
+    format!(
+        "`fetch = {query:?}` with `after` and `to = \"battlefield\"` matches {lands} land{} in \
+         this deck.\n      \
+         A delayed effect puts its card beside the land that waited for it, and a land arriving \
+         that way\n      is not a land drop: whether it enters tapped is a fact about the card \
+         that fetched it,\n      which no tag carries. Urza's Saga's third chapter finds an \
+         artifact; narrow the query to\n      what it can actually find, such as `-t:land`.",
+        if lands == 1 { "" } else { "s" }
     )
 }
 

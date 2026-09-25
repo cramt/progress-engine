@@ -38,7 +38,7 @@
 
 use facet::Facet;
 use gauntlet_criteria::{
-    Cost, CostError, Count, Counted, Criterion, Evaluator, Expectation, Fetched, NotACount,
+    Cost, CostError, Count, Counted, Criterion, Delay, Evaluator, Expectation, Fetched, NotACount,
     Palette, PathOutcomes, PathView, Plan, Trigger, TriggerError, Zone, ZoneError,
 };
 use thiserror::Error;
@@ -155,6 +155,14 @@ struct EffectDef {
     /// without it: a card that left the library has to be somewhere, and a
     /// default would be this tool choosing a zone on your behalf.
     to: Option<String>,
+    /// Whole turns between the trigger and the effect. Urza's Saga's third
+    /// chapter is `after = 2`: the lore counters it gains after your next two
+    /// draw steps. Absent is an effect that happens when it is triggered.
+    after: Option<i64>,
+    /// Whether the card that set a delayed effect up leaves the battlefield
+    /// once it resolves, which a Saga does after its last chapter. Only
+    /// meaningful beside `after`, and refused without it.
+    sacrifice: Option<bool>,
 }
 
 #[derive(Facet)]
@@ -420,6 +428,8 @@ pub struct EffectEntry {
     pub to_graveyard: Option<Destination>,
     /// What this goes and gets out of the library, if anything.
     pub fetch: Option<FetchDecl>,
+    /// How long it waits after its trigger, if it waits at all.
+    pub delay: Option<Delay>,
     /// Which file declared it. Carried so a report can say where a surprising
     /// effect came from, and so the standard library can stay quiet about
     /// matching nothing while a hand-written entry does not.
@@ -884,7 +894,8 @@ const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least
                       cast, min, max) or (turn, can_cast), and whose any_of branches each hold \
                       a require of their own, \
                       [[expect]] tables (name, turn, query, zone) or (name, turn, cast), [[effect]] \
-                      tables (match, look, on, to_graveyard), one [land_drop] table (prefer) \
+                      tables (match, on, look, to_graveyard, fetch, to, after, sacrifice), one \
+                      [land_drop] table (prefer) \
                       and one [casting] table (prefer).";
 
 #[derive(Debug, Error)]
@@ -1071,6 +1082,31 @@ pub enum ErrorKind {
          `to = \"battlefield\"`, which is a fetchland."
     )]
     FetchOntoTheBattlefieldFromASpell { at: String },
+    #[error(
+        "{at}: `after = {after}` is not a number of turns to wait: it must be a whole number \
+         from 1 to {MAX_TURN}. An effect that waits no turns is written without `after`."
+    )]
+    BadAfter { at: String, after: i64 },
+    /// What may wait, refused by what it would have needed.
+    ///
+    /// A delayed **fetch** is a subtraction on a later turn, which the walk
+    /// already knows how to take. A delayed **look** would turn over cards on a
+    /// turn the schedule cannot know the effect fires on, and a delayed cast
+    /// trigger is a card nobody has asked for yet.
+    #[error(
+        "{at}: has `after`, and {why}.\n\
+         A delayed effect is Urza's Saga's third chapter: `on = \"landdrop\"`, a `fetch`, and no \
+         `look`, because what waits has to be a card named out of the library rather than an \
+         unknown one turned over on a turn the enumeration cannot know in advance."
+    )]
+    UnmodelledDelay { at: String, why: &'static str },
+    #[error(
+        "{at}: has `sacrifice = true` and no `after`.\n\
+         A land that sacrifices itself the moment it is played to put another onto the \
+         battlefield is a fetchland, and is written `to = \"battlefield\"` with no `sacrifice`. \
+         `sacrifice` is for a card that stayed in play until a delayed effect resolved."
+    )]
+    SacrificeWithoutDelay { at: String },
 }
 
 /// A count with nowhere to go in a histogram, named against the expectation
@@ -1154,6 +1190,7 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
                 return Err(ErrorKind::FetchOntoTheBattlefieldFromASpell { at: at.clone() });
             }
         }
+        let delay = delay_of(def, &at, trigger, look)?;
         entries.push(EffectEntry {
             matches,
             look,
@@ -1166,10 +1203,55 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
                 }
             }),
             fetch,
+            delay,
             origin: origin.to_string(),
         });
     }
     Ok(EffectLibrary { entries })
+}
+
+/// Validate the `after` and `sacrifice` keys of one `[[effect]]` table.
+///
+/// Refused in the order a reader would fix them: a wait that is not a number
+/// of turns, then a wait on something that cannot wait, then a sacrifice with
+/// nothing to wait for. A wait with nothing at the end of it never gets here:
+/// an effect that neither looks nor fetches is refused before this is asked.
+fn delay_of(
+    def: &EffectDef,
+    at: &str,
+    trigger: Trigger,
+    look: u32,
+) -> Result<Option<Delay>, ErrorKind> {
+    let Some(after) = def.after else {
+        return match def.sacrifice {
+            Some(true) => Err(ErrorKind::SacrificeWithoutDelay { at: at.to_string() }),
+            _ => Ok(None),
+        };
+    };
+    let turns = u32::try_from(after)
+        .ok()
+        .filter(|t| (1..=MAX_TURN).contains(t))
+        .ok_or(ErrorKind::BadAfter {
+            at: at.to_string(),
+            after,
+        })?;
+    let why = if trigger != Trigger::LandDrop {
+        Some("fires on a cast, and only a land that stays in play has anything to wait with")
+    } else if look > 0 {
+        Some("a `look`, which is refused on a later turn")
+    } else {
+        None
+    };
+    if let Some(why) = why {
+        return Err(ErrorKind::UnmodelledDelay {
+            at: at.to_string(),
+            why,
+        });
+    }
+    Ok(Some(Delay {
+        turns,
+        sacrifice: def.sacrifice.unwrap_or(false),
+    }))
 }
 
 /// Validate the `fetch` and `to` keys of one `[[effect]]` table.

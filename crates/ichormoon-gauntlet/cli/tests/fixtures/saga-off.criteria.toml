@@ -1,0 +1,9 @@
+# The same deck and land drop with the Saga's chapters left out, and nothing
+# else different. Its battlefield count of the Lantern is refused, because
+# nothing in this run can put a Lantern there.
+[land_drop]
+prefer = ["name:\"Urza's Saga\"", "t:land"]
+
+[[criterion]]
+name = "Lantern on the battlefield by turn 5"
+require = [{ turn = 5, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]

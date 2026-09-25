@@ -1,0 +1,94 @@
+# "Third Lantern Control" — https://archidekt.com/decks/25088186
+# Route C of the north star, on its own: Urza's Saga.
+#
+# The route that costs no mana at all. Urza's Saga is an Enchantment Land, so
+# it arrives on a land drop; it gains a lore counter after each of your next
+# two draw steps, and chapter III searches the library for an artifact with
+# mana cost {0} or {1} and puts it onto the battlefield. The artifact this deck
+# wants is the Lantern. Then the Saga is sacrificed.
+#
+# WHAT IS MODELLED HERE
+# ---------------------
+#   [[effect]] with `after = 2` — the chapter waits two turns after the drop,
+#                and resolves after that turn's draw step and before its land
+#                drop, so a Lantern drawn that turn is not there to be found.
+#                `sacrifice = true` takes the Saga off the battlefield once it
+#                has: its {C} is still that turn's mana, and no later turn's.
+#   [land_drop] — the Saga first. A delayed effect is set up by a land drop, so
+#                the run has to say which land it played, and this is the line
+#                that plays the Saga the moment it is held.
+#
+# THE SAME NUMBER, TWO WAYS
+# -------------------------
+# `lantern.criteria.toml` asks this route with no effect declared, because a
+# declared land drop would change what its other routes read: the Saga in play
+# by turn t, and the Lantern still in the library on turn t+2 — which is when
+# chapter III looks for it. That phrasing and this file are two runs of one
+# question and have to agree to the last digit. They do, in both seats, and a
+# test in crates/ichormoon-gauntlet/cli/tests/cli.rs runs both to say so.
+#
+# The clause phrasing cannot sit in this file beside the effect: once the
+# chapter has fetched the Lantern, "still in the library on turn t+2" reads
+# the library after the fetch, and says no.
+#
+# WHAT THE SAGA IS WORTH, MEASURED
+# --------------------------------
+# On the play, then on the draw, against the committed index. Exact, at 4
+# groups and 30,720 compositions for the widest of them, in 0.05s:
+#
+#                                                      play      draw
+#   Urza's Saga drawn by turn 3 (the old upper bound)   9.09%    10.10%
+#   Lantern onto the battlefield by it, turn 3           6.49%     7.34%
+#   ...turn 4                                            7.41%     8.25%
+#   ...turn 5                                            8.32%     9.14%
+#
+# Checkable by hand, one Saga and one Lantern in 99. On the play by turn 5 the
+# Saga is played on turn 1 (in the opening seven, 7/99) with the Lantern past
+# the ninth card (90/98), or is the eighth card with the Lantern past the tenth
+# (1/99 x 89/98), or the ninth with it past the eleventh (1/99 x 88/98):
+# (630 + 89 + 88) / 9702 = 8.32%.
+#
+# A Saga whose chapter III looks for a Lantern you already drew is not a route
+# to anything new, and that is the whole of the gap to the old upper bound.
+#
+# STILL NOT MODELLED
+# ------------------
+#   * The Saga surviving two turns. An opponent's removal on it, or on the
+#     Lantern it found, is interaction, and nothing in this tool models the
+#     other side of the table.
+#   * Chapter III's other targets. The pilot names the Lantern; the deck plays
+#     other artifacts with mana cost {0} or {1}, and nothing here asks for them.
+#   * The shuffle. Chapter III shuffles the library; a card an earlier surveil
+#     left on top stays on top here. This deck's surveil lands route nothing,
+#     so nothing is ever left there that a shuffle would move.
+#   * Mulligans. Turn 0 is a kept seven.
+
+[[effect]]
+match = "name:\"Urza's Saga\""
+on = "landdrop"
+after = 2
+sacrifice = true
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[land_drop]
+prefer = ["name:\"Urza's Saga\"", "t:land"]
+
+# THRESHOLD: none, for the reason route B's file gives. One route of four.
+
+[[criterion]]
+name = "Lantern put onto the battlefield by Urza's Saga, turn 5"
+require = [{ turn = 5, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+# What lantern.criteria.toml used to stand in for the route with.
+[[criterion]]
+name = "Urza's Saga drawn by turn 3 (the old upper bound)"
+require = [{ turn = 3, query = "name:\"Urza's Saga\"", min = 1 }]
+
+[[criterion]]
+name = "Lantern put onto the battlefield by Urza's Saga, turn 3"
+require = [{ turn = 3, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Lantern put onto the battlefield by Urza's Saga, turn 4"
+require = [{ turn = 4, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]

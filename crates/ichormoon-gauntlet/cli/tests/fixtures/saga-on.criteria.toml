@@ -1,0 +1,34 @@
+# Urza's Saga declared: played as the land drop the moment it is held, and its
+# third chapter fetching the Lantern two turns later.
+[[effect]]
+match = "name:\"Urza's Saga\""
+on = "landdrop"
+after = 2
+sacrifice = true
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[land_drop]
+prefer = ["name:\"Urza's Saga\"", "t:land"]
+
+[[criterion]]
+name = "Lantern on the battlefield by turn 5"
+require = [{ turn = 5, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Lantern on the battlefield by turn 3"
+require = [{ turn = 3, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Saga on the battlefield on turn 5"
+require = [{ turn = 5, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Saga drawn by turn 3"
+require = [{ turn = 3, query = "name:\"Urza's Saga\"", min = 1 }]
+
+[[expect]]
+name = "Lantern left in the library on turn 5"
+turn = 5
+query = 'name:"Lantern of Insight"'
+zone = "library"

@@ -38,6 +38,10 @@ pub struct Applied {
     /// Which of the fetch's preferences pick out no card in this deck, so a
     /// tier that decides nothing is a fact about the deck rather than silence.
     pub fetch_misses: Vec<String>,
+    /// How long it waits after its trigger, and whether the card that set it
+    /// up is sacrificed when it resolves. A number that came out of a Saga's
+    /// third chapter has to say it waited for it.
+    pub delay: Option<gauntlet_criteria::Delay>,
     pub origin: String,
     /// The cards this effect actually got, after the overlap was resolved. A
     /// card matched by a later entry is not here — it is under that entry.
@@ -187,6 +191,7 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
                 .as_ref()
                 .map(|f| (f.prefer.clone(), gauntlet_toml::fetched_name(f.to))),
             fetch_misses,
+            delay: entry.delay,
             origin: entry.origin.clone(),
             cards: mine
                 .iter()
@@ -251,6 +256,7 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
                     .collect(),
                 to: f.to,
             }),
+            delay: entry.delay,
         });
     }
 

@@ -1,0 +1,23 @@
+# The Saga route with no effect declared, written the way lantern.criteria.toml
+# writes it: the Saga in play by turn t, and the Lantern still in the library
+# after the draw step of turn t+2, which is when chapter III searches for it.
+[[criterion]]
+name = "Lantern on the battlefield by turn 5"
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 1, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 },
+    { turn = 3, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 2, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 },
+    { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 3, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]

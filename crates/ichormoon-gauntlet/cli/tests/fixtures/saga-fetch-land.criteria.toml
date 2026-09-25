@@ -1,0 +1,17 @@
+# A Saga whose third chapter is asked to find a land. Refused: a land arriving
+# off an ability is not a land drop, and whether it enters tapped is a fact no
+# tag carries.
+[[effect]]
+match = "name:\"Urza's Saga\""
+on = "landdrop"
+after = 2
+sacrifice = true
+fetch = ["t:land"]
+to = "battlefield"
+
+[land_drop]
+prefer = ["name:\"Urza's Saga\"", "t:land"]
+
+[[criterion]]
+name = "an Island in play by turn 5"
+require = [{ turn = 5, query = "t:island", zone = "battlefield", min = 1 }]
