@@ -1,0 +1,3 @@
+// One Island traded for a second Lantern.
+98x Island [Land]
+2x Lantern of Insight [Lantern]

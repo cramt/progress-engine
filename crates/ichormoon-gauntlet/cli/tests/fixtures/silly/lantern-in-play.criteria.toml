@@ -1,0 +1,33 @@
+# One question asked of every deck in this directory: is Lantern of Insight
+# on the battlefield. Two ways there, and the file declares both — the Lantern
+# is cast the turn it is drawn, and Urza's Saga's third chapter puts it there
+# two turns after the Saga is played. A deck without one of them simply never
+# uses that half, which is the point: each deck is its neighbour plus or minus
+# one card, and the tests assert how the answer moves.
+[[effect]]
+match = "name:\"Urza's Saga\""
+on = "landdrop"
+after = 2
+sacrifice = true
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[land_drop]
+prefer = ["name:\"Urza's Saga\"", "t:land"]
+
+[casting]
+prefer = ['name:"Lantern of Insight"']
+
+[[criterion]]
+name = "Lantern in play by turn 3"
+require = [{ turn = 3, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Lantern in play by turn 5"
+require = [{ turn = 5, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+# The row that separates the two ways there: a Saga cannot change whether a
+# drawn Lantern gets cast, so this must not move when one is added.
+[[criterion]]
+name = "Lantern cast by turn 5"
+require = [{ turn = 5, cast = 'name:"Lantern of Insight"', min = 1 }]

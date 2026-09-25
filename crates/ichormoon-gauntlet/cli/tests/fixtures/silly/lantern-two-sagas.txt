@@ -1,0 +1,4 @@
+// A second Saga, which can only find the same one Lantern.
+97x Island [Land]
+1x Lantern of Insight [Lantern]
+2x Urza's Saga [Land]

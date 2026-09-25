@@ -1047,7 +1047,13 @@ impl<'a> Board<'a> {
                     - self.cast_by(turn, query)
                     - self.grouping.count_matching(&self.landed[turn], query)
             }
-            Zone::Battlefield => self.played_by(turn, query),
+            // What is standing there: lands played and cards put there, plus
+            // what the line cast. A cast spell is counted here because it is a
+            // permanent — the caller refuses a battlefield question about any
+            // card that is not, since an instant resolves and goes nowhere
+            // this engine models. For a land question the second term is
+            // zero, because a land is played rather than cast.
+            Zone::Battlefield => self.played_by(turn, query) + self.cast_by(turn, query),
         }
     }
 

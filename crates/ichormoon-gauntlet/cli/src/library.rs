@@ -302,14 +302,14 @@ impl Library {
     /// Cards matching `query` that are not lands and that nothing in this run
     /// can put onto the battlefield.
     ///
-    /// The refusal behind `zone = "battlefield"` again, narrowed by exactly the
-    /// cards a delayed fetch can find: `delivered` is those fetches'
-    /// priorities, and a card one of them matches gets onto the battlefield
-    /// the way a Saga's third chapter puts it there, which the walk counts.
-    /// `cast` is the `[casting]` line, and a card it names stays refused even
-    /// then: the budget moves a cast spell out of your hand and not onto the
-    /// battlefield, so a battlefield count of it would miss every copy that
-    /// arrived the ordinary way.
+    /// The refusal behind `zone = "battlefield"`, narrowed by exactly the two
+    /// ways this walk models a spell arriving there. `delivered` is what a
+    /// delayed fetch can find — Urza's Saga's third chapter puts it there —
+    /// and `cast` is the `[casting]` line, whose castings the battlefield
+    /// count adds in. Both only for a **permanent**: an instant or a sorcery
+    /// the line casts resolves and goes to a graveyard this engine does not
+    /// track, so a battlefield count of one stays refused rather than
+    /// answered as if it had stayed.
     pub fn stranded_matching(
         &self,
         query: &str,
@@ -329,10 +329,10 @@ impl Library {
             .iter()
             .filter(|e| {
                 let view = e.card.view(&e.categories);
-                q.matches(&view)
-                    && !is_land(&e.card)
-                    && !(delivered.iter().any(|d| d.matches(&view))
-                        && !cast.iter().any(|c| c.matches(&view)))
+                let arrives = is_permanent(&e.card)
+                    && (delivered.iter().any(|d| d.matches(&view))
+                        || cast.iter().any(|c| c.matches(&view)));
+                q.matches(&view) && !is_land(&e.card) && !arrives
             })
             .map(|e| e.card.name.clone())
             .collect();
@@ -399,6 +399,27 @@ impl Library {
 /// card would be the expensive way to ask a one-word question. Both faces
 /// count: Scryfall joins them with `//`, and a modal double-faced land is a
 /// land drop if you choose the back.
+/// Whether a card stays on the battlefield once it resolves.
+///
+/// Read off the type line by word, the same way [`is_land`] is: an artifact,
+/// a creature, an enchantment, a planeswalker, a battle or a land.
+pub fn is_permanent(card: &Card) -> bool {
+    card.type_line
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .any(|word| {
+            [
+                "artifact",
+                "creature",
+                "enchantment",
+                "planeswalker",
+                "battle",
+                "land",
+            ]
+            .iter()
+            .any(|kind| word.eq_ignore_ascii_case(kind))
+        })
+}
+
 pub fn is_land(card: &Card) -> bool {
     card.type_line
         .split(|c: char| !c.is_ascii_alphanumeric())

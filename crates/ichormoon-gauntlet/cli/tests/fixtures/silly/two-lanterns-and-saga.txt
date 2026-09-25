@@ -1,0 +1,4 @@
+// Both of the above: a second Lantern and a Saga.
+97x Island [Land]
+2x Lantern of Insight [Lantern]
+1x Urza's Saga [Land]

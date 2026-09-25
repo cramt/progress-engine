@@ -2925,3 +2925,254 @@ fn the_lantern_decks_saga_route_is_the_same_number_both_ways() {
     };
     assert_eq!(method(clauses), "exact");
 }
+
+// --- silly decks, one card apart ----------------------------------------------
+//
+// A hundred cards, almost all of them Islands, and one question asked of every
+// deck: is Lantern of Insight on the battlefield. Each deck is a neighbour of
+// another plus or minus one card, so each test is a claim about how the answer
+// moves when one thing changes — and every number is closed-form, because with
+// that many lands the mana is never the question and only positions in the
+// shuffle are.
+//
+// The rules the arithmetic needs, and nothing else:
+//
+// - By turn T you have seen 6 + T cards on the play (7 on turn 0) and 7 + T on
+//   the draw. With 90-odd Islands every hand has a land, so a Lantern is cast
+//   the turn it is drawn.
+// - Urza's Saga is played the turn it is drawn (turn 1 at the earliest), and
+//   chapter III fires two turns later, after that turn's draw. So for the Saga
+//   to put the Lantern down by turn T it has to be drawn by turn T - 2 — by
+//   turn 3 for the turn-5 clock — and a Lantern it could find is one you have
+//   not drawn by turn T anyway, or you would have cast it.
+//
+// So with L Lanterns and S Sagas in N = 100, a = seen(T) and b = seen(T - 2):
+//
+//   P(in play by T) = P(a Lantern in the first a)
+//                   + P(no Lantern in the first a) x P(a Saga in the first b | that)
+//
+// and "given no Lantern in the first a" makes the first b a uniform draw from
+// the N - L other cards. Every expected value below is this formula; it was
+// also checked against a brute force over every position the special cards
+// can take.
+
+fn choose(n: u64, k: u64) -> f64 {
+    (0..k).fold(1.0, |acc, i| acc * (n - i) as f64 / (i + 1) as f64)
+}
+
+fn seen(turn: u64, draw: bool) -> u64 {
+    match (draw, turn) {
+        (true, t) => 7 + t,
+        (false, 0) => 7,
+        (false, t) => 6 + t,
+    }
+}
+
+/// The closed form above.
+fn lantern_in_play(lanterns: u64, sagas: u64, turn: u64, draw: bool) -> f64 {
+    if lanterns == 0 {
+        return 0.0;
+    }
+    let n = 100;
+    let (a, b) = (seen(turn, draw), seen(turn - 2, draw));
+    let none_drawn = choose(n - lanterns, a) / choose(n, a);
+    let saga_in_time = 1.0 - choose(n - lanterns - sagas, b) / choose(n - lanterns, b);
+    (1.0 - none_drawn) + none_drawn * saga_in_time
+}
+
+fn run_silly(deck: &str, draw: bool) -> serde_json::Value {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture(&format!("silly/{deck}.txt")))
+        .arg(fixture("silly/lantern-in-play.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("tutor-index.jsonl"))
+        .args(draw.then_some("--draw"))
+        .output()
+        .expect("binary should run");
+    assert!(
+        out.status.success(),
+        "{deck} should run: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    serde_json::from_slice(&out.stdout).expect("stdout should be JSON")
+}
+
+/// The unrounded probability, which the report carries to six places.
+fn probability(json: &serde_json::Value, name: &str) -> f64 {
+    json["criteria"]
+        .as_array()
+        .expect("criteria array")
+        .iter()
+        .find(|c| c["name"] == name)
+        .unwrap_or_else(|| panic!("no criterion named {name}"))["probability"]
+        .as_f64()
+        .expect("probability is a number")
+}
+
+fn assert_close(got: f64, expected: f64, what: &str) {
+    assert!(
+        (got - expected).abs() < 1e-6,
+        "{what}: the engine said {got}, the arithmetic says {expected}"
+    );
+}
+
+const BY_3: &str = "Lantern in play by turn 3";
+const BY_5: &str = "Lantern in play by turn 5";
+const CAST_5: &str = "Lantern cast by turn 5";
+
+#[test]
+fn every_silly_deck_matches_its_closed_form_in_both_seats() {
+    for (deck, lanterns, sagas) in [
+        ("one-lantern", 1, 0),
+        ("two-lanterns", 2, 0),
+        ("lantern-and-saga", 1, 1),
+        ("saga-no-lantern", 0, 1),
+        ("two-lanterns-and-saga", 2, 1),
+        ("lantern-two-sagas", 1, 2),
+    ] {
+        for draw in [false, true] {
+            let json = run_silly(deck, draw);
+            let what = |q: &str| format!("{deck}, {q}, draw={draw}");
+            assert_close(
+                probability(&json, BY_3),
+                lantern_in_play(lanterns, sagas, 3, draw),
+                &what(BY_3),
+            );
+            assert_close(
+                probability(&json, BY_5),
+                lantern_in_play(lanterns, sagas, 5, draw),
+                &what(BY_5),
+            );
+            // With no Saga, casting it is the only way there, so the two
+            // numbers are one. With a Saga they are not, and a test below
+            // says by how much.
+            if sagas == 0 {
+                assert_close(
+                    probability(&json, CAST_5),
+                    probability(&json, BY_5),
+                    &what(CAST_5),
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn one_lantern_in_a_hundred_is_the_share_of_the_deck_you_have_seen() {
+    // The baseline everything else is one card away from. Turn 5 on the play
+    // has seen 11 cards and on the draw 12, so the one Lantern is in play on
+    // 11 and 12 games in a hundred — and cast on exactly the same ones,
+    // because there is no other way for it to get there.
+    let play = run_silly("one-lantern", false);
+    assert_close(probability(&play, BY_5), 11.0 / 100.0, "play");
+    assert_close(probability(&play, CAST_5), 11.0 / 100.0, "cast, play");
+    let draw = run_silly("one-lantern", true);
+    assert_close(probability(&draw, BY_5), 12.0 / 100.0, "draw");
+}
+
+#[test]
+fn a_second_lantern_beats_a_saga_because_the_saga_has_a_clock() {
+    // Two decks, each one Island away from the baseline, and the Island went
+    // to a different card.
+    //
+    // A second Lantern: at least one of two in the first 11. Neither is
+    //   C(98, 11)/C(100, 11) = (89 x 88)/(100 x 99) = 7832/9900,
+    // so at least one is 2068/9900 = 20.89%.
+    // Urza's Saga: the Lantern in the first 11, or not and the Saga in the
+    // first 9 — drawn by turn 3, or chapter III lands after turn 5:
+    //   11/100 + (89/100)(9/99) = 1890/9900 = 19.09%.
+    //
+    // Same one card added, and the Saga is worth 1.8 points less, because it
+    // only counts if it is one of the first 9 cards rather than the first 11.
+    let two = probability(&run_silly("two-lanterns", false), BY_5);
+    let saga = probability(&run_silly("lantern-and-saga", false), BY_5);
+    assert_close(two, 2068.0 / 9900.0, "two Lanterns");
+    assert_close(saga, 1890.0 / 9900.0, "Lantern and Saga");
+    assert!(two > saga, "{two} against {saga}");
+}
+
+#[test]
+fn a_saga_drawn_on_turn_four_is_too_late_for_turn_five() {
+    // The clock, pinned. Lantern plus Saga, asked by turn 3 rather than 5: now
+    // the Saga has to be in the opening seven (played turn 1, chapter III turn
+    // 3), and the Lantern outside the first 9:
+    //   9/100 + (91/100)(7/99) = (891 + 637)/9900 = 15.43%.
+    let json = run_silly("lantern-and-saga", false);
+    assert_close(probability(&json, BY_3), 1528.0 / 9900.0, "by turn 3");
+    // And what the Saga adds by turn 5 is exactly the Sagas drawn in time:
+    // the 9-card window, not the 11-card one.
+    let with = probability(&json, BY_5);
+    let without = probability(&run_silly("one-lantern", false), BY_5);
+    assert_close(
+        with - without,
+        (89.0 / 100.0) * (9.0 / 99.0),
+        "the Saga's share",
+    );
+}
+
+#[test]
+fn a_saga_can_take_the_lantern_you_were_about_to_draw() {
+    // Add a Saga and the Lantern is in play more often — and *cast* less
+    // often, which is right, and which this test was first written asserting
+    // could not happen. When chapter III puts the Lantern onto the battlefield
+    // it is out of the library, so the draw that would have brought it to
+    // your hand never does, and it is never cast.
+    //
+    // On the play, the games that happens by turn 5: the Saga in the opening
+    // seven (chapter III on turn 3, 9 cards seen) with the Lantern 10th or
+    // 11th, 7 x 2; or the Saga 8th (chapter III on turn 4, 10 seen) with the
+    // Lantern 11th, 1 x 1. A Saga 9th fires on turn 5 after all 11 cards are
+    // seen, and takes nothing that was coming. So cast falls from 11/100 by
+    // exactly 15/9900. On the draw every window is one card later: 8 x 2 + 1,
+    // so 12/100 less 17/9900.
+    for (draw, base, taken) in [(false, 11.0, 15.0), (true, 12.0, 17.0)] {
+        let without = run_silly("one-lantern", draw);
+        let with = run_silly("lantern-and-saga", draw);
+        assert_close(probability(&without, CAST_5), base / 100.0, "no Saga");
+        assert_close(
+            probability(&with, CAST_5),
+            base / 100.0 - taken / 9900.0,
+            &format!("cast beside a Saga, draw={draw}"),
+        );
+        assert!(probability(&with, BY_5) > probability(&without, BY_5));
+    }
+}
+
+#[test]
+fn a_saga_with_nothing_to_find_and_a_lantern_with_nothing_to_pay_are_both_zero() {
+    // Take the Lantern out and the Saga still ticks to chapter III every game
+    // it is drawn — and finds nothing, so nothing arrives.
+    let empty = run_silly("saga-no-lantern", false);
+    assert_eq!(probability(&empty, BY_5), 0.0);
+    // Take the lands out instead and the Lantern is drawn on 11 games in a
+    // hundred, exactly as often as with 99 Islands, and never cast: nothing
+    // pays its {1}. This is the mana gate, on the least subtle deck possible.
+    let broke = run_silly("lantern-no-lands", false);
+    assert_eq!(probability(&broke, BY_5), 0.0);
+    assert_eq!(probability(&broke, CAST_5), 0.0);
+}
+
+#[test]
+fn a_second_saga_is_worth_less_than_the_first() {
+    // Both Sagas are hunting the same one Lantern, so the second only adds the
+    // games where the first was not drawn in time. First Saga: 19.09 against
+    // the baseline's 11.00. Second: the Lantern outside the first 11, and
+    // either Saga among the first 9 of the other 99 cards, where neither is
+    // C(97, 9)/C(99, 9) = (90 x 89)/(99 x 98) —
+    //   11/100 + (89/100)(1 - 8010/9702) = 26.52%.
+    let one = probability(&run_silly("one-lantern", false), BY_5);
+    let first = probability(&run_silly("lantern-and-saga", false), BY_5);
+    let second = probability(&run_silly("lantern-two-sagas", false), BY_5);
+    assert_close(second, lantern_in_play(1, 2, 5, false), "two Sagas");
+    assert!(
+        second - first < first - one,
+        "the second Saga added {} and the first {}",
+        second - first,
+        first - one
+    );
+    // And a second Lantern plus a Saga beats either change alone.
+    let both = probability(&run_silly("two-lanterns-and-saga", false), BY_5);
+    let two = probability(&run_silly("two-lanterns", false), BY_5);
+    assert!(both > two && both > first, "{both}");
+}

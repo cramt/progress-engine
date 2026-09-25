@@ -449,7 +449,7 @@ otherwise produces a percentage that looks exactly like a real one:
 | a clause with neither `min` nor `max` | it names a query and asks nothing of it |
 | `min = 5, max = 2` | no hand can satisfy it: a confident 0% |
 | `at_least = 70` | a threshold is a share of hands, so 70% is `0.70` |
-| `zone = "battlefield"` on a query matching a spell | a land arrives on a land drop and this engine walks those; a spell has to be cast, and where it goes afterwards is not modelled. `cast` counts the castings, which is the part that is known. The one exception is a spell a [delayed effect](#delayed-effects-urzas-saga) puts there and the `[casting]` line never casts, which the walk does count |
+| `zone = "battlefield"` on a query matching a spell | a land arrives on a land drop and this engine walks those; a spell has to be cast, and where it goes afterwards is not modelled. `cast` counts the castings, which is the part that is known. The exceptions are the two ways this walk models a permanent arriving: the `[casting]` line casting it, and a [delayed effect](#delayed-effects-urzas-saga) putting it there. An instant or sorcery stays refused, because it resolves and goes nowhere this engine tracks |
 | `zone = "exile"`, or any other zone | a zone that fell through to a default would answer the wrong question |
 | two of `query`, `can_cast` and `cast` in one clause | three different questions, two of which would have to be answered silently |
 | `cast` and `zone` in one clause | a casting is not a zone, and where the spell went afterwards is not modelled |
@@ -1135,9 +1135,10 @@ library on turn t+2*.
 **What it moves.** The Lantern leaves the library and arrives **beside** the
 Saga, not in place of it the way a fetchland's land does. A `zone =
 "battlefield"` question about the Lantern is answered for this reason alone: a
-spell a delayed fetch can put there, and that the `[casting]` line never casts,
-is one this walk counts arriving. Anything else on the battlefield that is not
-a land is still refused.
+permanent a delayed fetch can put there is one this walk counts arriving, and
+so is one the `[casting]` line casts — so *the Lantern in play by turn 5* is
+one question whichever way it got there. Anything else on the battlefield that
+is not a land is still refused.
 
 **What it costs.** `sacrifice = true` takes the Saga off the battlefield at the
 end of the turn it resolves. Its `{C}` is still that turn's — you tap it with

@@ -1,0 +1,4 @@
+// One Island traded for Urza's Saga instead.
+98x Island [Land]
+1x Lantern of Insight [Lantern]
+1x Urza's Saga [Land]
