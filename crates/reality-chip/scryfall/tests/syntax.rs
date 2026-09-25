@@ -458,3 +458,45 @@ fn a_devotion_term_naming_two_colours_is_refused() {
     // The pair asked for together is fine, and is a different question.
     assert!(chip_scryfall::parse("devotion:{u/b}{u/b}").is_ok());
 }
+
+/// Issue #46. Every key word the table lists is one the parser answers, and
+/// the error for an unknown key lists all of them.
+///
+/// A value per row, because each key reads its value differently and a term
+/// the key would refuse for its *value* says nothing about whether the key is
+/// known. Every spelling in the row is tried with it.
+#[test]
+fn every_listed_key_parses() {
+    let sample = |key: &str| match key {
+        "t" => "land",
+        "kw" => "flying",
+        "otag" => "ramp",
+        "mv" | "pow" | "tou" | "pt" | "loy" | "def" => "1",
+        "c" | "id" | "produces" => "g",
+        "r" => "common",
+        "f" | "banned" => "commander",
+        "restricted" => "vintage",
+        "m" | "devotion" => "{G}",
+        "layout" => "normal",
+        "is" => "mdfc",
+        _ => "x",
+    };
+    for row in chip_scryfall::KEYS {
+        let value = sample(row[0]);
+        for word in *row {
+            let term = format!("{word}:{value}");
+            assert!(
+                chip_scryfall::parse(&term).is_ok(),
+                "{term} should parse: {:?}",
+                chip_scryfall::parse(&term).err()
+            );
+        }
+    }
+    let message = chip_scryfall::parse("artist:guay").unwrap_err().to_string();
+    for word in chip_scryfall::KEYS.iter().flat_map(|row| row.iter()) {
+        assert!(
+            message.contains(word),
+            "the supported list names {word}: {message}"
+        );
+    }
+}

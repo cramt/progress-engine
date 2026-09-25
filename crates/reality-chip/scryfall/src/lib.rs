@@ -20,7 +20,7 @@ mod parse;
 pub mod tags;
 
 pub use outside::{outside_library, OutsideLibrary};
-pub use parse::{parse, ParseError};
+pub use parse::{parse, ParseError, KEYS};
 
 use index::Face;
 use legality::Legalities;

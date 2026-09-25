@@ -15,7 +15,10 @@ use crate::{
 pub enum ParseError {
     #[error("empty query")]
     Empty,
-    #[error("unknown search key {key:?} in term {term:?} (supported: {})", SUPPORTED_KEYS.join(", "))]
+    #[error(
+        "unknown search key {key:?} in term {term:?} (supported: {})",
+        supported_keys()
+    )]
     UnknownKey { key: String, term: String },
     #[error("unknown is: property {value:?} (supported: {})", is_properties())]
     UnknownIsProperty { value: String },
@@ -56,37 +59,54 @@ pub enum ParseError {
     Unexpected(String),
 }
 
-/// The keys a term may start with, for the error that lists them.
-const SUPPORTED_KEYS: [&str; 28] = [
-    "t",
-    "o",
-    "fo",
-    "name",
-    "kw",
-    "cat",
-    "mv",
-    "cmc",
-    "c",
-    "color",
-    "id",
-    "identity",
-    "produces",
-    "prod",
-    "pow",
-    "tou",
-    "pt",
-    "loy",
-    "def",
-    "r",
-    "s",
-    "f",
-    "m",
-    "devotion",
-    "layout",
-    "is",
-    "otag",
-    "oracletag",
+/// Every key a term may start with, one row per key and its other spellings.
+///
+/// **The gate, not a description of it.** A key is checked against this table
+/// before anything else reads it, so a key the parser accepts is a key this
+/// table lists, and the `supported:` list in [`ParseError::UnknownKey`] is this
+/// table printed. It used to be a separate hand-kept list that fell seventeen
+/// keys behind the match it described, so a mistyped term was told `rarity:`,
+/// `set:` and `format:` did not exist (#46). A key added to the match and not
+/// here is refused as unknown, which the first test of it notices; a key here
+/// with no arm is caught by the test that parses every one of them.
+pub const KEYS: &[&[&str]] = &[
+    &["t", "type"],
+    &["o", "oracle"],
+    &["fo", "fulloracle"],
+    &["name"],
+    &["kw", "keyword"],
+    &["otag", "oracletag"],
+    &["cat", "category"],
+    &["mv", "cmc", "manavalue"],
+    &["c", "color", "colors", "colour", "colours"],
+    &["id", "identity"],
+    &["produces", "prod", "produced"],
+    &["pow", "power"],
+    &["tou", "toughness"],
+    &["pt", "powtou"],
+    &["loy", "loyalty"],
+    &["def", "defense", "defence"],
+    &["r", "rarity"],
+    &["s", "e", "set", "edition"],
+    &["f", "format"],
+    &["banned"],
+    &["restricted"],
+    &["m", "mana"],
+    &["devotion", "dev"],
+    &["layout"],
+    &["is", "not"],
 ];
+
+fn supported_keys() -> String {
+    KEYS.iter()
+        .map(|row| match row {
+            [key] => key.to_string(),
+            [key, rest @ ..] => format!("{key} ({})", rest.join(", ")),
+            [] => String::new(),
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
 
 fn is_properties() -> String {
     IS_PROPERTIES
@@ -340,6 +360,12 @@ fn parse_term(term: &str) -> Result<Query, ParseError> {
     }
     let colon = term[key.len()..].starts_with(':');
     let key = key.to_ascii_lowercase();
+    if !KEYS.iter().any(|row| row.contains(&key.as_str())) {
+        return Err(ParseError::UnknownKey {
+            key,
+            term: term.to_string(),
+        });
+    }
 
     // Keys that ask whether a card *has* a value rather than how it compares.
     // Scryfall answers `kw>=flying` with "didn't match any cards" — the silent
@@ -476,10 +502,10 @@ fn parse_term(term: &str) -> Result<Query, ParseError> {
                 q
             })
         }
-        other => Err(ParseError::UnknownKey {
-            key: other.to_string(),
-            term: term.to_string(),
-        }),
+        // Every key in `KEYS` has an arm above, and nothing else gets this far.
+        // `every_listed_key_parses` holds that; landing here is a key added to
+        // the table and not to the match.
+        other => unreachable!("search key {other:?} is in KEYS and has no arm"),
     }
 }
 
