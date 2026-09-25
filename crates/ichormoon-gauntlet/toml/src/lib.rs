@@ -904,7 +904,7 @@ pub enum ErrorKind {
     /// unrecognised. The deserializer says which key it did not know and not
     /// which ones it would have taken, and a key silently dropped is how
     /// `atLeast` turns an assertion into a number that cannot fail.
-    #[error("not a criteria file: {0}.\n{SCHEMA}")]
+    #[error("not a criteria file, {0}\n{SCHEMA}")]
     Malformed(String),
     #[error(
         "no [[criterion]] and no [[expect]] tables, so this file asks nothing and every \
@@ -1125,7 +1125,113 @@ pub struct EvalError {
 /// dump of the target type's reflection data, which is a page of noise in front
 /// of the one line that says which key was wrong.
 fn read(source: &str) -> Result<FileDef, ErrorKind> {
-    facet_toml::from_str(source).map_err(|e| ErrorKind::Malformed(e.kind.to_string()))
+    facet_toml::from_str(source).map_err(|e| {
+        let what = e.kind.to_string();
+        let path = e.path.as_ref().map(ToString::to_string);
+        match locate(
+            source,
+            path.as_deref(),
+            &what,
+            e.span.map(|s| s.offset as usize),
+        ) {
+            Some((line, text)) => {
+                let mut out = format!("line {line}: {what}.\n    {line} | {}", text.trim_end());
+                if let Some(hint) = quoting_hint(text) {
+                    out.push_str(&format!("\n{hint}"));
+                }
+                ErrorKind::Malformed(out)
+            }
+            None => ErrorKind::Malformed(format!("{what}.")),
+        }
+    })
+}
+
+/// Which line of the file an error from the TOML reader is about, and its text.
+///
+/// Two sources, trusted for different things (#52). A **syntax** error has no
+/// path, and its byte offset lands on the right line. An error about a
+/// **key** — unknown, or the wrong type — has a path like `criterion[1]` and an
+/// offset that points near it rather than at it, so the table is found by
+/// counting its headers and the key by reading that table's lines. A 500-line
+/// criteria file with an error and no line number is a bisect.
+fn locate<'s>(
+    source: &'s str,
+    path: Option<&str>,
+    what: &str,
+    offset: Option<usize>,
+) -> Option<(usize, &'s str)> {
+    let lines: Vec<&str> = source.lines().collect();
+    let Some(path) = path else {
+        let offset = offset?.min(source.len());
+        let line = source[..offset].matches('\n').count();
+        return lines.get(line).map(|text| (line + 1, *text));
+    };
+    // `criterion[1].at_least` is the second `[[criterion]]`, key `at_least`.
+    let (table, rest) = path.split_once('[')?;
+    let (index, rest) = rest.split_once(']')?;
+    let index: usize = index.parse().ok()?;
+    let header = format!("[[{table}]]");
+    let start = lines.iter().position_nth(|l| l.trim() == header, index)?;
+    // The key: the field an "unknown field" message names, which the path
+    // does not reach, or else the path's next name.
+    let key = what
+        .split_once('`')
+        .and_then(|(_, r)| r.split_once('`'))
+        .map(|(k, _)| k)
+        .or_else(|| {
+            rest.strip_prefix('.')
+                .and_then(|r| r.split(['.', '[']).next())
+        })
+        .filter(|k| !k.is_empty());
+    // The table runs until the next header that is not one of its own
+    // sub-tables: `[[criterion.any_of]]` is still inside the criterion.
+    let nested = format!("[[{table}.");
+    let found = key.and_then(|key| {
+        lines
+            .iter()
+            .enumerate()
+            .skip(start + 1)
+            .take_while(|(_, l)| {
+                let t = l.trim_start();
+                !t.starts_with('[') || t.starts_with(&nested)
+            })
+            .filter(|(_, l)| {
+                // At the start of the line, or inside an inline table such as
+                // a `require` clause, where no line starts with it.
+                l.split([' ', '{', ','])
+                    .zip(l.split([' ', '{', ',']).skip(1).chain([""]))
+                    .any(|(word, next)| word == key && (next == "=" || next.starts_with('=')))
+                    || l.contains(&format!("{key}="))
+            })
+            .map(|(i, _)| i)
+            .next()
+    });
+    let at = found.unwrap_or(start);
+    Some((at + 1, lines[at]))
+}
+
+trait PositionNth<T> {
+    fn position_nth(self, pred: impl FnMut(&T) -> bool, n: usize) -> Option<usize>;
+}
+
+impl<'a, T: 'a, I: Iterator<Item = &'a T>> PositionNth<T> for I {
+    fn position_nth(self, mut pred: impl FnMut(&T) -> bool, n: usize) -> Option<usize> {
+        self.enumerate()
+            .filter(|(_, x)| pred(x))
+            .nth(n)
+            .map(|(i, _)| i)
+    }
+}
+
+/// The mistake anyone writing card names makes: an apostrophe inside a
+/// single-quoted TOML string, which ends the string early —
+/// `'name:"Artificer's Intuition"'`.
+fn quoting_hint(line: &str) -> Option<&'static str> {
+    (line.matches('\'').count() >= 3 && !line.contains("'''")).then_some(
+        "    A single-quoted string ends at its next ', so a card name with an apostrophe \
+         in it ends\n    it early. Use triple quotes for those: '''name:\"Artificer's \
+         Intuition\"'''",
+    )
 }
 
 /// Validate the `[[effect]]` tables of an already-deserialized file.

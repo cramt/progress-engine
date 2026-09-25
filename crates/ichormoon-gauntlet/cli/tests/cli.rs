@@ -3575,3 +3575,19 @@ fn a_library_a_fetch_can_empty_is_refused_by_both_engines_in_the_same_words() {
     );
     assert!(run(&[]).status.success(), "on the play it fits");
 }
+
+#[test]
+fn every_run_says_how_close_it_came_to_the_ceiling() {
+    // #52: the ceiling used to be invisible until a question crossed it. The
+    // ramp deck's widest question is 108 compositions, which is nothing, and
+    // the run says so before its verdict.
+    let out = run("simple-ramp.criteria.toml");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains(
+            "widest exact question: 108 compositions across 3 groups, under 0.01% of the \
+             5,000,000 ceiling"
+        ),
+        "{stderr}"
+    );
+}

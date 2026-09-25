@@ -241,8 +241,16 @@ PASS commander on turn 2           44.29%  (needs 30.0%)
                                   0: 5.6%   1: 20.2%  2: 30.6%  3: 25.6%
                                   4: 13.0%  5: 4.1%   6: 0.8%   7: 0.1%
 
+widest exact question: 108 compositions across 3 groups, under 0.01% of the 5,000,000 ceiling, "commander on turn 2"
+
 PASS: 3 of 3 assertions met
 ```
+
+The line above the verdict is how close the run came to the enumeration
+ceiling: the widest question it walked exactly, and its share. It is on every
+run so that the ceiling is visible before a question crosses it — Route B's
+turn-5 line on `decks/lantern.txt` sits at 82% of it, one more card or turn
+from being estimated.
 
 JSON goes to stdout, the verdict to stderr, and the exit code reflects it — so a
 caller piping stdout through `jq` cannot lose the failure.

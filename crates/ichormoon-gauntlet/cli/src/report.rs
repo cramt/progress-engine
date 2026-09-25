@@ -897,6 +897,32 @@ impl Report {
             ));
         }
 
+        // How close the run came to the ceiling, on every run rather than only
+        // the one that crosses it: a file that answers exactly on the play and
+        // is estimated on the draw should not be the first anyone hears of how
+        // wide it was (#52). The widest question walked exactly, and its share.
+        if let Some(widest) = self
+            .enumerations
+            .iter()
+            .filter(|e| e.method == "exact")
+            .max_by(|a, b| a.compositions.total_cmp(&b.compositions))
+        {
+            let ceiling = gauntlet_criteria::MAX_PATHS as f64;
+            let name = widest
+                .criteria
+                .first()
+                .or(widest.expectations.first())
+                .map_or(String::new(), |n| format!(", {n:?}"));
+            out.push_str(&format!(
+                "\nwidest exact question: {} compositions across {} groups, {} of the {} \
+                 ceiling{name}\n",
+                thousands(widest.compositions),
+                widest.groups,
+                share(widest.compositions / ceiling),
+                thousands(ceiling),
+            ));
+        }
+
         out.push('\n');
         out.push_str(&if self.ok {
             format!(
@@ -1187,6 +1213,29 @@ pub fn exclusion_note(library: &Library) -> Option<String> {
         if total == 1 { "" } else { "s" },
         list.join(", ")
     ))
+}
+
+/// A whole number with thousands separators, as the docs quote widths.
+fn thousands(n: f64) -> String {
+    let digits = format!("{:.0}", n);
+    let mut out = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// A share of the ceiling, to the precision that tells a question at 0.1%
+/// from one at 99%.
+fn share(fraction: f64) -> String {
+    match fraction * 100.0 {
+        p if p < 0.01 => "under 0.01%".to_string(),
+        p if p < 1.0 => format!("{p:.2}%"),
+        p => format!("{p:.0}%"),
+    }
 }
 
 /// How many buckets of a distribution the human output will print.

@@ -1681,3 +1681,54 @@ fn a_wait_is_a_number_of_turns_and_a_sacrifice_needs_one() {
     );
     assert!(bad.to_string().contains("fetchland"), "{bad}");
 }
+
+/// Issue #52: an error the TOML reader raises names the line it is about and
+/// shows it. The criteria-level refusals always named the criterion; these
+/// named nothing, and a criteria file runs to hundreds of lines.
+#[test]
+fn a_malformed_file_names_the_line_and_shows_it() {
+    let message = |source: &str| {
+        Criteria::parse(source, "test.criteria.toml")
+            .expect_err("should refuse")
+            .to_string()
+    };
+    // A syntax error, and the mistake that causes most of them: an apostrophe
+    // in a card name ends a single-quoted string.
+    let syntax = message(
+        "[[criterion]]\nname = \"a\"\n\
+         require = [{ turn = 1, query = 'name:\"Artificer's Intuition\"', min = 1 }]\n",
+    );
+    assert!(syntax.contains("line 3:"), "{syntax}");
+    assert!(syntax.contains("3 | require"), "shows the line: {syntax}");
+    assert!(syntax.contains("triple quotes"), "names the fix: {syntax}");
+
+    let criteria = |second: &str| {
+        format!(
+            "[[criterion]]\nname = \"a\"\nrequire = [{{ turn = 1, query = \"t:land\", min = 1 }}]\n\n\
+             [[criterion]]\nname = \"b\"\n{second}\n"
+        )
+    };
+    // An unknown key in the second criterion, on line 7 — found by counting
+    // headers, because the reader's own offset for it points elsewhere.
+    let unknown = message(&criteria(
+        "atLeast = 0.5\nrequire = [{ turn = 1, query = \"t:land\", min = 1 }]",
+    ));
+    assert!(
+        unknown.contains("line 7: unknown field `atLeast`"),
+        "{unknown}"
+    );
+    // One inside an inline clause, where no line starts with the key.
+    let inline = message(&criteria(
+        "require = [{ turn = 1, query = \"t:land\", zon = \"hand\", min = 1 }]",
+    ));
+    assert!(inline.contains("line 7: unknown field `zon`"), "{inline}");
+    assert!(
+        !inline.contains("triple quotes"),
+        "no hint where it does not apply"
+    );
+    // And a value of the wrong type.
+    let typed = message(&criteria(
+        "at_least = \"high\"\nrequire = [{ turn = 1, query = \"t:land\", min = 1 }]",
+    ));
+    assert!(typed.contains("line 7:"), "{typed}");
+}
