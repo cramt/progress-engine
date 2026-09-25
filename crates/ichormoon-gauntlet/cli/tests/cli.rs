@@ -3530,3 +3530,48 @@ fn a_real_card_under_a_token_category_is_counted_and_said_out_loud() {
         "{stderr}"
     );
 }
+
+// --- #37: a library that runs out --------------------------------------------
+
+#[test]
+fn a_library_a_fetch_can_empty_is_refused_by_both_engines_in_the_same_words() {
+    // Twelve cards, and on the draw turn 5 deals all twelve. Chapter III can
+    // take the Lantern out of the library first, and on those games there is
+    // no twelfth card. The exact engine used to deal nothing on them, lose
+    // their probability mass and fail with a message about its own sums; the
+    // sampler dealt short hands and answered. Now both refuse, before either
+    // runs, with the same sentence — and on the play, which draws one fewer,
+    // both answer.
+    let run = |flags: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+            .arg("test")
+            .arg(fixture("silly/saga-twelve.txt"))
+            .arg(fixture("saga-on.criteria.toml"))
+            .arg("--index")
+            .arg(fixture("tutor-index.jsonl"))
+            .args(flags)
+            .output()
+            .expect("binary should run")
+    };
+    let refusal = |out: &std::process::Output| {
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        assert!(!out.status.success(), "should refuse: {stderr}");
+        stderr
+            .lines()
+            .find(|l| l.contains("runs out"))
+            .unwrap_or_else(|| panic!("names the reason: {stderr}"))
+            .to_string()
+    };
+    let exact = refusal(&run(&["--draw"]));
+    let sampled = refusal(&run(&["--draw", "--simulate", "--trials", "100"]));
+    assert!(
+        exact.contains("draws 12 cards from a library of 12, and 1 more"),
+        "{exact}"
+    );
+    assert_eq!(
+        exact.split_once("this question").map(|(_, s)| s),
+        sampled.split_once("this question").map(|(_, s)| s),
+        "same question, same refusal"
+    );
+    assert!(run(&[]).status.success(), "on the play it fits");
+}

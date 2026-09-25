@@ -25,6 +25,12 @@ pub enum SimError<E> {
     /// question. Two engines, a hundred points apart, neither complaining.
     #[error("this question draws {draws} cards from a library of {population}")]
     NotEnoughCards { population: u32, draws: u32 },
+    /// The exact engine's refusal of the same two questions, taken from it
+    /// rather than restated: a library with no cards, and one a fetch can empty
+    /// before the last draw. Asked of the same function, so the two engines
+    /// cannot disagree about whether a question is answerable (#37).
+    #[error(transparent)]
+    Infeasible(gauntlet_criteria::RunError<std::convert::Infallible>),
     #[error("no hands to deal: --trials must be greater than zero")]
     NoTrials,
     /// Worded identically to the exact engine's refusal of the same mistake.
@@ -74,13 +80,13 @@ pub fn simulate<E>(
     evaluator: &mut impl Evaluator<Error = E>,
 ) -> Result<Sampled, SimError<E>> {
     let gaps = schedule.gaps();
-    let population = grouping.population();
     let total_draws: u32 = gaps.iter().sum();
-    if total_draws > population {
-        return Err(SimError::NotEnoughCards {
-            population,
-            draws: total_draws,
-        });
+    match gauntlet_criteria::feasible::<std::convert::Infallible>(grouping, schedule) {
+        Ok(()) => {}
+        Err(gauntlet_criteria::RunError::NotEnoughCards { population, draws }) => {
+            return Err(SimError::NotEnoughCards { population, draws })
+        }
+        Err(refused) => return Err(SimError::Infeasible(refused)),
     }
     if trials == 0 {
         return Err(SimError::NoTrials);

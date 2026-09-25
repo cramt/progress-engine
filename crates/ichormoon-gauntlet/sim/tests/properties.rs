@@ -281,12 +281,16 @@ fn sampling_agrees_with_the_exact_engine_within_five_standard_errors() {
 /// Libraries small enough and hands large enough that about half the generated
 /// questions cannot be dealt at all. The refusals are what this generator is
 /// for, not noise to be discarded.
+///
+/// Empty libraries included. They were left out while the two engines
+/// disagreed about them (#37), which made this property silent about exactly
+/// the case it had found; both refuse now, in the same words.
 fn maybe_undealable() -> impl Strategy<Value = (Grouping, Vec<u32>)> {
     (1usize..=2)
         .prop_flat_map(|queries| {
             (
                 Just(queries),
-                prop::collection::vec((0u64..(1u64 << queries), 1u32..=12), 1..=3),
+                prop::collection::vec((0u64..(1u64 << queries), 1u32..=12), 0..=3),
                 prop::collection::vec(0u32..=12, 1..=2),
             )
         })

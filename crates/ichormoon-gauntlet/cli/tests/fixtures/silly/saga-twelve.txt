@@ -1,0 +1,7 @@
+// Twelve cards: the Saga deck before it was widened to sixteen. On the draw,
+// turn 5 draws all twelve, and chapter III can take the Lantern out first,
+// so on those games there is no twelfth card to draw (#37).
+1x Urza's Saga [Land - Saga]
+1x Lantern of Insight [Lantern - Vision]
+4x Island [Land]
+6x Lightning Bolt [Burn]

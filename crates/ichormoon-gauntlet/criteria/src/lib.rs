@@ -304,6 +304,10 @@ pub enum RunError<E> {
         groups: usize,
         queries: Vec<String>,
     },
+    /// Refused by the sampler too, in the same words, though the reasoning
+    /// here is about enumeration — an empty grouping collects no probability
+    /// mass. A question about a deck with no library is a question about
+    /// nothing, whichever engine is asked (#37).
     #[error("the library is empty: every card in the list is a commander or outside the deck")]
     EmptyLibrary,
     /// A hand that cannot be dealt enumerates to no paths at all, so every
@@ -312,6 +316,26 @@ pub enum RunError<E> {
     /// different question, refuses the same way.
     #[error("this question draws {draws} cards from a library of {population}")]
     NotEnoughCards { population: u32, draws: u32 },
+    /// The same refusal, reached by a library that shrinks. A fetch takes a
+    /// card out without drawing it, so a question that draws every card but
+    /// one can run out on the games where something was fetched — and the
+    /// enumeration dealt nothing on those, and lost their mass, while the
+    /// sampler dealt short hands and answered.
+    ///
+    /// Decided before either engine runs, from what *could* be fetched rather
+    /// than what a path did: each copy of a card that fetches takes at most one
+    /// card, so the bound is a count. Deciding it per path would make the
+    /// sampler refuse only on the hands it happened to deal (#37).
+    #[error(
+        "this question draws {draws} cards from a library of {population}, and {fetched} more \
+         can be fetched out of it without being drawn, so on some games the library runs out \
+         before the last draw"
+    )]
+    LibraryRunsOut {
+        population: u32,
+        draws: u32,
+        fetched: u32,
+    },
     /// The enumeration is supposed to partition every possible draw, so its
     /// path probabilities sum to 1. If they do not, some region of the sample
     /// space was visited twice or not at all, and every criterion's total is
@@ -407,7 +431,40 @@ pub fn feasible<E>(grouping: &Grouping, schedule: &Schedule) -> Result<(), RunEr
     if draws > population {
         return Err(RunError::NotEnoughCards { population, draws });
     }
+    // A fetch can only starve a draw that comes after it, and nothing fetches
+    // before turn 1: a question that deals everything in the opening hand
+    // cannot run out however much is fetched afterwards.
+    let later: u32 = schedule.gaps().iter().skip(1).sum();
+    let fetched = fetchable(grouping, schedule);
+    if later > 0 && draws + fetched > population {
+        return Err(RunError::LibraryRunsOut {
+            population,
+            draws,
+            fetched,
+        });
+    }
     Ok(())
+}
+
+/// The most cards this run can take out of the library without drawing them:
+/// one per copy of a card whose effect fetches. A land is played once, a spell
+/// cast once, a chapter resolves once.
+fn fetchable(grouping: &Grouping, schedule: &Schedule) -> u32 {
+    let effects = schedule.effects();
+    grouping
+        .group_masks()
+        .iter()
+        .zip(grouping.group_sizes())
+        .filter(|(mask, _)| {
+            // Last-wins, as the board reads it: the bits are disjoint, so the
+            // effect a group carries is the one whose bit it has.
+            effects
+                .iter()
+                .rposition(|e| *mask & (1u64 << e.matched_by) != 0)
+                .is_some_and(|e| effects[e].fetch.is_some())
+        })
+        .map(|(_, &size)| size)
+        .sum()
 }
 
 /// Exact probability that each criterion holds, and the exact distribution of
