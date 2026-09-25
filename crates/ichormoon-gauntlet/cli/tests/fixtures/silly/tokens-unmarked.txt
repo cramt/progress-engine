@@ -1,0 +1,8 @@
+// The same tokens with the {noDeck} marker lost, and a misspelled Island, so
+// every kind of unresolvable line is in one list and each gets the remedy
+// that works for it (#51).
+98x Island [Land]
+1x Islnd [Land]
+1x Lantern of Insight [Lantern]
+1x Bear [Tokens & Extras]
+1x Treasure [Tokens & Extras]

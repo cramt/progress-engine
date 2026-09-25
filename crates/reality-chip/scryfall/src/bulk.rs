@@ -130,7 +130,19 @@ impl Skipped {
 /// type line: fifty token records do not carry it, and `Token Land` still
 /// contains "Land", which is why `t:land` accidentally survived the bug and
 /// `mv>=5` did not.
-const NOT_CARD_LAYOUTS: [&str; 4] = ["token", "double_faced_token", "emblem", "art_series"];
+///
+/// `front_card` is the newest of them: a token's helper record, typed "Card"
+/// and nothing else, which Scryfall began shipping after this list was
+/// written. 273 of them are in an index built before it was added, under names
+/// like Treasure and Spirit, and a decklist line naming a token resolved to one
+/// of those blanks and was counted as a card (#51).
+pub const NOT_CARD_LAYOUTS: [&str; 5] = [
+    "token",
+    "double_faced_token",
+    "emblem",
+    "art_series",
+    "front_card",
+];
 
 /// Something the bulk data did that this module was not expecting.
 ///

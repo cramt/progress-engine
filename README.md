@@ -1754,6 +1754,14 @@ Notes:
   know, having no card index. A sticker sheet is outside the library too, but
   nothing in the text says so, so it leaves later, at `test` time, where card data
   is at hand, and is reported separately as `excluded`.
+- **A line outside the deck is never looked up.** A `{noDeck}` token in an
+  Archidekt export's `Tokens & Extras` category moves no probability, so it
+  does not have to resolve. A line that is counted and cannot be resolved is
+  refused with the remedy that works for it: `gauntlet sync` for a real card
+  newer than the index, and `{noDeck}` for a token — the index holds no tokens,
+  so no sync will ever find one. A real card filed under a token category, like
+  Shapeshifter, is counted and named in a note, because the list may have
+  meant the token.
 
 ## Development
 

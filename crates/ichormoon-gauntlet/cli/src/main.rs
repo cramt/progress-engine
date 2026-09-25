@@ -451,6 +451,14 @@ fn run_test(
     if let Some(note) = report::exclusion_note(&library) {
         eprintln!("{note}");
     }
+    if !library.token_named.is_empty() {
+        eprintln!(
+            "note: counted from a token category, because each shares its name with a real card: \
+             {}.\n      The index holds cards and not tokens, so these are the cards. If the \
+             list meant the\n      tokens, mark the category `{{noDeck}}`.",
+            library.token_named.join(", ")
+        );
+    }
     let source = std::fs::read_to_string(criteria_path)
         .with_context(|| format!("reading criteria {}", criteria_path.display()))?;
     // Hashed off the bytes that were actually about to run, before anything

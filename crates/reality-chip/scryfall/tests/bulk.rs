@@ -206,3 +206,24 @@ fn the_index_records_the_shape_it_was_written_in() {
     assert_eq!(old.schema(), 0);
     assert!(old.is_stale());
 }
+
+/// Issue #51, the index half. Scryfall ships a token's helper record under the
+/// `front_card` layout, typed "Card" and nothing else, and it is not a card:
+/// an index that kept them held a blank under names like Treasure and Spirit,
+/// and a decklist naming the token resolved to it. Hand-written rather than
+/// lifted, because the fields that matter are the layout and the name.
+#[test]
+fn a_tokens_helper_record_is_not_a_card() {
+    let record: BulkCard = facet_json::from_str(
+        r#"{"name":"Treasure","layout":"front_card","type_line":"Card","cmc":0,
+            "oracle_id":"3365a79e-3e2d-4f4b-861c-a970ae23345b","oracle_text":""}"#,
+    )
+    .expect("a minimal record should parse");
+    assert!(
+        matches!(
+            record.to_card(&mut Vec::new()),
+            Err(chip_scryfall::bulk::Skipped::NotACard)
+        ),
+        "a front_card record is skipped like a token"
+    );
+}

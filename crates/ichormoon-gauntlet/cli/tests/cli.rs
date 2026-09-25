@@ -3454,3 +3454,79 @@ fn a_battlefield_count_of_a_back_face_land_is_refused_and_says_why() {
         "names the case, the issue and the spelling that works: {stderr}"
     );
 }
+
+// --- #51: tokens in a decklist -----------------------------------------------
+
+fn run_tokens(deck: &str) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture(&format!("silly/{deck}.txt")))
+        .arg(fixture("silly/lantern-in-play.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("tutor-index.jsonl"))
+        .output()
+        .expect("binary should run")
+}
+
+#[test]
+fn tokens_marked_no_deck_are_never_looked_up() {
+    // An Archidekt export files tokens under `Tokens & Extras{noDeck}`. The
+    // marker says they are not in the deck, so they move no probability and
+    // need not resolve: Bear, which the index has never heard of, Treasure,
+    // which it holds only as a token's blank helper record, and Shapeshifter,
+    // which is also a real card. The run answers exactly as 99 Islands and a
+    // Lantern do.
+    let out = run_tokens("tokens-nodeck");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["library_size"], 100);
+    assert_close(probability(&json, BY_5), 0.11, "the Lantern, as ever");
+}
+
+#[test]
+fn an_unresolvable_line_is_told_the_remedy_that_works_for_it() {
+    // Three lines that cannot be run, and three different true things to say.
+    // `sync` helps only the misspelled real card; it can never help a token,
+    // because the index holds none — which the old message prescribed to
+    // every one of them.
+    let out = run_tokens("tokens-unmarked");
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let block = |name: &str| {
+        let at = stderr
+            .find(&format!("\n  {name}\n"))
+            .unwrap_or_else(|| panic!("{name} is named: {stderr}"));
+        stderr[at..].lines().nth(2).unwrap_or_default().to_string()
+    };
+    assert!(block("Islnd").contains("Check the spelling"), "{stderr}");
+    assert!(block("Bear").contains("tokens are not cards"), "{stderr}");
+    assert!(
+        block("Treasure").contains("blank helper record"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.matches("gauntlet sync").count() == 1,
+        "sync is suggested for the one line it could help: {stderr}"
+    );
+}
+
+#[test]
+fn a_real_card_under_a_token_category_is_counted_and_said_out_loud() {
+    // Shapeshifter is a token and a real card. Filed under a token category
+    // without the marker, it resolves to the card and is in the library —
+    // right if the list meant the card, wrong if it meant the token, and only
+    // the list's owner knows which, so the run says so rather than deciding.
+    let out = run_tokens("token-counted");
+    assert!(out.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["library_size"], 100);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("counted from a token category") && stderr.contains("Shapeshifter"),
+        "{stderr}"
+    );
+}

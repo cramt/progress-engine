@@ -1,0 +1,5 @@
+// A real card filed under a token category and not marked {noDeck}: counted,
+// and said out loud, because the list may have meant the token (#51).
+98x Island [Land]
+1x Lantern of Insight [Lantern]
+1x Shapeshifter [Tokens & Extras]

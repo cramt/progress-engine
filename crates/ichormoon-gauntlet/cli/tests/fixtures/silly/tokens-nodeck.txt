@@ -1,0 +1,9 @@
+// 99 Islands and a Lantern, and the tokens an Archidekt export files under
+// Tokens & Extras{noDeck}: one the index has never heard of, one it holds only
+// as a token's blank helper record, and one that shares its name with a real
+// card. None of them is in the deck, so none of them is looked up (#51).
+99x Island [Land]
+1x Lantern of Insight [Lantern]
+1x Bear [Tokens & Extras{noDeck}]
+1x Treasure [Tokens & Extras{noDeck}]
+1x Shapeshifter [Tokens & Extras{noDeck}]

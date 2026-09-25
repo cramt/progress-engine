@@ -880,6 +880,16 @@ impl Card {
     }
 
     /// Which never-in-the-library type this card is, if it is one.
+    /// Whether this record is a card at all, rather than a token, an emblem,
+    /// an art card or a token's helper record.
+    ///
+    /// `sync` leaves those out, so this only answers `false` for an index built
+    /// before a layout joined [`crate::bulk::NOT_CARD_LAYOUTS`] — which is
+    /// exactly when it matters, because nothing else would notice.
+    pub fn is_a_card(&self) -> bool {
+        !crate::bulk::NOT_CARD_LAYOUTS.contains(&self.layout.as_str())
+    }
+
     pub fn outside_library(&self) -> Option<OutsideLibrary> {
         crate::outside_library(&self.type_line)
     }

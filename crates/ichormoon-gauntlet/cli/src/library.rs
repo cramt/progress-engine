@@ -117,6 +117,11 @@ pub struct Library {
     /// Kept rather than dropped: excluding a card silently is the same failure
     /// as a query that matches nothing — a confident number nobody can question.
     pub excluded: Vec<Excluded>,
+    /// Cards counted in the library from a category whose name says tokens.
+    /// Each resolved to a real card that shares a token's name, which is right
+    /// if the list meant the card and wrong if it meant the token, and only
+    /// the owner of the list knows which.
+    pub token_named: Vec<String>,
 }
 
 impl Library {
@@ -133,19 +138,37 @@ impl Library {
         let index_tags = index.tag_vocabulary();
         let index_keywords = index.keyword_vocabulary();
 
+        // Outside the deck by the decklist's own say-so — `{noDeck}`, a
+        // sideboard, a maybeboard, a companion — and never looked up. Such a
+        // line moves no probability, so failing to resolve it is an error
+        // about something declared irrelevant, and a token under `{noDeck}` is
+        // exactly that (#51). A commander is in the command zone rather than
+        // outside the game, and is still resolved.
+        let counted: Vec<&chip_decklist::Entry> = parsed
+            .iter()
+            .filter(|e| e.is_commander() || !e.is_outside())
+            .collect();
+
         // Strict about unknown cards: you cannot compute a land count for a
         // card you cannot look up, so a typo here would silently skew every
         // probability.
-        let unknown: Vec<&str> = parsed
+        let unknown: Vec<&chip_decklist::Entry> = counted
             .iter()
+            .copied()
             .filter(|e| !index.contains(&e.name))
-            .map(|e| e.name.as_str())
             .collect();
-        if !unknown.is_empty() {
-            bail!(
-                "unknown card(s): {} — rebuild the index with `gauntlet sync`",
-                unknown.join(", ")
-            );
+        // And a name the index does hold, as a token's blank helper record
+        // rather than a card: an index built before `sync` knew to leave those
+        // out keys 273 of them, under names like Treasure and Spirit. Counted,
+        // one would be a card with no type in the library.
+        let mut not_cards = Vec::new();
+        for e in counted.iter().copied() {
+            if index.get(&e.name)?.is_some_and(|card| !card.is_a_card()) {
+                not_cards.push(e);
+            }
+        }
+        if !unknown.is_empty() || !not_cards.is_empty() {
+            bail!("{}", unknown_cards(&unknown, &not_cards));
         }
 
         // The library is what you draw from: the deck minus anything outside it
@@ -160,7 +183,8 @@ impl Library {
         let mut entries = Vec::new();
         let mut commanders = Vec::new();
         let mut excluded = Vec::new();
-        for e in &parsed {
+        let mut token_named = Vec::new();
+        for e in counted {
             let entry = Entry {
                 card: index.get(&e.name)?.expect("checked above"),
                 categories: e.categories.iter().map(|c| c.name.clone()).collect(),
@@ -168,8 +192,6 @@ impl Library {
             };
             if e.is_commander() {
                 commanders.push(entry);
-            } else if e.is_outside() {
-                continue;
             } else if let Some(card_type) = entry.card.outside_library() {
                 excluded.push(Excluded {
                     name: entry.card.name,
@@ -177,6 +199,14 @@ impl Library {
                     card_type,
                 });
             } else {
+                // Counted, and filed under a category that says token. Treasure,
+                // Spirit and Shapeshifter are tokens and also real cards, and
+                // the index only holds the card — so this line resolved to a
+                // card the list may have meant as a token, and is in the
+                // library. Said out loud rather than decided (#51).
+                if e.categories.iter().any(|c| looks_like_tokens(&c.name)) {
+                    token_named.push(entry.card.name.clone());
+                }
                 entries.push(entry);
             }
         }
@@ -184,6 +214,7 @@ impl Library {
         Ok(Library {
             entries,
             commanders,
+            token_named,
             deck_sha256: crate::report::sha256_hex(text.as_bytes()),
             index_is_stale: stale,
             index_tags,
@@ -414,6 +445,61 @@ impl Library {
             .map(|e| e.qty)
             .sum())
     }
+}
+
+/// Whether a decklist category holds tokens rather than cards: Archidekt's
+/// `Tokens & Extras`, or anything else a person named for them.
+fn looks_like_tokens(category: &str) -> bool {
+    category.to_ascii_lowercase().contains("token")
+}
+
+/// Why a decklist could not be resolved, saying what would actually help.
+///
+/// `sync` only helps a real card newer than the index. It never helps a token,
+/// because the index deliberately holds no tokens — so a line filed under a
+/// token category is told the remedy that works for it (#51).
+fn unknown_cards(unknown: &[&chip_decklist::Entry], not_cards: &[&chip_decklist::Entry]) -> String {
+    let (tokens, cards): (Vec<&chip_decklist::Entry>, Vec<&chip_decklist::Entry>) = unknown
+        .iter()
+        .partition(|e| e.categories.iter().any(|c| looks_like_tokens(&c.name)));
+    let names = |list: &[&chip_decklist::Entry]| {
+        list.iter()
+            .map(|e| e.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let mut out = String::from("unknown card(s), so no number here can be computed:");
+    if !not_cards.is_empty() {
+        out.push_str(&format!(
+            "\n  {}\n  Tokens, not cards: the index holds only a token's blank helper record \
+             under {}.\n  Mark the category `{{noDeck}}`, as Archidekt's `Tokens & Extras` \
+             export does, or delete the line{}.",
+            names(not_cards),
+            if not_cards.len() == 1 {
+                "that name"
+            } else {
+                "those names"
+            },
+            if not_cards.len() == 1 { "" } else { "s" }
+        ));
+    }
+    if !cards.is_empty() {
+        out.push_str(&format!(
+            "\n  {}\n  Not in this card index. Check the spelling; if it is a real card newer \
+             than the index,\n  rebuild it with `gauntlet sync`.",
+            names(&cards)
+        ));
+    }
+    if !tokens.is_empty() {
+        out.push_str(&format!(
+            "\n  {}\n  Filed under a token category, and tokens are not cards: the index holds \
+             none, and no\n  `sync` will add them. Mark the category `{{noDeck}}`, as \
+             Archidekt's `Tokens & Extras`\n  export does, or delete the line{}.",
+            names(&tokens),
+            if tokens.len() == 1 { "" } else { "s" }
+        ));
+    }
+    out
 }
 
 /// Whether a type line names this card type, read by word.
