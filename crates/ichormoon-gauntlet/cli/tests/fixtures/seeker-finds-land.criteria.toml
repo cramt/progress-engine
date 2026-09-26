@@ -1,0 +1,17 @@
+# A cast fetch onto the battlefield whose priority can find a land: refused
+# as Rampant Growth is, because a land a spell puts down is not a land drop and
+# nothing says whether it enters tapped. The Lantern entry alone is accepted
+# (hand-40-on.criteria.toml); the Island behind it is what is refused.
+
+[[effect]]
+match = 'name:"Tezzeret the Seeker"'
+on = "cast"
+fetch = ['name:"Lantern of Insight"', 't:land']
+to = "battlefield"
+
+[casting]
+prefer = ['name:"Tezzeret the Seeker"']
+
+[[criterion]]
+name = "Tezzeret the Seeker cast by turn 5"
+require = [{ turn = 5, cast = 'name:"Tezzeret the Seeker"', min = 1 }]

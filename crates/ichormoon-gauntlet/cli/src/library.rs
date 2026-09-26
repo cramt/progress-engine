@@ -519,6 +519,22 @@ impl Library {
         Ok(names)
     }
 
+    /// Cards matching `query` that are not permanents: instants and sorceries,
+    /// which nothing can put onto the battlefield (CR 110.4b).
+    pub fn non_permanents_matching(&self, query: &str) -> Result<Vec<String>> {
+        let q =
+            chip_scryfall::parse(query).map_err(|e| anyhow::anyhow!("in query {query:?}: {e}"))?;
+        let mut names: Vec<String> = self
+            .entries
+            .iter()
+            .filter(|e| q.matches(&e.card.view(&e.categories)) && !is_permanent(&e.card))
+            .map(|e| e.card.name.clone())
+            .collect();
+        names.sort_unstable();
+        names.dedup();
+        Ok(names)
+    }
+
     /// Cards matching `query` that are not lands and that nothing in this run
     /// can put onto the battlefield.
     ///

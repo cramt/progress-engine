@@ -1442,8 +1442,9 @@ sampler's acceptance tests.*
 
 Hands 40 to 42 pin
 [ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)
-before any of it is built. **None of them is answerable yet**, and each names
-the build ticket it waits for. Each is a small deck, on the play, with the deal
+before any of it is built. Hand 40 is answerable and a test (ADR-0019's first
+ticket, #96); 41 and 42 are not yet, and each names the build ticket it waits
+for. Each is a small deck, on the play, with the deal
 worked turn by turn for one order of the library and then priced over every
 order. The tables were produced by brute force over every order of the deck, in
 `docs/research/tutor-routes-hands.py`, which reads nothing in `crates/`, and
@@ -1474,9 +1475,11 @@ library is one card smaller. There is no mana left, and none was needed; that is
 the whole difference from Trinket Mage (hand 15), whose Lantern still costs
 `{1}` after it arrives.
 
-**Today** the effect is refused by name: `to = "battlefield"` on a cast is
-Rampant Growth's refusal, written for a land whose tapped-ness no tag carries.
-An artifact has no tapped-ness question, so the refusal is too wide.
+**Before #96** the effect was refused by name: `to = "battlefield"` on a cast
+was Rampant Growth's refusal, written for a land whose tapped-ness no tag
+carries. An artifact has no tapped-ness question, so the refusal was too wide;
+it now refuses only a priority that can match a land (or an instant or a
+sorcery, which is not a permanent).
 
 | | no fetch | fetch to battlefield |
 |---|---|---|
@@ -1495,8 +1498,15 @@ seen, is cast on turn 5 and finds it. The first row is the Seeker in the first
 eleven, 11/12, less the deals where the Lantern is the eleventh card and takes
 one of turn 5's five mana first: (1/12)(10/11), which leaves 37/44.
 
-*Not answerable yet: needs ADR-0019's first ticket (a cast may put a non-land
-onto the battlefield).*
+*Answerable, and a test* — `hand-40.txt` against `hand-40-off.criteria.toml`
+and `hand-40-on.criteria.toml`, one per column:
+`tezzeret_the_seeker_puts_the_lantern_onto_the_battlefield_the_turn_he_resolves`
+and `the_seekers_battlefield_fetch_agrees_with_the_sampler` in the CLI suite,
+`tezzeret_the_seeker_puts_a_lantern_the_line_also_casts_onto_the_battlefield`
+in the engine's, and
+`a_permanent_the_line_casts_or_a_cast_puts_down_is_in_play_in_both_engines` in
+the sampler's acceptance tests. A priority that could find a land is refused
+(`a_cast_that_could_put_a_land_onto_the_battlefield_is_refused_by_name`).
 
 ### 44. What the Seeker puts down is there the turn it is cast
 
@@ -1548,9 +1558,11 @@ after the line paid, so it is on the battlefield that turn and its mana is the
 next turn's — which is what the line itself already read, since it does not
 look again after a fetch onto the battlefield.
 
-*Engine-only for now:* the file boundary refuses `on = "cast"` with `to =
-"battlefield"` until ADR-0019's first ticket, so this is held at the engine's
-seam — `a_card_a_cast_puts_onto_the_battlefield_is_there_that_same_turn` and
+*A test at both seams:* since #96 the file boundary takes `on = "cast"` with
+`to = "battlefield"` for a card that is not a land, so this is
+`what_the_seeker_puts_down_is_on_the_battlefield_the_turn_he_is_cast` in the
+CLI suite (`hand-44.criteria.toml`), and at the engine's seam
+`a_card_a_cast_puts_onto_the_battlefield_is_there_that_same_turn` and
 `a_land_a_cast_puts_onto_the_battlefield_pays_from_the_next_turn` in the
 engine's tests, and
 `a_card_a_cast_puts_onto_the_battlefield_arrives_that_turn_in_both_engines` in
@@ -1748,9 +1760,9 @@ case in #37, which is the one hole.*
 ## What these are for
 
 When the features land, these become tests — hands 1, 2, 3, 4, 6, 7, 8, 9, 10,
-11, 12, 13, 14, 15, 16, 17, 18, 34, 35 and 37 already have. That is every one of
-them but hand 5, hands 19 to 25 (ADR 0017's tickets), hands 26 to 33 (ADR
-0018's) and hands 40 to 42 (ADR 0019's).
+11, 12, 13, 14, 15, 16, 17, 18, 34, 35, 37 and 40 already have. That is every
+one of them but hand 5, hands 19 to 25 (ADR 0017's tickets), hands 26 to 33
+(ADR 0018's) and hands 41 and 42 (ADR 0019's).
 Until then they are the specification: if an implementation disagrees with a
 hand here, one of the two is wrong and it is worth knowing which before shipping
 a percentage.

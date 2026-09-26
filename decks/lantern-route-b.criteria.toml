@@ -44,7 +44,8 @@
 #   * Mulligans. Turn 0 is a kept seven.
 #   * The other three routes. Route A is a Lantern in hand and one mana; the
 #     third is a tutor that puts it onto the battlefield (Tezzeret the Seeker,
-#     Whir of Invention); route C is Urza's Saga, which is
+#     which is lantern-route-seeker.criteria.toml, and Whir of Invention);
+#     route C is Urza's Saga, which is
 #     lantern-route-c.criteria.toml. All four are in lantern.criteria.toml.
 #   * The other hand tutors. Fabricate, Tezzeret, Cruel Captain, Dizzy Spell
 #     and Artificer's Intuition are route B too, and only lantern.criteria.toml

@@ -1,0 +1,16 @@
+# A cast fetch onto the battlefield whose priority can find an instant. An
+# instant is not a permanent and cannot be put onto the battlefield at all
+# (CR 110.4b), so the entry is refused rather than counted there.
+
+[[effect]]
+match = 'name:"Tezzeret the Seeker"'
+on = "cast"
+fetch = ['name:"Lightning Bolt"']
+to = "battlefield"
+
+[casting]
+prefer = ['name:"Tezzeret the Seeker"']
+
+[[criterion]]
+name = "Tezzeret the Seeker cast by turn 5"
+require = [{ turn = 5, cast = 'name:"Tezzeret the Seeker"', min = 1 }]

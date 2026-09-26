@@ -1,0 +1,5 @@
+// HANDS.md hand 40 with the Lantern swapped for a Lightning Bolt, for the
+// refusal of a battlefield fetch that could find an instant.
+10x Island [Land]
+1x Tezzeret the Seeker [Tutor]
+1x Lightning Bolt [Burn]

@@ -1,0 +1,83 @@
+# "Third Lantern Control" — https://archidekt.com/decks/25088186
+# Route 3 of the north star, on its own: Tezzeret the Seeker.
+#
+# The route that lands the Lantern the turn its tutor resolves. Tezzeret the
+# Seeker is {3}{U}{U}, enters with four loyalty, and −X searches the library
+# for an artifact with mana value X or less and puts it onto the battlefield.
+# The Lantern is mana value 1, so −1 is enough, at sorcery speed the turn he
+# is cast. It is never cast, and it never touches the hand (HANDS.md hand 40).
+#
+# WHAT IS MODELLED HERE
+# ---------------------
+#   [[effect]] — a cast fetch onto the battlefield (ADR-0019, #96). The −1 is
+#                read as part of his cast, as Cruel Captain's −3 is in
+#                lantern.criteria.toml. A priority that could find a land is
+#                refused, because a land a spell puts down may or may not
+#                enter tapped; an artifact has no such question.
+#   [casting]  — the Lantern first, so a Lantern already in hand is cast for
+#                {1} and the Seeker has nothing left to find; then the Seeker.
+#
+# WHAT THE SEEKER IS WORTH, MEASURED
+# ----------------------------------
+# Delete the `[[effect]]` block and re-run. On the play, then on the draw,
+# against the committed index:
+#
+#                                                  play            draw
+#                                              drawn  fetched  drawn  fetched
+#   Tezzeret the Seeker cast by turn 5         2.80%   2.84%   4.30%   4.22%
+#   Lantern of Insight cast by turn 5         10.99%  11.10%  12.11%  12.14%
+#   Lantern on the battlefield by turn 5      10.99%  13.76%  12.11%  16.03%
+#   Lanterns still in the library, turn 5     0.8893  0.8616  0.8785  0.8392
+#
+# All sampled, at ± 0.04 to 0.08: 9 groups and 42,220,035 compositions at turn
+# 5, the width route B's second row has, in 0.8s. The first two rows do not
+# move beyond their error bars, and must not: what the Seeker does when he
+# resolves cannot change whether the pool paid for him, and a Lantern he puts
+# down was never cast. The third row is the route: +2.8 points on the play and
+# +3.9 on the draw, which is the Seeker cast with the Lantern still in the
+# library. At 2,000,000 trials on the play it reads 11.02% ± 0.02 against
+# 13.70% ± 0.02.
+#
+# STILL NOT MODELLED
+# ------------------
+#   * Whir of Invention, the other half of route 3: its {X} needs a declared
+#     cost, which is ADR-0019's second ticket.
+#   * The other routes. This file asks route 3 beside route 1, because the
+#     line casts a Lantern it holds; route 2 is lantern-route-b.criteria.toml
+#     and route 4 is lantern-route-c.criteria.toml. All four are in
+#     lantern.criteria.toml.
+#   * Rocks. The line casts the Seeker off lands alone, so this is a floor.
+#   * Tezzeret surviving. The −1 resolves the turn he is cast; nothing here
+#     models the other side of the table.
+#   * Mulligans. Turn 0 is a kept seven.
+
+[[effect]]
+match = 'name:"Tezzeret the Seeker"'
+on = "cast"
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[casting]
+prefer = ['name:"Lantern of Insight"', 'name:"Tezzeret the Seeker"']
+
+# THRESHOLD: none, for the reason route B's file gives. One route of four.
+
+[[criterion]]
+name = "Tezzeret the Seeker cast by turn 5"
+require = [{ turn = 5, cast = 'name:"Tezzeret the Seeker"', min = 1 }]
+
+[[criterion]]
+name = "Lantern of Insight cast by turn 5"
+require = [{ turn = 5, cast = 'name:"Lantern of Insight"', min = 1 }]
+
+# Where the route ends: the Lantern in play, whether the line cast it or the
+# Seeker put it there.
+[[criterion]]
+name = "Lantern of Insight on the battlefield by turn 5, cast or put there by the Seeker"
+require = [{ turn = 5, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+[[expect]]
+name = "Lanterns still in the library on turn 5"
+turn = 5
+query = 'name:"Lantern of Insight"'
+zone = "library"

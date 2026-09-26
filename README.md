@@ -463,7 +463,7 @@ require = [
 | `hand` | the default. Cards drawn by that turn — nothing is cast or discarded yet, so nothing has left |
 | `graveyard` | cards an effect routed to the yard — see [Effects](#effects) — and every instant or sorcery the [`[casting]` line](#mana-as-a-budget) cast, which resolves into it. Zero in a run where neither can happen, and the run says so |
 | `library` | cards matching the query that are still in the deck: the deck's total minus what has been drawn or binned |
-| `battlefield` | **lands you have played**, one drop a turn — the ones your `[land_drop]` priority played, or the most you could have played if you declared none — plus every permanent the [`[casting]` line](#mana-as-a-budget) cast and anything a [delayed effect](#delayed-effects-urzas-saga) put there. A permanent still in hand is not on it, declared land drop or not ([HANDS.md](HANDS.md) hand 43). Refused for any other card that would have to be cast |
+| `battlefield` | **lands you have played**, one drop a turn — the ones your `[land_drop]` priority played, or the most you could have played if you declared none — plus every permanent the [`[casting]` line](#mana-as-a-budget) cast and anything a [delayed effect](#delayed-effects-urzas-saga) or a [cast fetch](#a-cast-that-puts-a-card-onto-the-battlefield-tezzeret-the-seeker) put there. A permanent still in hand is not on it, declared land drop or not ([HANDS.md](HANDS.md) hand 43). Refused for any other card that would have to be cast |
 
 `graveyard` is reachable exactly when some effect in the run routes a card
 there, or the declared casting line names an instant or a sorcery — a spell
@@ -519,7 +519,7 @@ otherwise produces a percentage that looks exactly like a real one:
 | `min = 5, max = 2` | no hand can satisfy it: a confident 0% |
 | `at_least = 70` | a threshold is a share of hands, so 70% is `0.70` |
 | `at_least = 0.6, at_most = 0.4` | no probability sits between them, so it fails every deck and blames the deck for it |
-| `zone = "battlefield"` on a query matching a spell | a land arrives on a land drop and this engine walks those; a spell has to be cast, and where it goes afterwards is not modelled. `cast` counts the castings, which is the part that is known. The exceptions are the two ways this walk models a permanent arriving: the `[casting]` line casting it, and a [delayed effect](#delayed-effects-urzas-saga) putting it there. An instant or sorcery stays refused, because it resolves into the graveyard — ask `zone = "graveyard"` for it |
+| `zone = "battlefield"` on a query matching a spell | a land arrives on a land drop and this engine walks those; a spell has to be cast, and where it goes afterwards is not modelled. `cast` counts the castings, which is the part that is known. The exceptions are the three ways this walk models a permanent arriving: the `[casting]` line casting it, and a [delayed effect](#delayed-effects-urzas-saga) or a [cast fetch](#a-cast-that-puts-a-card-onto-the-battlefield-tezzeret-the-seeker) putting it there. An instant or sorcery stays refused, because it resolves into the graveyard — ask `zone = "graveyard"` for it |
 | `zone = "exile"`, or any other zone | a zone that fell through to a default would answer the wrong question |
 | two of `query`, `can_cast` and `cast` in one clause | three different questions, two of which would have to be answered silently |
 | `cast` and `zone` in one clause | a casting is not a zone. Where the spell is afterwards is a `query` with a `zone`: a cast instant or sorcery in the graveyard, a cast permanent on the battlefield |
@@ -533,7 +533,9 @@ otherwise produces a percentage that looks exactly like a real one:
 | a file with no `[[criterion]]` and no `[[expect]]` | it asks nothing |
 | `look` on an `on = "cast"` effect | the budget knows you cast it; what it does not know is what casting it drew, and a replacement draw is over the enumeration ceiling on every question this tool exists for ([#57](https://github.com/cramt/progress-engine/issues/57)). A `fetch` on a cast is answered |
 | `fetch` with no `to`, or `to` with no `fetch` | half a declaration, and half a declaration is where a default nobody stated gets invented |
-| `fetch ... to = "battlefield"` on an `on = "cast"` effect, or naming a card that is not a land | a land arriving off a spell enters tapped for Rampant Growth and untapped for Nature's Lore, and no tag separates them; anything that is not a land has to be cast to get there at all |
+| `fetch ... to = "battlefield"` on an `on = "cast"` effect whose priority matches a land | a land arriving off a spell enters tapped for Rampant Growth and untapped for Nature's Lore, and no tag separates them. Anything else a cast may put there, as Tezzeret the Seeker puts the Lantern ([HANDS.md](HANDS.md) hand 40) |
+| `fetch ... to = "battlefield"` on an `on = "landdrop"` effect, naming a card that is not a land | a fetchland finds a land; anything else has to be cast, or put there by a cast or a delayed effect |
+| `fetch ... to = "battlefield"` on a cast or delayed effect whose priority matches an instant or a sorcery | it is not a permanent, and nothing can put it onto the battlefield |
 | a `fetch` beside a `can_cast`, a `cast` or a `[casting]` table, where it puts a land onto the battlefield | what a fetched land taps for on the turn it arrives is a fact about the spell that fetched it, and `otag:fetchland` holds both kinds |
 | `on` anything else, or `look = 0`, or an effect that neither looks nor fetches | a trigger nothing fires, and an effect that cannot move a number |
 | `after` on an `on = "cast"` effect that does not `adds`, or beside a `look` | a delayed look turns over cards on a turn the schedule cannot know in advance, and a cast leaves nothing in play to wait with but a rock or dork, whose `after` is how long it adds nothing |
@@ -1326,9 +1328,10 @@ and nothing on the land it *found* tells them apart — so a `can_cast` or a
 `cast` clause beside a battlefield fetch is refused rather than answered in
 whichever direction happens to flatter. What left the library is exact; what it
 makes is not modelled. For the same reason `on = "cast"` with `to =
-"battlefield"` — Rampant Growth — is refused at the file boundary: whether that
-land enters tapped is a fact about the spell, and no tag separates Rampant
-Growth from Nature's Lore.
+"battlefield"` is refused wherever its priority can find a land — Rampant
+Growth: whether that land enters tapped is a fact about the spell, and no tag
+separates Rampant Growth from Nature's Lore. Anything else a cast may put
+there; see the next section.
 
 **What it costs: no width, and about five per cent of the wall clock.** A
 removal is decided once per path prefix rather than branched over, so the
@@ -1362,6 +1365,65 @@ rather than a subtraction, and it branches the path the way a draw does. That is
 the expensive half of
 [#18](https://github.com/cramt/progress-engine/issues/18) and it is filed rather
 than approximated.
+
+### A cast that puts a card onto the battlefield: Tezzeret the Seeker
+
+Tezzeret the Seeker is `{3}{U}{U}` and enters with four loyalty, and his −X
+searches the library for an artifact with mana value X or less and puts it
+**onto the battlefield**. The Lantern is mana value 1, so −1 finds it, at
+sorcery speed, the turn he resolves. It is written as a cast fetch with `to =
+"battlefield"`, reading the −1 as part of his cast
+([ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)):
+
+```toml
+[[effect]]
+match = 'name:"Tezzeret the Seeker"'
+on = "cast"
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[casting]
+prefer = ['name:"Lantern of Insight"', 'name:"Tezzeret the Seeker"']
+```
+
+**What it moves.** The Lantern leaves the library and is on the battlefield
+from the turn the Seeker is cast. It never touches the hand and is never cast,
+so a `cast` clause about it does not count it and a `zone = "battlefield"`
+question does — which is why a battlefield question about a card only the
+Seeker can put there is answered, as one about a Saga's chapter is. Nothing
+else moves: what he does when he resolves cannot change whether the pool paid
+for him. That is the whole difference from Trinket Mage, whose Lantern still
+costs `{1}` after it arrives. HANDS.md hand 40:
+
+| Ten Islands, the Seeker and the Lantern, on the play | no fetch | fetch to battlefield |
+|---|---|---|
+| Tezzeret the Seeker cast by turn 5 | 37/44 = 84.09% | 37/44 = 84.09% |
+| Lantern on the battlefield by turn 5 | 11/12 = 91.67% | **100%** |
+| Lantern cast by turn 5 | 11/12 = 91.67% | 11/12 = 91.67% |
+| Lantern still in the library on turn 5 | 1/12 = 8.33% | **0%** |
+
+**What it will not put there is a land, or anything that is not a
+permanent.** The refusal is on what the priority can match in *this* deck: a
+cast fetch onto the battlefield whose priority matches a land is Rampant
+Growth, and whether that land enters tapped is a fact about the spell that no
+tag carries; an instant or a sorcery cannot be put onto the battlefield at all.
+The same shape as the Saga's rule below, which is the mirror of a fetchland's.
+
+**On the deck it was built for.** `decks/lantern-route-seeker.criteria.toml` is
+the route on its own, beside the Lantern cast from hand. Delete the
+`[[effect]]` block and re-run:
+
+| On `decks/lantern.txt` | play, drawn | play, fetched | draw, drawn | draw, fetched |
+|---|---|---|---|---|
+| Tezzeret the Seeker cast by turn 5 | 2.80% | 2.84% | 4.30% | 4.22% |
+| Lantern of Insight cast by turn 5 | 10.99% | 11.10% | 12.11% | 12.14% |
+| Lantern on the battlefield by turn 5 | 10.99% | **13.76%** | 12.11% | **16.03%** |
+
+All sampled, ± 0.04 to 0.08: nine groups and 42,220,035 compositions at turn 5,
+route B's width, in 0.8s. The first two rows move inside their error bars and
+the third is the route, +2.8 points on the play and +3.9 on the draw. The line
+casts the Seeker off lands alone, so these are floors until rocks join the
+bill. Whir of Invention, the route's other card, waits on a declared cost.
 
 ### Delayed effects: Urza's Saga
 
@@ -2277,14 +2339,18 @@ states — not from the engine's source. It shuffles the real libraries in
 `decks/`, deals 400,000 games per deck and seat, answers a handful of the
 committed criteria (a pure draw question, a battlefield land count, three
 `can_cast` joints, Loam cast into the graveyard — drawn, or fetched by
-Spellseeker — played a turn at a time, and the commander cast from the command
+Spellseeker — played a turn at a time, the Lantern put onto the battlefield by
+Tezzeret the Seeker's loyalty ability, and the commander cast from the command
 zone on each deck) and holds every answer the engine gave **exactly** against
 the checker's 99.9% interval, exiting non-zero on any that falls outside. An
 answer the engine **estimated** carries an error of its own, so it is held to
 the interval of the difference instead — both errors, added in quadrature — and
 marked `agree (engine sampled)`: a weaker check, of what a dealt game does
 rather than of the enumeration, and the only one the commander and Spellseeker
-questions admit, because they are too wide to enumerate. It is still a check:
+questions admit, because they are too wide to enumerate. Loyalty abilities are
+the checker's own reading of CR 606 — sorcery speed, once a turn, a `−X` paid
+out of the loyalty the walker entered with — and `checker/test_seeker.py`
+plays HANDS.md hands 40 and 44 through it over every deal. It is still a check:
 it is how the Spellseeker line found the engine holding a fetched Loam it could
 have cast:
 

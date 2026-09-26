@@ -1267,22 +1267,6 @@ pub enum ErrorKind {
         FETCH_DESTINATIONS
     )]
     BadFetchDestination { at: String, to: String },
-    /// Rampant Growth, and it is refused rather than approximated.
-    ///
-    /// A land arriving off a spell is not a land drop, so what it taps for on
-    /// the turn it lands is a fact about the card that put it there — tapped
-    /// for Rampant Growth, untapped for Nature's Lore — and no tag this index
-    /// carries separates them. Both are plausible and one of them is wrong,
-    /// which is the confident wrong number in its usual costume.
-    #[error(
-        "{at}: has `on = \"cast\"` and `to = \"battlefield\"`, which is a land arriving off a \
-         spell rather than on a land drop, and that is not modelled.\n\
-         Whether such a land enters tapped is a fact about the spell that fetched it and no tag \
-         separates the two, so the turn's mana would be either overstated or understated with \
-         nothing saying which. `to = \"hand\"` is answerable, and so is `on = \"landdrop\"` with \
-         `to = \"battlefield\"`, which is a fetchland."
-    )]
-    FetchOntoTheBattlefieldFromASpell { at: String },
     #[error(
         "{at}: `after = {after}` is not a number of turns to wait: it must be a whole number \
          from 1 to {MAX_TURN}. An effect that waits no turns is written without `after`."
@@ -1510,11 +1494,10 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
                 trigger: TriggerError::LooksOnCast,
             });
         }
-        if let Some(fetch) = &fetch {
-            if trigger == Trigger::Cast && fetch.to == Fetched::Battlefield {
-                return Err(ErrorKind::FetchOntoTheBattlefieldFromASpell { at: at.clone() });
-            }
-        }
+        // A fetch onto the battlefield off a cast is accepted here: whether its
+        // priority can find a land — Rampant Growth, refused because nothing
+        // says whether that land enters tapped — is a question about the deck,
+        // and the CLI asks it with the index in hand (ADR-0019).
         let delay = delay_of(def, &at, trigger, look, adds.is_some() && fetch.is_none())?;
         entries.push(EffectEntry {
             matches,

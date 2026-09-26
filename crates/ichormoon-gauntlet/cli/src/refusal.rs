@@ -225,12 +225,33 @@ pub enum Refusal {
         query: String,
         lands: u32,
     },
-    /// A battlefield fetch naming something that is not a land.
+    /// A cast fetch onto the battlefield that can find a land.
     ///
-    /// The same refusal `zone = "battlefield"` is under, at the same seam: a
-    /// land arrives on a land drop, which this engine models, and everything
-    /// else has to be cast, which — once it is on the battlefield rather than
-    /// merely paid for — it does not.
+    /// Rampant Growth. A cast may put an artifact onto the battlefield —
+    /// Tezzeret the Seeker's −X, ADR-0019 — because an artifact has no
+    /// question about how it arrives. A land does: whether it enters tapped is
+    /// a fact about the spell that fetched it, tapped for Rampant Growth and
+    /// untapped for Nature's Lore, and no tag separates the two.
+    CastFetchFindsLand {
+        file: String,
+        effect: String,
+        query: String,
+        lands: u32,
+    },
+    /// A cast or delayed fetch onto the battlefield that can find an instant
+    /// or a sorcery, which is not a permanent and cannot be put there.
+    FetchNonPermanentToBattlefield {
+        file: String,
+        effect: String,
+        query: String,
+        spells: Vec<String>,
+    },
+    /// A land-drop fetch onto the battlefield naming something that is not a
+    /// land.
+    ///
+    /// A fetchland finds a land, which arrives in place of the one played.
+    /// Anything else gets onto the battlefield by being cast, or by a cast or
+    /// delayed fetch, which have their own refusals above.
     FetchNonLandToBattlefield {
         file: String,
         effect: String,
@@ -330,6 +351,8 @@ impl Refusal {
             | Refusal::FetchWithoutLandDrop { file, .. }
             | Refusal::FetchWithoutCasting { file, .. }
             | Refusal::DelayedFetchFindsLand { file, .. }
+            | Refusal::CastFetchFindsLand { file, .. }
+            | Refusal::FetchNonPermanentToBattlefield { file, .. }
             | Refusal::FetchNonLandToBattlefield { file, .. }
             | Refusal::BattlefieldNonLand { file, .. }
             | Refusal::ManaBesideLandDropEffect { file, .. }
@@ -362,6 +385,8 @@ impl Refusal {
             | Refusal::IndexCannotPriceMana { asked_by, .. }
             | Refusal::ManaBesideAFetchedLand { asked_by, .. } => Some(asked_by.clone()),
             Refusal::DelayedFetchFindsLand { effect, .. }
+            | Refusal::CastFetchFindsLand { effect, .. }
+            | Refusal::FetchNonPermanentToBattlefield { effect, .. }
             | Refusal::FetchNonLandToBattlefield { effect, .. } => {
                 Some(format!("effect {effect:?}"))
             }
@@ -478,13 +503,41 @@ impl Refusal {
                  actually find, such as `-t:land`.",
                 if *lands == 1 { "" } else { "s" }
             ),
+            Refusal::CastFetchFindsLand { query, lands, .. } => write!(
+                f,
+                "`fetch = {query:?}` with `on = \"cast\"` and `to = \"battlefield\"` matches \
+                 {lands} land{} in this deck.\n      \
+                 A land a spell puts onto the battlefield is not a land drop, and whether it \
+                 enters tapped is a\n      fact about the spell — tapped for Rampant Growth, \
+                 untapped for Nature's Lore — which no tag\n      carries. A cast may put \
+                 anything else there, as Tezzeret the Seeker puts an artifact; narrow\n      the \
+                 query to what it can actually find, such as `-t:land`, or fetch the land \
+                 `to = \"hand\"`.",
+                if *lands == 1 { "" } else { "s" }
+            ),
+            Refusal::FetchNonPermanentToBattlefield { query, spells, .. } => write!(
+                f,
+                "`fetch = {query:?}` with `to = \"battlefield\"` matches {}: {}.\n      \
+                 An instant or a sorcery is not a permanent, so nothing can put it onto the \
+                 battlefield,\n      and a run that counted it there would be counting a card \
+                 that cannot be. Narrow the query\n      to what the effect can actually find, \
+                 such as `t:artifact`.",
+                if spells.len() == 1 {
+                    "a card that is not a permanent"
+                } else {
+                    "cards that are not permanents"
+                },
+                spells.join(", ")
+            ),
             Refusal::FetchNonLandToBattlefield { query, spells, .. } => write!(
                 f,
                 "`fetch = {query:?}` with `to = \"battlefield\"` names {} this engine cannot put \
                  there: {}.\n      \
                  A land arrives on a land drop, which is free and capped at one a turn, so the \
-                 walk knows\n      where it is. Anything else has to be cast, and where a \
-                 spell goes after it resolves is\n      not modelled at all.",
+                 walk knows\n      where it is. A land drop's fetch is a fetchland, and finds \
+                 a land; anything else gets\n      there by being cast, or by a fetch `on = \
+                 \"cast\"` or with `after`, as Tezzeret the Seeker\n      and Urza's Saga put \
+                 an artifact there.",
                 if spells.len() == 1 { "a card" } else { "cards" },
                 spells.join(", ")
             ),

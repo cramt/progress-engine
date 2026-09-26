@@ -9,7 +9,7 @@
 //! the same file still agree.
 
 use gauntlet_criteria::{
-    CastingPolicy, Cost, Delay, Effect, Grouping, ManaSource, Outcomes, Palette, Policies,
+    CastingPolicy, Cost, Delay, Effect, Fetched, Grouping, ManaSource, Outcomes, Palette, Policies,
     Resolves, Route, RunError, Schedule, Trigger, Zone, ZoneError,
 };
 use gauntlet_toml::{
@@ -1704,30 +1704,32 @@ fn a_fetch_destination_this_engine_cannot_model_is_refused_by_name() {
 }
 
 #[test]
-fn a_land_arriving_off_a_spell_is_refused_by_name() {
-    // Rampant Growth. What a land put down by a spell taps for on the turn it
-    // arrives is a fact about the spell, not about the land, and no tag this
-    // index carries separates Rampant Growth from Nature's Lore.
-    let bad = refuse(
+fn a_cast_fetch_onto_the_battlefield_is_left_to_the_deck_to_judge() {
+    // Tezzeret the Seeker (ADR-0019). Whether this is an artifact arriving,
+    // which is answerable, or Rampant Growth's land, which is not, depends on
+    // what the query matches in the deck; this file has no deck, so it takes
+    // the entry and the CLI refuses the land-capable one with the index open.
+    let criteria = parse(
         r#"
         [[effect]]
-        match = 'name:"Rampant Growth"'
+        match = 'name:"Tezzeret the Seeker"'
         on = "cast"
-        fetch = ['t:land t:basic']
+        fetch = ['name:"Lantern of Insight"']
         to = "battlefield"
+
+        [casting]
+        prefer = ['name:"Tezzeret the Seeker"']
 
         [[criterion]]
         name = "anything"
         require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
         "#,
     );
-    assert!(
-        matches!(&bad, ErrorKind::FetchOntoTheBattlefieldFromASpell { .. }),
-        "{bad:?}"
-    );
-    assert!(
-        bad.to_string().contains("fetchland"),
-        "should name the shape that does work: {bad}"
+    let effect = &criteria.effects().entries()[0];
+    assert_eq!(effect.trigger, Trigger::Cast);
+    assert_eq!(
+        effect.fetch.as_ref().map(|f| f.to),
+        Some(Fetched::Battlefield)
     );
 }
 

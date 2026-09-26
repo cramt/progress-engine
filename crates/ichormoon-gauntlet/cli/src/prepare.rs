@@ -482,23 +482,52 @@ fn refuse_unfirable_tutors(
             }
             _ => {}
         }
-        // A delayed fetch is the other way onto the battlefield, and it is
-        // refused the opposite half: a Saga puts an artifact beside itself,
-        // and a land arriving that way is a land nobody knows the tapped-ness
-        // of. It is checked here, before the fetchland's rule below, because
-        // the two are about different cards arriving for different reasons.
-        if fetch.to == gauntlet_criteria::Fetched::Battlefield && effect.delay.is_some() {
+        // A delayed fetch and a cast fetch are the other ways onto the
+        // battlefield, and they are refused the opposite half: a Saga puts an
+        // artifact beside itself and Tezzeret the Seeker's −X puts one down,
+        // and a land arriving either way is a land nobody knows the
+        // tapped-ness of — Rampant Growth's, where Nature's Lore's is
+        // untapped. They are checked here, before the fetchland's rule below,
+        // because the two are about different cards arriving for different
+        // reasons (ADR-0019).
+        let delayed = effect.delay.is_some();
+        let cast = effect.trigger == gauntlet_criteria::Trigger::Cast;
+        if fetch.to == gauntlet_criteria::Fetched::Battlefield && (delayed || cast) {
             for query in applied.fetch.iter().flat_map(|(prefer, _)| prefer) {
-                let lands = library.lands_matching(query)?;
-                if lands > 0 {
-                    return Err(Refusal::DelayedFetchFindsLand {
+                // Nor an instant or a sorcery, which is not a permanent and
+                // would otherwise be counted in play.
+                let spells = library.non_permanents_matching(query)?;
+                if !spells.is_empty() {
+                    return Err(Refusal::FetchNonPermanentToBattlefield {
                         file: origin.to_string(),
                         effect: applied.matches.clone(),
                         query: query.clone(),
-                        lands,
+                        spells,
                     }
                     .into());
                 }
+                let lands = library.lands_matching(query)?;
+                if lands == 0 {
+                    continue;
+                }
+                let (file, effect, query) =
+                    (origin.to_string(), applied.matches.clone(), query.clone());
+                return Err(if delayed {
+                    Refusal::DelayedFetchFindsLand {
+                        file,
+                        effect,
+                        query,
+                        lands,
+                    }
+                } else {
+                    Refusal::CastFetchFindsLand {
+                        file,
+                        effect,
+                        query,
+                        lands,
+                    }
+                }
+                .into());
             }
         } else if fetch.to == gauntlet_criteria::Fetched::Battlefield {
             for query in applied.fetch.iter().flat_map(|(prefer, _)| prefer) {
@@ -532,13 +561,14 @@ fn refuse_unmodelled_mana(
     resolved: &effects::Resolved,
     land_drop: Option<&landdrop::Resolved>,
 ) -> Result<(), Unprepared> {
-    // What a delayed fetch puts onto the battlefield is on the battlefield,
-    // and counted there: a Lantern off Urza's Saga's third chapter is the one
-    // way a spell arrives that this walk models.
+    // What a fetch puts onto the battlefield is on the battlefield, and
+    // counted there: a Lantern off Urza's Saga's third chapter or off
+    // Tezzeret the Seeker's −X arrives without being cast. A land-drop fetch
+    // is in this list too, and adds nothing to it: it may only find lands.
     let delivered: Vec<&str> = resolved
         .applied
         .iter()
-        .filter(|a| a.live && a.delay.is_some())
+        .filter(|a| a.live)
         .filter_map(|a| a.fetch.as_ref())
         .filter(|(_, to)| {
             *to == gauntlet_toml::fetched_name(gauntlet_criteria::Fetched::Battlefield)
@@ -608,11 +638,12 @@ fn refuse_unpriceable_mana(
         .iter()
         .filter(|a| a.live)
         .zip(&resolved.effects)
-        // A delayed fetch was refused above if it could find a land, so what
-        // it puts on the battlefield makes no mana and this question is not
-        // about it.
+        // A delayed fetch and a cast fetch were refused above if they could
+        // find a land, so what they put on the battlefield makes no mana and
+        // this question is not about them.
         .find(|(_, e)| {
             e.delay.is_none()
+                && e.trigger != gauntlet_criteria::Trigger::Cast
                 && e.fetch
                     .as_ref()
                     .is_some_and(|f| f.to == gauntlet_criteria::Fetched::Battlefield)

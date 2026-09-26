@@ -1,0 +1,8 @@
+// HANDS.md hand 40: Tezzeret the Seeker puts the Lantern onto the battlefield.
+//
+// Twelve cards on the play, so turn 5 has seen eleven and every opener holds
+// at least five Islands: a drop every turn, and the Seeker's {3}{U}{U} on
+// turn 5. His -1 puts the Lantern down if the library still holds it.
+10x Island [Land]
+1x Tezzeret the Seeker [Tutor]
+1x Lantern of Insight [Lantern]

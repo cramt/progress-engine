@@ -3283,6 +3283,115 @@ fn a_fetched_land_is_counted_and_not_tapped_for() {
     );
 }
 
+fn run_hand_forty(criteria: &str, extra: &[&str]) -> serde_json::Value {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture("hand-40.txt"))
+        .arg(fixture(criteria))
+        .arg("--index")
+        .arg(fixture("tutor-index.jsonl"))
+        .args(extra)
+        .output()
+        .expect("binary should run");
+    assert!(
+        out.stdout.starts_with(b"{"),
+        "{criteria} should answer: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    serde_json::from_slice(&out.stdout).unwrap()
+}
+
+#[test]
+fn tezzeret_the_seeker_puts_the_lantern_onto_the_battlefield_the_turn_he_resolves() {
+    // HANDS.md hand 40, both columns. Twelve cards on the play: turn 5 has
+    // seen eleven and made five drops. The Lantern is on the battlefield by
+    // turn 5 unless it is the twelfth card, and on that deal the Seeker was
+    // among the eleven, is cast on turn 5 and -1 puts it down. The Seeker's
+    // own casting cannot move, and neither can the Lantern's: a fetched
+    // Lantern was never cast. 37/44: the Seeker in the first eleven, less the
+    // deals where the Lantern is eleventh and takes one of turn 5's five mana.
+    let columns = [
+        // (file, Seeker cast, Lantern in play, Lantern cast, Lantern in library)
+        ("hand-40-off.criteria.toml", 84.09, 91.67, 91.67, 8.33),
+        ("hand-40-on.criteria.toml", 84.09, 100.0, 91.67, 0.0),
+    ];
+    for (file, seeker, field, cast, library) in columns {
+        let json = run_hand_forty(file, &[]);
+        for (name, want) in [
+            ("Tezzeret the Seeker cast by turn 5", seeker),
+            ("Lantern on the battlefield by turn 5", field),
+            ("Lantern cast by turn 5", cast),
+            ("Lantern still in the library on turn 5", library),
+        ] {
+            assert_eq!(percent(&json, name), want, "{file}, {name}");
+        }
+    }
+}
+
+#[test]
+fn what_the_seeker_puts_down_is_on_the_battlefield_the_turn_he_is_cast() {
+    // HANDS.md hand 44, at the file boundary now that it opens. The line does
+    // not name the Lantern, so it reaches the battlefield only off the Seeker:
+    // on turn 5, on the 1/12 of deals where it is the twelfth card, and on no
+    // earlier turn. On the other 11/12 it was drawn and is held.
+    let json = run_hand_forty("hand-44.criteria.toml", &[]);
+    for (name, want) in [
+        ("Tezzeret the Seeker cast by turn 5", 91.67),
+        ("Lantern on the battlefield on turn 4", 0.0),
+        ("Lantern on the battlefield on turn 5", 8.33),
+        ("Lantern still in the library on turn 5", 0.0),
+        ("Lantern in hand on turn 5", 91.67),
+    ] {
+        assert_eq!(percent(&json, name), want, "{name}");
+    }
+}
+
+#[test]
+fn the_seekers_battlefield_fetch_agrees_with_the_sampler() {
+    for file in [
+        "hand-40-on.criteria.toml",
+        "hand-40-off.criteria.toml",
+        "hand-44.criteria.toml",
+    ] {
+        let exact = run_hand_forty(file, &[]);
+        let sampled = run_hand_forty(file, &["--simulate", "--trials", "20000"]);
+        for criterion in exact["criteria"].as_array().unwrap() {
+            let name = criterion["name"].as_str().unwrap();
+            assert!(
+                (percent(&exact, name) - percent(&sampled, name)).abs() < 1.0,
+                "{file}, {name}: {} exact against {} sampled",
+                percent(&exact, name),
+                percent(&sampled, name)
+            );
+        }
+    }
+}
+
+#[test]
+fn a_cast_that_could_put_a_land_onto_the_battlefield_is_refused_by_name() {
+    // Rampant Growth, and ADR-0019's line: a cast may put down anything but a
+    // land, because whether that land enters tapped is a fact about the spell
+    // and no tag carries it. Refused on what the query can match in this
+    // deck, so the Seeker's own entry is refused the moment it could find an
+    // Island.
+    let out = run_tutor("hand-40.txt", "seeker-finds-land.criteria.toml");
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("matches 10 lands") && stderr.contains("Rampant Growth"),
+        "{stderr}"
+    );
+    // And the other thing a cast cannot put there: an instant or a sorcery is
+    // not a permanent, and would otherwise be counted in play.
+    let out = run_tutor("hand-40-bolt.txt", "seeker-finds-bolt.criteria.toml");
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("Lightning Bolt") && stderr.contains("not a permanent"),
+        "{stderr}"
+    );
+}
+
 // --- delayed effects --------------------------------------------------------
 
 fn run_saga(criteria: &str, flags: &[&str]) -> serde_json::Value {

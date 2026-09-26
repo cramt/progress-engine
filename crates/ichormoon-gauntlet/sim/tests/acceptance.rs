@@ -972,6 +972,104 @@ fn a_card_a_cast_puts_onto_the_battlefield_arrives_that_turn_in_both_engines() {
 }
 
 #[test]
+fn a_permanent_the_line_casts_or_a_cast_puts_down_is_in_play_in_both_engines() {
+    // HANDS.md hand 40 on a deck wide enough to sample: the line casts the
+    // target when it holds one, and a {2}{U}{U} tutor puts one onto the
+    // battlefield out of the library when it resolves — Tezzeret the Seeker
+    // and the Lantern. The two ways into play are counted as one, and the
+    // castings apart from them: a fetched target is in play and was never
+    // cast.
+    let grouping = Grouping::with_mana(
+        q(&["tutor", "target", "land"]),
+        vec![
+            (
+                0b001,
+                ManaSource::Castable {
+                    cost: Cost::parse("{2}{U}{U}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                6,
+            ),
+            (
+                0b010,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                2,
+            ),
+            (
+                0b100,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                    lasts: None,
+                },
+                19,
+            ),
+            (0b000, ManaSource::Spell, 73),
+        ],
+    )
+    .unwrap();
+    let tutor = Effect {
+        matched_by: 0,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to: Fetched::Battlefield,
+        }),
+        delay: None,
+        draw: 0,
+    };
+    let schedule = Schedule::build(
+        5,
+        false,
+        vec![tutor],
+        Policies::casting(CastingPolicy::new(vec![1, 0])),
+    );
+    let field = Counted::In(Zone::Battlefield);
+    let question = || {
+        Closures(vec![
+            Box::new(move |v: &PathView<'_>| v.count_at(4, 1, field) >= 1) as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(5, 1, field) >= 1) as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(5, 1, Counted::Cast) >= 1) as Check,
+            Box::new(move |v: &PathView<'_>| {
+                v.count_at(5, 1, field) > v.count_at(5, 1, Counted::Cast)
+            }) as Check,
+        ])
+    };
+    let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(4), &mut question())
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        TRIALS,
+        40,
+        only_criteria(4),
+        &mut question(),
+    )
+    .unwrap()
+    .proportions;
+    for (i, e) in exact.iter().enumerate() {
+        assert!(*e > 0.02 && *e < 0.98, "question {i} is worth asking: {e}");
+    }
+    for (e, s) in exact.iter().zip(&sampled) {
+        let se = standard_error(*s, TRIALS);
+        assert!(
+            (s - e).abs() < 4.0 * se,
+            "sampled {s} vs exact {e} ({}x SE)",
+            (s - e).abs() / se
+        );
+    }
+}
+
+#[test]
 fn a_tutor_thins_the_library_in_both_engines() {
     // The half of a fetch that is not about the card it found. Four copies of
     // the target and twelve tutors: every tutor that resolves takes one of

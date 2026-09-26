@@ -3012,6 +3012,86 @@ fn a_card_a_cast_puts_onto_the_battlefield_is_there_that_same_turn() {
 }
 
 #[test]
+fn tezzeret_the_seeker_puts_a_lantern_the_line_also_casts_onto_the_battlefield() {
+    // HANDS.md hand 40. Hand 44's deck, with the line reading the Lantern
+    // first: a Lantern in hand is cast for {1}, and one still in the library
+    // on turn 5 is put down by the Seeker's −1. So it is in play by turn 5 on
+    // every deal, and out of the library on every deal. Neither casting moves
+    // with the fetch: the Seeker is cast on 37/44, which is 11/12 less the
+    // deals where the Lantern is the eleventh card and takes one of turn 5's
+    // five mana, (1/12)(10/11); and a fetched Lantern was never cast, so the
+    // Lantern's own casting stays 11/12.
+    let grouping = Grouping::with_mana(
+        q(&["tutor", "target", "land"]),
+        vec![
+            (
+                0b001,
+                ManaSource::Castable {
+                    cost: Cost::parse("{3}{U}{U}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                1,
+            ),
+            (
+                0b010,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                1,
+            ),
+            (0b100, untapped("U"), 10),
+        ],
+    )
+    .unwrap();
+    let line = || CastingPolicy::new(vec![1, 0]);
+    for (fetches, field, library) in [(false, 11.0 / 12.0, 1.0 / 12.0), (true, 1.0, 0.0)] {
+        let effects = if fetches {
+            vec![tutor(Fetched::Battlefield)]
+        } else {
+            vec![]
+        };
+        let schedule = Schedule::build(5, false, effects, Policies::casting(line()));
+        let share = |check: Check| holds(&grouping, &schedule, check);
+        for (what, got, want) in [
+            (
+                "Seeker cast by turn 5",
+                share(Box::new(|v: &PathView<'_>| {
+                    v.count_at(5, 0, Counted::Cast) == 1
+                })),
+                37.0 / 44.0,
+            ),
+            (
+                "Lantern cast by turn 5",
+                share(Box::new(|v: &PathView<'_>| {
+                    v.count_at(5, 1, Counted::Cast) == 1
+                })),
+                11.0 / 12.0,
+            ),
+            (
+                "Lantern in play on turn 5",
+                share(Box::new(|v: &PathView<'_>| {
+                    v.count_at(5, 1, Counted::In(Zone::Battlefield)) == 1
+                })),
+                field,
+            ),
+            (
+                "Lantern in the library on turn 5",
+                share(Box::new(|v: &PathView<'_>| {
+                    v.count_at(5, 1, Counted::In(Zone::Library)) == 1
+                })),
+                library,
+            ),
+        ] {
+            assert!(
+                (got - want).abs() < 1e-12,
+                "fetches {fetches}, {what}: {got}, not {want}"
+            );
+        }
+    }
+}
+
+#[test]
 fn a_delayed_fetch_to_hand_arrives_in_hand_when_it_fires() {
     // The Saga's shape with the card going to hand instead: set up by the land
     // drop on turn 1, resolved on turn 3. The Lantern is still in the library
