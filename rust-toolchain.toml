@@ -1,10 +1,8 @@
 [toolchain]
 channel = "stable"
 components = ["rustfmt", "clippy"]
-# gitaxian-probe-app cross-compiles to Android. `dx` shells out to rustup to
-# find a target's std and aborts with a bare ENOENT when it is missing, which a
-# nix toolchain gives it no way to install - so the targets ship with the
-# toolchain. arm64 is real phones; x86_64 is what dx falls back to when no
-# device is attached and it assumes an emulator. Neither costs anything to
-# carry until something names the triple.
-targets = ["aarch64-linux-android", "x86_64-linux-android"]
+# The parked gitaxian-probe-app cross-compiled to Android and shipped these
+# targets with the toolchain, because `dx` aborts with a bare ENOENT when one is
+# missing and a nix toolchain gives it no way to install them. Nothing in the
+# workspace names either triple now; restore this line with the probe.
+# targets = ["aarch64-linux-android", "x86_64-linux-android"]

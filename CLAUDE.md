@@ -9,10 +9,12 @@ answers *how often does this deck do this by turn N* by exact enumeration, with
 a sampling engine alongside as a cross-checking oracle.
 
 **Gitaxian Probe** (`crates/gitaxian-probe/`) is card scanning - a host that
-runs Delver X's downloaded recognition engine inside a deno_core sandbox. It
-shares the workspace and nothing else yet; its own README and FINDINGS.md are
-the authority on it, and the notes below about decks, criteria and the two
-engines do not apply to it.
+runs Delver X's downloaded recognition engine inside a deno_core sandbox. It is
+**parked**: a failed MVP whose source stays in the tree but is excluded from the
+cargo workspace and the flake, so nothing builds or tests it. The root
+`Cargo.toml` says how to bring it back. Its own README and FINDINGS.md are the
+authority on it, and the notes below about decks, criteria and the two engines
+do not apply to it.
 
 Gauntlet stands on **Reality Chip** (`crates/reality-chip/`), the shared core:
 `chip-scryfall` (card index, query syntax), `chip-decklist` (Archidekt parsing)
@@ -45,32 +47,30 @@ what; respect those boundaries.
 
 ## Build and test
 
-Everything goes through the flake devshell, which carries `jq` and
-`cargo-nextest` as well as the toolchain:
+Plain `cargo` works: the workspace is Gauntlet and Reality Chip only, and
+`rust-toolchain.toml` picks the toolchain. The flake devshell
+(`nix develop`) carries the same toolchain plus `jq` and `cargo-nextest`, and
+remains the CI path.
 
 ```
-nix develop --command cargo test --all
-nix develop --command cargo clippy --all-targets -- -D warnings
-nix develop --command cargo fmt --all
-nix develop --command cargo test -p gauntlet-sim --test acceptance <name>   # one test
-nix develop --command cargo run -p gauntlet-cli -- test decks/lantern.txt decks/lantern.criteria.toml --index decks/index.jsonl
+cargo test --all
+cargo clippy --all-targets -- -D warnings
+cargo fmt --all
+cargo test -p gauntlet-sim --test acceptance <name>   # one test
+cargo run --release -p gauntlet-cli -- test decks/lantern.txt decks/lantern.criteria.toml --index decks/index.jsonl
 ```
-
-Plain `cargo` outside the devshell fails to resolve: the root `Cargo.toml`
-patches `deno_core` to `vendor/deno_core`, which is not committed but a symlink
-the flake creates to an Android-patched copy.
 
 **Run `cargo fmt --all` before every commit.** CI is `nix flake check`, whose
 four checks are fmt, clippy, test and build; a fmt failure aborts the others, so
 an unformatted commit reports red without ever having run the tests. This has
 hidden broken clippy and tests across four commits before.
 
-The probe adds two wrinkles. Its V8 comes from a fixed-output derivation in the
-flake pinned to the `v8` crate version *and* the feature variant deno_core asks
-for, so a bump to either needs the hash re-prefetched - `flake.nix` says how.
-And its engine tests skip when the upstream blobs or the card fixtures are
-missing, which is every sandboxed build: run them with `PROBE_REQUIRE_ENGINE=1`
-before claiming its accuracy numbers, or a green suite has checked nothing.
+The parked probe needed the flake to build at all - a prebuilt V8 pinned by
+hash and an Android-patched deno_core symlinked into `vendor/` - which is why it
+was taken out of the workspace. If it comes back, so does that wiring, and its
+engine tests skip when the upstream blobs or the card fixtures are missing: run
+them with `PROBE_REQUIRE_ENGINE=1` before claiming its accuracy numbers, or a
+green suite has checked nothing.
 
 ## Verifying a change
 

@@ -2050,10 +2050,16 @@ Notes:
 ## Development
 
 ```bash
-nix develop        # devshell with the toolchain
-cargo test
-nix flake check    # fmt, clippy -D warnings, tests, build
+cargo test --all   # plain cargo; rust-toolchain.toml picks the toolchain
+cargo clippy --all-targets -- -D warnings
+nix develop        # optional devshell with the toolchain, jq and cargo-nextest
+nix flake check    # what CI runs: fmt, clippy -D warnings, tests, build
 ```
+
+The workspace is Ichormoon Gauntlet and Reality Chip. Gitaxian Probe's source
+is still under `crates/gitaxian-probe/`, but it is parked outside the workspace
+and the flake, so nothing builds it; the root `Cargo.toml` says how to bring it
+back.
 
 Reflection comes from [facet](https://github.com/facet-rs/facet): `facet-json`
 writes the JSON contract above, reads Scryfall's bulk data and reads and writes

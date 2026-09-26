@@ -1,6 +1,15 @@
 [workspace]
 resolver = "2"
-members = ["crates/*/*"]
+members = ["crates/ichormoon-gauntlet/*", "crates/reality-chip/*"]
+# Gitaxian Probe is parked: a failed MVP whose source stays in the tree but out
+# of the build, so a plain `cargo` resolves the workspace without the flake's
+# patched deno_core. Its crates still inherit `*.workspace = true` keys, so they
+# do not build on their own either. To bring it back, restore from the commit
+# that parked it: this `members` glob as "crates/*/*", the probe-only
+# `[workspace.dependencies]`, the size-tuned `[profile.release]`, the
+# `[patch.crates-io]` deno_core entry, and flake.nix's V8, Skia, vendored
+# deno_core and Android wiring.
+exclude = ["crates/gitaxian-probe/*"]
 
 [workspace.metadata.crane]
 # crane reads the package name from the root Cargo.toml, which a virtual
@@ -17,9 +26,7 @@ repository = "https://github.com/cramt/progress-engine"
 anyhow = "1"
 facet = { version = "0.46", features = ["nonzero"] }
 facet-json = "0.46"
-facet-msgpack = "0.46"
 facet-toml = "0.46"
-facet-value = "0.46"
 figue = "4"
 libm = "0.2"
 proptest = { version = "1", default-features = false, features = ["std", "bit-set"] }
@@ -31,24 +38,6 @@ sha2 = "0.10"
 thiserror = "2"
 ureq = { version = "3", default-features = false, features = ["rustls"] }
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
-tokio = { version = "1", features = ["rt", "time", "macros"] }
-
-deno_core = "0.412"
-# deno_core re-exports deno_error and the two must agree exactly: a caret range
-# resolves to a newer one and op2 stops matching its own error type.
-deno_error = "=0.7.1"
-sevenz-rust2 = "0.23"
-
-# The `mobile` feature routes through dioxus-desktop (wry/tao), which on Android
-# is the system WebView reached over JNI. That is what makes getUserMedia and
-# navigator.clipboard available, and - because nothing here links Skia - it is
-# also what lets V8 keep its own libc++ to itself.
-dioxus = { version = "0.8.0-alpha.1", features = ["mobile"] }
-# Stubs out the real IDNA tables, which otherwise drag the whole of ICU into the
-# APK for URL parsing this app never does. Upstream's own examples carry the
-# same pin. Drop it if URL parsing ever needs real IDNA.
-# https://github.com/hsivonen/idna_adapter
-idna_adapter = "=1.0.0"
 
 chip-decklist = { path = "crates/reality-chip/decklist" }
 chip-scryfall = { path = "crates/reality-chip/scryfall" }
@@ -56,19 +45,3 @@ gauntlet-criteria = { path = "crates/ichormoon-gauntlet/criteria" }
 gauntlet-toml = { path = "crates/ichormoon-gauntlet/toml" }
 gauntlet-sim = { path = "crates/ichormoon-gauntlet/sim" }
 chip-stats = { path = "crates/reality-chip/stats" }
-gitaxian-probe-engine = { path = "crates/gitaxian-probe/engine" }
-gitaxian-probe-proto = { path = "crates/gitaxian-probe/proto" }
-
-# gitaxian-probe-app ships as an APK, where binary size is the budget that
-# matters. The workspace's other products are CLIs and do not care.
-[profile.release]
-opt-level = "s"
-lto = true
-strip = true
-
-# deno_core has no Android arm in uv_compat/tty.rs. `vendor/deno_core` is not
-# committed - the flake patches the crate and symlinks the result here, so this
-# resolves only inside `nix develop`. See flake.nix for the why and the removal
-# condition.
-[patch.crates-io]
-deno_core = { path = "vendor/deno_core" }
