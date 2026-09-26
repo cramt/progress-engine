@@ -10,11 +10,8 @@ those.
 Each one states the hand, what actually happens, and what a naive model says
 instead. Where those differ, that difference is the test.
 
-**Some of these are not answerable yet**, and each is marked with what it
-needs. Hand 5 also carries the measurement that says why it was refused rather
-than estimated, and hands 19 to 25 pin what
-[ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md) decided
-before any of it is built. That is the point: they pin the semantics before the code exists, so that building
+11, 12, 13, 14, 15, 16, 17 and 18 already have. That is every one of them but
+hand 5, hands 19 to 25 (ADR 0017's tickets) and hands 26 to 33 (ADR 0018's).
 the feature cannot quietly redefine the question — and hands 1, 2 and 3 are the
 worked case, written down as one Opt on turn 1 long before anything could say
 so, and answered as one Opt on turn 1 when something finally could.
@@ -892,6 +889,202 @@ simulation of the deck it moved nothing measurable.
 *Not answerable yet, deliberately: needs a clause that counts arrivals, and a
 dredge priority over queries against the graveyard (ADR-0017). Until then the
 tool never dredges, which is a line the pilot could play, and it says so.*
+## Rocks and dorks are mana the line cast
+
+Hands 26 to 33 pin
+[ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) before
+any of it is built. **None of them is answerable yet.** Each one needs the build
+ticket named under it, which are the tickets #74 splits into. Until then, the
+engine counts every rock and dork as a spell that costs mana and makes none, and
+that is the "lands only" column in each table.
+
+Every hand below is a seven-card library, played on the play, so the opening
+hand is the whole deck and every answer is a yes or a no. "Filler" is any spell
+the line does not name. The line is always written out: a rock the line does not
+name is never cast, and so never makes mana.
+
+### 26. Island, Sol Ring, Lantern of Insight
+
+```
+Island, Sol Ring, Lantern of Insight, filler ×4
+
+[casting]
+prefer = ['name:"Sol Ring"', 'name:"Lantern of Insight"']
+```
+
+**Turn 1:** play the Island and tap it for Sol Ring. Sol Ring is an artifact,
+not a creature, so it taps at once for `{C}{C}`. One of those pays for the
+Lantern. One `{C}` is left over.
+
+| | the line above | the line reversed | lands only |
+|---|---|---|---|
+| Lantern cast on turn 1 | **100%** | 100% | 0% |
+| Sol Ring cast on turn 1 | 100% | **0%** | 100% |
+| `can_cast = "{1}"` on turn 1, beside the line | **100%** | 0% | 0% |
+
+The reversed line, `[Lantern, Sol Ring]`, casts the Lantern off the Island and
+then cannot pay for Sol Ring until turn 2. The order is the pilot's to declare,
+and these two columns are the test that the engine reads it.
+
+*Not answerable yet: needs #74's source ticket.*
+
+### 27. Island, Sol Ring, Memory Lapse
+
+```
+Island, Sol Ring, Memory Lapse, filler ×4
+
+[casting]
+prefer = ['name:"Sol Ring"', 'name:"Memory Lapse"']
+```
+
+**Turn 1:** the Island pays for Sol Ring, and Sol Ring makes `{C}{C}`. Memory
+Lapse costs `{1}{U}`, and no blue mana is left, so it is **not** cast. **Turn
+2:** the Island untaps, so there is `{U}` plus `{C}{C}`, and Memory Lapse is
+cast.
+
+**Naive model:** add the two bills together, `{1}` plus `{1}{U}`, and match them
+against Island plus `{C}{C}` in one go. That matching succeeds, because it lets
+the Island pay the `{U}` and lets Sol Ring's own mana pay for Sol Ring. It says
+turn 1, and it is wrong.
+
+| | real | one joint matching |
+|---|---|---|
+| Memory Lapse cast on turn 1 | **0%** | 100% |
+| Memory Lapse cast by turn 2 | 100% | 100% |
+
+This is the pair to hand 26. The card count and the total mana are the same in
+both hands; only the colour of the second spell differs, and so does the answer.
+A rock's mana pays only for spells cast after it that turn.
+
+*Not answerable yet: needs the source ticket.*
+
+### 28. Island, Sol Ring, Mind Stone, with the rock you cannot afford listed first
+
+```
+Island, Sol Ring, Mind Stone, filler ×4
+
+[casting]
+prefer = ['name:"Mind Stone"', 'name:"Sol Ring"']
+```
+
+**Turn 1:** Mind Stone costs `{2}` and one Island cannot pay for it, so it is
+skipped. Sol Ring can be paid, so it is cast. Now the pool has `{C}{C}` in it,
+and the line is **read again from the top**: Mind Stone is paid for out of Sol
+Ring's mana. Mind Stone then taps for its own `{C}`.
+
+| | read again from the top | read once, top to bottom |
+|---|---|---|
+| Mind Stone cast on turn 1 | **100%** | 0% |
+| `can_cast = "{1}"` on turn 1, beside the line | **100%** | 100% |
+
+The rule is "the first entry the pool can still pay for is cast", and the pool
+is still growing on turn 1.
+
+*Not answerable yet: needs the source ticket.*
+
+### 29. Rashmi off a Talisman, turn 3
+
+```
+Island, Forest, Forest, Talisman of Creativity, filler ×3
+commander: Rashmi and Ragavan ({1}{G}{U}{R})
+
+[casting]
+prefer = ['name:"Talisman of Creativity"', 'name:"Rashmi and Ragavan"']
+```
+
+**Turn 2:** two lands pay for the Talisman. **Turn 3:** the third land comes
+down. Now the Island pays `{U}`, a Forest pays `{G}`, the Talisman pays `{R}`
+and the other Forest pays `{1}`. Rashmi is cast on turn 3, even though the deck
+has no red land in it.
+
+### 30. The same hand with Mind Stone
+
+Swap the Talisman for Mind Stone and turn 3 still has four mana. None of it is
+red, so Rashmi is never cast.
+
+| | hand 29 (Talisman) | hand 30 (Mind Stone) |
+|---|---|---|
+| Rashmi cast by turn 5 | **100%** | **0%** |
+| the rock cast on turn 2 | 100% | 100% |
+
+**Naive model:** "a rock is one more mana". It says both hands cast Rashmi on
+turn 3. The source's palette has to go into the matching, just as a land's does,
+and this pair is hand 6 and hand 7 again, one card type over.
+
+*Not answerable yet: needs the source ticket, and #78 for the commander.*
+
+### 31. Elvish Mystic is summoning-sick
+
+```
+Forest ×3, Elvish Mystic, Life from the Loam, filler ×2
+
+[casting]
+prefer = ['name:"Elvish Mystic"', 'name:"Life from the Loam"']
+```
+
+**Turn 1:** the Forest pays for the Mystic. The Mystic is a creature and cannot
+tap this turn. **Turn 2:** Forest, Forest and the Mystic make `{G}{G}{G}`, which
+pays for Loam. So Loam is in the graveyard on turn 2, a turn earlier than lands
+alone could put it there.
+
+| | real | the Mystic taps like a rock | lands only |
+|---|---|---|---|
+| `can_cast = "{G}"` on turn 1, beside the line | **0%** | 100% | 0% |
+| Loam cast by turn 2 | **100%** | 100% | 0% |
+| Loam cast by turn 3 | 100% | 100% | 100% |
+
+The first row is the claim. A dork adds nothing on the turn it arrives, and
+treating it like a rock is the naive number.
+
+*Not answerable yet: needs the source ticket.*
+
+### 32. Lotus Cobra is not a source, and says so
+
+```
+Forest, Forest, Island, Mountain, Lotus Cobra, filler ×2
+commander: Borborygmos and Fblthp ({2}{G}{U}{R})
+
+[casting]
+prefer = ['name:"Lotus Cobra"', 'name:"Borborygmos and Fblthp"']
+```
+
+**Real Magic:** Cobra comes down on turn 2. Each land after that adds one mana
+of any colour through landfall. On turn 4, the four lands plus the landfall mana
+make five, and Borborygmos is cast.
+
+**Under ADR-0018:** Cobra is cast on turn 2, and it counts as making no mana.
+There are never more than four lands, so the answer is **0%** by turn 5. The run
+prints Lotus Cobra as *cast and counted as making no mana*. The number is a
+lower bound, and the run names the card that makes it one.
+
+*Answerable as that lower bound once the source ticket ships. The real turn-4 answer
+needs a landfall ticket.*
+
+### 33. Fellwar Stone makes nothing, because nobody else is at the table
+
+```
+Island, Island, Fellwar Stone, Trinket Mage, filler ×3
+
+[casting]
+prefer = ['name:"Fellwar Stone"', 'name:"Trinket Mage"']
+```
+
+**Turn 2:** both Islands pay for the Stone. It makes "one mana of any color that
+a land an opponent controls could produce". A north star is reached with the
+pilot's own cards alone (CONTEXT.md, *North star*). With no opponent, the Stone
+makes nothing (CR 106.7). So there are only ever two mana, and Trinket Mage
+(`{2}{U}`) is never cast. Swap in Mind Stone, and turn 3 has three mana and
+casts it.
+
+| | Fellwar Stone | Mind Stone |
+|---|---|---|
+| Trinket Mage cast by turn 5 | **0%** | **100%** |
+
+The Fellwar column is a lower bound, and the run names the card. Reading the Stone as
+colourless would overcount every turn 1 on the play.
+
+*Not answerable yet: needs the source ticket (and the library-entry ticket for
+the entry that leaves the Stone out).*
 
 ---
 
@@ -964,8 +1157,8 @@ case in #37, which is the one hole.*
 ## What these are for
 
 When the features land, these become tests — hands 1, 2, 3, 4, 6, 7, 8, 9, 10,
-11, 12, 13, 14, 15, 16, 17 and 18 already have, which is every one of them but
-hand 5 and hands 19 to 25.
+11, 12, 13, 14, 15, 16, 17 and 18 already have. That is every one of them but
+hand 5, hands 19 to 25 (ADR 0017's tickets) and hands 26 to 33 (ADR 0018's).
 Until then they are the specification: if an implementation disagrees with a
 hand here, one of the two is wrong and it is worth knowing which before shipping
 a percentage.

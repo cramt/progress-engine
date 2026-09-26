@@ -100,7 +100,7 @@ A percentage that looks exactly like a real one and reflects something unmodelle
 _Avoid_: bug, inaccuracy
 
 **Lower bound**:
-An answer known to understate the truth because of a named input it leaves out, such as mana rocks or lands assumed tapped.
+An answer known to understate the truth because of a named input it leaves out, such as an uncounted source, a rock the line did not cast, or a land assumed tapped.
 _Avoid_: floor
 
 **Provenance**:
@@ -232,17 +232,33 @@ Whether the lands in play by a turn could pay a cost, settled as a matching of s
 _Avoid_: mana check, castability (as a noun for the clause)
 
 **Budget**:
-A turn's lands spent on the line. A spell cast leaves the hand, and each land pays once.
+A turn's mana sources spent on the line. A spell cast leaves the hand, and each source pays once a turn.
 
 **Pool**:
-The mana one turn's lands make. Where a line is declared, a gate asks what the line left.
+The mana one turn's sources make. Where a line is declared, a gate asks what the line left.
 
 **Bill**:
-A line's summed cost, settled as one matching.
+A line's summed cost, settled as one matching in which a rock's mana pays only for what was cast after it.
 
 **Mana source**:
-A land that makes mana. Mana rocks and creatures are never counted.
+Anything the pool can tap for: a land, or a rock or dork the line has cast. A rock or dork the line never cast is never a source.
 _Avoid_: mana source for a spell that spends
+
+**Rock**:
+A mana source that is neither a land nor a creature. It makes mana the turn it is cast, and that mana pays only for what the line casts after it.
+_Avoid_: mana artifact, ramp (for the card)
+
+**Dork**:
+A creature mana source. It is summoning-sick, so it makes mana from the turn after it is cast.
+_Avoid_: mana creature, mana elf
+
+**Adds**:
+How much mana a rock or dork makes each turn, declared by an effect keyed by query. Its colours are the card's fetched palette.
+_Avoid_: output, produces (which is the palette, not the amount)
+
+**Uncounted source**:
+A card the line cast that could make mana in some game but is counted as making none, such as Fellwar Stone (which needs an opponent) or Lotus Cobra (which needs landfall). Every run that cast one names it.
+_Avoid_: dead rock
 
 **Pip**:
 One coloured or colourless symbol a cost demands. Generic mana is not a pip.
