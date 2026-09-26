@@ -62,6 +62,9 @@ class Card:
     mana_cost: str = ""
     oracle: str = ""
     identity: frozenset[str] = frozenset()
+    # A planeswalker's printed loyalty, the counters it enters with (CR
+    # 306.5b), or None for anything else.
+    loyalty: int | None = None
 
     def is_named(self, *names: str) -> bool:
         return self.name in names
@@ -172,6 +175,7 @@ def _make_card(record: dict, categories: tuple[str, ...]) -> Card:
         mana_cost=record.get("mana_cost") or faces[0].get("mana_cost") or "",
         oracle=oracle,
         identity=frozenset(record.get("ci") or []),
+        loyalty=int(faces[0]["loyalty"]) if str(faces[0].get("loyalty", "")).isdigit() else None,
     )
 
 
@@ -481,6 +485,18 @@ def _parse_cost(cost: str) -> tuple[int, list[str]]:
 #   landfall trigger rather than a tap, so it is no source. `unmodelled_sources`
 #   names both. Improvise and other cost reducers are not modelled: every spell
 #   pays its printed cost.
+# * A planeswalker's loyalty ability can put a card onto the battlefield the
+#   turn the line casts it: loyalty abilities are activated any time its
+#   controller could cast a sorcery (CR 606.3), which a main phase just after a
+#   cast is, once per turn (CR 606.3), and a planeswalker is not a creature, so
+#   summoning sickness (CR 302.6) does not stop it. A −X ability costs X
+#   loyalty (CR 606.4) and cannot be paid with fewer counters than that (CR
+#   606.6), and it enters with its printed loyalty (CR 306.5b). So Tezzeret the
+#   Seeker, four loyalty, "−X: Search your library for an artifact card with
+#   mana value X or less, put it onto the battlefield", finds the Lantern
+#   (mana value 1) with −1 on the turn he resolves (HANDS.md hand 40). What he
+#   puts there was never cast (README: `cast` counts castings), and is out of
+#   the library the same way a fetch to hand takes it out.
 # * A tutor that fetches to hand takes a card the library still holds: one
 #   the deck has more copies of than have been seen or fetched. The shuffle
 #   after it leaves the rest a uniformly random order of what is left, which is
@@ -612,6 +628,10 @@ class Turn:
     units: list[Unit]
     bill: list[Cost]
     game: Game
+    # What a cast put onto the battlefield from the library this turn, and the
+    # names seen or taken out of the library by its end.
+    put: list[Card] = field(default_factory=list)
+    taken: list[str] = field(default_factory=list)
 
     def casts(self, name: str) -> bool:
         return any(c.name == name for c in self.cast)
@@ -628,6 +648,19 @@ class LinePath(list):
     def cast_by(self, name: str, turn: int) -> bool:
         return any(t.casts(name) for t in self[:turn])
 
+    def on_battlefield_by(self, name: str, turn: int) -> bool:
+        """A permanent the line cast, or one a cast put there, by `turn`.
+        Nothing in these lines takes a permanent off the battlefield again."""
+        return any(
+            any(c.name == name and _is_permanent(c) for c in t.cast + t.put) for t in self[:turn]
+        )
+
+    def in_library(self, name: str, turn: int) -> bool:
+        """A copy of `name` still in the library at the end of `turn`: neither
+        seen nor taken out by a fetch."""
+        t = self[turn - 1]
+        return sum(1 for c in t.game.library if c.name == name) > t.taken.count(name)
+
     def first_cast(self, name: str) -> int | None:
         return next((t.number for t in self if t.casts(name)), None)
 
@@ -640,13 +673,44 @@ def _mana_value(card: Card) -> int:
     return generic + len(pips)
 
 
+_MINUS_X_ONTO_BATTLEFIELD = re.compile(
+    r"^[−-]X: Search your library for an? (\w+) card with mana value X or less, put it onto "
+    r"the battlefield",
+    re.M,
+)
+
+
+def puts_onto_battlefield(source: Card, target: Card) -> bool:
+    """Could `source`, just cast, put `target` onto the battlefield from the
+    library with a −X loyalty ability that turn? See the line's notes above."""
+    if source.loyalty is None:
+        return False
+    m = _MINUS_X_ONTO_BATTLEFIELD.search(source.oracle)
+    if not m:
+        return False
+    return m.group(1).capitalize() in target.type_line and _mana_value(target) <= source.loyalty
+
+
+def _is_permanent(card: Card) -> bool:
+    front = card.type_line.split("//")[0]
+    return not any(t in front for t in ("Instant", "Sorcery"))
+
+
 def line_path(
-    game: Game, line: Line, last_turn: int, fetches: dict[str, tuple[str, ...]] | None = None
+    game: Game,
+    line: Line,
+    last_turn: int,
+    fetches: dict[str, tuple[str, ...]] | None = None,
+    puts: dict[str, tuple[str, ...]] | None = None,
 ) -> LinePath:
     """Play `line` out through `last_turn`. `fetches` maps a card to the cards
-    it puts into your hand from the library when cast. Cached on the game."""
+    it puts into your hand from the library when cast, and `puts` to the cards
+    its loyalty ability puts onto the battlefield from the library that turn,
+    the first of them it can find (`puts_onto_battlefield`). Cached on the
+    game."""
     fetches = fetches or {}
-    key = ("path", line, last_turn, tuple(sorted(fetches.items())))
+    puts = puts or {}
+    key = ("path", line, last_turn, tuple(sorted(fetches.items())), tuple(sorted(puts.items())))
     if key in game._line_cache:
         return game._line_cache[key]
     named = {n for entry in line for n in entry}
@@ -666,6 +730,7 @@ def line_path(
         units: list[Unit] = [(0, s.palette) for s in sources for _ in range(s.amount)]
         bill: list[Cost] = []
         cast: list[Card] = []
+        put: list[Card] = []
         while True:
             chosen = None
             for entry in line:
@@ -690,12 +755,20 @@ def line_path(
                 if not src.sick:
                     units += [(len(bill), src.palette)] * src.amount
                 sources.append(src)
-            for wanted in fetches.get(card.name, ()):
+            searches = [(w, hand) for w in fetches.get(card.name, ())]
+            # One loyalty activation a turn (CR 606.3): the first card named
+            # that the library still holds and the ability can find.
+            for wanted in puts.get(card.name, ()):
+                copies = [c for c in g.library if c.name == wanted]
+                if len(copies) > taken.count(wanted) and puts_onto_battlefield(card, copies[0]):
+                    searches.append((wanted, put))
+                    break
+            for wanted, into in searches:
                 copies = [c for c in g.library if c.name == wanted]
                 if len(copies) <= taken.count(wanted):
                     continue  # the library holds none: the search finds nothing
                 taken.append(wanted)
-                hand.append(copies[0])
+                into.append(copies[0])
                 below = next(
                     (i for i in range(seen_so_far, len(g.cards)) if g.cards[i].name == wanted),
                     None,
@@ -709,7 +782,7 @@ def line_path(
                         commanders=g.commanders,
                         library=g.library,
                     )
-        path.append(Turn(t, cast, units, bill, g))
+        path.append(Turn(t, cast, units, bill, g, put, list(taken)))
     game._line_cache[key] = path
     return path
 
@@ -882,6 +955,28 @@ def _lantern_on_the_battlefield_by_5(g: Game) -> bool:
     return line_path(g, ROUTE_B_LINE, 5, TRINKET_FETCHES).cast_by(LANTERN, 5)
 
 
+TEZZERET = "Tezzeret the Seeker"
+# [[effect]] match = 'name:"Tezzeret the Seeker"', on = "cast",
+#            fetch = ['name:"Lantern of Insight"'], to = "battlefield"
+# [casting] prefer = ['name:"Lantern of Insight"', 'name:"Tezzeret the Seeker"']
+#
+# The Lantern first, cast for {1} when it is in hand; then the Seeker, whose
+# −1 puts it onto the battlefield from the library the turn he resolves (the
+# line's notes, and HANDS.md hand 40). Everything else is `line_path`.
+SEEKER_ROUTE_LINE: Line = ((LANTERN,), (TEZZERET,))
+TEZZERET_PUTS = {TEZZERET: (LANTERN,)}
+
+
+def _seeker_route_lantern_on_the_battlefield_by_5(g: Game) -> bool:
+    # { turn = 5, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }
+    return line_path(g, SEEKER_ROUTE_LINE, 5, puts=TEZZERET_PUTS).on_battlefield_by(LANTERN, 5)
+
+
+def _seeker_cast_by_5(g: Game) -> bool:
+    # { turn = 5, cast = 'name:"Tezzeret the Seeker"', min = 1 }
+    return line_path(g, SEEKER_ROUTE_LINE, 5, puts=TEZZERET_PUTS).cast_by(TEZZERET, 5)
+
+
 def _commander_cast_by(turn: int, commander: tuple[str, str]) -> Callable[[Game], bool]:
     """The commander, from the command zone, has been cast by `turn`, by a line
     that names only it. The commander is always available and never drawn, so
@@ -971,6 +1066,20 @@ QUESTIONS: list[Question] = [
         "Lantern of Insight on the battlefield by turn 5",
         _lantern_on_the_battlefield_by_5,
         6,  # turn 5, and one card deeper for the Lantern a fetch takes out
+    ),
+    Question(
+        "lantern",
+        "lantern-route-seeker.criteria.toml",
+        "Lantern of Insight on the battlefield by turn 5, cast or put there by the Seeker",
+        _seeker_route_lantern_on_the_battlefield_by_5,
+        6,  # turn 5, and one card deeper for the Lantern the Seeker takes out
+    ),
+    Question(
+        "lantern",
+        "lantern-route-seeker.criteria.toml",
+        "Tezzeret the Seeker cast by turn 5",
+        _seeker_cast_by_5,
+        6,
     ),
     Question(
         "lantern",
