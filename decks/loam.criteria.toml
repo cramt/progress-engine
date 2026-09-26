@@ -55,7 +55,9 @@
 #   * CASTING LOAM. A sorcery goes to the graveyard when it resolves, so
 #     paying {1}{G} for Life from the Loam puts Life from the Loam in the
 #     graveyard. This is the one route the tool can price, and it is priced
-#     below.
+#     below as a gate. Asked of the zone it needs a `[casting]` line, which
+#     would move every other number here, so that phrasing lives in
+#     `loam-cast.criteria.toml` beside this file — and reads the same 9.5603%.
 #
 # So the `zone = "graveyard"` number really is zero, and it is zero for a
 # reason the run states rather than for a reason the author checked.

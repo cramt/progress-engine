@@ -1,0 +1,53 @@
+# "There's No Place Like Loam" — https://archidekt.com/decks/26329102
+#
+# The north star asked of the zone, by the one route to it the engine follows:
+# cast Life from the Loam, and a sorcery that resolves goes to its owner's
+# graveyard. HANDS.md hands 19 and 20 are this, one hand at a time.
+#
+# WHY THIS IS NOT IN loam.criteria.toml
+# -------------------------------------
+# A graveyard count reaches a cast Loam only where the file declares the line
+# that casts it, and a `[casting]` line is not free for the rest of a file:
+#
+#   * A spell that is cast LEAVES THE HAND. Declared beside loam.criteria.toml's
+#     questions, "some Loam Access by turn 5 (drawn, not cast)" stops meaning
+#     drawn and starts meaning drawn and still held — 80.96% becomes 78.46% on
+#     the play and fails its 0.80 bound — and the gate-phrased "Loam castable
+#     by turn 5" reads 0.00%, because the Loam it asks for is in the yard.
+#   * A file that declares `[casting]` PRICES THE MANABASE ON EVERY QUESTION IN
+#     IT. That same category count goes from 13 compositions to 4,120,116 on the
+#     play and 28,840,812 — sampled — on the draw.
+#
+# So the question lives here, alone with its line, and every number in
+# loam.criteria.toml stays what it was. Its "Life from the Loam in the
+# graveyard by turn 5" is still a measured-nothing zero there, correctly: that
+# file casts nothing.
+#
+# WHAT THE NUMBER IS
+# ------------------
+# A LOWER BOUND on the north star. Casting Loam is one of the deck's routes to
+# the yard and the only one this engine follows; the self-mill package (#62),
+# dredge (#57) and discard can only add to it. It equals "Loam castable by
+# turn 5" in loam.criteria.toml to the digit on the play — 9.5603% — because
+# one copy of a card cast the first turn it is payable is in the graveyard by
+# turn 5 exactly when it was payable by turn 5. On the draw it is 6 groups and
+# 6,158,592 compositions, 23% over the ceiling, and sampled.
+#
+# Flashback and retrace are out of scope: a card cast FROM the graveyard is a
+# second casting this line does not make.
+
+[casting]
+prefer = ['name:"Life from the Loam"']
+
+# NO at_least, for the reason loam.criteria.toml gives: one of five routes, and
+# asserting on it asserts the deck reaches its yard by its slowest line.
+[[criterion]]
+name = "Life from the Loam in the graveyard by turn 5 (by casting it)"
+require = [{ turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
+
+# The same hands, counted as castings rather than as a zone. The two agree
+# because a sorcery has nowhere else to go; a permanent the line cast would be
+# counted on the battlefield instead.
+[[criterion]]
+name = "Life from the Loam cast by turn 5"
+require = [{ turn = 5, cast = 'name:"Life from the Loam"', min = 1 }]

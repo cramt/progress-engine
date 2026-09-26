@@ -286,6 +286,24 @@ def _loam_castable_by_5(g: Game) -> bool:
     )
 
 
+def _loam_in_graveyard_by_casting_by_5(g: Game) -> bool:
+    # [casting] prefer = ['name:"Life from the Loam"']
+    # { turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }
+    #
+    # Played out a turn at a time rather than asked as a joint. Life from the
+    # Loam is a sorcery, and a sorcery that resolves is put into its owner's
+    # graveyard (CR 608.2n), so it is in the yard by turn 5 exactly when the
+    # line cast it on some turn up to 5. The line casts it on the first turn
+    # it is in hand and the lands in play could pay {1}{G}; nothing else in the
+    # line competes for the mana, and a card you have cast is not in hand to
+    # be cast again. No other route to the yard is modelled (README: "Zones").
+    for turn in range(1, 6):
+        held = g.count(turn, lambda c: c.is_named("Life from the Loam")) >= 1
+        if held and g.can_cast(turn, "{1}{G}"):
+            return True  # cast, resolved, in the graveyard from here on
+    return False
+
+
 def _loam_two_drop_and_mana_t3(g: Game) -> bool:
     # { turn = 3, query = <the four {1}{G} Loam Access cards>, min = 1 }
     # { turn = 3, can_cast = "{1}{G}" }
@@ -317,6 +335,13 @@ QUESTIONS: list[Question] = [
         "loam.criteria.toml",
         "Loam castable by turn 5, so Loam in the graveyard by turn 5",
         _loam_castable_by_5,
+        5,
+    ),
+    Question(
+        "loam",
+        "loam-cast.criteria.toml",
+        "Life from the Loam in the graveyard by turn 5 (by casting it)",
+        _loam_in_graveyard_by_casting_by_5,
         5,
     ),
     Question(

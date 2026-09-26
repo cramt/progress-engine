@@ -461,12 +461,15 @@ require = [
 | `zone` | What it counts |
 |---|---|
 | `hand` | the default. Cards drawn by that turn — nothing is cast or discarded yet, so nothing has left |
-| `graveyard` | cards an effect routed to the yard — see [Effects](#effects). Zero in a run whose effects route nothing, and the run says so |
+| `graveyard` | cards an effect routed to the yard — see [Effects](#effects) — and every instant or sorcery the [`[casting]` line](#mana-as-a-budget) cast, which resolves into it. Zero in a run where neither can happen, and the run says so |
 | `library` | cards matching the query that are still in the deck: the deck's total minus what has been drawn or binned |
 | `battlefield` | **lands you have played**, one drop a turn — the ones your `[land_drop]` priority played, or the most you could have played if you declared none. Answerable only for a query that matches lands; refused for anything that would have to be cast |
 
 `graveyard` is reachable exactly when some effect in the run routes a card
-there. In a run where none does, every count in it is zero by construction —
+there, or the declared casting line names an instant or a sorcery — a spell
+that is not a permanent is put into its owner's graveyard when it resolves, so
+casting Life from the Loam is a route to the yard. In a run where neither
+happens, every count in it is zero by construction —
 which is a confident zero, the failure this whole tool is about — so the run
 says so rather than letting `0.00%` pass for a measurement:
 
@@ -475,12 +478,21 @@ $ gauntlet test loam.txt loam.criteria.toml
 note: nothing routes a card to the graveyard in this run, so every count in
       it is zero by construction rather than by measurement.
       Asked by: "loam in the yard by turn 5"
-      Declare `to_graveyard` on an [[effect]] to route one there.
+      Declare `to_graveyard` on an [[effect]] to route one there, or name an
+      instant or sorcery in [casting]: one the line casts resolves into it.
      loam in the yard by turn 5    0.00%
 ```
 
-Declare a destination and the note goes away, because the number is now a
-measurement.
+Declare a destination, or a line that casts one, and the note goes away,
+because the number is now a measurement. `decks/loam-cast.criteria.toml` is the
+second kind: it declares `[casting] prefer = ['name:"Life from the Loam"']` and
+asks the north star of the zone, and reads 9.5603% on the play — the same
+hands as `can_cast` of Loam by turn 5, to the digit, because one copy cast the
+first turn it is payable is in the yard exactly when it was payable (HANDS.md
+hands 19 and 20). It is a file of its own because a `[casting]` line takes the
+cards it casts out of the hand and prices the manabase on every question
+beside it, which would move every other number in `loam.criteria.toml`.
+Flashback and retrace, which cast a card *from* the yard, are not modelled.
 
 The same fact is in the JSON, as `zones`, alongside the query breakdown it is
 the sibling of. Zones are discovered from the file the way queries are, so a
@@ -503,10 +515,10 @@ otherwise produces a percentage that looks exactly like a real one:
 | `min = 5, max = 2` | no hand can satisfy it: a confident 0% |
 | `at_least = 70` | a threshold is a share of hands, so 70% is `0.70` |
 | `at_least = 0.6, at_most = 0.4` | no probability sits between them, so it fails every deck and blames the deck for it |
-| `zone = "battlefield"` on a query matching a spell | a land arrives on a land drop and this engine walks those; a spell has to be cast, and where it goes afterwards is not modelled. `cast` counts the castings, which is the part that is known. The exceptions are the two ways this walk models a permanent arriving: the `[casting]` line casting it, and a [delayed effect](#delayed-effects-urzas-saga) putting it there. An instant or sorcery stays refused, because it resolves and goes nowhere this engine tracks |
+| `zone = "battlefield"` on a query matching a spell | a land arrives on a land drop and this engine walks those; a spell has to be cast, and where it goes afterwards is not modelled. `cast` counts the castings, which is the part that is known. The exceptions are the two ways this walk models a permanent arriving: the `[casting]` line casting it, and a [delayed effect](#delayed-effects-urzas-saga) putting it there. An instant or sorcery stays refused, because it resolves into the graveyard — ask `zone = "graveyard"` for it |
 | `zone = "exile"`, or any other zone | a zone that fell through to a default would answer the wrong question |
 | two of `query`, `can_cast` and `cast` in one clause | three different questions, two of which would have to be answered silently |
-| `cast` and `zone` in one clause | a casting is not a zone, and where the spell went afterwards is not modelled |
+| `cast` and `zone` in one clause | a casting is not a zone. Where the spell is afterwards is a `query` with a `zone`: a cast instant or sorcery in the graveyard, a cast permanent on the battlefield |
 | `cast` with no `[casting]` table | which spell you cast out of one turn's mana is a decision, and a tool that picked would report a line nobody chose |
 | `[casting]` naming a card whose cost holds `{X}`, hybrid or no symbols at all | a bill read too cheaply does not only get that spell wrong — it leaves mana the rest of the line then spends |
 | `can_cast = "{X}{G}"`, or any hybrid or Phyrexian symbol | each is a decision about how much to pay rather than an amount; read as zero, an X-spell is castable on turn one |
@@ -2064,8 +2076,9 @@ python3 checker/compare.py   # the independent checker, against target/release/g
 from what each question means, the Magic rules and the assumptions this README
 states — not from the engine's source. It shuffles the real libraries in
 `decks/`, deals 400,000 games per deck and seat, answers a handful of the
-committed criteria (a pure draw question, a battlefield land count, and three
-`can_cast` joints) and holds every answer the engine gave **exactly** against the
+committed criteria (a pure draw question, a battlefield land count, three
+`can_cast` joints, and Loam cast into the graveyard, played a turn at a time)
+and holds every answer the engine gave **exactly** against the
 checker's 99.9% interval, exiting non-zero on any that falls outside:
 
 ```
