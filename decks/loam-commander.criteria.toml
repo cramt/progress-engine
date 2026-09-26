@@ -1,0 +1,36 @@
+# The commander, cast from the command zone.
+#
+# Half of the Loam north star as CONTEXT.md states it — Life from the Loam put
+# into the graveyard *and* the commander cast — asked on its own. Borborygmos
+# and Fblthp costs {2}{G}{U}{R} and starts in the command zone: it is never
+# drawn, it is always there, and the line below spends the turn's lands on it
+# the way it would on any spell. Casting it once is the question, so commander
+# tax never comes up, and the card it draws on entering is not modelled — a
+# replacement draw, refused everywhere else for the reason README gives.
+#
+# ON ITS OWN, DELIBERATELY, for the reason `lantern-commander.criteria.toml`
+# gives: a `[casting]` line is one pool with every `can_cast` in the file that
+# declares it, so declared in `loam.criteria.toml` it would reprice that file's
+# gates as "after the commander" rather than ask this.
+#
+# A floor: only lands pay, a bounce land is one mana, and a land whose
+# tapped-ness is the pilot's choice is assumed to enter tapped.
+#
+# `checker/checker.py` asks "commander cast by turn 5" independently, from the
+# rules: the commander is cast by turn N exactly when some turn up to N had
+# untapped lands that pay for it.
+
+[casting]
+prefer = ['name:"Borborygmos and Fblthp"']
+
+[[criterion]]
+name = "commander cast by turn 5"
+require = [{ turn = 5, cast = 'name:"Borborygmos and Fblthp"', min = 1 }]
+
+[[criterion]]
+name = "commander cast by turn 6"
+require = [{ turn = 6, cast = 'name:"Borborygmos and Fblthp"', min = 1 }]
+
+[[criterion]]
+name = "commander cast by turn 7"
+require = [{ turn = 7, cast = 'name:"Borborygmos and Fblthp"', min = 1 }]

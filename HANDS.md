@@ -1156,6 +1156,62 @@ the entry that leaves the Stone out).*
 
 ---
 
+## The command zone
+
+### 37. The commander, and four lands of the right colours
+
+```
+Rashmi and Ragavan (commander, {1}{G}{U}{R})
+Forest ×4, Island ×4, Mountain ×4
+
+[casting]
+prefer = ['name:"Rashmi and Ragavan"']
+```
+
+**Turn 3:** three lands in play. The commander is right there in the command
+zone, and three lands do not pay four mana. Not cast.
+
+**Turn 4:** the fourth land drop. A Forest, an Island and a Mountain pay the
+colours and the fourth land pays the `{1}`: the commander is cast, and all four
+lands are spent on it — so a `{R}` asked beside the line on turn 4 is not there.
+On turn 5 it is, because the commander was cast once and is not cast again.
+
+**Naive model:** a commander is a card in the deck, so it is drawn by turn *N*
+on about *N*/100 of deals — or, the other way round, it is always available so
+it is always cast. Both are wrong. It is never drawn and never in hand, it is
+always there to be cast, and the only thing between it and the battlefield is
+the same pool every other spell in the line pays from. That is also why
+README's *commander on turn 2* was a ramp proxy rather than the question: until
+this, no line could spend a land on the commander at all.
+
+*Answerable*, as a `[casting]` entry naming the commander and a `cast` clause
+counting it, and **the three columns are the test rather than any one of
+them**: `commander.criteria.toml` against `hand-commander.txt`, against
+`hand-commander-three.txt` (a Forest, an Island, a Mountain and nine Lightning
+Bolt), and against `hand-commander-mono.txt` (twelve Forests). The library is
+twelve cards and holds no commander:
+
+| | four colours right | three lands | twelve Forests |
+|---|---|---|---|
+| commander cast by turn 3 | **0%** | 0% | 0% |
+| commander cast by turn 4 | **100%** | **0%** | **0%** |
+| commander cast twice by turn 5 | 0% | 0% | 0% |
+| commander in hand by turn 5 | 0% | 0% | 0% |
+| a red mana left on turn 4 | **0%** | | 0% |
+| a red mana left on turn 5 | **100%** | | 0% |
+| four lands in play by turn 4 | 100% | 0% | **100%** |
+
+The third column is why a land count is not the answer: four lands in play on
+every deal, and not one of them makes blue or red. Commander tax never comes
+up, because the question is whether it has been cast *once*.
+
+*A test: `the_commander_is_cast_from_the_command_zone_on_the_turn_four_lands_pay_for_it`
+and `the_commander_agrees_with_the_sampler` in the CLI suite, and
+`a_commander_cast_from_the_command_zone_agrees_with_the_exact_engine` in the
+sampler's acceptance tests.*
+
+---
+
 ## Mulligans
 
 ### 18. Six lands and six spells, dealt until the rule is happy
@@ -1225,8 +1281,9 @@ case in #37, which is the one hole.*
 ## What these are for
 
 When the features land, these become tests — hands 1, 2, 3, 4, 6, 7, 8, 9, 10,
-11, 12, 13, 14, 15, 16, 17, 18, 34 and 35 already have. That is every one of them
-but hand 5, hands 19 to 25 (ADR 0017's tickets) and hands 26 to 33 (ADR 0018's).
+11, 12, 13, 14, 15, 16, 17, 18, 34, 35 and 37 already have. That is every one of
+them but hand 5, hands 19 to 25 (ADR 0017's tickets) and hands 26 to 33 (ADR
+0018's).
 Until then they are the specification: if an implementation disagrees with a
 hand here, one of the two is wrong and it is worth knowing which before shipping
 a percentage.

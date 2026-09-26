@@ -844,6 +844,60 @@ note: the spells cast here are decided by the priority this file declared, and e
 The same list is in the JSON as `casting`. A file that declares none has no
 `casting` field at all, which is the other fact: that run cast nothing.
 
+**The commander is cast from the command zone**, and asking about it takes no
+new key. An entry that names your commander puts it in the line, and `cast`
+counts it like any other spell:
+
+```toml
+[casting]
+prefer = ['name:"Rashmi and Ragavan"']
+
+[[criterion]]
+name = "commander cast by turn 4"
+require = [{ turn = 4, cast = 'name:"Rashmi and Ragavan"', min = 1 }]
+```
+
+A commander is **never drawn** — it is not in the library, so no deal puts it
+in hand and no count of the library or the hand finds it — and it is **always
+there** to be cast, from turn 1. It is paid for out of the same pool as
+everything else the line casts, in the order the list gives, so a line
+`[commander, Opt]` on four lands spends all four on the commander and casts no
+Opt that turn. It is cast **once**: casting it takes it out of the command zone
+and nothing puts it back, so commander tax never comes up. A permanent the line
+cast is counted on the battlefield, and so is the commander. At equal cost
+inside one entry a card from the library is cast before it. A commander the
+list does not name is not cast, which is every file written before this: none
+of their numbers move. The run's note names the commanders the line cast from
+the command zone, and so does the JSON, as `casting.from_command_zone`.
+
+HANDS.md hand 37 is the worked case — twelve lands of the right colours cast
+`{1}{G}{U}{R}` on turn 4 and not turn 3, and twelve Forests put four lands in
+play on turn 4 and never cast it. On the decks, from
+`decks/lantern-commander.criteria.toml` and `decks/loam-commander.criteria.toml`:
+
+| Commander cast by | Rashmi and Ragavan (`lantern.txt`), play / draw | Borborygmos and Fblthp (`loam.txt`), play / draw |
+|---|---|---|
+| turn 4 | 38.54% / 47.42% | — (five mana) |
+| turn 5 | 48.62% / 56.87% | 48.64% / 58.46% |
+| turn 6 | 56.74% / 64.15% | 58.62% / 67.12% |
+| turn 7 | | 67.23% / 74.38% |
+
+All **sampled**, ± 0.11 each, and that is width rather than choice: a
+three-colour cost keeps every land's palette over `{G}{U}{R}` and whether it
+enters tapped, which is fifteen land profiles on both decks and sixteen groups
+— 698,548,224 compositions at turn 4 on the play, against a ceiling of five
+million. They are floors, for the reasons every mana number here is: mana rocks
+and Rashmi's Treasure do not pay, and a land whose tapped-ness is the pilot's
+choice is assumed tapped.
+
+**Why those questions are files of their own.** One pool is one accounting: a
+`can_cast` beside a line asks what the line left. Declared in
+`decks/lantern.criteria.toml`, the commander line would reprice every route in
+it as *after the commander was paid for* — route 1's control, `{1}` payable by
+turn 5, reads 93.4% beside it and 99.6% without — which is a different question
+from the one that file asks. The north star is both halves at once, and that
+wants a line naming both.
+
 **What it does not model is the draw.** Opt is *scry 1, draw 1*, and only the
 casting is counted — a `look` on an `on = "cast"` effect is still refused by
 name, though a `fetch` on one is not: see
@@ -2077,9 +2131,15 @@ from what each question means, the Magic rules and the assumptions this README
 states — not from the engine's source. It shuffles the real libraries in
 `decks/`, deals 400,000 games per deck and seat, answers a handful of the
 committed criteria (a pure draw question, a battlefield land count, three
-`can_cast` joints, and Loam cast into the graveyard, played a turn at a time)
-and holds every answer the engine gave **exactly** against the
-checker's 99.9% interval, exiting non-zero on any that falls outside:
+`can_cast` joints, Loam cast into the graveyard, played a turn at a time, and
+the commander cast from the command zone on each deck) and holds every answer
+the engine gave **exactly** against the checker's 99.9% interval, exiting
+non-zero on any that falls outside. An answer the engine **estimated** carries
+an error of its own, so it is held to the interval of the difference instead —
+both errors, added in quadrature — and marked `agree (engine sampled)`: a
+weaker check, of what a dealt game does rather than of the enumeration, and the
+only one the commander questions admit, because both are too wide to
+enumerate:
 
 ```
 cargo build --release -p gauntlet-cli

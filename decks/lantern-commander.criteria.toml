@@ -1,0 +1,39 @@
+# The commander, cast from the command zone.
+#
+# Half of the Lantern north star as CONTEXT.md states it — Lantern of Insight
+# on the battlefield *and* the commander cast — asked on its own. Rashmi and
+# Ragavan costs {1}{G}{U}{R} and starts in the command zone: it is never drawn,
+# it is always there, and the line below spends the turn's lands on it the way
+# it would on any spell. Casting it once is the question, so commander tax
+# never comes up.
+#
+# ON ITS OWN, DELIBERATELY. A `[casting]` line is one pool with every gate in
+# the file that declares it: `can_cast` asks what the line left. Declared in
+# `lantern.criteria.toml`, this line would reprice every route there as "and
+# the commander was paid for first" — route 1's control reads 93.4% beside it
+# against 99.6% without, sampled rather than exact — which is a different
+# question from the one that file asks. Asking both at once is the north star,
+# and it wants a line naming both halves rather than this one bolted on.
+#
+# A floor, for the reasons every mana number here is: only lands pay, so the
+# deck's mana rocks and the Treasure Rashmi makes do not, and the ten lands
+# whose tapped-ness is the pilot's choice are assumed to enter tapped.
+#
+# `checker/checker.py` asks "commander cast by turn 4" independently, from the
+# rules: the commander is cast by turn N exactly when some turn up to N had
+# untapped lands that pay for it.
+
+[casting]
+prefer = ['name:"Rashmi and Ragavan"']
+
+[[criterion]]
+name = "commander cast by turn 4"
+require = [{ turn = 4, cast = 'name:"Rashmi and Ragavan"', min = 1 }]
+
+[[criterion]]
+name = "commander cast by turn 5"
+require = [{ turn = 5, cast = 'name:"Rashmi and Ragavan"', min = 1 }]
+
+[[criterion]]
+name = "commander cast by turn 6"
+require = [{ turn = 6, cast = 'name:"Rashmi and Ragavan"', min = 1 }]

@@ -127,6 +127,9 @@ The one land a turn puts onto the battlefield without casting it, chosen by `[la
 The spells a turn casts, in the order the pilot declared them with `[casting] prefer`. A spell the line does not name is not cast.
 _Avoid_: line (for anything but casting), sequence, play pattern
 
+**Command zone**:
+Where the commander starts: never dealt or drawn, always there to be cast, and left once it is. A line that names the commander casts it from here, out of the same pool as the rest of the line. Not a zone a clause can count; a casting of the commander is counted with `cast`.
+
 **Route**:
 One way a deck reaches an outcome, differing in turn, zone or what it needs. Written as a branch.
 _Avoid_: tier, path

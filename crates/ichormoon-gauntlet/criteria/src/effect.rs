@@ -286,6 +286,13 @@ struct Casting {
     spent: Vec<Demand>,
     /// Copies cast so far on this path, per group. Scratch, reused.
     live_cast: Vec<u32>,
+    /// `[turn][group]`: how many of the castings in `cast_at` came out of the
+    /// command zone rather than the hand. The library count needs them apart,
+    /// because a commander was never in the library to leave it.
+    commanded_at: Vec<Vec<u32>>,
+    /// Command-zone cards still there to be cast on this path, per group.
+    /// Scratch, reset from the grouping at the start of every walk.
+    live_command: Vec<u32>,
 }
 
 /// The land drops of a run whose file declared which land to play.
@@ -537,6 +544,8 @@ impl<'a> Board<'a> {
                 cast_at: vec![vec![0; groups]; turns],
                 spent: vec![Demand::FREE; turns],
                 live_cast: vec![0; groups],
+                commanded_at: vec![vec![0; groups]; turns],
+                live_command: grouping.group_command().to_vec(),
             }
         });
         // The same tie rule a third time, over the one resource a tutor
@@ -756,6 +765,9 @@ impl<'a> Board<'a> {
         self.live_bottomed.copy_from_slice(&self.bottomed);
         if let Some(casting) = &mut self.casting {
             casting.live_cast.fill(0);
+            casting
+                .live_command
+                .copy_from_slice(self.grouping.group_command());
         }
 
         let effects = self.schedule.effects();
@@ -899,6 +911,9 @@ impl<'a> Board<'a> {
                 self.hand[turn].copy_from_slice(&self.live_hand);
                 if let Some(casting) = &mut self.casting {
                     casting.cast_at[turn].copy_from_slice(&casting.live_cast);
+                    for (group, cast) in casting.commanded_at[turn].iter_mut().enumerate() {
+                        *cast = self.grouping.group_command()[group] - casting.live_command[group];
+                    }
                 }
             }
         }
@@ -936,7 +951,13 @@ impl<'a> Board<'a> {
                     let Some(cost) = casting.cost[group] else {
                         continue;
                     };
-                    while self.live_hand[group] > 0 {
+                    // The command zone is always there: a commander is cast
+                    // from it as a card in hand would be, and once — casting
+                    // it takes it out, and nothing here puts it back. It is
+                    // spent before a copy in hand, which only matters where a
+                    // group holds both, and there the copy in hand stays a
+                    // card you are holding.
+                    while casting.live_command[group] + self.live_hand[group] > 0 {
                         let trial = spent.plus(cost);
                         // The count first, because it settles most turns
                         // without a matching: a bill for more sources than you
@@ -946,7 +967,11 @@ impl<'a> Board<'a> {
                             break;
                         }
                         spent = trial;
-                        self.live_hand[group] -= 1;
+                        if casting.live_command[group] > 0 {
+                            casting.live_command[group] -= 1;
+                        } else {
+                            self.live_hand[group] -= 1;
+                        }
                         casting.live_cast[group] += 1;
                         // The tutor resolves before the line moves on, which
                         // is the order the pilot plays it in and the only
@@ -1201,11 +1226,14 @@ impl<'a> Board<'a> {
             // a card is drawn once, casting it takes it out of the hand rather
             // than copying it, and a fetch takes its card out of a library
             // nothing has drawn from yet.
+            //
+            // A commander cast from the command zone is not among them: it
+            // was never in the library, so its casting is added back.
             Zone::Library => {
                 self.grouping.matching_total(query)
                     - in_hand
                     - self.grouping.count_matching(&self.yard[turn], query)
-                    - self.cast_by(turn, query)
+                    - (self.cast_by(turn, query) - self.commanded_by(turn, query))
                     - self.grouping.count_matching(&self.landed[turn], query)
             }
             // What is standing there: lands played and cards put there, plus
@@ -1244,6 +1272,14 @@ impl<'a> Board<'a> {
         self.casting
             .as_ref()
             .and_then(|c| c.cast_at.get(turn))
+            .map_or(0, |counts| self.grouping.count_matching(counts, query))
+    }
+
+    /// How many of [`Board::cast_by`]'s castings came out of the command zone.
+    fn commanded_by(&self, turn: usize, query: usize) -> u32 {
+        self.casting
+            .as_ref()
+            .and_then(|c| c.commanded_at.get(turn))
             .map_or(0, |counts| self.grouping.count_matching(counts, query))
     }
 

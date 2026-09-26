@@ -597,6 +597,101 @@ fn a_resolved_sorcery_in_the_graveyard_agrees_with_the_exact_engine() {
 }
 
 #[test]
+fn a_commander_cast_from_the_command_zone_agrees_with_the_exact_engine() {
+    // A commander is a card neither engine deals: it is in the command zone
+    // from the start, so the enumeration has no bin for it to walk and the
+    // sampler's deck has no slot for it. Both have to cast it anyway, off the
+    // same pool as the rest of the line, once — and a gate beside the line has
+    // to see what it spent.
+    //
+    // Twenty-seven lands in three colours, three of them tapped, twelve {U}
+    // cantrips and a {1}{G}{U}{R} commander ranked first. Every question here
+    // is one whose answer is neither 0 nor 1, except the two that must be 0:
+    // the commander cast twice, and the commander anywhere a deal could put it.
+    let land = |colour: &str, tapped: bool| ManaSource::Land {
+        enters_tapped: tapped,
+        produces: Palette::from_letters([colour]),
+    };
+    let rashmi = ManaSource::Castable {
+        cost: Cost::parse("{1}{G}{U}{R}").unwrap().demand(),
+        resolves: Resolves::OntoBattlefield,
+    };
+    let grouping = Grouping::with_mana(
+        q(&["cantrip", "commander"]),
+        vec![
+            (
+                0b01,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                12,
+            ),
+            (0b00, land("G", false), 8),
+            (0b00, land("U", false), 8),
+            (0b00, land("R", false), 8),
+            (0b00, land("U", true), 3),
+            (0b00, ManaSource::Spell, 41),
+        ],
+    )
+    .unwrap()
+    .with_command_zone([(0b10, rashmi, 1)]);
+    assert_eq!(
+        grouping.population(),
+        80,
+        "the commander is not in the library"
+    );
+    let schedule = Schedule::build(
+        5,
+        false,
+        Vec::new(),
+        Policies::casting(CastingPolicy::new(vec![1, 0])),
+    );
+    let question = || {
+        Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(4, 1, Counted::Cast) >= 1) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(5, 1, Counted::Cast) >= 1),
+            Box::new(|v: &PathView<'_>| v.count_at(5, 1, Counted::Cast) >= 2),
+            Box::new(|v: &PathView<'_>| {
+                v.count_at(5, 1, Counted::In(Zone::Hand))
+                    + v.count_at(5, 1, Counted::In(Zone::Library))
+                    > 0
+            }),
+            Box::new(|v: &PathView<'_>| v.count_at(5, 1, Counted::In(Zone::Battlefield)) >= 1),
+            Box::new(|v: &PathView<'_>| v.count_at(5, 0, Counted::Cast) >= 2),
+            Box::new(|v: &PathView<'_>| v.count_at(5, 0, Counted::In(Zone::Library)) <= 9),
+            Box::new(|v: &PathView<'_>| v.can_cast(5, &Cost::parse("{U}{U}").unwrap())),
+        ])
+    };
+    let plan = only_criteria(8);
+    let exact = gauntlet_criteria::run(&grouping, &schedule, plan, &mut question())
+        .unwrap()
+        .probabilities;
+    let sampled = simulate(&grouping, &schedule, TRIALS, 23, plan, &mut question())
+        .unwrap()
+        .proportions;
+    for (i, (exact, sampled)) in exact.iter().zip(&sampled).enumerate() {
+        let exact = exact.get();
+        match i {
+            2 | 3 => assert_eq!((exact, *sampled), (0.0, 0.0), "question {i}"),
+            _ => assert!(
+                exact > 0.05 && exact < 0.95,
+                "question {i} is worth asking: {exact}"
+            ),
+        }
+        let se = standard_error(*sampled, TRIALS).max(1e-9);
+        assert!(
+            (sampled - exact).abs() < 4.0 * se,
+            "question {i}: sampled {sampled} vs exact {exact} ({}x SE)",
+            (sampled - exact).abs() / se
+        );
+    }
+    // The battlefield holds what the line cast, so the two readings of one
+    // casting are the same number.
+    assert!((exact[1].get() - exact[4].get()).abs() < 1e-12);
+}
+
+#[test]
 fn a_tutor_agrees_with_the_exact_engine() {
     // The acceptance test for #18, and the one that matters: a fetch makes the
     // library a population that shrinks, and the two engines shrink it by

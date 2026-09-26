@@ -1,0 +1,9 @@
+// HANDS.md hand 37, the second column: the same commander and three lands.
+//
+// One of each colour it needs, and never a fourth land, so no turn can pay
+// {1}{G}{U}{R}. The commander is always available and is never cast.
+1x Rashmi and Ragavan [Commander{top}]
+1x Forest [Land]
+1x Island [Land]
+1x Mountain [Land]
+9x Lightning Bolt [Burn]

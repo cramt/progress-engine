@@ -129,7 +129,7 @@ impl<'a, V: Evaluator> Conditionals<'a, V> {
         seed: Table,
     ) -> Result<Self, RunError<V::Error>> {
         feasible(grouping, schedule)?;
-        let groups = grouping.group_sizes().len();
+        let groups = grouping.dealt();
         let paths = compositions(groups, schedule.gaps());
         if paths > MAX_PATHS {
             return Err(RunError::TooWide {
@@ -301,7 +301,7 @@ impl<'a, V: Evaluator> Conditionals<'a, V> {
             }
         });
         let later = self.schedule.gaps().get(1..).unwrap_or(&[]);
-        pairs.saturating_mul(compositions(self.grouping.group_sizes().len(), later))
+        pairs.saturating_mul(compositions(self.grouping.dealt(), later))
     }
 
     /// Everything walked so far.
@@ -763,7 +763,7 @@ pub fn run_chosen<V: Evaluator>(
         .project(&join)
         .expect("a join is finer than either side of it");
     let opener = strategy.opener();
-    let joined = join.group_sizes().len();
+    let joined = join.dealt();
     let openers_width = compositions(joined, &[opener]);
     if openers_width > MAX_PATHS {
         return Err(RunError::TooWide {

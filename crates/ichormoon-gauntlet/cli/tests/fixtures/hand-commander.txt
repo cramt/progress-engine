@@ -1,0 +1,10 @@
+// HANDS.md hand 37: the commander, and four lands of the right colours.
+//
+// Twelve lands and nothing else, so every land drop is made: three lands in
+// play on turn 3 and four on turn 4. Rashmi and Ragavan costs {1}{G}{U}{R} and
+// starts in the command zone, so it is never drawn and is cast the first turn
+// four lands can pay for it - turn 4, on every deal.
+1x Rashmi and Ragavan [Commander{top}]
+4x Forest [Land]
+4x Island [Land]
+4x Mountain [Land]

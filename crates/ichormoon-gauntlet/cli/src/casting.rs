@@ -39,6 +39,11 @@ pub struct Resolved {
     /// priority does not name. One entry per [`Library::entries`] position,
     /// which is the only thing it is meaningful beside.
     pub costs: Vec<Option<Demand>>,
+    /// The same for [`Library::commanders`]: what each commander costs where
+    /// the line names it. A named commander is cast from the command zone —
+    /// always there, never drawn, and paid for out of the same pool as every
+    /// other spell in the line.
+    pub commanders: Vec<Option<Demand>>,
     /// The pip kinds every cost in this line demands, joined.
     ///
     /// The half of the palette narrowing only the *deck* can state. A file
@@ -82,6 +87,7 @@ pub fn resolve(
 
     let mut tiers = Vec::with_capacity(prefer.len());
     let mut costs: Vec<Option<Demand>> = vec![None; deck.entries.len()];
+    let mut commanders: Vec<Option<Demand>> = vec![None; deck.commanders.len()];
     let mut demands = Palette::EMPTY;
     let mut unmatched = Vec::new();
     let mut lands = Vec::new();
@@ -106,6 +112,23 @@ pub fn resolve(
             demands = demands.union(cost.demands());
             costs[position] = Some(cost.demand());
         }
+        // The command zone, on the same terms: first entry wins, a land is
+        // played rather than cast, and a cost this engine cannot pay is
+        // refused by name.
+        for position in deck.commanders_matching(query)? {
+            let entry = &deck.commanders[position];
+            if is_land(&entry.card) {
+                named_lands.push(entry.card.name.clone());
+                continue;
+            }
+            castable += 1;
+            if commanders[position].is_some() {
+                continue;
+            }
+            let cost = price(&entry.card.name, &entry.card.mana_cost, query, file)?;
+            demands = demands.union(cost.demands());
+            commanders[position] = Some(cost.demand());
+        }
         if castable == 0 {
             unmatched.push(query.clone());
         }
@@ -121,6 +144,7 @@ pub fn resolve(
         queries,
         prefer: prefer.to_vec(),
         costs,
+        commanders,
         demands,
         unmatched,
         lands,

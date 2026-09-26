@@ -322,6 +322,9 @@ fn prepare_noting(
             refuse_unpriceable_mana(library, origin, asked_by, &resolved)?;
             library::ManaDetail::Modelled {
                 castable: casting.as_ref().map_or(&no_costs, |c| c.costs.as_slice()),
+                commanders: casting
+                    .as_ref()
+                    .map_or(&no_costs, |c| c.commanders.as_slice()),
             }
         }
     };
@@ -679,7 +682,19 @@ impl PreparedRun {
             .queries()
             .iter()
             .map(|q| {
-                let cards = library.matching(q).unwrap_or(0);
+                // And a commander the line casts, which is in the game without
+                // being in the library: a clause counting its castings is not
+                // asking about nothing.
+                let commanded: u32 = self.casting.as_ref().map_or(0, |c| {
+                    library
+                        .commanders_matching(q)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter(|&i| c.commanders[i].is_some())
+                        .map(|i| library.commanders[i].qty)
+                        .sum()
+                });
+                let cards = library.matching(q).unwrap_or(0) + commanded;
                 report::QueryMatch {
                     query: q.clone(),
                     cards,
@@ -745,6 +760,15 @@ impl PreparedRun {
                     .map_or_else(Vec::new, |p| p.prefer.clone()),
                 then: gauntlet_criteria::CastingPolicy::THEN,
                 tie_break: gauntlet_criteria::CastingPolicy::TIE_BREAK,
+                from_command_zone: self.casting.as_ref().map_or_else(Vec::new, |p| {
+                    library
+                        .commanders
+                        .iter()
+                        .zip(&p.commanders)
+                        .filter(|(_, cost)| cost.is_some())
+                        .map(|(e, _)| e.card.name.clone())
+                        .collect()
+                }),
             }),
             // Read off the schedule too. A mulligan decides which hand every
             // other number is of, so it is printed above all of them.

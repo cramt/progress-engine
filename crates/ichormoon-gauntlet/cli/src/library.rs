@@ -65,7 +65,15 @@ pub enum ManaDetail<'a> {
     /// declared no casting priority. Held here rather than beside this enum so
     /// that "prices spells it does not model mana for" is a state nobody can
     /// build.
-    Modelled { castable: &'a [Option<Demand>] },
+    ///
+    /// `commanders` is the same table for [`Library::commanders`]: what each
+    /// one costs where the line names it. A commander the line names is cast
+    /// from the command zone; one it does not is left out of the grouping
+    /// altogether, because it is never drawn and nothing else reads it.
+    Modelled {
+        castable: &'a [Option<Demand>],
+        commanders: &'a [Option<Demand>],
+    },
 }
 
 /// A listed card that never enters the library, and which type made it so.
@@ -278,17 +286,19 @@ impl Library {
                 // A card the priority names is a payer rather than a source,
                 // and the two cannot be the same card: `resolve` refuses to
                 // price a land, because a land is played rather than cast.
-                ManaDetail::Modelled { castable } => match castable.get(card).copied().flatten() {
-                    Some(cost) => ManaSource::Castable {
-                        cost,
-                        resolves: if is_permanent(&e.card) {
-                            Resolves::OntoBattlefield
-                        } else {
-                            Resolves::IntoGraveyard
+                ManaDetail::Modelled { castable, .. } => {
+                    match castable.get(card).copied().flatten() {
+                        Some(cost) => ManaSource::Castable {
+                            cost,
+                            resolves: if is_permanent(&e.card) {
+                                Resolves::OntoBattlefield
+                            } else {
+                                Resolves::IntoGraveyard
+                            },
                         },
-                    },
-                    None => mana_source(&e.card),
-                },
+                        None => mana_source(&e.card),
+                    }
+                }
             };
             (mask, source, e.qty)
         });
@@ -298,7 +308,38 @@ impl Library {
             .cloned()
             .chain(marked.iter().map(|m| m.label.clone()))
             .collect();
-        Grouping::with_mana(names, cards).map_err(|e: GroupingError| anyhow::anyhow!(e))
+        let grouping =
+            Grouping::with_mana(names, cards).map_err(|e: GroupingError| anyhow::anyhow!(e))?;
+        let ManaDetail::Modelled { commanders, .. } = mana else {
+            return Ok(grouping);
+        };
+        // The commanders the line casts, from the command zone. They carry the
+        // criteria file's query bits like any card, and no effect bit: an
+        // effect is resolved against the library, and a commander is not in
+        // it.
+        let command = self
+            .commanders
+            .iter()
+            .zip(commanders)
+            .filter_map(|(e, cost)| {
+                let cost = (*cost)?;
+                let view = e.card.view(&e.categories);
+                let mask = parsed
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, q)| q.matches(&view))
+                    .fold(0u64, |mask, (i, _)| mask | 1u64 << i);
+                // A commander is a creature, or at least a permanent, so it
+                // resolves onto the battlefield; read off the card anyway.
+                let resolves = if is_permanent(&e.card) {
+                    Resolves::OntoBattlefield
+                } else {
+                    Resolves::IntoGraveyard
+                };
+                Some((mask, ManaSource::Castable { cost, resolves }, e.qty))
+            })
+            .collect::<Vec<_>>();
+        Ok(grouping.with_command_zone(command))
     }
 
     /// Which lands in this deck have a tapped-ness the pilot decides.
@@ -426,10 +467,19 @@ impl Library {
     /// key: forty of them name more than one card, and a decklist can hold the
     /// same card under two categories.
     pub fn positions_matching(&self, query: &str) -> Result<Vec<usize>> {
+        Self::positions_in(&self.entries, query)
+    }
+
+    /// The same, in [`Library::commanders`]: which of the commanders `query`
+    /// picks out.
+    pub fn commanders_matching(&self, query: &str) -> Result<Vec<usize>> {
+        Self::positions_in(&self.commanders, query)
+    }
+
+    fn positions_in(entries: &[Entry], query: &str) -> Result<Vec<usize>> {
         let q =
             chip_scryfall::parse(query).map_err(|e| anyhow::anyhow!("in query {query:?}: {e}"))?;
-        Ok(self
-            .entries
+        Ok(entries
             .iter()
             .enumerate()
             .filter(|(_, e)| q.matches(&e.card.view(&e.categories)))

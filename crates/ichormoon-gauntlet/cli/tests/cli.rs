@@ -2653,6 +2653,107 @@ fn a_sorcery_in_the_graveyard_agrees_with_the_sampler() {
     }
 }
 
+fn run_commander(deck: &str) -> std::process::Output {
+    run_with(deck, "commander.criteria.toml", "commander-index.jsonl")
+}
+
+#[test]
+fn the_commander_is_cast_from_the_command_zone_on_the_turn_four_lands_pay_for_it() {
+    // HANDS.md hand 37, three columns of one table. Rashmi and Ragavan costs
+    // {1}{G}{U}{R} and starts in the command zone: never drawn, always there,
+    // and the line spends the turn's lands on it like any other spell.
+    //
+    // Twelve lands of the right colours cast it on turn 4 and not turn 3,
+    // because turn 3 has three lands. Three lands and nine spells never cast
+    // it. Twelve Forests have four lands on turn 4 every time, and still never
+    // cast it — the count is not the colours. It is never in hand, it is cast
+    // once and no more, and a gate beside the line asks what the line left.
+    // `None` is a number this column does not claim.
+    type Row = (&'static str, [Option<f64>; 3]);
+    let rows: [Row; 8] = [
+        (
+            "commander cast by turn 3",
+            [Some(0.0), Some(0.0), Some(0.0)],
+        ),
+        (
+            "commander cast by turn 4",
+            [Some(100.0), Some(0.0), Some(0.0)],
+        ),
+        (
+            "commander cast twice by turn 5",
+            [Some(0.0), Some(0.0), Some(0.0)],
+        ),
+        (
+            "commander on the battlefield by turn 4",
+            [Some(100.0), Some(0.0), Some(0.0)],
+        ),
+        (
+            "commander in hand by turn 5",
+            [Some(0.0), Some(0.0), Some(0.0)],
+        ),
+        ("a red mana left on turn 4", [Some(0.0), None, Some(0.0)]),
+        ("a red mana left on turn 5", [Some(100.0), None, Some(0.0)]),
+        (
+            "four lands in play by turn 4",
+            [Some(100.0), Some(0.0), Some(100.0)],
+        ),
+    ];
+    let decks = [
+        "hand-commander.txt",
+        "hand-commander-three.txt",
+        "hand-commander-mono.txt",
+    ];
+    for (column, deck) in decks.into_iter().enumerate() {
+        let out = run_commander(deck);
+        assert!(
+            out.status.success(),
+            "{deck} should answer: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+        for (name, expected) in &rows {
+            let Some(expected) = expected[column] else {
+                continue;
+            };
+            let got = percent(&json, name);
+            assert!(
+                (got - expected).abs() < 1e-9,
+                "{deck}, {name}: {got} where the hand says {expected}"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_commander_agrees_with_the_sampler() {
+    // The two engines share the board, so a disagreement here is about how a
+    // path is produced — and a commander is a card no path ever deals.
+    for deck in ["hand-commander.txt", "hand-commander-three.txt"] {
+        let exact: serde_json::Value = serde_json::from_slice(&run_commander(deck).stdout).unwrap();
+        let sampled = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+            .arg("test")
+            .arg(fixture(deck))
+            .arg(fixture("commander.criteria.toml"))
+            .arg("--index")
+            .arg(fixture("commander-index.jsonl"))
+            .arg("--simulate")
+            .arg("--trials")
+            .arg("20000")
+            .output()
+            .expect("binary should run");
+        let sampled: serde_json::Value = serde_json::from_slice(&sampled.stdout).unwrap();
+        for c in exact["criteria"].as_array().unwrap() {
+            let name = c["name"].as_str().unwrap();
+            assert!(
+                (percent(&exact, name) - percent(&sampled, name)).abs() < 1.5,
+                "{deck}, {name}: {} exact against {} sampled",
+                percent(&exact, name),
+                percent(&sampled, name)
+            );
+        }
+    }
+}
+
 #[test]
 fn a_run_that_cast_by_policy_says_which_policy() {
     // The non-negotiable half, and the same one #54 has: a number that turned

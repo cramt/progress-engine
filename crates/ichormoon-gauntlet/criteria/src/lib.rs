@@ -626,7 +626,7 @@ pub fn run_answering<E>(
     );
     let plan = answering.plan();
     let gaps = schedule.gaps();
-    let groups = grouping.group_sizes().len();
+    let groups = grouping.dealt();
     feasible(grouping, schedule)?;
     let paths = compositions(groups, gaps);
     if paths > MAX_PATHS {

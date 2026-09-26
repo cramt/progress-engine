@@ -231,7 +231,8 @@ impl Estimated {
     }
 }
 
-/// How many library cards a query actually matched.
+/// How many library cards a query actually matched — and, where the run's
+/// line casts a commander from the command zone, that commander too.
 ///
 /// Reported because a query matching nothing is this project's defining failure:
 /// it produces a confident 0% rather than an error. Showing the count makes a
@@ -680,6 +681,11 @@ pub struct CastingUse {
     pub then: &'static str,
     /// How a tie inside one entry was settled, stated rather than buried.
     pub tie_break: &'static str,
+    /// The commanders the list names, which it casts from the command zone.
+    /// Absent where it names none, which is every line that casts only what
+    /// it draws.
+    #[facet(skip_serializing_if = Vec::is_empty)]
+    pub from_command_zone: Vec<String>,
 }
 
 impl OptimisedUse {
@@ -1122,6 +1128,16 @@ impl Report {
                 "      Then {}. Ties: {}.\n",
                 policy.then, policy.tie_break
             ));
+            // A card cast without being drawn is a claim no reader could
+            // reconstruct from the list of queries, so it is named.
+            if !policy.from_command_zone.is_empty() {
+                out.push_str(&format!(
+                    "      Cast from the command zone — never drawn, always there, cast at most \
+                     once: {}.\n      At equal cost inside one entry, a card from the library \
+                     is cast first.\n",
+                    policy.from_command_zone.join(", ")
+                ));
+            }
         }
         // Which hand every number is of. Above the tapped-ness assumptions and
         // beside the other declared priorities, because it is the same kind of

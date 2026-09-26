@@ -1,0 +1,6 @@
+// HANDS.md hand 37, the third column: four lands every time, of one colour.
+//
+// Every drop is made, so four lands are in play on turn 4, and none of them
+// makes blue or red. Four lands is not four lands of the right colours.
+1x Rashmi and Ragavan [Commander{top}]
+12x Forest [Land]

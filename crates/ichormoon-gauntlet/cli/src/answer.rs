@@ -173,7 +173,7 @@ pub(crate) fn answer(
                 Err(e) => return Err(e.into()),
             }
         };
-        let groups = narrowed.group_sizes().len();
+        let groups = narrowed.dealt();
         enumerations.push(report::Enumeration {
             criteria: named(&criteria_names, answering.criteria()),
             expectations: named(&expectation_names, answering.expectations()),

@@ -32,6 +32,16 @@ pub struct Grouping {
     group_masks: Vec<u64>,
     group_sizes: Vec<u32>,
     group_mana: Vec<ManaSource>,
+    /// Cards of each group that start in the **command zone** rather than the
+    /// library: never dealt, never drawn, and there to be cast.
+    ///
+    /// Not part of [`Grouping::group_sizes`], which is the library and nothing
+    /// else — every draw, every hypergeometric and the sampler's deck are
+    /// built from that, and a commander is in none of them. A group can hold
+    /// only command-zone cards and have a library size of zero. Only a card the
+    /// run can cast is ever here: a commander nobody's line names moves no
+    /// number, so it is not grouped at all.
+    group_command: Vec<u32>,
     /// For each query, the groups whose cards match it. Derived from the
     /// masks once, because counting a query is asked on every path and a
     /// pass over every group testing a bit was a sixth of a run.
@@ -64,23 +74,72 @@ impl Grouping {
         queries: Vec<String>,
         cards: impl IntoIterator<Item = (u64, ManaSource, u32)>,
     ) -> Result<Self, GroupingError> {
+        Self::assemble(
+            queries,
+            cards
+                .into_iter()
+                .map(|(mask, mana, qty)| (mask, mana, qty, 0)),
+        )
+    }
+
+    /// The same library, and beside it the cards that start in the command
+    /// zone: `commanders` is `(mask, what it costs, copies)` per card.
+    ///
+    /// A commander joins a library group that matches the same queries and
+    /// costs the same — to every question the two are the same card, except
+    /// that one of them is never drawn — and otherwise gets a group of its own
+    /// with nothing in the library. The library groups keep their positions,
+    /// so the decklist order the tie rules read is unchanged and a commander
+    /// comes after every library card in it.
+    pub fn with_command_zone(
+        self,
+        commanders: impl IntoIterator<Item = (u64, ManaSource, u32)>,
+    ) -> Grouping {
+        let library = (0..self.group_sizes.len()).map(|g| {
+            (
+                self.group_masks[g],
+                self.group_mana[g],
+                self.group_sizes[g],
+                self.group_command[g],
+            )
+        });
+        let command = commanders
+            .into_iter()
+            .map(|(mask, mana, qty)| (mask, mana, 0, qty));
+        Self::assemble(self.queries, library.chain(command).collect::<Vec<_>>())
+            .expect("adding command-zone cards names no new query")
+    }
+
+    fn assemble(
+        queries: Vec<String>,
+        cards: impl IntoIterator<Item = (u64, ManaSource, u32, u32)>,
+    ) -> Result<Self, GroupingError> {
         if queries.len() > MAX_QUERIES {
             return Err(GroupingError::TooManyQueries(queries.len()));
         }
         let mut group_masks: Vec<u64> = Vec::new();
         let mut group_sizes: Vec<u32> = Vec::new();
         let mut group_mana: Vec<ManaSource> = Vec::new();
-        for (mask, mana, qty) in cards {
+        let mut group_command: Vec<u32> = Vec::new();
+        for (mask, mana, qty, command) in cards {
             match group_masks
                 .iter()
                 .zip(&group_mana)
                 .position(|(m, s)| *m == mask && *s == mana)
             {
-                Some(i) => group_sizes[i] += qty,
+                Some(i) => {
+                    group_sizes[i] += qty;
+                    group_command[i] += command;
+                }
+                // A group of nothing is not a group. Only a coarsening that
+                // erased a commander's cost produces one, and a card that
+                // cannot be cast from the command zone is not in the game.
+                None if qty == 0 && command == 0 => {}
                 None => {
                     group_masks.push(mask);
                     group_sizes.push(qty);
                     group_mana.push(mana);
+                    group_command.push(command);
                 }
             }
         }
@@ -99,6 +158,7 @@ impl Grouping {
             group_masks,
             group_sizes,
             group_mana,
+            group_command,
             members,
         })
     }
@@ -113,6 +173,12 @@ impl Grouping {
 
     pub fn group_masks(&self) -> &[u64] {
         &self.group_masks
+    }
+
+    /// Cards of each group in the command zone, in group order: zero for every
+    /// group in a run whose line names no commander.
+    pub fn group_command(&self) -> &[u32] {
+        &self.group_command
     }
 
     /// What each group does for mana, in group order.
@@ -183,10 +249,22 @@ impl Grouping {
             .iter()
             .zip(&self.group_mana)
             .zip(&self.group_sizes)
-            .map(|((mask, source), qty)| (mask & keep, source.seen_as(mana), *qty));
+            .zip(&self.group_command)
+            .map(|(((mask, source), qty), command)| {
+                let seen = source.seen_as(mana);
+                // A commander is only in the game to be cast, so a class that
+                // erases what it costs erases it: it cannot be drawn, and
+                // nothing in that class could have paid for it.
+                let command = if seen.castable().is_some() {
+                    *command
+                } else {
+                    0
+                };
+                (mask & keep, seen, *qty, command)
+            });
         // The same query list at the same bit positions: this is a coarser
         // partition of the same library, not a different question.
-        Grouping::with_mana(self.queries.clone(), cards)
+        Grouping::assemble(self.queries.clone(), cards)
             .expect("coarsening names no query the original did not")
     }
 
@@ -212,15 +290,33 @@ impl Grouping {
         self.group_masks
             .iter()
             .zip(&self.group_mana)
-            .map(|(mask, mana)| {
+            .zip(&self.group_sizes)
+            .map(|((mask, mana), &size)| {
                 let (mask, mana) = (mask & keep, mana.seen_as(detail));
                 coarse
                     .group_masks
                     .iter()
                     .zip(&coarse.group_mana)
                     .position(|(m, s)| *m == mask && *s == mana)
+                    // A group holding only command-zone cards has nothing in
+                    // the library, so no deal ever puts a card of it anywhere,
+                    // and a coarsening that could not cast it dropped it. Any
+                    // group is as good a home for a count that is always zero.
+                    .or_else(|| (size == 0 && !coarse.group_masks.is_empty()).then_some(0))
             })
             .collect()
+    }
+
+    /// How many groups a deal can put a card of: every group with something
+    /// in the library.
+    ///
+    /// The width of an enumeration is counted in these, not in
+    /// [`Grouping::group_sizes`]'s length. A group holding only command-zone
+    /// cards is never dealt from, so it is a bin every composition leaves
+    /// empty, and counting it would report — and refuse — a walk wider than
+    /// the one that happens.
+    pub fn dealt(&self) -> usize {
+        self.group_sizes.iter().filter(|&&size| size > 0).count()
     }
 
     /// Total library size.
