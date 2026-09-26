@@ -1,0 +1,17 @@
+note: the spells cast here are decided by the priority this file declared, and every
+      number below that depends on what was cast depends on it:
+      1. "name:\"Life from the Loam\""
+      Then a spell this list does not name is not cast at all. Ties: a tie inside one entry goes to the cheaper cost, then to the card this decklist names first.
+note: every number below keeps whatever seven it is dealt: this file declares no
+      [mulligan], so no hand is ever sent back.
+note: 5 lands here let the pilot decide whether to enter tapped. This run assumes they do:
+      Argoth, Sanctum of Nature, Breeding Pool, Mystic Sanctuary, Steam Vents, Stomping Ground.
+      A shockland's 2 life is a decision no criteria file has made yet, so the pessimistic
+      reading is taken: it makes no mana the turn it arrives. Every number below that
+      depends on one of these is a floor rather than a measurement.
+     Life from the Loam in the graveyard by turn 5 (by casting it)    9.56%
+     Life from the Loam cast by turn 5                                9.56%
+
+widest exact question: 1,026,432 compositions across 6 groups, 21% of the 5,000,000 ceiling, "Life from the Loam in the graveyard by turn 5 (by casting it)"
+
+PASS: 0 of 0 assertions met

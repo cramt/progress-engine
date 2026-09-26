@@ -1,0 +1,88 @@
+{
+  "library_size": 98,
+  "commanders": [
+    "Borborygmos and Fblthp"
+  ],
+  "excluded": [],
+  "on_the_draw": false,
+  "method": "exact",
+  "queries": [
+    {
+      "query": "name:\"Life from the Loam\"",
+      "cards": 1
+    }
+  ],
+  "zones": [
+    {
+      "zone": "graveyard",
+      "reachable": true,
+      "asked_by": "Life from the Loam in the graveyard by turn 5 (by casting it)"
+    }
+  ],
+  "effects": [],
+  "enumerations": [
+    {
+      "criteria": [
+        "Life from the Loam in the graveyard by turn 5 (by casting it)",
+        "Life from the Loam cast by turn 5"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Life from the Loam\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{G}"
+      ],
+      "groups": 6,
+      "compositions": 1026432,
+      "method": "exact"
+    }
+  ],
+  "assumed_tapped": [
+    "Argoth, Sanctum of Nature",
+    "Breeding Pool",
+    "Mystic Sanctuary",
+    "Steam Vents",
+    "Stomping Ground"
+  ],
+  "casting": {
+    "prefer": [
+      "name:\"Life from the Loam\""
+    ],
+    "then": "a spell this list does not name is not cast at all",
+    "tie_break": "a tie inside one entry goes to the cheaper cost, then to the card this decklist names first"
+  },
+  "criteria": [
+    {
+      "name": "Life from the Loam in the graveyard by turn 5 (by casting it)",
+      "probability": 0.095603,
+      "percent": 9.56,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "Life from the Loam cast by turn 5",
+      "probability": 0.095603,
+      "percent": 9.56,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    }
+  ],
+  "expectations": [],
+  "asserted": 0,
+  "failed": 0,
+  "ok": true,
+  "provenance": {
+    "tool_version": "0.1.0",
+    "index_updated_at": "2026-09-21T09:01:56.821+00:00",
+    "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
+    "criteria_sha256": "00074b9881f90b7c0f2eefb9c4d5b2dfa53fa23f545d9a5f8d3731a4e6093c35",
+    "effect_library_sha256": "c82ddeb31f819c87e905b64c5bd5b2f8c6e71cfdfd71d1bfa50be6ca6f0ca556"
+  }
+}

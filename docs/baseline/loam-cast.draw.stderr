@@ -1,0 +1,22 @@
+ESTIMATE: a question here was too wide to enumerate exactly: 6158592
+          compositions across 6 groups, against a ceiling of 5000000. It was
+          answered by sampling 200000 hands instead.
+          Every percentage below is an ESTIMATE, not an exact answer.
+          The ± beside each one is its standard error, and a difference
+          smaller than that is not a difference.
+          Pass --exact to refuse a question this wide rather than estimate it.
+note: the spells cast here are decided by the priority this file declared, and every
+      number below that depends on what was cast depends on it:
+      1. "name:\"Life from the Loam\""
+      Then a spell this list does not name is not cast at all. Ties: a tie inside one entry goes to the cheaper cost, then to the card this decklist names first.
+note: every number below keeps whatever seven it is dealt: this file declares no
+      [mulligan], so no hand is ever sent back.
+note: 5 lands here let the pilot decide whether to enter tapped. This run assumes they do:
+      Argoth, Sanctum of Nature, Breeding Pool, Mystic Sanctuary, Steam Vents, Stomping Ground.
+      A shockland's 2 life is a decision no criteria file has made yet, so the pessimistic
+      reading is taken: it makes no mana the turn it arrives. Every number below that
+      depends on one of these is a floor rather than a measurement.
+     Life from the Loam in the graveyard by turn 5 (by casting it)   10.83% ± 0.07
+     Life from the Loam cast by turn 5                               10.83% ± 0.07
+
+PASS: 0 of 0 assertions met

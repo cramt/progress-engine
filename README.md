@@ -489,7 +489,7 @@ second kind: it declares `[casting] prefer = ['name:"Life from the Loam"']` and
 asks the north star of the zone, and reads 9.5603% on the play — the same
 hands as `can_cast` of Loam by turn 5, to the digit, because one copy cast the
 first turn it is payable is in the yard exactly when it was payable (HANDS.md
-hands 19 and 20). It is a file of its own because a `[casting]` line takes the
+hands 34 and 35). It is a file of its own because a `[casting]` line takes the
 cards it casts out of the hand and prices the manabase on every question
 beside it, which would move every other number in `loam.criteria.toml`.
 Flashback and retrace, which cast a card *from* the yard, are not modelled.
