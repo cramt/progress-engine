@@ -160,6 +160,31 @@ reads, the pips it kept, its group and composition counts, and whether it was wa
 sampled. Every group and composition count in this README comes from one of those, and the
 command that produces it is printed beside it.
 
+### Threads
+
+A walk is split at its opener: each opening hand's rest of the game is its own
+walk, sharing nothing with any other, so they are handed out to every core the
+process may use and summed on one thread afterwards, in a fixed order. That
+order is why **the number of threads never reaches a digit** — one thread and
+sixty-four print the same bytes, and a test holds them to it. Set
+`GAUNTLET_THREADS` to use fewer; it changes how long a run takes and nothing
+else.
+
+On the four-core machine these figures were measured on, the Loam optimiser run
+above went from 11.0s to 2.5s, a declared mulligan on the same deck from 7.5s to
+1.6s, and a plain run of `decks/loam.criteria.toml` on the draw from 1.5s to
+0.5s — every one of them byte-identical to the single-threaded run, which is
+byte-identical to what the tool printed before. Some of it is not threads at
+all: `ln C(n, k)` is read off a table of the exact values `lgamma` returns
+rather than recomputed millions of times, and a path no longer allocates.
+
+SIMD was tried and measured rather than assumed, with `fearless_simd` on the one
+loop shaped for it — summing a query's cards across groups — and it lost: a run
+that took 7.4s took 9.5s, because a query touches one to three groups and the
+dispatch costs more than the adding. What is left of a run is the per-path walk
+of the board, which branches on every card, and that is the shape vector units
+and GPUs are worst at.
+
 ### When the question is too wide
 
 A question that is still over the ceiling on its own — a criterion correlating two turns
@@ -1296,9 +1321,10 @@ class crossed the ceiling it was not already over: `t:land` was already in the
 widest classes, and the others grow by one group — a cumulative class that read
 12 compositions reads 540, because the opener is now its own checkpoint. What the
 mulligan costs is **deals**, one per hand size, and every entry in the
-`enumerations` block says how many: the loam file went from 0.7s to 4.3s on the
-play and 1.4s to 8.1s on the draw, and the lantern file from 0.7s to 1.1s on
-the play and 1.7s on the draw.
+`enumerations` block says how many. Every deal is split at its opener and
+walked on every core ([threads](#threads)), so on a four-core machine the loam
+file with the rule above takes 0.8s on the play and 1.6s on the draw, and the
+lantern file 0.5s and 0.6s — against 3.7s and 7.5s, and 1.1s and 1.5s, before.
 
 Not modelled, and named rather than approximated:
 
@@ -1414,10 +1440,11 @@ trust it.
 **Measured on the real decks**, with objectives made of criteria each file
 already answers exactly (the north stars are sampled, so they cannot be weighed
 yet). On `decks/lantern.txt`, routes 1, 2 and 4 weighted 3 : 1 : 1: 6 groups and
-338 openers, 134,469 paths walked on the play and 535,727 on the draw, 1.5s and
-1.7s for the whole file. On `decks/loam.txt`, Loam in hand, the `{1}{G}` control
-and Loam Access with three lands weighted 3 : 1 : 1: 7 groups and 1,253 openers,
-2.0 million paths on the play and 10.2 million on the draw, 5.5s and 11.2s. Both
+338 openers, 134,469 paths walked on the play and 535,727 on the draw, 0.8s and
+1.0s for the whole file on four cores. On `decks/loam.txt`, Loam in hand, the
+`{1}{G}` control and Loam Access with three lands weighted 3 : 1 : 1: 7 groups and
+1,253 openers, 2.0 million paths on the play and 10.2 million on the draw, 1.0s
+and 2.5s on four cores, 5.7s and 11.0s before the walk was split across them. Both
 strategies mulligan hard — the Lantern one keeps 13.7% of sevens — because
 nothing in either objective charges for a smaller hand. That is what the
 objective said; a criterion like *four cards in hand on turn 5*, weighted, is how

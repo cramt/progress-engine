@@ -82,7 +82,9 @@ impl Table {
         self.entries.is_empty()
     }
 
-    fn get(&self, first: &[u32], back: &[u32]) -> Option<&Continuation> {
+    /// The continuation walked for `first` with `back` put back, if it has
+    /// been walked.
+    pub fn get(&self, first: &[u32], back: &[u32]) -> Option<&Continuation> {
         self.entries.get(&key(first, back))
     }
 }
@@ -111,6 +113,7 @@ pub struct Conditionals<'a, V> {
     evaluator: &'a mut V,
     board: Board<'a>,
     table: Table,
+    threads: usize,
 }
 
 impl<'a, V: Evaluator> Conditionals<'a, V> {
@@ -141,7 +144,16 @@ impl<'a, V: Evaluator> Conditionals<'a, V> {
             evaluator,
             board: Board::new(grouping, schedule),
             table: seed,
+            threads: crate::threads(),
         })
+    }
+
+    /// Walk on at most `threads` threads. The answers do not depend on it:
+    /// each continuation is one thread's whole walk, and nothing is summed
+    /// across threads.
+    pub fn with_threads(mut self, threads: usize) -> Self {
+        self.threads = threads.max(1);
+        self
     }
 
     /// The opener this class deals, which is its schedule's first gap.
@@ -157,31 +169,112 @@ impl<'a, V: Evaluator> Conditionals<'a, V> {
     ) -> Result<&Continuation, RunError<V::Error>> {
         let k = key(first, back);
         if !self.table.entries.contains_key(&k) {
-            let walked = self.walk(first, back)?;
+            let walked = continue_from(
+                &mut self.board,
+                &mut *self.evaluator,
+                self.grouping,
+                self.schedule,
+                self.answering,
+                first,
+                back,
+            )?;
             self.table.entries.insert(k.clone(), walked);
         }
         Ok(&self.table.entries[&k])
+    }
+
+    /// Walk every one of `wanted` that has not been walked yet, spread over
+    /// the threads this has.
+    ///
+    /// Each (opener, put back) pair is a walk of its own and shares nothing
+    /// with another, so the threads take pairs off one queue until it is empty
+    /// and each keeps its own board and its own fork of the evaluator. An
+    /// evaluator that cannot fork walks them all here, one after another.
+    ///
+    /// Where more than one walk fails, the error reported is the one the
+    /// single-threaded walk would have met first.
+    pub fn prefill(&mut self, wanted: Vec<(Vec<u32>, Vec<u32>)>) -> Result<(), RunError<V::Error>> {
+        let mut seen = std::collections::HashSet::new();
+        let missing: Vec<(Vec<u32>, Vec<u32>)> = wanted
+            .into_iter()
+            .filter(|(first, back)| {
+                let k = key(first, back);
+                !self.table.entries.contains_key(&k) && seen.insert(k)
+            })
+            .collect();
+        let threads = self.threads.min(missing.len());
+        let forks: Option<Vec<V>> = if threads > 1 {
+            (0..threads).map(|_| self.evaluator.fork()).collect()
+        } else {
+            None
+        };
+        let Some(forks) = forks else {
+            for (first, back) in &missing {
+                self.get(first, back)?;
+            }
+            return Ok(());
+        };
+        let next = std::sync::atomic::AtomicUsize::new(0);
+        let (grouping, schedule, answering) = (self.grouping, self.schedule, self.answering);
+        let missing = &missing;
+        let mut walked: Vec<Walked<V::Error>> = std::thread::scope(|scope| {
+            let workers: Vec<_> = forks
+                .into_iter()
+                .map(|mut evaluator| {
+                    let next = &next;
+                    scope.spawn(move || {
+                        let mut board = Board::new(grouping, schedule);
+                        let mut done = Vec::new();
+                        loop {
+                            let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                            let Some((first, back)) = missing.get(i) else {
+                                break;
+                            };
+                            let result = continue_from(
+                                &mut board,
+                                &mut evaluator,
+                                grouping,
+                                schedule,
+                                answering,
+                                first,
+                                back,
+                            );
+                            let failed = result.is_err();
+                            done.push((i, result));
+                            if failed {
+                                break;
+                            }
+                        }
+                        done
+                    })
+                })
+                .collect();
+            workers
+                .into_iter()
+                .flat_map(|w| w.join().expect("a walking thread panicked"))
+                .collect()
+        });
+        walked.sort_by_key(|(i, _)| *i);
+        for (i, result) in walked {
+            let (first, back) = &missing[i];
+            self.table.entries.insert(key(first, back), result?);
+        }
+        Ok(())
     }
 
     /// Walk every opener this class can deal, with every way of putting back
     /// up to `deepest` cards from it. What an optimiser needs: it cannot know
     /// which hands are worth keeping until it has priced all of them.
     pub fn fill(&mut self, deepest: u32) -> Result<(), RunError<V::Error>> {
-        let mut openers: Vec<Vec<u32>> = Vec::new();
+        let mut wanted: Vec<(Vec<u32>, Vec<u32>)> = Vec::new();
         chip_stats::for_each_composition(self.grouping.group_sizes(), self.opener(), |h, _| {
-            openers.push(h.to_vec())
-        });
-        let mut backs: Vec<Vec<u32>> = Vec::new();
-        for first in &openers {
             for depth in 0..=deepest {
-                backs.clear();
-                chip_stats::for_each_composition(first, depth, |b, _| backs.push(b.to_vec()));
-                for back in &backs {
-                    self.get(first, back)?;
-                }
+                chip_stats::for_each_composition(h, depth, |b, _| {
+                    wanted.push((h.to_vec(), b.to_vec()))
+                });
             }
-        }
-        Ok(())
+        });
+        self.prefill(wanted)
     }
 
     /// How many paths [`Conditionals::fill`] would walk: every (opener, put
@@ -204,53 +297,69 @@ impl<'a, V: Evaluator> Conditionals<'a, V> {
     pub fn into_table(self) -> Table {
         self.table
     }
+}
 
-    fn walk(&mut self, first: &[u32], back: &[u32]) -> Result<Continuation, RunError<V::Error>> {
-        let plan = self.answering.plan();
-        let later = self.schedule.gaps().get(1..).unwrap_or(&[]);
-        let sizes = self.grouping.group_sizes();
-        let fetches = self.board.fetches();
-        self.board.bottom(back);
-        let mut totals = vec![KahanSum::new(); self.answering.criteria().len()];
-        let mut histograms = vec![DistributionBuilder::new(); self.answering.expectations().len()];
-        let mut mass = KahanSum::new();
-        let mut failure = None;
-        let mut wrong_shape = None;
-        let mut walking = Walking {
-            board: &mut self.board,
-            evaluator: &mut *self.evaluator,
-            plan,
-            criteria: self.answering.criteria(),
-            expectations: self.answering.expectations(),
-            totals: &mut totals,
-            histograms: &mut histograms,
-            seven: None,
-            weight: 1.0,
-            counts: true,
-            mass_weight: 1.0,
-            mass: &mut mass,
-            failure: &mut failure,
-            wrong_shape: &mut wrong_shape,
-        };
-        if fetches {
-            chip_stats::for_each_checkpoint_path_removing_after(sizes, first, later, &mut walking);
-        } else {
-            chip_stats::for_each_checkpoint_path_after(sizes, first, later, |h, p| {
-                chip_stats::Walk::path(&mut walking, h, p)
-            });
-        }
-        // Each continuation is a conditional distribution, so its own mass is
-        // one: checked per hand, because a hand that lost mass would price
-        // itself wrong and nothing downstream could tell.
-        settle(failure, wrong_shape, plan, &mass)?;
-        Ok(Continuation {
-            held: totals.into_iter().map(KahanSum::total).collect(),
-            counted: histograms
-                .into_iter()
-                .map(|h| h.build().probabilities().to_vec())
-                .collect(),
-        })
+/// One thread's answer for one (opener, put back) pair, filed under the
+/// pair's position in the queue so the answers can be put back in order.
+type Walked<E> = (usize, Result<Continuation, RunError<E>>);
+
+/// The rest of one game, from `first` with `back` put on the bottom, walked
+/// on `board` and answered by `evaluator`.
+///
+/// A free function rather than a method because the threads of
+/// [`Conditionals::prefill`] each bring their own board and evaluator, and
+/// this is the one walk every one of them does.
+fn continue_from<'a, V: Evaluator>(
+    board: &mut Board<'a>,
+    evaluator: &mut V,
+    grouping: &'a Grouping,
+    schedule: &'a Schedule,
+    answering: &Answering,
+    first: &[u32],
+    back: &[u32],
+) -> Result<Continuation, RunError<V::Error>> {
+    let plan = answering.plan();
+    let later = schedule.gaps().get(1..).unwrap_or(&[]);
+    let sizes = grouping.group_sizes();
+    let fetches = board.fetches();
+    board.bottom(back);
+    let mut totals = vec![KahanSum::new(); answering.criteria().len()];
+    let mut histograms = vec![DistributionBuilder::new(); answering.expectations().len()];
+    let mut mass = KahanSum::new();
+    let mut failure = None;
+    let mut wrong_shape = None;
+    let mut outcomes = crate::PathOutcomes::default();
+    let mut walking = Walking {
+        board,
+        evaluator,
+        plan,
+        criteria: answering.criteria(),
+        expectations: answering.expectations(),
+        totals: &mut totals,
+        histograms: &mut histograms,
+        mass: &mut mass,
+        failure: &mut failure,
+        wrong_shape: &mut wrong_shape,
+        outcomes: &mut outcomes,
+    };
+    if fetches {
+        chip_stats::for_each_checkpoint_path_removing_after(sizes, first, later, &mut walking);
+    } else {
+        chip_stats::for_each_checkpoint_path_after(sizes, first, later, |h, p| {
+            chip_stats::Walk::path(&mut walking, h, p)
+        });
     }
+    // Each continuation is a conditional distribution, so its own mass is
+    // one: checked per hand, because a hand that lost mass would price itself
+    // wrong and nothing downstream could tell.
+    settle(failure, wrong_shape, plan, &mass)?;
+    Ok(Continuation {
+        held: totals.into_iter().map(KahanSum::total).collect(),
+        counted: histograms
+            .into_iter()
+            .map(|h| h.build().probabilities().to_vec())
+            .collect(),
+    })
 }
 
 /// What a strategy does with one opener at one depth.
@@ -636,18 +745,41 @@ pub fn run_chosen<V: Evaluator>(
         }
         out
     };
+    let nothing = vec![0u32; classes];
+    let strategy_groups = strategy.grouping().group_sizes().len();
+    // Everything the pass below will read, walked first and all at once: the
+    // continuations are independent, so they are what the threads share out,
+    // and the sums over them stay on one thread in one order.
+    let mut wanted: Vec<(Vec<u32>, Vec<u32>)> = Vec::new();
+    for depth in 0..=strategy.deepest() {
+        for (first, _) in &openers {
+            let first_class = project(first, &to_class, classes);
+            let decision = strategy.decide(&project(first, &to_strategy, strategy_groups), depth);
+            if depth == 0 {
+                wanted.push((first_class.clone(), nothing.clone()));
+            }
+            if !decision.keep {
+                continue;
+            }
+            for (back, _) in &decision.bottoms {
+                for (spread, _) in spread(back, first, &to_strategy) {
+                    wanted.push((first_class.clone(), project(&spread, &to_class, classes)));
+                }
+            }
+        }
+    }
+    conditionals.prefill(wanted)?;
+
     let mut totals = vec![KahanSum::new(); answering.criteria().len()];
     let mut seven = vec![KahanSum::new(); answering.criteria().len()];
     let mut histograms = vec![DistributionBuilder::new(); answering.expectations().len()];
     let mut kept = Vec::with_capacity(strategy.deepest() as usize + 1);
     let mut reach = 1.0;
-    let nothing = vec![0u32; classes];
     for depth in 0..=strategy.deepest() {
         let mut keeps = KahanSum::new();
         for (first, p) in &openers {
             let first_class = project(first, &to_class, classes);
-            let first_strategy =
-                project(first, &to_strategy, strategy.grouping().group_sizes().len());
+            let first_strategy = project(first, &to_strategy, strategy_groups);
             let decision = strategy.decide(&first_strategy, depth);
             if depth == 0 {
                 let rest = conditionals.get(&first_class, &nothing)?;

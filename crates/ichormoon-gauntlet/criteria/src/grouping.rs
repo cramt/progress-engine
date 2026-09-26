@@ -32,6 +32,10 @@ pub struct Grouping {
     group_masks: Vec<u64>,
     group_sizes: Vec<u32>,
     group_mana: Vec<ManaSource>,
+    /// For each query, the groups whose cards match it. Derived from the
+    /// masks once, because counting a query is asked on every path and a
+    /// pass over every group testing a bit was a sixth of a run.
+    members: Vec<Vec<usize>>,
 }
 
 impl Grouping {
@@ -80,11 +84,22 @@ impl Grouping {
                 }
             }
         }
+        let members = (0..queries.len())
+            .map(|q| {
+                group_masks
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, mask)| *mask & (1u64 << q) != 0)
+                    .map(|(g, _)| g)
+                    .collect()
+            })
+            .collect();
         Ok(Grouping {
             queries,
             group_masks,
             group_sizes,
             group_mana,
+            members,
         })
     }
 
@@ -210,15 +225,9 @@ impl Grouping {
     }
 
     fn sum_matching(&self, counts: &[u32], query_idx: usize) -> u32 {
-        if query_idx >= self.queries.len() {
-            return 0;
+        match self.members.get(query_idx) {
+            Some(members) => members.iter().map(|&g| counts[g]).sum(),
+            None => 0,
         }
-        let bit = 1u64 << query_idx;
-        self.group_masks
-            .iter()
-            .zip(counts)
-            .filter(|(mask, _)| *mask & bit != 0)
-            .map(|(_, n)| *n)
-            .sum()
     }
 }

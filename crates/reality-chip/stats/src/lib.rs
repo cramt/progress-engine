@@ -72,8 +72,27 @@ pub fn ln_choose(n: u32, k: u32) -> f64 {
     if k > n {
         return f64::NEG_INFINITY;
     }
-    let (n, k) = (f64::from(n), f64::from(k));
-    lgamma(n + 1.0) - lgamma(k + 1.0) - lgamma(n - k + 1.0)
+    ln_factorial(n) - ln_factorial(k) - ln_factorial(n - k)
+}
+
+/// How many ln n! are kept rather than recomputed: every count a library can
+/// hold, with room to spare. A Commander library is 99 cards.
+const LN_FACTORIALS: usize = 4096;
+
+/// ln n!, read off a table where it can be.
+///
+/// The enumeration asks for the same handful of these millions of times — a
+/// group of twelve cards has thirteen of them — and `lgamma` was a fifth of the
+/// whole run. The table holds exactly what `lgamma(n + 1)` returns, computed
+/// the same way, so a number read off it is the number computed without it,
+/// bit for bit: this is a cache, not an approximation.
+fn ln_factorial(n: u32) -> f64 {
+    static TABLE: std::sync::OnceLock<Vec<f64>> = std::sync::OnceLock::new();
+    let table = TABLE.get_or_init(|| (0..LN_FACTORIALS).map(|n| lgamma(n as f64 + 1.0)).collect());
+    match table.get(n as usize) {
+        Some(&ln) => ln,
+        None => lgamma(f64::from(n) + 1.0),
+    }
 }
 
 /// P(exactly `k` successes) drawing `draws` from `population` containing

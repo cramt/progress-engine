@@ -21,8 +21,8 @@ use proptest::prelude::*;
 use proptest::test_runner::{Config, RngAlgorithm, TestCaseError, TestRng, TestRunner};
 use std::sync::Arc;
 
-type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
-type Tally = Box<dyn FnMut(&PathView<'_>) -> u32>;
+type Check = Box<dyn FnMut(&PathView<'_>) -> bool + Send>;
+type Tally = Box<dyn FnMut(&PathView<'_>) -> u32 + Send>;
 
 struct Closures(Vec<Check>);
 

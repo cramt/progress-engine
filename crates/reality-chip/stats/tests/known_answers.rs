@@ -525,3 +525,21 @@ fn a_walk_resumed_with_nothing_after_it_is_its_first_checkpoint() {
     });
     assert_eq!(seen, vec![(vec![vec![1, 2]], 1.0)]);
 }
+
+#[test]
+fn a_cached_ln_choose_is_the_computed_one_bit_for_bit() {
+    // The table is a cache of lgamma, not an approximation of it: every
+    // number the enumeration ever printed has to come out the same.
+    for n in [0u32, 1, 7, 36, 99, 100, 4094, 4095, 4096, 5000] {
+        for k in [0, 1, n / 3, n / 2, n] {
+            let (nf, kf) = (f64::from(n), f64::from(k));
+            let computed =
+                libm::lgamma(nf + 1.0) - libm::lgamma(kf + 1.0) - libm::lgamma(nf - kf + 1.0);
+            assert_eq!(
+                h::ln_choose(n, k).to_bits(),
+                computed.to_bits(),
+                "C({n}, {k})"
+            );
+        }
+    }
+}

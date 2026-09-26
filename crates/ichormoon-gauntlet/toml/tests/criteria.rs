@@ -2055,3 +2055,70 @@ fn a_weight_on_a_name_two_criteria_share_is_refused() {
         "{doubled}"
     );
 }
+
+// --- Threads ---------------------------------------------------------------
+
+#[test]
+fn how_many_threads_walked_it_never_reaches_a_digit() {
+    // A criteria file forks, so its continuations are walked on as many
+    // threads as there are. Each is one thread's whole walk and nothing is
+    // summed across threads, so one thread and eight have to agree bit for
+    // bit, not closely.
+    use gauntlet_criteria::{Answering, Conditionals, Table};
+    let criteria = parse(
+        r#"
+        [[criterion]]
+        name = "two by turn 3"
+        require = [{ turn = 3, query = "t:land", min = 2 }]
+
+        [[criterion]]
+        name = "one on 1 and three on 4"
+        require = [
+          { turn = 1, query = "t:land", min = 1 },
+          { turn = 4, query = "t:land", min = 3 },
+        ]
+
+        [[expect]]
+        name = "lands by turn 4"
+        turn = 4
+        query = "t:land"
+        "#,
+    );
+    let grouping = grouping_for(&criteria, 20);
+    let schedule = schedule(&criteria);
+    let answering = Answering::all(criteria.plan());
+    let table = |threads: usize| {
+        let mut ev = criteria.clone();
+        let mut conditionals =
+            Conditionals::new(&grouping, &schedule, &answering, &mut ev, Table::default())
+                .unwrap()
+                .with_threads(threads);
+        conditionals.fill(2).unwrap();
+        conditionals.into_table()
+    };
+    let (one, eight) = (table(1), table(8));
+    assert_eq!(one.len(), eight.len());
+    assert!(one.len() > 20, "enough pairs to share out: {}", one.len());
+    let mut openers = Vec::new();
+    chip_stats::for_each_composition(grouping.group_sizes(), 7, |h, _| openers.push(h.to_vec()));
+    for first in &openers {
+        for depth in 0..=2 {
+            let mut backs = Vec::new();
+            chip_stats::for_each_composition(first, depth, |b, _| backs.push(b.to_vec()));
+            for back in &backs {
+                let (a, b) = (
+                    one.get(first, back).unwrap(),
+                    eight.get(first, back).unwrap(),
+                );
+                let bits = |c: &gauntlet_criteria::Continuation| -> Vec<u64> {
+                    c.held
+                        .iter()
+                        .chain(c.counted.iter().flatten())
+                        .map(|x| x.to_bits())
+                        .collect()
+                };
+                assert_eq!(bits(a), bits(b), "{first:?} back {back:?}");
+            }
+        }
+    }
+}

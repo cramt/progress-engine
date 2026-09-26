@@ -3932,3 +3932,36 @@ fn an_objective_the_exact_engine_cannot_enumerate_is_refused_by_name() {
         "no JSON that could be read as an answer"
     );
 }
+
+#[test]
+fn one_thread_and_many_print_the_same_run() {
+    // End to end, over every kind of run that splits its walk: a plain file,
+    // a declared mulligan and a chosen one. Byte for byte, not close.
+    for criteria in [
+        "simple-ramp.criteria.toml",
+        "mulligan.criteria.toml",
+        "optimise.criteria.toml",
+    ] {
+        let with = |threads: &str| {
+            Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+                .env("GAUNTLET_THREADS", threads)
+                .arg("test")
+                .arg(fixture("simple-ramp.txt"))
+                .arg(fixture(criteria))
+                .arg("--index")
+                .arg(fixture("index.jsonl"))
+                .output()
+                .expect("binary should run")
+        };
+        let (one, many) = (with("1"), with("8"));
+        assert!(one.status.success(), "{criteria}");
+        assert_eq!(
+            one.stdout, many.stdout,
+            "{criteria}: JSON differs by thread count"
+        );
+        assert_eq!(
+            one.stderr, many.stderr,
+            "{criteria}: report differs by thread count"
+        );
+    }
+}

@@ -422,7 +422,7 @@ struct Probe {
 }
 
 /// A parsed criteria file, ready to answer against either engine.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Criteria {
     /// Every distinct query the file names, in the order it first names them.
     /// This is the whole set, known before a single hand is enumerated.
@@ -958,6 +958,12 @@ impl Reads {
 impl Evaluator for Criteria {
     type Error = EvalError;
 
+    /// A criteria file is data and holds no state between paths, so a copy of
+    /// it answers every path exactly as the original does.
+    fn fork(&self) -> Option<Criteria> {
+        Some(self.clone())
+    }
+
     fn evaluate(&mut self, view: &PathView<'_>) -> Result<PathOutcomes, EvalError> {
         let held = self.predicates.iter().map(|p| p.holds(view)).collect();
         let counted = self
@@ -973,6 +979,27 @@ impl Evaluator for Criteria {
             })
             .collect::<Result<_, _>>()?;
         Ok(PathOutcomes { held, counted })
+    }
+
+    /// The same answers, into vectors the walk reuses from path to path.
+    fn evaluate_into(
+        &mut self,
+        view: &PathView<'_>,
+        out: &mut PathOutcomes,
+    ) -> Result<(), EvalError> {
+        out.held.clear();
+        out.held
+            .extend(self.predicates.iter().map(|p| p.holds(view)));
+        out.counted.clear();
+        for (probe, expectation) in self.probes.iter().zip(&self.expectations) {
+            let seen = view.count_at(probe.turn, probe.query, probe.counted);
+            out.counted
+                .push(Count::new(seen).map_err(|source| EvalError {
+                    name: expectation.name.clone(),
+                    source,
+                })?);
+        }
+        Ok(())
     }
 }
 

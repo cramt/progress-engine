@@ -17,8 +17,8 @@ use gauntlet_criteria::{
 use gauntlet_sim::{mean_standard_error, simulate, standard_error, SimError};
 use std::sync::Arc;
 
-type Check = Box<dyn FnMut(&PathView<'_>) -> bool>;
-type Tally = Box<dyn FnMut(&PathView<'_>) -> u32>;
+type Check = Box<dyn FnMut(&PathView<'_>) -> bool + Send>;
+type Tally = Box<dyn FnMut(&PathView<'_>) -> u32 + Send>;
 
 struct Closures(Vec<Check>);
 
