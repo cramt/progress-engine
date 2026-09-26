@@ -463,7 +463,7 @@ require = [
 | `hand` | the default. Cards drawn by that turn — nothing is cast or discarded yet, so nothing has left |
 | `graveyard` | cards an effect routed to the yard — see [Effects](#effects) — and every instant or sorcery the [`[casting]` line](#mana-as-a-budget) cast, which resolves into it. Zero in a run where neither can happen, and the run says so |
 | `library` | cards matching the query that are still in the deck: the deck's total minus what has been drawn or binned |
-| `battlefield` | **lands you have played**, one drop a turn — the ones your `[land_drop]` priority played, or the most you could have played if you declared none. Answerable only for a query that matches lands; refused for anything that would have to be cast |
+| `battlefield` | **lands you have played**, one drop a turn — the ones your `[land_drop]` priority played, or the most you could have played if you declared none — plus every permanent the [`[casting]` line](#mana-as-a-budget) cast and anything a [delayed effect](#delayed-effects-urzas-saga) put there. A permanent still in hand is not on it, declared land drop or not ([HANDS.md](HANDS.md) hand 43). Refused for any other card that would have to be cast |
 
 `graveyard` is reachable exactly when some effect in the run routes a card
 there, or the declared casting line names an instant or a sorcery — a spell
@@ -908,7 +908,8 @@ everything else the line casts, in the order the list gives, so a line
 `[commander, Opt]` on four lands spends all four on the commander and casts no
 Opt that turn. It is cast **once**: casting it takes it out of the command zone
 and nothing puts it back, so commander tax never comes up. A permanent the line
-cast is counted on the battlefield, and so is the commander. At equal cost
+cast is counted on the battlefield, and so is the commander; a copy the line
+has not cast is in hand and not in play. At equal cost
 inside one entry a card from the library is cast before it. A commander the
 list does not name is not cast, which is every file written before this: none
 of their numbers move. The run's note names the commanders the line cast from

@@ -1500,9 +1500,27 @@ impl<'a> Board<'a> {
                 None => 0,
             };
         }
+        // Only what a land drop could have played. A permanent the line casts
+        // is on the battlefield exactly when the line cast it — which the
+        // caller adds — and a copy still in hand is a copy in hand, not a land
+        // this recurrence could have put down (HANDS.md hand 43).
+        //
+        // Which groups are lands is known wherever a line is declared, because
+        // a casting run prices every class and so keeps the manabase. Where
+        // none is, a class may have merged its lands into its spells; but then
+        // nothing is cast, and the caller refuses a battlefield question about
+        // anything but a land, so every card the query matches is one.
+        let played_not_cast =
+            |group: usize| self.casting.is_none() || self.grouping.group_mana()[group].is_land();
         let mut played = 0;
         for t in 1..=turn {
-            let drawn = self.grouping.count_matching(&self.hand[t], query);
+            let drawn: u32 = self
+                .grouping
+                .members(query)
+                .iter()
+                .filter(|&&g| played_not_cast(g))
+                .map(|&g| self.hand[t][g])
+                .sum();
             played = drawn.min(played + 1);
         }
         played

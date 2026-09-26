@@ -2658,9 +2658,7 @@ fn a_cast_spell_is_counted_in_play_and_not_in_the_library() {
     // none of the six is still in the library, because all six were dealt.
     //
     // With the land drop declared, so that what is in play is read off the
-    // line. Without one the walk's use-it-or-lose-it recurrence counts any
-    // card of the query held in hand as a land it could have played — the
-    // mutation audit reports that as a suspected bug for a castable permanent.
+    // line; the test below is the same claim without one.
     let grouping = Grouping::with_mana(
         q(&["opts", "land"]),
         vec![(0b01, opt(), 6), (0b10, untapped("U"), 1)],
@@ -2685,6 +2683,60 @@ fn a_cast_spell_is_counted_in_play_and_not_in_the_library() {
         ),
         1.0
     );
+}
+
+#[test]
+fn a_permanent_the_line_names_is_in_play_only_where_it_was_cast() {
+    // HANDS.md hand 43 at the engine's seam, and #94. One {1} permanent the
+    // line names, two Islands and six blanks, with no land drop declared.
+    // Whenever the permanent is held with no Island to pay for it, it is in
+    // hand and not in play: the use-it-or-lose-it recurrence is about lands,
+    // and a card the line casts gets onto the battlefield only by being cast.
+    // So on every deal and every turn the battlefield count is the casting
+    // count — and on some deals, those with the permanent seen and no Island,
+    // both are zero while the hand holds it.
+    let grouping = Grouping::with_mana(
+        q(&["permanent"]),
+        vec![
+            (
+                0b1,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                1,
+            ),
+            (0b0, untapped("U"), 2),
+            (0b0, ManaSource::Spell, 6),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::plain_with(
+        &[7, 0, 0, 0],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    for turn in 1..=3 {
+        let agree = holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| {
+                v.count_at(turn, 0, Counted::In(Zone::Battlefield))
+                    == v.count_at(turn, 0, Counted::Cast)
+            }),
+        );
+        assert!((agree - 1.0).abs() < 1e-12, "turn {turn}: {agree}");
+    }
+    // And the deals that hold it uncast exist: the permanent in the seven and
+    // both Islands in the two left behind, C(6,6)/C(9,7) = 1/36.
+    let held = holds(
+        &grouping,
+        &schedule,
+        Box::new(|v: &PathView<'_>| {
+            v.count_at(1, 0, Counted::In(Zone::Hand)) == 1
+                && v.count_at(1, 0, Counted::In(Zone::Battlefield)) == 0
+        }),
+    );
+    assert!((held - 1.0 / 36.0).abs() < 1e-12, "held uncast on {held}");
 }
 
 #[test]

@@ -76,6 +76,15 @@ require = [
   { turn = 5, cast = 'name:"Lantern of Insight"', min = 1 },
 ]
 
+# Where the route ends: the Lantern in play. No other route is declared here,
+# so it is there exactly where the line cast it — fetched or drawn — and a
+# Lantern still in hand is not in play (HANDS.md hand 43). This file declares
+# no `[land_drop]`; before #94 a held Lantern was counted on the battlefield
+# as if it were a land the run could have played.
+[[criterion]]
+name = "Lantern of Insight on the battlefield by turn 5"
+require = [{ turn = 5, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
 [[expect]]
 name = "Lanterns still in the library on turn 5"
 turn = 5

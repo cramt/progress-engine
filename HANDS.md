@@ -518,6 +518,55 @@ A permanent the line casts is counted on the battlefield instead, never in
 both. *Out of scope:* flashback and retrace, which cast a card **from** the
 graveyard — a second casting this line does not make.
 
+### 43. A Lantern in hand is not a Lantern in play
+
+```
+Island ×8
+Lantern of Insight
+```
+
+and the same Lantern beside eight Lightning Bolts. Nine cards on the play, the
+line `[casting] prefer = ['name:"Lantern of Insight"']`, and **no
+`[land_drop]`**.
+
+**Turn 1:** seven cards seen, and the Lantern among them on 7/9 of deals. With
+Islands, every opener holds at least six: play one, cast the Lantern for `{1}`.
+It is on the battlefield, and no longer in hand. With Bolts there is no land,
+no mana and no cast: the Lantern is in hand, and it stays there.
+
+**Naive model:** with no land drop declared, "on the battlefield" is the
+use-it-or-lose-it recurrence of hand 4 — one card a turn off the matching cards
+held — run over every card the query matches as if each were a land. The
+Lantern held beside eight Bolts is then "played" on turn 1, and the battlefield
+reads 7/9: the chance of having **seen** it, reported as the chance of having
+it in play. A Lantern gets onto the battlefield by being cast; the recurrence is
+about lands.
+
+*Answerable, and one test* — `hand-43.txt` and `hand-43-no-lands.txt` against
+`lantern-held.criteria.toml`:
+
+| | eight Islands | eight Bolts |
+|---|---|---|
+| Lantern cast by turn 1 | 7/9 = **77.78%** | 0% |
+| Lantern on the battlefield on turn 1 | 7/9 = **77.78%** | **0%** (was 77.78%) |
+| Lantern in hand on turn 1 | 0% | 7/9 = 77.78% |
+| Lantern on the battlefield by turn 3 | **100%** | **0%** (was 100%) |
+
+**On paper:** turn 1 on the play has seen seven of nine, so a single card is
+among them on 7/9; turn 3 has seen all nine. Eight Islands and one Lantern put
+at least six Islands in any seven, so the drop is made and the `{1}` is there.
+The first and second rows are one number in the first column and must stay one
+number: a permanent the line names is in play exactly where the line cast it.
+On the audit's deck (`hand-tutor.txt`, the same line) the battlefield read
+58.33% against 57.45% cast on turn 1 — the 0.88% in between was the Lantern
+held uncast — and now reads 57.45%.
+
+*A test: `a_permanent_the_line_casts_is_on_the_battlefield_only_once_it_is_cast`
+and `a_permanent_held_in_hand_agrees_with_the_sampler` in the CLI suite,
+`a_permanent_the_line_names_is_in_play_only_where_it_was_cast` in the engine's,
+and `a_permanent_held_in_hand_is_off_the_battlefield_in_both_engines` in the
+sampler's acceptance tests.*
+
 ---
 
 ## Query semantics

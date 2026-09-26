@@ -1,0 +1,5 @@
+// HANDS.md hand 43, the other column: the same Lantern and nothing to cast it
+// with. It is in hand on turn 1 on 7/9 of deals and never on the battlefield,
+// because a card the line casts gets there only by being cast.
+8x Lightning Bolt [Burn]
+1x Lantern of Insight [Lantern]

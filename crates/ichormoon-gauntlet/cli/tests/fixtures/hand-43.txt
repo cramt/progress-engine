@@ -1,0 +1,8 @@
+// HANDS.md hand 43: a Lantern the line casts is on the battlefield.
+//
+// Nine cards on the play, so turn 1 has seen seven of them and every opener
+// holds at least six Islands. Wherever the Lantern is in the seven, turn 1
+// plays an Island and casts it for {1}: on the battlefield by turn 1 on 7/9 of
+// deals, and never still in hand.
+8x Island [Land]
+1x Lantern of Insight [Lantern]

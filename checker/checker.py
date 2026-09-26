@@ -855,6 +855,28 @@ def _battlefield_tutor_drawn_t5(g: Game) -> bool:
     return g.count(5, lambda c: c.is_named(*LANTERN_BATTLEFIELD_TUTORS)) >= 1
 
 
+LANTERN, TRINKET = "Lantern of Insight", "Trinket Mage"
+# [[effect]] match = 'name:"Trinket Mage"', on = "cast",
+#            fetch = ['name:"Lantern of Insight"'], to = "hand"
+# [casting] prefer = ['name:"Trinket Mage"', 'name:"Lantern of Insight"']
+#
+# Trinket Mage's enters trigger searches for an artifact with mana value 1 or
+# less and puts it into your hand; the Lantern is the one the effect names.
+ROUTE_B_LINE: Line = ((TRINKET,), (LANTERN,))
+TRINKET_FETCHES = {TRINKET: (LANTERN,)}
+
+
+def _lantern_on_the_battlefield_by_5(g: Game) -> bool:
+    # { turn = 5, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }
+    #
+    # An artifact is not a land, so no land drop puts it there: it is on the
+    # battlefield once it has been cast and has resolved (CR 608.3), and a
+    # Lantern still in hand is in hand (README "[casting]": a permanent the
+    # line cast is counted on the battlefield). Nothing in this file puts one
+    # there any other way, and nothing here takes it off again.
+    return line_path(g, ROUTE_B_LINE, 5, TRINKET_FETCHES).cast_by(LANTERN, 5)
+
+
 def _commander_cast_by(turn: int, commander: tuple[str, str]) -> Callable[[Game], bool]:
     """The commander, from the command zone, has been cast by `turn`, by a line
     that names only it. The commander is always available and never drawn, so
@@ -937,6 +959,13 @@ QUESTIONS: list[Question] = [
         "route 3 naive: either of those two drawn by turn 5",
         _battlefield_tutor_drawn_t5,
         5,
+    ),
+    Question(
+        "lantern",
+        "lantern-route-b.criteria.toml",
+        "Lantern of Insight on the battlefield by turn 5",
+        _lantern_on_the_battlefield_by_5,
+        6,  # turn 5, and one card deeper for the Lantern a fetch takes out
     ),
     Question(
         "lantern",

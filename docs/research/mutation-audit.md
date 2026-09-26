@@ -198,6 +198,11 @@ wrong. Neither is changed here; both want a HANDS.md entry deciding them.
    `[land_drop]` declared, `played_by` reads the line and the count is right
    (the engine test above declares one for that reason).
 
+   *Confirmed and fixed as #94:* the recurrence now counts only lands where a
+   line is declared, so a permanent the line names is on the battlefield
+   exactly where it was cast. The same run reads 57.45%, and HANDS.md hand 43
+   pins it.
+
 2. **A tutor that puts a card onto the battlefield on cast shows it on the next
    turn, not this one.** `Board::walk` snapshots `landed[turn]` and
    `played_at[turn]` before `cast` runs, and after it re-records only the hand

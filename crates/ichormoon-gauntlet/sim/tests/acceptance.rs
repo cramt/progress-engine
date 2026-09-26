@@ -599,6 +599,88 @@ fn a_resolved_sorcery_in_the_graveyard_agrees_with_the_exact_engine() {
 }
 
 #[test]
+fn a_permanent_held_in_hand_is_off_the_battlefield_in_both_engines() {
+    // HANDS.md hand 43 on a deck wide enough to sample, and #94: with no land
+    // drop declared, a permanent the line names is on the battlefield where it
+    // was cast and nowhere else — a copy still in hand is not a land the run
+    // could have played. Four {1}{G} permanents and twelve green sources, few
+    // enough that some hands hold one they cannot yet pay for.
+    let grouping = Grouping::with_mana(
+        q(&["permanent"]),
+        vec![
+            (
+                0b1,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}{G}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                4,
+            ),
+            (
+                0b0,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["G"]),
+                    lasts: None,
+                },
+                12,
+            ),
+            (0b0, ManaSource::Spell, 83),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::build(
+        3,
+        false,
+        Vec::new(),
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let field = Counted::In(Zone::Battlefield);
+    let question = || {
+        Closures(vec![
+            Box::new(move |v: &PathView<'_>| v.count_at(3, 0, field) >= 1) as Check,
+            Box::new(move |v: &PathView<'_>| {
+                v.count_at(2, 0, Counted::In(Zone::Hand)) >= 1 && v.count_at(2, 0, field) == 0
+            }) as Check,
+            Box::new(move |v: &PathView<'_>| {
+                (1..=3).all(|t| v.count_at(t, 0, field) == v.count_at(t, 0, Counted::Cast))
+            }) as Check,
+        ])
+    };
+    let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(3), &mut question())
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        TRIALS,
+        43,
+        only_criteria(3),
+        &mut question(),
+    )
+    .unwrap()
+    .proportions;
+    for (i, e) in exact.iter().take(2).enumerate() {
+        assert!(*e > 0.05 && *e < 0.95, "question {i} is worth asking: {e}");
+    }
+    assert!(
+        (exact[2] - 1.0).abs() < 1e-12,
+        "in play exactly where cast: {exact:?}"
+    );
+    for (e, s) in exact.iter().zip(&sampled) {
+        let se = standard_error(*s, TRIALS).max(1.0 / f64::from(TRIALS));
+        assert!(
+            (s - e).abs() < 4.0 * se,
+            "sampled {s} vs exact {e} ({}x SE)",
+            (s - e).abs() / se
+        );
+    }
+}
+
+#[test]
 fn a_commander_cast_from_the_command_zone_agrees_with_the_exact_engine() {
     // A commander is a card neither engine deals: it is in the command zone
     // from the start, so the enumeration has no bin for it to walk and the

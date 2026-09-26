@@ -2764,6 +2764,78 @@ fn a_sorcery_in_the_graveyard_agrees_with_the_sampler() {
     }
 }
 
+fn run_held(deck: &str, extra: &[&str]) -> serde_json::Value {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture(deck))
+        .arg(fixture("lantern-held.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("tutor-index.jsonl"))
+        .args(extra)
+        .output()
+        .expect("binary should run");
+    assert!(
+        out.stdout.starts_with(b"{"),
+        "{deck} should answer: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    serde_json::from_slice(&out.stdout).unwrap()
+}
+
+#[test]
+fn a_permanent_the_line_casts_is_on_the_battlefield_only_once_it_is_cast() {
+    // HANDS.md hand 43, two columns of one table. Nine cards on the play, so
+    // turn 1 has seen seven and the Lantern is among them on 7/9 of deals.
+    //
+    // Eight Islands: every opener holds six, turn 1 plays one and casts the
+    // Lantern for {1} wherever it is in the seven. Cast, on the battlefield,
+    // and not in hand, 7/9 each; by turn 3 every card has been seen, so it is
+    // in play on every deal.
+    //
+    // Eight Lightning Bolts: no land, so no mana and no cast. The Lantern is
+    // in hand on 7/9 of deals and on the battlefield on none of them. No
+    // `[land_drop]` is declared, which is the case #94 was about: a card the
+    // line casts is not a land the run could have played.
+    let seven_ninths = 77.78;
+    let hands = [
+        // (deck, cast by 1, battlefield on 1, hand on 1, battlefield by 3)
+        ("hand-43.txt", seven_ninths, seven_ninths, 0.0, 100.0),
+        ("hand-43-no-lands.txt", 0.0, 0.0, seven_ninths, 0.0),
+    ];
+    for (deck, cast1, field1, hand1, field3) in hands {
+        let json = run_held(deck, &[]);
+        for (name, want) in [
+            ("Lantern cast by turn 1", cast1),
+            ("Lantern on the battlefield on turn 1", field1),
+            ("Lantern in hand on turn 1", hand1),
+            ("Lantern on the battlefield by turn 3", field3),
+        ] {
+            assert_eq!(percent(&json, name), want, "{deck}, {name}");
+        }
+    }
+}
+
+#[test]
+fn a_permanent_held_in_hand_agrees_with_the_sampler() {
+    for deck in ["hand-43.txt", "hand-43-no-lands.txt"] {
+        let exact = run_held(deck, &[]);
+        let sampled = run_held(deck, &["--simulate", "--trials", "20000"]);
+        for name in [
+            "Lantern cast by turn 1",
+            "Lantern on the battlefield on turn 1",
+            "Lantern in hand on turn 1",
+            "Lantern on the battlefield by turn 3",
+        ] {
+            assert!(
+                (percent(&exact, name) - percent(&sampled, name)).abs() < 1.0,
+                "{deck}, {name}: {} exact against {} sampled",
+                percent(&exact, name),
+                percent(&sampled, name)
+            );
+        }
+    }
+}
+
 fn run_commander(deck: &str) -> std::process::Output {
     run_with(deck, "commander.criteria.toml", "commander-index.jsonl")
 }
