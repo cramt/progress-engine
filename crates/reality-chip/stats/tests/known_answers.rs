@@ -527,6 +527,56 @@ fn a_walk_resumed_with_nothing_after_it_is_its_first_checkpoint() {
 }
 
 #[test]
+fn a_resumed_walk_can_draw_every_card_left() {
+    // Two cards left and two drawn: one path, certain. The guard against
+    // over-drawing is about more than the deck holds, not as many as it holds,
+    // and it counts what the first checkpoint already took as well as the gaps.
+    let mut seen = Vec::new();
+    h::for_each_checkpoint_path_after(&[2, 1], &[1, 0], &[2], |hist, p| {
+        seen.push((hist.to_vec(), p))
+    });
+    assert_eq!(seen, vec![(vec![vec![1, 0], vec![2, 1]], 1.0)]);
+
+    // Three taken, three more out of the four left: still a whole distribution,
+    // and every path ends having drawn six of the seven.
+    let mut mass = h::KahanSum::new();
+    h::for_each_checkpoint_path_after(&[4, 3], &[3, 0], &[3], |hist, p| {
+        assert_eq!(hist[1].iter().sum::<u32>(), 6);
+        mass.add(p);
+    });
+    assert!(
+        close(mass.total(), 1.0, 1e-12),
+        "summed to {}",
+        mass.total()
+    );
+
+    // One more than is left is nothing at all.
+    let mut any = false;
+    h::for_each_checkpoint_path_after(&[4, 3], &[3, 0], &[5], |_, _| any = true);
+    assert!(!any);
+}
+
+#[test]
+fn a_distribution_is_the_histogram_it_was_built_from() {
+    // Checkable by hand: a quarter on 0, three quarters on 2, and 1 never
+    // taken. The mean is 1.5 and the variance is 0.25 * 2.25 + 0.75 * 0.25.
+    let mut builder = h::DistributionBuilder::new();
+    builder.add(0, 0.25);
+    builder.add(2, 0.5);
+    builder.add(2, 0.25);
+    let d = builder.build();
+    assert_eq!(d.probabilities(), &[0.25, 0.0, 0.75]);
+    assert!(close(d.total(), 1.0, 1e-15), "total {}", d.total());
+    assert!(close(d.mean(), 1.5, 1e-15), "mean {}", d.mean());
+    assert!(close(d.sd(), 0.75f64.sqrt(), 1e-15), "sd {}", d.sd());
+
+    // And an empty one is empty rather than a point mass somewhere.
+    let empty = h::DistributionBuilder::new().build();
+    assert!(empty.probabilities().is_empty());
+    assert_eq!(empty.total(), 0.0);
+}
+
+#[test]
 fn a_cached_ln_choose_is_the_computed_one_bit_for_bit() {
     // The table is a cache of lgamma, not an approximation of it: every
     // number the enumeration ever printed has to come out the same.

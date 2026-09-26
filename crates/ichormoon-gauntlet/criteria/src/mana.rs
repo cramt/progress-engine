@@ -1001,6 +1001,91 @@ mod tests {
         assert_eq!(Cost::parse("{0}").unwrap().total(), 0);
     }
 
+    /// Hall's condition on a proper subset, which the whole set does not
+    /// catch: three lands for three pips, but only one of them is blue.
+    #[test]
+    fn two_blue_pips_need_two_blue_sources_however_many_lands_there_are() {
+        let cost = Cost::parse("{U}{U}{W}").unwrap();
+        assert!(!pays(
+            &cost,
+            &[("U", false, 1), ("W", false, 2)],
+            Constraint::Anything
+        ));
+        assert!(pays(
+            &cost,
+            &[("U", false, 2), ("W", false, 1)],
+            Constraint::Anything
+        ));
+    }
+
+    /// The land a payment is forced through is spent: it leaves the pool, and
+    /// it pays the one pip it was assigned rather than every pip of that kind.
+    #[test]
+    fn a_forced_source_pays_once_and_only_its_own_pip() {
+        // One Island cannot pay {U}{U}, forced through it or not.
+        let uu = Cost::parse("{U}{U}").unwrap();
+        assert!(!pays(&uu, &[("U", false, 1)], Constraint::Includes(0)));
+        assert!(pays(&uu, &[("U", false, 2)], Constraint::Includes(0)));
+        // Two Islands forced through one of them still owe the white pip.
+        let wu = Cost::parse("{W}{U}").unwrap();
+        assert!(!pays(&wu, &[("U", false, 2)], Constraint::Includes(0)));
+        // A Forest cannot be the land that pays an all-pip {W}{U}, however
+        // many Fountains could pay it without the Forest.
+        assert!(!pays(
+            &wu,
+            &[("G", false, 1), ("WU", false, 2)],
+            Constraint::Includes(0)
+        ));
+        // Nor can it be the untapped land that does, which is the same
+        // obligation asked of tapped-ness rather than of a group.
+        assert!(!pays(
+            &wu,
+            &[("G", false, 1), ("WU", true, 2)],
+            Constraint::IncludesUntapped
+        ));
+        assert!(pays(
+            &wu,
+            &[("U", false, 1), ("WU", true, 2)],
+            Constraint::IncludesUntapped
+        ));
+    }
+
+    #[test]
+    fn joining_two_details_keeps_everything_either_kept() {
+        let u = Palette::from_letters(["U"]);
+        let b = Palette::from_letters(["B"]);
+        assert_eq!(
+            LandDetail::Pips(u).join(LandDetail::Pips(u)),
+            LandDetail::Pips(u),
+            "the same pip twice is still that pip"
+        );
+        assert_eq!(
+            LandDetail::Pips(u).join(LandDetail::Pips(b)),
+            LandDetail::Pips(Palette::from_letters(["UB"]))
+        );
+        assert_eq!(
+            LandDetail::Ignored.join(LandDetail::Pips(u)),
+            LandDetail::Pips(u)
+        );
+    }
+
+    #[test]
+    fn a_cost_reads_spaces_multi_digit_generic_and_its_bound() {
+        let spaced = Cost::parse("{1} {U}").unwrap();
+        assert_eq!(spaced.demand, Cost::parse("{1}{U}").unwrap().demand);
+        assert_eq!(Cost::parse("1 U").unwrap().demand, spaced.demand);
+        // Twelve generic is twelve, not a one and a two.
+        assert_eq!(Cost::parse("12U").unwrap().total(), 13);
+        // A shorthand that ends in its generic.
+        assert_eq!(Cost::parse("U2").unwrap().total(), 3);
+        // The bound is on more than MAX_COST, not on reaching it.
+        assert_eq!(Cost::parse("{100}").unwrap().total(), MAX_COST);
+        assert!(matches!(
+            Cost::parse("{101}").unwrap_err(),
+            CostError::TooLarge { total: 101, .. }
+        ));
+    }
+
     #[test]
     fn both_spellings_of_a_cost_read_the_same() {
         let braced = Cost::parse("{1}{W}{U}").unwrap();

@@ -2568,3 +2568,309 @@ fn a_question_whose_spells_can_draw_the_library_out_is_refused() {
         "{err}"
     );
 }
+
+// --- Found by the mutation audit (docs/research/mutation-audit.md) -----------
+//
+// Each of these pins a line the rest of this file could have had inverted
+// without a test failing. All are hands small enough to check by eye.
+
+#[test]
+fn the_gate_does_not_play_a_land_that_did_not_arrive_this_turn() {
+    // An Island and a Plains, both in hand from turn 0. By turn 2 both are in
+    // play, and {U}{U} is still one blue source short: nothing arrived on
+    // turn 2 that could be a second Island.
+    let (grouping, schedule) = one_hand(&[
+        (0b1, untapped("U"), 1),
+        (0b1, untapped("W"), 1),
+        (0b0, ManaSource::Spell, 5),
+    ]);
+    let cost = Cost::parse("{U}{U}").unwrap();
+    assert_eq!(
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| v.can_cast(2, &cost))
+        ),
+        0.0
+    );
+}
+
+#[test]
+fn a_land_that_arrives_this_turn_pays_beside_the_ones_already_down() {
+    // A Plains, an Island and six blanks: seven dealt, the eighth drawn on
+    // turn 2. On every deal both lands are in play by turn 2 and {W}{U} is
+    // paid — including the two deals where one of them is the card drawn that
+    // turn, which is the only line that plays it.
+    let grouping = Grouping::with_mana(
+        q(&["lands"]),
+        vec![
+            (0b1, untapped("W"), 1),
+            (0b1, untapped("U"), 1),
+            (0b0, ManaSource::Spell, 6),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::plain(&[7, 0, 1]);
+    let cost = Cost::parse("{W}{U}").unwrap();
+    let paid = holds(
+        &grouping,
+        &schedule,
+        Box::new(move |v: &PathView<'_>| v.can_cast(2, &cost)),
+    );
+    assert!((paid - 1.0).abs() < 1e-12, "paid on {paid} of deals");
+}
+
+#[test]
+fn a_spell_that_is_cast_leaves_the_hand_for_good() {
+    // One Opt and two Islands. It is cast on turn 1, and turn 2's two mana
+    // cannot cast it again: there is one card, and it is gone.
+    let grouping = Grouping::with_mana(
+        q(&["opts"]),
+        vec![
+            (0b1, opt(), 1),
+            (0b0, untapped("U"), 2),
+            (0b0, ManaSource::Spell, 4),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::plain_with(
+        &[7, 0, 0, 0],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    for turn in 1..=3 {
+        assert_eq!(
+            holds(
+                &grouping,
+                &schedule,
+                Box::new(move |v: &PathView<'_>| v.count_at(turn, 0, Counted::Cast) == 1)
+            ),
+            1.0,
+            "turn {turn}"
+        );
+    }
+}
+
+#[test]
+fn a_cast_spell_is_counted_in_play_and_not_in_the_library() {
+    // HANDS.md hand 1 again, read from the other two zones: the Opt cast on
+    // turn 1 left the hand for the battlefield (the engine counts what was
+    // cast there; the caller refuses the question for a non-permanent), and
+    // none of the six is still in the library, because all six were dealt.
+    //
+    // With the land drop declared, so that what is in play is read off the
+    // line. Without one the walk's use-it-or-lose-it recurrence counts any
+    // card of the query held in hand as a land it could have played — the
+    // mutation audit reports that as a suspected bug for a castable permanent.
+    let grouping = Grouping::with_mana(
+        q(&["opts", "land"]),
+        vec![(0b01, opt(), 6), (0b10, untapped("U"), 1)],
+    )
+    .unwrap();
+    let schedule = Schedule::plain_with(
+        &[7, 0, 0, 0],
+        Policies {
+            land_drop: Some(LandDropPolicy::new(vec![1], 1)),
+            casting: Some(CastingPolicy::new(vec![0])),
+            ..Policies::default()
+        },
+    );
+    assert_eq!(
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(|v: &PathView<'_>| {
+                v.count_at(1, 0, Counted::In(Zone::Battlefield)) == 1
+                    && v.count_at(1, 0, Counted::In(Zone::Library)) == 0
+            })
+        ),
+        1.0
+    );
+}
+
+#[test]
+fn two_tutors_do_not_find_one_card_twice() {
+    // Two tutors, one target, two Islands and three blanks: eight cards, seven
+    // dealt. On the one deal in eight that leaves the target in the library
+    // the first tutor gets it and the second finds nothing, so on every deal
+    // exactly one target is in hand by turn 2 and none is left behind.
+    let grouping = Grouping::with_mana(
+        q(&["tutor", "target"]),
+        vec![
+            (
+                0b01,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                2,
+            ),
+            (0b10, ManaSource::Spell, 1),
+            (0b00, untapped("U"), 2),
+            (0b00, ManaSource::Spell, 3),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0, 0],
+        vec![tutor(Fetched::Hand)],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let once = holds(
+        &grouping,
+        &schedule,
+        Box::new(|v: &PathView<'_>| {
+            v.count_at(2, 1, Counted::In(Zone::Hand)) == 1
+                && v.count_at(2, 1, Counted::In(Zone::Library)) == 0
+        }),
+    );
+    assert!((once - 1.0).abs() < 1e-12, "held once on {once} of deals");
+}
+
+#[test]
+fn a_tutor_to_the_battlefield_puts_its_card_in_play_and_out_of_the_library() {
+    // The tutor hand with a land query and a declared land drop, so what is in
+    // play is read off the line. The target is in the library on one deal in
+    // seven, and on that deal the tutor puts it onto the battlefield.
+    //
+    // Read on turn 2, the turn after the tutor resolves. On turn 1 itself the
+    // card is still counted in the library and not in play, because the walk
+    // records those two zones before the spells of the turn are cast; the
+    // mutation audit reports that as a suspected bug rather than pinning it.
+    let grouping = Grouping::with_mana(
+        q(&["tutor", "target", "land"]),
+        vec![
+            (
+                0b001,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                1,
+            ),
+            (0b010, ManaSource::Spell, 1),
+            (0b100, untapped("U"), 1),
+            (0b000, ManaSource::Spell, 4),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::plain_with_fetches(
+        &[6, 0, 0],
+        vec![tutor(Fetched::Battlefield)],
+        Policies {
+            land_drop: Some(LandDropPolicy::new(vec![2], 2)),
+            casting: Some(CastingPolicy::new(vec![0])),
+            ..Policies::default()
+        },
+    );
+    let in_play = holds(
+        &grouping,
+        &schedule,
+        Box::new(|v: &PathView<'_>| v.count_at(2, 1, Counted::In(Zone::Battlefield)) == 1),
+    );
+    assert!((in_play - 1.0 / 7.0).abs() < 1e-12, "in play: {in_play}");
+    assert_eq!(
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(|v: &PathView<'_>| v.count_at(2, 1, Counted::In(Zone::Library)) == 0)
+        ),
+        1.0,
+        "never left behind"
+    );
+}
+
+#[test]
+fn a_delayed_fetch_to_hand_arrives_in_hand_when_it_fires() {
+    // The Saga's shape with the card going to hand instead: set up by the land
+    // drop on turn 1, resolved on turn 3. The Lantern is still in the library
+    // on one deal in ten, and on that deal it is in hand from turn 3.
+    let grouping = Grouping::with_mana(
+        q(&["saga", "lantern", "land", "<effect saga>"]),
+        vec![
+            (0b1101, untapped("C"), 1),
+            (0b0010, ManaSource::Spell, 1),
+            (0b0100, untapped("U"), 2),
+            (0b0000, ManaSource::Spell, 6),
+        ],
+    )
+    .unwrap();
+    let to_hand = Effect {
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to: Fetched::Hand,
+        }),
+        ..saga()
+    };
+    let schedule = Schedule::plain_with_fetches(
+        &[9, 0, 0, 0],
+        vec![to_hand],
+        Policies::land_drop(LandDropPolicy::new(vec![0], 2)),
+    );
+    for (turn, expected) in [(2, 0.0), (3, 0.1)] {
+        let fetched = holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| {
+                v.count_at(0, 1, Counted::In(Zone::Hand)) == 0
+                    && v.count_at(turn, 1, Counted::In(Zone::Hand)) == 1
+            }),
+        );
+        assert!(
+            (fetched - expected).abs() < 1e-12,
+            "turn {turn}: {fetched}, not {expected}"
+        );
+    }
+}
+
+#[test]
+fn a_card_the_mulligan_bottomed_is_found_once_not_twice() {
+    // Two free tutors and one target in a seven-card deck. Every seven holds
+    // the target, so the mulligan puts it on the bottom; turn 1 casts both
+    // tutors, the first finds it underneath everything, and the second finds
+    // nothing — one copy, fetched once.
+    let grouping = Grouping::with_mana(
+        q(&["tutor", "target"]),
+        vec![
+            (
+                0b01,
+                ManaSource::Castable {
+                    cost: Cost::parse("{0}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                2,
+            ),
+            (0b10, ManaSource::Spell, 1),
+            (0b00, ManaSource::Spell, 4),
+        ],
+    )
+    .unwrap();
+    let policy = MulliganPolicy::new(
+        vec![Keep {
+            query: 1,
+            min: 0,
+            max: Some(0),
+        }],
+        vec![1],
+        6,
+    );
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0],
+        vec![tutor(Fetched::Hand)],
+        Policies {
+            casting: Some(CastingPolicy::new(vec![0])),
+            mulligan: Some(policy),
+            ..Policies::default()
+        },
+    );
+    assert_eq!(
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(|v: &PathView<'_>| {
+                v.count_at(1, 0, Counted::Cast) == 2
+                    && v.count_at(1, 1, Counted::In(Zone::Hand)) == 1
+            })
+        ),
+        1.0
+    );
+}

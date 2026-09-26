@@ -517,3 +517,246 @@ fn a_tag_the_index_carries_is_no_gap_at_all() {
     let q = query::parse("t:land otag:surveil").expect("query should parse");
     assert_eq!(q.tag_gap(&index.tag_vocabulary()), None);
 }
+
+// ---------------------------------------------------------------------------
+// Terms the mutation audit (docs/research/mutation-audit.md) found no test
+// deciding: each of these could be inverted without a test noticing, and each
+// decides which cards a group holds.
+// ---------------------------------------------------------------------------
+
+/// A blank card that every field below is written over.
+fn blank() -> CardView<'static> {
+    card("Blank", "Creature — Test", "", 0.0, &[], &[])
+}
+
+fn strings(list: &[&str]) -> Vec<String> {
+    list.iter().map(|s| s.to_string()).collect()
+}
+
+#[test]
+fn produces_c_is_the_colourless_symbol_and_asks_for_it_alongside_a_colour() {
+    let (c, g, w, wc) = (
+        strings(&["C"]),
+        strings(&["G"]),
+        strings(&["W"]),
+        strings(&["C", "W"]),
+    );
+    let sol_ring = CardView {
+        produces: &c,
+        ..blank()
+    };
+    let forest = CardView {
+        produces: &g,
+        ..blank()
+    };
+    let plains = CardView {
+        produces: &w,
+        ..blank()
+    };
+    let both = CardView {
+        produces: &wc,
+        ..blank()
+    };
+    assert!(matches("produces:c", &sol_ring));
+    assert!(!matches("produces:c", &forest), "a Forest makes no {{C}}");
+    // Several letters want all of them, and `c` among them is still {C}.
+    assert!(matches("produces:wc", &both));
+    assert!(!matches("produces:wc", &plains), "a Plains makes no {{C}}");
+}
+
+#[test]
+fn strict_and_negated_colour_comparisons_are_not_their_loose_forms() {
+    let (w, wu, b) = (strings(&["W"]), strings(&["W", "U"]), strings(&["B"]));
+    let white = CardView {
+        colors: &w,
+        ..blank()
+    };
+    let azorius = CardView {
+        colors: &wu,
+        ..blank()
+    };
+    let black = CardView {
+        colors: &b,
+        ..blank()
+    };
+
+    // `<` is inside and not equal.
+    assert!(matches("c<wu", &white));
+    assert!(!matches("c<wu", &azorius), "equal is not strictly inside");
+    assert!(!matches("c<wu", &black), "unequal is not inside either");
+    // `>` is a strict superset.
+    assert!(matches("c>w", &azorius));
+    assert!(!matches("c>w", &white));
+    assert!(!matches("c>w", &black));
+    // `!=` is anything but exactly this.
+    assert!(!matches("c!=w", &white));
+    assert!(matches("c!=w", &azorius));
+}
+
+#[test]
+fn strict_and_negated_mana_cost_comparisons_are_not_their_loose_forms() {
+    let one_u = CardView {
+        mana_cost: "{1}{U}",
+        ..blank()
+    };
+    let one_uu = CardView {
+        mana_cost: "{1}{U}{U}",
+        ..blank()
+    };
+    let b = CardView {
+        mana_cost: "{B}",
+        ..blank()
+    };
+    assert!(matches("m<{1}{U}{U}", &one_u));
+    assert!(!matches("m<{1}{U}{U}", &one_uu), "equal is not less");
+    assert!(!matches("m<{1}{U}{U}", &b), "and {{B}} is not inside it");
+    assert!(!matches("m!={1}{U}", &one_u));
+    assert!(matches("m!={1}{U}", &one_uu));
+}
+
+#[test]
+fn a_bare_generic_cost_is_a_cost_and_not_an_empty_one() {
+    // All digits, ending the string: the shorthand reader must stop at the
+    // end rather than read past it, and a cost of only generic is not empty.
+    let three = CardView {
+        mana_cost: "{3}",
+        ..blank()
+    };
+    assert!(matches("m=3", &three));
+    assert!(!matches("m=2", &three));
+}
+
+#[test]
+fn each_face_of_a_split_cost_is_read_without_the_separator() {
+    // The space around ` // ` is not a symbol of either half.
+    let wear_tear = CardView {
+        mana_cost: "{1}{R} // {W}",
+        ..blank()
+    };
+    assert!(matches("m={W}", &wear_tear));
+    assert!(matches("m={1}{R}", &wear_tear));
+}
+
+#[test]
+fn a_hybrid_is_the_same_symbol_in_either_order_for_every_pair() {
+    // Black-green is where "in WUBRG order" has to sort two letters neither of
+    // which is white.
+    let golgari = CardView {
+        mana_cost: "{B/G}{B/G}",
+        ..blank()
+    };
+    assert!(matches("m={G/B}{G/B}", &golgari));
+    assert!(matches("m={B/G}{B/G}", &golgari));
+}
+
+#[test]
+fn devotion_counts_only_symbols_of_the_colours_asked_about() {
+    let cost = CardView {
+        mana_cost: "{R}{R}{U}",
+        ..blank()
+    };
+    assert!(matches("devotion:{u}", &cost));
+    assert!(!matches("devotion:{u}{u}", &cost), "the reds are not blue");
+    assert!(matches("devotion={r}{r}", &cost));
+}
+
+#[test]
+fn every_one_letter_rarity_is_its_rarity() {
+    for (letter, word) in [
+        ("c", "common"),
+        ("u", "uncommon"),
+        ("r", "rare"),
+        ("s", "special"),
+        ("m", "mythic"),
+        ("b", "bonus"),
+    ] {
+        let printed = CardView {
+            rarity: word,
+            ..blank()
+        };
+        assert!(matches(&format!("r:{letter}"), &printed), "r:{letter}");
+        assert!(matches(&format!("r={letter}"), &printed), "r={letter}");
+    }
+}
+
+#[test]
+fn a_bear_is_all_three_of_two_mana_a_creature_and_two_by_two() {
+    let face = |p: &str, t: &str| chip_scryfall::index::Face {
+        power: Some(p.into()),
+        toughness: Some(t.into()),
+        ..Default::default()
+    };
+    let two_two = [face("2", "2")];
+    let two_three = [face("2", "3")];
+    let bear = CardView {
+        cmc: 2.0,
+        faces: &two_two,
+        ..blank()
+    };
+    assert!(matches("is:bear", &bear));
+    let dear = CardView {
+        cmc: 3.0,
+        faces: &two_two,
+        ..blank()
+    };
+    assert!(!matches("is:bear", &dear), "three mana");
+    let tall = CardView {
+        cmc: 2.0,
+        faces: &two_three,
+        ..blank()
+    };
+    assert!(!matches("is:bear", &tall), "a 2/3");
+    let statue = CardView {
+        cmc: 2.0,
+        type_line: "Artifact",
+        faces: &two_two,
+        ..blank()
+    };
+    assert!(!matches("is:bear", &statue), "not a creature");
+}
+
+#[test]
+fn hybrid_and_phyrexian_are_told_apart() {
+    let hybrid = CardView {
+        mana_cost: "{W/U}",
+        ..blank()
+    };
+    let phyrexian = CardView {
+        mana_cost: "{W/P}",
+        ..blank()
+    };
+    assert!(matches("is:hybrid", &hybrid));
+    assert!(!matches("is:hybrid", &phyrexian));
+    assert!(matches("is:phyrexian", &phyrexian));
+}
+
+#[test]
+fn a_partner_keyword_with_more_after_it_is_still_partner() {
+    let words = keywords(&["Partner with"]);
+    let pair = keyworded("Pir, Imaginative Rascal", "", &words);
+    assert!(matches("is:partner", &pair));
+}
+
+#[test]
+fn a_quoted_value_ends_at_its_quote_and_tolerates_a_missing_one() {
+    let opt = card("Opt", "Instant", "Scry 1.", 1.0, &[], &[]);
+    assert!(matches(r#"name:"Opt" t:instant"#, &opt));
+    assert!(!matches(r#"name:"Opt" t:land"#, &opt));
+    assert!(matches(r#"name:"Opt"#, &opt), "unterminated");
+}
+
+#[test]
+fn a_negated_typo_is_still_a_typo() {
+    let index = written(&[("Birds of Paradise", &["Flying"])]);
+    let q = query::parse("-kw:flyign").expect("query should parse");
+    assert_eq!(
+        q.unknown_keywords(&index.keyword_vocabulary()),
+        vec!["flyign".to_string()]
+    );
+    let tagged = written_with_tags(&["surveil"]);
+    let q = query::parse("t:land -otag:mill").expect("query should parse");
+    assert_eq!(
+        q.tag_gap(&tagged.tag_vocabulary()),
+        Some(TagGap::NotCarried(vec!["mill".to_string()]))
+    );
+}

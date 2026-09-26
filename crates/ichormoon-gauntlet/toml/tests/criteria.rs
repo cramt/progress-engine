@@ -156,6 +156,14 @@ fn clauses_are_anded_and_a_range_is_two_sided() {
     );
     assert_eq!(out.probabilities.len(), 3);
     assert!(percent(&out, 1) < percent(&out, 0), "the range is narrower");
+    // And it is exactly two or exactly three, in closed form: a range that
+    // read its upper bound backwards would still be narrower.
+    let range = (chip_stats::pmf(99, 20, 7, 2) + chip_stats::pmf(99, 20, 7, 3)) * 100.0;
+    assert!(
+        (percent(&out, 1) - range).abs() < 1e-9,
+        "{} vs {range}",
+        percent(&out, 1)
+    );
     // "at most one" is the complement of "at least two", so the two partition
     // every hand and have to sum to 100.
     assert!(
@@ -2286,4 +2294,165 @@ fn how_many_threads_walked_it_never_reaches_a_digit() {
             }
         }
     }
+}
+
+#[test]
+fn a_range_of_one_value_is_exactly_that_many() {
+    // `min = max` is a question, not an empty range: exactly two.
+    let out = run_exact(
+        r#"
+        [[criterion]]
+        name = "exactly two"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 2, max = 2 }]
+        "#,
+        20,
+    );
+    let want = chip_stats::pmf(99, 20, 7, 2) * 100.0;
+    assert!(
+        (percent(&out, 0) - want).abs() < 1e-9,
+        "{} vs {want}",
+        percent(&out, 0)
+    );
+}
+
+#[test]
+fn a_clause_asking_two_questions_is_refused_rather_than_answering_one() {
+    let err = refuse(
+        r#"
+        [[criterion]]
+        name = "cast and count"
+        require = [{ turn = 3, query = "t:land", min = 1, cast = 'name:"Opt"' }]
+        "#,
+    );
+    assert!(matches!(err, ErrorKind::TwoQuestions { .. }), "{err}");
+}
+
+#[test]
+fn a_file_says_what_it_casts_and_which_questions_count_castings() {
+    let criteria = parse(
+        r#"
+        [casting]
+        prefer = ['name:"Opt"', 't:artifact']
+
+        [[criterion]]
+        name = "a land by turn 1"
+        require = [{ turn = 1, query = "t:land", min = 1 }]
+
+        [[expect]]
+        name = "Opts cast by turn 2"
+        turn = 2
+        cast = 'name:"Opt"'
+        "#,
+    );
+    assert_eq!(criteria.casting(), ["name:\"Opt\"", "t:artifact"]);
+    assert_eq!(criteria.expectations().len(), 1);
+    assert_eq!(criteria.expectations()[0].name, "Opts cast by turn 2");
+    // Only the expectation counts castings, so it is the one named — which is
+    // what a file with no `[casting]` would be refused against.
+    assert_eq!(criteria.counts_castings(), Some("Opts cast by turn 2"));
+    assert_eq!(criteria.casts(), Some("Opts cast by turn 2"));
+
+    let silent = parse(
+        r#"
+        [[criterion]]
+        name = "a land by turn 1"
+        require = [{ turn = 1, query = "t:land", min = 1 }]
+        "#,
+    );
+    assert!(silent.casting().is_empty());
+    assert_eq!(silent.counts_castings(), None);
+}
+
+#[test]
+fn battlefield_queries_come_from_expectations_too_once_each() {
+    let criteria = parse(
+        r#"
+        [[criterion]]
+        name = "lands in play"
+        require = [{ turn = 3, query = "t:land", zone = "battlefield", min = 2 }]
+
+        [[criterion]]
+        name = "lands and artifacts in play"
+        require = [
+          { turn = 4, query = "t:land", zone = "battlefield", min = 3 },
+          { turn = 4, query = "t:artifact", zone = "battlefield", min = 1 },
+        ]
+
+        [[expect]]
+        name = "lands in play, counted"
+        turn = 3
+        query = "t:land"
+        zone = "battlefield"
+
+        [[expect]]
+        name = "creatures in play"
+        turn = 3
+        query = "t:creature"
+        zone = "battlefield"
+
+        [[expect]]
+        name = "artifacts in hand"
+        turn = 3
+        query = "t:artifact"
+        "#,
+    );
+    assert_eq!(
+        criteria.battlefield_queries(),
+        [
+            ("t:land", "lands in play"),
+            ("t:artifact", "lands and artifacts in play"),
+            ("t:creature", "creatures in play"),
+        ]
+    );
+}
+
+#[test]
+fn what_each_question_reads_is_what_it_names() {
+    // The reads size the enumeration each class of question runs on, so a
+    // question that reads less than it asks is answered on a grouping too
+    // coarse to tell its cards apart.
+    let criteria = parse(
+        r#"
+        [[criterion]]
+        name = "a land, then a creature in play"
+        require = [
+          { turn = 2, query = "t:land", min = 1 },
+          { turn = 4, query = "t:creature", zone = "battlefield", min = 1 },
+        ]
+
+        [[criterion]]
+        name = "castable on curve"
+        require = [
+          { turn = 3, can_cast = "{1}{U}" },
+          { turn = 5, can_cast = "{B}" },
+        ]
+
+        [[expect]]
+        name = "creatures seen"
+        turn = 1
+        query = "t:creature"
+        "#,
+    );
+    assert_eq!(criteria.queries(), ["t:land", "t:creature"]);
+    let reads = criteria.reads();
+
+    let counting = &reads.criteria[0];
+    assert_eq!(counting.queries(), 0b11);
+    assert_eq!(counting.turns(), [2, 4]);
+    assert!(counting.battlefield());
+    assert_eq!(counting.demands(), None);
+
+    let casting = &reads.criteria[1];
+    assert_eq!(casting.queries(), 0);
+    assert_eq!(casting.turns(), [3, 5]);
+    assert!(!casting.battlefield());
+    assert_eq!(
+        casting.demands(),
+        Some(gauntlet_criteria::Palette::from_letters(["UB"]))
+    );
+
+    let seen = &reads.expectations[0];
+    assert_eq!(seen.queries(), 0b10);
+    assert_eq!(seen.turns(), [1]);
+    assert!(!seen.battlefield());
 }

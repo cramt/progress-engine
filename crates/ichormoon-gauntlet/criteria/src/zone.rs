@@ -181,3 +181,46 @@ pub enum ZoneError {
     )]
     Unknown { name: String },
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ALL: [Zone; 4] = [
+        Zone::Hand,
+        Zone::Graveyard,
+        Zone::Library,
+        Zone::Battlefield,
+    ];
+
+    #[test]
+    fn every_zone_reads_back_as_itself() {
+        for zone in ALL {
+            assert_eq!(Zone::parse(zone.as_str()), Ok(zone));
+            assert_eq!(Counted::In(zone).zone(), Some(zone));
+        }
+        assert_eq!(Counted::Cast.zone(), None);
+        assert!(Zone::parse("exile").is_err());
+    }
+
+    /// Which zones a run can put a card into decides which zeros are reported
+    /// as *not modelled* rather than as *never happened*.
+    #[test]
+    fn only_the_contingent_zones_depend_on_the_run() {
+        let nothing = Reachable {
+            graveyard: false,
+            battlefield: false,
+        };
+        let everything = Reachable {
+            graveyard: true,
+            battlefield: true,
+        };
+        for zone in [Zone::Hand, Zone::Library] {
+            assert!(nothing.includes(zone), "{zone}");
+        }
+        for zone in [Zone::Graveyard, Zone::Battlefield] {
+            assert!(!nothing.includes(zone), "{zone}");
+        }
+        assert!(ALL.into_iter().all(|zone| everything.includes(zone)));
+    }
+}

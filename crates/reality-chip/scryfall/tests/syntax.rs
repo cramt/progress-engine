@@ -207,6 +207,11 @@ fn format_legality_is_asked_by_name() {
     // Nothing in the fixture is banned anywhere, which is itself worth
     // asserting: `banned:` must not fall back to matching everything.
     assert_eq!(hits(&index, "banned:commander"), Vec::<String>::new());
+    // Restricted is its own answer: Sol Ring is on Vintage's list and
+    // Tarmogoyf is merely legal there.
+    assert!(matches(&sol_ring, "restricted:vintage"));
+    assert!(!matches(&goyf, "restricted:vintage"));
+    assert!(matches(&sol_ring, "f:vintage"), "and restricted is legal");
 }
 
 #[test]
