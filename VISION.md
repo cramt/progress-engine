@@ -617,14 +617,16 @@ hand*, and for a graveyard deck that is the wrong question asked confidently.
 
 A clause now names its zone, and silence still means `hand` so that no file
 written before this moves. `graveyard` is askable, and reachable exactly when
-some effect in the run routes a card there; in a run where none does it is
-correctly empty and the run says so rather than letting that zero pass for a
-measurement. `battlefield` is askable **for lands**, which is the half of it
+some effect in the run routes a card there or the declared line casts an
+instant or a sorcery, which resolves into its owner's graveyard; in a run where
+neither happens it is correctly empty and the run says so rather than letting
+that zero pass for a measurement. `battlefield` is askable **for lands**, which is the half of it
 that needs no casting: a land arrives on a land drop, one a turn, and the
 enumeration already walks those. For anything that has to be cast it is still
-refused by name — not because which spells you cast is unknown, which the
-budget now answers, but because where a spell *goes* after it resolves is not
-modelled at all. `cast` counts the castings and says so in those words, and a
+refused by name unless the declared line casts it as a permanent — not
+because which spells you cast is unknown, which the budget now answers, but
+because a spell nobody cast is not there, and an instant or a sorcery that was
+cast is in the graveyard instead. `cast` counts the castings and says so in those words, and a
 Lantern counted on the battlefield would still be there after somebody blew it
 up.
 

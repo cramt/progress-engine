@@ -29,7 +29,7 @@
 //! the first group its declared priority reaches that the library still holds,
 //! which is a function of counts and branches nothing.
 
-use crate::mana::{Constraint, Cost, Demand, Source};
+use crate::mana::{Constraint, Cost, Demand, Resolves, Source};
 use crate::{Counted, Grouping, Schedule, Zone};
 use chip_stats::Path;
 use thiserror::Error;
@@ -278,6 +278,10 @@ pub struct Effect {
 struct Casting {
     tiers: Vec<Vec<usize>>,
     cost: Vec<Option<Demand>>,
+    /// Where each group's card is once it has resolved, `None` for every group
+    /// the priority does not name. Read by the zone counts: a cast permanent is
+    /// on the battlefield and a cast instant or sorcery is in the graveyard.
+    resolves: Vec<Option<Resolves>>,
     cast_at: Vec<Vec<u32>>,
     spent: Vec<Demand>,
     /// Copies cast so far on this path, per group. Scratch, reused.
@@ -525,6 +529,11 @@ impl<'a> Board<'a> {
                     })
                     .collect(),
                 cost,
+                resolves: grouping
+                    .group_mana()
+                    .iter()
+                    .map(|mana| mana.resolves())
+                    .collect(),
                 cast_at: vec![vec![0; groups]; turns],
                 spent: vec![Demand::FREE; turns],
                 live_cast: vec![0; groups],
@@ -1178,11 +1187,14 @@ impl<'a> Board<'a> {
         let in_hand = self.grouping.count_matching(hand, query);
         match zone {
             Zone::Hand => in_hand,
-            Zone::Graveyard => self.grouping.count_matching(&self.yard[turn], query),
-            // Cannot underflow: the hand, the yard and the spells this path
-            // cast are disjoint subsets of the same groups `matching_total`
-            // sums over — a card is drawn once, and casting it takes it out of
-            // the hand rather than copying it.
+            // What an effect routed there, plus every instant and sorcery the
+            // line cast: a spell that resolves and is not a permanent is put
+            // into its owner's graveyard, and it is the same card the hand
+            // lost when it was cast, so it is counted once.
+            Zone::Graveyard => {
+                self.grouping.count_matching(&self.yard[turn], query)
+                    + self.cast_into(turn, query, Resolves::IntoGraveyard)
+            }
             // Cannot underflow: the hand, the yard, the spells this path cast
             // and the cards a fetch put straight onto the battlefield are
             // disjoint subsets of the same groups `matching_total` sums over —
@@ -1197,13 +1209,30 @@ impl<'a> Board<'a> {
                     - self.grouping.count_matching(&self.landed[turn], query)
             }
             // What is standing there: lands played and cards put there, plus
-            // what the line cast. A cast spell is counted here because it is a
-            // permanent — the caller refuses a battlefield question about any
-            // card that is not, since an instant resolves and goes nowhere
-            // this engine models. For a land question the second term is
+            // the permanents the line cast. An instant or a sorcery it cast is
+            // in the graveyard instead. For a land question the second term is
             // zero, because a land is played rather than cast.
-            Zone::Battlefield => self.played_by(turn, query) + self.cast_by(turn, query),
+            Zone::Battlefield => {
+                self.played_by(turn, query) + self.cast_into(turn, query, Resolves::OntoBattlefield)
+            }
         }
+    }
+
+    /// How many cards matching `query` this path has cast by `turn` that
+    /// resolved to `resolves`.
+    fn cast_into(&self, turn: usize, query: usize, resolves: Resolves) -> u32 {
+        let Some(casting) = &self.casting else {
+            return 0;
+        };
+        let Some(counts) = casting.cast_at.get(turn) else {
+            return 0;
+        };
+        self.grouping
+            .members(query)
+            .iter()
+            .filter(|&&g| casting.resolves[g] == Some(resolves))
+            .map(|&g| counts[g])
+            .sum()
     }
 
     /// How many cards matching `query` this path has cast by `turn`.

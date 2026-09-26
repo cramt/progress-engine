@@ -1,0 +1,9 @@
+// HANDS.md hand 19: Life from the Loam cast on turn 3, and so in the graveyard.
+//
+// Nine cards, so on the play every card is in hand by turn 3 and every deal
+// gives the same answer. Every land enters tapped, so turn 1's land is the only
+// one untapped on turn 2 -- one mana, and Loam costs {1}{G}. Turn 3 has two
+// green sources untapped and casts it. A sorcery resolves into its owner's
+// graveyard, so Loam is there by turn 3 and not by turn 2.
+8x Jungle Hollow [Land]
+1x Life from the Loam [Engine]

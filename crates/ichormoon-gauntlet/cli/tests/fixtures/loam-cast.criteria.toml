@@ -1,0 +1,30 @@
+# HANDS.md hands 34 and 35: a resolved sorcery goes to the graveyard.
+#
+# The same file runs against both decklists, because the claim is that the
+# graveyard count moves with the casting and not with the holding. Hand 34
+# casts Loam on turn 3; hand 35 holds it and has no green to cast it with.
+
+[casting]
+prefer = ['name:"Life from the Loam"']
+
+[[criterion]]
+name = "Loam in the graveyard by turn 3"
+require = [{ turn = 3, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "Loam in the graveyard by turn 2"
+require = [{ turn = 2, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "Loam cast by turn 3"
+require = [{ turn = 3, cast = 'name:"Life from the Loam"', min = 1 }]
+
+[[criterion]]
+name = "Loam in hand on turn 3"
+require = [{ turn = 3, query = 'name:"Life from the Loam"', min = 1 }]
+
+[[expect]]
+name = "Loam in the library on turn 3"
+turn = 3
+query = 'name:"Life from the Loam"'
+zone = "library"

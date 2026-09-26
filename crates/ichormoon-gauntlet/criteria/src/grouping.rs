@@ -1,6 +1,6 @@
 //! Partitioning a library into groups of interchangeable cards.
 
-use crate::mana::{LandDetail, ManaSource};
+use crate::mana::{LandDetail, ManaSource, Resolves};
 use thiserror::Error;
 
 /// A `u64` mask carries one bit per query.
@@ -118,6 +118,24 @@ impl Grouping {
     /// What each group does for mana, in group order.
     pub fn group_mana(&self) -> &[ManaSource] {
         &self.group_mana
+    }
+
+    /// The groups whose cards match `query_idx`, empty for a query this
+    /// grouping does not hold.
+    pub fn members(&self, query_idx: usize) -> &[usize] {
+        self.members.get(query_idx).map_or(&[], Vec::as_slice)
+    }
+
+    /// Whether some card this grouping casts is put into the graveyard when it
+    /// resolves: an instant or a sorcery the declared line names.
+    ///
+    /// The second way a card reaches the graveyard, beside an effect routing
+    /// one there, and so the second half of whether the zone is reachable at
+    /// all.
+    pub fn casts_into_graveyard(&self) -> bool {
+        self.group_mana
+            .iter()
+            .any(|mana| mana.resolves() == Some(Resolves::IntoGraveyard))
     }
 
     pub fn query_index(&self, query: &str) -> Option<usize> {

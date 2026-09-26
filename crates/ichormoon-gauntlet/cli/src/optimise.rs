@@ -178,7 +178,7 @@ pub fn describe_group(grouping: &Grouping, group: usize) -> String {
     };
     match grouping.group_mana()[group] {
         ManaSource::Spell => named,
-        ManaSource::Castable { cost } => format!("{named}; castable for {}", cost.total()),
+        ManaSource::Castable { cost, .. } => format!("{named}; castable for {}", cost.total()),
         ManaSource::Land {
             enters_tapped,
             produces,

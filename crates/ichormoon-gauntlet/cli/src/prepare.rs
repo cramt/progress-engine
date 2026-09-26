@@ -696,7 +696,7 @@ impl PreparedRun {
         // Asked of the schedule the engine actually ran rather than of the resolved
         // list beside it, so the note cannot disagree with the enumeration.
         let reachable = gauntlet_criteria::Reachable {
-            graveyard: schedule.routes_to_graveyard(),
+            graveyard: schedule.routes_to_graveyard() || self.grouping.casts_into_graveyard(),
             battlefield: library.has_lands(),
         };
         let zones = criteria

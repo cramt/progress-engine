@@ -1064,7 +1064,7 @@ impl Report {
         // never gets there. It stays answered — silently refusing to print a
         // number is its own kind of lie — but it does not get to be mistaken
         // for a measurement. It switches off the moment an effect routes a card
-        // there, and not before: a note that never fires is as useless as one
+        // there or the line names a spell that resolves into it, and not before: a note that never fires is as useless as one
         // that always does.
         for z in &self.zones {
             if z.reachable {
@@ -1073,7 +1073,8 @@ impl Report {
             let fix = if z.zone == "battlefield" {
                 "This deck holds no land, so nothing can be played."
             } else {
-                "Declare `to_graveyard` on an [[effect]] to route one there."
+                "Declare `to_graveyard` on an [[effect]] to route one there, or name an\n      \
+                 instant or sorcery in [casting]: one the line casts resolves into it."
             };
             out.push_str(&format!(
                 "note: nothing routes a card to the {} in this run, so every count in\n      \

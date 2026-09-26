@@ -24,7 +24,8 @@ pub enum Zone {
     /// name that will still be right when it does.
     Hand,
     /// Askable, and reachable exactly when some effect in this run routes a
-    /// card here.
+    /// card here or the declared line names an instant or a sorcery, which
+    /// resolves into its owner's graveyard.
     ///
     /// Selection routing — issues
     /// [#17](https://github.com/cramt/progress-engine/issues/17) and
@@ -67,9 +68,10 @@ pub enum Zone {
 ///
 /// A casting is deliberately **not** a [`Zone`] variant. Where a spell ends up
 /// after it resolves is a fact about the card — a permanent stays on the
-/// battlefield, an instant goes to the graveyard, and either can be answered
-/// by something this engine does not model — whereas *you cast it* is a fact
-/// about the turn, and it is the fact the budget knows. Spelling it as a zone
+/// battlefield, an instant or a sorcery goes to the graveyard, and the zone
+/// counts read it that way — whereas *you cast it* is a fact about the turn,
+/// and it is the fact the budget knows. Either can then be undone by something
+/// this engine does not model: an opponent's removal, a flashback. Spelling it as a zone
 /// would be this tool answering a question it cannot: a Lantern counted on the
 /// battlefield would still be there after somebody blew it up.
 ///
@@ -143,7 +145,8 @@ impl Zone {
 /// send something there, and nothing but the run knows which those are.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Reachable {
-    /// Whether some effect in this run routes a card to the graveyard.
+    /// Whether some effect in this run routes a card to the graveyard, or the
+    /// declared line casts a spell that resolves into it.
     pub graveyard: bool,
     /// Whether this deck holds a land at all.
     ///

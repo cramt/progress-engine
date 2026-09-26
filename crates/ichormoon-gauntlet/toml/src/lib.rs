@@ -1225,13 +1225,15 @@ pub enum ErrorKind {
     ///
     /// Refused rather than ignored, because `cast = '...', zone = "graveyard"`
     /// reads like it means something — where the spell went afterwards — and
-    /// that is a question this engine does not answer at all. A clause quietly
-    /// dropping half of what it was asked is the failure this format exists to
-    /// prevent.
+    /// that is a different clause: `query` with the zone, which counts a cast
+    /// sorcery in the graveyard and a cast permanent on the battlefield. A
+    /// clause quietly dropping half of what it was asked is the failure this
+    /// format exists to prevent.
     #[error(
         "{at}: has both `cast` and `zone`, and a casting is not a zone.\n\
-         `cast` counts the spells this run paid for. Where one of them ended up afterwards — \
-         the battlefield, the graveyard — is not modelled, so there is no zone to name."
+         `cast` counts the spells this run paid for. Where one of them is afterwards is a \
+         `query` with a `zone`: a cast instant or sorcery is in the graveyard, a cast \
+         permanent on the battlefield."
     )]
     CastCountWithZone { at: String },
     #[error(

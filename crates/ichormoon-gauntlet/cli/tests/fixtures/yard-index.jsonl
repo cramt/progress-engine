@@ -1,0 +1,4 @@
+{"schema":2,"updated_at":"2026-09-26","cards":3,"keywords":["Dredge"],"tags":["tapland","conditional-tapland","surveil","scry"],"tags_fetched_at":"2026-09-26"}
+tranquil cove	{"name":"Tranquil Cove","ci":["U","W"],"type_line":"Land","cmc":0.0,"oracle":"This land enters tapped.\nWhen this land enters, you gain 1 life.\n{T}: Add {W} or {U}.","produces":["U","W"],"tags":["tapland"],"any_number":false}
+jungle hollow	{"name":"Jungle Hollow","ci":["B","G"],"type_line":"Land","cmc":0.0,"oracle":"This land enters tapped.\nWhen this land enters, you gain 1 life.\n{T}: Add {B} or {G}.","produces":["B","G"],"tags":["tapland"],"any_number":false}
+life from the loam	{"name":"Life from the Loam","ci":["G"],"type_line":"Sorcery","mana_cost":"{1}{G}","cmc":2.0,"oracle":"Return up to three target land cards from your graveyard to your hand.\nDredge 3","keywords":["Dredge"],"any_number":false}

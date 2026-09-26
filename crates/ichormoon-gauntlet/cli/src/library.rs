@@ -9,7 +9,7 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 use chip_scryfall::index::{Card, Index, IndexFile, KeywordVocabulary, TagVocabulary};
 use chip_scryfall::OutsideLibrary;
-use gauntlet_criteria::{Demand, Grouping, GroupingError, ManaSource, Palette};
+use gauntlet_criteria::{Demand, Grouping, GroupingError, ManaSource, Palette, Resolves};
 
 /// Scryfall's oracle tag for a land that always enters tapped.
 ///
@@ -279,7 +279,14 @@ impl Library {
                 // and the two cannot be the same card: `resolve` refuses to
                 // price a land, because a land is played rather than cast.
                 ManaDetail::Modelled { castable } => match castable.get(card).copied().flatten() {
-                    Some(cost) => ManaSource::Castable { cost },
+                    Some(cost) => ManaSource::Castable {
+                        cost,
+                        resolves: if is_permanent(&e.card) {
+                            Resolves::OntoBattlefield
+                        } else {
+                            Resolves::IntoGraveyard
+                        },
+                    },
                     None => mana_source(&e.card),
                 },
             };
@@ -338,8 +345,8 @@ impl Library {
     /// delayed fetch can find — Urza's Saga's third chapter puts it there —
     /// and `cast` is the `[casting]` line, whose castings the battlefield
     /// count adds in. Both only for a **permanent**: an instant or a sorcery
-    /// the line casts resolves and goes to a graveyard this engine does not
-    /// track, so a battlefield count of one stays refused rather than
+    /// the line casts resolves into the graveyard, where a graveyard clause
+    /// counts it, so a battlefield count of one stays refused rather than
     /// answered as if it had stayed.
     pub fn stranded_matching(
         &self,

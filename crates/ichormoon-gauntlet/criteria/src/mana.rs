@@ -175,8 +175,14 @@ pub enum ManaSource {
     /// that was not told cannot spend the pool on anyone's behalf.
     #[default]
     Spell,
-    /// A spell the declared casting priority names, with the bill it presents.
-    Castable { cost: Demand },
+    /// A spell the declared casting priority names, with the bill it presents
+    /// and where it is once it has resolved.
+    ///
+    /// Where it goes is part of the group's identity for the same reason the
+    /// bill is: two spells that cost the same are still not interchangeable if
+    /// casting one puts a card in the graveyard and casting the other does
+    /// not.
+    Castable { cost: Demand, resolves: Resolves },
     /// A land: one drop a turn, free.
     Land {
         /// Whether it makes no mana on the turn it arrives.
@@ -188,6 +194,24 @@ pub enum ManaSource {
         enters_tapped: bool,
         produces: Palette,
     },
+}
+
+/// Where a spell the line casts is once it has resolved.
+///
+/// Read off the card, where the card data is: a permanent spell stays on the
+/// battlefield, and an instant or a sorcery goes to its owner's graveyard.
+/// Two variants rather than a zone, because these are the only two places a
+/// resolving spell goes that this engine models — a spell that exiles itself,
+/// or is countered, is somewhere neither names, and a flashback or retrace
+/// cast from the yard is a second casting this line does not make.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Resolves {
+    /// A permanent: an artifact, a creature, an enchantment, a planeswalker
+    /// or a battle stays where it resolved.
+    OntoBattlefield,
+    /// An instant or a sorcery: it does what it says and is put into its
+    /// owner's graveyard.
+    IntoGraveyard,
 }
 
 /// How much of what a land makes one enumeration is allowed to tell apart.
@@ -242,10 +266,19 @@ impl ManaSource {
         matches!(self, ManaSource::Land { .. })
     }
 
+    /// Where this card goes once the run's priority has cast it, where it
+    /// casts it at all.
+    pub fn resolves(self) -> Option<Resolves> {
+        match self {
+            ManaSource::Castable { resolves, .. } => Some(resolves),
+            ManaSource::Spell | ManaSource::Land { .. } => None,
+        }
+    }
+
     /// What this card costs, where the run's priority casts it at all.
     pub fn castable(self) -> Option<Demand> {
         match self {
-            ManaSource::Castable { cost } => Some(cost),
+            ManaSource::Castable { cost, .. } => Some(cost),
             ManaSource::Spell | ManaSource::Land { .. } => None,
         }
     }
@@ -261,7 +294,7 @@ impl ManaSource {
     pub fn seen_as(self, detail: LandDetail) -> ManaSource {
         match (detail, self) {
             (LandDetail::Ignored, _) | (_, ManaSource::Spell) => ManaSource::Spell,
-            (LandDetail::Pips(_), ManaSource::Castable { cost }) => ManaSource::Castable { cost },
+            (LandDetail::Pips(_), castable @ ManaSource::Castable { .. }) => castable,
             (
                 LandDetail::Pips(kept),
                 ManaSource::Land {

@@ -6,7 +6,7 @@
 
 use std::convert::Infallible;
 
-use gauntlet_criteria::{Answering, Chosen, Conditionals, Objective, Table};
+use gauntlet_criteria::{Answering, Chosen, Conditionals, Objective, Resolves, Table};
 use gauntlet_criteria::{
     Bound, CastingPolicy, Cost, Count, Counted, Criterion, Delay, Effect, Evaluator, Expectation,
     Fetch, Fetched, Grouping, GroupingError, Keep, LandDetail, LandDropPolicy, ManaSource,
@@ -1220,6 +1220,7 @@ fn two_lands_a_cost_cannot_tell_apart_arrive_the_same_way() {
 fn opt() -> ManaSource {
     ManaSource::Castable {
         cost: Cost::parse("{U}").unwrap().demand(),
+        resolves: Resolves::OntoBattlefield,
     }
 }
 
@@ -1318,9 +1319,11 @@ fn a_budget_pays_for_the_spells_jointly_rather_than_one_at_a_time() {
     // would have claimed, because each of them is true on its own.
     let white = ManaSource::Castable {
         cost: Cost::parse("{1}{W}").unwrap().demand(),
+        resolves: Resolves::OntoBattlefield,
     };
     let blue = ManaSource::Castable {
         cost: Cost::parse("{1}{U}").unwrap().demand(),
+        resolves: Resolves::OntoBattlefield,
     };
     let grouping = Grouping::with_mana(
         q(&["white spell", "blue spell"]),
@@ -1415,6 +1418,7 @@ fn the_budget_and_the_gate_answer_hand_twelve_the_same_way() {
                 0b0010,
                 ManaSource::Castable {
                     cost: Cost::parse("{1}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
                 },
                 1,
             ),
@@ -1495,6 +1499,7 @@ fn tutor_hand() -> Grouping {
                 0b01,
                 ManaSource::Castable {
                     cost: Cost::parse("{U}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
                 },
                 1,
             ),
@@ -1626,6 +1631,7 @@ fn a_tutor_that_finds_nothing_fetches_nothing() {
                 0b01,
                 ManaSource::Castable {
                     cost: Cost::parse("{U}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
                 },
                 2,
             ),
@@ -1955,6 +1961,7 @@ fn a_tutor_still_finds_a_card_the_mulligan_put_on_the_bottom() {
                 0b01,
                 ManaSource::Castable {
                     cost: Cost::parse("{0}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
                 },
                 1,
             ),

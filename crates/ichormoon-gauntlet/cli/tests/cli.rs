@@ -2554,6 +2554,105 @@ fn the_budget_agrees_with_the_sampler() {
     }
 }
 
+fn run_yard(deck: &str, extra: &[&str]) -> serde_json::Value {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture(deck))
+        .arg(fixture("loam-cast.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("yard-index.jsonl"))
+        .args(extra)
+        .output()
+        .expect("binary should run");
+    assert!(
+        out.status.success(),
+        "{deck} should answer: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !stderr.contains("nothing routes a card to the graveyard"),
+        "{deck}: the line names a sorcery, so the graveyard is a destination: {stderr}"
+    );
+    serde_json::from_slice(&out.stdout).unwrap()
+}
+
+#[test]
+fn a_sorcery_the_line_casts_resolves_into_the_graveyard() {
+    // HANDS.md hands 34 and 35, which are one test rather than two: the same
+    // file against two nine-card hands of tapped lands, one making green and
+    // one not. On the play every card is in hand by turn 3, so every deal is
+    // the same deal and each answer is a yes or a no, worked out on paper:
+    //
+    // Hand 34 plays a tapped Jungle Hollow on turns 1 and 2, so turn 2 has one
+    // untapped land and Loam costs two. Turn 3 has two, casts Loam, and the
+    // sorcery resolves into the graveyard: there by turn 3, not by turn 2, and
+    // no longer in hand. Hand 35's Tranquil Coves make no green, so Loam is
+    // never cast, never in the yard, and still in hand -- which is what makes
+    // the graveyard count one that moves with the casting rather than one that
+    // reads the holding.
+    let hands = [
+        // (deck, yard by 3, yard by 2, cast by 3, in hand on 3)
+        ("hand-34.txt", 100.0, 0.0, 100.0, 0.0),
+        ("hand-35.txt", 0.0, 0.0, 0.0, 100.0),
+    ];
+    for (deck, yard3, yard2, cast3, hand3) in hands {
+        let json = run_yard(deck, &[]);
+        for (name, want) in [
+            ("Loam in the graveyard by turn 3", yard3),
+            ("Loam in the graveyard by turn 2", yard2),
+            ("Loam cast by turn 3", cast3),
+            ("Loam in hand on turn 3", hand3),
+        ] {
+            assert!(
+                (percent(&json, name) - want).abs() < 1e-9,
+                "{deck}, {name}: {} against {want}",
+                percent(&json, name)
+            );
+        }
+        // A card is in one zone at a time: the cast Loam left the library by
+        // being drawn and the hand by being cast, and is not counted twice.
+        assert_eq!(
+            expectation(&json, "Loam in the library on turn 3")["mean"],
+            0.0,
+            "{deck}: nine cards, all drawn by turn 3"
+        );
+        let yard = json["zones"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|z| z["zone"] == "graveyard")
+            .expect("the graveyard is asked about");
+        assert_eq!(
+            yard["reachable"], true,
+            "{deck}: a line naming a sorcery reaches the yard, cast or not"
+        );
+    }
+}
+
+#[test]
+fn a_sorcery_in_the_graveyard_agrees_with_the_sampler() {
+    // The oracle, on the same pair. The engines share the board, so a
+    // disagreement here would be about how a path is produced rather than
+    // where a resolved spell went.
+    for deck in ["hand-34.txt", "hand-35.txt"] {
+        let exact = run_yard(deck, &[]);
+        let sampled = run_yard(deck, &["--simulate", "--trials", "20000"]);
+        for name in [
+            "Loam in the graveyard by turn 3",
+            "Loam in the graveyard by turn 2",
+            "Loam in hand on turn 3",
+        ] {
+            assert!(
+                (percent(&exact, name) - percent(&sampled, name)).abs() < 1.0,
+                "{deck}, {name}: {} exact against {} sampled",
+                percent(&exact, name),
+                percent(&sampled, name)
+            );
+        }
+    }
+}
+
 #[test]
 fn a_run_that_cast_by_policy_says_which_policy() {
     // The non-negotiable half, and the same one #54 has: a number that turned

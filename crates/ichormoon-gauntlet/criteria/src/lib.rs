@@ -27,7 +27,7 @@ mod zone;
 
 pub use effect::{Board, Delay, Effect, Fetch, Fetched, Route, Trigger, TriggerError};
 pub use grouping::{Grouping, GroupingError};
-pub use mana::{Cost, CostError, Demand, LandDetail, ManaSource, Palette};
+pub use mana::{Cost, CostError, Demand, LandDetail, ManaSource, Palette, Resolves};
 pub use policy::{CastingPolicy, Keep, LandDropPolicy, MulliganPolicy};
 pub use schedule::{Policies, Reading, Schedule};
 pub use strategy::{

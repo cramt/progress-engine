@@ -1,0 +1,6 @@
+// HANDS.md hand 20: hand 19 with no green. The same nine-card shape, the same
+// tapped lands, the same turns -- and Tranquil Cove makes white or blue, so the
+// {G} is never there. Loam is never cast, never reaches the graveyard, and is
+// still in hand on turn 3.
+8x Tranquil Cove [Land]
+1x Life from the Loam [Engine]

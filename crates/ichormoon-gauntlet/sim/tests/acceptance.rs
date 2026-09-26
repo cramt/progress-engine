@@ -8,7 +8,7 @@
 
 use std::convert::Infallible;
 
-use gauntlet_criteria::{Answering, Chosen, Conditionals, LandDetail, Objective, Table};
+use gauntlet_criteria::{Answering, Chosen, Conditionals, LandDetail, Objective, Resolves, Table};
 use gauntlet_criteria::{
     CastingPolicy, Cost, Count, Counted, Delay, Effect, Evaluator, Fetch, Fetched, Grouping, Keep,
     LandDropPolicy, ManaSource, MulliganPolicy, Palette, PathOutcomes, PathView, Plan, Policies,
@@ -451,6 +451,7 @@ fn the_budget_agrees_with_the_exact_engine() {
                 0b1,
                 ManaSource::Castable {
                     cost: Cost::parse("{U}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
                 },
                 12,
             ),
@@ -504,6 +505,98 @@ fn the_budget_agrees_with_the_exact_engine() {
 }
 
 #[test]
+fn a_resolved_sorcery_in_the_graveyard_agrees_with_the_exact_engine() {
+    // A cast sorcery is a card arriving in the graveyard, which is a zone the
+    // count reads per path — so it is one more place the two engines' paths
+    // could spend a turn's mana differently and put a different card there.
+    //
+    // Four sorceries and four permanents at the same cost, one line casting
+    // both, and nineteen green sources. Asked as "a sorcery in the yard by
+    // turn 4", which is neither 0 nor 1, and as two facts that must hold on
+    // every path: every sorcery cast is in the yard, and no permanent is.
+    let two_green = || Cost::parse("{1}{G}").unwrap().demand();
+    let grouping = Grouping::with_mana(
+        q(&["sorcery", "permanent"]),
+        vec![
+            (
+                0b01,
+                ManaSource::Castable {
+                    cost: two_green(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                4,
+            ),
+            (
+                0b10,
+                ManaSource::Castable {
+                    cost: two_green(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                4,
+            ),
+            (
+                0b00,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["G"]),
+                },
+                19,
+            ),
+            (0b00, ManaSource::Spell, 72),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::build(
+        4,
+        true,
+        Vec::new(),
+        Policies::casting(CastingPolicy::new(vec![1, 0])),
+    );
+    let yard = Counted::In(Zone::Graveyard);
+    let question = || {
+        Closures(vec![
+            Box::new(move |v: &PathView<'_>| v.count_at(4, 0, yard) >= 1) as Check,
+            Box::new(move |v: &PathView<'_>| {
+                v.count_at(4, 0, yard) == v.count_at(4, 0, Counted::Cast)
+            }) as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(4, 1, yard) == 0) as Check,
+        ])
+    };
+    let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(3), &mut question())
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        TRIALS,
+        13,
+        only_criteria(3),
+        &mut question(),
+    )
+    .unwrap()
+    .proportions;
+    assert!(
+        exact[0] > 0.05 && exact[0] < 0.95,
+        "a question worth asking: {exact:?}"
+    );
+    assert!(
+        (exact[1] - 1.0).abs() < 1e-12 && (exact[2] - 1.0).abs() < 1e-12,
+        "every cast sorcery is in the yard and no permanent is: {exact:?}"
+    );
+    for (e, s) in exact.iter().zip(&sampled) {
+        let se = standard_error(*s, TRIALS).max(1.0 / f64::from(TRIALS));
+        assert!(
+            (s - e).abs() < 4.0 * se,
+            "sampled {s} vs exact {e} ({}x SE)",
+            (s - e).abs() / se
+        );
+    }
+}
+
+#[test]
 fn a_tutor_agrees_with_the_exact_engine() {
     // The acceptance test for #18, and the one that matters: a fetch makes the
     // library a population that shrinks, and the two engines shrink it by
@@ -522,6 +615,7 @@ fn a_tutor_agrees_with_the_exact_engine() {
                 0b01,
                 ManaSource::Castable {
                     cost: Cost::parse("{U}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
                 },
                 12,
             ),
@@ -602,6 +696,7 @@ fn a_tutor_thins_the_library_in_both_engines() {
                     0b01,
                     ManaSource::Castable {
                         cost: Cost::parse("{U}").unwrap().demand(),
+                        resolves: Resolves::OntoBattlefield,
                     },
                     12,
                 ),
@@ -811,6 +906,7 @@ fn a_mulligan_agrees_with_the_exact_engine() {
                 0b010,
                 ManaSource::Castable {
                     cost: Cost::parse("{U}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
                 },
                 4,
             ),

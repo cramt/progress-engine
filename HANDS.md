@@ -10,8 +10,14 @@ those.
 Each one states the hand, what actually happens, and what a naive model says
 instead. Where those differ, that difference is the test.
 
-11, 12, 13, 14, 15, 16, 17 and 18 already have. That is every one of them but
-hand 5, hands 19 to 25 (ADR 0017's tickets) and hands 26 to 33 (ADR 0018's).
+**Some of these are not answerable yet**, and each is marked with what it
+needs. Hand 5 also carries the measurement that says why it was refused rather
+than estimated. Hands 19 to 25 pin what
+[ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md) decided,
+and hands 26 to 33 what
+[ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) decided,
+before any of it is built. That is the point: they pin the semantics before the
+code exists, so that building
 the feature cannot quietly redefine the question — and hands 1, 2 and 3 are the
 worked case, written down as one Opt on turn 1 long before anything could say
 so, and answered as one Opt on turn 1 when something finally could.
@@ -362,6 +368,68 @@ have without the surveil.
 The pair of these is asserted rather than described — the hand number moves
 between the two files, which is the only thing that proves the routing is doing
 work rather than being ignored.
+
+### 34. Loam cast on turn 3
+
+```
+Jungle Hollow ×8
+Life from the Loam
+```
+
+Nine cards, on the play, so every card is in hand by turn 3 and every deal is
+this deal.
+
+**Turn 1:** play Jungle Hollow. It enters tapped. **Turn 2:** play another; it
+enters tapped too, so the only untapped land is turn 1's, one mana, and Loam
+costs `{1}{G}`. **Turn 3:** two untapped green sources. Cast Loam. It is a
+sorcery, so when it resolves it is put into its owner's graveyard. Loam is in
+the graveyard by turn 3, and not by turn 2.
+
+**Naive model:** casting is not a zone, so the cast Loam goes nowhere — out of
+the hand, into nothing. The graveyard reads 0% on a hand that put the card
+there, and the deck's only priced route to its north star counts for nothing
+under the question it exists to answer.
+
+### 35. The same Loam, no green
+
+```
+Tranquil Cove ×8
+Life from the Loam
+```
+
+Hand 34 with every land swapped for one that makes white or blue. Same tapped
+lands, same turns, and the `{G}` is never there. Loam is never cast, never in
+the graveyard, and still in hand on turn 3.
+
+*Answerable, and hands 34 and 35 are one test* — `hand-34.txt` and
+`hand-35.txt` against `loam-cast.criteria.toml`, which declares the line and
+asks the same clause of both:
+
+```toml
+[casting]
+prefer = ['name:"Life from the Loam"']
+
+[[criterion]]
+name = "Loam in the graveyard by turn 3"
+require = [{ turn = 3, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
+```
+
+| | hand 34 | hand 35 |
+|---|---|---|
+| Loam in the graveyard by turn 3 | **100%** | **0%** |
+| Loam in the graveyard by turn 2 | 0% | 0% |
+| Loam cast by turn 3 | 100% | 0% |
+| Loam in hand on turn 3 | 0% | 100% |
+
+The pair is what makes the graveyard count one that moves with the casting: a
+model that read the yard off the holding would say the same thing about both.
+Both runs report the graveyard as reachable, because the line names a sorcery;
+hand 35's zero is a measurement of a deck with no green, not a zone nothing
+could reach. The same test runs the sampler on both hands.
+
+A permanent the line casts is counted on the battlefield instead, never in
+both. *Out of scope:* flashback and retrace, which cast a card **from** the
+graveyard — a second casting this line does not make.
 
 ---
 
@@ -1157,8 +1225,8 @@ case in #37, which is the one hole.*
 ## What these are for
 
 When the features land, these become tests — hands 1, 2, 3, 4, 6, 7, 8, 9, 10,
-11, 12, 13, 14, 15, 16, 17 and 18 already have. That is every one of them but
-hand 5, hands 19 to 25 (ADR 0017's tickets) and hands 26 to 33 (ADR 0018's).
+11, 12, 13, 14, 15, 16, 17, 18, 34 and 35 already have. That is every one of them
+but hand 5, hands 19 to 25 (ADR 0017's tickets) and hands 26 to 33 (ADR 0018's).
 Until then they are the specification: if an implementation disagrees with a
 hand here, one of the two is wrong and it is worth knowing which before shipping
 a percentage.
