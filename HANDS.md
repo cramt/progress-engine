@@ -14,8 +14,10 @@ instead. Where those differ, that difference is the test.
 needs. Hand 5 also carries the measurement that says why it was refused rather
 than estimated. Hands 19 to 25 pin what
 [ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md) decided,
-and hands 26 to 33 what
+hands 26 to 33 what
 [ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) decided,
+and hands 40 to 42 what
+[ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md) decided,
 before any of it is built. That is the point: they pin the semantics before the
 code exists, so that building
 the feature cannot quietly redefine the question — and hands 1, 2 and 3 are the
@@ -1369,6 +1371,188 @@ sampler's acceptance tests.*
 
 ---
 
+## Tutor routes the line pays for
+
+Hands 40 to 42 pin
+[ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)
+before any of it is built. **None of them is answerable yet**, and each names
+the build ticket it waits for. Each is a small deck, on the play, with the deal
+worked turn by turn for one order of the library and then priced over every
+order. The tables were produced by brute force over every order of the deck, in
+`docs/research/tutor-routes-hands.py`, which reads nothing in `crates/`, and
+each has one row derived on paper below it. Where a column says what the engine
+does today, that is the column the ticket must move.
+
+### 40. Tezzeret the Seeker puts the Lantern straight onto the battlefield
+
+```
+Island ×10, Tezzeret the Seeker, Lantern of Insight      (12 cards)
+
+[[effect]]
+match = 'name:"Tezzeret the Seeker"'
+on = "cast"
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[casting]
+prefer = ['name:"Lantern of Insight"', 'name:"Tezzeret the Seeker"']
+```
+
+**The deal:** six Islands and the Seeker in the opener, four Islands on top,
+the Lantern at the bottom. **Turns 1 to 4:** an Island a turn. **Turn 5:** the
+fifth Island, `{3}{U}{U}` for the Seeker, and −1 on its four loyalty: search for
+an artifact with mana value 1 or less and put it **onto the battlefield**. The
+Lantern is in play, it never touched the hand, it was never cast, and the
+library is one card smaller. There is no mana left, and none was needed; that is
+the whole difference from Trinket Mage (hand 15), whose Lantern still costs
+`{1}` after it arrives.
+
+**Today** the effect is refused by name: `to = "battlefield"` on a cast is
+Rampant Growth's refusal, written for a land whose tapped-ness no tag carries.
+An artifact has no tapped-ness question, so the refusal is too wide.
+
+| | no fetch | fetch to battlefield |
+|---|---|---|
+| Tezzeret the Seeker cast by turn 5 | 37/44 = **84.09%** | 37/44 = **84.09%** |
+| Lantern on the battlefield by turn 5 | 11/12 = 91.67% | **100%** |
+| Lantern cast by turn 5 | 11/12 = **91.67%** | 11/12 = **91.67%** |
+| Lantern still in the library on turn 5 | 1/12 = 8.33% | **0%** |
+
+Three rows must not move and one must. The Seeker's casting cannot depend on
+what it does. The Lantern's *casting* does not move either, because the fetched
+Lantern is never cast: `cast` counts castings and says so. **On paper:** turn 5
+on the play has seen eleven of twelve cards, and the opener holds at least five
+Islands, so a drop is made every turn. The Lantern is on the battlefield unless
+it is the twelfth card, 1/12, and in that case the Seeker is among the eleven
+seen, is cast on turn 5 and finds it. The first row is the Seeker in the first
+eleven, 11/12, less the deals where the Lantern is the eleventh card and takes
+one of turn 5's five mana first: (1/12)(10/11), which leaves 37/44.
+
+*Not answerable yet: needs ADR-0019's first ticket (a cast may put a non-land
+onto the battlefield).*
+
+### 41. Dizzy Spell's transmute costs what the transmute costs
+
+```
+Island ×10, Dizzy Spell, Lantern of Insight              (12 cards)
+
+[[effect]]
+match = 'name:"Dizzy Spell"'
+on = "cast"
+cost = "{1}{U}{U}"
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+
+[casting]
+prefer = ['name:"Lantern of Insight"', 'name:"Dizzy Spell"']
+```
+
+**The deal:** Dizzy Spell and six Islands in the opener, the Lantern ninth or
+later. **Turn 1:** an Island. Dizzy Spell's printed cost is `{U}`, and one Island
+pays it. But casting it does nothing for this deck: it is the **transmute**,
+`{1}{U}{U}` and discard it, that finds a mana value 1 card, and it is sorcery
+speed. **Turn 3:** three Islands pay the transmute and the Lantern goes to hand.
+**Turn 4:** cast it.
+
+**Today** the file above is refused for its `cost` key. Delete the key and the
+engine accepts the effect and bills the printed `{U}`, which is the confident
+wrong number this hand exists to catch: a turn-1 tutor.
+
+| | printed `{U}` (today, without `cost`) | declared `{1}{U}{U}` |
+|---|---|---|
+| Dizzy Spell played by turn 2 | 2/3 = 66.67% | **0%** |
+| Lantern cast by turn 2 | 10/11 = 90.91% | **2/3 = 66.67%** |
+| Lantern cast by turn 4 | 65/66 = **98.48%** | 65/66 = **98.48%** |
+
+Turn 2 is where the price matters and turn 4 is where it no longer does, and
+the pair is the test. **On paper**, declared: nothing can transmute before turn
+3, so the Lantern is cast by turn 2 exactly when it is among the first eight
+cards, 8/12. Printed: add the deals where Dizzy Spell is among the first eight
+and the Lantern is not, because a `{U}` transmute on turn 1 or 2 finds it and the
+line, read again from its top, casts it the same turn or the next: 1 − C(4,2)/C(12,2)
+= 60/66. By turn 4 both lines have found it unless both cards are the last two,
+1/66.
+
+A `cast` clause counts Dizzy Spell's transmutation as a casting of Dizzy Spell,
+and the run says so beside the declared cost it printed.
+
+*Not answerable yet: needs ADR-0019's second ticket (a declared cost).*
+
+### 42. Expedition Map goes and gets Urza's Saga
+
+```
+Island ×5, Lightning Bolt ×8, Expedition Map, Urza's Saga, Lantern of Insight   (16 cards)
+
+[[effect]]
+match = 'name:"Expedition Map"'
+on = "activate"
+cost = "{2}"
+sacrifice = true
+fetch = ["name:\"Urza's Saga\""]
+to = "hand"
+
+[[effect]]                       # hand 17's chapter III
+match = "name:\"Urza's Saga\""
+on = "landdrop"
+after = 2
+sacrifice = true
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[land_drop]
+prefer = ["name:\"Urza's Saga\"", "t:land"]
+
+[casting]
+prefer = ['name:"Expedition Map"']
+```
+
+**The deal:** an Island and the Map in the opener, a second Island drawn on
+turn 2, the Saga deep in the library. **Turn 1:** Island, cast the Map. It is an
+artifact and not a creature, so it could be activated at once, and one Island
+cannot pay `{2}`. **Turn 2:** play the second Island, and the line reaches the
+Map's entry again: the Map in play is activated for `{2}`, sacrificed, and the
+Saga goes from the library to hand. **Turn 3:** the Saga is the land drop.
+**Turn 5:** chapter III, after the draw, puts the Lantern onto the battlefield
+if the library still holds it.
+
+The line names the Map once and that entry covers both payments: casting the
+copy in hand, and activating the copy in play. It is paid after the land drop,
+as every cast is, with **one exception, and this hand is why.** A Map cast on
+turn 2 off one of two Islands is activated on turn 3 *before* the drop, out of
+the two Islands already in play, so the Saga it fetches is turn 3's land and
+chapter III comes on turn 5. Paid after the drop, the Saga would wait for turn
+4 and be too late. So an activation whose fetch names a land that the
+`[land_drop]` list ranks above every land in hand is paid before the drop, from
+the sources already in play; nothing else is.
+
+The line names neither the Lantern nor anything else, so the Lantern arrives by
+chapter III or not at all, which keeps the Saga route on its own as hand 17 did.
+
+| | Map never activated (today) | activation `{2}`, Saga to hand |
+|---|---|---|
+| Expedition Map cast on turn 1 | 4921/11440 = **43.02%** | 4921/11440 = **43.02%** |
+| Urza's Saga played by turn 3 | 9/16 = 56.25% | 26249/34320 = **76.48%** |
+| Lantern on the battlefield by turn 5 | 1/4 = 25.00% | 3977/12870 = **30.90%** |
+
+The first row must not move: what the Map does cannot change whether it was
+cast. **On paper**, the left column: without the Map the Saga is played by turn
+3 exactly when it is among the first nine cards, 9/16, and the last row is hand
+17's (7 × 7 + 6 + 5)/240 = 1/4, because the fillers do not matter to it. The
+activation adds the deals where the Saga is the tenth card or later and the Map
+was cast by turn 2 and paid for by turn 3, before that turn's drop.
+
+**The last row is not a pure gain, and that is why it is a test.** A Map that
+fetches a Saga the pilot was about to draw anyway still shrinks the library by
+one, so the Lantern comes a card nearer the draw, and a Lantern drawn is a
+Lantern chapter III cannot find. A declared line activates whenever the pool
+pays; a pilot who would hold the Map is not modelled. A model that fetched the
+Saga without removing it from the library would show only the gain.
+
+*Not answerable yet: needs ADR-0019's third ticket (an activation), which needs
+the second.*
+
+---
+
 ## Mulligans
 
 ### 18. Six lands and six spells, dealt until the rule is happy
@@ -1439,8 +1623,8 @@ case in #37, which is the one hole.*
 
 When the features land, these become tests — hands 1, 2, 3, 4, 6, 7, 8, 9, 10,
 11, 12, 13, 14, 15, 16, 17, 18, 34, 35 and 37 already have. That is every one of
-them but hand 5, hands 19 to 25 (ADR 0017's tickets) and hands 26 to 33 (ADR
-0018's).
+them but hand 5, hands 19 to 25 (ADR 0017's tickets), hands 26 to 33 (ADR
+0018's) and hands 40 to 42 (ADR 0019's).
 Until then they are the specification: if an implementation disagrees with a
 hand here, one of the two is wrong and it is worth knowing which before shipping
 a percentage.

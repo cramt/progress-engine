@@ -124,11 +124,19 @@ _Avoid_: tier, rank
 The one land a turn puts onto the battlefield without casting it, chosen by `[land_drop] prefer` when more than one could be played.
 
 **Line**:
-The spells a turn casts, in the order the pilot declared them with `[casting] prefer`. A spell the line does not name is not cast.
+The spells a turn casts and the activations it pays for, in the order the pilot declared them with `[casting] prefer`. One entry covers both payments for a card: activating the copy already in play, then casting a copy from hand. A card the line does not name is neither cast nor activated.
 _Avoid_: line (for anything but casting), sequence, play pattern
 
 **Command zone**:
 Where the commander starts: never dealt or drawn, always there to be cast, and left once it is. A line that names the commander casts it from here, out of the same pool as the rest of the line. Not a zone a clause can count; a casting of the commander is counted with `cast`.
+
+**Declared cost**:
+What the line bills for playing a card when that is not its printed mana cost: a transmute, or an X the pilot chose. Declared on the card's effect as `cost`, and printed by every run that used it ([ADR-0019](../../docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)).
+_Avoid_: alternative cost (the rules term, which is narrower), price
+
+**Activation**:
+Paying for an ability of a permanent the line already put onto the battlefield, out of the same turn's pool or a later one's. Ranked by the `[casting]` entry that names the card, at most once per permanent per turn, and after the land drop unless it fetches a land the `[land_drop]` list ranks above every land in hand ([ADR-0019](../../docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)). Expedition Map's `{2}` is one; Tezzeret's loyalty abilities are read as part of his cast.
+_Avoid_: ability (for the payment), activated effect
 
 **Route**:
 One way a deck reaches an outcome, differing in turn, zone or what it needs. Written as a branch.
@@ -167,7 +175,7 @@ The effects that ship with the tool and load before a file's own. They declare w
 _Avoid_: stdlib, prelude, standard library
 
 **Trigger**:
-What fires an effect: a land drop or a cast. An attack, and a land entering while a permanent is in play, are decided in ADR-0017 and not yet built.
+What fires an effect: a land drop, a cast, or an activation the line pays for (ADR-0019, not yet built). An attack, and a land entering while a permanent is in play, are decided in ADR-0017 and not yet built.
 
 **Look**:
 Examining cards off the top of the library. A look that routes nothing changes nothing.
@@ -180,7 +188,7 @@ _Avoid_: filtering, discarding
 Where a routed or fetched card goes.
 
 **Tutor**:
-An effect that takes a named card out of the library and puts it in hand or onto the battlefield. It shrinks the library without drawing from it.
+An effect that takes a named card out of the library and puts it in hand or onto the battlefield. It shrinks the library without drawing from it. A cast or an activation may put a non-land onto the battlefield; a land arriving off one stays refused, because nothing says whether it enters tapped.
 _Avoid_: search, fetch (as a noun for the effect)
 
 **Delayed effect**:
