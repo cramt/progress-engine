@@ -20,10 +20,11 @@
 //! amount nobody chose — and a spell cast too cheaply spends mana the rest of
 //! the line then does not have, so the error is not confined to that card.
 
-use anyhow::{anyhow, Result};
 use gauntlet_criteria::{CastingPolicy, Cost, Demand, Palette};
 
 use crate::library::{is_land, Library};
+use crate::prepare::Unprepared;
+use crate::refusal::{self, QuerySite, Refusal};
 
 /// A declared casting priority, resolved against one deck.
 pub struct Resolved {
@@ -56,7 +57,12 @@ pub struct Resolved {
 
 /// Resolve `prefer` against `deck`. `asked` is the query list built so far,
 /// which already owns the low grouping bits.
-pub fn resolve(prefer: &[String], deck: &Library, asked: &[String]) -> Result<Resolved> {
+pub fn resolve(
+    prefer: &[String],
+    deck: &Library,
+    asked: &[String],
+    file: &str,
+) -> Result<Resolved, Unprepared> {
     let mut queries: Vec<String> = Vec::new();
     // A preference repeating a query the run already holds reuses its bit:
     // same query, same cards, and a second bit for one question would split
@@ -96,7 +102,7 @@ pub fn resolve(prefer: &[String], deck: &Library, asked: &[String]) -> Result<Re
             if costs[position].is_some() {
                 continue;
             }
-            let cost = price(&entry.card.name, &entry.card.mana_cost, query)?;
+            let cost = price(&entry.card.name, &entry.card.mana_cost, query, file)?;
             demands = demands.union(cost.demands());
             costs[position] = Some(cost.demand());
         }
@@ -127,22 +133,19 @@ pub fn resolve(prefer: &[String], deck: &Library, asked: &[String]) -> Result<Re
 /// cards that have none are lands, which are played, and things like Ancestral
 /// Vision that are cast some other way — and a free spell in a budget is not a
 /// rounding error, it is a spell cast every turn forever.
-fn price(name: &str, mana_cost: &str, query: &str) -> Result<Cost> {
+fn price(name: &str, mana_cost: &str, query: &str, file: &str) -> Result<Cost, Refusal> {
     if mana_cost.trim().is_empty() {
-        anyhow::bail!(
-            "[casting]: `prefer` entry {query:?} names {name}, which has no printed mana cost, \
-             so there is no way to work out what casting it would spend.\n      \
-             A card with no cost is not a free spell — it is one that gets onto the battlefield \
-             some other way, and this engine does not model that route."
-        );
+        return Err(Refusal::NoPrintedCost {
+            file: file.to_string(),
+            query: query.to_string(),
+            card: name.to_string(),
+        });
     }
-    Cost::parse(mana_cost).map_err(|e| {
-        anyhow!(
-            "[casting]: `prefer` entry {query:?} names {name}, whose cost this engine cannot \
-             pay: {e}\n      \
-             A budget spends the pool, so a cost read too cheaply does not only get that spell \
-             wrong — it leaves mana the rest of the line then spends."
-        )
+    Cost::parse(mana_cost).map_err(|error| Refusal::UnpayableCost {
+        file: file.to_string(),
+        query: query.to_string(),
+        card: name.to_string(),
+        error,
     })
 }
 
@@ -153,23 +156,9 @@ fn price(name: &str, mana_cost: &str, query: &str) -> Result<Cost> {
 /// through, and for the same reason: an `otag:` this index never fetched
 /// matches nothing, which here would silently empty a tier rather than report
 /// a gap.
-pub fn check(prefer: &[String], deck: &Library) -> Result<()> {
+pub fn check(prefer: &[String], deck: &Library, file: &str) -> Result<(), Refusal> {
     for query in prefer {
-        let parsed = chip_scryfall::parse(query)
-            .map_err(|e| anyhow!("[casting]: in `prefer` entry {query:?}: {e}"))?;
-        if let Some(gap) = parsed.tag_gap(&deck.index_tags) {
-            anyhow::bail!(
-                "[casting]: in `prefer` entry {query:?}: {}",
-                crate::report::tag_gap_refusal(&gap, deck)
-            );
-        }
-        let unknown = parsed.unknown_keywords(&deck.index_keywords);
-        if !unknown.is_empty() {
-            anyhow::bail!(
-                "[casting]: in `prefer` entry {query:?}: {}",
-                crate::report::unknown_keyword_refusal(&unknown)
-            );
-        }
+        refusal::check_query(file, QuerySite::Casting, query, deck)?;
     }
     Ok(())
 }

@@ -9,7 +9,7 @@
 
 use std::collections::HashMap;
 
-use anyhow::{bail, Context, Result};
+use anyhow::Context;
 use gauntlet_criteria::{
     Conditionals, Grouping, LandDetail, ManaSource, Objective, Optimised, Plan, RunError, Schedule,
     Table, MAX_OPTIMISE_PATHS,
@@ -17,6 +17,8 @@ use gauntlet_criteria::{
 use gauntlet_toml::{Criteria, MulliganDecl, Weighted};
 
 use crate::narrow::Class;
+use crate::prepare::Unprepared;
+use crate::refusal::Refusal;
 
 /// A strategy chosen for this run's objective, and what choosing it walked.
 pub struct Chose {
@@ -45,7 +47,7 @@ pub fn choose(
     plan: Plan,
     criteria: &mut Criteria,
     origin: &str,
-) -> Result<Chose> {
+) -> Result<Chose, Unprepared> {
     let opener = schedule.gaps().first().copied().unwrap_or(0);
     let deepest = opener.saturating_sub(declared.down_to);
 
@@ -81,37 +83,32 @@ pub fn choose(
             .iter()
             .zip(&placed)
             .filter(|(_, (c, _))| *c == ci)
-            .map(|(w, _)| format!("{:?}", w.name))
+            .map(|(w, _)| w.name.clone())
             .collect();
-        let names = weighed.join(", ");
-        let are = if weighed.len() == 1 { "is" } else { "are" };
         let mut conditionals =
             match Conditionals::new(&narrowed, &walk, &answering, criteria, Table::default()) {
                 Ok(c) => c,
-                Err(RunError::TooWide { paths, groups, .. }) => bail!(
-                "{origin}: [mulligan]: `optimise` weighs {}, which {} too wide to enumerate: {} \
-                     compositions across {groups} groups.\n\
-                     A strategy is chosen from each criterion's chance given every opener, and \
-                     over estimates it would keep the openers that were lucky in the sample and \
-                     report a score that is too high. Weigh a question this run answers \
-                     exactly, or narrow this one.",
-                names,
-                are,
-                paths
-            ),
-                Err(e) => return Err(e.into()),
+                Err(RunError::TooWide { paths, groups, .. }) => {
+                    return Err(Refusal::ObjectiveTooWide {
+                        file: origin.to_string(),
+                        weighed,
+                        paths,
+                        groups,
+                    }
+                    .into())
+                }
+                Err(e) => return Err(anyhow::Error::from(e).into()),
             };
         width = width.saturating_add(conditionals.fill_width(deepest));
         if width > MAX_OPTIMISE_PATHS {
-            bail!(
-                "{origin}: [mulligan]: `optimise` would walk {width} paths to price every opener and every \
-                 way of putting cards back, over the {MAX_OPTIMISE_PATHS} an optimiser is allowed.\n\
-                 The last criterion it reached was {}. Fewer weighed criteria, a nearer turn or \
-                 a higher `down_to` all shrink it.",
-                names
-            );
+            return Err(Refusal::ObjectiveOverBudget {
+                file: origin.to_string(),
+                weighed,
+                width,
+            }
+            .into());
         }
-        conditionals.fill(deepest)?;
+        conditionals.fill(deepest).map_err(anyhow::Error::from)?;
         tables.insert(ci, conditionals.into_table());
         groupings.insert(ci, narrowed);
     }

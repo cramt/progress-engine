@@ -37,7 +37,7 @@ pub struct CriterionResult {
     /// would be a coin toss wearing a verdict's clothes.
     #[facet(skip_serializing_if = Option::is_none)]
     pub inconclusive: Option<bool>,
-    /// `"exact"` or `"sampled"`, for this answer rather than for the run.
+    /// How this answer was reached, rather than the run.
     ///
     /// A file is not one question, and since #31 it is not one enumeration
     /// either: each class of questions is answered on the narrowest
@@ -45,7 +45,7 @@ pub struct CriterionResult {
     /// while the one beside it is enumerated exactly. The top-level `method`
     /// still says what happened to the run as a whole; this says what happened
     /// to this number, which is the one a reader is about to quote.
-    pub method: &'static str,
+    pub method: Method,
     /// Where the file declared a mulligan: this criterion's probability had
     /// every first seven been kept instead, from the same engine as
     /// `probability`.
@@ -87,9 +87,88 @@ pub struct ExpectationResult {
     /// have different error bars if one is tightly spread and the other is not.
     #[facet(skip_serializing_if = Option::is_none)]
     pub standard_error: Option<f64>,
-    /// `"exact"` or `"sampled"`, for this answer rather than for the run. See
+    /// How this answer was reached, rather than the run. See
     /// [`CriterionResult::method`].
-    pub method: &'static str,
+    pub method: Method,
+}
+
+/// How one number was reached: walked exactly, or estimated by sampling.
+///
+/// Serialised as `"exact"` or `"sampled"`. One answer is only ever one of the
+/// two; a run can be both, which is [`RunMethod`].
+#[derive(Facet, Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+#[facet(rename_all = "lowercase")]
+pub enum Method {
+    Exact,
+    Sampled,
+}
+
+impl Method {
+    /// The method of an answer the run did, or did not, estimate.
+    pub fn of(estimated: bool) -> Method {
+        if estimated {
+            Method::Sampled
+        } else {
+            Method::Exact
+        }
+    }
+}
+
+/// How a whole run was answered: `"exact"`, `"sampled"`, or `"mixed"`.
+///
+/// Three states, because a run can now be both. Narrowing means the file is
+/// several enumerations, so the question that went over the ceiling no longer
+/// takes its neighbours down with it — and a reader has to be able to tell
+/// that from a run where everything was sampled.
+#[derive(Facet, Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+#[facet(rename_all = "lowercase")]
+pub enum RunMethod {
+    Exact,
+    Sampled,
+    Mixed,
+}
+
+impl RunMethod {
+    pub fn of(estimated: &Estimated) -> RunMethod {
+        match (estimated.any(), estimated.all()) {
+            (false, _) => RunMethod::Exact,
+            (true, true) => RunMethod::Sampled,
+            (true, false) => RunMethod::Mixed,
+        }
+    }
+}
+
+/// How an enumeration reads its turns, serialised as `"cumulative"` or
+/// `"per-turn"`.
+#[derive(Facet, Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+#[facet(rename_all = "kebab-case")]
+pub enum Reading {
+    /// How many cards had been seen by the turns it names.
+    Cumulative,
+    /// Every turn up to the last it names, one at a time.
+    PerTurn,
+}
+
+impl From<gauntlet_criteria::Reading> for Reading {
+    fn from(reading: gauntlet_criteria::Reading) -> Self {
+        match reading {
+            gauntlet_criteria::Reading::Cumulative => Reading::Cumulative,
+            gauntlet_criteria::Reading::PerTurn => Reading::PerTurn,
+        }
+    }
+}
+
+/// Why a run sampled, serialised as `"requested"` or `"too_wide"`: the
+/// label [`WhySampled`] gives the report, without the width.
+#[derive(Facet, Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+#[facet(rename_all = "snake_case")]
+pub enum SampledBecause {
+    Requested,
+    TooWide,
 }
 
 /// What the criteria file registered, in registration order within each kind.
@@ -376,7 +455,7 @@ pub struct Enumeration {
     pub turns: Vec<usize>,
     /// `"cumulative"` — how many cards had been seen by the turns it names —
     /// or `"per-turn"`.
-    pub reading: &'static str,
+    pub reading: Reading,
     /// The pip kinds this enumeration told lands apart by, where it priced
     /// mana at all. Absent where it did not, and **empty** where it did and
     /// the costs are all generic: `{2}` is paid by any two lands, so that
@@ -397,7 +476,7 @@ pub struct Enumeration {
     /// for the other engine. In both of those cases the width beside it is
     /// what this class *would* have cost, which is the number a caller
     /// deciding whether to narrow their question needs.
-    pub method: &'static str,
+    pub method: Method,
     /// Where the file declared a mulligan: how many times this enumeration is
     /// dealt, once per hand size from seven down to the floor. The ceiling is
     /// checked against `compositions`, which is one deal; the work is up to
@@ -558,7 +637,7 @@ pub struct MulliganUse {
     /// The share of games kept at each hand size, largest first. Sums to 1.
     pub kept: Vec<KeptAt>,
     /// `"exact"` or `"sampled"`, for `kept`.
-    pub method: &'static str,
+    pub method: Method,
 }
 
 /// How often one hand size was the one kept.
@@ -689,18 +768,6 @@ fn trim(weight: f64) -> String {
     }
 }
 
-/// What one answer says about where it came from.
-const SAMPLED: &str = "sampled";
-const EXACT: &str = "exact";
-
-fn method_of(estimated: bool) -> &'static str {
-    if estimated {
-        SAMPLED
-    } else {
-        EXACT
-    }
-}
-
 /// SHA-256 of some bytes, lowercase hex.
 pub fn sha256_hex(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
@@ -713,14 +780,14 @@ pub struct Report {
     pub commanders: Vec<String>,
     pub excluded: Vec<ExcludedCard>,
     pub on_the_draw: bool,
-    pub method: &'static str,
+    pub method: RunMethod,
     /// Sampled runs only: `"requested"` or `"too_wide"`.
     ///
     /// A string rather than a bool, because there will be more ways to end up
     /// here than there are today and a `fell_back: false` would have to be
     /// reinterpreted rather than extended.
     #[facet(skip_serializing_if = Option::is_none)]
-    pub sampled_because: Option<&'static str>,
+    pub sampled_because: Option<SampledBecause>,
     /// Present exactly when `sampled_because` is `"too_wide"`.
     #[facet(skip_serializing_if = Option::is_none)]
     pub too_wide: Option<TooWide>,
@@ -844,7 +911,7 @@ impl Report {
                         let se = gauntlet_sim::standard_error(p, s.trials);
                         Some((p - threshold).abs() <= INCONCLUSIVE_ERRORS * se)
                     }),
-                    method: method_of(estimated),
+                    method: Method::of(estimated),
                     keep_seven: seven.map(|s| round(s, 6)),
                     keep_seven_percent: seven.map(|s| round(s * 100.0, 2)),
                 }
@@ -863,7 +930,7 @@ impl Report {
                 standard_error: sampled
                     .filter(|_| estimated)
                     .map(|s| round(gauntlet_sim::mean_standard_error(d, s.trials), 6)),
-                method: method_of(estimated),
+                method: Method::of(estimated),
             })
             .collect();
 
@@ -883,19 +950,10 @@ impl Report {
                 })
                 .collect(),
             on_the_draw,
-            // Three states, because a run can now be both. Narrowing means the
-            // file is several enumerations, so the question that went over the
-            // ceiling no longer takes its neighbours down with it — and a
-            // reader has to be able to tell that from a run where everything
-            // was sampled.
-            method: match (answers.estimated.any(), answers.estimated.all()) {
-                (false, _) => "exact",
-                (true, true) => "sampled",
-                (true, false) => "mixed",
-            },
+            method: RunMethod::of(&answers.estimated),
             sampled_because: sampled.map(|s| match s.why {
-                WhySampled::Requested => "requested",
-                WhySampled::TooWide { .. } => "too_wide",
+                WhySampled::Requested => SampledBecause::Requested,
+                WhySampled::TooWide { .. } => SampledBecause::TooWide,
             }),
             too_wide: sampled.and_then(|s| match s.why {
                 WhySampled::Requested => None,
@@ -1095,7 +1153,11 @@ impl Report {
                     "      Kept at {}{}.\n      Each criterion also shows, in brackets, its \
                      number had every first seven been kept.\n",
                     shares.join(", "),
-                    if m.method == SAMPLED { ", sampled" } else { "" },
+                    if m.method == Method::Sampled {
+                        ", sampled"
+                    } else {
+                        ""
+                    },
                 ));
             }
             None if self.optimised.as_ref().is_some_and(|o| o.played) => {}
@@ -1236,7 +1298,7 @@ impl Report {
         if let Some(widest) = self
             .enumerations
             .iter()
-            .filter(|e| e.method == "exact")
+            .filter(|e| e.method == Method::Exact)
             .max_by(|a, b| a.compositions.total_cmp(&b.compositions))
         {
             let ceiling = gauntlet_criteria::MAX_PATHS as f64;
@@ -1332,12 +1394,12 @@ impl Report {
     fn estimated_names(&self) -> Vec<&str> {
         self.criteria
             .iter()
-            .filter(|c| c.method == SAMPLED)
+            .filter(|c| c.method == Method::Sampled)
             .map(|c| c.name.as_str())
             .chain(
                 self.expectations
                     .iter()
-                    .filter(|e| e.method == SAMPLED)
+                    .filter(|e| e.method == Method::Sampled)
                     .map(|e| e.name.as_str()),
             )
             .collect()
@@ -1415,52 +1477,6 @@ pub fn stale_index_note(library: &Library) -> Option<String> {
          with: gauntlet sync"
             .to_string()
     })
-}
-
-/// Why a query naming an oracle tag this index cannot answer is refused.
-///
-/// Refused rather than answered, for the reason the whole tool exists: a count
-/// of a tag nobody fetched is zero by construction, and it reads exactly like a
-/// deck that plays no such card. The two halves of the message are the two
-/// facts a reader needs — what this index knows, and which command changes it.
-pub fn tag_gap_refusal(gap: &TagGap, library: &Library) -> String {
-    let named: Vec<String> = gap.tags().iter().map(|t| format!("otag:{t}")).collect();
-    let named = named.join(", ");
-    match gap {
-        TagGap::NotCarried(_) => format!(
-            "this index does not carry {named}, so counting it would be zero by \
-             construction\n      rather than by measurement. This index carries: {}.\n      \
-             Check the spelling; a tag outside that list has to be added to \
-             chip-scryfall's\n      standard tags and fetched by `gauntlet sync`.",
-            library.index_tags.carried().join(", ")
-        ),
-        TagGap::NoneFetched(_) => format!(
-            "this index carries no oracle tags at all, so {named} would match nothing \
-             here\n      whether or not this deck plays such a card.\n      \
-             `sync --from` builds an index like this one: tags come from Scryfall's search \
-             API,\n      not from the bulk file. Fetch them with: gauntlet sync"
-        ),
-    }
-}
-
-/// Why a query naming a keyword no card in this index has is refused.
-///
-/// The precedent the tag refusal was built on, finally wired to something. The
-/// index's keyword list is the whole card pool's, not this deck's, so a keyword
-/// missing from it is missing from Magic as this index knows Magic — which
-/// leaves exactly two readings, a typo or a set newer than the file, and one
-/// command tells them apart. No list of what it does carry, unlike the tag
-/// refusal: that one names six tags, this one would name two thousand keywords.
-pub fn unknown_keyword_refusal(unknown: &[String]) -> String {
-    let named: Vec<String> = unknown.iter().map(|k| format!("kw:{k}")).collect();
-    format!(
-        "no card in this index has {}, so counting it would be zero by construction\n      \
-         rather than by measurement — which reads exactly like a deck that plays none. \
-         The\n      index lists every keyword the whole card pool carries, so this is a \
-         misspelling\n      unless it is newer than the index. Check the spelling; \
-         rebuild with: gauntlet sync",
-        named.join(", ")
-    )
 }
 
 /// What to tell a human about effects this index cannot evaluate.
@@ -1696,236 +1712,264 @@ pub fn round(v: f64, places: u32) -> f64 {
     (v * f).round() / f
 }
 
-/// Why a battlefield question about something that is not a land is refused.
-///
-/// The one approximation this would not be is "drawn", and it is wrong in the
-/// direction that flatters the deck: an opening hand with one Island and a
-/// three-drop has the three-drop in hand on turn 0 and on the battlefield on no
-/// turn at all. A land is different in kind rather than in degree — it arrives
-/// on a land drop, which is free, capped at one a turn, and something this
-/// engine walks — so the zone opens for lands and stays shut for everything
-/// else.
-pub fn battlefield_refusal(query: &str, spells: &[String], back_faces: &[String]) -> String {
-    let mut out = format!(
-        "`zone = \"battlefield\"` in query {query:?} is only answerable for lands, and this \
-         query matches {}\n      that {}: {}.\n      \
-         A land arrives on a land drop, which is free and one a turn, so this engine knows when \
-         it\n      got there. Everything else has to be cast, and which spells you cast when you \
-         cannot cast\n      them all is the budget half of the mana model \
-         (https://github.com/cramt/progress-engine/issues/10).\n      \
-         Narrow the query to lands, or ask about `hand` and know that is what you asked.",
-        spells.len(),
-        if spells.len() == 1 {
-            "is not"
-        } else {
-            "are not"
-        },
-        spells.join(", ")
-    );
-    // The case that reads as a contradiction: a card with "Land" on it,
-    // refused for not being a land. Its land is a back face it transforms
-    // into, which no land drop plays.
-    if !back_faces.is_empty() {
-        out.push_str(&format!(
-            "\n      {} {} a land only on a back face reached by transforming, not by a land \
-             drop\n      (https://github.com/cramt/progress-engine/issues/61). `t:land` \
-             matches it because Scryfall\n      reads every face; write `t:land -is:transform` \
-             for the lands you can play.",
-            back_faces.join(", "),
-            if back_faces.len() == 1 { "is" } else { "are" },
-        ));
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn criterion(
+        name: &str,
+        p: f64,
+        at_least: Option<f64>,
+        at_most: Option<f64>,
+    ) -> CriterionResult {
+        let low = at_least.is_some_and(|lo| p < lo);
+        let high = at_most.is_some_and(|hi| p > hi);
+        CriterionResult {
+            name: name.to_string(),
+            probability: p,
+            percent: round(p * 100.0, 2),
+            at_least,
+            at_most,
+            standard_error: None,
+            pass: !low && !high,
+            missed: if low {
+                Some(Bound::AtLeast.key())
+            } else if high {
+                Some(Bound::AtMost.key())
+            } else {
+                None
+            },
+            inconclusive: None,
+            method: Method::Exact,
+            keep_seven: None,
+            keep_seven_percent: None,
+        }
     }
-    out
-}
 
-/// Why a mana question beside a live land-drop effect, with no priority
-/// declared, is refused.
-///
-/// Both are answers to *which land did you play this turn*, and with nothing
-/// declared they are different answers. The walk plays the deepest-looking land
-/// you are holding, because there is nothing else to tell two drops apart; the
-/// gate assumes you played whichever land pays. Running both would be two
-/// policies over one resource, which is the failure VISION.md is written
-/// against.
-///
-/// **What it does not do is pick one.** Which land you would have played is a
-/// decision the pilot makes and the tool cannot derive, so the refusal names
-/// the declaration that settles it — [`crate::landdrop`] — rather than choosing
-/// a default and mentioning it in a note nobody reads. That is *ask, don't
-/// guess* applied to a policy instead of to card data.
-pub fn mana_beside_effects_refusal() -> String {
-    "a mana question and a live land-drop effect are both answers to which land you played \
-     this turn,\n      and this file declares no priority between them. With none declared \
-     the effect plays the\n      deepest-looking land in hand and the mana question assumes \
-     whichever land pays, which are\n      two answers to one drop — so this is refused \
-     rather than arbitrated.\n      \
-     Declare the priority and both read the same drop:\n\n      \
-     [land_drop]\n      prefer = ['otag:surveil', 't:land -otag:tapland']\n\n      \
-     The list is read in order, the first entry a land in hand matches wins, and any land the \
-     list\n      does not name is played last."
-        .to_string()
-}
+    fn enumeration(criteria: &[&str], compositions: f64, method: Method) -> Enumeration {
+        Enumeration {
+            criteria: criteria.iter().map(|c| c.to_string()).collect(),
+            expectations: Vec::new(),
+            queries: vec!["t:land".to_string()],
+            turns: vec![3],
+            reading: Reading::Cumulative,
+            pips: None,
+            groups: 2,
+            compositions,
+            method,
+            deals: None,
+        }
+    }
 
-/// Why counting castings with no casting priority declared is refused.
-///
-/// The budget's version of the refusal above, and the same argument over the
-/// other resource. One Island, one Opt and one Preordain: which do you cast?
-/// The mana pays for one of them, the answer differs by which, and nothing in
-/// a decklist says. A tool that picked — the cheapest, the first one listed,
-/// the one the criterion happened to ask about — would be reporting a line
-/// nobody chose, and the percentage would look exactly like a measured one.
-///
-/// It names the remedy rather than choosing a default, which is the whole
-/// pattern: `[land_drop]` for the drop, `[casting]` for the mana, and the same
-/// shape of list for both.
-pub fn casting_without_priority() -> String {
-    "counting the spells you cast means knowing which ones you would cast, and this file \
-     declares\n      no priority. One Island, one Opt and one Preordain is one spell cast and \
-     two left in hand,\n      and which one it was is a decision this tool will not make for \
-     you.\n      Declare it, highest priority first:\n\n      \
-     [casting]\n      prefer = ['name:\"Opt\"', 'name:\"Preordain\"']\n\n      \
-     The list is read in order and the first entry the pool can still pay for is cast. A \
-     spell\n      the list does not name is not cast at all — the list is the line you are \
-     asking about,\n      not a preference over your whole deck."
-        .to_string()
-}
+    /// A small exact run: one question met, one missed, one expectation.
+    fn exact_report() -> Report {
+        let criteria = vec![
+            criterion("two lands by turn 2", 0.875, Some(0.8), None),
+            criterion("flood by turn 5", 0.5, Some(0.1), Some(0.3)),
+        ];
+        let failed = criteria.iter().filter(|c| !c.pass).count();
+        Report {
+            library_size: 60,
+            commanders: Vec::new(),
+            excluded: Vec::new(),
+            on_the_draw: false,
+            method: RunMethod::Exact,
+            sampled_because: None,
+            too_wide: None,
+            trials: None,
+            seed: None,
+            queries: vec![
+                QueryMatch {
+                    query: "t:land".to_string(),
+                    cards: 24,
+                },
+                QueryMatch {
+                    query: "name:Rmap".to_string(),
+                    cards: 0,
+                },
+            ],
+            zones: Vec::new(),
+            effects: Vec::new(),
+            enumerations: vec![
+                enumeration(&["two lands by turn 2"], 1234.0, Method::Exact),
+                enumeration(&["flood by turn 5"], 56789.0, Method::Exact),
+            ],
+            assumed_tapped: Vec::new(),
+            land_drop: None,
+            casting: None,
+            mulligan: None,
+            optimised: None,
+            criteria,
+            expectations: vec![ExpectationResult {
+                name: "lands in opener".to_string(),
+                mean: 2.5,
+                distribution: vec![0.25, 0.25, 0.5],
+                standard_error: None,
+                method: Method::Exact,
+            }],
+            asserted: 2,
+            failed,
+            ok: failed == 0,
+            provenance: Provenance {
+                tool_version: "0.0.0",
+                index_updated_at: None,
+                deck_sha256: String::new(),
+                criteria_sha256: String::new(),
+                effect_library_sha256: String::new(),
+            },
+        }
+    }
 
-/// Why a land-drop tutor with no declared land-drop priority is refused.
-///
-/// A fetchland goes and gets its land *on* the drop and leaves the battlefield
-/// doing it, so what is standing there at the end of the turn is a fact about
-/// which land you played. With no priority declared the walk plays the
-/// deepest-looking land in hand, which is a rule adopted when nothing else
-/// could tell two drops apart and is not one anybody chose — and a run that
-/// fetched off it would report a thinned library nobody asked for.
-pub fn fetch_without_land_drop(matches: &str) -> String {
-    format!(
-        "effect {matches:?} fetches on a land drop, and this file declares no priority over \
-         the drop.\n      \
-         A fetchland goes and gets its land on the turn it is played and is not there \
-         afterwards,\n      so which land you played decides both what you fetched and what \
-         is standing there.\n      \
-         Declare it, highest priority first:\n\n      \
-         [land_drop]\n      prefer = ['otag:fetchland', 't:land']\n\n      \
-         The list is read in order, the first entry a land in hand matches wins, and any land \
-         the list\n      does not name is played last."
-    )
-}
-
-/// Why a cast tutor with no declared casting priority is refused.
-///
-/// The same argument over the other resource. A spell this run does not cast
-/// is a spell that never resolved, so it never fetched either, and a run that
-/// fired the tutor anyway would be putting a card in your hand off a spell
-/// nobody paid for.
-pub fn fetch_without_casting(matches: &str) -> String {
-    format!(
-        "effect {matches:?} fetches when it is cast, and this file declares no casting \
-         priority.\n      \
-         A spell this run does not cast is one that never resolved, so it never went and got \
-         anything.\n      \
-         Declare the line, highest priority first:\n\n      \
-         [casting]\n      prefer = ['name:\"Trinket Mage\"', 'name:\"Lantern of Insight\"']\n\n      \
-         The list is read in order and the first entry the pool can still pay for is cast. A \
-         spell\n      the list does not name is not cast at all."
-    )
-}
-
-/// Why a battlefield fetch may only name lands.
-///
-/// The same refusal `zone = "battlefield"` is already under, at the same seam:
-/// a land arrives on a land drop, which this engine models, and everything
-/// else has to be cast, which — once it is on the battlefield rather than
-/// merely paid for — it does not.
-pub fn fetch_battlefield_refusal(query: &str, spells: &[String]) -> String {
-    format!(
-        "`fetch = {query:?}` with `to = \"battlefield\"` names {} this engine cannot put \
-         there: {}.\n      \
-         A land arrives on a land drop, which is free and capped at one a turn, so the walk \
-         knows\n      where it is. Anything else has to be cast, and where a spell goes after \
-         it resolves is\n      not modelled at all.",
-        if spells.len() == 1 { "a card" } else { "cards" },
-        spells.join(", ")
-    )
-}
-
-/// Why a delayed fetch onto the battlefield may not find a land.
-///
-/// The mirror of [`fetch_battlefield_refusal`]. A fetchland may only find lands
-/// because a land drop is the one way onto the battlefield the walk models; a
-/// Saga's chapter is the other way, and what it may not find is a land, because
-/// a land arriving off an ability puts mana in the pool on a turn nothing says
-/// whether it entered tapped — the same gap as a land off a spell.
-pub fn delayed_fetch_land_refusal(query: &str, lands: u32) -> String {
-    format!(
-        "`fetch = {query:?}` with `after` and `to = \"battlefield\"` matches {lands} land{} in \
-         this deck.\n      \
-         A delayed effect puts its card beside the land that waited for it, and a land arriving \
-         that way\n      is not a land drop: whether it enters tapped is a fact about the card \
-         that fetched it,\n      which no tag carries. Urza's Saga's third chapter finds an \
-         artifact; narrow the query to\n      what it can actually find, such as `-t:land`.",
-        if lands == 1 { "" } else { "s" }
-    )
-}
-
-/// Why a mana question beside a fetched land is refused.
-///
-/// The one thing a fetch cannot say. `otag:fetchland` holds Scalding Tarn,
-/// which puts its Island down untapped, and Terramorphic Expanse, which does
-/// not — and the difference is a property of the card that did the fetching
-/// rather than of the land it found, so no tag on the fetched land settles it.
-/// Both answers are plausible and one of them is wrong, which is this
-/// project's defining failure in its usual costume. What the fetch *does* say
-/// exactly is what left the library, so the thinning is answerable and the
-/// mana is not.
-pub fn mana_beside_a_fetched_land(matches: &str) -> String {
-    format!(
-        "effect {matches:?} puts a land onto the battlefield out of the library, and what that \
-         land\n      taps for on the turn it arrives is not modelled. A Scalding Tarn fetches \
-         untapped and a\n      Terramorphic Expanse fetches tapped; `otag:fetchland` holds \
-         both and nothing on the land\n      it found tells them apart, so a mana answer here \
-         would be optimistic or pessimistic with\n      nothing saying which.\n      \
-         What the fetch does say exactly is what left the library. Ask this file's thinning \
-         question\n      without a `can_cast`, a `cast` or a `[casting]` table, and ask the \
-         mana in a file of its own."
-    )
-}
-
-/// Why this index cannot price a cost, or `None` when it can.
-///
-/// Both halves are silent failures of the same shape as an unfetched oracle
-/// tag: an index with no `produces` reports every land as making nothing and
-/// answers 0.00%, and an index with no tapland tag reports every land as
-/// untapped and answers a number the deck cannot reach. Neither looks like a
-/// gap in the data from the outside.
-pub fn cannot_price_mana(library: &Library) -> Option<String> {
-    if library.index_is_stale {
-        return Some(
-            "this index was built before it recorded what a land produces, so every land in it \
-             makes\n      no mana and every cost would be unpayable. \
-             Rebuild it with: gauntlet sync"
-                .to_string(),
+    #[test]
+    fn an_exact_run_reads_as_verdicts_under_its_notes() {
+        assert_eq!(
+            exact_report().human(),
+            "note: query \"name:Rmap\" matched no cards in this deck\n\
+             note: every number below keeps whatever seven it is dealt: this file declares no\n      \
+             [mulligan], so no hand is ever sent back.\n\
+             PASS two lands by turn 2   87.50%  (needs 80.0%)\n\
+             FAIL flood by turn 5       50.00%  (needs 10.0% to 30.0%: over it)\n     \
+             lands in opener      mean 2.50\n                          \
+             0: 25.0%  1: 25.0%  2: 50.0%\n\
+             \n\
+             widest exact question: 56,789 compositions across 2 groups, 1% of the 5,000,000 \
+             ceiling, \"flood by turn 5\"\n\
+             \n\
+             FAIL: 1 of 2 assertions missed"
         );
     }
-    let missing: Vec<&str> = [crate::library::TAPLAND, crate::library::CONDITIONAL_TAPLAND]
-        .into_iter()
-        .filter(|tag| !library.index_tags.contains(tag))
-        .collect();
-    if missing.is_empty() {
-        return None;
+
+    /// The same run with its second question over the ceiling and sampled,
+    /// under a declared mulligan whose shares the sampler reported.
+    fn mixed_report() -> Report {
+        let mut report = exact_report();
+        report.method = RunMethod::Mixed;
+        report.sampled_because = Some(SampledBecause::TooWide);
+        report.too_wide = Some(TooWide {
+            paths: 9e9,
+            groups: 17,
+            ceiling: 5e6,
+        });
+        report.trials = Some(1000);
+        report.seed = Some(7);
+        report.queries.pop();
+        report.criteria[1].method = Method::Sampled;
+        report.criteria[1].standard_error = Some(0.0158);
+        report.enumerations[1].method = Method::Sampled;
+        report.mulligan = Some(MulliganUse {
+            keep: vec!["2 to 5 of \"t:land\"".to_string()],
+            bottom: vec!["t:land".to_string()],
+            then: "anything else",
+            tie_break: "the first listed",
+            down_to: 5,
+            kept: vec![
+                KeptAt {
+                    cards: 7,
+                    share: 0.9,
+                },
+                KeptAt {
+                    cards: 6,
+                    share: 0.1,
+                },
+            ],
+            method: Method::Sampled,
+        });
+        report
     }
-    Some(format!(
-        "this index does not carry {}, so it cannot say which lands enter tapped.\n      \
-         A land that enters tapped makes no mana the turn it arrives, which is the difference \
-         between\n      two lands and two mana — and without the tag every land here would \
-         read as untapped, which\n      is the optimistic answer rather than the measured one. \
-         This index carries: {}.\n      \
-         Fetch them with: gauntlet sync   (--from cannot: they come from the search API)",
-        missing
-            .iter()
-            .map(|t| format!("otag:{t}"))
-            .collect::<Vec<_>>()
-            .join(" or "),
-        library.index_tags.carried().join(", ")
-    ))
+
+    #[test]
+    fn a_mixed_run_names_the_estimates_and_walks_only_the_exact_ones() {
+        let human = mixed_report().human();
+        assert!(
+            human.starts_with(
+                "ESTIMATE: a question here was too wide to enumerate exactly: 9000000000\n          \
+                 compositions across 17 groups, against a ceiling of 5000000. It was\n          \
+                 answered by sampling 1000 hands instead.\n          \
+                 1 of the 3 questions here needed that, and it is the one\n          \
+                 quoted with a ±:\n          \
+                 flood by turn 5\n"
+            ),
+            "{human}"
+        );
+        assert!(
+            human.contains("Kept at 7 cards 90.00%, 6 cards 10.00%, sampled.\n"),
+            "{human}"
+        );
+        assert!(
+            human.contains("FAIL flood by turn 5       50.00% ± 1.58  (needs"),
+            "{human}"
+        );
+        // The widest *exact* question: the sampled one is wider and is not it.
+        assert!(
+            human.contains("widest exact question: 1,234 compositions across 2 groups"),
+            "{human}"
+        );
+    }
+
+    #[test]
+    fn the_method_enums_serialise_as_the_strings_the_json_always_carried() {
+        let json = facet_json::to_string(&mixed_report()).expect("serialises");
+        for needle in [
+            r#""method":"mixed""#,
+            r#""sampled_because":"too_wide""#,
+            r#""reading":"cumulative""#,
+            r#""method":"sampled""#,
+            r#""method":"exact""#,
+        ] {
+            assert!(json.contains(needle), "{needle} in {json}");
+        }
+        let mut per_turn = enumeration(&["x"], 1.0, Method::Exact);
+        per_turn.reading = gauntlet_criteria::Reading::PerTurn.into();
+        let json = facet_json::to_string(&per_turn).expect("serialises");
+        assert!(json.contains(r#""reading":"per-turn""#), "{json}");
+    }
+
+    #[test]
+    fn a_run_is_mixed_only_when_it_is_both() {
+        let estimated = |criteria: Vec<bool>| Estimated {
+            criteria,
+            expectations: Vec::new(),
+        };
+        assert_eq!(
+            RunMethod::of(&estimated(vec![false, false])),
+            RunMethod::Exact
+        );
+        assert_eq!(
+            RunMethod::of(&estimated(vec![true, true])),
+            RunMethod::Sampled
+        );
+        assert_eq!(
+            RunMethod::of(&estimated(vec![true, false])),
+            RunMethod::Mixed
+        );
+    }
+
+    #[test]
+    fn widths_and_shares_print_the_way_the_docs_quote_them() {
+        assert_eq!(thousands(5_000_000.0), "5,000,000");
+        assert_eq!(thousands(999.0), "999");
+        assert_eq!(share(0.00001), "under 0.01%");
+        assert_eq!(share(0.005), "0.50%");
+        assert_eq!(share(0.42), "42%");
+    }
+
+    #[test]
+    fn an_error_bar_keeps_enough_places_to_be_a_number() {
+        assert_eq!(error_bar_value(0.0), "0.00");
+        assert_eq!(error_bar_value(1.234), "1.23");
+        assert_eq!(error_bar_value(0.0042), "0.004");
+        assert_eq!(error_bar(None), "");
+    }
+
+    #[test]
+    fn a_histogram_states_the_mass_it_leaves_out() {
+        // Twenty buckets, most of the mass at the top: the window slides up
+        // and says what fell below it rather than dropping it.
+        let mut p = vec![0.004; 20];
+        p[19] = 1.0 - 0.004 * 19.0;
+        let lines = histogram_lines(&p, 0);
+        let last = lines.last().expect("some lines");
+        assert!(last.ends_with("(+3.2% outside)"), "{lines:?}");
+        assert!(lines[0].starts_with("8: 0.4%"), "{lines:?}");
+    }
 }

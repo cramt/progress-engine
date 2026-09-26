@@ -14,10 +14,11 @@
 //! mana, no group at all: lands are already their own groups there, because
 //! the gate tells a Plains from an Island.
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use gauntlet_criteria::LandDropPolicy;
 
 use crate::library::Library;
+use crate::refusal::{self, QuerySite, Refusal};
 
 /// The query that decides what a land is, for the tier the file did not write.
 pub const ANY_LAND: &str = "t:land";
@@ -91,23 +92,9 @@ pub fn resolve(prefer: &[String], deck: &Library, asked: &[String]) -> Result<Re
 /// The same seam the criteria file's own queries go through, and for the same
 /// reason: an `otag:` this index never fetched matches nothing, which here
 /// would silently demote a whole tier rather than report a gap.
-pub fn check(prefer: &[String], deck: &Library) -> Result<()> {
+pub fn check(prefer: &[String], deck: &Library, file: &str) -> Result<(), Refusal> {
     for query in prefer {
-        let parsed = chip_scryfall::parse(query)
-            .map_err(|e| anyhow!("[land_drop]: in `prefer` entry {query:?}: {e}"))?;
-        if let Some(gap) = parsed.tag_gap(&deck.index_tags) {
-            anyhow::bail!(
-                "[land_drop]: in `prefer` entry {query:?}: {}",
-                crate::report::tag_gap_refusal(&gap, deck)
-            );
-        }
-        let unknown = parsed.unknown_keywords(&deck.index_keywords);
-        if !unknown.is_empty() {
-            anyhow::bail!(
-                "[land_drop]: in `prefer` entry {query:?}: {}",
-                crate::report::unknown_keyword_refusal(&unknown)
-            );
-        }
+        refusal::check_query(file, QuerySite::LandDrop, query, deck)?;
     }
     Ok(())
 }

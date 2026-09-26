@@ -9,11 +9,12 @@
 //! such query, because "every card the list did not name" is a set of groups
 //! the board can compute for itself.
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use gauntlet_criteria::{Keep, MulliganPolicy};
 use gauntlet_toml::MulliganDecl;
 
 use crate::library::Library;
+use crate::refusal::{self, MulliganAt, QuerySite, Refusal};
 
 /// A declared mulligan, resolved against one deck.
 pub struct Resolved {
@@ -93,35 +94,21 @@ pub fn resolve(declared: &MulliganDecl, deck: &Library, asked: &[String]) -> Res
 /// The same seam the criteria file's own queries go through. An `otag:` this
 /// index never fetched matches nothing, which in a keep rule would throw back
 /// every hand — a mulligan that reads as brutal where it is only blind.
-pub fn check(declared: &MulliganDecl, deck: &Library) -> Result<()> {
+pub fn check(declared: &MulliganDecl, deck: &Library, file: &str) -> Result<(), Refusal> {
     let named = declared
         .keep
         .iter()
         .enumerate()
-        .map(|(i, k)| (format!("keep clause {}", i + 1), k.query.as_str()))
+        .map(|(i, k)| (MulliganAt::Keep(i + 1), k.query.as_str()))
         .chain(
             declared
                 .bottom
                 .iter()
                 .enumerate()
-                .map(|(i, q)| (format!("`bottom` entry {}", i + 1), q.as_str())),
+                .map(|(i, q)| (MulliganAt::Bottom(i + 1), q.as_str())),
         );
     for (at, query) in named {
-        let parsed = chip_scryfall::parse(query)
-            .map_err(|e| anyhow!("[mulligan]: {at}, query {query:?}: {e}"))?;
-        if let Some(gap) = parsed.tag_gap(&deck.index_tags) {
-            anyhow::bail!(
-                "[mulligan]: {at}, query {query:?}: {}",
-                crate::report::tag_gap_refusal(&gap, deck)
-            );
-        }
-        let unknown = parsed.unknown_keywords(&deck.index_keywords);
-        if !unknown.is_empty() {
-            anyhow::bail!(
-                "[mulligan]: {at}, query {query:?}: {}",
-                crate::report::unknown_keyword_refusal(&unknown)
-            );
-        }
+        refusal::check_query(file, QuerySite::Mulligan(at), query, deck)?;
     }
     Ok(())
 }

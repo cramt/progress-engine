@@ -49,7 +49,7 @@ pub(crate) struct Answered {
     pub(crate) enumerations: Vec<report::Enumeration>,
     /// How often the mulligan kept each hand size, where the sampler
     /// answered everything and so is the engine that should say.
-    pub(crate) kept: Option<(Vec<f64>, &'static str)>,
+    pub(crate) kept: Option<(Vec<f64>, report::Method)>,
 }
 
 /// Answer every question in the file, each on the narrowest enumeration that
@@ -114,8 +114,67 @@ pub(crate) fn answer(
             .context("a class named a question this file does not hold")?;
         let narrowed = class.grouping(grouping);
         let walk = class.schedule(schedule);
+        // How this class was answered, decided before its entry is written
+        // rather than corrected afterwards.
+        let method = if run.engine == Engine::Sample {
+            report::Method::Sampled
+        } else {
+            // A chosen strategy reads its openers on a grouping this class may
+            // not tell apart, so it is played from the run's whole grouping,
+            // joined with the class's own at the opener and nowhere else.
+            let answered = if walk.chosen().is_some() {
+                gauntlet_criteria::run_chosen(
+                    grouping,
+                    class.keep(),
+                    class.mana(),
+                    &walk,
+                    &answering,
+                    criteria,
+                    tables.remove(&position).unwrap_or_default(),
+                )
+            } else {
+                gauntlet_criteria::run_answering(&narrowed, &walk, &answering, criteria)
+            };
+            match answered {
+                Ok(exact) => {
+                    for (&i, p) in answering.criteria().iter().zip(exact.probabilities) {
+                        probabilities[i] = Some(p.get());
+                    }
+                    if let Some(mulligan) = &exact.mulligan {
+                        for (&i, p) in answering.criteria().iter().zip(&mulligan.seven) {
+                            seven[i] = Some(p.get());
+                        }
+                    }
+                    for (&i, d) in answering.expectations().iter().zip(exact.distributions) {
+                        distributions[i] = Some(d);
+                    }
+                    report::Method::Exact
+                }
+                // Only this one refusal falls back. Every other way a run can
+                // be refused is a question the sampler would answer no better:
+                // an empty library, a hand bigger than the deck, and a mass
+                // that did not sum to one are all facts about what was asked
+                // rather than about how expensive it was to enumerate.
+                Err(gauntlet_criteria::RunError::TooWide { paths, groups, .. })
+                    if run.engine == Engine::ExactOrSample =>
+                {
+                    let wider = !matches!(why, Some(report::WhySampled::TooWide { paths: p, .. }) if p >= paths);
+                    if wider {
+                        why = Some(report::WhySampled::TooWide { paths, groups });
+                    }
+                    for &i in answering.criteria() {
+                        estimated.criteria[i] = true;
+                    }
+                    for &i in answering.expectations() {
+                        estimated.expectations[i] = true;
+                    }
+                    report::Method::Sampled
+                }
+                Err(e) => return Err(e.into()),
+            }
+        };
         let groups = narrowed.group_sizes().len();
-        let mut enumerated = report::Enumeration {
+        enumerations.push(report::Enumeration {
             criteria: named(&criteria_names, answering.criteria()),
             expectations: named(&expectation_names, answering.expectations()),
             queries: class
@@ -124,14 +183,11 @@ pub(crate) fn answer(
                 .map(str::to_string)
                 .collect(),
             turns: class.turns().to_vec(),
-            reading: match class.reading() {
-                gauntlet_criteria::Reading::Cumulative => "cumulative",
-                gauntlet_criteria::Reading::PerTurn => "per-turn",
-            },
+            reading: class.reading().into(),
             pips: class.pips().map(gauntlet_criteria::Palette::symbols),
             groups,
             compositions: gauntlet_criteria::compositions(groups, walk.gaps()) as f64,
-            method: "exact",
+            method,
             deals: match (walk.mulligan(), walk.chosen()) {
                 (Some(policy), _) => {
                     Some(policy.deepest(walk.gaps().first().copied().unwrap_or(0)) + 1)
@@ -139,65 +195,7 @@ pub(crate) fn answer(
                 (None, Some(chosen)) => Some(chosen.0.deepest() + 1),
                 (None, None) => None,
             },
-        };
-        if run.engine == Engine::Sample {
-            enumerated.method = "sampled";
-            enumerations.push(enumerated);
-            continue;
-        }
-        // A chosen strategy reads its openers on a grouping this class may not
-        // tell apart, so it is played from the run's whole grouping, joined
-        // with the class's own at the opener and nowhere else.
-        let answered = if walk.chosen().is_some() {
-            gauntlet_criteria::run_chosen(
-                grouping,
-                class.keep(),
-                class.mana(),
-                &walk,
-                &answering,
-                criteria,
-                tables.remove(&position).unwrap_or_default(),
-            )
-        } else {
-            gauntlet_criteria::run_answering(&narrowed, &walk, &answering, criteria)
-        };
-        match answered {
-            Ok(exact) => {
-                for (&i, p) in answering.criteria().iter().zip(exact.probabilities) {
-                    probabilities[i] = Some(p.get());
-                }
-                if let Some(mulligan) = &exact.mulligan {
-                    for (&i, p) in answering.criteria().iter().zip(&mulligan.seven) {
-                        seven[i] = Some(p.get());
-                    }
-                }
-                for (&i, d) in answering.expectations().iter().zip(exact.distributions) {
-                    distributions[i] = Some(d);
-                }
-            }
-            // Only this one refusal falls back. Every other way a run can be
-            // refused is a question the sampler would answer no better: an
-            // empty library, a hand bigger than the deck, and a mass that did
-            // not sum to one are all facts about what was asked rather than
-            // about how expensive it was to enumerate.
-            Err(gauntlet_criteria::RunError::TooWide { paths, groups, .. })
-                if run.engine == Engine::ExactOrSample =>
-            {
-                let wider = !matches!(why, Some(report::WhySampled::TooWide { paths: p, .. }) if p >= paths);
-                if wider {
-                    why = Some(report::WhySampled::TooWide { paths, groups });
-                }
-                for &i in answering.criteria() {
-                    estimated.criteria[i] = true;
-                }
-                for &i in answering.expectations() {
-                    estimated.expectations[i] = true;
-                }
-                enumerated.method = "sampled";
-            }
-            Err(e) => return Err(e.into()),
-        }
-        enumerations.push(enumerated);
+        });
     }
 
     let mut kept = None;
@@ -218,7 +216,7 @@ pub(crate) fn answer(
                 kept = sampled
                     .mulligan
                     .as_ref()
-                    .map(|m| (m.kept.clone(), "sampled"));
+                    .map(|m| (m.kept.clone(), report::Method::Sampled));
             }
             for (i, estimated) in estimated.expectations.iter().enumerate() {
                 if *estimated {

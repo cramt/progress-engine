@@ -31,6 +31,7 @@ use gauntlet_criteria::{Grouping, Plan, Schedule, Table};
 use gauntlet_toml::Criteria;
 
 use crate::library::{self, Library};
+use crate::refusal::{self, PriceGap, QuerySite, Refusal};
 use crate::{answer, casting, effects, landdrop, mulligan, narrow, optimise, report};
 
 /// What [`prepare`] came to: the notes it made, and the run or the reason
@@ -44,7 +45,65 @@ pub struct Preparation {
     /// it arose. One entry per `note:` block, each possibly several lines.
     pub notes: Vec<String>,
     /// The prepared run, or the refusal (or failure) that stopped it.
-    pub run: Result<PreparedRun>,
+    pub run: Result<PreparedRun, Unprepared>,
+}
+
+/// Why there is no prepared run: the tool declined to answer, or something
+/// went wrong.
+///
+/// Two variants because they are two different events and a caller acting on
+/// one must not mistake it for the other. A [`Refusal`] is deliberate — the
+/// file asked something this run cannot model, and it is named — and it is
+/// the outcome the tool exists to reach rather than to avoid. A failure is
+/// everything else: a query the effect library could not parse, a bug.
+#[derive(Debug)]
+pub enum Unprepared {
+    /// Boxed because a refusal carries everything it names, and a run that
+    /// prepared should not pay for that in every `Result` it passes along.
+    Refused(Box<Refusal>),
+    Failed(anyhow::Error),
+}
+
+impl Unprepared {
+    /// The refusal, where this is one.
+    pub fn refusal(&self) -> Option<&Refusal> {
+        match self {
+            Unprepared::Refused(refusal) => Some(refusal),
+            Unprepared::Failed(_) => None,
+        }
+    }
+}
+
+impl std::fmt::Display for Unprepared {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Unprepared::Refused(refusal) => write!(f, "{refusal}"),
+            Unprepared::Failed(error) => write!(f, "{error}"),
+        }
+    }
+}
+
+impl From<Refusal> for Unprepared {
+    fn from(refusal: Refusal) -> Self {
+        Unprepared::Refused(Box::new(refusal))
+    }
+}
+
+impl From<anyhow::Error> for Unprepared {
+    fn from(error: anyhow::Error) -> Self {
+        Unprepared::Failed(error)
+    }
+}
+
+/// Where the binary reports either: on stderr, in the same place, with a
+/// failure's chain of causes kept.
+impl From<Unprepared> for anyhow::Error {
+    fn from(unprepared: Unprepared) -> Self {
+        match unprepared {
+            Unprepared::Refused(refusal) => anyhow::Error::new(*refusal),
+            Unprepared::Failed(error) => error,
+        }
+    }
 }
 
 /// A run ready to answer: the grouping and schedule every class is narrowed
@@ -95,46 +154,27 @@ fn prepare_noting(
     origin: &str,
     on_the_draw: bool,
     notes: &mut Vec<String>,
-) -> Result<PreparedRun> {
+) -> Result<PreparedRun, Unprepared> {
     // Checked before anything is grouped, so a refused query can name the
     // question that asked for it. The grouping sees a list of strings and has
-    // no idea which criterion each one came from; the criteria file does.
+    // no idea which criterion each one came from; the criteria file does. A
+    // query that parses can still be one this index cannot answer, and only
+    // the index knows which oracle tags and keywords it carries, so this is
+    // the first point where the question and the data are in the same place.
     for query in criteria.queries() {
         let asked_by = criteria.asked_by(query).unwrap_or("this file");
-        let parsed = match chip_scryfall::parse(query) {
-            Ok(parsed) => parsed,
-            Err(e) => anyhow::bail!("{asked_by}: in query {query:?}: {e}"),
-        };
-        // A query that parses can still be one this index cannot answer. Only
-        // the index knows which oracle tags it carries, so this is the first
-        // point where the question and the data are in the same place — and it
-        // is still before anything is grouped, so the refusal names the
-        // criterion that asked rather than a position in a query list.
-        if let Some(gap) = parsed.tag_gap(&library.index_tags) {
-            anyhow::bail!(
-                "{asked_by}: in query {query:?}: {}",
-                report::tag_gap_refusal(&gap, library)
-            );
-        }
-        // The same seam for `kw:`, and a separate check rather than a second
-        // arm of the one above, because the two indexes are authoritative about
-        // different things. An index carrying no tags is a fact it asserts about
-        // itself; an index listing no keywords is a fact it never recorded, so
-        // it refuses nothing — `unknown_keywords` already knows that and
-        // returns nothing there rather than calling every keyword a typo.
-        let unknown = parsed.unknown_keywords(&library.index_keywords);
-        if !unknown.is_empty() {
-            anyhow::bail!(
-                "{asked_by}: in query {query:?}: {}",
-                report::unknown_keyword_refusal(&unknown)
-            );
-        }
+        refusal::check_query(
+            origin,
+            QuerySite::Question(asked_by.to_string()),
+            query,
+            library,
+        )?;
     }
 
     // The land-drop priority, resolved before the effects so that its queries
     // sit directly behind the criteria file's own and the effect library's
     // grouping bits still land where `effects::resolve` puts them.
-    landdrop::check(criteria.land_drop(), library)?;
+    landdrop::check(criteria.land_drop(), library, origin)?;
     let land_drop = match criteria.land_drop() {
         [] => None,
         prefer => Some(landdrop::resolve(prefer, library, criteria.queries())?),
@@ -150,10 +190,10 @@ fn prepare_noting(
     // holds moves. It is resolved here rather than later because pricing it is
     // where a cost this engine cannot pay gets refused, and that has to happen
     // before anything is grouped.
-    casting::check(criteria.casting(), library)?;
+    casting::check(criteria.casting(), library, origin)?;
     let casting = match criteria.casting() {
         [] => None,
-        prefer => Some(casting::resolve(prefer, library, &asked)?),
+        prefer => Some(casting::resolve(prefer, library, &asked, origin)?),
     };
     asked.extend(casting.iter().flat_map(|p| p.queries.iter().cloned()));
     // The mulligan next, on the same terms: its queries sit behind everything
@@ -163,7 +203,7 @@ fn prepare_noting(
     let mulligan = match criteria.mulligan().filter(|m| m.declares_a_rule()) {
         None => None,
         Some(declared) => {
-            mulligan::check(declared, library)?;
+            mulligan::check(declared, library, origin)?;
             Some(mulligan::resolve(declared, library, &asked)?)
         }
     };
@@ -197,10 +237,11 @@ fn prepare_noting(
     // and a tool that picked would be reporting a line nobody chose.
     if let Some(asked_by) = criteria.counts_castings() {
         if casting.is_none() {
-            anyhow::bail!(
-                "{origin}: {asked_by}: {}",
-                report::casting_without_priority()
-            );
+            return Err(Refusal::CastingWithoutPriority {
+                file: origin.to_string(),
+                asked_by: asked_by.to_string(),
+            }
+            .into());
         }
     }
     if let Some(policy) = &land_drop {
@@ -224,7 +265,8 @@ fn prepare_noting(
     let effect_library = gauntlet_toml::EffectLibrary::parse(
         gauntlet_toml::STANDARD_LIBRARY,
         gauntlet_toml::STANDARD_LIBRARY_ORIGIN,
-    )?
+    )
+    .map_err(anyhow::Error::from)?
     .followed_by(criteria.effects().clone());
     let resolved = effects::resolve(&effect_library, library, &asked)?;
     for query in &resolved.unmatched {
@@ -311,7 +353,10 @@ fn prepare_noting(
     // asks a smaller question than the file did, so a class about turn 2 would
     // happily answer against a library the file's own horizon could never be
     // dealt from — turning a refusal into a number by changing the question.
-    gauntlet_criteria::feasible::<gauntlet_toml::EvalError>(&grouping, &schedule)?;
+    gauntlet_criteria::feasible(&grouping, &schedule).map_err(|reason| Refusal::Infeasible {
+        file: origin.to_string(),
+        reason,
+    })?;
 
     // What the walk reads for itself, so every class keeps it however little
     // its own clauses care: a live effect decides which zone a card ends up
@@ -405,7 +450,7 @@ fn refuse_unfirable_tutors(
     resolved: &effects::Resolved,
     land_drop: Option<&landdrop::Resolved>,
     casting: Option<&casting::Resolved>,
-) -> Result<()> {
+) -> Result<(), Unprepared> {
     for (applied, effect) in resolved
         .applied
         .iter()
@@ -418,16 +463,22 @@ fn refuse_unfirable_tutors(
             // that made it, so a run that cannot say which land it played
             // cannot say what it fetched either. Same shape of refusal as a
             // mana question beside a live effect, and the same remedy.
-            gauntlet_criteria::Trigger::LandDrop if land_drop.is_none() => anyhow::bail!(
-                "{origin}: {}",
-                report::fetch_without_land_drop(&applied.matches)
-            ),
+            gauntlet_criteria::Trigger::LandDrop if land_drop.is_none() => {
+                return Err(Refusal::FetchWithoutLandDrop {
+                    file: origin.to_string(),
+                    effect: applied.matches.clone(),
+                }
+                .into())
+            }
             // And a cast fetch fires when the declared line casts the card, so
             // with no line there is nothing to fire it.
-            gauntlet_criteria::Trigger::Cast if casting.is_none() => anyhow::bail!(
-                "{origin}: {}",
-                report::fetch_without_casting(&applied.matches)
-            ),
+            gauntlet_criteria::Trigger::Cast if casting.is_none() => {
+                return Err(Refusal::FetchWithoutCasting {
+                    file: origin.to_string(),
+                    effect: applied.matches.clone(),
+                }
+                .into())
+            }
             _ => {}
         }
         // A delayed fetch is the other way onto the battlefield, and it is
@@ -439,22 +490,26 @@ fn refuse_unfirable_tutors(
             for query in applied.fetch.iter().flat_map(|(prefer, _)| prefer) {
                 let lands = library.lands_matching(query)?;
                 if lands > 0 {
-                    anyhow::bail!(
-                        "{origin}: effect {:?}: {}",
-                        applied.matches,
-                        report::delayed_fetch_land_refusal(query, lands)
-                    );
+                    return Err(Refusal::DelayedFetchFindsLand {
+                        file: origin.to_string(),
+                        effect: applied.matches.clone(),
+                        query: query.clone(),
+                        lands,
+                    }
+                    .into());
                 }
             }
         } else if fetch.to == gauntlet_criteria::Fetched::Battlefield {
             for query in applied.fetch.iter().flat_map(|(prefer, _)| prefer) {
                 let spells = library.non_lands_matching(query)?;
                 if !spells.is_empty() {
-                    anyhow::bail!(
-                        "{origin}: effect {:?}: {}",
-                        applied.matches,
-                        report::fetch_battlefield_refusal(query, &spells)
-                    );
+                    return Err(Refusal::FetchNonLandToBattlefield {
+                        file: origin.to_string(),
+                        effect: applied.matches.clone(),
+                        query: query.clone(),
+                        spells,
+                    }
+                    .into());
                 }
             }
         }
@@ -475,7 +530,7 @@ fn refuse_unmodelled_mana(
     asked_by: &str,
     resolved: &effects::Resolved,
     land_drop: Option<&landdrop::Resolved>,
-) -> Result<()> {
+) -> Result<(), Unprepared> {
     // What a delayed fetch puts onto the battlefield is on the battlefield,
     // and counted there: a Lantern off Urza's Saga's third chapter is the one
     // way a spell arrives that this walk models.
@@ -492,10 +547,14 @@ fn refuse_unmodelled_mana(
     for (query, asked_by) in criteria.battlefield_queries() {
         let spells = library.stranded_matching(query, &delivered, criteria.casting())?;
         if !spells.is_empty() {
-            anyhow::bail!(
-                "{origin}: {asked_by}: {}",
-                report::battlefield_refusal(query, &spells, &library.back_face_lands(query)?)
-            );
+            return Err(Refusal::BattlefieldNonLand {
+                file: origin.to_string(),
+                asked_by: asked_by.to_string(),
+                query: query.to_string(),
+                spells,
+                back_faces: library.back_face_lands(query)?,
+            }
+            .into());
         }
     }
     // One land drop a turn is a decision, and a live effect already spends
@@ -513,10 +572,11 @@ fn refuse_unmodelled_mana(
         .iter()
         .any(|e| e.trigger == gauntlet_criteria::Trigger::LandDrop);
     if on_the_drop && land_drop.is_none() {
-        anyhow::bail!(
-            "{origin}: {asked_by}: {}",
-            report::mana_beside_effects_refusal()
-        );
+        return Err(Refusal::ManaBesideLandDropEffect {
+            file: origin.to_string(),
+            asked_by: asked_by.to_string(),
+        }
+        .into());
     }
     Ok(())
 }
@@ -528,9 +588,13 @@ fn refuse_unpriceable_mana(
     origin: &str,
     asked_by: &str,
     resolved: &effects::Resolved,
-) -> Result<()> {
-    if let Some(refusal) = report::cannot_price_mana(library) {
-        anyhow::bail!("{origin}: {asked_by}: {refusal}");
+) -> Result<(), Refusal> {
+    if let Some(gap) = PriceGap::of(library) {
+        return Err(Refusal::IndexCannotPriceMana {
+            file: origin.to_string(),
+            asked_by: asked_by.to_string(),
+            gap,
+        });
     }
     // A fetched land is on the battlefield — countable, and counted — but
     // what it *taps for* on the turn it arrives is not readable from any tag
@@ -554,10 +618,11 @@ fn refuse_unpriceable_mana(
         })
         .map(|(a, _)| a.matches.as_str())
     {
-        anyhow::bail!(
-            "{origin}: {asked_by}: {}",
-            report::mana_beside_a_fetched_land(named)
-        );
+        return Err(Refusal::ManaBesideAFetchedLand {
+            file: origin.to_string(),
+            asked_by: asked_by.to_string(),
+            effect: named.to_string(),
+        });
     }
     Ok(())
 }
@@ -575,9 +640,9 @@ impl PreparedRun {
     /// is what the sampler said, where it answered everything.
     pub(crate) fn kept(
         &self,
-        sampled: Option<(Vec<f64>, &'static str)>,
+        sampled: Option<(Vec<f64>, report::Method)>,
         criteria: &mut Criteria,
-    ) -> Result<Option<(Vec<f64>, &'static str)>> {
+    ) -> Result<Option<(Vec<f64>, report::Method)>> {
         Ok(match (sampled, &self.mulligan, &self.chose) {
             (Some(sampled), _, _) => Some(sampled),
             (None, Some(declared), _) => Some((
@@ -588,9 +653,12 @@ impl PreparedRun {
                     self.plan,
                     criteria,
                 )?,
-                "exact",
+                report::Method::Exact,
             )),
-            (None, None, Some(chose)) => Some((chose.optimised.strategy.kept().to_vec(), "exact")),
+            (None, None, Some(chose)) => Some((
+                chose.optimised.strategy.kept().to_vec(),
+                report::Method::Exact,
+            )),
             (None, None, None) => None,
         })
     }
@@ -604,7 +672,7 @@ impl PreparedRun {
         criteria: &Criteria,
         answers: &report::Answers,
         enumerations: Vec<report::Enumeration>,
-        kept: Option<(Vec<f64>, &'static str)>,
+        kept: Option<(Vec<f64>, report::Method)>,
     ) -> report::Breakdown {
         let schedule = &self.schedule;
         // The file's own queries, not the effect library's. A standard library
@@ -683,11 +751,10 @@ impl PreparedRun {
             }),
             // Read off the schedule too. A mulligan decides which hand every
             // other number is of, so it is printed above all of them.
-            mulligan: schedule
-                .mulligan()
-                .zip(criteria.mulligan())
-                .map(|(policy, declared)| {
-                    let (shares, method) = kept.clone().unwrap_or_default();
+            // And with what it kept, which a run that walked a declared
+            // mulligan always knows.
+            mulligan: schedule.mulligan().zip(criteria.mulligan()).zip(kept).map(
+                |((policy, declared), (shares, method))| {
                     let opener = schedule.gaps().first().copied().unwrap_or(0);
                     report::MulliganUse {
                         keep: declared.keep.iter().map(mulligan::describe).collect(),
@@ -705,7 +772,8 @@ impl PreparedRun {
                             .collect(),
                         method,
                     }
-                }),
+                },
+            ),
             optimised: self
                 .chose
                 .as_ref()

@@ -3,8 +3,9 @@
 //! A test run is four steps: load the deck's [`Library`], prepare the criteria
 //! file against it ([`prepare::prepare`]), answer the prepared run, and report.
 //! Preparing is where every refusal that can be made before a hand is
-//! enumerated lives, so it is public and testable in-process; the rest is
-//! reached through [`run_test`].
+//! enumerated lives, so it is public and testable in-process, and each of
+//! those refusals is a [`refusal::Refusal`] variant naming what it could not
+//! model; the rest is reached through [`run_test`].
 //!
 //! Output discipline matches the tooling this grew alongside: JSON on stdout,
 //! the human verdict on stderr, and an exit code that reflects it. A caller that
@@ -21,6 +22,7 @@ mod mulligan;
 mod narrow;
 mod optimise;
 pub mod prepare;
+pub mod refusal;
 mod report;
 pub mod sync;
 

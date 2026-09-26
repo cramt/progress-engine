@@ -88,7 +88,7 @@ _Avoid_: approximation, simulation
 An estimate within two standard errors of its bound.
 
 **Refusal**:
-Declining to answer, naming the query, key or zone that could not be modelled, rather than printing a confident wrong number.
+Declining to answer, naming the query, key or zone that could not be modelled, rather than printing a confident wrong number. Kept apart from a **failure** — a file that will not read, a bug — which is not a decision and names nothing the tool chose not to model; a run that cannot be prepared was one or the other, never both.
 _Avoid_: error (when it is deliberate), unsupported
 
 **Confident wrong number**:
