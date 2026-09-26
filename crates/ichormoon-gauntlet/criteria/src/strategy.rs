@@ -43,11 +43,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use chip_stats::{DistributionBuilder, KahanSum, Probability};
+use chip_stats::{DistributionBuilder, KahanSum};
 
+use crate::mulligan::{Back, Decider, Kept};
 use crate::{
-    compositions, feasible, settle, Answering, Board, Evaluator, Grouping, LandDetail, Mulliganed,
-    Outcomes, RunError, Schedule, Walking, MAX_PATHS,
+    compositions, feasible, settle, Answering, Board, Evaluator, Grouping, LandDetail, Outcomes,
+    RunError, Schedule, Walking, MAX_PATHS,
 };
 
 /// What the rest of a game comes to from one kept hand, for one class.
@@ -154,6 +155,16 @@ impl<'a, V: Evaluator> Conditionals<'a, V> {
     pub fn with_threads(mut self, threads: usize) -> Self {
         self.threads = threads.max(1);
         self
+    }
+
+    /// The class these continuations are played on.
+    pub(crate) fn grouping(&self) -> &'a Grouping {
+        self.grouping
+    }
+
+    /// The questions these continuations answer.
+    pub(crate) fn answering(&self) -> &'a Answering {
+        self.answering
     }
 
     /// The opener this class deals, which is its schedule's first gap.
@@ -462,6 +473,48 @@ impl Strategy {
     }
 }
 
+#[cfg(test)]
+impl Strategy {
+    /// A strategy that decides whatever `decide` says, for a test that plays
+    /// one against a declared rule. Nothing about it was optimised, so it
+    /// carries no thresholds, score or kept shares.
+    pub(crate) fn tabulated(
+        grouping: Grouping,
+        keep: u64,
+        detail: LandDetail,
+        (opener, down_to): (u32, u32),
+        decide: impl Fn(&[u32], u32) -> Decision,
+    ) -> Strategy {
+        let mut openers: Vec<(Vec<u32>, f64)> = Vec::new();
+        chip_stats::for_each_composition(grouping.group_sizes(), opener, |h, p| {
+            openers.push((h.to_vec(), p))
+        });
+        let deepest = opener.saturating_sub(down_to);
+        let decisions = openers
+            .iter()
+            .map(|(h, _)| (0..=deepest).map(|depth| decide(h, depth)).collect())
+            .collect();
+        let index = openers
+            .iter()
+            .enumerate()
+            .map(|(i, (h, _))| (key(h, &[]), i))
+            .collect();
+        Strategy {
+            grouping,
+            keep,
+            detail,
+            opener,
+            down_to,
+            openers,
+            decisions,
+            index,
+            thresholds: Vec::new(),
+            score: 0.0,
+            kept: Vec::new(),
+        }
+    }
+}
+
 /// A chosen strategy as a run carries it.
 ///
 /// Shared rather than copied, because every class of a run plays the same
@@ -719,117 +772,67 @@ pub fn run_chosen<V: Evaluator>(
             queries: join.queries().to_vec(),
         });
     }
-    let plan = answering.plan();
     let mut conditionals = Conditionals::new(&class, schedule, answering, evaluator, seed)?;
     debug_assert_eq!(
         conditionals.opener(),
         opener,
         "the class deals the same opener"
     );
-
-    let mut openers: Vec<(Vec<u32>, f64)> = Vec::new();
-    chip_stats::for_each_composition(join.group_sizes(), opener, |h, p| {
-        openers.push((h.to_vec(), p))
-    });
-    let mut mass = KahanSum::new();
-    for (_, p) in &openers {
-        mass.add(*p);
-    }
-    settle::<V::Error>(None, None, plan, &mass)?;
-
-    let classes = class.group_sizes().len();
-    let project = |counts: &[u32], to: &[usize], n: usize| {
-        let mut out = vec![0u32; n];
-        for (&c, &i) in counts.iter().zip(to) {
-            out[i] += c;
-        }
-        out
+    let decider = ChosenStrategy {
+        strategy,
+        to_strategy: &to_strategy,
+        to_class: &to_class,
+        classes: class.group_sizes().len(),
     };
-    let nothing = vec![0u32; classes];
-    let strategy_groups = strategy.grouping().group_sizes().len();
-    // Everything the pass below will read, walked first and all at once: the
-    // continuations are independent, so they are what the threads share out,
-    // and the sums over them stay on one thread in one order.
-    let mut wanted: Vec<(Vec<u32>, Vec<u32>)> = Vec::new();
-    for depth in 0..=strategy.deepest() {
-        for (first, _) in &openers {
-            let first_class = project(first, &to_class, classes);
-            let decision = strategy.decide(&project(first, &to_strategy, strategy_groups), depth);
-            if depth == 0 {
-                wanted.push((first_class.clone(), nothing.clone()));
-            }
-            if !decision.keep {
-                continue;
-            }
-            for (back, _) in &decision.bottoms {
-                for (spread, _) in spread(back, first, &to_strategy) {
-                    wanted.push((first_class.clone(), project(&spread, &to_class, classes)));
-                }
-            }
-        }
-    }
-    conditionals.prefill(wanted)?;
+    crate::mulligan::walk(&join, &to_class, &decider, &mut conditionals)
+}
 
-    let mut totals = vec![KahanSum::new(); answering.criteria().len()];
-    let mut seven = vec![KahanSum::new(); answering.criteria().len()];
-    let mut histograms = vec![DistributionBuilder::new(); answering.expectations().len()];
-    let mut kept = Vec::with_capacity(strategy.deepest() as usize + 1);
-    let mut reach = 1.0;
-    for depth in 0..=strategy.deepest() {
-        let mut keeps = KahanSum::new();
-        for (first, p) in &openers {
-            let first_class = project(first, &to_class, classes);
-            let first_strategy = project(first, &to_strategy, strategy_groups);
-            let decision = strategy.decide(&first_strategy, depth);
-            if depth == 0 {
-                let rest = conditionals.get(&first_class, &nothing)?;
-                for (total, held) in seven.iter_mut().zip(&rest.held) {
-                    total.add(p * held);
-                }
+/// A chosen strategy, deciding for openers read on a grouping at least as
+/// fine as its own: `to_strategy` says where each of that grouping's groups
+/// falls in the strategy's, and `to_class` where it falls in the class being
+/// answered.
+pub(crate) struct ChosenStrategy<'s> {
+    pub(crate) strategy: &'s Strategy,
+    pub(crate) to_strategy: &'s [usize],
+    pub(crate) to_class: &'s [usize],
+    pub(crate) classes: usize,
+}
+
+impl Decider for ChosenStrategy<'_> {
+    fn deepest(&self) -> u32 {
+        self.strategy.deepest()
+    }
+
+    /// The whole opener is kept or none of it, and every way of putting back
+    /// that the strategy ties between is spread over the cards the finer
+    /// grouping tells apart.
+    fn decide(&self, opener: &[u32], depth: u32) -> Vec<Kept> {
+        let project = |counts: &[u32], to: &[usize], n: usize| {
+            let mut out = vec![0u32; n];
+            for (&c, &i) in counts.iter().zip(to) {
+                out[i] += c;
             }
-            if !decision.keep {
-                continue;
-            }
-            keeps.add(*p);
-            for (back, q) in &decision.bottoms {
-                for (spread, r) in spread(back, first, &to_strategy) {
-                    let back_class = project(&spread, &to_class, classes);
-                    let weight = reach * p * q * r;
-                    let rest = conditionals.get(&first_class, &back_class)?;
-                    for (total, held) in totals.iter_mut().zip(&rest.held) {
-                        total.add(weight * held);
-                    }
-                    for (histogram, counted) in histograms.iter_mut().zip(&rest.counted) {
-                        for (value, share) in counted.iter().enumerate() {
-                            if *share > 0.0 {
-                                histogram.add(value as u32, weight * share);
-                            }
-                        }
-                    }
-                }
+            out
+        };
+        let groups = self.strategy.grouping().group_sizes().len();
+        let decision = self
+            .strategy
+            .decide(&project(opener, self.to_strategy, groups), depth);
+        if !decision.keep {
+            return Vec::new();
+        }
+        let mut backs = Vec::new();
+        for (back, q) in &decision.bottoms {
+            for (spread, r) in spread(back, opener, self.to_strategy) {
+                backs.push(Back {
+                    counts: project(&spread, self.to_class, self.classes),
+                    chance: *q,
+                    spread: r,
+                });
             }
         }
-        let keeps = keeps.total();
-        kept.push(Probability::new(reach * keeps));
-        reach *= 1.0 - keeps;
+        vec![Kept { chance: 1.0, backs }]
     }
-    Ok(Outcomes {
-        probabilities: totals
-            .into_iter()
-            .map(|t| Probability::new(t.total()))
-            .collect(),
-        distributions: histograms
-            .into_iter()
-            .map(DistributionBuilder::build)
-            .collect(),
-        mulligan: Some(Mulliganed {
-            kept,
-            seven: seven
-                .into_iter()
-                .map(|t| Probability::new(t.total()))
-                .collect(),
-        }),
-    })
 }
 
 /// Every way `back` — counts per strategy group — can fall across the finer

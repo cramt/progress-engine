@@ -19,6 +19,7 @@
 mod effect;
 mod grouping;
 pub mod mana;
+mod mulligan;
 mod policy;
 mod schedule;
 mod strategy;
@@ -635,11 +636,21 @@ pub fn run_answering<E>(
             queries: grouping.queries().to_vec(),
         });
     }
-    if schedule.mulligan().is_some() {
-        return run_mulligan(grouping, schedule, answering, evaluator);
-    }
-    if gaps.len() > 1 && gaps[0] > 0 {
-        return run_split(grouping, schedule, answering, evaluator);
+    // A declared mulligan branches at the opener, and a question reading
+    // later turns is split there so its parts can be walked at once. Both are
+    // the London deal: the second is the first at depth 0 alone, with every
+    // seven kept, and the keep-seven number it takes beside that is dropped
+    // because no mulligan was asked about.
+    if schedule.mulligan().is_some() || (gaps.len() > 1 && gaps[0] > 0) {
+        let mut conditionals =
+            Conditionals::new(grouping, schedule, answering, evaluator, Table::default())?;
+        let identity: Vec<usize> = (0..groups).collect();
+        let decider = mulligan::DeclaredRule::new(grouping, schedule);
+        let mut outcomes = mulligan::walk(grouping, &identity, &decider, &mut conditionals)?;
+        if schedule.mulligan().is_none() {
+            outcomes.mulligan = None;
+        }
+        return Ok(outcomes);
     }
 
     // One checkpoint, or none dealt before the one that is read: a single
@@ -688,232 +699,6 @@ pub fn run_answering<E>(
             .map(DistributionBuilder::build)
             .collect(),
         mulligan: None,
-    })
-}
-
-/// [`run_answering`], split at the opener so its parts can be walked at once.
-///
-/// Every opener is a [`Conditionals`] continuation — the rest of the game
-/// dealt from the library that hand left — and the answer is their sum,
-/// weighted by the chance of each opener. That is the same enumeration cut
-/// into independent pieces, which is what lets the threads share it; the sum
-/// is taken on this thread in opener order, so how many threads there were
-/// never reaches a digit.
-fn run_split<V: Evaluator>(
-    grouping: &Grouping,
-    schedule: &Schedule,
-    answering: &Answering,
-    evaluator: &mut V,
-) -> Result<Outcomes, RunError<V::Error>> {
-    let plan = answering.plan();
-    let opener = schedule.gaps()[0];
-    let mut openers: Vec<(Vec<u32>, f64)> = Vec::new();
-    chip_stats::for_each_composition(grouping.group_sizes(), opener, |h, p| {
-        openers.push((h.to_vec(), p))
-    });
-    let mut mass = KahanSum::new();
-    for (_, p) in &openers {
-        mass.add(*p);
-    }
-    settle::<V::Error>(None, None, plan, &mass)?;
-    let nothing = vec![0u32; grouping.group_sizes().len()];
-    let mut conditionals = crate::Conditionals::new(
-        grouping,
-        schedule,
-        answering,
-        evaluator,
-        crate::Table::default(),
-    )?;
-    conditionals.prefill(
-        openers
-            .iter()
-            .map(|(first, _)| (first.clone(), nothing.clone()))
-            .collect(),
-    )?;
-    let mut totals = vec![KahanSum::new(); answering.criteria().len()];
-    let mut histograms = vec![DistributionBuilder::new(); answering.expectations().len()];
-    for (first, p) in &openers {
-        let rest = conditionals.get(first, &nothing)?;
-        for (total, held) in totals.iter_mut().zip(&rest.held) {
-            total.add(p * held);
-        }
-        for (histogram, counted) in histograms.iter_mut().zip(&rest.counted) {
-            for (value, share) in counted.iter().enumerate() {
-                if *share > 0.0 {
-                    histogram.add(value as u32, p * share);
-                }
-            }
-        }
-    }
-    Ok(Outcomes {
-        probabilities: totals
-            .into_iter()
-            .map(|t| Probability::new(t.total()))
-            .collect(),
-        distributions: histograms
-            .into_iter()
-            .map(DistributionBuilder::build)
-            .collect(),
-        mulligan: None,
-    })
-}
-
-/// [`run_answering`] under a declared mulligan: one enumeration per depth,
-/// weighted by the chance of reaching it.
-///
-/// Under the London mulligan every redraw is a fresh deal of the whole
-/// library, so depth `d` is the ordinary enumeration with `d` cards put back
-/// and a hand kept only if the rule says so — and reaching depth `d` at all is
-/// the product of having thrown back every hand before it. Nothing here is
-/// sampled, and nothing is new arithmetic: each term is a walk this engine
-/// already knew how to do.
-///
-/// The walk is split at the opener, because that is where the mulligan
-/// branches. What goes back is decided from the opener's counts, and where a
-/// tie inside one bottoming entry makes that a coin toss, each side of the coin
-/// is its own branch with its own weight — and each branch then deals the same
-/// later draws out of the same library, but plays them from a different hand.
-/// A tutor on turn 2 can depend on which card went back, so the branch has to
-/// come before the rest of the path is dealt rather than after.
-///
-/// Every branch's rest of the game is a [`Conditionals`] continuation, walked
-/// on as many threads as there are and summed on this one in a fixed order.
-/// A hand the rule throws back at depth `d > 0` is not walked past its opener,
-/// because nothing about its later turns is asked. At depth 0 every hand is
-/// walked, because the keep-your-seven number beside the mulligan's is exactly
-/// the depth-0 walk with the keep rule ignored.
-fn run_mulligan<V: Evaluator>(
-    grouping: &Grouping,
-    schedule: &Schedule,
-    answering: &Answering,
-    evaluator: &mut V,
-) -> Result<Outcomes, RunError<V::Error>> {
-    let plan = answering.plan();
-    let sizes = grouping.group_sizes();
-    let policy = schedule
-        .mulligan()
-        .expect("only called for a run that declared a mulligan");
-    // The opener is the first checkpoint, which a mulligan run always keeps as
-    // its own: `Schedule::narrowed` observes turn 0 whenever there is a
-    // mulligan to decide there.
-    let opener = *schedule
-        .gaps()
-        .first()
-        .expect("a schedule has at least the opening hand");
-    let deepest = policy.deepest(opener);
-
-    let mut openers: Vec<(Vec<u32>, f64)> = Vec::new();
-    chip_stats::for_each_composition(sizes, opener, |h, p| openers.push((h.to_vec(), p)));
-    let mut mass = KahanSum::new();
-    for (_, p) in &openers {
-        mass.add(*p);
-    }
-    settle::<V::Error>(None, None, plan, &mass)?;
-
-    // Every branch, decided before anything is walked: which opener, what
-    // went back and with what chance, and whether the rule keeps what is left.
-    struct Branch {
-        opener: usize,
-        back: Vec<u32>,
-        chance: f64,
-        kept: bool,
-    }
-    let board = Board::new(grouping, schedule);
-    let mut branches: Vec<Vec<Branch>> = Vec::with_capacity(deepest as usize + 1);
-    let mut wanted: Vec<(Vec<u32>, Vec<u32>)> = Vec::new();
-    let mut hand = vec![0u32; sizes.len()];
-    for depth in 0..=deepest {
-        let mut here = Vec::new();
-        for (i, (first, _)) in openers.iter().enumerate() {
-            let mut options: Vec<(Vec<u32>, f64)> = Vec::new();
-            board.bottomings(first, depth, |back, q| options.push((back.to_vec(), q)));
-            for (back, chance) in options {
-                for ((h, f), b) in hand.iter_mut().zip(first).zip(&back) {
-                    *h = f - b;
-                }
-                let kept = depth == deepest || board.keeps(&hand);
-                if kept || depth == 0 {
-                    wanted.push((first.clone(), back.clone()));
-                }
-                here.push(Branch {
-                    opener: i,
-                    back,
-                    chance,
-                    kept,
-                });
-            }
-        }
-        branches.push(here);
-    }
-    drop(board);
-
-    let mut conditionals = crate::Conditionals::new(
-        grouping,
-        schedule,
-        answering,
-        evaluator,
-        crate::Table::default(),
-    )?;
-    conditionals.prefill(wanted)?;
-
-    let mut totals = vec![KahanSum::new(); answering.criteria().len()];
-    let mut seven = vec![KahanSum::new(); answering.criteria().len()];
-    let mut histograms = vec![DistributionBuilder::new(); answering.expectations().len()];
-    let mut kept: Vec<Probability> = Vec::with_capacity(deepest as usize + 1);
-    let mut reach = 1.0;
-    for here in &branches {
-        let mut keeps = KahanSum::new();
-        for branch in here {
-            let (first, p) = &openers[branch.opener];
-            let depth_zero = kept.is_empty();
-            if !branch.kept && !depth_zero {
-                continue;
-            }
-            let rest = conditionals.get(first, &branch.back)?;
-            if depth_zero {
-                // The seven's own probability, with no mulligan weight on it:
-                // it is the number had this hand been kept.
-                for (total, held) in seven.iter_mut().zip(&rest.held) {
-                    total.add(p * branch.chance * held);
-                }
-            }
-            if !branch.kept {
-                continue;
-            }
-            keeps.add(p * branch.chance);
-            let weight = reach * p * branch.chance;
-            for (total, held) in totals.iter_mut().zip(&rest.held) {
-                total.add(weight * held);
-            }
-            for (histogram, counted) in histograms.iter_mut().zip(&rest.counted) {
-                for (value, share) in counted.iter().enumerate() {
-                    if *share > 0.0 {
-                        histogram.add(value as u32, weight * share);
-                    }
-                }
-            }
-        }
-        let keeps = keeps.total();
-        kept.push(Probability::new(reach * keeps));
-        reach *= 1.0 - keeps;
-    }
-
-    Ok(Outcomes {
-        probabilities: totals
-            .into_iter()
-            .map(|t| Probability::new(t.total()))
-            .collect(),
-        distributions: histograms
-            .into_iter()
-            .map(DistributionBuilder::build)
-            .collect(),
-        mulligan: Some(Mulliganed {
-            kept,
-            seven: seven
-                .into_iter()
-                .map(|t| Probability::new(t.total()))
-                .collect(),
-        }),
     })
 }
 
