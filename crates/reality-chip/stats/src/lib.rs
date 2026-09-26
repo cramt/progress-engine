@@ -260,6 +260,31 @@ pub trait Walk {
     /// One complete path and the joint probability of it, as
     /// [`for_each_checkpoint_path`]'s callback.
     fn path(&mut self, reached: Path<'_>, p: f64);
+
+    /// How many cards the **sized gap** after the checkpoints in `reached`
+    /// deals, or zero for none.
+    ///
+    /// The random counterpart of [`Walk::removals`]: the path so far decides
+    /// how many more cards are dealt before the next fixed gap, where a
+    /// removal decides how many leave undealt. Only a sized walk
+    /// ([`for_each_checkpoint_path_sized`]) asks, and it asks after every
+    /// checkpoint, immediately after asking for the removals of the same
+    /// prefix, so a caller answering both from one replay of the path can do
+    /// the replay once.
+    ///
+    /// A non-zero answer is dealt as one more checkpoint, cumulative like every
+    /// other, and the walk then asks again about the longer prefix: a gap can
+    /// follow a gap. Zero adds nothing and costs one composition, so a path on
+    /// which nothing asked is exactly the path the fixed gaps alone deal. Which
+    /// checkpoints were sized is not recorded beside them: the caller decided
+    /// every one of them from the prefix, so replaying its own decisions tells
+    /// it again.
+    ///
+    /// A gap is never dealt larger than what is left to deal from. Asked for
+    /// more, it deals everything that is left.
+    fn gap(&mut self, _reached: Path<'_>) -> u32 {
+        0
+    }
 }
 
 /// [`for_each_checkpoint_path`], against a population that shrinks as the walk
@@ -429,6 +454,182 @@ fn descend(
             *d -= t;
         }
     });
+}
+
+/// [`for_each_checkpoint_path_removing`], where the path also decides how many
+/// cards are dealt between the fixed gaps.
+///
+/// After every checkpoint — the last fixed one included, and every sized one —
+/// the walk asks for the removals and then for [`Walk::gap`]. A non-zero gap
+/// is dealt out of whatever is left, as one multivariate hypergeometric, and
+/// becomes one more checkpoint in the history; then the walk asks again. The
+/// chain is still Markov and the path probabilities still sum to 1, because
+/// every deal is one hypergeometric over what the path left, whatever decided
+/// its size.
+///
+/// A separate entry point rather than a mode of the removing walk because
+/// asking costs: this asks at every checkpoint including the last, where the
+/// leaves are, and a walk that sizes nothing should not pay for learning so.
+pub fn for_each_checkpoint_path_sized(groups: &[u32], gaps: &[u32], walk: &mut impl Walk) {
+    let mut leaf = |walk: &mut _, reached: Path<'_>, p: f64| {
+        Walk::path(walk, reached, p);
+        true
+    };
+    sized_from(groups, None, gaps, walk, &mut leaf);
+}
+
+/// [`for_each_checkpoint_path_sized`], resumed from a first checkpoint that
+/// has already been reached. See [`for_each_checkpoint_path_after`].
+///
+/// `walk` is asked for its removals and its sized gap after `first` exactly as
+/// the full walk would ask, before anything else is dealt.
+pub fn for_each_checkpoint_path_sized_after(
+    groups: &[u32],
+    first: &[u32],
+    gaps: &[u32],
+    walk: &mut impl Walk,
+) {
+    let mut leaf = |walk: &mut _, reached: Path<'_>, p: f64| {
+        Walk::path(walk, reached, p);
+        true
+    };
+    sized_from(groups, Some(first), gaps, walk, &mut leaf);
+}
+
+/// How many paths [`for_each_checkpoint_path_sized`] would hand to
+/// [`Walk::path`], counting no further than `cap`.
+///
+/// A sized walk has no closed-form width: how many paths it takes depends on
+/// how many of them asked for a gap, which only the walk knows. So it is
+/// counted, by the same descent asking the same questions, without the
+/// leaves; and it stops at `cap`, because a caller with a ceiling has its
+/// answer as soon as the count reaches it.
+pub fn count_checkpoint_paths_sized(
+    groups: &[u32],
+    gaps: &[u32],
+    walk: &mut impl Walk,
+    cap: u128,
+) -> u128 {
+    let mut count: u128 = 0;
+    let mut leaf = |_: &mut _, _: Path<'_>, _: f64| {
+        count += 1;
+        count < cap
+    };
+    sized_from(groups, None, gaps, walk, &mut leaf);
+    count.min(cap)
+}
+
+/// The sized walk, from nothing or from a first checkpoint already reached.
+/// `leaf` is handed every complete path and says whether to go on.
+fn sized_from<W: Walk>(
+    groups: &[u32],
+    first: Option<&[u32]>,
+    gaps: &[u32],
+    walk: &mut W,
+    leaf: &mut impl FnMut(&mut W, Path<'_>, f64) -> bool,
+) {
+    let population: u32 = groups.iter().sum();
+    let already: u32 = first.map_or(0, |f| f.iter().sum());
+    if already + gaps.iter().sum::<u32>() > population {
+        return;
+    }
+    let mut history: Vec<Vec<u32>> = Vec::with_capacity(gaps.len() + 1);
+    // `removed[k]` is what is out of the library once the history holds `k`
+    // checkpoints. Grown as a path turns out deeper than any before it, and
+    // never shrunk, so a slot is allocated once per depth rather than once
+    // per node.
+    let mut removed = vec![vec![0u32; groups.len()]];
+    let mut drawn = vec![0u32; groups.len()];
+    let mut pending = 0;
+    if let Some(first) = first {
+        debug_assert_eq!(groups.len(), first.len(), "one count per group");
+        drawn.copy_from_slice(first);
+        history.push(first.to_vec());
+        removed.push(vec![0u32; groups.len()]);
+        walk.removals(&history, &mut removed[1]);
+        pending = walk.gap(&history);
+    }
+    let mut state = Sized {
+        groups,
+        gaps,
+        drawn,
+        removed,
+        history,
+    };
+    state.descend(0, pending, 1.0, walk, leaf);
+}
+
+/// The state a sized walk carries down its descent.
+struct Sized<'a> {
+    groups: &'a [u32],
+    gaps: &'a [u32],
+    drawn: Vec<u32>,
+    removed: Vec<Vec<u32>>,
+    history: Vec<Vec<u32>>,
+}
+
+impl Sized<'_> {
+    /// Deal the pending sized gap if there is one, the next fixed gap if not,
+    /// and hand the path over when neither is left. `fixed` is how many fixed
+    /// gaps are dealt. Returns whether to go on.
+    fn descend<W: Walk>(
+        &mut self,
+        fixed: usize,
+        pending: u32,
+        acc: f64,
+        walk: &mut W,
+        leaf: &mut impl FnMut(&mut W, Path<'_>, f64) -> bool,
+    ) -> bool {
+        let (size, fixed_after) = if pending > 0 {
+            (pending, fixed)
+        } else if let Some(&gap) = self.gaps.get(fixed) {
+            (gap, fixed + 1)
+        } else {
+            return leaf(walk, &self.history, acc);
+        };
+        let level = self.history.len();
+        let available: Vec<u32> = self
+            .groups
+            .iter()
+            .zip(&self.drawn)
+            .zip(&self.removed[level])
+            .map(|((total, used), gone)| {
+                debug_assert!(used + gone <= *total, "removed more than the group holds");
+                total.saturating_sub(*used).saturating_sub(*gone)
+            })
+            .collect();
+        // Only a sized gap is held to what is left. A fixed gap that cannot be
+        // dealt loses its paths, which is the mass check's to catch and the
+        // caller's feasibility check's to prevent.
+        let size = if pending > 0 {
+            size.min(available.iter().sum())
+        } else {
+            size
+        };
+        let mut going = true;
+        for_each_composition(&available, size, |take, p| {
+            if !going {
+                return;
+            }
+            for (d, t) in self.drawn.iter_mut().zip(take) {
+                *d += t;
+            }
+            self.history.push(self.drawn.clone());
+            if self.removed.len() <= level + 1 {
+                self.removed.push(vec![0u32; self.groups.len()]);
+            }
+            let (here, next) = self.removed.split_at_mut(level + 1);
+            next[0].copy_from_slice(&here[level]);
+            walk.removals(&self.history, &mut next[0]);
+            let next_gap = walk.gap(&self.history);
+            going = self.descend(fixed_after, next_gap, acc * p, walk, leaf);
+            self.history.pop();
+            for (d, t) in self.drawn.iter_mut().zip(take) {
+                *d -= t;
+            }
+        });
+        going
+    }
 }
 
 /// Probability that a checkpoint path satisfies `pred`.

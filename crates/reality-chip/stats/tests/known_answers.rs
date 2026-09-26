@@ -543,3 +543,273 @@ fn a_cached_ln_choose_is_the_computed_one_bit_for_bit() {
         }
     }
 }
+
+// --- sized gaps -------------------------------------------------------------
+//
+// A draw whose size the path decides. Stated, as removals are, in this crate's
+// own words: a walk that asks for more cards when a checkpoint dealt a card of
+// some group, and for none otherwise. Nothing here knows why it asks.
+
+/// Deals `size` more cards after the first checkpoint when that checkpoint
+/// dealt at least one card of group 0, and nothing anywhere else.
+struct MoreAfterGroupZero<F> {
+    size: u32,
+    seen: F,
+}
+
+impl<F: FnMut(h::Path<'_>, f64)> h::Walk for MoreAfterGroupZero<F> {
+    fn removals(&mut self, _reached: h::Path<'_>, _out: &mut [u32]) {}
+    fn gap(&mut self, reached: h::Path<'_>) -> u32 {
+        if reached.len() == 1 && reached[0][0] >= 1 {
+            self.size
+        } else {
+            0
+        }
+    }
+    fn path(&mut self, reached: h::Path<'_>, p: f64) {
+        (self.seen)(reached, p)
+    }
+}
+
+/// A walk recording every path it is handed, with the sized gap `size` decides
+/// from the history so far and `remove` deciding the removals.
+struct Recording<'a, S, R> {
+    size: S,
+    remove: R,
+    paths: &'a mut Vec<(Vec<Vec<u32>>, f64)>,
+}
+
+impl<S: FnMut(h::Path<'_>) -> u32, R: FnMut(h::Path<'_>, &mut [u32])> h::Walk
+    for Recording<'_, S, R>
+{
+    fn removals(&mut self, reached: h::Path<'_>, out: &mut [u32]) {
+        (self.remove)(reached, out)
+    }
+    fn gap(&mut self, reached: h::Path<'_>) -> u32 {
+        (self.size)(reached)
+    }
+    fn path(&mut self, reached: h::Path<'_>, p: f64) {
+        self.paths.push((reached.to_vec(), p))
+    }
+}
+
+fn removes_nothing(_: h::Path<'_>, _: &mut [u32]) {}
+
+#[test]
+fn a_sized_gap_is_dealt_where_the_path_asks_for_it() {
+    // Two groups of two, A and B. Deal one; if it was an A, deal two more;
+    // then deal one.
+    //
+    //   A (1/2): two of [1 A, 2 B] is AB (2/3) or BB (1/3).
+    //            AB leaves one B for the last card, BB leaves one A.
+    //            [1,0] [2,1] [2,2]  1/2 * 2/3 = 1/3
+    //            [1,0] [1,2] [2,2]  1/2 * 1/3 = 1/6
+    //   B (1/2): nothing more is dealt, and the last card is out of [2 A, 1 B].
+    //            [0,1] [1,1]        1/2 * 2/3 = 1/3
+    //            [0,1] [0,2]        1/2 * 1/3 = 1/6
+    let mut paths = Vec::new();
+    h::for_each_checkpoint_path_sized(
+        &[2, 2],
+        &[1, 1],
+        &mut MoreAfterGroupZero {
+            size: 2,
+            seen: |hist: h::Path<'_>, p: f64| paths.push((hist.to_vec(), p)),
+        },
+    );
+    // In the walk's order: a group's smaller share first.
+    let expected: Vec<(Vec<Vec<u32>>, f64)> = vec![
+        (vec![vec![0, 1], vec![0, 2]], 1.0 / 6.0),
+        (vec![vec![0, 1], vec![1, 1]], 1.0 / 3.0),
+        (vec![vec![1, 0], vec![1, 2], vec![2, 2]], 1.0 / 6.0),
+        (vec![vec![1, 0], vec![2, 1], vec![2, 2]], 1.0 / 3.0),
+    ];
+    assert_eq!(paths.len(), expected.len(), "{paths:?}");
+    for (a, b) in paths.iter().zip(&expected) {
+        assert_eq!(a.0, b.0);
+        assert!(close(a.1, b.1, 1e-12), "{:?}: {} vs {}", a.0, a.1, b.1);
+    }
+    // At least one A by the end: 1/3 + 1/6 + 1/3.
+    let held: f64 = paths
+        .iter()
+        .filter(|(hist, _)| hist.last().unwrap()[0] >= 1)
+        .map(|(_, p)| p)
+        .sum();
+    assert!(close(held, 5.0 / 6.0, 1e-12), "was {held}");
+}
+
+#[test]
+fn a_sized_gap_of_zero_leaves_every_path_untouched() {
+    // A walk that never sizes a gap is the plain walk, bit for bit: a path on
+    // which nothing fired pays nothing.
+    let groups = [12, 8, 79];
+    let gaps = [7, 1, 1];
+    let mut sized = Vec::new();
+    h::for_each_checkpoint_path_sized(
+        &groups,
+        &gaps,
+        &mut MoreAfterGroupZero {
+            size: 0,
+            seen: |hist: h::Path<'_>, p: f64| sized.push((hist.to_vec(), p)),
+        },
+    );
+    let mut plain = Vec::new();
+    h::for_each_checkpoint_path(&groups, &gaps, |hist, p| plain.push((hist.to_vec(), p)));
+    assert_eq!(sized.len(), plain.len());
+    for (a, b) in sized.iter().zip(&plain) {
+        assert_eq!(a.0, b.0);
+        assert_eq!(a.1.to_bits(), b.1.to_bits(), "bit for bit, not close to");
+    }
+}
+
+#[test]
+fn a_sized_gap_every_path_takes_is_a_fixed_gap() {
+    // Asking for two after the first checkpoint on every path is the fixed
+    // schedule [7, 2, 1], term for term.
+    let mut sized = Vec::new();
+    h::for_each_checkpoint_path_sized(
+        &[5, 3, 7],
+        &[7, 1],
+        &mut Recording {
+            size: |reached: h::Path<'_>| if reached.len() == 1 { 2 } else { 0 },
+            remove: removes_nothing,
+            paths: &mut sized,
+        },
+    );
+    let mut fixed = Vec::new();
+    h::for_each_checkpoint_path(&[5, 3, 7], &[7, 2, 1], |hist, p| {
+        fixed.push((hist.to_vec(), p))
+    });
+    assert_eq!(sized.len(), fixed.len());
+    for (a, b) in sized.iter().zip(&fixed) {
+        assert_eq!(a.0, b.0);
+        assert!(close(a.1, b.1, 1e-12), "{} vs {}", a.1, b.1);
+    }
+}
+
+#[test]
+fn a_sized_gap_is_asked_for_again_after_it_is_dealt() {
+    // A gap can follow a gap: deal one card at a time, from [1, 3], until the
+    // one card of group 0 turns up. One path per position it can be in, each
+    // 1/4, and the history is as long as the card was deep.
+    let mut paths = Vec::new();
+    h::for_each_checkpoint_path_sized(
+        &[1, 3],
+        &[0],
+        &mut Recording {
+            size: |reached: h::Path<'_>| u32::from(reached.last().unwrap()[0] == 0),
+            remove: removes_nothing,
+            paths: &mut paths,
+        },
+    );
+    let lengths: Vec<usize> = paths.iter().map(|(hist, _)| hist.len()).collect();
+    assert_eq!(lengths, vec![5, 4, 3, 2], "{paths:?}");
+    for (_, p) in &paths {
+        assert!(close(*p, 0.25, 1e-12), "was {p}");
+    }
+}
+
+#[test]
+fn a_sized_gap_is_dealt_after_the_removals_decided_at_the_same_checkpoint() {
+    // Two groups of two. Deal one. If it was group 0, the other card of group
+    // 0 is removed and one more card is dealt, which can then only be group 1.
+    //
+    //   group 0 (1/2): [1,0] [1,1]
+    //   group 1 (1/2): [0,1]
+    let mut paths = Vec::new();
+    h::for_each_checkpoint_path_sized(
+        &[2, 2],
+        &[1],
+        &mut Recording {
+            size: |reached: h::Path<'_>| u32::from(reached.len() == 1 && reached[0][0] == 1),
+            remove: |reached: h::Path<'_>, out: &mut [u32]| out[0] = reached[0][0],
+            paths: &mut paths,
+        },
+    );
+    let histories: Vec<&Vec<Vec<u32>>> = paths.iter().map(|(hist, _)| hist).collect();
+    assert_eq!(
+        histories,
+        vec![&vec![vec![0, 1]], &vec![vec![1, 0], vec![1, 1]]]
+    );
+    for (_, p) in &paths {
+        assert!(close(*p, 0.5, 1e-12), "was {p}");
+    }
+}
+
+#[test]
+fn a_sized_gap_never_deals_more_than_the_library_holds() {
+    // Three cards, one dealt, and a gap of five asked for after it: the gap
+    // deals the two that are left rather than losing the path.
+    let mut paths = Vec::new();
+    h::for_each_checkpoint_path_sized(
+        &[1, 2],
+        &[1],
+        &mut Recording {
+            size: |reached: h::Path<'_>| if reached.len() == 1 { 5 } else { 0 },
+            remove: removes_nothing,
+            paths: &mut paths,
+        },
+    );
+    let mass: f64 = paths.iter().map(|(_, p)| p).sum();
+    assert!(close(mass, 1.0, 1e-12), "mass {mass}");
+    assert!(paths.iter().all(|(hist, _)| hist[1] == vec![1, 2]));
+}
+
+#[test]
+fn a_sized_walk_resumed_after_its_first_checkpoint_is_the_same_walk() {
+    let groups = [2, 2];
+    let mut full = Vec::new();
+    h::for_each_checkpoint_path_sized(
+        &groups,
+        &[1, 1],
+        &mut MoreAfterGroupZero {
+            size: 2,
+            seen: |hist: h::Path<'_>, p: f64| full.push((hist.to_vec(), p)),
+        },
+    );
+    let mut split = Vec::new();
+    h::for_each_composition(&groups, 1, |first, p_first| {
+        h::for_each_checkpoint_path_sized_after(
+            &groups,
+            first,
+            &[1],
+            &mut MoreAfterGroupZero {
+                size: 2,
+                seen: |hist: h::Path<'_>, p: f64| split.push((hist.to_vec(), p_first * p)),
+            },
+        );
+    });
+    assert_eq!(full.len(), split.len());
+    for (a, b) in full.iter().zip(&split) {
+        assert_eq!(a.0, b.0);
+        assert!(close(a.1, b.1, 1e-12), "{} vs {}", a.1, b.1);
+    }
+}
+
+#[test]
+fn the_paths_of_a_sized_walk_are_counted_without_walking_them() {
+    // The four paths of the first sized example, and a cap that stops the
+    // count where a caller would refuse anyway.
+    let mut walk = MoreAfterGroupZero {
+        size: 2,
+        seen: |_: h::Path<'_>, _: f64| panic!("counting hands out no path"),
+    };
+    assert_eq!(
+        h::count_checkpoint_paths_sized(&[2, 2], &[1, 1], &mut walk, 100),
+        4
+    );
+    assert_eq!(
+        h::count_checkpoint_paths_sized(&[2, 2], &[1, 1], &mut walk, 3),
+        3
+    );
+    // With nothing sized, it is the number of paths the plain walk hands out.
+    let mut plain = 0u128;
+    h::for_each_checkpoint_path(&[12, 8, 79], &[7, 1, 1], |_, _| plain += 1);
+    let mut never = MoreAfterGroupZero {
+        size: 0,
+        seen: |_: h::Path<'_>, _: f64| {},
+    };
+    assert_eq!(
+        h::count_checkpoint_paths_sized(&[12, 8, 79], &[7, 1, 1], &mut never, u128::MAX),
+        plain
+    );
+}

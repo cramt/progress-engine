@@ -72,7 +72,7 @@ Taking a known number of cards out of a named group, deterministically, between 
 _Avoid_: tutor (here), fetch (here)
 
 **Sized gap**:
-A draw whose size is decided by the path so far rather than fixed before the walk starts. It is the random counterpart of a removal, and a size of zero costs one composition. Decided in [ADR-0017](../../docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md), not yet built.
+A draw whose size is decided by the path so far rather than fixed before the walk starts. It is the random counterpart of a removal, asked for after every checkpoint right after the removals, and dealt as one more checkpoint; a size of zero costs one composition. A walk with sized gaps has no closed-form width, so it is counted. Decided in [ADR-0017](../../docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md).
 
 **Tail**:
 A last draw dealt over a coarsening of the groups: several groups counted as one, because nothing reads them apart. Decided in ADR-0017, not yet built.

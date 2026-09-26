@@ -226,3 +226,58 @@ fn splitting_the_draws_across_checkpoints_leaves_the_final_marginal_unchanged() 
         })
         .unwrap();
 }
+
+/// A walk whose sized gaps are decided from the path: after any checkpoint
+/// that dealt a card of group 0, deal `size` more — but only while the
+/// history holds at most `more` checkpoints, so no path deals more than `more`
+/// sized gaps and the walk stays small.
+struct Sizing {
+    size: u32,
+    more: usize,
+    mass: KahanSum,
+}
+
+impl h::Walk for Sizing {
+    fn removals(&mut self, _: h::Path<'_>, _: &mut [u32]) {}
+    fn gap(&mut self, reached: h::Path<'_>) -> u32 {
+        let now = reached[reached.len() - 1][0];
+        let before = reached.len().checked_sub(2).map_or(0, |p| reached[p][0]);
+        if now > before && reached.len() <= self.more {
+            self.size
+        } else {
+            0
+        }
+    }
+    fn path(&mut self, _: h::Path<'_>, p: f64) {
+        self.mass.add(p);
+    }
+}
+
+#[test]
+fn a_sized_walk_sums_to_one_whatever_the_path_asks_for() {
+    // Every deal is one hypergeometric over what the path left, however its
+    // size was decided, so the paths still partition the sample space.
+    //
+    // Shaped to leave room for every sized card before the last fixed gap: a
+    // fixed gap the library cannot cover loses its paths, which is the
+    // caller's feasibility check to prevent and not what this asserts.
+    let cases = (groups_and_gaps(), 0u32..=3, 0usize..=2);
+    runner(64)
+        .run(&cases, |((groups, gaps), size, more)| {
+            let spare = groups.iter().sum::<u32>() - gaps.iter().sum::<u32>();
+            let size = size.min(spare / (more.max(1) as u32));
+            let mut walk = Sizing {
+                size,
+                more,
+                mass: KahanSum::new(),
+            };
+            h::for_each_checkpoint_path_sized(&groups, &gaps, &mut walk);
+            prop_assert!(
+                (walk.mass.total() - 1.0).abs() < 1e-12,
+                "{groups:?} over gaps {gaps:?}, sized {size} up to {more} more: {}",
+                walk.mass.total()
+            );
+            Ok(())
+        })
+        .unwrap();
+}
