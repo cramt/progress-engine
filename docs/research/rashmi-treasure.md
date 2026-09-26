@@ -10,11 +10,11 @@ The bar for building was 0.5. **Recommendation: close #81 as not worth the
 width.** The free cast off the opponent's exiled card was out of scope and is
 not counted.
 
-> **Reproducing.** The measurement ran against the checker at commit `5b08375`,
+> **Reproducing.** The measurement ran against the checker as it stood then,
 > whose `line_path` took `treasure=`, `delayed=` and `treasure_ceiling=`. Those
-> parameters were measuring tools, not rules the engine has, and were left out
-> when the mills (#85) reshaped `line_path`. Check out `5b08375` to re-run
-> `rashmi-treasure.py`.
+> were measuring tools, not rules the engine has, and were left out of
+> `checker/` when the mills (#85) reshaped `line_path`. That version is kept as
+> `rashmi-treasure-checker.py`, and `rashmi-treasure.py` loads it.
 
 ## What was measured
 
@@ -34,7 +34,7 @@ Mind Stone), and every Lantern route the checker models:
 
 **The rules the checker learned**, from the card and the CR rather than from
 `crates/`. They are in the line notes of `checker/checker.py` and pinned by
-`checker/test_treasure.py`:
+`the tests that shipped with the measurement`:
 
 - **A trigger needs its permanent on the battlefield** (CR 603.2, 603.6). Casting Rashmi never triggers her. On the turn she resolves, that turn's first spell is behind her, so her first Treasure comes with the first spell of a *later* turn.
 - **The Treasure is created after the first spell is cast** (CR 603.3). It pays for a later spell that turn, or on a later turn, and never for the spell that made it (CR 601.2g-h).
@@ -82,7 +82,7 @@ a third of a point does not pay for that.
 Reopen it if the north star moves to a question where one mana after the
 commander is the bottleneck: a more expensive second payload, or a deck with
 free spells. The checker already models the Treasure, behind `line_path(...,
-treasure=...)`, and `checker/test_treasure.py` holds its timing. Re-run:
+treasure=...)`, and `the tests that shipped with the measurement` holds its timing. Re-run:
 
     python3 docs/research/rashmi-treasure.py --games 200000
 

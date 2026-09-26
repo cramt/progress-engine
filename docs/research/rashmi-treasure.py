@@ -1,5 +1,6 @@
 """What Rashmi and Ragavan's Treasure is worth to the Lantern north star (#81).
-# Runs against checker/checker.py at commit 5b08375 (see rashmi-treasure.md).
+Runs against rashmi-treasure-checker.py beside it: the checker as it stood
+when this was measured, with the Treasure's measuring parameters.
 
 The north star: Lantern of Insight on the battlefield AND Rashmi and Ragavan
 cast, by the end of turn 5, out of one mana budget. This deals shuffles of
@@ -18,7 +19,7 @@ Two orders of the line are played:
   +fillers        lantern-first, then any one-mana permanent (FILLERS)
 
 What the Treasure is, and why it pays only for a spell after the turn's first,
-is in the checker's line notes and checker/test_treasure.py. The free cast off
+is in the checker's line notes and the tests that shipped with the measurement. The free cast off
 the opponent's exiled card is not counted.
 
 Each deal is played three ways: without the Treasure, with it, and against a
@@ -42,8 +43,14 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "checker"))
-import checker  # noqa: E402
+import importlib.util  # noqa: E402
+
+_spec = importlib.util.spec_from_file_location(
+    "checker", Path(__file__).with_name("rashmi-treasure-checker.py")
+)
+checker = importlib.util.module_from_spec(_spec)
+sys.modules["checker"] = checker
+_spec.loader.exec_module(checker)
 
 RASHMI, LANTERN = checker.RASHMI, checker.LANTERN
 ROCKS = tuple(entry for entry in checker.LANTERN_ROCK_LINE if entry != (RASHMI,))
