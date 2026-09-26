@@ -8,6 +8,9 @@ ESTIMATE: a question here was too wide to enumerate exactly: 7864320
           Everything else below was enumerated exactly. A difference
           smaller than a figure's ± is not a difference.
           Pass --exact to refuse a question this wide rather than estimate it.
+note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc" (adds 1, on cast)
+      applies to 2 cards: Birds of Paradise, Elvish Mystic
+      a mana source once the [casting] line casts it; the mana budget does not count it yet
 note: effect "otag:fetchland" (on landdrop)
       applies to 4 cards: Misty Rainforest, Prismatic Vista, Scalding Tarn, Wooded Foothills
       and fetches, to your battlefield, the first of these the library still holds:

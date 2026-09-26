@@ -1,5 +1,5 @@
-ESTIMATE: a question here was too wide to enumerate exactly: 28840812
-          compositions across 7 groups, against a ceiling of 5000000. It was
+ESTIMATE: a question here was too wide to enumerate exactly: 379980315
+          compositions across 9 groups, against a ceiling of 5000000. It was
           answered by sampling 200000 hands instead.
           2 of the 3 questions here needed that, and they are the ones
           quoted with a ±:
@@ -10,6 +10,12 @@ ESTIMATE: a question here was too wide to enumerate exactly: 28840812
           Pass --exact to refuse a question this wide rather than estimate it.
 note: effect "t:land otag:surveil" (look 1, on landdrop, everything stays on top)
       applies to 1 card: Hedge Maze
+note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc" (adds 1, on cast)
+      applies to 5 cards: Arcane Signet, Mind Stone, Talisman of Creativity, Talisman of Curiosity, Talisman of Impulse
+      a mana source once the [casting] line casts it; the mana budget does not count it yet
+note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add {C}{C}.\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc" (adds 2, on cast)
+      applies to 1 card: Sol Ring
+      a mana source once the [casting] line casts it; the mana budget does not count it yet
 note: effect "name:\"Trinket Mage\"" (on cast)
       applies to 1 card: Trinket Mage
       and fetches, to your hand, the first of these the library still holds:
@@ -27,11 +33,20 @@ note: 10 lands here let the pilot decide whether to enter tapped. This run assum
       A shockland's 2 life is a decision no criteria file has made yet, so the pessimistic
       reading is taken: it makes no mana the turn it arrives. Every number below that
       depends on one of these is a floor rather than a measurement.
-     Trinket Mage cast by turn 3                       6.53%
-     Trinket Mage and a Lantern both cast by turn 5    9.38% ± 0.07
+note: these lands make mana other than the card data lists, and this run reads them as:
+      Castle Doom: pays {C} only: its other colours come with a condition this engine cannot see.
+      Maze of Ith: makes no mana: it has no mana ability, so it is a land drop and pays for nothing.
+      Misty Rainforest: a fetchland, read as the untapped lands it can find in this deck (Forest, Island, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find.
+      Prismatic Vista: a fetchland, read as the untapped lands it can find in this deck (Forest, Island, Mountain): pays {U}{R}{G}, assuming one is still in the library to find.
+      Scalding Tarn: a fetchland, read as the untapped lands it can find in this deck (Island, Mountain, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find.
+      Spire of Industry: pays {C} only: its other colours come with a condition this engine cannot see.
+      Urza's Saga: makes mana for three turns, the one it is played on and the two after: its last chapter sacrifices it.
+      Wooded Foothills: a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find.
+     Trinket Mage cast by turn 3                       6.51%
+     Trinket Mage and a Lantern both cast by turn 5    9.37% ± 0.07
      Lanterns still in the library on turn 5         mean 0.79 ± 0.001
                                                      0: 21.1%  1: 78.9%
 
-widest exact question: 588,588 compositions across 7 groups, 12% of the 5,000,000 ceiling, "Trinket Mage cast by turn 3"
+widest exact question: 4,691,115 compositions across 9 groups, 94% of the 5,000,000 ceiling, "Trinket Mage cast by turn 3"
 
 PASS: 0 of 0 assertions met

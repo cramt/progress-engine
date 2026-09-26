@@ -27,7 +27,21 @@
       "asked_by": "Life from the Loam in the graveyard by turn 5 (by casting it)"
     }
   ],
-  "effects": [],
+  "effects": [
+    {
+      "match": "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc",
+      "look": 0,
+      "adds": 1,
+      "on": "cast",
+      "source": "the standard effect library",
+      "cards": [
+        "Birds of Paradise",
+        "Elvish Mystic"
+      ],
+      "copies": 2,
+      "live": false
+    }
+  ],
   "enumerations": [
     {
       "criteria": [
@@ -57,6 +71,36 @@
     "Steam Vents",
     "Stomping Ground"
   ],
+  "assumed_mana": [
+    {
+      "card": "Exotic Orchard",
+      "reading": "pays generic and no colour: the colour it makes depends on what an opponent's land could produce, and whether it makes any at all on the first turn of a game"
+    },
+    {
+      "card": "Izzet Boilerworks",
+      "reading": "counted as one mana a turn: the second mana it taps for, and the land it returns to hand, are not modelled"
+    },
+    {
+      "card": "Misty Rainforest",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Island): pays {U}{G}, assuming one is still in the library to find"
+    },
+    {
+      "card": "Prismatic Vista",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Island, Mountain): pays {U}{R}{G}, assuming one is still in the library to find"
+    },
+    {
+      "card": "Scalding Tarn",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Island, Mountain): pays {U}{R}, assuming one is still in the library to find"
+    },
+    {
+      "card": "Simic Growth Chamber",
+      "reading": "counted as one mana a turn: the second mana it taps for, and the land it returns to hand, are not modelled"
+    },
+    {
+      "card": "Wooded Foothills",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain): pays {R}{G}, assuming one is still in the library to find"
+    }
+  ],
   "casting": {
     "prefer": [
       "name:\"Life from the Loam\""
@@ -67,19 +111,19 @@
   "criteria": [
     {
       "name": "Life from the Loam in the graveyard by turn 5 (by casting it)",
-      "probability": 0.10825,
-      "percent": 10.83,
+      "probability": 0.112345,
+      "percent": 11.23,
       "at_least": null,
-      "standard_error": 0.000695,
+      "standard_error": 0.000706,
       "pass": true,
       "method": "sampled"
     },
     {
       "name": "Life from the Loam cast by turn 5",
-      "probability": 0.10825,
-      "percent": 10.83,
+      "probability": 0.112345,
+      "percent": 11.23,
       "at_least": null,
-      "standard_error": 0.000695,
+      "standard_error": 0.000706,
       "pass": true,
       "method": "sampled"
     }
@@ -90,9 +134,9 @@
   "ok": true,
   "provenance": {
     "tool_version": "0.1.0",
-    "index_updated_at": "2026-09-21T09:01:56.821+00:00",
+    "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
-    "criteria_sha256": "00074b9881f90b7c0f2eefb9c4d5b2dfa53fa23f545d9a5f8d3731a4e6093c35",
-    "effect_library_sha256": "c82ddeb31f819c87e905b64c5bd5b2f8c6e71cfdfd71d1bfa50be6ca6f0ca556"
+    "criteria_sha256": "7e627f79c6ad7e9896482ac4eb9a2df9d8f18bfa7ca12dea69338588ddf5c688",
+    "effect_library_sha256": "43d0fe87aa0021ee3430ccc4a210019418f0ab41e9c2b80f148dee29b2168bf5"
   }
 }

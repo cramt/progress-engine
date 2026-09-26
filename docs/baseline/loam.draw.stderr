@@ -7,10 +7,14 @@ ESTIMATE: a question here was too wide to enumerate exactly: 6158592
           Everything else below was enumerated exactly. A difference
           smaller than a figure's ± is not a difference.
           Pass --exact to refuse a question this wide rather than estimate it.
+note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc" (adds 1, on cast)
+      applies to 2 cards: Birds of Paradise, Elvish Mystic
+      a mana source once the [casting] line casts it; the mana budget does not count it yet
 note: nothing routes a card to the graveyard in this run, so every count in
       it is zero by construction rather than by measurement.
       Asked by: "Life from the Loam in the graveyard by turn 5"
-      Declare `to_graveyard` on an [[effect]] to route one there.
+      Declare `to_graveyard` on an [[effect]] to route one there, or name an
+      instant or sorcery in [casting]: one the line casts resolves into it.
 note: every number below keeps whatever seven it is dealt: this file declares no
       [mulligan], so no hand is ever sent back.
 note: 5 lands here let the pilot decide whether to enter tapped. This run assumes they do:
@@ -18,12 +22,20 @@ note: 5 lands here let the pilot decide whether to enter tapped. This run assume
       A shockland's 2 life is a decision no criteria file has made yet, so the pessimistic
       reading is taken: it makes no mana the turn it arrives. Every number below that
       depends on one of these is a floor rather than a measurement.
+note: these lands make mana other than the card data lists, and this run reads them as:
+      Exotic Orchard: pays generic and no colour: the colour it makes depends on what an opponent's land could produce, and whether it makes any at all on the first turn of a game.
+      Izzet Boilerworks: counted as one mana a turn: the second mana it taps for, and the land it returns to hand, are not modelled.
+      Misty Rainforest: a fetchland, read as the untapped lands it can find in this deck (Forest, Island): pays {U}{G}, assuming one is still in the library to find.
+      Prismatic Vista: a fetchland, read as the untapped lands it can find in this deck (Forest, Island, Mountain): pays {U}{R}{G}, assuming one is still in the library to find.
+      Scalding Tarn: a fetchland, read as the untapped lands it can find in this deck (Island, Mountain): pays {U}{R}, assuming one is still in the library to find.
+      Simic Growth Chamber: counted as one mana a turn: the second mana it taps for, and the land it returns to hand, are not modelled.
+      Wooded Foothills: a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain): pays {R}{G}, assuming one is still in the library to find.
      Life from the Loam in the graveyard by turn 5                  0.00%
-     Loam castable by turn 5, so Loam in the graveyard by turn 5   10.86% ± 0.07
+     Loam castable by turn 5, so Loam in the graveyard by turn 5   11.24% ± 0.07
      naive: Life from the Loam in hand by turn 5, no mana asked    12.24%
-     control: {1}{G} payable by turn 5, no Loam asked              90.30%
+     control: {1}{G} payable by turn 5, no Loam asked              92.86%
 PASS some Loam Access by turn 5 (drawn, not cast)                  83.80%  (needs 80.0%)
-     a two-mana Loam Access card and {1}{G} for it, turn 3         29.03%
+     a two-mana Loam Access card and {1}{G} for it, turn 3         30.27%
      naive: one of those four drawn by turn 3, no mana asked       35.45%
 PASS Loam Access drawn and three lands in play, turn 3             69.55%  (needs 55.0%)
      Loam Access cards seen by turn 5                             mean 1.59

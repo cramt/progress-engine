@@ -4,21 +4,23 @@
     "Borborygmos and Fblthp"
   ],
   "excluded": [],
-  "on_the_draw": false,
-  "method": "exact",
+  "on_the_draw": true,
+  "method": "sampled",
+  "sampled_because": "too_wide",
+  "too_wide": {
+    "paths": 45780056408064,
+    "groups": 16,
+    "ceiling": 5000000
+  },
+  "trials": 200000,
+  "seed": 0,
   "queries": [
     {
-      "query": "name:\"Life from the Loam\"",
+      "query": "name:\"Borborygmos and Fblthp\"",
       "cards": 1
     }
   ],
-  "zones": [
-    {
-      "zone": "graveyard",
-      "reachable": true,
-      "asked_by": "Life from the Loam in the graveyard by turn 5 (by casting it)"
-    }
-  ],
+  "zones": [],
   "effects": [
     {
       "match": "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc",
@@ -37,23 +39,66 @@
   "enumerations": [
     {
       "criteria": [
-        "Life from the Loam in the graveyard by turn 5 (by casting it)",
-        "Life from the Loam cast by turn 5"
+        "commander cast by turn 5"
       ],
       "expectations": [],
       "queries": [
-        "name:\"Life from the Loam\""
+        "name:\"Borborygmos and Fblthp\""
       ],
       "turns": [
         5
       ],
       "reading": "per-turn",
       "pips": [
+        "{U}",
+        "{R}",
         "{G}"
       ],
-      "groups": 6,
-      "compositions": 1026432,
-      "method": "exact"
+      "groups": 16,
+      "compositions": 178828345344,
+      "method": "sampled"
+    },
+    {
+      "criteria": [
+        "commander cast by turn 6"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Borborygmos and Fblthp\""
+      ],
+      "turns": [
+        6
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{U}",
+        "{R}",
+        "{G}"
+      ],
+      "groups": 16,
+      "compositions": 2861253525504,
+      "method": "sampled"
+    },
+    {
+      "criteria": [
+        "commander cast by turn 7"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Borborygmos and Fblthp\""
+      ],
+      "turns": [
+        7
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{U}",
+        "{R}",
+        "{G}"
+      ],
+      "groups": 16,
+      "compositions": 45780056408064,
+      "method": "sampled"
     }
   ],
   "assumed_tapped": [
@@ -95,27 +140,41 @@
   ],
   "casting": {
     "prefer": [
-      "name:\"Life from the Loam\""
+      "name:\"Borborygmos and Fblthp\""
     ],
     "then": "a spell this list does not name is not cast at all",
-    "tie_break": "a tie inside one entry goes to the cheaper cost, then to the card this decklist names first"
+    "tie_break": "a tie inside one entry goes to the cheaper cost, then to the card this decklist names first",
+    "from_command_zone": [
+      "Borborygmos and Fblthp"
+    ]
   },
   "criteria": [
     {
-      "name": "Life from the Loam in the graveyard by turn 5 (by casting it)",
-      "probability": 0.09921,
-      "percent": 9.92,
+      "name": "commander cast by turn 5",
+      "probability": 0.62095,
+      "percent": 62.1,
       "at_least": null,
+      "standard_error": 0.001085,
       "pass": true,
-      "method": "exact"
+      "method": "sampled"
     },
     {
-      "name": "Life from the Loam cast by turn 5",
-      "probability": 0.09921,
-      "percent": 9.92,
+      "name": "commander cast by turn 6",
+      "probability": 0.708515,
+      "percent": 70.85,
       "at_least": null,
+      "standard_error": 0.001016,
       "pass": true,
-      "method": "exact"
+      "method": "sampled"
+    },
+    {
+      "name": "commander cast by turn 7",
+      "probability": 0.78036,
+      "percent": 78.04,
+      "at_least": null,
+      "standard_error": 0.000926,
+      "pass": true,
+      "method": "sampled"
     }
   ],
   "expectations": [],
@@ -126,7 +185,7 @@
     "tool_version": "0.1.0",
     "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
-    "criteria_sha256": "7e627f79c6ad7e9896482ac4eb9a2df9d8f18bfa7ca12dea69338588ddf5c688",
+    "criteria_sha256": "6851faab3ca066c563e35ed988dea6ed9d9398d0964c0528562a4b04c3bc3136",
     "effect_library_sha256": "43d0fe87aa0021ee3430ccc4a210019418f0ab41e9c2b80f148dee29b2168bf5"
   }
 }

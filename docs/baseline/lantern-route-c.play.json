@@ -41,6 +41,34 @@
       "live": false
     },
     {
+      "match": "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc",
+      "look": 0,
+      "adds": 1,
+      "on": "cast",
+      "source": "the standard effect library",
+      "cards": [
+        "Arcane Signet",
+        "Mind Stone",
+        "Talisman of Creativity",
+        "Talisman of Curiosity",
+        "Talisman of Impulse"
+      ],
+      "copies": 5,
+      "live": false
+    },
+    {
+      "match": "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add {C}{C}.\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc",
+      "look": 0,
+      "adds": 2,
+      "on": "cast",
+      "source": "the standard effect library",
+      "cards": [
+        "Sol Ring"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
       "match": "name:\"Urza's Saga\"",
       "look": 0,
       "on": "landdrop",
@@ -184,9 +212,9 @@
   "ok": true,
   "provenance": {
     "tool_version": "0.1.0",
-    "index_updated_at": "2026-09-21T09:01:56.821+00:00",
+    "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "b39ac98bea3f6724d9811f28c50bc966d28734bcb31de6e1349b8fe526f2ab09",
     "criteria_sha256": "d5825639529f67141797fa974f20c56e41d3b3dd52e2b47261cfff57ca656dd0",
-    "effect_library_sha256": "c82ddeb31f819c87e905b64c5bd5b2f8c6e71cfdfd71d1bfa50be6ca6f0ca556"
+    "effect_library_sha256": "43d0fe87aa0021ee3430ccc4a210019418f0ab41e9c2b80f148dee29b2168bf5"
   }
 }

@@ -1,21 +1,20 @@
 # Baseline sweep, not a claim: every committed criteria file on both seats.
-# Built at a8acaab with plain `cargo build --release -p gauntlet-cli`
-# (rustc 1.98.1, 4 CPUs). Each run was
-#   gauntlet test decks/<deck>.txt decks/<criteria>.criteria.toml --index decks/index.jsonl [--draw]
-# stdout (JSON) -> <criteria>.<seat>.json, stderr (report) -> <criteria>.<seat>.stderr.
-# exit=1 means a criterion failed its assertion, not that the run broke.
-# The lantern and lantern-route-b lines were re-run on top of 9f51200 after
-# #83 changed those two files, on a shared machine; read their times as
-# noisy. The other lines are still the a8acaab sweep.
-lantern (lantern.txt) seat=play exit=1 wall=0.53s
-lantern (lantern.txt) seat=draw exit=1 wall=0.80s
-lantern-route-b (lantern.txt) seat=play exit=0 wall=0.77s
-lantern-route-b (lantern.txt) seat=draw exit=0 wall=1.17s
-lantern-route-c (lantern.txt) seat=play exit=0 wall=0.06s
-lantern-route-c (lantern.txt) seat=draw exit=0 wall=0.06s
-loam (loam.txt) seat=play exit=0 wall=0.22s
-loam (loam.txt) seat=draw exit=0 wall=0.60s
-loam-thinning (loam.txt) seat=play exit=0 wall=0.44s
-loam-thinning (loam.txt) seat=draw exit=0 wall=0.87s
-loam-cast (loam.txt) seat=play exit=0
-loam-cast (loam.txt) seat=draw exit=0
+# Built at fd9510b with plain `cargo build --release -p gauntlet-cli` (rustc 1.98.1, 4 CPUs; other agents were running, so times are noisy).
+# Each run: gauntlet test decks/<deck>.txt decks/<criteria>.criteria.toml --index decks/index.jsonl [--draw]
+# stdout (JSON) -> <criteria>.<seat>.json, stderr (report) -> <criteria>.<seat>.stderr. exit=1 means a criterion failed, not that the run broke.
+lantern-commander (lantern.txt) seat=play exit=0 wall=0.44s
+lantern-commander (lantern.txt) seat=draw exit=0 wall=0.41s
+lantern-route-b (lantern.txt) seat=play exit=0 wall=1.37s
+lantern-route-b (lantern.txt) seat=draw exit=0 wall=3.76s
+lantern-route-c (lantern.txt) seat=play exit=0 wall=0.08s
+lantern-route-c (lantern.txt) seat=draw exit=0 wall=0.13s
+lantern (lantern.txt) seat=play exit=1 wall=0.72s
+lantern (lantern.txt) seat=draw exit=1 wall=0.71s
+loam-cast (loam.txt) seat=play exit=0 wall=0.44s
+loam-cast (loam.txt) seat=draw exit=0 wall=0.34s
+loam-commander (loam.txt) seat=play exit=0 wall=0.51s
+loam-commander (loam.txt) seat=draw exit=0 wall=0.48s
+loam-thinning (loam.txt) seat=play exit=0 wall=1.16s
+loam-thinning (loam.txt) seat=draw exit=0 wall=1.36s
+loam (loam.txt) seat=play exit=0 wall=0.68s
+loam (loam.txt) seat=draw exit=0 wall=1.44s

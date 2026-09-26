@@ -1,5 +1,5 @@
-ESTIMATE: a question here was too wide to enumerate exactly: 6158592
-          compositions across 6 groups, against a ceiling of 5000000. It was
+ESTIMATE: a question here was too wide to enumerate exactly: 2861253525504
+          compositions across 16 groups, against a ceiling of 5000000. It was
           answered by sampling 200000 hands instead.
           Every percentage below is an ESTIMATE, not an exact answer.
           The ± beside each one is its standard error, and a difference
@@ -10,8 +10,10 @@ note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapp
       a mana source once the [casting] line casts it; the mana budget does not count it yet
 note: the spells cast here are decided by the priority this file declared, and every
       number below that depends on what was cast depends on it:
-      1. "name:\"Life from the Loam\""
+      1. "name:\"Borborygmos and Fblthp\""
       Then a spell this list does not name is not cast at all. Ties: a tie inside one entry goes to the cheaper cost, then to the card this decklist names first.
+      Cast from the command zone — never drawn, always there, cast at most once: Borborygmos and Fblthp.
+      At equal cost inside one entry, a card from the library is cast first.
 note: every number below keeps whatever seven it is dealt: this file declares no
       [mulligan], so no hand is ever sent back.
 note: 5 lands here let the pilot decide whether to enter tapped. This run assumes they do:
@@ -27,7 +29,8 @@ note: these lands make mana other than the card data lists, and this run reads t
       Scalding Tarn: a fetchland, read as the untapped lands it can find in this deck (Island, Mountain): pays {U}{R}, assuming one is still in the library to find.
       Simic Growth Chamber: counted as one mana a turn: the second mana it taps for, and the land it returns to hand, are not modelled.
       Wooded Foothills: a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain): pays {R}{G}, assuming one is still in the library to find.
-     Life from the Loam in the graveyard by turn 5 (by casting it)   11.23% ± 0.07
-     Life from the Loam cast by turn 5                               11.23% ± 0.07
+     commander cast by turn 5   51.99% ± 0.11
+     commander cast by turn 6   62.16% ± 0.11
+     commander cast by turn 7   70.84% ± 0.10
 
 PASS: 0 of 0 assertions met

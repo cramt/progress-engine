@@ -1,12 +1,9 @@
-ESTIMATE: a question here was too wide to enumerate exactly: 42220035
-          compositions across 9 groups, against a ceiling of 5000000. It was
+ESTIMATE: a question here was too wide to enumerate exactly: 653987043072
+          compositions across 18 groups, against a ceiling of 5000000. It was
           answered by sampling 200000 hands instead.
-          2 of the 3 questions here needed that, and they are the ones
-          quoted with a ±:
-          Trinket Mage and a Lantern both cast by turn 5
-          Lanterns still in the library on turn 5
-          Everything else below was enumerated exactly. A difference
-          smaller than a figure's ± is not a difference.
+          Every percentage below is an ESTIMATE, not an exact answer.
+          The ± beside each one is its standard error, and a difference
+          smaller than that is not a difference.
           Pass --exact to refuse a question this wide rather than estimate it.
 note: effect "t:land otag:surveil" (look 1, on landdrop, everything stays on top)
       applies to 1 card: Hedge Maze
@@ -16,16 +13,12 @@ note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapp
 note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add {C}{C}.\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc" (adds 2, on cast)
       applies to 1 card: Sol Ring
       a mana source once the [casting] line casts it; the mana budget does not count it yet
-note: effect "name:\"Trinket Mage\"" (on cast)
-      applies to 1 card: Trinket Mage
-      and fetches, to your hand, the first of these the library still holds:
-      1. "name:\"Lantern of Insight\""
-      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
 note: the spells cast here are decided by the priority this file declared, and every
       number below that depends on what was cast depends on it:
-      1. "name:\"Trinket Mage\""
-      2. "name:\"Lantern of Insight\""
+      1. "name:\"Rashmi and Ragavan\""
       Then a spell this list does not name is not cast at all. Ties: a tie inside one entry goes to the cheaper cost, then to the card this decklist names first.
+      Cast from the command zone — never drawn, always there, cast at most once: Rashmi and Ragavan.
+      At equal cost inside one entry, a card from the library is cast first.
 note: every number below keeps whatever seven it is dealt: this file declares no
       [mulligan], so no hand is ever sent back.
 note: 10 lands here let the pilot decide whether to enter tapped. This run assumes they do:
@@ -42,11 +35,8 @@ note: these lands make mana other than the card data lists, and this run reads t
       Spire of Industry: pays {C} only: its other colours come with a condition this engine cannot see.
       Urza's Saga: makes mana for three turns, the one it is played on and the two after: its last chapter sacrifices it.
       Wooded Foothills: a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find.
-     Trinket Mage cast by turn 3                       4.99%
-     Trinket Mage and a Lantern both cast by turn 5    7.67% ± 0.06
-     Lanterns still in the library on turn 5         mean 0.81 ± 0.001
-                                                     0: 18.9%  1: 81.1%
-
-widest exact question: 521,235 compositions across 9 groups, 10% of the 5,000,000 ceiling, "Trinket Mage cast by turn 3"
+     commander cast by turn 4   42.50% ± 0.11
+     commander cast by turn 5   53.01% ± 0.11
+     commander cast by turn 6   61.49% ± 0.11
 
 PASS: 0 of 0 assertions met

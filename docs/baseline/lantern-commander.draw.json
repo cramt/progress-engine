@@ -4,33 +4,23 @@
     "Rashmi and Ragavan"
   ],
   "excluded": [],
-  "on_the_draw": false,
-  "method": "mixed",
+  "on_the_draw": true,
+  "method": "sampled",
   "sampled_because": "too_wide",
   "too_wide": {
-    "paths": 42220035,
-    "groups": 9,
+    "paths": 11771766775296,
+    "groups": 18,
     "ceiling": 5000000
   },
   "trials": 200000,
   "seed": 0,
   "queries": [
     {
-      "query": "name:\"Trinket Mage\"",
-      "cards": 1
-    },
-    {
-      "query": "name:\"Lantern of Insight\"",
+      "query": "name:\"Rashmi and Ragavan\"",
       "cards": 1
     }
   ],
-  "zones": [
-    {
-      "zone": "library",
-      "reachable": true,
-      "asked_by": "Lanterns still in the library on turn 5"
-    }
-  ],
+  "zones": [],
   "effects": [
     {
       "match": "t:land otag:surveil",
@@ -70,66 +60,70 @@
       ],
       "copies": 1,
       "live": false
-    },
-    {
-      "match": "name:\"Trinket Mage\"",
-      "look": 0,
-      "on": "cast",
-      "fetch": [
-        "name:\"Lantern of Insight\""
-      ],
-      "to": "hand",
-      "source": "decks/lantern-route-b.criteria.toml",
-      "cards": [
-        "Trinket Mage"
-      ],
-      "copies": 1,
-      "live": true
     }
   ],
   "enumerations": [
     {
       "criteria": [
-        "Trinket Mage cast by turn 3"
+        "commander cast by turn 4"
       ],
       "expectations": [],
       "queries": [
-        "name:\"Trinket Mage\"",
-        "name:\"Lantern of Insight\"",
-        "<effect name:\"Trinket Mage\">"
+        "name:\"Rashmi and Ragavan\""
       ],
       "turns": [
-        3
+        4
       ],
       "reading": "per-turn",
       "pips": [
-        "{U}"
+        "{U}",
+        "{R}",
+        "{G}"
       ],
-      "groups": 9,
-      "compositions": 521235,
-      "method": "exact"
+      "groups": 18,
+      "compositions": 36332613504,
+      "method": "sampled"
     },
     {
       "criteria": [
-        "Trinket Mage and a Lantern both cast by turn 5"
+        "commander cast by turn 5"
       ],
-      "expectations": [
-        "Lanterns still in the library on turn 5"
-      ],
+      "expectations": [],
       "queries": [
-        "name:\"Trinket Mage\"",
-        "name:\"Lantern of Insight\"",
-        "<effect name:\"Trinket Mage\">"
+        "name:\"Rashmi and Ragavan\""
       ],
       "turns": [
         5
       ],
       "reading": "per-turn",
       "pips": [
-        "{U}"
+        "{U}",
+        "{R}",
+        "{G}"
       ],
-      "groups": 9,
-      "compositions": 42220035,
+      "groups": 18,
+      "compositions": 653987043072,
+      "method": "sampled"
+    },
+    {
+      "criteria": [
+        "commander cast by turn 6"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Rashmi and Ragavan\""
+      ],
+      "turns": [
+        6
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{U}",
+        "{R}",
+        "{G}"
+      ],
+      "groups": 18,
+      "compositions": 11771766775296,
       "method": "sampled"
     }
   ],
@@ -181,43 +175,44 @@
   ],
   "casting": {
     "prefer": [
-      "name:\"Trinket Mage\"",
-      "name:\"Lantern of Insight\""
+      "name:\"Rashmi and Ragavan\""
     ],
     "then": "a spell this list does not name is not cast at all",
-    "tie_break": "a tie inside one entry goes to the cheaper cost, then to the card this decklist names first"
+    "tie_break": "a tie inside one entry goes to the cheaper cost, then to the card this decklist names first",
+    "from_command_zone": [
+      "Rashmi and Ragavan"
+    ]
   },
   "criteria": [
     {
-      "name": "Trinket Mage cast by turn 3",
-      "probability": 0.049909,
-      "percent": 4.99,
+      "name": "commander cast by turn 4",
+      "probability": 0.514895,
+      "percent": 51.49,
       "at_least": null,
+      "standard_error": 0.001118,
       "pass": true,
-      "method": "exact"
+      "method": "sampled"
     },
     {
-      "name": "Trinket Mage and a Lantern both cast by turn 5",
-      "probability": 0.076705,
-      "percent": 7.67,
+      "name": "commander cast by turn 5",
+      "probability": 0.61295,
+      "percent": 61.3,
       "at_least": null,
-      "standard_error": 0.000595,
+      "standard_error": 0.001089,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "commander cast by turn 6",
+      "probability": 0.68678,
+      "percent": 68.68,
+      "at_least": null,
+      "standard_error": 0.001037,
       "pass": true,
       "method": "sampled"
     }
   ],
-  "expectations": [
-    {
-      "name": "Lanterns still in the library on turn 5",
-      "mean": 0.8114,
-      "distribution": [
-        0.18861,
-        0.81139
-      ],
-      "standard_error": 0.000875,
-      "method": "sampled"
-    }
-  ],
+  "expectations": [],
   "asserted": 0,
   "failed": 0,
   "ok": true,
@@ -225,7 +220,7 @@
     "tool_version": "0.1.0",
     "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "b39ac98bea3f6724d9811f28c50bc966d28734bcb31de6e1349b8fe526f2ab09",
-    "criteria_sha256": "3e053b713f19e9f22c547c17f187276370d288f0fc48f3acf21da185ca30a545",
+    "criteria_sha256": "2c072eb626017003d4ef6ca172cc97c336aaa5656767afa0c3dbc213cb92d003",
     "effect_library_sha256": "43d0fe87aa0021ee3430ccc4a210019418f0ab41e9c2b80f148dee29b2168bf5"
   }
 }

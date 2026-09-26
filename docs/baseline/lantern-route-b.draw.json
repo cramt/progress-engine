@@ -8,8 +8,8 @@
   "method": "mixed",
   "sampled_because": "too_wide",
   "too_wide": {
-    "paths": 28840812,
-    "groups": 7,
+    "paths": 379980315,
+    "groups": 9,
     "ceiling": 5000000
   },
   "trials": 200000,
@@ -39,6 +39,34 @@
       "source": "the standard effect library",
       "cards": [
         "Hedge Maze"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc",
+      "look": 0,
+      "adds": 1,
+      "on": "cast",
+      "source": "the standard effect library",
+      "cards": [
+        "Arcane Signet",
+        "Mind Stone",
+        "Talisman of Creativity",
+        "Talisman of Curiosity",
+        "Talisman of Impulse"
+      ],
+      "copies": 5,
+      "live": false
+    },
+    {
+      "match": "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add {C}{C}.\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc",
+      "look": 0,
+      "adds": 2,
+      "on": "cast",
+      "source": "the standard effect library",
+      "cards": [
+        "Sol Ring"
       ],
       "copies": 1,
       "live": false
@@ -77,8 +105,8 @@
       "pips": [
         "{U}"
       ],
-      "groups": 7,
-      "compositions": 588588,
+      "groups": 9,
+      "compositions": 4691115,
       "method": "exact"
     },
     {
@@ -100,8 +128,8 @@
       "pips": [
         "{U}"
       ],
-      "groups": 7,
-      "compositions": 28840812,
+      "groups": 9,
+      "compositions": 379980315,
       "method": "sampled"
     }
   ],
@@ -117,6 +145,40 @@
     "Turbulent Springs",
     "Turbulent Wilderness"
   ],
+  "assumed_mana": [
+    {
+      "card": "Castle Doom",
+      "reading": "pays {C} only: its other colours come with a condition this engine cannot see"
+    },
+    {
+      "card": "Maze of Ith",
+      "reading": "makes no mana: it has no mana ability, so it is a land drop and pays for nothing"
+    },
+    {
+      "card": "Misty Rainforest",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Island, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find"
+    },
+    {
+      "card": "Prismatic Vista",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Island, Mountain): pays {U}{R}{G}, assuming one is still in the library to find"
+    },
+    {
+      "card": "Scalding Tarn",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Island, Mountain, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find"
+    },
+    {
+      "card": "Spire of Industry",
+      "reading": "pays {C} only: its other colours come with a condition this engine cannot see"
+    },
+    {
+      "card": "Urza's Saga",
+      "reading": "makes mana for three turns, the one it is played on and the two after: its last chapter sacrifices it"
+    },
+    {
+      "card": "Wooded Foothills",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find"
+    }
+  ],
   "casting": {
     "prefer": [
       "name:\"Trinket Mage\"",
@@ -128,16 +190,16 @@
   "criteria": [
     {
       "name": "Trinket Mage cast by turn 3",
-      "probability": 0.065347,
-      "percent": 6.53,
+      "probability": 0.0651,
+      "percent": 6.51,
       "at_least": null,
       "pass": true,
       "method": "exact"
     },
     {
       "name": "Trinket Mage and a Lantern both cast by turn 5",
-      "probability": 0.09376,
-      "percent": 9.38,
+      "probability": 0.09374,
+      "percent": 9.37,
       "at_least": null,
       "standard_error": 0.000652,
       "pass": true,
@@ -147,10 +209,10 @@
   "expectations": [
     {
       "name": "Lanterns still in the library on turn 5",
-      "mean": 0.7893,
+      "mean": 0.7892,
       "distribution": [
-        0.210655,
-        0.789345
+        0.21077,
+        0.78923
       ],
       "standard_error": 0.000912,
       "method": "sampled"
@@ -161,9 +223,9 @@
   "ok": true,
   "provenance": {
     "tool_version": "0.1.0",
-    "index_updated_at": "2026-09-21T09:01:56.821+00:00",
+    "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "b39ac98bea3f6724d9811f28c50bc966d28734bcb31de6e1349b8fe526f2ab09",
-    "criteria_sha256": "646b745a15939a0c19123991f6a2162fdc7fb2347c9147b92af6ee05a3947d2c",
-    "effect_library_sha256": "c82ddeb31f819c87e905b64c5bd5b2f8c6e71cfdfd71d1bfa50be6ca6f0ca556"
+    "criteria_sha256": "3e053b713f19e9f22c547c17f187276370d288f0fc48f3acf21da185ca30a545",
+    "effect_library_sha256": "43d0fe87aa0021ee3430ccc4a210019418f0ab41e9c2b80f148dee29b2168bf5"
   }
 }

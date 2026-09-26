@@ -1,10 +1,11 @@
-ESTIMATE: a question here was too wide to enumerate exactly: 653987043072
-          compositions across 18 groups, against a ceiling of 5000000. It was
+ESTIMATE: a question here was too wide to enumerate exactly: 1190260789300
+          compositions across 19 groups, against a ceiling of 5000000. It was
           answered by sampling 200000 hands instead.
-          4 of the 17 questions here needed that, and they are the ones
+          5 of the 17 questions here needed that, and they are the ones
           quoted with a ±:
           a line that resolves Lantern of Insight by turn 5
           same routes, all 11 Tutor Package cards (OVERCOUNTS)
+          route 1: Lantern in hand and a mana for it, turn 5
           route 2: a tutor that puts it in hand, cast in time
           route 3: a tutor that puts it onto the battlefield, cast by turn 5
           Everything else below was enumerated exactly. A difference
@@ -12,6 +13,12 @@ ESTIMATE: a question here was too wide to enumerate exactly: 653987043072
           Pass --exact to refuse a question this wide rather than estimate it.
 note: effect "t:land otag:surveil" (look 1, on landdrop, everything stays on top)
       applies to 1 card: Hedge Maze
+note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc" (adds 1, on cast)
+      applies to 5 cards: Arcane Signet, Mind Stone, Talisman of Creativity, Talisman of Curiosity, Talisman of Impulse
+      a mana source once the [casting] line casts it; the mana budget does not count it yet
+note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add {C}{C}.\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc" (adds 2, on cast)
+      applies to 1 card: Sol Ring
+      a mana source once the [casting] line casts it; the mana budget does not count it yet
 note: every number below keeps whatever seven it is dealt: this file declares no
       [mulligan], so no hand is ever sent back.
 note: 10 lands here let the pilot decide whether to enter tapped. This run assumes they do:
@@ -19,14 +26,23 @@ note: 10 lands here let the pilot decide whether to enter tapped. This run assum
       A shockland's 2 life is a decision no criteria file has made yet, so the pessimistic
       reading is taken: it makes no mana the turn it arrives. Every number below that
       depends on one of these is a floor rather than a measurement.
-FAIL a line that resolves Lantern of Insight by turn 5                    53.60% ± 0.11  (needs 75.0%)
-     same routes, all 11 Tutor Package cards (OVERCOUNTS)                 73.44% ± 0.10
-     route 1: Lantern in hand and a mana for it, turn 5                   12.08%
+note: these lands make mana other than the card data lists, and this run reads them as:
+      Castle Doom: pays {C} only: its other colours come with a condition this engine cannot see.
+      Maze of Ith: makes no mana: it has no mana ability, so it is a land drop and pays for nothing.
+      Misty Rainforest: a fetchland, read as the untapped lands it can find in this deck (Forest, Island, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find.
+      Prismatic Vista: a fetchland, read as the untapped lands it can find in this deck (Forest, Island, Mountain): pays {U}{R}{G}, assuming one is still in the library to find.
+      Scalding Tarn: a fetchland, read as the untapped lands it can find in this deck (Island, Mountain, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find.
+      Spire of Industry: pays {C} only: its other colours come with a condition this engine cannot see.
+      Urza's Saga: makes mana for three turns, the one it is played on and the two after: its last chapter sacrifices it.
+      Wooded Foothills: a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find.
+FAIL a line that resolves Lantern of Insight by turn 5                    54.34% ± 0.11  (needs 75.0%)
+     same routes, all 11 Tutor Package cards (OVERCOUNTS)                 72.27% ± 0.10
+     route 1: Lantern in hand and a mana for it, turn 5                   12.04% ± 0.07
      route 1 naive: Lantern in hand by turn 5, no mana asked              12.12%
-     route 1 control: {1} payable by turn 5, no Lantern asked             99.79%
-     route 2: a tutor that puts it in hand, cast in time                  32.10% ± 0.10
+     route 1 control: {1} payable by turn 5, no Lantern asked             99.74%
+     route 2: a tutor that puts it in hand, cast in time                  32.64% ± 0.10
      route 2 naive: one of those five tutors drawn by turn 5              48.34%
-     route 3: a tutor that puts it onto the battlefield, cast by turn 5    7.07% ± 0.06
+     route 3: a tutor that puts it onto the battlefield, cast by turn 5    7.74% ± 0.06
      route 3 naive: either of those two drawn by turn 5                   22.88%
      route 4: Urza's Saga puts it onto the battlefield by turn 5           9.14%
      route 4 naive: Urza's Saga drawn by turn 3 (the old upper bound)     10.10%
@@ -75,6 +91,6 @@ FAIL a line that resolves Lantern of Insight by turn 5                    53.60%
                                                                          4: 25.4%
                                                                          5: 33.3%
 
-widest exact question: 122,880 compositions across 4 groups, 2% of the 5,000,000 ceiling, "route 1: Lantern in hand and a mana for it, turn 5"
+widest exact question: 1,031,250 compositions across 5 groups, 21% of the 5,000,000 ceiling, "route 1 control: {1} payable by turn 5, no Lantern asked"
 
 FAIL: 1 of 1 assertions missed
