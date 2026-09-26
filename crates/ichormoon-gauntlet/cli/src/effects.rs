@@ -282,6 +282,7 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
             }),
             delay: entry.delay,
             draw: 0,
+            mill: None,
         });
     }
 

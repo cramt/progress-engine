@@ -269,6 +269,58 @@ pub struct Effect {
     ///
     /// [ADR-0017]: https://github.com/cramt/progress-engine/blob/main/docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md
     pub draw: u32,
+    /// Cards a cast of this puts into the graveyard off the top of the
+    /// library, less the ones it lets go to hand: also one sized gap, dealt
+    /// as one unordered block because every card it turns over is consumed
+    /// at once. Resolved after the draw. Only [`Trigger::Cast`] reads it.
+    pub mill: Option<Mill>,
+}
+
+/// A mill, or a look whose every card leaves the top at once (ADR-0017 §2).
+///
+/// Aftermath Analyst's three cards go to the graveyard whatever anyone asks,
+/// and so do the three of Malevolent Rumble's four it does not keep. That
+/// destination is **compelled**, which is why the library may state it. Which
+/// card goes to hand instead, where the card lets one, is the pilot's, and is
+/// declared on the effect by the file as a priority; nothing declared keeps
+/// nothing, which is what the card does when you choose nothing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Mill {
+    /// How many cards come off the top.
+    pub cards: u32,
+    pub to_hand: ToHand,
+}
+
+/// Which of a mill's cards go to hand rather than to the graveyard.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ToHand {
+    /// At most `up_to` of them, among the cards matching `of` (any card where
+    /// `None`), chosen by the declared priority `prefer`: the first tier
+    /// holding such a card, and inside a tier the group the decklist named
+    /// first — the tutor's rule. An empty priority keeps nothing, and
+    /// `up_to = 0` is a pure mill.
+    Chosen {
+        up_to: u32,
+        of: Option<usize>,
+        prefer: Vec<usize>,
+    },
+    /// Every card matching this query, whatever anyone asks: Wrenn and
+    /// Seven's lands.
+    Every(usize),
+}
+
+impl Mill {
+    /// A mill that keeps nothing: Aftermath Analyst.
+    pub fn all(cards: u32) -> Mill {
+        Mill {
+            cards,
+            to_hand: ToHand::Chosen {
+                up_to: 0,
+                of: None,
+                prefer: Vec::new(),
+            },
+        }
+    }
 }
 
 /// What a cast spell's draw did, as [`Board::cast`] needs to know it.
@@ -412,6 +464,14 @@ pub struct Board<'a> {
     /// the same reason last-wins is: a priority re-read per path is a second
     /// opinion about the same list.
     fetch_tiers: Vec<Vec<Vec<usize>>>,
+    /// `hand_tiers[effect]` is which of a mill's cards that effect may put in
+    /// hand, as the declared priority's groups: highest tier first, each in
+    /// decklist order, and only groups the card lets it keep. Empty for an
+    /// effect that keeps nothing by choice.
+    hand_tiers: Vec<Vec<Vec<usize>>>,
+    /// `hand_every[effect][group]`: a mill's card of this group goes to hand
+    /// whatever anyone asks, as Wrenn and Seven's lands do.
+    hand_every: Vec<Vec<bool>>,
     /// Whether anything in this run removes a card from the library without
     /// drawing it. Read by the enumeration, which only pays for the shrinking
     /// population where there is one.
@@ -522,6 +582,13 @@ pub struct Board<'a> {
     /// What is still on the bottom of the library on this path: `bottomed`,
     /// less anything a tutor went and found there.
     live_bottomed: Vec<u32>,
+    /// `[turn][group]`: the hand as the turn's line found it, before a
+    /// spell put anything in it. What the lands reason from: a land drawn or
+    /// kept mid-line waits for the next turn's drop, so to every question
+    /// about which lands could be down it arrived on the next turn.
+    held: Vec<Vec<u32>>,
+    /// The cards one draw or mill has turned over, per group. Scratch.
+    block: Vec<u32>,
 }
 
 impl<'a> Board<'a> {
@@ -687,6 +754,39 @@ impl<'a> Board<'a> {
                 }
             })
             .collect();
+        // A mill's choice, by the tutor's rule over the same kind of list, and
+        // held to what the card lets it keep: a tier naming a card the card
+        // may not keep finds nothing, and the next tier decides.
+        let has = |group: usize, query: usize| grouping.group_masks()[group] & (1u64 << query) != 0;
+        let hand_tiers: Vec<Vec<Vec<usize>>> = effects
+            .iter()
+            .map(|effect| match effect.mill.as_ref().map(|m| &m.to_hand) {
+                Some(ToHand::Chosen { up_to, of, prefer }) if *up_to > 0 => {
+                    let mut claimed = vec![false; groups];
+                    prefer
+                        .iter()
+                        .map(|&query| {
+                            let tier: Vec<usize> = (0..groups)
+                                .filter(|&g| !claimed[g] && has(g, query))
+                                .filter(|&g| of.is_none_or(|of| has(g, of)))
+                                .collect();
+                            for &g in &tier {
+                                claimed[g] = true;
+                            }
+                            tier
+                        })
+                        .collect()
+                }
+                _ => Vec::new(),
+            })
+            .collect();
+        let hand_every: Vec<Vec<bool>> = effects
+            .iter()
+            .map(|effect| match effect.mill.as_ref().map(|m| &m.to_hand) {
+                Some(&ToHand::Every(query)) => (0..groups).map(|g| has(g, query)).collect(),
+                _ => vec![false; groups],
+            })
+            .collect();
         // The mulligan's bottoming list, resolved by the same rule as the other
         // three: a group belongs to the first tier that names it. What no entry
         // names is one more tier at the end, because a hand that has to put
@@ -722,11 +822,13 @@ impl<'a> Board<'a> {
             fetches: effects.iter().any(|e| e.fetch.is_some()),
             sizes: effects
                 .iter()
-                .any(|e| e.trigger == Trigger::Cast && e.draw > 0),
+                .any(|e| e.trigger == Trigger::Cast && (e.draw > 0 || e.mill.is_some())),
             next_gap: 0,
             cursor: 0,
             sized_dealt: 0,
             fetch_tiers,
+            hand_tiers,
+            hand_every,
             drops: vec![0; turns],
             hand: vec![vec![0; groups]; turns],
             yard: vec![vec![0; groups]; turns],
@@ -749,6 +851,8 @@ impl<'a> Board<'a> {
             bottom_tiers,
             bottomed: vec![0; groups],
             live_bottomed: vec![0; groups],
+            held: vec![vec![0; groups]; turns],
+            block: vec![0; groups],
         }
     }
 
@@ -1038,6 +1142,7 @@ impl<'a> Board<'a> {
             // as another deal's board, and it cast spells off lands that hand
             // never played.
             self.hand[turn].copy_from_slice(&self.live_hand);
+            self.held[turn].copy_from_slice(&self.live_hand);
             self.yard[turn].copy_from_slice(&self.live_yard);
             self.landed[turn].copy_from_slice(&self.live_landed);
             if let Some(declared) = &mut self.declared {
@@ -1073,6 +1178,8 @@ impl<'a> Board<'a> {
                     declared.played_at[turn].copy_from_slice(&self.live_field);
                 }
                 self.landed[turn].copy_from_slice(&self.live_landed);
+                // And the yard, because a spell that mills put cards there.
+                self.yard[turn].copy_from_slice(&self.live_yard);
                 if let Some(casting) = &mut self.casting {
                     casting.cast_at[turn].copy_from_slice(&casting.live_cast);
                     for (group, cast) in casting.commanded_at[turn].iter_mut().enumerate() {
@@ -1228,27 +1335,77 @@ impl<'a> Board<'a> {
         finished
     }
 
-    /// Draw what a spell that has just been cast draws, if it draws.
+    /// Draw what a spell that has just been cast draws, and then mill what it
+    /// mills, if it does either.
     ///
-    /// Off the top of the library, which is first whatever an earlier look
-    /// left there and then whatever this turn's checkpoints revealed and
-    /// nothing has taken yet — both already dealt, so they cost no gap. The
-    /// rest is a **sized gap**: the next checkpoint of `history`, as one
-    /// unordered block straight into hand, or where the history has no next
-    /// checkpoint, the size of the gap the path has not dealt.
-    ///
-    /// Never more than the library holds, and the enumeration holds its deal
-    /// to the same count: both are what is left of the groups once everything
-    /// revealed and everything fetched is out.
+    /// Each is one block off the top of the library ([`Board::deal`]). A draw
+    /// puts its block in hand. A mill puts its block in the graveyard, less
+    /// what the card lets go to hand: the cards it compels there, and up to
+    /// as many as it allows of the ones the declared priority reaches.
     fn draw_on_cast(&mut self, group: usize, history: Path<'_>) -> Drew {
         let Some(effect) = self.group_effect[group] else {
             return Drew::Nothing;
         };
-        let effect = &self.schedule.effects()[effect];
-        if effect.trigger != Trigger::Cast || effect.draw == 0 {
+        let e = &self.schedule.effects()[effect];
+        if e.trigger != Trigger::Cast || (e.draw == 0 && e.mill.is_none()) {
             return Drew::Nothing;
         }
-        let mut left = effect.draw;
+        let (draw, mill) = (e.draw, e.mill.as_ref().map(|m| (m.cards, &m.to_hand)));
+        if draw > 0 {
+            if let Some(size) = self.deal(draw, history) {
+                return Drew::Undealt(size);
+            }
+            for (held, &drawn) in self.live_hand.iter_mut().zip(&self.block) {
+                *held += drawn;
+            }
+        }
+        let Some((cards, to_hand)) = mill else {
+            return Drew::Cards;
+        };
+        let up_to = match to_hand {
+            ToHand::Chosen { up_to, .. } => *up_to,
+            ToHand::Every(_) => 0,
+        };
+        if let Some(size) = self.deal(cards, history) {
+            return Drew::Undealt(size);
+        }
+        for (g, every) in self.hand_every[effect].iter().enumerate() {
+            if *every {
+                self.live_hand[g] += self.block[g];
+                self.block[g] = 0;
+            }
+        }
+        let mut left = up_to;
+        for tier in &self.hand_tiers[effect] {
+            for &g in tier {
+                let kept = self.block[g].min(left);
+                self.block[g] -= kept;
+                self.live_hand[g] += kept;
+                left -= kept;
+            }
+        }
+        for (yard, &milled) in self.live_yard.iter_mut().zip(&self.block) {
+            *yard += milled;
+        }
+        Drew::Cards
+    }
+
+    /// Turn over `count` cards off the top of the library into `block`, one
+    /// count per group, or say how large a gap the path has not dealt yet.
+    ///
+    /// The top of the library is first whatever an earlier look left there
+    /// and then whatever this turn's checkpoints revealed and nothing has
+    /// taken yet — both already dealt, so they cost no gap. The rest is a
+    /// **sized gap**: the next checkpoint of `history`, as one unordered
+    /// block, or where the history has no next checkpoint, `Some` of the size
+    /// of the gap the path has not dealt.
+    ///
+    /// Never more than the library holds, and the enumeration holds its deal
+    /// to the same count: both are what is left of the groups once everything
+    /// revealed and everything fetched is out.
+    fn deal(&mut self, count: u32, history: Path<'_>) -> Option<u32> {
+        self.block.fill(0);
+        let mut left = count;
         while left > 0 {
             let group = if !self.kept.is_empty() {
                 self.kept.remove(0)
@@ -1258,17 +1415,17 @@ impl<'a> Board<'a> {
             } else {
                 break;
             };
-            self.live_hand[group] += 1;
+            self.block[group] += 1;
             left -= 1;
         }
         let library: u32 = (0..self.revealed.len()).map(|g| self.unrevealed(g)).sum();
         let size = left.min(library);
         if size == 0 {
-            return Drew::Cards;
+            return None;
         }
         let at = self.cursor + 1;
         let Some(block) = history.get(at) else {
-            return Drew::Undealt(size);
+            return Some(size);
         };
         let before = &history[self.cursor];
         debug_assert_eq!(
@@ -1277,12 +1434,12 @@ impl<'a> Board<'a> {
             "the gap dealt is the gap this walk asked for"
         );
         for (g, (&now, &was)) in block.iter().zip(before).enumerate() {
-            self.live_hand[g] += now - was;
+            self.block[g] += now - was;
             self.revealed[g] += now - was;
         }
         self.cursor = at;
         self.sized_dealt += 1;
-        Drew::Cards
+        None
     }
 
     /// Resolve every delayed effect set up to fire on `turn`, in the order the
@@ -1641,7 +1798,7 @@ impl<'a> Board<'a> {
                 .members(query)
                 .iter()
                 .filter(|&&g| played_not_cast(g))
-                .map(|&g| self.hand[t][g])
+                .map(|&g| self.held[t][g])
                 .sum();
             played = drawn.min(played + 1);
         }
@@ -1765,7 +1922,7 @@ impl<'a> Board<'a> {
             };
             return cost.payable(&self.pool, usable, Constraint::Anything);
         }
-        let (Some(previous), Some(hand)) = (turn.checked_sub(1), self.hand.get(turn)) else {
+        let (Some(previous), Some(hand)) = (turn.checked_sub(1), self.held.get(turn)) else {
             // Turn 0 is the opening hand, before any land drop. Nothing is in
             // play, so nothing but a free spell is castable.
             return false;
@@ -1776,7 +1933,7 @@ impl<'a> Board<'a> {
         if cost.total() > drops + cost.made_total() {
             return false;
         }
-        let earlier = &self.hand[previous];
+        let earlier = &self.held[previous];
 
         // Held is what was in hand when the turn began: every one of those has
         // had a turn on which it could have been played, so any of them can be
@@ -1878,7 +2035,7 @@ impl<'a> Board<'a> {
                 continue;
             };
             // Arrived inside the window, it had nowhere earlier to go.
-            if self.hand[first - 1][self.land_groups[saga]] == 0 {
+            if self.held[first - 1][self.land_groups[saga]] == 0 {
                 continue;
             }
             // The land that arrived on each turn of the window, if one did.
@@ -1887,8 +2044,8 @@ impl<'a> Board<'a> {
                     (0..self.pool.len()).find(|&slot| {
                         slot != saga
                             && base(slot) > 0
-                            && self.hand[t][self.land_groups[slot]]
-                                > self.hand[t - 1][self.land_groups[slot]]
+                            && self.held[t][self.land_groups[slot]]
+                                > self.held[t - 1][self.land_groups[slot]]
                     })
                 })
                 .collect();

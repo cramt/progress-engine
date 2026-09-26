@@ -479,6 +479,7 @@ fn a_file_run_against_a_spell_that_draws_agrees_in_both_engines() {
         fetch: None,
         delay: None,
         draw: 1,
+        mill: None,
     };
     let schedule = Schedule::build(
         criteria.horizon(),

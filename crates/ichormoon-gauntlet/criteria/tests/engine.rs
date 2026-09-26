@@ -6,7 +6,9 @@
 
 use std::convert::Infallible;
 
-use gauntlet_criteria::{Answering, Chosen, Conditionals, Objective, Resolves, Table};
+use gauntlet_criteria::{
+    Answering, Board, Chosen, Conditionals, Mill, Objective, Resolves, Table, ToHand,
+};
 use gauntlet_criteria::{
     Bound, CastingPolicy, Cost, Count, Counted, Criterion, Delay, Effect, Evaluator, Expectation,
     Fetch, Fetched, Grouping, GroupingError, Keep, LandDetail, LandDropPolicy, ManaSource,
@@ -540,6 +542,7 @@ fn surveil(route: Route) -> Effect {
         fetch: None,
         delay: None,
         draw: 0,
+        mill: None,
     }
 }
 
@@ -1025,6 +1028,7 @@ fn a_live_effect_keeps_every_checkpoint_whatever_it_is_asked() {
         fetch: None,
         delay: None,
         draw: 0,
+        mill: None,
     }];
     let schedule = Schedule::build(2, false, effects, Policies::default());
     assert_eq!(schedule.gaps(), &[7, 0, 1, 1, 1]);
@@ -1438,6 +1442,7 @@ fn the_budget_and_the_gate_answer_hand_twelve_the_same_way() {
         fetch: None,
         delay: None,
         draw: 0,
+        mill: None,
     };
     let land_drop = LandDropPolicy::new(vec![0], 2);
     let gate = Schedule::build(
@@ -1536,6 +1541,7 @@ fn tutor(to: Fetched) -> Effect {
         }),
         delay: None,
         draw: 0,
+        mill: None,
     }
 }
 
@@ -1700,6 +1706,7 @@ fn saga() -> Effect {
             sacrifice: true,
         }),
         draw: 0,
+        mill: None,
     }
 }
 
@@ -2115,6 +2122,7 @@ fn a_tutor_still_finds_a_card_the_mulligan_put_on_the_bottom() {
         }),
         delay: None,
         draw: 0,
+        mill: None,
     };
     let policy = MulliganPolicy::new(
         vec![Keep {
@@ -2404,6 +2412,7 @@ fn drawing(draw: u32) -> Effect {
         fetch: None,
         delay: None,
         draw,
+        mill: None,
     }
 }
 
@@ -3571,4 +3580,301 @@ fn rock_mana_is_on_top_of_the_land_drops_and_never_instead_of_them() {
     // Turn 2: two Islands and {C}{C}, and Memory Lapse took one of each.
     assert_eq!(left(&g, &s, 2, "{U}{1}"), 1.0);
     assert_eq!(left(&g, &s, 2, "{U}{U}"), 0.0);
+}
+
+// --- A spell's mill reaches the graveyard (ADR-0017 §2) ----------------------
+//
+// HANDS.md hands 19 and 20, each one deal with the library's order written
+// down, played on the board both engines play: a path is the history of
+// checkpoints, and the sized gap a cast asks for is one more of them.
+
+/// Groups, in this order: Forest, the milling spell, Life from the Loam,
+/// Mountain, Island, Beast Within, and Aftermath Analyst where there is one.
+/// Queries: 0 the spell, 1 Loam, 2 Forest, 3 land, 4 permanent, 5 Analyst, 6 Beast
+/// Within.
+fn mill_groups(spell: ManaSource, analysts: u32, blanks: u32) -> Grouping {
+    Grouping::with_mana(
+        q(&[
+            "spell",
+            "loam",
+            "forest",
+            "land",
+            "permanent",
+            "analyst",
+            "beast",
+        ]),
+        vec![
+            (0b011100, untapped("G"), 3),
+            (0b000001, spell, 1),
+            (0b000010, ManaSource::Spell, 1),
+            (0b011000, untapped("R"), 1),
+            (0b011000, untapped("U"), 1),
+            (0b1000000, ManaSource::Spell, blanks),
+            (0b110000, ManaSource::Spell, analysts),
+        ],
+    )
+    .unwrap()
+}
+
+fn two_mana(resolves: Resolves) -> ManaSource {
+    ManaSource::Castable {
+        cost: Cost::parse("{1}{G}").unwrap().demand(),
+        resolves,
+    }
+}
+
+fn milling(mill: Option<Mill>) -> Effect {
+    Effect {
+        matched_by: 0,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: None,
+        delay: None,
+        draw: 0,
+        mill,
+    }
+}
+
+/// A history over [`mill_groups`], one row per checkpoint, each row the cards
+/// that checkpoint revealed: `(Forest, spell, Loam, Mountain, Island, Beast
+/// Within, Analyst)`, cut to the `groups` the grouping has.
+fn dealt(groups: usize, rows: &[[u32; 7]]) -> Vec<Vec<u32>> {
+    let mut total = [0u32; 7];
+    rows.iter()
+        .map(|row| {
+            for (t, r) in total.iter_mut().zip(row) {
+                *t += r;
+            }
+            total[..groups].to_vec()
+        })
+        .collect()
+}
+
+const NOTHING: [u32; 7] = [0; 7];
+const FOREST: [u32; 7] = [1, 0, 0, 0, 0, 0, 0];
+const MOUNTAIN: [u32; 7] = [0, 0, 0, 1, 0, 0, 0];
+const LOAM: [u32; 7] = [0, 0, 1, 0, 0, 0, 0];
+const BEAST: [u32; 7] = [0, 0, 0, 0, 0, 1, 0];
+
+#[test]
+fn hand_19_aftermath_analyst_mills_the_loam_before_you_could_draw_it() {
+    // Forest x2, the Analyst and Beast Within x4 in hand; the library, top
+    // first, Beast Within, Mountain, Life from the Loam, Island, Forest. On the
+    // play, turns 2 to 4 draw one each. The Analyst is the spell here, cast on
+    // turn 2 off two Forests, and it mills three.
+    let grouping = mill_groups(two_mana(Resolves::OntoBattlefield), 0, 5);
+    let schedule = |mill| {
+        Schedule::plain_with_fetches(
+            &[7, 0, 1, 1, 1],
+            vec![milling(mill)],
+            Policies::casting(CastingPolicy::new(vec![0])),
+        )
+    };
+    let opener = [2, 1, 0, 0, 0, 4, 0];
+
+    // Today, and what a spell that does nothing looks like: turn 3 draws the
+    // Mountain and turn 4 the Loam, into hand.
+    let today = schedule(None);
+    let mut board = Board::new(&grouping, &today);
+    board.walk(&dealt(6, &[opener, NOTHING, BEAST, MOUNTAIN, LOAM]));
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(board.count_at(2, 0, Counted::Cast), 1);
+    assert_eq!(board.count_at(4, 1, Counted::In(Zone::Graveyard)), 0);
+    assert_eq!(board.count_at(4, 1, Counted::In(Zone::Hand)), 1);
+    assert_eq!(board.count_at(3, 2, Counted::In(Zone::Battlefield)), 2);
+
+    // Mill 3. Replaying up to turn 2's draw, the walk stops at the cast and
+    // asks for three cards; dealt, they go to the graveyard, and turn 3 draws
+    // the Forest that was under them. Turn 4 finds the library empty.
+    let milled = schedule(Some(Mill::all(3)));
+    let mut board = Board::new(&grouping, &milled);
+    board.walk(&dealt(6, &[opener, NOTHING, BEAST]));
+    assert_eq!(board.next_gap(), 3, "the cast asks for its mill");
+    let three = [0, 0, 1, 1, 1, 0, 0];
+    board.walk(&dealt(6, &[opener, NOTHING, BEAST, three, FOREST, NOTHING]));
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(
+        board.count_at(2, 0, Counted::Cast),
+        1,
+        "what a spell does cannot change whether it was paid for"
+    );
+    assert_eq!(board.count_at(2, 1, Counted::In(Zone::Graveyard)), 1);
+    assert_eq!(board.count_at(4, 1, Counted::In(Zone::Graveyard)), 1);
+    assert_eq!(board.count_at(4, 1, Counted::In(Zone::Hand)), 0);
+    assert_eq!(board.count_at(4, 1, Counted::In(Zone::Library)), 0);
+    assert_eq!(board.count_at(2, 3, Counted::In(Zone::Graveyard)), 2);
+    assert_eq!(board.count_at(3, 2, Counted::In(Zone::Battlefield)), 3);
+}
+
+/// Hand 19's number on paper: Forest x2, Aftermath Analyst, Life from the
+/// Loam and Beast Within x8, twelve cards on the play, to turn 2.
+fn analyst_twelve(mill: Option<Mill>) -> (Grouping, Schedule) {
+    let grouping = Grouping::with_mana(
+        q(&["analyst", "loam"]),
+        vec![
+            (0b00, untapped("G"), 2),
+            (0b01, two_mana(Resolves::OntoBattlefield), 1),
+            (0b10, ManaSource::Spell, 1),
+            (0b00, ManaSource::Spell, 8),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0, 1],
+        vec![milling(mill)],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    (grouping, schedule)
+}
+
+#[test]
+fn hand_19_on_paper_the_mill_takes_the_loam_one_time_in_three() {
+    // The Analyst is cast on turn 2 exactly when it and both Forests are in
+    // the top eight: C(9,5)/C(12,8) = 126/495. The other nine cards fill five
+    // seen slots, three milled and one left over, and the Loam is equally
+    // likely to be in any of them: in hand 5/9 of those deals, milled 3/9,
+    // still in the library 1/9.
+    let answer = |mill| {
+        let (grouping, schedule) = analyst_twelve(mill);
+        let cast = |v: &PathView<'_>| v.count_at(2, 0, Counted::Cast) == 1;
+        let mut ev = Closures(vec![
+            Box::new(move |v: &PathView<'_>| cast(v)),
+            Box::new(move |v: &PathView<'_>| {
+                cast(v) && v.count_at(2, 1, Counted::In(Zone::Hand)) == 1
+            }),
+            Box::new(move |v: &PathView<'_>| {
+                cast(v) && v.count_at(2, 1, Counted::In(Zone::Graveyard)) == 1
+            }),
+            Box::new(move |v: &PathView<'_>| {
+                cast(v) && v.count_at(2, 1, Counted::In(Zone::Library)) == 1
+            }),
+        ]);
+        let out = gauntlet_criteria::run(&grouping, &schedule, only_criteria(4), &mut ev).unwrap();
+        out.probabilities
+            .iter()
+            .map(|p| p.get() * 495.0)
+            .collect::<Vec<_>>()
+    };
+    let milled = answer(Some(Mill::all(3)));
+    for (got, want) in milled.iter().zip([126.0, 70.0, 42.0, 14.0]) {
+        assert!((got - want).abs() < 1e-9, "{milled:?} of 495");
+    }
+    let today = answer(None);
+    for (got, want) in today.iter().zip([126.0, 70.0, 0.0, 56.0]) {
+        assert!((got - want).abs() < 1e-9, "{today:?} of 495");
+    }
+}
+
+#[test]
+fn hand_20_malevolent_rumble_keeps_a_permanent_and_the_loam_is_not_one() {
+    // Forest x2, Malevolent Rumble and Beast Within x4 in hand; the library,
+    // top first, Beast Within, Life from the Loam, Mountain, Beast Within,
+    // Aftermath Analyst, Beast Within. Turn 2 draws the first, plays the
+    // second Forest and casts Rumble: it reveals the next four, at most one
+    // permanent card goes to hand, and the rest go to the graveyard because
+    // the card says so. The file chooses the permanent.
+    let grouping = mill_groups(two_mana(Resolves::IntoGraveyard), 1, 6);
+    let (spell, loam, land, permanent, analyst, beast) = (0, 1, 3, 4, 5, 6);
+    let rumble = |prefer: Vec<usize>| {
+        Schedule::plain_with_fetches(
+            &[7, 0, 1, 1],
+            vec![milling(Some(Mill {
+                cards: 4,
+                to_hand: ToHand::Chosen {
+                    up_to: 1,
+                    of: Some(permanent),
+                    prefer,
+                },
+            }))],
+            Policies::casting(CastingPolicy::new(vec![spell])),
+        )
+    };
+    let opener = [2, 1, 0, 0, 0, 4, 0];
+    let four = [0, 0, 1, 1, 0, 1, 1];
+    let path = dealt(7, &[opener, NOTHING, BEAST, four, BEAST]);
+    // (nothing declared, lands, the Loam and then lands)
+    let columns = [vec![], vec![land], vec![loam, land]];
+    let mut rows = Vec::new();
+    for prefer in columns {
+        let schedule = rumble(prefer);
+        let mut board = Board::new(&grouping, &schedule);
+        board.walk(&path[..3]);
+        assert_eq!(board.next_gap(), 4, "Rumble reveals four");
+        board.walk(&path);
+        assert_eq!(board.next_gap(), 0);
+        assert_eq!(board.count_at(2, spell, Counted::Cast), 1);
+        let yard = |query| board.count_at(2, query, Counted::In(Zone::Graveyard));
+        rows.push((
+            yard(loam),
+            // The revealed cards, and not Rumble, which is a sorcery that
+            // resolved into the graveyard too.
+            yard(loam) + yard(land) + yard(analyst) + yard(beast),
+            board.count_at(3, land, Counted::In(Zone::Battlefield)),
+            board.count_at(2, analyst, Counted::In(Zone::Hand)),
+        ));
+    }
+    assert_eq!(
+        rows,
+        [(1, 4, 2, 0), (1, 3, 3, 0), (1, 3, 3, 0)],
+        "an unrouted Rumble bins all four; the kept land is played on turn 3; \
+         and the Loam, a sorcery, is not a card Rumble may keep"
+    );
+}
+
+#[test]
+fn a_land_kept_mid_line_waits_for_the_next_turns_drop_even_when_this_turns_was_not_made() {
+    // Hand 20's Rumble a turn later, with nothing to play on turn 3: two
+    // Forests are down by turn 2, turn 3 draws the Rumble, and the line casts
+    // it off the two, keeping the Mountain. The drop came before the line, so
+    // the Mountain is not on the battlefield until turn 4.
+    let grouping = mill_groups(two_mana(Resolves::IntoGraveyard), 1, 7);
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0, 1, 1, 1],
+        vec![milling(Some(Mill {
+            cards: 4,
+            to_hand: ToHand::Chosen {
+                up_to: 1,
+                of: Some(4),
+                prefer: vec![3],
+            },
+        }))],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let opener = [2, 0, 0, 0, 0, 5, 0];
+    let rumble = [0, 1, 0, 0, 0, 0, 0];
+    let four = [0, 0, 1, 1, 0, 1, 1];
+    let mut board = Board::new(&grouping, &schedule);
+    board.walk(&dealt(7, &[opener, NOTHING, BEAST, rumble, four, BEAST]));
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(board.count_at(3, 0, Counted::Cast), 1);
+    assert_eq!(board.count_at(3, 3, Counted::In(Zone::Hand)), 3);
+    assert_eq!(board.count_at(3, 3, Counted::In(Zone::Battlefield)), 2);
+    assert_eq!(board.count_at(4, 3, Counted::In(Zone::Battlefield)), 3);
+}
+
+#[test]
+fn wrenn_and_sevens_lands_go_to_hand_whatever_the_file_asks() {
+    // Hand 20's deal, with a spell whose four go to hand if they are lands and
+    // to the graveyard if not: the card chooses, so there is no list to read.
+    let grouping = mill_groups(two_mana(Resolves::OntoBattlefield), 1, 6);
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0, 1, 1],
+        vec![milling(Some(Mill {
+            cards: 4,
+            to_hand: ToHand::Every(3),
+        }))],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let opener = [2, 1, 0, 0, 0, 4, 0];
+    let four = [0, 0, 1, 1, 0, 1, 1];
+    let mut board = Board::new(&grouping, &schedule);
+    board.walk(&dealt(7, &[opener, NOTHING, BEAST, four, BEAST]));
+    let at = |query, zone| board.count_at(2, query, Counted::In(zone));
+    assert_eq!(at(1, Zone::Graveyard), 1, "the Loam is milled");
+    assert_eq!(at(5, Zone::Graveyard), 1, "and so is the Analyst");
+    assert_eq!(at(6, Zone::Graveyard), 1);
+    assert_eq!(at(3, Zone::Graveyard), 0, "the Mountain is not");
+    assert_eq!(at(3, Zone::Hand), 3, "it is in hand beside the two Forests");
+    assert_eq!(board.count_at(3, 3, Counted::In(Zone::Battlefield)), 3);
 }

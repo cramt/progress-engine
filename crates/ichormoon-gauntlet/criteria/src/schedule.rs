@@ -324,7 +324,9 @@ impl Schedule {
     /// Read by the report, because a graveyard count of zero means two
     /// different things and only this tells them apart.
     pub fn routes_to_graveyard(&self) -> bool {
-        self.effects.iter().any(|e| e.route.is_live())
+        self.effects
+            .iter()
+            .any(|e| e.route.is_live() || e.mill.is_some())
     }
 }
 

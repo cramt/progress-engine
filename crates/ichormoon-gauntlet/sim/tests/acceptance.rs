@@ -8,7 +8,9 @@
 
 use std::convert::Infallible;
 
-use gauntlet_criteria::{Answering, Chosen, Conditionals, LandDetail, Objective, Resolves, Table};
+use gauntlet_criteria::{
+    Answering, Chosen, Conditionals, LandDetail, Mill, Objective, Resolves, Table, ToHand,
+};
 use gauntlet_criteria::{
     CastingPolicy, Cost, Count, Counted, Delay, Effect, Evaluator, Fetch, Fetched, Grouping, Keep,
     LandDropPolicy, ManaSource, MulliganPolicy, Palette, PathOutcomes, PathView, Plan, Policies,
@@ -824,6 +826,7 @@ fn a_tutor_agrees_with_the_exact_engine() {
         }),
         delay: None,
         draw: 0,
+        mill: None,
     };
     let schedule = Schedule::build(
         4,
@@ -906,6 +909,7 @@ fn a_card_a_cast_puts_onto_the_battlefield_arrives_that_turn_in_both_engines() {
         }),
         delay: None,
         draw: 0,
+        mill: None,
     };
     let field = Counted::In(Zone::Battlefield);
     let library = Counted::In(Zone::Library);
@@ -1022,6 +1026,7 @@ fn a_permanent_the_line_casts_or_a_cast_puts_down_is_in_play_in_both_engines() {
         }),
         delay: None,
         draw: 0,
+        mill: None,
     };
     let schedule = Schedule::build(
         5,
@@ -1116,6 +1121,7 @@ fn a_tutor_thins_the_library_in_both_engines() {
                 }),
                 delay: None,
                 draw: 0,
+                mill: None,
             }],
         };
         let schedule = Schedule::build(
@@ -1223,6 +1229,7 @@ fn a_delayed_fetch_agrees_with_the_exact_engine() {
             sacrifice: true,
         }),
         draw: 0,
+        mill: None,
     };
     let schedule = Schedule::build(
         5,
@@ -1390,6 +1397,7 @@ fn a_mulligan_agrees_with_the_exact_engine() {
         }),
         delay: None,
         draw: 0,
+        mill: None,
     };
     let mulligan = MulliganPolicy::new(
         vec![Keep {
@@ -1646,6 +1654,7 @@ fn drawing_deck(cost: &str, draw: u32, fetch: bool) -> (Grouping, Schedule) {
         }),
         delay: None,
         draw,
+        mill: None,
     };
     // Three turns on the play: every cast draws, so how wide this is grows
     // with how many spells the pool pays for, and a fourth turn goes over
@@ -1837,4 +1846,145 @@ fn rocks_and_dorks_in_the_line_agree_with_the_exact_engine() {
             (sampled - exact).abs() / se
         );
     }
+}
+
+// --- A spell's mill (ADR-0017 §2) -------------------------------------------
+//
+// A mill is a sized gap whose cards go to the graveyard, less what the card
+// lets go to hand. The sampler deals the same block off its deck, asking the
+// same Board, and the Board routes it; so what differs between the engines is
+// only where the block came from, which is what these hold to account.
+
+/// Green spells matched by query 0 at `{1}{G}`, whose cast mills `mill`; a
+/// target, not a permanent, matched by query 1; Forests, the only permanents,
+/// matched by query 2; blanks. Two groups fewer than hand 20 has, because a
+/// block of four over every group it could split into is what makes a mill
+/// wide.
+fn milling_deck(mill: Mill) -> (Grouping, Schedule) {
+    let grouping = Grouping::with_mana(
+        q(&["miller", "target", "land"]),
+        vec![
+            (
+                0b001,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}{G}").unwrap().demand(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                4,
+            ),
+            (0b010, ManaSource::Spell, 2),
+            (
+                0b100,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["G"]),
+                    lasts: None,
+                },
+                16,
+            ),
+            (0b000, ManaSource::Spell, 38),
+        ],
+    )
+    .unwrap();
+    let effect = Effect {
+        matched_by: 0,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: None,
+        delay: None,
+        draw: 0,
+        mill: Some(mill),
+    };
+    let schedule = Schedule::build(
+        3,
+        false,
+        vec![effect],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    (grouping, schedule)
+}
+
+/// The two engines on one milling deck: the target in each of the three zones
+/// it can be in, the lands in play and in hand, and the mill fired or not.
+fn mills_agree(mill: Mill, seed: u64) {
+    let (grouping, schedule) = milling_deck(mill);
+    let question = || {
+        Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(3, 1, Counted::In(Zone::Graveyard)) >= 1)
+                as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 1, Counted::In(Zone::Hand)) >= 1) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 1, Counted::In(Zone::Library)) == 2) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 2, Counted::In(Zone::Battlefield)) >= 3)
+                as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 2, Counted::In(Zone::Hand)) >= 4) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 2, Counted::In(Zone::Graveyard)) >= 1)
+                as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 0, Counted::Cast) == 0) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 0, Counted::Cast) >= 2) as Check,
+        ])
+    };
+    let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(8), &mut question())
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    assert!(
+        exact[0] > 0.02 && exact[6] > 0.05 && exact[7] > 0.05,
+        "the mill reaches the target, and fires on some paths and not others: {exact:?}"
+    );
+    let trials = TRIALS / 2;
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        trials,
+        seed,
+        only_criteria(8),
+        &mut question(),
+    )
+    .unwrap()
+    .proportions;
+    for (i, (e, s)) in exact.iter().zip(&sampled).enumerate() {
+        let se = standard_error(*s, trials).max(1e-4);
+        assert!(
+            (s - e).abs() < 4.0 * se,
+            "question {i}: sampled {s} vs exact {e} ({}x SE)",
+            (s - e).abs() / se
+        );
+    }
+}
+
+#[test]
+fn a_mill_that_keeps_nothing_agrees_with_the_exact_engine() {
+    mills_agree(Mill::all(3), 43);
+}
+
+#[test]
+fn a_mill_that_keeps_a_chosen_permanent_agrees_with_the_exact_engine() {
+    // Rumble's shape: four, at most one permanent to hand, and the only permanents are
+    // lands. The target heads the list and is not one, so it never goes to hand.
+    mills_agree(
+        Mill {
+            cards: 4,
+            to_hand: ToHand::Chosen {
+                up_to: 1,
+                of: Some(2),
+                prefer: vec![1, 2],
+            },
+        },
+        47,
+    );
+}
+
+#[test]
+fn a_mill_that_keeps_every_land_agrees_with_the_exact_engine() {
+    // Wrenn and Seven's shape: four, every land to hand, the rest binned.
+    mills_agree(
+        Mill {
+            cards: 4,
+            to_hand: ToHand::Every(2),
+        },
+        53,
+    );
 }

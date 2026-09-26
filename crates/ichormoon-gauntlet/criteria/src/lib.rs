@@ -25,7 +25,9 @@ mod schedule;
 mod strategy;
 mod zone;
 
-pub use effect::{Board, Delay, Effect, Fetch, Fetched, Route, Trigger, TriggerError};
+pub use effect::{
+    Board, Delay, Effect, Fetch, Fetched, Mill, Route, ToHand, Trigger, TriggerError,
+};
 pub use grouping::{Grouping, GroupingError};
 pub use mana::{Cost, CostError, Demand, LandDetail, ManaSource, Palette, Resolves};
 pub use policy::{CastingPolicy, Keep, LandDropPolicy, MulliganPolicy};
@@ -610,8 +612,9 @@ pub fn feasible<E>(grouping: &Grouping, schedule: &Schedule) -> Result<(), RunEr
     Ok(())
 }
 
-/// The most cards this run's spells can draw: what each copy of a spell that
-/// draws draws, the commander's copy included, because each is cast once.
+/// The most cards this run's spells can draw or mill: what each copy of a
+/// spell that draws or mills turns over, the commander's copy included,
+/// because each is cast once.
 fn drawable(grouping: &Grouping, schedule: &Schedule) -> u32 {
     let effects = schedule.effects();
     grouping
@@ -623,7 +626,9 @@ fn drawable(grouping: &Grouping, schedule: &Schedule) -> u32 {
             let e = effects
                 .iter()
                 .rposition(|e| *mask & (1u64 << e.matched_by) != 0)?;
-            (effects[e].trigger == Trigger::Cast).then(|| (size + command) * effects[e].draw)
+            let effect = &effects[e];
+            let milled = effect.mill.as_ref().map_or(0, |m| m.cards);
+            (effect.trigger == Trigger::Cast).then(|| (size + command) * (effect.draw + milled))
         })
         .sum()
 }
