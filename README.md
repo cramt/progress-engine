@@ -1850,11 +1850,11 @@ three different answers:
 
 ```
 $ gauntlet test loam.txt mill.criteria.toml
-Error: a mill card in the opener: in query "otag:mill": this index does not carry otag:mill, so counting it would be zero by construction
+Error: mill.criteria.toml: a mill card in the opener: in query "otag:mill": this index does not carry otag:mill, so counting it would be zero by construction
       rather than by measurement. This index carries: scry, surveil, tapland.
 
 $ gauntlet test simple-ramp.txt surveil.criteria.toml     # an index built with --from
-Error: surveil lands in the opener: in query "t:land otag:surveil": this index carries no oracle tags at all, so otag:surveil would match nothing here
+Error: surveil.criteria.toml: surveil lands in the opener: in query "t:land otag:surveil": this index carries no oracle tags at all, so otag:surveil would match nothing here
       whether or not this deck plays such a card.
       `sync --from` builds an index like this one: tags come from Scryfall's search API,
       not from the bulk file. Fetch them with: gauntlet sync
@@ -1948,7 +1948,7 @@ wearing a valid query:
 
 ```
 $ gauntlet test loam.txt kw-typo.criteria.toml --index loam-index.jsonl
-Error: a typoed keyword: in query "kw:flyign": no card in this index has kw:flyign, so counting it would be zero by construction
+Error: kw-typo.criteria.toml: a typoed keyword: in query "kw:flyign": no card in this index has kw:flyign, so counting it would be zero by construction
       rather than by measurement — which reads exactly like a deck that plays none. The
       index lists every keyword the whole card pool carries, so this is a misspelling
       unless it is newer than the index. Check the spelling; rebuild with: gauntlet sync
@@ -1993,10 +1993,10 @@ answered:
 
 ```
 $ gauntlet test all-commander.txt criteria.toml
-Error: the library is empty: every card in the list is a commander or outside the deck
+Error: criteria.toml: the library is empty: every card in the list is a commander or outside the deck
 
 $ gauntlet test two-card-deck.txt criteria.toml
-Error: this question draws 7 cards from a library of 2
+Error: criteria.toml: this question draws 7 cards from a library of 2
 ```
 
 The second is refused identically under `--simulate`. Left to themselves the two

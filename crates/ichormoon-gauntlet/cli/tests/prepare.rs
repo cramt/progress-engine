@@ -80,8 +80,8 @@ fn a_keyword_the_index_does_not_list_is_refused() {
     assert_eq!(keywords, &["flyign"]);
     let text = refused.to_string();
     assert!(
-        text.starts_with("a typoed keyword: in query "),
-        "names the criterion first: {text}"
+        text.starts_with("kw-typo.criteria.toml: a typoed keyword: in query "),
+        "names the file, then the criterion: {text}"
     );
     assert!(text.contains("gauntlet sync"), "{text}");
 }
@@ -162,7 +162,9 @@ fn a_mulligan_query_this_index_cannot_answer_is_refused_by_its_clause() {
     };
     assert!(matches!(site, QuerySite::Mulligan(_)), "{site:?}");
     assert!(
-        refused.to_string().starts_with("[mulligan]: keep clause "),
+        refused
+            .to_string()
+            .starts_with("mulligan-unfetched-tag.criteria.toml: [mulligan]: keep clause "),
         "{refused}"
     );
 }
@@ -176,7 +178,9 @@ fn a_deck_with_no_library_is_refused_before_anything_is_walked() {
     ));
     assert!(matches!(refused, Refusal::Infeasible { .. }), "{refused:?}");
     assert!(
-        refused.to_string().contains("library is empty"),
+        refused
+            .to_string()
+            .starts_with("two-lands.criteria.toml: the library is empty"),
         "{refused}"
     );
 }

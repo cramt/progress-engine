@@ -129,7 +129,9 @@ pub fn carried(library: &Library) -> Vec<String> {
 /// One refusal, naming what it could not model.
 ///
 /// `file` is how the run names the criteria file it was reading. Every variant
-/// carries it, whether or not its text prints it; [`Refusal::file`] decides.
+/// carries it and every refusal's text starts with it: a caller running
+/// several criteria files needs to know which one it was before it needs to
+/// know which criterion.
 #[derive(Debug)]
 pub enum Refusal {
     /// A query in a syntax this tool does not read. Refused rather than
@@ -316,11 +318,15 @@ pub enum Refusal {
 }
 
 impl Refusal {
-    /// The criteria file this refusal is named against, where its text names
-    /// one.
-    pub fn file(&self) -> Option<&str> {
+    /// The criteria file this refusal is named against.
+    pub fn file(&self) -> &str {
         match self {
-            Refusal::CastingWithoutPriority { file, .. }
+            Refusal::UnsupportedQuery { file, .. }
+            | Refusal::TagGap { file, .. }
+            | Refusal::UnknownKeyword { file, .. }
+            | Refusal::NoPrintedCost { file, .. }
+            | Refusal::UnpayableCost { file, .. }
+            | Refusal::CastingWithoutPriority { file, .. }
             | Refusal::FetchWithoutLandDrop { file, .. }
             | Refusal::FetchWithoutCasting { file, .. }
             | Refusal::DelayedFetchFindsLand { file, .. }
@@ -330,13 +336,8 @@ impl Refusal {
             | Refusal::IndexCannotPriceMana { file, .. }
             | Refusal::ManaBesideAFetchedLand { file, .. }
             | Refusal::ObjectiveTooWide { file, .. }
-            | Refusal::ObjectiveOverBudget { file, .. } => Some(file),
-            Refusal::UnsupportedQuery { .. }
-            | Refusal::TagGap { .. }
-            | Refusal::UnknownKeyword { .. }
-            | Refusal::NoPrintedCost { .. }
-            | Refusal::UnpayableCost { .. }
-            | Refusal::Infeasible { .. } => None,
+            | Refusal::ObjectiveOverBudget { file, .. }
+            | Refusal::Infeasible { file, .. } => file,
         }
     }
 
@@ -624,14 +625,13 @@ impl fmt::Display for MulliganAt {
     }
 }
 
-/// `{file}: {question}: {body}`, each prefix where the refusal names one.
+/// `{file}: {question}: {body}`, the question where the refusal names one
+/// apart from its body.
 ///
 /// The one place a refusal's introduction is decided.
 impl fmt::Display for Refusal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(file) = self.file() {
-            write!(f, "{file}: ")?;
-        }
+        write!(f, "{}: ", self.file())?;
         if let Some(question) = self.question() {
             write!(f, "{question}: ")?;
         }
@@ -709,19 +709,19 @@ mod tests {
         let starts = [
             (
                 QuerySite::Question("a flier".to_string()),
-                "a flier: in query \"kw:flyign\": no card in this index has kw:flyign, ",
+                "f.toml: a flier: in query \"kw:flyign\": no card in this index has kw:flyign, ",
             ),
             (
                 QuerySite::LandDrop,
-                "[land_drop]: in `prefer` entry \"kw:flyign\": no card",
+                "f.toml: [land_drop]: in `prefer` entry \"kw:flyign\": no card",
             ),
             (
                 QuerySite::Casting,
-                "[casting]: in `prefer` entry \"kw:flyign\": no card",
+                "f.toml: [casting]: in `prefer` entry \"kw:flyign\": no card",
             ),
             (
                 QuerySite::Mulligan(MulliganAt::Bottom(2)),
-                "[mulligan]: `bottom` entry 2, query \"kw:flyign\": no card",
+                "f.toml: [mulligan]: `bottom` entry 2, query \"kw:flyign\": no card",
             ),
         ];
         for (site, start) in starts {
@@ -731,12 +731,12 @@ mod tests {
     }
 
     #[test]
-    fn a_refusal_names_the_file_and_the_question_where_it_always_has() {
+    fn a_refusal_names_the_file_first_and_the_question_where_it_has_one() {
         let casting = Refusal::CastingWithoutPriority {
             file: "f.toml".to_string(),
             asked_by: "an Opt by turn 1".to_string(),
         };
-        assert_eq!(casting.file(), Some("f.toml"));
+        assert_eq!(casting.file(), "f.toml");
         assert_eq!(casting.question().as_deref(), Some("an Opt by turn 1"));
         assert!(casting
             .to_string()

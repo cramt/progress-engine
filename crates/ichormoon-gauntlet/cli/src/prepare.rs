@@ -298,9 +298,6 @@ fn prepare_noting(
         casting.as_ref(),
     )?;
 
-    // Named against the file as well as the question, the way a parse refusal
-    // is: a caller running several criteria files needs to know which one it
-    // was before it needs to know which criterion.
     // A declared casting priority is a mana question whether or not any clause
     // asks one, because the budget spends the pool: what was cast decides what
     // is left in hand, and every count in the file reads that.
