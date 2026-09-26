@@ -1,0 +1,9 @@
+// HANDS.md hand 36's pair: the same twelve cards with every land a Forest.
+//
+// Loam is cast exactly as it is in hand-36.txt -- one green source is all it
+// needs -- but {2}{U} is never there, so Spellseeker is never cast and the
+// tutor never fires. Its numbers are hand-36.txt's with the tutor undeclared,
+// which is what says the fetch fires on the casting and not on the holding.
+10x Forest [Land]
+1x Spellseeker [Tutor]
+1x Life from the Loam [Engine]

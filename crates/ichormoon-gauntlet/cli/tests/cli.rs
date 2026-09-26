@@ -3002,6 +3002,115 @@ fn a_tutor_fetches_the_card_it_names_and_the_run_says_what_it_fetched() {
     assert_eq!(off["effects"].as_array().expect("array").len(), 0);
 }
 
+fn run_seeker(deck: &str, criteria: &str, extra: &[&str]) -> serde_json::Value {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture(deck))
+        .arg(fixture(criteria))
+        .arg("--index")
+        .arg(fixture("yard-index.jsonl"))
+        .args(extra)
+        .output()
+        .expect("binary should run");
+    assert!(
+        out.status.success(),
+        "{deck} {criteria} should answer: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    serde_json::from_slice(&out.stdout).unwrap()
+}
+
+#[test]
+fn spellseeker_fetches_the_loam_and_the_loam_it_fetched_is_cast_into_the_graveyard() {
+    // HANDS.md hand 36. Twelve cards on the play: ten untapped lands, one
+    // Spellseeker at {2}{U}, one Life from the Loam at {1}{G}. A seven-card
+    // opener holds at least five lands, so turn N always has N sources, and
+    // the line casts Loam first, then Spellseeker. Every figure is a count of
+    // the 132 orderings of where the two spells sit in the twelve, worked on
+    // paper (positions from 0; turn 4 has seen positions 0 to 9):
+    //
+    // * Spellseeker cast by turn 3: it is in the first nine, unless the Loam
+    //   arrives on turn 3 (position 8), when the Loam takes two of the three
+    //   mana. 9/12 - (1/12)(8/11) = 91/132 = 68.94%. Declaring what it does
+    //   when it resolves cannot move this, and no blue makes it zero.
+    // * Loam in the graveyard by turn 4, drawn: it arrives by turn 4 and two
+    //   lands are there by then, so 10/12 = 83.33%. Fetched: add the deals
+    //   where it is in the last two and Spellseeker resolved by turn 3, so the
+    //   fetched Loam is cast on turn 4 -- (2/12)(9/11) = 18/132. 128/132 =
+    //   96.97%. A Spellseeker first cast on turn 4 fetches too late: one mana
+    //   is left and Loam costs two.
+    // * Loam still in the library on turn 4: drawn, 2/12 = 16.67%. Fetched,
+    //   only where Spellseeker is in the last two with it: 2/132 = 1.52%.
+    // * Loam in the graveyard by turn 5, which is the row that says the line
+    //   is read again after the fetch. Drawn, 11/12 = 91.67%. Fetched, every
+    //   deal: the one Loam turn 5 has not seen is found by a Spellseeker cast
+    //   by turn 4, or by one first cast on turn 5, when five lands pay {2}{U}
+    //   and then {1}{G} for the Loam it just put in hand. A line read once,
+    //   top to bottom, has passed the Loam by then: 131/132 = 99.24%.
+    let cases = [
+        // (deck, criteria, seeker by 3, yard by 4, library on 4, yard by 5)
+        (
+            "hand-36.txt",
+            "seeker-off.criteria.toml",
+            68.94,
+            83.33,
+            16.67,
+            91.67,
+        ),
+        (
+            "hand-36.txt",
+            "seeker-on.criteria.toml",
+            68.94,
+            96.97,
+            1.52,
+            100.0,
+        ),
+        (
+            "hand-36-no-blue.txt",
+            "seeker-on.criteria.toml",
+            0.0,
+            83.33,
+            16.67,
+            91.67,
+        ),
+    ];
+    for (deck, criteria, seeker, yard, library, yard5) in cases {
+        let json = run_seeker(deck, criteria, &[]);
+        for (name, want) in [
+            ("Spellseeker cast by turn 3", seeker),
+            ("Loam in the graveyard by turn 4", yard),
+            ("Loam still in the library on turn 4", library),
+            ("Loam in the graveyard by turn 5", yard5),
+        ] {
+            assert_eq!(percent(&json, name), want, "{deck} {criteria}, {name}");
+        }
+    }
+}
+
+#[test]
+fn spellseeker_fetching_the_loam_agrees_with_the_sampler() {
+    for (deck, criteria) in [
+        ("hand-36.txt", "seeker-on.criteria.toml"),
+        ("hand-36-no-blue.txt", "seeker-on.criteria.toml"),
+    ] {
+        let exact = run_seeker(deck, criteria, &[]);
+        let sampled = run_seeker(deck, criteria, &["--simulate", "--trials", "20000"]);
+        for name in [
+            "Spellseeker cast by turn 3",
+            "Loam in the graveyard by turn 4",
+            "Loam still in the library on turn 4",
+            "Loam in the graveyard by turn 5",
+        ] {
+            assert!(
+                (percent(&exact, name) - percent(&sampled, name)).abs() < 1.0,
+                "{deck}, {name}: {} exact against {} sampled",
+                percent(&exact, name),
+                percent(&sampled, name)
+            );
+        }
+    }
+}
+
 #[test]
 fn a_fetchland_leaves_the_battlefield_and_thins_the_library() {
     // The same pair over the other trigger, and it is the claim the deck-

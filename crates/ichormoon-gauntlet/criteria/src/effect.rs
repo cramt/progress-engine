@@ -959,40 +959,52 @@ impl<'a> Board<'a> {
         // mana and nothing to spend it on.
         if turn > 0 {
             let mut spent = Demand::FREE;
-            for tier in &casting.tiers {
-                for &group in tier {
-                    let Some(cost) = casting.cost[group] else {
-                        continue;
-                    };
-                    // The command zone is always there: a commander is cast
-                    // from it as a card in hand would be, and once — casting
-                    // it takes it out, and nothing here puts it back. It is
-                    // spent before a copy in hand, which only matters where a
-                    // group holds both, and there the copy in hand stays a
-                    // card you are holding.
-                    while casting.live_command[group] + self.live_hand[group] > 0 {
-                        let trial = spent.plus(cost);
-                        // The count first, because it settles most turns
-                        // without a matching: a bill for more sources than you
-                        // have land drops cannot be paid however they are
-                        // coloured, and this runs on every path.
-                        if trial.total() > self.drops[turn] || !self.can_pay(turn, trial) {
-                            break;
+            // Read again from the top whenever a tutor put a card in hand, so
+            // a card it fetched is cast this turn if the pool still pays for
+            // it, wherever the line lists it. It ends, because every pass
+            // after the first follows a cast, and a cast takes a card out of
+            // the hand or the command zone.
+            'line: loop {
+                for tier in &casting.tiers {
+                    for &group in tier {
+                        let Some(cost) = casting.cost[group] else {
+                            continue;
+                        };
+                        // The command zone is always there: a commander is
+                        // cast from it as a card in hand would be, and once —
+                        // casting it takes it out, and nothing here puts it
+                        // back. It is spent before a copy in hand, which only
+                        // matters where a group holds both, and there the copy
+                        // in hand stays a card you are holding.
+                        while casting.live_command[group] + self.live_hand[group] > 0 {
+                            let trial = spent.plus(cost);
+                            // The count first, because it settles most turns
+                            // without a matching: a bill for more sources than
+                            // you have land drops cannot be paid however they
+                            // are coloured, and this runs on every path.
+                            if trial.total() > self.drops[turn] || !self.can_pay(turn, trial) {
+                                break;
+                            }
+                            spent = trial;
+                            if casting.live_command[group] > 0 {
+                                casting.live_command[group] -= 1;
+                            } else {
+                                self.live_hand[group] -= 1;
+                            }
+                            casting.live_cast[group] += 1;
+                            // The tutor resolves before the line moves on,
+                            // which is the order the pilot plays it in and the
+                            // only order that lets four mana cast Trinket Mage
+                            // and then the Lantern it just fetched — or five
+                            // cast Spellseeker and then the Loam it fetched,
+                            // which the line lists first.
+                            if self.fetch_on_cast(group) {
+                                continue 'line;
+                            }
                         }
-                        spent = trial;
-                        if casting.live_command[group] > 0 {
-                            casting.live_command[group] -= 1;
-                        } else {
-                            self.live_hand[group] -= 1;
-                        }
-                        casting.live_cast[group] += 1;
-                        // The tutor resolves before the line moves on, which
-                        // is the order the pilot plays it in and the only
-                        // order that lets four mana cast Trinket Mage and
-                        // then the Lantern it just fetched.
-                        self.fetch_on_cast(group);
                     }
                 }
+                break;
             }
             casting.spent[turn] = spent;
         }
@@ -1039,21 +1051,27 @@ impl<'a> Board<'a> {
     ///
     /// Once per casting: two Trinket Mages fetch twice, and one fetching twice
     /// would be a card appearing from nowhere.
-    fn fetch_on_cast(&mut self, group: usize) {
+    ///
+    /// True when it put a card into the hand, which is a card the line may
+    /// now cast.
+    fn fetch_on_cast(&mut self, group: usize) -> bool {
         let Some(effect) = self.group_effect[group] else {
-            return;
+            return false;
         };
         if self.schedule.effects()[effect].trigger != Trigger::Cast {
-            return;
+            return false;
         }
-        if let Some((got, to)) = self.fetch(effect) {
-            match to {
-                Fetched::Hand => self.live_hand[got] += 1,
-                Fetched::Battlefield => {
-                    self.live_field[got] += 1;
-                    self.live_landed[got] += 1;
-                }
+        match self.fetch(effect) {
+            Some((got, Fetched::Hand)) => {
+                self.live_hand[got] += 1;
+                true
             }
+            Some((got, Fetched::Battlefield)) => {
+                self.live_field[got] += 1;
+                self.live_landed[got] += 1;
+                false
+            }
+            None => false,
         }
     }
 

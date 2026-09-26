@@ -797,6 +797,71 @@ Terramorphic Expanse fetches tapped, `otag:fetchland` holds both, and nothing on
 the land it found tells them apart — so a `can_cast` or a `cast` clause beside a
 battlefield fetch is refused by name rather than answered optimistically.
 
+### 36. Spellseeker finds the Loam, and the Loam is cast into the graveyard
+
+```
+Yavimaya Coast ×10
+Spellseeker
+Life from the Loam
+```
+
+Twelve cards on the play. Every land is untapped and makes both colours, and a
+seven-card opener holds at least five of them, so turn *N* always has *N*
+sources.
+
+**Turn 3:** Spellseeker, `{2}{U}`. When it enters, search the library for an
+instant or sorcery with mana value 2 or less — Loam — and put it into your hand.
+Three lands, all spent. **Turn 4:** cast Loam for `{1}{G}`. It is a sorcery, so
+it resolves into the graveyard (hand 34). Loam is in the graveyard by turn 4
+without ever being drawn.
+
+**Naive model:** Spellseeker is one card matching one query, so the Loam is in
+the yard only on the deals that draw it — or, one step better, the fetch puts
+Loam in hand and the line, having already read past Loam on its way to
+Spellseeker, does not look back. On a turn with five lands that second model
+holds a Loam it could have cast.
+
+*Answerable*, and one test — `hand-36.txt` against `seeker-on.criteria.toml` and
+`seeker-off.criteria.toml`, identical but for the effect block, and
+`hand-36-no-blue.txt`, the same twelve with every land a Forest:
+
+```toml
+[[effect]]
+match = 'name:"Spellseeker"'
+on = "cast"
+fetch = ['name:"Life from the Loam"']
+to = "hand"
+
+[casting]
+prefer = ['name:"Life from the Loam"', 'name:"Spellseeker"']
+```
+
+| | drawn | fetched | fetched, no blue |
+|---|---|---|---|
+| Spellseeker cast by turn 3 | **68.94%** | **68.94%** | 0% |
+| Loam in the graveyard by turn 4 | 83.33% | **96.97%** | 83.33% |
+| Loam still in the library on turn 4 | 16.67% | **1.52%** | 16.67% |
+| Loam in the graveyard by turn 5 | 91.67% | **100%** | 91.67% |
+
+Every row is a count of the 132 places the two spells can sit, worked on paper
+in the test. The first row must not move between the first two columns: what
+Spellseeker does when it resolves cannot change whether the pool paid for it.
+It is 91/132 rather than 9/12 because the line reads Loam first, and a Loam that
+arrives on turn 3 takes two of the three mana. The third column is the pair
+without the mana: the fetch fires on the casting, and a Spellseeker nobody
+could pay for finds nothing.
+
+The last row is the one that says **the line is read again from its top after
+a tutor puts a card in hand**. The one Loam turn 5 has not seen is found by a
+Spellseeker cast by turn 4, or by one first cast on turn 5, when five lands pay
+`{2}{U}` and then `{1}{G}` for the Loam it just fetched. A line read once, top
+to bottom, had already passed Loam, and read 131/132 = 99.24%.
+
+On the real deck this is a route to the graveyard north star:
+`decks/loam-cast.criteria.toml` declares it, and *Life from the Loam in the
+graveyard by turn 5* goes from 9.56% to about 16.3% on the play and from about
+10.8% to 18.8% on the draw, sampled on both seats.
+
 ---
 
 ## Discard, mill and dredge

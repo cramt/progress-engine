@@ -1,0 +1,11 @@
+// HANDS.md hand 36: Spellseeker goes and gets the Life from the Loam.
+//
+// Twelve cards, ten of them lands that make both colours and enter untapped,
+// so a seven-card opener always holds at least five lands and a land drop is
+// never missing: turn N has N untapped sources. Spellseeker costs {2}{U} and
+// resolves on turn 3 at the earliest; Loam costs {1}{G} and is the card it
+// fetches. On the play turn 4 has seen ten of the twelve, so the Loam is
+// still in the library on 2/12 of deals -- which is the gap the tutor closes.
+10x Yavimaya Coast [Land]
+1x Spellseeker [Tutor]
+1x Life from the Loam [Engine]
