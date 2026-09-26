@@ -73,6 +73,19 @@
           });
         fmt = craneLib.cargoFmt {inherit src;};
         test = craneLib.cargoTest (commonArgs // {inherit cargoArtifacts;});
+        # The independent Python checker (checker/): deals real games from the
+        # committed decks and fails when an exact engine answer falls outside
+        # its 99.9% interval. Standard library only, so python3 is all it needs.
+        checker =
+          pkgs.runCommand "gauntlet-checker" {
+            nativeBuildInputs = [pkgs.python3];
+            PYTHONDONTWRITEBYTECODE = "1";
+          } ''
+            python3 ${./checker}/compare.py \
+              --gauntlet ${gauntlet}/bin/gauntlet \
+              --decks ${./decks}
+            touch $out
+          '';
       };
 
       devShells.default = craneLib.devShell {

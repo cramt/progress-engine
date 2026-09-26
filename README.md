@@ -2053,8 +2053,33 @@ Notes:
 cargo test --all   # plain cargo; rust-toolchain.toml picks the toolchain
 cargo clippy --all-targets -- -D warnings
 nix develop        # optional devshell with the toolchain, jq and cargo-nextest
-nix flake check    # what CI runs: fmt, clippy -D warnings, tests, build
+nix flake check    # what CI runs: fmt, clippy -D warnings, tests, build, checker
+python3 checker/compare.py   # the independent checker, against target/release/gauntlet
 ```
+
+### An independent checker
+
+`checker/` is a small Monte Carlo checker in standard-library Python, written
+from what each question means, the Magic rules and the assumptions this README
+states — not from the engine's source. It shuffles the real libraries in
+`decks/`, deals 400,000 games per deck and seat, answers a handful of the
+committed criteria (a pure draw question, a battlefield land count, and three
+`can_cast` joints) and holds every answer the engine gave **exactly** against the
+checker's 99.9% interval, exiting non-zero on any that falls outside:
+
+```
+cargo build --release -p gauntlet-cli
+python3 checker/compare.py                       # or --gauntlet PATH, or $GAUNTLET
+python3 checker/compare.py --games 100000 --seed 7
+```
+
+It takes about half a minute. Where the engine's documented reading differs
+from the game — shocklands assumed tapped, one land is one mana, a fetchland
+pays a generic symbol but never a colour — the checker implements the
+documented reading and says so beside the code, so a disagreement is a finding
+about the engine rather than about the two disagreeing on the premise. Adding a
+question is one function of a dealt game and one entry in `QUESTIONS`, named
+exactly as its criterion is.
 
 The workspace is Ichormoon Gauntlet and Reality Chip. Gitaxian Probe's source
 is still under `crates/gitaxian-probe/`, but it is parked outside the workspace

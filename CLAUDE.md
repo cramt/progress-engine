@@ -58,10 +58,14 @@ cargo clippy --all-targets -- -D warnings
 cargo fmt --all
 cargo test -p gauntlet-sim --test acceptance <name>   # one test
 cargo run --release -p gauntlet-cli -- test decks/lantern.txt decks/lantern.criteria.toml --index decks/index.jsonl
+python3 checker/compare.py   # independent Python Monte Carlo vs target/release/gauntlet; exits 1 on disagreement
 ```
 
+`checker/` must stay independent of the engine: write it from the README, HANDS.md
+and the rules, never from `crates/`, or it checks nothing.
+
 **Run `cargo fmt --all` before every commit.** CI is `nix flake check`, whose
-four checks are fmt, clippy, test and build; a fmt failure aborts the others, so
+five checks are fmt, clippy, test, build and the Python checker; a fmt failure aborts the others, so
 an unformatted commit reports red without ever having run the tests. This has
 hidden broken clippy and tests across four commits before.
 

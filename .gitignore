@@ -12,3 +12,6 @@ crates/gitaxian-probe/app/dist/
 
 # symlink to the nix-patched deno_core; see flake.nix
 vendor/
+
+# the Python checker run in place
+__pycache__/
