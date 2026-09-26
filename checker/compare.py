@@ -6,8 +6,11 @@ reads the criterion's probability out of the JSON, deals the same number of
 games through checker.py, and asks whether the engine's number lies inside the
 checker's 99.9% interval. It exits 1 when any does not.
 
-Only questions the engine answered EXACTLY are compared: a sampled engine
-figure has an error bar of its own, and this is a check on the enumeration.
+An answer the engine ESTIMATED rather than enumerated has an error bar of its
+own, printed in the JSON as `standard_error`, so it is held to the interval of
+the difference between two independent samples instead: both errors, added in
+quadrature. That is a weaker check - it tests what a dealt game does, not the
+enumeration - and the verdict says which kind it was.
 
     python3 checker/compare.py [--gauntlet PATH] [--games N] [--seed S]
 
@@ -67,6 +70,7 @@ def main() -> int:
     args = p.parse_args()
 
     index = checker.Index(args.decks / "index.jsonl")
+    checker.check_commanders(args.decks, index)
     started = time.monotonic()
     rows, failures = [], 0
     for deck in sorted({q.deck for q in checker.QUESTIONS}):
@@ -87,11 +91,15 @@ def main() -> int:
                 # The interval is the checker's sampling error under the
                 # hypothesis that the engine is right, so a p of 0 or 1 is
                 # not an interval of zero width around an estimate.
-                half = Z_999 * math.sqrt(max(p_engine * (1 - p_engine), 1e-12) / args.games)
-                if e["method"] != "exact":
-                    verdict = "skip (engine sampled)"
-                elif abs(p_check - p_engine) <= half:
-                    verdict = "agree"
+                variance = max(p_engine * (1 - p_engine), 1e-12) / args.games
+                sampled = e["method"] != "exact"
+                if sampled:
+                    # Two estimates, each with its own error: the interval is
+                    # of their difference.
+                    variance += (e.get("standard_error") or 0.0) ** 2
+                half = Z_999 * math.sqrt(variance)
+                if abs(p_check - p_engine) <= half:
+                    verdict = "agree (engine sampled)" if sampled else "agree"
                 else:
                     verdict = "DISAGREE"
                     failures += 1
@@ -104,9 +112,9 @@ def main() -> int:
     elapsed = time.monotonic() - started
     print(f"\n{args.games:,} games per deck and seat, seed {args.seed!r}, {elapsed:.1f}s")
     if failures:
-        print(f"FAIL: {failures} exact answer(s) outside the checker's 99.9% interval")
+        print(f"FAIL: {failures} answer(s) outside the 99.9% interval")
         return 1
-    print("OK: every exact answer is inside the checker's 99.9% interval")
+    print("OK: every answer is inside its 99.9% interval")
     return 0
 
 

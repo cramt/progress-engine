@@ -89,6 +89,27 @@ def _make_card(record: dict, categories: tuple[str, ...]) -> Card:
 _LINE = re.compile(r"^(\d+)x?\s+(.+?)(?:\s+\([^)]*\)\s*\S*)?(?:\s+\*[^*]*\*)?(?:\s+\[(.*)\])?\s*$")
 
 
+def commanders(decklist: Path, index: Index) -> list[tuple[str, str]]:
+    """(name, printed mana cost) of every card the list files under Commander.
+
+    A commander starts the game in the command zone, not the library: it is
+    never drawn, and it can be cast from there on any turn its cost is paid.
+    """
+    found: list[tuple[str, str]] = []
+    for raw in decklist.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("//"):
+            continue
+        m = _LINE.match(line)
+        if not m:
+            raise SystemExit(f"checker: cannot read decklist line {raw!r}")
+        bare = [re.sub(r"\{.*\}$", "", c.strip()) for c in (m.group(3) or "").split(",")]
+        if "Commander" in bare:
+            record = index.card(m.group(2))
+            found.append((record["name"], record["mana_cost"]))
+    return found
+
+
 def load_library(decklist: Path, index: Index) -> list[Card]:
     """The library: every card in the list except commanders and anything the
     list says is outside the deck. One Card object per copy."""
@@ -329,6 +350,36 @@ def _battlefield_tutor_drawn_t5(g: Game) -> bool:
     return g.count(5, lambda c: c.is_named(*LANTERN_BATTLEFIELD_TUTORS)) >= 1
 
 
+def _commander_cast_by(turn: int, cost: str) -> Callable[[Game], bool]:
+    """The commander, from the command zone, has been cast by `turn`.
+
+    The commander is always available and never drawn, so the only thing
+    between it and the battlefield is mana: it has been cast by `turn` exactly
+    when some turn t <= `turn` had untapped lands that pay its cost. Lands in
+    play only accumulate and every land in play on t is untapped on t + 1, so
+    "payable on some t <= turn" is "payable on `turn`" - which is the gate, with
+    the pilot playing whichever lands pay. Nothing else is cast in the line
+    this asks about, so nothing else competes for the pool.
+
+    ASSUMPTION (the ticket, #78): casting it once is enough, so commander tax -
+    {2} more for each earlier cast from the command zone - never comes up.
+    Mana rocks, Rashmi's Treasure and creatures are not sources, as everywhere
+    else here.
+    """
+
+    def ask(g: Game) -> bool:
+        return g.can_cast(turn, cost)
+
+    return ask
+
+
+# The commanders' costs are written out rather than read from the index so that
+# a reader can check them against the card; `main` and compare.py hold them to
+# the index's printed cost so they cannot drift.
+LANTERN_COMMANDER = ("Rashmi and Ragavan", "{1}{G}{U}{R}")
+LOAM_COMMANDER = ("Borborygmos and Fblthp", "{2}{G}{U}{R}")
+
+
 QUESTIONS: list[Question] = [
     Question(
         "loam",
@@ -372,7 +423,34 @@ QUESTIONS: list[Question] = [
         _battlefield_tutor_drawn_t5,
         5,
     ),
+    Question(
+        "lantern",
+        "lantern-commander.criteria.toml",
+        "commander cast by turn 4",
+        # { turn = 4, cast = 'name:"Rashmi and Ragavan"', min = 1 }
+        # with 'name:"Rashmi and Ragavan"' the only entry in [casting] prefer
+        _commander_cast_by(4, LANTERN_COMMANDER[1]),
+        4,
+    ),
+    Question(
+        "loam",
+        "loam-commander.criteria.toml",
+        "commander cast by turn 5",
+        # { turn = 5, cast = 'name:"Borborygmos and Fblthp"', min = 1 }
+        # with 'name:"Borborygmos and Fblthp"' the only entry in [casting] prefer
+        _commander_cast_by(5, LOAM_COMMANDER[1]),
+        5,
+    ),
 ]
+
+
+def check_commanders(decks: Path, index: Index) -> None:
+    """The commanders written above are the ones the decklists name, at the
+    costs the index prints."""
+    for deck, expected in (("lantern", LANTERN_COMMANDER), ("loam", LOAM_COMMANDER)):
+        found = commanders(decks / f"{deck}.txt", index)
+        if found != [expected]:
+            raise SystemExit(f"checker: {deck}.txt names commanders {found}, expected {[expected]}")
 
 
 # --- Running ------------------------------------------------------------------
@@ -411,6 +489,7 @@ def main() -> None:
     p.add_argument("--draw", action="store_true")
     args = p.parse_args()
     index = Index(args.decks / "index.jsonl")
+    check_commanders(args.decks, index)
     for deck in sorted({q.deck for q in QUESTIONS}):
         library = load_library(args.decks / f"{deck}.txt", index)
         qs = [q for q in QUESTIONS if q.deck == deck]
