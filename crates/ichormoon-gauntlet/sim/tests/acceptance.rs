@@ -613,6 +613,7 @@ fn a_commander_cast_from_the_command_zone_agrees_with_the_exact_engine() {
     let land = |colour: &str, tapped: bool| ManaSource::Land {
         enters_tapped: tapped,
         produces: Palette::from_letters([colour]),
+        lasts: None,
     };
     let rashmi = ManaSource::Castable {
         cost: Cost::parse("{1}{G}{U}{R}").unwrap().demand(),
