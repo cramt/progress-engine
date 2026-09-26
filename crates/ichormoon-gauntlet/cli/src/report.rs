@@ -1556,6 +1556,33 @@ pub fn exclusion_note(library: &Library) -> Option<String> {
     ))
 }
 
+/// The cards counted from a token category because each shares its name with
+/// a real card.
+pub fn token_named_note(library: &Library) -> Option<String> {
+    if library.token_named.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "note: counted from a token category, because each shares its name with a real card: \
+         {}.\n      The index holds cards and not tokens, so these are the cards. If the \
+         list meant the\n      tokens, mark the category `{{noDeck}}`.",
+        library.token_named.join(", ")
+    ))
+}
+
+/// Everything worth saying about the library before a question is read, in
+/// the order it is printed.
+pub fn library_notes(library: &Library) -> Vec<String> {
+    [
+        stale_index_note(library),
+        exclusion_note(library),
+        token_named_note(library),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
 /// A whole number with thousands separators, as the docs quote widths.
 fn thousands(n: f64) -> String {
     let digits = format!("{:.0}", n);

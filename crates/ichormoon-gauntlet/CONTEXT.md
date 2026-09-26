@@ -61,6 +61,10 @@ _Avoid_: simulator, Monte Carlo engine
 One way the draws can fall: how many of each group were seen by each turn read, with its exact probability. The unit that enumeration width is counted in.
 _Avoid_: path (Reality Chip's word for the same thing), outcome
 
+**Prepared run**:
+A criteria file made ready to answer against one deck: every query checked against the index, every declared priority resolved, every refusal that can be made before a hand is enumerated made, and the questions partitioned into classes. A run that cannot be prepared is refused, with the notes that came before the refusal.
+_Avoid_: setup, plan (the engine's count of questions)
+
 **Class**:
 A set of questions that read the same queries, turns and mana detail, and so share one enumeration.
 _Avoid_: bucket, partition
