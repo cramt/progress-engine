@@ -9,7 +9,8 @@
 //! the same file still agree.
 
 use gauntlet_criteria::{
-    Delay, Grouping, Outcomes, Policies, RunError, Schedule, Trigger, Zone, ZoneError,
+    CastingPolicy, Cost, Delay, Effect, Grouping, ManaSource, Outcomes, Palette, Policies,
+    Resolves, Route, RunError, Schedule, Trigger, Zone, ZoneError,
 };
 use gauntlet_toml::{
     Criteria, Destination, EffectLibrary, ErrorKind, MAX_TURN, STANDARD_LIBRARY,
@@ -401,6 +402,111 @@ fn the_exact_and_sampled_engines_answer_the_same_file_the_same_way() {
             want.mean()
         );
     }
+}
+
+#[test]
+fn a_file_run_against_a_spell_that_draws_agrees_in_both_engines() {
+    // The criteria layer with a sized gap firing (ADR-0017). No `[[effect]]`
+    // key draws yet, so the drawing spell is built by hand beside the file's
+    // own queries; what is under test is that the file's clauses read the
+    // same board in both engines once a cast has dealt cards mid-turn.
+    let source = r#"
+        [[criterion]]
+        name = "a target in hand by turn 3"
+        require = [{ turn = 3, query = 'cat:"target"', min = 1 }]
+
+        [[criterion]]
+        name = "no drawer cast by turn 3"
+        require = [{ turn = 3, cast = 'cat:"drawer"', max = 0 }]
+
+        [[criterion]]
+        name = "two drawers cast by turn 3"
+        require = [{ turn = 3, cast = 'cat:"drawer"', min = 2 }]
+
+        [[expect]]
+        name = "targets left in the library by turn 3"
+        turn = 3
+        query = 'cat:"target"'
+        zone = "library"
+    "#;
+    let mut criteria = parse(source);
+    let bit = |query: &str| {
+        1u64 << criteria
+            .queries()
+            .iter()
+            .position(|q| q == query)
+            .expect("the file names it")
+    };
+    let (target, drawer) = (bit(r#"cat:"target""#), bit(r#"cat:"drawer""#));
+    let grouping = Grouping::with_mana(
+        criteria.queries().to_vec(),
+        vec![
+            (
+                drawer,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                5,
+            ),
+            (target, ManaSource::Spell, 3),
+            (
+                0,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                    lasts: None,
+                },
+                17,
+            ),
+            (0, ManaSource::Spell, 35),
+        ],
+    )
+    .unwrap();
+    let drawing = Effect {
+        matched_by: drawer.trailing_zeros() as usize,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: None,
+        delay: None,
+        draw: 1,
+    };
+    let schedule = Schedule::build(
+        criteria.horizon(),
+        false,
+        vec![drawing],
+        Policies::casting(CastingPolicy::new(vec![drawer.trailing_zeros() as usize])),
+    );
+    let plan = criteria.plan();
+    let exact = gauntlet_criteria::run(&grouping, &schedule, plan, &mut criteria).expect("exact");
+    let p = |i: usize| exact.probabilities[i].get();
+    assert!(
+        p(1) > 0.05 && p(2) > 0.05,
+        "the gap fires on some paths and not on others: {:?}",
+        exact.probabilities
+    );
+    let trials = 100_000;
+    let sampled = gauntlet_sim::simulate(&grouping, &schedule, trials, 11, plan, &mut criteria)
+        .expect("sampled");
+    for (i, want) in exact.probabilities.iter().enumerate() {
+        let got = sampled.proportions[i];
+        let se = gauntlet_sim::standard_error(got, trials);
+        assert!(
+            (got - want.get()).abs() <= 5.0 * se,
+            "criterion {i}: sampled {got} vs exact {}, {:.2} SE away",
+            want.get(),
+            (got - want.get()).abs() / se
+        );
+    }
+    let (want, got) = (&exact.distributions[0], &sampled.distributions[0]);
+    let se = gauntlet_sim::mean_standard_error(got, trials);
+    assert!(
+        (got.mean() - want.mean()).abs() <= 5.0 * se,
+        "targets left: sampled mean {} vs exact {}",
+        got.mean(),
+        want.mean()
+    );
 }
 
 // --- Disjunction -----------------------------------------------------------

@@ -429,15 +429,22 @@ pub enum RunError<E> {
     /// than what a path did: each copy of a card that fetches takes at most one
     /// card, so the bound is a count. Deciding it per path would make the
     /// sampler refuse only on the hands it happened to deal (#37).
+    ///
+    /// A spell that draws is the same bound for the same reason: each copy is
+    /// cast at most once and draws what it says, so `drawn` counts what the
+    /// sized gaps could deal, after which a turn's draw can find the library
+    /// empty.
     #[error(
-        "this question draws {draws} cards from a library of {population}, and {fetched} more \
-         can be fetched out of it without being drawn, so on some games the library runs out \
-         before the last draw"
+        "this question draws {draws} cards from a library of {population}, and {} more \
+         can be fetched or drawn by spells out of it, so on some games the library runs out \
+         before the last draw",
+        .fetched + .drawn
     )]
     LibraryRunsOut {
         population: u32,
         draws: u32,
         fetched: u32,
+        drawn: u32,
     },
     /// The enumeration is supposed to partition every possible draw, so its
     /// path probabilities sum to 1. If they do not, some region of the sample
@@ -530,6 +537,44 @@ pub fn compositions(groups: usize, gaps: &[u32]) -> u128 {
         .fold(1u128, |a, b| a.saturating_mul(b))
 }
 
+/// How many paths the enumeration of this class would walk: the ceiling
+/// [`MAX_PATHS`] is checked against this.
+///
+/// [`compositions`] of the schedule's gaps for a class where nothing deals a
+/// sized gap, which is every class a file can declare today, so nothing that
+/// was exact changes kind. A class with a sized gap has no closed form — how
+/// many paths it walks depends on how many of them fired, and the static
+/// worst case would refuse everything — so it is **counted**: the same
+/// descent over the same board, asking the same questions, without the
+/// leaves, and stopping one past the ceiling because a count that reaches it
+/// has already answered (ADR-0017). A refusal on it names that capped count.
+///
+/// Counted from the opener with nothing put back, which is the walk a class
+/// without a mulligan takes.
+pub fn width(grouping: &Grouping, schedule: &Schedule) -> u128 {
+    let mut board = Board::new(grouping, schedule);
+    if !board.sizes() {
+        return compositions(grouping.dealt(), schedule.gaps());
+    }
+    struct Counting<'b, 'g>(&'b mut Board<'g>);
+    impl chip_stats::Walk for Counting<'_, '_> {
+        fn removals(&mut self, reached: chip_stats::Path<'_>, out: &mut [u32]) {
+            self.0.walk(reached);
+            out.copy_from_slice(self.0.removed());
+        }
+        fn gap(&mut self, _reached: chip_stats::Path<'_>) -> u32 {
+            self.0.next_gap()
+        }
+        fn path(&mut self, _reached: chip_stats::Path<'_>, _p: f64) {}
+    }
+    chip_stats::count_checkpoint_paths_sized(
+        grouping.group_sizes(),
+        schedule.gaps(),
+        &mut Counting(&mut board),
+        MAX_PATHS + 1,
+    )
+}
+
 /// The refusals that are facts about the whole run rather than about any one
 /// question: an empty library, and a hand bigger than it.
 ///
@@ -553,14 +598,34 @@ pub fn feasible<E>(grouping: &Grouping, schedule: &Schedule) -> Result<(), RunEr
     // cannot run out however much is fetched afterwards.
     let later: u32 = schedule.gaps().iter().skip(1).sum();
     let fetched = fetchable(grouping, schedule);
-    if later > 0 && draws + fetched > population {
+    let drawn = drawable(grouping, schedule);
+    if later > 0 && draws + fetched + drawn > population {
         return Err(RunError::LibraryRunsOut {
             population,
             draws,
             fetched,
+            drawn,
         });
     }
     Ok(())
+}
+
+/// The most cards this run's spells can draw: what each copy of a spell that
+/// draws draws, the commander's copy included, because each is cast once.
+fn drawable(grouping: &Grouping, schedule: &Schedule) -> u32 {
+    let effects = schedule.effects();
+    grouping
+        .group_masks()
+        .iter()
+        .zip(grouping.group_sizes())
+        .zip(grouping.group_command())
+        .filter_map(|((mask, &size), &command)| {
+            let e = effects
+                .iter()
+                .rposition(|e| *mask & (1u64 << e.matched_by) != 0)?;
+            (effects[e].trigger == Trigger::Cast).then(|| (size + command) * effects[e].draw)
+        })
+        .sum()
 }
 
 /// The most cards this run can take out of the library without drawing them:
@@ -628,7 +693,7 @@ pub fn run_answering<E>(
     let gaps = schedule.gaps();
     let groups = grouping.dealt();
     feasible(grouping, schedule)?;
-    let paths = compositions(groups, gaps);
+    let paths = width(grouping, schedule);
     if paths > MAX_PATHS {
         return Err(RunError::TooWide {
             paths,
@@ -667,6 +732,7 @@ pub fn run_answering<E>(
     // `Walking::removals` is cheap but it is not free, and every number this
     // repository already reports comes off the walk that does not do it.
     let fetches = board.fetches();
+    let sizes = board.sizes();
     let mut walking = Walking {
         board: &mut board,
         evaluator,
@@ -680,7 +746,9 @@ pub fn run_answering<E>(
         wrong_shape: &mut wrong_shape,
         outcomes: &mut outcomes,
     };
-    if fetches {
+    if sizes {
+        chip_stats::for_each_checkpoint_path_sized(grouping.group_sizes(), gaps, &mut walking);
+    } else if fetches {
         chip_stats::for_each_checkpoint_path_removing(grouping.group_sizes(), gaps, &mut walking);
     } else {
         chip_stats::for_each_checkpoint_path(grouping.group_sizes(), gaps, |history, p| {
@@ -756,6 +824,11 @@ impl<V: Evaluator<Error = E>, E> chip_stats::Walk for Walking<'_, '_, V, E> {
         // drift.
         self.board.walk(reached);
         out.copy_from_slice(self.board.removed());
+    }
+    fn gap(&mut self, _reached: chip_stats::Path<'_>) -> u32 {
+        // Asked straight after `removals` for the same prefix, so the board
+        // has just walked it: where that walk stopped is the answer.
+        self.board.next_gap()
     }
     fn path(&mut self, reached: chip_stats::Path<'_>, p: f64) {
         self.mass.add(p);

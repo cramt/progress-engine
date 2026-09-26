@@ -141,6 +141,9 @@ pub fn simulate<E>(
     // out of the library without drawing it. A run with no tutor deals exactly
     // as it always did, down to the order of the random draws.
     let fetches = board.fetches();
+    // And the other one: does anything here deal a sized gap. A run where
+    // nothing draws never asks, so it too deals as it always did.
+    let sizes = board.sizes();
     let mut removed = vec![0u32; groups];
     let mut wanted = vec![0u32; groups];
 
@@ -190,12 +193,15 @@ pub fn simulate<E>(
             let mut kept = true;
 
             let mut i = 0usize;
+            // Cards the sized gaps of this deal have dealt so far. Every fixed
+            // checkpoint after one sits that much deeper into the deck.
+            let mut sized = 0usize;
             loop {
                 // Snapshot before dealing, because a checkpoint can be reached
                 // before any card is: a leading gap of zero means "the hand as it
                 // stands", and recording it after the next draw reports a card the
                 // player has not seen yet.
-                while checkpoint < gaps.len() && reached_at[checkpoint] as usize <= i {
+                while checkpoint < gaps.len() && reached_at[checkpoint] as usize + sized <= i {
                     history.push(cumulative.clone());
                     checkpoint += 1;
                     // The opener has just been dealt: decide about it before
@@ -261,29 +267,30 @@ pub fn simulate<E>(
                             continue 'deal;
                         }
                     }
-                    if !fetches {
+                    if !fetches && !sizes {
                         continue;
                     }
                     // The same prefix replay the exact engine does, and for the
-                    // same reason: what this path has fetched is whatever the one
-                    // walk says it fetched, asked before the next card is dealt.
-                    board.walk(&history);
-                    wanted.copy_from_slice(board.removed());
-                    for (group, want) in wanted.iter().enumerate() {
-                        while removed[group] < *want {
-                            // The card is in the undealt tail by construction: the
-                            // board counted it there out of the same totals this
-                            // deck was built from.
-                            let at = (i..n)
-                                .find(|&k| deck[k] as usize == group)
-                                .expect("the board fetched a card the library still held");
-                            deck.swap(at, n - 1);
-                            n -= 1;
-                            removed[group] += 1;
-                        }
-                    }
+                    // same reason: what this path has fetched, and how many
+                    // cards its next sized gap deals, are whatever the one walk
+                    // says, asked before the next card is dealt.
+                    replay(
+                        &mut board,
+                        &mut Dealing {
+                            deck: &mut deck,
+                            i: &mut i,
+                            n: &mut n,
+                            cumulative: &mut cumulative,
+                            history: &mut history,
+                            removed: &mut removed,
+                            wanted: &mut wanted,
+                            sized: &mut sized,
+                        },
+                        sizes,
+                        &mut rng,
+                    );
                 }
-                if i >= (total_draws as usize).min(n) {
+                if i >= (total_draws as usize + sized).min(n) {
                     break;
                 }
                 let j = rng.random_range(i..n);
@@ -292,9 +299,27 @@ pub fn simulate<E>(
                 i += 1;
             }
             // Whatever the last draw reached, plus any trailing gaps of zero.
+            // A turn played on one of those can still cast a spell that draws.
             while checkpoint < gaps.len() {
                 history.push(cumulative.clone());
                 checkpoint += 1;
+                if sizes {
+                    replay(
+                        &mut board,
+                        &mut Dealing {
+                            deck: &mut deck,
+                            i: &mut i,
+                            n: &mut n,
+                            cumulative: &mut cumulative,
+                            history: &mut history,
+                            removed: &mut removed,
+                            wanted: &mut wanted,
+                            sized: &mut sized,
+                        },
+                        sizes,
+                        &mut rng,
+                    );
+                }
             }
 
             board.walk(&history);
@@ -351,6 +376,64 @@ pub fn simulate<E>(
                 .collect(),
         }),
     })
+}
+
+/// One deal in progress: the shuffled deck, how far into it the deal is (`i`)
+/// and where its undealt tail ends (`n`), and everything recorded so far.
+struct Dealing<'a> {
+    deck: &'a mut [u16],
+    i: &'a mut usize,
+    n: &'a mut usize,
+    cumulative: &'a mut [u32],
+    history: &'a mut Vec<Vec<u32>>,
+    removed: &'a mut [u32],
+    wanted: &'a mut [u32],
+    sized: &'a mut usize,
+}
+
+/// Play the path so far on `board`, take out of the undealt tail whatever it
+/// fetched, and deal every sized gap it asks for, each as one more checkpoint,
+/// playing it again after each.
+///
+/// The sampler's half of the exact engine's removals and sized gaps: the same
+/// board asked the same question about the same prefix, and the answer dealt
+/// off the shuffled deck in its true position — after the checkpoint that
+/// asked, before anything later is dealt.
+fn replay(board: &mut Board<'_>, deal: &mut Dealing<'_>, sizes: bool, rng: &mut ChaCha8Rng) {
+    loop {
+        board.walk(deal.history);
+        deal.wanted.copy_from_slice(board.removed());
+        for (group, want) in deal.wanted.iter().enumerate() {
+            while deal.removed[group] < *want {
+                // The card is in the undealt tail by construction: the board
+                // counted it there out of the same totals this deck was built
+                // from.
+                let at = (*deal.i..*deal.n)
+                    .find(|&k| deal.deck[k] as usize == group)
+                    .expect("the board fetched a card the library still held");
+                deal.deck.swap(at, *deal.n - 1);
+                *deal.n -= 1;
+                deal.removed[group] += 1;
+            }
+        }
+        let size = if sizes { board.next_gap() } else { 0 };
+        if size == 0 {
+            return;
+        }
+        // Never past the undealt tail: the board asks for no more than the
+        // library holds, counted from the same totals.
+        for _ in 0..size {
+            if *deal.i >= *deal.n {
+                break;
+            }
+            let j = rng.random_range(*deal.i..*deal.n);
+            deal.deck.swap(*deal.i, j);
+            deal.cumulative[deal.deck[*deal.i] as usize] += 1;
+            *deal.i += 1;
+            *deal.sized += 1;
+        }
+        deal.history.push(deal.cumulative.to_vec());
+    }
 }
 
 /// Standard error of a proportion estimated from `trials` samples.

@@ -539,6 +539,7 @@ fn surveil(route: Route) -> Effect {
         route,
         fetch: None,
         delay: None,
+        draw: 0,
     }
 }
 
@@ -1023,6 +1024,7 @@ fn a_live_effect_keeps_every_checkpoint_whatever_it_is_asked() {
         route: Route::Everything,
         fetch: None,
         delay: None,
+        draw: 0,
     }];
     let schedule = Schedule::build(2, false, effects, Policies::default());
     assert_eq!(schedule.gaps(), &[7, 0, 1, 1, 1]);
@@ -1435,6 +1437,7 @@ fn the_budget_and_the_gate_answer_hand_twelve_the_same_way() {
         route: Route::Matching(3),
         fetch: None,
         delay: None,
+        draw: 0,
     };
     let land_drop = LandDropPolicy::new(vec![0], 2);
     let gate = Schedule::build(
@@ -1532,6 +1535,7 @@ fn tutor(to: Fetched) -> Effect {
             to,
         }),
         delay: None,
+        draw: 0,
     }
 }
 
@@ -1695,6 +1699,7 @@ fn saga() -> Effect {
             turns: 2,
             sacrifice: true,
         }),
+        draw: 0,
     }
 }
 
@@ -2109,6 +2114,7 @@ fn a_tutor_still_finds_a_card_the_mulligan_put_on_the_bottom() {
             to: Fetched::Hand,
         }),
         delay: None,
+        draw: 0,
     };
     let policy = MulliganPolicy::new(
         vec![Keep {
@@ -2380,4 +2386,185 @@ fn no_declared_rule_beats_the_chosen_strategy_on_its_own_objective() {
             chosen.strategy.score()
         );
     }
+}
+
+// --- A spell's draw is a sized gap (ADR-0017) --------------------------------
+//
+// No card draws yet: the effect library has no words for it. These build the
+// effect by hand, which is the only way to reach it, to hold the engine to
+// numbers worked out on paper.
+
+/// A spell whose cast draws `draw` cards, matched by query 0.
+fn drawing(draw: u32) -> Effect {
+    Effect {
+        matched_by: 0,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: None,
+        delay: None,
+        draw,
+    }
+}
+
+/// One Island, one `{U}` spell that draws a card, one target and two blanks,
+/// dealt two and then one, with the line casting the spell.
+fn cantrip_and_target(draw: u32) -> (Grouping, Schedule) {
+    let grouping = Grouping::with_mana(
+        q(&["cantrip", "target"]),
+        vec![
+            (
+                0b01,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                1,
+            ),
+            (0b10, ManaSource::Spell, 1),
+            (
+                0b00,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                    lasts: None,
+                },
+                1,
+            ),
+            (0b00, ManaSource::Spell, 2),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::plain_with_fetches(
+        &[2, 1],
+        vec![drawing(draw)],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    (grouping, schedule)
+}
+
+#[test]
+fn a_spells_draw_is_dealt_only_on_the_paths_that_cast_it() {
+    // Five cards, and by turn 1 three of them are in hand, any three alike.
+    //
+    //   The target is among them: C(4,2)/C(5,3) = 6/10.
+    //   It is not, but the Island and the spell are, with a blank:
+    //   2/10 — and then the spell draws one of the two left, the target
+    //   half the time: 1/10.
+    //
+    // 7/10 in hand by turn 1, against the 6/10 of a spell that draws nothing;
+    // and the spell is cast on exactly the 3/10 holding the Island and it.
+    let answer = |draw: u32| {
+        let (grouping, schedule) = cantrip_and_target(draw);
+        let mut ev = Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(1, 1, Counted::In(Zone::Hand)) == 1),
+            Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::Cast) == 1),
+            Box::new(|v: &PathView<'_>| v.count_at(1, 1, Counted::In(Zone::Library)) == 0),
+        ]);
+        let out = gauntlet_criteria::run(&grouping, &schedule, only_criteria(3), &mut ev).unwrap();
+        out.probabilities
+            .iter()
+            .map(|p| p.get())
+            .collect::<Vec<_>>()
+    };
+    let drew = answer(1);
+    assert!((drew[0] - 0.7).abs() < 1e-12, "{drew:?}");
+    assert!((drew[1] - 0.3).abs() < 1e-12, "{drew:?}");
+    assert!((drew[2] - 0.7).abs() < 1e-12, "{drew:?}");
+    let plain = answer(0);
+    assert!((plain[0] - 0.6).abs() < 1e-12, "{plain:?}");
+    assert!((plain[1] - 0.3).abs() < 1e-12, "{plain:?}");
+}
+
+/// Two free spells that each draw a card, and three blanks, dealt one and
+/// then one.
+fn free_cantrips() -> (Grouping, Schedule) {
+    let grouping = Grouping::with_mana(
+        q(&["cantrip"]),
+        vec![
+            (
+                0b1,
+                ManaSource::Castable {
+                    cost: Cost::parse("{0}").unwrap().demand(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                2,
+            ),
+            (0b0, ManaSource::Spell, 3),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::plain_with_fetches(
+        &[1, 1],
+        vec![drawing(1)],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    (grouping, schedule)
+}
+
+#[test]
+fn a_spell_drawn_mid_line_is_cast_the_same_turn() {
+    // The line is read again from its top after each spell resolves. Two
+    // cards are seen by turn 1 and every cantrip among them is cast, each
+    // showing one more; so both are cast exactly when both sit in the top
+    // three: C(3,2)/C(5,2) = 3/10. A line that did not read itself again
+    // would leave the drawn one in hand and cast both only when both were in
+    // the top two, 1/10.
+    let (grouping, schedule) = free_cantrips();
+    let mut ev = Closures(vec![
+        Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::Cast) == 2),
+        Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::In(Zone::Hand)) == 0),
+    ]);
+    let out = gauntlet_criteria::run(&grouping, &schedule, only_criteria(2), &mut ev).unwrap();
+    let p: Vec<f64> = out.probabilities.iter().map(|p| p.get()).collect();
+    assert!((p[0] - 0.3).abs() < 1e-12, "{p:?}");
+    assert!(
+        (p[1] - 1.0).abs() < 1e-12,
+        "nothing castable is left in hand: {p:?}"
+    );
+}
+
+#[test]
+fn a_class_with_a_sized_gap_is_as_wide_as_the_paths_it_walks() {
+    // [1, 1] over two groups is 2 x 2 = 4 compositions by the static bound,
+    // and that is still the width without the draw. With it, the walk takes
+    // six paths: blank-blank casts nothing; either order of one cantrip and a
+    // blank casts it and turns over a cantrip or a blank, two each; and two
+    // cantrips cast both and turn over a blank apiece.
+    let (grouping, schedule) = free_cantrips();
+    assert_eq!(gauntlet_criteria::width(&grouping, &schedule), 6);
+    let plain = Schedule::plain_with_fetches(
+        &[1, 1],
+        vec![drawing(0)],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    assert_eq!(gauntlet_criteria::width(&grouping, &plain), 4);
+}
+
+#[test]
+fn a_question_whose_spells_can_draw_the_library_out_is_refused() {
+    // Five cards: four dealt by the schedule, and two cantrips that could
+    // draw one each. On the games where both are cast, the last turn's draw
+    // finds nothing, so the question is refused as a fetch that could empty
+    // the library is, rather than answered off the games that did not.
+    let (grouping, _) = free_cantrips();
+    let schedule = Schedule::plain_with_fetches(
+        &[1, 1, 1, 1],
+        vec![drawing(1)],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let mut ev = Closures(vec![Box::new(|_: &PathView<'_>| true)]);
+    let err = gauntlet_criteria::run(&grouping, &schedule, only_criteria(1), &mut ev).unwrap_err();
+    assert!(
+        matches!(
+            err,
+            RunError::LibraryRunsOut {
+                population: 5,
+                draws: 4,
+                fetched: 0,
+                drawn: 2
+            }
+        ),
+        "{err}"
+    );
 }

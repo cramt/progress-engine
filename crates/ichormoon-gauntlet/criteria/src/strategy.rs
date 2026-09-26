@@ -130,7 +130,7 @@ impl<'a, V: Evaluator> Conditionals<'a, V> {
     ) -> Result<Self, RunError<V::Error>> {
         feasible(grouping, schedule)?;
         let groups = grouping.dealt();
-        let paths = compositions(groups, schedule.gaps());
+        let paths = crate::width(grouping, schedule);
         if paths > MAX_PATHS {
             return Err(RunError::TooWide {
                 paths,
@@ -333,6 +333,7 @@ fn continue_from<'a, V: Evaluator>(
     let later = schedule.gaps().get(1..).unwrap_or(&[]);
     let sizes = grouping.group_sizes();
     let fetches = board.fetches();
+    let sized = board.sizes();
     board.bottom(back);
     let mut totals = vec![KahanSum::new(); answering.criteria().len()];
     let mut histograms = vec![DistributionBuilder::new(); answering.expectations().len()];
@@ -353,7 +354,9 @@ fn continue_from<'a, V: Evaluator>(
         wrong_shape: &mut wrong_shape,
         outcomes: &mut outcomes,
     };
-    if fetches {
+    if sized {
+        chip_stats::for_each_checkpoint_path_sized_after(sizes, first, later, &mut walking);
+    } else if fetches {
         chip_stats::for_each_checkpoint_path_removing_after(sizes, first, later, &mut walking);
     } else {
         chip_stats::for_each_checkpoint_path_after(sizes, first, later, |h, p| {

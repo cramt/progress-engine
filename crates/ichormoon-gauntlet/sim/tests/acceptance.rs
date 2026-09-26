@@ -741,6 +741,7 @@ fn a_tutor_agrees_with_the_exact_engine() {
             to: Fetched::Hand,
         }),
         delay: None,
+        draw: 0,
     };
     let schedule = Schedule::build(
         4,
@@ -825,6 +826,7 @@ fn a_tutor_thins_the_library_in_both_engines() {
                     to: Fetched::Hand,
                 }),
                 delay: None,
+                draw: 0,
             }],
         };
         let schedule = Schedule::build(
@@ -931,6 +933,7 @@ fn a_delayed_fetch_agrees_with_the_exact_engine() {
             turns: 2,
             sacrifice: true,
         }),
+        draw: 0,
     };
     let schedule = Schedule::build(
         5,
@@ -1097,6 +1100,7 @@ fn a_mulligan_agrees_with_the_exact_engine() {
             to: Fetched::Hand,
         }),
         delay: None,
+        draw: 0,
     };
     let mulligan = MulliganPolicy::new(
         vec![Keep {
@@ -1304,4 +1308,154 @@ fn a_chosen_strategy_agrees_with_the_exact_engine_on_a_class_it_does_not_read() 
             "kept at depth {depth}: {s} vs {e}"
         );
     }
+}
+
+// --- A spell's draw is a sized gap (ADR-0017) --------------------------------
+//
+// The exact engine deals a spell's draw as a sized gap: one more checkpoint,
+// on the paths that cast it and no others. The sampler deals the same cards
+// off its shuffled deck in their true position, asking the same Board before
+// each deal. No card in the effect library draws yet, so the effect is built
+// by hand here, the only place it can be.
+
+/// Blue spells matched by query 0, `cost` each, whose cast draws `draw` and
+/// may fetch; a target matched by query 1; Islands; blanks.
+fn drawing_deck(cost: &str, draw: u32, fetch: bool) -> (Grouping, Schedule) {
+    let grouping = Grouping::with_mana(
+        q(&["drawer", "target"]),
+        vec![
+            (
+                0b01,
+                ManaSource::Castable {
+                    cost: Cost::parse(cost).unwrap().demand(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                5,
+            ),
+            (0b10, ManaSource::Spell, 3),
+            (
+                0b00,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                    lasts: None,
+                },
+                17,
+            ),
+            (0b00, ManaSource::Spell, 35),
+        ],
+    )
+    .unwrap();
+    let effect = Effect {
+        matched_by: 0,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: fetch.then(|| Fetch {
+            prefer: vec![1],
+            to: Fetched::Hand,
+        }),
+        delay: None,
+        draw,
+    };
+    // Three turns on the play: every cast draws, so how wide this is grows
+    // with how many spells the pool pays for, and a fourth turn goes over
+    // the ceiling.
+    let schedule = Schedule::build(
+        3,
+        false,
+        vec![effect],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    (grouping, schedule)
+}
+
+/// The two engines on one drawing deck: whether the target is in hand, and
+/// whether the spell was cast never and at least twice, which are the paths
+/// the gap does not and does fire on; and how many targets are left in the
+/// library, which is what a sampler dealing its gap from the wrong place
+/// would get wrong while agreeing about the hand.
+fn draws_agree(cost: &str, draw: u32, fetch: bool, seed: u64) {
+    let (grouping, schedule) = drawing_deck(cost, draw, fetch);
+    let question = || {
+        Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(3, 1, Counted::In(Zone::Hand)) >= 1) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 0, Counted::Cast) == 0) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 0, Counted::Cast) >= 2) as Check,
+        ])
+    };
+    let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(3), &mut question())
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    let trials = TRIALS / 2;
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        trials,
+        seed,
+        only_criteria(3),
+        &mut question(),
+    )
+    .unwrap()
+    .proportions;
+    assert!(
+        exact[1] > 0.05 && exact[2] > 0.05,
+        "the gap fires on some paths and not on others: {exact:?}"
+    );
+    for (i, (e, s)) in exact.iter().zip(&sampled).enumerate() {
+        let se = standard_error(*s, trials);
+        assert!(
+            (s - e).abs() < 4.0 * se,
+            "question {i}: sampled {s} vs exact {e} ({}x SE)",
+            (s - e).abs() / se
+        );
+    }
+
+    let left = || {
+        Counters(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(3, 1, Counted::In(Zone::Library))) as Tally,
+        ])
+    };
+    let exact = gauntlet_criteria::run(&grouping, &schedule, only_expectations(1), &mut left())
+        .unwrap()
+        .distributions[0]
+        .mean();
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        trials,
+        seed + 1,
+        only_expectations(1),
+        &mut left(),
+    )
+    .unwrap()
+    .distributions[0]
+        .clone();
+    let se = mean_standard_error(&sampled, trials);
+    assert!(
+        (sampled.mean() - exact).abs() < 4.0 * se,
+        "targets left: sampled {} vs exact {exact} ({}x SE)",
+        sampled.mean(),
+        (sampled.mean() - exact).abs() / se
+    );
+}
+
+#[test]
+fn a_spell_that_draws_a_card_agrees_with_the_exact_engine() {
+    draws_agree("{U}", 1, false, 31);
+}
+
+#[test]
+fn a_spell_that_draws_two_agrees_with_the_exact_engine() {
+    draws_agree("{1}{U}", 2, false, 37);
+}
+
+#[test]
+fn a_tutor_that_draws_agrees_with_the_exact_engine() {
+    // The fetch thins the library before the draw is dealt from it, in both
+    // engines: the removal and the sized gap are asked about the same prefix.
+    draws_agree("{U}", 1, true, 41);
 }

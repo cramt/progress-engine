@@ -2347,6 +2347,16 @@ P(exactly one card of group 0 in hand) is 3/4 where the plain walk says 4/6.
 Nothing in that signature knows what a tutor is, which is the condition
 [#18](https://github.com/cramt/progress-engine/issues/18) set on itself.
 
+A **sized gap** is the random counterpart ([ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md)):
+after each checkpoint, right after the removals, the walk asks the caller how
+many cards the next gap deals, deals a non-zero answer as one more checkpoint,
+and asks again; zero deals nothing and costs one composition. Its known answer
+is two groups of two where the first card, if it is an A, is followed by two
+more before the last: 5/6 for an A by the end. Such a walk has no closed-form
+width, so a class with one is counted against the ceiling, capped, while every
+other class keeps the static bound. Nothing in the effect library draws yet, so
+no run a file can ask for deals one.
+
 `gauntlet-toml` holds the only `impl Evaluator`, and both engines take it through the
 same trait. That is why swapping the criteria format out from under them was a
 new crate and a deleted one rather than a change to either engine — and why

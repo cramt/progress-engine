@@ -259,6 +259,27 @@ pub struct Effect {
     pub fetch: Option<Fetch>,
     /// How long it waits after its trigger, if it waits at all.
     pub delay: Option<Delay>,
+    /// Cards a cast of this puts into hand off the top of the library: a
+    /// replacement draw, dealt as one **sized gap** ([ADR-0017]) — so a path
+    /// that never casts it deals nothing for it.
+    ///
+    /// Engine vocabulary ahead of the words for it: no `[[effect]]` key sets
+    /// this yet, and nothing in the standard library draws, so every effect
+    /// a file can declare has zero here. Only [`Trigger::Cast`] reads it.
+    ///
+    /// [ADR-0017]: https://github.com/cramt/progress-engine/blob/main/docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md
+    pub draw: u32,
+}
+
+/// What a cast spell's draw did, as [`Board::cast`] needs to know it.
+enum Drew {
+    /// The spell draws nothing.
+    Nothing,
+    /// It drew, and the cards are in hand.
+    Cards,
+    /// It reached past the end of the history: a sized gap of this many
+    /// cards is still to be dealt.
+    Undealt(u32),
 }
 
 /// The spells of a run whose file declared which ones to cast.
@@ -339,6 +360,19 @@ pub struct Board<'a> {
     /// drawing it. Read by the enumeration, which only pays for the shrinking
     /// population where there is one.
     fetches: bool,
+    /// Whether anything in this run deals a sized gap: a cast that draws.
+    /// Read by the enumeration, which only asks for gap sizes where one can
+    /// be non-zero.
+    sizes: bool,
+    /// The size of the first gap the last [`Board::walk`] reached and the path
+    /// had not dealt, where it stopped; zero when it played the whole prefix.
+    next_gap: u32,
+    /// The last checkpoint of the history the walk has consumed, and how many
+    /// of those were sized gaps. Scratch, reset every walk: a sized gap is one
+    /// more checkpoint, so every fixed checkpoint after it sits that much
+    /// further along the history than the schedule says.
+    cursor: usize,
+    sized_dealt: usize,
     /// Everything that only exists where the file declared a priority.
     ///
     /// One `Option` rather than a field each, because the ranking and the
@@ -622,6 +656,12 @@ impl<'a> Board<'a> {
             pool,
             casting,
             fetches: effects.iter().any(|e| e.fetch.is_some()),
+            sizes: effects
+                .iter()
+                .any(|e| e.trigger == Trigger::Cast && e.draw > 0),
+            next_gap: 0,
+            cursor: 0,
+            sized_dealt: 0,
             fetch_tiers,
             drops: vec![0; turns],
             hand: vec![vec![0; groups]; turns],
@@ -752,6 +792,29 @@ impl<'a> Board<'a> {
         &self.removed
     }
 
+    /// Whether anything in this run deals a **sized gap**: cards turned over
+    /// because something on the path fired, as many as it says.
+    ///
+    /// The enumeration asks for the same reason it asks [`Board::fetches`]: a
+    /// run where nothing draws deals exactly the fixed gaps, and should not
+    /// pay a replay per checkpoint to learn that every sized gap is zero.
+    pub fn sizes(&self) -> bool {
+        self.sizes
+    }
+
+    /// How many cards the first gap the last [`Board::walk`] reached and the
+    /// path had not dealt asks for, which is where the walk stopped; zero
+    /// when it played everything its prefix reaches.
+    ///
+    /// This is the question both engines ask before each deal. The exact one
+    /// deals every composition of that many cards as one more checkpoint; the
+    /// sampler deals that many off its shuffled deck. Either way the next walk
+    /// over the longer history takes that block where this one stopped, and
+    /// plays on.
+    pub fn next_gap(&self) -> u32 {
+        self.next_gap
+    }
+
     /// Play one path out, turn by turn, filling the per-turn zone counts.
     ///
     /// `history` may be a **prefix** of a path rather than a whole one, and
@@ -776,6 +839,9 @@ impl<'a> Board<'a> {
         self.drop_at.fill(None);
         self.pending.clear();
         self.live_bottomed.copy_from_slice(&self.bottomed);
+        self.next_gap = 0;
+        self.cursor = 0;
+        self.sized_dealt = 0;
         if let Some(casting) = &mut self.casting {
             casting.live_cast.fill(0);
             casting
@@ -786,9 +852,11 @@ impl<'a> Board<'a> {
         let effects = self.schedule.effects();
         for turn in 0usize..self.schedule.turns() {
             let (first, last) = self.schedule.checkpoints_of(turn);
+            let (first, last) = (first + self.sized_dealt, last + self.sized_dealt);
             if last >= history.len() {
                 break;
             }
+            self.cursor = last;
             // Everything this turn reveals, in the order the checkpoints
             // revealed it. Appended before the draw resolves, which is safe
             // because `fresh` is a queue: the draw still takes the topmost
@@ -917,7 +985,12 @@ impl<'a> Board<'a> {
             // The spells, after the land, because you play your land and then
             // cast off it.
             if self.casting.is_some() {
-                self.cast(turn);
+                if !self.cast(turn, history) {
+                    // A spell drew past the end of the prefix. The rest of
+                    // this turn, and every turn after it, is played by the
+                    // walk that has those cards.
+                    return;
+                }
                 // And the hand again, because a card you cast is not a card
                 // you are holding. Only the hand moves: casting spends lands
                 // rather than playing them, so nothing above changes under it.
@@ -949,21 +1022,33 @@ impl<'a> Board<'a> {
     /// file said which spell it wanted first, so the engine takes it first even
     /// where skipping it would have bought two cheaper ones. A pilot who wants
     /// the two cheaper ones says so by listing them first.
-    fn cast(&mut self, turn: usize) {
+    ///
+    /// **The line is read again from its top after a spell that drew.** A
+    /// card drawn mid-line is in hand like any other, so a spell among them is
+    /// cast this turn if the pool still pays and the list reaches it. A spell
+    /// that could not be paid for is not paid for by a larger bill, so a
+    /// reading again that found nothing new in hand would cast nothing more;
+    /// that is why only a draw restarts it. A land drawn mid-line waits for
+    /// the next turn's drop, because the drop came before the line.
+    ///
+    /// Returns false where a draw reached past the end of `history`: the walk
+    /// stops there, and [`Board::next_gap`] says how many cards it wanted.
+    fn cast(&mut self, turn: usize, history: Path<'_>) -> bool {
         // Moved out and put back rather than borrowed, because paying is a
         // question about the whole board and casting writes to part of it.
         let Some(mut casting) = self.casting.take() else {
-            return;
+            return true;
         };
+        let mut finished = true;
         // Turn 0 is the opening hand: no land has been played, so there is no
         // mana and nothing to spend it on.
         if turn > 0 {
             let mut spent = Demand::FREE;
-            // Read again from the top whenever a tutor put a card in hand, so
-            // a card it fetched is cast this turn if the pool still pays for
-            // it, wherever the line lists it. It ends, because every pass
-            // after the first follows a cast, and a cast takes a card out of
-            // the hand or the command zone.
+            // Read again from the top whenever a tutor or a draw put a card
+            // in hand, so a card it found is cast this turn if the pool still
+            // pays for it, wherever the line lists it. It ends, because every
+            // pass after the first follows a cast, and a cast takes a card out
+            // of the hand or the command zone.
             'line: loop {
                 for tier in &casting.tiers {
                     for &group in tier {
@@ -997,9 +1082,18 @@ impl<'a> Board<'a> {
                             // only order that lets four mana cast Trinket Mage
                             // and then the Lantern it just fetched — or five
                             // cast Spellseeker and then the Loam it fetched,
-                            // which the line lists first.
-                            if self.fetch_on_cast(group) {
-                                continue 'line;
+                            // which the line lists first. Its draw, if it
+                            // draws, resolves after the fetch.
+                            let fetched = self.fetch_on_cast(group);
+                            match self.draw_on_cast(group, history) {
+                                Drew::Nothing if fetched => continue 'line,
+                                Drew::Nothing => {}
+                                Drew::Cards => continue 'line,
+                                Drew::Undealt(size) => {
+                                    self.next_gap = size;
+                                    finished = false;
+                                    break 'line;
+                                }
                             }
                         }
                     }
@@ -1009,6 +1103,64 @@ impl<'a> Board<'a> {
             casting.spent[turn] = spent;
         }
         self.casting = Some(casting);
+        finished
+    }
+
+    /// Draw what a spell that has just been cast draws, if it draws.
+    ///
+    /// Off the top of the library, which is first whatever an earlier look
+    /// left there and then whatever this turn's checkpoints revealed and
+    /// nothing has taken yet — both already dealt, so they cost no gap. The
+    /// rest is a **sized gap**: the next checkpoint of `history`, as one
+    /// unordered block straight into hand, or where the history has no next
+    /// checkpoint, the size of the gap the path has not dealt.
+    ///
+    /// Never more than the library holds, and the enumeration holds its deal
+    /// to the same count: both are what is left of the groups once everything
+    /// revealed and everything fetched is out.
+    fn draw_on_cast(&mut self, group: usize, history: Path<'_>) -> Drew {
+        let Some(effect) = self.group_effect[group] else {
+            return Drew::Nothing;
+        };
+        let effect = &self.schedule.effects()[effect];
+        if effect.trigger != Trigger::Cast || effect.draw == 0 {
+            return Drew::Nothing;
+        }
+        let mut left = effect.draw;
+        while left > 0 {
+            let group = if !self.kept.is_empty() {
+                self.kept.remove(0)
+            } else if let Some(&g) = self.fresh.get(self.fresh_head) {
+                self.fresh_head += 1;
+                g
+            } else {
+                break;
+            };
+            self.live_hand[group] += 1;
+            left -= 1;
+        }
+        let library: u32 = (0..self.revealed.len()).map(|g| self.unrevealed(g)).sum();
+        let size = left.min(library);
+        if size == 0 {
+            return Drew::Cards;
+        }
+        let at = self.cursor + 1;
+        let Some(block) = history.get(at) else {
+            return Drew::Undealt(size);
+        };
+        let before = &history[self.cursor];
+        debug_assert_eq!(
+            block.iter().sum::<u32>() - before.iter().sum::<u32>(),
+            size,
+            "the gap dealt is the gap this walk asked for"
+        );
+        for (g, (&now, &was)) in block.iter().zip(before).enumerate() {
+            self.live_hand[g] += now - was;
+            self.revealed[g] += now - was;
+        }
+        self.cursor = at;
+        self.sized_dealt += 1;
+        Drew::Cards
     }
 
     /// Resolve every delayed effect set up to fire on `turn`, in the order the
