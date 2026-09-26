@@ -1,0 +1,9 @@
+// Lands whose mana the card data does not say at face value: a Saga that
+// sacrifices itself, a bounce land that taps for two, and a fetchland that
+// fetches tapped. The run has to name each, and say how it read it.
+1x Urza's Saga [Land]
+1x Izzet Boilerworks [Land]
+1x Evolving Wilds [Land]
+1x Island [Land]
+1x Forest [Land]
+5x Lightning Bolt [Burn]

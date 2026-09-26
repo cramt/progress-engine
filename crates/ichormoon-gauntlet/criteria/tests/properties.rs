@@ -1027,8 +1027,17 @@ fn cost_text() -> impl Strategy<Value = String> {
 fn mana_question() -> impl Strategy<Value = ManaQuestion> {
     (
         // One entry per kind of land: what it makes, whether it enters tapped,
-        // how many copies.
-        prop::collection::vec((0u8..(1 << 6), any::<bool>(), 1u32..=8), 1..=5),
+        // how many copies, and how long it makes mana for — every turn, never
+        // (Maze of Ith) or three turns (Urza's Saga).
+        prop::collection::vec(
+            (
+                0u8..(1 << 6),
+                any::<bool>(),
+                1u32..=8,
+                prop::sample::select(vec![None, None, Some(0u8), Some(3u8)]),
+            ),
+            1..=5,
+        ),
         1u32..=30,
         0u32..=7,
         prop::collection::vec(0u32..=2, 1..=3),
@@ -1037,7 +1046,7 @@ fn mana_question() -> impl Strategy<Value = ManaQuestion> {
         .prop_map(|(lands, spells, opening, extras, text)| {
             let mut cards: Vec<(u64, ManaSource, u32)> = lands
                 .into_iter()
-                .map(|(bits, enters_tapped, qty)| {
+                .map(|(bits, enters_tapped, qty, lasts)| {
                     let produces = Palette::of(
                         Pip::ALL
                             .into_iter()
@@ -1048,6 +1057,7 @@ fn mana_question() -> impl Strategy<Value = ManaQuestion> {
                         ManaSource::Land {
                             enters_tapped,
                             produces,
+                            lasts,
                         },
                         qty,
                     )

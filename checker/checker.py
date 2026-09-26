@@ -36,13 +36,26 @@ class Card:
     # land later, which is the rules and also what VISION.md records the engine
     # fixing in #61.
     playable_land: bool
-    # Colours this land can tap for, as Scryfall's `produces` lists them.
+    # The kinds of mana this land can pay a symbol with. Scryfall's `produces`
+    # at face value, except where the rules say it makes less - see
+    # `_mana_of` - or where it fetches, which `load_library` fills in from the
+    # rest of the deck.
     produces: frozenset[str]
     # ASSUMPTION (README "Mana, as a gate", HANDS.md hand 8): a land tagged
     # `conditional-tapland` - shocklands, Mystic Sanctuary, Argoth, Sea Gate -
     # is taken to enter tapped, the pessimistic half of the pilot's choice. Real
     # Magic lets you pay 2 life for a shockland.
     enters_tapped: bool
+    # Whether it pays for anything at all. Maze of Ith has no mana ability, so
+    # it is a land drop and nothing more (HANDS.md hand 39).
+    makes_mana: bool = True
+    # How many turns it makes mana for, counting the one it is played on, or
+    # None for ever. Urza's Saga: chapter I on the turn it lands, II and III
+    # after the next two draw steps, and III sacrifices it (CR 714.4) - three.
+    lasts: int | None = None
+    # What a fetchland searches for, as (land types, must be basic, enters
+    # tapped), or None. Resolved against the deck in `load_library`.
+    fetch: tuple[frozenset[str], bool, bool] | None = None
 
     def is_named(self, *names: str) -> bool:
         return self.name in names
@@ -69,6 +82,57 @@ class Index:
             raise SystemExit(f"checker: {name!r} is not in the index") from None
 
 
+BASIC_TYPES = ("Plains", "Island", "Swamp", "Mountain", "Forest")
+WUBRG = frozenset("WUBRG")
+
+
+def _mana_of(oracle: str, listed: frozenset[str]) -> frozenset[str]:
+    """The kinds of mana a land makes with no strings attached.
+
+    Scryfall's `produced_mana` lists every colour a card could ever make. A
+    colour behind a spending restriction (Castle Doom: "Spend this mana only
+    to cast an artifact spell", CR 106.6), an activation condition (Spire of
+    Industry: "Activate only if you control an artifact") or an opponent's
+    lands (Exotic Orchard: "could produce", CR 106.7) cannot pay for an
+    ordinary spell on every turn, so only the abilities without one count.
+    """
+    lines = [l for l in oracle.split("\n") if "Add" in l]
+
+    def strings_attached(line: str) -> bool:
+        return any(
+            s in line for s in ("Spend this mana only", "Activate only if", "could produce")
+        )
+
+    if not any(strings_attached(l) for l in lines):
+        return listed
+    made: set[str] = set()
+    for line in lines:
+        if strings_attached(line):
+            continue
+        made.update(re.findall(r"\{([WUBRGC])\}", line))
+        if "any color" in line:
+            made.update(WUBRG)
+    return listed & frozenset(made)
+
+
+def _fetch_of(oracle: str) -> tuple[frozenset[str], bool, bool] | None:
+    """What a land that sacrifices itself to search the library finds:
+    "{T}, Pay 1 life, Sacrifice this land: Search your library for a Forest or
+    Island card, put it onto the battlefield, then shuffle." Only a search the
+    land pays for without mana."""
+    m = re.search(
+        r"^([^:\n]*Sacrifice[^:\n]*): Search your library for ([^.]*?) card, put it onto the "
+        r"battlefield( tapped)?",
+        oracle,
+        re.M,
+    )
+    if not m or re.sub(r"\{T\}", "", m.group(1)).count("{"):
+        return None
+    wanted = m.group(2)
+    types = frozenset(t for t in BASIC_TYPES if t in wanted)
+    return types, "basic" in wanted, bool(m.group(3))
+
+
 def _make_card(record: dict, categories: tuple[str, ...]) -> Card:
     faces = record.get("faces") or [{"type_line": record["type_line"]}]
     front_is_land = "Land" in faces[0]["type_line"]
@@ -76,14 +140,79 @@ def _make_card(record: dict, categories: tuple[str, ...]) -> Card:
         "Land" in face["type_line"] for face in faces
     )
     tags = set(record.get("tags", []))
+    oracle = record.get("oracle", "")
+    listed = frozenset(record.get("produces", []))
+    playable = front_is_land or mdfc_land
+    fetch = _fetch_of(oracle) if playable and not listed else None
+    # Urza's Saga: a Saga land lasts as many turns as it has chapters.
+    chapters = re.findall(r"^(I|II|III|IV|V|VI)\b", oracle, re.M)
+    lasts = (
+        ["I", "II", "III", "IV", "V", "VI"].index(chapters[-1]) + 1
+        if "Saga" in faces[0]["type_line"] and chapters
+        else None
+    )
     return Card(
         name=record["name"],
         categories=categories,
         type_line=record["type_line"],
-        playable_land=front_is_land or mdfc_land,
-        produces=frozenset(record.get("produces", [])),
+        playable_land=playable,
+        produces=_mana_of(oracle, listed),
         enters_tapped=bool(tags & {"tapland", "conditional-tapland"}),
+        # A land Scryfall lists as making nothing, and which does not fetch,
+        # makes nothing: Maze of Ith.
+        makes_mana=bool(listed) or fetch is not None,
+        lasts=lasts,
+        fetch=fetch,
     )
+
+
+def _resolve_fetches(library: list[Card]) -> list[Card]:
+    """A fetchland as the lands it finds in this deck.
+
+    Cracked the turn it is played, it puts a land onto the battlefield, and
+    one that enters untapped pays that same turn: so a fetchland pays any
+    colour an untapped land it could find makes. One that says "tapped" - or
+    that can find only lands entering tapped - is a tapped land of every
+    colour it could find.
+
+    ASSUMPTION (README "Lands that make other than they list"): one such land
+    is still in the library to find. Real Magic can run out - two Mistys and
+    one Forest pay {G}{G} once - and the documented model does not count that.
+    A shockland is one of the lands entering tapped, by the hand-8 assumption.
+    """
+    resolved = []
+    for card in library:
+        if card.fetch is None:
+            resolved.append(card)
+            continue
+        types, basic, tapped = card.fetch
+        found = [
+            c
+            for c in library
+            if c.playable_land
+            and "Land" in c.type_line.split("//")[0]
+            and c.makes_mana
+            and c.fetch is None
+            and (not basic or "Basic" in c.type_line)
+            and (not types or any(t in c.type_line.split("//")[0] for t in types))
+        ]
+        untapped = [c for c in found if not c.enters_tapped]
+        if not tapped and untapped:
+            found = untapped
+        else:
+            tapped = True
+        resolved.append(
+            Card(
+                name=card.name,
+                categories=card.categories,
+                type_line=card.type_line,
+                playable_land=True,
+                produces=frozenset().union(*(c.produces for c in found)),
+                enters_tapped=tapped,
+                makes_mana=bool(found),
+            )
+        )
+    return resolved
 
 
 _LINE = re.compile(r"^(\d+)x?\s+(.+?)(?:\s+\([^)]*\)\s*\S*)?(?:\s+\*[^*]*\*)?(?:\s+\[(.*)\])?\s*$")
@@ -132,7 +261,7 @@ def load_library(decklist: Path, index: Index) -> list[Card]:
             continue
         card = _make_card(index.card(name), tuple(bare))
         library.extend([card] * qty)
-    return library
+    return _resolve_fetches(library)
 
 
 # --- A dealt game -------------------------------------------------------------
@@ -206,14 +335,17 @@ class Game:
         * a land that enters tapped makes no mana the turn it is played, so it
           must be played by `turn - 1`.
 
+        * a land that makes mana for only so many turns (Urza's Saga, three)
+          must be played late enough to still be there: no earlier than
+          `turn - lasts + 1`.
+
         ASSUMPTION (README): a land is one mana. Izzet Boilerworks and Simic
         Growth Chamber tap for two in real Magic; `can_cast` is "a matching
         over lands" (decks/loam.criteria.toml), one land per symbol.
-        ASSUMPTION (README "Generic takes any land"): a generic symbol is paid
-        by any land, including one that `produces` nothing - a fetchland, Maze
-        of Ith. A coloured symbol needs a land that produces that colour, so a
-        fetchland never pays one. In real Magic a fetchland cracks for a land
-        that does; this is the README's reading, not the rules'.
+        A generic symbol is paid by any land that makes mana. A land with no
+        mana ability (Maze of Ith) pays nothing. A fetchland pays what the land
+        it finds would - see `_resolve_fetches`. Exotic Orchard pays generic:
+        ASSUMPTION (README) that an opponent has a land by then.
         Mana rocks and creatures are not sources: "can_cast is a matching over
         LANDS".
         """
@@ -221,7 +353,7 @@ class Game:
         need = generic + len(pips)
         if need == 0:
             return True
-        lands = self.lands_in_hand(turn)
+        lands = [(t, c) for t, c in self.lands_in_hand(turn) if c.makes_mana]
         if len(lands) < need:
             return False
         for chosen in itertools.combinations(lands, need):
@@ -232,9 +364,15 @@ class Game:
 
 def _schedulable(lands: tuple[tuple[int, Card], ...], turn: int) -> bool:
     """Can these lands each take a distinct land drop in [arrival, deadline]?
-    Earliest-deadline-first over unit slots is exact for this."""
+    Earliest-deadline-first over unit slots is exact for this. A land that
+    stops making mana is a later release: the first turn it could go down and
+    still pay on `turn`."""
     jobs = sorted(
-        (arrival, turn - 1 if card.enters_tapped else turn) for arrival, card in lands
+        (
+            arrival if card.lasts is None else max(arrival, turn - card.lasts + 1),
+            turn - 1 if card.enters_tapped else turn,
+        )
+        for arrival, card in lands
     )
     pending: list[int] = []
     i = 0
@@ -345,6 +483,16 @@ def _lantern_and_a_mana_t5(g: Game) -> bool:
     return g.count(5, lambda c: c.is_named("Lantern of Insight")) >= 1 and g.can_cast(5, "{1}")
 
 
+def _one_mana_by_5(g: Game) -> bool:
+    # { turn = 5, can_cast = "{1}" }
+    return g.can_cast(5, "{1}")
+
+
+def _one_green_by_5(g: Game) -> bool:
+    # { turn = 5, can_cast = "{1}{G}" }
+    return g.can_cast(5, "{1}{G}")
+
+
 def _battlefield_tutor_drawn_t5(g: Game) -> bool:
     # { turn = 5, query = 'name:"Tezzeret the Seeker" or name:"Whir of Invention"', min = 1 }
     return g.count(5, lambda c: c.is_named(*LANTERN_BATTLEFIELD_TUTORS)) >= 1
@@ -398,6 +546,13 @@ QUESTIONS: list[Question] = [
     Question(
         "loam",
         "loam.criteria.toml",
+        "control: {1}{G} payable by turn 5, no Loam asked",
+        _one_green_by_5,
+        5,
+    ),
+    Question(
+        "loam",
+        "loam.criteria.toml",
         "a two-mana Loam Access card and {1}{G} for it, turn 3",
         _loam_two_drop_and_mana_t3,
         3,
@@ -414,6 +569,13 @@ QUESTIONS: list[Question] = [
         "lantern.criteria.toml",
         "route 1: Lantern in hand and a mana for it, turn 5",
         _lantern_and_a_mana_t5,
+        5,
+    ),
+    Question(
+        "lantern",
+        "lantern.criteria.toml",
+        "route 1 control: {1} payable by turn 5, no Lantern asked",
+        _one_mana_by_5,
         5,
     ),
     Question(

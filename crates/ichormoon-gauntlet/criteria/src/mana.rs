@@ -193,6 +193,16 @@ pub enum ManaSource {
         /// loud in the run that depends on it.
         enters_tapped: bool,
         produces: Palette,
+        /// How many turns it makes mana for, counting the one it is played
+        /// on, or `None` for every turn from then on.
+        ///
+        /// `Some(0)` is a land with no mana ability at all — Maze of Ith. It
+        /// is still a land drop and a land in play; it pays nothing, not even
+        /// generic. That cannot be a palette: a question asking only generic
+        /// narrows every palette to empty, and an empty palette there is a
+        /// land that pays `{1}`. `Some(3)` is Urza's Saga, which chapter III
+        /// sacrifices two turns after it lands.
+        lasts: Option<u8>,
     },
 }
 
@@ -300,10 +310,12 @@ impl ManaSource {
                 ManaSource::Land {
                     enters_tapped,
                     produces,
+                    lasts,
                 },
             ) => ManaSource::Land {
                 enters_tapped,
                 produces: produces.intersect(kept),
+                lasts,
             },
         }
     }
@@ -316,6 +328,13 @@ impl ManaSource {
                 ..
             }
         )
+    }
+
+    fn lasts(self) -> Option<u8> {
+        match self {
+            ManaSource::Land { lasts, .. } => lasts,
+            ManaSource::Spell | ManaSource::Castable { .. } => None,
+        }
     }
 
     fn palette(self) -> Palette {
@@ -713,6 +732,10 @@ pub struct Source {
     pub produces: Palette,
     /// Whether a land of this group makes no mana on the turn it arrives.
     pub tapped: bool,
+    /// How many turns a land of this group makes mana for, as
+    /// [`ManaSource::Land`] has it. The matching never reads it: the board
+    /// counts a group that has stopped making mana as zero before asking.
+    pub lasts: Option<u8>,
 }
 
 /// Which sources a payment is obliged to use.
@@ -737,6 +760,7 @@ impl Source {
         Source {
             produces: mana.palette(),
             tapped: mana.enters_tapped(),
+            lasts: mana.lasts(),
         }
     }
 }
@@ -754,6 +778,7 @@ mod tests {
                     Source {
                         produces: Palette::from_letters([*letters]),
                         tapped: *tapped,
+                        lasts: None,
                     },
                     *count,
                 )
@@ -868,13 +893,18 @@ mod tests {
                 for tapped in [false, true] {
                     let sources: Vec<Source> = palettes
                         .iter()
-                        .map(|&produces| Source { produces, tapped })
+                        .map(|&produces| Source {
+                            produces,
+                            tapped,
+                            lasts: None,
+                        })
                         .collect();
                     let restricted: Vec<Source> = sources
                         .iter()
                         .map(|s| Source {
                             produces: s.produces.intersect(demanded),
                             tapped: s.tapped,
+                            lasts: None,
                         })
                         .collect();
                     for counts in [[0u32, 1, 2], [1, 1, 1], [2, 0, 1], [3, 1, 0]] {
@@ -906,10 +936,15 @@ mod tests {
             for letters in ["", "U", "W", "WU"] {
                 for tapped in [false, true] {
                     let produces = Palette::from_letters([letters]);
-                    let same = Source { produces, tapped };
+                    let same = Source {
+                        produces,
+                        tapped,
+                        lasts: None,
+                    };
                     let island = Source {
                         produces: Palette::from_letters(["U"]),
                         tapped: false,
+                        lasts: None,
                     };
                     for split in [[0u32, 0], [1, 0], [0, 1], [1, 1], [2, 1]] {
                         for others in 0u32..3 {

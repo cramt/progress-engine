@@ -475,9 +475,22 @@ impl<'a> Board<'a> {
             .filter(|(_, mana)| mana.is_land())
             .map(|(group, _)| group)
             .collect();
+        // A land's own lifetime, unless a delayed effect already takes it off
+        // the battlefield: a Saga whose chapter III is declared is sacrificed
+        // by the walk, which the counts below read, and ending its mana a
+        // second time here would take it away twice.
         let pool = land_groups
             .iter()
-            .map(|&group| Source::of(grouping.group_mana()[group]))
+            .map(|&group| {
+                let mut source = Source::of(grouping.group_mana()[group]);
+                let sacrificed = group_effect[group]
+                    .and_then(|e| effects[e].delay)
+                    .is_some_and(|d| d.sacrifice);
+                if sacrificed {
+                    source.lasts = None;
+                }
+                source
+            })
             .collect();
         // The tie rule, applied once here rather than on every path: a group
         // belongs to the first tier that names it, and the order inside a tier
@@ -1404,7 +1417,20 @@ impl<'a> Board<'a> {
             let sacrificed = &self.sacrificed[turn];
             let usable = |slot: usize| {
                 let group = self.land_groups[slot];
-                counts[group] + sacrificed[group] - u32::from(tapped_now == Some(slot))
+                let standing =
+                    counts[group] + sacrificed[group] - u32::from(tapped_now == Some(slot));
+                // A land that makes mana for `n` turns makes it only if it was
+                // played on one of the last `n`: what was standing `n` turns
+                // ago has stopped. Maze of Ith is `n = 0`, so none of it pays.
+                match self.pool[slot].lasts {
+                    None => standing,
+                    Some(n) => {
+                        let before = turn
+                            .checked_sub(usize::from(n))
+                            .map_or(0, |t| declared.played_at[t][group]);
+                        standing.saturating_sub(before)
+                    }
+                }
             };
             return cost.payable(&self.pool, usable, Constraint::Anything);
         }
@@ -1427,13 +1453,20 @@ impl<'a> Board<'a> {
         // Line one: every land paying this was already on the battlefield when
         // the turn began, so none of them can be tapped.
         if cost.total() <= self.drops[previous]
-            && cost.payable(&self.pool, held, Constraint::Anything)
+            && self.pays_by_last_turn(turn, cost, held, Constraint::Anything)
         {
             return true;
         }
         // Line two: one of the lands paying this is the drop made this turn,
         // taken from what was already in hand — so it has to enter untapped.
-        if cost.payable(&self.pool, held, Constraint::IncludesUntapped) {
+        //
+        // A land that stops making mana never stands in this line's way: this
+        // turn's drop is free, so it can be the one that waited.
+        if cost.payable(
+            &self.pool,
+            |slot| self.makes_mana(slot, held(slot)),
+            Constraint::IncludesUntapped,
+        ) {
             return true;
         }
         // Line three: the drop made this turn is a land that arrived this turn,
@@ -1444,11 +1477,91 @@ impl<'a> Board<'a> {
                 continue;
             }
             let arrived = |i: usize| held(i) + u32::from(i == slot);
-            if cost.payable(&self.pool, arrived, Constraint::Includes(slot)) {
+            if self.pays_by_last_turn(turn, cost, arrived, Constraint::Includes(slot)) {
                 return true;
             }
         }
         false
+    }
+
+    /// `count` of a land slot, or none of it where that land makes no mana.
+    fn makes_mana(&self, slot: usize, count: u32) -> u32 {
+        if self.pool[slot].lasts == Some(0) {
+            0
+        } else {
+            count
+        }
+    }
+
+    /// The matching for a payment whose lands, the one played on `turn`
+    /// aside, all went down by the turn before — lines one and three of
+    /// [`Board::can_pay`] — with a land that makes mana for only so many
+    /// turns held to them.
+    ///
+    /// Urza's Saga makes mana on the turn it is played and the two after,
+    /// so a Saga paying on `turn` was played on `turn - 2` or later. The
+    /// generous reading picks which held lands went down, and it can hold the
+    /// Saga back for a later drop — unless every one of those later drops is
+    /// taken by a land that arrived on it and is paying too. Then one of the
+    /// three has to give way: pay without the Saga, or without one of those
+    /// arrivals. Each land is one job with a release and a deadline, and
+    /// dropping any one of those makes the rest schedulable, which is why the
+    /// answer is exactly the four tries below.
+    ///
+    /// Exact for one such land in the lands paying, which is every Commander
+    /// deck. A second one is held to its own window only when the first is
+    /// not in conflict.
+    fn pays_by_last_turn(
+        &self,
+        turn: usize,
+        cost: Demand,
+        count: impl Fn(usize) -> u32,
+        constraint: Constraint,
+    ) -> bool {
+        let base = |slot: usize| self.makes_mana(slot, count(slot));
+        for (saga, source) in self.pool.iter().enumerate() {
+            let Some(lasts) = source.lasts.filter(|&n| n > 0) else {
+                continue;
+            };
+            if base(saga) == 0 {
+                continue;
+            }
+            // The first turn it could have been played on and still pay now.
+            // A window reaching turn 1 is no constraint at all.
+            let Some(first) = (turn + 1)
+                .checked_sub(usize::from(lasts))
+                .filter(|&t| t >= 2)
+            else {
+                continue;
+            };
+            // Arrived inside the window, it had nowhere earlier to go.
+            if self.hand[first - 1][self.land_groups[saga]] == 0 {
+                continue;
+            }
+            // The land that arrived on each turn of the window, if one did.
+            let arrivals: Option<Vec<usize>> = (first..turn)
+                .map(|t| {
+                    (0..self.pool.len()).find(|&slot| {
+                        slot != saga
+                            && base(slot) > 0
+                            && self.hand[t][self.land_groups[slot]]
+                                > self.hand[t - 1][self.land_groups[slot]]
+                    })
+                })
+                .collect();
+            let Some(arrivals) = arrivals else {
+                continue;
+            };
+            let without = |gone: usize| {
+                cost.payable(
+                    &self.pool,
+                    |slot| base(slot) - u32::from(slot == gone),
+                    constraint,
+                )
+            };
+            return without(saga) || arrivals.into_iter().any(without);
+        }
+        cost.payable(&self.pool, base, constraint)
     }
 
     pub fn turns(&self) -> usize {

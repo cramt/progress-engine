@@ -270,8 +270,15 @@ One coloured or colourless symbol a cost demands. Generic mana is not a pip.
 The pip kinds a source can make.
 
 **Land profile**:
-A distinct combination of palette and tapped-ness among a deck's lands.
+A distinct combination of palette, tapped-ness and lifetime among a deck's lands.
 _Avoid_: mana profile
+
+**Land reading**:
+How a land's mana is read where its card data's palette is not the whole truth: a fetchland as the untapped lands it can find in the deck, Maze of Ith as no mana, Castle Doom and Spire of Industry as `{C}`, Exotic Orchard as generic only, a Saga land as mana for as many turns as it has chapters. Every run that prices mana names each land it read so.
+_Avoid_: override, correction
+
+**Lifetime**:
+How many turns a land makes mana for, counting the one it is played on. Every turn for most lands, none for Maze of Ith, three for Urza's Saga.
 
 **Tapland**:
 A land Scryfall tags as always entering tapped.

@@ -460,6 +460,7 @@ fn the_budget_agrees_with_the_exact_engine() {
                 ManaSource::Land {
                     enters_tapped: false,
                     produces: Palette::from_letters(["U"]),
+                    lasts: None,
                 },
                 19,
             ),
@@ -539,6 +540,7 @@ fn a_resolved_sorcery_in_the_graveyard_agrees_with_the_exact_engine() {
                 ManaSource::Land {
                     enters_tapped: false,
                     produces: Palette::from_letters(["G"]),
+                    lasts: None,
                 },
                 19,
             ),
@@ -720,6 +722,7 @@ fn a_tutor_agrees_with_the_exact_engine() {
                 ManaSource::Land {
                     enters_tapped: false,
                     produces: Palette::from_letters(["U"]),
+                    lasts: None,
                 },
                 19,
             ),
@@ -801,6 +804,7 @@ fn a_tutor_thins_the_library_in_both_engines() {
                     ManaSource::Land {
                         enters_tapped: false,
                         produces: Palette::from_letters(["U"]),
+                        lasts: None,
                     },
                     19,
                 ),
@@ -895,6 +899,7 @@ fn a_delayed_fetch_agrees_with_the_exact_engine() {
                 ManaSource::Land {
                     enters_tapped: false,
                     produces: Palette::from_letters(["C"]),
+                    lasts: None,
                 },
                 4,
             ),
@@ -904,6 +909,7 @@ fn a_delayed_fetch_agrees_with_the_exact_engine() {
                 ManaSource::Land {
                     enters_tapped: false,
                     produces: Palette::from_letters(["U"]),
+                    lasts: None,
                 },
                 30,
             ),
@@ -970,6 +976,74 @@ fn a_delayed_fetch_agrees_with_the_exact_engine() {
 }
 
 #[test]
+fn lands_that_stop_making_mana_agree_with_the_exact_engine() {
+    // Maze of Ith, which never makes mana, and Urza's Saga with no effect
+    // declared, which makes it for three turns: the Lantern north star's
+    // reading of both. Asked on both readings of the land drop — the
+    // generous one, which is where the Saga's window is a scheduling
+    // question, and a declared priority that plays the Saga first.
+    //
+    // Four of each rather than one, so the lands in question are held often
+    // enough for a difference to show.
+    let land = |letters: &str, lasts: Option<u8>| ManaSource::Land {
+        enters_tapped: false,
+        produces: Palette::from_letters([letters]),
+        lasts,
+    };
+    let grouping = Grouping::with_mana(
+        q(&["saga", "land"]),
+        vec![
+            (0b11, land("C", Some(3)), 4),
+            (0b10, land("", Some(0)), 4),
+            (0b10, land("U", None), 12),
+            (0b00, ManaSource::Spell, 20),
+        ],
+    )
+    .unwrap();
+    let costs = ["{3}", "{4}", "{U}{U}{1}"];
+    let question = || {
+        Closures(
+            (4..=6)
+                .flat_map(|turn| {
+                    costs.iter().map(move |text| {
+                        let cost = Cost::parse(text).unwrap();
+                        Box::new(move |v: &PathView<'_>| v.can_cast(turn, &cost)) as Check
+                    })
+                })
+                .collect(),
+        )
+    };
+    let n = 3 * costs.len();
+    for policies in [
+        Policies::default(),
+        Policies::land_drop(LandDropPolicy::new(vec![0], 1)),
+    ] {
+        let schedule = Schedule::build(6, false, Vec::new(), policies);
+        let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(n), &mut question())
+            .unwrap()
+            .probabilities;
+        let sampled = simulate(
+            &grouping,
+            &schedule,
+            TRIALS / 4,
+            23,
+            only_criteria(n),
+            &mut question(),
+        )
+        .unwrap()
+        .proportions;
+        for (exact, sampled) in exact.iter().map(|p| p.get()).zip(sampled) {
+            let se = standard_error(sampled, TRIALS / 4).max(1e-9);
+            assert!(
+                (sampled - exact).abs() < 4.0 * se,
+                "sampled {sampled} vs exact {exact} ({}x SE)",
+                (sampled - exact).abs() / se
+            );
+        }
+    }
+}
+
+#[test]
 fn a_mulligan_agrees_with_the_exact_engine() {
     // The acceptance test for #7. The two engines get to a mulligan's number
     // by different roads: the exact one sums an enumeration per depth,
@@ -987,10 +1061,12 @@ fn a_mulligan_agrees_with_the_exact_engine() {
     let island = ManaSource::Land {
         enters_tapped: false,
         produces: Palette::from_letters(["U"]),
+        lasts: None,
     };
     let mountain = ManaSource::Land {
         enters_tapped: false,
         produces: Palette::from_letters(["R"]),
+        lasts: None,
     };
     let grouping = Grouping::with_mana(
         q(&["land", "tutor", "target"]),

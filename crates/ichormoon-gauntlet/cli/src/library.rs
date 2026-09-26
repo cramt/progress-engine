@@ -9,7 +9,9 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 use chip_scryfall::index::{Card, Index, IndexFile, KeywordVocabulary, TagVocabulary};
 use chip_scryfall::OutsideLibrary;
-use gauntlet_criteria::{Demand, Grouping, GroupingError, ManaSource, Palette, Resolves};
+use gauntlet_criteria::{Demand, Grouping, GroupingError, ManaSource, Resolves};
+
+use crate::lands::{self, Reading};
 
 /// Scryfall's oracle tag for a land that always enters tapped.
 ///
@@ -125,6 +127,13 @@ pub struct Library {
     /// Kept rather than dropped: excluding a card silently is the same failure
     /// as a query that matches nothing — a confident number nobody can question.
     pub excluded: Vec<Excluded>,
+    /// What each entry makes for mana, parallel to `entries`, read once from
+    /// its card and from the deck around it — a fetchland is the lands it can
+    /// find, so it cannot be read from its own card alone.
+    mana: Vec<ManaSource>,
+    /// Every land read as something other than its card data's face value,
+    /// and how. Named by any run that prices mana.
+    mana_readings: Vec<Reading>,
     /// Cards counted in the library from a category whose name says tokens.
     /// Each resolved to a real card that shares a token's name, which is right
     /// if the list meant the card and wrong if it meant the token, and only
@@ -219,7 +228,10 @@ impl Library {
             }
         }
 
+        let (mana, mana_readings) = lands::read(&entries);
         Ok(Library {
+            mana,
+            mana_readings,
             entries,
             commanders,
             token_named,
@@ -296,7 +308,7 @@ impl Library {
                                 Resolves::IntoGraveyard
                             },
                         },
-                        None => mana_source(&e.card),
+                        None => self.mana[card],
                     }
                 }
             };
@@ -357,6 +369,14 @@ impl Library {
         names.sort_unstable();
         names.dedup();
         names
+    }
+
+    /// Every land this run reads as something other than its card data says,
+    /// and how: a fetchland as the lands it can find, Maze of Ith as no mana,
+    /// Castle Doom as `{C}`. Sorted by card, so the note reads the same on
+    /// every run.
+    pub fn mana_readings(&self) -> &[Reading] {
+        &self.mana_readings
     }
 
     /// Cards matching `query` that are not lands.
@@ -560,7 +580,7 @@ fn unknown_cards(unknown: &[&chip_decklist::Entry], not_cards: &[&chip_decklist:
 }
 
 /// Whether a type line names this card type, read by word.
-fn names(type_line: &str, kind: &str) -> bool {
+pub(crate) fn names(type_line: &str, kind: &str) -> bool {
     type_line
         .split(|c: char| !c.is_ascii_alphanumeric())
         .any(|word| word.eq_ignore_ascii_case(kind))
@@ -568,7 +588,7 @@ fn names(type_line: &str, kind: &str) -> bool {
 
 /// The face you play from your hand: the front, or the whole card where the
 /// index carries no faces.
-fn front(card: &Card) -> &str {
+pub(crate) fn front(card: &Card) -> &str {
     card.faces
         .first()
         .map_or(card.type_line.as_str(), |f| f.type_line.as_str())
@@ -611,31 +631,4 @@ pub fn is_permanent(card: &Card) -> bool {
     ]
     .iter()
     .any(|kind| names(front(card), kind))
-}
-
-/// What a card does for mana before anything is cast.
-///
-/// **Where HANDS.md hand 8 is decided, and it is decided pessimistically.** A
-/// shockland's "you may pay 2 life" is a choice, so `otag:conditional-tapland`
-/// membership settles nothing on its own — and this assumes the life is not
-/// paid, so the land enters tapped and makes no mana the turn it arrives.
-///
-/// That understates every real shockland manabase, which is the direction this
-/// tool prefers to be wrong in: a number the deck can beat is a worse failure
-/// than a number it beats. It is not silent about it either — the run names
-/// every card the assumption touched. Making it declarable per deck is the
-/// obvious next step and is deliberately not a default nobody stated.
-fn mana_source(card: &Card) -> ManaSource {
-    if !is_land(card) {
-        // A Sol Ring makes mana and is not here. Getting it onto the
-        // battlefield costs mana, which is the budget half of #10.
-        return ManaSource::Spell;
-    }
-    ManaSource::Land {
-        enters_tapped: card
-            .tags
-            .iter()
-            .any(|t| t == TAPLAND || t == CONDITIONAL_TAPLAND),
-        produces: Palette::from_letters(&card.produces),
-    }
 }

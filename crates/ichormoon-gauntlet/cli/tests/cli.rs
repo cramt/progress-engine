@@ -2034,6 +2034,117 @@ fn a_mana_question_beside_a_live_effect_is_refused_with_the_remedy_named() {
     );
 }
 
+fn run_lands(deck: &str) -> serde_json::Value {
+    let out = run_with(deck, "lands-read.criteria.toml", "lands-index.jsonl");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    serde_json::from_slice(&out.stdout).unwrap()
+}
+
+/// What the run says it read one land as, from the JSON.
+fn read_as<'a>(json: &'a serde_json::Value, card: &str) -> &'a str {
+    json["assumed_mana"]
+        .as_array()
+        .unwrap_or_else(|| panic!("no assumed_mana: {json}"))
+        .iter()
+        .find(|a| a["card"] == card)
+        .unwrap_or_else(|| panic!("{card} is not named: {json}"))["reading"]
+        .as_str()
+        .unwrap()
+}
+
+#[test]
+fn a_fetchland_pays_the_colour_of_the_land_it_can_find() {
+    // HANDS.md hand 38. Two Misty Rainforests, four Islands, one Forest and
+    // five Bolts: a Misty finds an untapped Forest or Island, so it is a green
+    // source and a blue one. Green on turn 1 is then any of three cards in the
+    // opening seven, 1 - C(9,7)/C(12,7) = 95.45%, where the Forest alone was
+    // 1 - C(11,7)/C(12,7) = 58.33%.
+    let json = run_lands("hand-fetchland.txt");
+    assert!(
+        (percent(&json, "{G} payable on turn 1") - 95.45).abs() < 0.01,
+        "{json}"
+    );
+    // Six blue sources in twelve cards: every seven holds one.
+    assert!((percent(&json, "{U} payable on turn 1") - 100.0).abs() < 0.01);
+    // And generic did not move: a fetchland always paid that.
+    assert!((percent(&json, "{1} payable on turn 1") - 100.0).abs() < 0.01);
+    // Named, with what it was read as and the assumption under it.
+    let reading = read_as(&json, "Misty Rainforest");
+    assert!(reading.contains("{U}{G}"), "{reading}");
+    assert!(reading.contains("untapped"), "{reading}");
+}
+
+#[test]
+fn a_land_with_no_mana_ability_pays_nothing() {
+    // HANDS.md hand 39. Maze of Ith, one Island and eight Bolts: two land
+    // drops and one mana, whatever order they come in.
+    let json = run_lands("hand-maze.txt");
+    assert_eq!(percent(&json, "{2} payable on turn 3"), 0.0, "{json}");
+    // Turn 1 pays {1} when the Island is in the opening seven, 7/10 — not
+    // when either land is, which was 1 - C(8,7)/C(10,7) = 93.33%.
+    assert!(
+        (percent(&json, "{1} payable on turn 1") - 70.0).abs() < 0.01,
+        "{json}"
+    );
+    assert!(read_as(&json, "Maze of Ith").contains("no mana"));
+}
+
+#[test]
+fn a_colour_with_a_condition_on_it_is_not_counted() {
+    // HANDS.md hand 39, the other half. Castle Doom, Spire of Industry and Exotic Orchard are
+    // listed by Scryfall as making every colour. None makes blue without a
+    // condition this engine cannot see, so the Island is the only blue source
+    // and {U}{U} is never there — but all four lands pay generic.
+    let json = run_lands("hand-doom.txt");
+    assert_eq!(percent(&json, "{U}{U} payable on turn 4"), 0.0, "{json}");
+    assert!((percent(&json, "{4} payable on turn 4") - 100.0).abs() < 0.01);
+    assert!(read_as(&json, "Castle Doom").contains("{C}"));
+    assert!(read_as(&json, "Spire of Industry").contains("{C}"));
+    assert!(read_as(&json, "Exotic Orchard").contains("generic"));
+    assert!(
+        json["assumed_mana"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|a| a["card"] != "Island"),
+        "an Island is read at face value: {json}"
+    );
+}
+
+#[test]
+fn every_land_read_other_than_at_face_value_is_named_on_stderr_too() {
+    let out = run_with(
+        "hand-named.txt",
+        "lands-read.criteria.toml",
+        "lands-index.jsonl",
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    for card in ["Urza's Saga", "Izzet Boilerworks", "Evolving Wilds"] {
+        assert!(stderr.contains(card), "{card} is not named: {stderr}");
+    }
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert!(read_as(&json, "Urza's Saga").contains("three turns"));
+    assert!(read_as(&json, "Izzet Boilerworks").contains("one mana"));
+    let wilds = read_as(&json, "Evolving Wilds");
+    assert!(
+        wilds.contains("tapped") && wilds.contains("{U}{G}"),
+        "{wilds}"
+    );
+
+    // And not on a run that asked no mana question.
+    let quiet = run_with(
+        "hand-named.txt",
+        "drawn-only.criteria.toml",
+        "lands-index.jsonl",
+    );
+    let quiet_json: serde_json::Value = serde_json::from_slice(&quiet.stdout).unwrap();
+    assert!(quiet_json.get("assumed_mana").is_none(), "{quiet_json}");
+}
+
 fn run_hand_twelve(criteria: &str) -> std::process::Output {
     run_with("hand-12.txt", criteria, "lantern-index.jsonl")
 }

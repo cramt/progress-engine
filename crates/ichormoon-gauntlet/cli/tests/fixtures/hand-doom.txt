@@ -1,0 +1,11 @@
+// HANDS.md hand 39. Three lands Scryfall lists as making every colour, and
+// an Island. Castle Doom's colours pay only for an artifact spell, Spire of
+// Industry's only while you control an artifact, and Exotic Orchard's only
+// what an opponent's land could make: each pays generic and no blue.
+//
+// Ten cards, so by turn 4 the whole library has been seen and played.
+1x Castle Doom [Land]
+1x Spire of Industry [Land]
+1x Exotic Orchard [Land]
+1x Island [Land]
+6x Lightning Bolt [Burn]

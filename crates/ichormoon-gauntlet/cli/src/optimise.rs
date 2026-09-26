@@ -179,16 +179,22 @@ pub fn describe_group(grouping: &Grouping, group: usize) -> String {
     match grouping.group_mana()[group] {
         ManaSource::Spell => named,
         ManaSource::Castable { cost, .. } => format!("{named}; castable for {}", cost.total()),
+        ManaSource::Land { lasts: Some(0), .. } => format!("{named}; a land making no mana"),
         ManaSource::Land {
             enters_tapped,
             produces,
+            lasts,
         } => format!(
-            "{named}; a land making {}{}",
+            "{named}; a land making {}{}{}",
             match produces.symbols() {
                 s if s.is_empty() => "none of the colours asked about".to_string(),
                 s => s.join(""),
             },
-            if enters_tapped { ", tapped" } else { "" }
+            if enters_tapped { ", tapped" } else { "" },
+            match lasts {
+                Some(n) => format!(", for {n} turns"),
+                None => String::new(),
+            }
         ),
     }
 }

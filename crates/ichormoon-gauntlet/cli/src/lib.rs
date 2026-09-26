@@ -17,6 +17,7 @@ mod answer;
 mod casting;
 mod effects;
 mod landdrop;
+mod lands;
 mod library;
 mod mulligan;
 mod narrow;

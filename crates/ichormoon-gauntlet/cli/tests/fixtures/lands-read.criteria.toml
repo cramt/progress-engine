@@ -1,0 +1,33 @@
+# HANDS.md hands 38 and 39: lands that pay only the mana they really make.
+#
+# One file, run against `hand-fetchland.txt`, `hand-maze.txt` and
+# `hand-doom.txt`. Each deck is read by the clauses its hand is about; the
+# others are asked so the run has something to say about every land.
+
+# Hand 38: a fetchland pays the colour of the untapped land it can find.
+[[criterion]]
+name = "{G} payable on turn 1"
+require = [{ turn = 1, can_cast = "{G}" }]
+
+[[criterion]]
+name = "{U} payable on turn 1"
+require = [{ turn = 1, can_cast = "{U}" }]
+
+[[criterion]]
+name = "{1} payable on turn 1"
+require = [{ turn = 1, can_cast = "{1}" }]
+
+# Hand 39: Maze of Ith is a land drop and no mana.
+[[criterion]]
+name = "{2} payable on turn 3"
+require = [{ turn = 3, can_cast = "{2}" }]
+
+# Hand 39, the other half: Castle Doom, Spire of Industry and Exotic Orchard pay generic and
+# no colour.
+[[criterion]]
+name = "{U}{U} payable on turn 4"
+require = [{ turn = 4, can_cast = "{U}{U}" }]
+
+[[criterion]]
+name = "{4} payable on turn 4"
+require = [{ turn = 4, can_cast = "{4}" }]

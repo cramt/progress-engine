@@ -513,6 +513,9 @@ pub struct Breakdown {
     /// Lands whose tapped-ness this run decided for the pilot. Empty unless the
     /// run asked a mana question, because otherwise it decided nothing.
     pub assumed_tapped: Vec<String>,
+    /// Lands read as making something other than their card data says. Empty
+    /// unless the run asked a mana question, for the same reason.
+    pub assumed_mana: Vec<ManaReading>,
     /// The priority that decided the land drop, where the file declared one.
     ///
     /// Beside the tapped-ness assumptions rather than anywhere else, because
@@ -654,6 +657,13 @@ pub struct KeptAt {
 /// claim worth reporting — *which* policy is, because two different lists over
 /// the same deck are two different numbers, and a reader comparing them has to
 /// be able to see which one produced the page in front of them.
+/// One land read as making mana other than its card data lists, and how.
+#[derive(Facet)]
+pub struct ManaReading {
+    pub card: String,
+    pub reading: String,
+}
+
 #[derive(Facet)]
 pub struct LandDropUse {
     /// What the file wrote, highest priority first.
@@ -827,6 +837,16 @@ pub struct Report {
     /// Empty on every run that asks no mana question.
     #[facet(skip_serializing_if = Vec::is_empty)]
     pub assumed_tapped: Vec<String>,
+    /// Lands this run read as making mana other than their card data lists:
+    /// a fetchland as the lands it can find, Maze of Ith as none, Castle Doom
+    /// as `{C}`, Urza's Saga as three turns of it.
+    ///
+    /// Reported for the reason `assumed_tapped` is: each moves numbers, and
+    /// some of them rest on an assumption — a fetchland's target still being
+    /// in the library — that a percentage cannot state. Empty on every run
+    /// that asks no mana question.
+    #[facet(skip_serializing_if = Vec::is_empty)]
+    pub assumed_mana: Vec<ManaReading>,
     /// The priority this run resolved its land drops by, where a file declared
     /// one.
     ///
@@ -878,6 +898,7 @@ impl Report {
             effects,
             enumerations,
             assumed_tapped,
+            assumed_mana,
             land_drop,
             casting,
             mulligan,
@@ -976,6 +997,7 @@ impl Report {
             effects,
             enumerations,
             assumed_tapped,
+            assumed_mana,
             land_drop,
             casting,
             mulligan,
@@ -1206,6 +1228,18 @@ impl Report {
                 },
                 self.assumed_tapped.join(", ")
             ));
+        }
+        // The same kind of fact about what the lands make rather than when:
+        // each card named with how it was read, because "four lands read
+        // differently" is not something a reader can check.
+        if !self.assumed_mana.is_empty() {
+            out.push_str(
+                "note: these lands make mana other than the card data lists, and this run reads \
+                 them as:\n",
+            );
+            for m in &self.assumed_mana {
+                out.push_str(&format!("      {}: {}.\n", m.card, m.reading));
+            }
         }
         // One width across both sections, so the numbers line up down the whole
         // report rather than restarting at the second heading.
@@ -1812,6 +1846,7 @@ mod tests {
                 enumeration(&["flood by turn 5"], 56789.0, Method::Exact),
             ],
             assumed_tapped: Vec::new(),
+            assumed_mana: Vec::new(),
             land_drop: None,
             casting: None,
             mulligan: None,

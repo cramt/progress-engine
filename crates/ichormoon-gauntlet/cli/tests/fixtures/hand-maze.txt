@@ -1,0 +1,6 @@
+// HANDS.md hand 39. Maze of Ith and an Island: two land drops, one mana.
+//
+// Ten cards, so by turn 4 the whole library has been seen.
+1x Maze of Ith [Land]
+1x Island [Land]
+8x Lightning Bolt [Burn]

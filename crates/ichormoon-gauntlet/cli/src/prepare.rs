@@ -739,6 +739,18 @@ impl PreparedRun {
             } else {
                 Vec::new()
             },
+            assumed_mana: if self.mana_modelled {
+                library
+                    .mana_readings()
+                    .iter()
+                    .map(|r| report::ManaReading {
+                        card: r.card.clone(),
+                        reading: r.reading.clone(),
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            },
             // Read off the schedule the engine actually walked, like the zone
             // reachability above, so the note cannot claim a policy the
             // enumeration did not use.

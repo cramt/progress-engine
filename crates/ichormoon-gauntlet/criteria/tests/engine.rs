@@ -659,6 +659,7 @@ fn untapped(letters: &str) -> ManaSource {
     ManaSource::Land {
         enters_tapped: false,
         produces: Palette::from_letters([letters]),
+        lasts: None,
     }
 }
 
@@ -666,6 +667,7 @@ fn tapped(letters: &str) -> ManaSource {
     ManaSource::Land {
         enters_tapped: true,
         produces: Palette::from_letters([letters]),
+        lasts: None,
     }
 }
 
@@ -1509,6 +1511,7 @@ fn tutor_hand() -> Grouping {
                 ManaSource::Land {
                     enters_tapped: false,
                     produces: Palette::from_letters(["U"]),
+                    lasts: None,
                 },
                 1,
             ),
@@ -1641,6 +1644,7 @@ fn a_tutor_that_finds_nothing_fetches_nothing() {
                 ManaSource::Land {
                     enters_tapped: false,
                     produces: Palette::from_letters(["U"]),
+                    lasts: None,
                 },
                 2,
             ),
@@ -1707,10 +1711,9 @@ fn a_saga_fetches_on_its_third_chapter_and_its_mana_goes_with_it() {
     // draw and before that turn's land, so the Lantern arrives on turn 3 and
     // not a turn sooner. The Saga taps for {C} in response and is sacrificed,
     // so turn 3 has three mana and turn 4, with nothing new to play, has two.
-    let saga_land = ManaSource::Land {
-        enters_tapped: false,
-        produces: Palette::from_letters(["C"]),
-    };
+    // Carrying its own three-turn lifetime, as the card data gives it, and
+    // the effect's sacrifice has to end its mana once rather than twice.
+    let saga_land = lasting("C", 3);
     let grouping = Grouping::with_mana(
         q(&["saga", "lantern", "land", "<effect saga>"]),
         vec![
@@ -1767,6 +1770,132 @@ fn a_saga_fetches_on_its_third_chapter_and_its_mana_goes_with_it() {
     assert!((pays(3, "{3}") - tenth).abs() < 1e-12, "{}", pays(3, "{3}"));
     assert_eq!(pays(4, "{3}"), 0.0, "the Saga's mana outlived it");
     assert!((pays(4, "{2}") - tenth).abs() < 1e-12, "{}", pays(4, "{2}"));
+}
+
+/// A land that makes `letters` for `turns` turns, counting the one it is
+/// played on: Urza's Saga is three, because chapter III sacrifices it.
+fn lasting(letters: &str, turns: u8) -> ManaSource {
+    ManaSource::Land {
+        enters_tapped: false,
+        produces: Palette::from_letters([letters]),
+        lasts: Some(turns),
+    }
+}
+
+#[test]
+fn a_land_that_makes_no_mana_is_a_land_drop_and_not_a_payer() {
+    // Maze of Ith. It is played like any land, so it takes a drop and counts
+    // as a land in play; it has no mana ability, so it pays for nothing, not
+    // even generic. Written as a hand of Maze, one Island and five blanks.
+    let (grouping, schedule) = one_hand(&[
+        (0b1, lasting("", 0), 1),
+        (0b1, untapped("U"), 1),
+        (0b0, ManaSource::Spell, 5),
+    ]);
+    let check = |f: Check| holds(&grouping, &schedule, f);
+    assert_eq!(
+        check(Box::new(|v: &PathView<'_>| v.count_at(
+            2,
+            0,
+            Counted::In(Zone::Battlefield)
+        ) == 2)),
+        1.0,
+        "both lands are played"
+    );
+    let pays = |turn: usize, text: &str| {
+        let cost = Cost::parse(text).unwrap();
+        check(Box::new(move |v: &PathView<'_>| v.can_cast(turn, &cost)))
+    };
+    assert_eq!(pays(2, "{1}"), 1.0, "the Island pays generic");
+    assert_eq!(pays(3, "{2}"), 0.0, "the Maze pays nothing");
+}
+
+#[test]
+fn a_saga_with_no_effect_declared_still_stops_making_mana_after_chapter_three() {
+    // HANDS.md hand 17's "what it costs", on a run that declares no Saga
+    // effect — the Lantern north star's reading. Five cards, one a turn: the
+    // Saga, a Bolt and three Islands, over turns 0 to 4.
+    //
+    // On the deal that opens with the Saga and draws the Bolt on turn 1, the
+    // Islands arrive on turns 2, 3 and 4 and each takes the drop it arrives
+    // on. The Saga then has only turn 1 to go down, and chapter III has
+    // sacrificed it by turn 4: four mana on turn 4 is not there, though four
+    // land drops were. Three is, from the Islands.
+    let grouping = Grouping::with_mana(
+        q(&["saga", "island", "bolt"]),
+        vec![
+            (0b001, lasting("C", 3), 1),
+            (0b010, untapped("U"), 3),
+            (0b100, ManaSource::Spell, 1),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::plain(&[1, 1, 1, 1, 1]);
+    let this_deal = |v: &PathView<'_>| {
+        v.count_at(0, 0, Counted::In(Zone::Hand)) == 1
+            && v.count_at(1, 2, Counted::In(Zone::Hand)) == 1
+    };
+    let pays = |turn: usize, text: &str| {
+        let cost = Cost::parse(text).unwrap();
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| this_deal(v) && v.can_cast(turn, &cost)),
+        )
+    };
+    let deal = 1.0 / 20.0;
+    assert!((pays(4, "{3}") - deal).abs() < 1e-12, "{}", pays(4, "{3}"));
+    assert_eq!(pays(4, "{4}"), 0.0, "the Saga's mana outlived it");
+    // And on turn 3 it is still there: played on turn 1, sacrificed on 3,
+    // tapped with chapter III on the stack.
+    assert!((pays(3, "{3}") - deal).abs() < 1e-12, "{}", pays(3, "{3}"));
+
+    // A deal where the Saga can wait for a drop nothing else needs pays in
+    // full: the Saga in the opener, Islands on turns 1, 3 and 4 and the Bolt
+    // on 2. The Saga goes down on turn 2 and is still there on turn 4.
+    let waited = |v: &PathView<'_>| {
+        v.count_at(0, 0, Counted::In(Zone::Hand)) == 1
+            && v.count_at(2, 2, Counted::In(Zone::Hand)) == 1
+            && v.count_at(1, 2, Counted::In(Zone::Hand)) == 0
+    };
+    let four = Cost::parse("{4}").unwrap();
+    let got = holds(
+        &grouping,
+        &schedule,
+        Box::new(move |v: &PathView<'_>| waited(v) && v.can_cast(4, &four)),
+    );
+    assert!((got - deal).abs() < 1e-12, "{got}");
+}
+
+#[test]
+fn a_saga_played_by_a_declared_priority_stops_making_mana_after_chapter_three() {
+    // The same fact through the other reading: the priority plays the Saga
+    // on turn 1 and an Island on each turn after, so turn 3 has three mana
+    // and turn 4, with a fourth land down, still has three.
+    let grouping = Grouping::with_mana(
+        q(&["saga", "land"]),
+        vec![
+            (0b11, lasting("C", 3), 1),
+            (0b10, untapped("U"), 4),
+            (0b00, ManaSource::Spell, 2),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::plain_with(
+        &[7, 0, 0, 0, 0],
+        Policies::land_drop(LandDropPolicy::new(vec![0], 1)),
+    );
+    let pays = |turn: usize, text: &str| {
+        let cost = Cost::parse(text).unwrap();
+        holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| v.can_cast(turn, &cost)),
+        )
+    };
+    assert_eq!(pays(3, "{3}"), 1.0);
+    assert_eq!(pays(4, "{3}"), 1.0);
+    assert_eq!(pays(4, "{4}"), 0.0, "the Saga's mana outlived it");
 }
 
 // --- Mulligans (#7) ----------------------------------------------------------
