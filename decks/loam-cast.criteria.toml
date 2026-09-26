@@ -2,7 +2,9 @@
 #
 # The north star asked of the zone, by the one route to it the engine follows:
 # cast Life from the Loam, and a sorcery that resolves goes to its owner's
-# graveyard. HANDS.md hands 34 and 35 are this, one hand at a time.
+# graveyard. The Loam gets into the hand to be cast two ways — drawn, or
+# fetched by Spellseeker. HANDS.md hands 34 and 35 are the casting, and hand
+# 36 the fetch, one hand at a time.
 #
 # WHY THIS IS NOT IN loam.criteria.toml
 # -------------------------------------
@@ -23,21 +25,56 @@
 # graveyard by turn 5" is still a measured-nothing zero there, correctly: that
 # file casts nothing.
 #
+# SPELLSEEKER
+# -----------
+# When it enters it puts an instant or sorcery with mana value 2 or less from
+# the library into your hand. Loam is a sorcery at mana value 2, so the tutor
+# names it, and the line casts the Loam it found the first turn {1}{G} is left
+# over — the same turn if five mana paid for both, because the line is read
+# again from the top after a tutor puts a card in hand, and the next turn
+# otherwise.
+# The line reads Loam first: a Loam already in hand is cast before three mana
+# goes on a Spellseeker that has nothing left to find. Tolaria West is not
+# here: transmute finds mana value 0, and Loam is 2.
+#
 # WHAT THE NUMBER IS
 # ------------------
 # A LOWER BOUND on the north star. Casting Loam is one of the deck's routes to
 # the yard and the only one this engine follows; the self-mill package (#62),
-# dredge (#57) and discard can only add to it. It equals "Loam castable by
-# turn 5" in loam.criteria.toml to the digit on the play — 9.9210% — because
-# one copy of a card cast the first turn it is payable is in the graveyard by
-# turn 5 exactly when it was payable by turn 5. On the draw it is 6 groups and
-# 6,158,592 compositions, 23% over the ceiling, and sampled.
+# dredge (#57) and discard can only add to it.
+#
+# Without Spellseeker the line read 9.9210% on the play, exact, and equalled
+# "Loam castable by turn 5" in loam.criteria.toml to the digit, because one
+# copy of a card cast the first turn it is payable is in the graveyard by turn
+# 5 exactly when it was payable by turn 5. With it the
+# line is 11 groups rather than 6 — Spellseeker is a query of its own, the fetch
+# is another, and {2}{U} makes the manabase tell blue from green — and the
+# question is 284,738,168 compositions on the play and 3,132,119,848 on the
+# draw, so both seats are SAMPLED, 200,000 hands each:
+#
+#                                           play             draw
+#   Loam drawn, then cast (no Spellseeker)  9.92% (exact)    11.23% ± 0.07
+#   ... and Spellseeker fetching it         17.08% ± 0.08    19.58% ± 0.09
+#
+# So Spellseeker is worth about 7.2 points on the play and 8.3 on the draw.
+# With the `[[effect]]` block deleted and Spellseeker still in the line, the
+# same question reads 9.95% ± 0.07 and 11.22% ± 0.07: casting it moves
+# nothing, and the whole difference is the fetch.
+#
+# Sampled is not unchecked: `checker/` plays this line a turn at a time and
+# holds both seats against the engine's answer and its standard error.
 #
 # Flashback and retrace are out of scope: a card cast FROM the graveyard is a
 # second casting this line does not make.
 
+[[effect]]
+match = 'name:"Spellseeker"'
+on = "cast"
+fetch = ['name:"Life from the Loam"']
+to = "hand"
+
 [casting]
-prefer = ['name:"Life from the Loam"']
+prefer = ['name:"Life from the Loam"', 'name:"Spellseeker"']
 
 # NO at_least, for the reason loam.criteria.toml gives: one of five routes, and
 # asserting on it asserts the deck reaches its yard by its slowest line.
@@ -51,3 +88,13 @@ require = [{ turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", 
 [[criterion]]
 name = "Life from the Loam cast by turn 5"
 require = [{ turn = 5, cast = 'name:"Life from the Loam"', min = 1 }]
+
+# The route on its own: the hands where Spellseeker resolved as well. Not the
+# hands the fetch added — a Spellseeker cast after the Loam was drawn finds
+# nothing and is still counted here — but a superset of them.
+[[criterion]]
+name = "Spellseeker and Life from the Loam both cast by turn 5"
+require = [
+  { turn = 5, cast = 'name:"Spellseeker"', min = 1 },
+  { turn = 5, cast = 'name:"Life from the Loam"', min = 1 },
+]

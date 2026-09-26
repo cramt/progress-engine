@@ -485,12 +485,16 @@ note: nothing routes a card to the graveyard in this run, so every count in
 
 Declare a destination, or a line that casts one, and the note goes away,
 because the number is now a measurement. `decks/loam-cast.criteria.toml` is the
-second kind: it declares `[casting] prefer = ['name:"Life from the Loam"']` and
-asks the north star of the zone, and reads 9.9210% on the play — the same
-hands as `can_cast` of Loam by turn 5, to the digit, because one copy cast the
-first turn it is payable is in the yard exactly when it was payable (HANDS.md
-hands 34 and 35). It is a file of its own because a `[casting]` line takes the
-cards it casts out of the hand and prices the manabase on every question
+second kind: it declares a line that casts Life from the Loam and asks the
+north star of the zone. Casting Loam alone, it read 9.9210% on the play — the
+same hands as `can_cast` of Loam by turn 5, to the digit, because one copy cast
+the first turn it is payable is in the yard exactly when it was payable
+(HANDS.md hands 34 and 35). The line now casts Spellseeker too, which fetches
+the Loam (HANDS.md hand 36, and [Tutors](#tutors-and-a-library-that-shrinks)),
+and reads 17.08% ± 0.08 on the play and 19.58% ± 0.09 on the draw — sampled,
+because Spellseeker's `{2}{U}` makes the manabase tell blue from green and the
+question 284,738,168 compositions wide. It is a file of its own because a
+`[casting]` line takes the cards it casts out of the hand and prices the manabase on every question
 beside it, which would move every other number in `loam.criteria.toml`.
 Flashback and retrace, which cast a card *from* the yard, are not modelled.
 
@@ -1190,6 +1194,22 @@ block and re-run:
 The first row does not move and must not: what a spell does when it resolves
 cannot change whether the pool paid for it. The second row is the route, and
 0.78% was the deck drawing both halves naturally.
+
+**A card a tutor puts in hand is one the line can cast that turn**, wherever the
+line lists it: after the fetch the line is read again from its top, as it is
+after a spell that draws. `decks/loam-cast.criteria.toml` is the case that
+needs it — its line reads Loam first and Spellseeker second, so that a Loam
+already in hand is not held a turn behind a three-mana tutor with nothing to
+find, and five lands cast Spellseeker and then the Loam it fetched:
+
+| On `decks/loam.txt`, Loam in the graveyard by turn 5 | play | draw |
+|---|---|---|
+| casting Loam you drew | 9.92% | 11.23% ± 0.07 |
+| ... and the Loam Spellseeker fetched | **17.08% ± 0.08** | **19.58% ± 0.09** |
+
+With the fetch deleted and Spellseeker still in the line it reads 9.95% ± 0.07
+and 11.22% ± 0.07, so casting Spellseeker moves nothing and the whole
+difference is the card it went and got (HANDS.md hand 36).
 
 **A fetchland is not a filter, and the distinction matters.** Scry and surveil
 examine N cards off the top; a fetchland removes a card from the library and
@@ -2191,15 +2211,17 @@ from what each question means, the Magic rules and the assumptions this README
 states — not from the engine's source. It shuffles the real libraries in
 `decks/`, deals 400,000 games per deck and seat, answers a handful of the
 committed criteria (a pure draw question, a battlefield land count, three
-`can_cast` joints, Loam cast into the graveyard, played a turn at a time, and
-the commander cast from the command zone on each deck) and holds every answer
-the engine gave **exactly** against the checker's 99.9% interval, exiting
-non-zero on any that falls outside. An answer the engine **estimated** carries
-an error of its own, so it is held to the interval of the difference instead —
-both errors, added in quadrature — and marked `agree (engine sampled)`: a
-weaker check, of what a dealt game does rather than of the enumeration, and the
-only one the commander questions admit, because both are too wide to
-enumerate:
+`can_cast` joints, Loam cast into the graveyard — drawn, or fetched by
+Spellseeker — played a turn at a time, and the commander cast from the command
+zone on each deck) and holds every answer the engine gave **exactly** against
+the checker's 99.9% interval, exiting non-zero on any that falls outside. An
+answer the engine **estimated** carries an error of its own, so it is held to
+the interval of the difference instead — both errors, added in quadrature — and
+marked `agree (engine sampled)`: a weaker check, of what a dealt game does
+rather than of the enumeration, and the only one the commander and Spellseeker
+questions admit, because they are too wide to enumerate. It is still a check:
+it is how the Spellseeker line found the engine holding a fetched Loam it could
+have cast:
 
 ```
 cargo build --release -p gauntlet-cli
@@ -2207,7 +2229,7 @@ python3 checker/compare.py                       # or --gauntlet PATH, or $GAUNT
 python3 checker/compare.py --games 100000 --seed 7
 ```
 
-It takes about half a minute. Where the engine's documented reading differs
+It takes about a minute and a half. Where the engine's documented reading differs
 from the game — shocklands assumed tapped, a bounce land is one mana, a
 fetchland's target is still in the library to find — the checker implements the
 documented reading and says so beside the code, so a disagreement is a finding

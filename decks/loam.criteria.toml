@@ -68,7 +68,9 @@
 #     graveyard. This is the one route the tool can price, and it is priced
 #     below as a gate. Asked of the zone it needs a `[casting]` line, which
 #     would move every other number here, so that phrasing lives in
-#     `loam-cast.criteria.toml` beside this file — and reads the same 9.9210%.
+#     `loam-cast.criteria.toml` beside this file. It read the same 9.9210%
+#     until that line also cast Spellseeker to fetch the Loam; with it, about
+#     17.1%, sampled.
 #
 # So the `zone = "graveyard"` number really is zero, and it is zero for a
 # reason the run states rather than for a reason the author checked.
@@ -87,7 +89,9 @@
 #   * Tutors as tutors. Spellseeker and Tolaria West are one card matching one
 #     query here. `loam-thinning.criteria.toml` beside this file declares what
 #     the four fetchlands go and get, and measures what deck thinning is
-#     worth.
+#     worth; `loam-cast.criteria.toml` declares Spellseeker fetching the Loam
+#     (HANDS.md hand 36). Tolaria West's transmute finds mana value 0, and
+#     Loam is 2.
 #   * Anything about the game but your own draws.
 
 # --- The north star, three ways -------------------------------------------

@@ -445,22 +445,72 @@ def _loam_castable_by_5(g: Game) -> bool:
     )
 
 
-def _loam_in_graveyard_by_casting_by_5(g: Game) -> bool:
-    # [casting] prefer = ['name:"Life from the Loam"']
-    # { turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }
+LOAM, SEEKER = "Life from the Loam", "Spellseeker"
+
+
+def _loam_line_by_5(g: Game) -> tuple[bool, bool]:
+    # [[effect]] match = 'name:"Spellseeker"', on = "cast",
+    #            fetch = ['name:"Life from the Loam"'], to = "hand"
+    # [casting] prefer = ['name:"Life from the Loam"', 'name:"Spellseeker"']
     #
-    # Played out a turn at a time rather than asked as a joint. Life from the
-    # Loam is a sorcery, and a sorcery that resolves is put into its owner's
-    # graveyard (CR 608.2n), so it is in the yard by turn 5 exactly when the
-    # line cast it on some turn up to 5. The line casts it on the first turn
-    # it is in hand and the lands in play could pay {1}{G}; nothing else in the
-    # line competes for the mana, and a card you have cast is not in hand to
-    # be cast again. No other route to the yard is modelled (README: "Zones").
+    # Played out a turn at a time. Returns (Loam cast by 5, Spellseeker cast
+    # by 5).
+    #
+    # * The line is read in order and the first entry the turn's lands can
+    #   still pay for is cast, then the next; what one turn casts is one bill
+    #   (README "Mana, as a budget"), so a second spell is asked as the sum of
+    #   both costs. Mana does not carry over: each turn is its own bill.
+    # * Spellseeker's enters trigger searches the library for an instant or
+    #   sorcery with mana value 2 or less and puts it into your hand, then
+    #   shuffles. Loam is a sorcery at mana value 2. If Loam is still in the
+    #   library it comes to hand; if it was drawn it is not there to find, and
+    #   the tutor finds nothing (README "Tutors").
+    # * After the fetch the line is read again from the top (HANDS.md hands 15
+    #   and 24): a Loam fetched on a turn with {1}{G} still unspent is cast
+    #   that turn.
+    # * The shuffle makes the rest of the library a uniformly random order of
+    #   what is left, which is this deal with the Loam taken out of it: later
+    #   draws move up by one.
+    # * Life from the Loam is a sorcery, and a sorcery that resolves is put
+    #   into its owner's graveyard (CR 608.2n); a cast card is not in hand to
+    #   be cast again. No other route to the yard is modelled (README "Zones").
+    #
+    # ASSUMPTION (README "Mana, as a gate"): each turn's bill is asked with
+    # `can_cast`, which lets the land drops be whichever sequence pays; the
+    # README says nobody plays their lands badly and declares no [land_drop].
+    loam_cast = seeker_cast = fetched = False
     for turn in range(1, 6):
-        held = g.count(turn, lambda c: c.is_named("Life from the Loam")) >= 1
-        if held and g.can_cast(turn, "{1}{G}"):
-            return True  # cast, resolved, in the graveyard from here on
-    return False
+        bill = ""
+        for _ in range(3):  # at most: Loam, Spellseeker, the Loam it fetched
+            loam_held = not loam_cast and (
+                fetched or g.count(turn, lambda c: c.is_named(LOAM)) >= 1
+            )
+            seeker_held = not seeker_cast and g.count(turn, lambda c: c.is_named(SEEKER)) >= 1
+            if loam_held and g.can_cast(turn, bill + "{1}{G}"):
+                loam_cast, bill = True, bill + "{1}{G}"
+                continue
+            if seeker_held and g.can_cast(turn, bill + "{2}{U}"):
+                seeker_cast, bill = True, bill + "{2}{U}"
+                if not loam_held and not loam_cast:
+                    # Not drawn, so still in the library: in the dealt top
+                    # below what has been seen, or deeper than this deal went.
+                    fetched = True
+                    cards = [c for c in g.cards if not c.is_named(LOAM)]
+                    g = Game(cards, g.on_the_draw, g.library_size - 1)
+                continue
+            break
+    return loam_cast, seeker_cast
+
+
+def _loam_in_graveyard_by_casting_by_5(g: Game) -> bool:
+    # { turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }
+    return _loam_line_by_5(g)[0]
+
+
+def _seeker_and_loam_cast_by_5(g: Game) -> bool:
+    # { turn = 5, cast = 'name:"Spellseeker"', min = 1 }
+    # { turn = 5, cast = 'name:"Life from the Loam"', min = 1 }
+    return all(_loam_line_by_5(g))
 
 
 def _loam_two_drop_and_mana_t3(g: Game) -> bool:
@@ -541,7 +591,14 @@ QUESTIONS: list[Question] = [
         "loam-cast.criteria.toml",
         "Life from the Loam in the graveyard by turn 5 (by casting it)",
         _loam_in_graveyard_by_casting_by_5,
-        5,
+        6,  # turn 5, and one card deeper for the Loam a fetch takes out
+    ),
+    Question(
+        "loam",
+        "loam-cast.criteria.toml",
+        "Spellseeker and Life from the Loam both cast by turn 5",
+        _seeker_and_loam_cast_by_5,
+        6,
     ),
     Question(
         "loam",
