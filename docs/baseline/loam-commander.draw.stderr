@@ -8,6 +8,22 @@ ESTIMATE: a question here was too wide to enumerate exactly: 45780056408064
 note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc" (adds 1, on cast)
       applies to 2 cards: Birds of Paradise, Elvish Mystic
       a mana source once the [casting] line casts it
+note: effect "name:\"Aftermath Analyst\"" (mill 3, on cast)
+      applies to 1 card: Aftermath Analyst
+      puts all it mills in the graveyard
+      and the [casting] line does not cast it, so here it mills nothing
+note: effect "name:\"Malevolent Rumble\"" (mill 4, on cast)
+      applies to 1 card: Malevolent Rumble
+      puts all it mills in the graveyard: the card lets you keep 1 matching "is:permanent", and this file declares no `to_hand` choosing one
+      and the [casting] line does not cast it, so here it mills nothing
+note: effect "name:\"Midnight Tilling\"" (mill 4, on cast)
+      applies to 1 card: Midnight Tilling
+      puts all it mills in the graveyard: the card lets you keep 1 matching "is:permanent", and this file declares no `to_hand` choosing one
+      and the [casting] line does not cast it, so here it mills nothing
+note: effect "name:\"Wrenn and Seven\"" (mill 4, on cast)
+      applies to 1 card: Wrenn and Seven
+      puts what it mills in the graveyard, except every card matching "t:land", which the card puts in your hand
+      and the [casting] line does not cast it, so here it mills nothing
 note: the spells cast here are decided by the priority this file declared, and every
       number below that depends on what was cast depends on it:
       1. "name:\"Borborygmos and Fblthp\""

@@ -34,6 +34,62 @@
       ],
       "copies": 2,
       "live": false
+    },
+    {
+      "match": "name:\"Aftermath Analyst\"",
+      "look": 0,
+      "on": "cast",
+      "mill": 3,
+      "source": "the standard effect library",
+      "cards": [
+        "Aftermath Analyst"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "name:\"Malevolent Rumble\"",
+      "look": 0,
+      "on": "cast",
+      "mill": 4,
+      "keep": 1,
+      "keep_only": "is:permanent",
+      "unspent": [
+        "Malevolent Rumble"
+      ],
+      "source": "the standard effect library",
+      "cards": [
+        "Malevolent Rumble"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "name:\"Midnight Tilling\"",
+      "look": 0,
+      "on": "cast",
+      "mill": 4,
+      "keep": 1,
+      "keep_only": "is:permanent",
+      "source": "the standard effect library",
+      "cards": [
+        "Midnight Tilling"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "name:\"Wrenn and Seven\"",
+      "look": 0,
+      "on": "cast",
+      "mill": 4,
+      "keep_every": "t:land",
+      "source": "the standard effect library",
+      "cards": [
+        "Wrenn and Seven"
+      ],
+      "copies": 1,
+      "live": false
     }
   ],
   "enumerations": [
@@ -181,6 +237,6 @@
     "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
     "criteria_sha256": "0faa25759b73db32741c705fbdaf39f16a29585331a131fb0731af648cb273a0",
-    "effect_library_sha256": "43d0fe87aa0021ee3430ccc4a210019418f0ab41e9c2b80f148dee29b2168bf5"
+    "effect_library_sha256": "331c6ec9ff4b9ffb698ec4fae066b674a98e6fdf2eb3f426c09815fb586546e1"
   }
 }
