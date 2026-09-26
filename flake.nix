@@ -82,6 +82,8 @@
             nativeBuildInputs = [pkgs.python3];
             PYTHONDONTWRITEBYTECODE = "1";
           } ''
+            # The unit tests first: HANDS.md's rocks-and-dorks hands (26-33).
+            CHECKER_DECKS=${./decks} python3 -m unittest discover -s ${./checker}
             python3 ${./checker}/compare.py \
               --gauntlet ${gauntlet}/bin/gauntlet \
               --decks ${./decks}

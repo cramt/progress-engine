@@ -12,6 +12,13 @@ the difference between two independent samples instead: both errors, added in
 quadrature. That is a weaker check - it tests what a dealt game does, not the
 enumeration - and the verdict says which kind it was.
 
+A question marked `pending` (checker.Question.pending names the engine ticket)
+is one the engine cannot answer yet. Its checker number is reported, on
+--pending-games games, and fails nothing. Its criteria file need not exist;
+if it does and the engine answers the criterion, the answer is compared like
+any other and the verdict says to drop the marker. Flipping one to compared is
+deleting its `pending=` argument.
+
     python3 checker/compare.py [--gauntlet PATH] [--games N] [--seed S]
 
 The binary defaults to $GAUNTLET, then target/release/gauntlet.
@@ -56,6 +63,26 @@ def engine_answers(gauntlet: str, decks: Path, deck: str, criteria: str, draw: b
     return {c["name"]: c for c in out["criteria"]}
 
 
+def judge(q, e: dict, hits: int, games: int) -> tuple[tuple, int]:
+    """One compared row - (name, engine, checker, half-width, verdict) - and 1
+    if it is a disagreement."""
+    p_engine = e["probability"]
+    p_check = hits / games
+    # The interval is the checker's sampling error under the hypothesis that
+    # the engine is right, so a p of 0 or 1 is not an interval of zero width
+    # around an estimate.
+    variance = max(p_engine * (1 - p_engine), 1e-12) / games
+    sampled = e["method"] != "exact"
+    if sampled:
+        # Two estimates, each with its own error: the interval is of their
+        # difference.
+        variance += (e.get("standard_error") or 0.0) ** 2
+    half = Z_999 * math.sqrt(variance)
+    if abs(p_check - p_engine) <= half:
+        return (q.name, p_engine, p_check, half, "agree (engine sampled)" if sampled else "agree"), 0
+    return (q.name, p_engine, p_check, half, "DISAGREE"), 1
+
+
 def main() -> int:
     here = Path(__file__).resolve().parent
     p = argparse.ArgumentParser(description="checker vs engine")
@@ -66,6 +93,9 @@ def main() -> int:
     p.add_argument("--decks", type=Path, default=here.parent / "decks")
     # 400,000 games puts the 99.9% half-width at 0.26pp at worst (p = 0.5).
     p.add_argument("--games", type=int, default=400_000)
+    # The pending questions are only reported; 100,000 games puts their
+    # 99.9% half-width at 0.52pp at worst.
+    p.add_argument("--pending-games", type=int, default=100_000)
     p.add_argument("--seed", default="0")
     args = p.parse_args()
 
@@ -75,42 +105,48 @@ def main() -> int:
     rows, failures = [], 0
     for deck in sorted({q.deck for q in checker.QUESTIONS}):
         library = checker.load_library(args.decks / f"{deck}.txt", index)
-        questions = [q for q in checker.QUESTIONS if q.deck == deck]
+        cmdrs = checker.commander_cards(args.decks / f"{deck}.txt", index)
+        compared = [q for q in checker.QUESTIONS if q.deck == deck and not q.pending]
+        pending = [q for q in checker.QUESTIONS if q.deck == deck and q.pending]
         for draw in (False, True):
+            seat = "draw" if draw else "play"
             engine = {}
-            for criteria in sorted({q.criteria for q in questions}):
-                engine.update(engine_answers(args.gauntlet, args.decks, deck, criteria, draw))
-            seed = f"{args.seed}:{deck}:{'draw' if draw else 'play'}"
-            hits = checker.play(library, questions, draw, args.games, seed)
-            for q in questions:
+            for criteria in sorted({q.criteria for q in compared + pending}):
+                if any(q.criteria == criteria for q in compared) or (args.decks / criteria).exists():
+                    engine.update(engine_answers(args.gauntlet, args.decks, deck, criteria, draw))
+            seed = f"{args.seed}:{deck}:{seat}"
+            hits = checker.play(library, compared, draw, args.games, seed, cmdrs)
+            for q in compared:
                 if q.name not in engine:
                     raise SystemExit(f"compare: the engine answered no criterion named {q.name!r}")
-                e = engine[q.name]
-                p_engine = e["probability"]
-                p_check = hits[q.name] / args.games
-                # The interval is the checker's sampling error under the
-                # hypothesis that the engine is right, so a p of 0 or 1 is
-                # not an interval of zero width around an estimate.
-                variance = max(p_engine * (1 - p_engine), 1e-12) / args.games
-                sampled = e["method"] != "exact"
-                if sampled:
-                    # Two estimates, each with its own error: the interval is
-                    # of their difference.
-                    variance += (e.get("standard_error") or 0.0) ** 2
-                half = Z_999 * math.sqrt(variance)
-                if abs(p_check - p_engine) <= half:
-                    verdict = "agree (engine sampled)" if sampled else "agree"
+                row, failed = judge(q, engine[q.name], hits[q.name], args.games)
+                rows.append((deck, seat) + row)
+                failures += failed
+            if not pending:
+                continue
+            games = args.pending_games
+            hits = checker.play(library, pending, draw, games, seed + ":pending", cmdrs)
+            for q in pending:
+                if q.name in engine:
+                    row, failed = judge(q, engine[q.name], hits[q.name], games)
+                    row = row[:-1] + (f"{row[-1]}; the engine answers it, drop pending",)
+                    failures += failed
                 else:
-                    verdict = "DISAGREE"
-                    failures += 1
-                rows.append((deck, "draw" if draw else "play", q.name, p_engine, p_check, half, verdict))
+                    p_check = hits[q.name] / games
+                    half = Z_999 * math.sqrt(max(p_check * (1 - p_check), 1e-12) / games)
+                    row = (q.name, None, p_check, half, f"pending engine ({q.pending})")
+                rows.append((deck, seat) + row)
 
     width = max(len(r[2]) for r in rows)
     print(f"{'deck':8} {'seat':4}  {'question':{width}}  {'engine':>9}  {'checker':>9}  {'99.9% ±':>8}  verdict")
     for deck, seat, name, pe, pc, half, verdict in rows:
-        print(f"{deck:8} {seat:4}  {name:{width}}  {pe:9.4%}  {pc:9.4%}  {half:8.4%}  {verdict}")
+        engine_cell = f"{pe:9.4%}" if pe is not None else f"{'-':>9}"
+        print(f"{deck:8} {seat:4}  {name:{width}}  {engine_cell}  {pc:9.4%}  {half:8.4%}  {verdict}")
     elapsed = time.monotonic() - started
-    print(f"\n{args.games:,} games per deck and seat, seed {args.seed!r}, {elapsed:.1f}s")
+    print(
+        f"\n{args.games:,} games per deck and seat ({args.pending_games:,} for pending"
+        f" questions), seed {args.seed!r}, {elapsed:.1f}s"
+    )
     if failures:
         print(f"FAIL: {failures} answer(s) outside the 99.9% interval")
         return 1

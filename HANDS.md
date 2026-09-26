@@ -1250,18 +1250,24 @@ prefer = ['name:"Elvish Mystic"', 'name:"Life from the Loam"']
 ```
 
 **Turn 1:** the Forest pays for the Mystic. The Mystic is a creature and cannot
-tap this turn. **Turn 2:** Forest, Forest and the Mystic make `{G}{G}{G}`, which
-pays for Loam. So Loam is in the graveyard on turn 2, a turn earlier than lands
-alone could put it there.
+tap this turn. **Turn 2:** Forest, Forest and the Mystic make `{G}{G}{G}`. Loam
+takes two of them, and one `{G}` is left over.
 
 | | real | the Mystic taps like a rock | lands only |
 |---|---|---|---|
 | `can_cast = "{G}"` on turn 1, beside the line | **0%** | 100% | 0% |
-| Loam cast by turn 2 | **100%** | 100% | 0% |
-| Loam cast by turn 3 | 100% | 100% | 100% |
+| Loam cast by turn 2 | 100% | 100% | 100% |
+| `can_cast = "{G}"` on turn 2, beside the line | **100%** | 100% | 0% |
 
 The first row is the claim. A dork adds nothing on the turn it arrives, and
-treating it like a rock is the naive number.
+treating it like a rock is the naive number. What the Mystic buys is the third
+row: a `{G}` beside the Loam on turn 2.
+
+An earlier version of this table read *Loam cast by turn 2* as 0% with lands
+only, and said the Mystic put Loam in the graveyard a turn earlier. It does
+not: Loam costs `{1}{G}`, and the two Forests on the battlefield by turn 2 pay
+it without the Mystic. The independent checker found it
+(`checker/test_rocks.py`).
 
 *Not answerable yet: needs the source ticket.*
 

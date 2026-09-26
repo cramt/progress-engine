@@ -2237,6 +2237,22 @@ about the engine rather than about the two disagreeing on the premise. Adding a
 question is one function of a dealt game and one entry in `QUESTIONS`, named
 exactly as its criterion is.
 
+Every question that casts goes through one line model in the checker
+(`line_path`): the commander from the command zone, a tutor that fetches to
+hand, and the line read again from the top after every cast. It also plays
+**rocks and dorks** the way
+[ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) says,
+from the rules rather than from the engine: a rock the declared line casts taps
+that turn but pays only for what the line casts after it, a dork waits a turn,
+the amount comes from the card's oracle text (Sol Ring `{C}{C}`, a Talisman one
+of its two colours or `{C}`, Arcane Signet the commander's colours), and Fellwar
+Stone and Lotus Cobra make nothing. `checker/test_rocks.py` holds HANDS.md hands
+26 to 33 against it (`python3 -m unittest discover -s checker`). The engine
+cannot answer those questions yet, so they are marked `pending="#93"` in
+`QUESTIONS`: `compare.py` reports the checker's number, on 100,000 games
+(`--pending-games`), and fails nothing on it. When the criterion exists and the
+engine answers it, `compare.py` compares it and says to delete the marker.
+
 The workspace is Ichormoon Gauntlet and Reality Chip. Gitaxian Probe's source
 is still under `crates/gitaxian-probe/`, but it is parked outside the workspace
 and the flake, so nothing builds it; the root `Cargo.toml` says how to bring it

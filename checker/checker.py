@@ -13,6 +13,7 @@ answers against each other; this file knows nothing about the engine.
 
 from __future__ import annotations
 
+import functools
 import itertools
 import json
 import random
@@ -56,6 +57,11 @@ class Card:
     # What a fetchland searches for, as (land types, must be basic, enters
     # tapped), or None. Resolved against the deck in `load_library`.
     fetch: tuple[frozenset[str], bool, bool] | None = None
+    # Printed cost, oracle text and colour identity, as the index holds them.
+    # Read by the line (`line_path`) and nothing before it.
+    mana_cost: str = ""
+    oracle: str = ""
+    identity: frozenset[str] = frozenset()
 
     def is_named(self, *names: str) -> bool:
         return self.name in names
@@ -163,6 +169,9 @@ def _make_card(record: dict, categories: tuple[str, ...]) -> Card:
         makes_mana=bool(listed) or fetch is not None,
         lasts=lasts,
         fetch=fetch,
+        mana_cost=record.get("mana_cost") or faces[0].get("mana_cost") or "",
+        oracle=oracle,
+        identity=frozenset(record.get("ci") or []),
     )
 
 
@@ -239,6 +248,13 @@ def commanders(decklist: Path, index: Index) -> list[tuple[str, str]]:
     return found
 
 
+def commander_cards(decklist: Path, index: Index) -> tuple[Card, ...]:
+    """The commanders as cards, for a line that casts them."""
+    return tuple(
+        _make_card(index.card(name), ("Commander",)) for name, _ in commanders(decklist, index)
+    )
+
+
 def load_library(decklist: Path, index: Index) -> list[Card]:
     """The library: every card in the list except commanders and anything the
     list says is outside the deck. One Card object per copy."""
@@ -280,6 +296,11 @@ class Game:
     on_the_draw: bool
     library_size: int
     _lands_cache: dict = field(default_factory=dict)
+    # The command zone: castable from turn 1, never drawn. Only a line reads it.
+    commanders: tuple[Card, ...] = ()
+    # The whole library the deal came from, so a tutor knows what is left.
+    library: list[Card] = field(default_factory=list)
+    _line_cache: dict = field(default_factory=dict)
 
     def seen_count(self, turn: int) -> int:
         draws = turn if self.on_the_draw else max(0, turn - 1)
@@ -399,7 +420,18 @@ def _pays(lands: tuple[tuple[int, Card], ...], pips: list[str]) -> bool:
     return False
 
 
+@functools.lru_cache(maxsize=None)
+def _parse_cost_cached(cost: str) -> tuple[int, tuple[str, ...]]:
+    generic, pips = _parse_cost(cost)
+    return generic, tuple(pips)
+
+
 def parse_cost(cost: str) -> tuple[int, list[str]]:
+    generic, pips = _parse_cost_cached(cost)
+    return generic, list(pips)
+
+
+def _parse_cost(cost: str) -> tuple[int, list[str]]:
     generic, pips = 0, []
     for sym in re.findall(r"\{([^}]*)\}", cost):
         if sym.isdigit():
@@ -409,6 +441,317 @@ def parse_cost(cost: str) -> tuple[int, list[str]]:
         else:
             raise ValueError(f"cost symbol {{{sym}}} is not a fixed amount")
     return generic, pips
+
+
+# --- The line: what a declared [casting] list casts ---------------------------
+#
+# One model for every question that casts: the commander from the command
+# zone, a tutor that fetches to hand, and the rocks and dorks of ADR 0018 and
+# HANDS.md hands 26-33 (checker/test_rocks.py holds those hands against it).
+# Written from the README, the ADR and the Comprehensive Rules:
+#
+# * A line is a list of entries, each a tuple of card names, read from the top:
+#   the first entry with a card in hand the pool can still pay for is cast,
+#   and the line is read again from the top after every cast, so after a cast
+#   that grew the pool (ADR 0018) or put a card in hand (HANDS.md hand 36). A
+#   card the line does not name is never cast. A tie inside an entry goes to
+#   the cheaper cost, then to the order the entry names them. ASSUMPTION: the
+#   engine breaks that last tie by decklist order; every entry here names its
+#   cards in decklist order.
+# * What one turn casts is one bill (README "Mana, as a budget"), and mana does
+#   not carry over. The lands are the gate's: whichever lands pay, asked
+#   afresh each turn, as `can_cast` asks it (README: "the gate assumes
+#   whichever land pays"; nobody plays their lands badly).
+# * A non-creature mana source adds mana the turn it is cast, but that mana
+#   pays only for spells cast after it that turn and never for itself: its
+#   cost is paid while it is still a spell (CR 601.2g-h). So a turn's bill is
+#   one matching in which each spell sees only the sources already there when
+#   it was cast (HANDS.md hand 27).
+# * A creature source is summoning-sick (CR 302.6): it adds from the turn
+#   after it was cast.
+# * How much a source makes is read from its oracle text, the way ADR 0018's
+#   two standard-library entries read it: a single-faced non-land whose text
+#   says "{T}: Add" and none of the conditional, delayed or restricted
+#   wordings adds 1, and "{T}: Add {C}{C}." adds 2. Its colours are
+#   `produces`, with "your commander's color identity" (Arcane Signet) narrowed
+#   to the commanders'. So Sol Ring is {C}{C}, Mind Stone {C}, a Talisman one of
+#   {C} and its two colours, Birds any colour, Elvish Mystic {G}.
+# * Fellwar Stone makes nothing: "a land an opponent controls could produce",
+#   and a north star has no opponent (CR 106.7). Lotus Cobra's mana is a
+#   landfall trigger rather than a tap, so it is no source. `unmodelled_sources`
+#   names both. Improvise and other cost reducers are not modelled: every spell
+#   pays its printed cost.
+# * A tutor that fetches to hand takes a card the library still holds: one
+#   the deck has more copies of than have been seen or fetched. The shuffle
+#   after it leaves the rest a uniformly random order of what is left, which is
+#   this deal with that copy taken out: later draws move up by one.
+
+_NOT_A_PLAIN_TAP = (
+    "enters tapped",
+    "doesn't untap",
+    "Spend this mana only",
+    "can't be spent",
+    "Activate only",
+    "could produce",
+    ", {T}: Add",
+    "for each",
+    "an amount of",
+    "{X}",
+)
+
+
+@dataclass(frozen=True)
+class Source:
+    amount: int
+    palette: frozenset[str]
+    sick: bool  # a creature: its mana starts the turn after it is cast
+
+
+def mana_source(card: Card, identity: frozenset[str] = frozenset()) -> Source | None:
+    """What a non-land permanent adds once a line has cast it, or None."""
+    text = card.oracle
+    if card.playable_land or "//" in card.type_line or "{T}: Add" not in text:
+        return None
+    if any(wording in text for wording in _NOT_A_PLAIN_TAP):
+        return None
+    amount = 2 if "{T}: Add {C}{C}." in text else 1
+    palette = card.produces
+    if "commander's color identity" in text:
+        palette = palette & identity
+    return Source(amount, palette, "Creature" in card.type_line)
+
+
+def unmodelled_sources(cards, identity: frozenset[str] = frozenset()) -> list[str]:
+    """Permanents whose text adds mana and which are counted as making none:
+    Fellwar Stone, Lotus Cobra. A line that casts one gives a lower bound, and
+    should name the card that makes it one. (Not `produces`, which
+    `_mana_of` has already emptied for the Stone.)"""
+    return sorted(
+        {
+            c.name
+            for c in cards
+            if not c.playable_land
+            and "//" not in c.type_line
+            and not any(t in c.type_line for t in ("Instant", "Sorcery"))
+            and re.search(r"\badd\b", c.oracle, re.I)
+            and mana_source(c, identity) is None
+        }
+    )
+
+
+Unit = tuple[int, frozenset[str]]  # (the first bill position it may pay, palette)
+Cost = tuple[int, tuple[str, ...]]
+
+
+def _settles(units: list[Unit], bill: list[Cost]) -> bool:
+    """Can every symbol of this turn's bill have its own unit of mana, each
+    spell paid only from units that existed before it was cast? A bipartite
+    matching: ADR 0018's "matching with nested supply"."""
+    demands: list[tuple[int, str | None]] = []
+    for pos, (generic, pips) in enumerate(bill):
+        demands += [(pos, pip) for pip in pips] + [(pos, None)] * generic
+    if len(demands) > len(units):
+        return False
+    owner = [-1] * len(units)
+
+    def fits(d: int, u: int) -> bool:
+        pos, pip = demands[d]
+        avail, palette = units[u]
+        return avail <= pos and (pip is None or pip in palette)
+
+    def augment(d: int, tried: set[int]) -> bool:
+        for u in range(len(units)):
+            if u not in tried and fits(d, u):
+                tried.add(u)
+                if owner[u] < 0 or augment(owner[u], tried):
+                    owner[u] = d
+                    return True
+        return False
+
+    return all(augment(d, set()) for d in range(len(demands)))
+
+
+def _land_sets(g: Game, turn: int, size: int) -> list[tuple[frozenset[str], ...]]:
+    """Every set of `size` lands that could all be untapped on `turn` (the
+    gate's schedule), as their palettes, one per distinct palette multiset.
+    If no set that large could be, the largest that could. Cached."""
+    key = ("lands", turn, size)
+    if key not in g._line_cache:
+        lands = [(t, c) for t, c in g.lands_in_hand(turn) if c.makes_mana]
+        found: dict = {}
+        for k in range(min(size, len(lands)), -1, -1):
+            for chosen in itertools.combinations(lands, k):
+                if _schedulable(chosen, turn):
+                    palettes = tuple(sorted((c.produces for _, c in chosen), key=sorted))
+                    found.setdefault(palettes, palettes)
+            # Schedulable sets are a matroid, so any set that pays extends to
+            # one of the largest: stop at the first size that has any.
+            if found:
+                break
+        g._line_cache[key] = list(found)
+    return g._line_cache[key]
+
+
+def _line_pays(g: Game, turn: int, units: list[Unit], bill: list[Cost]) -> bool:
+    """Could this turn's lands, whichever pay, and `units` settle `bill`?"""
+    need = sum(generic + len(pips) for generic, pips in bill)
+    for palettes in _land_sets(g, turn, need):
+        if len(palettes) + len(units) < need:
+            return False  # every set in the list is the same size
+        if _settles([(0, p) for p in palettes] + units, bill):
+            return True
+    return False
+
+
+@dataclass
+class Turn:
+    """One turn of a line: what it cast, and the pool it cast from."""
+
+    number: int
+    cast: list[Card]
+    units: list[Unit]
+    bill: list[Cost]
+    game: Game
+
+    def casts(self, name: str) -> bool:
+        return any(c.name == name for c in self.cast)
+
+    def left_pays(self, cost: str) -> bool:
+        """`can_cast` beside the line: could what the line left, unspent rock
+        mana included, still pay `cost` this turn?"""
+        return _line_pays(self.game, self.number, self.units, self.bill + [_parse_cost_cached(cost)])
+
+
+class LinePath(list):
+    """The turns of one line, from turn 1."""
+
+    def cast_by(self, name: str, turn: int) -> bool:
+        return any(t.casts(name) for t in self[:turn])
+
+    def first_cast(self, name: str) -> int | None:
+        return next((t.number for t in self if t.casts(name)), None)
+
+
+Line = tuple[tuple[str, ...], ...]
+
+
+def _mana_value(card: Card) -> int:
+    generic, pips = _parse_cost_cached(card.mana_cost)
+    return generic + len(pips)
+
+
+def line_path(
+    game: Game, line: Line, last_turn: int, fetches: dict[str, tuple[str, ...]] | None = None
+) -> LinePath:
+    """Play `line` out through `last_turn`. `fetches` maps a card to the cards
+    it puts into your hand from the library when cast. Cached on the game."""
+    fetches = fetches or {}
+    key = ("path", line, last_turn, tuple(sorted(fetches.items())))
+    if key in game._line_cache:
+        return game._line_cache[key]
+    named = {n for entry in line for n in entry}
+    identity = frozenset().union(*(c.identity for c in game.commanders))
+    order = {n: j for entry in line for j, n in enumerate(entry)}
+    g = game
+    hand = [c for c in game.commanders if c.name in named]
+    seen_so_far = 0
+    taken: list[str] = []  # names seen or fetched: not in the library any more
+    sources: list[Source] = []
+    path = LinePath()
+    for t in range(1, last_turn + 1):
+        new = g.seen(t)[seen_so_far:]
+        seen_so_far = g.seen_count(t)
+        taken += [c.name for c in new]
+        hand += [c for c in new if c.name in named]
+        units: list[Unit] = [(0, s.palette) for s in sources for _ in range(s.amount)]
+        bill: list[Cost] = []
+        cast: list[Card] = []
+        while True:
+            chosen = None
+            for entry in line:
+                options = [c for c in hand if c.name in entry]
+                if len(options) > 1:
+                    options.sort(key=lambda c: (_mana_value(c), order[c.name]))
+                for c in options:
+                    cost = _parse_cost_cached(c.mana_cost)
+                    if _line_pays(g, t, units, bill + [cost]):
+                        chosen = (c, cost)
+                        break
+                if chosen:
+                    break
+            if not chosen:
+                break
+            card, cost = chosen
+            bill.append(cost)
+            cast.append(card)
+            hand.remove(card)
+            src = mana_source(card, identity)
+            if src is not None:
+                if not src.sick:
+                    units += [(len(bill), src.palette)] * src.amount
+                sources.append(src)
+            for wanted in fetches.get(card.name, ()):
+                copies = [c for c in g.library if c.name == wanted]
+                if len(copies) <= taken.count(wanted):
+                    continue  # the library holds none: the search finds nothing
+                taken.append(wanted)
+                hand.append(copies[0])
+                below = next(
+                    (i for i in range(seen_so_far, len(g.cards)) if g.cards[i].name == wanted),
+                    None,
+                )
+                if below is not None:
+                    cards = g.cards[:below] + g.cards[below + 1 :]
+                    g = Game(
+                        cards,
+                        g.on_the_draw,
+                        g.library_size - 1,
+                        commanders=g.commanders,
+                        library=g.library,
+                    )
+        path.append(Turn(t, cast, units, bill, g))
+    game._line_cache[key] = path
+    return path
+
+
+def line_holds(game: Game, line: Line, last_turn: int, holds: Callable[[LinePath], bool]) -> bool:
+    return holds(line_path(game, line, last_turn))
+
+
+def earliest_cast(game: Game, line: Line, name: str, last_turn: int) -> int | None:
+    """The first turn `line` casts `name`, or None if it has not by `last_turn`."""
+    return line_path(game, line, last_turn).first_cast(name)
+
+
+def _gate_turn(g: Game, cost: str, deepest: int) -> int | None:
+    """The first turn the lands alone could pay `cost`: the gate."""
+    key = ("gate", cost, deepest)
+    if key not in g._line_cache:
+        g._line_cache[key] = next((t for t in range(1, deepest + 1) if g.can_cast(t, cost)), None)
+    return g._line_cache[key]
+
+
+def _cast_by(line: Line, name: str, turn: int, deepest: int) -> Callable[[Game], bool]:
+    """`name` cast by `turn` under `line`, played through `deepest`.
+
+    A shortcut that changes no answer, only the time: when the line names a
+    commander first, the gate is where it is cast unless one of the line's
+    other cards arrived before then. The commander is in hand from turn 1; on
+    the gate's turn the first entry is asked before anything else, out of a
+    pool holding at least those lands; and before it, a line with nothing else
+    in hand is the gate's line."""
+    others = {n for entry in line for n in entry} - {name}
+
+    def ask(g: Game) -> bool:
+        commander = next((c for c in g.commanders if c.name == name), None)
+        if line[0] == (name,) and commander is not None:
+            gate = _gate_turn(g, commander.mana_cost, deepest)
+            early = min((gate or deepest + 1) - 1, deepest)
+            if early < 1 or not any(c.name in others for c in g.seen(early)):
+                return gate is not None and gate <= turn
+        return line_path(g, line, deepest).cast_by(name, turn)
+
+    return ask
 
 
 # --- Questions ----------------------------------------------------------------
@@ -426,6 +769,11 @@ class Question:
     name: str  # the criterion's name, exactly as the file spells it
     ask: Callable[[Game], bool]
     deepest_turn: int
+    # The engine ticket this question waits on, or None when the engine
+    # answers it today. compare.py reports a pending question's checker number
+    # and fails nothing on it; deleting this argument, once the criterion
+    # exists in `criteria`, makes it an ordinary comparison.
+    pending: str | None = None
 
 
 LOAM_TWO_DROPS = (
@@ -446,71 +794,30 @@ def _loam_castable_by_5(g: Game) -> bool:
 
 
 LOAM, SEEKER = "Life from the Loam", "Spellseeker"
-
-
-def _loam_line_by_5(g: Game) -> tuple[bool, bool]:
-    # [[effect]] match = 'name:"Spellseeker"', on = "cast",
-    #            fetch = ['name:"Life from the Loam"'], to = "hand"
-    # [casting] prefer = ['name:"Life from the Loam"', 'name:"Spellseeker"']
-    #
-    # Played out a turn at a time. Returns (Loam cast by 5, Spellseeker cast
-    # by 5).
-    #
-    # * The line is read in order and the first entry the turn's lands can
-    #   still pay for is cast, then the next; what one turn casts is one bill
-    #   (README "Mana, as a budget"), so a second spell is asked as the sum of
-    #   both costs. Mana does not carry over: each turn is its own bill.
-    # * Spellseeker's enters trigger searches the library for an instant or
-    #   sorcery with mana value 2 or less and puts it into your hand, then
-    #   shuffles. Loam is a sorcery at mana value 2. If Loam is still in the
-    #   library it comes to hand; if it was drawn it is not there to find, and
-    #   the tutor finds nothing (README "Tutors").
-    # * After the fetch the line is read again from the top (HANDS.md hands 15
-    #   and 24): a Loam fetched on a turn with {1}{G} still unspent is cast
-    #   that turn.
-    # * The shuffle makes the rest of the library a uniformly random order of
-    #   what is left, which is this deal with the Loam taken out of it: later
-    #   draws move up by one.
-    # * Life from the Loam is a sorcery, and a sorcery that resolves is put
-    #   into its owner's graveyard (CR 608.2n); a cast card is not in hand to
-    #   be cast again. No other route to the yard is modelled (README "Zones").
-    #
-    # ASSUMPTION (README "Mana, as a gate"): each turn's bill is asked with
-    # `can_cast`, which lets the land drops be whichever sequence pays; the
-    # README says nobody plays their lands badly and declares no [land_drop].
-    loam_cast = seeker_cast = fetched = False
-    for turn in range(1, 6):
-        bill = ""
-        for _ in range(3):  # at most: Loam, Spellseeker, the Loam it fetched
-            loam_held = not loam_cast and (
-                fetched or g.count(turn, lambda c: c.is_named(LOAM)) >= 1
-            )
-            seeker_held = not seeker_cast and g.count(turn, lambda c: c.is_named(SEEKER)) >= 1
-            if loam_held and g.can_cast(turn, bill + "{1}{G}"):
-                loam_cast, bill = True, bill + "{1}{G}"
-                continue
-            if seeker_held and g.can_cast(turn, bill + "{2}{U}"):
-                seeker_cast, bill = True, bill + "{2}{U}"
-                if not loam_held and not loam_cast:
-                    # Not drawn, so still in the library: in the dealt top
-                    # below what has been seen, or deeper than this deal went.
-                    fetched = True
-                    cards = [c for c in g.cards if not c.is_named(LOAM)]
-                    g = Game(cards, g.on_the_draw, g.library_size - 1)
-                continue
-            break
-    return loam_cast, seeker_cast
+# [[effect]] match = 'name:"Spellseeker"', on = "cast",
+#            fetch = ['name:"Life from the Loam"'], to = "hand"
+# [casting] prefer = ['name:"Life from the Loam"', 'name:"Spellseeker"']
+#
+# Spellseeker's enters trigger searches the library for an instant or sorcery
+# with mana value 2 or less and puts it into your hand; Loam is a sorcery at
+# mana value 2, and the only one the effect names. The line is read again
+# after the fetch (HANDS.md hand 36), and a Loam cast resolves into the
+# graveyard (CR 608.2n); no other route to the yard is modelled (README
+# "Zones"). Everything else is `line_path`.
+LOAM_CAST_LINE = ((LOAM,), (SEEKER,))
+SEEKER_FETCHES = {SEEKER: (LOAM,)}
 
 
 def _loam_in_graveyard_by_casting_by_5(g: Game) -> bool:
     # { turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }
-    return _loam_line_by_5(g)[0]
+    return line_path(g, LOAM_CAST_LINE, 5, SEEKER_FETCHES).cast_by(LOAM, 5)
 
 
 def _seeker_and_loam_cast_by_5(g: Game) -> bool:
     # { turn = 5, cast = 'name:"Spellseeker"', min = 1 }
     # { turn = 5, cast = 'name:"Life from the Loam"', min = 1 }
-    return all(_loam_line_by_5(g))
+    path = line_path(g, LOAM_CAST_LINE, 5, SEEKER_FETCHES)
+    return path.cast_by(LOAM, 5) and path.cast_by(SEEKER, 5)
 
 
 def _loam_two_drop_and_mana_t3(g: Game) -> bool:
@@ -548,27 +855,16 @@ def _battlefield_tutor_drawn_t5(g: Game) -> bool:
     return g.count(5, lambda c: c.is_named(*LANTERN_BATTLEFIELD_TUTORS)) >= 1
 
 
-def _commander_cast_by(turn: int, cost: str) -> Callable[[Game], bool]:
-    """The commander, from the command zone, has been cast by `turn`.
-
-    The commander is always available and never drawn, so the only thing
-    between it and the battlefield is mana: it has been cast by `turn` exactly
-    when some turn t <= `turn` had untapped lands that pay its cost. Lands in
-    play only accumulate and every land in play on t is untapped on t + 1, so
-    "payable on some t <= turn" is "payable on `turn`" - which is the gate, with
-    the pilot playing whichever lands pay. Nothing else is cast in the line
-    this asks about, so nothing else competes for the pool.
+def _commander_cast_by(turn: int, commander: tuple[str, str]) -> Callable[[Game], bool]:
+    """The commander, from the command zone, has been cast by `turn`, by a line
+    that names only it. The commander is always available and never drawn, so
+    this is the gate on its cost - `_cast_by` says why.
 
     ASSUMPTION (the ticket, #78): casting it once is enough, so commander tax -
     {2} more for each earlier cast from the command zone - never comes up.
-    Mana rocks, Rashmi's Treasure and creatures are not sources, as everywhere
-    else here.
     """
-
-    def ask(g: Game) -> bool:
-        return g.can_cast(turn, cost)
-
-    return ask
+    name, _ = commander
+    return _cast_by(((name,),), name, turn, turn)
 
 
 # The commanders' costs are written out rather than read from the index so that
@@ -648,7 +944,7 @@ QUESTIONS: list[Question] = [
         "commander cast by turn 4",
         # { turn = 4, cast = 'name:"Rashmi and Ragavan"', min = 1 }
         # with 'name:"Rashmi and Ragavan"' the only entry in [casting] prefer
-        _commander_cast_by(4, LANTERN_COMMANDER[1]),
+        _commander_cast_by(4, LANTERN_COMMANDER),
         4,
     ),
     Question(
@@ -657,7 +953,7 @@ QUESTIONS: list[Question] = [
         "commander cast by turn 5",
         # { turn = 5, cast = 'name:"Borborygmos and Fblthp"', min = 1 }
         # with 'name:"Borborygmos and Fblthp"' the only entry in [casting] prefer
-        _commander_cast_by(5, LOAM_COMMANDER[1]),
+        _commander_cast_by(5, LOAM_COMMANDER),
         5,
     ),
 ]
@@ -672,6 +968,91 @@ def check_commanders(decks: Path, index: Index) -> None:
             raise SystemExit(f"checker: {deck}.txt names commanders {found}, expected {[expected]}")
 
 
+# --- Rocks and dorks in the line (ADR 0018), pending the engine (#93) --------
+#
+# The commander and the rocks or dorks, in one line. The engine cannot answer
+# these until its budget reads `adds` (#93), so they are `pending`: compare.py
+# reports them and fails nothing. The lands-only pair beside each is the gate,
+# which is what the same line reads with no source in it.
+
+RASHMI, BORBORYGMOS = LANTERN_COMMANDER[0], LOAM_COMMANDER[0]
+# The commander first, then the rocks: cast Rashmi the moment the pool pays,
+# and otherwise grow the pool. Coloured rocks before Mind Stone. Fellwar Stone
+# is left out, because casting it costs two mana and makes none.
+LANTERN_ROCK_LINE: Line = (
+    (RASHMI,),
+    ("Sol Ring",),
+    ("Arcane Signet",),
+    ("Talisman of Creativity",),
+    ("Talisman of Curiosity",),
+    ("Talisman of Impulse",),
+    ("Mind Stone",),
+)
+# ADR 0018's estimate put the rocks first; with that order a rock can take the
+# mana the commander needed, so this line can lose games the gate wins.
+LANTERN_ROCKS_FIRST_LINE: Line = LANTERN_ROCK_LINE[1:] + LANTERN_ROCK_LINE[:1]
+# Lotus Cobra is left out: it would cost {1}{G} and count as making nothing.
+LOAM_DORK_LINE: Line = ((BORBORYGMOS,), ("Birds of Paradise", "Elvish Mystic"))
+
+ROCK_QUESTIONS: list[Question] = (
+    [
+        Question(
+            "lantern",
+            "lantern-rocks.criteria.toml",
+            f"{RASHMI} castable by turn {t}, lands only",
+            _cast_by(((RASHMI,),), RASHMI, t, 5),
+            5,
+            pending="#93",
+        )
+        for t in (4, 5)
+    ]
+    + [
+        Question(
+            "lantern",
+            "lantern-rocks.criteria.toml",
+            f"{RASHMI} cast by turn {t}, rocks in the line",
+            _cast_by(LANTERN_ROCK_LINE, RASHMI, t, 5),
+            5,
+            pending="#93",
+        )
+        for t in (4, 5)
+    ]
+    + [
+        Question(
+            "lantern",
+            "lantern-rocks.criteria.toml",
+            f"{RASHMI} cast by turn 5, rocks first in the line",
+            _cast_by(LANTERN_ROCKS_FIRST_LINE, RASHMI, 5, 5),
+            5,
+            pending="#93",
+        ),
+    ]
+    + [
+        Question(
+            "loam",
+            "loam-rocks.criteria.toml",
+            f"{BORBORYGMOS} castable by turn {t}, lands only",
+            _cast_by(((BORBORYGMOS,),), BORBORYGMOS, t, 5),
+            5,
+            pending="#93",
+        )
+        for t in (4, 5)
+    ]
+    + [
+        Question(
+            "loam",
+            "loam-rocks.criteria.toml",
+            f"{BORBORYGMOS} cast by turn {t}, dorks in the line",
+            _cast_by(LOAM_DORK_LINE, BORBORYGMOS, t, 5),
+            5,
+            pending="#93",
+        )
+        for t in (4, 5)
+    ]
+)
+QUESTIONS += ROCK_QUESTIONS
+
+
 # --- Running ------------------------------------------------------------------
 
 
@@ -681,6 +1062,7 @@ def play(
     on_the_draw: bool,
     games: int,
     seed: str,
+    commanders: tuple[Card, ...] = (),
 ) -> dict[str, int]:
     """Deal `games` games from one seeded shuffle stream and count, per
     question, the games where it held. One deal answers every question, so
@@ -690,7 +1072,13 @@ def play(
     depth = 7 + deepest  # enough for either seat
     hits = {q.name: 0 for q in questions}
     for _ in range(games):
-        game = Game(rng.sample(library, depth), on_the_draw, len(library))
+        game = Game(
+            rng.sample(library, depth),
+            on_the_draw,
+            len(library),
+            commanders=commanders,
+            library=library,
+        )
         for q in questions:
             if q.ask(game):
                 hits[q.name] += 1
@@ -706,15 +1094,23 @@ def main() -> None:
     p.add_argument("--games", type=int, default=100_000)
     p.add_argument("--seed", default="0")
     p.add_argument("--draw", action="store_true")
+    # The pending questions are only reported, so they deal fewer games.
+    p.add_argument("--pending-games", type=int, default=100_000)
     args = p.parse_args()
     index = Index(args.decks / "index.jsonl")
     check_commanders(args.decks, index)
     for deck in sorted({q.deck for q in QUESTIONS}):
         library = load_library(args.decks / f"{deck}.txt", index)
-        qs = [q for q in QUESTIONS if q.deck == deck]
-        hits = play(library, qs, args.draw, args.games, f"{args.seed}:{deck}:{args.draw}")
-        for q in qs:
-            print(f"{deck:8} {hits[q.name] / args.games:9.4%}  {q.name}")
+        cmdrs = commander_cards(args.decks / f"{deck}.txt", index)
+        for pending, games in ((False, args.games), (True, args.pending_games)):
+            qs = [q for q in QUESTIONS if q.deck == deck and bool(q.pending) == pending]
+            if not qs:
+                continue
+            seed = f"{args.seed}:{deck}:{args.draw}" + (":pending" if pending else "")
+            hits = play(library, qs, args.draw, games, seed, cmdrs)
+            for q in qs:
+                tag = f"  (pending engine {q.pending}, {games:,} games)" if q.pending else ""
+                print(f"{deck:8} {hits[q.name] / games:9.4%}  {q.name}{tag}")
 
 
 if __name__ == "__main__":
