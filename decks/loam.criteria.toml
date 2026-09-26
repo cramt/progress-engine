@@ -18,12 +18,23 @@
 # The correction is not cosmetic. On the play:
 #
 #   Life from the Loam in hand by turn 5               11.2245%
-#   ...and {1}{G} available to cast it                  9.5603%
-#   {1}{G} available, nothing else asked               87.8132%
+#   ...and {1}{G} available to cast it                  9.9210%
+#   {1}{G} available, nothing else asked               90.7268%
 #
-# 0.112245 x 0.878132 = 0.098565, and the real answer is 9.5603% — lower,
+# 0.112245 x 0.907268 = 0.101836, and the real answer is 9.9210% — lower,
 # because a hand holding Loam has one fewer slot that could have been a land.
 # That is the whole point of a joint.
+#
+# The lands are read for the mana they really make, and every run names the
+# ones it read other than at face value (#82). That moved all three figures
+# above, which were 9.5603% and 87.8132% before: the four fetchlands pay the
+# colours of the untapped lands they can find here — Misty Rainforest, Wooded
+# Foothills and Prismatic Vista find an untapped Forest, so each is a green
+# source — ASSUMING one is still in the library, which ignores running out.
+# Exotic Orchard pays generic and no colour, since its colour is whatever an
+# opponent's lands could make (CR 106.7). Izzet Boilerworks and Simic Growth
+# Chamber still count as one mana a turn: the second mana and the land they
+# return are NOT MODELLED, and the audit bounds that at ±0.25 on the cast.
 #
 # THE ROUTES TO THE GRAVEYARD THIS DECK ACTUALLY HAS
 # ---------------------------------------------------
@@ -57,7 +68,7 @@
 #     graveyard. This is the one route the tool can price, and it is priced
 #     below as a gate. Asked of the zone it needs a `[casting]` line, which
 #     would move every other number here, so that phrasing lives in
-#     `loam-cast.criteria.toml` beside this file — and reads the same 9.5603%.
+#     `loam-cast.criteria.toml` beside this file — and reads the same 9.9210%.
 #
 # So the `zone = "graveyard"` number really is zero, and it is zero for a
 # reason the run states rather than for a reason the author checked.
@@ -107,7 +118,7 @@ require = [{ turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", 
 #
 # Written as the gate rather than as the budget on purpose, and the two agree:
 # declare `[casting] prefer = ['name:"Life from the Loam"']` and ask
-# `cast = 'name:"Life from the Loam"'` instead and the answer is 0.095603 to
+# `cast = 'name:"Life from the Loam"'` instead and the answer is 0.099210 to
 # the digit. The gate is kept here because a `[casting]` line removes the
 # spells it casts from your hand, which would silently move every other count
 # in this file — "some Loam Access by turn 5" would start meaning "some Loam
@@ -265,7 +276,7 @@ zone = "battlefield"
 # turn 5": 6 groups, and 1,026,432 compositions on the play against a ceiling of
 # 5,000,000. On the draw the same six groups cost 6,158,592 — one extra card
 # by turn 5 is one more power of the group count — so it goes 23% over the
-# line and is sampled, at 10.86% ± 0.07 rather than a figure with no ±.
+# line and is sampled, at 11.24% ± 0.07 rather than a figure with no ±.
 # Nothing else in the file moves: since upstream #31 a class pays only for
 # what it reads, so the criterion beside it that counts `cat:"Loam Access"` is
 # still 13 compositions.

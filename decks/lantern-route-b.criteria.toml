@@ -27,8 +27,13 @@
 # synced with oracle tags:
 #
 #                                                  drawn      fetched
-#   Trinket Mage cast by turn 3                     5.03%       5.03%
-#   Trinket Mage and a Lantern both cast by turn 5  0.78%       7.76%
+#   Trinket Mage cast by turn 3                     4.99%       4.99%
+#   Trinket Mage and a Lantern both cast by turn 5  0.78%       7.67%
+#
+# The second row is sampled (± 0.02 and ± 0.06): reading Maze of Ith as no
+# mana and Urza's Saga as three turns of it (#82) made the manabase two groups
+# wider, 9 and 42,220,035 compositions, where it was 7 and 4,120,116 and
+# exact at 7.76%. The first row is 9 groups and 521,235, and exact.
 #
 # The first row does not move, and it must not: what a spell does when it
 # resolves cannot change whether the pool paid for it. The second row is the

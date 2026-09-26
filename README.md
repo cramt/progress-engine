@@ -486,7 +486,7 @@ note: nothing routes a card to the graveyard in this run, so every count in
 Declare a destination, or a line that casts one, and the note goes away,
 because the number is now a measurement. `decks/loam-cast.criteria.toml` is the
 second kind: it declares `[casting] prefer = ['name:"Life from the Loam"']` and
-asks the north star of the zone, and reads 9.5603% on the play — the same
+asks the north star of the zone, and reads 9.9210% on the play — the same
 hands as `can_cast` of Loam by turn 5, to the digit, because one copy cast the
 first turn it is payable is in the yard exactly when it was payable (HANDS.md
 hands 34 and 35). It is a file of its own because a `[casting]` line takes the
@@ -605,6 +605,46 @@ shockland manabase, which is the direction this tool prefers to be wrong in: a
 number your deck can beat is a better failure than one it cannot reach. Making
 the choice declarable per file is the obvious next step and is deliberately not
 a default nobody stated.
+
+**Lands that make other than they list.** Scryfall's `produced_mana` is every
+kind of mana a card *could* make, with conditions ignored, and nothing for a
+land whose mana is the land it fetches. Taken at its word it overstates some
+lands and understates others, so each land is read once, against the rules and
+against the deck it sits in, and **every run that prices mana names the ones it
+read other than at face value**, on stderr and as `assumed_mana` in the JSON:
+
+```
+note: these lands make mana other than the card data lists, and this run reads them as:
+      Castle Doom: pays {C} only: its other colours come with a condition this engine cannot see.
+      Maze of Ith: makes no mana: it has no mana ability, so it is a land drop and pays for nothing.
+      Misty Rainforest: a fetchland, read as the untapped lands it can find in this deck (Forest,
+      Island, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in
+      the library to find.
+      Urza's Saga: makes mana for three turns, the one it is played on and the two after: its
+      last chapter sacrifices it.
+```
+
+| Land | Read as | Why |
+|---|---|---|
+| A fetchland (Misty Rainforest, Prismatic Vista) | the colours of the **untapped** lands its search can find in this deck; a tapped land of every colour it can find if it says "tapped" (Evolving Wilds) | the land it finds pays the turn it is cracked. **Assumes one is still in the library**, which ignores running out — a ceiling, named. HANDS.md hand 38 |
+| A land with no mana ability (Maze of Ith) | a land drop that pays nothing, not even generic | HANDS.md hand 39 |
+| Castle Doom, Spire of Industry | `{C}` only | their colours need an artifact spell (CR 106.6) or an artifact in play |
+| Exotic Orchard | generic, no colour | its colour is whatever an opponent's lands could make (CR 106.7) |
+| A Saga land (Urza's Saga) | mana on the turn it is played and the next two | its last chapter sacrifices it (CR 714.4), with or without the effect declared |
+| A bounce land (Izzet Boilerworks) | one mana a turn | its second mana and the land it returns are **not modelled**, and named |
+
+A conditional palette is found in the oracle text — a mana ability saying
+"Spend this mana only", "Activate only if" or "could produce" — and the land
+keeps only the colours its other mana abilities make. A fetchland is a land
+Scryfall lists as making nothing whose text sacrifices it to search for land
+types, without mana in the cost.
+
+**What it costs.** Maze of Ith and a Saga are each a land no other land is
+interchangeable with, so a class that prices mana on a deck holding them keeps
+up to two more land groups, even for a cost naming no colour. On
+`decks/lantern.txt` that took *route 1* — Lantern in hand and `{1}` by turn 5 —
+from 4 groups to 6: still exact on the play at 1,026,432 compositions, and 23%
+over the ceiling on the draw, where it is now sampled.
 
 **What it costs.** Counting lands in play is free — it reads the land drops the
 enumeration already walks and adds no group and no path. `can_cast` is not free,
@@ -1125,9 +1165,9 @@ block and re-run:
 
 | On `decks/lantern.txt`, on the play | drawn | fetched |
 |---|---|---|
-| Trinket Mage cast by turn 3 | **5.03%** | **5.03%** |
-| Trinket Mage and a Lantern both cast by turn 5 | 0.78% | **7.76%** |
-| Lanterns still in the library on turn 5 (mean) | 0.8889 | **0.8100** |
+| Trinket Mage cast by turn 3 | **4.99%** | **4.99%** |
+| Trinket Mage and a Lantern both cast by turn 5 | 0.78% ± 0.02 | **7.67% ± 0.06** |
+| Lanterns still in the library on turn 5 (mean) | 0.8889 | **0.8114** |
 
 The first row does not move and must not: what a spell does when it resolves
 cannot change whether the pool paid for it. The second row is the route, and
@@ -2148,8 +2188,8 @@ python3 checker/compare.py --games 100000 --seed 7
 ```
 
 It takes about half a minute. Where the engine's documented reading differs
-from the game — shocklands assumed tapped, one land is one mana, a fetchland
-pays a generic symbol but never a colour — the checker implements the
+from the game — shocklands assumed tapped, a bounce land is one mana, a
+fetchland's target is still in the library to find — the checker implements the
 documented reading and says so beside the code, so a disagreement is a finding
 about the engine rather than about the two disagreeing on the premise. Adding a
 question is one function of a dealt game and one entry in `QUESTIONS`, named

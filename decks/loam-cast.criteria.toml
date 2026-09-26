@@ -28,7 +28,7 @@
 # A LOWER BOUND on the north star. Casting Loam is one of the deck's routes to
 # the yard and the only one this engine follows; the self-mill package (#62),
 # dredge (#57) and discard can only add to it. It equals "Loam castable by
-# turn 5" in loam.criteria.toml to the digit on the play — 9.5603% — because
+# turn 5" in loam.criteria.toml to the digit on the play — 9.9210% — because
 # one copy of a card cast the first turn it is payable is in the graveyard by
 # turn 5 exactly when it was payable by turn 5. On the draw it is 6 groups and
 # 6,158,592 compositions, 23% over the ceiling, and sampled.

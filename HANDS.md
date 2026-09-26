@@ -313,6 +313,91 @@ it cannot reach.
 originally asked for and is the right end state. A default nobody stated is what
 was refused; a default everybody is told about is what shipped.*
 
+### 38. A fetchland pays the colour of the land it finds
+
+```
+Misty Rainforest ×2
+Island ×4
+Forest
+Lightning Bolt ×5
+```
+
+**Turn 1, holding a Misty and no Forest:** play the Misty, crack it, and the
+Forest comes out of the library **untapped** — the text says "put it onto the
+battlefield" and not "tapped" — so it taps for `{G}` the same turn.
+
+**Naive model:** Scryfall's `produced_mana` for Misty Rainforest is empty,
+because the Misty makes no mana itself. Read at face value it is a land that
+pays a generic symbol and never a colour: `{G}` on turn 1 is then the Forest in
+the opening seven, 1 − C(11,7)/C(12,7) = **58.33%**.
+
+**Real answer:** a fetchland is the untapped lands it can find in *this* deck.
+Misty finds a Forest or an Island, both here and both untapped, so it is a
+green source and a blue one, and `{G}` on turn 1 is any of three cards in the
+seven: 1 − C(9,7)/C(12,7) = **95.45%**. Generic does not move — `{1}` on turn 1
+is 100% either way.
+
+The reading is made from the card and the deck together, and named in every
+run that priced mana, in `assumed_mana`: which lands it can find, the colours
+that makes, and the one assumption under it — **that one of them is still in
+the library to find**. Two Mistys and one Forest pay `{G}{G}` once in real
+Magic and twice here; with several targets that is rare, and it is a ceiling
+the run says it took. A shockland it could find is left out, by hand 8's
+assumption, and a fetchland that says "tapped" (Evolving Wilds) is a tapped
+land of every colour it can find.
+
+*Answerable*, and **a test**: `hand-fetchland.txt` against
+`lands-read.criteria.toml` in `crates/ichormoon-gauntlet/cli/tests/cli.rs`,
+and `checker/checker.py` reads fetchlands the same way from the oracle text.
+Declaring the fetch as an `[[effect]]` is hand 16, and a mana question beside
+that is still refused.
+
+### 39. Maze of Ith, and three lands that list every colour
+
+```
+Maze of Ith                       Castle Doom
+Island                            Spire of Industry
+Lightning Bolt ×8                 Exotic Orchard
+                                  Island
+                                  Lightning Bolt ×6
+```
+
+**The left hand has two land drops and one mana.** Maze of Ith's only ability
+untaps an attacking creature. It is played like any land and counts as one in
+play, and it pays for nothing — not even generic, which is what an empty palette
+used to mean. So `{2}` on turn 3 is **0%**, and `{1}` on turn 1 is the Island
+in the opener, 7/10 = **70%**, where counting the Maze made it
+1 − C(8,7)/C(10,7) = 93.33%.
+
+**The right hand has four mana and one blue.** Scryfall lists all three as
+making every colour, and none of them does unconditionally:
+
+- Castle Doom's colour can be spent **only to cast an artifact spell** (CR
+  106.6). Its unconditional ability is `{C}`.
+- Spire of Industry's colour can be activated **only if you control an
+  artifact**. Its unconditional ability is `{C}`.
+- Exotic Orchard makes a colour **an opponent's land could produce** (CR
+  106.7), and nothing at all if they have none. It is read as paying generic
+  and no colour — generic because in a pod somebody has a land from the first
+  turn after yours.
+
+So `{U}{U}` on turn 4 is **0%** — the Island is the only blue source — and
+`{4}` on turn 4 is **100%**. The run names all three, and says `{C}` or
+"generic" beside each, because a reader should be able to see that Spire's
+colour is often really there on an artifact deck: that half is a floor.
+
+*Answerable*, and **a test**: `hand-maze.txt` and `hand-doom.txt` against
+`lands-read.criteria.toml`, and the engine half in `gauntlet-criteria` as a
+seven-card hand where the Maze is a land drop and no mana.
+
+The same stance covers two more lands, named in the run rather than given a
+hand. **Urza's Saga with no effect declared** makes mana on the turn it is
+played and the two after, and not once chapter III has sacrificed it — hand
+17's "what it costs", now true on a run that declares no Saga effect too.
+**Bounce lands** (Izzet Boilerworks, Simic Growth Chamber) still count as one
+mana a turn: their second mana and the land they return are *not modelled*,
+and the run says so.
+
 ---
 
 ## Zones and routing
@@ -601,6 +686,13 @@ the naive model reported.
 sacrifice are each a flat yes or no, and in `gauntlet-sim` against the exact
 engine.
 
+**And the sacrifice holds without the effect.** `lantern.criteria.toml`
+declares no Saga effect, so the Saga there is only a land — and a land that
+chapter III sacrifices two turns after it lands (#82). Played on turn 1 it pays
+on turns 1 to 3 and not on turn 4. The generous reading can hold it back for a
+later drop, unless every later drop is taken by a land that arrived on it; a
+test in `gauntlet-criteria` pins both deals.
+
 ---
 
 ## The library is not a fixed population
@@ -658,7 +750,7 @@ fetch empties all but the deals where the Mage was never cast.
 On the real deck this is the Lantern north star's Route B, and it is the
 difference between a route being priced and a route being answered: *Trinket
 Mage and a Lantern both cast by turn 5* on `decks/lantern.txt` reads **0.78%**
-without the fetch and **7.76%** with it. The first figure was the deck drawing
+without the fetch and **7.67%** with it. The first figure was the deck drawing
 both halves naturally.
 
 ### 16. A fetchland is not a filter

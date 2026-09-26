@@ -84,13 +84,13 @@ turn-2 one.
 ['name:"Trinket Mage"', 'name:"Lantern of Insight"']` spends the pool the way
 the pilot would and `cast` counts what it paid for; an `[[effect]]` with `on =
 "cast"` and `fetch = ['name:"Lantern of Insight"']` says what the spell then
-went and got. On `decks/lantern.txt` Trinket Mage resolves by turn 3 on 5.03% of
-hands, exactly, on 84,084 compositions — **unchanged by the fetch, and it has to
+went and got. On `decks/lantern.txt` Trinket Mage resolves by turn 3 on 4.99% of
+hands, exactly, on 521,235 compositions — **unchanged by the fetch, and it has to
 be**, because what a spell does when it resolves cannot change whether the pool
 paid for it. What the fetch moves is the route: *Trinket Mage and a Lantern both
 cast by turn 5* read **0.78%** when nothing tutored, which was the deck drawing
-both halves naturally, and reads **7.76%** now, on the same seven groups and the
-same 4,120,116 compositions. `decks/lantern-route-b.criteria.toml` is that
+both halves naturally, and reads **7.67% ± 0.06** now, on the same nine groups
+and the same 42,220,035 compositions, which is over the ceiling and sampled. `decks/lantern-route-b.criteria.toml` is that
 question on its own.
 
 **The Saga route is now answered exactly, and it was overstated.** For a year
@@ -106,21 +106,26 @@ together.
 **And the union of them now has a number.**
 `decks/lantern.criteria.toml` is the whole question — four routes, because the
 tutors that put the Lantern in your hand and the tutors that put it straight
-onto the battlefield are priced differently — and it reads **46.67% ± 0.11** on
-the play and **53.60% ± 0.11** on the draw. At 20 million hands, checking that
+onto the battlefield are priced differently — and it reads **47.10% ± 0.11** on
+the play and **54.34% ± 0.11** on the draw. It read 46.67% and 53.60% until
+[#82](https://github.com/cramt/progress-engine/issues/82) read each land for the
+mana it really makes: a fetchland as the untapped lands it can find (+2.4 and
++2.5), Maze of Ith as none, Castle Doom and Spire of Industry as `{C}`, and
+Urza's Saga as three turns of it (−1.9 and −1.8 between them). At 20 million
+hands, before that, checking that
 Artificer's Intuition has an artifact card to discard took it from 46.73% to
 46.63% and from 53.54% to 53.48%. It read 48.09% and 55.01% until
 [#61](https://github.com/cramt/progress-engine/issues/61): the engine played
 Search for Azcanta — a `{1}{U}` enchantment whose land is a back face it
 transforms into — as an untapped blue land drop, and 1.4 points of the answer
 were spells cast off a blue source that cannot exist. It is estimated rather than
-enumerated, at 18 groups and 36,332,613,504 compositions, and that is the honest
+enumerated, at 19 groups and 62,645,304,700 compositions, and that is the honest
 state of the question rather than a defect in the file: eleven of its fourteen
 branches price a cost, and pricing one splits the manabase before any card query splits
 anything. The same file records what the mana costs the deck, by asking each
 route twice: *a tutor that can find the Lantern, drawn by turn 5* is 45.23% and
-*castable in time to matter* is 27.24%; for the two that tutor onto the
-battlefield it is 21.09% against 4.96%, which is a factor of four. Those gaps
+*castable in time to matter* is 27.45%; for the two that tutor onto the
+battlefield it is 21.09% against 5.38%, which is a factor of almost four. Those gaps
 are what the file's old hand-written `{ turn = 4, query = "t:land", min = 3 }`
 clauses were standing in for.
 
@@ -168,8 +173,8 @@ membership and match zero cards in that list. Same zero, different fact.
 write down.** A sorcery goes to the graveyard when it resolves, so paying
 `{1}{G}` for Life from the Loam puts Life from the Loam in the graveyard. Asked
 that way — a clause for the card and a clause for `can_cast = "{1}{G}"` — the
-deck reads **9.56%** on the play against **11.22%** for holding the card with no
-question asked about the mana, and 87.81% for the mana with no question asked
+deck reads **9.92%** on the play against **11.22%** for holding the card with no
+question asked about the mana, and 90.73% for the mana with no question asked
 about the card. It is a genuine joint and not a product, for the same reason the
 Lantern's is: a hand holding the Loam has one fewer slot that could have been a
 land. It is also a lower bound on the north star, because dredge, discard and

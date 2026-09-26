@@ -20,12 +20,12 @@
 # The proxies were not a small error. Measured below, on the same deck:
 #
 #   a tutor that can find the Lantern, drawn by turn 5       45.23%
-#   ...and castable in time to matter                        27.24% ± 0.10
+#   ...and castable in time to matter                        27.45% ± 0.10
 #
 #   a tutor that puts it straight onto the battlefield, drawn 21.09%
-#   ...and castable by turn 5                                 4.96% ± 0.05
+#   ...and castable by turn 5                                 5.38% ± 0.05
 #
-# The second pair is a factor of more than four. That gap is the whole
+# The second pair is a factor of almost four. That gap is the whole
 # argument for pricing mana rather than counting lands. A figure quoted with a
 # ± is sampled rather than enumerated; see the width note at the foot of this
 # file.
@@ -56,6 +56,16 @@
 #   * The Saga surviving to chapter III. Route 4 is exact now that chapter
 #     counters are modelled, but two turns of an opponent's removal on the
 #     Saga, or on the Lantern it found, is interaction; see the next line.
+#   * What a land makes, where the card data overstates or understates it.
+#     Every run names these lands and how it read them (#82). A fetchland is
+#     the untapped lands it can find in this deck — Misty Rainforest pays
+#     {U}{R}{G} because Tropical Island, Taiga and Volcanic Island are in the
+#     list — ASSUMING one is still in the library to find, which ignores
+#     running out: a small CEILING. Castle Doom and Spire of Industry pay {C}
+#     only, since their colours need an artifact spell or an artifact in play
+#     (Spire's condition is often met here, so that half is a floor). Maze of
+#     Ith pays nothing. Urza's Saga pays on the turn it lands and the two
+#     after, and not once chapter III has sacrificed it.
 #   * Anything about the game but your own draws: interaction, an opponent
 #     exiling the Lantern, a counterspell on the tutor.
 #   * Land sequencing, which is the one entry here that pushes the numbers UP.
@@ -68,7 +78,8 @@
 #     measured — Saga, then taplands, then the rest — reads 45.93% on the play
 #     and 52.29% on the draw at 5M hands, against 46.73% and 53.54% undeclared,
 #     so it is worth at most 0.8 points on the play and 1.25 on the draw
-#     (docs/research/suspect-numbers.md, item 4). A real pilot adapts, so the
+#     (docs/research/suspect-numbers.md, item 4; measured before #82 read
+#     fetchlands as coloured sources, so read it as the size, not the digits). A real pilot adapts, so the
 #     honest figure sits between the two.
 
 # --- The north star -------------------------------------------------------
@@ -110,9 +121,15 @@
 # THRESHOLD: 0.75, unchanged from when this file asked a much easier question.
 # One Lantern, seven cards that find it, and a free land-drop route is the
 # deck's entire premise, so three games in four is the design target its owner
-# is implicitly claiming. It FAILS: 46.67% ± 0.11 on the play and 53.60% ±
+# is implicitly claiming. It FAILS: 47.10% ± 0.11 on the play and 54.34% ±
 # 0.11 on the draw, so the target is missed by 28 points in the seat you are
 # in one game in four and by 21 in the seat you are in the other three.
+#
+# Reading the lands for the mana they really make (#82) moved it UP, from
+# 46.67% and 53.60%: the four fetchlands became blue sources, which is worth
+# about +2.4 and +2.5, and Maze of Ith, Castle Doom, Spire of Industry and the
+# Saga's sacrifice took back about 1.9 and 1.8 of it. The audit that found
+# them predicted 47.2% and 54.2%.
 #
 # Checking Artificer's Intuition's discard moved it DOWN by 0.10 on the play
 # and 0.06 on the draw — 46.73% to 46.63% and 53.54% to 53.48% at 20M hands.
@@ -386,8 +403,8 @@ require = [
 name = "route 1 naive: Lantern in hand by turn 5, no mana asked"
 require = [{ turn = 5, query = 'name:"Lantern of Insight"', min = 1 }]
 
-# And the third number the pair needs, because 11.04% is a JOINT and not a
-# product: 0.111111 x 0.996248 = 0.110694, and the answer is lower than that
+# And the third number the pair needs, because 11.03% is a JOINT and not a
+# product: 0.111111 x 0.995447 = 0.110605, and the answer is lower than that
 # because a hand holding the Lantern has one fewer slot that could have been a
 # land. Two clauses in one `require` are evaluated against the same hand.
 [[criterion]]
@@ -616,20 +633,24 @@ zone = "battlefield"
 # --- HOW WIDE THESE QUESTIONS ARE, AND WHICH ONE WAS ESTIMATED ------------
 # Read this off the run rather than from here: `jq '.enumerations'`.
 #
-# Four of this file's seventeen questions are over the enumeration ceiling and
-# are SAMPLED, and they are the four whose `any_of` branches price a cost.
+# Four of this file's seventeen questions are over the enumeration ceiling on
+# the play and are SAMPLED, and they are the four whose `any_of` branches price
+# a cost. On the draw route 1 is a fifth; see below.
 # Every sampled figure is quoted with an error bar and every enumerated one
 # without, and the run names the four on stderr before it prints a number.
 #
-# The north star is 18 groups and 36,332,613,504 compositions on the play,
-# 653,987,043,072 on the draw — about 7,300 and 131,000 times the 5,000,000
+# The north star is 19 groups and 62,645,304,700 compositions on the play,
+# 1,190,260,789,300 on the draw — about 12,500 and 238,000 times the 5,000,000
 # ceiling — because eleven of its fourteen branches read a cost, and pricing a
 # cost splits the manabase five ways before a single card query splits
 # anything. Each named card is then one more group, and at turn 5 a group
 # costs the fourth power of itself on the play and the fifth on the draw.
 # Artificer's Intuition's discard is what took it from 12 groups to 18:
 # `t:artifact` cuts across the manabase, because some of the lands are
-# artifacts. It was sampled before and it is sampled now.
+# artifacts. It was sampled before and it is sampled now. Reading the lands
+# for what they make (#82) added the last one: Maze of Ith, which makes no
+# mana, and Urza's Saga, which makes it for three turns, are each a land no
+# other land is interchangeable with.
 #
 # That is the trade this file makes on purpose. The previous version of it was
 # exact on both seats because it asked about counts; asked properly, the same
@@ -637,10 +658,15 @@ zone = "battlefield"
 # `--exact` to have it refused instead, which is the right flag for anyone who
 # would rather have no answer than an approximate one.
 #
-# The other thirteen questions are exact, on both seats, and that is what
-# upstream #31 bought: a class pays only for what it reads, so route 1 is 4
-# groups and 30,720 compositions on the play and 122,880 on the draw, route 4
-# is 3 groups and 2,916 on the play and 8,748 on the draw, and the `[[expect]]` tables cost between 8 and 256
+# The other thirteen questions are exact on the play, and twelve of them on
+# the draw, and that is what upstream #31 bought: a class pays only for what
+# it reads, so route 4 is 3 groups and 2,916 compositions on the play and
+# 8,748 on the draw. Route 1 is the one that #82 cost: Maze of Ith and the
+# Saga are two more land groups even for a cost naming no colour, so it went
+# from 4 groups and 30,720 / 122,880 compositions to 6 groups and 1,026,432
+# on the play — still exact — and 6,158,592 on the draw, 23% over the ceiling,
+# where it is now sampled at 12.04% ± 0.07 against the 12.08% it enumerated
+# to before. Its control, `{1}` alone, is 5 groups and exact on both seats, and the `[[expect]]` tables cost between 8 and 256
 # apiece. Sized once for the whole file — as it stood before the Intuition
 # split, which only widens it — this was 16 groups and 11,176,771,584
 # compositions, and every number in it would be an estimate.
