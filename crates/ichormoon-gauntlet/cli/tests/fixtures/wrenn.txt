@@ -1,0 +1,6 @@
+// Wrenn and Seven's +1, the turn the line casts it: every land among the four
+// to hand, the rest to the graveyard.
+10x Forest [Land]
+1x Wrenn and Seven [Mill]
+1x Life from the Loam [Engine]
+8x Beast Within [Removal]

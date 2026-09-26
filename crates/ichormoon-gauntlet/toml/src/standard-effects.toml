@@ -15,7 +15,10 @@
 # library in another, so a destination declared here would be this tool
 # answering a question nobody asked it. Write `to_graveyard` in your own file;
 # an effect with no destination leaves every card it looks at on top, which is
-# where it already was, and therefore moves no number.
+# where it already was, and therefore moves no number. The one destination this
+# file states is one no pilot chooses: a mill puts its cards in the graveyard
+# because the card says so (ADR-0017 §2), and which of them you keep instead is
+# still yours, as `to_hand`.
 #
 # **Every entry names its reason**, in the style of the oracle tag list in
 # `chip-scryfall/src/tags.rs`. An entry nothing needs can then be deleted rather
@@ -34,7 +37,10 @@
 # replacement draw. A replacement draw makes how many cards you have seen by a
 # turn a fact about the path rather than about the schedule, which costs an
 # enumeration checkpoint a turn and goes over the ceiling on every question this
-# tool exists for. See issue #57.
+# tool exists for. See issue #57. A `mill` is the exception that is not a look:
+# it turns cards over and takes every one of them off the top at once, so it is
+# one block dealt on the paths that cast it (ADR-0017), and the mills at the end
+# of this file are cast entries too.
 #
 # **And a `fetch` will never be declared here.** Trinket Mage finds a mana value
 # 1 artifact; *which* one it finds is the question you are asking, exactly as a
@@ -115,3 +121,54 @@ adds = 1
 match = '''(otag:mana-rock or otag:mana-dork) o:"{T}: Add {C}{C}." -o:"enters tapped" -o:"doesn't untap" -o:"Spend this mana only" -o:"can't be spent" -o:"Activate only" -o:"could produce" -o:", {T}: Add" -o:"for each" -o:"{X}" -o:"an amount of" -is:transform -is:mdfc'''
 on = "cast"
 adds = 2
+
+# --- Mills (ADR-0017 §2) -----------------------------------------------------
+#
+# A mill takes cards off the top and puts them in the graveyard, and the
+# graveyard is not a destination anybody chose: the card says so. That is the
+# one kind of destination this file may state. What such a card lets go to
+# hand instead is a choice, and it is still yours: `keep` and `keep_only` say
+# what the card allows, and `to_hand` in your own file says which. With no
+# `to_hand` an entry keeps nothing, which is what the card does when you choose
+# nothing. Each is dealt as one block the turn the `[casting]` line casts the
+# card, so a run that never casts it pays nothing for it.
+#
+# Keyed by name, because the number of cards is printed on each one and no tag
+# carries it. Because, for all four: they are the Loam deck's own routes into
+# the graveyard, which is where its north star asks Life from the Loam to be.
+
+# Aftermath Analyst: "When this creature enters, mill three cards."
+[[effect]]
+match = 'name:"Aftermath Analyst"'
+on = "cast"
+mill = 3
+
+# Malevolent Rumble: "Reveal the top four cards of your library. You may put a
+# permanent card from among them into your hand. Put the rest into your
+# graveyard." The Eldrazi Spawn it makes is not counted as mana.
+[[effect]]
+match = 'name:"Malevolent Rumble"'
+on = "cast"
+mill = 4
+keep = 1
+keep_only = "is:permanent"
+
+# Midnight Tilling: "Mill four cards, then you may return a permanent card from
+# among them to your hand."
+[[effect]]
+match = 'name:"Midnight Tilling"'
+on = "cast"
+mill = 4
+keep = 1
+keep_only = "is:permanent"
+
+# Wrenn and Seven's +1: "Reveal the top four cards of your library. Put all
+# land cards revealed this way into your hand and the rest into your
+# graveyard." Nobody chooses, so every land goes. Read as activated once, the
+# turn the line casts it: a floor, because it can be activated again on every
+# turn after that, and its other abilities are not modelled.
+[[effect]]
+match = 'name:"Wrenn and Seven"'
+on = "cast"
+mill = 4
+keep_every = "t:land"

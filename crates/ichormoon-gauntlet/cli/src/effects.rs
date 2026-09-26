@@ -14,8 +14,10 @@
 use anyhow::{Context, Result};
 use chip_scryfall::index::TagGap;
 use chip_scryfall::Query;
-use gauntlet_criteria::{Effect, Fetch, Route};
-use gauntlet_toml::{Destination, EffectEntry, EffectLibrary, STANDARD_LIBRARY_ORIGIN};
+use gauntlet_criteria::{Effect, Fetch, Mill, Route, ToHand};
+use gauntlet_toml::{
+    Destination, EffectEntry, EffectLibrary, HandDecl, MillDecl, STANDARD_LIBRARY_ORIGIN,
+};
 
 use crate::library::{Adds, Library, Marked};
 
@@ -44,6 +46,10 @@ pub struct Applied {
     /// up is sacrificed when it resolves. A number that came out of a Saga's
     /// third chapter has to say it waited for it.
     pub delay: Option<gauntlet_criteria::Delay>,
+    /// What it mills when the line casts it, and which of those cards go to
+    /// hand: what the card allows and, beside it, what the file chose. A run
+    /// that milled has to say what it kept.
+    pub mill: Option<MillDecl>,
     pub origin: String,
     /// The cards this effect actually got, after the overlap was resolved. A
     /// card matched by a later entry is not here — it is under that entry.
@@ -108,7 +114,15 @@ pub struct Blind {
 /// rather than claiming a second — same query, same cards, and two bits for one
 /// question would split every group in the deck along a line that means
 /// nothing.
-pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Result<Resolved> {
+///
+/// `line` is one flag per library entry: whether the `[casting]` line names
+/// it. A mill fires only when the line casts its card.
+pub fn resolve(
+    library: &EffectLibrary,
+    deck: &Library,
+    asked: &[String],
+    line: &[bool],
+) -> Result<Resolved> {
     let matchers = library
         .entries()
         .iter()
@@ -197,7 +211,15 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
             .fetch
             .as_ref()
             .is_some_and(|f| f.prefer.len() > fetch_misses.len());
-        let reachable = routes || fetches;
+        // A mill moves a number when the line casts a card it owns, and only
+        // then: the standard library's mills match their cards in every deck
+        // that plays them, and one the line never casts would be a group split
+        // for a spell nobody pays for.
+        for q in entry.mill.iter().flat_map(hand_queries) {
+            parse(q, entry, "to_hand")?;
+        }
+        let mills = entry.mill.is_some() && mine.iter().any(|&c| line[c]);
+        let reachable = routes || fetches || mills;
         if reachable {
             live.push(i);
         }
@@ -216,6 +238,7 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
                 .map(|f| (f.prefer.clone(), gauntlet_toml::fetched_name(f.to))),
             fetch_misses,
             delay: entry.delay,
+            mill: entry.mill.clone(),
             origin: entry.origin.clone(),
             cards: mine
                 .iter()
@@ -250,6 +273,13 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
                 }
             }
         }
+        // And a mill's: what the card lets go to hand, and the file's choice
+        // among it.
+        for q in library.entries()[i].mill.iter().flat_map(hand_queries) {
+            if bit_of(q, &queries).is_none() {
+                queries.push(q.clone());
+            }
+        }
     }
     let first_mark = asked.len() + queries.len();
 
@@ -282,7 +312,24 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
             }),
             delay: entry.delay,
             draw: 0,
-            mill: None,
+            mill: entry.mill.as_ref().map(|m| Mill {
+                cards: m.cards,
+                to_hand: match &m.to_hand {
+                    HandDecl::Every(q) => {
+                        ToHand::Every(bit_of(q, &queries).expect("just collected"))
+                    }
+                    HandDecl::Chosen { up_to, of, prefer } => ToHand::Chosen {
+                        up_to: *up_to,
+                        of: of
+                            .as_ref()
+                            .map(|q| bit_of(q, &queries).expect("just collected")),
+                        prefer: prefer
+                            .iter()
+                            .map(|q| bit_of(q, &queries).expect("just collected"))
+                            .collect(),
+                    },
+                },
+            }),
         });
     }
 
@@ -306,6 +353,15 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
         unmatched,
         tag_blind,
     })
+}
+
+/// Every query a mill reads to decide what goes to hand: what the card
+/// allows, and the file's priority among it.
+fn hand_queries(mill: &MillDecl) -> Vec<&String> {
+    match &mill.to_hand {
+        HandDecl::Every(q) => vec![q],
+        HandDecl::Chosen { of, prefer, .. } => of.iter().chain(prefer).collect(),
+    }
 }
 
 /// Parse one of an effect's queries, named against the entry that wrote it.

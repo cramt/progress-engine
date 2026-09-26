@@ -206,6 +206,23 @@ struct EffectDef {
     /// once it resolves, which a Saga does after its last chapter. Only
     /// meaningful beside `after`, and refused without it.
     sacrifice: Option<bool>,
+    /// Cards a cast puts off the top of the library into the graveyard, as
+    /// one block (ADR-0017 §2): Aftermath Analyst's `mill = 3`, and Malevolent
+    /// Rumble's `mill = 4`, because the four it reveals that it does not keep
+    /// go to the graveyard whatever anyone asks.
+    mill: Option<i64>,
+    /// How many of a mill's cards the card lets go to hand instead: Rumble's
+    /// one permanent. Which one is `to_hand`.
+    keep: Option<i64>,
+    /// Which of a mill's cards the card lets `keep` take, as a query.
+    keep_only: Option<String>,
+    /// Every card of a mill matching this goes to hand, whatever anyone
+    /// asks: Wrenn and Seven's lands.
+    keep_every: Option<String>,
+    /// The pilot's choice of what a mill keeps, highest first: the chosen
+    /// half of the card, written in your own file for the reason
+    /// `to_graveyard` is. Absent keeps nothing.
+    to_hand: Option<Vec<String>>,
 }
 
 #[derive(Facet)]
@@ -528,6 +545,8 @@ pub struct EffectEntry {
     pub fetch: Option<FetchDecl>,
     /// How long it waits after its trigger, if it waits at all.
     pub delay: Option<Delay>,
+    /// What it mills when it is cast, if it mills.
+    pub mill: Option<MillDecl>,
     /// Which file declared it. Carried so a report can say where a surprising
     /// effect came from, and so the standard library can stay quiet about
     /// matching nothing while a hand-written entry does not.
@@ -549,6 +568,35 @@ pub enum Destination {
 
 /// What a criteria file spells `to_graveyard = "*"`.
 pub const EVERYTHING: &str = "*";
+
+/// A declared mill, as written: how many cards, and which of them go to hand.
+///
+/// The destination of the rest is the graveyard, and it is not written,
+/// because the card compels it (ADR-0017 §2).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MillDecl {
+    pub cards: u32,
+    pub to_hand: HandDecl,
+}
+
+/// Which of a mill's cards go to hand, as written.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HandDecl {
+    /// `keep = up_to`, `keep_only = of`, `to_hand = prefer`: at most `up_to`
+    /// of the cards `of` allows, by the file's priority. A pure mill is
+    /// `up_to = 0`, and no priority keeps nothing.
+    Chosen {
+        up_to: u32,
+        of: Option<String>,
+        prefer: Vec<String>,
+    },
+    /// `keep_every = query`: every such card, which nobody chooses.
+    Every(String),
+}
+
+/// The most cards one `mill` may turn over. Seven is the deepest a card in
+/// either deck mills; this is a bound on a typo, not on the game.
+pub const MAX_MILL: u32 = 20;
 
 /// A declared tutor, as written: what it would go and get, in the order it
 /// would take them, and where it puts what it finds.
@@ -1028,7 +1076,8 @@ const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least
                       cast, min, max) or (turn, can_cast), and whose any_of branches each hold \
                       a require of their own, \
                       [[expect]] tables (name, turn, query, zone) or (name, turn, cast), [[effect]] \
-                      tables (match, on, look, adds, to_graveyard, fetch, to, after, sacrifice), one \
+                      tables (match, on, look, adds, to_graveyard, fetch, to, after, sacrifice, \
+                      mill, keep, keep_only, keep_every, to_hand), one \
                       [land_drop] table (prefer), \
                       one [casting] table (prefer) \
                       and one [mulligan] table (keep, bottom, down_to, optimise), whose keep \
@@ -1308,6 +1357,19 @@ pub enum ErrorKind {
          land itself"
     )]
     AddsOnLandDrop { at: String },
+    #[error(
+        "{at}: `{key} = {value}` is not a number of cards: it must be a whole number from 1 to \
+         {max}. A mill that keeps nothing is written with no `keep`"
+    )]
+    BadMill {
+        at: String,
+        key: &'static str,
+        value: i64,
+        max: u32,
+    },
+    /// Half a mill, refused by what is missing (ADR-0017 §2).
+    #[error("{at}: {why}")]
+    MillMisdeclared { at: String, why: &'static str },
 }
 
 /// A count with nowhere to go in a histogram, named against the expectation
@@ -1462,12 +1524,17 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
         })?;
         let fetch = fetch_of(def, &at)?;
         let adds = adds_of(def, &at, trigger)?;
-        // `look` is required unless this effect fetches or adds mana instead,
-        // and those are different things: a look turns over a card nobody has
-        // seen, a fetch names one, and a source turns over nothing. An entry
-        // doing none of them would be a checkpoint spent on an effect that
-        // cannot move a number.
-        let look = match (def.look, fetch.is_some() || adds.is_some()) {
+        let mill = mill_of(def, &at, trigger)?;
+        // `look` is required unless this effect fetches, adds mana or mills
+        // instead, and those are different things: a look turns over a card
+        // nobody has seen and leaves it on top, a fetch names one, a source
+        // turns over nothing, and a mill turns over cards and takes them all
+        // off the top. An entry doing none of them would be a checkpoint spent
+        // on an effect that cannot move a number.
+        let look = match (
+            def.look,
+            fetch.is_some() || adds.is_some() || mill.is_some(),
+        ) {
             (Some(look), _) => u32::try_from(look)
                 .ok()
                 .filter(|l| (1..=MAX_LOOK).contains(l))
@@ -1513,10 +1580,111 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
             }),
             fetch,
             delay,
+            mill,
             origin: origin.to_string(),
         });
     }
     Ok(EffectLibrary { entries })
+}
+
+/// Validate the `mill`, `keep`, `keep_only`, `keep_every` and `to_hand` keys
+/// of one `[[effect]]` table.
+///
+/// A mill is what a cast does to the top of the library (ADR-0017 §2), so it
+/// fires on a cast. What the card lets go to hand is either every card of a
+/// query, which nobody chooses, or up to `keep` of the cards it allows, which
+/// the file chooses with `to_hand`; half of either is refused by what is
+/// missing, rather than read as a default nobody stated.
+fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDecl>, ErrorKind> {
+    let misdeclared = |why: &'static str| ErrorKind::MillMisdeclared {
+        at: at.to_string(),
+        why,
+    };
+    let Some(mill) = def.mill else {
+        if def.keep.is_some()
+            || def.keep_only.is_some()
+            || def.keep_every.is_some()
+            || def.to_hand.is_some()
+        {
+            return Err(misdeclared(
+                "says what goes to hand and has no `mill` for it to come from. \
+                 `keep`, `keep_only`, `keep_every` and `to_hand` choose among a mill's cards",
+            ));
+        }
+        return Ok(None);
+    };
+    let cards = u32::try_from(mill)
+        .ok()
+        .filter(|n| (1..=MAX_MILL).contains(n))
+        .ok_or(ErrorKind::BadMill {
+            at: at.to_string(),
+            key: "mill",
+            value: mill,
+            max: MAX_MILL,
+        })?;
+    if trigger != Trigger::Cast {
+        return Err(misdeclared(
+            "has `mill` on a landdrop. A mill here is something a cast does to the top of the \
+             library; what a land drop does to it is a `look`, with `to_graveyard` saying \
+             where the cards go",
+        ));
+    }
+    if def.to_graveyard.is_some() {
+        return Err(misdeclared(
+            "has `mill` and `to_graveyard`. A mill's cards go to the graveyard because the card \
+             says so; what goes to hand instead is `to_hand`",
+        ));
+    }
+    if let Some(every) = &def.keep_every {
+        if def.keep.is_some() || def.keep_only.is_some() || def.to_hand.is_some() {
+            return Err(misdeclared(
+                "has `keep_every` beside a choice. With `keep_every` the card puts every such \
+                 card in hand, and there is nothing left to choose",
+            ));
+        }
+        return Ok(Some(MillDecl {
+            cards,
+            to_hand: HandDecl::Every(every.clone()),
+        }));
+    }
+    let Some(keep) = def.keep else {
+        if def.keep_only.is_some() || def.to_hand.is_some() {
+            return Err(misdeclared(
+                "chooses what goes to hand and has no `keep` saying how many the card allows. \
+                 Malevolent Rumble is `keep = 1`",
+            ));
+        }
+        return Ok(Some(MillDecl {
+            cards,
+            to_hand: HandDecl::Chosen {
+                up_to: 0,
+                of: None,
+                prefer: Vec::new(),
+            },
+        }));
+    };
+    let up_to = u32::try_from(keep)
+        .ok()
+        .filter(|n| (1..=cards).contains(n))
+        .ok_or(ErrorKind::BadMill {
+            at: at.to_string(),
+            key: "keep",
+            value: keep,
+            max: cards,
+        })?;
+    let prefer = preference_of(
+        def.to_hand.as_ref().map(|p| Some(p.clone())).as_ref(),
+        "an `[[effect]]` `to_hand`",
+        "to_hand",
+    )?;
+    Ok(Some(MillDecl {
+        cards,
+        to_hand: HandDecl::Chosen {
+            up_to,
+            of: def.keep_only.clone(),
+            prefer,
+        },
+    }))
 }
 
 /// Validate the `adds` key of one `[[effect]]` table.

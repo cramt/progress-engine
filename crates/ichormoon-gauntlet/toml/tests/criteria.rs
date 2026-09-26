@@ -13,8 +13,8 @@ use gauntlet_criteria::{
     Resolves, Route, RunError, Schedule, Trigger, Zone, ZoneError,
 };
 use gauntlet_toml::{
-    Criteria, Destination, EffectLibrary, ErrorKind, MAX_TURN, STANDARD_LIBRARY,
-    STANDARD_LIBRARY_ORIGIN,
+    Criteria, Destination, EffectEntry, EffectLibrary, ErrorKind, HandDecl, MillDecl, MAX_TURN,
+    STANDARD_LIBRARY, STANDARD_LIBRARY_ORIGIN,
 };
 
 /// A synthetic library where every query the file names has cards of its own
@@ -1849,14 +1849,24 @@ fn the_standard_library_is_a_criteria_file_like_any_other() {
     assert!(!std.is_empty(), "a library with nothing in it is not one");
     for entry in std.entries() {
         // A look is only modelled on the land drop. What fires on a cast is a
-        // source the line cast (ADR-0018): it declares what it adds and turns
-        // over nothing.
+        // source the line cast (ADR-0018), which declares what it adds and
+        // turns over nothing, or a mill (ADR-0017), whose graveyard the card
+        // compels.
         match entry.trigger {
             Trigger::LandDrop => assert_eq!(entry.adds, None, "{entry:?}"),
             Trigger::Cast => assert!(
-                entry.adds.is_some() && entry.look == 0,
-                "a cast entry here only declares a source: {entry:?}"
+                (entry.adds.is_some() || entry.mill.is_some()) && entry.look == 0,
+                "a cast entry here declares a source or a mill: {entry:?}"
             ),
+        }
+        // A mill says what the card lets go to hand, and never which: that is
+        // the pilot's, as a surveil's destination is.
+        if let Some(MillDecl {
+            to_hand: HandDecl::Chosen { prefer, .. },
+            ..
+        }) = &entry.mill
+        {
+            assert!(prefer.is_empty(), "the library must not choose: {entry:?}");
         }
         // And never a fetch: which card a tutor finds is the question asked.
         assert_eq!(entry.fetch, None, "{entry:?}");
@@ -2620,4 +2630,126 @@ fn what_each_question_reads_is_what_it_names() {
     assert_eq!(seen.queries(), 0b10);
     assert_eq!(seen.turns(), [1]);
     assert!(!seen.battlefield());
+}
+
+// --- A spell's mill (ADR-0017 §2) -------------------------------------------
+
+fn effect_of(source: &str) -> EffectEntry {
+    EffectLibrary::parse(source, "effects.toml")
+        .expect("parses")
+        .entries()[0]
+        .clone()
+}
+
+fn refused_effect(source: &str) -> ErrorKind {
+    EffectLibrary::parse(source, "effects.toml")
+        .expect_err("refused")
+        .kind
+}
+
+#[test]
+fn a_mill_says_how_many_cards_and_what_the_card_lets_go_to_hand() {
+    // Aftermath Analyst: three to the graveyard, nothing kept.
+    let analyst = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Aftermath Analyst"'
+        on = "cast"
+        mill = 3
+        "#,
+    );
+    assert_eq!(
+        analyst.mill,
+        Some(MillDecl {
+            cards: 3,
+            to_hand: HandDecl::Chosen {
+                up_to: 0,
+                of: None,
+                prefer: vec![],
+            },
+        })
+    );
+    assert_eq!(analyst.look, 0, "a mill is not a look");
+    // Malevolent Rumble, with the file's choice beside what the card allows.
+    let rumble = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Malevolent Rumble"'
+        on = "cast"
+        mill = 4
+        keep = 1
+        keep_only = "is:permanent"
+        to_hand = ['t:land']
+        "#,
+    );
+    assert_eq!(
+        rumble.mill,
+        Some(MillDecl {
+            cards: 4,
+            to_hand: HandDecl::Chosen {
+                up_to: 1,
+                of: Some("is:permanent".into()),
+                prefer: vec!["t:land".into()],
+            },
+        })
+    );
+    // Wrenn and Seven: the card puts every land in hand, and nobody chooses.
+    let wrenn = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Wrenn and Seven"'
+        on = "cast"
+        mill = 4
+        keep_every = "t:land"
+        "#,
+    );
+    assert_eq!(
+        wrenn.mill,
+        Some(MillDecl {
+            cards: 4,
+            to_hand: HandDecl::Every("t:land".into()),
+        })
+    );
+}
+
+#[test]
+fn half_a_mill_is_refused_by_what_is_missing() {
+    let with = |body: &str| {
+        refused_effect(&format!(
+            "[[effect]]\nmatch = 'name:\"Malevolent Rumble\"'\n{body}\n"
+        ))
+    };
+    let cases: [(&str, &str); 9] = [
+        // A mill on a land drop is a look, which is `look` and `to_graveyard`.
+        ("on = \"landdrop\"\nmill = 3", "landdrop"),
+        ("on = \"cast\"\nmill = 0", "mill = 0"),
+        // What the card lets go to hand needs cards to come from.
+        ("on = \"cast\"\nkeep = 1", "mill"),
+        ("on = \"cast\"\nto_hand = ['t:land']", "mill"),
+        // A choice with nothing the card lets you choose.
+        ("on = \"cast\"\nmill = 4\nto_hand = ['t:land']", "keep"),
+        ("on = \"cast\"\nmill = 4\nkeep_only = 't:land'", "keep"),
+        ("on = \"cast\"\nmill = 4\nkeep = 5", "keep = 5"),
+        // Every land goes to hand; there is nothing left to choose.
+        (
+            "on = \"cast\"\nmill = 4\nkeep_every = 't:land'\nto_hand = ['t:land']",
+            "keep_every",
+        ),
+        // The mill's destination is compelled; what goes elsewhere is to_hand.
+        (
+            "on = \"cast\"\nmill = 4\nto_graveyard = '*'",
+            "to_graveyard",
+        ),
+    ];
+    for (body, says) in cases {
+        let bad = with(body);
+        assert!(
+            bad.to_string().contains(says),
+            "{body:?} should be refused naming {says:?}: {bad}"
+        );
+    }
+    let bad = with("on = \"cast\"\nmill = 4\nkeep = 1\nto_hand = []");
+    assert!(matches!(bad, ErrorKind::NoPreference { .. }), "{bad}");
+    let bad = with("on = \"cast\"\nmill = 4\nkeep = 1\nto_hand = ['t:land', 't:land']");
+    assert!(matches!(bad, ErrorKind::RepeatedPreference { .. }), "{bad}");
 }

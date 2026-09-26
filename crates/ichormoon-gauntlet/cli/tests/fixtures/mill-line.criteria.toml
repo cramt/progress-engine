@@ -1,0 +1,46 @@
+# Rumble and Tilling, for the two engines to agree on through the binary:
+# the standard library's entries written again with the file's choice
+# beside them. A land, the only permanent this deck holds.
+
+[[effect]]
+match = 'name:"Malevolent Rumble"'
+on = "cast"
+mill = 4
+keep = 1
+keep_only = "is:permanent"
+to_hand = ['t:land']
+
+[[effect]]
+match = 'name:"Midnight Tilling"'
+on = "cast"
+mill = 4
+keep = 1
+keep_only = "is:permanent"
+to_hand = ['t:land']
+
+[casting]
+prefer = [
+  'name:"Life from the Loam"',
+  'name:"Malevolent Rumble"',
+  'name:"Midnight Tilling"',
+]
+
+[[criterion]]
+name = "Loam in the graveyard by turn 3"
+require = [{ turn = 3, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "Loam in the graveyard by turn 4"
+require = [{ turn = 4, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "Loam still in the library on turn 4"
+require = [{ turn = 4, query = 'name:"Life from the Loam"', zone = "library", min = 1 }]
+
+[[criterion]]
+name = "four lands on the battlefield on turn 4"
+require = [{ turn = 4, query = "t:land", zone = "battlefield", min = 4 }]
+
+[[criterion]]
+name = "two lands in the graveyard on turn 4"
+require = [{ turn = 4, query = "t:land", zone = "graveyard", min = 2 }]

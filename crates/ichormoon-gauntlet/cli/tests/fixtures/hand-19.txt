@@ -1,0 +1,6 @@
+// HANDS.md hand 19 on paper: twelve cards, and the Analyst's mill takes the
+// Loam on one in three of the deals that cast it on turn 2.
+2x Forest [Land]
+1x Aftermath Analyst [Engine]
+1x Life from the Loam [Engine]
+8x Beast Within [Removal]

@@ -1,0 +1,31 @@
+# HANDS.md hand 19 on paper. The standard library says the Analyst mills
+# three when it enters, and nothing here says so again: the line casting it is
+# all the file declares.
+
+[casting]
+prefer = ['name:"Aftermath Analyst"']
+
+[[criterion]]
+name = "the Analyst cast by turn 2"
+require = [{ turn = 2, cast = 'name:"Aftermath Analyst"', min = 1 }]
+
+[[criterion]]
+name = "cast, and the Loam in hand on turn 2"
+require = [
+  { turn = 2, cast = 'name:"Aftermath Analyst"', min = 1 },
+  { turn = 2, query = 'name:"Life from the Loam"', min = 1 },
+]
+
+[[criterion]]
+name = "cast, and the Loam in the graveyard on turn 2"
+require = [
+  { turn = 2, cast = 'name:"Aftermath Analyst"', min = 1 },
+  { turn = 2, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 },
+]
+
+[[criterion]]
+name = "cast, and the Loam still in the library on turn 2"
+require = [
+  { turn = 2, cast = 'name:"Aftermath Analyst"', min = 1 },
+  { turn = 2, query = 'name:"Life from the Loam"', zone = "library", min = 1 },
+]

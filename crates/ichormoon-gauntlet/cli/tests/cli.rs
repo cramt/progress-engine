@@ -4984,3 +4984,89 @@ fn a_rock_makes_what_its_card_says_and_a_signet_its_commanders_colours() {
         ])
     );
 }
+
+// --- A spell's mill (ADR-0017 §2) -------------------------------------------
+
+fn run_mill(deck: &str, criteria: &str, extra: &[&str]) -> serde_json::Value {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture(deck))
+        .arg(fixture(criteria))
+        .arg("--index")
+        .arg(fixture("mill-index.jsonl"))
+        .args(extra)
+        .output()
+        .expect("binary should run");
+    assert!(
+        out.status.success(),
+        "{deck} {criteria} should answer: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    serde_json::from_slice(&out.stdout).unwrap()
+}
+
+#[test]
+fn the_analysts_mill_takes_the_loam_one_time_in_three_through_the_standard_library() {
+    // HANDS.md hand 19 on paper, through the binary: the file declares only
+    // the line, and the standard library says the Analyst mills three. Twelve
+    // cards on the play; the Analyst is cast on turn 2 exactly when it and
+    // both Forests are in the top eight, C(9,5)/C(12,8) = 126/495. On those
+    // deals the other nine cards fill five seen slots, three milled and one
+    // left over, so the Loam is in hand 70/495, milled 42/495 and still in the
+    // library 14/495.
+    let json = run_mill("hand-19.txt", "analyst.criteria.toml", &[]);
+    assert_eq!(json["method"], "exact");
+    for (name, want) in [
+        ("the Analyst cast by turn 2", 25.45),
+        ("cast, and the Loam in hand on turn 2", 14.14),
+        ("cast, and the Loam in the graveyard on turn 2", 8.48),
+        ("cast, and the Loam still in the library on turn 2", 2.83),
+    ] {
+        assert_eq!(percent(&json, name), want, "{name}");
+    }
+    let analyst = json["effects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["match"] == r#"name:"Aftermath Analyst""#)
+        .expect("the run says what the Analyst did");
+    assert_eq!(analyst["mill"], 3);
+    assert_eq!(analyst["live"], true);
+}
+
+#[test]
+fn every_mill_route_agrees_with_the_sampler_through_the_binary() {
+    // The agreement ADR-0001 asks for, at the level a user runs it: one file
+    // declares Rumble's and Tilling's choice, to turn 4; the other casts Wrenn
+    // and Seven, at five mana, whose mill is the standard library's, to turn
+    // 5. The Analyst's is hand 19 above. The two engines answer the same files.
+    for (deck, criteria) in [
+        ("mill-line.txt", "mill-line.criteria.toml"),
+        ("wrenn.txt", "wrenn.criteria.toml"),
+    ] {
+        let exact = run_mill(deck, criteria, &[]);
+        assert_eq!(exact["method"], "exact", "{criteria}");
+        let sampled = run_mill(deck, criteria, &["--simulate", "--trials", "40000"]);
+        let names: Vec<String> = exact["criteria"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c["name"].as_str().unwrap().to_string())
+            .collect();
+        for name in &names {
+            let (e, s) = (percent(&exact, name), percent(&sampled, name));
+            assert!(e > 0.5 && e < 99.5, "{name} should be a question: {e}");
+            assert!((e - s).abs() < 1.0, "{name}: {e} exact against {s} sampled");
+        }
+    }
+    // What the file chose is printed with the run, as every declared policy is.
+    let exact = run_mill("mill-line.txt", "mill-line.criteria.toml", &[]);
+    let rumble = exact["effects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["match"] == r#"name:"Malevolent Rumble""#)
+        .expect("the run says what Rumble did");
+    assert_eq!(rumble["to_hand"][0], "t:land");
+    assert_eq!(rumble["keep"], 1);
+}

@@ -197,7 +197,8 @@ pub enum TriggerError {
          over the ceiling on every question this tool exists for \
          (https://github.com/cramt/progress-engine/issues/57).\n\
          What a cast spell may do here is `fetch`, which removes a named card from the library \
-         rather than turning over an unknown one."
+         rather than turning over an unknown one, or `mill`, which turns cards over and takes \
+         every one of them off the top at once."
     )]
     LooksOnCast,
     #[error(

@@ -268,7 +268,11 @@ fn prepare_noting(
     )
     .map_err(anyhow::Error::from)?
     .followed_by(criteria.effects().clone());
-    let resolved = effects::resolve(&effect_library, library, &asked)?;
+    let line: Vec<bool> = match &casting {
+        Some(casting) => casting.costs.iter().map(Option::is_some).collect(),
+        None => vec![false; library.entries.len()],
+    };
+    let resolved = effects::resolve(&effect_library, library, &asked, &line)?;
     for query in &resolved.unmatched {
         notes.push(format!(
             "note: effect {query:?} matched no cards in this deck"
@@ -377,7 +381,15 @@ fn prepare_noting(
                     .iter()
                     .flat_map(|f| &f.prefer)
                     .fold(0u64, |b, &q| b | 1u64 << q);
-                bits | 1u64 << effect.matched_by | destination | fetched
+                // And what a mill lets go to hand, for the same reason.
+                let kept = match effect.mill.as_ref().map(|m| &m.to_hand) {
+                    None => 0,
+                    Some(gauntlet_criteria::ToHand::Every(q)) => 1u64 << q,
+                    Some(gauntlet_criteria::ToHand::Chosen { of, prefer, .. }) => {
+                        of.iter().chain(prefer).fold(0u64, |b, &q| b | 1u64 << q)
+                    }
+                };
+                bits | 1u64 << effect.matched_by | destination | fetched | kept
             }),
             on_the_drop: resolved
                 .effects

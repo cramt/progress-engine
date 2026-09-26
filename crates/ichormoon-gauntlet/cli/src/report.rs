@@ -4,6 +4,7 @@ use chip_scryfall::index::TagGap;
 use chip_stats::Distribution;
 use facet::Facet;
 use gauntlet_criteria::{Bound, Criterion, Expectation};
+use gauntlet_toml::HandDecl;
 use sha2::{Digest, Sha256};
 
 use crate::library::Library;
@@ -309,6 +310,24 @@ pub struct EffectUse {
     /// when it resolves. Absent beside an effect that does not wait.
     #[facet(skip_serializing_if = Option::is_none)]
     pub sacrifice: Option<bool>,
+    /// Cards a cast of it puts into the graveyard off the top, or absent
+    /// where it mills nothing (ADR-0017 §2).
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub mill: Option<u32>,
+    /// How many of those the card lets go to hand instead, and which cards it
+    /// lets them be.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub keep: Option<u32>,
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub keep_only: Option<String>,
+    /// The cards of a mill the card itself puts in hand, which nobody chose.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub keep_every: Option<String>,
+    /// The file's choice among what the card lets it keep, highest first.
+    /// Reported for the reason `fetch` is: every number under it depends on
+    /// which card stayed out of the graveyard.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub to_hand: Option<Vec<String>>,
     /// Which file declared it: the standard library, or the criteria file.
     pub source: String,
     /// The cards it applied to, after the overlap was resolved. A card matched
@@ -1068,15 +1087,18 @@ impl Report {
         // An entry that matched nothing says nothing and is not mentioned.
         for e in &self.effects {
             let route = match (&e.to_graveyard, e.live) {
-                (None, _) if e.fetch.is_some() || e.adds.is_some() => String::new(),
+                (None, _) if e.fetch.is_some() || e.adds.is_some() || e.mill.is_some() => {
+                    String::new()
+                }
                 (None, _) => ", everything stays on top".to_string(),
                 (Some(q), true) => format!(", {q} to the graveyard"),
                 (Some(q), false) => format!(", {q} to the graveyard — which no card here matches"),
             };
-            let look = match (e.look, e.adds) {
-                (0, None) => String::new(),
-                (0, Some(n)) => format!("adds {n}, "),
-                (n, _) => format!("look {n}, "),
+            let look = match (e.look, e.adds, e.mill) {
+                (0, None, None) => String::new(),
+                (0, None, Some(n)) => format!("mill {n}, "),
+                (0, Some(n), _) => format!("adds {n}, "),
+                (n, _, _) => format!("look {n}, "),
             };
             // A delayed effect says how long it waited and what it cost, in the
             // same parenthesis as the trigger it waited from: a Lantern that
@@ -1106,6 +1128,42 @@ impl Report {
             // whose line names none of these counted none of them.
             if e.adds.is_some() {
                 out.push_str("      a mana source once the [casting] line casts it\n");
+            }
+            // A mill says where its cards went, and what it kept says by whose
+            // choice: the card's, or the file's list, printed as every
+            // declared policy is.
+            if e.mill.is_some() {
+                let of = e
+                    .keep_only
+                    .as_ref()
+                    .map_or(String::new(), |q| format!(" matching {q:?}"));
+                match (&e.keep_every, e.keep, &e.to_hand) {
+                    (Some(q), _, _) => out.push_str(&format!(
+                        "      puts what it mills in the graveyard, except every card matching {q:?}, which the \
+                         card puts in your hand\n"
+                    )),
+                    (None, Some(k), Some(prefer)) => {
+                        out.push_str(&format!(
+                            "      puts what it mills in the graveyard, except up to {k}{of}, kept in your hand by \
+                             the first of these that holds one:\n"
+                        ));
+                        for (i, query) in prefer.iter().enumerate() {
+                            out.push_str(&format!("      {}. {query:?}\n", i + 1));
+                        }
+                        out.push_str("      Ties: the card this decklist names first.\n");
+                    }
+                    (None, Some(k), None) => out.push_str(&format!(
+                        "      puts all it mills in the graveyard: the card lets you keep {k}{of}, \
+                         and this file declares no `to_hand` choosing one\n"
+                    )),
+                    (None, None, _) => out.push_str("      puts all it mills in the graveyard\n"),
+                }
+                if !e.live {
+                    out.push_str(
+                        "      and the [casting] line does not cast it, so here it mills \
+                         nothing\n",
+                    );
+                }
             }
             // A tutor names what it went and got, in the order it would take
             // them. Same discipline as the land drop and the casting line
@@ -1675,6 +1733,23 @@ pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
             to: a.fetch.as_ref().map(|(_, to)| *to),
             after: a.delay.map(|d| d.turns),
             sacrifice: a.delay.map(|d| d.sacrifice),
+            mill: a.mill.as_ref().map(|m| m.cards),
+            keep: match a.mill.as_ref().map(|m| &m.to_hand) {
+                Some(HandDecl::Chosen { up_to, .. }) if *up_to > 0 => Some(*up_to),
+                _ => None,
+            },
+            keep_only: match a.mill.as_ref().map(|m| &m.to_hand) {
+                Some(HandDecl::Chosen { of, .. }) => of.clone(),
+                _ => None,
+            },
+            keep_every: match a.mill.as_ref().map(|m| &m.to_hand) {
+                Some(HandDecl::Every(q)) => Some(q.clone()),
+                _ => None,
+            },
+            to_hand: match a.mill.as_ref().map(|m| &m.to_hand) {
+                Some(HandDecl::Chosen { prefer, .. }) if !prefer.is_empty() => Some(prefer.clone()),
+                _ => None,
+            },
             source: a.origin.clone(),
             cards: a.cards.clone(),
             copies: a.copies,
