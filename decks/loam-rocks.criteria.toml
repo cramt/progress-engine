@@ -1,0 +1,32 @@
+# The commander, cast from the command zone, with the deck's mana dorks in the
+# line (ADR-0018).
+#
+# `loam-commander.criteria.toml` asks the same thing with only lands paying.
+# This file names Birds of Paradise and Elvish Mystic as well: a dork the line
+# casts is a mana source from the turn after, because a creature is
+# summoning-sick (CR 302.6). Birds adds one of any colour, the Mystic {G}.
+#
+# ITS OWN FILE, for the reason `lantern-rocks.criteria.toml` gives: naming the
+# dorks in `loam-commander.criteria.toml` would move that file's numbers from
+# "lands only" to "with dorks".
+#
+# Lotus Cobra is left out: its mana is a landfall trigger rather than a tap, so
+# it would cost {1}{G} and be counted as making nothing, and the run would name
+# it as a lower bound.
+#
+# `checker/checker.py` asks both criteria independently, from the rules and
+# ADR-0018, with its own line model.
+
+[casting]
+prefer = [
+  'name:"Borborygmos and Fblthp"',
+  'name:"Birds of Paradise" or name:"Elvish Mystic"',
+]
+
+[[criterion]]
+name = "Borborygmos and Fblthp cast by turn 4, dorks in the line"
+require = [{ turn = 4, cast = 'name:"Borborygmos and Fblthp"', min = 1 }]
+
+[[criterion]]
+name = "Borborygmos and Fblthp cast by turn 5, dorks in the line"
+require = [{ turn = 5, cast = 'name:"Borborygmos and Fblthp"', min = 1 }]

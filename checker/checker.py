@@ -774,6 +774,11 @@ class Question:
     # and fails nothing on it; deleting this argument, once the criterion
     # exists in `criteria`, makes it an ordinary comparison.
     pending: str | None = None
+    # At most this many games, where fewer than compare.py's --games will do:
+    # a question played through `line_path` costs far more per game than a
+    # count, and one the engine answers by sampling carries an error bar of
+    # its own that a longer run cannot shrink.
+    games: int | None = None
 
 
 LOAM_TWO_DROPS = (
@@ -997,12 +1002,13 @@ def check_commanders(decks: Path, index: Index) -> None:
             raise SystemExit(f"checker: {deck}.txt names commanders {found}, expected {[expected]}")
 
 
-# --- Rocks and dorks in the line (ADR 0018), pending the engine (#93) --------
+# --- Rocks and dorks in the line (ADR 0018) ----------------------------------
 #
-# The commander and the rocks or dorks, in one line. The engine cannot answer
-# these until its budget reads `adds` (#93), so they are `pending`: compare.py
-# reports them and fails nothing. The lands-only pair beside each is the gate,
-# which is what the same line reads with no source in it.
+# The commander and the rocks or dorks, in one line. The lands-only pair beside
+# each is the gate, which is what the same line reads with no source in it; the
+# engine asks that half in the commander files, whose line names only the
+# commander, and the rock half in files of their own, because naming a rock in
+# a line moves every number that line answers.
 
 RASHMI, BORBORYGMOS = LANTERN_COMMANDER[0], LOAM_COMMANDER[0]
 # The commander first, then the rocks: cast Rashmi the moment the pool pays,
@@ -1022,16 +1028,20 @@ LANTERN_ROCK_LINE: Line = (
 LANTERN_ROCKS_FIRST_LINE: Line = LANTERN_ROCK_LINE[1:] + LANTERN_ROCK_LINE[:1]
 # Lotus Cobra is left out: it would cost {1}{G} and count as making nothing.
 LOAM_DORK_LINE: Line = ((BORBORYGMOS,), ("Birds of Paradise", "Elvish Mystic"))
+# The engine samples every one of these, so its own error bar is most of the
+# interval; 100,000 games keeps the checker's half of it under 0.52pp and the
+# whole compare near five minutes rather than eight.
+LINE_GAMES = 100_000
 
 ROCK_QUESTIONS: list[Question] = (
     [
         Question(
             "lantern",
-            "lantern-rocks.criteria.toml",
+            "lantern-commander.criteria.toml",
             f"{RASHMI} castable by turn {t}, lands only",
             _cast_by(((RASHMI,),), RASHMI, t, 5),
             5,
-            pending="#93",
+            games=LINE_GAMES,
         )
         for t in (4, 5)
     ]
@@ -1042,28 +1052,28 @@ ROCK_QUESTIONS: list[Question] = (
             f"{RASHMI} cast by turn {t}, rocks in the line",
             _cast_by(LANTERN_ROCK_LINE, RASHMI, t, 5),
             5,
-            pending="#93",
+            games=LINE_GAMES,
         )
         for t in (4, 5)
     ]
     + [
         Question(
             "lantern",
-            "lantern-rocks.criteria.toml",
+            "lantern-rocks-first.criteria.toml",
             f"{RASHMI} cast by turn 5, rocks first in the line",
             _cast_by(LANTERN_ROCKS_FIRST_LINE, RASHMI, 5, 5),
             5,
-            pending="#93",
+            games=LINE_GAMES,
         ),
     ]
     + [
         Question(
             "loam",
-            "loam-rocks.criteria.toml",
+            "loam-commander.criteria.toml",
             f"{BORBORYGMOS} castable by turn {t}, lands only",
             _cast_by(((BORBORYGMOS,),), BORBORYGMOS, t, 5),
             5,
-            pending="#93",
+            games=LINE_GAMES,
         )
         for t in (4, 5)
     ]
@@ -1074,7 +1084,7 @@ ROCK_QUESTIONS: list[Question] = (
             f"{BORBORYGMOS} cast by turn {t}, dorks in the line",
             _cast_by(LOAM_DORK_LINE, BORBORYGMOS, t, 5),
             5,
-            pending="#93",
+            games=LINE_GAMES,
         )
         for t in (4, 5)
     ]

@@ -34,3 +34,14 @@ require = [{ turn = 6, cast = 'name:"Borborygmos and Fblthp"', min = 1 }]
 [[criterion]]
 name = "commander cast by turn 7"
 require = [{ turn = 7, cast = 'name:"Borborygmos and Fblthp"', min = 1 }]
+
+# The lands-only half of the pair `loam-rocks.criteria.toml` asks with the
+# deck's dorks in the line, under the names `checker/checker.py` gives them.
+# This line names no dork, so only lands pay.
+[[criterion]]
+name = "Borborygmos and Fblthp castable by turn 4, lands only"
+require = [{ turn = 4, cast = 'name:"Borborygmos and Fblthp"', min = 1 }]
+
+[[criterion]]
+name = "Borborygmos and Fblthp castable by turn 5, lands only"
+require = [{ turn = 5, cast = 'name:"Borborygmos and Fblthp"', min = 1 }]

@@ -12,6 +12,10 @@ the difference between two independent samples instead: both errors, added in
 quadrature. That is a weaker check - it tests what a dealt game does, not the
 enumeration - and the verdict says which kind it was.
 
+A question may cap its own game count (checker.Question.games), where the
+checker's model of it is slow and the engine samples it anyway; those are
+dealt a run of their own, and held to the interval that many games give.
+
 A question marked `pending` (checker.Question.pending names the engine ticket)
 is one the engine cannot answer yet. Its checker number is reported, on
 --pending-games games, and fails nothing. Its criteria file need not exist;
@@ -115,13 +119,21 @@ def main() -> int:
                 if any(q.criteria == criteria for q in compared) or (args.decks / criteria).exists():
                     engine.update(engine_answers(args.gauntlet, args.decks, deck, criteria, draw))
             seed = f"{args.seed}:{deck}:{seat}"
-            hits = checker.play(library, compared, draw, args.games, seed, cmdrs)
-            for q in compared:
-                if q.name not in engine:
-                    raise SystemExit(f"compare: the engine answered no criterion named {q.name!r}")
-                row, failed = judge(q, engine[q.name], hits[q.name], args.games)
-                rows.append((deck, seat) + row)
-                failures += failed
+            # One deal per game count: the questions that cap theirs
+            # (checker.Question.games) are dealt their own, shorter run.
+            for cap in sorted({q.games for q in compared}, key=lambda c: c or 0):
+                batch = [q for q in compared if q.games == cap]
+                games = min(args.games, cap) if cap else args.games
+                run_seed = seed if cap is None else f"{seed}:{cap}"
+                hits = checker.play(library, batch, draw, games, run_seed, cmdrs)
+                for q in batch:
+                    if q.name not in engine:
+                        raise SystemExit(
+                            f"compare: the engine answered no criterion named {q.name!r}"
+                        )
+                    row, failed = judge(q, engine[q.name], hits[q.name], games)
+                    rows.append((deck, seat) + row)
+                    failures += failed
             if not pending:
                 continue
             games = args.pending_games
@@ -143,9 +155,11 @@ def main() -> int:
         engine_cell = f"{pe:9.4%}" if pe is not None else f"{'-':>9}"
         print(f"{deck:8} {seat:4}  {name:{width}}  {engine_cell}  {pc:9.4%}  {half:8.4%}  {verdict}")
     elapsed = time.monotonic() - started
+    capped = sorted({q.games for q in checker.QUESTIONS if q.games and not q.pending})
     print(
-        f"\n{args.games:,} games per deck and seat ({args.pending_games:,} for pending"
-        f" questions), seed {args.seed!r}, {elapsed:.1f}s"
+        f"\n{args.games:,} games per deck and seat"
+        + "".join(f" ({min(c, args.games):,} for questions capped at {c:,})" for c in capped)
+        + f" ({args.pending_games:,} for pending questions), seed {args.seed!r}, {elapsed:.1f}s"
     )
     if failures:
         print(f"FAIL: {failures} answer(s) outside the 99.9% interval")

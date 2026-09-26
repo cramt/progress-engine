@@ -37,3 +37,15 @@ require = [{ turn = 5, cast = 'name:"Rashmi and Ragavan"', min = 1 }]
 [[criterion]]
 name = "commander cast by turn 6"
 require = [{ turn = 6, cast = 'name:"Rashmi and Ragavan"', min = 1 }]
+
+# The same question under the name `checker/checker.py` gives it beside the
+# rocks: `lantern-rocks.criteria.toml` asks it with the deck's rocks in the
+# line, and these two are the lands-only half of that pair. This line names
+# no rock, so only lands pay, and these read the same as the criteria above.
+[[criterion]]
+name = "Rashmi and Ragavan castable by turn 4, lands only"
+require = [{ turn = 4, cast = 'name:"Rashmi and Ragavan"', min = 1 }]
+
+[[criterion]]
+name = "Rashmi and Ragavan castable by turn 5, lands only"
+require = [{ turn = 5, cast = 'name:"Rashmi and Ragavan"', min = 1 }]

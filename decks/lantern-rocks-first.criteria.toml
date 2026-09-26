@@ -1,0 +1,24 @@
+# The rocks of `lantern-rocks.criteria.toml`, listed before the commander.
+#
+# ADR-0018's estimate put the rocks first. Read in that order, a rock the pool
+# can pay for is cast before the commander is asked about, so a rock can take
+# the mana Rashmi needed that turn, and this line loses games the commander-
+# first line wins. The pair is the order being the pilot's to declare
+# (HANDS.md hand 26), asked of the whole deck.
+#
+# Its own file because a `[casting]` line is one per file.
+
+[casting]
+prefer = [
+  'name:"Sol Ring"',
+  'name:"Arcane Signet"',
+  'name:"Talisman of Creativity"',
+  'name:"Talisman of Curiosity"',
+  'name:"Talisman of Impulse"',
+  'name:"Mind Stone"',
+  'name:"Rashmi and Ragavan"',
+]
+
+[[criterion]]
+name = "Rashmi and Ragavan cast by turn 5, rocks first in the line"
+require = [{ turn = 5, cast = 'name:"Rashmi and Ragavan"', min = 1 }]

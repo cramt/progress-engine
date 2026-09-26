@@ -536,7 +536,8 @@ otherwise produces a percentage that looks exactly like a real one:
 | `fetch ... to = "battlefield"` on an `on = "cast"` effect, or naming a card that is not a land | a land arriving off a spell enters tapped for Rampant Growth and untapped for Nature's Lore, and no tag separates them; anything that is not a land has to be cast to get there at all |
 | a `fetch` beside a `can_cast`, a `cast` or a `[casting]` table, where it puts a land onto the battlefield | what a fetched land taps for on the turn it arrives is a fact about the spell that fetched it, and `otag:fetchland` holds both kinds |
 | `on` anything else, or `look = 0`, or an effect that neither looks nor fetches | a trigger nothing fires, and an effect that cannot move a number |
-| `after` on an `on = "cast"` effect, or beside a `look` | a delayed look turns over cards on a turn the schedule cannot know in advance, and a cast has nothing in play to wait with |
+| `after` on an `on = "cast"` effect that does not `adds`, or beside a `look` | a delayed look turns over cards on a turn the schedule cannot know in advance, and a cast leaves nothing in play to wait with but a rock or dork, whose `after` is how long it adds nothing |
+| `sacrifice = true` beside `adds` | a rock that waits is a rock entering tapped, and nothing is sacrificed when the wait is over |
 | `after = 0`, or more than 100 | an effect that waits no turns is written without `after` |
 | `sacrifice = true` with no `after` | a land that sacrifices itself the moment it is played is a fetchland, and is already written `to = "battlefield"` |
 | a delayed `fetch ... to = "battlefield"` whose priority matches a land | a land arriving off an ability is not a land drop, and whether it enters tapped is a fact no tag carries |
@@ -931,9 +932,10 @@ All **sampled**, ± 0.11 each, and that is width rather than choice: a
 three-colour cost keeps every land's palette over `{G}{U}{R}` and whether it
 enters tapped, which is fifteen land profiles on both decks and sixteen groups
 — 698,548,224 compositions at turn 4 on the play, against a ceiling of five
-million. They are floors, for the reasons every mana number here is: mana rocks
-and Rashmi's Treasure do not pay, and a land whose tapped-ness is the pilot's
-choice is assumed tapped.
+million. They are floors, for the reasons every mana number here is: the line
+names no mana rock, so none is cast and only lands pay (the rocks are the next
+paragraph but one), Rashmi's Treasure does not pay, and a land whose
+tapped-ness is the pilot's choice is assumed tapped.
 
 **Why those questions are files of their own.** One pool is one accounting: a
 `can_cast` beside a line asks what the line left. Declared in
@@ -942,6 +944,68 @@ it as *after the commander was paid for* — route 1's control, `{1}` payable by
 turn 5, reads 93.4% beside it and 99.6% without — which is a different question
 from the one that file asks. The north star is both halves at once, and that
 wants a line naming both.
+
+**A rock or a dork is mana once the line has cast it**
+([ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md)).
+Name it in `[casting] prefer` like any spell, and once it resolves it adds what
+the effect library says it adds (`adds`, [Effects](#effects)) of the colours its
+card makes — Sol Ring `{C}{C}`, a Talisman `{C}` or one of its two colours,
+Arcane Signet one of your commander's colours, Birds of Paradise any colour. A
+rock the line does not name is never cast, so it never makes mana, and every
+file written before this names none: none of their numbers moved. Three rules
+decide when that mana pays:
+
+- **A rock pays for what the line casts after it, the turn it is cast, and
+  never for itself.** Its own cost is paid while it is still a spell. So a
+  turn's bill is no longer one matching: Island, Sol Ring and Memory Lapse is
+  `{1}` then `{1}{U}` against an Island and `{C}{C}`, and a single matching over
+  the sum lets the Island take the `{U}` and Sol Ring pay for itself. The bill
+  is settled in stages instead, each spell against the sources already there
+  when it was cast (HANDS.md hand 27), and the lands a turn can tap are still
+  its land drops, however much a rock adds on top.
+- **A dork is summoning-sick**, so it adds from the turn after it is cast
+  (hand 31). A rock that enters tapped is declared with `after = 1` on its
+  effect, and waits the same way.
+- **The line is read again from the top once a rock grows the pool**, so
+  `[Mind Stone, Sol Ring]` off one Island casts both on turn 1 (hand 28).
+
+A card the line casts that could make mana in some game and is counted as making
+none is named: Fellwar Stone, whose mana is what an opponent's land could make
+and there is no opponent (CR 106.7), and Lotus Cobra, whose mana is a landfall
+trigger. Each makes every number that casts it a lower bound. A spell with
+improvise, affinity or convoke pays its printed cost, and is named too. The
+run's note says all of it beneath the line:
+
+```
+      Mana sources once cast — a rock's mana pays only for what the line casts after it, and a dork's from the next turn:
+      Arcane Signet: adds 1 of {U}{R}{G}
+      Talisman of Creativity: adds 1 of {U}{R}{C}
+```
+
+and the JSON carries it as `casting.sources` (card, `adds`, `makes`, `waits`),
+`casting.uncounted` and `casting.printed_cost`.
+
+On the decks, from `decks/lantern-rocks.criteria.toml`,
+`decks/lantern-rocks-first.criteria.toml` and `decks/loam-rocks.criteria.toml`,
+beside the lands-only answers the commander files give:
+
+| Commander cast by, play / draw | lands only | the commander, then the rocks | the rocks, then the commander |
+|---|---|---|---|
+| Rashmi and Ragavan, turn 4 | 42.50% / 51.49% | 55.16% / 64.74% | |
+| Rashmi and Ragavan, turn 5 | 53.01% / 61.30% | 65.79% / 73.69% | 65.46% / 73.43% |
+| Borborygmos and Fblthp, turn 4 | 0.00% / 0.00% | 9.56% / 12.40% (dorks) | |
+| Borborygmos and Fblthp, turn 5 | 51.99% / 62.10% | 56.52% / 66.37% (dorks) | |
+
+All sampled, ± 0.11 or less. The Lantern line names Sol Ring, Arcane Signet, the
+three Talismans and Mind Stone, and costs 24 groups where the lands-only line
+costs 18 — 675,429,580,800 compositions at turn 5 on the play; the Loam line
+names Birds of Paradise and Elvish Mystic, 18 groups against 16. Each file
+answers in about half a second. Each is its own file because naming a rock in
+the commander files' line would have moved their numbers from *lands only* to
+*with rocks*, which is this question rather than theirs; and listing the rocks
+first costs games the commander-first line wins, because a rock the pool can pay
+for is cast before the commander is asked about. `checker/` asks all of them
+from the rules, with its own line model, and agrees on both seats.
 
 **What it does not model is the draw.** Opt is *scry 1, draw 1*, and only the
 casting is counted — a `look` on an `on = "cast"` effect is still refused by
@@ -1053,7 +1117,7 @@ to_graveyard = 'name:"Life from the Loam"'
 | `to_graveyard` | the routing policy: which examined cards go to the yard. `"*"` is all of them, which is mill. Absent means none of them |
 | `fetch` | the cards it goes and gets out of the library, highest priority first. See [Tutors](#tutors-and-a-library-that-shrinks) |
 | `to` | where a fetched card is put: `hand` or `battlefield` |
-| `adds` | how much mana a card adds a turn once the `[casting]` line has cast it, `on = "cast"` only. See [ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md). Declared and reported today, and not yet read by the mana budget ([#93](https://github.com/cramt/progress-engine/issues/93)), so it moves no number |
+| `adds` | how much mana a card adds a turn once the `[casting]` line has cast it, `on = "cast"` only, of the colours its card makes. With `after = n` it adds nothing for `n` turns, which is a rock that enters tapped. See [Mana, as a budget](#mana-as-a-budget) and [ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) |
 
 **Looking is a land drop, fetching can be a cast.** Playing a land is free and
 hard-capped at one a turn, so by turn *T* at most *T* of those have happened
@@ -2230,7 +2294,7 @@ python3 checker/compare.py                       # or --gauntlet PATH, or $GAUNT
 python3 checker/compare.py --games 100000 --seed 7
 ```
 
-It takes about a minute and a half. Where the engine's documented reading differs
+It takes about five minutes. Where the engine's documented reading differs
 from the game — shocklands assumed tapped, a bounce land is one mana, a
 fetchland's target is still in the library to find — the checker implements the
 documented reading and says so beside the code, so a disagreement is a finding
@@ -2248,11 +2312,16 @@ that turn but pays only for what the line casts after it, a dork waits a turn,
 the amount comes from the card's oracle text (Sol Ring `{C}{C}`, a Talisman one
 of its two colours or `{C}`, Arcane Signet the commander's colours), and Fellwar
 Stone and Lotus Cobra make nothing. `checker/test_rocks.py` holds HANDS.md hands
-26 to 33 against it (`python3 -m unittest discover -s checker`). The engine
-cannot answer those questions yet, so they are marked `pending="#93"` in
-`QUESTIONS`: `compare.py` reports the checker's number, on 100,000 games
-(`--pending-games`), and fails nothing on it. When the criterion exists and the
-engine answers it, `compare.py` compares it and says to delete the marker.
+26 to 33 against it (`python3 -m unittest discover -s checker`), and
+`compare.py` holds the engine's commander-with-rocks answers against it on both
+decks and seats. Those are dealt 100,000 games rather than the default 400,000
+(`Question.games`): the line model is slow in Python, and the engine samples
+them anyway, so its own error bar is most of the interval.
+
+A question the engine cannot answer yet is marked `pending="#NN"` in
+`QUESTIONS`: `compare.py` reports the checker's number, on `--pending-games`
+games, and fails nothing on it. When the criterion exists and the engine
+answers it, `compare.py` compares it and says to delete the marker.
 
 The workspace is Ichormoon Gauntlet and Reality Chip. Gitaxian Probe's source
 is still under `crates/gitaxian-probe/`, but it is parked outside the workspace
