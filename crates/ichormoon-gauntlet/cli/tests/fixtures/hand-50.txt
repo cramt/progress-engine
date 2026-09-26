@@ -1,0 +1,8 @@
+// HANDS.md hand 50: Whir of Invention at X = 1.
+//
+// Twelve cards on the play, so every opener holds at least five Islands and a
+// drop is made every turn through turn 5. Whir is {X}{U}{U}{U}; the pilot
+// pays X = 1, four mana, and it puts the Lantern onto the battlefield.
+10x Island [Land]
+1x Whir of Invention [Tutor]
+1x Lantern of Insight [Lantern]

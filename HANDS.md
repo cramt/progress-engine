@@ -1479,11 +1479,11 @@ sampler's acceptance tests.*
 
 ## Tutor routes the line pays for
 
-Hands 40 to 42 pin
+Hands 40 to 42 and 50 pin
 [ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)
-before any of it is built. Hand 40 is answerable and a test (ADR-0019's first
-ticket, #96); 41 and 42 are not yet, and each names the build ticket it waits
-for. Each is a small deck, on the play, with the deal
+before any of it is built. Hands 40 and 44 are answerable and tests (ADR-0019's
+first ticket, #96), and so are 41 and 50 (its second, #97); 42 is not yet, and
+names the build ticket it waits for. Each is a small deck, on the play, with the deal
 worked turn by turn for one order of the library and then priced over every
 order. The tables were produced by brute force over every order of the deck, in
 `docs/research/tutor-routes-hands.py`, which reads nothing in `crates/`, and
@@ -1631,9 +1631,10 @@ pays it. But casting it does nothing for this deck: it is the **transmute**,
 speed. **Turn 3:** three Islands pay the transmute and the Lantern goes to hand.
 **Turn 4:** cast it.
 
-**Today** the file above is refused for its `cost` key. Delete the key and the
-engine accepts the effect and bills the printed `{U}`, which is the confident
-wrong number this hand exists to catch: a turn-1 tutor.
+**Before #97** the file above was refused for its `cost` key. Delete the key
+and the engine still accepts the effect and bills the printed `{U}`, which is
+the confident wrong number this hand exists to catch: a turn-1 tutor. With it,
+the line bills `{1}{U}{U}` and prints that beside the `{U}` it did not pay.
 
 | | printed `{U}` (today, without `cost`) | declared `{1}{U}{U}` |
 |---|---|---|
@@ -1653,7 +1654,72 @@ line, read again from its top, casts it the same turn or the next: 1 − C(4,2)/
 A `cast` clause counts Dizzy Spell's transmutation as a casting of Dizzy Spell,
 and the run says so beside the declared cost it printed.
 
-*Not answerable yet: needs ADR-0019's second ticket (a declared cost).*
+*Answerable, and a test* since #97 — `hand-41.txt` against
+`hand-41-printed.criteria.toml` and `hand-41-declared.criteria.toml`, one per
+column: `dizzy_spells_transmute_is_billed_at_what_the_transmute_costs`,
+`a_run_prints_the_declared_cost_beside_the_printed_one` and
+`a_declared_cost_agrees_with_the_sampler` in the CLI suite,
+`a_tutor_billed_at_its_transmute_finds_nothing_before_three_lands` in the
+engine's, and `a_tutor_billed_at_a_declared_cost_agrees_in_both_engines` in the
+sampler's acceptance tests. `checker/test_declared_cost.py` plays it over every
+deal from CR 702.53.
+
+### 50. Whir of Invention's X is the pilot's
+
+```
+Island ×10, Whir of Invention, Lantern of Insight        (12 cards)
+
+[[effect]]
+match = 'name:"Whir of Invention"'
+on = "cast"
+cost = "{1}{U}{U}{U}"
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[casting]
+prefer = ['name:"Lantern of Insight"', 'name:"Whir of Invention"']
+```
+
+**The deal:** Whir and six Islands in the opener, the Lantern at the bottom.
+**Turns 1 to 3:** an Island a turn. Whir is `{X}{U}{U}{U}` and searches for an
+artifact with mana value X or less; the Lantern is mana value 1, so the pilot
+pays X = 1 and it costs four. **Turn 4:** the fourth Island, Whir, and the
+Lantern onto the battlefield. It is never cast. Improvise would let artifacts
+pay for some of it; nothing here has one to tap, and the run names it anyway.
+
+**Today** (before #97) the `[casting]` entry is refused for the `{X}`, and it
+still is without `cost`: an X read as zero would cast Whir for `{U}{U}{U}` on
+turn 3 and find nothing that costs more than 0.
+
+| | declared `{1}{U}{U}{U}` |
+|---|---|
+| Whir of Invention cast by turn 3 | **0%** |
+| Whir of Invention cast by turn 4 | 101/132 = **76.52%** |
+| Lantern on the battlefield by turn 4 | 130/132 = **98.48%** |
+| Lantern cast by turn 4 | 10/12 = **83.33%** |
+| Lantern still in the library on turn 4 | 2/132 = 1.52% |
+
+**On paper:** turn 4 on the play has seen ten of twelve and made four drops,
+so Whir's four are there on turn 4 and not before. It is cast then when it is
+among the ten, 10/12, less the deals where the Lantern is the tenth card, is
+cast first for `{1}` and leaves three: (1/12)(9/11), so 101/132. The Lantern is
+cast when it is among the ten, 10/12; it is on the battlefield then or when it
+is among the last two and Whir among the ten, (2/12)(10/11), which makes
+130/132. It is still in the library only when both are the last two, 2/132.
+
+With three Islands and seven Forests the declared cost is the only thing in the
+run asking for blue, so it is what decides that an Island and a Forest are
+different lands. Whir is cast by turn 4 when neither of the two unseen cards is
+an Island or Whir, C(8,2)/C(12,2) = 28/66, less the deals where both are Forests
+and the Lantern is the tenth card, (21/66)(1/10): **259/660 = 39.24%**.
+
+*Answerable, and a test* — `hand-50.txt` and `hand-50-two-colours.txt` against
+`hand-50.criteria.toml`: `whir_of_invention_at_x_one_is_billed_the_pilots_x`,
+`a_declared_cost_decides_which_colours_the_class_tells_apart` and
+`a_declared_cost_agrees_with_the_sampler` in the CLI suite; the refusal without
+`cost` is
+`an_x_spell_the_line_names_is_refused_unless_its_effect_declares_the_cost`.
+`checker/test_declared_cost.py` plays it from the card's text.
 
 ### 42. Expedition Map goes and gets Urza's Saga
 

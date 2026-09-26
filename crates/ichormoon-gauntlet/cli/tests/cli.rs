@@ -3367,6 +3367,150 @@ fn the_seekers_battlefield_fetch_agrees_with_the_sampler() {
     }
 }
 
+fn run_tutor_json(deck: &str, criteria: &str, extra: &[&str]) -> (serde_json::Value, String) {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture(deck))
+        .arg(fixture(criteria))
+        .arg("--index")
+        .arg(fixture("tutor-index.jsonl"))
+        .args(extra)
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    assert!(
+        out.stdout.starts_with(b"{"),
+        "{criteria} should answer: {stderr}"
+    );
+    (serde_json::from_slice(&out.stdout).unwrap(), stderr)
+}
+
+#[test]
+fn dizzy_spells_transmute_is_billed_at_what_the_transmute_costs() {
+    // HANDS.md hand 41, both columns. Twelve cards on the play. Declared,
+    // nothing can transmute before turn 3, so the Lantern is cast by turn 2
+    // exactly when it is among the first eight cards, 8/12. Billed at the
+    // printed {U}, a Dizzy Spell among the first eight tutors it on turn 1 or
+    // 2 and the line casts it by turn 2 too: 1 - C(4,2)/C(12,2) = 60/66. By
+    // turn 4 both have found it unless both are the last two, 1/66.
+    let columns = [
+        // (file, Dizzy Spell played by 2, Lantern cast by 2, Lantern cast by 4)
+        ("hand-41-printed.criteria.toml", 66.67, 90.91, 98.48),
+        ("hand-41-declared.criteria.toml", 0.0, 66.67, 98.48),
+    ];
+    for (file, dizzy, by_two, by_four) in columns {
+        let (json, _) = run_tutor_json("hand-41.txt", file, &[]);
+        for (name, want) in [
+            ("Dizzy Spell played by turn 2", dizzy),
+            ("Lantern cast by turn 2", by_two),
+            ("Lantern cast by turn 4", by_four),
+        ] {
+            assert_eq!(percent(&json, name), want, "{file}, {name}");
+        }
+    }
+}
+
+#[test]
+fn a_run_prints_the_declared_cost_beside_the_printed_one() {
+    // The bill is a declaration, so the run says what it billed, what the
+    // card prints, whose effect said so, and that a `cast` clause counts the
+    // play as a casting of the card.
+    let (json, stderr) = run_tutor_json("hand-41.txt", "hand-41-declared.criteria.toml", &[]);
+    let declared = &json["casting"]["declared_costs"][0];
+    assert_eq!(declared["card"], "Dizzy Spell", "{json}");
+    assert_eq!(declared["billed"], "{1}{U}{U}", "{json}");
+    assert_eq!(declared["printed"], "{U}", "{json}");
+    assert_eq!(declared["effect"], "name:\"Dizzy Spell\"", "{json}");
+    assert!(
+        stderr.contains("Dizzy Spell: billed {1}{U}{U}, printed {U}")
+            && stderr.contains("counts it as a casting"),
+        "{stderr}"
+    );
+    // And a line whose effects declare none says nothing about it.
+    let (json, _) = run_tutor_json("hand-41.txt", "hand-41-printed.criteria.toml", &[]);
+    assert!(json["casting"].get("declared_costs").is_none(), "{json}");
+}
+
+#[test]
+fn whir_of_invention_at_x_one_is_billed_the_pilots_x() {
+    // HANDS.md hand 50. Twelve cards on the play, a drop every turn. At X = 1
+    // Whir costs four, so it is never cast on turn 3, which is where an {X}
+    // read as zero would cast it. By turn 4 ten cards are seen: it is cast
+    // when it is among them, 10/12, less the deals where the Lantern is the
+    // tenth card and takes one of turn 4's four mana first, (1/12)(9/11):
+    // 101/132. The Lantern is cast when it is among the ten, 10/12; it is on
+    // the battlefield then, or when Whir is cast with it still in the
+    // library, (2/12)(10/11): 130/132. It is still in the library only when
+    // both are the last two, 2/132.
+    let (json, stderr) = run_tutor_json("hand-50.txt", "hand-50.criteria.toml", &[]);
+    for (name, want) in [
+        ("Whir of Invention cast by turn 3", 0.0),
+        ("Whir of Invention cast by turn 4", 76.52),
+        ("Lantern on the battlefield by turn 4", 98.48),
+        ("Lantern cast by turn 4", 83.33),
+        ("Lantern still in the library on turn 4", 1.52),
+    ] {
+        assert_eq!(percent(&json, name), want, "{name}");
+    }
+    // Improvise is named, as ADR-0018 names every cost reducer: Whir pays
+    // its declared four whole, so this is a floor.
+    assert!(
+        stderr.contains("Whir of Invention: billed {1}{U}{U}{U}, printed {X}{U}{U}{U}")
+            && stderr.contains("Cost reductions are not modelled")
+            && json["casting"]["printed_cost"][0] == "Whir of Invention",
+        "{stderr}"
+    );
+}
+
+#[test]
+fn an_x_spell_the_line_names_is_refused_unless_its_effect_declares_the_cost() {
+    // The {X} refusal lifts only for a card whose effect says what the pilot
+    // pays; without one it stands, and names that as the remedy.
+    let out = run_tutor("hand-50.txt", "whir-no-cost.criteria.toml");
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("Whir of Invention") && stderr.contains("{X}") && stderr.contains("cost ="),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn a_declared_cost_decides_which_colours_the_class_tells_apart() {
+    // The pips a class is narrowed on come from the line's costs. Whir's
+    // printed cost is never read, so the only blue the run is asked about is
+    // the declared {1}{U}{U}{U}: were it left out, an Island and a Forest
+    // would be one kind of land making no colour, and Whir never cast. With
+    // it, three Islands and seven Forests: Whir is cast by turn 4 when the
+    // two cards turn 4 has not seen are neither an Island nor Whir, C(8,2) of
+    // C(12,2) pairs, less the deals where both are Forests and the Lantern is
+    // the tenth card and takes a mana first, (21/66)(1/10): 259/660.
+    let (json, _) = run_tutor_json("hand-50-two-colours.txt", "hand-50.criteria.toml", &[]);
+    assert_eq!(percent(&json, "Whir of Invention cast by turn 4"), 39.24);
+    assert_eq!(percent(&json, "Whir of Invention cast by turn 3"), 0.0);
+}
+
+#[test]
+fn a_declared_cost_agrees_with_the_sampler() {
+    for (deck, file) in [
+        ("hand-41.txt", "hand-41-declared.criteria.toml"),
+        ("hand-41.txt", "hand-41-printed.criteria.toml"),
+        ("hand-50.txt", "hand-50.criteria.toml"),
+    ] {
+        let (exact, _) = run_tutor_json(deck, file, &[]);
+        let (sampled, _) = run_tutor_json(deck, file, &["--simulate", "--trials", "20000"]);
+        for criterion in exact["criteria"].as_array().unwrap() {
+            let name = criterion["name"].as_str().unwrap();
+            assert!(
+                (percent(&exact, name) - percent(&sampled, name)).abs() < 1.0,
+                "{file}, {name}: {} exact against {} sampled",
+                percent(&exact, name),
+                percent(&sampled, name)
+            );
+        }
+    }
+}
+
 #[test]
 fn a_cast_that_could_put_a_land_onto_the_battlefield_is_refused_by_name() {
     // Rampant Growth, and ADR-0019's line: a cast may put down anything but a

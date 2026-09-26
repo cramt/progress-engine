@@ -1,0 +1,8 @@
+// HANDS.md hand 50 with seven of the Islands swapped for Forests, so which lands
+// were played decides whether Whir's {U}{U}{U} is there. Nothing but the
+// declared cost asks for blue: the Lantern is {1} and Whir's printed cost is
+// not read.
+3x Island [Land]
+7x Forest [Land]
+1x Whir of Invention [Tutor]
+1x Lantern of Insight [Lantern]

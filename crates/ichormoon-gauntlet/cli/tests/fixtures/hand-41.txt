@@ -1,0 +1,8 @@
+// HANDS.md hand 41: Dizzy Spell's transmute costs what the transmute costs.
+//
+// Twelve cards on the play. Dizzy Spell's printed {U} is a turn-1 spell; its
+// transmute, {1}{U}{U} and discard it, finds a mana value 1 card - the
+// Lantern - at sorcery speed, and three Islands are there on turn 3.
+10x Island [Land]
+1x Dizzy Spell [Tutor]
+1x Lantern of Insight [Lantern]

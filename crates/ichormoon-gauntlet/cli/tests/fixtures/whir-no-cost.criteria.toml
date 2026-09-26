@@ -1,0 +1,16 @@
+# hand-50.criteria.toml without `cost`. Whir of Invention's printed cost holds
+# {X}, which is a decision about how much to pay rather than an amount, and
+# nothing here decided it: refused, and the refusal names the remedy.
+
+[[effect]]
+match = 'name:"Whir of Invention"'
+on = "cast"
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[casting]
+prefer = ['name:"Lantern of Insight"', 'name:"Whir of Invention"']
+
+[[criterion]]
+name = "Whir of Invention cast by turn 4"
+require = [{ turn = 4, cast = 'name:"Whir of Invention"', min = 1 }]

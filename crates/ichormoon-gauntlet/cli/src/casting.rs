@@ -19,9 +19,17 @@
 //! Bala Ged Recovery, or any `{X}` spell, would otherwise be cast for some
 //! amount nobody chose — and a spell cast too cheaply spends mana the rest of
 //! the line then does not have, so the error is not confined to that card.
+//!
+//! **Unless an effect declares what the line pays.** A card whose effect
+//! carries `cost` is billed that instead of its printed cost, in the bill and
+//! in the pips the class is narrowed on (ADR-0019): Dizzy Spell's transmute is
+//! `{1}{U}{U}`, not its printed `{U}`, and Whir of Invention's `{X}` is the
+//! pilot's, stated. The printed cost is then never read, so an `{X}` in it is
+//! refused only where nothing declared one.
 
 use gauntlet_criteria::{CastingPolicy, Cost, Demand, Palette};
 
+use crate::effects::Declared;
 use crate::library::{is_land, Library};
 use crate::prepare::Unprepared;
 use crate::refusal::{self, QuerySite, Refusal};
@@ -50,6 +58,9 @@ pub struct Resolved {
     /// asking `can_cast = "{1}{U}"` names its own colour; a file asking how
     /// many Opts it cast names none, and the blue is in the card data.
     pub demands: Palette,
+    /// The cards this line bills at a declared cost rather than a printed one,
+    /// in decklist order. Every run prints them (ADR-0019).
+    pub declared: Vec<DeclaredUse>,
     /// Preferences picking out no castable card in this deck. They decide
     /// nothing here, which is a fact about the deck rather than an error in
     /// the file — the same treatment a criteria query matching nothing gets.
@@ -60,12 +71,23 @@ pub struct Resolved {
     pub lands: Vec<(String, Vec<String>)>,
 }
 
+/// A card the line bills at a declared cost, and what it prints.
+pub struct DeclaredUse {
+    pub card: String,
+    pub billed: String,
+    pub printed: String,
+    /// The `match` of the effect that declared it.
+    pub effect: String,
+}
+
 /// Resolve `prefer` against `deck`. `asked` is the query list built so far,
-/// which already owns the low grouping bits.
+/// which already owns the low grouping bits. `declared` is one entry per
+/// library position: the cost its effect declares, where it declares one.
 pub fn resolve(
     prefer: &[String],
     deck: &Library,
     asked: &[String],
+    declared: &[Option<Declared>],
     file: &str,
 ) -> Result<Resolved, Unprepared> {
     let mut queries: Vec<String> = Vec::new();
@@ -91,6 +113,7 @@ pub fn resolve(
     let mut demands = Palette::EMPTY;
     let mut unmatched = Vec::new();
     let mut lands = Vec::new();
+    let mut billed = Vec::new();
     for query in prefer {
         tiers.push(bit_of(query, &mut queries));
         let mut castable = 0;
@@ -108,7 +131,13 @@ pub fn resolve(
             if costs[position].is_some() {
                 continue;
             }
-            let cost = price(&entry.card.name, &entry.card.mana_cost, query, file)?;
+            let cost = match declared.get(position).and_then(Option::as_ref) {
+                Some(declared) => {
+                    billed.push((position, declared));
+                    declared.cost.clone()
+                }
+                None => price(&entry.card.name, &entry.card.mana_cost, query, file)?,
+            };
             demands = demands.union(cost.demands());
             costs[position] = Some(cost.demand());
         }
@@ -139,8 +168,20 @@ pub fn resolve(
         }
     }
 
+    billed.sort_by_key(|(position, _)| *position);
+    let declared = billed
+        .into_iter()
+        .map(|(position, declared)| DeclaredUse {
+            card: deck.entries[position].card.name.clone(),
+            billed: declared.cost.as_str().to_string(),
+            printed: deck.entries[position].card.mana_cost.clone(),
+            effect: declared.effect.clone(),
+        })
+        .collect();
+
     Ok(Resolved {
         policy: CastingPolicy::new(tiers),
+        declared,
         queries,
         prefer: prefer.to_vec(),
         costs,

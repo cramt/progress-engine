@@ -455,7 +455,10 @@ impl Refusal {
                 "`prefer` entry {query:?} names {card}, whose cost this engine cannot pay: \
                  {error}\n      \
                  A budget spends the pool, so a cost read too cheaply does not only get that \
-                 spell wrong — it leaves mana the rest of the line then spends."
+                 spell wrong — it leaves mana the rest of the line then spends.\n      \
+                 If you know what you pay — the X you choose, or a transmute — declare it on \
+                 the card's effect,\n      and the line bills that instead: `cost = \
+                 \"{{1}}{{U}}{{U}}{{U}}\"` is Whir of Invention at X = 1."
             ),
             Refusal::CastingWithoutPriority { .. } => f.write_str(
                 "counting the spells you cast means knowing which ones you would cast, and this \

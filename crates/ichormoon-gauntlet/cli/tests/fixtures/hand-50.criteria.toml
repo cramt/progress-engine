@@ -1,0 +1,34 @@
+# HANDS.md hand 50: Whir of Invention's X is the pilot's. At X = 1 it costs
+# {1}{U}{U}{U} and searches for an artifact with mana value 1 or less, onto
+# the battlefield. Without `cost` its printed {X} is refused
+# (whir-no-cost.criteria.toml); read as zero, it would be cast on turn 3.
+
+[[effect]]
+match = 'name:"Whir of Invention"'
+on = "cast"
+cost = "{1}{U}{U}{U}"
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[casting]
+prefer = ['name:"Lantern of Insight"', 'name:"Whir of Invention"']
+
+[[criterion]]
+name = "Whir of Invention cast by turn 3"
+require = [{ turn = 3, cast = 'name:"Whir of Invention"', min = 1 }]
+
+[[criterion]]
+name = "Whir of Invention cast by turn 4"
+require = [{ turn = 4, cast = 'name:"Whir of Invention"', min = 1 }]
+
+[[criterion]]
+name = "Lantern on the battlefield by turn 4"
+require = [{ turn = 4, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Lantern cast by turn 4"
+require = [{ turn = 4, cast = 'name:"Lantern of Insight"', min = 1 }]
+
+[[criterion]]
+name = "Lantern still in the library on turn 4"
+require = [{ turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 }]

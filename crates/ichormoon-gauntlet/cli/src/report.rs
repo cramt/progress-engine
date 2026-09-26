@@ -285,6 +285,10 @@ pub struct EffectUse {
     /// the card.
     #[facet(skip_serializing_if = Option::is_none)]
     pub adds: Option<u32>,
+    /// What the `[casting]` line bills for each card in place of its printed
+    /// cost (ADR-0019), or absent where it bills what is printed.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub cost: Option<String>,
     pub on: &'static str,
     /// The routing policy, or `null` where none was declared — in which case
     /// every looked-at card stays on top and this effect moves no number.
@@ -739,6 +743,23 @@ pub struct CastingUse {
     /// reduce. Not modelled: each pays its printed cost.
     #[facet(skip_serializing_if = Vec::is_empty)]
     pub printed_cost: Vec<String>,
+    /// Cards the list plays at a cost an effect declares rather than the one
+    /// printed on them: a transmute, or an X the pilot chose (ADR-0019).
+    /// Absent where it bills every card at its printed cost.
+    #[facet(skip_serializing_if = Vec::is_empty)]
+    pub declared_costs: Vec<DeclaredCostUse>,
+}
+
+/// One card a line bills at a declared cost, beside the one it prints.
+#[derive(Facet)]
+pub struct DeclaredCostUse {
+    pub card: String,
+    /// What the line paid to play it.
+    pub billed: String,
+    /// What is printed on it, which the line did not pay.
+    pub printed: String,
+    /// The `match` of the effect that declared the cost.
+    pub effect: String,
 }
 
 /// One rock or dork a line names, as the budget counts it.
@@ -1175,6 +1196,11 @@ impl Report {
                     ));
                 }
             }
+            if let Some(cost) = &e.cost {
+                out.push_str(&format!(
+                    "      and the [casting] line pays {cost} to play it, not its printed cost\n"
+                ));
+            }
             // A tutor names what it went and got, in the order it would take
             // them. Same discipline as the land drop and the casting line
             // below, over the fourth contested resource: the library this run
@@ -1297,10 +1323,24 @@ impl Report {
                     policy.uncounted.join(", ")
                 ));
             }
+            // A declared cost is a number the pilot stated, so the run says
+            // it billed that and not what is printed (ADR-0019).
+            if !policy.declared_costs.is_empty() {
+                out.push_str(
+                    "      Played at a cost an effect declares, not the printed one; a `cast` \
+                     clause counts it as a casting:\n",
+                );
+                for d in &policy.declared_costs {
+                    out.push_str(&format!(
+                        "      {}: billed {}, printed {} (effect {:?})\n",
+                        d.card, d.billed, d.printed, d.effect
+                    ));
+                }
+            }
             if !policy.printed_cost.is_empty() {
                 out.push_str(&format!(
-                    "      Cost reductions are not modelled, so these pay their printed cost: \
-                     {}.\n",
+                    "      Cost reductions are not modelled, so these pay their printed or declared cost \
+                     in full: {}.\n",
                     policy.printed_cost.join(", ")
                 ));
             }
@@ -1737,6 +1777,7 @@ pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
             matches: a.matches.clone(),
             look: a.look,
             adds: a.adds,
+            cost: a.cost.clone(),
             on: a.on,
             to_graveyard: a.to_graveyard.clone(),
             fetch: a.fetch.as_ref().map(|(prefer, _)| prefer.clone()),

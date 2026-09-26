@@ -1075,6 +1075,103 @@ fn a_permanent_the_line_casts_or_a_cast_puts_down_is_in_play_in_both_engines() {
 }
 
 #[test]
+fn a_tutor_billed_at_a_declared_cost_agrees_in_both_engines() {
+    // HANDS.md hand 41 on a deck wide enough to sample: a tutor that goes to
+    // the graveyard and finds the target to hand, billed at its transmute,
+    // {1}{U}{U}, rather than at the {U} printed on it, and a {1} target the
+    // line casts first. Asked by turn 2, where the price decides everything,
+    // and by turn 4, where it no longer does.
+    let grouping = Grouping::with_mana(
+        q(&["tutor", "target", "land"]),
+        vec![
+            (
+                0b001,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}{U}{U}").unwrap().demand(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                4,
+            ),
+            (
+                0b010,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                2,
+            ),
+            (
+                0b100,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                    lasts: None,
+                },
+                19,
+            ),
+            (0b000, ManaSource::Spell, 74),
+        ],
+    )
+    .unwrap();
+    let tutor = Effect {
+        matched_by: 0,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to: Fetched::Hand,
+        }),
+        delay: None,
+        draw: 0,
+        mill: None,
+    };
+    let schedule = Schedule::build(
+        4,
+        false,
+        vec![tutor],
+        Policies::casting(CastingPolicy::new(vec![1, 0])),
+    );
+    let question = || {
+        Closures(vec![
+            Box::new(move |v: &PathView<'_>| v.count_at(2, 0, Counted::Cast) >= 1) as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(3, 0, Counted::Cast) >= 1) as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(2, 1, Counted::Cast) >= 1) as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(4, 1, Counted::Cast) >= 1) as Check,
+        ])
+    };
+    let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(4), &mut question())
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    // Nothing transmutes before three lands are down.
+    assert_eq!(exact[0], 0.0, "no tutor by turn 2 at {{1}}{{U}}{{U}}");
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        TRIALS,
+        41,
+        only_criteria(4),
+        &mut question(),
+    )
+    .unwrap()
+    .proportions;
+    for (i, e) in exact.iter().enumerate().skip(1) {
+        assert!(*e > 0.02 && *e < 0.98, "question {i} is worth asking: {e}");
+    }
+    for (e, s) in exact.iter().zip(&sampled) {
+        let se = standard_error(*s, TRIALS).max(1e-9);
+        assert!(
+            (s - e).abs() < 4.0 * se,
+            "sampled {s} vs exact {e} ({}x SE)",
+            (s - e).abs() / se
+        );
+    }
+}
+
+#[test]
 fn a_tutor_thins_the_library_in_both_engines() {
     // The half of a fetch that is not about the card it found. Four copies of
     // the target and twelve tutors: every tutor that resolves takes one of

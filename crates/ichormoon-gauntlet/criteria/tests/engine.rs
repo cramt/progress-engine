@@ -3101,6 +3101,81 @@ fn tezzeret_the_seeker_puts_a_lantern_the_line_also_casts_onto_the_battlefield()
 }
 
 #[test]
+fn a_tutor_billed_at_its_transmute_finds_nothing_before_three_lands() {
+    // HANDS.md hand 41 at the engine's seam: Dizzy Spell, the Lantern and ten
+    // Islands, the line reading the Lantern first. What the tutor costs is
+    // whatever the grouping bills, so the printed {U} and the declared
+    // {1}{U}{U} are the same deck with a different cost on one group. Billed
+    // {U}, a tutor among the first eight finds the Lantern by turn 2: 60/66.
+    // Billed {1}{U}{U}, nothing transmutes before turn 3, so the Lantern is
+    // cast by turn 2 only where it was drawn, 8/12. By turn 4 both have it
+    // unless both cards are the last two: 65/66.
+    for (cost, played, by_two) in [
+        ("{U}", 2.0 / 3.0, 60.0 / 66.0),
+        ("{1}{U}{U}", 0.0, 8.0 / 12.0),
+    ] {
+        let grouping = Grouping::with_mana(
+            q(&["tutor", "target", "land"]),
+            vec![
+                (
+                    0b001,
+                    ManaSource::Castable {
+                        cost: Cost::parse(cost).unwrap().demand(),
+                        resolves: Resolves::IntoGraveyard,
+                    },
+                    1,
+                ),
+                (
+                    0b010,
+                    ManaSource::Castable {
+                        cost: Cost::parse("{1}").unwrap().demand(),
+                        resolves: Resolves::OntoBattlefield,
+                    },
+                    1,
+                ),
+                (0b100, untapped("U"), 10),
+            ],
+        )
+        .unwrap();
+        let schedule = Schedule::build(
+            4,
+            false,
+            vec![tutor(Fetched::Hand)],
+            Policies::casting(CastingPolicy::new(vec![1, 0])),
+        );
+        let share = |check: Check| holds(&grouping, &schedule, check);
+        for (what, got, want) in [
+            (
+                "tutor played by turn 2",
+                share(Box::new(|v: &PathView<'_>| {
+                    v.count_at(2, 0, Counted::Cast) == 1
+                })),
+                played,
+            ),
+            (
+                "Lantern cast by turn 2",
+                share(Box::new(|v: &PathView<'_>| {
+                    v.count_at(2, 1, Counted::Cast) == 1
+                })),
+                by_two,
+            ),
+            (
+                "Lantern cast by turn 4",
+                share(Box::new(|v: &PathView<'_>| {
+                    v.count_at(4, 1, Counted::Cast) == 1
+                })),
+                65.0 / 66.0,
+            ),
+        ] {
+            assert!(
+                (got - want).abs() < 1e-12,
+                "billed {cost}, {what}: {got}, not {want}"
+            );
+        }
+    }
+}
+
+#[test]
 fn a_delayed_fetch_to_hand_arrives_in_hand_when_it_fires() {
     // The Saga's shape with the card going to hand instead: set up by the land
     // drop on turn 1, resolved on turn 3. The Lantern is still in the library

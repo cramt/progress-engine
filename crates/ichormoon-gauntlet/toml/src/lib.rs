@@ -181,6 +181,11 @@ struct EffectDef {
     /// How much mana a card adds a turn once the line has cast it
     /// (ADR-0018). Sol Ring is `adds = 2`.
     adds: Option<i64>,
+    /// What the line bills for playing a matching card, where that is not its
+    /// printed mana cost: Dizzy Spell's transmute, `{1}{U}{U}`, or Whir of
+    /// Invention with the pilot's X, `{1}{U}{U}{U}` (ADR-0019). A value, not a
+    /// priority: which card the line plays is still `[casting]`'s.
+    cost: Option<String>,
     on: Option<String>,
     /// Absent means nothing leaves the top of the library. See
     /// [`gauntlet_criteria::Route::Nowhere`] for why that is a refusal to guess
@@ -537,6 +542,11 @@ pub struct EffectEntry {
     /// Declared rather than read: Scryfall's `produced_mana` is a palette with
     /// no amount, and Sol Ring makes two. See ADR-0018.
     pub adds: Option<u32>,
+    /// What the `[casting]` line bills for a matching card in place of its
+    /// printed cost, or `None` to bill what is printed: a transmute, or an X
+    /// the pilot chose (ADR-0019). Already a whole amount: `{X}` and hybrid
+    /// are refused here as `can_cast` refuses them.
+    pub cost: Option<Cost>,
     pub trigger: Trigger,
     /// The routing policy: which of the looked-at cards go to the graveyard.
     /// `None` is "none of them", and is the default.
@@ -1370,6 +1380,14 @@ pub enum ErrorKind {
     /// Half a mill, refused by what is missing (ADR-0017 §2).
     #[error("{at}: {why}")]
     MillMisdeclared { at: String, why: &'static str },
+    /// A declared cost is what the `[casting]` line pays for a card, so it
+    /// belongs on the effect of a cast. A land drop pays nothing.
+    #[error(
+        "{at}: has `cost` on a land drop, and a declared cost is what the `[casting]` line \
+         pays to play a card (ADR-0019).\n\
+         Write `on = \"cast\"`: Dizzy Spell's transmute is `cost = \"{{1}}{{U}}{{U}}\"` on its cast"
+    )]
+    CostOffACast { at: String },
 }
 
 /// A count with nowhere to go in a histogram, named against the expectation
@@ -1525,15 +1543,16 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
         let fetch = fetch_of(def, &at)?;
         let adds = adds_of(def, &at, trigger)?;
         let mill = mill_of(def, &at, trigger)?;
-        // `look` is required unless this effect fetches, adds mana or mills
-        // instead, and those are different things: a look turns over a card
+        let cost = cost_of(def, &at, trigger)?;
+        // `look` is required unless this effect fetches, adds mana, mills or
+        // declares a cost instead, and those are different things: a look turns over a card
         // nobody has seen and leaves it on top, a fetch names one, a source
         // turns over nothing, and a mill turns over cards and takes them all
         // off the top. An entry doing none of them would be a checkpoint spent
         // on an effect that cannot move a number.
         let look = match (
             def.look,
-            fetch.is_some() || adds.is_some() || mill.is_some(),
+            fetch.is_some() || adds.is_some() || mill.is_some() || cost.is_some(),
         ) {
             (Some(look), _) => u32::try_from(look)
                 .ok()
@@ -1570,6 +1589,7 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
             matches,
             look,
             adds,
+            cost,
             trigger,
             to_graveyard: def.to_graveyard.as_deref().map(|d| {
                 if d == EVERYTHING {
@@ -1709,6 +1729,26 @@ fn adds_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<u32>, E
         return Err(ErrorKind::AddsOnLandDrop { at: at.to_string() });
     }
     Ok(Some(amount))
+}
+
+/// Validate the `cost` key of one `[[effect]]` table.
+///
+/// A declared cost replaces the printed one in the `[casting]` line's bill
+/// (ADR-0019), so it is a whole amount — parsed as `can_cast` parses a cost,
+/// and refused for `{X}` or hybrid for the same reason — and it is paid on a
+/// cast, because a land drop costs nothing.
+fn cost_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<Cost>, ErrorKind> {
+    let Some(text) = &def.cost else {
+        return Ok(None);
+    };
+    let cost = Cost::parse(text).map_err(|cost| ErrorKind::BadCost {
+        at: at.to_string(),
+        cost,
+    })?;
+    if trigger != Trigger::Cast {
+        return Err(ErrorKind::CostOffACast { at: at.to_string() });
+    }
+    Ok(Some(cost))
 }
 
 /// Validate the `after` and `sacrifice` keys of one `[[effect]]` table.

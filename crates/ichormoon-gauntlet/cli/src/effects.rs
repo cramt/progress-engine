@@ -14,7 +14,7 @@
 use anyhow::{Context, Result};
 use chip_scryfall::index::TagGap;
 use chip_scryfall::Query;
-use gauntlet_criteria::{Effect, Fetch, Mill, Route, ToHand};
+use gauntlet_criteria::{Cost, Effect, Fetch, Mill, Route, ToHand};
 use gauntlet_toml::{
     Destination, EffectEntry, EffectLibrary, HandDecl, MillDecl, STANDARD_LIBRARY_ORIGIN,
 };
@@ -32,6 +32,9 @@ pub struct Applied {
     pub look: u32,
     /// How much mana a matched card adds once the line casts it (ADR-0018).
     pub adds: Option<u32>,
+    /// What the line bills for a matched card in place of its printed cost,
+    /// as written (ADR-0019).
+    pub cost: Option<String>,
     pub on: &'static str,
     pub to_graveyard: Option<String>,
     /// The declared tutor priority, as written, and where it puts what it
@@ -127,35 +130,8 @@ pub fn resolve(
     asked: &[String],
     line: &[bool],
 ) -> Result<Resolved> {
-    let matchers = library
-        .entries()
-        .iter()
-        .map(|e| parse(&e.matches, e, "match"))
-        .collect::<Result<Vec<_>>>()?;
-
-    // Last-wins, decided per card: every entry is tried and the last one to
-    // match keeps it.
-    //
-    // An effect that fires on a land drop only owns a card a land drop can
-    // play. Its query is Scryfall's, so `t:land` takes in Search for Azcanta,
-    // whose land is a back face it transforms into — and an effect claiming a
-    // card that is never played as a land would fire on a drop nobody can
-    // make, the moment a destination was declared (#61).
-    let owner: Vec<Option<usize>> = deck
-        .entries
-        .iter()
-        .map(|card| {
-            let view = card.card.view(&card.categories);
-            matchers
-                .iter()
-                .zip(library.entries())
-                .rposition(|(q, entry)| {
-                    q.matches(&view)
-                        && (entry.trigger != gauntlet_criteria::Trigger::LandDrop
-                            || crate::library::is_land(&card.card))
-                })
-        })
-        .collect();
+    let matchers = matchers(library)?;
+    let owner = owners(library, deck, &matchers);
 
     let mut applied = Vec::new();
     let mut unmatched = Vec::new();
@@ -231,6 +207,7 @@ pub fn resolve(
             matches: entry.matches.clone(),
             look: entry.look,
             adds: entry.adds,
+            cost: entry.cost.as_ref().map(|c| c.as_str().to_string()),
             on: entry.trigger.as_str(),
             to_graveyard: entry.to_graveyard.as_ref().map(|d| match d {
                 Destination::Everything => gauntlet_toml::EVERYTHING.to_string(),
@@ -377,6 +354,71 @@ fn hand_queries(mill: &MillDecl) -> Vec<&String> {
         HandDecl::Every(q) => vec![q],
         HandDecl::Chosen { of, prefer, .. } => of.iter().chain(prefer).collect(),
     }
+}
+
+/// Every entry's `match`, parsed.
+fn matchers(library: &EffectLibrary) -> Result<Vec<Query>> {
+    library
+        .entries()
+        .iter()
+        .map(|e| parse(&e.matches, e, "match"))
+        .collect()
+}
+
+/// Which entry owns each library card: last-wins, decided per card, where
+/// every entry is tried and the last one to match keeps it.
+///
+/// An effect that fires on a land drop only owns a card a land drop can play.
+/// Its query is Scryfall's, so `t:land` takes in Search for Azcanta, whose
+/// land is a back face it transforms into — and an effect claiming a card that
+/// is never played as a land would fire on a drop nobody can make, the moment
+/// a destination was declared (#61).
+fn owners(library: &EffectLibrary, deck: &Library, matchers: &[Query]) -> Vec<Option<usize>> {
+    deck.entries
+        .iter()
+        .map(|card| {
+            let view = card.card.view(&card.categories);
+            matchers
+                .iter()
+                .zip(library.entries())
+                .rposition(|(q, entry)| {
+                    q.matches(&view)
+                        && (entry.trigger != gauntlet_criteria::Trigger::LandDrop
+                            || crate::library::is_land(&card.card))
+                })
+        })
+        .collect()
+}
+
+/// A cost an effect declares for a card the `[casting]` line plays, in place
+/// of the printed one: Dizzy Spell's transmute, Whir of Invention's X
+/// (ADR-0019).
+#[derive(Debug, Clone)]
+pub struct Declared {
+    pub cost: Cost,
+    /// The `match` of the effect that declared it, so the run can say whose
+    /// declaration the bill came from.
+    pub effect: String,
+}
+
+/// One per library entry: the cost the effect owning it declares, where it
+/// declares one.
+///
+/// Asked before the `[casting]` line is priced, which is why it is apart
+/// from [`resolve`]: the owner is last-wins per card, exactly as there, so a
+/// card's declared cost and its fetch always come from the same entry.
+pub fn declared_costs(library: &EffectLibrary, deck: &Library) -> Result<Vec<Option<Declared>>> {
+    let matchers = matchers(library)?;
+    Ok(owners(library, deck, &matchers)
+        .into_iter()
+        .map(|o| {
+            let entry = &library.entries()[o?];
+            Some(Declared {
+                cost: entry.cost.clone()?,
+                effect: entry.matches.clone(),
+            })
+        })
+        .collect())
 }
 
 /// Parse one of an effect's queries, named against the entry that wrote it.

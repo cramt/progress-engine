@@ -526,7 +526,8 @@ otherwise produces a percentage that looks exactly like a real one:
 | two of `query`, `can_cast` and `cast` in one clause | three different questions, two of which would have to be answered silently |
 | `cast` and `zone` in one clause | a casting is not a zone. Where the spell is afterwards is a `query` with a `zone`: a cast instant or sorcery in the graveyard, a cast permanent on the battlefield |
 | `cast` with no `[casting]` table | which spell you cast out of one turn's mana is a decision, and a tool that picked would report a line nobody chose |
-| `[casting]` naming a card whose cost holds `{X}`, hybrid or no symbols at all | a bill read too cheaply does not only get that spell wrong — it leaves mana the rest of the line then spends |
+| `[casting]` naming a card whose cost holds `{X}`, hybrid or no symbols at all, and whose effect declares no `cost` | a bill read too cheaply does not only get that spell wrong — it leaves mana the rest of the line then spends. [Declare what you pay](#a-cost-the-line-pays-that-is-not-printed-dizzy-spell-and-whir-of-invention) and the `{X}` is yours |
+| `cost` holding `{X}` or a hybrid symbol, or on an effect that is not `on = "cast"` | a declared cost is the amount paid, already chosen; and a land drop pays nothing |
 | `can_cast = "{X}{G}"`, or any hybrid or Phyrexian symbol | each is a decision about how much to pay rather than an amount; read as zero, an X-spell is castable on turn one |
 | a mana question in a file with a live `to_graveyard` effect and no `[land_drop]` | both decide which land you played this turn, and they decide it differently. Declare the priority and they are one decision |
 | `[land_drop]` or `[casting]` with no `prefer` entries | it settles nothing, and the run would report a policy that decided nothing |
@@ -977,7 +978,8 @@ A card the line casts that could make mana in some game and is counted as making
 none is named: Fellwar Stone, whose mana is what an opponent's land could make
 and there is no opponent (CR 106.7), and Lotus Cobra, whose mana is a landfall
 trigger. Each makes every number that casts it a lower bound. A spell with
-improvise, affinity or convoke pays its printed cost, and is named too. The
+improvise, affinity or convoke pays its printed cost, or the one its effect
+declares, in full, and is named too. The
 run's note says all of it beneath the line:
 
 ```
@@ -1440,7 +1442,82 @@ All sampled, ± 0.04 to 0.08: nine groups and 42,220,035 compositions at turn 5,
 route B's width, in 0.8s. The first two rows move inside their error bars and
 the third is the route, +2.8 points on the play and +3.9 on the draw. The line
 casts the Seeker off lands alone, so these are floors until rocks join the
-bill. Whir of Invention, the route's other card, waits on a declared cost.
+bill. Whir of Invention, the route's other card, is played at a declared
+cost; see the next section.
+
+### A cost the line pays that is not printed: Dizzy Spell and Whir of Invention
+
+Some tutors are not played for their printed cost. Dizzy Spell is a `{U}`
+instant that does nothing for a Lantern deck; its **transmute** — `{1}{U}{U}`
+and discard it, at sorcery speed — finds a card with its mana value, 1, which
+is the Lantern. Whir of Invention is `{X}{U}{U}{U}`, and the X is the pilot's.
+An effect may say what the line pays for its card with `cost`, and the line
+bills that instead of the printed cost, both in the turn's bill and in the pips
+the question is enumerated on
+([ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)):
+
+```toml
+[[effect]]
+match = 'name:"Dizzy Spell"'
+on = "cast"
+cost = "{1}{U}{U}"
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+
+[[effect]]
+match = 'name:"Whir of Invention"'
+on = "cast"
+cost = "{1}{U}{U}{U}"          # X = 1
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+```
+
+`cost` is a value, like `look` and `after`, not a priority: which card the
+line plays is still `[casting] prefer`. It must be a whole amount, so `{X}` and
+hybrid are refused in it as `can_cast` refuses them, and it belongs on a cast.
+A card whose printed cost holds `{X}` is refused in `[casting]` **unless** its
+effect declares one; then the printed cost is never read. A `cast` clause counts
+a transmutation as a casting of the card, and every run prints the declared
+cost beside the printed one:
+
+```
+      Played at a cost an effect declares, not the printed one; a `cast` clause counts it as a casting:
+      Dizzy Spell: billed {1}{U}{U}, printed {U} (effect "name:\"Dizzy Spell\"")
+      Whir of Invention: billed {1}{U}{U}{U}, printed {X}{U}{U}{U} (effect "name:\"Whir of Invention\"")
+      Cost reductions are not modelled, so these pay their printed or declared cost in full: Whir of Invention.
+```
+
+and the JSON carries the same under `casting.declared_costs`. Improvise is not
+modelled, as no cost reducer is, so Whir pays its four whole and is a floor.
+
+**What it moves.** Without `cost`, the same Dizzy Spell effect is billed `{U}`
+and tutors on turn 1, which is the confident wrong number this exists to
+prevent. HANDS.md hand 41, ten Islands, Dizzy Spell and the Lantern, on the
+play:
+
+| | printed `{U}` | declared `{1}{U}{U}` |
+|---|---|---|
+| Dizzy Spell played by turn 2 | 2/3 = 66.67% | **0%** |
+| Lantern cast by turn 2 | 10/11 = 90.91% | **2/3 = 66.67%** |
+| Lantern cast by turn 4 | 65/66 = 98.48% | 65/66 = 98.48% |
+
+And hand 50, Whir at X = 1 in the same deck: never cast on turn 3, where an
+`{X}` read as zero would cast it, and the Lantern on the battlefield by turn 4
+on 130/132 deals.
+
+**On the deck it was built for.** `decks/lantern-route-tutors.criteria.toml`
+is `lantern-route-seeker.criteria.toml` with Dizzy Spell and Whir added to the
+line, so the two files differ by those two cards:
+
+| On `decks/lantern.txt` | play, Seeker | play, + both | draw, Seeker | draw, + both |
+|---|---|---|---|---|
+| Lantern on the battlefield by turn 5 | 13.76% | **21.75%** | 16.03% | **25.87%** |
+| Lantern of Insight cast by turn 5 | 11.10% | 16.60% | 12.14% | 18.86% |
+
+Sampled, ± 0.04 to 0.10: eleven groups and 284,738,168 compositions at turn 5
+on the play, about 1.2s a seat. +8.0 points on the play and +9.8 on the draw,
+against ADR-0019's +5.35 and +6.38, which were measured after four other routes
+were already in the line. Lands only, so floors until rocks join the bill.
 
 ### Mills: a spell that turns cards over
 

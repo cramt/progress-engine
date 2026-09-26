@@ -1734,6 +1734,73 @@ fn a_cast_fetch_onto_the_battlefield_is_left_to_the_deck_to_judge() {
     );
 }
 
+/// A cast effect with `cost = <cost>` and `on = <on>`, as Dizzy Spell's
+/// transmute declares it.
+fn declaring_cost(on: &str, cost: &str) -> Result<Criteria, ErrorKind> {
+    Criteria::parse(
+        &format!(
+            r#"
+            [[effect]]
+            match = 'name:"Dizzy Spell"'
+            on = "{on}"
+            cost = "{cost}"
+            fetch = ['name:"Lantern of Insight"']
+            to = "hand"
+
+            [casting]
+            prefer = ['name:"Dizzy Spell"']
+
+            [[criterion]]
+            name = "anything"
+            require = [{{ turn = 0, query = 'cat:"arm"', min = 1 }}]
+            "#
+        ),
+        "test.criteria.toml",
+    )
+    .map_err(|e| e.kind)
+}
+
+#[test]
+fn a_cast_effect_declares_the_cost_the_line_bills() {
+    // Dizzy Spell's transmute (ADR-0019): {1}{U}{U} and discard it, not its
+    // printed {U}. The file states the cost as a value, and it is read as one.
+    let criteria = declaring_cost("cast", "{1}{U}{U}").expect("should parse");
+    let effect = &criteria.effects().entries()[0];
+    assert_eq!(effect.cost, Some(Cost::parse("{1}{U}{U}").unwrap()));
+    // An effect that declares none leaves the printed cost to be billed.
+    let seeker = parse(
+        r#"
+        [[effect]]
+        match = 'name:"Tezzeret the Seeker"'
+        on = "cast"
+        fetch = ['name:"Lantern of Insight"']
+        to = "battlefield"
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    assert_eq!(seeker.effects().entries()[0].cost, None);
+}
+
+#[test]
+fn a_declared_cost_is_an_amount_and_is_paid_on_a_cast() {
+    // The declared cost is the pilot's X, already chosen: a cost that still
+    // holds {X} or a hybrid is refused as `can_cast` refuses it.
+    for cost in ["{X}{U}{U}{U}", "{U/R}", ""] {
+        let bad = declaring_cost("cast", cost).expect_err(cost);
+        assert!(matches!(bad, ErrorKind::BadCost { .. }), "{cost}: {bad}");
+    }
+    // And only a cast is billed: a land drop is free.
+    let bad = declaring_cost("landdrop", "{1}{U}{U}").expect_err("landdrop");
+    assert!(
+        matches!(bad, ErrorKind::CostOffACast { .. }),
+        "should name the trigger: {bad}"
+    );
+    assert!(bad.to_string().contains("on = \"cast\""), "{bad}");
+}
+
 #[test]
 fn an_effect_that_neither_looks_nor_fetches_is_refused() {
     // It would cost a checkpoint a turn to compute a value it cannot change.

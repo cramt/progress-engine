@@ -185,6 +185,18 @@ fn prepare_noting(
         .cloned()
         .chain(land_drop.iter().flat_map(|p| p.queries.iter().cloned()))
         .collect();
+    // The standard library first, then the file's own, because last-wins is
+    // what makes the prelude overridable without an override syntax.
+    let effect_library = gauntlet_toml::EffectLibrary::parse(
+        gauntlet_toml::STANDARD_LIBRARY,
+        gauntlet_toml::STANDARD_LIBRARY_ORIGIN,
+    )
+    .map_err(anyhow::Error::from)?
+    .followed_by(criteria.effects().clone());
+    // What an effect declares the line pays for a card, in place of its
+    // printed cost (ADR-0019). Asked before the line is priced, because it is
+    // the price.
+    let declared = effects::declared_costs(&effect_library, library)?;
     // The casting priority next, on the same terms and for the same reason:
     // its queries sit behind everything already asked for, so no bit a clause
     // holds moves. It is resolved here rather than later because pricing it is
@@ -193,7 +205,9 @@ fn prepare_noting(
     casting::check(criteria.casting(), library, origin)?;
     let casting = match criteria.casting() {
         [] => None,
-        prefer => Some(casting::resolve(prefer, library, &asked, origin)?),
+        prefer => Some(casting::resolve(
+            prefer, library, &asked, &declared, origin,
+        )?),
     };
     asked.extend(casting.iter().flat_map(|p| p.queries.iter().cloned()));
     // The mulligan next, on the same terms: its queries sit behind everything
@@ -260,14 +274,6 @@ fn prepare_noting(
         }
     }
 
-    // The standard library first, then the file's own, because last-wins is
-    // what makes the prelude overridable without an override syntax.
-    let effect_library = gauntlet_toml::EffectLibrary::parse(
-        gauntlet_toml::STANDARD_LIBRARY,
-        gauntlet_toml::STANDARD_LIBRARY_ORIGIN,
-    )
-    .map_err(anyhow::Error::from)?
-    .followed_by(criteria.effects().clone());
     let line: Vec<bool> = match &casting {
         Some(casting) => casting.costs.iter().map(Option::is_some).collect(),
         None => vec![false; library.entries.len()],
@@ -846,6 +852,17 @@ impl PreparedRun {
                     .collect(),
                 uncounted: line_mana.uncounted.clone(),
                 printed_cost: line_mana.printed_cost.clone(),
+                declared_costs: self.casting.as_ref().map_or_else(Vec::new, |p| {
+                    p.declared
+                        .iter()
+                        .map(|d| report::DeclaredCostUse {
+                            card: d.card.clone(),
+                            billed: d.billed.clone(),
+                            printed: d.printed.clone(),
+                            effect: d.effect.clone(),
+                        })
+                        .collect()
+                }),
             }),
             // Read off the schedule too. A mulligan decides which hand every
             // other number is of, so it is printed above all of them.
