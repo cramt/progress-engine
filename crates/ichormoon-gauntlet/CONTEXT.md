@@ -11,6 +11,10 @@ _Avoid_: gauntlet, script, config
 **Question**:
 Anything a criteria file asks: a criterion or an expectation.
 
+**North star**:
+The one question a deck's criteria file exists to answer, stated as an outcome rather than a route: where a card must be by turn N. Any line the pilot's own cards allow reaches it; opponents neither help nor hinder. Lantern: Lantern of Insight on the battlefield and the commander cast. Loam: Life from the Loam put into the graveyard and the commander cast.
+_Avoid_: headline, goal
+
 **Criterion**:
 A named question answered with a probability, optionally judged against a bound.
 _Avoid_: assertion, test
