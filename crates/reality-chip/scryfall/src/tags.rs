@@ -64,6 +64,17 @@ pub const STANDARD_TAGS: &[StandardTag] = &[
                   54 cards that actually do it, Prismatic Vista and Terramorphic Expanse \
                   included, and no query over card text separates them",
     },
+    StandardTag {
+        name: "mana-rock",
+        because: "mana sources: the standard effect library declares how much a rock the line \
+                  cast adds (`adds = n`), and a card's text says `{T}: Add` on a great many \
+                  things that are not a rock. The tag is Scryfall's answer to which are",
+    },
+    StandardTag {
+        name: "mana-dork",
+        because: "mana sources, as `mana-rock` but for creatures, which the rules make wait a \
+                  turn before they tap for anything",
+    },
 ];
 
 /// Just the names, for the fetcher and for the index header.

@@ -85,7 +85,7 @@ green suite has checked nothing.
   `lantern.txt` and `loam.txt`, with criteria files beside them. Report group
   counts, composition counts and wall times from a run rather than estimating
   them; `enumerations` in the JSON output carries them.
-- **`decks/index.jsonl` carries all eight oracle tags**, so the committed
+- **`decks/index.jsonl` carries all ten oracle tags**, so the committed
   criteria files answer against the committed index and a clone can reproduce
   every number in them: `gauntlet test decks/lantern.txt
   decks/lantern.criteria.toml --index decks/index.jsonl`. It was built with
