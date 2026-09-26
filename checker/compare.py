@@ -93,9 +93,9 @@ def main() -> int:
     p.add_argument("--decks", type=Path, default=here.parent / "decks")
     # 400,000 games puts the 99.9% half-width at 0.26pp at worst (p = 0.5).
     p.add_argument("--games", type=int, default=400_000)
-    # The pending questions are only reported; 100,000 games puts their
-    # 99.9% half-width at 0.52pp at worst.
-    p.add_argument("--pending-games", type=int, default=100_000)
+    # The pending questions are only reported; 20,000 games keeps CI near three minutes;
+    # pass --pending-games 100000 for a 0.52pp half-width.
+    p.add_argument("--pending-games", type=int, default=20_000)
     p.add_argument("--seed", default="0")
     args = p.parse_args()
 
