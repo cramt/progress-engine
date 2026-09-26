@@ -1,9 +1,22 @@
+ESTIMATE: a question here was too wide to enumerate exactly: 284738168
+          compositions across 11 groups, against a ceiling of 5000000. It was
+          answered by sampling 200000 hands instead.
+          Every percentage below is an ESTIMATE, not an exact answer.
+          The ± beside each one is its standard error, and a difference
+          smaller than that is not a difference.
+          Pass --exact to refuse a question this wide rather than estimate it.
 note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc" (adds 1, on cast)
       applies to 2 cards: Birds of Paradise, Elvish Mystic
       a mana source once the [casting] line casts it; the mana budget does not count it yet
+note: effect "name:\"Spellseeker\"" (on cast)
+      applies to 1 card: Spellseeker
+      and fetches, to your hand, the first of these the library still holds:
+      1. "name:\"Life from the Loam\""
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
 note: the spells cast here are decided by the priority this file declared, and every
       number below that depends on what was cast depends on it:
       1. "name:\"Life from the Loam\""
+      2. "name:\"Spellseeker\""
       Then a spell this list does not name is not cast at all. Ties: a tie inside one entry goes to the cheaper cost, then to the card this decklist names first.
 note: every number below keeps whatever seven it is dealt: this file declares no
       [mulligan], so no hand is ever sent back.
@@ -20,9 +33,8 @@ note: these lands make mana other than the card data lists, and this run reads t
       Scalding Tarn: a fetchland, read as the untapped lands it can find in this deck (Island, Mountain): pays {U}{R}, assuming one is still in the library to find.
       Simic Growth Chamber: counted as one mana a turn: the second mana it taps for, and the land it returns to hand, are not modelled.
       Wooded Foothills: a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain): pays {R}{G}, assuming one is still in the library to find.
-     Life from the Loam in the graveyard by turn 5 (by casting it)    9.92%
-     Life from the Loam cast by turn 5                                9.92%
-
-widest exact question: 1,026,432 compositions across 6 groups, 21% of the 5,000,000 ceiling, "Life from the Loam in the graveyard by turn 5 (by casting it)"
+     Life from the Loam in the graveyard by turn 5 (by casting it)   17.08% ± 0.08
+     Life from the Loam cast by turn 5                               17.08% ± 0.08
+     Spellseeker and Life from the Loam both cast by turn 5           8.01% ± 0.06
 
 PASS: 0 of 0 assertions met

@@ -10,8 +10,8 @@ lantern-route-c (lantern.txt) seat=play exit=0 wall=0.08s
 lantern-route-c (lantern.txt) seat=draw exit=0 wall=0.13s
 lantern (lantern.txt) seat=play exit=1 wall=0.72s
 lantern (lantern.txt) seat=draw exit=1 wall=0.71s
-loam-cast (loam.txt) seat=play exit=0 wall=0.44s
-loam-cast (loam.txt) seat=draw exit=0 wall=0.34s
+loam-cast (loam.txt) seat=play exit=0 wall=0.44s (re-run after #87)
+loam-cast (loam.txt) seat=draw exit=0 wall=0.34s (re-run after #87)
 loam-commander (loam.txt) seat=play exit=0 wall=0.51s
 loam-commander (loam.txt) seat=draw exit=0 wall=0.48s
 loam-thinning (loam.txt) seat=play exit=0 wall=1.16s

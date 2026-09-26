@@ -8,8 +8,8 @@
   "method": "sampled",
   "sampled_because": "too_wide",
   "too_wide": {
-    "paths": 6158592,
-    "groups": 6,
+    "paths": 3132119848,
+    "groups": 11,
     "ceiling": 5000000
   },
   "trials": 200000,
@@ -17,6 +17,10 @@
   "queries": [
     {
       "query": "name:\"Life from the Loam\"",
+      "cards": 1
+    },
+    {
+      "query": "name:\"Spellseeker\"",
       "cards": 1
     }
   ],
@@ -40,27 +44,46 @@
       ],
       "copies": 2,
       "live": false
+    },
+    {
+      "match": "name:\"Spellseeker\"",
+      "look": 0,
+      "on": "cast",
+      "fetch": [
+        "name:\"Life from the Loam\""
+      ],
+      "to": "hand",
+      "source": "decks/loam-cast.criteria.toml",
+      "cards": [
+        "Spellseeker"
+      ],
+      "copies": 1,
+      "live": true
     }
   ],
   "enumerations": [
     {
       "criteria": [
         "Life from the Loam in the graveyard by turn 5 (by casting it)",
-        "Life from the Loam cast by turn 5"
+        "Life from the Loam cast by turn 5",
+        "Spellseeker and Life from the Loam both cast by turn 5"
       ],
       "expectations": [],
       "queries": [
-        "name:\"Life from the Loam\""
+        "name:\"Life from the Loam\"",
+        "name:\"Spellseeker\"",
+        "<effect name:\"Spellseeker\">"
       ],
       "turns": [
         5
       ],
       "reading": "per-turn",
       "pips": [
+        "{U}",
         "{G}"
       ],
-      "groups": 6,
-      "compositions": 6158592,
+      "groups": 11,
+      "compositions": 3132119848,
       "method": "sampled"
     }
   ],
@@ -103,7 +126,8 @@
   ],
   "casting": {
     "prefer": [
-      "name:\"Life from the Loam\""
+      "name:\"Life from the Loam\"",
+      "name:\"Spellseeker\""
     ],
     "then": "a spell this list does not name is not cast at all",
     "tie_break": "a tie inside one entry goes to the cheaper cost, then to the card this decklist names first"
@@ -111,19 +135,28 @@
   "criteria": [
     {
       "name": "Life from the Loam in the graveyard by turn 5 (by casting it)",
-      "probability": 0.112345,
-      "percent": 11.23,
+      "probability": 0.19578,
+      "percent": 19.58,
       "at_least": null,
-      "standard_error": 0.000706,
+      "standard_error": 0.000887,
       "pass": true,
       "method": "sampled"
     },
     {
       "name": "Life from the Loam cast by turn 5",
-      "probability": 0.112345,
-      "percent": 11.23,
+      "probability": 0.19578,
+      "percent": 19.58,
       "at_least": null,
-      "standard_error": 0.000706,
+      "standard_error": 0.000887,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "Spellseeker and Life from the Loam both cast by turn 5",
+      "probability": 0.095355,
+      "percent": 9.54,
+      "at_least": null,
+      "standard_error": 0.000657,
       "pass": true,
       "method": "sampled"
     }
@@ -136,7 +169,7 @@
     "tool_version": "0.1.0",
     "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
-    "criteria_sha256": "7e627f79c6ad7e9896482ac4eb9a2df9d8f18bfa7ca12dea69338588ddf5c688",
+    "criteria_sha256": "3debfdac5d66b92c2c2754784d7b0cb349696c28349163da8e3b44bd3c522073",
     "effect_library_sha256": "43d0fe87aa0021ee3430ccc4a210019418f0ab41e9c2b80f148dee29b2168bf5"
   }
 }
