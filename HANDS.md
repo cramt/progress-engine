@@ -10,9 +10,11 @@ those.
 Each one states the hand, what actually happens, and what a naive model says
 instead. Where those differ, that difference is the test.
 
-**One of these is not answerable yet**, and it is marked with what it needs and
-with the measurement that says why it was refused rather than estimated. That
-is the point: they pin the semantics before the code exists, so that building
+**Some of these are not answerable yet**, and each is marked with what it
+needs. Hand 5 also carries the measurement that says why it was refused rather
+than estimated, and hands 19 to 25 pin what
+[ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md) decided
+before any of it is built. That is the point: they pin the semantics before the code exists, so that building
 the feature cannot quietly redefine the question — and hands 1, 2 and 3 are the
 worked case, written down as one Opt on turn 1 long before anything could say
 so, and answered as one Opt on turn 1 when something finally could.
@@ -200,6 +202,18 @@ percentage that changed kind. It is
 [#57](https://github.com/cramt/progress-engine/issues/57), and what it needs is
 [#18](https://github.com/cramt/progress-engine/issues/18)'s population that is
 not fixed, not more checkpoints.
+
+**Now decided, not yet built.**
+[ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md) makes the
+draw a gap whose size the path decides, which is the non-fixed population above
+and not a checkpoint on every turn. Opt's scry deals one card. Kept on top, it
+is the card the draw takes, so the draw deals nothing further. Sent to the
+bottom, the draw deals one more. Either way the drawn Island waits for turn 2,
+because a land drawn after the drop waits for the next one. The number this
+hand asks for is the same as above: two lands in play on turn 2, and one on
+turn 1.
+
+*Not answerable yet: needs sized gaps and a bottom destination (ADR-0017).*
 
 ---
 
@@ -628,6 +642,259 @@ battlefield fetch is refused by name rather than answered optimistically.
 
 ---
 
+## Discard, mill and dredge
+
+None of these is answerable yet. Each pins a behaviour that
+[ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md) decided,
+using the Loam deck's own cards, with Beast Within as filler. All are on the
+play. A resolved instant or sorcery goes to the graveyard
+([#79](https://github.com/cramt/progress-engine/issues/79)), so each spell
+below ends there too, and none of the counts below includes it unless a row
+says so. Where a hand fixes the order of the library, it is a test at the
+engine level with the deal written down, as hands 6 and 7 are.
+
+### 19. Aftermath Analyst mills the Loam before you could draw it
+
+```
+Forest ×2
+Aftermath Analyst
+Beast Within ×4
+(library, top first: Beast Within, Mountain, Life from the Loam, Island, Forest)
+
+[casting]
+prefer = ['name:"Aftermath Analyst"']
+```
+
+**Turn 2:** draw the Beast Within, play the second Forest, cast the Analyst,
+and mill three: Mountain, Life from the Loam, Island. **Turn 3:** draw the
+Forest, which is the card under the three, and play it.
+
+**Naive model:** the Analyst is cast and does nothing, which is what the tool
+says today. The Loam comes off the top on turn 4 and is **in hand**.
+
+| | today | mill 3 |
+|---|---|---|
+| Aftermath Analyst cast by turn 2 | yes | yes |
+| Loam in the graveyard by turn 4 | no | **yes**, from turn 2 |
+| Loam in hand by turn 4 | yes | **no** |
+| Forests on the battlefield on turn 3 | 2 | **3** |
+
+The first row must not move: what a spell does cannot change whether it was
+paid for. The last row is the reason a mill needs no checkpoint of its own. All
+three cards are consumed, so nothing is left on top for the next draw to be
+ambiguous about. The turn-3 draw is the fourth card, not the first.
+
+**And a number on paper.** Take the same Analyst in a twelve-card library:
+Forest ×2, Aftermath Analyst, Life from the Loam and Beast Within ×8. Of the
+deals on which the Analyst is cast on turn 2, the mill takes the Loam on
+**exactly one in three**. The cast needs only where the two Forests and the
+Analyst fall. The other nine cards fill five seen slots, three milled and one
+left over, and the Loam is equally likely to be in any of them. So the Loam is
+in hand 5/9 of the time, milled 3/9 and still in the library 1/9.
+
+*Not answerable yet: needs sized gaps and a compelled route on a cast
+(ADR-0017).*
+
+### 20. Malevolent Rumble keeps a permanent, and the Loam is not one
+
+```
+Forest ×2
+Malevolent Rumble
+Beast Within ×4
+(library, top first: Beast Within, Life from the Loam, Mountain,
+ Beast Within, Aftermath Analyst, Beast Within)
+```
+
+**Turn 2:** play the second Forest and cast Rumble. Reveal Life from the Loam,
+Mountain, Beast Within, Aftermath Analyst. At most one permanent goes to hand
+and **the rest go to the graveyard, because the card says so**. The file
+chooses the permanent; the library does not.
+
+| | nothing declared | `to_hand = ['t:land']` | `to_hand = ['name:"Life from the Loam"', 't:land']` |
+|---|---|---|---|
+| Loam in the graveyard on turn 2 | **yes** | **yes** | **yes** |
+| revealed cards in the graveyard on turn 2 | 4 | 3 | 3 |
+| lands on the battlefield on turn 3 | 2 | **3** | 3 |
+
+Three claims, one per column:
+
+- **An unrouted Rumble is not a no-op.** A surveil that routes nothing leaves
+  every card on top. A Rumble that keeps nothing bins all four, because the
+  destination is compelled rather than chosen.
+- **The kept land is played.** It is in hand for turn 3's drop.
+- **The list cannot take what the card cannot.** Life from the Loam is a
+  sorcery, so an entry naming it matches nothing Rumble may keep, and the next
+  entry decides.
+
+The Eldrazi Spawn is not counted as mana, and a run that cast Rumble says so.
+
+*Not answerable yet: needs sized gaps and hand as a chosen destination
+(ADR-0017).*
+
+### 21. Frantic Search, and the discard list decides where the Loam goes
+
+```
+Island ×3
+Frantic Search
+Beast Within ×3
+(library, top first: Beast Within, Beast Within, Life from the Loam, Forest)
+
+[casting]
+prefer = ['name:"Frantic Search"']
+```
+
+**Turn 3:** the third Island makes `{2}{U}`. Cast Frantic Search, draw Life
+from the Loam and the Forest, then discard two from a hand of seven: five
+Beast Within, the Loam and the Forest. Untap the three Islands, and nothing is
+left to spend them on.
+
+| | `[discard] prefer = ['name:"Life from the Loam"', 't:land']` | `prefer = ['name:"Beast Within"']` | no `[discard]` |
+|---|---|---|---|
+| Frantic Search cast on turn 3 | yes | yes | refused |
+| Loam in the graveyard on turn 3 | **yes** | no | refused |
+| Loam in hand on turn 3 | no | **yes** | refused |
+| lands in the graveyard on turn 3 | 1 | 0 | refused |
+
+**Naive model:** Frantic Search digs two, so the Loam is found and in hand.
+That is the middle column, and it is one declared list among several.
+
+The third column is the claim that the tool never picks. A discard the card
+forces is the pilot's choice. Without a list the run is refused, and the
+refusal names `[discard] prefer` as the remedy, as a land drop with two
+claimants and no `[land_drop]` is.
+
+The middle column also shows why a tie costs nothing here. The two discards
+come out of one entry that is one group, so there is one way to take them.
+
+*Not answerable yet: needs sized gaps and `[discard]` (ADR-0017).*
+
+### 22. Desperate Ravings discards at random, whatever the list says
+
+```
+Mountain ×2
+Desperate Ravings
+Beast Within ×4
+(library, top first: Beast Within, Life from the Loam, Forest)
+```
+
+**Turn 2:** play the second Mountain and cast Desperate Ravings. Draw Life from
+the Loam and the Forest, then discard one card **at random** from a hand of
+seven.
+
+| | `[discard] prefer = ['name:"Life from the Loam"']` | no `[discard]` |
+|---|---|---|
+| Loam in the graveyard on turn 2 | **1/7 = 14.29%** | **14.29%** |
+| Loam in hand on turn 2 | 85.71% | 85.71% |
+| a land in the graveyard on turn 2 | 14.29% | 14.29% |
+
+The pair is identical, and that is the claim. The card chooses, so the list is
+ignored rather than obeyed, and no list is not refused. The random discard is
+priced as a branch over what the hand holds, three ways here, weighted 5/7,
+1/7 and 1/7.
+
+*Not answerable yet: needs sized gaps and a random discard (ADR-0017).*
+
+### 23. Borborygmos and Fblthp cannot discard the Loam
+
+```
+(command zone: Borborygmos and Fblthp)
+(on the battlefield after turn 5's drop: Forest ×2, Island ×2, Mountain)
+(in hand: Life from the Loam, Mountain)
+(library, top first: Forest)
+
+[casting]
+prefer = ['name:"Borborygmos and Fblthp"']
+```
+
+**Turn 5:** cast the commander for `{2}{G}{U}{R}` from the command zone. It
+enters: draw the Forest, then you **may** discard any number of **land** cards.
+
+| | `[discard] prefer = ['name:"Life from the Loam"', 't:land']` | `prefer = ['name:"Life from the Loam"']` | no `[discard]` |
+|---|---|---|---|
+| Borborygmos and Fblthp cast on turn 5 | yes | yes | yes |
+| Loam in the graveyard on turn 5 | **no** | **no** | no |
+| lands in the graveyard on turn 5 | **2** | 0 | 0 |
+| Loam in hand on turn 5 | yes | yes | yes |
+
+- **Which cards are eligible is the card's**, and the list cannot widen it. The
+  Loam heads the list and stays in hand.
+- **"Any number" is every held card the list names**: the Mountain and the
+  Forest it just drew.
+- **An optional discard with no list discards nothing**, and is not refused,
+  where hand 21's forced one is.
+
+*Not answerable yet: needs casting from the command zone
+([#78](https://github.com/cramt/progress-engine/issues/78)), sized gaps and
+`[discard]` (ADR-0017).*
+
+### 24. A spell drawn mid-line is cast; a land drawn mid-line waits
+
+```
+(on the battlefield after turn 3's drop, which was an Island: Forest, Island ×2)
+(in hand: Frantic Search, Beast Within ×2)
+(library, top first: Life from the Loam, Forest)
+
+[casting]
+prefer = ['name:"Frantic Search"', 'name:"Life from the Loam"']
+```
+
+**Turn 3:** tap all three lands for Frantic Search. Draw Life from the Loam and
+the Forest, discard two, and untap the three lands. The line is read again from
+its top. If the Loam is still in hand, `{1}{G}` is there to cast it. The Forest
+is not played: this turn's drop was the Island.
+
+| | `[discard] prefer = ['name:"Beast Within"']` | `prefer = ['name:"Life from the Loam"', 'name:"Beast Within"']` |
+|---|---|---|
+| Frantic Search cast on turn 3 | yes | yes |
+| Life from the Loam cast on turn 3 | **yes** | **no** |
+| Loam in the graveyard on turn 3 | yes | yes |
+| lands on the battlefield on turn 3 | **3** | **3** |
+| Forest in hand on turn 3 | yes | yes |
+
+The graveyard is the same and the route is not, which is why the north star is
+asked of the graveyard and not of `cast`.
+
+- **The first column is what the untap buys.** It is taken as untapping the
+  three lands that paid for the spell, so the bill is where it was before the
+  spell. That is a floor: a pilot could untap three better lands.
+- **The fourth row is the stated floor on mid-line lands.** It is printed by
+  any run that dealt a card mid-line.
+
+*Not answerable yet: needs sized gaps, `[discard]` and a line that is re-read
+after each resolution (ADR-0017).*
+
+### 25. Dredge, and why a zone count is not an arrival
+
+```
+Forest ×2
+Life from the Loam
+...
+```
+
+**Turn 2:** cast Life from the Loam. It resolves, returns nothing, and goes to
+the graveyard. The north star is met on turn 2.
+
+**Turn 3:** the draw step could be replaced by Dredge 3: mill three and return
+the Loam to hand.
+
+- *Life from the Loam **put into** the graveyard by turn 5* is yes from turn 2,
+  whatever happens next. This is the north star.
+- *Life from the Loam **in** the graveyard on turn 5* is what a zone clause
+  counts. It is yes today, because the tool never dredges. If the Loam
+  dredged itself back on turn 3 and was not cast again, it would be **no**.
+
+The two are the same number only while nothing takes a card back out of the
+graveyard, and dredge is the first thing that would. Dredging the Loam is also
+never a route *into* the graveyard, since it starts there. Shenanigans'
+Dredge 1 is the one dredge that could mill the Loam, and in a scratch
+simulation of the deck it moved nothing measurable.
+
+*Not answerable yet, deliberately: needs a clause that counts arrivals, and a
+dredge priority over queries against the graveyard (ADR-0017). Until then the
+tool never dredges, which is a line the pilot could play, and it says so.*
+
+---
+
 ## Mulligans
 
 ### 18. Six lands and six spells, dealt until the rule is happy
@@ -698,7 +965,7 @@ case in #37, which is the one hole.*
 
 When the features land, these become tests — hands 1, 2, 3, 4, 6, 7, 8, 9, 10,
 11, 12, 13, 14, 15, 16, 17 and 18 already have, which is every one of them but
-hand 5.
+hand 5 and hands 19 to 25.
 Until then they are the specification: if an implementation disagrees with a
 hand here, one of the two is wrong and it is worth knowing which before shipping
 a percentage.

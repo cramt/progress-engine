@@ -113,7 +113,7 @@ The person playing the deck, who owns every decision the tool will not guess.
 _Avoid_: user (when the decision is about play), player
 
 **Declared priority**:
-An ordered list of queries the pilot declares, whose first match is the choice. It is the one mechanism for every pilot decision: which land to play, which spells to cast, what a tutor finds, where a look routes cards, what to bottom after a mulligan.
+An ordered list of queries the pilot declares, whose first match is the choice. It is the one mechanism for every pilot decision: which land to play, which spells to cast, what a tutor finds, where a look routes cards, what to bottom after a mulligan, what to discard.
 _Avoid_: policy language, strategy, heuristic, ordinals ("the fourth resource")
 
 **Entry**:
@@ -160,11 +160,11 @@ A declaration of what cards matching a query do when something triggers them: lo
 _Avoid_: ability, card script
 
 **Standard effect library**:
-The effects that ship with the tool and load before a file's own. They declare what a card looks at, never where the cards go.
+The effects that ship with the tool and load before a file's own. They declare what a card looks at, and the destinations its text compels. They never declare a destination the pilot chooses.
 _Avoid_: stdlib, prelude, standard library
 
 **Trigger**:
-What fires an effect: a land drop or a cast.
+What fires an effect: a land drop or a cast. An attack, and a land entering while a permanent is in play, are decided in ADR-0017 and not yet built.
 
 **Look**:
 Examining cards off the top of the library. A look that routes nothing changes nothing.
@@ -191,7 +191,36 @@ A family of effects grouped by what pays for them: the land-drop tier (free, one
 _Avoid_: tier (unqualified)
 
 **Replacement draw**:
-Any card drawn because a spell or effect said so, Opt's plain "draw a card" included. Broader than the rules term. Refused.
+Any card drawn because a spell or effect said so, Opt's plain "draw a card" included. Broader than the rules term, and the tier this glossary means by it: draws, looks and mills that fire off a cast rather than a land drop. Dealt as a sized gap ([ADR-0017](../../docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md)). Dredge, the one replacement in the rules' sense, is not modelled.
+_Avoid_: cantrip (for the tier)
+
+**Sized gap**:
+Cards a path turns over because something on it fired, whose number the path decides, so a path on which nothing fired deals none. Dealt as one unordered block when every card is used at once, and one card at a time when a card left on top decides the next draw.
+_Avoid_: extra checkpoint, draw slot
+
+**Deferred mill**:
+A mill that nothing reads before the question, dealt at the end of the path and only as finely as the question reads. A narrowing, so it moves no number.
+_Avoid_: lazy mill, tail (outside Reality Chip)
+
+**Mill**:
+Cards moved from the top of the library to the graveyard because the card says so. The destination is compelled rather than chosen, so the standard effect library may state it.
+
+**Compelled destination**:
+Where a card's own text sends the cards it moves, such as the graveyard for a mill or for what Malevolent Rumble does not keep. Stated by the effect library. Set against a **chosen destination**, which is the pilot's and is declared by the file.
+
+**Discard**:
+A card moved from hand to the graveyard. The card fixes how many, whether it is at random, and which cards are eligible. The pilot chooses which, with `[discard] prefer`, and a forced discard with no list is refused.
+_Avoid_: bin, pitch, loot (for the zone move)
+
+**Dredge**:
+Replacing a draw by milling N and returning the dredger from the graveyard to hand. Never done today, which is a line the pilot could play, and the run says so.
+
+**Arrival**:
+A card having been put into a zone by a turn, whether or not it is still there. The Loam north star asks for an arrival. A zone count gives the same number for as long as nothing leaves that zone. Not askable yet.
+_Avoid_: zone count (for this)
+
+**Mid-line card**:
+A card a spell's effect puts in hand while the line is being cast. A spell among them may be cast the same turn. A land waits for the next turn's drop, a stated floor.
 
 **Deck thinning**:
 A tutor or fetchland shrinking the library, and the change that makes to later draws.

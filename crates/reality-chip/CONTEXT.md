@@ -71,6 +71,12 @@ Taking cards from the population uniformly at random.
 Taking a known number of cards out of a named group, deterministically, between draws. A tutor is a removal; exiling off the top is a draw.
 _Avoid_: tutor (here), fetch (here)
 
+**Sized gap**:
+A draw whose size is decided by the path so far rather than fixed before the walk starts. It is the random counterpart of a removal, and a size of zero costs one composition. Decided in [ADR-0017](../../docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md), not yet built.
+
+**Tail**:
+A last draw dealt over a coarsening of the groups: several groups counted as one, because nothing reads them apart. Decided in ADR-0017, not yet built.
+
 **Checkpoint**:
 A point in the sequence of draws where counts are read.
 
