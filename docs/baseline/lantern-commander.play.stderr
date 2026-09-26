@@ -9,10 +9,10 @@ note: effect "t:land otag:surveil" (look 1, on landdrop, everything stays on top
       applies to 1 card: Hedge Maze
 note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc" (adds 1, on cast)
       applies to 5 cards: Arcane Signet, Mind Stone, Talisman of Creativity, Talisman of Curiosity, Talisman of Impulse
-      a mana source once the [casting] line casts it; the mana budget does not count it yet
+      a mana source once the [casting] line casts it
 note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add {C}{C}.\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc" (adds 2, on cast)
       applies to 1 card: Sol Ring
-      a mana source once the [casting] line casts it; the mana budget does not count it yet
+      a mana source once the [casting] line casts it
 note: the spells cast here are decided by the priority this file declared, and every
       number below that depends on what was cast depends on it:
       1. "name:\"Rashmi and Ragavan\""
@@ -35,8 +35,10 @@ note: these lands make mana other than the card data lists, and this run reads t
       Spire of Industry: pays {C} only: its other colours come with a condition this engine cannot see.
       Urza's Saga: makes mana for three turns, the one it is played on and the two after: its last chapter sacrifices it.
       Wooded Foothills: a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find.
-     commander cast by turn 4   42.50% ± 0.11
-     commander cast by turn 5   53.01% ± 0.11
-     commander cast by turn 6   61.49% ± 0.11
+     commander cast by turn 4                            42.50% ± 0.11
+     commander cast by turn 5                            53.01% ± 0.11
+     commander cast by turn 6                            61.49% ± 0.11
+     Rashmi and Ragavan castable by turn 4, lands only   42.50% ± 0.11
+     Rashmi and Ragavan castable by turn 5, lands only   53.01% ± 0.11
 
 PASS: 0 of 0 assertions met

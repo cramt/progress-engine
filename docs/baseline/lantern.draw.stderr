@@ -15,10 +15,10 @@ note: effect "t:land otag:surveil" (look 1, on landdrop, everything stays on top
       applies to 1 card: Hedge Maze
 note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc" (adds 1, on cast)
       applies to 5 cards: Arcane Signet, Mind Stone, Talisman of Creativity, Talisman of Curiosity, Talisman of Impulse
-      a mana source once the [casting] line casts it; the mana budget does not count it yet
+      a mana source once the [casting] line casts it
 note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add {C}{C}.\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc" (adds 2, on cast)
       applies to 1 card: Sol Ring
-      a mana source once the [casting] line casts it; the mana budget does not count it yet
+      a mana source once the [casting] line casts it
 note: every number below keeps whatever seven it is dealt: this file declares no
       [mulligan], so no hand is ever sent back.
 note: 10 lands here let the pilot decide whether to enter tapped. This run assumes they do:

@@ -65,7 +65,8 @@
   "enumerations": [
     {
       "criteria": [
-        "commander cast by turn 4"
+        "commander cast by turn 4",
+        "Rashmi and Ragavan castable by turn 4, lands only"
       ],
       "expectations": [],
       "queries": [
@@ -86,7 +87,8 @@
     },
     {
       "criteria": [
-        "commander cast by turn 5"
+        "commander cast by turn 5",
+        "Rashmi and Ragavan castable by turn 5, lands only"
       ],
       "expectations": [],
       "queries": [
@@ -210,6 +212,24 @@
       "standard_error": 0.001088,
       "pass": true,
       "method": "sampled"
+    },
+    {
+      "name": "Rashmi and Ragavan castable by turn 4, lands only",
+      "probability": 0.425015,
+      "percent": 42.5,
+      "at_least": null,
+      "standard_error": 0.001105,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "Rashmi and Ragavan castable by turn 5, lands only",
+      "probability": 0.530135,
+      "percent": 53.01,
+      "at_least": null,
+      "standard_error": 0.001116,
+      "pass": true,
+      "method": "sampled"
     }
   ],
   "expectations": [],
@@ -220,7 +240,7 @@
     "tool_version": "0.1.0",
     "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "b39ac98bea3f6724d9811f28c50bc966d28734bcb31de6e1349b8fe526f2ab09",
-    "criteria_sha256": "2c072eb626017003d4ef6ca172cc97c336aaa5656767afa0c3dbc213cb92d003",
+    "criteria_sha256": "da6a6449a19b313d01816088487be0c4ca602854418cf8cca2f9999c22c4793c",
     "effect_library_sha256": "43d0fe87aa0021ee3430ccc4a210019418f0ab41e9c2b80f148dee29b2168bf5"
   }
 }

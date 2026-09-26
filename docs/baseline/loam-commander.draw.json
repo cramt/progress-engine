@@ -39,7 +39,8 @@
   "enumerations": [
     {
       "criteria": [
-        "commander cast by turn 5"
+        "commander cast by turn 5",
+        "Borborygmos and Fblthp castable by turn 5, lands only"
       ],
       "expectations": [],
       "queries": [
@@ -98,6 +99,27 @@
       ],
       "groups": 16,
       "compositions": 45780056408064,
+      "method": "sampled"
+    },
+    {
+      "criteria": [
+        "Borborygmos and Fblthp castable by turn 4, lands only"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Borborygmos and Fblthp\""
+      ],
+      "turns": [
+        4
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{U}",
+        "{R}",
+        "{G}"
+      ],
+      "groups": 16,
+      "compositions": 11176771584,
       "method": "sampled"
     }
   ],
@@ -175,6 +197,24 @@
       "standard_error": 0.000926,
       "pass": true,
       "method": "sampled"
+    },
+    {
+      "name": "Borborygmos and Fblthp castable by turn 4, lands only",
+      "probability": 0,
+      "percent": 0,
+      "at_least": null,
+      "standard_error": 0,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "Borborygmos and Fblthp castable by turn 5, lands only",
+      "probability": 0.62095,
+      "percent": 62.1,
+      "at_least": null,
+      "standard_error": 0.001085,
+      "pass": true,
+      "method": "sampled"
     }
   ],
   "expectations": [],
@@ -185,7 +225,7 @@
     "tool_version": "0.1.0",
     "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
-    "criteria_sha256": "6851faab3ca066c563e35ed988dea6ed9d9398d0964c0528562a4b04c3bc3136",
+    "criteria_sha256": "0d2ba70aa0f3bb753276e3d3ea6a1178dfec77f028289b0a44b3e5cab1f76980",
     "effect_library_sha256": "43d0fe87aa0021ee3430ccc4a210019418f0ab41e9c2b80f148dee29b2168bf5"
   }
 }

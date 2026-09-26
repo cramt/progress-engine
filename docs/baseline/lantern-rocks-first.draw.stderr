@@ -1,5 +1,5 @@
-ESTIMATE: a question here was too wide to enumerate exactly: 11771766775296
-          compositions across 18 groups, against a ceiling of 5000000. It was
+ESTIMATE: a question here was too wide to enumerate exactly: 16210309939200
+          compositions across 24 groups, against a ceiling of 5000000. It was
           answered by sampling 200000 hands instead.
           Every percentage below is an ESTIMATE, not an exact answer.
           The ± beside each one is its standard error, and a difference
@@ -15,10 +15,23 @@ note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add {C}{C}.\" -o:\"ent
       a mana source once the [casting] line casts it
 note: the spells cast here are decided by the priority this file declared, and every
       number below that depends on what was cast depends on it:
-      1. "name:\"Rashmi and Ragavan\""
+      1. "name:\"Sol Ring\""
+      2. "name:\"Arcane Signet\""
+      3. "name:\"Talisman of Creativity\""
+      4. "name:\"Talisman of Curiosity\""
+      5. "name:\"Talisman of Impulse\""
+      6. "name:\"Mind Stone\""
+      7. "name:\"Rashmi and Ragavan\""
       Then a spell this list does not name is not cast at all. Ties: a tie inside one entry goes to the cheaper cost, then to the card this decklist names first.
       Cast from the command zone — never drawn, always there, cast at most once: Rashmi and Ragavan.
       At equal cost inside one entry, a card from the library is cast first.
+      Mana sources once cast — a rock's mana pays only for what the line casts after it, and a dork's from the next turn:
+      Arcane Signet: adds 1 of {U}{R}{G}
+      Mind Stone: adds 1 of {C}
+      Sol Ring: adds 2 of {C}
+      Talisman of Creativity: adds 1 of {U}{R}{C}
+      Talisman of Curiosity: adds 1 of {U}{G}{C}
+      Talisman of Impulse: adds 1 of {R}{G}{C}
 note: every number below keeps whatever seven it is dealt: this file declares no
       [mulligan], so no hand is ever sent back.
 note: 10 lands here let the pilot decide whether to enter tapped. This run assumes they do:
@@ -35,10 +48,6 @@ note: these lands make mana other than the card data lists, and this run reads t
       Spire of Industry: pays {C} only: its other colours come with a condition this engine cannot see.
       Urza's Saga: makes mana for three turns, the one it is played on and the two after: its last chapter sacrifices it.
       Wooded Foothills: a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find.
-     commander cast by turn 4                            51.49% ± 0.11
-     commander cast by turn 5                            61.30% ± 0.11
-     commander cast by turn 6                            68.68% ± 0.10
-     Rashmi and Ragavan castable by turn 4, lands only   51.49% ± 0.11
-     Rashmi and Ragavan castable by turn 5, lands only   61.30% ± 0.11
+     Rashmi and Ragavan cast by turn 5, rocks first in the line   73.43% ± 0.10
 
 PASS: 0 of 0 assertions met

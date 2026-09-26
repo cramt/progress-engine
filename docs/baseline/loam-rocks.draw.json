@@ -4,12 +4,12 @@
     "Borborygmos and Fblthp"
   ],
   "excluded": [],
-  "on_the_draw": false,
+  "on_the_draw": true,
   "method": "sampled",
   "sampled_because": "too_wide",
   "too_wide": {
-    "paths": 2861253525504,
-    "groups": 16,
+    "paths": 653987043072,
+    "groups": 18,
     "ceiling": 5000000
   },
   "trials": 200000,
@@ -39,75 +39,12 @@
   "enumerations": [
     {
       "criteria": [
-        "commander cast by turn 5",
-        "Borborygmos and Fblthp castable by turn 5, lands only"
+        "Borborygmos and Fblthp cast by turn 4, dorks in the line"
       ],
       "expectations": [],
       "queries": [
-        "name:\"Borborygmos and Fblthp\""
-      ],
-      "turns": [
-        5
-      ],
-      "reading": "per-turn",
-      "pips": [
-        "{U}",
-        "{R}",
-        "{G}"
-      ],
-      "groups": 16,
-      "compositions": 11176771584,
-      "method": "sampled"
-    },
-    {
-      "criteria": [
-        "commander cast by turn 6"
-      ],
-      "expectations": [],
-      "queries": [
-        "name:\"Borborygmos and Fblthp\""
-      ],
-      "turns": [
-        6
-      ],
-      "reading": "per-turn",
-      "pips": [
-        "{U}",
-        "{R}",
-        "{G}"
-      ],
-      "groups": 16,
-      "compositions": 178828345344,
-      "method": "sampled"
-    },
-    {
-      "criteria": [
-        "commander cast by turn 7"
-      ],
-      "expectations": [],
-      "queries": [
-        "name:\"Borborygmos and Fblthp\""
-      ],
-      "turns": [
-        7
-      ],
-      "reading": "per-turn",
-      "pips": [
-        "{U}",
-        "{R}",
-        "{G}"
-      ],
-      "groups": 16,
-      "compositions": 2861253525504,
-      "method": "sampled"
-    },
-    {
-      "criteria": [
-        "Borborygmos and Fblthp castable by turn 4, lands only"
-      ],
-      "expectations": [],
-      "queries": [
-        "name:\"Borborygmos and Fblthp\""
+        "name:\"Borborygmos and Fblthp\"",
+        "name:\"Birds of Paradise\" or name:\"Elvish Mystic\""
       ],
       "turns": [
         4
@@ -118,8 +55,30 @@
         "{R}",
         "{G}"
       ],
-      "groups": 16,
-      "compositions": 698548224,
+      "groups": 18,
+      "compositions": 36332613504,
+      "method": "sampled"
+    },
+    {
+      "criteria": [
+        "Borborygmos and Fblthp cast by turn 5, dorks in the line"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Borborygmos and Fblthp\"",
+        "name:\"Birds of Paradise\" or name:\"Elvish Mystic\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{U}",
+        "{R}",
+        "{G}"
+      ],
+      "groups": 18,
+      "compositions": 653987043072,
       "method": "sampled"
     }
   ],
@@ -162,57 +121,53 @@
   ],
   "casting": {
     "prefer": [
-      "name:\"Borborygmos and Fblthp\""
+      "name:\"Borborygmos and Fblthp\"",
+      "name:\"Birds of Paradise\" or name:\"Elvish Mystic\""
     ],
     "then": "a spell this list does not name is not cast at all",
     "tie_break": "a tie inside one entry goes to the cheaper cost, then to the card this decklist names first",
     "from_command_zone": [
       "Borborygmos and Fblthp"
+    ],
+    "sources": [
+      {
+        "card": "Birds of Paradise",
+        "adds": 1,
+        "makes": [
+          "{W}",
+          "{U}",
+          "{B}",
+          "{R}",
+          "{G}"
+        ],
+        "waits": 1
+      },
+      {
+        "card": "Elvish Mystic",
+        "adds": 1,
+        "makes": [
+          "{G}"
+        ],
+        "waits": 1
+      }
     ]
   },
   "criteria": [
     {
-      "name": "commander cast by turn 5",
-      "probability": 0.519855,
-      "percent": 51.99,
+      "name": "Borborygmos and Fblthp cast by turn 4, dorks in the line",
+      "probability": 0.12399,
+      "percent": 12.4,
       "at_least": null,
-      "standard_error": 0.001117,
+      "standard_error": 0.000737,
       "pass": true,
       "method": "sampled"
     },
     {
-      "name": "commander cast by turn 6",
-      "probability": 0.62159,
-      "percent": 62.16,
+      "name": "Borborygmos and Fblthp cast by turn 5, dorks in the line",
+      "probability": 0.663655,
+      "percent": 66.37,
       "at_least": null,
-      "standard_error": 0.001084,
-      "pass": true,
-      "method": "sampled"
-    },
-    {
-      "name": "commander cast by turn 7",
-      "probability": 0.70838,
-      "percent": 70.84,
-      "at_least": null,
-      "standard_error": 0.001016,
-      "pass": true,
-      "method": "sampled"
-    },
-    {
-      "name": "Borborygmos and Fblthp castable by turn 4, lands only",
-      "probability": 0,
-      "percent": 0,
-      "at_least": null,
-      "standard_error": 0,
-      "pass": true,
-      "method": "sampled"
-    },
-    {
-      "name": "Borborygmos and Fblthp castable by turn 5, lands only",
-      "probability": 0.519855,
-      "percent": 51.99,
-      "at_least": null,
-      "standard_error": 0.001117,
+      "standard_error": 0.001056,
       "pass": true,
       "method": "sampled"
     }
@@ -225,7 +180,7 @@
     "tool_version": "0.1.0",
     "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
-    "criteria_sha256": "0d2ba70aa0f3bb753276e3d3ea6a1178dfec77f028289b0a44b3e5cab1f76980",
+    "criteria_sha256": "0faa25759b73db32741c705fbdaf39f16a29585331a131fb0731af648cb273a0",
     "effect_library_sha256": "43d0fe87aa0021ee3430ccc4a210019418f0ab41e9c2b80f148dee29b2168bf5"
   }
 }
