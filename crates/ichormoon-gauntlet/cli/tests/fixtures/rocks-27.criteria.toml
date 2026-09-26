@@ -1,0 +1,15 @@
+# HANDS.md hand 27: Island, Sol Ring, Memory Lapse. Sol Ring's {C}{C} pays
+# only for what the line casts after it, and Memory Lapse needs {U}, which the
+# Island already spent on Sol Ring. One joint matching over {1} + {1}{U} would
+# let Sol Ring pay for itself and say turn 1.
+
+[casting]
+prefer = ['name:"Sol Ring"', 'name:"Memory Lapse"']
+
+[[criterion]]
+name = "Memory Lapse cast on turn 1"
+require = [{ turn = 1, cast = 'name:"Memory Lapse"', min = 1 }]
+
+[[criterion]]
+name = "Memory Lapse cast by turn 2"
+require = [{ turn = 2, cast = 'name:"Memory Lapse"', min = 1 }]

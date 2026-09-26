@@ -1,0 +1,9 @@
+# What a run says about the rocks its line names: how much each adds and of
+# what, read off the card and the effect library.
+
+[casting]
+prefer = ['name:"Arcane Signet"', 'name:"Talisman of Creativity"']
+
+[[criterion]]
+name = "Arcane Signet cast by turn 3"
+require = [{ turn = 3, cast = 'name:"Arcane Signet"', min = 1 }]

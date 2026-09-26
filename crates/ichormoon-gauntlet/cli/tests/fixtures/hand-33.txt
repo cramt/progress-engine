@@ -1,0 +1,9 @@
+// HANDS.md hand 33: Fellwar Stone makes nothing, because nobody else is at the
+// table.
+//
+// Eleven cards rather than seven, because turn 5 on the play has drawn four
+// more. Two Islands are the only mana on any deal, and Trinket Mage costs three.
+2x Island [Land]
+1x Fellwar Stone [Ramp]
+1x Trinket Mage [Tutor]
+7x Opt [Filler]

@@ -11,10 +11,10 @@
 
 use std::convert::Infallible;
 
-use gauntlet_criteria::mana::Pip;
+use gauntlet_criteria::mana::{Constraint, Made, Pip, Source};
 use gauntlet_criteria::{Answering, Chosen, Conditionals, LandDetail, Objective, Table};
 use gauntlet_criteria::{
-    Cost, Count, Counted, Evaluator, Grouping, Keep, ManaSource, MulliganPolicy, Palette,
+    Cost, Count, Counted, Demand, Evaluator, Grouping, Keep, ManaSource, MulliganPolicy, Palette,
     PathOutcomes, PathView, Plan, Policies, Schedule, Zone,
 };
 use proptest::prelude::*;
@@ -1189,6 +1189,325 @@ fn a_battlefield_count_beside_a_cost_survives_the_restriction_too() {
                     narrow.get()
                 );
             }
+            Ok(())
+        })
+        .unwrap();
+}
+
+// --- Rocks in the line, narrowed (ADR-0018) ---------------------------------
+
+/// A manabase, some rocks and dorks and one spell, all in one entry of a
+/// line, and a cost asked beside it on the last turn.
+#[derive(Debug, Clone)]
+struct RockQuestion {
+    grouping: Grouping,
+    gaps: Vec<u32>,
+    cost: Cost,
+    /// Every pip kind the line's own costs demand, which the CLI joins with
+    /// the clause's.
+    line: Palette,
+}
+
+fn rock_question() -> impl Strategy<Value = RockQuestion> {
+    // Few costs and few colours, so that two rocks alike to a narrow question
+    // and a spell at the same cost between them come up often: that is the
+    // interleaving the tie rule has to survive.
+    let costs = || prop::sample::select(vec!["{2}", "{2}", "{1}", "{1}{G}"]);
+    (
+        prop::collection::vec((0u8..(1 << 6), any::<bool>(), 1u32..=6), 1..=3),
+        // Rocks and dorks, in decklist order: what each costs, makes, adds
+        // and waits. Three of them is the interleaving the tie rule has to
+        // survive.
+        prop::collection::vec(
+            (
+                costs(),
+                prop::sample::select(vec!["R", "U", "G", "C", "UR"]),
+                1u32..=2,
+                0u32..=1,
+            ),
+            1..=3,
+        ),
+        (costs(), 0usize..=3),
+        1u32..=12,
+        0u32..=7,
+        prop::collection::vec(0u32..=2, 1..=3),
+        prop_oneof![
+            prop::sample::select(vec!["{G}", "{1}", "{G}{G}", "{2}{G}"]).prop_map(String::from),
+            cost_text(),
+        ],
+    )
+        .prop_map(
+            |(lands, rocks, (spell, at), blanks, opening, extras, text)| {
+                let mut line = Palette::EMPTY;
+                let mut cards: Vec<(u64, ManaSource, u32)> = Vec::new();
+                for (cost, makes, adds, waits) in rocks {
+                    let cost = Cost::parse(cost).unwrap();
+                    line = line.union(cost.demands());
+                    cards.push((
+                        0b1,
+                        ManaSource::RockOrDork {
+                            cost: cost.demand(),
+                            adds,
+                            makes: Palette::from_letters([makes]),
+                            waits,
+                        },
+                        1,
+                    ));
+                }
+                // The spell anywhere among them in decklist order, which is
+                // where a merge of two rocks either side of it would move one.
+                let spell = Cost::parse(spell).unwrap();
+                line = line.union(spell.demands());
+                cards.insert(
+                    at.min(cards.len()),
+                    (
+                        0b1,
+                        ManaSource::Castable {
+                            cost: spell.demand(),
+                            resolves: gauntlet_criteria::Resolves::OntoBattlefield,
+                        },
+                        1,
+                    ),
+                );
+                for (bits, enters_tapped, qty) in lands {
+                    cards.push((
+                        0b0,
+                        ManaSource::Land {
+                            enters_tapped,
+                            produces: palette_of(bits),
+                            lasts: None,
+                        },
+                        qty,
+                    ));
+                }
+                cards.push((0b0, ManaSource::Spell, blanks));
+                let grouping = Grouping::with_mana(vec!["line".to_string()], cards).unwrap();
+                let gaps =
+                    feasible_gaps_within(grouping.group_sizes(), opening, &extras, MANA_BUDGET);
+                RockQuestion {
+                    grouping,
+                    gaps,
+                    cost: Cost::parse(&text).expect("payable symbols"),
+                    line,
+                }
+            },
+        )
+}
+
+#[test]
+fn a_line_with_rocks_in_it_is_answered_the_same_on_the_colours_it_demands_alone() {
+    // The narrowing of #55 over a line that casts rocks and dorks: a rock's
+    // palette narrows like a land's, except where the merge would move one
+    // across something seen differently in the tie order. Every count the
+    // line leaves, and every cost asked beside it, must come out the same.
+    runner(512)
+        .run(&rock_question(), |q| {
+            let schedule = Schedule::plain_with(
+                &q.gaps,
+                Policies::casting(gauntlet_criteria::CastingPolicy::new(vec![0])),
+            );
+            let last = q.gaps.len() - 1;
+            let plan = only_criteria(3);
+            let questions = |cost: Cost| {
+                Closures(vec![
+                    Box::new(move |v: &PathView<'_>| v.can_cast(last, &cost)) as Check,
+                    Box::new(move |v: &PathView<'_>| v.count_at(last, 0, Counted::Cast) >= 2),
+                    Box::new(move |v: &PathView<'_>| {
+                        v.count_at(last, 0, Counted::In(Zone::Hand)) >= 1
+                    }),
+                ])
+            };
+            let whole = q
+                .grouping
+                .coarsened(u64::MAX, LandDetail::Pips(Palette::ALL));
+            let narrowed = q
+                .grouping
+                .coarsened(u64::MAX, LandDetail::Pips(q.cost.demands().union(q.line)));
+            let full =
+                gauntlet_criteria::run(&whole, &schedule, plan, &mut questions(q.cost.clone()))
+                    .map_err(|e| TestCaseError::fail(format!("{q:?} was refused: {e}")))?;
+            let narrow =
+                gauntlet_criteria::run(&narrowed, &schedule, plan, &mut questions(q.cost.clone()))
+                    .map_err(|e| TestCaseError::fail(format!("{q:?} was refused narrowed: {e}")))?;
+            for (i, (wide, thin)) in full
+                .probabilities
+                .iter()
+                .zip(&narrow.probabilities)
+                .enumerate()
+            {
+                prop_assert!(
+                    (wide.get() - thin.get()).abs() < SAME_ANSWER,
+                    "question {i}: {} whole, {} narrowed, over {:?}",
+                    wide.get(),
+                    thin.get(),
+                    q
+                );
+            }
+            Ok(())
+        })
+        .unwrap();
+}
+
+// --- The staged bill (ADR-0018) ---------------------------------------------
+
+/// One turn's payment problem, small enough to settle by trying every
+/// assignment: lands by slot, the mana rocks and dorks made and from which
+/// stage of the line it may pay, the bill stage by stage, how many lands the
+/// turn may tap, and what the payment is obliged to use.
+#[derive(Debug, Clone)]
+struct Staged {
+    lands: Vec<(Source, u32)>,
+    made: Vec<Made>,
+    stages: Vec<Cost>,
+    cap: u32,
+    constraint: Constraint,
+}
+
+fn palette_of(bits: u8) -> Palette {
+    Palette::of(
+        Pip::ALL
+            .into_iter()
+            .filter(|p| bits & (1 << (*p as u8)) != 0),
+    )
+}
+
+fn staged() -> impl Strategy<Value = Staged> {
+    (
+        prop::collection::vec((0u8..(1 << 6), any::<bool>(), 0u32..=2), 1..=3),
+        prop::collection::vec((0usize..=2, 0u8..(1 << 6), 1u32..=2), 0..=3),
+        prop::collection::vec(cost_text(), 1..=3),
+        0u32..=6,
+        0usize..=4,
+    )
+        .prop_map(|(lands, made, stages, cap, constraint)| {
+            let lands: Vec<(Source, u32)> = lands
+                .into_iter()
+                .map(|(bits, tapped, count)| {
+                    (
+                        Source {
+                            produces: palette_of(bits),
+                            tapped,
+                            lasts: None,
+                        },
+                        count,
+                    )
+                })
+                .collect();
+            let stages: Vec<Cost> = stages
+                .iter()
+                .map(|t| Cost::parse(t).expect("payable symbols"))
+                .collect();
+            let made = made
+                .into_iter()
+                .map(|(stage, bits, count)| Made {
+                    stage: stage.min(stages.len() - 1),
+                    produces: palette_of(bits),
+                    count,
+                })
+                .collect();
+            let constraint = match constraint {
+                0 | 1 => Constraint::Anything,
+                2 => Constraint::IncludesUntapped,
+                n => Constraint::Includes((n - 3).min(lands.len() - 1)),
+            };
+            Staged {
+                lands,
+                made,
+                stages,
+                cap,
+                constraint,
+            }
+        })
+}
+
+/// The payment settled by brute force: every symbol of every stage given its
+/// own unit of mana, trying every unit for every symbol.
+fn settles_by_hand(q: &Staged) -> bool {
+    // (stage it may first pay, palette, which land slot or none, untapped)
+    let mut units: Vec<(usize, Palette, Option<usize>, bool)> = Vec::new();
+    for (slot, (source, count)) in q.lands.iter().enumerate() {
+        for _ in 0..*count {
+            units.push((0, source.produces, Some(slot), !source.tapped));
+        }
+    }
+    for made in &q.made {
+        for _ in 0..made.count {
+            units.push((made.stage, made.produces, None, false));
+        }
+    }
+    // (stage, the pip it demands or none for generic)
+    let mut symbols: Vec<(usize, Option<Pip>)> = Vec::new();
+    for (stage, cost) in q.stages.iter().enumerate() {
+        let demand = cost.demand();
+        for pip in Pip::ALL {
+            for _ in 0..demand.of(pip) {
+                symbols.push((stage, Some(pip)));
+            }
+        }
+        for _ in 0..demand.generic() {
+            symbols.push((stage, None));
+        }
+    }
+    fn assign(
+        i: usize,
+        symbols: &[(usize, Option<Pip>)],
+        units: &[(usize, Palette, Option<usize>, bool)],
+        used: &mut Vec<bool>,
+        q: &Staged,
+    ) -> bool {
+        if i == symbols.len() {
+            let lands = (0..units.len())
+                .filter(|&u| used[u] && units[u].2.is_some())
+                .count() as u32;
+            let obliged = match q.constraint {
+                Constraint::Anything => true,
+                Constraint::Includes(slot) => {
+                    (0..units.len()).any(|u| used[u] && units[u].2 == Some(slot))
+                }
+                Constraint::IncludesUntapped => {
+                    (0..units.len()).any(|u| used[u] && units[u].2.is_some() && units[u].3)
+                }
+            };
+            return lands <= q.cap && obliged;
+        }
+        let (stage, pip) = symbols[i];
+        for u in 0..units.len() {
+            let (from, palette, _, _) = units[u];
+            if used[u] || from > stage || pip.is_some_and(|p| !palette.makes(p)) {
+                continue;
+            }
+            used[u] = true;
+            if assign(i + 1, symbols, units, used, q) {
+                return true;
+            }
+            used[u] = false;
+        }
+        false
+    }
+    let mut used = vec![false; units.len()];
+    assign(0, &symbols, &units, &mut used, q)
+}
+
+#[test]
+fn a_staged_bill_settles_exactly_when_some_assignment_pays_it() {
+    // ADR-0018's matching with nested supply, against the definition: a
+    // payment gives every symbol its own unit of mana, a rock's mana pays only
+    // for what was cast after it, no more lands than the turn could tap, and
+    // the obligation met. The flow and the brute force must agree on every
+    // generated turn, not merely on the ones somebody thought of.
+    runner(2048)
+        .run(&staged(), |q| {
+            let sources: Vec<Source> = q.lands.iter().map(|(s, _)| *s).collect();
+            let stages: Vec<Demand> = q.stages.iter().map(Cost::demand).collect();
+            let flow = gauntlet_criteria::mana::settles(
+                &stages,
+                &sources,
+                |slot| q.lands[slot].1,
+                q.cap,
+                &q.made,
+                q.constraint,
+            );
+            prop_assert_eq!(flow, settles_by_hand(&q), "{:?}", q);
             Ok(())
         })
         .unwrap();

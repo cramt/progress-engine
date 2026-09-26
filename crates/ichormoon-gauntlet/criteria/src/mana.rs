@@ -183,6 +183,28 @@ pub enum ManaSource {
     /// casting one puts a card in the graveyard and casting the other does
     /// not.
     Castable { cost: Demand, resolves: Resolves },
+    /// A rock or a dork: a permanent the line casts that is a mana source once
+    /// it has resolved
+    /// ([ADR-0018](https://github.com/cramt/progress-engine/blob/main/docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md)).
+    ///
+    /// Everything that makes one different from another to the budget is here,
+    /// which is what makes it part of a group's identity: what it costs, how
+    /// much it adds, which kinds of mana, and how long it waits. Two Talismans
+    /// of different colours are not interchangeable to a cost that names
+    /// either colour, and Sol Ring is not Mind Stone.
+    RockOrDork {
+        cost: Demand,
+        /// How many mana it adds a turn, declared by an effect keyed by query.
+        adds: u32,
+        /// Which kinds, read off the card: its `produces`, with a commander's
+        /// colour identity for a card that says so (Arcane Signet).
+        makes: Palette,
+        /// Whole turns after the one it is cast on before it adds anything.
+        /// Zero for a rock, whose mana pays for what the line casts after it
+        /// that same turn; one for a dork, which is summoning-sick; and what
+        /// an effect's `after` says for a rock that enters tapped.
+        waits: u32,
+    },
     /// A land: one drop a turn, free.
     Land {
         /// Whether it makes no mana on the turn it arrives.
@@ -281,6 +303,7 @@ impl ManaSource {
     pub fn resolves(self) -> Option<Resolves> {
         match self {
             ManaSource::Castable { resolves, .. } => Some(resolves),
+            ManaSource::RockOrDork { .. } => Some(Resolves::OntoBattlefield),
             ManaSource::Spell | ManaSource::Land { .. } => None,
         }
     }
@@ -288,8 +311,19 @@ impl ManaSource {
     /// What this card costs, where the run's priority casts it at all.
     pub fn castable(self) -> Option<Demand> {
         match self {
-            ManaSource::Castable { cost, .. } => Some(cost),
+            ManaSource::Castable { cost, .. } | ManaSource::RockOrDork { cost, .. } => Some(cost),
             ManaSource::Spell | ManaSource::Land { .. } => None,
+        }
+    }
+
+    /// What this card makes once the line has cast it, where it is a rock or
+    /// a dork: how many mana, which kinds, and how many turns it waits.
+    pub fn made(self) -> Option<(u32, Palette, u32)> {
+        match self {
+            ManaSource::RockOrDork {
+                adds, makes, waits, ..
+            } => Some((adds, makes, waits)),
+            _ => None,
         }
     }
 
@@ -305,6 +339,24 @@ impl ManaSource {
         match (detail, self) {
             (LandDetail::Ignored, _) | (_, ManaSource::Spell) => ManaSource::Spell,
             (LandDetail::Pips(_), castable @ ManaSource::Castable { .. }) => castable,
+            // Narrowed like a land's palette: what a cost cannot see it
+            // cannot tell apart. Whether two rocks that now look alike may
+            // really be merged is the grouping's question, because it
+            // depends on what sits between them in the line's tie order.
+            (
+                LandDetail::Pips(kept),
+                ManaSource::RockOrDork {
+                    cost,
+                    adds,
+                    makes,
+                    waits,
+                },
+            ) => ManaSource::RockOrDork {
+                cost,
+                adds,
+                makes: makes.intersect(kept),
+                waits,
+            },
             (
                 LandDetail::Pips(kept),
                 ManaSource::Land {
@@ -333,13 +385,15 @@ impl ManaSource {
     fn lasts(self) -> Option<u8> {
         match self {
             ManaSource::Land { lasts, .. } => lasts,
-            ManaSource::Spell | ManaSource::Castable { .. } => None,
+            ManaSource::Spell | ManaSource::Castable { .. } | ManaSource::RockOrDork { .. } => None,
         }
     }
 
     fn palette(self) -> Palette {
         match self {
-            ManaSource::Spell | ManaSource::Castable { .. } => Palette::EMPTY,
+            ManaSource::Spell | ManaSource::Castable { .. } | ManaSource::RockOrDork { .. } => {
+                Palette::EMPTY
+            }
             ManaSource::Land { produces, .. } => produces,
         }
     }
@@ -566,6 +620,16 @@ impl Demand {
         self.total() == 0
     }
 
+    /// How many `pip` symbols this owes.
+    pub fn of(self, pip: Pip) -> u32 {
+        self.pips[pip as usize]
+    }
+
+    /// How much generic this owes.
+    pub fn generic(self) -> u32 {
+        self.generic
+    }
+
     /// The pip kinds this demand names, and therefore the only ones it can
     /// tell apart.
     pub fn demands(self) -> Palette {
@@ -761,6 +825,211 @@ impl Source {
             produces: mana.palette(),
             tapped: mana.enters_tapped(),
             lasts: mana.lasts(),
+        }
+    }
+}
+
+/// Mana a rock or dork the line cast makes on one turn, and which of the
+/// turn's spells it may pay for.
+///
+/// `stage` is a position in the turn's [bill](settles): a rock cast this turn
+/// makes mana for the spells cast **after** it and never for itself, so its
+/// mana starts at the stage after the one its own cost was billed to. A rock
+/// or dork already on the battlefield when the turn began is stage 0, which
+/// is every spell of the turn — the same as a land.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Made {
+    pub stage: usize,
+    pub produces: Palette,
+    /// How many mana: copies times what each [adds](ManaSource::RockOrDork).
+    pub count: u32,
+}
+
+/// Whether a turn's **staged bill** can be paid: `stages[s]` is what the
+/// spells cast between the `s`-th and the next same-turn source cost, `lands`
+/// with `count` are the lands the turn may tap, at most `cap` of them, and
+/// `made` is the rocks' and dorks' mana.
+///
+/// The matching of [`Demand::payable`] with **nested supply**
+/// ([ADR-0018](https://github.com/cramt/progress-engine/blob/main/docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md)):
+/// a symbol billed to stage `s` may be paid by a land or by mana whose stage
+/// is at most `s`. One Hall's condition over the summed bill would let Sol
+/// Ring's own mana pay for Sol Ring — HANDS.md hand 27 — so the condition is
+/// taken over the stages as well.
+///
+/// It is a maximum flow — the symbols owed, through the sources that can pay
+/// them, with the lands passing through one node holding `cap` — settled by
+/// its minimum cuts rather than by augmenting, because this runs on every
+/// path and the cuts are few. A cut is a set of symbols; its capacity is the
+/// symbols left out, plus the lands serving it (or `cap`, whichever is less),
+/// plus the made mana serving it. Adding a symbol of a kind at an earlier stage
+/// than one already in the set adds demand and no neighbour, so the tightest
+/// cuts are, for each kind of symbol, every stage up to some threshold — and
+/// only the stages that owe that kind need be tried. The bill is payable
+/// exactly when every such set is served by at least as much as it owes.
+///
+/// The land cap is there because a turn in which rocks pay part of the bill
+/// still has only so many land drops to tap, and no count taken before the
+/// matching can say how many of the payers are lands.
+///
+/// `constraint` obliges the payment to use a land, as it does in
+/// [`Demand::payable`]: one unit of an eligible land is spent on each symbol
+/// it could pay in turn, and the rest settled without it.
+pub fn settles(
+    stages: &[Demand],
+    lands: &[Source],
+    count: impl Fn(usize) -> u32,
+    cap: u32,
+    made: &[Made],
+    constraint: Constraint,
+) -> bool {
+    let eligible = |slot: usize| match constraint {
+        Constraint::Anything => false,
+        Constraint::Includes(group) => slot == group,
+        Constraint::IncludesUntapped => !lands[slot].tapped,
+    };
+    if matches!(constraint, Constraint::Anything) {
+        return cuts_hold(stages, lands, &count, cap, made, None);
+    }
+    if cap == 0 {
+        return false;
+    }
+    for slot in 0..lands.len() {
+        if count(slot) == 0 || !eligible(slot) {
+            continue;
+        }
+        for (stage, owed) in stages.iter().enumerate() {
+            // Each symbol this land could pay, spent on it in turn: a pip it
+            // makes, or generic. Which stage does not matter to the land —
+            // it is there from the start — but it matters to what is left.
+            for kind in 0..KINDS {
+                let serves = Pip::ALL
+                    .get(kind)
+                    .is_none_or(|&p| lands[slot].produces.makes(p));
+                if serves
+                    && owed_of(*owed, kind) > 0
+                    && cuts_hold(stages, lands, &count, cap, made, Some((stage, kind, slot)))
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// The kinds of symbol a bill owes: the six pips, then generic.
+const KINDS: usize = 7;
+
+fn owed_of(demand: Demand, kind: usize) -> u32 {
+    match Pip::ALL.get(kind) {
+        Some(&pip) => demand.of(pip),
+        None => demand.generic,
+    }
+}
+/// The kinds of symbol a source with `palette` can pay, as bits in the order
+/// [`KINDS`] counts them: its pips, and generic, which anything pays.
+fn kinds_served(palette: Palette) -> u8 {
+    palette.0 | 1 << 6
+}
+
+/// Hall's condition over every threshold cut of [`settles`], with one unit
+/// of one land already `spent` on one symbol where the payment was obliged to.
+///
+/// Written with bit masks and flat loops rather than iterator chains: it runs
+/// for every spell the line tries on a turn with a rock in it, on every path.
+fn cuts_hold(
+    stages: &[Demand],
+    lands: &[Source],
+    count: &impl Fn(usize) -> u32,
+    cap: u32,
+    made: &[Made],
+    spent: Option<(usize, usize, usize)>,
+) -> bool {
+    let mut owed: Vec<[u32; KINDS]> = stages
+        .iter()
+        .map(|d| std::array::from_fn(|kind| owed_of(*d, kind)))
+        .collect();
+    let mut cap = cap;
+    if let Some((stage, kind, _)) = spent {
+        owed[stage][kind] -= 1;
+        cap -= 1;
+    }
+    // Lands by which kinds they serve, with the one spent taken out.
+    let mut land_supply: [u32; 1 << KINDS] = [0; 1 << KINDS];
+    for (slot, land) in lands.iter().enumerate() {
+        let n = count(slot) - u32::from(spent.is_some_and(|s| s.2 == slot));
+        land_supply[usize::from(kinds_served(land.produces))] += n;
+    }
+    let made: Vec<(usize, u8, u32)> = made
+        .iter()
+        .map(|m| (m.stage, kinds_served(m.produces), m.count))
+        .collect();
+    // How many thresholds each kind has: the stages that owe it.
+    let mut widths = [0usize; KINDS];
+    for row in &owed {
+        for kind in 0..KINDS {
+            widths[kind] += usize::from(row[kind] > 0);
+        }
+    }
+    // choice[kind] = 0 leaves the kind out; i > 0 takes every stage up to the
+    // i-th that owes it.
+    let mut choice = [0usize; KINDS];
+    loop {
+        // The next choice, as a mixed-radix counter; done once it wraps.
+        let mut kind = 0;
+        while kind < KINDS {
+            if choice[kind] < widths[kind] {
+                choice[kind] += 1;
+                break;
+            }
+            choice[kind] = 0;
+            kind += 1;
+        }
+        if kind == KINDS {
+            return true;
+        }
+        // Each chosen kind's threshold stage, and what the cut owes.
+        let mut threshold = [usize::MAX; KINDS];
+        let mut demand = 0u32;
+        let mut included = 0u8;
+        for kind in 0..KINDS {
+            if choice[kind] == 0 {
+                continue;
+            }
+            included |= 1 << kind;
+            let mut seen = 0;
+            for (stage, row) in owed.iter().enumerate() {
+                if row[kind] > 0 {
+                    seen += 1;
+                    demand += row[kind];
+                    if seen == choice[kind] {
+                        threshold[kind] = stage;
+                        break;
+                    }
+                }
+            }
+        }
+        let mut from_lands = 0u32;
+        for (mask, &n) in land_supply.iter().enumerate() {
+            if n > 0 && mask as u8 & included != 0 {
+                from_lands += n;
+            }
+        }
+        let mut from_made = 0u32;
+        for &(stage, mask, n) in &made {
+            let mut reach = 0u8;
+            for (kind, &up_to) in threshold.iter().enumerate() {
+                if up_to != usize::MAX && stage <= up_to {
+                    reach |= 1 << kind;
+                }
+            }
+            if mask & reach != 0 {
+                from_made += n;
+            }
+        }
+        if demand > from_lands.min(cap) + from_made {
+            return false;
         }
     }
 }

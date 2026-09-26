@@ -1,0 +1,11 @@
+// HANDS.md hand 32: Lotus Cobra is not a source, and says so.
+//
+// Eleven cards rather than seven, because turn 5 on the play has drawn four
+// more. The answers asked of it hold on every deal: never more than four lands,
+// so never the five mana Borborygmos costs, and by turn 5 every card is in hand.
+1x Borborygmos and Fblthp [Commander{top}]
+2x Forest [Land]
+1x Island [Land]
+1x Mountain [Land]
+1x Lotus Cobra [Ramp]
+6x Opt [Filler]

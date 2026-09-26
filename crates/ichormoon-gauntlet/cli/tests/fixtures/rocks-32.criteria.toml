@@ -1,0 +1,13 @@
+# HANDS.md hand 32: Lotus Cobra's mana is a landfall trigger rather than a
+# tap, so it is cast and counted as making no mana, and the run says so.
+
+[casting]
+prefer = ['name:"Lotus Cobra"', 'name:"Borborygmos and Fblthp"']
+
+[[criterion]]
+name = "Lotus Cobra cast by turn 5"
+require = [{ turn = 5, cast = 'name:"Lotus Cobra"', min = 1 }]
+
+[[criterion]]
+name = "Borborygmos cast by turn 5"
+require = [{ turn = 5, cast = 'name:"Borborygmos and Fblthp"', min = 1 }]

@@ -3106,3 +3106,389 @@ fn a_card_the_mulligan_bottomed_is_found_once_not_twice() {
         1.0
     );
 }
+
+// --- Rocks and dorks are mana the line cast (ADR-0018) ----------------------
+//
+// HANDS.md hands 26 to 33, each as the seven-card hand it is written as: one
+// deal, five turns that draw nothing, and every answer a yes or a no.
+
+/// A permanent the line casts that adds `adds` of `makes` once it has, after
+/// waiting `waits` turns: 0 for a rock, 1 for a dork.
+fn source(cost: &str, adds: u32, makes: &str, waits: u32) -> ManaSource {
+    ManaSource::RockOrDork {
+        cost: Cost::parse(cost).unwrap().demand(),
+        adds,
+        makes: Palette::from_letters([makes]),
+        waits,
+    }
+}
+
+fn sol_ring() -> ManaSource {
+    source("{1}", 2, "C", 0)
+}
+
+fn mind_stone() -> ManaSource {
+    source("{2}", 1, "C", 0)
+}
+
+fn spell(cost: &str) -> ManaSource {
+    ManaSource::Castable {
+        cost: Cost::parse(cost).unwrap().demand(),
+        resolves: Resolves::OntoBattlefield,
+    }
+}
+
+/// A seven-card hand whose line is `prefer`, as query bits highest first,
+/// with `commander` in the command zone where there is one.
+fn rock_hand(
+    names: &[&str],
+    cards: Vec<(u64, ManaSource, u32)>,
+    commander: Option<(u64, ManaSource)>,
+    prefer: Vec<usize>,
+) -> (Grouping, Schedule) {
+    let grouping = Grouping::with_mana(q(names), cards).unwrap();
+    let grouping = match commander {
+        Some((mask, mana)) => grouping.with_command_zone([(mask, mana, 1)]),
+        None => grouping,
+    };
+    let schedule = Schedule::plain_with(
+        &[7, 0, 0, 0, 0, 0],
+        Policies::casting(CastingPolicy::new(prefer)),
+    );
+    (grouping, schedule)
+}
+
+fn cast_by(grouping: &Grouping, schedule: &Schedule, turn: usize, query: usize) -> f64 {
+    holds(
+        grouping,
+        schedule,
+        Box::new(move |v: &PathView<'_>| v.count_at(turn, query, Counted::Cast) >= 1),
+    )
+}
+
+fn left(grouping: &Grouping, schedule: &Schedule, turn: usize, cost: &str) -> f64 {
+    let cost = Cost::parse(cost).unwrap();
+    holds(
+        grouping,
+        schedule,
+        Box::new(move |v: &PathView<'_>| v.can_cast(turn, &cost)),
+    )
+}
+
+#[test]
+fn hand_26_a_rock_pays_for_what_the_line_casts_after_it() {
+    let hand = |prefer| {
+        rock_hand(
+            &["sol ring", "lantern"],
+            vec![
+                (0b01, sol_ring(), 1),
+                (0b10, spell("{1}"), 1),
+                (0b00, untapped("U"), 1),
+                (0b00, ManaSource::Spell, 4),
+            ],
+            None,
+            prefer,
+        )
+    };
+    let (g, s) = hand(vec![0, 1]);
+    assert_eq!(cast_by(&g, &s, 1, 1), 1.0, "the Lantern, off Sol Ring");
+    assert_eq!(cast_by(&g, &s, 1, 0), 1.0, "Sol Ring, off the Island");
+    assert_eq!(left(&g, &s, 1, "{1}"), 1.0, "one {{C}} left over");
+    // Reversed, the Lantern takes the Island and Sol Ring waits a turn.
+    let (g, s) = hand(vec![1, 0]);
+    assert_eq!(cast_by(&g, &s, 1, 1), 1.0);
+    assert_eq!(cast_by(&g, &s, 1, 0), 0.0);
+    assert_eq!(left(&g, &s, 1, "{1}"), 0.0);
+    assert_eq!(cast_by(&g, &s, 2, 0), 1.0);
+}
+
+#[test]
+fn hand_27_a_rock_never_pays_for_itself() {
+    let (g, s) = rock_hand(
+        &["sol ring", "memory lapse"],
+        vec![
+            (0b01, sol_ring(), 1),
+            (0b10, spell("{1}{U}"), 1),
+            (0b00, untapped("U"), 1),
+            (0b00, ManaSource::Spell, 4),
+        ],
+        None,
+        vec![0, 1],
+    );
+    assert_eq!(cast_by(&g, &s, 1, 0), 1.0, "Sol Ring on turn 1");
+    assert_eq!(cast_by(&g, &s, 1, 1), 0.0, "no {{U}} left for Memory Lapse");
+    assert_eq!(cast_by(&g, &s, 2, 1), 1.0, "the Island untaps");
+}
+
+#[test]
+fn hand_28_the_line_is_read_again_once_a_rock_grows_the_pool() {
+    let (g, s) = rock_hand(
+        &["mind stone", "sol ring"],
+        vec![
+            (0b01, mind_stone(), 1),
+            (0b10, sol_ring(), 1),
+            (0b00, untapped("U"), 1),
+            (0b00, ManaSource::Spell, 4),
+        ],
+        None,
+        vec![0, 1],
+    );
+    assert_eq!(
+        cast_by(&g, &s, 1, 0),
+        1.0,
+        "Mind Stone, out of Sol Ring's mana"
+    );
+    assert_eq!(left(&g, &s, 1, "{1}"), 1.0, "and Mind Stone's own {{C}}");
+    assert_eq!(left(&g, &s, 1, "{2}"), 0.0);
+}
+
+#[test]
+fn hands_29_and_30_a_rock_pays_only_the_colours_it_makes() {
+    let rashmi = (0b10, spell("{1}{G}{U}{R}"));
+    let hand = |rock: ManaSource| {
+        rock_hand(
+            &["rock", "rashmi"],
+            vec![
+                (0b01, rock, 1),
+                (0b00, untapped("U"), 1),
+                (0b00, untapped("G"), 2),
+                (0b00, ManaSource::Spell, 3),
+            ],
+            Some(rashmi),
+            vec![0, 1],
+        )
+    };
+    let (g, s) = hand(source("{2}", 1, "CUR", 0));
+    assert_eq!(cast_by(&g, &s, 1, 0), 0.0);
+    assert_eq!(cast_by(&g, &s, 2, 0), 1.0, "the Talisman on turn 2");
+    assert_eq!(cast_by(&g, &s, 2, 1), 0.0);
+    assert_eq!(cast_by(&g, &s, 3, 1), 1.0, "Rashmi, red off the Talisman");
+    let (g, s) = hand(mind_stone());
+    assert_eq!(cast_by(&g, &s, 2, 0), 1.0, "Mind Stone on turn 2");
+    assert_eq!(cast_by(&g, &s, 5, 1), 0.0, "four mana and none of it red");
+}
+
+#[test]
+fn hand_31_a_dork_is_summoning_sick() {
+    let loam = ManaSource::Castable {
+        cost: Cost::parse("{1}{G}").unwrap().demand(),
+        resolves: Resolves::IntoGraveyard,
+    };
+    let hand = |waits| {
+        rock_hand(
+            &["mystic", "loam"],
+            vec![
+                (0b01, source("{G}", 1, "G", waits), 1),
+                (0b10, loam, 1),
+                (0b00, untapped("G"), 3),
+                (0b00, ManaSource::Spell, 2),
+            ],
+            None,
+            vec![0, 1],
+        )
+    };
+    let (g, s) = hand(1);
+    assert_eq!(cast_by(&g, &s, 1, 0), 1.0, "the Mystic on turn 1");
+    assert_eq!(left(&g, &s, 1, "{G}"), 0.0, "and it cannot tap yet");
+    assert_eq!(cast_by(&g, &s, 2, 1), 1.0);
+    assert_eq!(left(&g, &s, 2, "{G}"), 1.0, "a {{G}} beside the Loam");
+    // The naive reading, a Mystic that taps like a rock, is the other number.
+    let (g, s) = hand(0);
+    assert_eq!(left(&g, &s, 1, "{G}"), 1.0);
+}
+
+#[test]
+fn hand_32_a_card_that_is_no_source_is_cast_and_makes_nothing() {
+    // Lotus Cobra's mana is a landfall trigger, so it is a spell here.
+    let (g, s) = rock_hand(
+        &["cobra", "borborygmos"],
+        vec![
+            (0b01, spell("{1}{G}"), 1),
+            (0b00, untapped("G"), 2),
+            (0b00, untapped("U"), 1),
+            (0b00, untapped("R"), 1),
+            (0b00, ManaSource::Spell, 2),
+        ],
+        Some((0b10, spell("{2}{G}{U}{R}"))),
+        vec![0, 1],
+    );
+    assert_eq!(cast_by(&g, &s, 2, 0), 1.0);
+    assert_eq!(cast_by(&g, &s, 5, 1), 0.0, "never five mana");
+}
+
+#[test]
+fn hand_33_fellwar_stone_makes_nothing_and_mind_stone_makes_one() {
+    let hand = |stone: ManaSource| {
+        rock_hand(
+            &["stone", "trinket mage"],
+            vec![
+                (0b01, stone, 1),
+                (0b10, spell("{2}{U}"), 1),
+                (0b00, untapped("U"), 2),
+                (0b00, ManaSource::Spell, 3),
+            ],
+            None,
+            vec![0, 1],
+        )
+    };
+    // Fellwar Stone is cast, and counted as making nothing.
+    let (g, s) = hand(spell("{2}"));
+    assert_eq!(cast_by(&g, &s, 2, 0), 1.0);
+    assert_eq!(cast_by(&g, &s, 5, 1), 0.0);
+    let (g, s) = hand(mind_stone());
+    assert_eq!(cast_by(&g, &s, 2, 1), 0.0);
+    assert_eq!(cast_by(&g, &s, 3, 1), 1.0);
+}
+
+#[test]
+fn a_rock_that_enters_tapped_waits_as_its_effect_says() {
+    // `after = 1` on a rock: Sol Ring that enters tapped casts nothing on turn
+    // 1 and pays for the Lantern on turn 2 beside the Island's own mana.
+    let (g, s) = rock_hand(
+        &["sol ring", "lantern"],
+        vec![
+            (0b01, source("{1}", 2, "C", 1), 1),
+            (0b10, spell("{3}"), 1),
+            (0b00, untapped("U"), 1),
+            (0b00, ManaSource::Spell, 4),
+        ],
+        None,
+        vec![0, 1],
+    );
+    assert_eq!(cast_by(&g, &s, 1, 0), 1.0);
+    assert_eq!(left(&g, &s, 1, "{1}"), 0.0);
+    assert_eq!(cast_by(&g, &s, 2, 1), 1.0, "Island and {{C}}{{C}}");
+    assert_eq!(left(&g, &s, 2, "{U}"), 0.0, "and nothing left over");
+}
+
+#[test]
+fn narrowing_never_merges_two_rocks_across_one_it_sees_differently() {
+    // Three rocks in one entry of the line, at one cost, in decklist order:
+    // red, green, blue. Asked whether a {G} is left on turn 2, a cost that
+    // cannot tell red from blue — so narrowed to what it demands, the red
+    // and the blue rock look alike. Merged, they would be one group sitting
+    // where the red one was, ahead of the green one in the tie order; and a
+    // hand holding the green and the blue rock but not the red would cast
+    // the blue one first, and have no {G} left. ADR-0018: a narrowing merges
+    // two sources only when nothing differently seen sits between them.
+    let rock = |makes: &str| source("{2}", 1, makes, 0);
+    let grouping = Grouping::with_mana(
+        q(&["rocks"]),
+        vec![
+            (0b1, rock("R"), 1),
+            (0b1, rock("G"), 1),
+            (0b1, rock("U"), 1),
+            (0b0, untapped("W"), 9),
+            (0b0, ManaSource::Spell, 6),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::plain_with(&[7, 1, 1], Policies::casting(CastingPolicy::new(vec![0])));
+    let cost = Cost::parse("{G}").unwrap();
+    let whole = grouping.coarsened(0b1, LandDetail::Pips(Palette::ALL));
+    let narrowed = grouping.coarsened(0b1, LandDetail::Pips(cost.demands()));
+    let green = || {
+        let cost = cost.clone();
+        Box::new(move |v: &PathView<'_>| v.can_cast(2, &cost)) as Check
+    };
+    let wide = holds(&whole, &schedule, green());
+    assert!(wide > 0.0 && wide < 1.0, "a question worth asking: {wide}");
+    assert_eq!(holds(&narrowed, &schedule, green()), wide);
+    // Two rocks with nothing between them do merge, which is the narrowing
+    // still earning its keep.
+    let adjacent = Grouping::with_mana(
+        q(&["rocks"]),
+        vec![
+            (0b1, rock("R"), 1),
+            (0b1, rock("U"), 1),
+            (0b1, rock("G"), 1),
+            (0b0, untapped("W"), 9),
+            (0b0, ManaSource::Spell, 6),
+        ],
+    )
+    .unwrap();
+    let merged = adjacent.coarsened(0b1, LandDetail::Pips(cost.demands()));
+    assert_eq!(
+        merged.group_sizes().len(),
+        adjacent.group_sizes().len() - 1,
+        "red and blue are next to each other, and one group to a {{G}}"
+    );
+    assert_eq!(
+        holds(&merged, &schedule, green()),
+        holds(
+            &adjacent.coarsened(0b1, LandDetail::Pips(Palette::ALL)),
+            &schedule,
+            green()
+        )
+    );
+}
+
+#[test]
+fn a_rock_pays_the_same_under_a_declared_land_drop() {
+    // Hands 26 and 27 again, with the land drop declared rather than read
+    // generously: the lands standing are the ones the priority played, and a
+    // rock's mana still pays only for what the line casts after it.
+    let hand = |second: ManaSource| {
+        let grouping = Grouping::with_mana(
+            q(&["sol ring", "second", "land"]),
+            vec![
+                (0b001, sol_ring(), 1),
+                (0b010, second, 1),
+                (0b100, untapped("U"), 3),
+                (0b000, ManaSource::Spell, 2),
+            ],
+        )
+        .unwrap();
+        let schedule = Schedule::plain_with(
+            &[7, 0, 0, 0],
+            Policies {
+                land_drop: Some(LandDropPolicy::new(vec![], 2)),
+                casting: Some(CastingPolicy::new(vec![0, 1])),
+                ..Policies::default()
+            },
+        );
+        (grouping, schedule)
+    };
+    let (g, s) = hand(spell("{1}"));
+    assert_eq!(cast_by(&g, &s, 1, 1), 1.0, "the Lantern, off Sol Ring");
+    assert_eq!(left(&g, &s, 1, "{1}"), 1.0);
+    let (g, s) = hand(spell("{1}{U}"));
+    assert_eq!(
+        cast_by(&g, &s, 1, 1),
+        0.0,
+        "Sol Ring does not pay for itself"
+    );
+    assert_eq!(
+        left(&g, &s, 1, "{C}{C}"),
+        1.0,
+        "its {{C}}{{C}} is still there"
+    );
+    assert_eq!(cast_by(&g, &s, 2, 1), 1.0);
+}
+
+#[test]
+fn rock_mana_is_on_top_of_the_land_drops_and_never_instead_of_them() {
+    // Hand 27 with three Islands in it. Turn 1 still has one land drop, so
+    // one Island pays for Sol Ring and none is left for Memory Lapse's {U}:
+    // a matching that counted Islands in hand rather than land drops would
+    // cast it on turn 1 — the rock's two mana "making room" for two lands
+    // that were never played.
+    let (g, s) = rock_hand(
+        &["sol ring", "memory lapse"],
+        vec![
+            (0b01, sol_ring(), 1),
+            (0b10, spell("{1}{U}"), 1),
+            (0b00, untapped("U"), 3),
+            (0b00, ManaSource::Spell, 2),
+        ],
+        None,
+        vec![0, 1],
+    );
+    assert_eq!(cast_by(&g, &s, 1, 1), 0.0);
+    assert_eq!(left(&g, &s, 1, "{U}"), 0.0);
+    assert_eq!(left(&g, &s, 1, "{2}"), 1.0, "Sol Ring's two are there");
+    assert_eq!(cast_by(&g, &s, 2, 1), 1.0);
+    // Turn 2: two Islands and {C}{C}, and Memory Lapse took one of each.
+    assert_eq!(left(&g, &s, 2, "{U}{1}"), 1.0);
+    assert_eq!(left(&g, &s, 2, "{U}{U}"), 0.0);
+}

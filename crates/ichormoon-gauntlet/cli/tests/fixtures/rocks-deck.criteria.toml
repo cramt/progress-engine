@@ -1,0 +1,28 @@
+# The commander first, then every source, then a spell after them: what the
+# line casts, and what a gate beside it finds left, asked of both engines.
+
+[casting]
+prefer = [
+  'name:"Rashmi and Ragavan"',
+  'name:"Sol Ring"',
+  'name:"Talisman of Creativity"',
+  'name:"Mind Stone"',
+  'name:"Elvish Mystic"',
+  'name:"Memory Lapse"',
+]
+
+[[criterion]]
+name = "Rashmi cast by turn 4"
+require = [{ turn = 4, cast = 'name:"Rashmi and Ragavan"', min = 1 }]
+
+[[criterion]]
+name = "two sources cast by turn 3"
+require = [{ turn = 3, cast = 'name:"Sol Ring" or name:"Talisman of Creativity" or name:"Mind Stone" or name:"Elvish Mystic"', min = 2 }]
+
+[[criterion]]
+name = "Memory Lapse cast by turn 3"
+require = [{ turn = 3, cast = 'name:"Memory Lapse"', min = 1 }]
+
+[[criterion]]
+name = "{U} left on turn 4"
+require = [{ turn = 4, can_cast = "{U}" }]

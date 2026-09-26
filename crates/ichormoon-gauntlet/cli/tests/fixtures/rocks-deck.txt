@@ -1,0 +1,13 @@
+// A small deck with every kind of source ADR-0018 counts: Sol Ring, Mind Stone,
+// a Talisman, a dork, and Rashmi in the command zone asking for a red that only
+// the Talisman makes. Small enough that both engines answer it: the exact one
+// by enumerating, the sampler by dealing.
+1x Rashmi and Ragavan [Commander{top}]
+1x Sol Ring [Ramp]
+1x Mind Stone [Ramp]
+1x Talisman of Creativity [Ramp]
+1x Elvish Mystic [Ramp]
+2x Memory Lapse [Counter]
+6x Island [Land]
+5x Forest [Land]
+12x Opt [Filler]

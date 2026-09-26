@@ -1,0 +1,6 @@
+// Arcane Signet with no commander: there is no colour identity to make a colour
+// of, so it makes none (CR 903.4f).
+1x Arcane Signet [Ramp]
+1x Talisman of Creativity [Ramp]
+2x Island [Land]
+6x Opt [Filler]

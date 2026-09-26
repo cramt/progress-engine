@@ -1,0 +1,9 @@
+// HANDS.md hand 27: Island, Sol Ring, Memory Lapse, and fillers.
+//
+// Eight cards rather than seven, because turn 2 on the play draws an eighth,
+// and a second Island so that every deal gives the same answer: whichever card
+// the opener is missing, turn 1 casts no Memory Lapse and turn 2 casts it.
+2x Island [Land]
+1x Sol Ring [Ramp]
+1x Memory Lapse [Counter]
+4x Opt [Filler]

@@ -244,14 +244,13 @@ impl Grouping {
     /// constructor: a question reading a cleared bit counts zero here, so only
     /// the class this was coarsened for may be answered against it.
     pub fn coarsened(&self, keep: u64, mana: LandDetail) -> Grouping {
-        let cards = self
-            .group_masks
-            .iter()
-            .zip(&self.group_mana)
+        let keys = self.coarse_keys(keep, mana);
+        let cards = keys
+            .into_iter()
             .zip(&self.group_sizes)
             .zip(&self.group_command)
-            .map(|(((mask, source), qty), command)| {
-                let seen = source.seen_as(mana);
+            .map(|((key, qty), command)| {
+                let (mask, seen) = key;
                 // A commander is only in the game to be cast, so a class that
                 // erases what it costs erases it: it cannot be drawn, and
                 // nothing in that class could have paid for it.
@@ -260,7 +259,7 @@ impl Grouping {
                 } else {
                     0
                 };
-                (mask & keep, seen, *qty, command)
+                (mask, seen, *qty, command)
             });
         // The same query list at the same bit positions: this is a coarser
         // partition of the same library, not a different question.
@@ -287,12 +286,10 @@ impl Grouping {
         keep: u64,
         detail: LandDetail,
     ) -> Option<Vec<usize>> {
-        self.group_masks
-            .iter()
-            .zip(&self.group_mana)
+        self.coarse_keys(keep, detail)
+            .into_iter()
             .zip(&self.group_sizes)
             .map(|((mask, mana), &size)| {
-                let (mask, mana) = (mask & keep, mana.seen_as(detail));
                 coarse
                     .group_masks
                     .iter()
@@ -305,6 +302,45 @@ impl Grouping {
                     .or_else(|| (size == 0 && !coarse.group_masks.is_empty()).then_some(0))
             })
             .collect()
+    }
+
+    /// What each group is to a class keeping `keep` and `detail`: its query
+    /// bits and its mana as that class sees them. Two groups with the same
+    /// key are one group to it.
+    ///
+    /// **A rock's palette is narrowed only where the merge is safe**
+    /// ([ADR-0018](https://github.com/cramt/progress-engine/blob/main/docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md)).
+    /// A land's is always narrowed, because nothing reads a land's position
+    /// but a declared land drop, and that is refused the narrowing whole. A
+    /// rock is cast, and the line breaks a tie inside an entry by decklist
+    /// order, which is group order. Merging two rocks puts the later one
+    /// where the earlier one was, so a group seen differently that sat
+    /// between them would change places with it — and a hand holding that
+    /// one and the later rock would cast them the other way round. So a
+    /// rock whose narrowed palette would merge it across anything seen
+    /// differently keeps its whole palette instead: the same adjacency
+    /// argument as #56, and the one merge the question can never observe.
+    fn coarse_keys(&self, keep: u64, detail: LandDetail) -> Vec<(u64, ManaSource)> {
+        let mut keys: Vec<(u64, ManaSource)> = self
+            .group_masks
+            .iter()
+            .zip(&self.group_mana)
+            .map(|(mask, mana)| (mask & keep, mana.seen_as(detail)))
+            .collect();
+        for g in 0..keys.len() {
+            let whole = self.group_mana[g];
+            let narrowed = keys[g].1;
+            if whole.made().is_none() || narrowed == whole {
+                continue;
+            }
+            let Some(into) = (0..g).find(|&p| keys[p] == keys[g]) else {
+                continue;
+            };
+            if (into + 1..g).any(|q| keys[q] != keys[g]) {
+                keys[g].1 = whole;
+            }
+        }
+        keys
     }
 
     /// How many groups a deal can put a card of: every group with something

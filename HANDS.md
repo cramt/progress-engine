@@ -15,7 +15,8 @@ needs. Hand 5 also carries the measurement that says why it was refused rather
 than estimated. Hands 19 to 25 pin what
 [ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md) decided,
 hands 26 to 33 what
-[ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) decided,
+[ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) decided
+(now built, and tests),
 and hands 40 to 42 what
 [ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md) decided,
 before any of it is built. That is the point: they pin the semantics before the
@@ -1167,12 +1168,18 @@ dredge priority over queries against the graveyard (ADR-0017). Until then the
 tool never dredges, which is a line the pilot could play, and it says so.*
 ## Rocks and dorks are mana the line cast
 
-Hands 26 to 33 pin
+Hands 26 to 33 pinned
 [ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) before
-any of it is built. **None of them is answerable yet.** Each one needs the build
-ticket named under it, which are the tickets #74 splits into. Until then, the
-engine counts every rock and dork as a spell that costs mana and makes none, and
-that is the "lands only" column in each table.
+any of it was built, and [#93](https://github.com/cramt/progress-engine/issues/93)
+built it. **Every one is a test now**, each as the seven-card hand it is written
+as, in `crates/ichormoon-gauntlet/criteria/tests/engine.rs` (`hand_26_…` to
+`hand_33_…`); the "lands only" column in each table is what the engine said
+before, when it counted every rock and dork as a spell that costs mana and makes
+none. Hands 26, 27, 28, 32 and 33 are also run end to end through the binary on
+the real cards' data, in `crates/ichormoon-gauntlet/cli/tests/cli.rs`: where a
+turn past the first needs a card the seven-card hand does not have, that
+fixture adds the cards the draws reach, and asks only what holds on every
+deal.
 
 Every hand below is a seven-card library, played on the play, so the opening
 hand is the whole deck and every answer is a yes or a no. "Filler" is any spell
@@ -1202,7 +1209,8 @@ The reversed line, `[Lantern, Sol Ring]`, casts the Lantern off the Island and
 then cannot pay for Sol Ring until turn 2. The order is the pilot's to declare,
 and these two columns are the test that the engine reads it.
 
-*Not answerable yet: needs #74's source ticket.*
+*A test: `hand_26_a_rock_pays_for_what_the_line_casts_after_it`, and through
+the binary.*
 
 ### 27. Island, Sol Ring, Memory Lapse
 
@@ -1232,7 +1240,8 @@ This is the pair to hand 26. The card count and the total mana are the same in
 both hands; only the colour of the second spell differs, and so does the answer.
 A rock's mana pays only for spells cast after it that turn.
 
-*Not answerable yet: needs the source ticket.*
+*A test: `hand_27_a_rock_never_pays_for_itself`, and through the binary with a
+second Island so that every deal of eight cards gives the same answer.*
 
 ### 28. Island, Sol Ring, Mind Stone, with the rock you cannot afford listed first
 
@@ -1256,7 +1265,8 @@ Ring's mana. Mind Stone then taps for its own `{C}`.
 The rule is "the first entry the pool can still pay for is cast", and the pool
 is still growing on turn 1.
 
-*Not answerable yet: needs the source ticket.*
+*A test: `hand_28_the_line_is_read_again_once_a_rock_grows_the_pool`, and
+through the binary.*
 
 ### 29. Rashmi off a Talisman, turn 3
 
@@ -1287,7 +1297,7 @@ red, so Rashmi is never cast.
 turn 3. The source's palette has to go into the matching, just as a land's does,
 and this pair is hand 6 and hand 7 again, one card type over.
 
-*Not answerable yet: needs the source ticket, and #78 for the commander.*
+*A test: `hands_29_and_30_a_rock_pays_only_the_colours_it_makes`.*
 
 ### 31. Elvish Mystic is summoning-sick
 
@@ -1318,7 +1328,7 @@ not: Loam costs `{1}{G}`, and the two Forests on the battlefield by turn 2 pay
 it without the Mystic. The independent checker found it
 (`checker/test_rocks.py`).
 
-*Not answerable yet: needs the source ticket.*
+*A test: `hand_31_a_dork_is_summoning_sick`, with the naive column beside it.*
 
 ### 32. Lotus Cobra is not a source, and says so
 
@@ -1339,8 +1349,9 @@ There are never more than four lands, so the answer is **0%** by turn 5. The run
 prints Lotus Cobra as *cast and counted as making no mana*. The number is a
 lower bound, and the run names the card that makes it one.
 
-*Answerable as that lower bound once the source ticket ships. The real turn-4 answer
-needs a landfall ticket.*
+*A test, as that lower bound: `hand_32_a_card_that_is_no_source_is_cast_and_makes_nothing`,
+and through the binary, where the run names Lotus Cobra in
+`casting.uncounted`. The real turn-4 answer needs a landfall ticket.*
 
 ### 33. Fellwar Stone makes nothing, because nobody else is at the table
 
@@ -1365,8 +1376,9 @@ casts it.
 The Fellwar column is a lower bound, and the run names the card. Reading the Stone as
 colourless would overcount every turn 1 on the play.
 
-*Not answerable yet: needs the source ticket (and the library-entry ticket for
-the entry that leaves the Stone out).*
+*A test: `hand_33_fellwar_stone_makes_nothing_and_mind_stone_makes_one`, and
+through the binary, where the standard library's entries leave the Stone out
+and the run names it in `casting.uncounted`.*
 
 ---
 

@@ -1,0 +1,5 @@
+// HANDS.md hand 26: Island, Sol Ring, Lantern of Insight, and four fillers.
+1x Island [Land]
+1x Sol Ring [Ramp]
+1x Lantern of Insight [Lantern]
+4x Opt [Filler]

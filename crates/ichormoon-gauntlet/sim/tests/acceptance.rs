@@ -1045,7 +1045,7 @@ fn a_tutor_thins_the_library_in_both_engines() {
         // Fewer hands than the tests above: this compares two means rather
         // than pinning one, and the prefix replay a fetch costs is paid per
         // checkpoint per hand.
-        let trials = TRIALS / 4;
+        let trials = TRIALS;
         let sampled = simulate(
             &grouping,
             &schedule,
@@ -1581,7 +1581,7 @@ fn draws_agree(cost: &str, draw: u32, fetch: bool, seed: u64) {
         .iter()
         .map(|p| p.get())
         .collect::<Vec<_>>();
-    let trials = TRIALS / 2;
+    let trials = TRIALS;
     let sampled = simulate(
         &grouping,
         &schedule,
@@ -1649,4 +1649,94 @@ fn a_tutor_that_draws_agrees_with_the_exact_engine() {
     // The fetch thins the library before the draw is dealt from it, in both
     // engines: the removal and the sized gap are asked about the same prefix.
     draws_agree("{U}", 1, true, 41);
+}
+
+#[test]
+fn rocks_and_dorks_in_the_line_agree_with_the_exact_engine() {
+    // ADR-0018: a rock the line cast pays for what comes after it, a dork
+    // from the next turn, and a turn with a rock in it is a staged bill. Both
+    // engines walk the same board, so what this catches is the path being
+    // produced differently — a sampled hand whose turns do not line up with
+    // the enumerated one's casts its rock a turn off and pays for the
+    // commander a turn off with it.
+    //
+    // A commander at {1}{G}{U}{R} with no red land in the deck, so its red
+    // comes from a Talisman or not at all; Sol Ring; a dork; blue cantrips
+    // after them; and a gate on what the line left.
+    let land = |colour: &str, enters_tapped: bool| ManaSource::Land {
+        enters_tapped,
+        produces: Palette::from_letters([colour]),
+        lasts: None,
+    };
+    let source = |cost: &str, adds: u32, makes: &str, waits: u32| ManaSource::RockOrDork {
+        cost: Cost::parse(cost).unwrap().demand(),
+        adds,
+        makes: Palette::from_letters([makes]),
+        waits,
+    };
+    let rashmi = ManaSource::Castable {
+        cost: Cost::parse("{1}{G}{U}{R}").unwrap().demand(),
+        resolves: Resolves::OntoBattlefield,
+    };
+    let grouping = Grouping::with_mana(
+        q(&["rock", "commander", "cantrip"]),
+        vec![
+            (0b001, source("{1}", 2, "C", 0), 1),
+            (0b001, source("{2}", 1, "CUR", 0), 3),
+            (0b001, source("{G}", 1, "G", 1), 2),
+            (
+                0b100,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                4,
+            ),
+            (0b000, land("G", false), 6),
+            (0b000, land("U", false), 7),
+            (0b000, ManaSource::Spell, 17),
+        ],
+    )
+    .unwrap()
+    .with_command_zone([(0b010, rashmi, 1)]);
+    // Three turns on the play, which is as far as a debug build enumerates
+    // this in reasonable time; the rock is down on turn 2 at the earliest, so
+    // turn 3 is where every rule above meets.
+    let schedule = Schedule::build(
+        3,
+        true,
+        Vec::new(),
+        Policies::casting(CastingPolicy::new(vec![1, 0, 2])),
+    );
+    let question = || {
+        Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(3, 1, Counted::Cast) >= 1) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(2, 0, Counted::Cast) >= 1),
+            Box::new(|v: &PathView<'_>| v.count_at(3, 0, Counted::Cast) >= 2),
+            Box::new(|v: &PathView<'_>| v.count_at(3, 2, Counted::Cast) >= 2),
+            Box::new(|v: &PathView<'_>| v.can_cast(3, &Cost::parse("{U}{U}").unwrap())),
+            Box::new(|v: &PathView<'_>| v.can_cast(3, &Cost::parse("{R}").unwrap())),
+        ])
+    };
+    let plan = only_criteria(6);
+    let exact = gauntlet_criteria::run(&grouping, &schedule, plan, &mut question())
+        .unwrap()
+        .probabilities;
+    let trials = TRIALS;
+    let sampled = simulate(&grouping, &schedule, trials, 43, plan, &mut question())
+        .unwrap()
+        .proportions;
+    for (i, (exact, sampled)) in exact.iter().zip(&sampled).enumerate() {
+        let exact = exact.get();
+        assert!(
+            exact > 0.02 && exact < 0.98,
+            "question {i} is worth asking: {exact}"
+        );
+        let se = standard_error(*sampled, trials);
+        assert!(
+            (sampled - exact).abs() < 4.0 * se,
+            "question {i}: sampled {sampled} vs exact {exact} ({}x SE)",
+            (sampled - exact).abs() / se
+        );
+    }
 }

@@ -1515,7 +1515,7 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
                 return Err(ErrorKind::FetchOntoTheBattlefieldFromASpell { at: at.clone() });
             }
         }
-        let delay = delay_of(def, &at, trigger, look)?;
+        let delay = delay_of(def, &at, trigger, look, adds.is_some() && fetch.is_none())?;
         entries.push(EffectEntry {
             matches,
             look,
@@ -1566,11 +1566,17 @@ fn adds_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<u32>, E
 /// of turns, then a wait on something that cannot wait, then a sacrifice with
 /// nothing to wait for. A wait with nothing at the end of it never gets here:
 /// an effect that neither looks nor fetches is refused before this is asked.
+///
+/// `source` is an effect that only adds mana: a rock or dork the line casts,
+/// which is the one thing a cast leaves in play to wait with. Its `after` is
+/// how many turns it adds nothing, which is how a rock that enters tapped is
+/// declared (ADR-0018), and nothing is sacrificed when the wait is over.
 fn delay_of(
     def: &EffectDef,
     at: &str,
     trigger: Trigger,
     look: u32,
+    source: bool,
 ) -> Result<Option<Delay>, ErrorKind> {
     let Some(after) = def.after else {
         return match def.sacrifice {
@@ -1585,8 +1591,12 @@ fn delay_of(
             at: at.to_string(),
             after,
         })?;
-    let why = if trigger != Trigger::LandDrop {
-        Some("fires on a cast, and only a land that stays in play has anything to wait with")
+    let why = if source && def.sacrifice == Some(true) {
+        Some("adds mana, and a source that waits is a rock entering tapped, not a Saga: nothing is sacrificed when the wait is over")
+    } else if source {
+        None
+    } else if trigger != Trigger::LandDrop {
+        Some("fires on a cast, and only a land that stays in play, or a rock or dork that adds mana, has anything to wait with")
     } else if look > 0 {
         Some("a `look`, which is refused on a later turn")
     } else {

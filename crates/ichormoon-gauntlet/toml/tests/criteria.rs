@@ -517,6 +517,123 @@ fn a_file_run_against_a_spell_that_draws_agrees_in_both_engines() {
     );
 }
 
+#[test]
+fn a_file_whose_line_casts_rocks_and_dorks_agrees_in_both_engines() {
+    // The criteria layer with ADR-0018's sources in the line: a rock that
+    // pays for what comes after it, a dork that waits a turn, and a gate that
+    // asks what the line left, read by the file's own clauses in both
+    // engines. The rocks are built by hand beside the file's queries, as the
+    // CLI builds them from the effect library.
+    let source = r#"
+        [casting]
+        prefer = ['cat:"payoff"', 'cat:"rock"', 'cat:"dork"']
+
+        [[criterion]]
+        name = "the payoff cast by turn 3"
+        require = [{ turn = 3, cast = 'cat:"payoff"', min = 1 }]
+
+        [[criterion]]
+        name = "two sources cast by turn 2"
+        any_of = [
+          { require = [{ turn = 2, cast = 'cat:"rock"', min = 2 }] },
+          { require = [{ turn = 2, cast = 'cat:"rock"', min = 1 }, { turn = 2, cast = 'cat:"dork"', min = 1 }] },
+        ]
+
+        [[criterion]]
+        name = "a blue mana left on turn 3"
+        require = [{ turn = 3, can_cast = "{U}" }]
+
+        [[criterion]]
+        name = "a rock on the battlefield by turn 3"
+        require = [{ turn = 3, query = 'cat:"rock"', zone = "battlefield", min = 1 }]
+    "#;
+    let mut criteria = parse(source);
+    let bit = |query: &str| {
+        criteria
+            .queries()
+            .iter()
+            .position(|q| q == query)
+            .expect("the file names it")
+    };
+    let (payoff, rock, dork) = (
+        bit(r#"cat:"payoff""#),
+        bit(r#"cat:"rock""#),
+        bit(r#"cat:"dork""#),
+    );
+    let grouping = Grouping::with_mana(
+        criteria.queries().to_vec(),
+        vec![
+            (
+                1 << payoff,
+                ManaSource::Castable {
+                    cost: Cost::parse("{2}{U}{R}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                4,
+            ),
+            (
+                1 << rock,
+                ManaSource::RockOrDork {
+                    cost: Cost::parse("{1}").unwrap().demand(),
+                    adds: 1,
+                    makes: Palette::from_letters(["CR"]),
+                    waits: 0,
+                },
+                4,
+            ),
+            (
+                1 << dork,
+                ManaSource::RockOrDork {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                    adds: 1,
+                    makes: Palette::from_letters(["U"]),
+                    waits: 1,
+                },
+                4,
+            ),
+            (
+                0,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                    lasts: None,
+                },
+                16,
+            ),
+            (0, ManaSource::Spell, 32),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::build(
+        criteria.horizon(),
+        true,
+        Vec::new(),
+        Policies::casting(CastingPolicy::new(vec![payoff, rock, dork])),
+    );
+    let plan = criteria.plan();
+    let exact = gauntlet_criteria::run(&grouping, &schedule, plan, &mut criteria).expect("exact");
+    for (i, p) in exact.probabilities.iter().enumerate() {
+        assert!(
+            p.get() > 0.02 && p.get() < 0.98,
+            "criterion {i} is worth asking: {}",
+            p.get()
+        );
+    }
+    let trials = 100_000;
+    let sampled = gauntlet_sim::simulate(&grouping, &schedule, trials, 13, plan, &mut criteria)
+        .expect("sampled");
+    for (i, want) in exact.probabilities.iter().enumerate() {
+        let got = sampled.proportions[i];
+        let se = gauntlet_sim::standard_error(got, trials);
+        assert!(
+            (got - want.get()).abs() <= 5.0 * se,
+            "criterion {i}: sampled {got} vs exact {}, {:.2} SE away",
+            want.get(),
+            (got - want.get()).abs() / se
+        );
+    }
+}
+
 // --- Disjunction -----------------------------------------------------------
 
 #[test]
@@ -1440,6 +1557,51 @@ fn a_source_declares_how_much_mana_it_adds() {
     assert_eq!(entry.look, 0, "a source turns over nothing");
     assert_eq!(entry.fetch, None);
     assert_eq!(entry.trigger, Trigger::Cast);
+}
+
+#[test]
+fn a_rock_that_enters_tapped_is_a_source_that_waits() {
+    // ADR-0018: `after = n` delays a source, which is how a rock that enters
+    // tapped is declared. A source is the one thing a cast leaves in play to
+    // wait with, so the wait is read rather than refused.
+    let criteria = parse(
+        r#"
+        [[effect]]
+        match = 'name:"Worn Powerstone"'
+        on = "cast"
+        adds = 2
+        after = 1
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    let entry = &criteria.effects().entries()[0];
+    assert_eq!(entry.adds, Some(2));
+    assert_eq!(
+        entry.delay,
+        Some(gauntlet_criteria::Delay {
+            turns: 1,
+            sacrifice: false
+        })
+    );
+    // It is not a Saga: nothing is sacrificed when a rock's wait is over.
+    let bad = refuse(
+        r#"
+        [[effect]]
+        match = 'name:"Worn Powerstone"'
+        on = "cast"
+        adds = 2
+        after = 1
+        sacrifice = true
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    assert!(matches!(bad, ErrorKind::UnmodelledDelay { .. }), "{bad}");
 }
 
 #[test]

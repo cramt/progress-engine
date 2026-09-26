@@ -325,6 +325,7 @@ fn prepare_noting(
                 commanders: casting
                     .as_ref()
                     .map_or(&no_costs, |c| c.commanders.as_slice()),
+                adds: &resolved.adds,
             }
         }
     };
@@ -726,6 +727,12 @@ impl PreparedRun {
                     .to_string(),
             })
             .collect();
+        // What pays beside the lands, and what the line casts that does not.
+        let line_mana = self
+            .casting
+            .as_ref()
+            .map(|p| library.line_mana(&p.costs, &p.commanders, &self.resolved.adds))
+            .unwrap_or_default();
         report::Breakdown {
             queries: query_matches,
             zones,
@@ -781,6 +788,21 @@ impl PreparedRun {
                         .map(|(e, _)| e.card.name.clone())
                         .collect()
                 }),
+                sources: line_mana
+                    .sources
+                    .iter()
+                    .filter_map(|(card, source)| {
+                        let (adds, makes, waits) = source.made()?;
+                        Some(report::SourceUse {
+                            card: card.clone(),
+                            adds,
+                            makes: makes.symbols(),
+                            waits,
+                        })
+                    })
+                    .collect(),
+                uncounted: line_mana.uncounted.clone(),
+                printed_cost: line_mana.printed_cost.clone(),
             }),
             // Read off the schedule too. A mulligan decides which hand every
             // other number is of, so it is printed above all of them.

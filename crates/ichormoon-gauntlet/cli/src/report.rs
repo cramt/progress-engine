@@ -280,8 +280,8 @@ pub struct EffectUse {
     pub look: u32,
     /// How much mana each card adds once the `[casting]` line has cast it
     /// (ADR-0018), or absent for an effect that makes no source. Declared by
-    /// the standard library; the mana budget does not read it yet (#93), so
-    /// today it moves no number.
+    /// the standard library, and it moves a number only where the line names
+    /// the card.
     #[facet(skip_serializing_if = Option::is_none)]
     pub adds: Option<u32>,
     pub on: &'static str,
@@ -702,6 +702,34 @@ pub struct CastingUse {
     /// it draws.
     #[facet(skip_serializing_if = Vec::is_empty)]
     pub from_command_zone: Vec<String>,
+    /// The rocks and dorks the list names, which make mana once it has cast
+    /// them (ADR-0018). Absent where it names none, and then only lands pay.
+    #[facet(skip_serializing_if = Vec::is_empty)]
+    pub sources: Vec<SourceUse>,
+    /// Cards the list names that could make mana in some game and are counted
+    /// as making none: Fellwar Stone, which needs an opponent's land, and Lotus
+    /// Cobra, whose mana is a landfall trigger. Each makes every number that
+    /// casts it a lower bound, so each is named.
+    #[facet(skip_serializing_if = Vec::is_empty)]
+    pub uncounted: Vec<String>,
+    /// Cards the list names whose cost improvise, affinity or convoke could
+    /// reduce. Not modelled: each pays its printed cost.
+    #[facet(skip_serializing_if = Vec::is_empty)]
+    pub printed_cost: Vec<String>,
+}
+
+/// One rock or dork a line names, as the budget counts it.
+#[derive(Facet)]
+pub struct SourceUse {
+    pub card: String,
+    /// Mana a turn, from the effect library.
+    pub adds: u32,
+    /// Which kinds, read off the card.
+    pub makes: Vec<String>,
+    /// Whole turns after the one it is cast on before it adds anything: 0 for
+    /// a rock, which pays for what the line casts after it that same turn, and
+    /// at least 1 for a dork, which is summoning-sick.
+    pub waits: u32,
 }
 
 impl OptimisedUse {
@@ -1074,14 +1102,10 @@ impl Report {
                 if e.copies == 1 { "" } else { "s" },
                 e.cards.join(", ")
             ));
-            // Declared, and not yet spent: the mana budget reads no `adds`
-            // until #93, so saying the amount without this would claim a
-            // number moved that did not.
+            // A source makes mana only once the line has cast it, so a run
+            // whose line names none of these counted none of them.
             if e.adds.is_some() {
-                out.push_str(
-                    "      a mana source once the [casting] line casts it; the mana budget does \
-                     not count it yet\n",
-                );
+                out.push_str("      a mana source once the [casting] line casts it\n");
             }
             // A tutor names what it went and got, in the order it would take
             // them. Same discipline as the land drop and the casting line
@@ -1174,6 +1198,42 @@ impl Report {
                      once: {}.\n      At equal cost inside one entry, a card from the library \
                      is cast first.\n",
                     policy.from_command_zone.join(", ")
+                ));
+            }
+            // What pays beside the lands, and what the line cast that does
+            // not: a number that counted a rock says which, and one that
+            // cast a card it counts as making nothing says it is a floor.
+            if !policy.sources.is_empty() {
+                out.push_str(
+                    "      Mana sources once cast — a rock's mana pays only for what the line \
+                     casts after it, and a dork's from the next turn:\n",
+                );
+                for s in &policy.sources {
+                    out.push_str(&format!(
+                        "      {}: adds {} of {}{}\n",
+                        s.card,
+                        s.adds,
+                        s.makes.join(""),
+                        match s.waits {
+                            0 => String::new(),
+                            1 => ", from the turn after it is cast".to_string(),
+                            n => format!(", from {n} turns after it is cast"),
+                        }
+                    ));
+                }
+            }
+            if !policy.uncounted.is_empty() {
+                out.push_str(&format!(
+                    "      Cast and counted as making no mana, so every number that casts one is \
+                     a lower bound: {}.\n",
+                    policy.uncounted.join(", ")
+                ));
+            }
+            if !policy.printed_cost.is_empty() {
+                out.push_str(&format!(
+                    "      Cost reductions are not modelled, so these pay their printed cost: \
+                     {}.\n",
+                    policy.printed_cost.join(", ")
                 ));
             }
         }

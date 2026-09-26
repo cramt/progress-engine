@@ -179,6 +179,16 @@ pub fn describe_group(grouping: &Grouping, group: usize) -> String {
     match grouping.group_mana()[group] {
         ManaSource::Spell => named,
         ManaSource::Castable { cost, .. } => format!("{named}; castable for {}", cost.total()),
+        ManaSource::RockOrDork {
+            cost, adds, makes, ..
+        } => format!(
+            "{named}; castable for {}, then adds {adds} of {}",
+            cost.total(),
+            match makes.symbols() {
+                s if s.is_empty() => "none of the colours asked about".to_string(),
+                s => s.join(""),
+            }
+        ),
         ManaSource::Land { lasts: Some(0), .. } => format!("{named}; a land making no mana"),
         ManaSource::Land {
             enters_tapped,

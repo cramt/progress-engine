@@ -1,0 +1,5 @@
+// HANDS.md hand 28: Island, Sol Ring, Mind Stone, and four fillers.
+1x Island [Land]
+1x Sol Ring [Ramp]
+1x Mind Stone [Ramp]
+4x Opt [Filler]

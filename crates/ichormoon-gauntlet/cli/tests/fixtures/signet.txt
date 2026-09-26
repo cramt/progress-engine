@@ -1,0 +1,8 @@
+// Arcane Signet and a Talisman, under Rashmi and Ragavan: what each makes is
+// read off the card, and the Signet's "any color in your commander's color
+// identity" is Rashmi's green, blue and red.
+1x Rashmi and Ragavan [Commander{top}]
+1x Arcane Signet [Ramp]
+1x Talisman of Creativity [Ramp]
+2x Island [Land]
+6x Opt [Filler]

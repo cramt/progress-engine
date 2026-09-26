@@ -1,0 +1,14 @@
+# HANDS.md hand 28: Island, Sol Ring, Mind Stone, with the rock the Island
+# cannot afford listed first. The line is read again from the top once Sol
+# Ring's mana is in the pool, and Mind Stone is paid for out of it.
+
+[casting]
+prefer = ['name:"Mind Stone"', 'name:"Sol Ring"']
+
+[[criterion]]
+name = "Mind Stone cast on turn 1"
+require = [{ turn = 1, cast = 'name:"Mind Stone"', min = 1 }]
+
+[[criterion]]
+name = "{1} left on turn 1"
+require = [{ turn = 1, can_cast = "{1}" }]

@@ -29,7 +29,7 @@
 //! the first group its declared priority reaches that the library still holds,
 //! which is a function of counts and branches nothing.
 
-use crate::mana::{Constraint, Cost, Demand, Resolves, Source};
+use crate::mana::{self, Constraint, Cost, Demand, Made, Resolves, Source};
 use crate::{Counted, Grouping, Schedule, Zone};
 use chip_stats::Path;
 use thiserror::Error;
@@ -293,7 +293,7 @@ enum Drew {
 /// the tie rule. `cost` is what a group's card puts on the pool, `None` for
 /// every group the priority does not name — those are never cast, which is the
 /// list being a line rather than a preference over the whole deck. `cast_at`
-/// is what that came to on this path, and `spent` is what the line took out of
+/// is what that came to on this path, and `bills` is what the line took out of
 /// each turn, so a `can_cast` clause beside it reads what is left rather than
 /// what the turn started with.
 struct Casting {
@@ -304,7 +304,13 @@ struct Casting {
     /// on the battlefield and a cast instant or sorcery is in the graveyard.
     resolves: Vec<Option<Resolves>>,
     cast_at: Vec<Vec<u32>>,
-    spent: Vec<Demand>,
+    /// `[turn]`: what the line billed that turn, and the mana its rocks and
+    /// dorks made for it. A `can_cast` beside the line reads what is left.
+    bills: Vec<Bill>,
+    /// The groups that are a rock or a dork, so a turn's mana does not walk
+    /// the whole deck to find them. Empty on every line that names none,
+    /// which is what keeps the old matching for those.
+    sources: Vec<usize>,
     /// Copies cast so far on this path, per group. Scratch, reused.
     live_cast: Vec<u32>,
     /// `[turn][group]`: how many of the castings in `cast_at` came out of the
@@ -314,6 +320,52 @@ struct Casting {
     /// Command-zone cards still there to be cast on this path, per group.
     /// Scratch, reset from the grouping at the start of every walk.
     live_command: Vec<u32>,
+}
+
+/// One turn's bill, as the line cast it
+/// ([ADR-0018](https://github.com/cramt/progress-engine/blob/main/docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md)).
+///
+/// `stages[s]` is what the spells cast after the `s`-th rock of the turn cost,
+/// up to and including the next rock: a rock's mana pays only for what comes
+/// after it, so spells between two rocks see the same pool and their costs
+/// add up, and spells either side of one do not. A turn that casts no rock
+/// is one stage, which is the one summed bill every line had before rocks.
+///
+/// `made` is the mana the rocks and dorks make this turn: those already in
+/// play at stage 0, and each one cast this turn from the stage after its own
+/// cost.
+#[derive(Debug, Clone)]
+struct Bill {
+    stages: Vec<Demand>,
+    made: Vec<Made>,
+}
+
+impl Bill {
+    fn new() -> Bill {
+        Bill {
+            stages: vec![Demand::FREE],
+            made: Vec::new(),
+        }
+    }
+
+    fn reset(&mut self) {
+        self.stages.clear();
+        self.stages.push(Demand::FREE);
+        self.made.clear();
+    }
+
+    /// The last stage, which is what the next spell cast is billed to.
+    fn last(&mut self) -> &mut Demand {
+        self.stages.last_mut().expect("a bill always has a stage")
+    }
+
+    fn total(&self) -> u32 {
+        self.stages.iter().map(|d| d.total()).sum()
+    }
+
+    fn made_total(&self) -> u32 {
+        self.made.iter().map(|m| m.count).sum()
+    }
 }
 
 /// The land drops of a run whose file declared which land to play.
@@ -594,7 +646,14 @@ impl<'a> Board<'a> {
                     .map(|mana| mana.resolves())
                     .collect(),
                 cast_at: vec![vec![0; groups]; turns],
-                spent: vec![Demand::FREE; turns],
+                bills: vec![Bill::new(); turns],
+                sources: grouping
+                    .group_mana()
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, mana)| mana.made().is_some())
+                    .map(|(group, _)| group)
+                    .collect(),
                 live_cast: vec![0; groups],
                 commanded_at: vec![vec![0; groups]; turns],
                 live_command: grouping.group_command().to_vec(),
@@ -1028,8 +1087,8 @@ impl<'a> Board<'a> {
     ///
     /// The whole budget, and it is short because the two hard parts are
     /// elsewhere: *which* spell is a declared priority, and *can this be paid*
-    /// is one matching over the summed bill. What is left is a walk down the
-    /// list taking whatever the pool still covers.
+    /// is one matching over the turn's [`Bill`]. What is left is a walk down
+    /// the list taking whatever the pool still covers.
     ///
     /// Two things make it a budget rather than a gate. The bill **accumulates**
     /// across the turn — casting a second Opt asks whether `{U}{U}` is payable,
@@ -1047,7 +1106,8 @@ impl<'a> Board<'a> {
     /// cast this turn if the pool still pays and the list reaches it. A spell
     /// that could not be paid for is not paid for by a larger bill, so a
     /// reading again that found nothing new in hand would cast nothing more;
-    /// that is why only a draw restarts it. A land drawn mid-line waits for
+    /// that is why only a draw restarts it — or a rock, which grows the pool
+    /// instead of the hand (HANDS.md hand 28). A land drawn mid-line waits for
     /// the next turn's drop, because the drop came before the line.
     ///
     /// Returns false where a draw reached past the end of `history`: the walk
@@ -1059,10 +1119,30 @@ impl<'a> Board<'a> {
             return true;
         };
         let mut finished = true;
+        let mut bill = std::mem::replace(&mut casting.bills[turn], Bill::new());
+        bill.reset();
         // Turn 0 is the opening hand: no land has been played, so there is no
         // mana and nothing to spend it on.
         if turn > 0 {
-            let mut spent = Demand::FREE;
+            // The rocks and dorks already in play, which pay for anything this
+            // turn: every one cast by the turn before, less those still
+            // waiting. A dork cast last turn is ready now; a rock that entered
+            // tapped waits as long as its effect says.
+            for &group in &casting.sources {
+                let (adds, makes, waits) = self.grouping.group_mana()[group]
+                    .made()
+                    .expect("only sources are listed");
+                let ready = turn
+                    .checked_sub(waits.max(1) as usize)
+                    .map_or(0, |t| casting.cast_at[t][group]);
+                if ready > 0 {
+                    bill.made.push(Made {
+                        stage: 0,
+                        produces: makes,
+                        count: ready * adds,
+                    });
+                }
+            }
             // Read again from the top whenever a tutor or a draw put a card
             // in hand, so a card it found is cast this turn if the pool still
             // pays for it, wherever the line lists it. It ends, because every
@@ -1081,21 +1161,44 @@ impl<'a> Board<'a> {
                         // matters where a group holds both, and there the copy
                         // in hand stays a card you are holding.
                         while casting.live_command[group] + self.live_hand[group] > 0 {
-                            let trial = spent.plus(cost);
                             // The count first, because it settles most turns
                             // without a matching: a bill for more sources than
-                            // you have land drops cannot be paid however they
-                            // are coloured, and this runs on every path.
-                            if trial.total() > self.drops[turn] || !self.can_pay(turn, trial) {
+                            // you have land drops and rock mana cannot be paid
+                            // however they are coloured, and this runs on
+                            // every path.
+                            if bill.total() + cost.total() > self.drops[turn] + bill.made_total() {
                                 break;
                             }
-                            spent = trial;
+                            let before = *bill.last();
+                            *bill.last() = before.plus(cost);
+                            if !self.can_pay(turn, &bill.stages, &bill.made) {
+                                *bill.last() = before;
+                                break;
+                            }
                             if casting.live_command[group] > 0 {
                                 casting.live_command[group] -= 1;
                             } else {
                                 self.live_hand[group] -= 1;
                             }
                             casting.live_cast[group] += 1;
+                            // A rock taps at once, for what the line casts
+                            // after it: a new stage starts, and its mana is
+                            // there from it on. The pool grew, so the line
+                            // is read again from the top, where a spell it
+                            // could not pay for a moment ago may now be paid.
+                            // A dork is summoning-sick and adds nothing yet.
+                            let grew = match self.grouping.group_mana()[group].made() {
+                                Some((adds, makes, 0)) => {
+                                    bill.stages.push(Demand::FREE);
+                                    bill.made.push(Made {
+                                        stage: bill.stages.len() - 1,
+                                        produces: makes,
+                                        count: adds,
+                                    });
+                                    true
+                                }
+                                _ => false,
+                            };
                             // The tutor resolves before the line moves on,
                             // which is the order the pilot plays it in and the
                             // only order that lets four mana cast Trinket Mage
@@ -1103,7 +1206,7 @@ impl<'a> Board<'a> {
                             // cast Spellseeker and then the Loam it fetched,
                             // which the line lists first. Its draw, if it
                             // draws, resolves after the fetch.
-                            let fetched = self.fetch_on_cast(group);
+                            let fetched = self.fetch_on_cast(group) || grew;
                             match self.draw_on_cast(group, history) {
                                 Drew::Nothing if fetched => continue 'line,
                                 Drew::Nothing => {}
@@ -1119,8 +1222,8 @@ impl<'a> Board<'a> {
                 }
                 break;
             }
-            casting.spent[turn] = spent;
         }
+        casting.bills[turn] = bill;
         self.casting = Some(casting);
         finished
     }
@@ -1550,7 +1653,8 @@ impl<'a> Board<'a> {
 
     /// Whether `cost` could have been paid on `turn`.
     ///
-    /// Only lands pay, because only a land arrives without being cast.
+    /// Lands pay, because a land arrives without being cast, and so do the
+    /// rocks and dorks the declared line cast (ADR-0018) — nothing else does.
     ///
     /// **Where a policy was declared there is nothing to work out**, and that
     /// is the point of declaring one: the lands in play are the lands the
@@ -1586,20 +1690,32 @@ impl<'a> Board<'a> {
         // the land drop taught us not to do. So the line's bill is added to
         // this one and the pair is asked together. A file that declares no
         // casting priority spends nothing, so nothing moves.
-        let spent = self
-            .casting
-            .as_ref()
-            .and_then(|c| c.spent.get(turn))
-            .copied()
-            .unwrap_or(Demand::FREE);
-        self.can_pay(turn, spent.plus(cost.demand()))
+        //
+        // What the line left includes rock mana it did not spend, and the
+        // cost asked about comes after everything the line cast, so it sees
+        // every rock the turn made.
+        let Some(bill) = self.casting.as_ref().and_then(|c| c.bills.get(turn)) else {
+            return self.can_pay(turn, &[cost.demand()], &[]);
+        };
+        if bill.stages.len() == 1 {
+            return self.can_pay(turn, &[bill.stages[0].plus(cost.demand())], &bill.made);
+        }
+        let mut stages = bill.stages.clone();
+        let last = stages.len() - 1;
+        stages[last] = stages[last].plus(cost.demand());
+        self.can_pay(turn, &stages, &bill.made)
     }
 
     /// The matching behind [`Board::can_cast`], over a bill rather than a
     /// written cost — because the budget pays several spells out of one turn
     /// and that is one bill.
-    fn can_pay(&self, turn: usize, cost: Demand) -> bool {
-        if cost.is_free() {
+    fn can_pay(&self, turn: usize, stages: &[Demand], made: &[Made]) -> bool {
+        let cost = Payment {
+            stages,
+            made,
+            cap: Payment::UNCAPPED,
+        };
+        if cost.total() == 0 {
             return true;
         }
         if let Some(declared) = &self.declared {
@@ -1655,7 +1771,9 @@ impl<'a> Board<'a> {
             return false;
         };
         let drops = self.drops[turn];
-        if cost.total() > drops {
+        // Rock mana is on top of the land drops, and each land drop is still
+        // one land: the lines below hold the lands to their own count.
+        if cost.total() > drops + cost.made_total() {
             return false;
         }
         let earlier = &self.hand[previous];
@@ -1667,8 +1785,13 @@ impl<'a> Board<'a> {
 
         // Line one: every land paying this was already on the battlefield when
         // the turn began, so none of them can be tapped.
-        if cost.total() <= self.drops[previous]
-            && self.pays_by_last_turn(turn, cost, held, Constraint::Anything)
+        if cost.total() <= self.drops[previous] + cost.made_total()
+            && self.pays_by_last_turn(
+                turn,
+                cost.capped(self.drops[previous]),
+                held,
+                Constraint::Anything,
+            )
         {
             return true;
         }
@@ -1677,7 +1800,7 @@ impl<'a> Board<'a> {
         //
         // A land that stops making mana never stands in this line's way: this
         // turn's drop is free, so it can be the one that waited.
-        if cost.payable(
+        if cost.capped(drops).payable(
             &self.pool,
             |slot| self.makes_mana(slot, held(slot)),
             Constraint::IncludesUntapped,
@@ -1692,7 +1815,12 @@ impl<'a> Board<'a> {
                 continue;
             }
             let arrived = |i: usize| held(i) + u32::from(i == slot);
-            if self.pays_by_last_turn(turn, cost, arrived, Constraint::Includes(slot)) {
+            if self.pays_by_last_turn(
+                turn,
+                cost.capped(drops),
+                arrived,
+                Constraint::Includes(slot),
+            ) {
                 return true;
             }
         }
@@ -1729,7 +1857,7 @@ impl<'a> Board<'a> {
     fn pays_by_last_turn(
         &self,
         turn: usize,
-        cost: Demand,
+        cost: Payment<'_>,
         count: impl Fn(usize) -> u32,
         constraint: Constraint,
     ) -> bool {
@@ -1781,5 +1909,52 @@ impl<'a> Board<'a> {
 
     pub fn turns(&self) -> usize {
         self.hand.len()
+    }
+}
+
+/// A turn's bill as the lands are asked to pay it: the stages, the mana rocks
+/// and dorks made for it, and how many lands the line asking may tap.
+///
+/// Where no rock or dork is in play and the line cast none this turn, this is
+/// one summed bill and the matching is [`Demand::payable`]'s Hall's condition,
+/// exactly as it was before rocks were sources — so no number that casts no
+/// rock can move. Otherwise it is [`mana::settles`], the flow with nested
+/// supply, and the land count a line may tap is a capacity in it: rock mana
+/// pays on top of the land drops, never instead of the limit on them.
+#[derive(Clone, Copy)]
+struct Payment<'a> {
+    stages: &'a [Demand],
+    made: &'a [Made],
+    cap: u32,
+}
+
+impl Payment<'_> {
+    /// No limit on the lands: a declared land drop already says which are
+    /// standing, and all of them may be tapped.
+    const UNCAPPED: u32 = u32::MAX / 8;
+
+    fn total(&self) -> u32 {
+        self.stages.iter().map(|d| d.total()).sum()
+    }
+
+    fn made_total(&self) -> u32 {
+        self.made.iter().map(|m| m.count).sum()
+    }
+
+    /// The same payment, from at most `cap` lands.
+    fn capped(self, cap: u32) -> Self {
+        Payment { cap, ..self }
+    }
+
+    fn payable(
+        &self,
+        pool: &[Source],
+        count: impl Fn(usize) -> u32,
+        constraint: Constraint,
+    ) -> bool {
+        match (self.stages, self.made) {
+            ([summed], []) => summed.payable(pool, count, constraint),
+            _ => mana::settles(self.stages, pool, count, self.cap, self.made, constraint),
+        }
     }
 }

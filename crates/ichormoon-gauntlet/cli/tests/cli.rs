@@ -4731,3 +4731,147 @@ fn the_standard_library_makes_sources_of_the_rocks_and_dorks_and_nothing_else() 
         vec![(1, strings(&["Birds of Paradise", "Elvish Mystic"]))]
     );
 }
+
+// --- Rocks and dorks are mana the line cast (HANDS.md hands 26 to 33) --------
+
+/// One of hands 26 to 33, run against the rocks fixture index, whose cards are
+/// the committed `decks/index.jsonl`'s records. Every one is a seven-card
+/// library on the play, so the opening hand is the deck and every answer is
+/// 0% or 100%. Returns the JSON and the stderr.
+fn rock_hand(deck: &str, criteria: &str) -> (serde_json::Value, String) {
+    let out = run_with(deck, criteria, "rocks-index.jsonl");
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+    let json = serde_json::from_slice(&out.stdout)
+        .unwrap_or_else(|e| panic!("{deck} with {criteria} printed no JSON ({e}):\n{stderr}"));
+    (json, stderr)
+}
+
+#[test]
+fn hand_26_sol_ring_pays_for_the_lantern_it_was_cast_before() {
+    let (line, _) = rock_hand("hand-26.txt", "rocks-26.criteria.toml");
+    assert_eq!(percent(&line, "Lantern cast on turn 1"), 100.0);
+    assert_eq!(percent(&line, "Sol Ring cast on turn 1"), 100.0);
+    assert_eq!(percent(&line, "{1} left on turn 1"), 100.0);
+    // The line reversed: the Lantern takes the Island, and nothing is left
+    // to pay for Sol Ring on turn 1.
+    let (reversed, _) = rock_hand("hand-26.txt", "rocks-26-reversed.criteria.toml");
+    assert_eq!(percent(&reversed, "Lantern cast on turn 1"), 100.0);
+    assert_eq!(percent(&reversed, "Sol Ring cast on turn 1"), 0.0);
+    assert_eq!(percent(&reversed, "{1} left on turn 1"), 0.0);
+}
+
+#[test]
+fn hand_27_sol_ring_does_not_pay_for_itself() {
+    // The pair to hand 26: the same card count and the same total mana, and
+    // only the colour of the second spell differs. One joint matching over
+    // {1} + {1}{U} against Island and {C}{C} says turn 1.
+    let (json, _) = rock_hand("hand-27.txt", "rocks-27.criteria.toml");
+    assert_eq!(percent(&json, "Memory Lapse cast on turn 1"), 0.0);
+    assert_eq!(percent(&json, "Memory Lapse cast by turn 2"), 100.0);
+}
+
+#[test]
+fn hand_28_the_line_is_read_again_from_the_top_once_the_pool_grows() {
+    let (json, _) = rock_hand("hand-28.txt", "rocks-28.criteria.toml");
+    assert_eq!(percent(&json, "Mind Stone cast on turn 1"), 100.0);
+    assert_eq!(percent(&json, "{1} left on turn 1"), 100.0);
+}
+
+#[test]
+fn hand_32_lotus_cobra_is_cast_and_named_as_making_no_mana() {
+    let (json, stderr) = rock_hand("hand-32.txt", "rocks-32.criteria.toml");
+    assert_eq!(percent(&json, "Lotus Cobra cast by turn 5"), 100.0);
+    assert_eq!(percent(&json, "Borborygmos cast by turn 5"), 0.0);
+    assert_eq!(
+        json["casting"]["uncounted"],
+        serde_json::json!(["Lotus Cobra"]),
+        "{json}"
+    );
+    assert!(
+        stderr.contains("counted as making no mana") && stderr.contains("Lotus Cobra"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn hand_33_fellwar_stone_is_cast_and_named_as_making_no_mana() {
+    let (fellwar, stderr) = rock_hand("hand-33.txt", "rocks-33.criteria.toml");
+    assert_eq!(percent(&fellwar, "Trinket Mage cast by turn 5"), 0.0);
+    assert_eq!(
+        fellwar["casting"]["uncounted"],
+        serde_json::json!(["Fellwar Stone"])
+    );
+    assert!(stderr.contains("Fellwar Stone"), "{stderr}");
+    assert!(fellwar["casting"].get("sources").is_none(), "{fellwar}");
+    // Mind Stone in its place is a source the run counts, and names.
+    let (mind_stone, stderr) = rock_hand("hand-33-mind-stone.txt", "rocks-33.criteria.toml");
+    assert_eq!(
+        mind_stone["casting"]["sources"],
+        serde_json::json!([{ "card": "Mind Stone", "adds": 1, "makes": ["{C}"], "waits": 0 }])
+    );
+    assert!(mind_stone["casting"].get("uncounted").is_none());
+    assert!(stderr.contains("Mind Stone: adds 1"), "{stderr}");
+}
+
+#[test]
+fn a_line_with_rocks_and_a_dork_agrees_in_both_engines_through_the_binary() {
+    // ADR-0018 end to end: the rocks read off the card data and the effect
+    // library, cast by the line, and answered once by enumerating and once
+    // by dealing.
+    let run = |extra: &[&str]| {
+        let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+            .arg("test")
+            .arg(fixture("rocks-deck.txt"))
+            .arg(fixture("rocks-deck.criteria.toml"))
+            .arg("--index")
+            .arg(fixture("rocks-index.jsonl"))
+            .args(extra)
+            .output()
+            .expect("binary should run");
+        let json: serde_json::Value = serde_json::from_slice(&out.stdout)
+            .unwrap_or_else(|e| panic!("no JSON ({e}): {}", String::from_utf8_lossy(&out.stderr)));
+        json
+    };
+    let exact = run(&[]);
+    let sampled = run(&["--simulate", "--trials", "40000", "--seed", "3"]);
+    assert_eq!(exact["method"], "exact");
+    assert_eq!(sampled["method"], "sampled");
+    for name in [
+        "Rashmi cast by turn 4",
+        "two sources cast by turn 3",
+        "Memory Lapse cast by turn 3",
+        "{U} left on turn 4",
+    ] {
+        let (want, got) = (percent(&exact, name), percent(&sampled, name));
+        assert!(want > 5.0 && want < 95.0, "{name} is worth asking: {want}");
+        assert!(
+            (want - got).abs() < 1.0,
+            "{name}: {want} exact against {got} sampled"
+        );
+    }
+}
+
+#[test]
+fn a_rock_makes_what_its_card_says_and_a_signet_its_commanders_colours() {
+    let (signet, _) = rock_hand("signet.txt", "signet.criteria.toml");
+    assert_eq!(
+        signet["casting"]["sources"],
+        serde_json::json!([
+            { "card": "Arcane Signet", "adds": 1, "makes": ["{U}", "{R}", "{G}"], "waits": 0 },
+            { "card": "Talisman of Creativity", "adds": 1, "makes": ["{U}", "{R}", "{C}"], "waits": 0 },
+        ])
+    );
+    // No commander, no colour identity, and so no mana to make: the Signet is
+    // cast and counted as making none, and the Talisman is still a source.
+    let (alone, _) = rock_hand("signet-no-commander.txt", "signet.criteria.toml");
+    assert_eq!(
+        alone["casting"]["uncounted"],
+        serde_json::json!(["Arcane Signet"])
+    );
+    assert_eq!(
+        alone["casting"]["sources"],
+        serde_json::json!([
+            { "card": "Talisman of Creativity", "adds": 1, "makes": ["{U}", "{R}", "{C}"], "waits": 0 },
+        ])
+    );
+}

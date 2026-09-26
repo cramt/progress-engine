@@ -9,7 +9,7 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 use chip_scryfall::index::{Card, Index, IndexFile, KeywordVocabulary, TagVocabulary};
 use chip_scryfall::OutsideLibrary;
-use gauntlet_criteria::{Demand, Grouping, GroupingError, ManaSource, Resolves};
+use gauntlet_criteria::{Demand, Grouping, GroupingError, ManaSource, Palette, Resolves};
 
 use crate::lands::{self, Reading};
 
@@ -47,6 +47,32 @@ pub struct Marked {
     pub members: Vec<bool>,
 }
 
+/// What a rock or dork adds once the `[casting]` line has cast it, as the
+/// effect that owns the card declares it (ADR-0018).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Adds {
+    /// How many mana a turn.
+    pub amount: u32,
+    /// Whole turns it waits after the one it is cast on: `after = n`, which
+    /// is how a rock that enters tapped is declared. Zero for most.
+    pub after: u32,
+}
+
+/// Keywords that let a spell be cast for less than its printed cost, which
+/// the budget does not model: a spell with one pays what it prints.
+const COST_REDUCERS: [&str; 3] = ["Improvise", "Affinity", "Convoke"];
+
+/// What [`Library::line_mana`] found.
+#[derive(Debug, Default)]
+pub struct LineMana {
+    /// Each rock or dork the line names, by card, and what it is to the budget.
+    pub sources: Vec<(String, ManaSource)>,
+    /// Cards the line names that could make mana and are counted as none.
+    pub uncounted: Vec<String>,
+    /// Cards the line names whose cost a keyword could reduce.
+    pub printed_cost: Vec<String>,
+}
+
 /// Whether this run has to tell lands apart by what they make.
 ///
 /// Two cards matching the same queries are interchangeable to a criterion, and
@@ -72,9 +98,14 @@ pub enum ManaDetail<'a> {
     /// one costs where the line names it. A commander the line names is cast
     /// from the command zone; one it does not is left out of the grouping
     /// altogether, because it is never drawn and nothing else reads it.
+    ///
+    /// `adds` is one entry per [`Library::entries`] position too: what each
+    /// card adds where an effect declares it. A card the line casts that adds
+    /// something is a rock or a dork; one it never casts makes no mana.
     Modelled {
         castable: &'a [Option<Demand>],
         commanders: &'a [Option<Demand>],
+        adds: &'a [Option<Adds>],
     },
 }
 
@@ -298,8 +329,14 @@ impl Library {
                 // A card the priority names is a payer rather than a source,
                 // and the two cannot be the same card: `resolve` refuses to
                 // price a land, because a land is played rather than cast.
-                ManaDetail::Modelled { castable, .. } => {
-                    match castable.get(card).copied().flatten() {
+                ManaDetail::Modelled { castable, adds, .. } => {
+                    let adds = adds.get(card).copied().flatten();
+                    let cost = castable.get(card).copied().flatten();
+                    let rock = cost
+                        .zip(adds)
+                        .and_then(|(c, a)| self.rock_or_dork(&e.card, c, a));
+                    match cost {
+                        Some(_) if rock.is_some() => rock.expect("just checked"),
                         Some(cost) => ManaSource::Castable {
                             cost,
                             resolves: if is_permanent(&e.card) {
@@ -352,6 +389,90 @@ impl Library {
             })
             .collect::<Vec<_>>();
         Ok(grouping.with_command_zone(command))
+    }
+
+    /// A card the line casts, and what it adds once it has.
+    ///
+    /// The palette is the card's `produces`, except where its mana is "any
+    /// color in your commander's color identity" (Arcane Signet): that is the
+    /// commanders' identity, and none at all in a deck with no commander,
+    /// because then there is no identity to make a colour of. A creature is
+    /// summoning-sick (CR 302.6), so it waits at least the turn it is cast.
+    ///
+    /// `None` where it is no source after all: an instant or a sorcery is not
+    /// in play to tap, and a card whose palette comes to nothing makes no mana
+    /// — which is not the same as mana of no colour, because that would still
+    /// pay generic.
+    pub fn rock_or_dork(&self, card: &Card, cost: Demand, adds: Adds) -> Option<ManaSource> {
+        let mut makes = Palette::from_letters(&card.produces);
+        if card.oracle.contains("commander's color identity") {
+            makes = makes.intersect(Palette::from_letters(
+                self.commanders.iter().flat_map(|c| c.card.ci.iter()),
+            ));
+        }
+        if makes.is_empty() || !is_permanent(card) {
+            return None;
+        }
+        let sick = u32::from(names(front(card), "creature"));
+        Some(ManaSource::RockOrDork {
+            cost,
+            adds: adds.amount,
+            makes,
+            waits: adds.after.max(sick),
+        })
+    }
+
+    /// What the line does about mana beyond the lands: the rocks and dorks it
+    /// names, as sources the budget counts, and the cards it names that could
+    /// make mana in some game and are counted as making none — Fellwar Stone,
+    /// which needs an opponent, and Lotus Cobra, which needs landfall — and
+    /// the cards whose cost could be reduced, which pay their printed cost.
+    ///
+    /// Named rather than counted, because each one moves a number and the
+    /// percentage cannot say so (ADR-0018). Each list is sorted and
+    /// deduplicated so the note reads the same on every run.
+    pub fn line_mana(
+        &self,
+        castable: &[Option<Demand>],
+        commanders: &[Option<Demand>],
+        adds: &[Option<Adds>],
+    ) -> LineMana {
+        let mut line = LineMana::default();
+        let named = self
+            .entries
+            .iter()
+            .zip(castable)
+            .zip(adds.iter().copied().chain(std::iter::repeat(None)))
+            .map(|((e, cost), adds)| (e, cost, adds))
+            .chain(
+                self.commanders
+                    .iter()
+                    .zip(commanders)
+                    .map(|(e, cost)| (e, cost, None)),
+            );
+        for (e, cost, adds) in named {
+            let Some(cost) = cost else { continue };
+            let card = &e.card;
+            match adds.and_then(|a| self.rock_or_dork(card, *cost, a)) {
+                Some(source) => line.sources.push((card.name.clone(), source)),
+                None if !card.produces.is_empty() => line.uncounted.push(card.name.clone()),
+                None => {}
+            }
+            if card
+                .keywords
+                .iter()
+                .any(|k| COST_REDUCERS.iter().any(|r| k.eq_ignore_ascii_case(r)))
+            {
+                line.printed_cost.push(card.name.clone());
+            }
+        }
+        line.sources.sort_by(|a, b| a.0.cmp(&b.0));
+        line.sources.dedup_by(|a, b| a.0 == b.0);
+        for names in [&mut line.uncounted, &mut line.printed_cost] {
+            names.sort_unstable();
+            names.dedup();
+        }
+        line
     }
 
     /// Which lands in this deck have a tapped-ness the pilot decides.

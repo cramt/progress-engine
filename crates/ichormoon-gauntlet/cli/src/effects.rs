@@ -17,7 +17,7 @@ use chip_scryfall::Query;
 use gauntlet_criteria::{Effect, Fetch, Route};
 use gauntlet_toml::{Destination, EffectEntry, EffectLibrary, STANDARD_LIBRARY_ORIGIN};
 
-use crate::library::{Library, Marked};
+use crate::library::{Adds, Library, Marked};
 
 /// An effect that matched at least one card in this deck, and which cards.
 ///
@@ -29,7 +29,6 @@ pub struct Applied {
     pub matches: String,
     pub look: u32,
     /// How much mana a matched card adds once the line casts it (ADR-0018).
-    /// Declared and reported, and not yet read by the mana budget (#93).
     pub adds: Option<u32>,
     pub on: &'static str,
     pub to_graveyard: Option<String>,
@@ -67,6 +66,14 @@ pub struct Resolved {
     pub queries: Vec<String>,
     /// One per live effect: which library cards it owns.
     pub marked: Vec<Marked>,
+    /// One per library entry: what it adds once the `[casting]` line has cast
+    /// it, where the effect that owns it declares `adds` (ADR-0018).
+    ///
+    /// Not a grouping bit. What a source adds is part of the card's mana, the
+    /// way a land's palette is, so it goes into the grouping as that — and
+    /// only for a card the line casts, because a rock nobody casts makes no
+    /// mana and splitting it off would widen every run for nothing.
+    pub adds: Vec<Option<Adds>>,
     /// Hand-written entries whose `match` picked out nothing.
     ///
     /// Only hand-written ones. A standard library entry that matches nothing is
@@ -278,11 +285,23 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
         });
     }
 
+    let adds = owner
+        .iter()
+        .map(|o| {
+            let entry = &library.entries()[(*o)?];
+            Some(Adds {
+                amount: entry.adds?,
+                after: entry.delay.map_or(0, |d| d.turns),
+            })
+        })
+        .collect();
+
     Ok(Resolved {
         applied,
         effects,
         queries,
         marked,
+        adds,
         unmatched,
         tag_blind,
     })

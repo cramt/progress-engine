@@ -1,0 +1,6 @@
+// HANDS.md hand 33, the other column: Mind Stone where the Fellwar Stone was.
+// Eleven cards, as hand-33.txt.
+2x Island [Land]
+1x Mind Stone [Ramp]
+1x Trinket Mage [Tutor]
+7x Opt [Filler]

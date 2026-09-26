@@ -1,0 +1,10 @@
+# HANDS.md hand 33: Fellwar Stone makes mana an opponent's land could make,
+# and a north star has no opponent, so it makes nothing. Asked of two
+# decklists, one holding the Stone and the other Mind Stone.
+
+[casting]
+prefer = ['name:"Fellwar Stone"', 'name:"Mind Stone"', 'name:"Trinket Mage"']
+
+[[criterion]]
+name = "Trinket Mage cast by turn 5"
+require = [{ turn = 5, cast = 'name:"Trinket Mage"', min = 1 }]
