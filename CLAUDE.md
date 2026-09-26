@@ -14,6 +14,15 @@ shares the workspace and nothing else yet; its own README and FINDINGS.md are
 the authority on it, and the notes below about decks, criteria and the two
 engines do not apply to it.
 
+Gauntlet stands on **Reality Chip** (`crates/reality-chip/`), the shared core:
+`chip-scryfall` (card index, query syntax), `chip-decklist` (Archidekt parsing)
+and `chip-stats` (the hypergeometric walk, which knows nothing about Magic and
+must stay that way). Gauntlet's own crates are `gauntlet-criteria` (the exact
+engine behind an `Evaluator` trait), `gauntlet-toml` (the criteria format and
+the only `impl Evaluator`, shared by both engines), `gauntlet-sim` (the
+sampler) and `gauntlet-cli`. README's "Crate layout" says which crate may know
+what; respect those boundaries.
+
 ## Read before changing behaviour
 
 - **[VISION.md](VISION.md)** — the product authority. What the tool is, what it
@@ -43,7 +52,13 @@ Everything goes through the flake devshell, which carries `jq` and
 nix develop --command cargo test --all
 nix develop --command cargo clippy --all-targets -- -D warnings
 nix develop --command cargo fmt --all
+nix develop --command cargo test -p gauntlet-sim --test acceptance <name>   # one test
+nix develop --command cargo run -p gauntlet-cli -- test decks/lantern.txt decks/lantern.criteria.toml --index decks/index.jsonl
 ```
+
+Plain `cargo` outside the devshell fails to resolve: the root `Cargo.toml`
+patches `deno_core` to `vendor/deno_core`, which is not committed but a symlink
+the flake creates to an Android-patched copy.
 
 **Run `cargo fmt --all` before every commit.** CI is `nix flake check`, whose
 four checks are fmt, clippy, test and build; a fmt failure aborts the others, so
