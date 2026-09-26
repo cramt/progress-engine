@@ -1305,6 +1305,58 @@ fn a_tutor_declares_what_it_fetches_and_where_it_puts_it() {
 }
 
 #[test]
+fn a_source_declares_how_much_mana_it_adds() {
+    // ADR-0018: a non-land card is a mana source when the line casts it and an
+    // effect matching it says how much it adds. It neither looks nor fetches,
+    // so `adds` alone is enough of an effect to be one.
+    let criteria = parse(
+        r#"
+        [[effect]]
+        match = 'name:"Sol Ring"'
+        on = "cast"
+        adds = 2
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    let entry = &criteria.effects().entries()[0];
+    assert_eq!(entry.adds, Some(2));
+    assert_eq!(entry.look, 0, "a source turns over nothing");
+    assert_eq!(entry.fetch, None);
+    assert_eq!(entry.trigger, Trigger::Cast);
+}
+
+#[test]
+fn a_source_that_adds_nothing_or_arrives_on_a_land_drop_is_refused() {
+    let with = |on: &str, adds: i64| {
+        refuse(&format!(
+            r#"
+            [[effect]]
+            match = 'name:"Sol Ring"'
+            on = "{on}"
+            adds = {adds}
+
+            [[criterion]]
+            name = "anything"
+            require = [{{ turn = 0, query = 'cat:"arm"', min = 1 }}]
+            "#
+        ))
+    };
+    // Fellwar Stone with no opponent adds nothing, and the way to say so is
+    // to declare no `adds`, not `adds = 0`.
+    for adds in [0, -1] {
+        let bad = with("cast", adds);
+        assert!(matches!(bad, ErrorKind::BadAdds { .. }), "{bad}");
+    }
+    // A source is a card the line cast; a land's mana is the land drop's.
+    let bad = with("landdrop", 1);
+    assert!(matches!(bad, ErrorKind::AddsOnLandDrop { .. }), "{bad}");
+    assert!(bad.to_string().contains("on = \"cast\""), "{bad}");
+}
+
+#[test]
 fn half_a_tutor_is_refused_either_way_round() {
     // A priority with nowhere to put what it finds and a destination with
     // nothing arriving at it are each half a declaration, and half a
@@ -1517,11 +1569,18 @@ fn the_standard_library_is_a_criteria_file_like_any_other() {
         .expect("the shipped library must parse");
     assert!(!std.is_empty(), "a library with nothing in it is not one");
     for entry in std.entries() {
-        assert_eq!(
-            entry.trigger,
-            Trigger::LandDrop,
-            "only the land-drop tier is modelled: {entry:?}"
-        );
+        // A look is only modelled on the land drop. What fires on a cast is a
+        // source the line cast (ADR-0018): it declares what it adds and turns
+        // over nothing.
+        match entry.trigger {
+            Trigger::LandDrop => assert_eq!(entry.adds, None, "{entry:?}"),
+            Trigger::Cast => assert!(
+                entry.adds.is_some() && entry.look == 0,
+                "a cast entry here only declares a source: {entry:?}"
+            ),
+        }
+        // And never a fetch: which card a tutor finds is the question asked.
+        assert_eq!(entry.fetch, None, "{entry:?}");
         // The library says what a card looks at, never where the cards go. A
         // destination here would be this tool answering a question nobody asked
         // it, and it would be wrong for half the decks that play the card.

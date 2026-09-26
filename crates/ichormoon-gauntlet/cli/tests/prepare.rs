@@ -220,7 +220,7 @@ fn an_effect_library_blind_to_a_tagless_index_is_a_note_and_not_a_refusal() {
     assert_eq!(notes.len(), 1, "notes were: {notes:?}");
     assert!(
         notes[0]
-            .starts_with("note: this index carries no oracle tags, so 2 effect library entries"),
+            .starts_with("note: this index carries no oracle tags, so 4 effect library entries"),
         "{}",
         notes[0]
     );

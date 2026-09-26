@@ -278,6 +278,12 @@ pub struct EffectUse {
     #[facet(rename = "match")]
     pub matches: String,
     pub look: u32,
+    /// How much mana each card adds once the `[casting]` line has cast it
+    /// (ADR-0018), or absent for an effect that makes no source. Declared by
+    /// the standard library; the mana budget does not read it yet (#93), so
+    /// today it moves no number.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub adds: Option<u32>,
     pub on: &'static str,
     /// The routing policy, or `null` where none was declared — in which case
     /// every looked-at card stays on top and this effect moves no number.
@@ -1034,14 +1040,15 @@ impl Report {
         // An entry that matched nothing says nothing and is not mentioned.
         for e in &self.effects {
             let route = match (&e.to_graveyard, e.live) {
-                (None, _) if e.fetch.is_some() => String::new(),
+                (None, _) if e.fetch.is_some() || e.adds.is_some() => String::new(),
                 (None, _) => ", everything stays on top".to_string(),
                 (Some(q), true) => format!(", {q} to the graveyard"),
                 (Some(q), false) => format!(", {q} to the graveyard — which no card here matches"),
             };
-            let look = match e.look {
-                0 => String::new(),
-                n => format!("look {n}, "),
+            let look = match (e.look, e.adds) {
+                (0, None) => String::new(),
+                (0, Some(n)) => format!("adds {n}, "),
+                (n, _) => format!("look {n}, "),
             };
             // A delayed effect says how long it waited and what it cost, in the
             // same parenthesis as the trigger it waited from: a Lantern that
@@ -1067,6 +1074,15 @@ impl Report {
                 if e.copies == 1 { "" } else { "s" },
                 e.cards.join(", ")
             ));
+            // Declared, and not yet spent: the mana budget reads no `adds`
+            // until #93, so saying the amount without this would claim a
+            // number moved that did not.
+            if e.adds.is_some() {
+                out.push_str(
+                    "      a mana source once the [casting] line casts it; the mana budget does \
+                     not count it yet\n",
+                );
+            }
             // A tutor names what it went and got, in the order it would take
             // them. Same discipline as the land drop and the casting line
             // below, over the fourth contested resource: the library this run
@@ -1592,6 +1608,7 @@ pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
         .map(|a| EffectUse {
             matches: a.matches.clone(),
             look: a.look,
+            adds: a.adds,
             on: a.on,
             to_graveyard: a.to_graveyard.clone(),
             fetch: a.fetch.as_ref().map(|(prefer, _)| prefer.clone()),

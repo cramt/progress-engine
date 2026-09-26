@@ -178,6 +178,9 @@ struct EffectDef {
     #[facet(rename = "match")]
     matches: Option<String>,
     look: Option<i64>,
+    /// How much mana a card adds a turn once the line has cast it
+    /// (ADR-0018). Sol Ring is `adds = 2`.
+    adds: Option<i64>,
     on: Option<String>,
     /// Absent means nothing leaves the top of the library. See
     /// [`gauntlet_criteria::Route::Nowhere`] for why that is a refusal to guess
@@ -511,6 +514,12 @@ pub struct EffectEntry {
     /// Which cards this effect is about.
     pub matches: String,
     pub look: u32,
+    /// How much mana a matching card adds a turn once the `[casting]` line has
+    /// cast it, or `None` for a card this entry does not make a source.
+    ///
+    /// Declared rather than read: Scryfall's `produced_mana` is a palette with
+    /// no amount, and Sol Ring makes two. See ADR-0018.
+    pub adds: Option<u32>,
     pub trigger: Trigger,
     /// The routing policy: which of the looked-at cards go to the graveyard.
     /// `None` is "none of them", and is the default.
@@ -1019,7 +1028,7 @@ const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least
                       cast, min, max) or (turn, can_cast), and whose any_of branches each hold \
                       a require of their own, \
                       [[expect]] tables (name, turn, query, zone) or (name, turn, cast), [[effect]] \
-                      tables (match, on, look, to_graveyard, fetch, to, after, sacrifice), one \
+                      tables (match, on, look, adds, to_graveyard, fetch, to, after, sacrifice), one \
                       [land_drop] table (prefer), \
                       one [casting] table (prefer) \
                       and one [mulligan] table (keep, bottom, down_to, optimise), whose keep \
@@ -1299,6 +1308,22 @@ pub enum ErrorKind {
          `sacrifice` is for a card that stayed in play until a delayed effect resolved."
     )]
     SacrificeWithoutDelay { at: String },
+    #[error(
+        "{at}: `adds = {adds}` is not an amount of mana: it must be a whole number from 1 \
+         to {}. A card that adds no mana is not a source, and is written with no `adds`",
+        u32::MAX
+    )]
+    BadAdds { at: String, adds: i64 },
+    /// A source is a card the `[casting]` line cast, so its trigger is the
+    /// cast. What a land taps for is the land drop's business, read from the
+    /// land's own palette.
+    #[error(
+        "{at}: has `adds` on a land drop, and a mana source is a card the `[casting]` line \
+         casts (ADR-0018).\n\
+         Write `on = \"cast\"` for a rock or a dork; what a land taps for is read from the \
+         land itself"
+    )]
+    AddsOnLandDrop { at: String },
 }
 
 /// A count with nowhere to go in a histogram, named against the expectation
@@ -1452,11 +1477,13 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
             trigger,
         })?;
         let fetch = fetch_of(def, &at)?;
-        // `look` is required unless this effect only fetches, and the two are
-        // different things: a look turns over a card nobody has seen, a fetch
-        // names one. An entry doing neither would be a checkpoint spent on an
-        // effect that cannot move a number.
-        let look = match (def.look, &fetch) {
+        let adds = adds_of(def, &at, trigger)?;
+        // `look` is required unless this effect fetches or adds mana instead,
+        // and those are different things: a look turns over a card nobody has
+        // seen, a fetch names one, and a source turns over nothing. An entry
+        // doing none of them would be a checkpoint spent on an effect that
+        // cannot move a number.
+        let look = match (def.look, fetch.is_some() || adds.is_some()) {
             (Some(look), _) => u32::try_from(look)
                 .ok()
                 .filter(|l| (1..=MAX_LOOK).contains(l))
@@ -1464,14 +1491,14 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
                     at: at.clone(),
                     look,
                 })?,
-            (None, Some(_)) => 0,
-            (None, None) => {
+            (None, true) => 0,
+            (None, false) => {
                 return Err(ErrorKind::Missing {
                     at: at.clone(),
                     key: "look",
                     why: "so there is nothing for it to examine. Write `look = 1` for \"the top \
-                          card\", or `fetch = ['<query>']` for a card it goes and gets out of \
-                          the library",
+                          card\", `fetch = ['<query>']` for a card it goes and gets out of \
+                          the library, or `adds = 1` for a rock or dork the line casts",
                 })
             }
         };
@@ -1492,6 +1519,7 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
         entries.push(EffectEntry {
             matches,
             look,
+            adds,
             trigger,
             to_graveyard: def.to_graveyard.as_deref().map(|d| {
                 if d == EVERYTHING {
@@ -1506,6 +1534,30 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
         });
     }
     Ok(EffectLibrary { entries })
+}
+
+/// Validate the `adds` key of one `[[effect]]` table.
+///
+/// A source is something the `[casting]` line cast (ADR-0018), so it fires on
+/// a cast: a land's mana is the land drop's, read from its palette, and a land
+/// declared to add more is a different ticket. And it adds at least one mana,
+/// because a card that adds none is not a source and an entry saying so would
+/// be a declaration nothing reads.
+fn adds_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<u32>, ErrorKind> {
+    let Some(adds) = def.adds else {
+        return Ok(None);
+    };
+    let amount = u32::try_from(adds)
+        .ok()
+        .filter(|&n| n >= 1)
+        .ok_or(ErrorKind::BadAdds {
+            at: at.to_string(),
+            adds,
+        })?;
+    if trigger != Trigger::Cast {
+        return Err(ErrorKind::AddsOnLandDrop { at: at.to_string() });
+    }
+    Ok(Some(amount))
 }
 
 /// Validate the `after` and `sacrifice` keys of one `[[effect]]` table.

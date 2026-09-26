@@ -1048,6 +1048,7 @@ to_graveyard = 'name:"Life from the Loam"'
 | `to_graveyard` | the routing policy: which examined cards go to the yard. `"*"` is all of them, which is mill. Absent means none of them |
 | `fetch` | the cards it goes and gets out of the library, highest priority first. See [Tutors](#tutors-and-a-library-that-shrinks) |
 | `to` | where a fetched card is put: `hand` or `battlefield` |
+| `adds` | how much mana a card adds a turn once the `[casting]` line has cast it, `on = "cast"` only. See [ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md). Declared and reported today, and not yet read by the mana budget ([#93](https://github.com/cramt/progress-engine/issues/93)), so it moves no number |
 
 **Looking is a land drop, fetching can be a cast.** Playing a land is free and
 hard-capped at one a turn, so by turn *T* at most *T* of those have happened
@@ -1061,8 +1062,8 @@ this tool exists for over the ceiling
 ([#57](https://github.com/cramt/progress-engine/issues/57)). A `fetch` on a cast
 is a subtraction and costs nothing.
 
-**The library never says where cards go.** Every shipped entry declares `match`,
-`look` and `on`, and no entry declares `to_graveyard`. That split is the whole
+**The library never says where cards go.** Every shipped entry that looks
+declares `match`, `look` and `on`, and no entry declares `to_graveyard`. That split is the whole
 design. The same Undercity Sewers wants Life from the Loam in the graveyard in
 one deck and on top of the library in another — so the destination is part of
 *your question*, not a property of the card, and the tool guessing at it would
@@ -1100,6 +1101,23 @@ What ships today, and why each entry is there:
 |---|---|---|
 | `t:land otag:surveil` | 1 | the only land drop whose other destination this engine models. Surveil bins to the graveyard, and the graveyard is a zone a criterion can ask about |
 | `t:land otag:scry` | 1 | the same free, capped look at one card. Its other destination is the bottom of the library, which this engine cannot tell from the top, so it has no honest routing and never will until it does |
+
+And two that look at nothing, `on = "cast"`: the amount of mana a rock or dork
+adds once the line casts it, which Scryfall's `produced_mana` leaves out
+([ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md)). Both
+require `otag:mana-rock or otag:mana-dork` and exclude any card whose mana is
+conditional, delayed, restricted, variable, or paid for with more than a tap, and
+any double-faced card, because an entry may understate a card and must never
+overstate one. The full queries are in
+`crates/ichormoon-gauntlet/toml/src/standard-effects.toml`.
+
+| Reads | `adds` | Scryfall, 2026-09-26 | In `decks/` |
+|---|---|---|---|
+| `o:"{T}: Add"` | 1 | 364 cards | Mind Stone, Arcane Signet, three Talismans, Birds of Paradise, Elvish Mystic |
+| `o:"{T}: Add {C}{C}."`, declared after, so last-wins | 2 | 15 cards | Sol Ring |
+
+Fellwar Stone (with no opponent it makes nothing) and Lotus Cobra (landfall, not
+a tap) are deliberately not sources.
 
 **What it costs.** Turning a card over mid-turn means the order of cards within a
 turn starts to matter — drawing a surveil land and then surveilling is not the
@@ -1930,20 +1948,22 @@ So they are not derived. They are **fetched**, from Scryfall's search API at
 the rest of this file is held to: not a hard-coded copy that goes stale, and not
 a guess dressed as a fact, but somebody else's answer with a date attached.
 
-`sync` fetches eight tags today, each because something here reads it:
+`sync` fetches ten tags today, each because something here reads it:
 
 | Tag | Cards | Read by |
 |---|---|---|
-| `tapland` | 495 | whether two lands are actually two mana |
+| `tapland` | 493 | whether two lands are actually two mana |
 | `conditional-tapland` | 179 | the half `tapland` is not: a shockland enters tapped only if you decline to pay, so the gate has to say which way it read the choice |
-| `surveil` | 334 | how many cards deep a turn sees |
-| `scry` | 475 | the same, leaving the card on top |
-| `mill` | 1,305 | the graveyard as a destination |
-| `tutor` | 1,168 | selection over the whole library |
-| `ramp` | 2,315 | the mana-curve questions |
+| `surveil` | 332 | how many cards deep a turn sees |
+| `scry` | 462 | the same, leaving the card on top |
+| `mill` | 1,294 | the graveyard as a destination |
+| `tutor` | 1,163 | selection over the whole library |
+| `ramp` | 2,286 | the mana-curve questions |
 | `fetchland` | 54 | deck thinning: the cards that remove a land from the library rather than looking at one. `is:fetchland` is the ten-card cycle; this is Prismatic Vista and Terramorphic Expanse too, and no query over card text separates them |
+| `mana-rock` | 384 | how much mana a rock the line cast adds: the standard library's `adds` entries |
+| `mana-dork` | 441 | the same, for creatures |
 
-They cost nothing to carry: 5,355 of 35,486 cards are tagged, the file is the
+They cost nothing to carry: 5,301 of 35,004 cards are tagged, the file is the
 same 24MB, and a run parses only the cards your deck names either way.
 
 **An index carries the tags it was told to fetch, and says which.** The header

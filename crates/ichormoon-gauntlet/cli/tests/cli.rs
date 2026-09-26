@@ -3225,7 +3225,7 @@ fn a_battlefield_question_about_a_spell_opens_only_where_a_saga_can_put_it() {
 // --- the committed decks ----------------------------------------------------
 
 /// A file under the workspace's `decks/`, which a clone can reproduce every
-/// number in: the index beside the lists carries all eight oracle tags.
+/// number in: the index beside the lists carries all ten oracle tags.
 fn deck_file(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../../decks")
@@ -4481,4 +4481,72 @@ fn one_thread_and_many_print_the_same_run() {
             "{criteria}: report differs by thread count"
         );
     }
+}
+
+// --- mana sources the standard library declares (ADR-0018, #91) ---------------
+
+/// The cards each standard-library `adds = n` entry claimed in `deck`, keyed by
+/// the amount, read from the report's `effects`.
+fn sources_in(deck: &str, criteria: &str) -> Vec<(u64, Vec<String>)> {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(deck_file(deck))
+        .arg(fixture(criteria))
+        .arg("--index")
+        .arg(deck_file("index.jsonl"))
+        .output()
+        .expect("binary should run");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap_or_else(|_| {
+        panic!(
+            "{deck} should answer: {}",
+            String::from_utf8_lossy(&out.stderr)
+        )
+    });
+    json["effects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|e| e["source"] == "the standard effect library")
+        .filter_map(|e| {
+            let adds = e["adds"].as_u64()?;
+            let mut cards: Vec<String> = e["cards"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|c| c.as_str().unwrap().to_string())
+                .collect();
+            cards.sort();
+            Some((adds, cards))
+        })
+        .collect()
+}
+
+#[test]
+fn the_standard_library_makes_sources_of_the_rocks_and_dorks_and_nothing_else() {
+    // ADR-0018 names the membership on the committed decks: Sol Ring adds two;
+    // Mind Stone, Arcane Signet, the three Talismans, Birds of Paradise and
+    // Elvish Mystic add one. Fellwar Stone makes a colour an opponent's land
+    // could produce, and there is no opponent; Lotus Cobra's mana is a
+    // landfall trigger rather than a tap. Neither is a source.
+    let strings = |names: &[&str]| names.iter().map(|n| n.to_string()).collect::<Vec<_>>();
+    assert_eq!(
+        sources_in("lantern.txt", "anchors-lantern.criteria.toml"),
+        vec![
+            (
+                1,
+                strings(&[
+                    "Arcane Signet",
+                    "Mind Stone",
+                    "Talisman of Creativity",
+                    "Talisman of Curiosity",
+                    "Talisman of Impulse",
+                ])
+            ),
+            (2, strings(&["Sol Ring"])),
+        ]
+    );
+    assert_eq!(
+        sources_in("loam.txt", "anchors-loam.criteria.toml"),
+        vec![(1, strings(&["Birds of Paradise", "Elvish Mystic"]))]
+    );
 }

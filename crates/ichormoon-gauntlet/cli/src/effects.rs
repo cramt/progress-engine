@@ -28,6 +28,9 @@ use crate::library::{Library, Marked};
 pub struct Applied {
     pub matches: String,
     pub look: u32,
+    /// How much mana a matched card adds once the line casts it (ADR-0018).
+    /// Declared and reported, and not yet read by the mana budget (#93).
+    pub adds: Option<u32>,
     pub on: &'static str,
     pub to_graveyard: Option<String>,
     /// The declared tutor priority, as written, and where it puts what it
@@ -194,6 +197,7 @@ pub fn resolve(library: &EffectLibrary, deck: &Library, asked: &[String]) -> Res
         applied.push(Applied {
             matches: entry.matches.clone(),
             look: entry.look,
+            adds: entry.adds,
             on: entry.trigger.as_str(),
             to_graveyard: entry.to_graveyard.as_ref().map(|d| match d {
                 Destination::Everything => gauntlet_toml::EVERYTHING.to_string(),
