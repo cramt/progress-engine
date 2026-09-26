@@ -26,6 +26,11 @@
   ],
   "zones": [
     {
+      "zone": "battlefield",
+      "reachable": true,
+      "asked_by": "Lantern of Insight on the battlefield by turn 5"
+    },
+    {
       "zone": "library",
       "reachable": true,
       "asked_by": "Lanterns still in the library on turn 5"
@@ -111,7 +116,8 @@
     },
     {
       "criteria": [
-        "Trinket Mage and a Lantern both cast by turn 5"
+        "Trinket Mage and a Lantern both cast by turn 5",
+        "Lantern of Insight on the battlefield by turn 5"
       ],
       "expectations": [
         "Lanterns still in the library on turn 5"
@@ -204,6 +210,15 @@
       "standard_error": 0.000595,
       "pass": true,
       "method": "sampled"
+    },
+    {
+      "name": "Lantern of Insight on the battlefield by turn 5",
+      "probability": 0.180105,
+      "percent": 18.01,
+      "at_least": null,
+      "standard_error": 0.000859,
+      "pass": true,
+      "method": "sampled"
     }
   ],
   "expectations": [
@@ -225,7 +240,7 @@
     "tool_version": "0.1.0",
     "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "b39ac98bea3f6724d9811f28c50bc966d28734bcb31de6e1349b8fe526f2ab09",
-    "criteria_sha256": "3e053b713f19e9f22c547c17f187276370d288f0fc48f3acf21da185ca30a545",
+    "criteria_sha256": "243d837c39a9f73349ab4decc69f39de82a8b20cedf269021031ec85a16c0b9d",
     "effect_library_sha256": "43d0fe87aa0021ee3430ccc4a210019418f0ab41e9c2b80f148dee29b2168bf5"
   }
 }

@@ -1,9 +1,10 @@
 ESTIMATE: a question here was too wide to enumerate exactly: 379980315
           compositions across 9 groups, against a ceiling of 5000000. It was
           answered by sampling 200000 hands instead.
-          2 of the 3 questions here needed that, and they are the ones
+          3 of the 4 questions here needed that, and they are the ones
           quoted with a ±:
           Trinket Mage and a Lantern both cast by turn 5
+          Lantern of Insight on the battlefield by turn 5
           Lanterns still in the library on turn 5
           Everything else below was enumerated exactly. A difference
           smaller than a figure's ± is not a difference.
@@ -42,10 +43,11 @@ note: these lands make mana other than the card data lists, and this run reads t
       Spire of Industry: pays {C} only: its other colours come with a condition this engine cannot see.
       Urza's Saga: makes mana for three turns, the one it is played on and the two after: its last chapter sacrifices it.
       Wooded Foothills: a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find.
-     Trinket Mage cast by turn 3                       6.51%
-     Trinket Mage and a Lantern both cast by turn 5    9.37% ± 0.07
-     Lanterns still in the library on turn 5         mean 0.79 ± 0.001
-                                                     0: 21.1%  1: 78.9%
+     Trinket Mage cast by turn 3                        6.51%
+     Trinket Mage and a Lantern both cast by turn 5     9.37% ± 0.07
+     Lantern of Insight on the battlefield by turn 5   20.41% ± 0.09
+     Lanterns still in the library on turn 5          mean 0.79 ± 0.001
+                                                      0: 21.1%  1: 78.9%
 
 widest exact question: 4,691,115 compositions across 9 groups, 94% of the 5,000,000 ceiling, "Trinket Mage cast by turn 3"
 
