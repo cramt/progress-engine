@@ -2497,7 +2497,8 @@ states — not from the engine's source. It shuffles the real libraries in
 committed criteria (a pure draw question, a battlefield land count, three
 `can_cast` joints, Loam cast into the graveyard — drawn, or fetched by
 Spellseeker — played a turn at a time, the Lantern put onto the battlefield by
-Tezzeret the Seeker's loyalty ability, and the commander cast from the command
+Tezzeret the Seeker's loyalty ability or by Whir of Invention, or found by Dizzy
+Spell's transmute, and the commander cast from the command
 zone on each deck) and holds every answer the engine gave **exactly** against
 the checker's 99.9% interval, exiting non-zero on any that falls outside. An
 answer the engine **estimated** carries an error of its own, so it is held to
@@ -2507,7 +2508,10 @@ rather than of the enumeration, and the only one the commander and Spellseeker
 questions admit, because they are too wide to enumerate. Loyalty abilities are
 the checker's own reading of CR 606 — sorcery speed, once a turn, a `−X` paid
 out of the loyalty the walker entered with — and `checker/test_seeker.py`
-plays HANDS.md hands 40 and 44 through it over every deal. It is still a check:
+plays HANDS.md hands 40 and 44 through it over every deal. A transmute is its
+reading of CR 702.53 — the cost the text names, a card of the same mana value,
+to hand — and a chosen X of CR 107.3, and `checker/test_declared_cost.py` plays
+hands 41 and 50 through them over every deal. It is still a check:
 it is how the Spellseeker line found the engine holding a fetched Loam it could
 have cast:
 
@@ -2517,7 +2521,7 @@ python3 checker/compare.py                       # or --gauntlet PATH, or $GAUNT
 python3 checker/compare.py --games 100000 --seed 7
 ```
 
-It takes about five minutes. Where the engine's documented reading differs
+It takes about six minutes. Where the engine's documented reading differs
 from the game — shocklands assumed tapped, a bounce land is one mana, a
 fetchland's target is still in the library to find — the checker implements the
 documented reading and says so beside the code, so a disagreement is a finding

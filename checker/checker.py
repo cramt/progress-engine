@@ -488,7 +488,7 @@ def _parse_cost(cost: str) -> tuple[int, list[str]]:
 #   and a north star has no opponent (CR 106.7). Lotus Cobra's mana is a
 #   landfall trigger rather than a tap, so it is no source. `unmodelled_sources`
 #   names both. Improvise and other cost reducers are not modelled: every spell
-#   pays its printed cost.
+#   pays its printed cost, or what the pilot plays it for (below), in full.
 # * A planeswalker's loyalty ability can put a card onto the battlefield the
 #   turn the line casts it: loyalty abilities are activated any time its
 #   controller could cast a sorcery (CR 606.3), which a main phase just after a
@@ -501,6 +501,24 @@ def _parse_cost(cost: str) -> tuple[int, list[str]]:
 #   (mana value 1) with −1 on the turn he resolves (HANDS.md hand 40). What he
 #   puts there was never cast (README: `cast` counts castings), and is out of
 #   the library the same way a fetch to hand takes it out.
+# * A card may be played for what the pilot pays rather than for its printed
+#   cost, and then that is what the turn's bill holds (README "A cost the line
+#   pays that is not printed"; ADR 0019). Two ways, each read from the card:
+#   - Transmute (CR 702.53a): "Transmute [cost]" is "[cost], Discard this
+#     card: Search your library for a card with the same mana value as the
+#     discarded card, reveal that card, and put it into your hand. Then
+#     shuffle. Activate only as a sorcery." It is activated from the hand, so
+#     the card is never cast and goes to the graveyard; a main phase with
+#     nothing on the stack is sorcery timing, which is where the line plays
+#     everything. The README counts it as a casting of the card in a `cast`
+#     question, so it is in the turn's `cast` list. Dizzy Spell is printed {U},
+#     mana value 1, and its transmute is {1}{U}{U}.
+#   - X chosen by the pilot (CR 107.3a, 601.2b): X is announced as the spell
+#     is cast and paid as that number. Whir of Invention at X = 1 costs
+#     {1}{U}{U}{U}, and "an artifact card with mana value X or less" is then
+#     mana value 1 or less, onto the battlefield. Improvise (CR 702.126) is not
+#     modelled, as no cost reducer is: the four are paid in full.
+#   A tie inside an entry goes to the cheaper of what the line pays.
 # * A tutor that fetches to hand takes a card the library still holds: one
 #   the deck has more copies of than have been seen or fetched. The shuffle
 #   after it leaves the rest a uniformly random order of what is left, which is
@@ -733,6 +751,58 @@ def _mana_value(card: Card) -> int:
     return generic + len(pips)
 
 
+@dataclass(frozen=True)
+class Mode:
+    """How the pilot plays a card: its transmute, or its spell with X chosen."""
+
+    transmute: bool = False
+    x: int | None = None
+
+
+TRANSMUTE = Mode(transmute=True)
+
+
+def x_is(x: int) -> Mode:
+    return Mode(x=x)
+
+
+_TRANSMUTE = re.compile(r"^Transmute ((?:\{[^}]*\})+)", re.M)
+
+
+def play_cost(card: Card, mode: Mode | None) -> str:
+    """What the line pays to play `card` in `mode`: the printed cost, the
+    transmute cost its text names, or the printed cost with X as chosen."""
+    if mode is None:
+        return card.mana_cost
+    if mode.transmute:
+        m = _TRANSMUTE.search(card.oracle)
+        if not m:
+            raise ValueError(f"{card.name} has no transmute")
+        return m.group(1)
+    if "{X}" not in card.mana_cost:
+        raise ValueError(f"{card.name} has no X to choose")
+    return card.mana_cost.replace("{X}", "{%d}" % mode.x)
+
+
+def _paid(card: Card, modes: dict[str, Mode]) -> int:
+    """How much mana the line pays to play `card`."""
+    generic, pips = _parse_cost_cached(play_cost(card, modes.get(card.name)))
+    return generic + len(pips)
+
+
+def transmute_finds(source: Card, target: Card) -> bool:
+    """Could `source`'s transmute find `target`? The same mana value as the
+    discarded card (CR 702.53a), whatever its type."""
+    return _TRANSMUTE.search(source.oracle) is not None and _mana_value(target) == _mana_value(source)
+
+
+_SPELL_X_ONTO_BATTLEFIELD = re.compile(
+    r"^Search your library for an? (\w+) card with mana value X or less, put it onto the "
+    r"battlefield",
+    re.M,
+)
+
+
 _MINUS_X_ONTO_BATTLEFIELD = re.compile(
     r"^[−-]X: Search your library for an? (\w+) card with mana value X or less, put it onto "
     r"the battlefield",
@@ -740,11 +810,15 @@ _MINUS_X_ONTO_BATTLEFIELD = re.compile(
 )
 
 
-def puts_onto_battlefield(source: Card, target: Card) -> bool:
+def puts_onto_battlefield(source: Card, target: Card, x: int | None = None) -> bool:
     """Could `source`, just cast, put `target` onto the battlefield from the
-    library with a −X loyalty ability that turn? See the line's notes above."""
+    library that turn: with a −X loyalty ability, or as a spell whose X the
+    pilot chose as `x`? See the line's notes above."""
     if source.loyalty is None:
-        return False
+        if x is None:
+            return False
+        m = _SPELL_X_ONTO_BATTLEFIELD.search(source.oracle)
+        return bool(m) and m.group(1).capitalize() in target.type_line and _mana_value(target) <= x
     m = _MINUS_X_ONTO_BATTLEFIELD.search(source.oracle)
     if not m:
         return False
@@ -763,15 +837,20 @@ def line_path(
     fetches: dict[str, tuple[str, ...]] | None = None,
     puts: dict[str, tuple[str, ...]] | None = None,
     mills: dict[str, Mill] | None = None,
+    modes: dict[str, Mode] | None = None,
 ) -> LinePath:
     """Play `line` out through `last_turn`. `fetches` maps a card to the cards
     it puts into your hand from the library when cast, `puts` to the cards
     its loyalty ability puts onto the battlefield from the library that turn,
     the first of them it can find (`puts_onto_battlefield`), and `mills` to
-    what it does to the top of the library. Cached on the game."""
+    what it does to the top of the library. `modes` maps a card to how the
+    pilot plays it, where that is not casting it for its printed cost: its
+    transmute, whose search is then the one `fetches` names, or its spell with
+    X chosen. Cached on the game."""
     fetches = fetches or {}
     puts = puts or {}
     mills = mills or {}
+    modes = modes or {}
     key = (
         "path",
         line,
@@ -779,6 +858,7 @@ def line_path(
         tuple(sorted(fetches.items())),
         tuple(sorted(puts.items())),
         tuple(sorted(mills.items())),
+        tuple(sorted(modes.items(), key=lambda kv: kv[0])),
     )
     if key in game._line_cache:
         return game._line_cache[key]
@@ -806,9 +886,9 @@ def line_path(
             for entry in line:
                 options = [c for c in hand if c.name in entry]
                 if len(options) > 1:
-                    options.sort(key=lambda c: (_mana_value(c), order[c.name]))
+                    options.sort(key=lambda c: (_paid(c, modes), order[c.name]))
                 for c in options:
-                    cost = _parse_cost_cached(c.mana_cost)
+                    cost = _parse_cost_cached(play_cost(c, modes.get(c.name)))
                     if _line_pays(g, t, units, bill + [cost]):
                         chosen = (c, cost)
                         break
@@ -825,12 +905,21 @@ def line_path(
                 if not src.sick:
                     units += [(len(bill), src.palette)] * src.amount
                 sources.append(src)
-            searches = [(w, hand) for w in fetches.get(card.name, ())]
-            # One loyalty activation a turn (CR 606.3): the first card named
-            # that the library still holds and the ability can find.
+            mode = modes.get(card.name)
+            searches = [
+                (w, hand)
+                for w in fetches.get(card.name, ())
+                # A transmute finds only the mana value it discarded.
+                if not (mode and mode.transmute)
+                or transmute_finds(card, next(c for c in g.library if c.name == w))
+            ]
+            # One loyalty activation a turn (CR 606.3), or the spell's one
+            # search: the first card named that the library still holds and
+            # the ability can find.
             for wanted in puts.get(card.name, ()):
                 copies = [c for c in g.library if c.name == wanted]
-                if len(copies) > taken.count(wanted) and puts_onto_battlefield(card, copies[0]):
+                x = mode.x if mode else None
+                if len(copies) > taken.count(wanted) and puts_onto_battlefield(card, copies[0], x):
                     searches.append((wanted, put))
                     break
             for wanted, into in searches:
@@ -1122,6 +1211,29 @@ def _seeker_cast_by_5(g: Game) -> bool:
     return line_path(g, SEEKER_ROUTE_LINE, 5, puts=TEZZERET_PUTS).cast_by(TEZZERET, 5)
 
 
+DIZZY, WHIR = "Dizzy Spell", "Whir of Invention"
+# [[effect]] match = 'name:"Whir of Invention"', on = "cast", cost = "{1}{U}{U}{U}",
+#            fetch = ['name:"Lantern of Insight"'], to = "battlefield"
+# [[effect]] match = 'name:"Tezzeret the Seeker"', on = "cast",
+#            fetch = ['name:"Lantern of Insight"'], to = "battlefield"
+# [[effect]] match = 'name:"Dizzy Spell"', on = "cast", cost = "{1}{U}{U}",
+#            fetch = ['name:"Lantern of Insight"'], to = "hand"
+# [casting] prefer = [Lantern, Whir of Invention, Tezzeret the Seeker, Dizzy Spell]
+#
+# Whir at X = 1, Dizzy Spell by its transmute: the line's notes say how each
+# is read from the card. The Seeker is SEEKER_ROUTE_LINE's.
+TUTORS_ROUTE_LINE: Line = ((LANTERN,), (WHIR,), (TEZZERET,), (DIZZY,))
+TUTORS_ROUTE = dict(
+    fetches={DIZZY: (LANTERN,)},
+    puts={WHIR: (LANTERN,), TEZZERET: (LANTERN,)},
+    modes={DIZZY: TRANSMUTE, WHIR: x_is(1)},
+)
+
+
+def _tutors_route(holds: Callable[[LinePath], bool]) -> Callable[[Game], bool]:
+    return lambda g: holds(line_path(g, TUTORS_ROUTE_LINE, 5, **TUTORS_ROUTE))
+
+
 def _commander_cast_by(turn: int, commander: tuple[str, str]) -> Callable[[Game], bool]:
     """The commander, from the command zone, has been cast by `turn`, by a line
     that names only it. The commander is always available and never drawn, so
@@ -1232,6 +1344,33 @@ QUESTIONS: list[Question] = [
         "Tezzeret the Seeker cast by turn 5",
         _seeker_cast_by_5,
         6,
+    ),
+    Question(
+        "lantern",
+        "lantern-route-tutors.criteria.toml",
+        "Lantern of Insight on the battlefield by turn 5, cast or put there by a tutor",
+        # { turn = 5, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }
+        _tutors_route(lambda p: p.on_battlefield_by(LANTERN, 5)),
+        6,  # turn 5, and one card deeper for the Lantern a tutor takes out
+        games=100_000,
+    ),
+    Question(
+        "lantern",
+        "lantern-route-tutors.criteria.toml",
+        "Dizzy Spell transmuted by turn 5",
+        # { turn = 5, cast = 'name:"Dizzy Spell"', min = 1 }
+        _tutors_route(lambda p: p.cast_by(DIZZY, 5)),
+        6,
+        games=100_000,
+    ),
+    Question(
+        "lantern",
+        "lantern-route-tutors.criteria.toml",
+        "Whir of Invention cast by turn 5",
+        # { turn = 5, cast = 'name:"Whir of Invention"', min = 1 }
+        _tutors_route(lambda p: p.cast_by(WHIR, 5)),
+        6,
+        games=100_000,
     ),
     Question(
         "lantern",
