@@ -172,7 +172,7 @@ names the test added for it.
 | 1378, 1381 | `can_pay` line three: which land "arrived", and the pool it adds to | **Important.** A land held since turn 1 could be played twice; a land drawn this turn replaced the pool instead of joining it. | `the_gate_does_not_play_a_land_that_did_not_arrive_this_turn`, `a_land_that_arrives_this_turn_pays_beside_the_ones_already_down` |
 | 1114, 1117, 1120 | `land_drop` with no declared priority: which effect's land, whether one is left to play, the deeper-look tie rule | **Important**, not killed here: they need a surveil-style deck with two effects of different depth, and are left as a gap. | — |
 
-## Suspected bugs (reported, not fixed)
+## Suspected bugs (reported here, fixed since)
 
 Two mutants led to hands where the current code gives an answer that looks
 wrong. Neither is changed here; both want a HANDS.md entry deciding them.
@@ -214,3 +214,14 @@ wrong. Neither is changed here; both want a HANDS.md entry deciding them.
    (`FetchNonLandToBattlefield`), but a land target — a Rampant Growth-shaped
    effect — is let through. The sampler has not been checked for the same
    timing.
+
+   *Confirmed and fixed as #95:* the walk records the battlefield and the
+   library again after the spells, and a land a cast put down joins the pool
+   the next turn. The sampler walks the same board, so it had the same timing
+   and has the same fix; `a_card_a_cast_puts_onto_the_battlefield_arrives_that_turn_in_both_engines`
+   holds the two together. One correction: a land target is *not* let through
+   at the CLI — the file boundary refuses every `on = "cast"` with `to =
+   "battlefield"` (`FetchOntoTheBattlefieldFromASpell`) — so this was reachable
+   only at the engine's seam, and HANDS.md hand 44 pins it there. Without a
+   declared land drop the fetched card was never counted in play at all, on
+   any turn; it is now.

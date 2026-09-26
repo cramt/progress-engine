@@ -2784,10 +2784,9 @@ fn a_tutor_to_the_battlefield_puts_its_card_in_play_and_out_of_the_library() {
     // play is read off the line. The target is in the library on one deal in
     // seven, and on that deal the tutor puts it onto the battlefield.
     //
-    // Read on turn 2, the turn after the tutor resolves. On turn 1 itself the
-    // card is still counted in the library and not in play, because the walk
-    // records those two zones before the spells of the turn are cast; the
-    // mutation audit reports that as a suspected bug rather than pinning it.
+    // Read on turn 1, the turn the tutor resolves, as well as on turn 2: the
+    // card is in play and out of the library from the moment it arrives, not
+    // from the turn after (#95, HANDS.md hand 44).
     let grouping = Grouping::with_mana(
         q(&["tutor", "target", "land"]),
         vec![
@@ -2814,21 +2813,202 @@ fn a_tutor_to_the_battlefield_puts_its_card_in_play_and_out_of_the_library() {
             ..Policies::default()
         },
     );
-    let in_play = holds(
-        &grouping,
-        &schedule,
-        Box::new(|v: &PathView<'_>| v.count_at(2, 1, Counted::In(Zone::Battlefield)) == 1),
-    );
-    assert!((in_play - 1.0 / 7.0).abs() < 1e-12, "in play: {in_play}");
-    assert_eq!(
-        holds(
+    for turn in 1..=2 {
+        let in_play = holds(
             &grouping,
             &schedule,
-            Box::new(|v: &PathView<'_>| v.count_at(2, 1, Counted::In(Zone::Library)) == 0)
-        ),
-        1.0,
-        "never left behind"
+            Box::new(move |v: &PathView<'_>| {
+                v.count_at(turn, 1, Counted::In(Zone::Battlefield)) == 1
+            }),
+        );
+        assert!(
+            (in_play - 1.0 / 7.0).abs() < 1e-12,
+            "turn {turn}, in play: {in_play}"
+        );
+        let gone = holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| v.count_at(turn, 1, Counted::In(Zone::Library)) == 0),
+        );
+        assert!(
+            (gone - 1.0).abs() < 1e-12,
+            "turn {turn}, left behind: {gone}"
+        );
+    }
+}
+
+#[test]
+fn a_land_a_cast_puts_onto_the_battlefield_pays_from_the_next_turn() {
+    // The pool half of #95. Seven cards, six dealt: a {G} tutor, a Forest, the
+    // land it fetches and four blanks. On the deal that leaves the fetched
+    // land in the library, turn 1 plays the Forest, casts the tutor off it and
+    // puts the land down — after the line has paid, so a {G} asked beside the
+    // line on turn 1 is not there on that deal. On turn 2 it is standing, and
+    // {G}{G} is paid on every deal but the one that left the Forest behind.
+    let grouping = Grouping::with_mana(
+        q(&["tutor", "target", "land"]),
+        vec![
+            (
+                0b001,
+                ManaSource::Castable {
+                    cost: Cost::parse("{G}").unwrap().demand(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                1,
+            ),
+            (0b100, untapped("G"), 1),
+            (0b110, untapped("G"), 1),
+            (0b000, ManaSource::Spell, 4),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::plain_with_fetches(
+        &[6, 0, 0],
+        vec![tutor(Fetched::Battlefield)],
+        Policies {
+            land_drop: Some(LandDropPolicy::new(vec![2], 2)),
+            casting: Some(CastingPolicy::new(vec![0])),
+            ..Policies::default()
+        },
     );
+    let green = Cost::parse("{G}").unwrap();
+    let two = Cost::parse("{G}{G}").unwrap();
+    let left = holds(
+        &grouping,
+        &schedule,
+        Box::new(move |v: &PathView<'_>| v.can_cast(1, &green)),
+    );
+    // Only on the deal that left the tutor out, where nothing was spent. On
+    // the deal that fetched, the Forest paid for the tutor and the land it
+    // found is not yet mana: counting it would read 2/7.
+    assert!(
+        (left - 1.0 / 7.0).abs() < 1e-12,
+        "the fetched land paid on the turn it arrived: {left}"
+    );
+    let next = holds(
+        &grouping,
+        &schedule,
+        Box::new(move |v: &PathView<'_>| v.can_cast(2, &two)),
+    );
+    assert!((next - 6.0 / 7.0).abs() < 1e-12, "turn 2: {next}");
+    let fetched = holds(
+        &grouping,
+        &schedule,
+        Box::new(|v: &PathView<'_>| v.count_at(1, 1, Counted::In(Zone::Battlefield)) == 1),
+    );
+    // Fetched on 1/7, and played as the drop on the 1/7 that left the Forest
+    // out; the other five play the Forest first.
+    assert!(
+        (fetched - 2.0 / 7.0).abs() < 1e-12,
+        "in play on turn 1: {fetched}"
+    );
+}
+
+#[test]
+fn a_card_a_cast_puts_onto_the_battlefield_is_there_that_same_turn() {
+    // HANDS.md hand 44, and #95. Ten Islands, a {3}{U}{U} tutor the line casts
+    // and the artifact it puts onto the battlefield, which the line does not
+    // name: it gets into play by being fetched or not at all. Twelve cards on
+    // the play, so turn 5 has seen eleven and made five drops, and the tutor
+    // is cast on turn 5 wherever it is among the eleven.
+    //
+    // The artifact is still in the library on turn 5 exactly when it is the
+    // twelfth card, 1/12, and on that deal the tutor is among the eleven and
+    // fetches it on turn 5. So on turn 5 it is on the battlefield on 1/12 of
+    // deals and in the library on none, and in hand on the other 11/12, where
+    // it was drawn and the line never casts it; turn 4 has no tutor cast and
+    // so nothing fetched. The same with and without a declared land drop.
+    let grouping = Grouping::with_mana(
+        q(&["tutor", "target", "land"]),
+        vec![
+            (
+                0b001,
+                ManaSource::Castable {
+                    cost: Cost::parse("{3}{U}{U}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                1,
+            ),
+            (0b010, ManaSource::Spell, 1),
+            (0b100, untapped("U"), 10),
+        ],
+    )
+    .unwrap();
+    let declared = Policies {
+        land_drop: Some(LandDropPolicy::new(vec![2], 2)),
+        casting: Some(CastingPolicy::new(vec![0])),
+        ..Policies::default()
+    };
+    let undeclared = Policies::casting(CastingPolicy::new(vec![0]));
+    for (label, policies) in [("declared", declared), ("undeclared", undeclared)] {
+        let schedule = Schedule::build(5, false, vec![tutor(Fetched::Battlefield)], policies);
+        let share = |check: Check| holds(&grouping, &schedule, check);
+        let field = Counted::In(Zone::Battlefield);
+        let library = Counted::In(Zone::Library);
+        for (what, got, want) in [
+            (
+                "tutor cast by turn 5",
+                share(Box::new(|v: &PathView<'_>| {
+                    v.count_at(5, 0, Counted::Cast) == 1
+                })),
+                11.0 / 12.0,
+            ),
+            (
+                "tutor cast by turn 4",
+                share(Box::new(|v: &PathView<'_>| {
+                    v.count_at(4, 0, Counted::Cast) == 1
+                })),
+                0.0,
+            ),
+            (
+                "in play on turn 4",
+                share(Box::new(move |v: &PathView<'_>| {
+                    v.count_at(4, 1, field) == 1
+                })),
+                0.0,
+            ),
+            (
+                "in the library on turn 4",
+                share(Box::new(move |v: &PathView<'_>| {
+                    v.count_at(4, 1, library) == 1
+                })),
+                2.0 / 12.0,
+            ),
+            (
+                "in hand on turn 4",
+                share(Box::new(|v: &PathView<'_>| {
+                    v.count_at(4, 1, Counted::In(Zone::Hand)) == 1
+                })),
+                10.0 / 12.0,
+            ),
+            (
+                "in play on turn 5",
+                share(Box::new(move |v: &PathView<'_>| {
+                    v.count_at(5, 1, field) == 1
+                })),
+                1.0 / 12.0,
+            ),
+            (
+                "in the library on turn 5",
+                share(Box::new(move |v: &PathView<'_>| {
+                    v.count_at(5, 1, library) == 1
+                })),
+                0.0,
+            ),
+            (
+                "in hand on turn 5",
+                share(Box::new(|v: &PathView<'_>| {
+                    v.count_at(5, 1, Counted::In(Zone::Hand)) == 1
+                })),
+                11.0 / 12.0,
+            ),
+        ] {
+            assert!(
+                (got - want).abs() < 1e-12,
+                "{label}, {what}: {got}, not {want}"
+            );
+        }
+    }
 }
 
 #[test]

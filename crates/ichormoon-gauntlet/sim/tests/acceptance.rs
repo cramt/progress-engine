@@ -863,6 +863,115 @@ fn a_tutor_agrees_with_the_exact_engine() {
 }
 
 #[test]
+fn a_card_a_cast_puts_onto_the_battlefield_arrives_that_turn_in_both_engines() {
+    // #95 and HANDS.md hand 44 on a deck wide enough to sample: a tutor that
+    // puts its card onto the battlefield puts it there on the turn it is cast,
+    // in play and out of the library from that turn. Asked on every turn the
+    // tutor can first be cast on, so a sampler that recorded the arrival a
+    // turn late would disagree on each of them.
+    // The third query names the lands, for the land drop's priority.
+    let grouping = Grouping::with_mana(
+        q(&["tutor", "target", "land"]),
+        vec![
+            (
+                0b01,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}{U}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                8,
+            ),
+            (0b10, ManaSource::Spell, 4),
+            (
+                0b100,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                    lasts: None,
+                },
+                19,
+            ),
+            (0b000, ManaSource::Spell, 68),
+        ],
+    )
+    .unwrap();
+    let tutor = Effect {
+        matched_by: 0,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to: Fetched::Battlefield,
+        }),
+        delay: None,
+        draw: 0,
+    };
+    let field = Counted::In(Zone::Battlefield);
+    let library = Counted::In(Zone::Library);
+    for (label, policies) in [
+        (
+            "declared",
+            Policies {
+                land_drop: Some(LandDropPolicy::new(vec![2], 2)),
+                casting: Some(CastingPolicy::new(vec![0])),
+                ..Policies::default()
+            },
+        ),
+        ("undeclared", Policies::casting(CastingPolicy::new(vec![0]))),
+    ] {
+        let schedule = Schedule::build(4, false, vec![tutor.clone()], policies);
+        let question = || {
+            Closures(vec![
+                Box::new(move |v: &PathView<'_>| v.count_at(2, 1, field) >= 1) as Check,
+                Box::new(move |v: &PathView<'_>| v.count_at(3, 1, field) >= 1) as Check,
+                Box::new(move |v: &PathView<'_>| v.count_at(3, 1, library) <= 2) as Check,
+                // Every tutor cast by turn 2 has put its card in play by
+                // then, unless the library had none left to give it.
+                Box::new(move |v: &PathView<'_>| {
+                    v.count_at(2, 1, field) == v.count_at(2, 0, Counted::Cast)
+                        || v.count_at(2, 1, library) == 0
+                }) as Check,
+            ])
+        };
+        let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(4), &mut question())
+            .unwrap()
+            .probabilities
+            .iter()
+            .map(|p| p.get())
+            .collect::<Vec<_>>();
+        let sampled = simulate(
+            &grouping,
+            &schedule,
+            TRIALS,
+            44,
+            only_criteria(4),
+            &mut question(),
+        )
+        .unwrap()
+        .proportions;
+        for (i, e) in exact.iter().take(3).enumerate() {
+            assert!(
+                *e > 0.05 && *e < 0.95,
+                "{label}, question {i} is worth asking: {e}"
+            );
+        }
+        assert!(
+            (exact[3] - 1.0).abs() < 1e-12,
+            "{label}: every tutor cast by turn 2 has its card in play on turn 2: {exact:?}"
+        );
+        for (e, s) in exact.iter().zip(&sampled) {
+            let se = standard_error(*s, TRIALS).max(1.0 / f64::from(TRIALS));
+            assert!(
+                (s - e).abs() < 4.0 * se,
+                "{label}: sampled {s} vs exact {e} ({}x SE)",
+                (s - e).abs() / se
+            );
+        }
+    }
+}
+
+#[test]
 fn a_tutor_thins_the_library_in_both_engines() {
     // The half of a fetch that is not about the card it found. Four copies of
     // the target and twelve tutors: every tutor that resolves takes one of

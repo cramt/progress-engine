@@ -326,6 +326,10 @@ struct Casting {
 struct Declared {
     tiers: Vec<Vec<usize>>,
     played_at: Vec<Vec<u32>>,
+    /// `[turn][group]`: what a spell cast that turn put onto the battlefield.
+    /// In `played_at` from that turn on, and out of that turn's pool: the
+    /// line had already paid by the time it arrived.
+    cast_landed: Vec<Vec<u32>>,
 }
 
 /// The state one path through the enumeration leaves the zones in.
@@ -552,6 +556,7 @@ impl<'a> Board<'a> {
                     })
                     .collect(),
                 played_at: vec![vec![0; groups]; turns],
+                cast_landed: vec![vec![0; groups]; turns],
             }
         });
         // The same tie rule applied once, over the other contested resource:
@@ -981,6 +986,9 @@ impl<'a> Board<'a> {
                 // is both played and not in play, and every run that fetches
                 // no land has the two identical.
                 declared.played_at[turn].copy_from_slice(&self.live_field);
+                // Nothing a spell put down yet: the line pays from what is
+                // recorded here, and records what its spells put down after.
+                declared.cast_landed[turn].fill(0);
             }
             // The spells, after the land, because you play your land and then
             // cast off it.
@@ -991,10 +999,21 @@ impl<'a> Board<'a> {
                     // walk that has those cards.
                     return;
                 }
-                // And the hand again, because a card you cast is not a card
-                // you are holding. Only the hand moves: casting spends lands
-                // rather than playing them, so nothing above changes under it.
+                // And the zones again, because a card you cast is not a card
+                // you are holding, and a card the cast put onto the
+                // battlefield is there — and out of the library — from this
+                // turn, not the next (HANDS.md hand 44). The budget has
+                // already read what it paid with, so rewriting the slots it
+                // read changes nothing it decided; what the cast put down is
+                // kept apart for the pool, which it joins next turn.
                 self.hand[turn].copy_from_slice(&self.live_hand);
+                if let Some(declared) = &mut self.declared {
+                    for (group, arrived) in declared.cast_landed[turn].iter_mut().enumerate() {
+                        *arrived = self.live_landed[group] - self.landed[turn][group];
+                    }
+                    declared.played_at[turn].copy_from_slice(&self.live_field);
+                }
+                self.landed[turn].copy_from_slice(&self.live_landed);
                 if let Some(casting) = &mut self.casting {
                     casting.cast_at[turn].copy_from_slice(&casting.live_cast);
                     for (group, cast) in casting.commanded_at[turn].iter_mut().enumerate() {
@@ -1523,7 +1542,10 @@ impl<'a> Board<'a> {
                 .sum();
             played = drawn.min(played + 1);
         }
-        played
+        // Plus what a spell put there, which took no drop and was never in
+        // hand: nothing else puts a card onto the battlefield in a run that
+        // declared no land drop.
+        played + self.grouping.count_matching(&self.landed[turn], query)
     }
 
     /// Whether `cost` could have been paid on `turn`.
@@ -1602,11 +1624,16 @@ impl<'a> Board<'a> {
             // A land sacrificed this turn is added back: it is gone by the end
             // of the turn, which is what `counts` records, and it was tapped
             // before it went, which is what the pool is.
+            //
+            // And a land a spell put down this turn is taken back out: it
+            // arrived after the line had paid, so it is the next turn's mana.
             let sacrificed = &self.sacrificed[turn];
+            let arrived = &declared.cast_landed[turn];
             let usable = |slot: usize| {
                 let group = self.land_groups[slot];
-                let standing =
-                    counts[group] + sacrificed[group] - u32::from(tapped_now == Some(slot));
+                let standing = counts[group] + sacrificed[group]
+                    - arrived[group]
+                    - u32::from(tapped_now == Some(slot));
                 // A land that makes mana for `n` turns makes it only if it was
                 // played on one of the last `n`: what was standing `n` turns
                 // ago has stopped. Maze of Ith is `n = 0`, so none of it pays.

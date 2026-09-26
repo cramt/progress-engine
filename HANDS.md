@@ -1486,6 +1486,65 @@ one of turn 5's five mana first: (1/12)(10/11), which leaves 37/44.
 *Not answerable yet: needs ADR-0019's first ticket (a cast may put a non-land
 onto the battlefield).*
 
+### 44. What the Seeker puts down is there the turn it is cast
+
+```
+Island ×10, Tezzeret the Seeker, Lantern of Insight      (12 cards)
+
+[[effect]]
+match = 'name:"Tezzeret the Seeker"'
+on = "cast"
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[casting]
+prefer = ['name:"Tezzeret the Seeker"']
+```
+
+Hand 40 with the Lantern taken **out** of the line, so the only way it reaches
+the battlefield is the Seeker putting it there. **The deal:** the Lantern at the
+bottom. **Turn 5:** the fifth Island, the Seeker, −1: the Lantern goes from the
+library onto the battlefield. On turn 5, not turn 6 — it is on the battlefield
+and out of the library from the moment the ability resolves, and turn 5 is
+"everything up to and including turn 5".
+
+**Naive model:** the turn's zones are recorded when the land is played, before
+the spells, and after the spells only the hand is recorded again, because a
+cast spends lands rather than playing them. A fetch onto the battlefield is the
+one thing a cast does to a zone other than the hand, so on the turn it happens
+the Lantern is still counted in the library and not in play — and from the next
+turn on both are right, which is why nothing caught it.
+
+| | turn 4 | turn 5 |
+|---|---|---|
+| Tezzeret the Seeker cast by then | 0% | 11/12 = **91.67%** |
+| Lantern on the battlefield | 0% | 1/12 = **8.33%** (was 0%) |
+| Lantern still in the library | 2/12 = 16.67% | **0%** (was 8.33%) |
+| Lantern in hand | 10/12 = 83.33% | 11/12 = 91.67% |
+
+**On paper:** turn 5 on the play has seen eleven of twelve, and an opener of
+seven from ten Islands holds at least five, so five drops are made by turn 5
+and the `{3}{U}{U}` is there then and not before. The Lantern is still in the
+library on turn 5 only when it is the twelfth card, 1/12; the Seeker is then
+among the eleven, is cast on turn 5 and fetches it. On the other 11/12 it was
+drawn, and the line does not name it, so it is in hand and never in play. The
+same numbers with a `[land_drop]` declared and without one: before #95 the
+second never counted the fetched card on the battlefield at all.
+
+The same fix keeps the pool honest: a **land** a cast puts down has arrived
+after the line paid, so it is on the battlefield that turn and its mana is the
+next turn's — which is what the line itself already read, since it does not
+look again after a fetch onto the battlefield.
+
+*Engine-only for now:* the file boundary refuses `on = "cast"` with `to =
+"battlefield"` until ADR-0019's first ticket, so this is held at the engine's
+seam — `a_card_a_cast_puts_onto_the_battlefield_is_there_that_same_turn` and
+`a_land_a_cast_puts_onto_the_battlefield_pays_from_the_next_turn` in the
+engine's tests, and
+`a_card_a_cast_puts_onto_the_battlefield_arrives_that_turn_in_both_engines` in
+the sampler's acceptance tests. Hand 40's *fetch to battlefield* column needs
+it: its Seeker is cast on turn 5 and the 100% is read on turn 5.
+
 ### 41. Dizzy Spell's transmute costs what the transmute costs
 
 ```
