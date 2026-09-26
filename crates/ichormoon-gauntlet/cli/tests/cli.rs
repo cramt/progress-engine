@@ -2987,6 +2987,212 @@ fn the_lantern_decks_saga_route_is_the_same_number_both_ways() {
     assert_eq!(method(clauses), "exact");
 }
 
+// --- closed-form anchors on the committed decks (#76) --------------------------
+
+/// One plain question and its answer on each seat, as a fraction reduced by
+/// hand outside the engine: `(numerator, denominator)`.
+struct Anchor {
+    name: &'static str,
+    play: (u64, u64),
+    draw: (u64, u64),
+}
+
+/// The engine is exact but the report rounds `probability` to six places, so
+/// the closed form is rounded the same way and then compared to 1e-9: every
+/// digit the CLI prints is pinned, and none it does not print is claimed.
+fn assert_anchored(deck: &str, criteria: &str, anchors: &[Anchor]) {
+    for draw in [false, true] {
+        let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+            .arg("test")
+            .arg(deck_file(deck))
+            .arg(fixture(criteria))
+            .arg("--index")
+            .arg(deck_file("index.jsonl"))
+            .args(draw.then_some("--draw"))
+            .output()
+            .expect("binary should run");
+        assert!(
+            out.status.success(),
+            "{deck} should answer: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+        assert_eq!(json["on_the_draw"], draw);
+        for a in anchors {
+            let c = json["criteria"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|c| c["name"] == a.name)
+                .unwrap_or_else(|| panic!("no criterion named {}", a.name));
+            assert_eq!(c["method"], "exact", "{deck} {}", a.name);
+            let (num, den) = if draw { a.draw } else { a.play };
+            let exact = num as f64 / den as f64;
+            let printed = (exact * 1e6).round() / 1e6;
+            let got = c["probability"].as_f64().unwrap();
+            assert!(
+                (got - printed).abs() < 1e-9,
+                "{deck} {} draw={draw}: engine {got}, closed form {num}/{den} = {exact}",
+                a.name
+            );
+        }
+    }
+}
+
+/// The count the report gives a query, which is a population fact the anchors
+/// below were derived from and so is asserted rather than assumed.
+fn query_cards(deck: &str, criteria: &str, query: &str) -> u64 {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(deck_file(deck))
+        .arg(fixture(criteria))
+        .arg("--index")
+        .arg(deck_file("index.jsonl"))
+        .output()
+        .expect("binary should run");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    json["queries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|q| q["query"] == query)
+        .unwrap_or_else(|| panic!("no query {query}"))["cards"]
+        .as_u64()
+        .unwrap()
+}
+
+// Every value below is hypergeometric and was computed as an exact rational
+// with Python's `fractions` and `math.comb`, never by this engine:
+//
+//   P(X = k)  = C(K, k) C(N-K, n-k) / C(N, n)
+//   P(X >= m) = 1 - sum_{k<m} P(X = k)
+//
+// N is the library, K the cards matching the query, n the cards seen. Turn 0
+// is the opening seven on both seats. By turn t >= 1 the play has seen
+// 7 + (t - 1) cards, because its first turn draws nothing, and the draw has
+// seen 7 + t. So turn 3 is 9 / 10 and turn 5 is 11 / 12. No [mulligan] is
+// declared, so every seven is kept.
+//
+// Population facts were derived from the decklist and decks/index.jsonl by a
+// separate script: sum the quantities, drop the `Commander{top}` card, look
+// each name up (an MDFC under its front name) and read `type_line` per face.
+
+#[test]
+fn the_lantern_deck_answers_plain_questions_in_closed_form() {
+    // decks/lantern.txt: 100 cards, commander Rashmi and Ragavan, so N = 99.
+    //   name:"Lantern of Insight"         K = 1
+    //   cat:"Tutor Package"               K = 11 (the owner's category)
+    //   t:land                            K = 40: 32 cards whose front face is
+    //     a land, plus seven MDFCs with a land back and Search for Azcanta,
+    //     because `t:land` reads every face as Scryfall's does
+    //   t:land -is:mdfc -is:transform     K = 32, the front-face lands
+    let deck = "lantern.txt";
+    let file = "anchors-lantern.criteria.toml";
+    for (query, k) in [
+        ("name:\"Lantern of Insight\"", 1),
+        ("cat:\"Tutor Package\"", 11),
+        ("t:land", 40),
+        ("t:land -is:mdfc -is:transform", 32),
+    ] {
+        assert_eq!(query_cards(deck, file, query), k, "{query}");
+    }
+    assert_anchored(
+        deck,
+        file,
+        &[
+            // One copy in N = 99: P(seen by n) = n / 99.
+            //   play n = 11: 11/99 = 1/9  = 0.111111...
+            //   draw n = 12: 12/99 = 4/33 = 0.121212...
+            Anchor {
+                name: "Lantern of Insight seen by turn 5",
+                play: (1, 9),
+                draw: (4, 33),
+            },
+            // 1 - C(88, n) / C(99, n), K = 11.
+            //   play n = 9:  26356376941/39341612401 = 0.669936368...
+            //   draw n = 10: 27943461275/39341612401 = 0.710277479...
+            Anchor {
+                name: "a Tutor Package card seen by turn 3",
+                play: (26_356_376_941, 39_341_612_401),
+                draw: (27_943_461_275, 39_341_612_401),
+            },
+            // C(40, 3) C(59, 4) / C(99, 7), n = 7 on both seats.
+            //   4226170/13991571 = 0.302051142...
+            Anchor {
+                name: "exactly three t:land in the opener",
+                play: (4_226_170, 13_991_571),
+                draw: (4_226_170, 13_991_571),
+            },
+            // 1 - sum_{k<3} C(32, k) C(67, n-k) / C(99, n).
+            //   play n = 9:  8444879/13945981  = 0.605542127...
+            //   draw n = 10: 67222761/97621867 = 0.688603517...
+            Anchor {
+                name: "three playable lands seen by turn 3",
+                play: (8_444_879, 13_945_981),
+                draw: (67_222_761, 97_621_867),
+            },
+        ],
+    );
+}
+
+#[test]
+fn the_loam_deck_answers_plain_questions_in_closed_form() {
+    // decks/loam.txt: 99 cards (the tokens were dropped), commander
+    // Borborygmos and Fblthp, so N = 98.
+    //   name:"Life from the Loam"         K = 1
+    //   cat:"Discard Outlet - Hand"       K = 22 in the library; the commander
+    //     carries the category too and is not counted, being outside it
+    //   t:land                            K = 44: 32 nonbasic entries and 12
+    //     basics (5 Forest, 3 Island, 4 Mountain); no MDFCs, so every face
+    //     reading agrees
+    let deck = "loam.txt";
+    let file = "anchors-loam.criteria.toml";
+    for (query, k) in [
+        ("name:\"Life from the Loam\"", 1),
+        ("cat:\"Discard Outlet - Hand\"", 22),
+        ("t:land", 44),
+    ] {
+        assert_eq!(query_cards(deck, file, query), k, "{query}");
+    }
+    assert_anchored(
+        deck,
+        file,
+        &[
+            // One copy in N = 98: P(seen by n) = n / 98.
+            //   play n = 11: 11/98        = 0.112244...
+            //   draw n = 12: 12/98 = 6/49 = 0.122448...
+            Anchor {
+                name: "Life from the Loam seen by turn 5",
+                play: (11, 98),
+                draw: (6, 49),
+            },
+            // 1 - C(76, n) / C(98, n), K = 22.
+            //   play n = 9:  163752611/180053146     = 0.909468202...
+            //   draw n = 10: 14932594149/16024729994 = 0.931846849...
+            Anchor {
+                name: "a Discard Outlet - Hand card seen by turn 3",
+                play: (163_752_611, 180_053_146),
+                draw: (14_932_594_149, 16_024_729_994),
+            },
+            // C(44, 3) C(54, 4) / C(98, 7), n = 7 on both seats.
+            //   149586723/494086184 = 0.302754313...
+            Anchor {
+                name: "exactly three lands in the opener",
+                play: (149_586_723, 494_086_184),
+                draw: (149_586_723, 494_086_184),
+            },
+            // 1 - sum_{k<3} C(44, k) C(54, n-k) / C(98, n).
+            //   play n = 9:  106360199/123521546 = 0.861065963...
+            //   draw n = 10: 213156977/233902502 = 0.911306956...
+            Anchor {
+                name: "three lands seen by turn 3",
+                play: (106_360_199, 123_521_546),
+                draw: (213_156_977, 233_902_502),
+            },
+        ],
+    );
+}
+
 // --- silly decks, one card apart ----------------------------------------------
 //
 // A hundred cards, almost all of them Islands, and one question asked of every

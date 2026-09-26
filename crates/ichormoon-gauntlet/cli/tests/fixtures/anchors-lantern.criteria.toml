@@ -1,0 +1,21 @@
+# Closed-form anchors for decks/lantern.txt (#76). Plain hypergeometric
+# questions with no mana, effects or policy in them, so each has an exact
+# rational computed outside the engine; the derivations sit beside the
+# expected values in `the_committed_decks_answer_plain_questions_in_closed_form`
+# in cli.rs. No thresholds: these report, they cannot fail.
+
+[[criterion]]
+name = "Lantern of Insight seen by turn 5"
+require = [{ turn = 5, query = 'name:"Lantern of Insight"', min = 1 }]
+
+[[criterion]]
+name = "a Tutor Package card seen by turn 3"
+require = [{ turn = 3, query = 'cat:"Tutor Package"', min = 1 }]
+
+[[criterion]]
+name = "exactly three t:land in the opener"
+require = [{ turn = 0, query = "t:land", min = 3, max = 3 }]
+
+[[criterion]]
+name = "three playable lands seen by turn 3"
+require = [{ turn = 3, query = "t:land -is:mdfc -is:transform", min = 3 }]
