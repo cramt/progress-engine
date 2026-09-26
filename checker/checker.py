@@ -305,6 +305,10 @@ class Game:
     # The whole library the deal came from, so a tutor knows what is left.
     library: list[Card] = field(default_factory=list)
     _line_cache: dict = field(default_factory=dict)
+    # Lands a spell put into your hand from the library rather than a draw
+    # step, as (the first turn it could be played, card). Only a line's mill
+    # makes these: see `line_path`.
+    kept_lands: tuple[tuple[int, Card], ...] = ()
 
     def seen_count(self, turn: int) -> int:
         draws = turn if self.on_the_draw else max(0, turn - 1)
@@ -333,7 +337,7 @@ class Game:
                 (max(1, self.arrival_turn(i)), c)
                 for i, c in enumerate(self.seen(turn))
                 if c.playable_land
-            ]
+            ] + [(first, c) for first, c in self.kept_lands if first <= turn]
         return self._lands_cache[key]
 
     def lands_played(self, turn: int) -> int:
@@ -501,6 +505,47 @@ def _parse_cost(cost: str) -> tuple[int, list[str]]:
 #   the deck has more copies of than have been seen or fetched. The shuffle
 #   after it leaves the rest a uniformly random order of what is left, which is
 #   this deal with that copy taken out: later draws move up by one.
+# * A spell that mills (ADR 0017 §2, HANDS.md hands 19 and 20) takes the next
+#   cards off the top of the library, the ones the next draws would have
+#   found, so later draws move up by that many. Each goes to the graveyard
+#   unless the card puts it in your hand: every card of a kind (Wrenn and
+#   Seven's lands), or up to so many of the kind it allows, chosen by the
+#   pilot's list, first entry first (Rumble's permanent). ASSUMPTION (README,
+#   the tutor's tie rule): a tie inside one entry goes to the card the
+#   decklist names first. A card kept this way is in hand from then on, so
+#   the line may cast it this turn; a land kept this way is played no earlier
+#   than the next turn, because this turn's land drop came before the line
+#   (ADR 0017: "a land drawn mid-line waits for the next turn's drop").
+
+
+@dataclass(frozen=True)
+class Mill:
+    """What casting one card does to the top of the library."""
+
+    cards: int
+    # Every card this matches goes to your hand whatever the pilot wants.
+    keep_every: Callable[[Card], bool] | None = None
+    # Up to this many of the cards `keep_only` allows go to your hand, the
+    # first entry of `prefer` that holds one first.
+    keep_up_to: int = 0
+    keep_only: Callable[[Card], bool] | None = None
+    prefer: tuple[Callable[[Card], bool], ...] = ()
+
+    def kept(self, top: list[Card], decklist: list[Card]) -> list[int]:
+        """Which of `top` (by position) go to your hand."""
+        if self.keep_every is not None:
+            return [i for i, c in enumerate(top) if self.keep_every(c)]
+        kept: list[int] = []
+        allowed = self.keep_only or (lambda c: True)
+        for wants in self.prefer:
+            if len(kept) >= self.keep_up_to:
+                break
+            options = [
+                i for i, c in enumerate(top) if i not in kept and allowed(c) and wants(c)
+            ]
+            options.sort(key=lambda i: decklist.index(top[i]))
+            kept += options[: self.keep_up_to - len(kept)]
+        return kept
 
 _NOT_A_PLAIN_TAP = (
     "enters tapped",
@@ -632,9 +677,19 @@ class Turn:
     # names seen or taken out of the library by its end.
     put: list[Card] = field(default_factory=list)
     taken: list[str] = field(default_factory=list)
+    # What this turn's spells milled into the graveyard.
+    milled: list[Card] = field(default_factory=list)
 
     def casts(self, name: str) -> bool:
         return any(c.name == name for c in self.cast)
+
+    def puts_in_graveyard(self, name: str) -> bool:
+        """An instant or sorcery cast this turn resolves into the graveyard
+        (CR 608.2n); a milled card is put there."""
+        return any(
+            c.name == name and any(t in c.type_line for t in ("Instant", "Sorcery"))
+            for c in self.cast
+        ) or any(c.name == name for c in self.milled)
 
     def left_pays(self, cost: str) -> bool:
         """`can_cast` beside the line: could what the line left, unspent rock
@@ -663,6 +718,11 @@ class LinePath(list):
 
     def first_cast(self, name: str) -> int | None:
         return next((t.number for t in self if t.casts(name)), None)
+
+    def in_graveyard_by(self, name: str, turn: int) -> bool:
+        """Put into the graveyard by `turn`. Nothing in a line takes a card
+        back out, so this is also "in the graveyard on `turn`"."""
+        return any(t.puts_in_graveyard(name) for t in self[:turn])
 
 
 Line = tuple[tuple[str, ...], ...]
@@ -702,15 +762,24 @@ def line_path(
     last_turn: int,
     fetches: dict[str, tuple[str, ...]] | None = None,
     puts: dict[str, tuple[str, ...]] | None = None,
+    mills: dict[str, Mill] | None = None,
 ) -> LinePath:
     """Play `line` out through `last_turn`. `fetches` maps a card to the cards
-    it puts into your hand from the library when cast, and `puts` to the cards
+    it puts into your hand from the library when cast, `puts` to the cards
     its loyalty ability puts onto the battlefield from the library that turn,
-    the first of them it can find (`puts_onto_battlefield`). Cached on the
-    game."""
+    the first of them it can find (`puts_onto_battlefield`), and `mills` to
+    what it does to the top of the library. Cached on the game."""
     fetches = fetches or {}
     puts = puts or {}
-    key = ("path", line, last_turn, tuple(sorted(fetches.items())), tuple(sorted(puts.items())))
+    mills = mills or {}
+    key = (
+        "path",
+        line,
+        last_turn,
+        tuple(sorted(fetches.items())),
+        tuple(sorted(puts.items())),
+        tuple(sorted(mills.items())),
+    )
     if key in game._line_cache:
         return game._line_cache[key]
     named = {n for entry in line for n in entry}
@@ -731,6 +800,7 @@ def line_path(
         bill: list[Cost] = []
         cast: list[Card] = []
         put: list[Card] = []
+        milled: list[Card] = []
         while True:
             chosen = None
             for entry in line:
@@ -781,8 +851,30 @@ def line_path(
                         g.library_size - 1,
                         commanders=g.commanders,
                         library=g.library,
+                        kept_lands=g.kept_lands,
                     )
-        path.append(Turn(t, cast, units, bill, g, put, list(taken)))
+            mill = mills.get(card.name)
+            if mill is not None:
+                top = g.cards[seen_so_far : seen_so_far + mill.cards]
+                kept = mill.kept(top, g.library)
+                taken += [c.name for c in top]
+                lands: list[tuple[int, Card]] = []
+                for i, c in enumerate(top):
+                    if i not in kept:
+                        milled.append(c)
+                    elif c.playable_land:
+                        lands.append((t + 1, c))
+                    elif c.name in named:
+                        hand.append(c)
+                g = Game(
+                    g.cards[:seen_so_far] + g.cards[seen_so_far + len(top) :],
+                    g.on_the_draw,
+                    g.library_size - len(top),
+                    commanders=g.commanders,
+                    library=g.library,
+                    kept_lands=g.kept_lands + tuple(lands),
+                )
+        path.append(Turn(t, cast, units, bill, g, put, list(taken), milled))
     game._line_cache[key] = path
     return path
 
@@ -872,29 +964,82 @@ def _loam_castable_by_5(g: Game) -> bool:
 
 
 LOAM, SEEKER = "Life from the Loam", "Spellseeker"
+RUMBLE, TILLING = "Malevolent Rumble", "Midnight Tilling"
+ANALYST, WRENN = "Aftermath Analyst", "Wrenn and Seven"
 # [[effect]] match = 'name:"Spellseeker"', on = "cast",
 #            fetch = ['name:"Life from the Loam"'], to = "hand"
-# [casting] prefer = ['name:"Life from the Loam"', 'name:"Spellseeker"']
+# [[effect]] match = 'name:"Malevolent Rumble"' and 'name:"Midnight Tilling"',
+#            to_hand = ['name:"Spellseeker"', 't:land']
+# [casting] prefer = [Loam, Spellseeker, Rumble, Tilling, Analyst, Wrenn and Seven]
 #
 # Spellseeker's enters trigger searches the library for an instant or sorcery
 # with mana value 2 or less and puts it into your hand; Loam is a sorcery at
 # mana value 2, and the only one the effect names. The line is read again
 # after the fetch (HANDS.md hand 36), and a Loam cast resolves into the
-# graveyard (CR 608.2n); no other route to the yard is modelled (README
-# "Zones"). Everything else is `line_path`.
-LOAM_CAST_LINE = ((LOAM,), (SEEKER,))
+# graveyard (CR 608.2n). The other way in is a mill, read off each card:
+#
+# * Aftermath Analyst: "When this creature enters, mill three cards."
+# * Malevolent Rumble: "Reveal the top four cards of your library. You may put
+#   a permanent card from among them into your hand. Put the rest into your
+#   graveyard." The pilot keeps Spellseeker, which finds a Loam still in the
+#   library, and otherwise a land.
+# * Midnight Tilling: "Mill four cards, then you may return a permanent card
+#   from among them to your hand." The same choice.
+# * Wrenn and Seven, +1, the turn it is cast: "Reveal the top four cards of
+#   your library. Put all land cards revealed this way into your hand and the
+#   rest into your graveyard." ASSUMPTION (the standard library's entry): it is
+#   activated once, on the turn it is cast, and not on the turns after.
+#
+# Dredge and discard are not routes here (README "Zones"). Everything else is
+# `line_path`.
+LOAM_CAST_LINE = ((LOAM,), (SEEKER,), (RUMBLE,), (TILLING,), (ANALYST,), (WRENN,))
 SEEKER_FETCHES = {SEEKER: (LOAM,)}
+_PERMANENT_TYPES = ("Artifact", "Creature", "Enchantment", "Land", "Planeswalker", "Battle")
 
 
-def _loam_in_graveyard_by_casting_by_5(g: Game) -> bool:
+def _is_permanent_card(c: Card) -> bool:
+    """A permanent card, by the face it has in the library (CR 110.4)."""
+    return any(t in c.type_line.split("//")[0] for t in _PERMANENT_TYPES)
+
+
+def _is_land(c: Card) -> bool:
+    return "Land" in c.type_line.split("//")[0]
+
+
+def _is_seeker(c: Card) -> bool:
+    return c.name == SEEKER
+
+
+_PILOT_KEEPS = (_is_seeker, _is_land)
+LOAM_MILLS = {
+    ANALYST: Mill(3),
+    RUMBLE: Mill(4, keep_up_to=1, keep_only=_is_permanent_card, prefer=_PILOT_KEEPS),
+    TILLING: Mill(4, keep_up_to=1, keep_only=_is_permanent_card, prefer=_PILOT_KEEPS),
+    WRENN: Mill(4, keep_every=_is_land),
+}
+# Turn 5, one card deeper for the Loam a fetch takes out, and every card the
+# four mills could take.
+LOAM_CAST_DEPTH = 6 + 3 + 4 + 4 + 4
+
+
+def _loam_cast_path(g: Game) -> LinePath:
+    return line_path(g, LOAM_CAST_LINE, 5, SEEKER_FETCHES, mills=LOAM_MILLS)
+
+
+def _loam_in_graveyard_by_5(g: Game) -> bool:
     # { turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }
-    return line_path(g, LOAM_CAST_LINE, 5, SEEKER_FETCHES).cast_by(LOAM, 5)
+    return _loam_cast_path(g).in_graveyard_by(LOAM, 5)
+
+
+def _loam_cast_by_5(g: Game) -> bool:
+    # { turn = 5, cast = 'name:"Life from the Loam"', min = 1 }
+    return _loam_cast_path(g).cast_by(LOAM, 5)
 
 
 def _seeker_and_loam_cast_by_5(g: Game) -> bool:
     # { turn = 5, cast = 'name:"Spellseeker"', min = 1 }
     # { turn = 5, cast = 'name:"Life from the Loam"', min = 1 }
-    path = line_path(g, LOAM_CAST_LINE, 5, SEEKER_FETCHES)
+    path = _loam_cast_path(g)
     return path.cast_by(LOAM, 5) and path.cast_by(SEEKER, 5)
 
 
@@ -1007,16 +1152,23 @@ QUESTIONS: list[Question] = [
     Question(
         "loam",
         "loam-cast.criteria.toml",
-        "Life from the Loam in the graveyard by turn 5 (by casting it)",
-        _loam_in_graveyard_by_casting_by_5,
-        6,  # turn 5, and one card deeper for the Loam a fetch takes out
+        "Life from the Loam in the graveyard by turn 5, cast or milled",
+        _loam_in_graveyard_by_5,
+        LOAM_CAST_DEPTH,
+    ),
+    Question(
+        "loam",
+        "loam-cast.criteria.toml",
+        "Life from the Loam cast by turn 5",
+        _loam_cast_by_5,
+        LOAM_CAST_DEPTH,
     ),
     Question(
         "loam",
         "loam-cast.criteria.toml",
         "Spellseeker and Life from the Loam both cast by turn 5",
         _seeker_and_loam_cast_by_5,
-        6,
+        LOAM_CAST_DEPTH,
     ),
     Question(
         "loam",

@@ -50,6 +50,10 @@ pub struct Applied {
     /// hand: what the card allows and, beside it, what the file chose. A run
     /// that milled has to say what it kept.
     pub mill: Option<MillDecl>,
+    /// Cards of a mill that make mana in passing, which no number counts:
+    /// Malevolent Rumble's Eldrazi Spawn. A run that cast one names it,
+    /// because every number beside it is a floor by that much (ADR-0017).
+    pub unspent: Vec<String>,
     pub origin: String,
     /// The cards this effect actually got, after the overlap was resolved. A
     /// card matched by a later entry is not here — it is under that entry.
@@ -239,6 +243,17 @@ pub fn resolve(
             fetch_misses,
             delay: entry.delay,
             mill: entry.mill.clone(),
+            unspent: mine
+                .iter()
+                .map(|&c| &deck.entries[c].card)
+                .filter(|card| {
+                    entry.mill.is_some()
+                        && entry.adds.is_none()
+                        && !card.produces.is_empty()
+                        && !crate::library::is_land(card)
+                })
+                .map(|card| card.name.clone())
+                .collect(),
             origin: entry.origin.clone(),
             cards: mine
                 .iter()

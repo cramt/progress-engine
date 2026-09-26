@@ -912,13 +912,15 @@ to bottom, had already passed Loam, and read 131/132 = 99.24%.
 On the real deck this is a route to the graveyard north star:
 `decks/loam-cast.criteria.toml` declares it, and *Life from the Loam in the
 graveyard by turn 5* goes from 9.92% to about 17.1% on the play and from about
-11.2% to 19.6% on the draw, sampled on both seats.
+11.2% to 19.6% on the draw, sampled on both seats. The mills of hands 19 and
+20 take it on to about 19.0% and 21.8%.
 
 ---
 
 ## Discard, mill and dredge
 
-None of these is answerable yet. Each pins a behaviour that
+Hands 19 and 20, the mills, are answerable and are tests; the rest are not
+answerable yet. Each pins a behaviour that
 [ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md) decided,
 using the Loam deck's own cards, with Beast Within as filler. All are on the
 play. A resolved instant or sorcery goes to the graveyard
@@ -966,8 +968,24 @@ Analyst fall. The other nine cards fill five seen slots, three milled and one
 left over, and the Loam is equally likely to be in any of them. So the Loam is
 in hand 5/9 of the time, milled 3/9 and still in the library 1/9.
 
-*Not answerable yet: needs sized gaps and a compelled route on a cast
-(ADR-0017).*
+*Answerable, and three tests.* The deal is
+`hand_19_aftermath_analyst_mills_the_loam_before_you_could_draw_it` in
+`crates/ichormoon-gauntlet/criteria/tests/engine.rs`, played on the board with
+and without the mill: the walk stops at the cast and asks for three cards,
+and every row of the table above holds. The number on paper is
+`hand_19_on_paper_the_mill_takes_the_loam_one_time_in_three` beside it, and
+again through the binary as `hand-19.txt` against `analyst.criteria.toml`,
+which declares only the line, because the standard library says the Analyst
+mills three:
+
+| Of 495 deals, on the play, to turn 2 | today | mill 3 |
+|---|---|---|
+| the Analyst cast by turn 2 | 126 (25.45%) | 126 (25.45%) |
+| cast, and the Loam in hand | 70 (14.14%) | 70 (14.14%) |
+| cast, and the Loam in the graveyard | 0 | **42 (8.48%)** |
+| cast, and the Loam still in the library | 56 (11.31%) | **14 (2.83%)** |
+
+`checker/test_mills.py` holds the same deal against the checker's line.
 
 ### 20. Malevolent Rumble keeps a permanent, and the Loam is not one
 
@@ -1002,8 +1020,29 @@ Three claims, one per column:
 
 The Eldrazi Spawn is not counted as mana, and a run that cast Rumble says so.
 
-*Not answerable yet: needs sized gaps and hand as a chosen destination
-(ADR-0017).*
+*Answerable, and a test:*
+`hand_20_malevolent_rumble_keeps_a_permanent_and_the_loam_is_not_one` in
+`crates/ichormoon-gauntlet/criteria/tests/engine.rs` plays the deal once per
+column and asserts the three rows. The file's choice is written on the
+effect:
+
+```toml
+[[effect]]
+match = 'name:"Malevolent Rumble"'
+on = "cast"
+mill = 4
+keep = 1
+keep_only = "is:permanent"
+to_hand = ['t:land']
+```
+
+`mill`, `keep` and `keep_only` are the card's, and the standard library
+states them; `to_hand` is yours, and the library never does. Beside it,
+`a_land_kept_mid_line_waits_for_the_next_turns_drop_even_when_this_turns_was_not_made`
+casts the same Rumble a turn later with no land to play that turn, and the
+kept Mountain is not on the battlefield until the turn after: the drop came
+before the line. `checker/test_mills.py` holds all three columns against the
+checker's line.
 
 ### 21. Frantic Search, and the discard list decides where the Loam goes
 

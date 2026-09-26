@@ -489,11 +489,13 @@ second kind: it declares a line that casts Life from the Loam and asks the
 north star of the zone. Casting Loam alone, it read 9.9210% on the play — the
 same hands as `can_cast` of Loam by turn 5, to the digit, because one copy cast
 the first turn it is payable is in the yard exactly when it was payable
-(HANDS.md hands 34 and 35). The line now casts Spellseeker too, which fetches
+(HANDS.md hands 34 and 35). The line then cast Spellseeker too, which fetches
 the Loam (HANDS.md hand 36, and [Tutors](#tutors-and-a-library-that-shrinks)),
-and reads 17.08% ± 0.08 on the play and 19.58% ± 0.09 on the draw — sampled,
+and read 17.08% ± 0.08 on the play and 19.58% ± 0.09 on the draw — sampled,
 because Spellseeker's `{2}{U}` makes the manabase tell blue from green and the
-question 284,738,168 compositions wide. It is a file of its own because a
+question 284,738,168 compositions wide. With the four mills in the line as
+well it reads 19.02% ± 0.09 and 21.82% ± 0.09
+([Mills](#mills-a-spell-that-turns-cards-over)). It is a file of its own because a
 `[casting]` line takes the cards it casts out of the hand and prices the manabase on every question
 beside it, which would move every other number in `loam.criteria.toml`.
 Flashback and retrace, which cast a card *from* the yard, are not modelled.
@@ -1120,6 +1122,10 @@ to_graveyard = 'name:"Life from the Loam"'
 | `fetch` | the cards it goes and gets out of the library, highest priority first. See [Tutors](#tutors-and-a-library-that-shrinks) |
 | `to` | where a fetched card is put: `hand` or `battlefield` |
 | `adds` | how much mana a card adds a turn once the `[casting]` line has cast it, `on = "cast"` only, of the colours its card makes. With `after = n` it adds nothing for `n` turns, which is a rock that enters tapped. See [Mana, as a budget](#mana-as-a-budget) and [ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) |
+| `mill` | how many cards a cast puts off the top of the library into the graveyard, `on = "cast"` only. See [Mills](#mills-a-spell-that-turns-cards-over) |
+| `keep`, `keep_only` | how many of a mill's cards the card lets go to hand instead, and which cards it allows |
+| `keep_every` | the cards of a mill the card puts in hand whatever you want: Wrenn and Seven's lands |
+| `to_hand` | your choice among what `keep` allows, highest priority first. Absent keeps nothing |
 
 **Looking is a land drop, fetching can be a cast.** Playing a land is free and
 hard-capped at one a turn, so by turn *T* at most *T* of those have happened
@@ -1131,11 +1137,15 @@ have seen by turn *T* depend on the path rather than on the schedule, which is
 one extra enumeration checkpoint per turn at the floor and puts every question
 this tool exists for over the ceiling
 ([#57](https://github.com/cramt/progress-engine/issues/57)). A `fetch` on a cast
-is a subtraction and costs nothing.
+is a subtraction and costs nothing. A `mill` on a cast turns cards over and
+takes every one of them off the top at once, so it is one block dealt only on
+the paths that cast it ([Mills](#mills-a-spell-that-turns-cards-over)).
 
-**The library never says where cards go.** Every shipped entry that looks
-declares `match`, `look` and `on`, and no entry declares `to_graveyard`. That split is the whole
-design. The same Undercity Sewers wants Life from the Loam in the graveyard in
+**The library never says where cards go** — unless the card does. Every
+shipped entry that looks declares `match`, `look` and `on`, and no entry
+declares `to_graveyard` or `to_hand`. That split is the whole design. The one
+destination it states is a mill's graveyard, which the card compels rather
+than you choosing it ([ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md)). The same Undercity Sewers wants Life from the Loam in the graveyard in
 one deck and on top of the library in another — so the destination is part of
 *your question*, not a property of the card, and the tool guessing at it would
 be answering something nobody asked. An effect with no destination leaves every
@@ -1189,6 +1199,13 @@ overstate one. The full queries are in
 
 Fellwar Stone (with no opponent it makes nothing) and Lotus Cobra (landfall, not
 a tap) are deliberately not sources.
+
+And four mills, `on = "cast"`, keyed by name because the count is printed on
+each card and no tag carries it: Aftermath Analyst (`mill = 3`), Malevolent
+Rumble and Midnight Tilling (`mill = 4`, `keep = 1`, `keep_only =
+"is:permanent"`) and Wrenn and Seven's +1 (`mill = 4`, `keep_every = "t:land"`).
+Each fires only where the `[casting]` line names its card, so every other file
+is answered exactly as it was.
 
 **What it costs.** Turning a card over mid-turn means the order of cards within a
 turn starts to matter — drawing a surveil land and then surveilling is not the
@@ -1424,6 +1441,69 @@ route B's width, in 0.8s. The first two rows move inside their error bars and
 the third is the route, +2.8 points on the play and +3.9 on the draw. The line
 casts the Seeker off lands alone, so these are floors until rocks join the
 bill. Whir of Invention, the route's other card, waits on a declared cost.
+
+### Mills: a spell that turns cards over
+
+Aftermath Analyst mills three when it enters. Those are the three cards your
+next draws would have found, so a mill is not a subtraction from a named group
+the way a tutor is: it is a **random block** off the top, and what is left
+after it is a distribution. It is dealt as one **sized gap**
+([ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md)): the walk
+asks, at each point of the path, how many cards the next gap deals, and a path
+that never cast the Analyst deals nothing for it. The block is unordered
+because every card in it is consumed at once.
+
+**The card says where they go, and you say what it keeps.** The graveyard is
+the one destination the standard library states, because the card compels it.
+Which card Malevolent Rumble keeps is yours, and goes on the effect as
+`to_hand`, a priority over queries like every other one:
+
+```toml
+[[effect]]
+match = 'name:"Malevolent Rumble"'
+on = "cast"
+mill = 4
+keep = 1
+keep_only = "is:permanent"
+to_hand = ['name:"Spellseeker"', 't:land']
+```
+
+`mill`, `keep` and `keep_only` are the card's, and repeated here because
+last-wins overrides a whole entry. A Rumble with no `to_hand` keeps nothing and
+bins all four, because that is what the card does when you choose nothing. A
+list naming Life from the Loam cannot keep it: it is a sorcery, and the next
+entry decides (HANDS.md hand 20). A card kept this way is in hand at once, so
+the line may cast it that turn; a land kept this way waits for the next turn's
+drop, even on a turn whose drop was not made. Every run that milled prints what
+it kept and by which list:
+
+```
+note: effect "name:\"Malevolent Rumble\"" (mill 4, on cast)
+      applies to 1 card: Malevolent Rumble
+      puts what it mills in the graveyard, except up to 1 matching "is:permanent", kept in your hand by the first of these that holds one:
+      1. "name:\"Spellseeker\""
+      2. "t:land"
+      Ties: the card this decklist names first.
+```
+
+**What it is worth to the Loam north star.** `decks/loam-cast.criteria.toml`
+adds the four mills to its line after Spellseeker:
+
+| On `decks/loam.txt`, Loam in the graveyard by turn 5 | play | draw |
+|---|---|---|
+| casting the Loam, drawn or fetched by Spellseeker | 17.08% ± 0.08 | 19.58% ± 0.09 |
+| ... and Rumble and Tilling | 18.46% ± 0.09 | 21.26% ± 0.09 |
+| ... and the Analyst and Wrenn and Seven | **19.02% ± 0.09** | **21.82% ± 0.09** |
+
+Both seats are sampled, as they were before: a class with a sized gap has no
+closed-form width, so it is counted against the ceiling, and this one passes
+it. `checker/` replays each mill from the card's text and agrees.
+
+**Not here yet.** Vastlands Scavenger's Bind to Life mills seven, but it is a
+copy cast later from a creature already in play, which is a second casting the
+line does not make. A mill that fires on an attack or a landfall has no
+trigger here yet. And dredge, which would take the Loam back out, is ADR-0017's
+last word.
 
 ### Delayed effects: Urza's Saga
 
@@ -2490,8 +2570,8 @@ and asks again; zero deals nothing and costs one composition. Its known answer
 is two groups of two where the first card, if it is an A, is followed by two
 more before the last: 5/6 for an A by the end. Such a walk has no closed-form
 width, so a class with one is counted against the ceiling, capped, while every
-other class keeps the static bound. Nothing in the effect library draws yet, so
-no run a file can ask for deals one.
+other class keeps the static bound. The standard library's mills are the first
+runs to deal one ([Mills](#mills-a-spell-that-turns-cards-over)); nothing draws yet.
 
 `gauntlet-toml` holds the only `impl Evaluator`, and both engines take it through the
 same trait. That is why swapping the criteria format out from under them was a

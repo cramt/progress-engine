@@ -1,10 +1,13 @@
 # "There's No Place Like Loam" — https://archidekt.com/decks/26329102
 #
-# The north star asked of the zone, by the one route to it the engine follows:
-# cast Life from the Loam, and a sorcery that resolves goes to its owner's
-# graveyard. The Loam gets into the hand to be cast two ways — drawn, or
-# fetched by Spellseeker. HANDS.md hands 34 and 35 are the casting, and hand
-# 36 the fetch, one hand at a time.
+# The north star asked of the zone, by the routes to it the engine follows.
+# Cast Life from the Loam, and a sorcery that resolves goes to its owner's
+# graveyard; the Loam gets into the hand to be cast two ways — drawn, or
+# fetched by Spellseeker. Or mill it: Malevolent Rumble, Midnight Tilling,
+# Aftermath Analyst and Wrenn and Seven put cards off the top of the library
+# into the graveyard, and a Loam among them is there. HANDS.md hands 34 and 35
+# are the casting, hand 36 the fetch, and hands 19 and 20 the mill, one hand at
+# a time.
 #
 # WHY THIS IS NOT IN loam.criteria.toml
 # -------------------------------------
@@ -37,32 +40,65 @@
 # goes on a Spellseeker that has nothing left to find. Tolaria West is not
 # here: transmute finds mana value 0, and Loam is 2.
 #
+# THE MILLS
+# ---------
+# The standard library says what each of the four does to the top of the
+# library (ADR-0017 §2), and nothing here says it again but the choice:
+#
+#   * Aftermath Analyst mills three when it enters.
+#   * Malevolent Rumble reveals four, and a permanent among them may go to
+#     your hand; the rest go to the graveyard, because the card says so.
+#   * Midnight Tilling mills four, and a permanent among them may come back.
+#   * Wrenn and Seven's +1 reveals four and puts every land in your hand and
+#     the rest in the graveyard. Read as activated once, the turn it is cast:
+#     a floor.
+#
+# Which permanent Rumble and Tilling keep is the pilot's, so it is written
+# below: Spellseeker first, which goes and gets a Loam the mill did not reach,
+# and otherwise a land. A list naming the Loam would keep nothing more: it is
+# a sorcery, and neither card may keep it.
+#
+# The line casts the Loam first, then Spellseeker, then the two-mana mills,
+# then the Analyst, then Wrenn and Seven at five: a Spellseeker that can be
+# paid for finds the Loam outright, and a mill only finds it when it is among
+# the cards it turns over. Each mill is cast only where the line reaches it,
+# so a run pays nothing for the cards a mill would have turned over on the
+# deals it was never cast.
+#
+# Vastlands Scavenger is not here. Its Bind to Life mills seven, but it is a
+# prepared spell rather than an adventure: the Scavenger is cast first, for
+# {1}{G}{G}, and Bind to Life is a copy cast later, for {4}{G}, while the
+# creature is on the battlefield. That is a second casting of a card already
+# in play, which this line does not make, so the mill is not reachable yet.
+#
 # WHAT THE NUMBER IS
 # ------------------
-# A LOWER BOUND on the north star. Casting Loam is one of the deck's routes to
-# the yard and the only one this engine follows; the self-mill package (#62),
-# dredge (#57) and discard can only add to it.
+# A LOWER BOUND on the north star. Casting Loam and milling it are the routes
+# this engine follows; dredge (#57) and discard can only add to it.
 #
 # Without Spellseeker the line read 9.9210% on the play, exact, and equalled
 # "Loam castable by turn 5" in loam.criteria.toml to the digit, because one
 # copy of a card cast the first turn it is payable is in the graveyard by turn
-# 5 exactly when it was payable by turn 5. With it the
-# line is 11 groups rather than 6 — Spellseeker is a query of its own, the fetch
-# is another, and {2}{U} makes the manabase tell blue from green — and the
-# question is 284,738,168 compositions on the play and 3,132,119,848 on the
-# draw, so both seats are SAMPLED, 200,000 hands each:
+# 5 exactly when it was payable by turn 5. With Spellseeker the line is 11
+# groups and 284,738,168 compositions on the play, and with the mills it has a
+# sized gap, whose width is counted rather than bounded and passes the
+# 5,000,000 ceiling on both seats — so every figure is SAMPLED, 200,000 hands:
 #
-#                                           play             draw
-#   Loam drawn, then cast (no Spellseeker)  9.92% (exact)    11.23% ± 0.07
-#   ... and Spellseeker fetching it         17.08% ± 0.08    19.58% ± 0.09
+#                                             play             draw
+#   Loam drawn, then cast (no Spellseeker)    9.92% (exact)    11.23% ± 0.07
+#   ... and Spellseeker fetching it           17.08% ± 0.08    19.58% ± 0.09
+#   ... and Rumble and Tilling                18.46% ± 0.09    21.26% ± 0.09
+#   ... and the Analyst and Wrenn and Seven   19.02% ± 0.09    21.82% ± 0.09
 #
-# So Spellseeker is worth about 7.2 points on the play and 8.3 on the draw.
-# With the `[[effect]]` block deleted and Spellseeker still in the line, the
-# same question reads 9.95% ± 0.07 and 11.22% ± 0.07: casting it moves
-# nothing, and the whole difference is the fetch.
+# So the four mills are worth about 1.9 points on the play and 2.2 on the
+# draw, and Rumble and Tilling most of it. Keeping nothing — the same line
+# with no `to_hand` — reads 18.33% ± 0.09 and 21.13% ± 0.09: the kept
+# Spellseeker and the kept land are the other 0.7 points, and they are why
+# "cast by turn 5" moves too.
 #
-# Sampled is not unchecked: `checker/` plays this line a turn at a time and
-# holds both seats against the engine's answer and its standard error.
+# Sampled is not unchecked: `checker/` plays this line a turn at a time, mills
+# and all, and holds both seats against the engine's answer and its standard
+# error.
 #
 # Flashback and retrace are out of scope: a card cast FROM the graveyard is a
 # second casting this line does not make.
@@ -73,18 +109,43 @@ on = "cast"
 fetch = ['name:"Life from the Loam"']
 to = "hand"
 
+# The standard library's Rumble and Tilling, written again with the choice
+# beside them, because last-wins overrides a whole entry at a time.
+[[effect]]
+match = 'name:"Malevolent Rumble"'
+on = "cast"
+mill = 4
+keep = 1
+keep_only = "is:permanent"
+to_hand = ['name:"Spellseeker"', 't:land']
+
+[[effect]]
+match = 'name:"Midnight Tilling"'
+on = "cast"
+mill = 4
+keep = 1
+keep_only = "is:permanent"
+to_hand = ['name:"Spellseeker"', 't:land']
+
 [casting]
-prefer = ['name:"Life from the Loam"', 'name:"Spellseeker"']
+prefer = [
+  'name:"Life from the Loam"',
+  'name:"Spellseeker"',
+  'name:"Malevolent Rumble"',
+  'name:"Midnight Tilling"',
+  'name:"Aftermath Analyst"',
+  'name:"Wrenn and Seven"',
+]
 
 # NO at_least, for the reason loam.criteria.toml gives: one of five routes, and
 # asserting on it asserts the deck reaches its yard by its slowest line.
 [[criterion]]
-name = "Life from the Loam in the graveyard by turn 5 (by casting it)"
+name = "Life from the Loam in the graveyard by turn 5, cast or milled"
 require = [{ turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
 
-# The same hands, counted as castings rather than as a zone. The two agree
-# because a sorcery has nowhere else to go; a permanent the line cast would be
-# counted on the battlefield instead.
+# The same hands, counted as castings rather than as a zone. Before the mills
+# the two agreed, because a sorcery has nowhere else to go; now the difference
+# is the deals where a mill put the Loam there and nothing cast it.
 [[criterion]]
 name = "Life from the Loam cast by turn 5"
 require = [{ turn = 5, cast = 'name:"Life from the Loam"', min = 1 }]

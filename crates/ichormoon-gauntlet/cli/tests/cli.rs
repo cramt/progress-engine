@@ -5069,4 +5069,6 @@ fn every_mill_route_agrees_with_the_sampler_through_the_binary() {
         .expect("the run says what Rumble did");
     assert_eq!(rumble["to_hand"][0], "t:land");
     assert_eq!(rumble["keep"], 1);
+    // And the Eldrazi Spawn it makes, which nothing counts as mana.
+    assert_eq!(rumble["unspent"][0], "Malevolent Rumble");
 }

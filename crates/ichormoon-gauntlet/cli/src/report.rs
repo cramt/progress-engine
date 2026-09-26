@@ -328,6 +328,10 @@ pub struct EffectUse {
     /// which card stayed out of the graveyard.
     #[facet(skip_serializing_if = Option::is_none)]
     pub to_hand: Option<Vec<String>>,
+    /// The cards of a mill that make mana in passing, which is not counted:
+    /// Malevolent Rumble's Eldrazi Spawn. Absent where there are none.
+    #[facet(skip_serializing_if = Vec::is_empty)]
+    pub unspent: Vec<String>,
     /// Which file declared it: the standard library, or the criteria file.
     pub source: String,
     /// The cards it applied to, after the overlap was resolved. A card matched
@@ -1163,6 +1167,12 @@ impl Report {
                         "      and the [casting] line does not cast it, so here it mills \
                          nothing\n",
                     );
+                } else if !e.unspent.is_empty() {
+                    out.push_str(&format!(
+                        "      The mana {} makes in passing is not counted, so every number \
+                         below that it could have paid for is a floor\n",
+                        e.unspent.join(", ")
+                    ));
                 }
             }
             // A tutor names what it went and got, in the order it would take
@@ -1750,6 +1760,7 @@ pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
                 Some(HandDecl::Chosen { prefer, .. }) if !prefer.is_empty() => Some(prefer.clone()),
                 _ => None,
             },
+            unspent: a.unspent.clone(),
             source: a.origin.clone(),
             cards: a.cards.clone(),
             copies: a.copies,
