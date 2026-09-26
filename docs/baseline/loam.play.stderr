@@ -1,0 +1,67 @@
+note: nothing routes a card to the graveyard in this run, so every count in
+      it is zero by construction rather than by measurement.
+      Asked by: "Life from the Loam in the graveyard by turn 5"
+      Declare `to_graveyard` on an [[effect]] to route one there.
+note: every number below keeps whatever seven it is dealt: this file declares no
+      [mulligan], so no hand is ever sent back.
+note: 5 lands here let the pilot decide whether to enter tapped. This run assumes they do:
+      Argoth, Sanctum of Nature, Breeding Pool, Mystic Sanctuary, Steam Vents, Stomping Ground.
+      A shockland's 2 life is a decision no criteria file has made yet, so the pessimistic
+      reading is taken: it makes no mana the turn it arrives. Every number below that
+      depends on one of these is a floor rather than a measurement.
+     Life from the Loam in the graveyard by turn 5                  0.00%
+     Loam castable by turn 5, so Loam in the graveyard by turn 5    9.56%
+     naive: Life from the Loam in hand by turn 5, no mana asked    11.22%
+     control: {1}{G} payable by turn 5, no Loam asked              87.81%
+PASS some Loam Access by turn 5 (drawn, not cast)                  80.96%  (needs 80.0%)
+     a two-mana Loam Access card and {1}{G} for it, turn 3         24.96%
+     naive: one of those four drawn by turn 3, no mana asked       32.41%
+PASS Loam Access drawn and three lands in play, turn 3             61.58%  (needs 55.0%)
+     Loam Access cards seen by turn 5                             mean 1.46
+                                                                  0: 19.0%
+                                                                  1: 36.3%
+                                                                  2: 28.7%
+                                                                  3: 12.3%
+                                                                  4: 3.1%
+                                                                  5: 0.5%
+                                                                  6: 0.1%
+     Loam Access cards still in library at turn 5                 mean 11.54
+                                                                  7: 0.1%
+                                                                  8: 0.5%
+                                                                  9: 3.1%
+                                                                  10: 12.3%
+                                                                  11: 28.7%
+                                                                  12: 36.3%
+                                                                  13: 19.0%
+     lands in opener                                              mean 3.14
+                                                                  0: 1.3%
+                                                                  1: 8.2%
+                                                                  2: 21.6%
+                                                                  3: 30.3%
+                                                                  4: 24.3%
+                                                                  5: 11.2%
+                                                                  6: 2.8%
+                                                                  7: 0.3%
+     t:land drawn by turn 5                                       mean 4.94
+                                                                  0: 0.1%
+                                                                  1: 0.9%
+                                                                  2: 4.5%
+                                                                  3: 12.3%
+                                                                  4: 21.5%
+                                                                  5: 25.0%
+                                                                  6: 19.9%
+                                                                  7: 10.8%
+                                                                  8: 3.9%
+                                                                  9: 0.9%
+                                                                  10: 0.1%
+     t:land on the battlefield by turn 5                          mean 4.36
+                                                                  0: 0.1%
+                                                                  1: 0.9%
+                                                                  2: 4.5%
+                                                                  3: 12.3%
+                                                                  4: 21.5%
+                                                                  5: 60.7%
+
+widest exact question: 1,026,432 compositions across 6 groups, 21% of the 5,000,000 ceiling, "Loam castable by turn 5, so Loam in the graveyard by turn 5"
+
+PASS: 2 of 2 assertions met

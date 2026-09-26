@@ -1,0 +1,192 @@
+{
+  "library_size": 99,
+  "commanders": [
+    "Rashmi and Ragavan"
+  ],
+  "excluded": [],
+  "on_the_draw": false,
+  "method": "exact",
+  "queries": [
+    {
+      "query": "name:\"Lantern of Insight\"",
+      "cards": 1
+    },
+    {
+      "query": "name:\"Urza's Saga\"",
+      "cards": 1
+    }
+  ],
+  "zones": [
+    {
+      "zone": "battlefield",
+      "reachable": true,
+      "asked_by": "Lantern put onto the battlefield by Urza's Saga, turn 5"
+    },
+    {
+      "zone": "hand",
+      "reachable": true,
+      "asked_by": "Urza's Saga drawn by turn 3 (the old upper bound)"
+    }
+  ],
+  "effects": [
+    {
+      "match": "t:land otag:surveil",
+      "look": 1,
+      "on": "landdrop",
+      "source": "the standard effect library",
+      "cards": [
+        "Hedge Maze"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "name:\"Urza's Saga\"",
+      "look": 0,
+      "on": "landdrop",
+      "fetch": [
+        "name:\"Lantern of Insight\""
+      ],
+      "to": "battlefield",
+      "after": 2,
+      "sacrifice": true,
+      "source": "decks/lantern-route-c.criteria.toml",
+      "cards": [
+        "Urza's Saga"
+      ],
+      "copies": 1,
+      "live": true
+    }
+  ],
+  "enumerations": [
+    {
+      "criteria": [
+        "Lantern put onto the battlefield by Urza's Saga, turn 5"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Lantern of Insight\"",
+        "name:\"Urza's Saga\"",
+        "t:land",
+        "<effect name:\"Urza's Saga\">"
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "groups": 4,
+      "compositions": 30720,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "Urza's Saga drawn by turn 3 (the old upper bound)"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Lantern of Insight\"",
+        "name:\"Urza's Saga\"",
+        "t:land",
+        "<effect name:\"Urza's Saga\">"
+      ],
+      "turns": [
+        3
+      ],
+      "reading": "cumulative",
+      "groups": 4,
+      "compositions": 1920,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "Lantern put onto the battlefield by Urza's Saga, turn 3"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Lantern of Insight\"",
+        "name:\"Urza's Saga\"",
+        "t:land",
+        "<effect name:\"Urza's Saga\">"
+      ],
+      "turns": [
+        3
+      ],
+      "reading": "per-turn",
+      "groups": 4,
+      "compositions": 1920,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "Lantern put onto the battlefield by Urza's Saga, turn 4"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Lantern of Insight\"",
+        "name:\"Urza's Saga\"",
+        "t:land",
+        "<effect name:\"Urza's Saga\">"
+      ],
+      "turns": [
+        4
+      ],
+      "reading": "per-turn",
+      "groups": 4,
+      "compositions": 7680,
+      "method": "exact"
+    }
+  ],
+  "land_drop": {
+    "prefer": [
+      "name:\"Urza's Saga\"",
+      "t:land"
+    ],
+    "then": "any other land",
+    "tie_break": "a tie inside one entry goes to the deeper look, then to the card this decklist names first"
+  },
+  "criteria": [
+    {
+      "name": "Lantern put onto the battlefield by Urza's Saga, turn 5",
+      "probability": 0.083179,
+      "percent": 8.32,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "Urza's Saga drawn by turn 3 (the old upper bound)",
+      "probability": 0.090909,
+      "percent": 9.09,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "Lantern put onto the battlefield by Urza's Saga, turn 3",
+      "probability": 0.064935,
+      "percent": 6.49,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "Lantern put onto the battlefield by Urza's Saga, turn 4",
+      "probability": 0.074108,
+      "percent": 7.41,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    }
+  ],
+  "expectations": [],
+  "asserted": 0,
+  "failed": 0,
+  "ok": true,
+  "provenance": {
+    "tool_version": "0.1.0",
+    "index_updated_at": "2026-09-21T09:01:56.821+00:00",
+    "deck_sha256": "b39ac98bea3f6724d9811f28c50bc966d28734bcb31de6e1349b8fe526f2ab09",
+    "criteria_sha256": "d5825639529f67141797fa974f20c56e41d3b3dd52e2b47261cfff57ca656dd0",
+    "effect_library_sha256": "c82ddeb31f819c87e905b64c5bd5b2f8c6e71cfdfd71d1bfa50be6ca6f0ca556"
+  }
+}

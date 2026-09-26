@@ -1,0 +1,37 @@
+ESTIMATE: a question here was too wide to enumerate exactly: 28840812
+          compositions across 7 groups, against a ceiling of 5000000. It was
+          answered by sampling 200000 hands instead.
+          2 of the 3 questions here needed that, and they are the ones
+          quoted with a ±:
+          Trinket Mage and a Lantern both cast by turn 5
+          Lanterns still in the library on turn 5
+          Everything else below was enumerated exactly. A difference
+          smaller than a figure's ± is not a difference.
+          Pass --exact to refuse a question this wide rather than estimate it.
+note: effect "t:land otag:surveil" (look 1, on landdrop, everything stays on top)
+      applies to 1 card: Hedge Maze
+note: effect "name:\"Trinket Mage\"" (on cast)
+      applies to 1 card: Trinket Mage
+      and fetches, to your hand, the first of these the library still holds:
+      1. "name:\"Lantern of Insight\""
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+note: the spells cast here are decided by the priority this file declared, and every
+      number below that depends on what was cast depends on it:
+      1. "name:\"Trinket Mage\""
+      2. "name:\"Lantern of Insight\""
+      Then a spell this list does not name is not cast at all. Ties: a tie inside one entry goes to the cheaper cost, then to the card this decklist names first.
+note: every number below keeps whatever seven it is dealt: this file declares no
+      [mulligan], so no hand is ever sent back.
+note: 10 lands here let the pilot decide whether to enter tapped. This run assumes they do:
+      Breeding Pool, Rejuvenating Springs, Sea Gate Restoration // Sea Gate, Reborn, Shatterskull Smashing // Shatterskull, the Hammer Pass, Shifting Woodland, Steam Vents, Stomping Ground, Training Center, Turbulent Springs, Turbulent Wilderness.
+      A shockland's 2 life is a decision no criteria file has made yet, so the pessimistic
+      reading is taken: it makes no mana the turn it arrives. Every number below that
+      depends on one of these is a floor rather than a measurement.
+     Trinket Mage cast by turn 3                       6.53%
+     Trinket Mage and a Lantern both cast by turn 5    9.38% ± 0.07
+     Lanterns still in the library on turn 5         mean 0.79 ± 0.001
+                                                     0: 21.1%  1: 78.9%
+
+widest exact question: 588,588 compositions across 7 groups, 12% of the 5,000,000 ceiling, "Trinket Mage cast by turn 3"
+
+PASS: 0 of 0 assertions met

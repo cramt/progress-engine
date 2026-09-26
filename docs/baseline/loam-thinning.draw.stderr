@@ -1,0 +1,38 @@
+ESTIMATE: a question here was too wide to enumerate exactly: 7864320
+          compositions across 4 groups, against a ceiling of 5000000. It was
+          answered by sampling 200000 hands instead.
+          2 of the 5 questions here needed that, and they are the ones
+          quoted with a ±:
+          some Loam Access by turn 8 (drawn, not cast)
+          two Loam Access by turn 8
+          Everything else below was enumerated exactly. A difference
+          smaller than a figure's ± is not a difference.
+          Pass --exact to refuse a question this wide rather than estimate it.
+note: effect "otag:fetchland" (on landdrop)
+      applies to 4 cards: Misty Rainforest, Prismatic Vista, Scalding Tarn, Wooded Foothills
+      and fetches, to your battlefield, the first of these the library still holds:
+      1. "t:land"
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+note: the land drop here is decided by the priority this file declared, and every
+      number below that depends on which land was played depends on it:
+      1. "otag:fetchland"
+      2. "t:land"
+      then any other land. Ties: a tie inside one entry goes to the deeper look, then to the card this decklist names first.
+note: every number below keeps whatever seven it is dealt: this file declares no
+      [mulligan], so no hand is ever sent back.
+PASS some Loam Access by turn 5 (drawn, not cast)   83.86%  (needs 80.0%)
+     some Loam Access by turn 8 (drawn, not cast)   90.27% ± 0.07
+     two Loam Access by turn 8                      63.30% ± 0.11
+     lands drawn by turn 8                         mean 6.71
+                                                   1: 0.1%   2: 0.6%
+                                                   3: 2.5%   4: 7.2%
+                                                   5: 14.4%  6: 20.7%
+                                                   7: 21.9%  8: 17.1%
+                                                   9: 9.9%   10: 4.2%
+                                                   11: 1.3%  12: 0.3%
+     fetchlands in play by turn 8                  mean 0.00
+                                                   0: 100.0%
+
+widest exact question: 236,196 compositions across 3 groups, 5% of the 5,000,000 ceiling, "fetchlands in play by turn 8"
+
+PASS: 1 of 1 assertions met

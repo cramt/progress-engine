@@ -1,0 +1,169 @@
+{
+  "library_size": 99,
+  "commanders": [
+    "Rashmi and Ragavan"
+  ],
+  "excluded": [],
+  "on_the_draw": true,
+  "method": "mixed",
+  "sampled_because": "too_wide",
+  "too_wide": {
+    "paths": 28840812,
+    "groups": 7,
+    "ceiling": 5000000
+  },
+  "trials": 200000,
+  "seed": 0,
+  "queries": [
+    {
+      "query": "name:\"Trinket Mage\"",
+      "cards": 1
+    },
+    {
+      "query": "name:\"Lantern of Insight\"",
+      "cards": 1
+    }
+  ],
+  "zones": [
+    {
+      "zone": "library",
+      "reachable": true,
+      "asked_by": "Lanterns still in the library on turn 5"
+    }
+  ],
+  "effects": [
+    {
+      "match": "t:land otag:surveil",
+      "look": 1,
+      "on": "landdrop",
+      "source": "the standard effect library",
+      "cards": [
+        "Hedge Maze"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "name:\"Trinket Mage\"",
+      "look": 0,
+      "on": "cast",
+      "fetch": [
+        "name:\"Lantern of Insight\""
+      ],
+      "to": "hand",
+      "source": "decks/lantern-route-b.criteria.toml",
+      "cards": [
+        "Trinket Mage"
+      ],
+      "copies": 1,
+      "live": true
+    }
+  ],
+  "enumerations": [
+    {
+      "criteria": [
+        "Trinket Mage cast by turn 3"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Trinket Mage\"",
+        "name:\"Lantern of Insight\"",
+        "<effect name:\"Trinket Mage\">"
+      ],
+      "turns": [
+        3
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{U}"
+      ],
+      "groups": 7,
+      "compositions": 588588,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "Trinket Mage and a Lantern both cast by turn 5"
+      ],
+      "expectations": [
+        "Lanterns still in the library on turn 5"
+      ],
+      "queries": [
+        "name:\"Trinket Mage\"",
+        "name:\"Lantern of Insight\"",
+        "<effect name:\"Trinket Mage\">"
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{U}"
+      ],
+      "groups": 7,
+      "compositions": 28840812,
+      "method": "sampled"
+    }
+  ],
+  "assumed_tapped": [
+    "Breeding Pool",
+    "Rejuvenating Springs",
+    "Sea Gate Restoration // Sea Gate, Reborn",
+    "Shatterskull Smashing // Shatterskull, the Hammer Pass",
+    "Shifting Woodland",
+    "Steam Vents",
+    "Stomping Ground",
+    "Training Center",
+    "Turbulent Springs",
+    "Turbulent Wilderness"
+  ],
+  "casting": {
+    "prefer": [
+      "name:\"Trinket Mage\"",
+      "name:\"Lantern of Insight\""
+    ],
+    "then": "a spell this list does not name is not cast at all",
+    "tie_break": "a tie inside one entry goes to the cheaper cost, then to the card this decklist names first"
+  },
+  "criteria": [
+    {
+      "name": "Trinket Mage cast by turn 3",
+      "probability": 0.065347,
+      "percent": 6.53,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "Trinket Mage and a Lantern both cast by turn 5",
+      "probability": 0.09376,
+      "percent": 9.38,
+      "at_least": null,
+      "standard_error": 0.000652,
+      "pass": true,
+      "method": "sampled"
+    }
+  ],
+  "expectations": [
+    {
+      "name": "Lanterns still in the library on turn 5",
+      "mean": 0.7893,
+      "distribution": [
+        0.210655,
+        0.789345
+      ],
+      "standard_error": 0.000912,
+      "method": "sampled"
+    }
+  ],
+  "asserted": 0,
+  "failed": 0,
+  "ok": true,
+  "provenance": {
+    "tool_version": "0.1.0",
+    "index_updated_at": "2026-09-21T09:01:56.821+00:00",
+    "deck_sha256": "b39ac98bea3f6724d9811f28c50bc966d28734bcb31de6e1349b8fe526f2ab09",
+    "criteria_sha256": "8858071d664a6c83d12cca838ba31301124766c40383f70d38af214280a45f7f",
+    "effect_library_sha256": "c82ddeb31f819c87e905b64c5bd5b2f8c6e71cfdfd71d1bfa50be6ca6f0ca556"
+  }
+}

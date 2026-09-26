@@ -1,0 +1,16 @@
+# Baseline sweep, not a claim: every committed criteria file on both seats.
+# Built at a8acaab with plain `cargo build --release -p gauntlet-cli`
+# (rustc 1.98.1, 4 CPUs). Each run was
+#   gauntlet test decks/<deck>.txt decks/<criteria>.criteria.toml --index decks/index.jsonl [--draw]
+# stdout (JSON) -> <criteria>.<seat>.json, stderr (report) -> <criteria>.<seat>.stderr.
+# exit=1 means a criterion failed its assertion, not that the run broke.
+lantern (lantern.txt) seat=play exit=1 wall=0.43s
+lantern (lantern.txt) seat=draw exit=1 wall=0.44s
+lantern-route-b (lantern.txt) seat=play exit=0 wall=0.37s
+lantern-route-b (lantern.txt) seat=draw exit=0 wall=0.86s
+lantern-route-c (lantern.txt) seat=play exit=0 wall=0.06s
+lantern-route-c (lantern.txt) seat=draw exit=0 wall=0.06s
+loam (loam.txt) seat=play exit=0 wall=0.22s
+loam (loam.txt) seat=draw exit=0 wall=0.60s
+loam-thinning (loam.txt) seat=play exit=0 wall=0.44s
+loam-thinning (loam.txt) seat=draw exit=0 wall=0.87s

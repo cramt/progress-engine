@@ -1,0 +1,24 @@
+note: land-drop preference "t:land" also matches a card you cannot play as a land drop: Search for Azcanta // Azcanta, the Sunken Ruin.
+      A land drop plays lands, so the priority ignores them.
+note: effect "t:land otag:surveil" (look 1, on landdrop, everything stays on top)
+      applies to 1 card: Hedge Maze
+note: effect "name:\"Urza's Saga\"" (on landdrop, 2 turns later, then sacrificed)
+      applies to 1 card: Urza's Saga
+      and fetches, to your battlefield, the first of these the library still holds:
+      1. "name:\"Lantern of Insight\""
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+note: the land drop here is decided by the priority this file declared, and every
+      number below that depends on which land was played depends on it:
+      1. "name:\"Urza's Saga\""
+      2. "t:land"
+      then any other land. Ties: a tie inside one entry goes to the deeper look, then to the card this decklist names first.
+note: every number below keeps whatever seven it is dealt: this file declares no
+      [mulligan], so no hand is ever sent back.
+     Lantern put onto the battlefield by Urza's Saga, turn 5    9.14%
+     Urza's Saga drawn by turn 3 (the old upper bound)         10.10%
+     Lantern put onto the battlefield by Urza's Saga, turn 3    7.34%
+     Lantern put onto the battlefield by Urza's Saga, turn 4    8.25%
+
+widest exact question: 122,880 compositions across 4 groups, 2% of the 5,000,000 ceiling, "Lantern put onto the battlefield by Urza's Saga, turn 5"
+
+PASS: 0 of 0 assertions met

@@ -1,0 +1,219 @@
+{
+  "library_size": 98,
+  "commanders": [
+    "Borborygmos and Fblthp"
+  ],
+  "excluded": [],
+  "on_the_draw": true,
+  "method": "mixed",
+  "sampled_because": "too_wide",
+  "too_wide": {
+    "paths": 7864320,
+    "groups": 4,
+    "ceiling": 5000000
+  },
+  "trials": 200000,
+  "seed": 0,
+  "queries": [
+    {
+      "query": "cat:\"Loam Access\"",
+      "cards": 13
+    },
+    {
+      "query": "t:land",
+      "cards": 44
+    },
+    {
+      "query": "otag:fetchland",
+      "cards": 4
+    }
+  ],
+  "zones": [
+    {
+      "zone": "hand",
+      "reachable": true,
+      "asked_by": "some Loam Access by turn 5 (drawn, not cast)"
+    },
+    {
+      "zone": "battlefield",
+      "reachable": true,
+      "asked_by": "fetchlands in play by turn 8"
+    }
+  ],
+  "effects": [
+    {
+      "match": "otag:fetchland",
+      "look": 0,
+      "on": "landdrop",
+      "fetch": [
+        "t:land"
+      ],
+      "to": "battlefield",
+      "source": "decks/loam-thinning.criteria.toml",
+      "cards": [
+        "Misty Rainforest",
+        "Prismatic Vista",
+        "Scalding Tarn",
+        "Wooded Foothills"
+      ],
+      "copies": 4,
+      "live": true
+    }
+  ],
+  "enumerations": [
+    {
+      "criteria": [
+        "some Loam Access by turn 5 (drawn, not cast)"
+      ],
+      "expectations": [],
+      "queries": [
+        "cat:\"Loam Access\"",
+        "t:land",
+        "otag:fetchland",
+        "<effect otag:fetchland>"
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "cumulative",
+      "groups": 4,
+      "compositions": 122880,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "some Loam Access by turn 8 (drawn, not cast)",
+        "two Loam Access by turn 8"
+      ],
+      "expectations": [],
+      "queries": [
+        "cat:\"Loam Access\"",
+        "t:land",
+        "otag:fetchland",
+        "<effect otag:fetchland>"
+      ],
+      "turns": [
+        8
+      ],
+      "reading": "cumulative",
+      "groups": 4,
+      "compositions": 7864320,
+      "method": "sampled"
+    },
+    {
+      "criteria": [],
+      "expectations": [
+        "lands drawn by turn 8"
+      ],
+      "queries": [
+        "t:land",
+        "otag:fetchland",
+        "<effect otag:fetchland>"
+      ],
+      "turns": [
+        8
+      ],
+      "reading": "cumulative",
+      "groups": 3,
+      "compositions": 236196,
+      "method": "exact"
+    },
+    {
+      "criteria": [],
+      "expectations": [
+        "fetchlands in play by turn 8"
+      ],
+      "queries": [
+        "t:land",
+        "otag:fetchland",
+        "<effect otag:fetchland>"
+      ],
+      "turns": [
+        8
+      ],
+      "reading": "per-turn",
+      "groups": 3,
+      "compositions": 236196,
+      "method": "exact"
+    }
+  ],
+  "land_drop": {
+    "prefer": [
+      "otag:fetchland",
+      "t:land"
+    ],
+    "then": "any other land",
+    "tie_break": "a tie inside one entry goes to the deeper look, then to the card this decklist names first"
+  },
+  "criteria": [
+    {
+      "name": "some Loam Access by turn 5 (drawn, not cast)",
+      "probability": 0.838594,
+      "percent": 83.86,
+      "at_least": 0.8,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "some Loam Access by turn 8 (drawn, not cast)",
+      "probability": 0.902695,
+      "percent": 90.27,
+      "at_least": null,
+      "standard_error": 0.000663,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "two Loam Access by turn 8",
+      "probability": 0.63303,
+      "percent": 63.3,
+      "at_least": null,
+      "standard_error": 0.001078,
+      "pass": true,
+      "method": "sampled"
+    }
+  ],
+  "expectations": [
+    {
+      "name": "lands drawn by turn 8",
+      "mean": 6.715,
+      "distribution": [
+        0.000047,
+        0.000786,
+        0.005793,
+        0.025157,
+        0.071988,
+        0.143761,
+        0.206938,
+        0.218583,
+        0.170761,
+        0.098624,
+        0.041749,
+        0.012713,
+        0.002694,
+        0.000375,
+        0.000031,
+        0.000001
+      ],
+      "method": "exact"
+    },
+    {
+      "name": "fetchlands in play by turn 8",
+      "mean": 0,
+      "distribution": [
+        1
+      ],
+      "method": "exact"
+    }
+  ],
+  "asserted": 1,
+  "failed": 0,
+  "ok": true,
+  "provenance": {
+    "tool_version": "0.1.0",
+    "index_updated_at": "2026-09-21T09:01:56.821+00:00",
+    "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
+    "criteria_sha256": "c303dcd7f06e12345d2a53235b2b9121258e344dd413e8ea25c5b10afad8a919",
+    "effect_library_sha256": "c82ddeb31f819c87e905b64c5bd5b2f8c6e71cfdfd71d1bfa50be6ca6f0ca556"
+  }
+}

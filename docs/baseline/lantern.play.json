@@ -1,0 +1,615 @@
+{
+  "library_size": 99,
+  "commanders": [
+    "Rashmi and Ragavan"
+  ],
+  "excluded": [],
+  "on_the_draw": false,
+  "method": "mixed",
+  "sampled_because": "too_wide",
+  "too_wide": {
+    "paths": 659902464,
+    "groups": 12,
+    "ceiling": 5000000
+  },
+  "trials": 200000,
+  "seed": 0,
+  "queries": [
+    {
+      "query": "name:\"Lantern of Insight\"",
+      "cards": 1
+    },
+    {
+      "query": "name:\"Trinket Mage\" or name:\"Fabricate\"",
+      "cards": 2
+    },
+    {
+      "query": "name:\"Tezzeret, Cruel Captain\"",
+      "cards": 1
+    },
+    {
+      "query": "name:\"Dizzy Spell\" or name:\"Artificer's Intuition\"",
+      "cards": 2
+    },
+    {
+      "query": "name:\"Tezzeret the Seeker\"",
+      "cards": 1
+    },
+    {
+      "query": "name:\"Whir of Invention\"",
+      "cards": 1
+    },
+    {
+      "query": "name:\"Urza's Saga\"",
+      "cards": 1
+    },
+    {
+      "query": "cat:\"Tutor Package\"",
+      "cards": 11
+    },
+    {
+      "query": "name:\"Trinket Mage\" or name:\"Fabricate\" or name:\"Tezzeret, Cruel Captain\" or name:\"Dizzy Spell\" or name:\"Artificer's Intuition\"",
+      "cards": 5
+    },
+    {
+      "query": "name:\"Tezzeret the Seeker\" or name:\"Whir of Invention\"",
+      "cards": 2
+    },
+    {
+      "query": "name:\"Trinket Mage\" or name:\"Fabricate\" or name:\"Artificer's Intuition\" or name:\"Dizzy Spell\" or name:\"Tezzeret, Cruel Captain\" or name:\"Whir of Invention\" or name:\"Tezzeret the Seeker\"",
+      "cards": 7
+    },
+    {
+      "query": "t:land",
+      "cards": 40
+    },
+    {
+      "query": "t:land -is:mdfc -is:transform",
+      "cards": 32
+    },
+    {
+      "query": "t:land -is:transform",
+      "cards": 39
+    }
+  ],
+  "zones": [
+    {
+      "zone": "hand",
+      "reachable": true,
+      "asked_by": "a line that resolves Lantern of Insight by turn 5"
+    },
+    {
+      "zone": "library",
+      "reachable": true,
+      "asked_by": "a line that resolves Lantern of Insight by turn 5"
+    },
+    {
+      "zone": "battlefield",
+      "reachable": true,
+      "asked_by": "a line that resolves Lantern of Insight by turn 5"
+    }
+  ],
+  "effects": [
+    {
+      "match": "t:land otag:surveil",
+      "look": 1,
+      "on": "landdrop",
+      "source": "the standard effect library",
+      "cards": [
+        "Hedge Maze"
+      ],
+      "copies": 1,
+      "live": false
+    }
+  ],
+  "enumerations": [
+    {
+      "criteria": [
+        "a line that resolves Lantern of Insight by turn 5"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Lantern of Insight\"",
+        "name:\"Trinket Mage\" or name:\"Fabricate\"",
+        "name:\"Tezzeret, Cruel Captain\"",
+        "name:\"Dizzy Spell\" or name:\"Artificer's Intuition\"",
+        "name:\"Tezzeret the Seeker\"",
+        "name:\"Whir of Invention\"",
+        "name:\"Urza's Saga\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{U}"
+      ],
+      "groups": 12,
+      "compositions": 659902464,
+      "method": "sampled"
+    },
+    {
+      "criteria": [
+        "same routes, all 11 Tutor Package cards (OVERCOUNTS)"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Lantern of Insight\"",
+        "name:\"Urza's Saga\"",
+        "cat:\"Tutor Package\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{U}"
+      ],
+      "groups": 8,
+      "compositions": 14057472,
+      "method": "sampled"
+    },
+    {
+      "criteria": [
+        "route 1: Lantern in hand and a mana for it, turn 5"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Lantern of Insight\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "pips": [],
+      "groups": 4,
+      "compositions": 30720,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "route 1 naive: Lantern in hand by turn 5, no mana asked"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Lantern of Insight\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 12,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "route 1 control: {1} payable by turn 5, no Lantern asked"
+      ],
+      "expectations": [],
+      "queries": [],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "pips": [],
+      "groups": 3,
+      "compositions": 2916,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "route 2: a tutor that puts it in hand, cast in time"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Lantern of Insight\"",
+        "name:\"Trinket Mage\" or name:\"Fabricate\"",
+        "name:\"Tezzeret, Cruel Captain\"",
+        "name:\"Dizzy Spell\" or name:\"Artificer's Intuition\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{U}"
+      ],
+      "groups": 9,
+      "compositions": 42220035,
+      "method": "sampled"
+    },
+    {
+      "criteria": [
+        "route 2 naive: one of those five tutors drawn by turn 5"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Trinket Mage\" or name:\"Fabricate\" or name:\"Tezzeret, Cruel Captain\" or name:\"Dizzy Spell\" or name:\"Artificer's Intuition\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 12,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "route 3: a tutor that puts it onto the battlefield, cast by turn 5"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Lantern of Insight\"",
+        "name:\"Tezzeret the Seeker\"",
+        "name:\"Whir of Invention\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{U}"
+      ],
+      "groups": 8,
+      "compositions": 14057472,
+      "method": "sampled"
+    },
+    {
+      "criteria": [
+        "route 3 naive: either of those two drawn by turn 5"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Tezzeret the Seeker\" or name:\"Whir of Invention\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 12,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "route 4: Urza's Saga puts it onto the battlefield by turn 5"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Lantern of Insight\"",
+        "name:\"Urza's Saga\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "groups": 3,
+      "compositions": 2916,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "route 4 naive: Urza's Saga drawn by turn 3 (the old upper bound)"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Urza's Saga\""
+      ],
+      "turns": [
+        3
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 10,
+      "method": "exact"
+    },
+    {
+      "criteria": [],
+      "expectations": [
+        "Lantern-capable tutors seen by turn 5"
+      ],
+      "queries": [
+        "name:\"Trinket Mage\" or name:\"Fabricate\" or name:\"Artificer's Intuition\" or name:\"Dizzy Spell\" or name:\"Tezzeret, Cruel Captain\" or name:\"Whir of Invention\" or name:\"Tezzeret the Seeker\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 12,
+      "method": "exact"
+    },
+    {
+      "criteria": [],
+      "expectations": [
+        "whole Tutor Package seen by turn 5"
+      ],
+      "queries": [
+        "cat:\"Tutor Package\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 12,
+      "method": "exact"
+    },
+    {
+      "criteria": [],
+      "expectations": [
+        "t:land in the opener"
+      ],
+      "queries": [
+        "t:land"
+      ],
+      "turns": [
+        0
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 8,
+      "method": "exact"
+    },
+    {
+      "criteria": [],
+      "expectations": [
+        "opener cards you could really play as a land"
+      ],
+      "queries": [
+        "t:land -is:mdfc -is:transform"
+      ],
+      "turns": [
+        0
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 8,
+      "method": "exact"
+    },
+    {
+      "criteria": [],
+      "expectations": [
+        "lands you can play, on the battlefield by turn 5"
+      ],
+      "queries": [
+        "t:land -is:transform"
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "groups": 2,
+      "compositions": 128,
+      "method": "exact"
+    },
+    {
+      "criteria": [],
+      "expectations": [
+        "of those, cards that could really have been played as a land"
+      ],
+      "queries": [
+        "t:land -is:mdfc -is:transform"
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "groups": 2,
+      "compositions": 128,
+      "method": "exact"
+    }
+  ],
+  "assumed_tapped": [
+    "Breeding Pool",
+    "Rejuvenating Springs",
+    "Sea Gate Restoration // Sea Gate, Reborn",
+    "Shatterskull Smashing // Shatterskull, the Hammer Pass",
+    "Shifting Woodland",
+    "Steam Vents",
+    "Stomping Ground",
+    "Training Center",
+    "Turbulent Springs",
+    "Turbulent Wilderness"
+  ],
+  "criteria": [
+    {
+      "name": "a line that resolves Lantern of Insight by turn 5",
+      "probability": 0.46638,
+      "percent": 46.64,
+      "at_least": 0.75,
+      "standard_error": 0.001116,
+      "pass": false,
+      "missed": "at_least",
+      "inconclusive": false,
+      "method": "sampled"
+    },
+    {
+      "name": "same routes, all 11 Tutor Package cards (OVERCOUNTS)",
+      "probability": 0.663195,
+      "percent": 66.32,
+      "at_least": null,
+      "standard_error": 0.001057,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "route 1: Lantern in hand and a mana for it, turn 5",
+      "probability": 0.11044,
+      "percent": 11.04,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "route 1 naive: Lantern in hand by turn 5, no mana asked",
+      "probability": 0.111111,
+      "percent": 11.11,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "route 1 control: {1} payable by turn 5, no Lantern asked",
+      "probability": 0.996248,
+      "percent": 99.62,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "route 2: a tutor that puts it in hand, cast in time",
+      "probability": 0.271515,
+      "percent": 27.15,
+      "at_least": null,
+      "standard_error": 0.000994,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "route 2 naive: one of those five tutors drawn by turn 5",
+      "probability": 0.452265,
+      "percent": 45.23,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "route 3: a tutor that puts it onto the battlefield, cast by turn 5",
+      "probability": 0.049765,
+      "percent": 4.98,
+      "at_least": null,
+      "standard_error": 0.000486,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "route 3 naive: either of those two drawn by turn 5",
+      "probability": 0.210884,
+      "percent": 21.09,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "route 4: Urza's Saga puts it onto the battlefield by turn 5",
+      "probability": 0.083179,
+      "percent": 8.32,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "route 4 naive: Urza's Saga drawn by turn 3 (the old upper bound)",
+      "probability": 0.090909,
+      "percent": 9.09,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    }
+  ],
+  "expectations": [
+    {
+      "name": "Lantern-capable tutors seen by turn 5",
+      "mean": 0.7778,
+      "distribution": [
+        0.426434,
+        0.400432,
+        0.144734,
+        0.025845,
+        0.002433,
+        0.000119,
+        0.000003,
+        0
+      ],
+      "method": "exact"
+    },
+    {
+      "name": "whole Tutor Package seen by turn 5",
+      "mean": 1.2222,
+      "distribution": [
+        0.253914,
+        0.393892,
+        0.249299,
+        0.084138,
+        0.01662,
+        0.001986,
+        0.000144,
+        0.000006,
+        0,
+        0,
+        0,
+        0
+      ],
+      "method": "exact"
+    },
+    {
+      "name": "t:land in the opener",
+      "mean": 2.8283,
+      "distribution": [
+        0.022916,
+        0.121065,
+        0.262308,
+        0.302051,
+        0.19957,
+        0.075626,
+        0.015212,
+        0.001252
+      ],
+      "method": "exact"
+    },
+    {
+      "name": "opener cards you could really play as a land",
+      "mean": 2.2626,
+      "distribution": [
+        0.058416,
+        0.214513,
+        0.32177,
+        0.255373,
+        0.115716,
+        0.029908,
+        0.004078,
+        0.000226
+      ],
+      "method": "exact"
+    },
+    {
+      "name": "lands you can play, on the battlefield by turn 5",
+      "mean": 4.0094,
+      "distribution": [
+        0.002719,
+        0.023327,
+        0.086904,
+        0.185507,
+        0.252009,
+        0.449534
+      ],
+      "method": "exact"
+    },
+    {
+      "name": "of those, cards that could really have been played as a land",
+      "mean": 3.4311,
+      "distribution": [
+        0.010195,
+        0.062958,
+        0.168249,
+        0.25665,
+        0.248095,
+        0.253853
+      ],
+      "method": "exact"
+    }
+  ],
+  "asserted": 1,
+  "failed": 1,
+  "ok": false,
+  "provenance": {
+    "tool_version": "0.1.0",
+    "index_updated_at": "2026-09-21T09:01:56.821+00:00",
+    "deck_sha256": "b39ac98bea3f6724d9811f28c50bc966d28734bcb31de6e1349b8fe526f2ab09",
+    "criteria_sha256": "e3bdce1bee61ca72d93984226c3d7463dec5cdaf623ddbac6e0daea3c71bd0ff",
+    "effect_library_sha256": "c82ddeb31f819c87e905b64c5bd5b2f8c6e71cfdfd71d1bfa50be6ca6f0ca556"
+  }
+}

@@ -1,0 +1,28 @@
+note: effect "otag:fetchland" (on landdrop)
+      applies to 4 cards: Misty Rainforest, Prismatic Vista, Scalding Tarn, Wooded Foothills
+      and fetches, to your battlefield, the first of these the library still holds:
+      1. "t:land"
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+note: the land drop here is decided by the priority this file declared, and every
+      number below that depends on which land was played depends on it:
+      1. "otag:fetchland"
+      2. "t:land"
+      then any other land. Ties: a tie inside one entry goes to the deeper look, then to the card this decklist names first.
+note: every number below keeps whatever seven it is dealt: this file declares no
+      [mulligan], so no hand is ever sent back.
+PASS some Loam Access by turn 5 (drawn, not cast)   81.02%  (needs 80.0%)
+     some Loam Access by turn 8 (drawn, not cast)   88.43%
+     two Loam Access by turn 8                      59.07%
+     lands drawn by turn 8                         mean 6.27
+                                                   1: 0.2%   2: 1.0%
+                                                   3: 3.9%   4: 10.1%
+                                                   5: 17.9%  6: 22.6%
+                                                   7: 20.8%  8: 13.9%
+                                                   9: 6.7%   10: 2.3%
+                                                   11: 0.6%  12: 0.1%
+     fetchlands in play by turn 8                  mean 0.00
+                                                   0: 100.0%
+
+widest exact question: 1,966,080 compositions across 4 groups, 39% of the 5,000,000 ceiling, "some Loam Access by turn 8 (drawn, not cast)"
+
+PASS: 1 of 1 assertions met

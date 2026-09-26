@@ -1,0 +1,396 @@
+{
+  "library_size": 98,
+  "commanders": [
+    "Borborygmos and Fblthp"
+  ],
+  "excluded": [],
+  "on_the_draw": false,
+  "method": "exact",
+  "queries": [
+    {
+      "query": "name:\"Life from the Loam\"",
+      "cards": 1
+    },
+    {
+      "query": "cat:\"Loam Access\"",
+      "cards": 13
+    },
+    {
+      "query": "name:\"Aftermath Analyst\" or name:\"Life from the Loam\" or name:\"Malevolent Rumble\" or name:\"Midnight Tilling\"",
+      "cards": 4
+    },
+    {
+      "query": "t:land",
+      "cards": 44
+    }
+  ],
+  "zones": [
+    {
+      "zone": "graveyard",
+      "reachable": false,
+      "asked_by": "Life from the Loam in the graveyard by turn 5"
+    },
+    {
+      "zone": "hand",
+      "reachable": true,
+      "asked_by": "Loam castable by turn 5, so Loam in the graveyard by turn 5"
+    },
+    {
+      "zone": "battlefield",
+      "reachable": true,
+      "asked_by": "Loam Access drawn and three lands in play, turn 3"
+    },
+    {
+      "zone": "library",
+      "reachable": true,
+      "asked_by": "Loam Access cards still in library at turn 5"
+    }
+  ],
+  "effects": [],
+  "enumerations": [
+    {
+      "criteria": [
+        "Life from the Loam in the graveyard by turn 5",
+        "naive: Life from the Loam in hand by turn 5, no mana asked"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Life from the Loam\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 12,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "Loam castable by turn 5, so Loam in the graveyard by turn 5"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Life from the Loam\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{G}"
+      ],
+      "groups": 6,
+      "compositions": 1026432,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "control: {1}{G} payable by turn 5, no Loam asked"
+      ],
+      "expectations": [],
+      "queries": [],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{G}"
+      ],
+      "groups": 5,
+      "compositions": 206250,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "some Loam Access by turn 5 (drawn, not cast)"
+      ],
+      "expectations": [
+        "Loam Access cards seen by turn 5",
+        "Loam Access cards still in library at turn 5"
+      ],
+      "queries": [
+        "cat:\"Loam Access\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 12,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "a two-mana Loam Access card and {1}{G} for it, turn 3"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Aftermath Analyst\" or name:\"Life from the Loam\" or name:\"Malevolent Rumble\" or name:\"Midnight Tilling\""
+      ],
+      "turns": [
+        3
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{G}"
+      ],
+      "groups": 6,
+      "compositions": 28512,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "naive: one of those four drawn by turn 3, no mana asked"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Aftermath Analyst\" or name:\"Life from the Loam\" or name:\"Malevolent Rumble\" or name:\"Midnight Tilling\""
+      ],
+      "turns": [
+        3
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 10,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "Loam Access drawn and three lands in play, turn 3"
+      ],
+      "expectations": [],
+      "queries": [
+        "cat:\"Loam Access\"",
+        "t:land"
+      ],
+      "turns": [
+        3
+      ],
+      "reading": "per-turn",
+      "groups": 3,
+      "compositions": 324,
+      "method": "exact"
+    },
+    {
+      "criteria": [],
+      "expectations": [
+        "lands in opener"
+      ],
+      "queries": [
+        "t:land"
+      ],
+      "turns": [
+        0
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 8,
+      "method": "exact"
+    },
+    {
+      "criteria": [],
+      "expectations": [
+        "t:land drawn by turn 5"
+      ],
+      "queries": [
+        "t:land"
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 12,
+      "method": "exact"
+    },
+    {
+      "criteria": [],
+      "expectations": [
+        "t:land on the battlefield by turn 5"
+      ],
+      "queries": [
+        "t:land"
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "groups": 2,
+      "compositions": 128,
+      "method": "exact"
+    }
+  ],
+  "assumed_tapped": [
+    "Argoth, Sanctum of Nature",
+    "Breeding Pool",
+    "Mystic Sanctuary",
+    "Steam Vents",
+    "Stomping Ground"
+  ],
+  "criteria": [
+    {
+      "name": "Life from the Loam in the graveyard by turn 5",
+      "probability": 0,
+      "percent": 0,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "Loam castable by turn 5, so Loam in the graveyard by turn 5",
+      "probability": 0.095603,
+      "percent": 9.56,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "naive: Life from the Loam in hand by turn 5, no mana asked",
+      "probability": 0.112245,
+      "percent": 11.22,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "control: {1}{G} payable by turn 5, no Loam asked",
+      "probability": 0.878132,
+      "percent": 87.81,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "some Loam Access by turn 5 (drawn, not cast)",
+      "probability": 0.809583,
+      "percent": 80.96,
+      "at_least": 0.8,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "a two-mana Loam Access card and {1}{G} for it, turn 3",
+      "probability": 0.249603,
+      "percent": 24.96,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "naive: one of those four drawn by turn 3, no mana asked",
+      "probability": 0.324076,
+      "percent": 32.41,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "Loam Access drawn and three lands in play, turn 3",
+      "probability": 0.615836,
+      "percent": 61.58,
+      "at_least": 0.55,
+      "pass": true,
+      "method": "exact"
+    }
+  ],
+  "expectations": [
+    {
+      "name": "Loam Access cards seen by turn 5",
+      "mean": 1.4592,
+      "distribution": [
+        0.190417,
+        0.363061,
+        0.286627,
+        0.12284,
+        0.031497,
+        0.005024,
+        0.000502,
+        0.000031,
+        0.000001,
+        0,
+        0,
+        0
+      ],
+      "method": "exact"
+    },
+    {
+      "name": "Loam Access cards still in library at turn 5",
+      "mean": 11.5408,
+      "distribution": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.000001,
+        0.000031,
+        0.000502,
+        0.005024,
+        0.031497,
+        0.12284,
+        0.286627,
+        0.363061,
+        0.190417
+      ],
+      "method": "exact"
+    },
+    {
+      "name": "lands in opener",
+      "mean": 3.1429,
+      "distribution": [
+        0.012801,
+        0.082143,
+        0.216253,
+        0.302754,
+        0.243391,
+        0.112334,
+        0.027554,
+        0.00277
+      ],
+      "method": "exact"
+    },
+    {
+      "name": "t:land drawn by turn 5",
+      "mean": 4.9388,
+      "distribution": [
+        0.000854,
+        0.009398,
+        0.0449,
+        0.122986,
+        0.214571,
+        0.250333,
+        0.199244,
+        0.108161,
+        0.039235,
+        0.009054,
+        0.001196,
+        0.000068
+      ],
+      "method": "exact"
+    },
+    {
+      "name": "t:land on the battlefield by turn 5",
+      "mean": 4.3629,
+      "distribution": [
+        0.000854,
+        0.009398,
+        0.0449,
+        0.122986,
+        0.214571,
+        0.607292
+      ],
+      "method": "exact"
+    }
+  ],
+  "asserted": 2,
+  "failed": 0,
+  "ok": true,
+  "provenance": {
+    "tool_version": "0.1.0",
+    "index_updated_at": "2026-09-21T09:01:56.821+00:00",
+    "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
+    "criteria_sha256": "3f32b9a8007bc54996594af46d828736f039103cec35f677791962dc5cc7674d",
+    "effect_library_sha256": "c82ddeb31f819c87e905b64c5bd5b2f8c6e71cfdfd71d1bfa50be6ca6f0ca556"
+  }
+}
