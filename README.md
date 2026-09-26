@@ -130,8 +130,8 @@ row's own narrowing:
 
 | File | Before: groups / compositions | After: widest class | Before | After |
 |---|---|---|---|---|
-| `lantern.criteria.toml` | 16 / 11,176,771,584 | 12 / 659,902,464 | sampled | sampled, 2.2s |
-| `lantern.criteria.toml --draw` | 16 / 178,828,345,344 | 12 / 7,918,829,568 | sampled | sampled, 2.4s |
+| `lantern.criteria.toml` | 16 / 11,176,771,584 | 18 / 36,332,613,504 | sampled | sampled, 2.2s |
+| `lantern.criteria.toml --draw` | 16 / 178,828,345,344 | 18 / 653,987,043,072 | sampled | sampled, 2.4s |
 | `loam.criteria.toml` | 8 / 14,057,472 | 6 / 1,026,432 | **sampled** | **exact**, 3.9s |
 | `loam.criteria.toml --draw` | 8 / 112,459,776 | 6 / 6,158,592 | sampled | sampled, 7.9s |
 | `lantern.txt`, `can_cast = "{1}{U}"` at turn 4 | 17 / 1,204,456,341 | 5 / 41,250 | **sampled**, 0.68s | **exact**, 0.27s |
@@ -139,10 +139,11 @@ row's own narrowing:
 
 The first two rows are what narrowing looks like once a file asks the question it exists for
 rather than a proxy for it. `lantern.criteria.toml` is the Lantern north star written as a
-union of four routes, nine of whose ten branches price a cost, and no narrowing gets that
-under the ceiling: it is 132 times over. What #31 buys there is **the other twelve questions
-in the file**, which are enumerated exactly and cost between 10 and 122,880 compositions
-apiece — before #31 every one of them would have been estimated on account of the question
+union of four routes, eleven of whose fourteen branches price a cost, and no narrowing gets
+that under the ceiling: it is over 7,000 times over. (It was 12 groups until Artificer's
+Intuition's discard became a `t:artifact` clause; the *Before* column predates that.) What #31 buys there is **the other
+thirteen questions in the file**, which are enumerated exactly and cost between 8 and 122,880
+compositions apiece — before #31 every one of them would have been estimated on account of the question
 beside it. The run says which four were not, by name, and quotes only those with a ±.
 
 Every number that was exact before is the same number after, to every digit the report

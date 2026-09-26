@@ -8,8 +8,8 @@
   "method": "mixed",
   "sampled_because": "too_wide",
   "too_wide": {
-    "paths": 7918829568,
-    "groups": 12,
+    "paths": 653987043072,
+    "groups": 18,
     "ceiling": 5000000
   },
   "trials": 200000,
@@ -28,8 +28,16 @@
       "cards": 1
     },
     {
-      "query": "name:\"Dizzy Spell\" or name:\"Artificer's Intuition\"",
-      "cards": 2
+      "query": "name:\"Dizzy Spell\"",
+      "cards": 1
+    },
+    {
+      "query": "name:\"Artificer's Intuition\"",
+      "cards": 1
+    },
+    {
+      "query": "t:artifact",
+      "cards": 28
     },
     {
       "query": "name:\"Tezzeret the Seeker\"",
@@ -112,7 +120,9 @@
         "name:\"Lantern of Insight\"",
         "name:\"Trinket Mage\" or name:\"Fabricate\"",
         "name:\"Tezzeret, Cruel Captain\"",
-        "name:\"Dizzy Spell\" or name:\"Artificer's Intuition\"",
+        "name:\"Dizzy Spell\"",
+        "name:\"Artificer's Intuition\"",
+        "t:artifact",
         "name:\"Tezzeret the Seeker\"",
         "name:\"Whir of Invention\"",
         "name:\"Urza's Saga\""
@@ -124,8 +134,8 @@
       "pips": [
         "{U}"
       ],
-      "groups": 12,
-      "compositions": 7918829568,
+      "groups": 18,
+      "compositions": 653987043072,
       "method": "sampled"
     },
     {
@@ -206,7 +216,9 @@
         "name:\"Lantern of Insight\"",
         "name:\"Trinket Mage\" or name:\"Fabricate\"",
         "name:\"Tezzeret, Cruel Captain\"",
-        "name:\"Dizzy Spell\" or name:\"Artificer's Intuition\""
+        "name:\"Dizzy Spell\"",
+        "name:\"Artificer's Intuition\"",
+        "t:artifact"
       ],
       "turns": [
         5
@@ -215,8 +227,8 @@
       "pips": [
         "{U}"
       ],
-      "groups": 9,
-      "compositions": 379980315,
+      "groups": 15,
+      "compositions": 88300125000,
       "method": "sampled"
     },
     {
@@ -417,8 +429,8 @@
   "criteria": [
     {
       "name": "a line that resolves Lantern of Insight by turn 5",
-      "probability": 0.53639,
-      "percent": 53.64,
+      "probability": 0.535965,
+      "percent": 53.6,
       "at_least": 0.75,
       "standard_error": 0.001115,
       "pass": false,
@@ -428,8 +440,8 @@
     },
     {
       "name": "same routes, all 11 Tutor Package cards (OVERCOUNTS)",
-      "probability": 0.73411,
-      "percent": 73.41,
+      "probability": 0.73443,
+      "percent": 73.44,
       "at_least": null,
       "standard_error": 0.000988,
       "pass": true,
@@ -461,10 +473,10 @@
     },
     {
       "name": "route 2: a tutor that puts it in hand, cast in time",
-      "probability": 0.32392,
-      "percent": 32.39,
+      "probability": 0.321005,
+      "percent": 32.1,
       "at_least": null,
-      "standard_error": 0.001046,
+      "standard_error": 0.001044,
       "pass": true,
       "method": "sampled"
     },
@@ -478,10 +490,10 @@
     },
     {
       "name": "route 3: a tutor that puts it onto the battlefield, cast by turn 5",
-      "probability": 0.0703,
-      "percent": 7.03,
+      "probability": 0.070745,
+      "percent": 7.07,
       "at_least": null,
-      "standard_error": 0.000572,
+      "standard_error": 0.000573,
       "pass": true,
       "method": "sampled"
     },
@@ -609,7 +621,7 @@
     "tool_version": "0.1.0",
     "index_updated_at": "2026-09-21T09:01:56.821+00:00",
     "deck_sha256": "b39ac98bea3f6724d9811f28c50bc966d28734bcb31de6e1349b8fe526f2ab09",
-    "criteria_sha256": "e3bdce1bee61ca72d93984226c3d7463dec5cdaf623ddbac6e0daea3c71bd0ff",
+    "criteria_sha256": "5b845d7cc13c0c6362d1ca2d3e828ce8029adb4a4a22fb38c8c44f4889bfe636",
     "effect_library_sha256": "c82ddeb31f819c87e905b64c5bd5b2f8c6e71cfdfd71d1bfa50be6ca6f0ca556"
   }
 }

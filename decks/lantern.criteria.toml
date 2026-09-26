@@ -20,10 +20,10 @@
 # The proxies were not a small error. Measured below, on the same deck:
 #
 #   a tutor that can find the Lantern, drawn by turn 5       45.23%
-#   ...and castable in time to matter                        27.15% ± 0.10
+#   ...and castable in time to matter                        27.24% ± 0.10
 #
 #   a tutor that puts it straight onto the battlefield, drawn 21.09%
-#   ...and castable by turn 5                                 4.98% ± 0.05
+#   ...and castable by turn 5                                 4.96% ± 0.05
 #
 # The second pair is a factor of more than four. That gap is the whole
 # argument for pricing mana rather than counting lands. A figure quoted with a
@@ -58,6 +58,18 @@
 #     Saga, or on the Lantern it found, is interaction; see the next line.
 #   * Anything about the game but your own draws: interaction, an opponent
 #     exiling the Lantern, a counterspell on the tutor.
+#   * Land sequencing, which is the one entry here that pushes the numbers UP.
+#     This file declares no [land_drop], so every `can_cast` and every Saga
+#     battlefield clause takes the most generous reading: the lands this path
+#     drew, played in whatever order suits that clause best, with the whole
+#     path in view — a pilot who knows what they will draw. The union across
+#     branches is exact (a path counts once, whichever branch it satisfies);
+#     the clairvoyance lives inside each clause. The best fixed priority
+#     measured — Saga, then taplands, then the rest — reads 45.93% on the play
+#     and 52.29% on the draw at 5M hands, against 46.73% and 53.54% undeclared,
+#     so it is worth at most 0.8 points on the play and 1.25 on the draw
+#     (docs/research/suspect-numbers.md, item 4). A real pilot adapts, so the
+#     honest figure sits between the two.
 
 # --- The north star -------------------------------------------------------
 # Four routes, as one criterion, because they overlap and a sum of four
@@ -84,8 +96,8 @@
 #   Dizzy Spell              {1}{U}{U}   transmute — an ability from hand, not
 #                                        a cast, and the cost is the transmute
 #   Artificer's Intuition    {1}{U}+{U}  cast the enchantment and activate it
-#                                        the same turn; also needs an artifact
-#                                        card to discard, which is NOT checked
+#                                        the same turn, discarding an artifact
+#                                        card from hand as part of the cost
 #   Tezzeret the Seeker      {3}{U}{U}   cast, −1 off 4 loyalty, to the field
 #   Whir of Invention        {X}{U}{U}{U} X = 1, to the field
 #
@@ -98,9 +110,15 @@
 # THRESHOLD: 0.75, unchanged from when this file asked a much easier question.
 # One Lantern, seven cards that find it, and a free land-drop route is the
 # deck's entire premise, so three games in four is the design target its owner
-# is implicitly claiming. It FAILS: 46.64% ± 0.11 on the play and 53.64% ±
+# is implicitly claiming. It FAILS: 46.67% ± 0.11 on the play and 53.60% ±
 # 0.11 on the draw, so the target is missed by 28 points in the seat you are
 # in one game in four and by 21 in the seat you are in the other three.
+#
+# Checking Artificer's Intuition's discard moved it DOWN by 0.10 on the play
+# and 0.06 on the draw — 46.73% to 46.63% and 53.54% to 53.48% at 20M hands.
+# The 200,000-hand figures above moved +0.03 and −0.04 instead, from 46.64%
+# and 53.64%, because the split widened the question and so drew a different
+# sample; that is the ± at work, not a difference.
 #
 # The deck did not get worse — the question got honest. The 54.35% this file
 # used to report was the same four routes with the mana assumed free and the
@@ -158,12 +176,19 @@ at_least = 0.75
   # Route 2, {1}{U}{U} tier. Neither of these is a cast that tutors: Dizzy
   # Spell's transmute is an activated ability from hand, and Artificer's
   # Intuition is {1}{U} to resolve plus {U} to activate in the same turn. Both
-  # come to {1}{U}{U}, which is why they share a branch. The Intuition half is
-  # generous: its activation also discards an artifact card, and nothing here
-  # checks that you held one.
+  # come to {1}{U}{U}, but they are separate branches because only one of them
+  # has a second cost: Intuition's activation discards an artifact card, and
+  # under CR 118.3 a cost you cannot pay is an activation you cannot make. So
+  # its branches also ask for an artifact card in hand on the turn it fires.
+  #
+  # That clause is `t:artifact`, which counts artifact lands, and they are a
+  # legal discard. What it cannot see is whether that land was also the land
+  # drop the `can_cast` beside it spent, so it is generous by at most the
+  # distance to `t:artifact -t:land`: 0.10 points on the play and 0.06 on the
+  # draw, at 20M hands (docs/research/suspect-numbers.md, item 5).
   [[criterion.any_of]]
   require = [
-    { turn = 4, query = '''name:"Dizzy Spell" or name:"Artificer's Intuition"''', min = 1 },
+    { turn = 4, query = 'name:"Dizzy Spell"', min = 1 },
     { turn = 4, can_cast = "{1}{U}{U}" },
     { turn = 5, can_cast = "{1}" },
     { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
@@ -171,7 +196,24 @@ at_least = 0.75
 
   [[criterion.any_of]]
   require = [
-    { turn = 5, query = '''name:"Dizzy Spell" or name:"Artificer's Intuition"''', min = 1 },
+    { turn = 4, query = '''name:"Artificer's Intuition"''', min = 1 },
+    { turn = 4, query = "t:artifact", min = 1 },
+    { turn = 4, can_cast = "{1}{U}{U}" },
+    { turn = 5, can_cast = "{1}" },
+    { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = 'name:"Dizzy Spell"', min = 1 },
+    { turn = 5, can_cast = "{2}{U}{U}" },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = '''name:"Artificer's Intuition"''', min = 1 },
+    { turn = 5, query = "t:artifact", min = 1 },
     { turn = 5, can_cast = "{2}{U}{U}" },
     { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
   ]
@@ -224,7 +266,9 @@ at_least = 0.75
 # STRUCTURALLY IDENTICAL to the criterion above: same routes, same turns, same
 # costs, same library clause. The only difference is that every tutor branch
 # asks `cat:"Tutor Package"` instead of naming the cards that can actually
-# find a mana value 1 artifact. Expedition Map therefore counts as a {2}{U}
+# find a mana value 1 artifact — which also means no branch here can single
+# out Artificer's Intuition to ask for its discard, so the {1}{U}{U} tier is
+# one branch per turn rather than two. Expedition Map therefore counts as a {2}{U}
 # tutor, a {3} tutor, a {1}{U}{U} tutor and a {1}{U}{U}{U} tutor, which is
 # exactly the shape of the mistake.
 #
@@ -383,9 +427,11 @@ name = "route 2: a tutor that puts it in hand, cast in time"
     { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
   ]
 
+  # Dizzy Spell and Artificer's Intuition apart, and Intuition with its
+  # discard, exactly as in the north star.
   [[criterion.any_of]]
   require = [
-    { turn = 4, query = '''name:"Dizzy Spell" or name:"Artificer's Intuition"''', min = 1 },
+    { turn = 4, query = 'name:"Dizzy Spell"', min = 1 },
     { turn = 4, can_cast = "{1}{U}{U}" },
     { turn = 5, can_cast = "{1}" },
     { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
@@ -393,7 +439,24 @@ name = "route 2: a tutor that puts it in hand, cast in time"
 
   [[criterion.any_of]]
   require = [
-    { turn = 5, query = '''name:"Dizzy Spell" or name:"Artificer's Intuition"''', min = 1 },
+    { turn = 4, query = '''name:"Artificer's Intuition"''', min = 1 },
+    { turn = 4, query = "t:artifact", min = 1 },
+    { turn = 4, can_cast = "{1}{U}{U}" },
+    { turn = 5, can_cast = "{1}" },
+    { turn = 4, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = 'name:"Dizzy Spell"', min = 1 },
+    { turn = 5, can_cast = "{2}{U}{U}" },
+    { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
+  ]
+
+  [[criterion.any_of]]
+  require = [
+    { turn = 5, query = '''name:"Artificer's Intuition"''', min = 1 },
+    { turn = 5, query = "t:artifact", min = 1 },
     { turn = 5, can_cast = "{2}{U}{U}" },
     { turn = 5, query = 'name:"Lantern of Insight"', zone = "library", min = 1 },
   ]
@@ -546,7 +609,7 @@ zone = "battlefield"
 # read the joined type line too, and played a {1}{U} enchantment that can only
 # become a land by transforming as an untapped blue source on 0.11 of your
 # games by turn 5. That free blue was worth 1.4 points of the north star —
-# 48.09% on the play before, 46.64% after — and more than a tenth of route 3,
+# 48.09% on the play before, 46.64% after, as the file then stood — and more than a tenth of route 3,
 # which needs two blue pips. The standard library's surveil entry no longer
 # claims it either.
 
@@ -558,12 +621,15 @@ zone = "battlefield"
 # Every sampled figure is quoted with an error bar and every enumerated one
 # without, and the run names the four on stderr before it prints a number.
 #
-# The north star is 12 groups and 659,902,464 compositions on the play,
-# 7,918,829,568 on the draw — 132 and 1,584 times the 5,000,000 ceiling —
-# because nine of its twelve branches read a cost, and pricing a cost splits the
-# manabase five ways before a single card query splits anything. Each named
-# card is then one more group, and at turn 5 a group costs the fourth power of
-# itself on the play and the fifth on the draw.
+# The north star is 18 groups and 36,332,613,504 compositions on the play,
+# 653,987,043,072 on the draw — about 7,300 and 131,000 times the 5,000,000
+# ceiling — because eleven of its fourteen branches read a cost, and pricing a
+# cost splits the manabase five ways before a single card query splits
+# anything. Each named card is then one more group, and at turn 5 a group
+# costs the fourth power of itself on the play and the fifth on the draw.
+# Artificer's Intuition's discard is what took it from 12 groups to 18:
+# `t:artifact` cuts across the manabase, because some of the lands are
+# artifacts. It was sampled before and it is sampled now.
 #
 # That is the trade this file makes on purpose. The previous version of it was
 # exact on both seats because it asked about counts; asked properly, the same
@@ -575,8 +641,9 @@ zone = "battlefield"
 # upstream #31 bought: a class pays only for what it reads, so route 1 is 4
 # groups and 30,720 compositions on the play and 122,880 on the draw, route 4
 # is 3 groups and 2,916 on the play and 8,748 on the draw, and the `[[expect]]` tables cost between 8 and 256
-# apiece. Sized once for the whole file this would be 16 groups and
-# 11,176,771,584 compositions, and every number in it would be an estimate.
+# apiece. Sized once for the whole file — as it stood before the Intuition
+# split, which only widens it — this was 16 groups and 11,176,771,584
+# compositions, and every number in it would be an estimate.
 
 # --- THE INDEX THESE NUMBERS WERE PRODUCED AGAINST ------------------------
 # `decks/index.jsonl`, committed beside this file, synced from Scryfall with

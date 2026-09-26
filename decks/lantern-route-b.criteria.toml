@@ -1,16 +1,18 @@
 # "Third Lantern Control" — https://archidekt.com/decks/25088186
 # Route B of the north star, on its own.
 #
-# VISION.md lists three routes to a resolved Lantern of Insight. This file is
-# the second one, and it is here rather than in `lantern.criteria.toml` because
-# it is the only one that needs the mana model: three mana by turn 4, or four
-# by turn 5 so that both halves are cast in one turn.
+# VISION.md lists four routes to a resolved Lantern of Insight. This file is
+# the second one — a tutor that puts it in hand — cut down to Trinket Mage:
+# three mana by turn 4, or four by turn 5 so that both halves are cast in one
+# turn.
 #
 # WHAT IS MODELLED HERE THAT IS NOT MODELLED THERE
 # ------------------------------------------------
-# `lantern.criteria.toml` counts cards SEEN and says so. This file counts what
-# the turn's lands actually PAID FOR, and what the spell it paid for then went
-# and got:
+# `lantern.criteria.toml` prices mana too, but only as a GATE: its `can_cast`
+# clauses ask whether the turn's lands could have paid a cost, and each clause
+# asks on its own. This file SPENDS the pool, as a budget: it counts what the
+# turn's lands actually PAID FOR, in the order a declared line casts, and what
+# the spell it paid for then went and got:
 #
 #   [casting]  — which spells this line casts, in the order it casts them.
 #                A spell this list does not name is not cast at all.
@@ -35,8 +37,13 @@
 # STILL NOT MODELLED
 # ------------------
 #   * Mulligans. Turn 0 is a kept seven.
-#   * The other two routes. Route A is a Lantern in hand and one mana; route C
-#     is Urza's Saga, which is lantern-route-c.criteria.toml.
+#   * The other three routes. Route A is a Lantern in hand and one mana; the
+#     third is a tutor that puts it onto the battlefield (Tezzeret the Seeker,
+#     Whir of Invention); route C is Urza's Saga, which is
+#     lantern-route-c.criteria.toml. All four are in lantern.criteria.toml.
+#   * The other hand tutors. Fabricate, Tezzeret, Cruel Captain, Dizzy Spell
+#     and Artificer's Intuition are route B too, and only lantern.criteria.toml
+#     asks about them.
 #   * A shockland's 2 life. The run assumes every conditional tapland enters
 #     tapped and names the ten cards it assumed it about, so these are floors.
 #   * Anything about the game but your own draws.
@@ -50,7 +57,7 @@ to = "hand"
 [casting]
 prefer = ['name:"Trinket Mage"', 'name:"Lantern of Insight"']
 
-# THRESHOLD: none. This is one route of three, and asserting on it alone would
+# THRESHOLD: none. This is one route of four, and asserting on it alone would
 # be asserting that the deck wins by its second-cheapest line.
 
 [[criterion]]

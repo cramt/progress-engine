@@ -41,12 +41,13 @@ by turn 5?*
 This was recorded for a long time as *how often do I have Lantern of Insight by
 turn 5*, which is a smaller and easier question, and stating it that way made
 the north star look nearly finished when it is not. A Lantern pilot does not
-draw the card; they assemble it by whichever of three routes turns up:
+draw the card; they assemble it by whichever of four routes turns up:
 
 | Route | Needs |
 |---|---|
 | Lantern in hand, and one mana | mana as a **gate** |
 | Trinket Mage resolved, fetching it — three mana by turn 4, or four by turn 5 so both are cast in one turn | mana as a **budget**, and tutors — both ship |
+| Tezzeret the Seeker or Whir of Invention putting it straight onto the battlefield — five mana, or four with three blue | mana as a **gate**, at the deck's highest price |
 | Urza's Saga played by turn 3, ticking to chapter III | **no mana at all** — a land drop, a two-turn delay, and a tutor onto the battlefield |
 
 Three consequences, all of which were invisible while the question was recorded
@@ -58,7 +59,7 @@ to the graveyard digs one card deeper each turn it fires.
 **The question is a disjunction, and a criterion can now say "or"** — the routes
 differ in turn, in zone and in what they require, so no card query expresses
 them. That was [#49](https://github.com/cramt/progress-engine/issues/49), and
-`any_of` ships: the three routes are writable in one criterion, and the answer
+`any_of` ships: the four routes are writable in one criterion, and the answer
 is the union of them rather than a sum nobody could have taken safely. It no
 longer blocks this north star. What is left is the mana.
 
@@ -92,7 +93,7 @@ both halves naturally, and reads **7.76%** now, on the same seven groups and the
 same 4,120,116 compositions. `decks/lantern-route-b.criteria.toml` is that
 question on its own.
 
-**The third route is now answered exactly, and it was overstated.** For a year
+**The Saga route is now answered exactly, and it was overstated.** For a year
 the file stood in for it with *Urza's Saga drawn by turn 3*, labelled an upper
 bound, because chapter counters did not exist. The route itself — the Saga in
 play by turn *t* and the Lantern still in the library on turn *t*+2, which is
@@ -105,19 +106,21 @@ together.
 **And the union of them now has a number.**
 `decks/lantern.criteria.toml` is the whole question — four routes, because the
 tutors that put the Lantern in your hand and the tutors that put it straight
-onto the battlefield are priced differently — and it reads **46.64% ± 0.11** on
-the play and **53.64% ± 0.11** on the draw. It read 48.09% and 55.01% until
+onto the battlefield are priced differently — and it reads **46.67% ± 0.11** on
+the play and **53.60% ± 0.11** on the draw. At 20 million hands, checking that
+Artificer's Intuition has an artifact card to discard took it from 46.73% to
+46.63% and from 53.54% to 53.48%. It read 48.09% and 55.01% until
 [#61](https://github.com/cramt/progress-engine/issues/61): the engine played
 Search for Azcanta — a `{1}{U}` enchantment whose land is a back face it
 transforms into — as an untapped blue land drop, and 1.4 points of the answer
 were spells cast off a blue source that cannot exist. It is estimated rather than
-enumerated, at 12 groups and 659,902,464 compositions, and that is the honest
-state of the question rather than a defect in the file: nine of its ten branches
-price a cost, and pricing one splits the manabase before any card query splits
+enumerated, at 18 groups and 36,332,613,504 compositions, and that is the honest
+state of the question rather than a defect in the file: eleven of its fourteen
+branches price a cost, and pricing one splits the manabase before any card query splits
 anything. The same file records what the mana costs the deck, by asking each
 route twice: *a tutor that can find the Lantern, drawn by turn 5* is 45.23% and
-*castable in time to matter* is 27.15%; for the two that tutor onto the
-battlefield it is 21.09% against 4.98%, which is a factor of four. Those gaps
+*castable in time to matter* is 27.24%; for the two that tutor onto the
+battlefield it is 21.09% against 4.96%, which is a factor of four. Those gaps
 are what the file's old hand-written `{ turn = 4, query = "t:land", min = 3 }`
 clauses were standing in for.
 
@@ -134,6 +137,10 @@ does not count because only a land arrives without being cast; mulligans, which
 are declarable now and which the file does not declare, because the keep rule is
 the pilot's to state and not this tool's to guess; and the ten lands that may
 enter untapped for 2 life, all assumed to enter tapped.
+The file names one input that runs the other way: with no land drop declared,
+each clause plays the path's lands in whichever order suits it, as a pilot who
+knew their draws would, and that is worth at most 0.8 points on the play and
+1.25 on the draw.
 A deck that fails its 75% target by 27 points as a floor has not been shown to
 pass it. The largest of those — mana rocks, on an artifact deck — is where the
 next honest movement in this number is.
@@ -180,7 +187,7 @@ trigger. It is refused as a replacement draw, and for a pure mill it is not one
 ([#62](https://github.com/cramt/progress-engine/issues/62)).
 
 Both needed the mana model, and that was not obvious until the real lists were
-read. Lantern's three routes can now be written down together, and all three
+read. Lantern's four routes can now be written down together, and all four
 are priced rather than assumed: a clause can ask whether the mana was there and
 a clause can ask what it was spent on. Loam's self-mill is six spells and a
 dredge trigger, every one of which costs mana or replaces a draw — the mana half
@@ -752,10 +759,11 @@ through the front door.
   else merges. A question over the ceiling on its own is still estimated, and
   now it is the only one. `decks/lantern.criteria.toml` is the case that shows
   what that is worth once a file asks its real question: its north star is a
-  union of four routes, nine of whose ten branches price a cost, and at 12
-  groups and 659,902,464 compositions no narrowing brings it under the ceiling.
-  The other twelve questions in that file are exact, at between 10 and 122,880
-  compositions each. Sized per file they would all have been estimates.
+  union of four routes, eleven of whose fourteen branches price a cost, and at
+  18 groups and 36,332,613,504 compositions no narrowing brings it under the
+  ceiling. Three other questions in that file are sampled for the same reason;
+  the other thirteen are exact, at between 8 and 30,720 compositions each on the
+  play and between 8 and 122,880 on the draw. Sized per file they would all have been estimates.
   `decks/loam.criteria.toml` is the other half of the same claim: 8 groups and
   14,057,472 as one enumeration, which is sampled, against a widest class of 6
   groups and 1,026,432, which is not.
