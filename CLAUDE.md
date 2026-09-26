@@ -29,6 +29,10 @@ engines do not apply to it.
 - **[NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md)** — the progress-engine family:
   which names are spent, which are banked, and the Scryfall art-tag rule a new
   one has to pass. Read it before naming a crate, a binary or a sibling repo.
+- **[CONTEXT-MAP.md](CONTEXT-MAP.md)** and **[docs/adr/](docs/adr/)** — the
+  glossary per product and the settled decisions, one per file. Use the
+  glossary's words and don't re-suggest what an ADR settled. Both summarise
+  VISION.md; where they disagree, VISION.md wins and they get fixed.
 
 ## Build and test
 
