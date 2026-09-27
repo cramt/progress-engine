@@ -45,13 +45,14 @@
       # The probe is left out of the source altogether, so its manifests
       # cannot reach a build that does not include them.
       #
-      # Meldweb Curator's web app is left out too, so a TypeScript edit does not
-      # rebuild the Rust, except for the one file meldweb-wasm's test compares
-      # against the types it generates.
+      # Meldweb Curator's web app and worker are left out too, so a TypeScript
+      # edit does not rebuild the Rust, except for the one file meldweb-wasm's
+      # test compares against the types it generates.
       src = pkgs.lib.cleanSourceWith {
         src = ./.;
         filter = path: type:
           (builtins.match ".*/crates/gitaxian-probe(/.*)?$" path == null)
+          && (builtins.match ".*/crates/meldweb-curator/worker(/.*)?$" path == null)
           && (
             (builtins.match ".*/crates/meldweb-curator/web(/.*)?$" path == null)
             || (builtins.match ".*/crates/meldweb-curator/web(/src(/deck\\.gen\\.ts)?)?$" path != null)
@@ -96,7 +97,9 @@
         });
 
       # The web app's check, test and build, as the one derivation CI runs. The
-      # source is the pnpm workspace plus the deck its smoke page imports.
+      # source is the pnpm workspace plus the deck its smoke page imports. The
+      # root `pnpm check` and `pnpm test` cover every workspace package, so the
+      # worker's biome, tsc and vitest run here too.
       meldwebWebSrc = pkgs.lib.fileset.toSource {
         root = ./.;
         fileset = pkgs.lib.fileset.unions [
@@ -106,6 +109,10 @@
           ./decks/lantern.deck.toml
           (pkgs.lib.fileset.difference ./crates/meldweb-curator/web
             (pkgs.lib.fileset.maybeMissing ./crates/meldweb-curator/web/src/wasm/pkg))
+          ./crates/meldweb-curator/worker/package.json
+          ./crates/meldweb-curator/worker/biome.json
+          ./crates/meldweb-curator/worker/tsconfig.json
+          ./crates/meldweb-curator/worker/src
         ];
       };
       meldwebWeb = pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
@@ -138,6 +145,22 @@
       packages = {
         default = gauntlet;
         meldweb-web = meldwebWeb;
+      };
+
+      # Deploys Meldweb Curator: this flake's built site as the worker's static
+      # assets, and the worker itself. Run from the repo root, logged in to
+      # Cloudflare (or with CLOUDFLARE_API_TOKEN set), after the one-time
+      # `wrangler secret put GITHUB_CLIENT_SECRET` (see the worker's README).
+      apps.deploy-curator = {
+        type = "app";
+        meta.description = "Deploy Meldweb Curator's site and worker with wrangler";
+        program = toString (pkgs.writeShellScript "deploy-curator" ''
+          set -eu
+          cd "$(${pkgs.git}/bin/git rev-parse --show-toplevel)"
+          ln -sfn ${meldwebWeb} crates/meldweb-curator/worker/site
+          exec ${pkgs.wrangler}/bin/wrangler deploy \
+            --config crates/meldweb-curator/worker/wrangler.toml "$@"
+        '');
       };
 
       checks = {
@@ -181,6 +204,8 @@
           # binary the Nix sandbox cannot run. The same copy serves CI.
           biome
           wasmBindgen
+          # Deploys the worker (crates/meldweb-curator/worker/); never an npm dep.
+          wrangler
         ];
       };
     });

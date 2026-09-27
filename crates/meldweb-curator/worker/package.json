@@ -1,0 +1,14 @@
+{
+  "name": "meldweb-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "biome check && tsc --noEmit",
+    "fmt": "biome check --write",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}
