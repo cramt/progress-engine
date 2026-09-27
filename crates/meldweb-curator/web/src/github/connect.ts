@@ -65,7 +65,7 @@ async function choose(): Promise<Connection> {
     api: createGitHubApi({ auth, fetch: mock.fetch }),
     onboarding: {
       newRepo: () => mock.createRepo(),
-      install: () => mock.installApp(),
+      install: async () => mock.installApp(),
     },
     mock,
   };

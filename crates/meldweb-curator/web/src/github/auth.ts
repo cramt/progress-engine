@@ -20,6 +20,8 @@ export const AUTH_ENDPOINTS = {
   login: "/api/auth/login",
   refresh: "/api/auth/refresh",
   logout: "/api/auth/logout",
+  /** `{ app_slug, install_url }` for onboarding. */
+  app: "/api/auth/app",
 } as const;
 
 /** Refresh when the token has less than this left, rather than at expiry. */

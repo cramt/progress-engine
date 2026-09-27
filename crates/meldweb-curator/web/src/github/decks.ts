@@ -90,9 +90,6 @@ export type CreatedDeck =
     }
   | { kind: "refused"; message: string };
 
-/** TOML basic strings take JSON's escapes for everything JSON.stringify emits. */
-const tomlString = (s: string) => JSON.stringify(s);
-
 /**
  * Writes `decks/<slug>.deck.toml` as its first commit, through the same
  * `commitDeck` as every save, and refuses a slug that is already taken.
@@ -102,7 +99,14 @@ export async function createDeck(
   repo: RepoRef,
   name: string,
   source: NewDeckSource,
-  deck: Pick<DeckText, "parseDeck" | "newDeck" | "importArchidekt">,
+  deck: Pick<
+    DeckText,
+    | "parseDeck"
+    | "newDeck"
+    | "importArchidekt"
+    | "setDeckMeta"
+    | "commitMessage"
+  >,
 ): Promise<CreatedDeck> {
   const slug = slugify(name);
   if (!slug) {
@@ -129,30 +133,18 @@ export async function createDeck(
     }
     unreadable = imported.unreadable;
     text = imported.toml;
+    // Archidekt's text carries no deck name, so the dialog's goes in.
+    text = deck.setDeckMeta(text, name, source.format);
     const parsed = deck.parseDeck(text);
     if (parsed.kind === "refused") {
       return { kind: "refused", message: parsed.message };
-    }
-    // Archidekt's text carries no deck name. Top-level keys may come first in
-    // any TOML document, so the name (and format) go on top. Replace this with
-    // a chip-decklist edit if one appears.
-    const head = [
-      parsed.name === undefined ? `name = ${tomlString(name)}\n` : "",
-      parsed.format === undefined && source.format
-        ? `format = ${tomlString(source.format)}\n`
-        : "",
-    ].join("");
-    text = head + text;
-    const again = deck.parseDeck(text);
-    if (again.kind === "refused") {
-      return { kind: "refused", message: again.message };
     }
   }
 
   try {
     const { sha } = await commitDeck(api, repo, path, {
       text,
-      message: `${slug}: new deck`,
+      message: deck.commitMessage("", text, path),
       sha: null,
     });
     return { kind: "created", path, sha, text, unreadable };
