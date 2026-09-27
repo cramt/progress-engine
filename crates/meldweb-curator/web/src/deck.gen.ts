@@ -1,6 +1,14 @@
 // Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
+/**
+ * A card to add: a [`CardRef`], and for a printing optionally the card's
+ * name, written beside the new line as its comment the way an import does.
+ */
+export type NewCard =
+  | { kind: "printing"; set: string; num: string; name?: string }
+  | { kind: "name"; name: string };
+
 export type Parsed =
   | { kind: "deck"; name?: string; format?: string; categories: Category[]; cards: Card[]; total: number }
   | { kind: "refused"; message: string };

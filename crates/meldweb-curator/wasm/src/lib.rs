@@ -1,4 +1,4 @@
-//! The browser's way into `chip-dec                kind: c.kind.map(Kind::from),list`.
+//! The browser's way into `chip-decklist`.
 //!
 //! The editor must agree with Ichormoon Gauntlet on what a deck is, so it runs
 //! the same parser and the same edits rather than TypeScript copies of them.
@@ -10,7 +10,7 @@
 //! when it is stale and rewrites it under `UPDATE_TS=1`.
 
 use chip_decklist::deck::{self, CategoryType, Deck};
-use chip_decklist::edit;
+use chip_decklist::{changelog, edit};
 use facet::Facet;
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
 
@@ -20,6 +20,23 @@ use wasm_bindgen::prelude::{wasm_bindgen, JsError};
 pub enum CardRef {
     Printing { set: String, num: String },
     Name { name: String },
+}
+
+/// A card to add: a [`CardRef`], and for a printing optionally the card's
+/// name, written beside the new line as its comment the way an import does.
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum NewCard {
+    Printing {
+        set: String,
+        num: String,
+        #[facet(default, skip_serializing_if = Option::is_none)]
+        name: Option<String>,
+    },
+    Name {
+        name: String,
+    },
 }
 
 /// The category type tree (ADR-0020), as the strings the file uses.
@@ -196,6 +213,94 @@ pub fn declare_category(text: &str, name: &str, kind: &str) -> Result<String, Js
     edit::declare_category(text, name, kind).map_err(|e| JsError::new(&e.to_string()))
 }
 
+fn refused(e: impl ToString) -> JsError {
+    JsError::new(&e.to_string())
+}
+
+/// `text` with card `index` at `qty` copies; zero removes it.
+#[wasm_bindgen]
+pub fn set_card_qty(text: &str, index: usize, qty: u32) -> Result<String, JsError> {
+    edit::set_card_qty(text, index, qty).map_err(refused)
+}
+
+/// `text` without card `index`'s line.
+#[wasm_bindgen]
+pub fn remove_card(text: &str, index: usize) -> Result<String, JsError> {
+    edit::remove_card(text, index).map_err(refused)
+}
+
+/// `text` with card `index` a commander, declaring a `Commander` category
+/// when the deck has no commander-typed one.
+#[wasm_bindgen]
+pub fn set_commander(text: &str, index: usize) -> Result<String, JsError> {
+    edit::set_commander(text, index).map_err(refused)
+}
+
+/// `text` with card `index` named by the printing `set/num`.
+#[wasm_bindgen]
+pub fn set_card_printing(
+    text: &str,
+    index: usize,
+    set: &str,
+    num: &str,
+) -> Result<String, JsError> {
+    edit::set_card_printing(text, index, set, num).map_err(refused)
+}
+
+/// `text` with card `index`'s finish `"nonfoil"`, `"foil"` or `"etched"`.
+#[wasm_bindgen]
+pub fn set_card_finish(text: &str, index: usize, finish: &str) -> Result<String, JsError> {
+    let finish = match finish {
+        "nonfoil" => deck::Finish::Nonfoil,
+        "foil" => deck::Finish::Foil,
+        "etched" => deck::Finish::Etched,
+        other => return Err(refused(format!("{other:?} is not a finish"))),
+    };
+    edit::set_card_finish(text, index, finish).map_err(refused)
+}
+
+/// `text` with one more `card` (JSON of [`NewCard`]) in `categories` (JSON
+/// of `string[]`): a new last line, or one more of a card already in exactly
+/// those categories.
+#[wasm_bindgen]
+pub fn add_card(text: &str, card: &str, categories: &str) -> Result<String, JsError> {
+    let card: NewCard =
+        facet_json::from_str(card).map_err(|e| refused(format!("card is not a CardRef: {e}")))?;
+    let categories: Vec<String> = facet_json::from_str(categories)
+        .map_err(|e| refused(format!("categories are not string[]: {e}")))?;
+    let (card, comment) = match card {
+        NewCard::Name { name } => (deck::CardRef::Name(name), None),
+        NewCard::Printing { set, num, name } => (
+            deck::CardRef::Printing(deck::Printing {
+                set: set.trim().to_ascii_lowercase(),
+                num: num.trim().to_string(),
+            }),
+            name,
+        ),
+    };
+    edit::add_card(text, &card, &categories, comment.as_deref()).map_err(refused)
+}
+
+/// The commit message that saves `before` as `after` at `path`, per
+/// `chip_decklist::changelog`. An empty `before` is a deck's first save.
+#[wasm_bindgen]
+pub fn commit_message(before: &str, after: &str, path: &str) -> Result<String, JsError> {
+    changelog::commit_message_for_text(before, after, path).map_err(refused)
+}
+
+/// `text` with the deck's `name` set, and its `format` unless `format` is
+/// empty; a file without them gains them at its top.
+#[wasm_bindgen]
+pub fn set_deck_meta(text: &str, name: &str, format: &str) -> Result<String, JsError> {
+    edit::set_deck_meta(text, name, format).map_err(refused)
+}
+
+/// The text of a new, empty deck. An empty `format` is left out.
+#[wasm_bindgen]
+pub fn new_deck(name: &str, format: &str) -> Result<String, JsError> {
+    edit::new_deck(name, format).map_err(refused)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -205,6 +310,7 @@ mod tests {
     fn typescript() -> String {
         let mut g = facet_typescript::TypeScriptGenerator::new();
         g.add_type::<Parsed>();
+        g.add_type::<NewCard>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",
@@ -262,6 +368,27 @@ mod tests {
             panic!("a card with no name was accepted");
         };
         assert!(message.contains("neither"), "{message}");
+    }
+
+    #[test]
+    fn a_card_to_add_is_a_card_ref_with_an_optional_name() {
+        let text = "cards = [\n]\n";
+        let text = add_card(text, r#"{"kind":"name","name":"Sol Ring"}"#, "[]").unwrap();
+        let text = add_card(
+            &text,
+            r#"{"kind":"printing","set":"MOC","num":"94","name":"Rashmi and Ragavan"}"#,
+            "[]",
+        )
+        .unwrap();
+        let text = add_card(&text, r#"{"kind":"printing","set":"moc","num":"94"}"#, "[]").unwrap();
+        assert_eq!(
+            text,
+            "cards = [\n  { name = \"Sol Ring\" },\n  { printing = \"moc/94\", qty = 2 },  # Rashmi and Ragavan\n]\n"
+        );
+        assert_eq!(
+            commit_message("", &text, "decks/new.deck.toml").unwrap(),
+            "new: +2 Rashmi and Ragavan, +1 Sol Ring"
+        );
     }
 
     #[test]
