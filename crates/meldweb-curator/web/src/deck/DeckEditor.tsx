@@ -1,11 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import {
-  type Card,
-  declareCategory,
-  parseDeck,
-  setCardCategories,
-} from "../deck";
+import { renderCardResult } from "../card/searchResult";
+import { useCardEditor } from "../card/useCardEditor";
+import { declareCategory, parseDeck, setCardCategories } from "../deck";
 import type { GitHubApi, RepoRef } from "../github/api";
 import { deckStem } from "../github/decks";
 import { deckText } from "../github/deckText";
@@ -17,7 +14,6 @@ import type { Printings } from "../scryfall";
 import { SearchButton, SearchOverlay } from "../search/SearchOverlay";
 import { CopyArchidekt } from "./CopyArchidekt";
 import { dropOnto } from "./move";
-import { usePrintings } from "./printings";
 import { type OnDrop, StacksView } from "./StacksView";
 import { Toolbar, UndoRedo } from "./Toolbar";
 
@@ -77,8 +73,6 @@ export interface DeckEditorProps {
   printings: Printings;
 }
 
-const NO_CARDS: readonly Card[] = [];
-
 const statusText: Record<SaveState["status"], string> = {
   unsaved: "Unsaved",
   saving: "Saving…",
@@ -102,13 +96,18 @@ export function DeckEditor({
   const history = useHistory(loaded);
   const [refusal, setRefusal] = useState<string | null>(null);
   const parsed = useMemo(() => parseDeck(history.present), [history.present]);
-  // Cards an edit adds are looked up too, so they show as themselves.
-  const printings = usePrintings(
-    loadedPrintings,
-    parsed.kind === "deck" ? parsed.cards : NO_CARDS,
-  );
   const { undo, redo } = history;
+  // Each card's menu, hotkeys and details modal, every change an edit here.
+  const cards = useCardEditor({
+    text: history.present,
+    deck: parsed,
+    printings: loadedPrintings,
+    edit: history.edit,
+    refuse: setRefusal,
+  });
   const [searching, setSearching] = useState(false);
+  // The deck's printings, grown by every card an edit adds.
+  const { printings } = cards;
 
   const [store] = useState(() =>
     createSaveStore({ api, repo, path, text: loaded, sha, deckText }),
@@ -258,6 +257,7 @@ export function DeckEditor({
           format={parsed.format}
           categories={parsed.categories}
           onAdd={onAdd}
+          renderResult={renderCardResult}
           onClose={() => setSearching(false)}
         />
       )}
@@ -268,9 +268,11 @@ export function DeckEditor({
       <StacksView
         categories={parsed.categories}
         cards={parsed.cards}
-        printings={printings}
+        printings={cards.printings}
         onDrop={onDrop}
+        cardProps={cards.cardProps}
       />
+      {cards.overlay}
     </main>
   );
 }

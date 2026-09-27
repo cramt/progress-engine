@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { type Card, exportArchidekt } from "../deck";
 import type { Printings } from "../scryfall";
-import { printingNames } from "./printings";
+import { printingNames } from "./archidektNames";
 
 /**
  * Archidekt's *Copy as Archidekt*: the whole deck on the clipboard as the

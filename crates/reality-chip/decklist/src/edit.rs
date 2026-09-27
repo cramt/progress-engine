@@ -130,7 +130,10 @@ pub fn set_categories(
     let mut doc = document(text)?;
     let card = card_mut(&mut doc, index)?;
     if categories.is_empty() {
-        card.remove("in");
+        // The key before `in` kept no trailing space, so `fmt` puts it back.
+        if card.remove("in").is_some() {
+            card.fmt();
+        }
     } else {
         let list: Array = categories.iter().map(String::as_str).collect();
         match card.get_mut("in") {

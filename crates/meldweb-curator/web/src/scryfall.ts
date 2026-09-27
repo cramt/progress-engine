@@ -9,6 +9,8 @@ export interface Printing {
   name: string;
   image: string;
   colorIdentity: readonly string[];
+  /** Scryfall's search for every printing of the card, when it gave one. */
+  prints?: string;
 }
 
 /** A card's printing, keyed the way the deck names it. */
@@ -63,10 +65,11 @@ export async function fetchPrintings(
     if (!response.ok) throw new Error(`Scryfall answered ${response.status}`);
     for (const card of parseCollection(await response.json())) {
       const byPrinting = `${card.set}/${card.collector_number}`;
-      const printing = {
+      const printing: Printing = {
         name: card.name,
         image: card.image,
         colorIdentity: card.colorIdentity,
+        ...(card.prints ? { prints: card.prints } : {}),
       };
       found.set(byPrinting, printing);
       // A name lookup returns whichever printing Scryfall prefers, so it is
@@ -86,6 +89,7 @@ interface CollectionCard {
   collector_number: string;
   image: string;
   colorIdentity: string[];
+  prints?: string;
 }
 
 /** Scryfall's JSON is outside our types until it has been checked. */
@@ -119,6 +123,9 @@ function parseCollection(json: unknown): CollectionCard[] {
         colorIdentity: Array.isArray(c.color_identity)
           ? c.color_identity.filter((x): x is string => typeof x === "string")
           : [],
+        ...(typeof c.prints_search_uri === "string"
+          ? { prints: c.prints_search_uri }
+          : {}),
       },
     ];
   });

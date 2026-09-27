@@ -1,0 +1,445 @@
+/* The card component (CardView), its `...` menu, and the details modal. */
+
+.card-view {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--card-radius);
+  outline: none;
+}
+
+.card-view img,
+.card-view .card-missing {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--card-radius);
+}
+
+.card-view.selected::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 3px solid #fa890d;
+  border-radius: 5.5% / 4%;
+  pointer-events: none;
+}
+
+/* A stack keeps a card open while its menu is. */
+.card:has(.card-view.menu-open) {
+  margin-bottom: 0;
+}
+
+.card-finish {
+  position: absolute;
+  top: 6px;
+  right: 34px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: linear-gradient(120deg, #7ad0ff, #f7a8ff, #ffe27a);
+  color: #1c1e21;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+/* Archidekt's `+`, `−` and `...` down the right edge of a card in full view. */
+.card-edge {
+  position: absolute;
+  top: 34px;
+  right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 80ms;
+}
+
+.card-view:hover .card-edge,
+.card-view.menu-open .card-edge {
+  opacity: 1;
+}
+
+.card-edge-button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgb(28 30 33 / 0.85);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 26px;
+  cursor: pointer;
+}
+
+.card-edge-button:hover {
+  background: #fa890d;
+}
+
+.card-menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 220px;
+  padding: 4px 0;
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 0.35);
+  font-size: 14px;
+}
+
+.card-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.card-menu-list button {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.card-menu-list button:hover:not(:disabled) {
+  background: rgb(250 137 13 / 0.18);
+}
+
+.card-menu-list button:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.card-menu-key {
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.card-menu-separator {
+  border: none;
+  height: 1px;
+  margin: 4px 0;
+  background: rgb(127 127 127 / 0.3);
+}
+
+.card-menu-parent {
+  position: relative;
+}
+
+.card-submenu {
+  position: absolute;
+  top: -4px;
+  left: 100%;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.card-notice {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: #1c1e21;
+  color: #fff;
+  font-size: 14px;
+}
+
+/* The details modal. */
+.details-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.55);
+}
+
+.details-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(880px, 100%);
+  max-height: calc(100vh - 32px);
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 8px 40px rgb(0 0 0 / 0.5);
+}
+
+.details-modal.grid {
+  width: min(1200px, 100%);
+  height: calc(100vh - 32px);
+}
+
+.details-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgb(127 127 127 / 0.25);
+}
+
+.details-header h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 18px;
+}
+
+.details-close {
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.details-refusal {
+  margin: 8px 16px 0;
+}
+
+.details-body {
+  display: flex;
+  gap: 20px;
+  min-height: 0;
+  padding: 16px;
+  overflow: auto;
+}
+
+.details-modal.grid .details-body {
+  flex: 1;
+  display: block;
+}
+
+.details-image {
+  flex: none;
+  width: min(340px, 45%);
+}
+
+.details-image img,
+.details-image .card-missing {
+  display: block;
+  width: 100%;
+  aspect-ratio: 63 / 88;
+  border-radius: var(--card-radius);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.4);
+}
+
+.details-options {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.details-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px 12px;
+  border: 1px solid rgb(127 127 127 / 0.3);
+  border-radius: 6px;
+}
+
+.details-field legend {
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.details-field.focused {
+  border-color: #fa890d;
+  box-shadow: 0 0 0 2px rgb(250 137 13 / 0.35);
+}
+
+.details-field select {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.details-qty input {
+  width: 4em;
+  text-align: center;
+}
+
+.details-finish button {
+  text-transform: capitalize;
+}
+
+.details-finish button[aria-pressed="true"] {
+  background: #fa890d;
+  color: #fff;
+  border-color: #fa890d;
+}
+
+.details-categories ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.details-categories li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.details-categories li button {
+  margin-left: auto;
+}
+
+.details-kind {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.details-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.details-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid rgb(127 127 127 / 0.25);
+}
+
+.details-position {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* All printings. */
+.printings-grid-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.printings-grid-bar input {
+  flex: 1;
+  min-width: 160px;
+}
+
+.printings-grid-count {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.printings-grid-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.printing {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 4px;
+  border: 3px solid transparent;
+  border-radius: 10px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.printing:hover {
+  border-color: rgb(250 137 13 / 0.45);
+}
+
+.printing.selected {
+  border-color: #fa890d;
+}
+
+.printing img,
+.printing .card-missing {
+  display: block;
+  width: 100%;
+  aspect-ratio: 63 / 88;
+  border-radius: var(--card-radius);
+}
+
+.printing-selected-label {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #fa890d;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.printing-set {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.printing-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .details-body {
+    flex-direction: column;
+  }
+
+  .details-image {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+  }
+}
+
+/* A search result is sized by its column, not by a stack slot. */
+.card-view-search {
+  height: auto;
+  cursor: grab;
+}
+
+.card-view-search img,
+.card-view-search .card-missing {
+  height: auto;
+  aspect-ratio: 63 / 88;
+}

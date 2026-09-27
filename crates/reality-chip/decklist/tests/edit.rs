@@ -71,6 +71,18 @@ fn a_card_without_categories_gains_an_in_key() {
 }
 
 #[test]
+fn a_card_left_in_no_category_loses_its_in_key_and_keeps_its_spacing() {
+    let edited = set_categories(DECK, 1, &[]).unwrap();
+    assert_eq!(
+        changed_lines(DECK, &edited),
+        one(
+            r#"  { printing = "msc/183", qty = 4, in = ["tempo"] },  # Expressive Iteration"#,
+            r#"  { printing = "msc/183", qty = 4 },  # Expressive Iteration"#,
+        )
+    );
+}
+
+#[test]
 fn an_edit_the_format_refuses_is_refused() {
     let err = set_categories(DECK, 0, &["nonsense".into()]).unwrap_err();
     assert!(matches!(err, EditError::Invalid(_)), "{err}");
