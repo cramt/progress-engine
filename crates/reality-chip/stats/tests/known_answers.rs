@@ -989,3 +989,80 @@ fn a_tail_is_asked_for_again_after_it_is_dealt_and_is_counted() {
         assert!(close(a.1, b.1, 1e-12), "{} vs {}", a.1, b.1);
     }
 }
+
+// --- branches ---------------------------------------------------------------
+//
+// A path that divides: after a checkpoint the walk may be told that what
+// happens next is one of several ways, each with its chance, which no card
+// dealt from the population decides. Stated in this crate's words: the walk
+// descends each way in turn, weighted by its chance, and the caller keeps
+// which way it is on.
+
+/// One path a dividing walk handed out: its history, the ways it went down,
+/// and its chance.
+type Divided = (Vec<Vec<u32>>, Vec<usize>, f64);
+
+/// Divides after the first checkpoint into two ways, a quarter and three
+/// quarters, and deals one more card down the second way only.
+struct Divides<'a> {
+    ways: Vec<usize>,
+    paths: &'a mut Vec<Divided>,
+}
+
+impl h::Walk for Divides<'_> {
+    fn removals(&mut self, _reached: h::Path<'_>, _out: &mut [u32]) {}
+    fn branches(&mut self, reached: h::Path<'_>, ways: &mut Vec<f64>) {
+        if reached.len() == 1 && self.ways.is_empty() {
+            ways.extend([0.25, 0.75]);
+        }
+    }
+    fn enter(&mut self, way: usize) {
+        self.ways.push(way);
+    }
+    fn leave(&mut self) {
+        self.ways.pop();
+    }
+    fn gap(&mut self, reached: h::Path<'_>) -> u32 {
+        u32::from(reached.len() == 1 && self.ways == [1])
+    }
+    fn path(&mut self, reached: h::Path<'_>, p: f64) {
+        self.paths.push((reached.to_vec(), self.ways.clone(), p))
+    }
+}
+
+#[test]
+fn a_path_that_divides_is_walked_down_every_way_at_its_chance() {
+    // Two groups of one. Deal one, which is either card at a half. Then the
+    // path divides: a quarter of the time nothing more happens, and three
+    // quarters of the time the other card is dealt too.
+    let mut paths = Vec::new();
+    h::for_each_checkpoint_path_sized(
+        &[1, 1],
+        &[1],
+        &mut Divides {
+            ways: Vec::new(),
+            paths: &mut paths,
+        },
+    );
+    let expected: Vec<Divided> = vec![
+        (vec![vec![0, 1]], vec![0], 0.125),
+        (vec![vec![0, 1], vec![1, 1]], vec![1], 0.375),
+        (vec![vec![1, 0]], vec![0], 0.125),
+        (vec![vec![1, 0], vec![1, 1]], vec![1], 0.375),
+    ];
+    assert_eq!(paths.len(), expected.len(), "{paths:?}");
+    for (a, b) in paths.iter().zip(&expected) {
+        assert_eq!((&a.0, &a.1), (&b.0, &b.1));
+        assert!(close(a.2, b.2, 1e-12), "{a:?} vs {b:?}");
+    }
+    // And a count of the paths counts every way.
+    let mut none = Vec::new();
+    let mut walk = Divides {
+        ways: Vec::new(),
+        paths: &mut none,
+    };
+    assert_eq!(
+        h::count_checkpoint_paths_sized(&[1, 1], &[1], &mut walk, 100),
+        4
+    );
+}

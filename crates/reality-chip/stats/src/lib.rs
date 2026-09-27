@@ -327,6 +327,31 @@ pub trait Walk {
     fn coarsening(&self) -> &[usize] {
         &[]
     }
+
+    /// The ways the path **divides** after the checkpoints in `reached`, as
+    /// the chance of each, pushed onto `ways`; left empty where it does not.
+    ///
+    /// The third word of a sized walk, beside the removal and the sized gap:
+    /// something the path does next is one of several outcomes that no card
+    /// dealt from the population decides, and each has its own chance. The
+    /// walk goes down every way in turn — [`Walk::enter`], then everything
+    /// that way leads to, then [`Walk::leave`] — with the path's chance
+    /// multiplied by the way's. The chances should sum to 1, or the mass
+    /// check downstream will say so.
+    ///
+    /// Asked after the removals of the same prefix and before its sized gap,
+    /// and asked again after entering a way, with the removals first: a way
+    /// can lead to another division, to a removal, or to a gap. Which way was
+    /// taken is not recorded in the history; the caller keeps it, because it
+    /// is the caller's to replay. Only a sized walk asks.
+    fn branches(&mut self, _reached: Path<'_>, _ways: &mut Vec<f64>) {}
+
+    /// The walk is going down way `way` of the division the last
+    /// [`Walk::branches`] announced.
+    fn enter(&mut self, _way: usize) {}
+
+    /// The walk has come back out of the way it last entered.
+    fn leave(&mut self) {}
 }
 
 /// [`for_each_checkpoint_path`], against a population that shrinks as the walk
@@ -502,7 +527,9 @@ fn descend(
 /// cards are dealt between the fixed gaps.
 ///
 /// After every checkpoint — the last fixed one included, and every sized one —
-/// the walk asks for the removals and then for [`Walk::gap`]. A non-zero gap
+/// the walk asks for the removals, then whether the path divides
+/// ([`Walk::branches`]), and then — down each way, where it does — for
+/// [`Walk::gap`]. A non-zero gap
 /// is dealt out of whatever is left, as one multivariate hypergeometric, and
 /// becomes one more checkpoint in the history; then the walk asks again. The
 /// chain is still Markov and the path probabilities still sum to 1, because
@@ -580,16 +607,12 @@ fn sized_from<W: Walk>(
     // checkpoints. Grown as a path turns out deeper than any before it, and
     // never shrunk, so a slot is allocated once per depth rather than once
     // per node.
-    let mut removed = vec![vec![0u32; groups.len()]];
+    let removed = vec![vec![0u32; groups.len()]];
     let mut drawn = vec![0u32; groups.len()];
-    let mut pending = 0;
     if let Some(first) = first {
         debug_assert_eq!(groups.len(), first.len(), "one count per group");
         drawn.copy_from_slice(first);
         history.push(first.to_vec());
-        removed.push(vec![0u32; groups.len()]);
-        walk.removals(&history, &mut removed[1]);
-        pending = walk.gap(&history);
     }
     let coarsening = walk.coarsening();
     let bins: Vec<usize> = if coarsening.is_empty() {
@@ -607,7 +630,11 @@ fn sized_from<W: Walk>(
         bin_count: bins.iter().max().map_or(0, |b| b + 1),
         bins,
     };
-    state.descend(0, pending, 1.0, walk, leaf);
+    if first.is_some() {
+        state.after(0, 1.0, walk, leaf);
+    } else {
+        state.descend(0, 0, 1.0, walk, leaf);
+    }
 }
 
 /// The state a sized walk carries down its descent.
@@ -623,6 +650,43 @@ struct Sized<'a> {
 }
 
 impl Sized<'_> {
+    /// Everything the walk asks once a checkpoint is on the record: its
+    /// removals, whether the path divides there, and, down each way it
+    /// divides into or where it does not, its sized gap. Then on to the next
+    /// deal. Returns whether to go on.
+    fn after<W: Walk>(
+        &mut self,
+        fixed: usize,
+        acc: f64,
+        walk: &mut W,
+        leaf: &mut impl FnMut(&mut W, Path<'_>, f64) -> bool,
+    ) -> bool {
+        let level = self.history.len();
+        if self.removed.len() <= level {
+            self.removed.push(vec![0u32; self.groups.len()]);
+        }
+        // Asked again down every way, from what was out before the checkpoint:
+        // a way can decide a removal the other ways do not.
+        let (here, next) = self.removed.split_at_mut(level);
+        next[0].copy_from_slice(&here[level - 1]);
+        walk.removals(&self.history, &mut next[0]);
+        let mut ways = Vec::new();
+        walk.branches(&self.history, &mut ways);
+        if ways.is_empty() {
+            let gap = walk.gap(&self.history);
+            return self.descend(fixed, gap, acc, walk, leaf);
+        }
+        for (way, chance) in ways.into_iter().enumerate() {
+            walk.enter(way);
+            let going = self.after(fixed, acc * chance, walk, leaf);
+            walk.leave();
+            if !going {
+                return false;
+            }
+        }
+        true
+    }
+
     /// Deal the pending sized gap if there is one, the next fixed gap if not,
     /// and hand the path over when neither is left. `fixed` is how many fixed
     /// gaps are dealt. Returns whether to go on.
@@ -671,14 +735,7 @@ impl Sized<'_> {
                 *d += t;
             }
             self.history.push(self.drawn.clone());
-            if self.removed.len() <= level + 1 {
-                self.removed.push(vec![0u32; self.groups.len()]);
-            }
-            let (here, next) = self.removed.split_at_mut(level + 1);
-            next[0].copy_from_slice(&here[level]);
-            walk.removals(&self.history, &mut next[0]);
-            let next_gap = walk.gap(&self.history);
-            going = self.descend(fixed_after, next_gap, acc * p, walk, leaf);
+            going = self.after(fixed_after, acc * p, walk, leaf);
             self.history.pop();
             for (d, t) in self.drawn.iter_mut().zip(take) {
                 *d -= t;
