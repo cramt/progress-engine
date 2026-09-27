@@ -108,7 +108,7 @@ follows the directory:
 ```
 crates/ichormoon-gauntlet/{cli,criteria,toml,sim}    packages gauntlet-*
 crates/reality-chip/{scryfall,decklist,stats}        packages chip-*
-crates/gitaxian-probe/{engine}                       packages gitaxian-probe-*
+crates/gitaxian-probe/{engine,assets,web-check}     packages gitaxian-probe-*
 ```
 
 The first two shorten the directory to its distinctive word. Gitaxian Probe does

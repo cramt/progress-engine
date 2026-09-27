@@ -160,6 +160,22 @@ fn parse_imports(buf: &[u8]) -> Result<Vec<ImportKind>> {
     Ok(imports)
 }
 
+/// Check `core` against the build this host was verified on, and return its
+/// fingerprint with the bytes the engine should actually instantiate: the
+/// module with its internal tags exported. Both hosts go through this, so a
+/// build one refuses the other refuses too.
+pub fn admit(core: &[u8], known: &str, allow_unknown_build: bool) -> Result<(String, Vec<u8>)> {
+    let fingerprint = import_fingerprint(core)?;
+    if fingerprint != known && !allow_unknown_build {
+        bail!(
+            "core.wasm import surface is {fingerprint}, expected {known}. The engine was \
+             rebuilt and its ABI is unverified; re-check FINDINGS.md, then set \
+             allow_unknown_build to run anyway."
+        );
+    }
+    Ok((fingerprint, export_internal_tags(core)?))
+}
+
 /// FINDINGS.md §5: the minified import *names* are positional, so binding to
 /// them is one inserted import away from silently misrouting every call. This
 /// hashes arity, the type histogram and the memory limits instead, which only

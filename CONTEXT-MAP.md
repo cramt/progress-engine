@@ -6,7 +6,7 @@ progress-engine is a workspace of products that share a name family and, for now
 
 - [Ichormoon Gauntlet](crates/ichormoon-gauntlet/CONTEXT.md): the draw-probability engine. A decklist and a criteria file in, exact probabilities out.
 - [Reality Chip](crates/reality-chip/CONTEXT.md): the Magic-aware and Magic-free core Gauntlet stands on: card data, Scryfall query syntax, decklist parsing, and the hypergeometric walk.
-- **Gitaxian Probe** (`crates/gitaxian-probe/`): card scanning via Delver X's recognition engine. An early MVP that does not work end to end yet, so it has no glossary or ADRs; its own README.md and FINDINGS.md are the authority on it.
+- **Gitaxian Probe** (`crates/gitaxian-probe/`): card scanning via Delver X's recognition engine, natively and on the web. It has no glossary or ADRs; its engine README.md and FINDINGS.md are the authority on it.
 
 ## Relationships
 

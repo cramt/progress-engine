@@ -13,16 +13,25 @@ path = "src/lib.rs"
 
 [dependencies]
 anyhow.workspace = true
-deno_core.workspace = true
-deno_error.workspace = true
 facet.workspace = true
 facet-json.workspace = true
 facet-msgpack.workspace = true
 facet-value.workspace = true
-sevenz-rust2.workspace = true
 sha2.workspace = true
+
+# Native: the engine inside deno_core, downloading its own files.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+deno_core.workspace = true
+deno_error.workspace = true
+sevenz-rust2.workspace = true
 tokio.workspace = true
 ureq.workspace = true
+
+# Web: the engine as a sidecar in the page, from files the page serves.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys.workspace = true
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
 
 [[example]]
 name = "query"

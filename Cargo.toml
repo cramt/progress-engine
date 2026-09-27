@@ -1,14 +1,10 @@
 [workspace]
 resolver = "2"
 members = ["crates/ichormoon-gauntlet/*", "crates/reality-chip/*"]
-# Gitaxian Probe is parked: a failed MVP whose source stays in the tree but out
-# of the build, so a plain `cargo` resolves the workspace without V8. Its engine
-# crate still inherits `*.workspace = true` keys, so it does not build on its own
-# either. To bring it back, restore from the commit that parked it: this
-# `members` glob as "crates/*/*", the probe-only `[workspace.dependencies]`, and
-# flake.nix's prebuilt V8. The Android app, the deno_core errno patch and the
-# size-tuned release profile it once needed are deleted, not parked.
-exclude = ["crates/gitaxian-probe/*"]
+# Gitaxian Probe is a workspace of its own (crates/gitaxian-probe/Cargo.toml), so
+# a plain `cargo` here resolves neither V8 nor the build-time download of
+# Delver's engine files, and the flake never sees either.
+exclude = ["crates/gitaxian-probe"]
 
 [workspace.metadata.crane]
 # crane reads the package name from the root Cargo.toml, which a virtual

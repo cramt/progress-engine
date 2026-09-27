@@ -11,12 +11,13 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  # Gitaxian Probe is parked outside the cargo workspace (see the root
-  # Cargo.toml), and the prebuilt librusty_v8 fixed-output derivation it needed
-  # went with it. Bringing the probe back means restoring that from the commit
-  # that parked it - the V8 hashes are pinned to the `v8` crate version and its
-  # simdutf variant, so check both still match. Its Android app, and the Skia,
-  # WebView, patched-deno_core and android shells that served it, are deleted.
+  # Gitaxian Probe is a cargo workspace of its own (crates/gitaxian-probe/) and
+  # is not built here: its native host links a prebuilt V8 and its assets crate
+  # downloads Delver's engine at build time, and the Nix sandbox has no network
+  # for either. Bringing it in means fixed-output derivations for both - the V8
+  # one pinned to the `v8` crate version and its simdutf variant, as it was
+  # before the probe was parked, and GITAXIAN_PROBE_ASSETS_FROM pointed at one
+  # holding the files crates/gitaxian-probe/assets/src/pin.rs names.
 
   outputs = {
     nixpkgs,
@@ -41,7 +42,7 @@
       # Criteria files need no entry of their own: they are TOML now, and
       # filterCargoSources keeps every .toml file.
       #
-      # The parked probe is left out of the source altogether, so its manifests
+      # The probe is left out of the source altogether, so its manifests
       # cannot reach a build that does not include them.
       src = pkgs.lib.cleanSourceWith {
         src = ./.;
