@@ -96,6 +96,15 @@ async function callback(
   env: AuthEnv,
 ): Promise<Response> {
   const clearLogin = expire(LOGIN_COOKIE, LOGIN_PATH, "Lax");
+  // GitHub sends the user here after installing the app, with a code but none
+  // of our state. That code was not asked for by this browser, so it is never
+  // exchanged: the user starts an ordinary login, which GitHub answers at once
+  // because the app is already authorized.
+  if (url.searchParams.has("setup_action") && !url.searchParams.has("state")) {
+    return redirect(`/api/auth/login?return=${encodeURIComponent("/")}`, [
+      clearLogin,
+    ]);
+  }
   const flow = readLoginCookie(request);
   if (!flow) {
     return json(400, { error: "no_login_in_progress" }, [clearLogin]);

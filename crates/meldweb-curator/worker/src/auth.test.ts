@@ -338,6 +338,16 @@ describe("the callback refuses", () => {
     expect(browser.jar.size).toBe(0);
     expect(github.calls).toEqual([]);
   });
+
+  it("but turns GitHub's after-install redirect into a fresh login, never spending its code", async () => {
+    const callback = await browser.get(
+      "/api/auth/callback?code=x&installation_id=1&setup_action=install",
+    );
+    expect(callback.status).toBe(302);
+    expect(callback.headers.get("location")).toBe("/api/auth/login?return=%2F");
+    expect(github.calls).toEqual([]);
+    expect(browser.jar.has("meldweb_refresh")).toBe(false);
+  });
 });
 
 describe("refresh", () => {
