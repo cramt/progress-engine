@@ -221,7 +221,7 @@ function Stack({
     group.category !== null &&
     dragging.from !== group.category;
   return (
-    <section className="stack">
+    <section className="stack" data-category={group.category ?? undefined}>
       <header className="stack-header">
         <h2>
           {group.kind === "commander" && <Crown />}

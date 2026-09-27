@@ -1,0 +1,287 @@
+/*
+ * Full screen over the deck, above the toolbar (15) and the drop strip (20);
+ * locked, a panel docked on the right, and the page makes room for it.
+ */
+:root {
+  --search-dock-w: 460px;
+}
+
+.search-overlay {
+  position: fixed;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  transition: opacity 0.15s;
+}
+
+.search-overlay.full {
+  inset: 0;
+}
+
+.search-overlay.docked {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--search-dock-w);
+  max-width: 100vw;
+  border-left: 1px solid rgb(127 127 127 / 0.3);
+  box-shadow: -2px 0 10px rgb(0 0 0 / 0.12);
+}
+
+/* Unlocked, a result being dragged lets the deck underneath take the drop. */
+.search-overlay.passing-drag {
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+body.search-docked main {
+  margin-right: var(--search-dock-w);
+}
+
+@media (max-width: 700px) {
+  body.search-docked main {
+    margin-right: 0;
+  }
+}
+
+.search-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 16px 0;
+  border-bottom: 1px solid rgb(127 127 127 / 0.25);
+}
+
+.search-tabs {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.search-tab {
+  display: flex;
+  align-items: center;
+  border: 1px solid rgb(127 127 127 / 0.3);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+}
+
+.search-tab.active {
+  background: rgb(127 127 127 / 0.15);
+}
+
+.search-tab button {
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.search-tab-count {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: #fa890d;
+  color: #fff;
+  font-size: 11px;
+}
+
+.search-head-actions {
+  display: flex;
+  gap: 6px;
+  padding-bottom: 6px;
+}
+
+.search-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 16px;
+}
+
+.search-form input[type="search"] {
+  flex: 1 1 260px;
+  padding: 6px 8px;
+  font: inherit;
+}
+
+.search-smart {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.search-smart code,
+.search-sent code {
+  color: var(--muted);
+}
+
+.search-guide {
+  font-size: 13px;
+  color: inherit;
+}
+
+.search-body {
+  flex: 1;
+  overflow: auto;
+  padding: 0 16px 24px;
+}
+
+.search-sent {
+  margin: 4px 0 8px;
+  font-size: 13px;
+}
+
+.search-warnings,
+.search-error {
+  margin: 0 0 12px;
+  padding: 8px 12px 8px 28px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.search-warnings {
+  background: #fff3cd;
+  color: #664d03;
+}
+
+.search-error {
+  padding-left: 12px;
+  background: #b3261e;
+  color: #fff;
+}
+
+.search-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 14px;
+}
+
+.search-overlay.docked .search-results {
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+}
+
+.search-more {
+  display: block;
+  margin: 16px auto 0;
+}
+
+.result {
+  position: relative;
+  cursor: grab;
+}
+
+.result img,
+.result-missing {
+  display: block;
+  width: 100%;
+  aspect-ratio: 63 / 88;
+  border-radius: var(--card-radius);
+}
+
+.result-missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  box-sizing: border-box;
+  background: rgb(127 127 127 / 0.2);
+  text-align: center;
+  font-size: 13px;
+}
+
+.result-buttons {
+  position: absolute;
+  top: 12%;
+  right: 6%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.result:hover .result-buttons,
+.result:focus-within .result-buttons {
+  opacity: 1;
+}
+
+.result-buttons button {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.75);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.result-add {
+  font-size: 18px;
+}
+
+.result-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  border: none;
+  background: transparent;
+}
+
+.result-menu {
+  position: absolute;
+  top: 12%;
+  right: calc(6% + 36px);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 170px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 4px 0;
+  border-radius: 6px;
+  background: var(--bg);
+  box-shadow: 0 4px 18px rgb(0 0 0 / 0.35);
+}
+
+.result-menu-title {
+  padding: 4px 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.result-menu button {
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.result-menu button:hover {
+  background: #fa890d;
+  color: #fff;
+}
+
+/* A stack a search result is being dragged over. */
+.stack.result-over {
+  outline: 3px dashed #fa890d;
+  outline-offset: 4px;
+  border-radius: 6px;
+}

@@ -1,0 +1,128 @@
+import { API, SEARCH_GATE, scryfallFetch } from "../scryfallQueue";
+
+/** A card as the search overlay shows it. */
+export interface ResultCard {
+  /** Scryfall's id for the printing shown: stable, so a React key. */
+  id: string;
+  name: string;
+  typeLine: string;
+  manaCost: string;
+  /** The front face's image, absent for the rare card with none. */
+  image?: string;
+  set: string;
+  num: string;
+}
+
+/** One page of answers. */
+export interface SearchPage {
+  cards: ResultCard[];
+  /** Every card the query matches, across all pages. */
+  total: number;
+  /**
+   * What the backend ignored or changed in the query. Scryfall drops unknown
+   * terms and answers anyway, so without these a typo silently widens a search.
+   */
+  warnings: string[];
+  /** The next page, when there is one. */
+  more?: () => Promise<SearchPage>;
+}
+
+/** A query the backend refused outright, with its reasons. */
+export class SearchRefused extends Error {
+  constructor(
+    message: string,
+    readonly warnings: string[],
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Where searches go: query text in, results out. The overlay knows nothing
+ * else, so a local search over bulk data can stand in for the API later.
+ */
+export interface SearchBackend {
+  search(query: string, signal?: AbortSignal): Promise<SearchPage>;
+}
+
+/** Scryfall's `/cards/search`, on the 2-a-second queue. */
+export const scryfallSearch: SearchBackend = {
+  search: (query, signal) =>
+    fetchPage(`${API}/cards/search?q=${encodeURIComponent(query)}`, signal),
+};
+
+async function fetchPage(
+  url: string,
+  signal?: AbortSignal,
+): Promise<SearchPage> {
+  const response = await scryfallFetch(
+    SEARCH_GATE,
+    url,
+    signal ? { signal } : {},
+  );
+  return readPage(response.status, await response.json(), (next) =>
+    fetchPage(next, signal),
+  );
+}
+
+const strings = (x: unknown): string[] =>
+  Array.isArray(x) ? x.filter((s): s is string => typeof s === "string") : [];
+
+/**
+ * Scryfall's answer as a page. A 404 is how it says "no cards", not an error;
+ * a 400 is every term dropped, which is a refusal carrying its reasons.
+ */
+export function readPage(
+  status: number,
+  json: unknown,
+  follow: (next: string) => Promise<SearchPage>,
+): SearchPage {
+  const body = (json ?? {}) as Record<string, unknown>;
+  const warnings = strings(body.warnings);
+  if (status === 404) return { cards: [], total: 0, warnings };
+  if (status !== 200 || body.object !== "list") {
+    const details =
+      typeof body.details === "string"
+        ? body.details
+        : `Scryfall answered ${status}`;
+    throw new SearchRefused(details, warnings);
+  }
+  const cards = (Array.isArray(body.data) ? body.data : []).flatMap(readCard);
+  const next = body.has_more === true ? body.next_page : undefined;
+  return {
+    cards,
+    total: typeof body.total_cards === "number" ? body.total_cards : 0,
+    warnings,
+    ...(typeof next === "string" ? { more: () => follow(next) } : {}),
+  };
+}
+
+function readCard(raw: unknown): ResultCard[] {
+  const c = raw as Record<string, unknown>;
+  const faces = Array.isArray(c.card_faces)
+    ? (c.card_faces as Record<string, unknown>[])
+    : [];
+  const uris = (c.image_uris ?? faces[0]?.image_uris) as
+    | Record<string, unknown>
+    | undefined;
+  const front = faces[0] ?? {};
+  if (
+    typeof c.id !== "string" ||
+    typeof c.name !== "string" ||
+    typeof c.set !== "string" ||
+    typeof c.collector_number !== "string"
+  )
+    return [];
+  const text = (x: unknown) => (typeof x === "string" ? x : "");
+  return [
+    {
+      id: c.id,
+      name: c.name,
+      typeLine: text(c.type_line ?? front.type_line),
+      manaCost: text(c.mana_cost ?? front.mana_cost),
+      ...(typeof uris?.normal === "string" ? { image: uris.normal } : {}),
+      set: c.set,
+      num: c.collector_number,
+    },
+  ];
+}
