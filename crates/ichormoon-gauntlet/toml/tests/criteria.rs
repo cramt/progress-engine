@@ -481,6 +481,8 @@ fn a_file_run_against_a_spell_that_draws_agrees_in_both_engines() {
         draw: 1,
         mill: None,
         activation: None,
+        discard: None,
+        untap: 0,
     };
     let schedule = Schedule::build(
         criteria.horizon(),

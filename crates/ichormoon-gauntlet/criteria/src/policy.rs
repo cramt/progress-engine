@@ -120,6 +120,49 @@ impl CastingPolicy {
          first";
 }
 
+/// A declared priority over which cards leave the hand when a card makes you
+/// discard, resolved to grouping queries (ADR-0017 §3).
+///
+/// The sixth resource on the one mechanism, and file-level rather than per
+/// effect because the hand is one resource every outlet draws on, as the land
+/// drop is. A forced discard takes the first entry the hand holds, then the
+/// next, and then — once the list runs out — the cards no entry names; an
+/// "any number" discard takes every eligible card the list names and nothing
+/// else. What the card fixes (how many, at random, which cards may go) is the
+/// effect's, and a random discard does not read this at all.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DiscardPolicy {
+    prefer: Vec<usize>,
+}
+
+impl DiscardPolicy {
+    /// `prefer` is grouping query indices, highest priority first.
+    pub fn new(prefer: Vec<usize>) -> DiscardPolicy {
+        DiscardPolicy { prefer }
+    }
+
+    /// Every tier in priority order. The cards no entry names are not here:
+    /// the board adds them, as it does for the mulligan's `bottom`.
+    pub fn tiers(&self) -> impl Iterator<Item = usize> + '_ {
+        self.prefer.iter().copied()
+    }
+
+    /// What a run says about the cards the list does not name.
+    pub const THEN: &'static str =
+        "a forced discard takes a card this list does not name only after every card it does, \
+         and an \"any number\" discard never takes one";
+
+    /// How a tie inside one entry is settled: as the mulligan's `bottom`
+    /// settles one, and for the reason [`MulliganPolicy::TIE_BREAK`] gives.
+    pub const TIE_BREAK: &'static str =
+        "a tie inside one entry, and among the cards no entry names, is settled at random, and \
+         every way it could fall is priced";
+
+    /// What a card that discards at random does with the list.
+    pub const AT_RANDOM: &'static str =
+        "a card that discards at random ignores this list: every card in hand is as likely";
+}
+
 /// A declared mulligan: which hands you keep, what you put back, and how far
 /// down you are prepared to go.
 ///

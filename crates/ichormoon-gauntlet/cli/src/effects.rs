@@ -327,6 +327,8 @@ pub fn resolve(
                     },
                 },
             }),
+            discard: None,
+            untap: 0,
         });
     }
 

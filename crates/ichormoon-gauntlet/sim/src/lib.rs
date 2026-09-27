@@ -184,6 +184,8 @@ pub fn simulate<E>(
     for _ in 0..trials {
         let mut depth = 0u32;
         'deal: loop {
+            // Every discard the last deal decided was about that deal.
+            board.forget_choices();
             // Partial Fisher-Yates: only shuffle as far as we actually draw. `n`
             // is the undealt tail, and a fetch shortens it: the card it took is
             // swapped past the end, which is what makes it unavailable to every
@@ -420,6 +422,34 @@ fn replay(board: &mut Board<'_>, deal: &mut Dealing<'_>, sizes: bool, rng: &mut 
                 *deal.n -= 1;
                 deal.removed[group] += 1;
             }
+        }
+        // A discard that nothing decided — a tie the list leaves, or a card
+        // the spell picks at random — is decided here the way a hand of cards
+        // decides it: one card at a time, each as likely as any other still
+        // there. The exact engine prices every way instead; the same board
+        // plays whichever way this picked.
+        if let Some((held, take)) = board.undecided() {
+            let mut left = held.to_vec();
+            let mut taken = vec![0u32; left.len()];
+            for _ in 0..take {
+                let total: u32 = left.iter().sum();
+                let mut pick = rng.random_range(0..total);
+                let group = left
+                    .iter()
+                    .position(|&n| {
+                        if pick < n {
+                            true
+                        } else {
+                            pick -= n;
+                            false
+                        }
+                    })
+                    .expect("a pick below the total lands in some group");
+                left[group] -= 1;
+                taken[group] += 1;
+            }
+            board.decide(&taken);
+            continue;
         }
         let size = if sizes { board.next_gap() } else { 0 };
         if size == 0 {

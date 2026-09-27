@@ -20,7 +20,7 @@
 //! percentage nobody can attribute.
 
 use crate::effect::Effect;
-use crate::policy::{CastingPolicy, LandDropPolicy, MulliganPolicy};
+use crate::policy::{CastingPolicy, DiscardPolicy, LandDropPolicy, MulliganPolicy};
 use crate::strategy::Chosen;
 
 /// The opening hand, before anybody has drawn for turn.
@@ -48,6 +48,11 @@ pub struct Policies {
     /// beside `mulligan`: a run plays one strategy, and a file declaring both
     /// plays the pilot's and reports the chosen one beside it.
     pub chosen: Option<Chosen>,
+    /// Which cards leave the hand when a card makes you discard. `None` is a
+    /// run that declared no list: an "any number" discard then takes nothing,
+    /// a random one needs none, and a forced one is refused before it gets
+    /// here (ADR-0017 §3).
+    pub discard: Option<DiscardPolicy>,
 }
 
 impl Policies {
@@ -356,6 +361,11 @@ impl Schedule {
     /// The declared mulligan, if this run has one.
     pub fn mulligan(&self) -> Option<&MulliganPolicy> {
         self.policies.mulligan.as_ref()
+    }
+
+    /// The declared discard priority, if this run has one.
+    pub fn discard(&self) -> Option<&DiscardPolicy> {
+        self.policies.discard.as_ref()
     }
 
     /// The mulligan strategy the tool chose, if this run plays one.

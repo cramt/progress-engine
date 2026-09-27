@@ -9,8 +9,8 @@
 use std::convert::Infallible;
 
 use gauntlet_criteria::{
-    Activation, Answering, Chosen, Conditionals, LandDetail, Mill, Objective, Resolves, Table,
-    ToHand,
+    Activation, Answering, Chosen, Conditionals, Discard, DiscardPolicy, Discards, LandDetail,
+    Mill, Objective, Resolves, Table, ToHand,
 };
 use gauntlet_criteria::{
     CastingPolicy, Cost, Count, Counted, Delay, Effect, Evaluator, Fetch, Fetched, Grouping, Keep,
@@ -829,6 +829,8 @@ fn a_tutor_agrees_with_the_exact_engine() {
         draw: 0,
         mill: None,
         activation: None,
+        discard: None,
+        untap: 0,
     };
     let schedule = Schedule::build(
         4,
@@ -913,6 +915,8 @@ fn a_card_a_cast_puts_onto_the_battlefield_arrives_that_turn_in_both_engines() {
         draw: 0,
         mill: None,
         activation: None,
+        discard: None,
+        untap: 0,
     };
     let field = Counted::In(Zone::Battlefield);
     let library = Counted::In(Zone::Library);
@@ -1031,6 +1035,8 @@ fn a_permanent_the_line_casts_or_a_cast_puts_down_is_in_play_in_both_engines() {
         draw: 0,
         mill: None,
         activation: None,
+        discard: None,
+        untap: 0,
     };
     let schedule = Schedule::build(
         5,
@@ -1143,6 +1149,8 @@ fn an_activation_paid_before_the_drop_agrees_in_both_engines() {
             cost: Cost::parse("{2}").unwrap().demand(),
             sacrifice: true,
         }),
+        discard: None,
+        untap: 0,
     };
     let saga = Effect {
         matched_by: 5,
@@ -1259,6 +1267,8 @@ fn a_tutor_billed_at_a_declared_cost_agrees_in_both_engines() {
         draw: 0,
         mill: None,
         activation: None,
+        discard: None,
+        untap: 0,
     };
     let schedule = Schedule::build(
         4,
@@ -1354,6 +1364,8 @@ fn a_tutor_thins_the_library_in_both_engines() {
                 draw: 0,
                 mill: None,
                 activation: None,
+                discard: None,
+                untap: 0,
             }],
         };
         let schedule = Schedule::build(
@@ -1463,6 +1475,8 @@ fn a_delayed_fetch_agrees_with_the_exact_engine() {
         draw: 0,
         mill: None,
         activation: None,
+        discard: None,
+        untap: 0,
     };
     let schedule = Schedule::build(
         5,
@@ -1632,6 +1646,8 @@ fn a_mulligan_agrees_with_the_exact_engine() {
         draw: 0,
         mill: None,
         activation: None,
+        discard: None,
+        untap: 0,
     };
     let mulligan = MulliganPolicy::new(
         vec![Keep {
@@ -1846,8 +1862,8 @@ fn a_chosen_strategy_agrees_with_the_exact_engine_on_a_class_it_does_not_read() 
 // The exact engine deals a spell's draw as a sized gap: one more checkpoint,
 // on the paths that cast it and no others. The sampler deals the same cards
 // off its shuffled deck in their true position, asking the same Board before
-// each deal. No card in the effect library draws yet, so the effect is built
-// by hand here, the only place it can be.
+// each deal. The effect is built by hand here, so the deck can be one the
+// test controls.
 
 /// Blue spells matched by query 0, `cost` each, whose cast draws `draw` and
 /// may fetch; a target matched by query 1; Islands; blanks.
@@ -1890,6 +1906,8 @@ fn drawing_deck(cost: &str, draw: u32, fetch: bool) -> (Grouping, Schedule) {
         draw,
         mill: None,
         activation: None,
+        discard: None,
+        untap: 0,
     };
     // Three turns on the play: every cast draws, so how wide this is grows
     // with how many spells the pool pays for, and a fourth turn goes over
@@ -2131,6 +2149,8 @@ fn milling_deck(mill: Mill) -> (Grouping, Schedule) {
         draw: 0,
         mill: Some(mill),
         activation: None,
+        discard: None,
+        untap: 0,
     };
     let schedule = Schedule::build(
         3,
@@ -2243,4 +2263,189 @@ fn a_mill_dealt_last_agrees_with_the_sampler_dealing_it_where_it_fell() {
         "the mill is dealt last"
     );
     mills_agree_on(&grouping, &last, 59);
+}
+
+// --- discard (ADR-0017 §3) ---------------------------------------------------
+//
+// A cast that draws and then makes you discard. The exact engine walks every
+// way a tie the list leaves, or a random pick, can fall, each at its chance;
+// the sampler picks the cards one at a time off the hand it holds. The two
+// agreeing is the test that the division is priced right.
+
+/// Spells matched by query 0 costing {1}{G}, whose cast draws two and
+/// discards as `discard` says; a target matched by query 1; Forests matched
+/// by query 2; and blanks, of which query 3 matches two kinds that query 4
+/// tells apart, so an entry naming query 3 holds a tie.
+fn discarding_deck(
+    discard: Discard,
+    prefer: Option<Vec<usize>>,
+    horizon: u32,
+) -> (Grouping, Schedule) {
+    let grouping = Grouping::with_mana(
+        q(&["drawer", "target", "land", "blank", "marked"]),
+        vec![
+            (
+                0b00001,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}{G}").unwrap().demand(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                4,
+            ),
+            (0b00010, ManaSource::Spell, 2),
+            (
+                0b00100,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["G"]),
+                    lasts: None,
+                },
+                16,
+            ),
+            (0b01000, ManaSource::Spell, 12),
+            (0b11000, ManaSource::Spell, 12),
+            (0b00000, ManaSource::Spell, 14),
+        ],
+    )
+    .unwrap();
+    let effect = Effect {
+        matched_by: 0,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: None,
+        delay: None,
+        draw: 2,
+        mill: None,
+        activation: None,
+        discard: Some(discard),
+        untap: 0,
+    };
+    let schedule = Schedule::build(
+        horizon,
+        false,
+        vec![effect],
+        Policies {
+            land_drop: Some(LandDropPolicy::new(vec![], 2)),
+            casting: Some(CastingPolicy::new(vec![0])),
+            discard: prefer.map(DiscardPolicy::new),
+            ..Policies::default()
+        },
+    );
+    (grouping, schedule)
+}
+
+/// The two engines on one discarding deck: the target, the lands and each
+/// kind of blank in the graveyard and in hand, the lands in play, and the
+/// spell cast or not, all on the last turn of `horizon`.
+fn discards_agree(discard: Discard, prefer: Option<Vec<usize>>, horizon: u32, seed: u64) {
+    let (grouping, schedule) = discarding_deck(discard, prefer, horizon);
+    let turn = horizon as usize;
+    let question = || {
+        let at = move |query: usize, zone: Zone, min: u32| {
+            Box::new(move |v: &PathView<'_>| v.count_at(turn, query, Counted::In(zone)) >= min)
+                as Check
+        };
+        Closures(vec![
+            at(1, Zone::Graveyard, 1),
+            at(1, Zone::Hand, 1),
+            at(2, Zone::Graveyard, 1),
+            at(2, Zone::Battlefield, horizon),
+            at(3, Zone::Graveyard, 1),
+            at(4, Zone::Graveyard, 1),
+            at(3, Zone::Hand, 3),
+            Box::new(move |v: &PathView<'_>| v.count_at(turn, 0, Counted::Cast) == 0) as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(turn, 0, Counted::Cast) >= 1) as Check,
+        ])
+    };
+    let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(9), &mut question())
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    assert!(
+        exact[7] > 0.05 && exact[8] > 0.05,
+        "the discard fires on some paths and not others: {exact:?}"
+    );
+    let trials = TRIALS / 2;
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        trials,
+        seed,
+        only_criteria(9),
+        &mut question(),
+    )
+    .unwrap()
+    .proportions;
+    for (i, (e, s)) in exact.iter().zip(&sampled).enumerate() {
+        let se = standard_error(*s, trials).max(1e-4);
+        assert!(
+            (s - e).abs() < 4.0 * se,
+            "question {i}: sampled {s} vs exact {e} ({}x SE)",
+            (s - e).abs() / se
+        );
+    }
+}
+
+#[test]
+fn a_discard_by_the_list_with_its_ties_priced_agrees_with_the_exact_engine() {
+    // Frantic Search's shape: two, the target first, then the blanks query 3
+    // names — two kinds, a tie — and then everything else, another tie.
+    discards_agree(
+        Discard {
+            cards: Discards::Exactly(2),
+            at_random: false,
+            only: None,
+        },
+        Some(vec![1, 3]),
+        3,
+        59,
+    );
+}
+
+#[test]
+fn a_discard_with_no_list_takes_the_whole_hand_as_one_tie() {
+    discards_agree(
+        Discard {
+            cards: Discards::Exactly(2),
+            at_random: false,
+            only: None,
+        },
+        None,
+        2,
+        61,
+    );
+}
+
+#[test]
+fn a_random_discard_agrees_with_the_exact_engine_whatever_the_list_says() {
+    // Desperate Ravings' shape: one, at random, beside a list it ignores.
+    discards_agree(
+        Discard {
+            cards: Discards::Exactly(1),
+            at_random: true,
+            only: None,
+        },
+        Some(vec![1]),
+        2,
+        67,
+    );
+}
+
+#[test]
+fn an_any_number_discard_of_lands_agrees_with_the_exact_engine() {
+    // Borborygmos and Fblthp's shape: any number, lands only, and a list
+    // naming the target first, which it may not take.
+    discards_agree(
+        Discard {
+            cards: Discards::AnyNumber,
+            at_random: false,
+            only: Some(2),
+        },
+        Some(vec![1, 2]),
+        3,
+        71,
+    );
 }

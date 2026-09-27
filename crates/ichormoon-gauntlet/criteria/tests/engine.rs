@@ -7,7 +7,8 @@
 use std::convert::Infallible;
 
 use gauntlet_criteria::{
-    Activation, Answering, Board, Chosen, Conditionals, Mill, Objective, Resolves, Table, ToHand,
+    Activation, Answering, Board, Chosen, Conditionals, Discard, DiscardPolicy, Discards, Mill,
+    Objective, Resolves, Table, ToHand,
 };
 use gauntlet_criteria::{
     Bound, CastingPolicy, Cost, Count, Counted, Criterion, Delay, Effect, Evaluator, Expectation,
@@ -544,6 +545,8 @@ fn surveil(route: Route) -> Effect {
         draw: 0,
         mill: None,
         activation: None,
+        discard: None,
+        untap: 0,
     }
 }
 
@@ -1031,6 +1034,8 @@ fn a_live_effect_keeps_every_checkpoint_whatever_it_is_asked() {
         draw: 0,
         mill: None,
         activation: None,
+        discard: None,
+        untap: 0,
     }];
     let schedule = Schedule::build(2, false, effects, Policies::default());
     assert_eq!(schedule.gaps(), &[7, 0, 1, 1, 1]);
@@ -1446,6 +1451,8 @@ fn the_budget_and_the_gate_answer_hand_twelve_the_same_way() {
         draw: 0,
         mill: None,
         activation: None,
+        discard: None,
+        untap: 0,
     };
     let land_drop = LandDropPolicy::new(vec![0], 2);
     let gate = Schedule::build(
@@ -1546,6 +1553,8 @@ fn tutor(to: Fetched) -> Effect {
         draw: 0,
         mill: None,
         activation: None,
+        discard: None,
+        untap: 0,
     }
 }
 
@@ -1712,6 +1721,8 @@ fn saga() -> Effect {
         draw: 0,
         mill: None,
         activation: None,
+        discard: None,
+        untap: 0,
     }
 }
 
@@ -2129,6 +2140,8 @@ fn a_tutor_still_finds_a_card_the_mulligan_put_on_the_bottom() {
         draw: 0,
         mill: None,
         activation: None,
+        discard: None,
+        untap: 0,
     };
     let policy = MulliganPolicy::new(
         vec![Keep {
@@ -2420,6 +2433,8 @@ fn drawing(draw: u32) -> Effect {
         draw,
         mill: None,
         activation: None,
+        discard: None,
+        untap: 0,
     }
 }
 
@@ -3716,6 +3731,8 @@ fn milling(mill: Option<Mill>) -> Effect {
         draw: 0,
         mill,
         activation: None,
+        discard: None,
+        untap: 0,
     }
 }
 
@@ -4161,6 +4178,8 @@ fn expedition_map() -> Effect {
             cost: Cost::parse("{2}").unwrap().demand(),
             sacrifice: true,
         }),
+        discard: None,
+        untap: 0,
     }
 }
 
@@ -4309,6 +4328,8 @@ fn an_activation_is_paid_once_per_permanent_per_turn() {
             cost: Cost::parse("{1}").unwrap().demand(),
             sacrifice: false,
         }),
+        discard: None,
+        untap: 0,
         ..expedition_map()
     };
     let schedule = Schedule::plain_with_fetches(
@@ -4441,4 +4462,398 @@ fn what_an_activation_paid_before_the_drop_spent_is_not_paid_again_by_the_drop()
     ] {
         assert!((got - want).abs() < 1e-12, "{what}: {got}, not {want}");
     }
+}
+
+// --- discard (ADR-0017 §3) --------------------------------------------------
+//
+// HANDS.md hands 21 to 24, each dealt as it is written: the opener, what each
+// turn draws, and the block a spell's draw turns over.
+
+/// The queries hands 21 to 24 ask: 0 Frantic Search, 1 Life from the Loam,
+/// 2 land, 3 Beast Within, 4 Desperate Ravings, 5 Borborygmos and Fblthp,
+/// 6 Forest.
+const FRANTIC: usize = 0;
+const THE_LOAM: usize = 1;
+const LAND: usize = 2;
+const BEAST_WITHIN: usize = 3;
+const RAVINGS: usize = 4;
+const BORBORYGMOS: usize = 5;
+const A_FOREST: usize = 6;
+
+/// What each card of hands 21 to 24 is to the engine: the queries it answers
+/// and what it does for mana.
+fn discard_card(name: &str) -> (u64, ManaSource) {
+    let castable = |cost: &str, resolves| ManaSource::Castable {
+        cost: Cost::parse(cost).unwrap().demand(),
+        resolves,
+    };
+    match name {
+        "Island" => (1 << LAND, untapped("U")),
+        "Forest" => (1 << LAND | 1 << A_FOREST, untapped("G")),
+        "Mountain" => (1 << LAND, untapped("R")),
+        "Frantic Search" => (1 << FRANTIC, castable("{2}{U}", Resolves::IntoGraveyard)),
+        "Life from the Loam" => (1 << THE_LOAM, castable("{1}{G}", Resolves::IntoGraveyard)),
+        "Beast Within" => (1 << BEAST_WITHIN, ManaSource::Spell),
+        "Desperate Ravings" => (1 << RAVINGS, castable("{1}{R}", Resolves::IntoGraveyard)),
+        "Borborygmos and Fblthp" => (
+            1 << BORBORYGMOS,
+            castable("{2}{G}{U}{R}", Resolves::OntoBattlefield),
+        ),
+        _ => panic!("{name} is not in hands 21 to 24"),
+    }
+}
+
+/// A deck of hands 21 to 24's cards, in the order they are given, and the
+/// commander in the command zone where there is one.
+struct DiscardDeck {
+    grouping: Grouping,
+    names: Vec<&'static str>,
+}
+
+impl DiscardDeck {
+    fn new(cards: &[(&'static str, u32)], commander: Option<&'static str>) -> DiscardDeck {
+        let grouping = Grouping::with_mana(
+            q(&[
+                "frantic",
+                "loam",
+                "land",
+                "beast",
+                "ravings",
+                "borborygmos",
+                "forest",
+            ]),
+            cards.iter().map(|&(name, n)| {
+                let (mask, mana) = discard_card(name);
+                (mask, mana, n)
+            }),
+        )
+        .unwrap();
+        let mut names: Vec<&'static str> = cards.iter().map(|&(name, _)| name).collect();
+        let grouping = match commander {
+            Some(name) => {
+                let (mask, mana) = discard_card(name);
+                names.push(name);
+                grouping.with_command_zone([(mask, mana, 1)])
+            }
+            None => grouping,
+        };
+        assert_eq!(names.len(), grouping.group_sizes().len());
+        DiscardDeck { grouping, names }
+    }
+
+    /// A history, one list of cards per checkpoint: what that checkpoint
+    /// turned over.
+    fn dealt(&self, rows: &[&[(&str, u32)]]) -> Vec<Vec<u32>> {
+        let mut total = vec![0u32; self.names.len()];
+        rows.iter()
+            .map(|row| {
+                for &(name, n) in *row {
+                    let g = self.names.iter().position(|&m| m == name).unwrap();
+                    total[g] += n;
+                }
+                total.clone()
+            })
+            .collect()
+    }
+
+    /// The same counts as one opener, for a walk resumed from it.
+    fn opener(&self, cards: &[(&str, u32)]) -> Vec<u32> {
+        self.dealt(&[cards]).remove(0)
+    }
+}
+
+fn discarding(matched_by: usize, draw: u32, discard: Discard, untap: u32) -> Effect {
+    Effect {
+        matched_by,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: None,
+        delay: None,
+        draw,
+        mill: None,
+        activation: None,
+        discard: Some(discard),
+        untap,
+    }
+}
+
+/// Frantic Search: draw two, then discard two, then untap three lands.
+fn frantic_search() -> Effect {
+    discarding(
+        FRANTIC,
+        2,
+        Discard {
+            cards: Discards::Exactly(2),
+            at_random: false,
+            only: None,
+        },
+        3,
+    )
+}
+
+/// Every hand here plays its lands by a declared drop — the discard is the
+/// second claimant on the lands in hand — and casts `line`.
+fn discard_schedule(
+    gaps: &[u32],
+    effects: Vec<Effect>,
+    land_drop: Vec<usize>,
+    line: Vec<usize>,
+    discard: Option<Vec<usize>>,
+) -> Schedule {
+    Schedule::plain_with_fetches(
+        gaps,
+        effects,
+        Policies {
+            land_drop: Some(LandDropPolicy::new(land_drop, LAND)),
+            casting: Some(CastingPolicy::new(line)),
+            discard: discard.map(DiscardPolicy::new),
+            ..Policies::default()
+        },
+    )
+}
+
+#[test]
+fn hand_21_frantic_search_and_the_discard_list_decides_where_the_loam_goes() {
+    // Island x3, Frantic Search and Beast Within x3 in hand; the library, top
+    // first, Beast Within, Beast Within, Life from the Loam, Forest. On the
+    // play turns 2 and 3 draw a Beast Within each, and turn 3's third Island
+    // casts Frantic Search: it draws the Loam and the Forest, then discards
+    // two of the seven in hand.
+    let deck = DiscardDeck::new(
+        &[
+            ("Island", 3),
+            ("Forest", 1),
+            ("Frantic Search", 1),
+            ("Life from the Loam", 1),
+            ("Beast Within", 5),
+        ],
+        None,
+    );
+    let opener: &[(&str, u32)] = &[("Island", 3), ("Frantic Search", 1), ("Beast Within", 3)];
+    let beast: &[(&str, u32)] = &[("Beast Within", 1)];
+    let drawn: &[(&str, u32)] = &[("Life from the Loam", 1), ("Forest", 1)];
+    let prefix = deck.dealt(&[opener, &[], beast, beast]);
+    let path = deck.dealt(&[opener, &[], beast, beast, drawn]);
+    // (the Loam and then lands, Beast Within)
+    let columns = [vec![THE_LOAM, LAND], vec![BEAST_WITHIN]];
+    let mut rows = Vec::new();
+    for prefer in columns {
+        let schedule = discard_schedule(
+            &[7, 0, 1, 1],
+            vec![frantic_search()],
+            vec![],
+            vec![FRANTIC],
+            Some(prefer),
+        );
+        let mut board = Board::new(&deck.grouping, &schedule);
+        board.walk(&prefix);
+        assert_eq!(board.next_gap(), 2, "Frantic Search draws two");
+        board.walk(&path);
+        assert_eq!(board.next_gap(), 0);
+        let at = |query, zone| board.count_at(3, query, Counted::In(zone));
+        rows.push((
+            board.count_at(3, FRANTIC, Counted::Cast),
+            at(THE_LOAM, Zone::Graveyard),
+            at(THE_LOAM, Zone::Hand),
+            at(LAND, Zone::Graveyard),
+        ));
+    }
+    assert_eq!(
+        rows,
+        [(1, 1, 0, 1), (1, 0, 1, 0)],
+        "the list bins the Loam and the Forest it drew, or two Beast Within and keeps the Loam"
+    );
+}
+
+#[test]
+fn hand_22_desperate_ravings_discards_at_random_whatever_the_list_says() {
+    // Mountain x2, Desperate Ravings and Beast Within x4 in hand; the library
+    // is Beast Within, Life from the Loam and a Forest. Turn 2 draws one of
+    // them, plays the second land and casts Ravings, which draws the other
+    // two: whichever order they came in, the hand is five Beast Within, the
+    // Loam and a land, and one of the seven goes at random.
+    let deck = DiscardDeck::new(
+        &[
+            ("Mountain", 2),
+            ("Forest", 1),
+            ("Desperate Ravings", 1),
+            ("Life from the Loam", 1),
+            ("Beast Within", 5),
+        ],
+        None,
+    );
+    let opener = deck.opener(&[
+        ("Mountain", 2),
+        ("Desperate Ravings", 1),
+        ("Beast Within", 4),
+    ]);
+    let ravings = discarding(
+        RAVINGS,
+        2,
+        Discard {
+            cards: Discards::Exactly(1),
+            at_random: true,
+            only: None,
+        },
+        0,
+    );
+    let answering = Answering::all(only_criteria(3));
+    let mut columns = Vec::new();
+    for prefer in [Some(vec![THE_LOAM]), None] {
+        let schedule = discard_schedule(
+            &[7, 0, 1],
+            vec![ravings.clone()],
+            vec![],
+            vec![RAVINGS],
+            prefer,
+        );
+        let at = |query, zone| move |v: &PathView<'_>| v.count_at(2, query, Counted::In(zone)) == 1;
+        let mut ev = Closures(vec![
+            Box::new(at(THE_LOAM, Zone::Graveyard)),
+            Box::new(at(THE_LOAM, Zone::Hand)),
+            Box::new(at(LAND, Zone::Graveyard)),
+        ]);
+        let mut conditionals = Conditionals::new(
+            &deck.grouping,
+            &schedule,
+            &answering,
+            &mut ev,
+            Table::default(),
+        )
+        .unwrap();
+        let rest = conditionals.get(&opener, &vec![0; opener.len()]).unwrap();
+        columns.push(rest.held.clone());
+    }
+    for held in &columns {
+        for (got, want) in held.iter().zip([1.0 / 7.0, 6.0 / 7.0, 1.0 / 7.0]) {
+            assert!((got - want).abs() < 1e-12, "{columns:?}");
+        }
+    }
+}
+
+/// Borborygmos and Fblthp's enter: draw a card, then discard any number of
+/// land cards.
+fn borborygmos() -> Effect {
+    discarding(
+        BORBORYGMOS,
+        1,
+        Discard {
+            cards: Discards::AnyNumber,
+            at_random: false,
+            only: Some(LAND),
+        },
+        0,
+    )
+}
+
+#[test]
+fn hand_23_borborygmos_and_fblthp_cannot_discard_the_loam() {
+    // Forest x2, Island x2, Mountain x2 and Life from the Loam, and nothing
+    // drawn until turn 5, whose five drops leave a Mountain in hand. Turn 5
+    // casts the commander out of the command zone, and it enters: draw the
+    // Forest, then any number of land cards may go.
+    let deck = DiscardDeck::new(
+        &[
+            ("Island", 2),
+            ("Forest", 3),
+            ("Mountain", 2),
+            ("Life from the Loam", 1),
+        ],
+        Some("Borborygmos and Fblthp"),
+    );
+    let opener: &[(&str, u32)] = &[
+        ("Island", 2),
+        ("Forest", 2),
+        ("Mountain", 2),
+        ("Life from the Loam", 1),
+    ];
+    let prefix = deck.dealt(&[opener, &[], &[], &[], &[], &[]]);
+    let path = deck.dealt(&[opener, &[], &[], &[], &[], &[], &[("Forest", 1)]]);
+    // (the Loam and then lands, the Loam alone, no list)
+    let columns = [Some(vec![THE_LOAM, LAND]), Some(vec![THE_LOAM]), None];
+    let mut rows = Vec::new();
+    for prefer in columns {
+        let schedule = discard_schedule(
+            &[7, 0, 0, 0, 0, 0],
+            vec![borborygmos()],
+            vec![],
+            vec![BORBORYGMOS],
+            prefer,
+        );
+        let mut board = Board::new(&deck.grouping, &schedule);
+        board.walk(&prefix);
+        assert_eq!(board.next_gap(), 1, "it draws a card as it enters");
+        board.walk(&path);
+        assert_eq!(board.next_gap(), 0);
+        let at = |query, zone| board.count_at(5, query, Counted::In(zone));
+        rows.push((
+            board.count_at(5, BORBORYGMOS, Counted::Cast),
+            at(THE_LOAM, Zone::Graveyard),
+            at(LAND, Zone::Graveyard),
+            at(THE_LOAM, Zone::Hand),
+        ));
+    }
+    assert_eq!(
+        rows,
+        [(1, 0, 2, 1), (1, 0, 0, 1), (1, 0, 0, 1)],
+        "the card says land cards, so the Loam stays whatever the list says; any number is \
+         every land the list names; and with no list nothing goes"
+    );
+}
+
+#[test]
+fn hand_24_a_spell_drawn_mid_line_is_cast_and_a_land_drawn_mid_line_waits() {
+    // A Forest and two Islands down by turn 3, the last of them turn 3's drop,
+    // and Frantic Search and Beast Within x2 in hand; the library, top first,
+    // Life from the Loam, Forest. The three lands cast Frantic Search, which
+    // draws both and untaps them, and the line is read again from its top.
+    let deck = DiscardDeck::new(
+        &[
+            ("Island", 2),
+            ("Forest", 2),
+            ("Frantic Search", 1),
+            ("Life from the Loam", 1),
+            ("Beast Within", 2),
+        ],
+        None,
+    );
+    let opener: &[(&str, u32)] = &[
+        ("Island", 2),
+        ("Forest", 1),
+        ("Frantic Search", 1),
+        ("Beast Within", 2),
+    ];
+    let drawn: &[(&str, u32)] = &[("Life from the Loam", 1), ("Forest", 1)];
+    let path = deck.dealt(&[opener, &[], &[], &[], drawn]);
+    // (Beast Within, the Loam and then Beast Within)
+    let columns = [vec![BEAST_WITHIN], vec![THE_LOAM, BEAST_WITHIN]];
+    let mut rows = Vec::new();
+    for prefer in columns {
+        let schedule = discard_schedule(
+            &[6, 0, 0, 0],
+            vec![frantic_search()],
+            vec![A_FOREST],
+            vec![FRANTIC, THE_LOAM],
+            Some(prefer),
+        );
+        let mut board = Board::new(&deck.grouping, &schedule);
+        board.walk(&path);
+        assert_eq!(board.next_gap(), 0);
+        let forests = |zone| board.count_at(3, A_FOREST, Counted::In(zone));
+        rows.push((
+            board.count_at(3, FRANTIC, Counted::Cast),
+            board.count_at(3, THE_LOAM, Counted::Cast),
+            board.count_at(3, THE_LOAM, Counted::In(Zone::Graveyard)),
+            board.count_at(3, LAND, Counted::In(Zone::Battlefield)),
+            // Held and not played: the hand counts a land from the draw on.
+            forests(Zone::Hand) - forests(Zone::Battlefield),
+        ));
+    }
+    assert_eq!(
+        rows,
+        [(1, 1, 1, 3, 1), (1, 0, 1, 3, 1)],
+        "the untap pays for the Loam it drew; the list that bins it casts nothing more; and \
+         the Forest it drew waits in hand either way"
+    );
 }

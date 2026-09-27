@@ -26,11 +26,12 @@ mod strategy;
 mod zone;
 
 pub use effect::{
-    Activation, Board, Delay, Effect, Fetch, Fetched, Mill, Route, ToHand, Trigger, TriggerError,
+    Activation, Board, Delay, Discard, Discards, Effect, Fetch, Fetched, Mill, Route, ToHand,
+    Trigger, TriggerError,
 };
 pub use grouping::{Grouping, GroupingError};
 pub use mana::{Cost, CostError, Demand, LandDetail, ManaSource, Palette, Resolves};
-pub use policy::{CastingPolicy, Keep, LandDropPolicy, MulliganPolicy};
+pub use policy::{CastingPolicy, DiscardPolicy, Keep, LandDropPolicy, MulliganPolicy};
 pub use schedule::{Policies, Reading, Schedule};
 pub use strategy::{
     optimise, run_chosen, Chosen, Conditionals, Continuation, Decision, Objective, Optimised,
@@ -573,6 +574,15 @@ pub fn width(grouping: &Grouping, schedule: &Schedule) -> u128 {
         fn coarsening(&self) -> &[usize] {
             self.0.coarsening()
         }
+        fn branches(&mut self, _reached: chip_stats::Path<'_>, ways: &mut Vec<f64>) {
+            self.0.branches(ways)
+        }
+        fn enter(&mut self, way: usize) {
+            self.0.enter(way)
+        }
+        fn leave(&mut self) {
+            self.0.leave()
+        }
         fn path(&mut self, _reached: chip_stats::Path<'_>, _p: f64) {}
     }
     chip_stats::count_checkpoint_paths_sized(
@@ -846,6 +856,17 @@ impl<V: Evaluator<Error = E>, E> chip_stats::Walk for Walking<'_, '_, V, E> {
     }
     fn coarsening(&self) -> &[usize] {
         self.board.coarsening()
+    }
+    fn branches(&mut self, _reached: chip_stats::Path<'_>, ways: &mut Vec<f64>) {
+        // Asked straight after `removals` too: where the walk stopped at a
+        // discard nothing decided, the board says every way it can fall.
+        self.board.branches(ways)
+    }
+    fn enter(&mut self, way: usize) {
+        self.board.enter(way)
+    }
+    fn leave(&mut self) {
+        self.board.leave()
     }
     fn path(&mut self, reached: chip_stats::Path<'_>, p: f64) {
         self.mass.add(p);

@@ -361,6 +361,7 @@ fn prepare_noting(
         casting: casting.as_ref().map(|p| p.policy.clone()),
         mulligan: mulligan.as_ref().map(|m| m.policy.clone()),
         chosen: None,
+        discard: None,
     };
     let mut schedule = Schedule::build(
         criteria.horizon(),

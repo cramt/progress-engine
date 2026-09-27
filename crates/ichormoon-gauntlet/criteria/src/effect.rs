@@ -306,6 +306,48 @@ pub struct Effect {
     /// What activating a copy in play costs, for [`Trigger::Activate`] and
     /// nothing else.
     pub activation: Option<Activation>,
+    /// Cards a cast of this makes you discard from your hand, resolved after
+    /// the draw and the mill (ADR-0017 §3). What the card fixes is here —
+    /// how many, whether at random, which cards may go — and which cards do
+    /// go is the file's `[discard] prefer`. Only [`Trigger::Cast`] reads it.
+    pub discard: Option<Discard>,
+    /// Lands a cast of this untaps once it resolves: Frantic Search's three.
+    ///
+    /// Taken as untapping the lands that paid for it, so where it untaps at
+    /// least what it cost, the line's bill is left where it was before the
+    /// spell. That is a floor — a pilot could untap three better lands — and
+    /// a run that relied on it says so. Zero for everything else.
+    pub untap: u32,
+}
+
+/// What a discard the card compels takes from the hand (ADR-0017 §3).
+///
+/// The card's half: the number, whether the card picks at random, and which
+/// cards may go at all. Which of the eligible cards the pilot bins is the
+/// file's `[discard] prefer`, and a random discard reads no list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Discard {
+    pub cards: Discards,
+    /// Desperate Ravings: the card picks, uniformly over the eligible cards
+    /// in hand, and the list is ignored rather than obeyed.
+    pub at_random: bool,
+    /// A grouping query every discarded card has to match, or `None` for any
+    /// card: Borborygmos and Fblthp discards only land cards, so no list can
+    /// make it discard Life from the Loam.
+    pub only: Option<usize>,
+}
+
+/// How many cards a discard takes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Discards {
+    /// Exactly this many, or the whole hand where it holds fewer: Frantic
+    /// Search's two. Forced, so which ones is the pilot's to declare and a
+    /// run that declared nothing is refused.
+    Exactly(u32),
+    /// "Any number": every held, eligible card the list names, and nothing
+    /// the list does not name. Optional, so a run with no list discards
+    /// nothing.
+    AnyNumber,
 }
 
 /// A mill, or a look whose every card leaves the top at once (ADR-0017 §2).
@@ -364,6 +406,9 @@ enum Drew {
     /// It reached past the end of the history: a sized gap of this many
     /// cards is still to be dealt.
     Undealt(u32),
+    /// It made you discard, and which cards go is a choice the path has not
+    /// made yet: a tie the list leaves, or a card picked at random.
+    Undecided,
 }
 
 /// The spells of a run whose file declared which ones to cast.
@@ -650,6 +695,32 @@ pub struct Board<'a> {
     next_tail: u32,
     /// The length of the history the last [`Board::walk`] was given.
     walked: usize,
+    /// The declared discard priority as groups, one list per tier, each
+    /// group in the first tier that names it (ADR-0017 §3). Empty where the
+    /// run declared no list.
+    discard_tiers: Vec<Vec<usize>>,
+    /// Every group no tier names: what a forced discard takes once the list
+    /// runs out, and all of the hand where there is no list.
+    discard_rest: Vec<usize>,
+    /// Whether each group is a land, so a discard can leave the ones in play
+    /// where they are.
+    is_land: Vec<bool>,
+    /// How each discard this path has made so far fell where it was not
+    /// decided by the list: one count per group, in the order the discards
+    /// happened. Set by whoever walks the path — every way, for the
+    /// enumeration, one toss for the sampler — and kept across the replays of
+    /// its prefixes.
+    choices: Vec<Vec<u32>>,
+    /// How many of `choices` the current walk has used. Scratch.
+    choice_at: usize,
+    /// The discard the last walk stopped at because no choice said how it
+    /// fell: how many of each group it may take, and how many it takes.
+    undecided: Option<(Vec<u32>, u32)>,
+    /// `ways[d]`: every way the `d`-th undecided discard of the path the
+    /// enumeration is on can fall, as [`Board::branches`] announced them.
+    ways: Vec<Vec<Vec<u32>>>,
+    /// The cards one discard takes, per group. Scratch.
+    binned: Vec<u32>,
 }
 
 impl<'a> Board<'a> {
@@ -913,6 +984,26 @@ impl<'a> Board<'a> {
             }
             _ => Vec::new(),
         };
+        // The discard list, by the same rule as the mulligan's: a group belongs
+        // to the first tier that names it, the rest is one more set after
+        // them, and no order inside a tier, because a tie there is priced.
+        let mut claimed = vec![false; groups];
+        let discard_tiers: Vec<Vec<usize>> = schedule.discard().map_or_else(Vec::new, |policy| {
+            policy
+                .tiers()
+                .map(|query| {
+                    let tier: Vec<usize> = (0..groups)
+                        .filter(|&g| !claimed[g] && has(g, query))
+                        .collect();
+                    for &g in &tier {
+                        claimed[g] = true;
+                    }
+                    tier
+                })
+                .collect()
+        });
+        let discard_rest = (0..groups).filter(|&g| !claimed[g]).collect();
+        let is_land = grouping.group_mana().iter().map(|m| m.is_land()).collect();
         Board {
             grouping,
             schedule,
@@ -922,9 +1013,12 @@ impl<'a> Board<'a> {
             pool,
             casting,
             fetches: effects.iter().any(|e| e.fetch.is_some()),
-            sizes: effects
-                .iter()
-                .any(|e| e.trigger == Trigger::Cast && (e.draw > 0 || e.mill.is_some())),
+            // A discard deals nothing, but which cards it takes can divide the
+            // path, and only the sized walk divides.
+            sizes: effects.iter().any(|e| {
+                e.trigger == Trigger::Cast
+                    && (e.draw > 0 || e.mill.is_some() || e.discard.is_some())
+            }),
             next_gap: 0,
             cursor: 0,
             sized_dealt: 0,
@@ -961,6 +1055,14 @@ impl<'a> Board<'a> {
             deferred: Vec::new(),
             next_tail: 0,
             walked: 0,
+            discard_tiers,
+            discard_rest,
+            is_land,
+            choices: Vec::new(),
+            choice_at: 0,
+            undecided: None,
+            ways: Vec::new(),
+            binned: vec![0; groups],
         }
     }
 
@@ -1126,6 +1228,64 @@ impl<'a> Board<'a> {
         self.next_tail
     }
 
+    /// The discard the last [`Board::walk`] stopped at because no choice
+    /// said how it fell: how many cards of each group it may take, and how
+    /// many it takes. `None` where it stopped for no such reason.
+    ///
+    /// The sampler's question, answered by picking the cards one at a time
+    /// uniformly among those it may take, and handing the counts back to
+    /// [`Board::decide`]. The enumeration asks [`Board::branches`] instead.
+    pub fn undecided(&self) -> Option<(&[u32], u32)> {
+        self.undecided
+            .as_ref()
+            .map(|(sizes, take)| (&sizes[..], *take))
+    }
+
+    /// How the discard [`Board::undecided`] names fell on this path: one
+    /// count per group. Kept for every later walk until
+    /// [`Board::forget_choices`].
+    pub fn decide(&mut self, taken: &[u32]) {
+        self.choices.push(taken.to_vec());
+    }
+
+    /// Forget every choice this path made, for a walk of another path.
+    pub fn forget_choices(&mut self) {
+        self.choices.clear();
+        self.ways.clear();
+    }
+
+    /// Every way the discard the last walk stopped at can fall, as the chance
+    /// of each, pushed onto `ways`; nothing where it stopped for no such
+    /// reason. The chances are one multivariate hypergeometric over what it
+    /// may take: every set of that many cards is as likely.
+    ///
+    /// The enumeration's question. It goes down each way with
+    /// [`Board::enter`] and comes back out with [`Board::leave`], and the
+    /// board remembers which way it is on.
+    pub fn branches(&mut self, ways: &mut Vec<f64>) {
+        let Some((sizes, take)) = &self.undecided else {
+            return;
+        };
+        let mut falls = Vec::new();
+        chip_stats::for_each_composition(sizes, *take, |taken, p| {
+            falls.push(taken.to_vec());
+            ways.push(p);
+        });
+        self.ways.truncate(self.choices.len());
+        self.ways.push(falls);
+    }
+
+    /// Go down way `way` of the division [`Board::branches`] last announced.
+    pub fn enter(&mut self, way: usize) {
+        let taken = self.ways[self.choices.len()][way].clone();
+        self.choices.push(taken);
+    }
+
+    /// Come back out of the way last entered.
+    pub fn leave(&mut self) {
+        self.choices.pop();
+    }
+
     /// Play one path out, turn by turn, filling the per-turn zone counts.
     ///
     /// `history` may be a **prefix** of a path rather than a whole one, and
@@ -1157,6 +1317,8 @@ impl<'a> Board<'a> {
         self.cursor = 0;
         self.sized_dealt = 0;
         self.late_drop.fill(None);
+        self.choice_at = 0;
+        self.undecided = None;
         if let Some(casting) = &mut self.casting {
             casting.live_cast.fill(0);
             casting.live_gone.fill(0);
@@ -1498,12 +1660,22 @@ impl<'a> Board<'a> {
                             // which the line lists first. Its draw, if it
                             // draws, resolves after the fetch.
                             let fetched = self.fetch_on_cast(group) || grew || activates;
+                            // Frantic Search untaps the lands that paid for
+                            // it, which leaves the bill where it was before
+                            // the spell: a floor, and the run says so.
+                            if self.untaps(group) >= cost.total() {
+                                *bill.last() = before;
+                            }
                             match self.draw_on_cast(turn, group, history) {
                                 Drew::Nothing if fetched => continue 'line,
                                 Drew::Nothing => {}
                                 Drew::Cards => continue 'line,
                                 Drew::Undealt(size) => {
                                     self.next_gap = size;
+                                    finished = false;
+                                    break 'line;
+                                }
+                                Drew::Undecided => {
                                     finished = false;
                                     break 'line;
                                 }
@@ -1758,7 +1930,7 @@ impl<'a> Board<'a> {
             return Drew::Nothing;
         };
         let e = &self.schedule.effects()[effect];
-        if e.trigger != Trigger::Cast || (e.draw == 0 && e.mill.is_none()) {
+        if e.trigger != Trigger::Cast || (e.draw == 0 && e.mill.is_none() && e.discard.is_none()) {
             return Drew::Nothing;
         }
         let (draw, mill) = (e.draw, e.mill.as_ref().map(|m| (m.cards, &m.to_hand)));
@@ -1771,7 +1943,7 @@ impl<'a> Board<'a> {
             }
         }
         let Some((cards, to_hand)) = mill else {
-            return Drew::Cards;
+            return self.discard_on_cast(effect);
         };
         let up_to = match to_hand {
             ToHand::Chosen { up_to, .. } => *up_to,
@@ -1811,7 +1983,134 @@ impl<'a> Board<'a> {
         for (yard, &milled) in self.live_yard.iter_mut().zip(&self.block) {
             *yard += milled;
         }
+        self.discard_on_cast(effect)
+    }
+
+    /// Discard what a spell that has just drawn makes you discard, if it
+    /// does (ADR-0017 §3).
+    ///
+    /// The card says how many, whether at random, and which cards may go; the
+    /// declared list says which of those go. A forced discard walks the list
+    /// tier by tier and each tier gives up everything it holds until what is
+    /// left to discard is less than that; that tier gives up the rest
+    /// uniformly among the cards it holds — the tie, priced — and after the
+    /// last tier the cards no entry names are one more tier. "Any number" is
+    /// every eligible card the list names. At random is one tier of the whole
+    /// eligible hand, whatever the list says.
+    ///
+    /// A land in play is not in hand to be discarded. Which lands are in play
+    /// is known only where the land drop was declared, so without one no land
+    /// is discarded here, and the caller refuses a discard that could take one
+    /// before it gets this far.
+    fn discard_on_cast(&mut self, effect: usize) -> Drew {
+        let Some(discard) = self.schedule.effects()[effect].discard else {
+            return Drew::Cards;
+        };
+        let groups = self.live_hand.len();
+        let masks = self.grouping.group_masks();
+        let eligible: Vec<u32> = (0..groups)
+            .map(|g| {
+                let allowed = discard.only.is_none_or(|q| masks[g] & (1u64 << q) != 0);
+                if allowed {
+                    self.discardable(g)
+                } else {
+                    0
+                }
+            })
+            .collect();
+        self.binned.fill(0);
+        let within = |tier: &[usize]| -> Vec<u32> {
+            let mut sizes = vec![0u32; groups];
+            for &g in tier {
+                sizes[g] = eligible[g];
+            }
+            sizes
+        };
+        let mut tiers: Vec<Vec<u32>> = Vec::new();
+        let mut left = match (discard.cards, discard.at_random) {
+            (Discards::AnyNumber, _) => {
+                for tier in &self.discard_tiers {
+                    for &g in tier {
+                        self.binned[g] = eligible[g];
+                    }
+                }
+                0
+            }
+            (Discards::Exactly(n), true) => {
+                tiers.push(eligible.clone());
+                n
+            }
+            (Discards::Exactly(n), false) => {
+                tiers.extend(self.discard_tiers.iter().map(|t| within(t)));
+                tiers.push(within(&self.discard_rest));
+                n
+            }
+        };
+        for sizes in tiers {
+            if left == 0 {
+                break;
+            }
+            let held: u32 = sizes.iter().sum();
+            if held <= left {
+                for (b, s) in self.binned.iter_mut().zip(&sizes) {
+                    *b += s;
+                }
+                left -= held;
+                continue;
+            }
+            let Some(taken) = self.choose(&sizes, left) else {
+                return Drew::Undecided;
+            };
+            for (b, t) in self.binned.iter_mut().zip(&taken) {
+                *b += t;
+            }
+            left = 0;
+        }
+        for g in 0..groups {
+            self.live_hand[g] -= self.binned[g];
+            self.live_yard[g] += self.binned[g];
+        }
         Drew::Cards
+    }
+
+    /// Cards of `group` in hand that a discard may take: every one held,
+    /// less a land that is in play rather than in hand.
+    fn discardable(&self, group: usize) -> u32 {
+        if !self.is_land[group] {
+            self.live_hand[group]
+        } else if self.declared.is_some() {
+            self.live_hand[group] - self.live_played[group]
+        } else {
+            0
+        }
+    }
+
+    /// How `take` of the cards `sizes` holds fall, where nothing but a choice
+    /// can say: the next of [`Board::choices`] on this path, or `None` where
+    /// the path has made no such choice yet, which is where the walk stops.
+    ///
+    /// A fall with one way — nothing to take, everything to take, or one
+    /// group to take it from — is no choice and uses none.
+    fn choose(&mut self, sizes: &[u32], take: u32) -> Option<Vec<u32>> {
+        let total: u32 = sizes.iter().sum();
+        let holding = sizes.iter().filter(|&&s| s > 0).count();
+        if take == 0 || take >= total || holding == 1 {
+            return Some(sizes.iter().map(|&s| s.min(take)).collect());
+        }
+        if let Some(taken) = self.choices.get(self.choice_at) {
+            self.choice_at += 1;
+            return Some(taken.clone());
+        }
+        self.undecided = Some((sizes.to_vec(), take));
+        None
+    }
+
+    /// Lands a cast of `group` untaps, where its effect untaps any.
+    fn untaps(&self, group: usize) -> u32 {
+        self.group_effect[group]
+            .map(|e| &self.schedule.effects()[e])
+            .filter(|e| e.trigger == Trigger::Cast)
+            .map_or(0, |e| e.untap)
     }
 
     /// Turn over `count` cards off the top of the library into `block`, one
