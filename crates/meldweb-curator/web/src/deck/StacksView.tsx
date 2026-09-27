@@ -1,4 +1,5 @@
 import { type DragEvent, useEffect, useRef, useState } from "react";
+import { CardView, type CardViewProps } from "../card/CardView";
 import type { Category, Card as DeckCard } from "../deck";
 import { type Printings, printingKey } from "../scryfall";
 import {
@@ -53,16 +54,25 @@ function useColumnCount() {
   return [ref, columns] as const;
 }
 
+/** What a card in the stack for `from` shows and does; see `useCardEditor`. */
+export type CardPropsFor = (
+  card: DeckCard,
+  from: string | null,
+) => CardViewProps;
+
 export function StacksView({
   categories,
   cards,
   printings,
   onDrop,
+  cardProps,
 }: {
   categories: readonly Category[];
   cards: readonly DeckCard[];
   printings: Printings;
   onDrop: OnDrop;
+  /** Without it a card is only drawn: no menu, hotkeys or details. */
+  cardProps?: CardPropsFor;
 }) {
   const [ref, columns] = useColumnCount();
   const [dragging, setDragging] = useState<Dragging | null>(null);
@@ -128,6 +138,7 @@ export function StacksView({
                 key={group.category ?? UNCATEGORIZED}
                 group={group}
                 printings={printings}
+                cardProps={cardProps}
                 dragging={dragging}
                 onDragStart={(card) =>
                   // Deferred: changing the DOM inside dragstart makes Chrome
@@ -200,6 +211,7 @@ function Crown() {
 function Stack({
   group,
   printings,
+  cardProps,
   dragging,
   onDragStart,
   onDragEnd,
@@ -207,6 +219,7 @@ function Stack({
 }: {
   group: Group;
   printings: Printings;
+  cardProps: CardPropsFor | undefined;
   dragging: Dragging | null;
   onDragStart: (card: DeckCard) => void;
   onDragEnd: () => void;
@@ -248,7 +261,14 @@ function Stack({
             }}
             onDragEnd={onDragEnd}
           >
-            <Card card={c} printings={printings} />
+            <CardView
+              {...(cardProps?.(c, group.category) ?? {
+                name: cardName(c, printings),
+                image: printings.get(printingKey(c.card))?.image,
+                qty: c.qty,
+                finish: c.finish,
+              })}
+            />
           </li>
         ))}
       </ol>
@@ -328,20 +348,5 @@ function NewCategory({ onDone }: { onDone: (name: string | null) => void }) {
         Cancel
       </button>
     </form>
-  );
-}
-
-function Card({ card, printings }: { card: DeckCard; printings: Printings }) {
-  const printing = printings.get(printingKey(card.card));
-  const name = cardName(card, printings);
-  return (
-    <>
-      {printing ? (
-        <img src={printing.image} alt={name} loading="lazy" draggable={false} />
-      ) : (
-        <div className="card-missing">{name}</div>
-      )}
-      <span className="card-qty">{card.qty}</span>
-    </>
   );
 }

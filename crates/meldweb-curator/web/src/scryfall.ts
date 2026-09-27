@@ -4,6 +4,8 @@ import type { Card, CardRef } from "./deck";
 export interface Printing {
   name: string;
   image: string;
+  /** Scryfall's search for every printing of the card, when it gave one. */
+  prints?: string;
 }
 
 /** A card's printing, keyed the way the deck names it. */
@@ -55,7 +57,11 @@ export async function fetchPrintings(
     if (!response.ok) throw new Error(`Scryfall answered ${response.status}`);
     for (const card of parseCollection(await response.json())) {
       const byPrinting = `${card.set}/${card.collector_number}`;
-      const printing = { name: card.name, image: card.image };
+      const printing: Printing = {
+        name: card.name,
+        image: card.image,
+        ...(card.prints ? { prints: card.prints } : {}),
+      };
       found.set(byPrinting, printing);
       // A name lookup returns whichever printing Scryfall prefers, so it is
       // also keyed by name, front face included for double-faced cards.
@@ -73,6 +79,7 @@ interface CollectionCard {
   set: string;
   collector_number: string;
   image: string;
+  prints?: string;
 }
 
 /** Scryfall's JSON is outside our types until it has been checked. */
@@ -103,6 +110,9 @@ function parseCollection(json: unknown): CollectionCard[] {
         set: c.set.toLowerCase(),
         collector_number: c.collector_number.toLowerCase(),
         image,
+        ...(typeof c.prints_search_uri === "string"
+          ? { prints: c.prints_search_uri }
+          : {}),
       },
     ];
   });
