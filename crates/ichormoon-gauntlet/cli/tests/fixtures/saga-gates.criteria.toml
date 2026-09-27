@@ -1,6 +1,7 @@
 # The Saga route with no effect declared, written the way lantern.criteria.toml
-# writes it: the Saga in play by turn t, and the Lantern still in the library
-# after the draw step of turn t+2, which is when chapter III searches for it.
+# wrote it until #100: the Saga in play by turn t, and the Lantern still in the
+# library after the draw step of turn t+2, which is when chapter III searches
+# for it. Asked of hand-saga.txt and of decks/lantern.txt.
 [[criterion]]
 name = "Lantern on the battlefield by turn 5"
 

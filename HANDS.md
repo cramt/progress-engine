@@ -728,9 +728,10 @@ draw — which is 2/16 in either seat.
 
 **And it is the same number written without the effect.** The Saga in play by
 turn *t* and the Lantern still in the library on turn *t*+2, for *t* = 1, 2, 3,
-as three `any_of` branches: that is how `lantern.criteria.toml` asks it,
-because declaring a land drop there would change what its other routes read.
-The two phrasings agree to the last digit in both seats, on this hand and on
+as three `any_of` branches: that is how `lantern.criteria.toml` asked it
+until the north star became one line (#100), and the phrasing is kept as the
+fixture `saga-gates.criteria.toml`, asked of the real list. The two phrasings
+agree to the last digit in both seats, on this hand and on
 the real list, where the route reads **8.32%** on the play against the 9.09%
 the naive model reported.
 
@@ -740,8 +741,9 @@ the naive model reported.
 sacrifice are each a flat yes or no, and in `gauntlet-sim` against the exact
 engine.
 
-**And the sacrifice holds without the effect.** `lantern.criteria.toml`
-declares no Saga effect, so the Saga there is only a land — and a land that
+**And the sacrifice holds without the effect.** A file that declares no Saga
+effect — `saga-gates.criteria.toml`, as `lantern.criteria.toml` was before
+#100 — has the Saga only as a land — and a land that
 chapter III sacrifices two turns after it lands (#82). Played on turn 1 it pays
 on turns 1 to 3 and not on turn 4. The generous reading can hold it back for a
 later drop, unless every later drop is taken by a land that arrived on it; a

@@ -1,8 +1,9 @@
 # The commander, cast from the command zone, with the deck's mana rocks in the
 # line (ADR-0018).
 #
-# `lantern-commander.criteria.toml` asks the same thing with only lands paying.
-# This file names the rocks as well, so a rock the line casts is a mana source
+# `lantern-commander.criteria.toml` asked the same thing with only lands paying
+# until #100 folded it into the north star (42.50% / 51.49% at turn 4, 53.01% /
+# 61.30% at turn 5, play / draw). This file names the rocks as well, so a rock the line casts is a mana source
 # from then on: Sol Ring adds {C}{C}, Mind Stone {C}, Arcane Signet one of
 # Rashmi's green, blue and red, and each Talisman {C} or one of its two
 # colours. A rock's mana pays only for what the line casts after it that turn,
@@ -10,11 +11,10 @@
 # so the Talismans are what move this number most.
 #
 # ITS OWN FILE, DELIBERATELY. A `[casting]` line is one pool with every gate in
-# the file that declares it, so naming the rocks in
-# `lantern-commander.criteria.toml` would move that file's numbers from "lands
-# only" to "with rocks" — a different question, which is this one. The
-# lands-only half stays where it was, and the two files side by side are the
-# difference the rocks make.
+# the file that declares it, so the commander with rocks and nothing else is a
+# file of its own. `lantern.criteria.toml` asks the commander inside the whole
+# north-star line, where the rocks also pay for the tutors; its "commander
+# half" criterion is that line's version of this question.
 #
 # The line: cast Rashmi the moment the pool pays, and otherwise grow the pool —
 # the coloured rocks before the colourless one. Fellwar Stone is left out: it

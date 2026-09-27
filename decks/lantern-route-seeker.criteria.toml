@@ -11,7 +11,7 @@
 # ---------------------
 #   [[effect]] — a cast fetch onto the battlefield (ADR-0019, #96). The −1 is
 #                read as part of his cast, as Cruel Captain's −3 is in
-#                lantern.criteria.toml. A priority that could find a land is
+#                lantern.criteria.toml's line. A priority that could find a land is
 #                refused, because a land a spell puts down may or may not
 #                enter tapped; an artifact has no such question.
 #   [casting]  — the Lantern first, so a Lantern already in hand is cast for
@@ -44,8 +44,8 @@
 #     cost, which is ADR-0019's second ticket.
 #   * The other routes. This file asks route 3 beside route 1, because the
 #     line casts a Lantern it holds; route 2 is lantern-route-b.criteria.toml
-#     and route 4 is lantern-route-c.criteria.toml. All four are in
-#     lantern.criteria.toml.
+#     and route 4 is lantern-route-c.criteria.toml. All four are one line in
+#     lantern.criteria.toml, the north star.
 #   * Rocks. The line casts the Seeker off lands alone, so this is a floor.
 #   * Tezzeret surviving. The −1 resolves the turn he is cast; nothing here
 #     models the other side of the table.

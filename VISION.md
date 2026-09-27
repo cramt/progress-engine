@@ -35,8 +35,14 @@ cannot count — and both were briefly recorded here as closer than they were,
 which is the reason this section now names the deck rather than the
 question.
 
-**Lantern control.** *How often is there a line that resolves Lantern of Insight
-by turn 5?*
+**Lantern control.** *How often is Lantern of Insight on the battlefield and
+Rashmi and Ragavan cast, by turn 5?* — by any line the pilot's own cards allow,
+out of one mana budget, with the opponents out of scope (the owner's
+definition, CONTEXT.md *North star*,
+[#100](https://github.com/cramt/progress-engine/issues/100)). Until #100 it was
+recorded as *how often is there a line that resolves Lantern of Insight by turn
+5*, with no commander; the history below is that question's, and the section
+ends where the owner's is answered.
 
 This was recorded for a long time as *how often do I have Lantern of Insight by
 turn 5*, which is a smaller and easier question, and stating it that way made
@@ -103,11 +109,11 @@ hand. `decks/lantern-route-c.criteria.toml` asks it with the chapter declared
 as an effect and gets the same number to the last digit; a test holds the two
 together.
 
-**And the union of them now has a number.**
-`decks/lantern.criteria.toml` is the whole question — four routes, because the
+**And the union of them had a number.**
+`decks/lantern.criteria.toml` was the whole of that question — four routes, because the
 tutors that put the Lantern in your hand and the tutors that put it straight
-onto the battlefield are priced differently — and it reads **47.10% ± 0.11** on
-the play and **54.34% ± 0.11** on the draw. It read 46.67% and 53.60% until
+onto the battlefield are priced differently — and it read **47.10% ± 0.11** on
+the play and **54.34% ± 0.11** on the draw until #100 replaced it. It read 46.67% and 53.60% until
 [#82](https://github.com/cramt/progress-engine/issues/82) read each land for the
 mana it really makes: a fetchland as the untapped lands it can find (+2.4 and
 +2.5), Maze of Ith as none, Castle Doom and Spire of Industry as `{C}`, and
@@ -135,20 +141,50 @@ Sagas whose chapter III looks for a Lantern already drawn, and every one of
 those is a hand route 1 already counts. So the union was never inflated by the
 Saga; the Saga's own number was.
 
-**So every route is priced, and the north star is answered as a floor, not
-met.** The number still leaves out inputs that move it, all named in the file
-and all in the same direction: the deck's seven mana rocks, which `can_cast`
-does not count because only a land arrives without being cast; mulligans, which
-are declarable now and which the file does not declare, because the keep rule is
-the pilot's to state and not this tool's to guess; and the ten lands that may
-enter untapped for 2 life, all assumed to enter tapped.
-The file names one input that runs the other way: with no land drop declared,
-each clause plays the path's lands in whichever order suits it, as a pilot who
-knew their draws would, and that is worth at most 0.8 points on the play and
-1.25 on the draw.
-A deck that fails its 75% target by 27 points as a floor has not been shown to
-pass it. The largest of those — mana rocks, on an artifact deck — is where the
-next honest movement in this number is.
+**So every route was priced, and that question was answered as a floor.** It
+left out the deck's seven mana rocks, mulligans and the ten lands that may enter
+untapped for 2 life, all in the same direction, and one input the other way:
+with no land drop declared, each clause played the path's lands in whichever
+order suited it, as a pilot who knew their draws would, worth at most 0.8
+points on the play and 1.25 on the draw. And it did not ask for the commander.
+
+**The owner's north star is now one line, and it has a curve.**
+`decks/lantern.criteria.toml` asks *Lantern of Insight on the battlefield and
+Rashmi and Ragavan cast, by turn N* as one criterion a turn, two clauses each,
+with no proxy anywhere: every route is the effect that is the route — the
+Lantern cast; Trinket Mage, Fabricate and Tezzeret, Cruel Captain to hand; Whir
+of Invention at a declared X = 1 and Tezzeret the Seeker onto the battlefield;
+Dizzy Spell's declared transmute; Urza's Saga's chapter III; Expedition Map for
+the Saga — and the rocks of ADR-0018 pay in the same line. A declared land drop
+plays the Saga first, then the tapped lands, then the untapped ones, most
+colours first; the line casts the Lantern, Sol Ring, then the commander, then
+the tutors, then the Map and the other rocks. Both orders were chosen by
+measuring the alternatives, and the file lists them.
+
+| North star by | play | draw |
+|---|---|---|
+| turn 4 | 7.12% ± 0.06 | 9.35% ± 0.07 |
+| turn 5 | **31.09% ± 0.10** | **38.18% ± 0.11** |
+| turn 6 | 44.02% ± 0.11 | 52.01% ± 0.11 |
+| turn 7 | 52.22% ± 0.11 | 59.48% ± 0.11 |
+
+Sampled, at 33 groups and 1.8 × 10¹³ compositions at turn 5 on the play, and
+held turn by turn, both seats, against `checker/`, which plays the same line
+and land drop from the rules. It is lower than the old union because it asks
+more — the commander too, on the same lands — and pays every route out of one
+budget rather than reading each gate with its own clairvoyant land order; the
+rocks and the battlefield tutors give some of that back. The halves say which
+binds: the Lantern on the battlefield by turn 5 alone reads 49.68% / 55.99%,
+Rashmi cast alone 61.63% / 68.31%.
+
+**No bound yet.** The old file's 0.75 was set for an easier question; the owner
+chooses a bound, and the turn it applies to, from this curve. The number is a
+floor for everything the file names as not modelled — Artificer's Intuition
+([#99](https://github.com/cramt/progress-engine/issues/99)), digging with Top,
+Azcanta and Dakra Mystic, the three tutors ADR-0019 refused, improvise,
+Rashmi's Treasure, the pilot adapting their land drop to the hand, mulligans —
+and a ceiling only for opponents, who are out of scope, and a fetchland never
+running out of targets.
 
 **Life from the Loam.** *How often is Life from the Loam put into the graveyard
 and Borborygmos and Fblthp cast, by turn 5?* By any line the pilot's own cards
@@ -770,8 +806,9 @@ through the front door.
   class keeps only the queries it reads, only the turns it names, and what a
   land makes only where something asks whether a cost could be paid; everything
   else merges. A question over the ceiling on its own is still estimated, and
-  now it is the only one. `decks/lantern.criteria.toml` is the case that shows
-  what that is worth once a file asks its real question: its north star is a
+  now it is the only one. `decks/lantern.criteria.toml`, as it stood before
+  #100, is the case that shows
+  what that is worth once a file asks its real question: its north star was a
   union of four routes, eleven of whose fourteen branches price a cost, and at
   18 groups and 36,332,613,504 compositions no narrowing brings it under the
   ceiling. Three other questions in that file are sampled for the same reason;

@@ -3893,21 +3893,26 @@ fn deck_file(name: &str) -> PathBuf {
 }
 
 fn run_lantern(criteria: &str, flags: &[&str]) -> serde_json::Value {
+    run_lantern_with(deck_file(criteria), flags)
+}
+
+/// `decks/lantern.txt` against any criteria file, a fixture included.
+fn run_lantern_with(criteria: PathBuf, flags: &[&str]) -> serde_json::Value {
     let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
         .arg("test")
         .arg(deck_file("lantern.txt"))
-        .arg(deck_file(criteria))
+        .arg(&criteria)
         .arg("--index")
         .arg(deck_file("index.jsonl"))
         .args(flags)
         .output()
         .expect("binary should run");
-    // The north star fails its threshold, and says so with the exit code; a
-    // run that could not answer at all prints no JSON, which is what is
-    // checked here.
+    // A failed bound says so with the exit code; a run that could not answer
+    // at all prints no JSON, which is what is checked here.
     serde_json::from_slice(&out.stdout).unwrap_or_else(|_| {
         panic!(
-            "{criteria} {flags:?} should answer: {}",
+            "{} {flags:?} should answer: {}",
+            criteria.display(),
             String::from_utf8_lossy(&out.stderr)
         )
     })
@@ -3915,47 +3920,38 @@ fn run_lantern(criteria: &str, flags: &[&str]) -> serde_json::Value {
 
 #[test]
 fn the_lantern_decks_saga_route_is_the_same_number_both_ways() {
-    // VISION.md's first north star, route 4, on the real list. The route file
-    // declares Urza's Saga's third chapter as an effect; lantern.criteria.toml
-    // writes the same route as clauses, because declaring a land drop there
-    // would change what its other routes read. Two runs, one number, and it
-    // is checkable by hand: one Saga and one Lantern in 99, so on the play
+    // Route C on the real list, two ways. The route file declares Urza's
+    // Saga's third chapter as an effect; `saga-gates.criteria.toml` writes the
+    // same route as clauses with no effect and no land drop declared — the
+    // Saga in play by turn t, the Lantern still in the library on turn t+2 —
+    // which is how lantern.criteria.toml asked it until the north star became
+    // one line (#100). Two runs, one number, and it is checkable by hand: one
+    // Saga and one Lantern in 99, so on the play
     // (7 x 90 + 89 + 88) / (99 x 98) = 8.32%, and on the draw
     // (8 x 89 + 88 + 87) / (99 x 98) = 9.14%.
     let declared = "Lantern put onto the battlefield by Urza's Saga, turn 5";
-    let play = run_lantern("lantern-route-c.criteria.toml", &[]);
-    assert_eq!(percent(&play, declared), 8.32);
-    let draw = run_lantern("lantern-route-c.criteria.toml", &["--draw"]);
-    assert_eq!(percent(&draw, declared), 9.14);
-
-    let whole = run_lantern("lantern.criteria.toml", &[]);
-    let clauses = "route 4: Urza's Saga puts it onto the battlefield by turn 5";
-    assert_eq!(
-        whole["criteria"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|c| c["name"] == clauses)
-            .unwrap()["probability"],
-        play["criteria"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|c| c["name"] == declared)
-            .unwrap()["probability"],
-        "the clause phrasing and the declared effect disagree"
-    );
-    // And it is exact: a route with no mana in it is narrow enough to walk.
-    let method = |name: &str| {
-        whole["criteria"]
+    let clauses = "Lantern on the battlefield by turn 5";
+    let find = |json: &serde_json::Value, name: &str| {
+        json["criteria"]
             .as_array()
             .unwrap()
             .iter()
             .find(|c| c["name"] == name)
-            .unwrap()["method"]
+            .unwrap()
             .clone()
     };
-    assert_eq!(method(clauses), "exact");
+    for (flags, expected) in [(&[][..], 8.32), (&["--draw"][..], 9.14)] {
+        let route = run_lantern("lantern-route-c.criteria.toml", flags);
+        assert_eq!(percent(&route, declared), expected, "{flags:?}");
+        let gates = run_lantern_with(fixture("saga-gates.criteria.toml"), flags);
+        assert_eq!(
+            find(&gates, clauses)["probability"],
+            find(&route, declared)["probability"],
+            "the clause phrasing and the declared effect disagree, {flags:?}"
+        );
+        // And it is exact: a route with no mana in it is narrow enough to walk.
+        assert_eq!(find(&gates, clauses)["method"], "exact", "{flags:?}");
+    }
 }
 
 // --- closed-form anchors on the committed decks (#76) --------------------------

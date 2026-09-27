@@ -8,9 +8,9 @@
 #
 # WHAT IS MODELLED HERE THAT IS NOT MODELLED THERE
 # ------------------------------------------------
-# `lantern.criteria.toml` prices mana too, but only as a GATE: its `can_cast`
-# clauses ask whether the turn's lands could have paid a cost, and each clause
-# asks on its own. This file SPENDS the pool, as a budget: it counts what the
+# `lantern.criteria.toml` priced mana too, until #100, but only as a GATE: its
+# `can_cast` clauses asked whether the turn's lands could have paid a cost, and
+# each clause asked on its own. This file SPENDS the pool, as a budget: it counts what the
 # turn's lands actually PAID FOR, in the order a declared line casts, and what
 # the spell it paid for then went and got:
 #
@@ -46,10 +46,11 @@
 #     third is a tutor that puts it onto the battlefield (Tezzeret the Seeker,
 #     which is lantern-route-seeker.criteria.toml, and Whir of Invention);
 #     route C is Urza's Saga, which is
-#     lantern-route-c.criteria.toml. All four are in lantern.criteria.toml.
-#   * The other hand tutors. Fabricate, Tezzeret, Cruel Captain, Dizzy Spell
-#     and Artificer's Intuition are route B too, and only lantern.criteria.toml
-#     asks about them.
+#     lantern-route-c.criteria.toml. All four are one line in
+#     lantern.criteria.toml, the north star.
+#   * The other hand tutors. Fabricate, Tezzeret, Cruel Captain and Dizzy
+#     Spell are route B too, and are in the north star's line; Artificer's
+#     Intuition waits for its discard (#99).
 #   * A shockland's 2 life. The run assumes every conditional tapland enters
 #     tapped and names the ten cards it assumed it about, so these are floors.
 #   * Anything about the game but your own draws.

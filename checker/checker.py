@@ -1722,7 +1722,6 @@ LOAM_TWO_DROPS = (
     "Malevolent Rumble",
     "Midnight Tilling",
 )
-LANTERN_BATTLEFIELD_TUTORS = ("Tezzeret the Seeker", "Whir of Invention")
 
 
 def _loam_castable_by_5(g: Game) -> bool:
@@ -1970,25 +1969,9 @@ def _loam_access_and_three_lands_t3(g: Game) -> bool:
     return g.count(3, lambda c: c.in_category("Loam Access")) >= 1 and g.lands_played(3) >= 3
 
 
-def _lantern_and_a_mana_t5(g: Game) -> bool:
-    # { turn = 5, query = 'name:"Lantern of Insight"', min = 1 }
-    # { turn = 5, can_cast = "{1}" }
-    return g.count(5, lambda c: c.is_named("Lantern of Insight")) >= 1 and g.can_cast(5, "{1}")
-
-
-def _one_mana_by_5(g: Game) -> bool:
-    # { turn = 5, can_cast = "{1}" }
-    return g.can_cast(5, "{1}")
-
-
 def _one_green_by_5(g: Game) -> bool:
     # { turn = 5, can_cast = "{1}{G}" }
     return g.can_cast(5, "{1}{G}")
-
-
-def _battlefield_tutor_drawn_t5(g: Game) -> bool:
-    # { turn = 5, query = 'name:"Tezzeret the Seeker" or name:"Whir of Invention"', min = 1 }
-    return g.count(5, lambda c: c.is_named(*LANTERN_BATTLEFIELD_TUTORS)) >= 1
 
 
 LANTERN, TRINKET = "Lantern of Insight", "Trinket Mage"
@@ -2115,27 +2098,6 @@ QUESTIONS: list[Question] = [
     ),
     Question(
         "lantern",
-        "lantern.criteria.toml",
-        "route 1: Lantern in hand and a mana for it, turn 5",
-        _lantern_and_a_mana_t5,
-        5,
-    ),
-    Question(
-        "lantern",
-        "lantern.criteria.toml",
-        "route 1 control: {1} payable by turn 5, no Lantern asked",
-        _one_mana_by_5,
-        5,
-    ),
-    Question(
-        "lantern",
-        "lantern.criteria.toml",
-        "route 3 naive: either of those two drawn by turn 5",
-        _battlefield_tutor_drawn_t5,
-        5,
-    ),
-    Question(
-        "lantern",
         "lantern-route-b.criteria.toml",
         "Lantern of Insight on the battlefield by turn 5",
         _lantern_on_the_battlefield_by_5,
@@ -2183,15 +2145,6 @@ QUESTIONS: list[Question] = [
         games=100_000,
     ),
     Question(
-        "lantern",
-        "lantern-commander.criteria.toml",
-        "commander cast by turn 4",
-        # { turn = 4, cast = 'name:"Rashmi and Ragavan"', min = 1 }
-        # with 'name:"Rashmi and Ragavan"' the only entry in [casting] prefer
-        _commander_cast_by(4, LANTERN_COMMANDER),
-        4,
-    ),
-    Question(
         "loam",
         "loam-commander.criteria.toml",
         "commander cast by turn 5",
@@ -2215,10 +2168,12 @@ def check_commanders(decks: Path, index: Index) -> None:
 # --- Rocks and dorks in the line (ADR 0018) ----------------------------------
 #
 # The commander and the rocks or dorks, in one line. The lands-only pair beside
-# each is the gate, which is what the same line reads with no source in it; the
-# engine asks that half in the commander files, whose line names only the
-# commander, and the rock half in files of their own, because naming a rock in
-# a line moves every number that line answers.
+# Loam's is the gate, which is what the same line reads with no source in it;
+# the engine asks that half in loam-commander.criteria.toml, whose line names
+# only the commander, and the rock half in files of their own, because naming
+# a rock in a line moves every number that line answers. Lantern's lands-only
+# half was lantern-commander.criteria.toml, folded into the north star (#100),
+# whose line asks the commander beside everything else it pays for.
 
 RASHMI, BORBORYGMOS = LANTERN_COMMANDER[0], LOAM_COMMANDER[0]
 # The commander first, then the rocks: cast Rashmi the moment the pool pays,
@@ -2245,17 +2200,6 @@ LINE_GAMES = 100_000
 
 ROCK_QUESTIONS: list[Question] = (
     [
-        Question(
-            "lantern",
-            "lantern-commander.criteria.toml",
-            f"{RASHMI} castable by turn {t}, lands only",
-            _cast_by(((RASHMI,),), RASHMI, t, 5),
-            5,
-            games=LINE_GAMES,
-        )
-        for t in (4, 5)
-    ]
-    + [
         Question(
             "lantern",
             "lantern-rocks.criteria.toml",
@@ -2338,6 +2282,146 @@ NORTH_STAR_QUESTIONS: list[Question] = [
     )
 ]
 QUESTIONS += NORTH_STAR_QUESTIONS
+
+
+# --- The Lantern north star (#100) --------------------------------------------
+#
+# decks/lantern.criteria.toml: Lantern of Insight on the battlefield and Rashmi
+# and Ragavan cast, by turn N, by the one line and the one land drop the file
+# declares, played by `drop_line_path`. Every route is read from its card: a
+# tutor to hand (`searches_to_hand`), a loyalty ability or a chosen X onto the
+# battlefield (`puts_onto_battlefield`), a transmute (`transmute_finds`), a
+# Saga's chapter III (`chapter_three_puts`) and the Map's activated search
+# (`activated_search`); the rocks are `mana_source`'s.
+#
+# [land_drop] prefer, one entry per kind of land, quoted from the file. A
+# `name:` query is a substring of the card's name, so an entry naming a modal
+# double-faced card's front matches the card; `t:basic` is the type line.
+
+
+def _named_any(*subs: str) -> Callable[[Card], bool]:
+    return lambda c: any(sub in c.name for sub in subs)
+
+
+def _basic_or(name: str, *others: str) -> Callable[[Card], bool]:
+    return lambda c: ("Basic" in c.type_line and name in c.name) or any(o in c.name for o in others)
+
+
+LANTERN_LAND_DROP = LandDrop(
+    (
+        _named_any("Urza's Saga"),
+        _named_any("Ketria Triome"),
+        _named_any("Slagwoods Bridge", "Stomping Ground"),
+        _named_any("Silverbluff Bridge", "Steam Vents", "Training Center", "Turbulent Springs"),
+        _named_any("Breeding Pool", "Hedge Maze", "Rejuvenating Springs", "Turbulent Wilderness"),
+        _named_any("Shatterskull Smashing", "Spikefield Hazard", "Valakut Awakening"),
+        _named_any("Jwari Disruption", "Sea Gate Restoration", "Silundi Vision"),
+        _named_any("Bala Ged Recovery", "Shifting Woodland"),
+        _named_any("Maze of Ith"),
+        _named_any("Misty Rainforest", "Prismatic Vista", "Scalding Tarn", "Wooded Foothills"),
+        _named_any("Volcanic Island"),
+        _named_any("Tropical Island"),
+        _named_any("Taiga"),
+        _basic_or("Island", "Otawara, Soaring City", "Seat of the Synod"),
+        _basic_or("Mountain"),
+        _basic_or("Forest", "Boseiju, Who Endures"),
+        _named_any("Academy Ruins", "Castle Doom", "Darksteel Citadel", "Inventors' Fair", "Spire of Industry"),
+    )
+)
+SAGA, MAP = "Urza's Saga", "Expedition Map"
+FABRICATE, CAPTAIN = "Fabricate", "Tezzeret, Cruel Captain"
+# [casting] prefer, the hand tutors' entry in decklist order.
+LANTERN_LINE: Line = (
+    (LANTERN,),
+    ("Sol Ring",),
+    (RASHMI,),
+    (WHIR,),
+    (TEZZERET,),
+    (FABRICATE, CAPTAIN, TRINKET),
+    (DIZZY,),
+    (MAP,),
+    ("Arcane Signet",),
+    ("Talisman of Creativity",),
+    ("Talisman of Curiosity",),
+    ("Talisman of Impulse",),
+    ("Mind Stone",),
+)
+LANTERN_ROUTES = dict(
+    fetches={
+        TRINKET: (LANTERN,),
+        FABRICATE: (LANTERN,),
+        CAPTAIN: (LANTERN,),
+        DIZZY: (LANTERN,),
+        MAP: (SAGA,),
+    },
+    puts={WHIR: (LANTERN,), TEZZERET: (LANTERN,)},
+    modes={DIZZY: TRANSMUTE, WHIR: x_is(1)},
+    chapters={SAGA: (LANTERN,)},
+)
+LANTERN_TURNS = 7
+# Turn 7, and two cards deeper for the Saga and the Lantern a search can take
+# out from under the draws.
+LANTERN_DEPTH = LANTERN_TURNS + 2
+
+
+def _lantern_star(holds: Callable[[LinePath], bool]) -> Callable[[Game], bool]:
+    """A question of the north-star line, played once per game through turn 7:
+    what a line did by turn N does not depend on the turns after it."""
+    return lambda g: holds(
+        drop_line_path(g, LANTERN_LINE, LANTERN_TURNS, LANTERN_LAND_DROP, **LANTERN_ROUTES)
+    )
+
+
+def _lantern_star_by(turn: int) -> Callable[[Game], bool]:
+    # { turn = N, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }
+    # { turn = N, cast = 'name:"Rashmi and Ragavan"', min = 1 }
+    return _lantern_star(lambda p: p.on_battlefield_by(LANTERN, turn) and p.cast_by(RASHMI, turn))
+
+
+LANTERN_STAR_QUESTIONS: list[Question] = [
+    Question(
+        "lantern",
+        "lantern.criteria.toml",
+        "north star: Lantern of Insight on the battlefield and Rashmi and Ragavan cast, "
+        f"by turn {t}",
+        _lantern_star_by(t),
+        LANTERN_DEPTH,
+        games=LINE_GAMES,
+    )
+    for t in (4, 5, 6, 7)
+] + [
+    Question(
+        "lantern",
+        "lantern.criteria.toml",
+        "north star, Lantern half: Lantern of Insight on the battlefield by turn 5",
+        # { turn = 5, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }
+        _lantern_star(lambda p: p.on_battlefield_by(LANTERN, 5)),
+        LANTERN_DEPTH,
+        games=LINE_GAMES,
+    ),
+    Question(
+        "lantern",
+        "lantern.criteria.toml",
+        "north star, commander half: Rashmi and Ragavan cast by turn 5",
+        # { turn = 5, cast = 'name:"Rashmi and Ragavan"', min = 1 }
+        _lantern_star(lambda p: p.cast_by(RASHMI, 5)),
+        LANTERN_DEPTH,
+        games=LINE_GAMES,
+    ),
+    Question(
+        "lantern",
+        "lantern.criteria.toml",
+        "north star line: Lantern of Insight hard-cast by turn 5",
+        # { turn = 5, cast = 'name:"Lantern of Insight"', min = 1 }
+        _lantern_star(lambda p: p.cast_by(LANTERN, 5)),
+        LANTERN_DEPTH,
+        games=LINE_GAMES,
+    ),
+]
+QUESTIONS += LANTERN_STAR_QUESTIONS
+# A deal counts its hits by question name, so a name is asked once per deck;
+# compare.py holds each to the answer of the file the question names.
+assert len({(q.deck, q.name) for q in QUESTIONS}) == len(QUESTIONS), "a name asked twice"
 
 
 # --- Running ------------------------------------------------------------------

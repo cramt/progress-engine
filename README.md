@@ -138,8 +138,8 @@ row's own narrowing:
 | `loam.txt`, the same clause | 18 / 2,018,478,528 | 5 / 41,250 | **sampled**, 0.81s | **exact**, 0.25s |
 
 The first two rows are what narrowing looks like once a file asks the question it exists for
-rather than a proxy for it. `lantern.criteria.toml` is the Lantern north star written as a
-union of four routes, eleven of whose fourteen branches price a cost, and no narrowing gets
+rather than a proxy for it. `lantern.criteria.toml` was then the Lantern north star written as a
+union of four routes (it is one line now, [#100](https://github.com/cramt/progress-engine/issues/100)), eleven of whose fourteen branches price a cost, and no narrowing gets
 that under the ceiling: it is over 7,000 times over. (It was 12 groups until Artificer's
 Intuition's discard became a `t:artifact` clause; the *Before* column predates that.) What #31 buys there is **the other
 thirteen questions in the file**, which are enumerated exactly and cost between 8 and 122,880
@@ -735,6 +735,25 @@ inside one entry goes to the deeper look — so a list that does not mention you
 surveil land still fires the surveil — and then to the card your decklist names
 first.
 
+> **Two things measured about that tie, and one of them is a known gap**
+> ([#100](https://github.com/cramt/progress-engine/issues/100)), found by
+> holding the engine to `checker/` on small decks. A look that routes nothing —
+> a surveil land in a file that declares no `to_graveyard`, whose card stays on
+> top — is no deeper than no look, and breaks no tie: Hedge Maze in
+> `decks/lantern.txt` is played in decklist order. And where one entry holds
+> lands that make different mana, the engine breaks the tie by **land group**
+> rather than by card: lands that make the same mana the same way are one
+> group, ranked where the first of them sits in the list. With Training
+> Center, Tropical Island and Turbulent Springs in one entry, Turbulent Springs
+> — the same `{U}{R}` tapped land as Training Center — is played before
+> Tropical Island, where the rule above plays Tropical Island. On the whole
+> Lantern deck, *Saga, then every tapped land, then any land* reads the north
+> star at 29.43% / 35.87% where the stated rule reads about 29.8% / 36.2%. It
+> is the unsoundness `a_declared_priority_is_not_allowed_to_merge_two_lands_it_ranks_apart`
+> guards against for palettes, one step further, and it is filed rather than
+> fixed. A list with one kind of land per entry, as
+> `decks/lantern.criteria.toml` declares, is not affected.
+
 This is the same mechanism as mulligan bottoming
 ([#7](https://github.com/cramt/progress-engine/issues/7)) and selection routing:
 a declared priority over queries, evaluated against counts. There is not a
@@ -934,13 +953,15 @@ the command zone, and so does the JSON, as `casting.from_command_zone`.
 HANDS.md hand 37 is the worked case — twelve lands of the right colours cast
 `{1}{G}{U}{R}` on turn 4 and not turn 3, and twelve Forests put four lands in
 play on turn 4 and never cast it. On the decks, from
-`decks/lantern-commander.criteria.toml` and `decks/loam-commander.criteria.toml`:
+`decks/loam-commander.criteria.toml` and, for Rashmi, the file that asked it
+until the Lantern north star folded it in (`lantern-commander.criteria.toml`,
+last run at e1a49e4; [#100](https://github.com/cramt/progress-engine/issues/100)):
 
 | Commander cast by | Rashmi and Ragavan (`lantern.txt`), play / draw | Borborygmos and Fblthp (`loam.txt`), play / draw |
 |---|---|---|
-| turn 4 | 38.54% / 47.42% | — (five mana) |
-| turn 5 | 48.62% / 56.87% | 51.99% / 62.10% |
-| turn 6 | 56.74% / 64.15% | 62.16% / 70.85% |
+| turn 4 | 42.50% / 51.49% | — (five mana) |
+| turn 5 | 53.01% / 61.30% | 51.99% / 62.10% |
+| turn 6 | 61.49% / 68.68% | 62.16% / 70.85% |
 | turn 7 | | 70.84% / 78.04% |
 
 All **sampled**, ± 0.11 each, and that is width rather than choice: a
@@ -953,12 +974,14 @@ paragraph but one), Rashmi's Treasure does not pay, and a land whose
 tapped-ness is the pilot's choice is assumed tapped.
 
 **Why those questions are files of their own.** One pool is one accounting: a
-`can_cast` beside a line asks what the line left. Declared in
-`decks/lantern.criteria.toml`, the commander line would reprice every route in
-it as *after the commander was paid for* — route 1's control, `{1}` payable by
-turn 5, reads 93.4% beside it and 99.6% without — which is a different question
-from the one that file asks. The north star is both halves at once, and that
-wants a line naming both: for Loam that is `decks/loam.criteria.toml`
+`can_cast` beside a line asks what the line left. Declared in the old
+`decks/lantern.criteria.toml`, a union of gates, the commander line would have
+repriced every route in it as *after the commander was paid for* — route 1's
+control, `{1}` payable by turn 5, read 93.4% beside it and 99.6% without. The
+north star is both halves at once, and that wants a line naming both: for
+Lantern that is `decks/lantern.criteria.toml`
+([the Lantern north star, as one line](#the-lantern-north-star-as-one-line)),
+and for Loam `decks/loam.criteria.toml`
 ([The Loam north star](#the-loam-north-star-one-line)), where the commander is
 cast by turn 5 on 52.11% / 59.10% of games, dorks and all, beside everything
 else the line spends its lands on. (The Loam column above was re-read from
@@ -1007,7 +1030,8 @@ and the JSON carries it as `casting.sources` (card, `adds`, `makes`, `waits`),
 
 On the decks, from `decks/lantern-rocks.criteria.toml`,
 `decks/lantern-rocks-first.criteria.toml` and `decks/loam-rocks.criteria.toml`,
-beside the lands-only answers the commander files give:
+beside the lands-only answers the commander files give (Rashmi's from the
+folded `lantern-commander.criteria.toml`, as above):
 
 | Commander cast by, play / draw | lands only | the commander, then the rocks | the rocks, then the commander |
 |---|---|---|---|
@@ -1875,10 +1899,11 @@ On `decks/lantern.txt`, exact, in 0.05s:
 
 Checkable by hand — one Saga and one Lantern in 99, so on the play by turn 5 it
 is (7 × 90 + 89 + 88) / (99 × 98). `decks/lantern-route-c.criteria.toml` is
-this question on its own; `decks/lantern.criteria.toml` writes the same route as
-clauses with no effect declared, because declaring a land drop there would
-change what its other routes read, and the two agree to the last digit. HANDS.md
-hand 17 works it on a sixteen-card deck.
+this question on its own; `decks/lantern.criteria.toml` wrote the same route as
+clauses with no effect declared until it became one line (#100), and the two
+agree to the last digit — the clause phrasing is kept as a test fixture,
+`saga-gates.criteria.toml`, asked of the real list. HANDS.md hand 17 works it on
+a sixteen-card deck.
 
 What it does not model: the Saga surviving two turns of an opponent, chapter
 III's other targets, and the shuffle — a card an earlier surveil left on top
@@ -2043,6 +2068,53 @@ with more routes in the line for Intuition to overlap with. A discard can split
 the path, so the run counts the walk before it samples. That takes about 60s a
 seat where the file took 2s, as `loam-cast.criteria.toml` pays for its
 discards.
+
+### The Lantern north star, as one line
+
+`decks/lantern.criteria.toml` is the north star as its owner defines it
+([#100](https://github.com/cramt/progress-engine/issues/100); CONTEXT.md,
+*North star*): **Lantern of Insight on the battlefield and Rashmi and Ragavan
+cast, by turn N**, by any line the pilot's own cards allow, out of one mana
+budget, with the opponents out of scope. Each turn is one criterion of two
+clauses, and every route to the Lantern is the effect that is the route rather
+than a clause standing in for it: the Lantern cast; Trinket Mage, Fabricate and
+Tezzeret, Cruel Captain to hand; Whir of Invention at X = 1 and Tezzeret the
+Seeker onto the battlefield; Dizzy Spell's transmute; Urza's Saga's chapter III;
+Expedition Map for the Saga. The rocks of ADR-0018 are in the same line.
+
+| On `decks/lantern.txt` | play | draw |
+|---|---|---|
+| north star by turn 4 | 7.12% ± 0.06 | 9.35% ± 0.07 |
+| north star by turn 5 | **31.09% ± 0.10** | **38.18% ± 0.11** |
+| north star by turn 6 | 44.02% ± 0.11 | 52.01% ± 0.11 |
+| north star by turn 7 | 52.22% ± 0.11 | 59.48% ± 0.11 |
+| the Lantern half alone, turn 5 | 49.68% ± 0.11 | 55.99% ± 0.11 |
+| the commander half alone, turn 5 | 61.63% ± 0.11 | 68.31% ± 0.10 |
+
+Sampled: each turn is a class of 33 groups, 18,240,576,187,977 compositions at
+turn 5 on the play, about 6 seconds a seat. No bound: the owner chooses one,
+and its turn, from the curve.
+
+**The line** casts the Lantern first, then Sol Ring (which pays for what follows
+it the same turn), then Rashmi the moment the pool pays, then the tutors — the
+two that land the Lantern, then the three-mana hand tutors, then Dizzy Spell —
+then the Map, then the two-mana rocks. Where the commander sits is the one
+choice that measurably moves the answer: behind every tutor it costs 3.8 points
+on the play and 5.5 on the draw. **The land drop** plays the Saga the moment it
+is held, then the lands that enter tapped, then the untapped ones, most colours
+first within each, one kind of land per entry; tapped-first is worth
+five to six points over playing any land after the Saga. The file lists both
+choices against the alternatives it was measured beside, and everything it
+does not model with the direction each moves the number — Artificer's
+Intuition (#99), digging, the three refused tutors, improvise, the Treasure and
+the pilot adapting all make it a floor.
+
+It is not the number the file used to report. That was *a line that resolves
+Lantern of Insight by turn 5*, 47.10% / 54.34%: no commander, lands only, and
+every gate reading the lands in whichever order suited it. `checker/` plays the
+new line and land drop from the rules a turn at a time (`drop_line_path`, held
+to HANDS.md hands 12, 17 and 42 by `checker/test_land_drop.py`) and holds every
+turn of the curve, both seats, to the engine's answer.
 
 ### Mulligans
 
@@ -2961,6 +3033,22 @@ each; `checker/test_discards.py` holds HANDS.md hands 21 to 24 against it, and
 `compare.py` holds `decks/loam.criteria.toml`, the Loam north star, against it
 on both seats and at every turn it asks, with the commander, the dorks and
 Lumra's mill in the line (`checker/test_north_star.py` pins those three).
+
+A file that declares **a land drop** is played by a second model,
+`drop_line_path`, because `line_path` pays from the gate's lands — whichever
+would pay — which is the reading only of a file that declares none. It plays
+one land a turn, chosen by the file's `[land_drop]` list as README states it
+(first entry held wins, a tie to the card the decklist names first, a look
+that routes nothing breaking no tie), pays the line out of the lands it played
+and the rocks it cast, fires Urza's Saga's chapter III two turns after the drop
+and sacrifices it (CR 714), and activates Expedition Map for the Saga (CR 602,
+118.3), before the drop when the Saga is what the drop would play. Each route
+is read from its card's text: a tutor to hand, a loyalty ability or a chosen X
+onto the battlefield, a transmute. `checker/test_land_drop.py` holds it to
+HANDS.md hands 12, 17 and 42 exactly, and `compare.py` holds the Lantern north
+star — every turn of its curve, its two halves and the hard-cast Lantern, both
+seats — to it. `compare.py` reads each question's answer from the file the
+question names, so two files may ask questions of the same name.
 
 A question the engine cannot answer yet is marked `pending="#NN"` in
 `QUESTIONS`: `compare.py` reports the checker's number, on `--pending-games`
