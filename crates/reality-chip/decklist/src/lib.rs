@@ -6,6 +6,8 @@
 //! validate at 100 cards and then deal a different 100."* `scryfall check` and
 //! `scryfall play` now both shell out to `gauntlet parse`.
 
+pub mod deck;
+
 use std::num::NonZeroU32;
 use std::sync::OnceLock;
 

@@ -126,6 +126,7 @@ name = "chip-decklist"
 version = "0.1.0"
 dependencies = [
  "facet",
+ "facet-toml",
  "regex",
  "thiserror",
 ]
