@@ -9,6 +9,8 @@
 //! `web/src/deck.gen.ts` is generated from them; the test at the bottom fails
 //! when it is stale and rewrites it under `UPDATE_TS=1`.
 
+use std::collections::HashMap;
+
 use chip_decklist::deck::{self, CategoryType, Deck};
 use chip_decklist::{changelog, edit};
 use facet::Facet;
@@ -181,11 +183,73 @@ pub fn parse_deck(text: &str) -> String {
     facet_json::to_string(&parse_deck_text(text)).expect("Parsed serialises")
 }
 
-/// Archidekt's text export as `.deck.toml`, each printing's name written
-/// beside it as a comment from the name Archidekt gave it.
+/// A line of pasted Archidekt text the import could not carry over whole.
+#[derive(Debug, Facet)]
+pub struct Unreadable {
+    /// 1-based, counting every line of the pasted text.
+    pub line: u32,
+    pub text: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum Imported {
+    /// The deck as `.deck.toml`, and every line that did not make it in whole.
+    Imported {
+        toml: String,
+        unreadable: Vec<Unreadable>,
+    },
+    /// Nothing usable came out: no line was a card.
+    Refused { message: String },
+}
+
+pub fn import_archidekt_text(text: &str) -> Imported {
+    let imported = Deck::read_archidekt(text);
+    let unreadable: Vec<Unreadable> = imported
+        .unreadable
+        .iter()
+        .map(|u| Unreadable {
+            line: u32::try_from(u.line).unwrap_or(u32::MAX),
+            text: u.text.clone(),
+            reason: u.reason.clone(),
+        })
+        .collect();
+    if imported.deck.cards.is_empty() {
+        return Imported::Refused {
+            message: match imported.unreadable.first() {
+                None => "there are no cards in the text".into(),
+                Some(u) => format!("no line was a card, starting with {u}"),
+            },
+        };
+    }
+    Imported::Imported {
+        toml: imported.to_toml(),
+        unreadable,
+    }
+}
+
+/// JSON of [`Imported`]: pasted Archidekt text as `.deck.toml`, read the way
+/// Archidekt reads it, each printing's name written beside it as a comment,
+/// and every line that could not be carried over with the reason.
 #[wasm_bindgen]
-pub fn import_archidekt(text: &str) -> Result<String, JsError> {
-    deck::import_archidekt(text).map_err(|e| JsError::new(&e.to_string()))
+pub fn import_archidekt(text: &str) -> String {
+    facet_json::to_string(&import_archidekt_text(text)).expect("Imported serialises")
+}
+
+/// The deck as Archidekt text, names only. `names` is JSON of
+/// `{ "set/num": "Card Name" }` for the cards the file names by printing, which
+/// the file itself does not name; the browser has them from Scryfall. Throws,
+/// listing them, when a printing has no name.
+#[wasm_bindgen]
+pub fn export_archidekt(text: &str, names: Option<String>) -> Result<String, JsError> {
+    let names: HashMap<String, String> = match names.as_deref() {
+        None | Some("") => HashMap::new(),
+        Some(json) => facet_json::from_str(json)
+            .map_err(|e| JsError::new(&format!("names are not {{\"set/num\": name}}: {e}")))?,
+    };
+    deck::export_archidekt(text, &names).map_err(|e| JsError::new(&e.to_string()))
 }
 
 /// `text` with card `index`'s categories replaced by `categories` (JSON of
@@ -311,6 +375,7 @@ mod tests {
         let mut g = facet_typescript::TypeScriptGenerator::new();
         g.add_type::<Parsed>();
         g.add_type::<NewCard>();
+        g.add_type::<Imported>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",
@@ -333,14 +398,56 @@ mod tests {
 
     #[test]
     fn an_archidekt_import_names_each_printing_in_a_comment() {
-        let text = import_archidekt("1x Rashmi and Ragavan (moc) 94 [Commander{top}]\n").unwrap();
+        let Imported::Imported { toml, unreadable } =
+            import_archidekt_text("1x Rashmi and Ragavan (moc) 94 [Commander{top}]\n")
+        else {
+            panic!("refused");
+        };
+        assert!(unreadable.is_empty());
         assert!(
-            text.contains(r#"{ printing = "moc/94", in = ["Commander"] },  # Rashmi and Ragavan"#),
-            "{text}"
+            toml.contains(r#"{ printing = "moc/94", in = ["Commander"] },  # Rashmi and Ragavan"#),
+            "{toml}"
         );
         assert!(
-            text.contains(r#"Commander = { type = "commander" }"#),
-            "{text}"
+            toml.contains(r#"Commander = { type = "commander" }"#),
+            "{toml}"
+        );
+    }
+
+    #[test]
+    fn an_archidekt_import_lists_every_line_it_could_not_read() {
+        let json = import_archidekt("1x Sol Ring [Ramp]\nnot a card\n");
+        assert!(json.starts_with(r#"{"kind":"imported","#), "{json}");
+        assert!(
+            json.contains(r#""unreadable":[{"line":2,"text":"not a card","reason":"#),
+            "{json}"
+        );
+    }
+
+    #[test]
+    fn an_archidekt_import_with_no_card_is_refused() {
+        let Imported::Refused { message } = import_archidekt_text("nothing\n") else {
+            panic!("imported nothing");
+        };
+        assert!(message.contains("line 1"), "{message}");
+        assert!(matches!(
+            import_archidekt_text(""),
+            Imported::Refused { .. }
+        ));
+    }
+
+    #[test]
+    fn an_archidekt_export_names_printings_from_the_map_it_is_given() {
+        let text = "cards = [{ printing = \"moc/94\", in = [\"Commander\"] }]\n[categories]\nCommander = { type = \"commander\" }\n";
+        let out = export_archidekt(text, Some(r#"{"moc/94":"Rashmi and Ragavan"}"#.into()));
+        assert_eq!(
+            out.ok().as_deref(),
+            Some("1x Rashmi and Ragavan [Commander{top}]\n")
+        );
+        let named = "cards = [{ name = \"Sol Ring\" }]\n";
+        assert_eq!(
+            export_archidekt(named, None).ok().as_deref(),
+            Some("1x Sol Ring\n")
         );
     }
 

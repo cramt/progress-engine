@@ -154,6 +154,12 @@ card counted toward Size.
 
 ## Where chip-decklist reads Archidekt differently
 
+*Since [#114](https://github.com/cramt/progress-engine/issues/114) it no longer
+does: `crates/reality-chip/decklist/src/archidekt.rs` reads the first category
+only, and `tests/archidekt.rs` pins every row of both tables. `Attractions{noDeck}`
+and `Sticker Sheet{noDeck}` now read back as their own types. What follows is
+the state this research found.*
+
 `Deck::from_archidekt` and `Entry::is_commander`/`is_outside`
 (`crates/reality-chip/decklist/src/{deck,lib}.rs`) type a category by name
 prefix (`commander`, `companion`, `sideboard`, `maybe`, case-insensitive) or

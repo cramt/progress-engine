@@ -50,6 +50,7 @@ export interface CardViewProps {
   onDecrease?: () => void;
   /** Makes the card itself draggable, for a card with no draggable container. */
   onDragStart?: (e: DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: () => void;
 }
 
 /**
@@ -71,6 +72,7 @@ export function CardView({
   onIncrease,
   onDecrease,
   onDragStart,
+  onDragEnd,
 }: CardViewProps) {
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const openMenu = (x: number, y: number) => {
@@ -108,6 +110,7 @@ export function CardView({
       }}
       draggable={onDragStart ? true : undefined}
       onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
     >
       {image ? (
         <img src={image} alt={name} loading="lazy" draggable={false} />

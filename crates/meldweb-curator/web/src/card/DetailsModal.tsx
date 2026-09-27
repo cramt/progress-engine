@@ -77,6 +77,8 @@ export function DetailsModal(props: DetailsModalProps) {
     onRemember(printingId(p), {
       name: p.name,
       image: p.image ?? "",
+      // Every printing of a card shares its colour identity.
+      colorIdentity: printing?.colorIdentity ?? [],
       ...(uri ? { prints: uri } : {}),
     });
     onEdit((t) => setCardPrinting(t, card.index, p.set, p.num));

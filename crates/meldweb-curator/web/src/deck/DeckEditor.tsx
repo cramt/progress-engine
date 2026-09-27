@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { renderCardResult } from "../card/searchResult";
 import { useCardEditor } from "../card/useCardEditor";
 import { declareCategory, parseDeck, setCardCategories } from "../deck";
 import type { GitHubApi, RepoRef } from "../github/api";
@@ -7,7 +8,10 @@ import { deckStem } from "../github/decks";
 import { deckText } from "../github/deckText";
 import { createSaveStore, type SaveState } from "../github/save";
 import { useSave } from "../github/useSave";
+import { addByName } from "../quickadd/addByName";
+import { type AddByName, QuickAdd } from "../quickadd/QuickAdd";
 import type { Printings } from "../scryfall";
+import { SearchButton, SearchOverlay } from "../search/SearchOverlay";
 import { dropOnto } from "./move";
 import { type OnDrop, StacksView } from "./StacksView";
 import { Toolbar, UndoRedo } from "./Toolbar";
@@ -100,6 +104,7 @@ export function DeckEditor({
     edit: history.edit,
     refuse: setRefusal,
   });
+  const [searching, setSearching] = useState(false);
 
   const [store] = useState(() =>
     createSaveStore({ api, repo, path, text: loaded, sha, deckText }),
@@ -157,6 +162,18 @@ export function DeckEditor({
     }
   };
 
+  // Quick add and the search overlay add one copy of a card, undoably.
+  const onAdd: AddByName = (name, category) => {
+    try {
+      history.edit(
+        addByName(history.present, parsed.cards, printings, name, category),
+      );
+      setRefusal(null);
+    } catch (e) {
+      setRefusal(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const reload = async () => {
     try {
       history.reset(await store.reload());
@@ -178,6 +195,8 @@ export function DeckEditor({
           </>
         }
         count={parsed.total}
+        search={<SearchButton onClick={() => setSearching(true)} />}
+        quickAdd={<QuickAdd categories={parsed.categories} onAdd={onAdd} />}
         status={
           <span
             className={`save-status save-${save.status}`}
@@ -219,6 +238,17 @@ export function DeckEditor({
             ×
           </button>
         </p>
+      )}
+      {searching && (
+        <SearchOverlay
+          cards={parsed.cards}
+          printings={printings}
+          format={parsed.format}
+          categories={parsed.categories}
+          onAdd={onAdd}
+          renderResult={renderCardResult}
+          onClose={() => setSearching(false)}
+        />
       )}
       <details className="source">
         <summary>The file</summary>

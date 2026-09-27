@@ -2967,8 +2967,17 @@ Notes:
 - **Malformed lines are errors, not silences.** A line that cannot be parsed names itself and
   its line number. The predecessor to this parser dropped them quietly, so a typo surfaced much
   later as a mysteriously wrong card total.
-- `Commander` and `Companion`/`Sideboard`/`Maybeboard`/`{noDeck}` are matched **per category**,
-  so `[Ramp,Commander{top}]` is still your commander.
+- **A card is placed by its first category alone, as Archidekt places it**
+  ([archidekt-import-shapes.md](docs/research/archidekt-import-shapes.md)).
+  `{top}` on that category makes the card a commander; `{noDeck}` on it, or
+  the exact names `Sideboard` and `Maybeboard`, take it out of the deck. So
+  `[Commander]` without `{top}`, `[Ramp,Commander{top}]`, `[Removal,Sideboard]`,
+  `[sideboard]` and `[Companion]` are all in the deck, because Archidekt counts
+  them there. `# Heading` lines give the cards below them that category first,
+  and `# Commander` is a commander heading by itself.
+- **Importing into a `.deck.toml`** types a category only where it comes first
+  on some line. A card that lists a typed category later, where Archidekt
+  ignores it, comes in without it, and the import names the line.
 - **`outside` is a fact about the decklist, not about the cards.** It is what the
   list says — companions, sideboards, `{noDeck}` — and that is all `parse` can
   know, having no card index. A sticker sheet is outside the library too, but
@@ -3139,7 +3148,7 @@ owns them:
 ```
 crates/ichormoon-gauntlet/{cli,criteria,toml,sim}    this tool
 crates/reality-chip/{scryfall,decklist,stats}        the shared family core
-crates/meldweb-curator/{wasm,web}                    the deck editor: chip-decklist in wasm, and a TypeScript app
+crates/meldweb-curator/{wasm,web,worker}             the deck editor: chip-decklist in wasm, a TypeScript app, and its login worker
 ```
 
 `reality-chip` is the part a sibling tool depends on, kept in its own directory

@@ -1,9 +1,14 @@
 import type { Card, CardRef } from "./deck";
+import { API, SEARCH_GATE, scryfallFetch } from "./scryfallQueue";
 
-/** What the editor needs of a Scryfall card: a picture of it. */
+/**
+ * What the editor needs of a Scryfall card: a picture of it, and its colour
+ * identity (as Scryfall's letters, `W U B R G`) for the search's smart filters.
+ */
 export interface Printing {
   name: string;
   image: string;
+  colorIdentity: readonly string[];
   /** Scryfall's search for every printing of the card, when it gave one. */
   prints?: string;
 }
@@ -30,9 +35,9 @@ const BATCH = 75;
 
 /**
  * Scryfall allows `/cards/collection` 2 requests a second, so a batch starts
- * no sooner than this after the one before it has answered.
+ * no sooner than this after the one before it, through the search queue.
  */
-export const COLLECTION_INTERVAL_MS = 500;
+export const COLLECTION_INTERVAL_MS = SEARCH_GATE.intervalMs;
 
 /**
  * Looks up every card's printing in as few requests as Scryfall allows.
@@ -47,19 +52,23 @@ export async function fetchPrintings(
   ];
   const found = new Map<string, Printing>();
   for (let i = 0; i < wanted.length; i += BATCH) {
-    if (i > 0) await new Promise((r) => setTimeout(r, COLLECTION_INTERVAL_MS));
     const batch = wanted.slice(i, i + BATCH);
-    const response = await fetch("https://api.scryfall.com/cards/collection", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifiers: batch.map(identifier) }),
-    });
+    const response = await scryfallFetch(
+      SEARCH_GATE,
+      `${API}/cards/collection`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifiers: batch.map(identifier) }),
+      },
+    );
     if (!response.ok) throw new Error(`Scryfall answered ${response.status}`);
     for (const card of parseCollection(await response.json())) {
       const byPrinting = `${card.set}/${card.collector_number}`;
       const printing: Printing = {
         name: card.name,
         image: card.image,
+        colorIdentity: card.colorIdentity,
         ...(card.prints ? { prints: card.prints } : {}),
       };
       found.set(byPrinting, printing);
@@ -79,6 +88,7 @@ interface CollectionCard {
   set: string;
   collector_number: string;
   image: string;
+  colorIdentity: string[];
   prints?: string;
 }
 
@@ -110,6 +120,9 @@ function parseCollection(json: unknown): CollectionCard[] {
         set: c.set.toLowerCase(),
         collector_number: c.collector_number.toLowerCase(),
         image,
+        colorIdentity: Array.isArray(c.color_identity)
+          ? c.color_identity.filter((x): x is string => typeof x === "string")
+          : [],
         ...(typeof c.prints_search_uri === "string"
           ? { prints: c.prints_search_uri }
           : {}),
