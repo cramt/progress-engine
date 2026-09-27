@@ -43,6 +43,21 @@ This is Expedition Map for Urza's Saga, and it composes with the Saga's delayed 
 
 **4. Artificer's Intuition is an activation whose cost discards.** Once the third decision and ADR-0017's discard both exist, Intuition is `on = "activate"`, `cost = "{U}"`, and a discard of one artifact card chosen by the file's `[discard] prefer`, the one list ADR-0017 made for every claimant on the hand. No list of its own. It is built last of the four because it waits on two tickets, not because it is worth least: it adds 3.10 points on the play after the other three, as much as the Map.
 
+*Built in #99, HANDS.md hand 61.* The discard is written with a cast's keys,
+`discard = 1` and `discard_only = "t:artifact"`, and three things were settled
+while building it.
+
+- A cost is paid only with cards the list names. A forced discard falls back
+  on the cards no entry names; a cost does not, or it would pay with the
+  Lantern it is looking for.
+- The cost has no `{T}`, unlike every other activation here, so Intuition
+  could be activated twice in a turn. It is still activated once a turn. That
+  is a floor, and an exact one for a fetch that names only the Lantern.
+- An activation whose cost discards is never the one paid before the drop.
+
+On `decks/lantern-route-map.criteria.toml` it adds 5.67 points on the play and
+6.29 on the draw.
+
 ## Refused, with the reason and the number
 
 Each is refused by name at the file boundary, as today, and the message carries the number. None is refused as a model; each needs something no other route here needs, and is worth less than what it needs.

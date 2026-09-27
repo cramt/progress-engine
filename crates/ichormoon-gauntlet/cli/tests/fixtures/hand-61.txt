@@ -1,0 +1,11 @@
+// HANDS.md hand 61: Artificer's Intuition discards an artifact and finds the
+// Lantern.
+//
+// Thirteen cards on the play: ten Islands, so every turn has its land, and
+// three spells. Intuition is {1}{U}; {U}, discard an artifact card finds an
+// artifact card with mana value 1 or less and puts it into your hand. Codex
+// Shredder is the artifact card there is to discard.
+10x Island [Land]
+1x Artificer's Intuition [Tutor]
+1x Codex Shredder [Artifact]
+1x Lantern of Insight [Lantern]

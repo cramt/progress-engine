@@ -1216,6 +1216,140 @@ fn an_activation_paid_before_the_drop_agrees_in_both_engines() {
 }
 
 #[test]
+fn an_activation_whose_cost_discards_agrees_in_both_engines() {
+    // HANDS.md hand 61 on a deck wide enough to sample: four Artificer's
+    // Intuitions the line casts for {1}{U} and activates for {U} and an
+    // artifact card from hand, to find the one Lantern. The [discard] list
+    // is one entry naming two kinds of artifact card, six of each, so a
+    // hand holding both is a tie the exact walk prices every way and the
+    // sampler picks off the hand; the Lantern, an artifact the list does not
+    // name, never pays. Ninety-nine cards, twenty-five Islands, on the play to
+    // turn 4.
+    let grouping = Grouping::with_mana(
+        q(&[
+            "intuition",
+            "lantern",
+            "artifact",
+            "shredder",
+            "listed",
+            "land",
+            "<effect intuition>",
+        ]),
+        vec![
+            (
+                0b1000001,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}{U}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                4,
+            ),
+            (
+                0b0000110,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                1,
+            ),
+            (0b0011100, ManaSource::Spell, 6),
+            (0b0010100, ManaSource::Spell, 6),
+            (
+                0b0100000,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                    lasts: None,
+                },
+                25,
+            ),
+            (0b0000000, ManaSource::Spell, 57),
+        ],
+    )
+    .unwrap();
+    let intuition = Effect {
+        matched_by: 6,
+        look: 0,
+        trigger: Trigger::Activate,
+        route: Route::Nowhere,
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to: Fetched::Hand,
+        }),
+        delay: None,
+        draw: 0,
+        mill: None,
+        activation: Some(Activation {
+            cost: Cost::parse("{U}").unwrap().demand(),
+            sacrifice: false,
+        }),
+        discard: Some(Discard {
+            cards: Discards::Exactly(1),
+            at_random: false,
+            only: Some(2),
+        }),
+        untap: 0,
+    };
+    let schedule = Schedule::build(
+        4,
+        false,
+        vec![intuition],
+        Policies {
+            land_drop: Some(LandDropPolicy::new(vec![], 5)),
+            casting: Some(CastingPolicy::new(vec![1, 0])),
+            discard: Some(DiscardPolicy::new(vec![4])),
+            ..Policies::default()
+        },
+    );
+    let at = |turn: usize, query: usize, counted: Counted, min: u32| {
+        Box::new(move |v: &PathView<'_>| v.count_at(turn, query, counted) >= min) as Check
+    };
+    let question = || {
+        let yard = Counted::In(Zone::Graveyard);
+        Closures(vec![
+            at(4, 1, Counted::In(Zone::Battlefield), 1),
+            at(3, 1, Counted::In(Zone::Battlefield), 1),
+            at(4, 3, yard, 1),
+            at(4, 4, yard, 2),
+            at(4, 1, yard, 1),
+            at(4, 0, Counted::Cast, 1),
+        ])
+    };
+    let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(6), &mut question())
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    // The Lantern is never what pays: the list does not name it.
+    assert_eq!(exact[4], 0.0, "{exact:?}");
+    for i in [0, 1, 2, 3, 5] {
+        assert!(
+            exact[i] > 0.01 && exact[i] < 0.99,
+            "question {i} is worth asking: {exact:?}"
+        );
+    }
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        TRIALS,
+        61,
+        only_criteria(6),
+        &mut question(),
+    )
+    .unwrap()
+    .proportions;
+    for (i, (e, s)) in exact.iter().zip(&sampled).enumerate() {
+        let se = standard_error(*s, TRIALS).max(1e-4);
+        assert!(
+            (s - e).abs() < 4.0 * se,
+            "question {i}: sampled {s} vs exact {e} ({}x SE)",
+            (s - e).abs() / se
+        );
+    }
+}
+
+#[test]
 fn a_tutor_billed_at_a_declared_cost_agrees_in_both_engines() {
     // HANDS.md hand 41 on a deck wide enough to sample: a tutor that goes to
     // the graveyard and finds the target to hand, billed at its transmute,

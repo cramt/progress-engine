@@ -135,7 +135,7 @@ What the line bills for playing a card when that is not its printed mana cost: a
 _Avoid_: alternative cost (the rules term, which is narrower), price
 
 **Activation**:
-Paying for an ability of a permanent the line already put onto the battlefield, out of the same turn's pool or a later one's: an effect with `on = "activate"`, whose `cost` is the activation's and whose `sacrifice` takes the permanent out of play, counted nowhere. Ranked by the `[casting]` entry that names the card, at most once per permanent per turn, and after the land drop unless it fetches a land the `[land_drop]` list ranks above every land in hand ([ADR-0019](../../docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)). Expedition Map's `{2}` is one; Tezzeret's loyalty abilities are read as part of his cast. Refused by name on a creature, which would wait out summoning sickness, and on a land.
+Paying for an ability of a permanent the line already put onto the battlefield, out of the same turn's pool or a later one's: an effect with `on = "activate"`, whose `cost` is the activation's and whose `sacrifice` takes the permanent out of play, counted nowhere. Ranked by the `[casting]` entry that names the card, at most once per permanent per turn, and after the land drop unless it fetches a land the `[land_drop]` list ranks above every land in hand ([ADR-0019](../../docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)). Expedition Map's `{2}` is one, and Artificer's Intuition's `{U}` and a discarded artifact card another: a **discard in a cost**, paid before the ability resolves, only with a card `[discard] prefer` names, and without one the permanent is not activated. Tezzeret's loyalty abilities are read as part of his cast. Refused by name on a creature, which would wait out summoning sickness, and on a land.
 _Avoid_: ability (for the payment), activated effect
 
 **Route**:
@@ -223,7 +223,7 @@ Cards moved from the top of the library to the graveyard because the card says s
 Where a card's own text sends the cards it moves, such as the graveyard for a mill or for what Malevolent Rumble does not keep, or the battlefield for the lands Lumra returns. Stated by the effect library. Set against a **chosen destination**, which is the pilot's and is declared by the file.
 
 **Discard**:
-A card moved from hand to the graveyard. The card fixes how many, whether it is at random, and which cards are eligible. The pilot chooses which, with `[discard] prefer`, and a forced discard with no list is refused. A land in play is not in hand, so a discard that could take a land also needs `[land_drop]`: only a declared drop says which lands are still held.
+A card moved from hand to the graveyard. The card fixes how many, whether it is at random, and which cards are eligible. The pilot chooses which, with `[discard] prefer`, and a forced discard with no list is refused. A discard that is part of an activation's cost takes only what the list names. A land in play is not in hand, so a discard that could take a land also needs `[land_drop]`: only a declared drop says which lands are still held.
 _Avoid_: bin, pitch, loot (for the zone move)
 
 **Division**:

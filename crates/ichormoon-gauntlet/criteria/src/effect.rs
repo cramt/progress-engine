@@ -450,6 +450,18 @@ enum Drew {
     Undecided,
 }
 
+/// Whether [`Board::activate`] paid for an activation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Activated {
+    /// Nothing was paid: no copy to activate, or the pool or the hand could
+    /// not pay.
+    No,
+    /// It was paid for and has resolved.
+    Paid,
+    /// Its cost discards, and which cards is a tie the path has not decided.
+    Undecided,
+}
+
 /// The spells of a run whose file declared which ones to cast.
 ///
 /// The budget half of [#10](https://github.com/cramt/progress-engine/issues/10).
@@ -1098,9 +1110,10 @@ impl<'a> Board<'a> {
             fetches: effects.iter().any(|e| e.fetch.is_some()),
             // A discard deals nothing, but which cards it takes can divide the
             // path, and only the sized walk divides.
+            // So does the discard an activation's cost makes.
             sizes: effects.iter().any(|e| {
-                (e.trigger == Trigger::Cast
-                    && (e.draw > 0 || e.mill.is_some() || e.discard.is_some()))
+                e.discard.is_some()
+                    || (e.trigger == Trigger::Cast && (e.draw > 0 || e.mill.is_some()))
                     || (e.trigger.repeats() && e.mill.is_some())
             }),
             next_gap: 0,
@@ -1698,7 +1711,7 @@ impl<'a> Board<'a> {
                         };
                         // A copy the line already put into play first: it
                         // was already bought, and the entry covers both.
-                        if self.activate(
+                        match self.activate(
                             &casting.live_cast,
                             &mut casting.live_gone,
                             &mut casting.tapped,
@@ -1707,7 +1720,12 @@ impl<'a> Board<'a> {
                             group,
                             false,
                         ) {
-                            continue 'line;
+                            Activated::Paid => continue 'line,
+                            Activated::Undecided => {
+                                finished = false;
+                                break 'line;
+                            }
+                            Activated::No => {}
                         }
                         let activates = self.activation_of(group).is_some();
                         // The command zone is always there: a commander is
@@ -1862,6 +1880,14 @@ impl<'a> Board<'a> {
     /// activates only a copy whose fetch goes to hand and finds a land the
     /// declared drop ranks above every land in hand, and pays out of the
     /// sources already in play.
+    ///
+    /// A cost that discards (Artificer's Intuition's "discard an artifact
+    /// card", ADR-0019 §4) is paid only with cards the declared `[discard]`
+    /// list names: the card fixes how many and which may go, the list which
+    /// ones the pilot is willing to pay with, and with too few of those in
+    /// hand the ability is not activated at all (CR 602.2b, 118.3). Such an
+    /// activation is paid after the drop, never before it: which lands are
+    /// still in hand to be discarded is what the drop decides.
     #[allow(clippy::too_many_arguments)]
     fn activate(
         &mut self,
@@ -1872,15 +1898,43 @@ impl<'a> Board<'a> {
         turn: usize,
         group: usize,
         before_drop: bool,
-    ) -> bool {
+    ) -> Activated {
         let Some((effect, activation)) = self.activation_of(group) else {
-            return false;
+            return Activated::No;
         };
         if cast[group] <= gone[group] + tapped[group] {
-            return false;
+            return Activated::No;
         }
-        if before_drop && !self.fetches_the_better_land(effect) {
-            return false;
+        let discard = self.schedule.effects()[effect].discard;
+        if before_drop && (discard.is_some() || !self.fetches_the_better_land(effect)) {
+            return Activated::No;
+        }
+        // The discard's half of the cost: enough cards the list names, and
+        // none it does not.
+        let payable = discard.map(|d| {
+            let eligible = self.eligible(d);
+            let tiers: Vec<Vec<u32>> = self
+                .discard_tiers
+                .iter()
+                .map(|tier| {
+                    let mut sizes = vec![0u32; eligible.len()];
+                    for &g in tier {
+                        sizes[g] = eligible[g];
+                    }
+                    sizes
+                })
+                .collect();
+            let n = match d.cards {
+                Discards::Exactly(n) => n,
+                Discards::AnyNumber => 0,
+            };
+            (tiers, n)
+        });
+        if let Some((tiers, n)) = &payable {
+            let held: u32 = tiers.iter().flatten().sum();
+            if held < *n {
+                return Activated::No;
+            }
         }
         let cost = activation.cost;
         // The count first, as for a cast. Before the drop, this turn's has
@@ -1891,18 +1945,27 @@ impl<'a> Board<'a> {
             self.drops[turn]
         };
         if bill.total() + cost.total() > lands + bill.made_total() {
-            return false;
+            return Activated::No;
         }
         let before = *bill.last();
         *bill.last() = before.plus(cost);
         if !self.can_pay(turn, &bill.stages, &bill.made) {
             *bill.last() = before;
-            return false;
+            return Activated::No;
         }
         if activation.sacrifice {
             gone[group] += 1;
         } else {
             tapped[group] += 1;
+        }
+        // Every part of the cost is paid before the ability resolves, so the
+        // discarded card is gone before the search, and is never the card
+        // the search finds.
+        if let Some((tiers, n)) = payable {
+            self.binned.fill(0);
+            if !self.bin(tiers, n) {
+                return Activated::Undecided;
+            }
         }
         match self.fetch(effect) {
             Some((got, Fetched::Hand)) => self.live_hand[got] += 1,
@@ -1912,7 +1975,7 @@ impl<'a> Board<'a> {
             }
             None => {}
         }
-        true
+        Activated::Paid
     }
 
     /// Whether `effect`'s fetch, to hand, would find a land the declared
@@ -1990,7 +2053,8 @@ impl<'a> Board<'a> {
                         turn,
                         group,
                         true,
-                    ) {
+                    ) == Activated::Paid
+                    {
                         paid = true;
                         continue 'line;
                     }
@@ -2155,17 +2219,7 @@ impl<'a> Board<'a> {
             return Drew::Cards;
         };
         let groups = self.live_hand.len();
-        let masks = self.grouping.group_masks();
-        let eligible: Vec<u32> = (0..groups)
-            .map(|g| {
-                let allowed = discard.only.is_none_or(|q| masks[g] & (1u64 << q) != 0);
-                if allowed {
-                    self.discardable(g)
-                } else {
-                    0
-                }
-            })
-            .collect();
+        let eligible = self.eligible(discard);
         self.binned.fill(0);
         let within = |tier: &[usize]| -> Vec<u32> {
             let mut sizes = vec![0u32; groups];
@@ -2175,7 +2229,7 @@ impl<'a> Board<'a> {
             sizes
         };
         let mut tiers: Vec<Vec<u32>> = Vec::new();
-        let mut left = match (discard.cards, discard.at_random) {
+        let left = match (discard.cards, discard.at_random) {
             (Discards::AnyNumber, _) => {
                 for tier in &self.discard_tiers {
                     for &g in tier {
@@ -2194,6 +2248,20 @@ impl<'a> Board<'a> {
                 n
             }
         };
+        if self.bin(tiers, left) {
+            Drew::Cards
+        } else {
+            Drew::Undecided
+        }
+    }
+
+    /// Discard `left` cards more than `binned` already holds, walking `tiers`
+    /// in order: each tier gives up everything it holds until what is left
+    /// to discard is less than that, and that tier gives up the rest
+    /// uniformly among its cards — the tie, priced. Then everything binned
+    /// leaves the hand for the graveyard. False where the tie is a choice
+    /// the path has not made yet, which is where the walk stops.
+    fn bin(&mut self, tiers: Vec<Vec<u32>>, mut left: u32) -> bool {
         for sizes in tiers {
             if left == 0 {
                 break;
@@ -2207,18 +2275,34 @@ impl<'a> Board<'a> {
                 continue;
             }
             let Some(taken) = self.choose(&sizes, left) else {
-                return Drew::Undecided;
+                return false;
             };
             for (b, t) in self.binned.iter_mut().zip(&taken) {
                 *b += t;
             }
             left = 0;
         }
-        for g in 0..groups {
+        for g in 0..self.live_hand.len() {
             self.live_hand[g] -= self.binned[g];
             self.live_yard[g] += self.binned[g];
         }
-        Drew::Cards
+        true
+    }
+
+    /// Cards of each group in hand a discard may take: those the card lets
+    /// go, less a land in play.
+    fn eligible(&self, discard: Discard) -> Vec<u32> {
+        let masks = self.grouping.group_masks();
+        (0..self.live_hand.len())
+            .map(|g| {
+                let allowed = discard.only.is_none_or(|q| masks[g] & (1u64 << q) != 0);
+                if allowed {
+                    self.discardable(g)
+                } else {
+                    0
+                }
+            })
+            .collect()
     }
 
     /// Fire every landfall in play once for each of `entered` lands: each is

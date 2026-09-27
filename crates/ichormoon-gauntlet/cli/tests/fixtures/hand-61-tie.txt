@@ -1,0 +1,8 @@
+// HANDS.md hand 61 with a tie: an Island traded for Expedition Map, a second
+// artifact card Intuition may discard, which the [discard] list ranks level
+// with Codex Shredder.
+9x Island [Land]
+1x Artificer's Intuition [Tutor]
+1x Codex Shredder [Artifact]
+1x Expedition Map [Artifact]
+1x Lantern of Insight [Lantern]

@@ -1846,6 +1846,39 @@ fn an_activation_declares_what_it_costs_and_whether_it_sacrifices() {
 }
 
 #[test]
+fn an_activation_may_discard_as_part_of_its_cost() {
+    // Artificer's Intuition (ADR-0019 §4): {U}, discard an artifact card. The
+    // discard is written as a cast's is — the card fixes how many and which
+    // cards may go — and `[discard] prefer` chooses among them.
+    let criteria = activating("cost = \"{U}\"\ndiscard = 1\ndiscard_only = \"t:artifact\"")
+        .expect("a discard in an activation's cost should parse");
+    let effect = &criteria.effects().entries()[0];
+    assert_eq!(effect.trigger, Trigger::Activate);
+    assert_eq!(
+        effect.discard,
+        Some(DiscardDecl {
+            cards: Discards::Exactly(1),
+            at_random: false,
+            only: Some("t:artifact".to_string()),
+        })
+    );
+    // A cost is paid by the pilot's choice of card, so it is never at random
+    // and never "any number"; nor does an activation here draw or untap.
+    for extra in [
+        "discard = 1\nat_random = true",
+        "discard_any = true",
+        "draw = 1",
+        "untap = 1",
+    ] {
+        let bad = activating(&format!("cost = \"{{U}}\"\n{extra}")).expect_err(extra);
+        assert!(
+            matches!(bad, ErrorKind::HandMisdeclared { .. }),
+            "{extra}: {bad}"
+        );
+    }
+}
+
+#[test]
 fn an_activation_is_refused_what_it_cannot_do() {
     // Without a cost there is nothing for the line to pay.
     let bad = activating("").expect_err("no cost");

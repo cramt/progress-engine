@@ -1,0 +1,33 @@
+# HANDS.md hand 61, the "discard the Shredder" column. The [casting] entry
+# naming Intuition both casts it for {1}{U} and pays {U} and a discarded
+# artifact card to activate the copy in play. The discard is part of the
+# cost, so with no card [discard] prefer names in hand it is not paid; paid,
+# the Lantern it finds goes to hand, and the line reads again from its top.
+# hand-61-off.criteria.toml is this file without the activation.
+
+[[effect]]
+match = '''name:"Artificer's Intuition"'''
+on = "activate"
+cost = "{U}"
+discard = 1
+discard_only = "t:artifact"
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+
+[discard]
+prefer = ['name:"Codex Shredder"']
+
+[casting]
+prefer = ['name:"Lantern of Insight"', '''name:"Artificer's Intuition"''']
+
+[[criterion]]
+name = "Artificer's Intuition cast by turn 2"
+require = [{ turn = 2, cast = '''name:"Artificer's Intuition"''', min = 1 }]
+
+[[criterion]]
+name = "Lantern on the battlefield by turn 4"
+require = [{ turn = 4, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Codex Shredder in the graveyard by turn 4"
+require = [{ turn = 4, query = 'name:"Codex Shredder"', zone = "graveyard", min = 1 }]

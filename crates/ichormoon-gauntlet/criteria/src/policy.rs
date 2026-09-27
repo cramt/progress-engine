@@ -150,7 +150,8 @@ impl DiscardPolicy {
     /// What a run says about the cards the list does not name.
     pub const THEN: &'static str =
         "a forced discard takes a card this list does not name only after every card it does, \
-         and an \"any number\" discard never takes one";
+         an \"any number\" discard never takes one, and nor does a discard an activation's \
+         cost makes";
 
     /// How a tie inside one entry is settled: as the mulligan's `bottom`
     /// settles one, and for the reason [`MulliganPolicy::TIE_BREAK`] gives.

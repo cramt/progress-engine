@@ -1948,7 +1948,26 @@ fn hand_of(
             "says how a discard is made and has no `discard` or `discard_any` for it to qualify",
         ));
     }
-    if (draw > 0 || discards.is_some() || untap > 0) && trigger != Trigger::Cast {
+    // An activation may discard, and then the discard is part of its cost
+    // (CR 118.3, 602.2b): Artificer's Intuition's "discard an artifact
+    // card". A cost is paid with a card the pilot chooses, so it is a
+    // number of cards and never at random or "any number"; and it is all an
+    // activation here does to the hand (ADR-0019 §4).
+    if trigger == Trigger::Activate {
+        if random || any {
+            return Err(misdeclared(
+                "discards at random or any number of cards on an activation. A discard in an \
+                 activation's cost is paid with cards the pilot chooses, by `[discard] \
+                 prefer`: write `discard = <n>`, with `discard_only` for the cards it may be",
+            ));
+        }
+        if draw > 0 || untap > 0 {
+            return Err(misdeclared(
+                "draws or untaps on an activation. What an activation does here is fetch; \
+                 what it may do to the hand is discard as part of its cost",
+            ));
+        }
+    } else if (draw > 0 || discards.is_some() || untap > 0) && trigger != Trigger::Cast {
         return Err(misdeclared(
             "draws, discards or untaps on a landdrop. What a card does to the hand is what a \
              cast does, written with `on = \"cast\"`",

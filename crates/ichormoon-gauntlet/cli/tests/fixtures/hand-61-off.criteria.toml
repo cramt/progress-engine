@@ -1,0 +1,18 @@
+# HANDS.md hand 61, the "never activated" column: the line casts the Lantern
+# and Intuition, and nothing activates Intuition. hand-61-on.criteria.toml is
+# this file with the activation.
+
+[casting]
+prefer = ['name:"Lantern of Insight"', '''name:"Artificer's Intuition"''']
+
+[[criterion]]
+name = "Artificer's Intuition cast by turn 2"
+require = [{ turn = 2, cast = '''name:"Artificer's Intuition"''', min = 1 }]
+
+[[criterion]]
+name = "Lantern on the battlefield by turn 4"
+require = [{ turn = 4, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Codex Shredder in the graveyard by turn 4"
+require = [{ turn = 4, query = 'name:"Codex Shredder"', zone = "graveyard", min = 1 }]

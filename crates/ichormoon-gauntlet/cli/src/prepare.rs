@@ -544,6 +544,7 @@ fn refuse_undeclared_discards(
             return Err(Refusal::DiscardWithoutPriority {
                 file: origin.to_string(),
                 effect: applied.matches.clone(),
+                activation: applied.on == "activate",
             }
             .into());
         }

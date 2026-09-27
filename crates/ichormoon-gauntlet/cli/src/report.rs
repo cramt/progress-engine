@@ -1283,6 +1283,13 @@ impl Report {
                 }
             }
             match (&e.cost, e.sacrifice.filter(|_| e.on == "activate")) {
+                // A cost that discards is never paid before the drop: which
+                // lands are still in hand is what the drop decides.
+                (Some(cost), Some(sacrifice)) if e.discard.is_some() => out.push_str(&format!(
+                    "      and the [casting] entry naming it pays {cost} to activate a copy it put \
+                     into play{}, once a turn, after the land drop\n",
+                    if sacrifice { ", sacrificing it" } else { "" }
+                )),
                 (Some(cost), Some(sacrifice)) => out.push_str(&format!(
                     "      and the [casting] entry naming it pays {cost} to activate a copy it put \
                      into play{}, once a turn, after the land drop — before it only where what \
@@ -1303,6 +1310,10 @@ impl Report {
                     .as_ref()
                     .map_or(String::new(), |q| format!(" matching {q:?}"));
                 match (e.discard, e.discard_any, e.at_random) {
+                    (Some(n), _, _) if e.on == "activate" => out.push_str(&format!(
+                        "      and discards {n}{only} as part of that cost: only a card the \
+                         [discard] list names pays it, and without one it is not activated\n"
+                    )),
                     (Some(n), _, Some(true)) => out.push_str(&format!(
                         "      then discards {n}{only} at random: the card picks, and no list \
                          moves it\n"

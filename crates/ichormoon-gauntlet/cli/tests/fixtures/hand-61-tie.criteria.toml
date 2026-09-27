@@ -1,0 +1,35 @@
+# HANDS.md hand 61 with a tie: one [discard] entry that names both Codex
+# Shredder and Expedition Map. Holding both, which one pays for Intuition is
+# a tie inside the entry, and each way it can fall is priced.
+
+[[effect]]
+match = '''name:"Artificer's Intuition"'''
+on = "activate"
+cost = "{U}"
+discard = 1
+discard_only = "t:artifact"
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+
+[discard]
+prefer = ['t:artifact -name:"Lantern of Insight"']
+
+[casting]
+prefer = ['name:"Lantern of Insight"', '''name:"Artificer's Intuition"''']
+
+[[criterion]]
+name = "Codex Shredder in the graveyard by turn 4"
+require = [{ turn = 4, query = 'name:"Codex Shredder"', zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "Expedition Map in the graveyard by turn 4"
+require = [{ turn = 4, query = 'name:"Expedition Map"', zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "an artifact card in the graveyard by turn 4"
+
+  [[criterion.any_of]]
+  require = [{ turn = 4, query = 'name:"Codex Shredder"', zone = "graveyard", min = 1 }]
+
+  [[criterion.any_of]]
+  require = [{ turn = 4, query = 'name:"Expedition Map"', zone = "graveyard", min = 1 }]

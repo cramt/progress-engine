@@ -1,0 +1,19 @@
+# HANDS.md hand 61's activation with no [discard] list: which artifact card
+# pays for Intuition is the pilot's, so the run is refused and names the
+# remedy.
+
+[[effect]]
+match = '''name:"Artificer's Intuition"'''
+on = "activate"
+cost = "{U}"
+discard = 1
+discard_only = "t:artifact"
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+
+[casting]
+prefer = ['name:"Lantern of Insight"', '''name:"Artificer's Intuition"''']
+
+[[criterion]]
+name = "Lantern on the battlefield by turn 4"
+require = [{ turn = 4, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]

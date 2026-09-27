@@ -3599,6 +3599,117 @@ fn an_activation_the_sampler_plays_agrees_with_the_enumeration() {
 }
 
 #[test]
+fn artificers_intuition_discards_an_artifact_chosen_by_the_list_and_finds_the_lantern() {
+    // HANDS.md hand 61, all three columns: thirteen cards on the play, ten of
+    // them Islands, so turn t always has t lands. The casting row cannot move:
+    // Intuition is cast by turn 2 when it is among the first eight cards,
+    // unless the Lantern, listed first, is the eighth and takes a mana on
+    // turn 2 — 8/13 - (7/13)(1/12) = 89/156. The Lantern is on the
+    // battlefield by turn 4 when it is among the first ten cards, 10/13, and
+    // the activation adds the deals where it is not and Intuition and the
+    // Shredder both are: (3/13)(10·9)/(12·11) = 45/286, for 265/286. The
+    // Shredder is discarded exactly when both are seen by turn 4, 15/26. With
+    // a list that names no artifact card nothing pays the cost.
+    let columns = [
+        // (file, Intuition by 2, Lantern by 4, Shredder in the graveyard by 4)
+        ("hand-61-off.criteria.toml", 57.05, 76.92, 0.0),
+        ("hand-61-on.criteria.toml", 57.05, 92.66, 57.69),
+        ("hand-61-unlisted.criteria.toml", 57.05, 76.92, 0.0),
+    ];
+    for (file, intuition, lantern, shredder) in columns {
+        let (json, _) = run_tutor_json("hand-61.txt", file, &[]);
+        for (name, want) in [
+            ("Artificer's Intuition cast by turn 2", intuition),
+            ("Lantern on the battlefield by turn 4", lantern),
+            ("Codex Shredder in the graveyard by turn 4", shredder),
+        ] {
+            assert_eq!(percent(&json, name), want, "{file}, {name}");
+        }
+    }
+}
+
+#[test]
+fn a_run_says_a_discard_in_an_activations_cost_is_paid_only_with_what_the_list_names() {
+    let (json, stderr) = run_tutor_json("hand-61.txt", "hand-61-on.criteria.toml", &[]);
+    let intuition = &json["effects"][0];
+    assert_eq!(intuition["on"], "activate", "{json}");
+    assert_eq!(intuition["cost"], "{U}", "{json}");
+    assert_eq!(intuition["discard"], 1, "{json}");
+    assert!(
+        stderr.contains("pays {U} to activate a copy it put into play")
+            && stderr.contains(
+                "and discards 1 matching \"t:artifact\" as part of that cost: only a card the \
+                 [discard] list names pays it, and without one it is not activated"
+            )
+            && stderr.contains("nor does a discard an activation's cost makes"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn a_discard_in_an_activations_cost_with_no_list_is_refused_and_names_the_remedy() {
+    // Which artifact card pays for Intuition is the pilot's. With no list
+    // the activation could never be paid, which is a silent zero, and a
+    // rule nobody wrote would be the tool playing the deck.
+    let out = run_tutor("hand-61.txt", "hand-61-no-list.criteria.toml");
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("Artificer's Intuition")
+            && stderr.contains("to activate it")
+            && stderr.contains("[discard]")
+            && !stderr.contains("when the line casts it"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn a_tie_in_what_pays_for_an_activation_is_priced_every_way_it_can_fall() {
+    // One [discard] entry names the Shredder and the Map alike, so the two
+    // are the same to the pilot and each is discarded as often as the other.
+    // Some artifact card is discarded by turn 4 whenever Intuition is among
+    // the first ten cards and so is one of the two:
+    // (10/13)(1 - (3·2)/(12·11)) = 105/143.
+    let (json, _) = run_tutor_json("hand-61-tie.txt", "hand-61-tie.criteria.toml", &[]);
+    assert_eq!(
+        percent(&json, "an artifact card in the graveyard by turn 4"),
+        73.43
+    );
+    assert_eq!(
+        percent(&json, "Codex Shredder in the graveyard by turn 4"),
+        percent(&json, "Expedition Map in the graveyard by turn 4"),
+    );
+    // Each, 801/1430 (checker/test_intuition.py, over every order): more
+    // than half the either-row, because Intuition is activated again on a
+    // later turn while an artifact card the list names is still in hand.
+    assert_eq!(
+        percent(&json, "Codex Shredder in the graveyard by turn 4"),
+        56.01
+    );
+}
+
+#[test]
+fn a_discard_in_an_activations_cost_the_sampler_plays_agrees_with_the_enumeration() {
+    for (deck, file) in [
+        ("hand-61.txt", "hand-61-on.criteria.toml"),
+        ("hand-61.txt", "hand-61-unlisted.criteria.toml"),
+        ("hand-61-tie.txt", "hand-61-tie.criteria.toml"),
+    ] {
+        let (exact, _) = run_tutor_json(deck, file, &[]);
+        let (sampled, _) = run_tutor_json(deck, file, &["--simulate", "--trials", "20000"]);
+        for criterion in exact["criteria"].as_array().unwrap() {
+            let name = criterion["name"].as_str().unwrap();
+            assert!(
+                (percent(&exact, name) - percent(&sampled, name)).abs() < 1.0,
+                "{file}, {name}: {} exact against {} sampled",
+                percent(&exact, name),
+                percent(&sampled, name)
+            );
+        }
+    }
+}
+
+#[test]
 fn an_activation_on_a_creature_or_a_land_is_refused_by_name() {
     // ADR-0019: a creature's {T} waits out summoning sickness, and a land's
     // ability is paid out of the drop; neither is a tutor it builds.

@@ -1,0 +1,31 @@
+# HANDS.md hand 61, the third column: the same activation beside a [discard]
+# list that names no artifact card. A discard in a cost is paid only with a
+# card the list names, so Intuition is never activated: not with the
+# Shredder, and not with the Lantern it would go and find.
+
+[[effect]]
+match = '''name:"Artificer's Intuition"'''
+on = "activate"
+cost = "{U}"
+discard = 1
+discard_only = "t:artifact"
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+
+[discard]
+prefer = ['t:land']
+
+[casting]
+prefer = ['name:"Lantern of Insight"', '''name:"Artificer's Intuition"''']
+
+[[criterion]]
+name = "Artificer's Intuition cast by turn 2"
+require = [{ turn = 2, cast = '''name:"Artificer's Intuition"''', min = 1 }]
+
+[[criterion]]
+name = "Lantern on the battlefield by turn 4"
+require = [{ turn = 4, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Codex Shredder in the graveyard by turn 4"
+require = [{ turn = 4, query = 'name:"Codex Shredder"', zone = "graveyard", min = 1 }]

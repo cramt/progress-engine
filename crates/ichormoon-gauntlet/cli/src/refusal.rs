@@ -232,8 +232,15 @@ pub enum Refusal {
     /// Frantic Search makes you discard two, and which two is the pilot's.
     /// Settling it by some rule nobody wrote would be the tool playing the
     /// deck, which ADR-0009 refuses for the mulligan and this refuses for the
-    /// hand.
-    DiscardWithoutPriority { file: String, effect: String },
+    /// hand. Artificer's Intuition's cost discards an artifact card, and
+    /// which one is the pilot's in the same way: `activation` says the
+    /// discard is a cost the line pays to activate the card, not something
+    /// a cast makes you do.
+    DiscardWithoutPriority {
+        file: String,
+        effect: String,
+        activation: bool,
+    },
     /// A discard that could take a land, in a run that declared no land drop.
     ///
     /// A land in play is not in hand to be discarded, and which lands are in
@@ -543,16 +550,29 @@ impl Refusal {
                  The list is read in order and the first entry the pool can still pay for is \
                  cast. A spell\n      the list does not name is not cast at all."
             ),
-            Refusal::DiscardWithoutPriority { effect, .. } => write!(
+            Refusal::DiscardWithoutPriority {
+                effect, activation, ..
+            } => write!(
                 f,
-                "effect {effect:?} makes you discard when the line casts it, and this file \
-                 declares no priority\n      over which cards go. Which ones leave your hand is \
-                 a decision this tool will not make\n      for you (ADR-0017).\n      \
+                "effect {effect:?} {}, and this file declares no priority\n      over which cards \
+                 go. Which ones leave your hand is a decision this tool will not make\n      for \
+                 you (ADR-0017).\n      \
                  Declare it, highest priority first:\n\n      \
                  [discard]\n      prefer = ['name:\"Life from the Loam\"', 't:land']\n\n      \
                  A forced discard takes the first entry your hand holds, then the next, and \
                  then the cards\n      no entry names; a tie inside one entry is settled at \
-                 random, and every way it could\n      fall is priced."
+                 random, and every way it could\n      fall is priced.{}",
+                if *activation {
+                    "discards as part of what the line pays to activate it"
+                } else {
+                    "makes you discard when the line casts it"
+                },
+                if *activation {
+                    "\n      A discard in an activation's cost is paid only with a card the list \
+                     names; with none in\n      hand the card is not activated."
+                } else {
+                    ""
+                }
             ),
             Refusal::DiscardWithoutLandDrop { effect, .. } => write!(
                 f,
