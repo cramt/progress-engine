@@ -1,23 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import lantern from "../../../../../decks/lantern.txt?raw";
+import {
+  declareCategory,
+  importArchidekt,
+  parseDeck,
+  setCardCategories,
+} from "../deck";
 import { dropOnto } from "../deck/move";
-import { StacksView } from "../deck/StacksView";
-import { parseDecklist, setCategories } from "../decklist";
+import { type OnDrop, StacksView } from "../deck/StacksView";
 import { fetchPrintings } from "../scryfall";
 
-// The committed lantern list, until the editor reads decks from GitHub.
+// The committed lantern list, imported, until the editor reads decks from GitHub.
 export const Route = createFileRoute("/")({
   loader: async () => {
-    const parsed = parseDecklist(lantern);
+    const text = importArchidekt(lantern);
+    const parsed = parseDeck(text);
     return {
+      text,
       printings:
-        parsed.kind === "deck"
-          ? await fetchPrintings(parsed.entries)
-          : new Map(),
+        parsed.kind === "deck" ? await fetchPrintings(parsed.cards) : new Map(),
     };
   },
-  component: Deck,
+  component: DeckPage,
 });
 
 /**
@@ -63,13 +68,11 @@ function useHistory(initial: string) {
   return { ...h, edit, undo, redo };
 }
 
-function Deck() {
-  const { printings } = Route.useLoaderData();
-  const history = useHistory(lantern);
-  const parsed = useMemo(
-    () => parseDecklist(history.present),
-    [history.present],
-  );
+function DeckPage() {
+  const { text: loaded, printings } = Route.useLoaderData();
+  const history = useHistory(loaded);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const parsed = useMemo(() => parseDeck(history.present), [history.present]);
   const { undo, redo } = history;
 
   useEffect(() => {
@@ -87,13 +90,48 @@ function Deck() {
   }, [undo, redo]);
 
   if (parsed.kind === "refused") return <p>{parsed.message}</p>;
+
+  const onDrop: OnDrop = (card, from, to, secondary) => {
+    const declared = (name: string) =>
+      parsed.categories.some((c) => c.name === name);
+    try {
+      let text = history.present;
+      let name: string;
+      if (to.kind === "category") {
+        name = to.name;
+      } else if (to.kind === "new") {
+        name = to.name;
+        if (!declared(name)) text = declareCategory(text, name);
+      } else {
+        // The strip's Sideboard is the deck's sideboard-typed category, made
+        // if the deck has none yet.
+        const existing = parsed.categories.find((c) => c.kind === to.type);
+        name =
+          existing?.name ??
+          (to.type === "maybeboard" ? "Maybeboard" : "Sideboard");
+        if (!existing) text = declareCategory(text, name, to.type);
+      }
+      history.edit(
+        setCardCategories(
+          text,
+          card.index,
+          dropOnto(card.categories, from, name, secondary),
+        ),
+      );
+      setRefusal(null);
+    } catch (e) {
+      setRefusal(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const before = loaded.split("\n");
   const changed = history.present
     .split("\n")
-    .filter((line, i) => line !== lantern.split("\n")[i]).length;
+    .filter((line, i) => line !== before[i]).length;
   return (
     <main>
       <div className="deck-bar">
-        <h1>lantern.txt · {parsed.total} cards</h1>
+        <h1>lantern.deck.toml · {parsed.total} cards</h1>
         <span className="muted">
           {changed === 0
             ? "no changes"
@@ -114,18 +152,23 @@ function Deck() {
           Redo
         </button>
       </div>
+      {refusal && (
+        <p className="refusal" role="alert">
+          {refusal}
+          <button type="button" onClick={() => setRefusal(null)}>
+            ×
+          </button>
+        </p>
+      )}
+      <details className="source">
+        <summary>The file</summary>
+        <pre>{history.present}</pre>
+      </details>
       <StacksView
-        entries={parsed.entries}
+        categories={parsed.categories}
+        cards={parsed.cards}
         printings={printings}
-        onDrop={(entry, from, to, secondary) =>
-          history.edit(
-            setCategories(
-              history.present,
-              entry.line,
-              dropOnto(entry.categories, from, to, secondary),
-            ),
-          )
-        }
+        onDrop={onDrop}
       />
     </main>
   );

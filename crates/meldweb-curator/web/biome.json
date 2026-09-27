@@ -4,7 +4,7 @@
     "includes": [
       "**",
       "!src/routeTree.gen.ts",
-      "!src/decklist.gen.ts",
+      "!src/deck.gen.ts",
       "!src/wasm/pkg",
       "!dist"
     ]

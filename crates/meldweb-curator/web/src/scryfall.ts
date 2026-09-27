@@ -1,4 +1,4 @@
-import type { Entry } from "./decklist";
+import type { Card, CardRef } from "./deck";
 
 /** What the editor needs of a Scryfall card: a picture of it. */
 export interface Printing {
@@ -6,35 +6,37 @@ export interface Printing {
   image: string;
 }
 
-/** An entry's printing, keyed the way it was asked for. */
+/** A card's printing, keyed the way the deck names it. */
 export type Printings = ReadonlyMap<string, Printing>;
 
-export function printingKey(e: Pick<Entry, "name" | "set" | "num">): string {
-  return e.set !== undefined && e.num !== undefined
-    ? `${e.set.toLowerCase()}/${e.num.toLowerCase()}`
-    : `name:${e.name.toLowerCase()}`;
+export function printingKey(ref: CardRef): string {
+  return ref.kind === "printing"
+    ? `${ref.set.toLowerCase()}/${ref.num.toLowerCase()}`
+    : `name:${ref.name.toLowerCase()}`;
 }
 
 type Identifier = { set: string; collector_number: string } | { name: string };
 
-function identifier(e: Entry): Identifier {
-  return e.set !== undefined && e.num !== undefined
-    ? { set: e.set, collector_number: e.num }
-    : { name: e.name };
+function identifier(ref: CardRef): Identifier {
+  return ref.kind === "printing"
+    ? { set: ref.set, collector_number: ref.num }
+    : { name: ref.name };
 }
 
 // Scryfall's limit per request.
 const BATCH = 75;
 
 /**
- * Looks up every entry's printing in as few requests as Scryfall allows.
+ * Looks up every card's printing in as few requests as Scryfall allows.
  * Cards Scryfall cannot find are absent from the map rather than an error: the
- * deck is still the deck, and the view shows the name instead of the image.
+ * deck is still the deck, and the view shows what the file names instead.
  */
 export async function fetchPrintings(
-  entries: readonly Entry[],
+  cards: readonly Card[],
 ): Promise<Printings> {
-  const wanted = [...new Map(entries.map((e) => [printingKey(e), e])).values()];
+  const wanted = [
+    ...new Map(cards.map((c) => [printingKey(c.card), c.card])).values(),
+  ];
   const found = new Map<string, Printing>();
   for (let i = 0; i < wanted.length; i += BATCH) {
     // Scryfall asks for 50-100 ms between requests.

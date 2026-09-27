@@ -7,6 +7,7 @@
 //! `scryfall play` now both shell out to `gauntlet parse`.
 
 pub mod deck;
+pub mod edit;
 
 use std::num::NonZeroU32;
 use std::sync::OnceLock;

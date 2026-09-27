@@ -1,29 +1,59 @@
-import type { Entry } from "../decklist";
+import type { Card, Category, Kind } from "../deck";
 
 export interface Group {
-  name: string;
-  commander: boolean;
-  entries: Entry[];
+  /** The category's name, or null for cards that are in none. */
+  category: string | null;
+  kind?: Kind;
+  cards: Card[];
   qty: number;
 }
 
-/** The category a card is shown under: its `{top}` one, else its first. */
-export function premier(entry: Entry): string {
-  const top = entry.categories.find((c) => c.flags.includes("top"));
-  return (top ?? entry.categories[0])?.name ?? "Uncategorized";
+export const UNCATEGORIZED = "Uncategorized";
+
+/** Commander first, then the deck, then everything outside it. */
+function rank(kind: Kind | undefined): number {
+  switch (kind) {
+    case "commander":
+      return 0;
+    case undefined:
+    case "in-deck":
+      return 1;
+    default:
+      return 2;
+  }
 }
 
-/** Archidekt's order: the commander's category first, then alphabetical. */
-export function groupByCategory(entries: readonly Entry[]): Group[] {
-  const groups = [...Map.groupBy(entries, premier)].map(([name, members]) => ({
-    name,
-    commander: members.some((e) => e.commander),
-    entries: members.toSorted((a, b) => a.name.localeCompare(b.name)),
-    qty: members.reduce((n, e) => n + e.qty, 0),
-  }));
+/**
+ * One group per category that holds a card, and a card appears in every group
+ * it is in: a category is a question about the deck ("what bounces?"), and the
+ * answer should not depend on which category the card was filed under first.
+ */
+export function groupByCategory(
+  categories: readonly Category[],
+  cards: readonly Card[],
+  nameOf: (card: Card) => string,
+): Group[] {
+  const kinds = new Map(categories.map((c) => [c.name, c.kind]));
+  const members = new Map<string | null, Card[]>();
+  for (const card of cards) {
+    for (const name of card.categories.length > 0 ? card.categories : [null]) {
+      members.set(name, [...(members.get(name) ?? []), card]);
+    }
+  }
+  const groups = [...members].map(([category, members]): Group => {
+    const kind = category === null ? undefined : kinds.get(category);
+    return {
+      category,
+      ...(kind === undefined ? {} : { kind }),
+      cards: members.toSorted(
+        (a, b) => nameOf(a).localeCompare(nameOf(b)) || a.index - b.index,
+      ),
+      qty: members.reduce((n, c) => n + c.qty, 0),
+    };
+  });
+  const label = (g: Group) => g.category ?? UNCATEGORIZED;
   return groups.toSorted(
-    (a, b) =>
-      Number(b.commander) - Number(a.commander) || a.name.localeCompare(b.name),
+    (a, b) => rank(a.kind) - rank(b.kind) || label(a).localeCompare(label(b)),
   );
 }
 

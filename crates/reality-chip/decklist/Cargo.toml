@@ -11,3 +11,4 @@ facet.workspace = true
 regex.workspace = true
 thiserror.workspace = true
 facet-toml.workspace = true
+toml_edit.workspace = true

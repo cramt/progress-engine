@@ -1,39 +1,27 @@
 import { describe, expect, it } from "vitest";
-import type { Category } from "../decklist";
 import { dropOnto } from "./move";
 
-const c = (name: string, ...flags: string[]): Category => ({ name, flags });
-
 describe("dropping a card on a category", () => {
-  it("moves it, keeping the premier flag on the new category", () => {
+  it("moves it into the dragged-from category's place", () => {
     expect(
-      dropOnto(
-        [c("Artifact Count", "top"), c("Ramp")],
-        "Artifact Count",
-        "Draw",
-        false,
-      ),
-    ).toEqual([c("Draw", "top"), c("Ramp")]);
+      dropOnto(["tempo", "self-bounce"], "tempo", "enemy-bounce", false),
+    ).toEqual(["enemy-bounce", "self-bounce"]);
   });
 
   it("does not list a category twice when moving into one it already has", () => {
     expect(
-      dropOnto(
-        [c("Artifact Count"), c("Draw")],
-        "Artifact Count",
-        "Draw",
-        false,
-      ),
-    ).toEqual([c("Draw")]);
+      dropOnto(["tempo", "self-bounce"], "tempo", "self-bounce", false),
+    ).toEqual(["self-bounce"]);
   });
 
-  it("adds a secondary category behind the others with Ctrl", () => {
-    expect(
-      dropOnto([c("Artifact Count")], "Artifact Count", "Draw", true),
-    ).toEqual([c("Artifact Count"), c("Draw")]);
+  it("adds a category behind the others with Ctrl", () => {
+    expect(dropOnto(["tempo"], "tempo", "learnboard", true)).toEqual([
+      "tempo",
+      "learnboard",
+    ]);
   });
 
   it("gives an uncategorized card its first category", () => {
-    expect(dropOnto([], "Uncategorized", "Land", false)).toEqual([c("Land")]);
+    expect(dropOnto([], null, "tempo", false)).toEqual(["tempo"]);
   });
 });

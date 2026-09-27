@@ -1,29 +1,65 @@
 import { describe, expect, it } from "vitest";
-import type { Entry } from "../decklist";
+import type { Card, Category } from "../deck";
 import { groupByCategory, packColumns } from "./layout";
 
-let line = 0;
-const entry = (name: string, category: string, commander = false): Entry => ({
-  line: ++line,
+let index = 0;
+const card = (name: string, ...categories: string[]): Card => ({
+  index: index++,
+  card: { kind: "name", name },
   qty: 1,
-  name,
-  foil: false,
-  categories: [{ name: category, flags: commander ? ["top"] : [] }],
-  commander,
-  outside: false,
+  finish: "nonfoil",
+  categories,
+  place: "in-deck",
+  inDeck: true,
 });
 
+const nameOf = (c: Card) => (c.card.kind === "name" ? c.card.name : "");
+
+const categories: Category[] = [
+  { name: "Commander", kind: "commander" },
+  { name: "learnboard", kind: "sideboard" },
+  { name: "tempo" },
+  { name: "self-bounce" },
+];
+
 describe("grouping", () => {
-  it("puts the commander's category first and the rest alphabetically", () => {
-    const groups = groupByCategory([
-      entry("Island", "Land"),
-      entry("Sol Ring", "Artifact"),
-      entry("Rashmi and Ragavan", "Commander", true),
+  it("shows a card under every category it is in", () => {
+    const groups = groupByCategory(
+      categories,
+      [
+        card("Boomerang Basics", "learnboard", "self-bounce", "tempo"),
+        card("Snap", "tempo"),
+      ],
+      nameOf,
+    );
+    const where = groups.filter((g) =>
+      g.cards.some(
+        (c) => c.card.kind === "name" && c.card.name === "Boomerang Basics",
+      ),
+    );
+    expect(where.map((g) => g.category)).toEqual([
+      "self-bounce",
+      "tempo",
+      "learnboard",
     ]);
-    expect(groups.map((g) => g.name)).toEqual([
+  });
+
+  it("puts the commander first and what is outside the deck last", () => {
+    const groups = groupByCategory(
+      categories,
+      [
+        card("Lesson", "learnboard"),
+        card("Island"),
+        card("Rashmi", "Commander"),
+        card("Snap", "tempo"),
+      ],
+      nameOf,
+    );
+    expect(groups.map((g) => g.category)).toEqual([
       "Commander",
-      "Artifact",
-      "Land",
+      "tempo",
+      null,
+      "learnboard",
     ]);
   });
 });

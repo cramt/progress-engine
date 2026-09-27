@@ -1,7 +1,12 @@
 import { type DragEvent, useEffect, useRef, useState } from "react";
-import type { Entry } from "../decklist";
+import type { Category, Card as DeckCard } from "../deck";
 import { type Printings, printingKey } from "../scryfall";
-import { type Group, groupByCategory, packColumns } from "./layout";
+import {
+  type Group,
+  groupByCategory,
+  packColumns,
+  UNCATEGORIZED,
+} from "./layout";
 
 // Card geometry, in px. The peek is the name bar a stacked card leaves showing.
 const CARD_W = 236;
@@ -11,19 +16,25 @@ const HEADER = 48;
 const GAP = 24;
 
 const stackHeight = (g: Group) =>
-  HEADER + (g.entries.length - 1) * PEEK + CARD_H + GAP;
+  HEADER + (g.cards.length - 1) * PEEK + CARD_H + GAP;
+
+/** Where a card was dropped: a category, or a place on the strip that may not be one yet. */
+export type DropTarget =
+  | { kind: "category"; name: string }
+  | { kind: "new"; name: string }
+  | { kind: "type"; type: "maybeboard" | "sideboard" };
 
 export type OnDrop = (
-  entry: Entry,
-  from: string,
-  to: string,
+  card: DeckCard,
+  from: string | null,
+  to: DropTarget,
   secondary: boolean,
 ) => void;
 
-/** The card being dragged, and the category it was dragged out of. */
+/** The card being dragged, and the group it was dragged out of. */
 interface Dragging {
-  entry: Entry;
-  from: string;
+  card: DeckCard;
+  from: string | null;
 }
 
 function useColumnCount() {
@@ -43,11 +54,13 @@ function useColumnCount() {
 }
 
 export function StacksView({
-  entries,
+  categories,
+  cards,
   printings,
   onDrop,
 }: {
-  entries: readonly Entry[];
+  categories: readonly Category[];
+  cards: readonly DeckCard[];
   printings: Printings;
   onDrop: OnDrop;
 }) {
@@ -57,10 +70,15 @@ export function StacksView({
     drag: Dragging;
     secondary: boolean;
   } | null>(null);
-  const packed = packColumns(groupByCategory(entries), stackHeight, columns);
+  const nameOf = (c: DeckCard) => cardName(c, printings);
+  const packed = packColumns(
+    groupByCategory(categories, cards, nameOf),
+    stackHeight,
+    columns,
+  );
 
-  const drop = (to: string, secondary: boolean) => {
-    if (dragging) onDrop(dragging.entry, dragging.from, to, secondary);
+  const drop = (to: DropTarget, secondary: boolean) => {
+    if (dragging) onDrop(dragging.card, dragging.from, to, secondary);
     setDragging(null);
   };
 
@@ -69,7 +87,7 @@ export function StacksView({
       {dragging && (
         <DropStrip
           onDrop={(to, secondary) => {
-            if (to !== null) return drop(to, secondary);
+            if (to !== null) return drop({ kind: "type", type: to }, secondary);
             setNaming({ drag: dragging, secondary });
             setDragging(null);
           }}
@@ -80,9 +98,9 @@ export function StacksView({
           onDone={(name) => {
             if (name)
               onDrop(
-                naming.drag.entry,
+                naming.drag.card,
                 naming.drag.from,
-                name,
+                { kind: "new", name },
                 naming.secondary,
               );
             setNaming(null);
@@ -107,17 +125,20 @@ export function StacksView({
           <div className="stacks-column" key={i}>
             {column.map((group) => (
               <Stack
-                key={group.name}
+                key={group.category ?? UNCATEGORIZED}
                 group={group}
                 printings={printings}
                 dragging={dragging}
-                onDragStart={(entry) =>
+                onDragStart={(card) =>
                   // Deferred: changing the DOM inside dragstart makes Chrome
                   // cancel the drag it has just begun.
-                  setTimeout(() => setDragging({ entry, from: group.name }))
+                  setTimeout(() => setDragging({ card, from: group.category }))
                 }
                 onDragEnd={() => setDragging(null)}
-                onDrop={(secondary) => drop(group.name, secondary)}
+                onDrop={(secondary) =>
+                  group.category !== null &&
+                  drop({ kind: "category", name: group.category }, secondary)
+                }
               />
             ))}
           </div>
@@ -127,7 +148,15 @@ export function StacksView({
   );
 }
 
-/** Ctrl adds a secondary category instead of moving, as in Archidekt. */
+function cardName(card: DeckCard, printings: Printings): string {
+  if (card.card.kind === "name") return card.card.name;
+  return (
+    printings.get(printingKey(card.card))?.name ??
+    `${card.card.set}/${card.card.num}`
+  );
+}
+
+/** Ctrl adds a category instead of moving, as in Archidekt. */
 function useDropTarget(onDrop: (secondary: boolean) => void) {
   const [over, setOver] = useState<"move" | "secondary" | null>(null);
   return {
@@ -150,6 +179,10 @@ function useDropTarget(onDrop: (secondary: boolean) => void) {
   };
 }
 
+const KIND_LABEL: Partial<Record<string, string>> = {
+  commander: "♛ ",
+};
+
 function Stack({
   group,
   printings,
@@ -161,49 +194,63 @@ function Stack({
   group: Group;
   printings: Printings;
   dragging: Dragging | null;
-  onDragStart: (entry: Entry) => void;
+  onDragStart: (card: DeckCard) => void;
   onDragEnd: () => void;
   onDrop: (secondary: boolean) => void;
 }) {
   const target = useDropTarget(onDrop);
+  const title = group.category ?? UNCATEGORIZED;
+  // A card can be dropped on any category it is not being dragged out of;
+  // Uncategorized is where cards are for want of one, not a place to put them.
+  const droppable =
+    dragging !== null &&
+    group.category !== null &&
+    dragging.from !== group.category;
   return (
     <section className="stack">
       <header className="stack-header">
         <h2>
-          {group.commander && <span aria-hidden="true">♛ </span>}
-          {group.name}
+          {group.kind && (
+            <span aria-hidden="true">{KIND_LABEL[group.kind] ?? ""}</span>
+          )}
+          {title}
         </h2>
-        <span className="stack-qty">Qty: {group.qty}</span>
+        <span className="stack-qty">
+          Qty: {group.qty}
+          {group.kind && group.kind !== "commander" && (
+            <span className="stack-kind"> · {group.kind}</span>
+          )}
+        </span>
       </header>
       <ol className="stack-cards">
-        {group.entries.map((e) => (
+        {group.cards.map((c) => (
           <li
             className="card"
-            key={e.line}
+            key={c.index}
             draggable
             onDragStart={(ev) => {
               ev.dataTransfer.effectAllowed = "copyMove";
               // Firefox starts no drag without data.
-              ev.dataTransfer.setData("text/plain", e.name);
-              onDragStart(e);
+              ev.dataTransfer.setData("text/plain", cardName(c, printings));
+              onDragStart(c);
             }}
             onDragEnd={onDragEnd}
           >
-            <Card entry={e} printings={printings} />
+            <Card card={c} printings={printings} />
           </li>
         ))}
       </ol>
-      {dragging && dragging.from !== group.name && (
+      {droppable && (
         <div
           className={`drop-target${target.over ? " over" : ""}`}
           {...target.handlers}
         >
           <span className="drop-plus">+</span>
-          <span className="drop-name">{group.name}</span>
+          <span className="drop-name">{title}</span>
           <span className="drop-hint">
             {target.over === "secondary"
-              ? "Add as secondary"
-              : "(Ctrl to add secondary)"}
+              ? "Add as another category"
+              : "(Ctrl to add, not move)"}
           </span>
         </div>
       )}
@@ -215,13 +262,13 @@ function Stack({
 function DropStrip({
   onDrop,
 }: {
-  onDrop: (to: string | null, secondary: boolean) => void;
+  onDrop: (to: "maybeboard" | "sideboard" | null, secondary: boolean) => void;
 }) {
   return (
     <div className="drop-strip">
       <StripZone label="New category" onDrop={(s) => onDrop(null, s)} />
-      <StripZone label="Maybeboard" onDrop={(s) => onDrop("Maybeboard", s)} />
-      <StripZone label="Sideboard" onDrop={(s) => onDrop("Sideboard", s)} />
+      <StripZone label="Maybeboard" onDrop={(s) => onDrop("maybeboard", s)} />
+      <StripZone label="Sideboard" onDrop={(s) => onDrop("sideboard", s)} />
     </div>
   );
 }
@@ -272,21 +319,17 @@ function NewCategory({ onDone }: { onDone: (name: string | null) => void }) {
   );
 }
 
-function Card({ entry, printings }: { entry: Entry; printings: Printings }) {
-  const printing = printings.get(printingKey(entry));
+function Card({ card, printings }: { card: DeckCard; printings: Printings }) {
+  const printing = printings.get(printingKey(card.card));
+  const name = cardName(card, printings);
   return (
     <>
       {printing ? (
-        <img
-          src={printing.image}
-          alt={entry.name}
-          loading="lazy"
-          draggable={false}
-        />
+        <img src={printing.image} alt={name} loading="lazy" draggable={false} />
       ) : (
-        <div className="card-missing">{entry.name}</div>
+        <div className="card-missing">{name}</div>
       )}
-      <span className="card-qty">{entry.qty}</span>
+      <span className="card-qty">{card.qty}</span>
     </>
   );
 }

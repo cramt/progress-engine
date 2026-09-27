@@ -225,3 +225,34 @@ main {
   color: var(--muted);
   font-size: 14px;
 }
+
+.stack-kind {
+  font-style: italic;
+}
+
+.refusal {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #b3261e;
+  color: #fff;
+}
+
+.refusal button {
+  margin-left: auto;
+}
+
+.source {
+  margin-bottom: 16px;
+}
+
+.source pre {
+  max-height: 50vh;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.06);
+  font-size: 12px;
+}
