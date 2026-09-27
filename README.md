@@ -3148,7 +3148,7 @@ owns them:
 ```
 crates/ichormoon-gauntlet/{cli,criteria,toml,sim}    this tool
 crates/reality-chip/{scryfall,decklist,stats}        the shared family core
-crates/meldweb-curator/{wasm,web}                    the deck editor: chip-decklist in wasm, and a TypeScript app
+crates/meldweb-curator/{wasm,web,worker}             the deck editor: chip-decklist in wasm, a TypeScript app, and its login worker
 ```
 
 `reality-chip` is the part a sibling tool depends on, kept in its own directory

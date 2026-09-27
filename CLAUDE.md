@@ -17,9 +17,13 @@ and FINDINGS.md are the authority on it, and the notes below about decks,
 criteria and the two engines do not apply to it.
 
 **Meldweb Curator** (`crates/meldweb-curator/`) is the deck editor: a
-`.deck.toml` in a git repo is the deck, and saving is a commit. It is two halves:
-`meldweb-wasm`, which is `chip-decklist` compiled for the browser, and `web/`, a
-Vite + React + TanStack Router app in the root pnpm workspace. Copy Archidekt's
+`.deck.toml` in a git repo is the deck, and saving is a commit. It is three
+parts: `meldweb-wasm`, which is `chip-decklist` compiled for the browser; `web/`, a
+Vite + React + TanStack Router app in the root pnpm workspace; and `worker/`, the
+one Cloudflare Worker that serves the site and trades a GitHub login for tokens
+without storing anything (deployed with `nix run .#deploy-curator`). In dev,
+`VITE_MOCK_GITHUB=1 pnpm dev` runs the app against an in-page fake GitHub
+(`=no-repo` starts at onboarding), so no worker or app is needed. Copy Archidekt's
 editor before improving on it; [docs/research/archidekt-editor.md](docs/research/archidekt-editor.md)
 is what that editor does and the order to build it in. The TypeScript never
 reimplements what a decklist is: parsing, `commander` and `outside` come from
