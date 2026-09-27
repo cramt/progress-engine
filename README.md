@@ -2521,7 +2521,7 @@ python3 checker/compare.py                       # or --gauntlet PATH, or $GAUNT
 python3 checker/compare.py --games 100000 --seed 7
 ```
 
-It takes about six minutes. Where the engine's documented reading differs
+It takes about eight minutes. Where the engine's documented reading differs
 from the game — shocklands assumed tapped, a bounce land is one mana, a
 fetchland's target is still in the library to find — the checker implements the
 documented reading and says so beside the code, so a disagreement is a finding
