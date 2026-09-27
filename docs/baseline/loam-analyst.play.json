@@ -1,0 +1,182 @@
+{
+  "library_size": 98,
+  "commanders": [
+    "Borborygmos and Fblthp"
+  ],
+  "excluded": [],
+  "on_the_draw": false,
+  "method": "exact",
+  "queries": [
+    {
+      "query": "name:\"Life from the Loam\"",
+      "cards": 1
+    }
+  ],
+  "zones": [
+    {
+      "zone": "graveyard",
+      "reachable": true,
+      "asked_by": "Life from the Loam in the graveyard by turn 5, cast or milled by the Analyst"
+    }
+  ],
+  "effects": [
+    {
+      "match": "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc",
+      "look": 0,
+      "adds": 1,
+      "on": "cast",
+      "source": "the standard effect library",
+      "cards": [
+        "Birds of Paradise",
+        "Elvish Mystic"
+      ],
+      "copies": 2,
+      "live": false
+    },
+    {
+      "match": "name:\"Aftermath Analyst\"",
+      "look": 0,
+      "on": "cast",
+      "mill": 3,
+      "source": "the standard effect library",
+      "cards": [
+        "Aftermath Analyst"
+      ],
+      "copies": 1,
+      "live": true
+    },
+    {
+      "match": "name:\"Malevolent Rumble\"",
+      "look": 0,
+      "on": "cast",
+      "mill": 4,
+      "keep": 1,
+      "keep_only": "is:permanent",
+      "unspent": [
+        "Malevolent Rumble"
+      ],
+      "source": "the standard effect library",
+      "cards": [
+        "Malevolent Rumble"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "name:\"Midnight Tilling\"",
+      "look": 0,
+      "on": "cast",
+      "mill": 4,
+      "keep": 1,
+      "keep_only": "is:permanent",
+      "source": "the standard effect library",
+      "cards": [
+        "Midnight Tilling"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "name:\"Wrenn and Seven\"",
+      "look": 0,
+      "on": "cast",
+      "mill": 4,
+      "keep_every": "t:land",
+      "source": "the standard effect library",
+      "cards": [
+        "Wrenn and Seven"
+      ],
+      "copies": 1,
+      "live": false
+    }
+  ],
+  "enumerations": [
+    {
+      "criteria": [
+        "Life from the Loam in the graveyard by turn 5, cast or milled by the Analyst"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Life from the Loam\"",
+        "name:\"Aftermath Analyst\"",
+        "<effect name:\"Aftermath Analyst\">"
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{G}"
+      ],
+      "groups": 7,
+      "compositions": 4120116,
+      "method": "exact"
+    }
+  ],
+  "assumed_tapped": [
+    "Argoth, Sanctum of Nature",
+    "Breeding Pool",
+    "Mystic Sanctuary",
+    "Steam Vents",
+    "Stomping Ground"
+  ],
+  "assumed_mana": [
+    {
+      "card": "Exotic Orchard",
+      "reading": "pays generic and no colour: the colour it makes depends on what an opponent's land could produce, and whether it makes any at all on the first turn of a game"
+    },
+    {
+      "card": "Izzet Boilerworks",
+      "reading": "counted as one mana a turn: the second mana it taps for, and the land it returns to hand, are not modelled"
+    },
+    {
+      "card": "Misty Rainforest",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Island): pays {U}{G}, assuming one is still in the library to find"
+    },
+    {
+      "card": "Prismatic Vista",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Island, Mountain): pays {U}{R}{G}, assuming one is still in the library to find"
+    },
+    {
+      "card": "Scalding Tarn",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Island, Mountain): pays {U}{R}, assuming one is still in the library to find"
+    },
+    {
+      "card": "Simic Growth Chamber",
+      "reading": "counted as one mana a turn: the second mana it taps for, and the land it returns to hand, are not modelled"
+    },
+    {
+      "card": "Wooded Foothills",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain): pays {R}{G}, assuming one is still in the library to find"
+    }
+  ],
+  "casting": {
+    "prefer": [
+      "name:\"Aftermath Analyst\"",
+      "name:\"Life from the Loam\""
+    ],
+    "then": "a spell this list does not name is not cast at all",
+    "tie_break": "a tie inside one entry goes to the cheaper cost, then to the card this decklist names first"
+  },
+  "criteria": [
+    {
+      "name": "Life from the Loam in the graveyard by turn 5, cast or milled by the Analyst",
+      "probability": 0.101866,
+      "percent": 10.19,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    }
+  ],
+  "expectations": [],
+  "asserted": 0,
+  "failed": 0,
+  "ok": true,
+  "provenance": {
+    "tool_version": "0.1.0",
+    "index_updated_at": "2026-09-26T09:01:56.801+00:00",
+    "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
+    "criteria_sha256": "48e7fdc0c9ddb225163dc315b258d85f7d24a58a022a2f106b94f6e4459c35c0",
+    "effect_library_sha256": "331c6ec9ff4b9ffb698ec4fae066b674a98e6fdf2eb3f426c09815fb586546e1"
+  }
+}
