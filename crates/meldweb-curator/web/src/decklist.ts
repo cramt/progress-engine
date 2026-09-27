@@ -1,5 +1,9 @@
-import type { Parsed } from "./decklist.gen";
-import init, { initSync, parse } from "./wasm/pkg/meldweb_wasm.js";
+import type { Category, Parsed } from "./decklist.gen";
+import init, {
+  initSync,
+  parse,
+  set_categories,
+} from "./wasm/pkg/meldweb_wasm.js";
 
 export type { Category, Entry, Parsed } from "./decklist.gen";
 
@@ -19,4 +23,13 @@ export function loadDecklistSync(module: BufferSource): void {
  */
 export function parseDecklist(text: string): Parsed {
   return JSON.parse(parse(text)) as Parsed;
+}
+
+/** `text` with one line's categories replaced; the rest of the file is untouched. */
+export function setCategories(
+  text: string,
+  line: number,
+  categories: readonly Category[],
+): string {
+  return set_categories(text, line, JSON.stringify(categories));
 }

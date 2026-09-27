@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { Entry } from "../decklist";
 import { groupByCategory, packColumns } from "./layout";
 
+let line = 0;
 const entry = (name: string, category: string, commander = false): Entry => ({
+  line: ++line,
   qty: 1,
   name,
   foil: false,

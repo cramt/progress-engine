@@ -11,10 +11,12 @@
 
 use chip_decklist::{Category, ParseError};
 use facet::Facet;
-use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::prelude::{wasm_bindgen, JsError};
 
 #[derive(Debug, Facet)]
 pub struct Entry {
+    /// 1-based line in the text it was parsed from: how an edit finds it.
+    pub line: usize,
     pub qty: u32,
     pub name: String,
     #[facet(skip_serializing_if = Option::is_none)]
@@ -29,11 +31,12 @@ pub struct Entry {
     pub outside: bool,
 }
 
-impl From<chip_decklist::Entry> for Entry {
-    fn from(e: chip_decklist::Entry) -> Self {
+impl Entry {
+    fn new(line: usize, e: chip_decklist::Entry) -> Self {
         let commander = e.is_commander();
         let outside = e.is_outside();
         Entry {
+            line,
             qty: e.qty.get(),
             name: e.name,
             set: e.set,
@@ -64,9 +67,18 @@ pub enum Parsed {
 }
 
 pub fn parse_decklist(text: &str) -> Parsed {
-    match chip_decklist::parse(text) {
+    // Line by line rather than chip_decklist::parse, to keep each line number.
+    let entries: Result<Vec<Entry>, ParseError> = text
+        .lines()
+        .enumerate()
+        .filter_map(|(i, l)| {
+            chip_decklist::parse_line(l, i + 1)
+                .map(|e| e.map(|e| Entry::new(i + 1, e)))
+                .transpose()
+        })
+        .collect();
+    match entries {
         Ok(entries) => {
-            let entries: Vec<Entry> = entries.into_iter().map(Entry::from).collect();
             let total = entries.iter().filter(|e| !e.outside).map(|e| e.qty).sum();
             Parsed::Deck { entries, total }
         }
@@ -82,6 +94,32 @@ pub fn parse_decklist(text: &str) -> Parsed {
             }
         }
     }
+}
+
+/// `text` with line `line`'s categories replaced by `categories` (JSON of
+/// `Category[]`), and every other byte as it was.
+#[wasm_bindgen]
+pub fn set_categories(text: &str, line: usize, categories: &str) -> Result<String, JsError> {
+    let categories: Vec<Category> = facet_json::from_str(categories)
+        .map_err(|e| JsError::new(&format!("categories are not Category[]: {e}")))?;
+    let mut out = String::with_capacity(text.len() + 32);
+    let mut found = false;
+    for (i, raw) in text.split_inclusive('\n').enumerate() {
+        let body = raw.trim_end_matches(['\n', '\r']);
+        if i + 1 == line {
+            let edited = chip_decklist::with_categories(body, &categories)
+                .ok_or_else(|| JsError::new(&format!("line {line} is not a card")))?;
+            out.push_str(&edited);
+            out.push_str(&raw[body.len()..]);
+            found = true;
+        } else {
+            out.push_str(raw);
+        }
+    }
+    if !found {
+        return Err(JsError::new(&format!("there is no line {line}")));
+    }
+    Ok(out)
 }
 
 /// JSON of [`Parsed`]; `web/src/decklist.ts` is the typed side of it.
@@ -141,6 +179,16 @@ mod tests {
         assert_eq!(
             json,
             r#"{"kind":"refused","line":2,"text":"0 Island","message":"line 2: quantity must be greater than zero: \"0 Island\""}"#
+        );
+    }
+
+    #[test]
+    fn moving_a_card_rewrites_only_its_line() {
+        let text = "// lantern\r\n1 Sol Ring [Ramp]\r\n1 Island [Land]\r\n";
+        let edited = set_categories(text, 2, r#"[{"name":"Draw","flags":["top"]}]"#).unwrap();
+        assert_eq!(
+            edited,
+            "// lantern\r\n1 Sol Ring [Draw{top}]\r\n1 Island [Land]\r\n"
         );
     }
 

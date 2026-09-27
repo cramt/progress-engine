@@ -6,6 +6,10 @@ export type Parsed =
   | { kind: "refused"; line: number; text: string; message: string };
 
 export interface Entry {
+  /**
+   * 1-based line in the text it was parsed from: how an edit finds it.
+   */
+  line: number;
   qty: number;
   name: string;
   set?: string;

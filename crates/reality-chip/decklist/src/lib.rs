@@ -195,3 +195,51 @@ pub fn parse(text: &str) -> Result<Vec<Entry>, ParseError> {
 pub fn total(entries: &[Entry]) -> u32 {
     entries.iter().map(|e| e.qty.get()).sum()
 }
+
+impl std::fmt::Display for Category {
+    /// `Name{flag,flag}`, the form [`Category::parse`] reads. Flags come out
+    /// lowercased, as parsing left them: `{noDeck}` is written back `{nodeck}`.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.name)?;
+        if !self.flags.is_empty() {
+            write!(f, "{{{}}}", self.flags.join(","))?;
+        }
+        Ok(())
+    }
+}
+
+/// `line` with its categories replaced and every other byte left alone, so an
+/// edit to a card's categories is a one-line diff that keeps its quantity,
+/// printing and spelling exactly as written. No categories drops the bracket.
+///
+/// `None` when `line` is not an entry: a comment or blank has no categories to
+/// replace, and a malformed line should be refused where it was parsed.
+pub fn with_categories(line: &str, categories: &[Category]) -> Option<String> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() || trimmed.starts_with("//") {
+        return None;
+    }
+    let caps = line_re().captures(line)?;
+    let bracket = categories
+        .iter()
+        .map(Category::to_string)
+        .collect::<Vec<_>>()
+        .join(",");
+    let (head, tail) = match caps.name("cat") {
+        // The span inside the brackets, widened to the brackets and the
+        // whitespace before them.
+        Some(cat) => {
+            let open = line[..cat.start() - 1].trim_end().len();
+            (&line[..open], &line[cat.end() + 1..])
+        }
+        None => {
+            let end = line.trim_end().len();
+            (&line[..end], &line[end..])
+        }
+    };
+    Some(if categories.is_empty() {
+        format!("{head}{tail}")
+    } else {
+        format!("{head} [{bracket}]{tail}")
+    })
+}

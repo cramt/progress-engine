@@ -113,3 +113,115 @@ main {
   font-weight: 700;
   text-align: center;
 }
+
+.stack {
+  position: relative;
+}
+
+.card {
+  cursor: grab;
+}
+
+/* While dragging, stacks hold still so drop targets do not move under the cursor. */
+.stacks.dragging .card:hover:not(:last-child) {
+  margin-bottom: calc(var(--peek) - var(--card-h));
+}
+
+.drop-target {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 8px;
+  background: rgb(40 44 52 / 0.72);
+  color: #fff;
+  text-align: center;
+  transition: background 80ms;
+}
+
+.drop-target.over {
+  background: rgb(250 137 13 / 0.85);
+}
+
+.drop-plus {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.drop-name {
+  font-size: 22px;
+  font-weight: 600;
+  padding: 0 8px;
+}
+
+.drop-hint {
+  font-size: 13px;
+}
+
+.drop-strip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 12px;
+  background: rgb(0 0 0 / 0.15);
+}
+
+.strip-zone {
+  width: 200px;
+  padding: 20px 0;
+  border-radius: 6px;
+  background: #6b7079;
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+}
+
+.strip-zone.over {
+  background: #fa890d;
+}
+
+.new-category {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 4px 24px rgb(0 0 0 / 0.35);
+}
+
+.new-category label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.deck-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.deck-bar h1 {
+  margin: 0 0 8px;
+}
+
+.deck-bar .muted {
+  color: var(--muted);
+  font-size: 14px;
+}
