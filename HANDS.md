@@ -912,10 +912,11 @@ Spellseeker cast by turn 4, or by one first cast on turn 5, when five lands pay
 to bottom, had already passed Loam, and read 131/132 = 99.24%.
 
 On the real deck this is a route to the graveyard north star:
-`decks/loam-cast.criteria.toml` declares it, and *Life from the Loam in the
-graveyard by turn 5* goes from 9.92% to about 17.1% on the play and from about
+`decks/loam-cast.criteria.toml` declared it, and *Life from the Loam in the
+graveyard by turn 5* went from 9.92% to about 17.1% on the play and from about
 11.2% to 19.6% on the draw, sampled on both seats. The mills of hands 19 and
-20 take it on to about 19.0% and 21.8%.
+20 took it on to about 19.0% and 21.8%. That line is now the north star's own,
+in `decks/loam.criteria.toml`, with the commander and the dorks in it.
 
 ---
 

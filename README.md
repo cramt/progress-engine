@@ -132,8 +132,8 @@ row's own narrowing:
 |---|---|---|---|---|
 | `lantern.criteria.toml` | 16 / 11,176,771,584 | 18 / 36,332,613,504 | sampled | sampled, 2.2s |
 | `lantern.criteria.toml --draw` | 16 / 178,828,345,344 | 18 / 653,987,043,072 | sampled | sampled, 2.4s |
-| `loam.criteria.toml` | 8 / 14,057,472 | 6 / 1,026,432 | **sampled** | **exact**, 3.9s |
-| `loam.criteria.toml --draw` | 8 / 112,459,776 | 6 / 6,158,592 | sampled | sampled, 7.9s |
+| `loam-access.criteria.toml`, then `loam.criteria.toml` | 8 / 14,057,472 | 6 / 1,026,432 | **sampled** | **exact**, 3.9s |
+| `loam-access.criteria.toml --draw` | 8 / 112,459,776 | 6 / 6,158,592 | sampled | sampled, 7.9s |
 | `lantern.txt`, `can_cast = "{1}{U}"` at turn 4 | 17 / 1,204,456,341 | 5 / 41,250 | **sampled**, 0.68s | **exact**, 0.27s |
 | `loam.txt`, the same clause | 18 / 2,018,478,528 | 5 / 41,250 | **sampled**, 0.81s | **exact**, 0.25s |
 
@@ -173,8 +173,8 @@ else.
 
 On the four-core machine these figures were measured on, the Loam optimiser run
 above went from 11.0s to 2.5s, a declared mulligan on the same deck from 7.5s to
-1.6s, and a plain run of `decks/loam.criteria.toml` on the draw from 1.5s to
-0.5s — every one of them byte-identical to the single-threaded run, which is
+1.6s, and a plain run of `decks/loam-access.criteria.toml` (then
+`loam.criteria.toml`) on the draw from 1.5s to 0.5s — every one of them byte-identical to the single-threaded run, which is
 byte-identical to what the tool printed before. Some of it is not threads at
 all: `ln C(n, k)` is read off a table of the exact values `lgamma` returns
 rather than recomputed millions of times, and a path no longer allocates.
@@ -484,9 +484,10 @@ note: nothing routes a card to the graveyard in this run, so every count in
 ```
 
 Declare a destination, or a line that casts one, and the note goes away,
-because the number is now a measurement. `decks/loam-cast.criteria.toml` is the
-second kind: it declares a line that casts Life from the Loam and asks the
-north star of the zone. Casting Loam alone, it read 9.9210% on the play — the
+because the number is now a measurement. `decks/loam-cast.criteria.toml` was
+the second kind, until #101 folded it into `decks/loam.criteria.toml`: it
+declared a line that casts Life from the Loam and asked the north star of the
+zone. Casting Loam alone, it read 9.9210% on the play — the
 same hands as `can_cast` of Loam by turn 5, to the digit, because one copy cast
 the first turn it is payable is in the yard exactly when it was payable
 (HANDS.md hands 34 and 35). The line then cast Spellseeker too, which fetches
@@ -499,10 +500,11 @@ well it read 19.02% ± 0.09 and 21.82% ± 0.09
 declared land drop 19.53% ± 0.09 and 22.14% ± 0.09
 ([Discard](#discard-a-spell-that-draws-and-then-bins)), and with Six, Icetill
 Explorer and Lumra, whose mills are an attack's, a landfall's and an enters
-trigger's, it reads 19.79% ± 0.09 and 22.57% ± 0.09
-([Attack and landfall](#attack-and-landfall-a-mill-that-fires-again)). It is a file of its own because a
-`[casting]` line takes the cards it casts out of the hand and prices the manabase on every question
-beside it, which would move every other number in `loam.criteria.toml`.
+trigger's, it read 19.79% ± 0.09 and 22.57% ± 0.09
+([Attack and landfall](#attack-and-landfall-a-mill-that-fires-again)). That line, with the commander
+and the dorks in it, is now the north star's ([The Loam north star](#the-loam-north-star-one-line)),
+and the questions that ask no line moved to `loam-access.criteria.toml`, because a `[casting]` line
+takes the cards it casts out of the hand and prices the manabase on every question beside it.
 Flashback and retrace, which cast a card *from* the yard, are not modelled.
 
 The same fact is in the JSON, as `zones`, alongside the query breakdown it is
@@ -937,9 +939,9 @@ play on turn 4 and never cast it. On the decks, from
 | Commander cast by | Rashmi and Ragavan (`lantern.txt`), play / draw | Borborygmos and Fblthp (`loam.txt`), play / draw |
 |---|---|---|
 | turn 4 | 38.54% / 47.42% | — (five mana) |
-| turn 5 | 48.62% / 56.87% | 48.64% / 58.46% |
-| turn 6 | 56.74% / 64.15% | 58.62% / 67.12% |
-| turn 7 | | 67.23% / 74.38% |
+| turn 5 | 48.62% / 56.87% | 51.99% / 62.10% |
+| turn 6 | 56.74% / 64.15% | 62.16% / 70.85% |
+| turn 7 | | 70.84% / 78.04% |
 
 All **sampled**, ± 0.11 each, and that is width rather than choice: a
 three-colour cost keeps every land's palette over `{G}{U}{R}` and whether it
@@ -956,7 +958,11 @@ tapped-ness is the pilot's choice is assumed tapped.
 it as *after the commander was paid for* — route 1's control, `{1}` payable by
 turn 5, reads 93.4% beside it and 99.6% without — which is a different question
 from the one that file asks. The north star is both halves at once, and that
-wants a line naming both.
+wants a line naming both: for Loam that is `decks/loam.criteria.toml`
+([The Loam north star](#the-loam-north-star-one-line)), where the commander is
+cast by turn 5 on 52.11% / 59.10% of games, dorks and all, beside everything
+else the line spends its lands on. (The Loam column above was re-read from
+`docs/baseline` for #101; it had not been updated since #82.)
 
 **A rock or a dork is mana once the line has cast it**
 ([ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md)).
@@ -1297,8 +1303,8 @@ cannot change whether the pool paid for it. The second row is the route, and
 
 **A card a tutor puts in hand is one the line can cast that turn**, wherever the
 line lists it: after the fetch the line is read again from its top, as it is
-after a spell that draws. `decks/loam-cast.criteria.toml` is the case that
-needs it — its line reads Loam first and Spellseeker second, so that a Loam
+after a spell that draws. `decks/loam.criteria.toml` is the case that
+needs it — its line reads Loam before Spellseeker, so that a Loam
 already in hand is not held a turn behind a three-mana tutor with nothing to
 find, and five lands cast Spellseeker and then the Loam it fetched:
 
@@ -1578,8 +1584,9 @@ note: effect "name:\"Malevolent Rumble\"" (mill 4, on cast)
       Ties: the card this decklist names first.
 ```
 
-**What it is worth to the Loam north star.** `decks/loam-cast.criteria.toml`
-adds the four mills to its line after Spellseeker:
+**What it is worth to the Loam north star.** `decks/loam-cast.criteria.toml`,
+whose line is now the north star's, added the four mills to it after
+Spellseeker:
 
 | On `decks/loam.txt`, Loam in the graveyard by turn 5 | play | draw |
 |---|---|---|
@@ -1609,7 +1616,7 @@ answered before, to the digit. It changes what can be answered exactly.
 | on the draw, dealt last | 8,468,217 | sampled |
 
 Rumble and Tilling choose from their cards, Wrenn and Seven sends the lands
-among them to hand, and `loam-cast.criteria.toml` has Spellseeker searching the
+among them to hand, and `loam.criteria.toml` has Spellseeker searching the
 library, so every mill there is still dealt where it fired. The sampler never
 defers, which makes its agreement the test of the claim.
 
@@ -1653,7 +1660,7 @@ them, are floors by that much. Six's retrace is a casting from the graveyard,
 which no line makes. HANDS.md hands 58 to 60 pin each one.
 
 **What they are worth to the Loam north star.** `decks/loam-cast.criteria.toml`
-adds all three to the end of its line, after the mills and the discards
+added all three to the end of its line, after the mills and the discards
 ([Discard](#discard-a-spell-that-draws-and-then-bins)), with Six keeping a
 land:
 
@@ -1732,7 +1739,7 @@ note: the cards discarded here are decided by the priority this file declared, a
 ```
 
 **What it is worth to the Loam north star.** `decks/loam-cast.criteria.toml`
-adds Frantic Search after the Loam, and Izzet Charm and Desperate Ravings after
+added Frantic Search after the Loam, and Izzet Charm and Desperate Ravings after
 the mills, with the list above. The discards made it declare its land drop —
 taplands first, then any land in decklist order — which is a line the pilot
 plays where the old reading was the best line, so it is worth less on its own:
@@ -1753,6 +1760,59 @@ more than printed. Cavalier of Flame discards and then draws that many, which
 is a discard before a draw whose size the discard decides. Flashback on
 Desperate Ravings is a second casting from the graveyard. Borborygmos and
 Fblthp's attack trigger is a later turn's.
+
+### The Loam north star: one line
+
+`decks/loam.criteria.toml` is the north star as the owner states it — Life
+from the Loam put into the graveyard **and** Borborygmos and Fblthp cast, by
+turn 5, by any line the pilot's own cards allow, on one budget — asked as one
+criterion of two clauses against the same game. Its `[casting]` line casts
+every route above: the commander, then the Loam, then Birds of Paradise and
+Elvish Mystic, then Frantic Search, Spellseeker, the mills, the other two
+discards and the three triggers. Its land drop plays the lands that enter
+tapped first, then the fetchlands, then the colourless utility lands, then the
+other nonbasics, basics last; its discard list bins the Loam and then a
+nonland card the line never casts, and names no land, so Borborygmos keeps
+every land it could have binned.
+
+It asks the north star at turns 4 to 7 and each half beside it, from the same
+games:
+
+| On `decks/loam.txt`, play / draw | turn 4 | turn 5 | turn 6 | turn 7 |
+|---|---|---|---|---|
+| **Loam put into the graveyard and the commander cast** | 0.53% / 0.80% | **8.22% / 10.71%** | 17.93% / 22.06% | 23.98% / 27.93% |
+| Loam put into the graveyard | 14.14% / 16.06% | 17.44% / 19.55% | 24.13% / 27.02% | 28.64% / 31.51% |
+| Borborygmos and Fblthp cast | 7.24% / 8.98% | 52.11% / 59.10% | 72.05% / 79.14% | 80.78% / 86.22% |
+
+Sampled, 200,000 hands, ± 0.11 or less: each turn is a class of 44 groups
+whose width passes the ceiling. No criterion carries a bound; the owner
+chooses the turn and the share from the curve. The order, the land drop and
+the list were each chosen by measuring the alternatives, which the file
+records: at turn 5, putting the commander last in the line costs 2.5 points
+on the play and 3.7 on the draw, a land drop of taplands and then decklist
+order 0.7 and 0.9, and a discard list naming lands second 0.3 and 0.4.
+
+Lumra's return is declared away in that file: the lands it returns pay for
+nothing here, and with the return in the line the bound on what the library
+can lose (`LibraryRunsOut`) counts every land in the deck coming back and
+refuses turn 6 and turn 7. At turn 5 it is worth about 0.1 points on the play
+and less than its ± on the draw, which is the floor this leaves.
+
+Every run whose line can reach the graveyard names the cards with dredge it
+never dredged, because the engine never takes a dredge (ADR-0017) and that is
+a line the pilot could play rather than the best one:
+
+```
+note: this run never dredges. Life from the Loam, Shenanigans have dredge, and this line can put cards in the
+      graveyard, but no draw here is ever replaced by a dredge (ADR-0017). Dredge is a
+      may, so that is a line the pilot could play: every number below is that line's,
+      a floor under the best line, which could dredge where dredging helps.
+```
+
+The JSON carries the same list as `never_dredged`. A run takes about three
+minutes a seat on four cores, most of it counting each turn's paths against
+the ceiling before sampling them. `checker/` plays the same line from the
+cards' text and the rules, at every turn and on both seats, and agrees.
 
 ### Delayed effects: Urza's Saga
 
@@ -2898,7 +2958,9 @@ lands on the battlefield paying and nothing searched for, and the whole hand
 kept so a discard can take from it. Frantic Search, Izzet Charm and Desperate
 Ravings draw and discard from their oracle text and the README's reading of
 each; `checker/test_discards.py` holds HANDS.md hands 21 to 24 against it, and
-`compare.py` holds `decks/loam-cast.criteria.toml` against it on both seats.
+`compare.py` holds `decks/loam.criteria.toml`, the Loam north star, against it
+on both seats and at every turn it asks, with the commander, the dorks and
+Lumra's mill in the line (`checker/test_north_star.py` pins those three).
 
 A question the engine cannot answer yet is marked `pending="#NN"` in
 `QUESTIONS`: `compare.py` reports the checker's number, on `--pending-games`

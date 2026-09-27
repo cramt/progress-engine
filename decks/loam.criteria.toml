@@ -1,309 +1,343 @@
 # "There's No Place Like Loam" — https://archidekt.com/decks/26329102
 #
-# THE QUESTION
+# THE NORTH STAR
+# --------------
+# Life from the Loam put into the graveyard AND Borborygmos and Fblthp cast,
+# by turn 5 — by any line the pilot's own cards allow, on one mana budget,
+# with opponents neither helping nor hindering (CONTEXT.md, "North star").
+#
+# That is one criterion here, two clauses against the same game, and nothing
+# else: no proxy for either half. Every route to either half that this engine
+# models is an effect the line below fires, so the number is what the pilot's
+# own cards do rather than what a stand-in for them does.
+#
+# It is asked at turns 4 to 7, with each half beside it on the same line and
+# the same games, so the curve and what bottlenecks it read off one run.
+#
+# NO BOUND. The number is informational: which turn to hold the deck to, and
+# how often, is the owner's call, made off the curve below rather than written
+# here in advance.
+#
+# THE LINE
+# --------
+# One [casting] list spends one pool. Read from the top every time a spell
+# resolves, it casts the first entry the pool can still pay for:
+#
+#   1. Borborygmos and Fblthp, from the command zone, {2}{G}{U}{R}.
+#   2. Life from the Loam, {1}{G}: a sorcery, so casting it puts it in the
+#      graveyard (CR 608.2n).
+#   3. Birds of Paradise and Elvish Mystic: mana from the turn after
+#      (ADR-0018; a dork is summoning-sick, CR 302.6).
+#   4. Frantic Search, free: it untaps the three lands that paid for it.
+#   5. Spellseeker, which fetches the Loam to hand.
+#   6. Malevolent Rumble and Midnight Tilling: mill four, keep Spellseeker or
+#      else a land.
+#   7. Izzet Charm and Desperate Ravings: draw two, then discard.
+#   8. Aftermath Analyst (mill three) and Wrenn and Seven (+1: reveal four,
+#      lands to hand, the rest to the graveyard).
+#   9. Six, Icetill Explorer and Lumra, whose mills are an attack's, a
+#      landfall's and an enters trigger's.
+#
+# WHY THIS ORDER. The commander costs five and nothing else in the deck makes
+# five before turn 4, so first in the list it costs the line nothing on turns
+# 1 to 3 and is never outbid on the turn five mana appears; the Loam is next
+# because casting it is the route that needs nothing else. The dorks come
+# before the enablers because one mana now is a mana every later turn. Eight
+# orders were tried, 1,000,000 hands each (± 0.03 at turn 5, 0.04 at turn 7),
+# sampled with the same seed so the differences are sharper than the ± on
+# either figure (play / draw):
+#
+#                                               turn 5          turn 7
+#   commander, Loam, dorks, the rest (chosen)   8.22 / 10.64    23.92 / 27.98
+#   Loam, commander, dorks, the rest            8.18 / 10.60    23.90 / 27.99
+#   Loam, commander, dorks, Seeker, Frantic     8.11 / 10.55    23.89 / 27.91
+#   ... and the mills before the rummages       8.13 / 10.58    23.97 / 27.96
+#   Loam, commander, Seeker, dorks, Frantic     8.13 / 10.60    23.87 / 27.94
+#   commander, dorks, the rest                  8.07 / 10.53    23.83 / 27.86
+#   dorks, Loam, commander, the rest            7.93 / 10.22    23.86 / 27.85
+#   dorks, the enablers, the commander last     5.74 /  6.98    22.06 / 25.75
+#
+# All within 0.15 of each other but one: the commander LAST is 2.5 points on
+# the play and 3.7 on the draw below the rest at turn 5, because turn 5's
+# mana goes on a mill or a rummage and the commander waits a turn. So the
+# commander goes early, and among the early orders the chosen one is best at
+# turn 5 on both seats and ties at turn 7. (Measured with the land drop and
+# the discard list below. With loam-cast's, a first round of the same orders
+# was as close, and the commander last as far behind.)
+#
+# THE LAND DROP
+# -------------
+# A discard can bin a land, and which lands are still in hand is which ones
+# were played, so the discards need the drop declared (ADR-0017 §3). Chosen
+# the same way, at turn 5 (play / draw):
+#
+#   taplands, then any land in decklist order            7.37 /  9.61
+#   ... the shocklands and the like after the taplands   7.65 /  9.84
+#   ... and the fetchlands next                          7.98 / 10.41
+#   shocklands first, taplands, fetchlands, then lands
+#     that make none of {G}{U}{R}                        8.03 / 10.41
+#   ... then nonbasics, basics last (chosen)             8.11 / 10.55
+#   the colourless lands first of all                    7.43 /  9.54
+#   basics before the other nonbasics                    7.57 /  9.80
+#
+# (measured on an earlier order, Loam, commander, dorks, Spellseeker, Frantic
+# Search, the rest; the chosen order adds the last 0.1.) The shocklands are
+# `otag:conditional-tapland`: Argoth, Breeding Pool, Mystic Sanctuary, Steam
+# Vents and Stomping Ground, which the run assumes enter tapped. A land that
+# enters tapped costs least early, so those go first; a fetchland is read as
+# every colour it can find, so playing it early is playing the best land
+# early; the colourless utility lands pay generic and nothing else; and basics
+# are the colours held back for the turn a pip needs one.
+#
+# THE DISCARDS
 # ------------
-# VISION.md's second north star: *how often is Life from the Loam in my
-# graveyard by turn 5?* For this deck the graveyard is where the card wants to
-# be, not where it ends up when things go wrong — Loam dredges itself back
-# every turn from there, and does nothing at all from your hand.
+# Frantic Search and Izzet Charm discard two, and Borborygmos may discard any
+# number of lands. The [discard] list bins the Loam first, then a nonland card
+# this line never casts. It names no land, and that is the choice that
+# matters: loam-cast's list binned lands second, which Borborygmos then reads
+# as every land in hand, and Frantic Search and Izzet Charm as the next cards
+# to go. On the earlier order and the old land drop, at turn 5:
 #
-# WHAT THESE NUMBERS ARE
-# ----------------------
-# An earlier version of this file said every figure in it was a count of cards
-# SEEN and therefore an upper bound, because the mana model did not exist. It
-# does now, and the questions that were worth pricing are priced. Two clauses
-# in one `require` are evaluated against the same hand, so *held, and payable*
-# is a joint and not a product.
+#   the Loam, then any land                        7.04 / 9.19
+#   the Loam alone, then at random                 7.25 / 9.47
+#   the Loam, then a nonland the line never casts  7.37 / 9.61  (chosen)
+#   ... and lands third                            7.36 / 9.60
 #
-# The correction is not cosmetic. On the play:
+# Lands third changes nothing at turn 5, and would have Borborygmos bin every
+# land in hand from then on. Desperate Ravings discards at random and ignores the list.
 #
-#   Life from the Loam in hand by turn 5               11.2245%
-#   ...and {1}{G} available to cast it                  9.9210%
-#   {1}{G} available, nothing else asked               90.7268%
+# LUMRA'S RETURN IS NOT DECLARED
+# ------------------------------
+# The standard library's Lumra mills four and then returns every land in the
+# graveyard to the battlefield. Declared here without the return: those lands
+# pay for nothing in this model (a turn's bill is held to its drops), so their
+# one effect is an Icetill landfall each, and with it in the line the run is
+# refused at turn 6 and turn 7 on both seats — the bound on what the library
+# can lose counts every land in the deck coming back, and a turn-6 run reads
+# 12 cards drawn and 91 more that spells could turn over, from 98. At turn 5,
+# where it is answered, the north star alone on this line reads 8.33 / 10.56
+# with the return and 8.21 / 10.51 without, sampled with the same seed: about
+# a tenth of a point on the play, and inside the ± on the draw. A floor, by
+# about that much at turn 5 and more later, when Lumra is cast more often.
 #
-# 0.112245 x 0.907268 = 0.101836, and the real answer is 9.9210% — lower,
-# because a hand holding Loam has one fewer slot that could have been a land.
-# That is the whole point of a joint.
+# WHAT IS NOT MODELLED, AND WHICH WAY EACH LEANS
+# ----------------------------------------------
+# Every item below is a floor — a line the pilot could play that the number
+# does not count — unless it says otherwise.
 #
-# The lands are read for the mana they really make, and every run names the
-# ones it read other than at face value (#82). That moved all three figures
-# above, which were 9.5603% and 87.8132% before: the four fetchlands pay the
-# colours of the untapped lands they can find here — Misty Rainforest, Wooded
-# Foothills and Prismatic Vista find an untapped Forest, so each is a green
-# source — ASSUMING one is still in the library, which ignores running out.
-# Exotic Orchard pays generic and no colour, since its colour is whatever an
-# opponent's lands could make (CR 106.7). Izzet Boilerworks and Simic Growth
-# Chamber still count as one mana a turn: the second mana and the land they
-# return are NOT MODELLED, and the audit bounds that at ±0.25 on the cast.
+#   * DREDGE (ADR-0017). Dredge is a may and the engine never takes it; the
+#     run names Life from the Loam and Shenanigans as never dredged. Loam's
+#     own Dredge 3 presupposes it is already in the graveyard; Shenanigans'
+#     Dredge 1 could mill it there. Floor.
+#   * Cycling lands, Tolaria West's transmute, Argoth, Otawara and the other
+#     channel lands, Glint-Horn Buccaneer: activated abilities. Floor.
+#   * Flashback and retrace (Desperate Ravings, Deep Analysis, Chemister's
+#     Insight, the retrace spells): casting from the graveyard. Floor.
+#   * Ramp spells (Cultivate, Kodama's Reach, Nature's Lore, Flare of
+#     Cultivation), Lotus Cobra's landfall mana, Malevolent Rumble's Spawn,
+#     Izzet Boilerworks and Simic Growth Chamber's second mana: not cast or
+#     not counted. Floor.
+#   * Three Steps Ahead (a Spree cost), Cavalier of Flame (a discard before its
+#     draw), Magmatic Insight, Stock Up and the deck's other card draw: not in
+#     the line. Floor.
+#   * Vastlands Scavenger's Bind to Life: a prepared spell, a second casting
+#     the line does not make. Floor.
+#   * The land drop is one declared priority, not the best land for each deal;
+#     a land drawn mid-line waits for the next drop; Frantic Search untaps the
+#     lands that paid for it rather than the best three; Wrenn and Seven
+#     activates once; Icetill Explorer's extra land a turn and lands played
+#     from the graveyard are not used; Loam returning lands to hand when it
+#     resolves is not played. Floor.
+#   * Shocklands, Argoth and Mystic Sanctuary enter tapped; Exotic Orchard
+#     pays no colour (there is no opponent). Floor.
+#   * A fetchland is read as finding a land still in the library, which can
+#     run out. The one item that leans UP, and by little.
+#   * Six attacks every turn and nobody blocks it: the definition's "opponents
+#     neither help nor hinder", stated by the run as ASSUMED.
+#   * Lumra's return, above. Floor.
+#   * Mulligans: none declared, so every seven is kept. Its sign is the
+#     owner's keep rule, not this file's.
 #
-# THE ROUTES TO THE GRAVEYARD THIS DECK ACTUALLY HAS
-# ---------------------------------------------------
-# Checked against the list rather than against the effect library, which is
-# the mistake VISION.md records as *the effect tiers were chosen from decks
-# nobody had opened*. This deck has:
+# WHAT IT READS
+# -------------
+# Sampled, 200,000 hands a seat; ± is the standard error, 0.08 to 0.11 on
+# the halves:
 #
-#   * NO surveil lands and NO scry lands. Zero. The standard effect library is
-#     two entries, `t:land otag:surveil` and `t:land otag:scry`, and neither
-#     matches a card here — which the tool can now tell you, because the
-#     committed index carries oracle tags. Before it did, `otag:surveil`
-#     matching nothing and *nobody having fetched that tag* were the same
-#     empty result and very different facts.
-#   * Dredge 3, on Loam itself. A replaced draw, refused by name as #57.
-#   * The owner's six "Self-Mill & Filtering" cards, plus Aftermath Analyst.
-#     Malevolent Rumble, Midnight Tilling, Frantic Search and Wrenn and Seven
-#     all put a card in your hand as well as filling the yard, and those are
-#     the replacement draw #57 really does refuse. Shenanigans reaches the
-#     yard by Dredge 1, which is #57 again. Aftermath Analyst just mills
-#     three: nothing reaches the hand, so it is a look that routes to the
-#     graveyard — the mechanism the land-drop tier already runs, on a
-#     different trigger — and it is refused as a replacement draw anyway. See
-#     the note at the foot of this file; filed as #62.
-#   * One land that mills: Argoth, Sanctum of Nature, for {2}{G}{G} and a tap.
-#     An activated ability, not a land drop, so no `[[effect]]` reaches it.
-#   * Discard outlets — the commander, Cavalier of Flame, cycling lands,
-#     Magmatic Insight. Discarding is not a zone transition this engine
-#     models.
-#   * CASTING LOAM. A sorcery goes to the graveyard when it resolves, so
-#     paying {1}{G} for Life from the Loam puts Life from the Loam in the
-#     graveyard. This is the one route the tool can price, and it is priced
-#     below as a gate. Asked of the zone it needs a `[casting]` line, which
-#     would move every other number here, so that phrasing lives in
-#     `loam-cast.criteria.toml` beside this file. It read the same 9.9210%
-#     until that line also cast Spellseeker to fetch the Loam; with it, about
-#     17.1%, sampled.
+#   by turn                       4               5               6               7
+#   THE NORTH STAR, play     0.53 ± 0.02     8.22 ± 0.06    17.93 ± 0.09    23.98 ± 0.10
+#   THE NORTH STAR, draw     0.80 ± 0.02    10.71 ± 0.07    22.06 ± 0.09    27.93 ± 0.10
+#   Loam in the yard, play  14.14           17.44           24.13           28.64
+#   Loam in the yard, draw  16.06           19.55           27.02           31.51
+#   commander cast, play     7.24           52.11           72.05           80.78
+#   commander cast, draw     8.98           59.10           79.14           86.22
 #
-# So the `zone = "graveyard"` number really is zero, and it is zero for a
-# reason the run states rather than for a reason the author checked.
+# The Loam is the bottleneck: the commander is cast by turn 5 in more than
+# half of games, the Loam reaches the yard in under one in five. And the two
+# halves compete for the same lands: 8.22 is under the 9.09 they would make if
+# they were independent. On turn 4 the commander needs a dork cast by turn 3.
 #
-# OTHER THINGS THIS FILE DOES NOT MODEL
-# --------------------------------------
-#   * Mana rocks and mana creatures. `can_cast` is a matching over LANDS,
-#     because only a land arrives without being cast. Birds of Paradise,
-#     Elvish Mystic, Lotus Cobra, Cultivate, Kodama's Reach and Nature's Lore
-#     are all invisible to it, so every mana figure here is a FLOOR.
-#   * Mulligans. Turn 0 is a kept seven (#7).
-#   * On the play unless you pass --draw. In a four-player pod you are on the
-#     draw three games in four; both seats are quoted throughout.
-#   * Shocklands. Five lands here let the pilot choose whether to enter
-#     tapped, and the run assumes they do and names them. Another floor.
-#   * Tutors as tutors. Spellseeker and Tolaria West are one card matching one
-#     query here. `loam-thinning.criteria.toml` beside this file declares what
-#     the four fetchlands go and get, and measures what deck thinning is
-#     worth; `loam-cast.criteria.toml` declares Spellseeker fetching the Loam
-#     (HANDS.md hand 36). Tolaria West's transmute finds mana value 0, and
-#     Loam is 2.
-#   * Anything about the game but your own draws.
+# Each turn is a class of its own, 44 groups whose width passes the 5,000,000
+# ceiling, so every figure is sampled (`jq '.enumerations'`). A run takes
+# about three minutes a seat on four cores, most of it counting each class's
+# paths against the ceiling before sampling them.
+#
+# Against the files this replaces: loam-cast's line, with no commander and no
+# dorks, put the Loam in the yard by turn 5 on 19.79% / 22.57%; this line,
+# which spends turn 5's mana on the commander first, on 17.44% / 19.55%.
+# loam-commander's lands-only commander is 51.99% / 62.10% by turn 5, and
+# loam-rocks' commander-then-dorks line 56.52% / 66.37%; here the Loam and
+# the enablers spend the dorks' early mana, and it is 52.11% / 59.10%.
+#
+# `checker/` asks the same line from the rules — the commander, the dorks,
+# every mill, discard and trigger, this land drop and this list — and holds
+# every criterion here against the engine on both seats.
+#
+# THE FILES BESIDE THIS ONE
+# -------------------------
+#   * loam-access.criteria.toml: this file's questions until #101 — the Loam
+#     Access category, the {1}{G} gate, the drawn-versus-played land counts —
+#     which ask no line and would be repriced by this one.
+#   * loam-commander.criteria.toml and loam-rocks.criteria.toml: the commander
+#     half alone, lands only and with the dorks, the evidence for ADR-0018.
+#   * loam-analyst.criteria.toml: one mill dealt last and answered exactly,
+#     ADR-0017 §4's case.
+#   * loam-thinning.criteria.toml: what the fetchlands' thinning is worth.
 
-# --- The north star, three ways -------------------------------------------
-# The three phrasings are the point. The first is the question, asked of the
-# zone, and it is a measured zero. The second is the route that exists,
-# priced. The third is what somebody counts when nobody has asked who pays.
+[[effect]]
+match = 'name:"Spellseeker"'
+on = "cast"
+fetch = ['name:"Life from the Loam"']
+to = "hand"
 
-# NO at_least. A threshold on a quantity the engine cannot reach is a failure
-# that means nothing, and this run says so itself:
-#
-#   note: nothing routes a card to the graveyard in this run, so every count
-#         in the graveyard is zero. Asked by: "Life from the Loam in the
-#         graveyard by turn 5". Declare `to_graveyard` on an [[effect]] to
-#         route one there.
-#
-# That note is the answer. The 0.00% beside it is not.
+# The standard library's Rumble, Tilling and Six, written again with the
+# choice beside them, because last-wins overrides a whole entry at a time.
+[[effect]]
+match = 'name:"Malevolent Rumble"'
+on = "cast"
+mill = 4
+keep = 1
+keep_only = "is:permanent"
+to_hand = ['name:"Spellseeker"', 't:land']
+
+[[effect]]
+match = 'name:"Midnight Tilling"'
+on = "cast"
+mill = 4
+keep = 1
+keep_only = "is:permanent"
+to_hand = ['name:"Spellseeker"', 't:land']
+
+[[effect]]
+match = 'name:"Six" t:treefolk'
+on = "attack"
+mill = 3
+keep = 1
+keep_only = "t:land"
+to_hand = ['t:land']
+
+# Lumra's mill without its return: see the header.
+[[effect]]
+match = 'name:"Lumra, Bellow of the Woods"'
+on = "cast"
+mill = 4
+
+[casting]
+prefer = [
+  'name:"Borborygmos and Fblthp"',
+  'name:"Life from the Loam"',
+  'name:"Birds of Paradise" or name:"Elvish Mystic"',
+  'name:"Frantic Search"',
+  'name:"Spellseeker"',
+  'name:"Malevolent Rumble"',
+  'name:"Midnight Tilling"',
+  'name:"Izzet Charm"',
+  'name:"Desperate Ravings"',
+  'name:"Aftermath Analyst"',
+  'name:"Wrenn and Seven"',
+  'name:"Six" t:treefolk',
+  'name:"Icetill Explorer"',
+  'name:"Lumra, Bellow of the Woods"',
+]
+
+# The Loam, then a nonland card no entry above casts. No land: see the header.
+[discard]
+prefer = [
+  'name:"Life from the Loam"',
+  '''-t:land -name:"Borborygmos and Fblthp" -name:"Life from the Loam" -name:"Birds of Paradise" -name:"Elvish Mystic" -name:"Frantic Search" -name:"Spellseeker" -name:"Malevolent Rumble" -name:"Midnight Tilling" -name:"Izzet Charm" -name:"Desperate Ravings" -name:"Aftermath Analyst" -name:"Wrenn and Seven" -(name:"Six" t:treefolk) -name:"Icetill Explorer" -name:"Lumra, Bellow of the Woods"''',
+]
+
+[land_drop]
+prefer = [
+  "otag:conditional-tapland",
+  "otag:tapland",
+  "otag:fetchland",
+  "t:land -produces:g -produces:u -produces:r",
+  "t:land -t:basic",
+  "t:land",
+]
+
+# --- The north star, turns 4 to 7 -----------------------------------------
+
 [[criterion]]
-name = "Life from the Loam in the graveyard by turn 5"
+name = "north star by turn 4: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast"
+require = [
+  { turn = 4, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 },
+  { turn = 4, cast = 'name:"Borborygmos and Fblthp"', min = 1 },
+]
+
+[[criterion]]
+name = "north star by turn 5: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast"
+require = [
+  { turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 },
+  { turn = 5, cast = 'name:"Borborygmos and Fblthp"', min = 1 },
+]
+
+[[criterion]]
+name = "north star by turn 6: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast"
+require = [
+  { turn = 6, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 },
+  { turn = 6, cast = 'name:"Borborygmos and Fblthp"', min = 1 },
+]
+
+[[criterion]]
+name = "north star by turn 7: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast"
+require = [
+  { turn = 7, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 },
+  { turn = 7, cast = 'name:"Borborygmos and Fblthp"', min = 1 },
+]
+
+# --- Each half, on the same line ------------------------------------------
+# Nothing takes the Loam back out of the graveyard here (dredge is never
+# taken), so a count in the graveyard is the arrival the north star asks for.
+
+[[criterion]]
+name = "Life from the Loam in the graveyard by turn 4, north-star line"
+require = [{ turn = 4, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "Life from the Loam in the graveyard by turn 5, north-star line"
 require = [{ turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
 
-# The same question by the one route the engine can follow: you cast it, so it
-# is in the graveyard. A LOWER BOUND on the criterion above, and the useful
-# one — dredge, discard and the self-mill package can only add to it.
-#
-# NO at_least, because this is one of five routes and the only one that is
-# expressible; asserting on it would be asserting that the deck reaches its
-# graveyard by its slowest line.
-#
-# Written as the gate rather than as the budget on purpose, and the two agree:
-# declare `[casting] prefer = ['name:"Life from the Loam"']` and ask
-# `cast = 'name:"Life from the Loam"'` instead and the answer is 0.099210 to
-# the digit. The gate is kept here because a `[casting]` line removes the
-# spells it casts from your hand, which would silently move every other count
-# in this file — "some Loam Access by turn 5" would start meaning "some Loam
-# Access you have not spent yet".
 [[criterion]]
-name = "Loam castable by turn 5, so Loam in the graveyard by turn 5"
-require = [
-  { turn = 5, query = 'name:"Life from the Loam"', min = 1 },
-  { turn = 5, can_cast = "{1}{G}" },
-]
-
-# The naive phrasing, kept because the gap teaches something: one card in 98,
-# seen eleven times, and no question asked about the two mana.
-[[criterion]]
-name = "naive: Life from the Loam in hand by turn 5, no mana asked"
-require = [{ turn = 5, query = 'name:"Life from the Loam"', min = 1 }]
-
-# And the control, so the joint above can be checked against the product it is
-# not.
-[[criterion]]
-name = "control: {1}{G} payable by turn 5, no Loam asked"
-require = [{ turn = 5, can_cast = "{1}{G}" }]
-
-# --- The category question ------------------------------------------------
-# The owner's 13-card "Loam Access" category is the real subject. One copy of
-# a sorcery in 98 cards is not a plan; thirteen ways to touch the Loam engine
-# is.
-#
-# THRESHOLD: 0.80. Thirteen cards is 13% of the library and the deck is built
-# so that the Loam engine is the game plan rather than a bonus, so "four games
-# in five, something that touches Loam has turned up by turn five" is the
-# design target being asserted. It is a claim about DRAWING one, not casting
-# one — the package runs from two mana to six, and the criterion after this
-# one prices its cheapest tier.
-[[criterion]]
-name = "some Loam Access by turn 5 (drawn, not cast)"
-at_least = 0.80
-require = [{ turn = 5, query = 'cat:"Loam Access"', min = 1 }]
-
-# The cheap tier, priced. Four of the thirteen cost {1}{G} — Aftermath
-# Analyst, Life from the Loam, Malevolent Rumble, Midnight Tilling — so this
-# is the one sub-question of the category that has a single cost to ask about.
-#
-# NO at_least: four cards in 98 by turn 3 is arithmetic, and asserting on
-# arithmetic asserts nothing.
-[[criterion]]
-name = "a two-mana Loam Access card and {1}{G} for it, turn 3"
-require = [
-  { turn = 3, query = '''name:"Aftermath Analyst" or name:"Life from the Loam" or name:"Malevolent Rumble" or name:"Midnight Tilling"''', min = 1 },
-  { turn = 3, can_cast = "{1}{G}" },
-]
+name = "Life from the Loam in the graveyard by turn 6, north-star line"
+require = [{ turn = 6, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
 
 [[criterion]]
-name = "naive: one of those four drawn by turn 3, no mana asked"
-require = [
-  { turn = 3, query = '''name:"Aftermath Analyst" or name:"Life from the Loam" or name:"Malevolent Rumble" or name:"Midnight Tilling"''', min = 1 },
-]
+name = "Life from the Loam in the graveyard by turn 7, north-star line"
+require = [{ turn = 7, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
 
-# Earlier, and stricter about what it is for: an access card is worth little
-# if you have not also made your land drops, because most of the package
-# either costs real mana or returns lands to your hand.
-#
-# The land clause used to read `{ turn = 3, query = "t:land", min = 3 }`,
-# which counts lands DRAWN. It now says `zone = "battlefield"`, which counts
-# lands PLAYED — one drop a turn, use it or lose it (HANDS.md hand 4).
-#
-# IT DID NOT MOVE THE NUMBER, and that is worth knowing rather than hiding:
-# by turn 3 there have been three land drops, so three lands drawn and three
-# lands played are the same set of hands, to the last digit. Every land clause
-# in this repository asks for N lands by turn T with N <= T, which is the only
-# reason. Ask for four by turn 3 and the two readings are 33% and zero. The
-# `[[expect]]` pair at the foot of this file is the same gap as a
-# distribution: 4.94 lands drawn by turn 5 against 4.36 on the battlefield.
-#
-# THRESHOLD: 0.55. Two separate conditions on turn 3 on the play — nine cards
-# seen — is a genuine ask, and the deck runs 44 lands.
 [[criterion]]
-name = "Loam Access drawn and three lands in play, turn 3"
-at_least = 0.55
-require = [
-  { turn = 3, query = 'cat:"Loam Access"', min = 1 },
-  { turn = 3, query = "t:land", zone = "battlefield", min = 3 },
-]
+name = "Borborygmos and Fblthp cast by turn 4, north-star line"
+require = [{ turn = 4, cast = 'name:"Borborygmos and Fblthp"', min = 1 }]
 
-# --- Distributions --------------------------------------------------------
+[[criterion]]
+name = "Borborygmos and Fblthp cast by turn 5, north-star line"
+require = [{ turn = 5, cast = 'name:"Borborygmos and Fblthp"', min = 1 }]
 
-[[expect]]
-name = "Loam Access cards seen by turn 5"
-turn = 5
-query = 'cat:"Loam Access"'
+[[criterion]]
+name = "Borborygmos and Fblthp cast by turn 6, north-star line"
+require = [{ turn = 6, cast = 'name:"Borborygmos and Fblthp"', min = 1 }]
 
-[[expect]]
-name = "Loam Access cards still in library at turn 5"
-turn = 5
-query = 'cat:"Loam Access"'
-zone = "library"
-
-[[expect]]
-name = "lands in opener"
-turn = 0
-query = "t:land"
-
-# The drawn/played pair, as a distribution. The gap is the drops you never
-# got: half a land by turn 5, which is the whole of what "five lands drawn by
-# turn 3 is three lands in play" comes to on a 44-land deck.
-[[expect]]
-name = "t:land drawn by turn 5"
-turn = 5
-query = "t:land"
-
-[[expect]]
-name = "t:land on the battlefield by turn 5"
-turn = 5
-query = "t:land"
-zone = "battlefield"
-
-# --- `t:land` IS CLEAN IN THIS DECK, AND IT IS WORTH SAYING WHY -----------
-# All 44 cards this file's `t:land` matches are cards you can put onto the
-# battlefield from your hand as a land. Unlike `decks/lantern.txt`, whose
-# `t:land` picks up seven modal double-faced cards and one transforming
-# enchantment, this list has none — `t:land -is:mdfc -is:transform` is 44 here
-# and 32 there.
-#
-# DO NOT WRITE `t:land -is:dfc` as a shorthand for that. On this deck it is
-# 43: it also removes Argoth, Sanctum of Nature, a meld card whose front face
-# is an ordinary land you play on an ordinary land drop. The two spellings
-# agree on `lantern.txt` and disagree here, which is the sort of query bug
-# that produces a number nobody questions.
-
-# --- A MILL IS A LOOK, AND THE TOOL REFUSES IT AS A DRAW -----------------
-# The most interesting thing writing this file turned up. Ask for the deck's
-# actual route to the graveyard:
-#
-#   [[effect]]
-#   match = 'name:"Aftermath Analyst"'   # "When this creature enters, mill three cards."
-#   on = "cast"
-#   look = 3
-#   to_graveyard = "*"
-#
-# and the run refuses it: *a `look` on a cast is a replacement draw, and that
-# is not modelled*. For Malevolent Rumble and Midnight Tilling that is true —
-# both put a card from among the revealed ones into your hand. For a pure mill
-# it is not: nothing reaches the hand, the cards come off the top in library
-# order, and they are routed to a zone exactly the way a surveil land's are.
-# That is the land-drop tier's machinery with a different trigger. Filed as
-# #62; until it is answered, this deck's north star has one expressible
-# route and it is the one priced above.
-
-# --- HOW WIDE THESE QUESTIONS ARE, AND THE ONE THAT IS ESTIMATED ---------
-# Read it off the run: `jq '.enumerations'`. Every question here is enumerated
-# exactly on the play. Exactly one is estimated on the draw, and it is the
-# north star's second phrasing.
-#
-# The widest class is "Loam castable by turn 5, so Loam in the graveyard by
-# turn 5": 6 groups, and 1,026,432 compositions on the play against a ceiling of
-# 5,000,000. On the draw the same six groups cost 6,158,592 — one extra card
-# by turn 5 is one more power of the group count — so it goes 23% over the
-# line and is sampled, at 11.24% ± 0.07 rather than a figure with no ±.
-# Nothing else in the file moves: since upstream #31 a class pays only for
-# what it reads, so the criterion beside it that counts `cat:"Loam Access"` is
-# still 13 compositions.
-#
-# Five of those six groups are the manabase as a {G} cost can see it — makes
-# green untapped, makes green tapped, makes something else untapped, makes
-# something else tapped, everything that is not a land — and the sixth is the
-# card query. The turn is what decides affordability: the same shape of clause
-# at turn 3 is 28,512 compositions on the play and 171,072 on the draw, both
-# exact. `decks/lantern.criteria.toml` is the file where this bites hard.
-
-# --- THE INDEX THESE NUMBERS WERE PRODUCED AGAINST ------------------------
-# `decks/index.jsonl`, committed beside this file, synced from Scryfall with
-# all eight oracle tags. An earlier note here said `sync` could not complete —
-# it fetched the tags with no delay, took HTTP 429 on the fifth, and discarded
-# the whole 24.7 MB download, four times running — so the committed index was
-# built with `--from` and carried no tags at all.
-#
-# That mattered most here, because this file asks about the graveyard. On a
-# tagless index `otag:surveil` matches nothing whether or not the deck has a
-# surveil land, so "this deck routes nothing to the graveyard" was the
-# author's own check written into a comment rather than something the tool
-# could state. It is now the tool's: the index carries `surveil` and `scry`,
-# the standard library's two entries are evaluated against real tag
-# membership, and they match zero cards in this list. Same zero, different
-# fact, and `provenance.index_updated_at` is a date rather than null.
+[[criterion]]
+name = "Borborygmos and Fblthp cast by turn 7, north-star line"
+require = [{ turn = 7, cast = 'name:"Borborygmos and Fblthp"', min = 1 }]

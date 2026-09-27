@@ -67,6 +67,9 @@ class Card:
     loyalty: int | None = None
     # Scryfall's oracle tags, as the index holds them: `otag:` in a file.
     tags: frozenset[str] = frozenset()
+    # Scryfall's `produced_mana` at face value, which is what `produces:` in a
+    # file reads: a fetchland lists none.
+    listed: frozenset[str] = frozenset()
 
     def is_named(self, *names: str) -> bool:
         return self.name in names
@@ -179,6 +182,7 @@ def _make_card(record: dict, categories: tuple[str, ...]) -> Card:
         identity=frozenset(record.get("ci") or []),
         loyalty=int(faces[0]["loyalty"]) if str(faces[0].get("loyalty", "")).isdigit() else None,
         tags=frozenset(tags),
+        listed=listed,
     )
 
 
@@ -1085,17 +1089,21 @@ def declared_line_path(
     rummages: dict[str, Rummage],
     attacks: dict[str, Mill] | None = None,
     landfalls: dict[str, Mill] | None = None,
+    returns: dict[str, Callable[[Card], bool]] | None = None,
 ) -> DeclaredPath:
     """Play `line` out through `last_turn` under a declared land drop and a
     declared discard list. `attacks` and `landfalls` are what a permanent the
-    line cast mills each time it attacks or a land enters, each from the turn
-    after it was cast (see `line_path`). Cached on the game."""
+    line cast mills each time it attacks or a land enters (see `line_path`).
+    `returns` maps a card to the land cards that, once its mill is done, go
+    from the whole graveyard onto the battlefield tapped (Lumra). A rock or a
+    dork the line casts is a mana source (ADR 0018). Cached on the game."""
     attacks = attacks or {}
     landfalls = landfalls or {}
+    returns = returns or {}
     key = ("declared", line, last_turn, land_drop, discard,
            tuple(sorted(fetches.items())), tuple(sorted(mills.items())),
            tuple(sorted(rummages.items())), tuple(sorted(attacks.items())),
-           tuple(sorted(landfalls.items())))  # fmt: skip
+           tuple(sorted(landfalls.items())), tuple(sorted(returns.items())))  # fmt: skip
     if key in game._line_cache:
         return game._line_cache[key]
     # The card picked at random is a function of the deal, and the same one
@@ -1120,14 +1128,23 @@ def declared_line_path(
     library = list(game.cards)  # the top of the shuffled library
     top = 0
     taken: list[str] = []
-    hand: list[Card] = [c for c in game.commanders if c.name in named]
+    # The command zone is not the hand: a discard never takes the commander.
+    command: list[Card] = [c for c in game.commanders if c.name in named]
+    hand: list[Card] = []
     in_play: list[tuple[Card, int]] = []
     # Permanents the line cast that trigger, and the turn each was cast on.
     triggers: list[tuple[Card, int]] = []
+    identity = frozenset().union(*(c.identity for c in game.commanders))
+    # Mana sources the line cast, and the turn each was cast on.
+    sources: list[tuple[Source, int]] = []
+    # Every card in the graveyard now: a returned land leaves it.
+    graveyard: list[Card] = []
     path = DeclaredPath()
 
     def draw(n: int) -> list[Card]:
         nonlocal top
+        if top + n > len(library) and len(game.cards) < game.library_size:
+            raise ValueError("the deal is shallower than this line reads: raise its depth")
         cards = library[top : top + n]
         top += len(cards)
         taken.extend(c.name for c in cards)
@@ -1147,6 +1164,7 @@ def declared_line_path(
             hand.remove(land)
             in_play.append((land, t))
         to_graveyard: list[Card] = []
+        returned_now: list[Card] = []  # of this turn's, the lands a card returned
 
         def mill_off(mill: Mill) -> None:
             milled = draw(mill.cards)
@@ -1154,21 +1172,37 @@ def declared_line_path(
             for i, c in enumerate(milled):
                 (hand if i in kept else to_graveyard).append(c)
 
-        # The land that entered fires every landfall cast on an earlier turn.
-        for permanent, when in triggers:
-            if lands and when < t and permanent.name in landfalls:
-                mill_off(landfalls[permanent.name])
+        def landfall(entered: int) -> None:
+            """Each land that entered fires every landfall permanent the
+            line has cast so far: one on an earlier turn sees the drop, and
+            any one on the battlefield sees a land a spell returns."""
+            for permanent, _ in list(triggers):
+                if permanent.name in landfalls:
+                    for _ in range(entered):
+                        mill_off(landfalls[permanent.name])
+
+        # The drop came before the line, so only a permanent cast on an
+        # earlier turn is there to see it.
+        if lands:
+            for permanent, when in list(triggers):
+                if when < t and permanent.name in landfalls:
+                    mill_off(landfalls[permanent.name])
+        # Only lands that took a drop pay (README "returns": a returned land
+        # took none, and a turn's bill is held to its drops).
         pool = [
             (0, c.produces)
             for c, played in in_play
-            if c.makes_mana and not (played == t and c.enters_tapped)
+            if played and c.makes_mana and not (played == t and c.enters_tapped)
         ]
+        # A source cast on an earlier turn adds from the start of this one; a
+        # creature cast this turn is summoning-sick (CR 302.6).
+        pool += [(0, src.palette) for src, when in sources if when < t for _ in range(src.amount)]
         bill: list[Cost] = []
         cast: list[Card] = []
         while True:
             chosen = None
             for entry in line:
-                options = [c for c in hand if c.name in entry]
+                options = [c for c in hand + command if c.name in entry]
                 options.sort(key=lambda c: (_mana_value(c), order[c.name]))
                 for c in options:
                     cost = _parse_cost_cached(c.mana_cost)
@@ -1180,13 +1214,20 @@ def declared_line_path(
             if not chosen:
                 break
             card, cost = chosen
-            hand.remove(card)
+            (command if card in command else hand).remove(card)
             cast.append(card)
             if card.name in attacks or card.name in landfalls:
                 triggers.append((card, t))
             rummage = rummages.get(card.name)
             if not (rummage and rummage.untaps_its_cost):
                 bill.append(cost)
+            # A rock pays for what is cast after it this turn and never for
+            # itself; a dork only from the next turn (ADR 0018).
+            src = mana_source(card, identity)
+            if src is not None:
+                sources.append((src, t))
+                if not src.sick:
+                    pool += [(len(bill), src.palette)] * src.amount
             if any(k in card.type_line for k in ("Instant", "Sorcery")):
                 to_graveyard.append(card)
             for wanted in fetches.get(card.name, ()):
@@ -1206,6 +1247,19 @@ def declared_line_path(
                 kept = mill.kept(milled, game.library)
                 for i, c in enumerate(milled):
                     (hand if i in kept else to_graveyard).append(c)
+            back = returns.get(card.name)
+            if back is not None:
+                # "Then return all land cards from your graveyard to the
+                # battlefield tapped": this turn's and every earlier one's.
+                gone = [c for c in graveyard if back(c)]
+                graveyard = [c for c in graveyard if not back(c)]
+                this_turn = list(to_graveyard)
+                for c in returned_now:
+                    this_turn.remove(c)
+                gone += [c for c in this_turn if back(c)]
+                returned_now += [c for c in this_turn if back(c)]
+                in_play += [(c, 0) for c in gone]  # on the battlefield, by no drop
+                landfall(len(gone))
             if rummage is not None:
                 hand += draw(rummage.draw)
                 allowed = [c for c in hand if rummage.only is None or rummage.only(c)]
@@ -1230,7 +1284,12 @@ def declared_line_path(
         for creature, when in triggers:
             if when < t and creature.name in attacks:
                 mill_off(attacks[creature.name])
+        # Put into the graveyard this turn, whatever left it again since.
         path.append(DeclaredTurn(t, cast, to_graveyard, len(in_play)))
+        rest = list(to_graveyard)
+        for c in returned_now:
+            rest.remove(c)
+        graveyard += rest
     game._line_cache[key] = path
     return path
 
@@ -1323,16 +1382,22 @@ LOAM, SEEKER = "Life from the Loam", "Spellseeker"
 RUMBLE, TILLING = "Malevolent Rumble", "Midnight Tilling"
 ANALYST, WRENN = "Aftermath Analyst", "Wrenn and Seven"
 SIX, EXPLORER, LUMRA = "Six", "Icetill Explorer", "Lumra, Bellow of the Woods"
+# The Loam north star, as decks/loam.criteria.toml asks it (#101): Life from
+# the Loam put into the graveyard AND Borborygmos and Fblthp cast, by turn N,
+# on one line and one pool.
+#
 # [[effect]] match = 'name:"Spellseeker"', on = "cast",
 #            fetch = ['name:"Life from the Loam"'], to = "hand"
 # [[effect]] match = 'name:"Malevolent Rumble"' and 'name:"Midnight Tilling"',
 #            to_hand = ['name:"Spellseeker"', 't:land']
 # [[effect]] match = 'name:"Six" t:treefolk', on = "attack", to_hand = ['t:land']
-# [casting] prefer = [Loam, Frantic Search, Spellseeker, Rumble, Tilling,
-#                     Izzet Charm, Desperate Ravings, Analyst, Wrenn and Seven,
-#                     Six, Icetill Explorer, Lumra]
-# [discard] prefer = ['name:"Life from the Loam"', 't:land']
-# [land_drop] prefer = ["otag:tapland", "t:land"]
+# [[effect]] match = 'name:"Lumra, Bellow of the Woods"', on = "cast", mill = 4
+#            (and no `returns`: see Lumra below)
+# [casting] prefer = NORTH_STAR_LINE, below, one entry per tuple
+# [discard] prefer = [Loam, a nonland card the line does not name]
+# [land_drop] prefer = [lands entering tapped by the pilot's choice, taplands,
+#                       fetchlands, lands making none of {G}{U}{R}, nonbasic
+#                       lands, any land]
 #
 # Spellseeker's enters trigger searches the library for an instant or sorcery
 # with mana value 2 or less and puts it into your hand; Loam is a sorcery at
@@ -1363,14 +1428,11 @@ SIX, EXPLORER, LUMRA = "Six", "Icetill Explorer", "Lumra, Bellow of the Woods"
 #   there is no opponent at this table.
 # * Icetill Explorer: "Whenever a land you control enters, mill a card." The
 #   land drop comes before the line, so the drop of the turn it is cast does
-#   not trigger it; every drop after that does. This line plays no fetchland
-#   and returns no land by turn 5, so the drop is the only land that enters.
-#   ASSUMPTION (README): its additional land a turn, and playing lands from the
-#   graveyard, are not used.
+#   not trigger it; every drop after that does. ASSUMPTION (README): its
+#   additional land a turn, and playing lands from the graveyard, are not used.
 # * Lumra: "When Lumra enters, mill four cards. Then return all land cards
-#   from your graveyard to the battlefield tapped." It costs six, and the line
-#   casts no mana source, so it needs six land drops: it is never cast by turn
-#   5, and neither its mill nor its return is played here.
+#   from your graveyard to the battlefield tapped." The file declares the mill
+#   and not the return (its header says why), so the lands stay where they are.
 #
 # And the third way in is a discard, read off each card:
 #
@@ -1380,14 +1442,26 @@ SIX, EXPLORER, LUMRA = "Six", "Icetill Explorer", "Lumra, Bellow of the Woods"
 #   ASSUMPTION (the standard library's entry): a line casting it chooses that
 #   mode.
 # * Desperate Ravings: "Draw two cards, then discard a card at random."
+# * Borborygmos and Fblthp: "When Borborygmos and Fblthp enters, draw a card.
+#   Then you may discard any number of land cards." The list names no land, so
+#   it discards none (README "Discard": "any number" is every eligible card
+#   the list names).
 #
-# Dredge is not a route here (README "Zones"). Everything else is
+# The commander is cast from the command zone out of the same pool, and is
+# never in hand to be discarded (README "Mana, as a budget"). Birds of
+# Paradise and Elvish Mystic are sources from the turn after the line casts
+# them (ADR 0018, CR 302.6).
+#
+# Dredge is not a route here (ADR 0017). Everything else is
 # `declared_line_path`: the file declares its land drop and its discard list,
 # so this plays the line the pilot declared rather than the best one.
 FRANTIC, CHARM, RAVINGS = "Frantic Search", "Izzet Charm", "Desperate Ravings"
-LOAM_CAST_LINE = (
-    (LOAM,), (FRANTIC,), (SEEKER,), (RUMBLE,), (TILLING,), (CHARM,), (RAVINGS,),
-    (ANALYST,), (WRENN,), (SIX,), (EXPLORER,), (LUMRA,),
+BIRDS, MYSTIC = "Birds of Paradise", "Elvish Mystic"
+BORBORYGMOS = "Borborygmos and Fblthp"
+NORTH_STAR_LINE = (
+    (BORBORYGMOS,), (LOAM,), (BIRDS, MYSTIC), (FRANTIC,), (SEEKER,),
+    (RUMBLE,), (TILLING,), (CHARM,), (RAVINGS,), (ANALYST,), (WRENN,), (SIX,),
+    (EXPLORER,), (LUMRA,),
 )  # fmt: skip
 SEEKER_FETCHES = {SEEKER: (LOAM,)}
 _PERMANENT_TYPES = ("Artifact", "Creature", "Enchantment", "Land", "Planeswalker", "Battle")
@@ -1428,47 +1502,90 @@ def _is_loam(c: Card) -> bool:
     return c.name == LOAM
 
 
-LOAM_LAND_DROP = (_is_tapland, _is_land)
-LOAM_DISCARDS = (_is_loam, _is_land)
 LOAM_ATTACKS = {SIX: Mill(3, keep_up_to=1, keep_only=_is_land, prefer=(_is_land,))}
 LOAM_LANDFALLS = {EXPLORER: Mill(1)}
-# Turn 5, one card deeper for the Loam a fetch takes out, every card the four
-# mills could take, the two each of the three rummages draws, and Six's two
-# attacks and the Explorer's one landfall: cast on turns 3 and 4 at the
-# earliest, they fire on 4 and 5, and on 5.
-LOAM_CAST_DEPTH = 6 + 3 + 4 + 4 + 4 + 2 + 2 + 2 + 3 + 3 + 1
+
+# The north star's own choices.
+NORTH_STAR_MILLS = {**LOAM_MILLS, LUMRA: Mill(4)}
+NORTH_STAR_RUMMAGES = {
+    **LOAM_RUMMAGES,
+    BORBORYGMOS: Rummage(draw=1, any_number=True, only=_is_land),
+}
+_IN_THE_LINE = frozenset(n for entry in NORTH_STAR_LINE for n in entry)
 
 
-def _loam_cast_path(g: Game) -> DeclaredPath:
+def _is_offline(c: Card) -> bool:
+    """A nonland card the line never casts: the file's '-t:land -name:...'."""
+    return not _is_land(c) and c.name not in _IN_THE_LINE
+
+
+def _enters_tapped_by_choice(c: Card) -> bool:
+    return _is_land(c) and "conditional-tapland" in c.tags
+
+
+def _is_fetchland(c: Card) -> bool:
+    return _is_land(c) and "fetchland" in c.tags
+
+
+def _makes_none_of_the_colours(c: Card) -> bool:
+    # 't:land -produces:g -produces:u -produces:r', off Scryfall's own list
+    return _is_land(c) and not (c.listed & {"G", "U", "R"})
+
+
+def _is_nonbasic(c: Card) -> bool:
+    return _is_land(c) and "Basic" not in c.type_line
+
+
+NORTH_STAR_LAND_DROP = (
+    _enters_tapped_by_choice,
+    _is_tapland,
+    _is_fetchland,
+    _makes_none_of_the_colours,
+    _is_nonbasic,
+    _is_land,
+)
+NORTH_STAR_DISCARDS = (_is_loam, _is_offline)
+NORTH_STAR_TURNS = 7
+# Deep enough for turn 7 however the line fires: seven draw steps, the fetch,
+# every mill and rummage once, Six's attacks on turns 3 to 7 at the most and
+# a landfall for each drop after the Explorer, cast on turn 3 at the earliest.
+# `declared_line_path` refuses to run short rather than answer from fewer.
+NORTH_STAR_DEPTH = 7 + 1 + (3 + 4 + 4 + 4 + 4) + (2 + 2 + 2 + 1) + 3 * 5 + 4
+
+
+def _north_star_path(g: Game) -> DeclaredPath:
     return declared_line_path(
         g,
-        LOAM_CAST_LINE,
-        5,
-        LOAM_LAND_DROP,
-        LOAM_DISCARDS,
+        NORTH_STAR_LINE,
+        NORTH_STAR_TURNS,
+        NORTH_STAR_LAND_DROP,
+        NORTH_STAR_DISCARDS,
         SEEKER_FETCHES,
-        LOAM_MILLS,
-        LOAM_RUMMAGES,
+        NORTH_STAR_MILLS,
+        NORTH_STAR_RUMMAGES,
         attacks=LOAM_ATTACKS,
         landfalls=LOAM_LANDFALLS,
     )
 
 
-def _loam_in_graveyard_by_5(g: Game) -> bool:
-    # { turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }
-    return _loam_cast_path(g).in_graveyard_by(LOAM, 5)
+def _north_star(turn: int) -> Callable[[Game], bool]:
+    # { turn = N, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }
+    # { turn = N, cast = 'name:"Borborygmos and Fblthp"', min = 1 }
+    def ask(g: Game) -> bool:
+        path = _north_star_path(g)
+        return path.in_graveyard_by(LOAM, turn) and path.cast_by(BORBORYGMOS, turn)
+
+    return ask
 
 
-def _loam_cast_by_5(g: Game) -> bool:
-    # { turn = 5, cast = 'name:"Life from the Loam"', min = 1 }
-    return _loam_cast_path(g).cast_by(LOAM, 5)
+def _north_star_loam(turn: int) -> Callable[[Game], bool]:
+    # { turn = N, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }
+    return lambda g: _north_star_path(g).in_graveyard_by(LOAM, turn)
 
 
-def _seeker_and_loam_cast_by_5(g: Game) -> bool:
-    # { turn = 5, cast = 'name:"Spellseeker"', min = 1 }
-    # { turn = 5, cast = 'name:"Life from the Loam"', min = 1 }
-    path = _loam_cast_path(g)
-    return path.cast_by(LOAM, 5) and path.cast_by(SEEKER, 5)
+def _north_star_commander(turn: int) -> Callable[[Game], bool]:
+    # { turn = N, cast = 'name:"Borborygmos and Fblthp"', min = 1 }
+    return lambda g: _north_star_path(g).cast_by(BORBORYGMOS, turn)
 
 
 # [casting] prefer = ['name:"Aftermath Analyst"', 'name:"Life from the Loam"']
@@ -1608,31 +1725,10 @@ LOAM_COMMANDER = ("Borborygmos and Fblthp", "{2}{G}{U}{R}")
 QUESTIONS: list[Question] = [
     Question(
         "loam",
-        "loam.criteria.toml",
+        "loam-access.criteria.toml",
         "Loam castable by turn 5, so Loam in the graveyard by turn 5",
         _loam_castable_by_5,
         5,
-    ),
-    Question(
-        "loam",
-        "loam-cast.criteria.toml",
-        "Life from the Loam in the graveyard by turn 5, cast, milled or discarded",
-        _loam_in_graveyard_by_5,
-        LOAM_CAST_DEPTH,
-    ),
-    Question(
-        "loam",
-        "loam-cast.criteria.toml",
-        "Life from the Loam cast by turn 5",
-        _loam_cast_by_5,
-        LOAM_CAST_DEPTH,
-    ),
-    Question(
-        "loam",
-        "loam-cast.criteria.toml",
-        "Spellseeker and Life from the Loam both cast by turn 5",
-        _seeker_and_loam_cast_by_5,
-        LOAM_CAST_DEPTH,
     ),
     Question(
         "loam",
@@ -1643,21 +1739,21 @@ QUESTIONS: list[Question] = [
     ),
     Question(
         "loam",
-        "loam.criteria.toml",
+        "loam-access.criteria.toml",
         "control: {1}{G} payable by turn 5, no Loam asked",
         _one_green_by_5,
         5,
     ),
     Question(
         "loam",
-        "loam.criteria.toml",
+        "loam-access.criteria.toml",
         "a two-mana Loam Access card and {1}{G} for it, turn 3",
         _loam_two_drop_and_mana_t3,
         3,
     ),
     Question(
         "loam",
-        "loam.criteria.toml",
+        "loam-access.criteria.toml",
         "Loam Access drawn and three lands in play, turn 3",
         _loam_access_and_three_lands_t3,
         3,
@@ -1849,6 +1945,44 @@ ROCK_QUESTIONS: list[Question] = (
     ]
 )
 QUESTIONS += ROCK_QUESTIONS
+
+
+# --- The Loam north star (#101) -----------------------------------------------
+#
+# decks/loam.criteria.toml's one line, asked at turns 4 to 7: both halves at
+# once, and each half on its own, of the same games.
+NORTH_STAR = "Life from the Loam put into the graveyard and Borborygmos and Fblthp cast"
+NORTH_STAR_QUESTIONS: list[Question] = [
+    q
+    for t in (4, 5, 6, 7)
+    for q in (
+        Question(
+            "loam",
+            "loam.criteria.toml",
+            f"north star by turn {t}: {NORTH_STAR}",
+            _north_star(t),
+            NORTH_STAR_DEPTH,
+            games=LINE_GAMES,
+        ),
+        Question(
+            "loam",
+            "loam.criteria.toml",
+            f"Life from the Loam in the graveyard by turn {t}, north-star line",
+            _north_star_loam(t),
+            NORTH_STAR_DEPTH,
+            games=LINE_GAMES,
+        ),
+        Question(
+            "loam",
+            "loam.criteria.toml",
+            f"Borborygmos and Fblthp cast by turn {t}, north-star line",
+            _north_star_commander(t),
+            NORTH_STAR_DEPTH,
+            games=LINE_GAMES,
+        ),
+    )
+]
+QUESTIONS += NORTH_STAR_QUESTIONS
 
 
 # --- Running ------------------------------------------------------------------

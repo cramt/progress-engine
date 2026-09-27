@@ -21,13 +21,13 @@
 # enumerated: 10.19%, exact. On the draw it is 8,468,217 paths dealt last, so
 # that seat is still sampled.
 #
-# Not in loam-cast.criteria.toml, whose line has Spellseeker in it: a tutor
+# Not in loam.criteria.toml, whose line has Spellseeker in it: a tutor
 # searches the library, and three cards not yet dealt would still be in it to
 # be found. Nor Rumble or Tilling, which choose a card to keep from what they
 # turn over. Every mill there is dealt where it fired.
 #
-# A LOWER BOUND on the north star, as loam-cast.criteria.toml's is: one route
-# of five.
+# One route of the Loam half of the north star, which loam.criteria.toml asks
+# with every route it models on one line.
 
 [casting]
 prefer = ['name:"Aftermath Analyst"', 'name:"Life from the Loam"']

@@ -29,11 +29,11 @@ made up — if you can write it down, it can be asked about.
 
 ## The north stars
 
-Two real decks. When the tool can answer both, it works. It answers the first
-as a floor — every route written down and priced, with named inputs it still
-cannot count — and cannot answer the second, and both were briefly recorded
-here as closer than they were, which is the reason this section now names the
-deck rather than the question.
+Two real decks. When the tool can answer both, it works. It answers both as
+floors — every route written down and priced, with named inputs it still
+cannot count — and both were briefly recorded here as closer than they were,
+which is the reason this section now names the deck rather than the
+question.
 
 **Lantern control.** *How often is there a line that resolves Lantern of Insight
 by turn 5?*
@@ -150,55 +150,61 @@ A deck that fails its 75% target by 27 points as a floor has not been shown to
 pass it. The largest of those — mana rocks, on an artifact deck — is where the
 next honest movement in this number is.
 
-**Life from the Loam.** *How often is Loam in my graveyard by turn 5?* Needs the
-graveyard to be a thing you can ask about, and needs a card routed into the yard
-to count as arriving there — because for this deck that is the *good* route, not
-a consolation prize.
+**Life from the Loam.** *How often is Life from the Loam put into the graveyard
+and Borborygmos and Fblthp cast, by turn 5?* By any line the pilot's own cards
+allow, on one mana budget, with opponents neither helping nor hindering. For
+this deck the graveyard is the *good* route, not a consolation prize: Loam
+does nothing from the hand.
 
-**Answerable for a deck built on surveil lands. Not answerable for the actual
-deck**, which was checked against its own list after this was first written down
-as done. It contains no surveil or scry land at all. Its routes to the graveyard
-are Loam's own Dredge 3, six mana-gated self-mill spells, and cycling lands and
-discard outlets — and the `[[effect]]` grammar expresses none of them, because
-every one is either mana-gated or a replaced draw rather than a land drop.
+It was first written down as *how often is Loam in my graveyard by turn 5*, and
+recorded as done for a deck built on surveil lands. **The actual deck has no
+surveil or scry land at all**, which was found by reading its list after the
+fact. Its routes to the graveyard are casting the Loam, six self-mill spells,
+three draw-and-discard spells, three creatures whose mills are triggers, and
+dredge — and every one of them costs mana or turns cards over, so for a long
+time the only expressible route was the one nobody had thought to write down:
+a sorcery goes to the graveyard when it resolves, so paying `{1}{G}` for the
+Loam puts it there. That read **9.92%** on the play, a genuine joint against
+11.22% for holding the card and 90.73% for the mana, and it was a floor under
+a question that was otherwise unanswerable.
 
-**That check is now the tool's rather than a reader's.** It was written into a
-comment in `decks/loam.criteria.toml` because the committed index carried no
-oracle tags, and on a tagless index `otag:surveil` matching nothing and nobody
-having fetched that tag are the same empty result. The index carries all eight
-tags now, so the standard library's two entries are evaluated against real
-membership and match zero cards in that list. Same zero, different fact.
+**It is now one criterion, and it is answered as a floor.**
+`decks/loam.criteria.toml` asks both halves as two clauses against the same
+game, on one `[casting]` line that casts every route this engine models: the
+commander first, then the Loam, then Birds of Paradise and Elvish Mystic
+(ADR-0018), then Frantic Search, Spellseeker fetching the Loam, Malevolent
+Rumble and Midnight Tilling, Izzet Charm and Desperate Ravings, Aftermath
+Analyst, Wrenn and Seven, Six's attacks, Icetill Explorer's landfalls and
+Lumra's mill (ADR-0017). It declares its land drop and its discard list, and
+says why it chose each of them and the order, with the alternatives it
+measured. Sampled, 200,000 hands a seat, ± 0.10 or less:
 
-**One route out of five is expressible, and it is the one nobody had thought to
-write down.** A sorcery goes to the graveyard when it resolves, so paying
-`{1}{G}` for Life from the Loam puts Life from the Loam in the graveyard. Asked
-that way — a clause for the card and a clause for `can_cast = "{1}{G}"` — the
-deck reads **9.92%** on the play against **11.22%** for holding the card with no
-question asked about the mana, and 90.73% for the mana with no question asked
-about the card. It is a genuine joint and not a product, for the same reason the
-Lantern's is: a hand holding the Loam has one fewer slot that could have been a
-land. It is also a lower bound on the north star, because dredge, discard and
-the self-mill package can only add to it.
+| By turn | 4 | 5 | 6 | 7 |
+|---|---|---|---|---|
+| **the north star**, play | 0.53% | **8.22%** | 17.93% | 23.98% |
+| **the north star**, draw | 0.80% | **10.71%** | 22.06% | 27.93% |
+| Loam put into the graveyard, play / draw | 14.14% / 16.06% | 17.44% / 19.55% | 24.13% / 27.02% | 28.64% / 31.51% |
+| commander cast, play / draw | 7.24% / 8.98% | 52.11% / 59.10% | 72.05% / 79.14% | 80.78% / 86.22% |
 
-So the machinery is real and the north star is not met. Recording it as met was
-the same mistake as recording the Lantern question in its easy form: a feature
-was built for the deck that was imagined rather than the one on the table.
+The halves say where it is lost. The commander is cast by turn 5 in more than
+half of games; the Loam reaches the graveyard in fewer than one in five, so
+the Loam is the bottleneck. And the two compete: 8.22% is under the 9.09% the
+halves would give if they were independent, because both are paid out of the
+same turns' lands. The file carries no bound: which turn to hold the deck to,
+and how often, is the owner's to choose off that curve.
 
-**And the self-mill package is nearer than it looked.** Aftermath Analyst mills
-three on resolution: nothing reaches the hand, the cards come off the top in
-library order, and they are routed to a zone — which is `look` plus
-`to_graveyard`, the mechanism the land-drop tier already runs, on a different
-trigger. It is refused as a replacement draw, and for a pure mill it is not one
-([#62](https://github.com/cramt/progress-engine/issues/62)).
-
-Both needed the mana model, and that was not obvious until the real lists were
-read. Lantern's four routes can now be written down together, and all four
-are priced rather than assumed: a clause can ask whether the mana was there and
-a clause can ask what it was spent on. Loam's self-mill is six spells and a
-dredge trigger, every one of which costs mana or replaces a draw — the mana half
-of that is now expressible and the replaced draw is not, which is the honest
-state of it and is why the land-drop tier built for this deck still does not
-fire on it once.
+Every input the number leaves out is named in the file, and all but one of
+them lean the same way: dredge (the engine never dredges, and the run names
+Life from the Loam and Shenanigans as never dredged), cycling and the other
+activated abilities, flashback and retrace, the ramp spells, Three Steps Ahead,
+Cavalier of Flame, Lotus Cobra's landfall mana, Vastlands Scavenger's prepared
+Bind to Life, Lumra's return (declared away, because the bound on what the
+library can lose refuses turn 6 with it in), a land drop that is one declared
+priority rather than the best land for each deal, and mulligans, which the
+owner has not declared. Each is a line the pilot could play and the number
+does not count. The one that leans up is a fetchland read as always finding a
+land. `checker/` asks the same line from the rules, at every turn and both
+seats, and agrees.
 
 The general lesson, worth more than either deck: **the effect tiers were chosen
 from decks nobody had opened.** Land drops were picked first because they are
@@ -771,7 +777,8 @@ through the front door.
   ceiling. Three other questions in that file are sampled for the same reason;
   the other thirteen are exact, at between 8 and 30,720 compositions each on the
   play and between 8 and 122,880 on the draw. Sized per file they would all have been estimates.
-  `decks/loam.criteria.toml` is the other half of the same claim: 8 groups and
+  `decks/loam-access.criteria.toml` (then `loam.criteria.toml`) is the other
+  half of the same claim: 8 groups and
   14,057,472 as one enumeration, which is sampled, against a widest class of 6
   groups and 1,026,432, which is not.
 - A cost is enumerated on the colours it demands and no others

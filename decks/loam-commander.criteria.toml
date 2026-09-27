@@ -9,10 +9,11 @@
 # discard, come after the cast every question here counts, so no class walks
 # them (#103): they cannot move a number asked here.
 #
-# ON ITS OWN, DELIBERATELY, for the reason `lantern-commander.criteria.toml`
-# gives: a `[casting]` line is one pool with every `can_cast` in the file that
-# declares it, so declared in `loam.criteria.toml` it would reprice that file's
-# gates as "after the commander" rather than ask this.
+# `loam.criteria.toml` asks this half beside the other, on the north star's
+# line: the commander first, then the Loam, the dorks and every route to the
+# graveyard, all out of one pool. This file is the commander alone and lands
+# only, which is the floor that line starts from, and the half of ADR-0018's
+# lands-or-dorks pair that `loam-rocks.criteria.toml` completes.
 #
 # A floor: only lands pay, a bounce land is one mana, and a land whose
 # tapped-ness is the pilot's choice is assumed to enter tapped.

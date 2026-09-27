@@ -87,14 +87,14 @@ class Hand59(unittest.TestCase):
         self.assertNotIn(checker.LOAM, names(path[-1].game.seen(6)))
 
 
-class LoamCastLine(unittest.TestCase):
+class NorthStarLine(unittest.TestCase):
     def test_lumra_is_never_cast_by_turn_5(self):
-        """It costs six and the line casts no source: six drops, turn 6."""
+        """It costs six and this deal holds no dork: six drops, turn 6."""
         game = deal(
             "Forest", "Forest", "Forest", "Forest", "Forest", "Forest",
             checker.LUMRA, "Forest", "Forest", "Forest", "Forest", "Forest",
         )  # fmt: skip
-        path = checker._loam_cast_path(game)
+        path = checker._north_star_path(game)
         self.assertFalse(path.cast_by(checker.LUMRA, 5))
         self.assertTrue(
             checker.line_path(game, ((checker.LUMRA,),), 6).cast_by(checker.LUMRA, 6)
