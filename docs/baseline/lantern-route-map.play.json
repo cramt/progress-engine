@@ -8,8 +8,8 @@
   "method": "sampled",
   "sampled_because": "too_wide",
   "too_wide": {
-    "paths": 675429580800,
-    "groups": 24,
+    "paths": 5000001,
+    "groups": 30,
     "ceiling": 5000000
   },
   "trials": 200000,
@@ -25,6 +25,10 @@
     },
     {
       "query": "name:\"Whir of Invention\"",
+      "cards": 1
+    },
+    {
+      "query": "name:\"Artificer's Intuition\"",
       "cards": 1
     },
     {
@@ -164,6 +168,25 @@
       ],
       "copies": 1,
       "live": true
+    },
+    {
+      "match": "name:\"Artificer's Intuition\"",
+      "look": 0,
+      "cost": "{U}",
+      "on": "activate",
+      "fetch": [
+        "name:\"Lantern of Insight\""
+      ],
+      "to": "hand",
+      "sacrifice": false,
+      "discard": 1,
+      "discard_only": "t:artifact",
+      "source": "decks/lantern-route-map.criteria.toml",
+      "cards": [
+        "Artificer's Intuition"
+      ],
+      "copies": 1,
+      "live": true
     }
   ],
   "enumerations": [
@@ -171,6 +194,7 @@
       "criteria": [
         "Expedition Map cast by turn 5",
         "Whir of Invention cast by turn 5",
+        "Artificer's Intuition cast by turn 5",
         "Lantern of Insight cast by turn 5",
         "Lantern of Insight on the battlefield by turn 5, cast or put there by a tutor or the Saga"
       ],
@@ -181,15 +205,19 @@
         "name:\"Expedition Map\"",
         "name:\"Urza's Saga\"",
         "name:\"Whir of Invention\"",
+        "name:\"Artificer's Intuition\"",
         "name:\"Lantern of Insight\"",
         "t:land",
         "name:\"Tezzeret the Seeker\"",
         "name:\"Dizzy Spell\"",
+        "t:artifact -t:land -name:\"Lantern of Insight\" -name:\"Expedition Map\"",
+        "t:artifact",
         "<effect name:\"Whir of Invention\">",
         "<effect name:\"Tezzeret the Seeker\">",
         "<effect name:\"Dizzy Spell\">",
         "<effect name:\"Urza's Saga\">",
-        "<effect name:\"Expedition Map\">"
+        "<effect name:\"Expedition Map\">",
+        "<effect name:\"Artificer's Intuition\">"
       ],
       "turns": [
         5
@@ -203,8 +231,8 @@
         "{G}",
         "{C}"
       ],
-      "groups": 24,
-      "compositions": 675429580800,
+      "groups": 30,
+      "compositions": 6761620800000,
       "method": "sampled"
     },
     {
@@ -216,15 +244,19 @@
         "name:\"Expedition Map\"",
         "name:\"Urza's Saga\"",
         "name:\"Whir of Invention\"",
+        "name:\"Artificer's Intuition\"",
         "name:\"Lantern of Insight\"",
         "t:land",
         "name:\"Tezzeret the Seeker\"",
         "name:\"Dizzy Spell\"",
+        "t:artifact -t:land -name:\"Lantern of Insight\" -name:\"Expedition Map\"",
+        "t:artifact",
         "<effect name:\"Whir of Invention\">",
         "<effect name:\"Tezzeret the Seeker\">",
         "<effect name:\"Dizzy Spell\">",
         "<effect name:\"Urza's Saga\">",
-        "<effect name:\"Expedition Map\">"
+        "<effect name:\"Expedition Map\">",
+        "<effect name:\"Artificer's Intuition\">"
       ],
       "turns": [
         3
@@ -238,8 +270,8 @@
         "{G}",
         "{C}"
       ],
-      "groups": 24,
-      "compositions": 1172620800,
+      "groups": 30,
+      "compositions": 7512912000,
       "method": "sampled"
     }
   ],
@@ -303,7 +335,8 @@
       "name:\"Whir of Invention\"",
       "name:\"Tezzeret the Seeker\"",
       "name:\"Dizzy Spell\"",
-      "name:\"Expedition Map\""
+      "name:\"Expedition Map\"",
+      "name:\"Artificer's Intuition\""
     ],
     "then": "a spell this list does not name is not cast at all",
     "tie_break": "a tie inside one entry goes to the cheaper cost, then to the card this decklist names first",
@@ -325,49 +358,66 @@
       }
     ]
   },
+  "discard": {
+    "prefer": [
+      "t:artifact -t:land -name:\"Lantern of Insight\" -name:\"Expedition Map\""
+    ],
+    "then": "a forced discard takes a card this list does not name only after every card it does, an \"any number\" discard never takes one, and nor does a discard an activation's cost makes",
+    "tie_break": "a tie inside one entry, and among the cards no entry names, is settled at random, and every way it could fall is priced",
+    "at_random": "a card that discards at random ignores this list: every card in hand is as likely"
+  },
   "criteria": [
     {
       "name": "Expedition Map cast by turn 5",
-      "probability": 0.10917,
-      "percent": 10.92,
+      "probability": 0.110375,
+      "percent": 11.04,
       "at_least": null,
-      "standard_error": 0.000697,
+      "standard_error": 0.000701,
       "pass": true,
       "method": "sampled"
     },
     {
       "name": "Urza's Saga played by turn 3",
-      "probability": 0.147685,
-      "percent": 14.77,
+      "probability": 0.14718,
+      "percent": 14.72,
       "at_least": null,
-      "standard_error": 0.000793,
+      "standard_error": 0.000792,
       "pass": true,
       "method": "sampled"
     },
     {
       "name": "Whir of Invention cast by turn 5",
-      "probability": 0.0232,
-      "percent": 2.32,
+      "probability": 0.023555,
+      "percent": 2.36,
       "at_least": null,
-      "standard_error": 0.000337,
+      "standard_error": 0.000339,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "Artificer's Intuition cast by turn 5",
+      "probability": 0.096675,
+      "percent": 9.67,
+      "at_least": null,
+      "standard_error": 0.000661,
       "pass": true,
       "method": "sampled"
     },
     {
       "name": "Lantern of Insight cast by turn 5",
-      "probability": 0.154545,
-      "percent": 15.45,
+      "probability": 0.21559,
+      "percent": 21.56,
       "at_least": null,
-      "standard_error": 0.000808,
+      "standard_error": 0.00092,
       "pass": true,
       "method": "sampled"
     },
     {
       "name": "Lantern of Insight on the battlefield by turn 5, cast or put there by a tutor or the Saga",
-      "probability": 0.316355,
-      "percent": 31.64,
+      "probability": 0.373085,
+      "percent": 37.31,
       "at_least": null,
-      "standard_error": 0.00104,
+      "standard_error": 0.001081,
       "pass": true,
       "method": "sampled"
     }
@@ -375,12 +425,12 @@
   "expectations": [
     {
       "name": "Lanterns still in the library on turn 5",
-      "mean": 0.6777,
+      "mean": 0.6196,
       "distribution": [
-        0.3223,
-        0.6777
+        0.38036,
+        0.61964
       ],
-      "standard_error": 0.001045,
+      "standard_error": 0.001086,
       "method": "sampled"
     }
   ],
@@ -391,7 +441,7 @@
     "tool_version": "0.1.0",
     "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "b39ac98bea3f6724d9811f28c50bc966d28734bcb31de6e1349b8fe526f2ab09",
-    "criteria_sha256": "6207f0d44a79fb0b7b31361a52775e7452e54281f9fd6bad87d3f31400e3e15d",
+    "criteria_sha256": "2615f5e29c4202becad8d664062dbccb7283fbd4f4fef42eae6eb7a2551ba2c6",
     "effect_library_sha256": "d0e1c9efcec3579040c2258b3a4f37b4697f0d675211f84a74ef9061cbc14415"
   }
 }

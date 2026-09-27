@@ -1,7 +1,7 @@
 note: land-drop preference "t:land" also matches a card you cannot play as a land drop: Search for Azcanta // Azcanta, the Sunken Ruin.
       A land drop plays lands, so the priority ignores them.
-ESTIMATE: a question here was too wide to enumerate exactly: 16210309939200
-          compositions across 24 groups, against a ceiling of 5000000. It was
+ESTIMATE: a question here was too wide to enumerate exactly: 5000001
+          compositions across 30 groups, against a ceiling of 5000000. It was
           answered by sampling 200000 hands instead.
           Every percentage below is an ESTIMATE, not an exact answer.
           The ± beside each one is its standard error, and a difference
@@ -43,11 +43,23 @@ note: effect "name:\"Expedition Map\"" (on activate)
       and fetches, to your hand, the first of these the library still holds:
       1. "name:\"Urza's Saga\""
       Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+note: effect "name:\"Artificer's Intuition\"" (on activate)
+      applies to 1 card: Artificer's Intuition
+      and the [casting] entry naming it pays {U} to activate a copy it put into play, once a turn, after the land drop
+      and discards 1 matching "t:artifact" as part of that cost: only a card the [discard] list names pays it, and without one it is not activated
+      and fetches, to your hand, the first of these the library still holds:
+      1. "name:\"Lantern of Insight\""
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
 note: the land drop here is decided by the priority this file declared, and every
       number below that depends on which land was played depends on it:
       1. "name:\"Urza's Saga\""
       2. "t:land"
       then any other land. Ties: a tie inside one entry goes to the deeper look, then to the card this decklist names first.
+note: the cards discarded here are decided by the priority this file declared, and every
+      number below that reads the hand or the graveyard depends on it:
+      1. "t:artifact -t:land -name:\"Lantern of Insight\" -name:\"Expedition Map\""
+      Then a forced discard takes a card this list does not name only after every card it does, an "any number" discard never takes one, and nor does a discard an activation's cost makes. Ties: a tie inside one entry, and among the cards no entry names, is settled at random, and every way it could fall is priced.
+      And a card that discards at random ignores this list: every card in hand is as likely.
 note: the spells cast here are decided by the priority this file declared, and every
       number below that depends on what was cast depends on it:
       1. "name:\"Lantern of Insight\""
@@ -55,6 +67,7 @@ note: the spells cast here are decided by the priority this file declared, and e
       3. "name:\"Tezzeret the Seeker\""
       4. "name:\"Dizzy Spell\""
       5. "name:\"Expedition Map\""
+      6. "name:\"Artificer's Intuition\""
       Then a spell this list does not name is not cast at all. Ties: a tie inside one entry goes to the cheaper cost, then to the card this decklist names first.
       Played at a cost an effect declares, not the printed one; a `cast` clause counts it as a casting:
       Dizzy Spell: billed {1}{U}{U}, printed {U} (effect "name:\"Dizzy Spell\"")
@@ -76,13 +89,14 @@ note: these lands make mana other than the card data lists, and this run reads t
       Spire of Industry: pays {C} only: its other colours come with a condition this engine cannot see.
       Urza's Saga: makes mana for three turns, the one it is played on and the two after: its last chapter sacrifices it.
       Wooded Foothills: a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find.
-     Expedition Map cast by turn 5                                                               11.96% ± 0.07
-     Urza's Saga played by turn 3                                                                16.95% ± 0.08
-     Whir of Invention cast by turn 5                                                             2.98% ± 0.04
-     Lantern of Insight cast by turn 5                                                           17.34% ± 0.08
-     Lantern of Insight on the battlefield by turn 5, cast or put there by a tutor or the Saga   35.96% ± 0.11
-     Lanterns still in the library on turn 5                                                    mean 0.63 ± 0.001
-                                                                                                0: 36.5%
-                                                                                                1: 63.5%
+     Expedition Map cast by turn 5                                                               12.05% ± 0.07
+     Urza's Saga played by turn 3                                                                16.92% ± 0.08
+     Whir of Invention cast by turn 5                                                             3.03% ± 0.04
+     Artificer's Intuition cast by turn 5                                                        10.72% ± 0.07
+     Lantern of Insight cast by turn 5                                                           24.13% ± 0.10
+     Lantern of Insight on the battlefield by turn 5, cast or put there by a tutor or the Saga   42.24% ± 0.11
+     Lanterns still in the library on turn 5                                                    mean 0.57 ± 0.001
+                                                                                                0: 42.9%
+                                                                                                1: 57.1%
 
 PASS: 0 of 0 assertions met
