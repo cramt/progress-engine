@@ -135,7 +135,7 @@ What the line bills for playing a card when that is not its printed mana cost: a
 _Avoid_: alternative cost (the rules term, which is narrower), price
 
 **Activation**:
-Paying for an ability of a permanent the line already put onto the battlefield, out of the same turn's pool or a later one's. Ranked by the `[casting]` entry that names the card, at most once per permanent per turn, and after the land drop unless it fetches a land the `[land_drop]` list ranks above every land in hand ([ADR-0019](../../docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)). Expedition Map's `{2}` is one; Tezzeret's loyalty abilities are read as part of his cast.
+Paying for an ability of a permanent the line already put onto the battlefield, out of the same turn's pool or a later one's: an effect with `on = "activate"`, whose `cost` is the activation's and whose `sacrifice` takes the permanent out of play, counted nowhere. Ranked by the `[casting]` entry that names the card, at most once per permanent per turn, and after the land drop unless it fetches a land the `[land_drop]` list ranks above every land in hand ([ADR-0019](../../docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)). Expedition Map's `{2}` is one; Tezzeret's loyalty abilities are read as part of his cast. Refused by name on a creature, which would wait out summoning sickness, and on a land.
 _Avoid_: ability (for the payment), activated effect
 
 **Route**:
@@ -175,7 +175,7 @@ The effects that ship with the tool and load before a file's own. They declare w
 _Avoid_: stdlib, prelude, standard library
 
 **Trigger**:
-What fires an effect: a land drop, a cast, or an activation the line pays for (ADR-0019, not yet built). An attack, and a land entering while a permanent is in play, are decided in ADR-0017 and not yet built.
+What fires an effect: a land drop, a cast, or an activation the line pays for (ADR-0019). An attack, and a land entering while a permanent is in play, are decided in ADR-0017 and not yet built.
 
 **Look**:
 Examining cards off the top of the library. A look that routes nothing changes nothing.

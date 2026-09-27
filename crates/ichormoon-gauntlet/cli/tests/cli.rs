@@ -3536,6 +3536,88 @@ fn a_cast_that_could_put_a_land_onto_the_battlefield_is_refused_by_name() {
     );
 }
 
+#[test]
+fn expedition_map_goes_and_gets_urzas_saga_and_the_saga_gets_the_lantern() {
+    // HANDS.md hand 42, both columns: sixteen cards on the play, the line
+    // naming only the Map. The Map's casting cannot move. The activation, paid
+    // before turn 3's drop out of two Islands where the Saga is what that drop
+    // would rather play, makes the fetched Saga turn 3's land and chapter III
+    // turn 5's: the Saga played by turn 3 goes 9/16 -> 26249/34320, and the
+    // Lantern on the battlefield by turn 5 goes hand 17's 1/4 -> 3977/12870
+    // (docs/research/tutor-routes-hands.py). A sacrificed Map is gone: turn
+    // 5 holds one only on the deals whose pool never paid its {2}.
+    let columns = [
+        // (file, Map on turn 1, Saga by 3, Lantern by 5, Map in play on 5)
+        ("hand-42-off.criteria.toml", 43.02, 56.25, 25.0, 69.19),
+        ("hand-42-on.criteria.toml", 43.02, 76.48, 30.9, 1.24),
+    ];
+    for (file, map, saga, lantern, standing) in columns {
+        let (json, _) = run_tutor_json("hand-42.txt", file, &[]);
+        for (name, want) in [
+            ("Expedition Map cast on turn 1", map),
+            ("Urza's Saga played by turn 3", saga),
+            ("Lantern on the battlefield by turn 5", lantern),
+            ("Expedition Map on the battlefield on turn 5", standing),
+        ] {
+            assert_eq!(percent(&json, name), want, "{file}, {name}");
+        }
+    }
+}
+
+#[test]
+fn a_run_says_what_an_activation_costs_and_when_it_is_paid() {
+    let (json, stderr) = run_tutor_json("hand-42.txt", "hand-42-on.criteria.toml", &[]);
+    let map = &json["effects"][0];
+    assert_eq!(map["on"], "activate", "{json}");
+    assert_eq!(map["cost"], "{2}", "{json}");
+    assert_eq!(map["sacrifice"], true, "{json}");
+    assert!(
+        stderr.contains("pays {2} to activate a copy it put into play, sacrificing it")
+            && stderr.contains("before it only where what it fetches is a land [land_drop] ranks"),
+        "{stderr}"
+    );
+    // The Map is cast for what is printed on it: {2} is not its cast.
+    assert!(json["casting"].get("declared_costs").is_none(), "{json}");
+}
+
+#[test]
+fn an_activation_the_sampler_plays_agrees_with_the_enumeration() {
+    for file in ["hand-42-on.criteria.toml", "hand-42-off.criteria.toml"] {
+        let (exact, _) = run_tutor_json("hand-42.txt", file, &[]);
+        let (sampled, _) =
+            run_tutor_json("hand-42.txt", file, &["--simulate", "--trials", "20000"]);
+        for criterion in exact["criteria"].as_array().unwrap() {
+            let name = criterion["name"].as_str().unwrap();
+            assert!(
+                (percent(&exact, name) - percent(&sampled, name)).abs() < 1.0,
+                "{file}, {name}: {} exact against {} sampled",
+                percent(&exact, name),
+                percent(&sampled, name)
+            );
+        }
+    }
+}
+
+#[test]
+fn an_activation_on_a_creature_or_a_land_is_refused_by_name() {
+    // ADR-0019: a creature's {T} waits out summoning sickness, and a land's
+    // ability is paid out of the drop; neither is a tutor it builds.
+    let out = run_tutor("hand-tutor.txt", "activate-creature.criteria.toml");
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("Trinket Mage, which is a creature") && stderr.contains("summoning"),
+        "{stderr}"
+    );
+    let out = run_tutor("hand-42.txt", "activate-land.criteria.toml");
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("Urza's Saga, which is a land") && stderr.contains("Inventors' Fair"),
+        "{stderr}"
+    );
+}
+
 // --- delayed effects --------------------------------------------------------
 
 fn run_saga(criteria: &str, flags: &[&str]) -> serde_json::Value {

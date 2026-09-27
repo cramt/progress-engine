@@ -1119,7 +1119,9 @@ to_graveyard = 'name:"Life from the Loam"'
 |---|---|
 | `match` | which cards this is about, in Scryfall syntax |
 | `look` | how many cards off the top it examines |
-| `on` | when it fires: `landdrop` or `cast`, see below |
+| `on` | when it fires: `landdrop`, `cast` or `activate`, see below and [An activation the line pays for](#an-activation-the-line-pays-for-expedition-map) |
+| `cost` | what the line pays: on a cast, in place of the printed cost; on an activation, to activate a copy in play. See [A cost the line pays](#a-cost-the-line-pays-that-is-not-printed-dizzy-spell-and-whir-of-invention) |
+| `sacrifice` | beside `after`, the card that waited leaves play when the effect resolves (a Saga); on an activation, paying it sacrifices the card (Expedition Map) |
 | `to_graveyard` | the routing policy: which examined cards go to the yard. `"*"` is all of them, which is mill. Absent means none of them |
 | `fetch` | the cards it goes and gets out of the library, highest priority first. See [Tutors](#tutors-and-a-library-that-shrinks) |
 | `to` | where a fetched card is put: `hand` or `battlefield` |
@@ -1474,7 +1476,8 @@ to = "battlefield"
 
 `cost` is a value, like `look` and `after`, not a priority: which card the
 line plays is still `[casting] prefer`. It must be a whole amount, so `{X}` and
-hybrid are refused in it as `can_cast` refuses them, and it belongs on a cast.
+hybrid are refused in it as `can_cast` refuses them, and it belongs on a cast (or
+on an activation, below, where it is what activating the card costs).
 A card whose printed cost holds `{X}` is refused in `[casting]` **unless** its
 effect declares one; then the printed cost is never read. A `cast` clause counts
 a transmutation as a casting of the card, and every run prints the declared
@@ -1673,6 +1676,88 @@ hand 17 works it on a sixteen-card deck.
 What it does not model: the Saga surviving two turns of an opponent, chapter
 III's other targets, and the shuffle — a card an earlier surveil left on top
 stays on top, which the tutors above already do.
+
+### An activation the line pays for: Expedition Map
+
+Expedition Map is a `{1}` artifact; `{2}`, `{T}`, sacrifice it: search your
+library for a land card and put it into your hand. For a Lantern deck the land
+is Urza's Saga, whose chapter III then goes and gets the Lantern. The Map is
+cast by the line like any card, and its ability is an effect with `on =
+"activate"`, whose `cost` is what **activating** it costs — the Map is still
+cast for the `{1}` printed on it
+([ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)):
+
+```toml
+[[effect]]
+match = 'name:"Expedition Map"'
+on = "activate"
+cost = "{2}"
+sacrifice = true        # paying it takes the Map out of play
+fetch = ["name:\"Urza's Saga\""]
+to = "hand"
+
+[land_drop]
+prefer = ["name:\"Urza's Saga\"", "t:land"]
+
+[casting]
+prefer = ['name:"Expedition Map"']
+```
+
+**One entry, both payments.** An activation is not a list of its own: the
+`[casting]` entry that names the Map, reached by the line, first pays to
+activate a copy the line already put into play, then casts a copy from hand,
+and the line is read again from its top after each — so a Map cast this turn is
+activated this turn if the pool still pays, because an artifact has no
+summoning sickness. At most once per permanent per turn, because its cost taps
+it; a sacrificed one is gone, and counted nowhere, as a Saga after its last
+chapter is. A `cast` clause still counts the Map's casting.
+
+**After the land drop, with one exception.** The line runs after the drop, and
+so does an activation — unless what it fetches is a land the `[land_drop]` list
+ranks above every land in hand. Then it is paid **before** the drop, out of the
+lands and rocks already in play, and the drop plays what it fetched: a Map cast
+on turn 2 is activated on turn 3 and the Saga is turn 3's land, where paid
+after the drop it would wait for turn 4. Nothing else is paid before the drop,
+and the drop made after it pays only for what the line casts after it: its mana
+was not there to pay the activation. The run says all of this beside the
+effect:
+
+```
+note: effect "name:\"Expedition Map\"" (on activate)
+      applies to 1 card: Expedition Map
+      and the [casting] entry naming it pays {2} to activate a copy it put into play, sacrificing it, once a turn, after the land drop — before it only where what it fetches is a land [land_drop] ranks above every land in hand
+```
+
+and the JSON's effect carries `on = "activate"`, the `cost` and `sacrifice`.
+An activation on a creature is refused by name, because its `{T}` would wait
+out summoning sickness, and so is one on a land, whose ability is paid out of
+the drop the line reads; neither is a tutor this deck needs. `after` and `look`
+are refused on an activation as they are on a cast, and a line must be declared
+for it to fire.
+
+**What it moves.** HANDS.md hand 42, five Islands, eight Bolts, the Map, the
+Saga and the Lantern, sixteen cards on the play, the line naming only the Map:
+
+| | Map never activated | activation `{2}`, Saga to hand |
+|---|---|---|
+| Expedition Map cast on turn 1 | 4921/11440 = 43.02% | 4921/11440 = 43.02% |
+| Urza's Saga played by turn 3 | 9/16 = 56.25% | **26249/34320 = 76.48%** |
+| Lantern on the battlefield by turn 5 | 1/4 = 25.00% | **3977/12870 = 30.90%** |
+
+**On the deck it was built for.** `decks/lantern-route-map.criteria.toml` is
+the tutors-route file with the Saga and the Map added — a file of its own,
+because the Saga needs a declared land drop, and declaring one moves the other
+file's numbers for reasons that are not the Map's. Against the same file
+without the Map:
+
+| On `decks/lantern.txt` | play, no Map | play, + Map | draw, no Map | draw, + Map |
+|---|---|---|---|---|
+| Lantern on the battlefield by turn 5 | 26.93% | **31.64%** | 30.38% | **35.95%** |
+| Urza's Saga played by turn 3 | 9.18% | 14.77% | 10.24% | 16.95% |
+
+Sampled, ± 0.06 to 0.11: 24 groups at turn 5. +4.71 points on the play and
++5.57 on the draw, against ADR-0019's +3.25 and +3.52, which were measured with
+Trinket Mage, Fabricate and Cruel Captain already in the line.
 
 ### Mulligans
 
@@ -2533,7 +2618,11 @@ out of the loyalty the walker entered with — and `checker/test_seeker.py`
 plays HANDS.md hands 40 and 44 through it over every deal. A transmute is its
 reading of CR 702.53 — the cost the text names, a card of the same mana value,
 to hand — and a chosen X of CR 107.3, and `checker/test_declared_cost.py` plays
-hands 41 and 50 through them over every deal. It is still a check:
+hands 41 and 50 through them over every deal. An activation is its reading of
+CR 602 and 118.3 — the cost before the colon paid in full, the sacrifice part of
+it, an artifact free of summoning sickness — and `checker/test_activation.py`
+plays hand 42 from Expedition Map's text over every deal, the payment before
+the land drop included. It is still a check:
 it is how the Spellseeker line found the engine holding a fetched Loam it could
 have cast:
 

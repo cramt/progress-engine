@@ -14,7 +14,7 @@
 use anyhow::{Context, Result};
 use chip_scryfall::index::TagGap;
 use chip_scryfall::Query;
-use gauntlet_criteria::{Cost, Effect, Fetch, Mill, Route, ToHand};
+use gauntlet_criteria::{Activation, Cost, Effect, Fetch, Mill, Route, ToHand, Trigger};
 use gauntlet_toml::{
     Destination, EffectEntry, EffectLibrary, HandDecl, MillDecl, STANDARD_LIBRARY_ORIGIN,
 };
@@ -35,6 +35,9 @@ pub struct Applied {
     /// What the line bills for a matched card in place of its printed cost,
     /// as written (ADR-0019).
     pub cost: Option<String>,
+    /// On an activation, whether paying it sacrifices the card; `None` on
+    /// anything else, where `cost` is what the line pays to play the card.
+    pub sacrifice: Option<bool>,
     pub on: &'static str,
     pub to_graveyard: Option<String>,
     /// The declared tutor priority, as written, and where it puts what it
@@ -208,6 +211,7 @@ pub fn resolve(
             look: entry.look,
             adds: entry.adds,
             cost: entry.cost.as_ref().map(|c| c.as_str().to_string()),
+            sacrifice: (entry.trigger == Trigger::Activate).then_some(entry.sacrifice),
             on: entry.trigger.as_str(),
             to_graveyard: entry.to_graveyard.as_ref().map(|d| match d {
                 Destination::Everything => gauntlet_toml::EVERYTHING.to_string(),
@@ -303,6 +307,7 @@ pub fn resolve(
                 to: f.to,
             }),
             delay: entry.delay,
+            activation: activation_of(entry),
             draw: 0,
             mill: entry.mill.as_ref().map(|m| Mill {
                 cards: m.cards,
@@ -413,12 +418,48 @@ pub fn declared_costs(library: &EffectLibrary, deck: &Library) -> Result<Vec<Opt
         .into_iter()
         .map(|o| {
             let entry = &library.entries()[o?];
+            // An activation's cost is what activating a copy in play costs,
+            // and the card is still cast for what is printed on it.
+            if entry.trigger == Trigger::Activate {
+                return None;
+            }
             Some(Declared {
                 cost: entry.cost.clone()?,
                 effect: entry.matches.clone(),
             })
         })
         .collect())
+}
+
+/// What activating a copy of an entry's card costs, where the entry is an
+/// activation (ADR-0019).
+fn activation_of(entry: &EffectEntry) -> Option<Activation> {
+    if entry.trigger != Trigger::Activate {
+        return None;
+    }
+    Some(Activation {
+        cost: entry.cost.as_ref()?.demand(),
+        sacrifice: entry.sacrifice,
+    })
+}
+
+/// The pips every activation in `library` asks for, over the cards the
+/// `[casting]` line names: the class has to tell those colours apart for the
+/// line to pay them, as it does a declared cast's.
+pub fn activation_pips(
+    library: &EffectLibrary,
+    deck: &Library,
+    line: &[bool],
+) -> Result<gauntlet_criteria::Palette> {
+    let matchers = matchers(library)?;
+    Ok(owners(library, deck, &matchers)
+        .into_iter()
+        .zip(line)
+        .filter(|(_, named)| **named)
+        .filter_map(|(o, _)| activation_of(&library.entries()[o?]))
+        .fold(gauntlet_criteria::Palette::EMPTY, |pips, a| {
+            pips.union(a.cost.demands())
+        }))
 }
 
 /// Parse one of an effect's queries, named against the entry that wrote it.

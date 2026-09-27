@@ -9,7 +9,8 @@
 use std::convert::Infallible;
 
 use gauntlet_criteria::{
-    Answering, Chosen, Conditionals, LandDetail, Mill, Objective, Resolves, Table, ToHand,
+    Activation, Answering, Chosen, Conditionals, LandDetail, Mill, Objective, Resolves, Table,
+    ToHand,
 };
 use gauntlet_criteria::{
     CastingPolicy, Cost, Count, Counted, Delay, Effect, Evaluator, Fetch, Fetched, Grouping, Keep,
@@ -827,6 +828,7 @@ fn a_tutor_agrees_with_the_exact_engine() {
         delay: None,
         draw: 0,
         mill: None,
+        activation: None,
     };
     let schedule = Schedule::build(
         4,
@@ -910,6 +912,7 @@ fn a_card_a_cast_puts_onto_the_battlefield_arrives_that_turn_in_both_engines() {
         delay: None,
         draw: 0,
         mill: None,
+        activation: None,
     };
     let field = Counted::In(Zone::Battlefield);
     let library = Counted::In(Zone::Library);
@@ -1027,6 +1030,7 @@ fn a_permanent_the_line_casts_or_a_cast_puts_down_is_in_play_in_both_engines() {
         delay: None,
         draw: 0,
         mill: None,
+        activation: None,
     };
     let schedule = Schedule::build(
         5,
@@ -1066,6 +1070,135 @@ fn a_permanent_the_line_casts_or_a_cast_puts_down_is_in_play_in_both_engines() {
     }
     for (e, s) in exact.iter().zip(&sampled) {
         let se = standard_error(*s, TRIALS);
+        assert!(
+            (s - e).abs() < 4.0 * se,
+            "sampled {s} vs exact {e} ({}x SE)",
+            (s - e).abs() / se
+        );
+    }
+}
+
+#[test]
+fn an_activation_paid_before_the_drop_agrees_in_both_engines() {
+    // HANDS.md hand 42 on a deck wide enough to sample: two Expedition Maps
+    // the line casts for {1} and activates for {2}, sacrificing them, to find
+    // one of two Urza's Sagas; whose chapter III puts one of two Lanterns
+    // onto the battlefield. Ninety-nine cards, eighteen Islands, on the play
+    // to turn 5. The activation that fetches the Saga is paid before the drop
+    // when the hand holds no Saga, so the fetched one is that turn's land.
+    let grouping = Grouping::with_mana(
+        q(&[
+            "map",
+            "lantern",
+            "saga",
+            "land",
+            "<effect map>",
+            "<effect saga>",
+        ]),
+        vec![
+            (
+                0b010001,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                2,
+            ),
+            (0b000010, ManaSource::Spell, 2),
+            (
+                0b101100,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["C"]),
+                    lasts: Some(3),
+                },
+                2,
+            ),
+            (
+                0b001000,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                    lasts: None,
+                },
+                18,
+            ),
+            (0b000000, ManaSource::Spell, 75),
+        ],
+    )
+    .unwrap();
+    let map = Effect {
+        matched_by: 4,
+        look: 0,
+        trigger: Trigger::Activate,
+        route: Route::Nowhere,
+        fetch: Some(Fetch {
+            prefer: vec![2],
+            to: Fetched::Hand,
+        }),
+        delay: None,
+        draw: 0,
+        mill: None,
+        activation: Some(Activation {
+            cost: Cost::parse("{2}").unwrap().demand(),
+            sacrifice: true,
+        }),
+    };
+    let saga = Effect {
+        matched_by: 5,
+        trigger: Trigger::LandDrop,
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to: Fetched::Battlefield,
+        }),
+        delay: Some(Delay {
+            turns: 2,
+            sacrifice: true,
+        }),
+        activation: None,
+        ..map.clone()
+    };
+    let schedule = Schedule::build(
+        5,
+        false,
+        vec![map, saga],
+        Policies {
+            land_drop: Some(LandDropPolicy::new(vec![2], 3)),
+            casting: Some(CastingPolicy::new(vec![0])),
+            ..Policies::default()
+        },
+    );
+    let field = Counted::In(Zone::Battlefield);
+    let question = || {
+        Closures(vec![
+            Box::new(move |v: &PathView<'_>| (1..=3).any(|t| v.count_at(t, 2, field) >= 1))
+                as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(5, 1, field) >= 1) as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(5, 0, field) >= 1) as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(5, 0, Counted::Cast) >= 1) as Check,
+        ])
+    };
+    let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(4), &mut question())
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        TRIALS,
+        42,
+        only_criteria(4),
+        &mut question(),
+    )
+    .unwrap()
+    .proportions;
+    for (i, e) in exact.iter().enumerate() {
+        assert!(*e > 0.01 && *e < 0.99, "question {i} is worth asking: {e}");
+    }
+    for (e, s) in exact.iter().zip(&sampled) {
+        let se = standard_error(*s, TRIALS).max(1e-9);
         assert!(
             (s - e).abs() < 4.0 * se,
             "sampled {s} vs exact {e} ({}x SE)",
@@ -1125,6 +1258,7 @@ fn a_tutor_billed_at_a_declared_cost_agrees_in_both_engines() {
         delay: None,
         draw: 0,
         mill: None,
+        activation: None,
     };
     let schedule = Schedule::build(
         4,
@@ -1219,6 +1353,7 @@ fn a_tutor_thins_the_library_in_both_engines() {
                 delay: None,
                 draw: 0,
                 mill: None,
+                activation: None,
             }],
         };
         let schedule = Schedule::build(
@@ -1327,6 +1462,7 @@ fn a_delayed_fetch_agrees_with_the_exact_engine() {
         }),
         draw: 0,
         mill: None,
+        activation: None,
     };
     let schedule = Schedule::build(
         5,
@@ -1495,6 +1631,7 @@ fn a_mulligan_agrees_with_the_exact_engine() {
         delay: None,
         draw: 0,
         mill: None,
+        activation: None,
     };
     let mulligan = MulliganPolicy::new(
         vec![Keep {
@@ -1752,6 +1889,7 @@ fn drawing_deck(cost: &str, draw: u32, fetch: bool) -> (Grouping, Schedule) {
         delay: None,
         draw,
         mill: None,
+        activation: None,
     };
     // Three turns on the play: every cast draws, so how wide this is grows
     // with how many spells the pool pays for, and a fourth turn goes over
@@ -1992,6 +2130,7 @@ fn milling_deck(mill: Mill) -> (Grouping, Schedule) {
         delay: None,
         draw: 0,
         mill: Some(mill),
+        activation: None,
     };
     let schedule = Schedule::build(
         3,

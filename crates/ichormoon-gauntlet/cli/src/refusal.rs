@@ -213,6 +213,18 @@ pub enum Refusal {
     /// never fetched either, and a run that fired the tutor anyway would be
     /// putting a card in your hand off a spell nobody paid for.
     FetchWithoutCasting { file: String, effect: String },
+    /// An activation on a creature or on a land (ADR-0019).
+    ///
+    /// A creature's tap ability waits out summoning sickness, which only a
+    /// dork's mana models; a land's is paid out of the drop the line reads,
+    /// and the one this deck plays, Inventors' Fair, counts artifacts in play,
+    /// which nothing reads. Neither is needed by a tutor ADR-0019 builds.
+    ActivationUnmodelled {
+        file: String,
+        effect: String,
+        card: String,
+        kind: &'static str,
+    },
     /// A delayed fetch onto the battlefield that can find a land.
     ///
     /// A fetchland may only find lands because a land drop is the one way onto
@@ -350,6 +362,7 @@ impl Refusal {
             | Refusal::CastingWithoutPriority { file, .. }
             | Refusal::FetchWithoutLandDrop { file, .. }
             | Refusal::FetchWithoutCasting { file, .. }
+            | Refusal::ActivationUnmodelled { file, .. }
             | Refusal::DelayedFetchFindsLand { file, .. }
             | Refusal::CastFetchFindsLand { file, .. }
             | Refusal::FetchNonPermanentToBattlefield { file, .. }
@@ -387,9 +400,8 @@ impl Refusal {
             Refusal::DelayedFetchFindsLand { effect, .. }
             | Refusal::CastFetchFindsLand { effect, .. }
             | Refusal::FetchNonPermanentToBattlefield { effect, .. }
-            | Refusal::FetchNonLandToBattlefield { effect, .. } => {
-                Some(format!("effect {effect:?}"))
-            }
+            | Refusal::FetchNonLandToBattlefield { effect, .. }
+            | Refusal::ActivationUnmodelled { effect, .. } => Some(format!("effect {effect:?}")),
             Refusal::ObjectiveTooWide { .. } | Refusal::ObjectiveOverBudget { .. } => {
                 Some("[mulligan]".to_string())
             }
@@ -483,10 +495,25 @@ impl Refusal {
                  The list is read in order, the first entry a land in hand matches wins, and \
                  any land the list\n      does not name is played last."
             ),
+            Refusal::ActivationUnmodelled { card, kind, .. } => write!(
+                f,
+                "is an activation on {card}, which is a {kind}, and an activation is only \
+                 modelled on an artifact or another non-creature, non-land permanent the \
+                 line cast (ADR-0019).\n      {}",
+                if *kind == "creature" {
+                    "A creature's {T} ability waits out summoning sickness (CR 302.6), which \
+                     only a dork's mana models, and no tutor ADR-0019 builds needs it. \
+                     Goblin Engineer is refused for this among four reasons, at 1.50 points."
+                } else {
+                    "A land's ability is paid out of the land drop the line reads, and \
+                     Inventors' Fair, the one this deck plays, also counts the artifacts in \
+                     play, which nothing reads: it is refused at 0.22 points."
+                }
+            ),
             Refusal::FetchWithoutCasting { effect, .. } => write!(
                 f,
-                "effect {effect:?} fetches when it is cast, and this file declares no casting \
-                 priority.\n      \
+                "effect {effect:?} fetches when it is cast, or activated, by the line, and this \
+                 file declares no casting priority.\n      \
                  A spell this run does not cast is one that never resolved, so it never went \
                  and got anything.\n      \
                  Declare the line, highest priority first:\n\n      \

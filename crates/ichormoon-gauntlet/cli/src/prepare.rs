@@ -203,12 +203,21 @@ fn prepare_noting(
     // where a cost this engine cannot pay gets refused, and that has to happen
     // before anything is grouped.
     casting::check(criteria.casting(), library, origin)?;
-    let casting = match criteria.casting() {
+    let mut casting = match criteria.casting() {
         [] => None,
         prefer => Some(casting::resolve(
             prefer, library, &asked, &declared, origin,
         )?),
     };
+    // What the line pays to activate a card it names is paid out of the same
+    // pool, so its colours are the class's to tell apart too (ADR-0019).
+    if let Some(casting) = &mut casting {
+        let line: Vec<bool> = casting.costs.iter().map(Option::is_some).collect();
+        casting.demands =
+            casting
+                .demands
+                .union(effects::activation_pips(&effect_library, library, &line)?);
+    }
     asked.extend(casting.iter().flat_map(|p| p.queries.iter().cloned()));
     // The mulligan next, on the same terms: its queries sit behind everything
     // already asked for, so no bit a clause or another priority holds moves.
@@ -490,8 +499,11 @@ fn refuse_unfirable_tutors(
                 .into())
             }
             // And a cast fetch fires when the declared line casts the card, so
-            // with no line there is nothing to fire it.
-            gauntlet_criteria::Trigger::Cast if casting.is_none() => {
+            // with no line there is nothing to fire it; an activation is paid
+            // by the same line.
+            gauntlet_criteria::Trigger::Cast | gauntlet_criteria::Trigger::Activate
+                if casting.is_none() =>
+            {
                 return Err(Refusal::FetchWithoutCasting {
                     file: origin.to_string(),
                     effect: applied.matches.clone(),
@@ -499,6 +511,29 @@ fn refuse_unfirable_tutors(
                 .into())
             }
             _ => {}
+        }
+        // An activation is modelled on a non-creature, non-land permanent
+        // the line cast, and refused by name on anything else (ADR-0019).
+        if effect.trigger == gauntlet_criteria::Trigger::Activate {
+            for name in &applied.cards {
+                let Some(entry) = library.entries.iter().find(|e| &e.card.name == name) else {
+                    continue;
+                };
+                let kind = if crate::library::is_creature(&entry.card) {
+                    "creature"
+                } else if crate::library::is_land(&entry.card) {
+                    "land"
+                } else {
+                    continue;
+                };
+                return Err(Refusal::ActivationUnmodelled {
+                    file: origin.to_string(),
+                    effect: applied.matches.clone(),
+                    card: name.clone(),
+                    kind,
+                }
+                .into());
+            }
         }
         // A delayed fetch and a cast fetch are the other ways onto the
         // battlefield, and they are refused the opposite half: a Saga puts an
@@ -509,7 +544,10 @@ fn refuse_unfirable_tutors(
         // because the two are about different cards arriving for different
         // reasons (ADR-0019).
         let delayed = effect.delay.is_some();
-        let cast = effect.trigger == gauntlet_criteria::Trigger::Cast;
+        let cast = matches!(
+            effect.trigger,
+            gauntlet_criteria::Trigger::Cast | gauntlet_criteria::Trigger::Activate
+        );
         if fetch.to == gauntlet_criteria::Fetched::Battlefield && (delayed || cast) {
             for query in applied.fetch.iter().flat_map(|(prefer, _)| prefer) {
                 // Nor an instant or a sorcery, which is not a permanent and
@@ -661,7 +699,7 @@ fn refuse_unpriceable_mana(
         // this question is not about them.
         .find(|(_, e)| {
             e.delay.is_none()
-                && e.trigger != gauntlet_criteria::Trigger::Cast
+                && e.trigger == gauntlet_criteria::Trigger::LandDrop
                 && e.fetch
                     .as_ref()
                     .is_some_and(|f| f.to == gauntlet_criteria::Fetched::Battlefield)

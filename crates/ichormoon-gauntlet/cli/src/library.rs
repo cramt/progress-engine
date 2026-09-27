@@ -752,6 +752,12 @@ pub fn is_land(card: &Card) -> bool {
         || (card.layout == "modal_dfc" && card.faces.iter().any(|f| names(&f.type_line, "land")))
 }
 
+/// Whether a card is a creature, read off the face you cast: what an
+/// activation on it would have to wait out summoning sickness for (ADR-0019).
+pub fn is_creature(card: &Card) -> bool {
+    names(front(card), "creature")
+}
+
 /// Whether a card stays on the battlefield once it resolves.
 ///
 /// Read off the face you cast, by word: an artifact, a creature, an

@@ -55,16 +55,26 @@ pub enum Trigger {
     /// that changes the shape of the enumeration rather than the population
     /// carried through it.
     Cast,
+    /// The line pays to activate a permanent it already put into play
+    /// ([ADR-0019](https://github.com/cramt/progress-engine/blob/main/docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)):
+    /// Expedition Map's `{2}`, `{T}`, sacrifice it.
+    ///
+    /// Knowable for the same reason a cast is: the `[casting]` entry naming
+    /// the card is what pays for it, out of the same bill, so which copies
+    /// are in play and unactivated is a function of the path. What it costs
+    /// and whether it sacrifices its source is the effect's [`Activation`].
+    Activate,
 }
 
 impl Trigger {
     /// Every trigger an effect may name, for the message that lists them.
-    pub const ACCEPTED: &'static str = "landdrop, cast";
+    pub const ACCEPTED: &'static str = "landdrop, cast, activate";
 
     pub fn as_str(self) -> &'static str {
         match self {
             Trigger::LandDrop => "landdrop",
             Trigger::Cast => "cast",
+            Trigger::Activate => "activate",
         }
     }
 
@@ -72,6 +82,7 @@ impl Trigger {
         match name {
             "landdrop" => Ok(Trigger::LandDrop),
             "cast" => Ok(Trigger::Cast),
+            "activate" => Ok(Trigger::Activate),
             _ => Err(TriggerError::Unknown {
                 name: name.to_string(),
             }),
@@ -161,6 +172,23 @@ pub struct Delay {
     /// not there to tap. It is not counted in the graveyard, which is the same
     /// stance a cracked fetchland takes: a card that left play is not counted
     /// anywhere a criterion asks about, rather than somewhere plausible.
+    pub sacrifice: bool,
+}
+
+/// What activating a permanent the line put into play costs, and what it does
+/// to that permanent
+/// ([ADR-0019](https://github.com/cramt/progress-engine/blob/main/docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)).
+///
+/// Every activation here taps its source, and a cost is paid in full as the
+/// ability is activated (CR 602.2, 118.3), so a permanent is activated at
+/// most once a turn; one sacrificed to pay is activated once, ever.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Activation {
+    /// The mana the `[casting]` line bills for it, out of the turn's pool.
+    pub cost: Demand,
+    /// Whether paying it sacrifices the permanent. A sacrificed permanent
+    /// leaves the battlefield and is counted nowhere a criterion asks about,
+    /// as a Saga after its last chapter is; it was still cast.
     pub sacrifice: bool,
 }
 
@@ -275,6 +303,9 @@ pub struct Effect {
     /// as one unordered block because every card it turns over is consumed
     /// at once. Resolved after the draw. Only [`Trigger::Cast`] reads it.
     pub mill: Option<Mill>,
+    /// What activating a copy in play costs, for [`Trigger::Activate`] and
+    /// nothing else.
+    pub activation: Option<Activation>,
 }
 
 /// A mill, or a look whose every card leaves the top at once (ADR-0017 §2).
@@ -373,6 +404,14 @@ struct Casting {
     /// Command-zone cards still there to be cast on this path, per group.
     /// Scratch, reset from the grouping at the start of every walk.
     live_command: Vec<u32>,
+    /// `[turn][group]`: copies the line cast that an activation has since
+    /// sacrificed. Off the battlefield and counted nowhere, and still cast.
+    gone_at: Vec<Vec<u32>>,
+    /// The same count as the path goes, per group. Scratch.
+    live_gone: Vec<u32>,
+    /// Copies of each group activated this turn and still in play: tapped,
+    /// so not activated again until the next. Scratch, reset every turn.
+    tapped: Vec<u32>,
 }
 
 /// One turn's bill, as the line cast it
@@ -514,6 +553,12 @@ pub struct Board<'a> {
     /// Which group the drop of each turn went to, for the one land that can
     /// still be tapped: the one played this turn.
     drop_at: Vec<Option<usize>>,
+    /// `[turn]`: the land slot of a drop made **after** an activation that
+    /// turn had already paid (ADR-0019's exception). That land is not in the
+    /// pool the activation paid from, so the turn's bill counts it as mana
+    /// from the stage after, the way it counts a rock the line cast, and the
+    /// land count leaves it out.
+    late_drop: Vec<Option<usize>>,
     /// Land drops made by the end of each turn.
     ///
     /// One a turn and use-it-or-lose-it, so this is not the number of lands
@@ -740,6 +785,9 @@ impl<'a> Board<'a> {
                 live_cast: vec![0; groups],
                 commanded_at: vec![vec![0; groups]; turns],
                 live_command: grouping.group_command().to_vec(),
+                gone_at: vec![vec![0; groups]; turns],
+                live_gone: vec![0; groups],
+                tapped: vec![0; groups],
             }
         });
         // The same tie rule a third time, over the one resource a tutor
@@ -887,6 +935,7 @@ impl<'a> Board<'a> {
             hand: vec![vec![0; groups]; turns],
             yard: vec![vec![0; groups]; turns],
             drop_at: vec![None; turns],
+            late_drop: vec![None; turns],
             declared,
             fresh: Vec::with_capacity(schedule.gaps().iter().sum::<u32>() as usize),
             fresh_head: 0,
@@ -1107,8 +1156,10 @@ impl<'a> Board<'a> {
         self.walked = history.len();
         self.cursor = 0;
         self.sized_dealt = 0;
+        self.late_drop.fill(None);
         if let Some(casting) = &mut self.casting {
             casting.live_cast.fill(0);
+            casting.live_gone.fill(0);
             casting
                 .live_command
                 .copy_from_slice(self.grouping.group_command());
@@ -1167,6 +1218,11 @@ impl<'a> Board<'a> {
                 }
             }
 
+            // The turn's bill is opened before the drop, because one thing
+            // may be paid before it (ADR-0019), and out of the rocks already
+            // in play as much as the lands.
+            self.open_bill(turn);
+
             // The land drop, and there is exactly one of them a turn. Which
             // land it is has two answers, and which one this run uses is the
             // whole of issue #54: a file that declared a priority gets the land
@@ -1179,6 +1235,9 @@ impl<'a> Board<'a> {
                     // phase begins, before the land it could be played beside.
                     self.sacrificed[turn].fill(0);
                     self.resolve_pending(turn);
+                    // Then the one thing paid before the drop: an activation
+                    // that fetches the land the drop would rather play.
+                    let paid_before = self.activate_before_drop(turn);
                     let chosen = self.declared_drop();
                     // What is standing there when the turn is over, which is
                     // the land you played unless it went and got another one
@@ -1209,6 +1268,9 @@ impl<'a> Board<'a> {
                     self.drop_at[turn] = landed;
                     if let Some(group) = landed {
                         self.live_field[group] += 1;
+                        if paid_before {
+                            self.drop_after_paying(turn, group);
+                        }
                     }
                     self.drops[turn] = self.drops[previous] + u32::from(chosen.is_some());
                 }
@@ -1279,6 +1341,7 @@ impl<'a> Board<'a> {
                 self.yard[turn].copy_from_slice(&self.live_yard);
                 if let Some(casting) = &mut self.casting {
                     casting.cast_at[turn].copy_from_slice(&casting.live_cast);
+                    casting.gone_at[turn].copy_from_slice(&casting.live_gone);
                     for (group, cast) in casting.commanded_at[turn].iter_mut().enumerate() {
                         *cast = self.grouping.group_command()[group] - casting.live_command[group];
                     }
@@ -1348,41 +1411,40 @@ impl<'a> Board<'a> {
             return true;
         };
         let mut finished = true;
+        // Opened before the drop by `open_bill`, with the rocks in play and
+        // whatever was paid before the drop already on it.
         let mut bill = std::mem::replace(&mut casting.bills[turn], Bill::new());
-        bill.reset();
         // Turn 0 is the opening hand: no land has been played, so there is no
         // mana and nothing to spend it on.
         if turn > 0 {
-            // The rocks and dorks already in play, which pay for anything this
-            // turn: every one cast by the turn before, less those still
-            // waiting. A dork cast last turn is ready now; a rock that entered
-            // tapped waits as long as its effect says.
-            for &group in &casting.sources {
-                let (adds, makes, waits) = self.grouping.group_mana()[group]
-                    .made()
-                    .expect("only sources are listed");
-                let ready = turn
-                    .checked_sub(waits.max(1) as usize)
-                    .map_or(0, |t| casting.cast_at[t][group]);
-                if ready > 0 {
-                    bill.made.push(Made {
-                        stage: 0,
-                        produces: makes,
-                        count: ready * adds,
-                    });
-                }
-            }
             // Read again from the top whenever a tutor or a draw put a card
             // in hand, so a card it found is cast this turn if the pool still
-            // pays for it, wherever the line lists it. It ends, because every
-            // pass after the first follows a cast, and a cast takes a card out
-            // of the hand or the command zone.
+            // pays for it, wherever the line lists it — and after every
+            // activation and every cast of a card that has one, because the
+            // entry naming it pays for both (ADR-0019). It ends, because every
+            // pass after the first follows a cast, which takes a card out of
+            // the hand or the command zone, or an activation, which taps or
+            // sacrifices a copy in play.
             'line: loop {
                 for tier in &casting.tiers {
                     for &group in tier {
                         let Some(cost) = casting.cost[group] else {
                             continue;
                         };
+                        // A copy the line already put into play first: it
+                        // was already bought, and the entry covers both.
+                        if self.activate(
+                            &casting.live_cast,
+                            &mut casting.live_gone,
+                            &mut casting.tapped,
+                            &mut bill,
+                            turn,
+                            group,
+                            false,
+                        ) {
+                            continue 'line;
+                        }
+                        let activates = self.activation_of(group).is_some();
                         // The command zone is always there: a commander is
                         // cast from it as a card in hand would be, and once —
                         // casting it takes it out, and nothing here puts it
@@ -1435,7 +1497,7 @@ impl<'a> Board<'a> {
                             // cast Spellseeker and then the Loam it fetched,
                             // which the line lists first. Its draw, if it
                             // draws, resolves after the fetch.
-                            let fetched = self.fetch_on_cast(group) || grew;
+                            let fetched = self.fetch_on_cast(group) || grew || activates;
                             match self.draw_on_cast(turn, group, history) {
                                 Drew::Nothing if fetched => continue 'line,
                                 Drew::Nothing => {}
@@ -1455,6 +1517,233 @@ impl<'a> Board<'a> {
         casting.bills[turn] = bill;
         self.casting = Some(casting);
         finished
+    }
+
+    /// Start `turn`'s bill: nothing spent, and the rocks and dorks already
+    /// in play, which pay for anything this turn — every one cast by the turn
+    /// before, less those still waiting. A dork cast last turn is ready now; a
+    /// rock that entered tapped waits as long as its effect says.
+    ///
+    /// Opened before the land drop rather than when the line starts, because
+    /// an activation paid before the drop is paid out of it (ADR-0019).
+    fn open_bill(&mut self, turn: usize) {
+        self.late_drop[turn] = None;
+        let Some(casting) = &mut self.casting else {
+            return;
+        };
+        casting.tapped.fill(0);
+        let bill = &mut casting.bills[turn];
+        bill.reset();
+        if turn == 0 {
+            return;
+        }
+        for &group in &casting.sources {
+            let (adds, makes, waits) = self.grouping.group_mana()[group]
+                .made()
+                .expect("only sources are listed");
+            let ready = turn
+                .checked_sub(waits.max(1) as usize)
+                .map_or(0, |t| casting.cast_at[t][group]);
+            if ready > 0 {
+                bill.made.push(Made {
+                    stage: 0,
+                    produces: makes,
+                    count: ready * adds,
+                });
+            }
+        }
+    }
+
+    /// The effect a copy of `group` in play is activated for, and what that
+    /// costs, where it has one.
+    fn activation_of(&self, group: usize) -> Option<(usize, Activation)> {
+        let effect = self.group_effect[group]?;
+        let e = &self.schedule.effects()[effect];
+        match (e.trigger, e.activation) {
+            (Trigger::Activate, Some(activation)) => Some((effect, activation)),
+            _ => None,
+        }
+    }
+
+    /// Activate one copy of `group` the line put into play and has not
+    /// activated this turn, if the turn's bill still pays for it; true if it
+    /// did.
+    ///
+    /// The cost joins the bill like a spell's (CR 602.2b, 601.2g-h: the
+    /// whole cost is paid as the ability is activated), and the ability
+    /// resolves before the line moves on, as a tutor's does. A sacrificed
+    /// copy leaves play and is counted nowhere; one that stays is tapped until
+    /// the next turn.
+    ///
+    /// `before_drop` is ADR-0019's exception, asked before the land drop: it
+    /// activates only a copy whose fetch goes to hand and finds a land the
+    /// declared drop ranks above every land in hand, and pays out of the
+    /// sources already in play.
+    #[allow(clippy::too_many_arguments)]
+    fn activate(
+        &mut self,
+        cast: &[u32],
+        gone: &mut [u32],
+        tapped: &mut [u32],
+        bill: &mut Bill,
+        turn: usize,
+        group: usize,
+        before_drop: bool,
+    ) -> bool {
+        let Some((effect, activation)) = self.activation_of(group) else {
+            return false;
+        };
+        if cast[group] <= gone[group] + tapped[group] {
+            return false;
+        }
+        if before_drop && !self.fetches_the_better_land(effect) {
+            return false;
+        }
+        let cost = activation.cost;
+        // The count first, as for a cast. Before the drop, this turn's has
+        // not been made.
+        let lands = if before_drop {
+            self.drops[turn - 1]
+        } else {
+            self.drops[turn]
+        };
+        if bill.total() + cost.total() > lands + bill.made_total() {
+            return false;
+        }
+        let before = *bill.last();
+        *bill.last() = before.plus(cost);
+        if !self.can_pay(turn, &bill.stages, &bill.made) {
+            *bill.last() = before;
+            return false;
+        }
+        if activation.sacrifice {
+            gone[group] += 1;
+        } else {
+            tapped[group] += 1;
+        }
+        match self.fetch(effect) {
+            Some((got, Fetched::Hand)) => self.live_hand[got] += 1,
+            Some((got, Fetched::Battlefield)) => {
+                self.live_field[got] += 1;
+                self.live_landed[got] += 1;
+            }
+            None => {}
+        }
+        true
+    }
+
+    /// Whether `effect`'s fetch, to hand, would find a land the declared
+    /// drop ranks above every land in hand: ADR-0019's one exception to
+    /// paying after the drop. A function of counts and of two lists the file
+    /// declares, so it decides nothing new.
+    fn fetches_the_better_land(&self, effect: usize) -> bool {
+        let Some(declared) = &self.declared else {
+            return false;
+        };
+        if self.schedule.effects()[effect]
+            .fetch
+            .as_ref()
+            .is_none_or(|f| f.to != Fetched::Hand)
+        {
+            return false;
+        }
+        let Some(found) = self.would_fetch(effect) else {
+            return false;
+        };
+        let rank = |group: usize| declared.tiers.iter().flatten().position(|&g| g == group);
+        let Some(found) = rank(found) else {
+            return false;
+        };
+        declared
+            .tiers
+            .iter()
+            .flatten()
+            .take(found + 1)
+            .all(|&g| self.live_hand[g] <= self.live_played[g])
+    }
+
+    /// The group [`Board::fetch`] would take for `effect`, without taking it.
+    fn would_fetch(&self, effect: usize) -> Option<usize> {
+        for groups in &self.fetch_tiers[effect] {
+            if let Some(&g) = groups.iter().find(|&&g| self.unrevealed(g) > 0) {
+                return Some(g);
+            }
+            if let Some(&g) = self.kept.iter().find(|kept| groups.contains(kept)) {
+                return Some(g);
+            }
+            if let Some(&g) = groups.iter().find(|&&g| self.live_bottomed[g] > 0) {
+                return Some(g);
+            }
+        }
+        None
+    }
+
+    /// ADR-0019's exception: before the land drop, activate whatever fetches
+    /// the land the drop would rather play, out of the sources already in
+    /// play, so the drop can play it. True if anything was paid.
+    ///
+    /// The pool it pays from is the one standing before the drop: this turn's
+    /// land is not there yet, so the drop's slot is written as the lands
+    /// already in play and nothing new, and the drop rewrites it after.
+    fn activate_before_drop(&mut self, turn: usize) -> bool {
+        let Some(mut casting) = self.casting.take() else {
+            return false;
+        };
+        if let Some(declared) = &mut self.declared {
+            declared.played_at[turn].copy_from_slice(&self.live_field);
+            declared.cast_landed[turn].fill(0);
+        }
+        self.drop_at[turn] = None;
+        let mut bill = std::mem::replace(&mut casting.bills[turn], Bill::new());
+        let mut paid = false;
+        'line: loop {
+            for tier in &casting.tiers {
+                for &group in tier {
+                    if self.activate(
+                        &casting.live_cast,
+                        &mut casting.live_gone,
+                        &mut casting.tapped,
+                        &mut bill,
+                        turn,
+                        group,
+                        true,
+                    ) {
+                        paid = true;
+                        continue 'line;
+                    }
+                }
+            }
+            break;
+        }
+        casting.bills[turn] = bill;
+        self.casting = Some(casting);
+        paid
+    }
+
+    /// The drop made after an activation was paid this turn: the land was not
+    /// in the pool that paid it, so it pays only for what comes after — a new
+    /// stage of the bill, with the land's mana on it as a rock's would be —
+    /// and the land count leaves it out. A land that enters tapped, or makes
+    /// no mana, adds nothing either way.
+    fn drop_after_paying(&mut self, turn: usize, group: usize) {
+        let Some(casting) = &mut self.casting else {
+            return;
+        };
+        let Some(slot) = self.land_groups.iter().position(|&g| g == group) else {
+            return;
+        };
+        let source = self.pool[slot];
+        if source.tapped || source.lasts == Some(0) {
+            return;
+        }
+        let bill = &mut casting.bills[turn];
+        bill.stages.push(Demand::FREE);
+        bill.made.push(Made {
+            stage: bill.stages.len() - 1,
+            produces: source.produces,
+            count: 1,
+        });
+        self.late_drop[turn] = Some(slot);
     }
 
     /// Draw what a spell that has just been cast draws, and then mill what it
@@ -1853,8 +2142,10 @@ impl<'a> Board<'a> {
             // the permanents the line cast. An instant or a sorcery it cast is
             // in the graveyard instead. For a land question the second term is
             // zero, because a land is played rather than cast.
+            // Less what an activation sacrificed, which was cast and is gone.
             Zone::Battlefield => {
                 self.played_by(turn, query) + self.cast_into(turn, query, Resolves::OntoBattlefield)
+                    - self.gone_by(turn, query)
             }
         }
     }
@@ -1885,6 +2176,15 @@ impl<'a> Board<'a> {
         self.casting
             .as_ref()
             .and_then(|c| c.cast_at.get(turn))
+            .map_or(0, |counts| self.grouping.count_matching(counts, query))
+    }
+
+    /// How many permanents matching `query` the line cast and an activation
+    /// has sacrificed by `turn`.
+    fn gone_by(&self, turn: usize, query: usize) -> u32 {
+        self.casting
+            .as_ref()
+            .and_then(|c| c.gone_at.get(turn))
             .map_or(0, |counts| self.grouping.count_matching(counts, query))
     }
 
@@ -2053,11 +2353,15 @@ impl<'a> Board<'a> {
             // arrived after the line had paid, so it is the next turn's mana.
             let sacrificed = &self.sacrificed[turn];
             let arrived = &declared.cast_landed[turn];
+            // And a drop made after an activation paid is the bill's mana
+            // from the stage after, not a land in this count (ADR-0019).
+            let late = self.late_drop[turn];
             let usable = |slot: usize| {
                 let group = self.land_groups[slot];
                 let standing = counts[group] + sacrificed[group]
                     - arrived[group]
-                    - u32::from(tapped_now == Some(slot));
+                    - u32::from(tapped_now == Some(slot))
+                    - u32::from(late == Some(slot));
                 // A land that makes mana for `n` turns makes it only if it was
                 // played on one of the last `n`: what was standing `n` turns
                 // ago has stopped. Maze of Ith is `n = 0`, so none of it pays.

@@ -19,7 +19,7 @@ hands 26 to 33 what
 (now built, and tests),
 and hands 40 to 42 what
 [ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md) decided,
-before any of it is built. That is the point: they pin the semantics before the
+before any of it was built (now built, and tests). That is the point: they pin the semantics before the
 code exists, so that building
 the feature cannot quietly redefine the question — and hands 1, 2 and 3 are the
 worked case, written down as one Opt on turn 1 long before anything could say
@@ -1481,9 +1481,9 @@ sampler's acceptance tests.*
 
 Hands 40 to 42 and 50 pin
 [ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)
-before any of it is built. Hands 40 and 44 are answerable and tests (ADR-0019's
-first ticket, #96), and so are 41 and 50 (its second, #97); 42 is not yet, and
-names the build ticket it waits for. Each is a small deck, on the play, with the deal
+before any of it was built. Hands 40 and 44 are answerable and tests (ADR-0019's
+first ticket, #96), and so are 41 and 50 (its second, #97) and 42 (its third,
+#98). Each is a small deck, on the play, with the deal
 worked turn by turn for one order of the library and then priced over every
 order. The tables were produced by brute force over every order of the deck, in
 `docs/research/tutor-routes-hands.py`, which reads nothing in `crates/`, and
@@ -1771,7 +1771,7 @@ the sources already in play; nothing else is.
 The line names neither the Lantern nor anything else, so the Lantern arrives by
 chapter III or not at all, which keeps the Saga route on its own as hand 17 did.
 
-| | Map never activated (today) | activation `{2}`, Saga to hand |
+| | Map never activated (before #98) | activation `{2}`, Saga to hand |
 |---|---|---|
 | Expedition Map cast on turn 1 | 4921/11440 = **43.02%** | 4921/11440 = **43.02%** |
 | Urza's Saga played by turn 3 | 9/16 = 56.25% | 26249/34320 = **76.48%** |
@@ -1791,8 +1791,24 @@ Lantern chapter III cannot find. A declared line activates whenever the pool
 pays; a pilot who would hold the Map is not modelled. A model that fetched the
 Saga without removing it from the library would show only the gain.
 
-*Not answerable yet: needs ADR-0019's third ticket (an activation), which needs
-the second.*
+*Answerable, and a test* since #98 — `hand-42.txt` against
+`hand-42-off.criteria.toml` and `hand-42-on.criteria.toml`, one per column:
+`expedition_map_goes_and_gets_urzas_saga_and_the_saga_gets_the_lantern`,
+`a_run_says_what_an_activation_costs_and_when_it_is_paid` and
+`an_activation_the_sampler_plays_agrees_with_the_enumeration` in the CLI suite,
+which also pins that a sacrificed Map is off the battlefield (69.19% of deals
+hold a Map in play on turn 5 without the activation, 1.24% with it);
+`expedition_map_goes_and_gets_urzas_saga_before_the_drop_it_is_played_on`,
+`a_sacrificed_map_leaves_the_battlefield_and_is_counted_nowhere`,
+`an_activation_is_paid_once_per_permanent_per_turn` and
+`what_an_activation_paid_before_the_drop_spent_is_not_paid_again_by_the_drop`
+in the engine's; and
+`an_activation_paid_before_the_drop_agrees_in_both_engines` in the sampler's
+acceptance tests. An activation on a creature or a land is refused by name
+(`an_activation_on_a_creature_or_a_land_is_refused_by_name`).
+`checker/test_activation.py` plays it from Expedition Map's and the Saga's
+text (CR 602, 118.3, 714) over every deal and gets both columns exactly, and
+without the payment before the drop gets less on both moving rows.
 
 ---
 

@@ -1,0 +1,154 @@
+# "Third Lantern Control" — https://archidekt.com/decks/25088186
+# Routes 1, 3 and C, and Expedition Map for the Saga: the Lantern cast from
+# hand, put there by a tutor the line pays for, or by Urza's Saga's third
+# chapter, with the Map going and getting the Saga.
+#
+# lantern-route-tutors.criteria.toml with Urza's Saga and Expedition Map
+# added (ADR-0019, third ticket, #98). It is a file of its own rather than
+# an edit of that one, because the Saga's chapter is set up by a land drop,
+# so the run has to declare which land it plays — and a declared drop is a
+# different reading of the lands than the generous one that file's line pays
+# from. Declaring `[land_drop]` alone in that file, nothing else changed,
+# moves every number in it for a reason that has nothing to do with the Map:
+# on the play Whir cast by turn 5 goes 3.20% -> 2.35%, and the Lantern on the
+# battlefield 21.75% -> 18.98%, because the drop plays the land its list
+# reaches first rather than whichever land would have paid.
+#
+# WHAT IS MODELLED HERE
+# ---------------------
+#   [[effect]] — the tutors-route file's three, and:
+#     * Urza's Saga, route C's: chapter III, two turns after the drop, puts
+#       the Lantern onto the battlefield, and the Saga is sacrificed.
+#     * Expedition Map, `on = "activate"`: {2}, {T}, sacrifice it, for the
+#       Saga, to hand. The [casting] entry naming the Map both casts it for
+#       its printed {1} and pays {2} to activate a copy in play, once a turn,
+#       after the land drop — and before it where the Saga is what the drop
+#       would rather play than anything in hand, so the Saga it finds is that
+#       turn's land (HANDS.md hand 42).
+#   [land_drop] — the Saga first, the moment it is held, then any land.
+#   [casting]  — the tutors-route line, with the Map last: it is cast when
+#                nothing above it is, and activated whenever the pool pays.
+#
+# WHAT THE MAP IS WORTH, MEASURED
+# -------------------------------
+# Against this file without the Map's effect and without the Map in the line
+# (so: the Lantern, Whir, the Seeker, Dizzy Spell and the Saga), on the
+# committed index, sampled:
+#
+#                                            play               draw
+#                                      no Map   + Map     no Map   + Map
+#   Lantern on the battlefield by t5   26.93%   31.64%    30.38%   35.95%
+#   Urza's Saga played by t3            9.18%   14.77%    10.24%   16.95%
+#   Lantern of Insight cast by t5      15.59%   15.45%    17.42%   17.34%
+#   Whir of Invention cast by t5        2.35%    2.32%     3.05%    2.98%
+#   Expedition Map cast by t5             —     10.92%       —     11.96%
+#
+# Sampled, ± 0.03 to 0.11: 24 groups and 675,429,580,800 compositions at
+# turn 5 on the play, 16,210,309,939,200 on the draw, about 1.5s a seat.
+#
+# The route question moves +4.71 points on the play and +5.57 on the draw.
+# ADR-0019's research script estimated +3.25 and +3.52 for the Map added
+# after the Seeker, Dizzy Spell and Whir, over a line that also held Trinket
+# Mage, Fabricate and Cruel Captain and paid with rocks: more routes for the
+# Map to overlap with, so less for it to add. Its "alone" column, the Map on
+# top of the routes that already shipped, is +3.67 on the play. What the Map
+# costs the rest of the line is the {1} and the {2} it takes out of turns 2
+# and 3: the Lantern cast and Whir cast by turn 5 each give up a tenth of a
+# point or less.
+#
+# STILL NOT MODELLED
+# ------------------
+#   * Everything the tutors-route file lists: improvise, a larger X, rocks.
+#   * The Map finding any land but the Saga. Its text finds any land card;
+#     the pilot names the Saga, and a Map activated with the Saga already
+#     drawn finds nothing, as a declared line does.
+#   * Mulligans. Turn 0 is a kept seven.
+
+[[effect]]
+match = 'name:"Whir of Invention"'
+on = "cast"
+cost = "{1}{U}{U}{U}"
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[[effect]]
+match = 'name:"Tezzeret the Seeker"'
+on = "cast"
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[[effect]]
+match = 'name:"Dizzy Spell"'
+on = "cast"
+cost = "{1}{U}{U}"
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+
+[[effect]]
+match = "name:\"Urza's Saga\""
+on = "landdrop"
+after = 2
+sacrifice = true
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[[effect]]
+match = 'name:"Expedition Map"'
+on = "activate"
+cost = "{2}"
+sacrifice = true
+fetch = ["name:\"Urza's Saga\""]
+to = "hand"
+
+[land_drop]
+prefer = ["name:\"Urza's Saga\"", "t:land"]
+
+[casting]
+prefer = [
+  'name:"Lantern of Insight"',
+  'name:"Whir of Invention"',
+  'name:"Tezzeret the Seeker"',
+  'name:"Dizzy Spell"',
+  'name:"Expedition Map"',
+]
+
+# THRESHOLD: none, for the reason route B's file gives. Four routes of four,
+# without the rocks.
+
+[[criterion]]
+name = "Expedition Map cast by turn 5"
+require = [{ turn = 5, cast = 'name:"Expedition Map"', min = 1 }]
+
+# Played by turn 3: on the battlefield on one of turns 1 to 3, because
+# chapter III sacrifices a Saga played on turn 1 on turn 3.
+[[criterion]]
+name = "Urza's Saga played by turn 3"
+
+  [[criterion.any_of]]
+  require = [{ turn = 1, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 }]
+
+  [[criterion.any_of]]
+  require = [{ turn = 2, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 }]
+
+  [[criterion.any_of]]
+  require = [{ turn = 3, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Whir of Invention cast by turn 5"
+require = [{ turn = 5, cast = 'name:"Whir of Invention"', min = 1 }]
+
+[[criterion]]
+name = "Lantern of Insight cast by turn 5"
+require = [{ turn = 5, cast = 'name:"Lantern of Insight"', min = 1 }]
+
+# Where the route ends: the Lantern in play, whether the line cast it, a
+# tutor put it there, or the Saga did.
+[[criterion]]
+name = "Lantern of Insight on the battlefield by turn 5, cast or put there by a tutor or the Saga"
+require = [{ turn = 5, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+[[expect]]
+name = "Lanterns still in the library on turn 5"
+turn = 5
+query = 'name:"Lantern of Insight"'
+zone = "library"

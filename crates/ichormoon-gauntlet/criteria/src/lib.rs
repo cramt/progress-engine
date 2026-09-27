@@ -26,7 +26,7 @@ mod strategy;
 mod zone;
 
 pub use effect::{
-    Board, Delay, Effect, Fetch, Fetched, Mill, Route, ToHand, Trigger, TriggerError,
+    Activation, Board, Delay, Effect, Fetch, Fetched, Mill, Route, ToHand, Trigger, TriggerError,
 };
 pub use grouping::{Grouping, GroupingError};
 pub use mana::{Cost, CostError, Demand, LandDetail, ManaSource, Palette, Resolves};

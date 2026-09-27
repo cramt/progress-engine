@@ -208,8 +208,9 @@ struct EffectDef {
     /// draw steps. Absent is an effect that happens when it is triggered.
     after: Option<i64>,
     /// Whether the card that set a delayed effect up leaves the battlefield
-    /// once it resolves, which a Saga does after its last chapter. Only
-    /// meaningful beside `after`, and refused without it.
+    /// once it resolves, which a Saga does after its last chapter; or, on an
+    /// activation, whether paying it sacrifices the card, as Expedition Map's
+    /// does (ADR-0019). Refused on anything else.
     sacrifice: Option<bool>,
     /// Cards a cast puts off the top of the library into the graveyard, as
     /// one block (ADR-0017 §2): Aftermath Analyst's `mill = 3`, and Malevolent
@@ -548,6 +549,10 @@ pub struct EffectEntry {
     /// are refused here as `can_cast` refuses them.
     pub cost: Option<Cost>,
     pub trigger: Trigger,
+    /// Whether paying an activation sacrifices the card: Expedition Map's
+    /// `{2}`, `{T}`, sacrifice it (ADR-0019). Always false on any other
+    /// trigger; a delayed effect's sacrifice is its [`Delay`]'s.
+    pub sacrifice: bool,
     /// The routing policy: which of the looked-at cards go to the graveyard.
     /// `None` is "none of them", and is the default.
     pub to_graveyard: Option<Destination>,
@@ -1376,7 +1381,7 @@ pub enum ErrorKind {
     /// cast. What a land taps for is the land drop's business, read from the
     /// land's own palette.
     #[error(
-        "{at}: has `adds` on a land drop, and a mana source is a card the `[casting]` line \
+        "{at}: has `adds` on something other than a cast, and a mana source is a card the `[casting]` line \
          casts (ADR-0018).\n\
          Write `on = \"cast\"` for a rock or a dork; what a land taps for is read from the \
          land itself"
@@ -1565,6 +1570,15 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
         // turns over nothing, and a mill turns over cards and takes them all
         // off the top. An entry doing none of them would be a checkpoint spent
         // on an effect that cannot move a number.
+        // An activation is something the line pays for, so it says what.
+        if trigger == Trigger::Activate && cost.is_none() {
+            return Err(ErrorKind::Missing {
+                at: at.clone(),
+                key: "cost",
+                why: "so the line has nothing to pay to activate it. Expedition Map's is \
+                      `cost = \"{2}\"`, with `sacrifice = true`",
+            });
+        }
         let look = match (
             def.look,
             fetch.is_some() || adds.is_some() || mill.is_some() || cost.is_some(),
@@ -1589,7 +1603,7 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
         };
         // A look on a cast is the replacement draw, and it is the one thing
         // this trigger will not do. A fetch on a cast is a subtraction.
-        if trigger == Trigger::Cast && look > 0 {
+        if matches!(trigger, Trigger::Cast | Trigger::Activate) && look > 0 {
             return Err(ErrorKind::BadTrigger {
                 at: at.clone(),
                 trigger: TriggerError::LooksOnCast,
@@ -1606,6 +1620,7 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
             adds,
             cost,
             trigger,
+            sacrifice: trigger == Trigger::Activate && def.sacrifice == Some(true),
             to_graveyard: def.to_graveyard.as_deref().map(|d| {
                 if d == EVERYTHING {
                     Destination::Everything
@@ -1659,7 +1674,7 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
         })?;
     if trigger != Trigger::Cast {
         return Err(misdeclared(
-            "has `mill` on a landdrop. A mill here is something a cast does to the top of the \
+            "has `mill` on a landdrop or an activation. A mill here is something a cast does to the top of the \
              library; what a land drop does to it is a `look`, with `to_graveyard` saying \
              where the cards go",
         ));
@@ -1760,7 +1775,7 @@ fn cost_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<Cost>, 
         at: at.to_string(),
         cost,
     })?;
-    if trigger != Trigger::Cast {
+    if trigger == Trigger::LandDrop {
         return Err(ErrorKind::CostOffACast { at: at.to_string() });
     }
     Ok(Some(cost))
@@ -1786,7 +1801,11 @@ fn delay_of(
 ) -> Result<Option<Delay>, ErrorKind> {
     let Some(after) = def.after else {
         return match def.sacrifice {
-            Some(true) => Err(ErrorKind::SacrificeWithoutDelay { at: at.to_string() }),
+            // An activation's sacrifice is part of its cost, and waits on
+            // nothing.
+            Some(true) if trigger != Trigger::Activate => {
+                Err(ErrorKind::SacrificeWithoutDelay { at: at.to_string() })
+            }
             _ => Ok(None),
         };
     };
@@ -1801,6 +1820,8 @@ fn delay_of(
         Some("adds mana, and a source that waits is a rock entering tapped, not a Saga: nothing is sacrificed when the wait is over")
     } else if source {
         None
+    } else if trigger == Trigger::Activate {
+        Some("is an activation, which waits on the line paying for it, not on a count of turns")
     } else if trigger != Trigger::LandDrop {
         Some("fires on a cast, and only a land that stays in play, or a rock or dork that adds mana, has anything to wait with")
     } else if look > 0 {

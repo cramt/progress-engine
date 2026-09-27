@@ -480,6 +480,7 @@ fn a_file_run_against_a_spell_that_draws_agrees_in_both_engines() {
         delay: None,
         draw: 1,
         mill: None,
+        activation: None,
     };
     let schedule = Schedule::build(
         criteria.horizon(),
@@ -1801,6 +1802,89 @@ fn a_declared_cost_is_an_amount_and_is_paid_on_a_cast() {
     assert!(bad.to_string().contains("on = \"cast\""), "{bad}");
 }
 
+/// Expedition Map's activation, with `extra` keys added to the entry.
+fn activating(extra: &str) -> Result<Criteria, ErrorKind> {
+    Criteria::parse(
+        &format!(
+            r#"
+            [[effect]]
+            match = 'name:"Expedition Map"'
+            on = "activate"
+            fetch = ["name:\"Urza's Saga\""]
+            to = "hand"
+            {extra}
+
+            [casting]
+            prefer = ['name:"Expedition Map"']
+
+            [[criterion]]
+            name = "anything"
+            require = [{{ turn = 0, query = 'cat:"arm"', min = 1 }}]
+            "#
+        ),
+        "test.criteria.toml",
+    )
+    .map_err(|e| e.kind)
+}
+
+#[test]
+fn an_activation_declares_what_it_costs_and_whether_it_sacrifices() {
+    // Expedition Map (ADR-0019): {2}, {T}, sacrifice it. The cost is the
+    // activation's, not the Map's cast, and `sacrifice` needs no `after`: the
+    // Map leaves play as the cost is paid.
+    let criteria =
+        activating("cost = \"{2}\"\nsacrifice = true").expect("an activation should parse");
+    let effect = &criteria.effects().entries()[0];
+    assert_eq!(effect.trigger, Trigger::Activate);
+    assert_eq!(effect.cost, Some(Cost::parse("{2}").unwrap()));
+    assert!(effect.sacrifice);
+    assert_eq!(effect.delay, None);
+    let stays = activating("cost = \"{2}\"").expect("a tap that stays should parse");
+    assert!(!stays.effects().entries()[0].sacrifice);
+}
+
+#[test]
+fn an_activation_is_refused_what_it_cannot_do() {
+    // Without a cost there is nothing for the line to pay.
+    let bad = activating("").expect_err("no cost");
+    assert!(
+        matches!(bad, ErrorKind::Missing { key: "cost", .. }),
+        "{bad}"
+    );
+    // An activation waits on payment, not on a count of turns.
+    let bad = activating("cost = \"{2}\"\nafter = 1").expect_err("after");
+    assert!(matches!(bad, ErrorKind::UnmodelledDelay { .. }), "{bad}");
+    // A look off an activation is a replacement draw, as off a cast.
+    let bad = activating("cost = \"{2}\"\nlook = 1").expect_err("look");
+    assert!(matches!(bad, ErrorKind::BadTrigger { .. }), "{bad}");
+    // A mill or a source is a cast's.
+    let bad = activating("cost = \"{2}\"\nmill = 2").expect_err("mill");
+    assert!(matches!(bad, ErrorKind::MillMisdeclared { .. }), "{bad}");
+    let bad = activating("cost = \"{2}\"\nadds = 1").expect_err("adds");
+    assert!(matches!(bad, ErrorKind::AddsOnLandDrop { .. }), "{bad}");
+    // And `sacrifice` without `after` still means nothing on a land drop.
+    let bad = Criteria::parse(
+        r#"
+        [[effect]]
+        match = 't:land'
+        on = "landdrop"
+        look = 1
+        sacrifice = true
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+        "test.criteria.toml",
+    )
+    .map_err(|e| e.kind)
+    .expect_err("sacrifice on a drop");
+    assert!(
+        matches!(bad, ErrorKind::SacrificeWithoutDelay { .. }),
+        "{bad}"
+    );
+}
+
 #[test]
 fn an_effect_that_neither_looks_nor_fetches_is_refused() {
     // It would cost a checkpoint a turn to compute a value it cannot change.
@@ -1925,6 +2009,9 @@ fn the_standard_library_is_a_criteria_file_like_any_other() {
                 (entry.adds.is_some() || entry.mill.is_some()) && entry.look == 0,
                 "a cast entry here declares a source or a mill: {entry:?}"
             ),
+            // Nothing ships an activation: which one a line pays for, and
+            // what it fetches, is the pilot's (ADR-0019).
+            Trigger::Activate => panic!("the library ships no activation: {entry:?}"),
         }
         // A mill says what the card lets go to hand, and never which: that is
         // the pilot's, as a surveil's destination is.

@@ -1,0 +1,42 @@
+# HANDS.md hand 42, the "Map never activated" column: the Map is cast and
+# does nothing. hand-42-on.criteria.toml is this file with its activation.
+
+[[effect]]
+match = "name:\"Urza's Saga\""
+on = "landdrop"
+after = 2
+sacrifice = true
+fetch = ['name:"Lantern of Insight"']
+to = "battlefield"
+
+[land_drop]
+prefer = ["name:\"Urza's Saga\"", "t:land"]
+
+[casting]
+prefer = ['name:"Expedition Map"']
+
+[[criterion]]
+name = "Expedition Map cast on turn 1"
+require = [{ turn = 1, cast = 'name:"Expedition Map"', min = 1 }]
+
+# Played by turn 3: on the battlefield on one of turns 1 to 3, because
+# chapter III sacrifices a Saga played on turn 1 on turn 3.
+[[criterion]]
+name = "Urza's Saga played by turn 3"
+
+  [[criterion.any_of]]
+  require = [{ turn = 1, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 }]
+
+  [[criterion.any_of]]
+  require = [{ turn = 2, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 }]
+
+  [[criterion.any_of]]
+  require = [{ turn = 3, query = "name:\"Urza's Saga\"", zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Lantern on the battlefield by turn 5"
+require = [{ turn = 5, query = 'name:"Lantern of Insight"', zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Expedition Map on the battlefield on turn 5"
+require = [{ turn = 5, query = 'name:"Expedition Map"', zone = "battlefield", min = 1 }]

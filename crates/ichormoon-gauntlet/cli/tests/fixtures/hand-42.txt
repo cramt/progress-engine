@@ -1,0 +1,11 @@
+// HANDS.md hand 42: Expedition Map goes and gets Urza's Saga.
+//
+// Sixteen cards on the play: hand 17's deck with two Bolts traded for the Map
+// and a fifth Island. The Map is {1}; {2}, {T}, sacrifice it finds a land
+// card and puts it into your hand. The land it finds is the Saga, whose
+// chapter III puts the Lantern onto the battlefield two turns after it lands.
+5x Island [Land]
+8x Lightning Bolt [Burn]
+1x Expedition Map [Tutor]
+1x Urza's Saga [Land - Saga]
+1x Lantern of Insight [Lantern]

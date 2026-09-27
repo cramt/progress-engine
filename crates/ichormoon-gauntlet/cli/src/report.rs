@@ -311,7 +311,9 @@ pub struct EffectUse {
     #[facet(skip_serializing_if = Option::is_none)]
     pub after: Option<u32>,
     /// Whether the card that set a delayed effect up leaves the battlefield
-    /// when it resolves. Absent beside an effect that does not wait.
+    /// when it resolves, or, on an activation, whether paying it sacrifices
+    /// the card (ADR-0019; its `cost` is then the activation's, and the card
+    /// is cast for what is printed). Absent beside anything else.
     #[facet(skip_serializing_if = Option::is_none)]
     pub sacrifice: Option<bool>,
     /// Cards a cast of it puts into the graveyard off the top, or absent
@@ -1196,10 +1198,17 @@ impl Report {
                     ));
                 }
             }
-            if let Some(cost) = &e.cost {
-                out.push_str(&format!(
+            match (&e.cost, e.sacrifice.filter(|_| e.on == "activate")) {
+                (Some(cost), Some(sacrifice)) => out.push_str(&format!(
+                    "      and the [casting] entry naming it pays {cost} to activate a copy it put \
+                     into play{}, once a turn, after the land drop — before it only where what \
+                     it fetches is a land [land_drop] ranks above every land in hand\n",
+                    if sacrifice { ", sacrificing it" } else { "" }
+                )),
+                (Some(cost), None) => out.push_str(&format!(
                     "      and the [casting] line pays {cost} to play it, not its printed cost\n"
-                ));
+                )),
+                _ => {}
             }
             // A tutor names what it went and got, in the order it would take
             // them. Same discipline as the land drop and the casting line
@@ -1783,7 +1792,7 @@ pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
             fetch: a.fetch.as_ref().map(|(prefer, _)| prefer.clone()),
             to: a.fetch.as_ref().map(|(_, to)| *to),
             after: a.delay.map(|d| d.turns),
-            sacrifice: a.delay.map(|d| d.sacrifice),
+            sacrifice: a.delay.map(|d| d.sacrifice).or(a.sacrifice),
             mill: a.mill.as_ref().map(|m| m.cards),
             keep: match a.mill.as_ref().map(|m| &m.to_hand) {
                 Some(HandDecl::Chosen { up_to, .. }) if *up_to > 0 => Some(*up_to),

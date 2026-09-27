@@ -7,7 +7,7 @@
 use std::convert::Infallible;
 
 use gauntlet_criteria::{
-    Answering, Board, Chosen, Conditionals, Mill, Objective, Resolves, Table, ToHand,
+    Activation, Answering, Board, Chosen, Conditionals, Mill, Objective, Resolves, Table, ToHand,
 };
 use gauntlet_criteria::{
     Bound, CastingPolicy, Cost, Count, Counted, Criterion, Delay, Effect, Evaluator, Expectation,
@@ -543,6 +543,7 @@ fn surveil(route: Route) -> Effect {
         delay: None,
         draw: 0,
         mill: None,
+        activation: None,
     }
 }
 
@@ -1029,6 +1030,7 @@ fn a_live_effect_keeps_every_checkpoint_whatever_it_is_asked() {
         delay: None,
         draw: 0,
         mill: None,
+        activation: None,
     }];
     let schedule = Schedule::build(2, false, effects, Policies::default());
     assert_eq!(schedule.gaps(), &[7, 0, 1, 1, 1]);
@@ -1443,6 +1445,7 @@ fn the_budget_and_the_gate_answer_hand_twelve_the_same_way() {
         delay: None,
         draw: 0,
         mill: None,
+        activation: None,
     };
     let land_drop = LandDropPolicy::new(vec![0], 2);
     let gate = Schedule::build(
@@ -1542,6 +1545,7 @@ fn tutor(to: Fetched) -> Effect {
         delay: None,
         draw: 0,
         mill: None,
+        activation: None,
     }
 }
 
@@ -1707,6 +1711,7 @@ fn saga() -> Effect {
         }),
         draw: 0,
         mill: None,
+        activation: None,
     }
 }
 
@@ -2123,6 +2128,7 @@ fn a_tutor_still_finds_a_card_the_mulligan_put_on_the_bottom() {
         delay: None,
         draw: 0,
         mill: None,
+        activation: None,
     };
     let policy = MulliganPolicy::new(
         vec![Keep {
@@ -2413,6 +2419,7 @@ fn drawing(draw: u32) -> Effect {
         delay: None,
         draw,
         mill: None,
+        activation: None,
     }
 }
 
@@ -3708,6 +3715,7 @@ fn milling(mill: Option<Mill>) -> Effect {
         delay: None,
         draw: 0,
         mill,
+        activation: None,
     }
 }
 
@@ -4101,4 +4109,336 @@ fn a_mill_beside_a_tutor_is_dealt_where_it_fired() {
         gauntlet_criteria::width(&grouping, &last),
         gauntlet_criteria::width(&grouping, &in_place)
     );
+}
+
+/// HANDS.md hand 42's deck at the engine's seam: Expedition Map, the Lantern,
+/// Urza's Saga, five Islands and eight blanks, sixteen cards. Queries: the
+/// Map, the Lantern, the Saga, any land, and one bit per effect.
+fn hand_forty_two() -> Grouping {
+    Grouping::with_mana(
+        q(&[
+            "map",
+            "lantern",
+            "saga",
+            "land",
+            "<effect map>",
+            "<effect saga>",
+        ]),
+        vec![
+            (
+                0b010001,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                1,
+            ),
+            (0b000010, ManaSource::Spell, 1),
+            (0b101100, lasting("C", 3), 1),
+            (0b001000, untapped("U"), 5),
+            (0b000000, ManaSource::Spell, 8),
+        ],
+    )
+    .unwrap()
+}
+
+/// Expedition Map: `{2}`, `{T}`, sacrifice it: a land card to hand. Here it
+/// finds the Saga.
+fn expedition_map() -> Effect {
+    Effect {
+        matched_by: 4,
+        look: 0,
+        trigger: Trigger::Activate,
+        route: Route::Nowhere,
+        fetch: Some(Fetch {
+            prefer: vec![2],
+            to: Fetched::Hand,
+        }),
+        delay: None,
+        draw: 0,
+        mill: None,
+        activation: Some(Activation {
+            cost: Cost::parse("{2}").unwrap().demand(),
+            sacrifice: true,
+        }),
+    }
+}
+
+/// Hand 17's chapter III, on the Saga's effect bit.
+fn chapter_three() -> Effect {
+    Effect {
+        matched_by: 5,
+        ..saga()
+    }
+}
+
+fn map_and_saga_policies() -> Policies {
+    Policies {
+        land_drop: Some(LandDropPolicy::new(vec![2], 3)),
+        casting: Some(CastingPolicy::new(vec![0])),
+        ..Policies::default()
+    }
+}
+
+#[test]
+fn expedition_map_goes_and_gets_urzas_saga_before_the_drop_it_is_played_on() {
+    // HANDS.md hand 42, both columns, on the play to turn 5. The line names
+    // only the Map, so the Lantern arrives by chapter III or not at all. The
+    // Map's casting cannot move; the Saga played by turn 3 and the Lantern
+    // on the battlefield by turn 5 must, to the brute-forced fractions
+    // (docs/research/tutor-routes-hands.py): the activation paid before
+    // turn 3's drop is what makes the fetched Saga that turn's land.
+    let grouping = hand_forty_two();
+    for (effects, saga_by_three, lantern_by_five) in [
+        (vec![chapter_three()], 9.0 / 16.0, 1.0 / 4.0),
+        (
+            vec![expedition_map(), chapter_three()],
+            26249.0 / 34320.0,
+            3977.0 / 12870.0,
+        ),
+    ] {
+        let activated = effects.len() == 2;
+        let schedule = Schedule::build(5, false, effects, map_and_saga_policies());
+        let share = |check: Check| holds(&grouping, &schedule, check);
+        for (what, got, want) in [
+            (
+                "Map cast on turn 1",
+                share(Box::new(|v: &PathView<'_>| {
+                    v.count_at(1, 0, Counted::Cast) == 1
+                })),
+                4921.0 / 11440.0,
+            ),
+            (
+                // Played by turn 3: on the battlefield on one of turns 1 to 3,
+                // because chapter III takes it off again on the third.
+                "Saga played by turn 3",
+                share(Box::new(|v: &PathView<'_>| {
+                    (1..=3).any(|t| v.count_at(t, 2, Counted::In(Zone::Battlefield)) >= 1)
+                })),
+                saga_by_three,
+            ),
+            (
+                "Lantern on the battlefield by turn 5",
+                share(Box::new(|v: &PathView<'_>| {
+                    v.count_at(5, 1, Counted::In(Zone::Battlefield)) >= 1
+                })),
+                lantern_by_five,
+            ),
+        ] {
+            assert!(
+                (got - want).abs() < 1e-12,
+                "activated: {activated}, {what}: {got}, not {want}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_sacrificed_map_leaves_the_battlefield_and_is_counted_nowhere() {
+    // The same deck. A Map the line cast is on the battlefield until it is
+    // activated; sacrificed, it is in no zone a criterion asks about, and it
+    // was still cast. Turn 1 never activates it — one Island pays {1}, not
+    // {2} — so on turn 1 every Map cast is in play.
+    let grouping = hand_forty_two();
+    let schedule = Schedule::build(
+        5,
+        false,
+        vec![expedition_map(), chapter_three()],
+        map_and_saga_policies(),
+    );
+    let share = |check: Check| holds(&grouping, &schedule, check);
+    let in_play_turn_one = share(Box::new(|v: &PathView<'_>| {
+        v.count_at(1, 0, Counted::In(Zone::Battlefield)) == 1
+    }));
+    assert!((in_play_turn_one - 4921.0 / 11440.0).abs() < 1e-12);
+    let gone = share(Box::new(|v: &PathView<'_>| {
+        v.count_at(5, 0, Counted::Cast) == 1
+            && [
+                Zone::Battlefield,
+                Zone::Graveyard,
+                Zone::Hand,
+                Zone::Library,
+            ]
+            .into_iter()
+            .all(|zone| v.count_at(5, 0, Counted::In(zone)) == 0)
+    }));
+    let cast = share(Box::new(|v: &PathView<'_>| {
+        v.count_at(5, 0, Counted::Cast) == 1
+    }));
+    let in_play = share(Box::new(|v: &PathView<'_>| {
+        v.count_at(5, 0, Counted::In(Zone::Battlefield)) == 1
+    }));
+    assert!(gone > 0.5, "{gone}");
+    assert!(
+        (gone + in_play - cast).abs() < 1e-12,
+        "a cast Map is in play or gone: {gone} + {in_play} against {cast}"
+    );
+}
+
+#[test]
+fn an_activation_is_paid_once_per_permanent_per_turn() {
+    // A tutor that taps and stays: {1}, {T}: a card to hand. Two Islands in
+    // play and three copies of the Lantern in the library; seven cards dealt
+    // and nothing drawn, so every deal is the one hand. The tapper is cast on
+    // turn 1 for {1}; turn 2 has two Islands, and the tapper finds one
+    // Lantern — not two, though {1}{1} is payable — and one more on turn 3.
+    let grouping = Grouping::with_mana(
+        q(&["tapper", "lantern", "land", "<effect tapper>"]),
+        vec![
+            (
+                0b1001,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                1,
+            ),
+            (0b0010, ManaSource::Spell, 3),
+            (0b0100, untapped("U"), 2),
+            (0b0000, ManaSource::Spell, 4),
+        ],
+    )
+    .unwrap();
+    let tapper = Effect {
+        matched_by: 3,
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to: Fetched::Hand,
+        }),
+        activation: Some(Activation {
+            cost: Cost::parse("{1}").unwrap().demand(),
+            sacrifice: false,
+        }),
+        ..expedition_map()
+    };
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0, 0, 0],
+        vec![tapper],
+        Policies {
+            land_drop: Some(LandDropPolicy::new(vec![], 2)),
+            casting: Some(CastingPolicy::new(vec![0])),
+            ..Policies::default()
+        },
+    );
+    // The deals that hold the tapper, both Islands and at most one Lantern,
+    // so the library has two for it to find.
+    let dealt = |v: &PathView<'_>| {
+        v.count_at(0, 0, Counted::In(Zone::Hand)) == 1
+            && v.count_at(0, 2, Counted::In(Zone::Hand)) == 2
+            && v.count_at(0, 1, Counted::In(Zone::Hand)) <= 1
+    };
+    let some = holds(&grouping, &schedule, Box::new(dealt));
+    assert!(some > 0.0);
+    for (turn, lanterns) in [(1, 0), (2, 1), (3, 2)] {
+        let off = holds(
+            &grouping,
+            &schedule,
+            Box::new(move |v: &PathView<'_>| {
+                dealt(v)
+                    && v.count_at(turn, 1, Counted::In(Zone::Hand))
+                        - v.count_at(0, 1, Counted::In(Zone::Hand))
+                        != lanterns
+            }),
+        );
+        assert_eq!(off, 0.0, "turn {turn}: not {lanterns} Lanterns found");
+    }
+}
+
+#[test]
+fn what_an_activation_paid_before_the_drop_spent_is_not_paid_again_by_the_drop() {
+    // Eight cards, seven dealt and nothing drawn: two Opts, the Map, a
+    // Brainstorm, two Islands, the Saga and a blank, on the deal that leaves
+    // the Saga in the library. The line is [Opt, Map, Brainstorm]. Turn 1: an
+    // Island and an Opt. Turn 2: an Island, an Opt and the Map, and nothing
+    // left for its {2}. Turn 3, before the drop, both Islands pay the Map's
+    // {2} and the Saga comes to hand; it is the drop. Brainstorm wants {U},
+    // and what is left is the Saga's {C}: it waits for turn 4. Paid as one
+    // bill with the Saga in it, the Saga would take the {2}'s generic and an
+    // Island the {U}, which is a line nobody could have played.
+    let grouping = Grouping::with_mana(
+        q(&[
+            "opt",
+            "map",
+            "saga",
+            "land",
+            "<effect map>",
+            "<effect saga>",
+            "brainstorm",
+        ]),
+        vec![
+            (
+                0b0000001,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                2,
+            ),
+            (
+                0b0010010,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                1,
+            ),
+            (
+                0b1000000,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                1,
+            ),
+            (0b0101100, lasting("C", 3), 1),
+            (0b0001000, untapped("U"), 2),
+            (0b0000000, ManaSource::Spell, 1),
+        ],
+    )
+    .unwrap();
+    let map = Effect {
+        matched_by: 4,
+        ..expedition_map()
+    };
+    let saga_waits = Effect {
+        fetch: None,
+        ..chapter_three()
+    };
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0, 0, 0, 0],
+        vec![map, saga_waits],
+        Policies {
+            land_drop: Some(LandDropPolicy::new(vec![2], 3)),
+            casting: Some(CastingPolicy::new(vec![0, 1, 6])),
+            ..Policies::default()
+        },
+    );
+    let left_out = |v: &PathView<'_>| v.count_at(0, 2, Counted::In(Zone::Hand)) == 0;
+    let share = |check: Check| holds(&grouping, &schedule, check);
+    let eighth = 1.0 / 8.0;
+    for (what, got, want) in [
+        (
+            "the Saga fetched and played on turn 3",
+            share(Box::new(move |v: &PathView<'_>| {
+                left_out(v) && v.count_at(3, 2, Counted::In(Zone::Battlefield)) == 1
+            })),
+            eighth,
+        ),
+        (
+            "Brainstorm by turn 3",
+            share(Box::new(move |v: &PathView<'_>| {
+                left_out(v) && v.count_at(3, 6, Counted::Cast) == 1
+            })),
+            0.0,
+        ),
+        (
+            "Brainstorm by turn 4",
+            share(Box::new(move |v: &PathView<'_>| {
+                left_out(v) && v.count_at(4, 6, Counted::Cast) == 1
+            })),
+            eighth,
+        ),
+    ] {
+        assert!((got - want).abs() < 1e-12, "{what}: {got}, not {want}");
+    }
 }
