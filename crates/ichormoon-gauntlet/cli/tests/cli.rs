@@ -5460,3 +5460,84 @@ fn a_run_that_discarded_by_policy_says_which_policy() {
     );
     assert!(plain.get("discard").is_none(), "{plain}");
 }
+
+// --- Attack and landfall triggers mill (#89) ---------------------------------
+
+#[test]
+fn every_trigger_route_agrees_with_the_sampler_through_the_binary() {
+    // Six on attack, Icetill Explorer on landfall and Lumra on entering, one
+    // file each over one deck, each exact, and the sampler answering the same
+    // files. The standard library says what each does; Six's file says which
+    // land it keeps.
+    for criteria in [
+        "six.criteria.toml",
+        "explorer.criteria.toml",
+        "lumra.criteria.toml",
+    ] {
+        let exact = run_mill("triggers.txt", criteria, &[]);
+        assert_eq!(exact["method"], "exact", "{criteria}");
+        let sampled = run_mill(
+            "triggers.txt",
+            criteria,
+            &["--simulate", "--trials", "40000"],
+        );
+        for c in exact["criteria"].as_array().unwrap() {
+            let name = c["name"].as_str().unwrap();
+            let (e, s) = (percent(&exact, name), percent(&sampled, name));
+            assert!(e > 0.5 && e < 99.5, "{name} should be a question: {e}");
+            assert!((e - s).abs() < 1.0, "{name}: {e} exact against {s} sampled");
+        }
+    }
+}
+
+#[test]
+fn a_run_that_attacks_names_what_it_assumed_of_the_table() {
+    let json = run_mill("triggers.txt", "six.criteria.toml", &[]);
+    let effect = |name: &str| {
+        json["effects"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| {
+                e["match"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with(&format!("name:\"{name}\""))
+            })
+            .cloned()
+            .unwrap_or_else(|| panic!("the run says what {name} did"))
+    };
+    let six = effect("Six");
+    assert_eq!(six["on"], "attack");
+    assert_eq!(six["mill"], 3);
+    assert_eq!(six["to_hand"][0], "t:land");
+    assert_eq!(six["live"], true);
+    assert!(
+        six["assumes"]
+            .as_str()
+            .unwrap()
+            .contains("no opponent blocks it"),
+        "{six}"
+    );
+    // The two the line does not cast here mill nothing and assume nothing.
+    let explorer = effect("Icetill Explorer");
+    assert_eq!(explorer["on"], "landfall");
+    assert_eq!(explorer["live"], false);
+    assert!(explorer.get("assumes").is_none(), "{explorer}");
+    let lumra = effect("Lumra, Bellow of the Woods");
+    assert_eq!(lumra["returns"], "t:land");
+    // And the human report says it too, above the numbers.
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture("triggers.txt"))
+        .arg(fixture("six.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("mill-index.jsonl"))
+        .output()
+        .expect("binary should run");
+    let report = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        report.contains("ASSUMED: it attacks every turn it can"),
+        "{report}"
+    );
+}

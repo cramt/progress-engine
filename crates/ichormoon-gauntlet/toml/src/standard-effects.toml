@@ -240,3 +240,48 @@ on = "cast"
 draw = 1
 discard_any = true
 discard_only = "t:land"
+
+# --- Attack and landfall (#89) -----------------------------------------------
+#
+# A mill that fires off a permanent the `[casting]` line cast, again and again:
+# each time it attacks, or each time a land enters while it is there. Each
+# firing is one block dealt where it fired, like a cast's, on the paths where
+# it fired. Because, for all three: they are the Loam deck's own, and each
+# puts cards off the top into the graveyard its north star asks about.
+
+# Six: "Whenever Six attacks, mill three cards. You may put a land card from
+# among them into your hand." It is summoning-sick the turn it is cast, so it
+# first attacks the turn after, and every turn from then on. ASSUMED, and
+# printed by every run that fires it: no opponent blocks it or removes it.
+# Which land it keeps is yours, as `to_hand`. Its retrace is not modelled:
+# casting from the graveyard is a second casting no line makes. `name:` finds
+# its text anywhere in a name, and Wrenn and Six is in the same deck, so the
+# match names the treefolk too.
+[[effect]]
+match = 'name:"Six" t:treefolk'
+on = "attack"
+mill = 3
+keep = 1
+keep_only = "t:land"
+
+# Icetill Explorer: "Landfall — Whenever a land you control enters, mill a
+# card." Every land that enters once it is on the battlefield: the next turn's
+# drop, since this turn's came before the line, a land a fetchland puts down,
+# and a land a spell returns. Its other two lines, an additional land a turn
+# and lands played from the graveyard, are not modelled: a floor on the land
+# drops, and so on its own mills.
+[[effect]]
+match = 'name:"Icetill Explorer"'
+on = "landfall"
+mill = 1
+
+# Lumra, Bellow of the Woods: "When Lumra enters, mill four cards. Then return
+# all land cards from your graveyard to the battlefield tapped." Nobody
+# chooses: every land in the graveyard comes back, the four's and any an
+# earlier mill put there. They took no land drop, and the budget still holds a
+# turn's bill to its drops, so the mana they could make is a floor.
+[[effect]]
+match = 'name:"Lumra, Bellow of the Woods"'
+on = "cast"
+mill = 4
+returns = "t:land"

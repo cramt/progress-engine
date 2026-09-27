@@ -258,6 +258,10 @@ struct EffectDef {
     /// Lands the cast untaps once it resolves: Frantic Search's `untap = 3`,
     /// taken as the lands that paid for it.
     untap: Option<i64>,
+    /// After a mill, every land card in the graveyard matching this goes onto
+    /// the battlefield tapped, whatever anyone asks: Lumra, Bellow of the
+    /// Woods' `returns = "t:land"`.
+    returns: Option<String>,
 }
 
 #[derive(Facet)]
@@ -629,6 +633,9 @@ pub const EVERYTHING: &str = "*";
 pub struct MillDecl {
     pub cards: u32,
     pub to_hand: HandDecl,
+    /// `returns = query`: then every land card of the graveyard matching it
+    /// goes onto the battlefield tapped, which the card compels.
+    pub returns: Option<String>,
 }
 
 /// Which of a mill's cards go to hand, as written.
@@ -1484,6 +1491,18 @@ pub enum ErrorKind {
     /// Half a draw or a discard, refused by what is missing (ADR-0017 §3).
     #[error("{at}: {why}")]
     HandMisdeclared { at: String, why: &'static str },
+    /// An attack or a landfall fires a mill, and nothing else (ADR-0017 §1).
+    #[error(
+        "{at}: `on = \"{on}\"` fires a `mill` and nothing else{}.\n\
+         Six is `on = \"attack\"`, `mill = 3`, `keep = 1`, `keep_only = \"t:land\"`; Icetill \
+         Explorer is `on = \"landfall\"`, `mill = 1`",
+        key.map_or(", and this has no `mill`".to_string(), |k| format!(", and this has `{k}`"))
+    )]
+    RepeatsOnlyMills {
+        at: String,
+        on: &'static str,
+        key: Option<&'static str>,
+    },
 }
 
 /// A count with nowhere to go in a histogram, named against the expectation
@@ -1636,6 +1655,32 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
             at: at.clone(),
             trigger,
         })?;
+        // An attack or a landfall fires again and again off a permanent the
+        // line cast, and what it may do is mill (ADR-0017 §1): a look there
+        // would be a replacement draw left on top, and nothing else has been
+        // asked of either.
+        if trigger.repeats() {
+            let other = [
+                (def.look.is_some(), "look"),
+                (def.fetch.is_some(), "fetch"),
+                (def.adds.is_some(), "adds"),
+                (def.cost.is_some(), "cost"),
+                (def.after.is_some(), "after"),
+                (def.to_graveyard.is_some(), "to_graveyard"),
+                (def.draw.is_some(), "draw"),
+                (def.discard.is_some(), "discard"),
+                (def.untap.is_some(), "untap"),
+            ]
+            .into_iter()
+            .find_map(|(set, key)| set.then_some(key));
+            if def.mill.is_none() || other.is_some() {
+                return Err(ErrorKind::RepeatsOnlyMills {
+                    at: at.clone(),
+                    on: trigger.as_str(),
+                    key: other,
+                });
+            }
+        }
         let fetch = fetch_of(def, &at)?;
         let adds = adds_of(def, &at, trigger)?;
         let mill = mill_of(def, &at, trigger)?;
@@ -1748,6 +1793,12 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
                  `keep`, `keep_only`, `keep_every` and `to_hand` choose among a mill's cards",
             ));
         }
+        if def.returns.is_some() {
+            return Err(misdeclared(
+                "has `returns` and no `mill`. `returns` is what a mill does next: Lumra mills \
+                 four, then returns every land card in the graveyard",
+            ));
+        }
         return Ok(None);
     };
     let cards = u32::try_from(mill)
@@ -1759,9 +1810,9 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
             value: mill,
             max: MAX_MILL,
         })?;
-    if trigger != Trigger::Cast {
+    if matches!(trigger, Trigger::LandDrop | Trigger::Activate) {
         return Err(misdeclared(
-            "has `mill` on a landdrop or an activation. A mill here is something a cast does to the top of the \
+            "has `mill` on a landdrop or an activation. A mill here is something a cast, an attack or a landfall does to the top of the \
              library; what a land drop does to it is a `look`, with `to_graveyard` saying \
              where the cards go",
         ));
@@ -1782,6 +1833,7 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
         return Ok(Some(MillDecl {
             cards,
             to_hand: HandDecl::Every(every.clone()),
+            returns: def.returns.clone(),
         }));
     }
     let Some(keep) = def.keep else {
@@ -1798,6 +1850,7 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
                 of: None,
                 prefer: Vec::new(),
             },
+            returns: def.returns.clone(),
         }));
     };
     let up_to = u32::try_from(keep)
@@ -1821,6 +1874,7 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
             of: def.keep_only.clone(),
             prefer,
         },
+        returns: def.returns.clone(),
     }))
 }
 

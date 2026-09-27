@@ -1,0 +1,21 @@
+# Six alone, for the two engines to agree on through the binary. The file
+# says which land it keeps; the standard library, that it mills on attack.
+
+[[effect]]
+match = 'name:"Six" t:treefolk'
+on = "attack"
+mill = 3
+keep = 1
+keep_only = "t:land"
+to_hand = ['t:land']
+
+[casting]
+prefer = ['name:"Life from the Loam"', 'name:"Six" t:treefolk']
+
+[[criterion]]
+name = "Loam in the graveyard by turn 5"
+require = [{ turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "a land in the graveyard on turn 5"
+require = [{ turn = 5, query = "t:land", zone = "graveyard", min = 1 }]

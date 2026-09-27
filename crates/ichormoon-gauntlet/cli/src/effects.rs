@@ -208,8 +208,8 @@ pub fn resolve(
         // then: the standard library's mills match their cards in every deck
         // that plays them, and one the line never casts would be a group split
         // for a spell nobody pays for.
-        for q in entry.mill.iter().flat_map(hand_queries) {
-            parse(q, entry, "to_hand")?;
+        for q in entry.mill.iter().flat_map(mill_queries) {
+            parse(q, entry, "to_hand or returns")?;
         }
         let mills = entry.mill.is_some() && mine.iter().any(|&c| line[c]);
         // A draw, a discard and an untap are the same: they happen when the
@@ -288,7 +288,7 @@ pub fn resolve(
         }
         // And a mill's: what the card lets go to hand, and the file's choice
         // among it.
-        for q in library.entries()[i].mill.iter().flat_map(hand_queries) {
+        for q in library.entries()[i].mill.iter().flat_map(mill_queries) {
             if bit_of(q, &queries).is_none() {
                 queries.push(q.clone());
             }
@@ -353,6 +353,10 @@ pub fn resolve(
                             .collect(),
                     },
                 },
+                returns: m
+                    .returns
+                    .as_ref()
+                    .map(|q| bit_of(q, &queries).expect("just collected")),
             }),
             discard: entry.discard.as_ref().map(|d| Discard {
                 cards: d.cards,
@@ -389,13 +393,16 @@ pub fn resolve(
     })
 }
 
-/// Every query a mill reads to decide what goes to hand: what the card
-/// allows, and the file's priority among it.
-fn hand_queries(mill: &MillDecl) -> Vec<&String> {
-    match &mill.to_hand {
+/// Every query a mill reads to decide where its cards go: what the card
+/// allows to hand, the file's priority among it, and what it returns from the
+/// graveyard afterwards.
+fn mill_queries(mill: &MillDecl) -> Vec<&String> {
+    let mut queries: Vec<&String> = match &mill.to_hand {
         HandDecl::Every(q) => vec![q],
         HandDecl::Chosen { of, prefer, .. } => of.iter().chain(prefer).collect(),
-    }
+    };
+    queries.extend(&mill.returns);
+    queries
 }
 
 /// Every entry's `match`, parsed.

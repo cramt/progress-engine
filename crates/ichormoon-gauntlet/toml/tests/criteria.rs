@@ -2015,6 +2015,11 @@ fn the_standard_library_is_a_criteria_file_like_any_other() {
             // Nothing ships an activation: which one a line pays for, and
             // what it fetches, is the pilot's (ADR-0019).
             Trigger::Activate => panic!("the library ships no activation: {entry:?}"),
+            // An attack or a landfall mills (#89), and does nothing else.
+            Trigger::Attack | Trigger::Landfall => assert!(
+                entry.mill.is_some() && entry.look == 0 && entry.adds.is_none(),
+                "{entry:?}"
+            ),
         }
         // A mill says what the card lets go to hand, and never which: that is
         // the pilot's, as a surveil's destination is.
@@ -2824,6 +2829,7 @@ fn a_mill_says_how_many_cards_and_what_the_card_lets_go_to_hand() {
                 of: None,
                 prefer: vec![],
             },
+            returns: None,
         })
     );
     assert_eq!(analyst.look, 0, "a mill is not a look");
@@ -2848,6 +2854,7 @@ fn a_mill_says_how_many_cards_and_what_the_card_lets_go_to_hand() {
                 of: Some("is:permanent".into()),
                 prefer: vec!["t:land".into()],
             },
+            returns: None,
         })
     );
     // Wrenn and Seven: the card puts every land in hand, and nobody chooses.
@@ -2865,8 +2872,89 @@ fn a_mill_says_how_many_cards_and_what_the_card_lets_go_to_hand() {
         Some(MillDecl {
             cards: 4,
             to_hand: HandDecl::Every("t:land".into()),
+            returns: None,
         })
     );
+}
+
+#[test]
+fn an_attack_and_a_landfall_fire_a_mill() {
+    // Six: three on each attack, and a land among them may go to hand.
+    let six = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Six"'
+        on = "attack"
+        mill = 3
+        keep = 1
+        keep_only = "t:land"
+        to_hand = ['t:land']
+        "#,
+    );
+    assert_eq!(six.trigger, Trigger::Attack);
+    assert_eq!(
+        six.mill,
+        Some(MillDecl {
+            cards: 3,
+            to_hand: HandDecl::Chosen {
+                up_to: 1,
+                of: Some("t:land".into()),
+                prefer: vec!["t:land".into()],
+            },
+            returns: None,
+        })
+    );
+    // Icetill Explorer: one for each land that enters.
+    let explorer = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Icetill Explorer"'
+        on = "landfall"
+        mill = 1
+        "#,
+    );
+    assert_eq!(explorer.trigger, Trigger::Landfall);
+    assert_eq!(explorer.mill.map(|m| m.cards), Some(1));
+    // Lumra: four when it enters, then every land in the graveyard returns.
+    let lumra = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Lumra, Bellow of the Woods"'
+        on = "cast"
+        mill = 4
+        returns = "t:land"
+        "#,
+    );
+    assert_eq!(lumra.mill.and_then(|m| m.returns), Some("t:land".into()));
+}
+
+#[test]
+fn an_attack_or_a_landfall_that_does_anything_but_mill_is_refused() {
+    let with =
+        |body: &str| refused_effect(&format!("[[effect]]\nmatch = 'name:\"Six\"'\n{body}\n"));
+    for (body, says) in [
+        ("on = \"attack\"", "no `mill`"),
+        ("on = \"attack\"\nmill = 3\nlook = 1", "`look`"),
+        (
+            "on = \"landfall\"\nmill = 1\nto_graveyard = '*'",
+            "`to_graveyard`",
+        ),
+        ("on = \"landfall\"\nmill = 1\nadds = 1", "`adds`"),
+        ("on = \"attack\"\nmill = 1\nafter = 1", "`after`"),
+        (
+            "on = \"attack\"\nmill = 1\nfetch = ['t:land']\nto = \"hand\"",
+            "`fetch`",
+        ),
+    ] {
+        let bad = with(body);
+        assert!(
+            matches!(bad, ErrorKind::RepeatsOnlyMills { .. }) && bad.to_string().contains(says),
+            "{body:?} should be refused naming {says:?}: {bad}"
+        );
+    }
+    // And a return with no mill before it.
+    let bad = with("on = \"cast\"\nreturns = 't:land'");
+    assert!(bad.to_string().contains("`returns`"), "{bad}");
 }
 
 #[test]

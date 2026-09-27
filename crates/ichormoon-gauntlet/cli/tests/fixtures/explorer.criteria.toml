@@ -1,0 +1,12 @@
+# Icetill Explorer alone, for the two engines to agree on through the binary.
+
+[casting]
+prefer = ['name:"Life from the Loam"', 'name:"Icetill Explorer"']
+
+[[criterion]]
+name = "Loam in the graveyard by turn 6"
+require = [{ turn = 6, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "a land in the graveyard on turn 6"
+require = [{ turn = 6, query = "t:land", zone = "graveyard", min = 1 }]

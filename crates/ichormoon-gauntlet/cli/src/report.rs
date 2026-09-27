@@ -334,6 +334,15 @@ pub struct EffectUse {
     /// which card stayed out of the graveyard.
     #[facet(skip_serializing_if = Option::is_none)]
     pub to_hand: Option<Vec<String>>,
+    /// What the mill returns from the graveyard to the battlefield
+    /// afterwards, which the card compels: Lumra's lands.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub returns: Option<String>,
+    /// The assumption about the table an attack trigger's number rests on,
+    /// where the run fired one: it attacks every turn it can, and nobody
+    /// blocks it or removes it. Absent for every other trigger.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub assumes: Option<&'static str>,
     /// The cards of a mill that make mana in passing, which is not counted:
     /// Malevolent Rumble's Eldrazi Spawn. Absent where there are none.
     #[facet(skip_serializing_if = Vec::is_empty)]
@@ -1238,6 +1247,28 @@ impl Report {
                     )),
                     (None, None, _) => out.push_str("      puts all it mills in the graveyard\n"),
                 }
+                if let Some(q) = &e.returns {
+                    out.push_str(&format!(
+                        "      then returns every card matching {q:?} in the graveyard to the \
+                         battlefield tapped. They took no land drop, and a turn's bill is still \
+                         held to its drops, so the mana they could make is a floor\n"
+                    ));
+                }
+                match e.on {
+                    "attack" => out.push_str(
+                        "      mills each time it attacks, every turn after the one the [casting] \
+                         line casts it on\n",
+                    ),
+                    "landfall" => out.push_str(
+                        "      mills once for each land that enters while it is on the \
+                         battlefield, from the turn after the [casting] line casts it: the drop, \
+                         a fetched land, a returned one\n",
+                    ),
+                    _ => {}
+                }
+                if let Some(assumes) = e.assumes {
+                    out.push_str(&format!("      ASSUMED: {assumes}\n"));
+                }
                 if !e.live {
                     out.push_str(
                         "      and the [casting] line does not cast it, so here it mills \
@@ -1890,6 +1921,11 @@ pub fn tag_blind_notes(resolved: &crate::effects::Resolved, library: &Library) -
     notes
 }
 
+/// What every run that fires an attack trigger assumes of the table, printed
+/// with it because every number that attack milled for rests on it.
+pub const UNBLOCKED: &str = "it attacks every turn it can, and no opponent blocks it or removes \
+                             it; nobody else is at this table (ADR-0018)";
+
 /// The resolved effect library, in the shape the report prints.
 pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
     resolved
@@ -1923,6 +1959,8 @@ pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
                 Some(HandDecl::Chosen { prefer, .. }) if !prefer.is_empty() => Some(prefer.clone()),
                 _ => None,
             },
+            returns: a.mill.as_ref().and_then(|m| m.returns.clone()),
+            assumes: (a.live && a.on == "attack").then_some(UNBLOCKED),
             unspent: a.unspent.clone(),
             draw: (a.draw > 0).then_some(a.draw),
             discard: match a.discard.as_ref().map(|d| d.cards) {

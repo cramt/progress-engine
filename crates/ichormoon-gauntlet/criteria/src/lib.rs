@@ -631,9 +631,24 @@ pub fn feasible<E>(grouping: &Grouping, schedule: &Schedule) -> Result<(), RunEr
 /// The most cards this run's spells can draw or mill: what each copy of a
 /// spell that draws or mills turns over, the commander's copy included,
 /// because each is cast once.
+///
+/// A creature that attacks mills once a turn at most, from the turn after it
+/// was cast, and a landfall once for each land that enters after it: at most
+/// two a turn from the drop, where a fetchland puts a second one down, and
+/// every land a mill returns from the graveyard. One such return brings back
+/// no more lands than the deck has, nor more than every other mill could
+/// have put there; two or more are bounded by the deck alone.
 fn drawable(grouping: &Grouping, schedule: &Schedule) -> u32 {
     let effects = schedule.effects();
-    grouping
+    // Turns on which something cast on an earlier one can fire: none before
+    // turn 2, since nothing is cast before turn 1.
+    let turns = (schedule.turns() as u32).saturating_sub(2);
+    let fetchland = effects
+        .iter()
+        .any(|e| e.trigger == Trigger::LandDrop && e.fetch.is_some());
+    let dropped = turns * (1 + u32::from(fetchland));
+    // (copies, effect) for every group that carries one, last-wins.
+    let carried: Vec<(u32, &Effect)> = grouping
         .group_masks()
         .iter()
         .zip(grouping.group_sizes())
@@ -642,11 +657,35 @@ fn drawable(grouping: &Grouping, schedule: &Schedule) -> u32 {
             let e = effects
                 .iter()
                 .rposition(|e| *mask & (1u64 << e.matched_by) != 0)?;
-            let effect = &effects[e];
-            let milled = effect.mill.as_ref().map_or(0, |m| m.cards);
-            (effect.trigger == Trigger::Cast).then(|| (size + command) * (effect.draw + milled))
+            Some((size + command, &effects[e]))
         })
-        .sum()
+        .collect();
+    let milled = |e: &Effect| e.mill.as_ref().map_or(0, |m| m.cards);
+    let (mut cast, mut per_land, mut returners) = (0, 0, 0);
+    for &(copies, e) in &carried {
+        match e.trigger {
+            Trigger::Cast => cast += copies * (e.draw + milled(e)),
+            Trigger::Attack => cast += copies * milled(e) * turns,
+            Trigger::Landfall => per_land += copies * milled(e),
+            Trigger::LandDrop | Trigger::Activate => {}
+        }
+        if e.mill.as_ref().is_some_and(|m| m.returns.is_some()) {
+            returners += copies;
+        }
+    }
+    let lands: u32 = grouping
+        .group_mana()
+        .iter()
+        .zip(grouping.group_sizes())
+        .filter(|(mana, _)| mana.is_land())
+        .map(|(_, &size)| size)
+        .sum();
+    let returned = match returners {
+        0 => 0,
+        1 => lands.min(cast + dropped * per_land),
+        _ => lands,
+    };
+    cast + (dropped + returned) * per_land
 }
 
 /// The most cards this run can take out of the library without drawing them:

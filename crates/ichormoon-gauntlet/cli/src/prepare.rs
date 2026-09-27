@@ -433,14 +433,19 @@ fn prepare_noting(
                     .iter()
                     .flat_map(|f| &f.prefer)
                     .fold(0u64, |b, &q| b | 1u64 << q);
-                // And what a mill lets go to hand, for the same reason.
+                // And what a mill lets go to hand, or returns from the
+                // graveyard, for the same reason.
                 let kept = match effect.mill.as_ref().map(|m| &m.to_hand) {
                     None => 0,
                     Some(gauntlet_criteria::ToHand::Every(q)) => 1u64 << q,
                     Some(gauntlet_criteria::ToHand::Chosen { of, prefer, .. }) => {
                         of.iter().chain(prefer).fold(0u64, |b, &q| b | 1u64 << q)
                     }
-                };
+                } | effect
+                    .mill
+                    .as_ref()
+                    .and_then(|m| m.returns)
+                    .map_or(0, |q| 1u64 << q);
                 // And what a discard takes: which cards the card lets go, and
                 // the file's list over the hand, which decides the rest.
                 let binned = match &effect.discard {

@@ -3886,6 +3886,7 @@ fn hand_20_malevolent_rumble_keeps_a_permanent_and_the_loam_is_not_one() {
                     of: Some(permanent),
                     prefer,
                 },
+                returns: None,
             }))],
             Policies::casting(CastingPolicy::new(vec![spell])),
         )
@@ -3938,6 +3939,7 @@ fn a_land_kept_mid_line_waits_for_the_next_turns_drop_even_when_this_turns_was_n
                 of: Some(4),
                 prefer: vec![3],
             },
+            returns: None,
         }))],
         Policies::casting(CastingPolicy::new(vec![0])),
     );
@@ -3963,6 +3965,7 @@ fn wrenn_and_sevens_lands_go_to_hand_whatever_the_file_asks() {
         vec![milling(Some(Mill {
             cards: 4,
             to_hand: ToHand::Every(3),
+            returns: None,
         }))],
         Policies::casting(CastingPolicy::new(vec![0])),
     );
@@ -4092,6 +4095,7 @@ fn a_mill_that_chooses_from_its_cards_is_dealt_where_it_fired() {
             of: Some(2),
             prefer: vec![2],
         },
+        returns: None,
     };
     let (grouping, in_place) = a_milling_deck(rumble, None);
     let last = in_place.clone().deferring(0b110);
@@ -4103,6 +4107,7 @@ fn a_mill_that_chooses_from_its_cards_is_dealt_where_it_fired() {
     let wrenn = Mill {
         cards: 4,
         to_hand: ToHand::Every(2),
+        returns: None,
     };
     let (grouping, in_place) = a_milling_deck(wrenn, None);
     let last = in_place.clone().deferring(0b110);
@@ -4855,5 +4860,442 @@ fn hand_24_a_spell_drawn_mid_line_is_cast_and_a_land_drawn_mid_line_waits() {
         [(1, 1, 1, 3, 1), (1, 0, 1, 3, 1)],
         "the untap pays for the Loam it drew; the list that bins it casts nothing more; and \
          the Forest it drew waits in hand either way"
+    );
+}
+
+// --- Attack and landfall triggers mill (#89) ---------------------------------
+//
+// HANDS.md hands 58 to 60: a mill that fires off an attack, off a land
+// entering, and a mill that returns the lands it finds. Each is a sized gap
+// on the paths where it fires, played on the board both engines play.
+
+/// Groups, in this order: Forest, the trigger's creature, Life from the Loam,
+/// Mountain, Island, Beast Within. Queries: 0 the creature, 1 Loam, 2 Forest,
+/// 3 land, 4 Beast Within.
+fn trigger_groups(creature: ManaSource, forests: u32, beasts: u32) -> Grouping {
+    Grouping::with_mana(
+        q(&["creature", "loam", "forest", "land", "beast"]),
+        vec![
+            (0b01100, untapped("G"), forests),
+            (0b00001, creature, 1),
+            (0b00010, ManaSource::Spell, 1),
+            (0b01000, untapped("R"), 1),
+            (0b01000, untapped("U"), 1),
+            (0b10000, ManaSource::Spell, beasts),
+        ],
+    )
+    .unwrap()
+}
+
+fn creature(cost: &str) -> ManaSource {
+    ManaSource::Castable {
+        cost: Cost::parse(cost).unwrap().demand(),
+        resolves: Resolves::OntoBattlefield,
+    }
+}
+
+/// A history over [`trigger_groups`], one row per checkpoint: `(Forest,
+/// creature, Loam, Mountain, Island, Beast Within)`.
+fn dealt6(rows: &[[u32; 6]]) -> Vec<Vec<u32>> {
+    let mut total = [0u32; 6];
+    rows.iter()
+        .map(|row| {
+            for (t, r) in total.iter_mut().zip(row) {
+                *t += r;
+            }
+            total.to_vec()
+        })
+        .collect()
+}
+
+const NONE6: [u32; 6] = [0; 6];
+const BEAST6: [u32; 6] = [0, 0, 0, 0, 0, 1];
+const LOAM6: [u32; 6] = [0, 0, 1, 0, 0, 0];
+const ISLAND6: [u32; 6] = [0, 0, 0, 0, 1, 0];
+const MOUNTAIN6: [u32; 6] = [0, 0, 0, 1, 0, 0];
+
+/// Six: "Whenever Six attacks, mill three cards. You may put a land card
+/// from among them into your hand." The file keeps a land.
+fn six(trigger: Trigger) -> Effect {
+    Effect {
+        trigger,
+        ..milling(Some(Mill {
+            cards: 3,
+            to_hand: ToHand::Chosen {
+                up_to: 1,
+                of: Some(3),
+                prefer: vec![3],
+            },
+            returns: None,
+        }))
+    }
+}
+
+#[test]
+fn hand_58_six_attacks_the_turn_after_it_is_cast() {
+    // Forest x3, Six and Beast Within x3 in hand; the library, top first,
+    // Beast Within x3, then Loam, Mountain, Beast Within, then Island, then
+    // Beast Within, Forest, Beast Within. On the play. Six is cast on turn 3
+    // off three Forests and is summoning-sick; it attacks on turn 4 and 5.
+    let grouping = trigger_groups(creature("{2}{G}"), 4, 9);
+    let (six_q, loam, land, beast) = (0, 1, 3, 4);
+    let schedule = |effects| {
+        Schedule::plain_with_fetches(
+            &[7, 0, 1, 1, 1, 1],
+            effects,
+            Policies::casting(CastingPolicy::new(vec![six_q])),
+        )
+    };
+    let opener = [3, 1, 0, 0, 0, 3];
+
+    // Today Six does nothing, and turn 5 draws the Loam.
+    let today = schedule(vec![]);
+    let mut board = Board::new(&grouping, &today);
+    board.walk(&dealt6(&[opener, NONE6, BEAST6, BEAST6, BEAST6, LOAM6]));
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(board.count_at(3, six_q, Counted::Cast), 1);
+    assert_eq!(board.count_at(5, loam, Counted::In(Zone::Hand)), 1);
+    assert_eq!(board.count_at(5, loam, Counted::In(Zone::Graveyard)), 0);
+
+    let attacks = schedule(vec![six(Trigger::Attack)]);
+    let mut board = Board::new(&grouping, &attacks);
+    // Summoning-sick: the turn it is cast asks for nothing.
+    board.walk(&dealt6(&[opener, NONE6, BEAST6, BEAST6]));
+    assert_eq!(
+        board.next_gap(),
+        0,
+        "Six does not attack the turn it is cast"
+    );
+    board.walk(&dealt6(&[opener, NONE6, BEAST6, BEAST6, BEAST6]));
+    assert_eq!(board.next_gap(), 3, "it attacks on turn 4 and mills three");
+    let first = [0, 0, 1, 1, 0, 1];
+    let second = [1, 0, 0, 0, 0, 2];
+    let path = dealt6(&[
+        opener, NONE6, BEAST6, BEAST6, BEAST6, first, ISLAND6, second,
+    ]);
+    board.walk(&path);
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(
+        board.count_at(3, six_q, Counted::Cast),
+        1,
+        "what a creature does cannot change whether it was paid for"
+    );
+    assert_eq!(board.count_at(3, loam, Counted::In(Zone::Graveyard)), 0);
+    assert_eq!(board.count_at(4, loam, Counted::In(Zone::Graveyard)), 1);
+    assert_eq!(board.count_at(5, loam, Counted::In(Zone::Hand)), 0);
+    assert_eq!(board.count_at(4, beast, Counted::In(Zone::Graveyard)), 1);
+    assert_eq!(board.count_at(5, beast, Counted::In(Zone::Graveyard)), 3);
+    assert_eq!(
+        board.count_at(5, land, Counted::In(Zone::Graveyard)),
+        0,
+        "each attack keeps the land it found"
+    );
+    // The Mountain kept on turn 4 came after that turn's drop, and is played
+    // on turn 5, and the Forest kept on turn 5 waits for turn 6.
+    assert_eq!(board.count_at(4, land, Counted::In(Zone::Battlefield)), 3);
+    assert_eq!(board.count_at(5, land, Counted::In(Zone::Battlefield)), 4);
+}
+
+/// Icetill Explorer: "Landfall — Whenever a land you control enters, mill a
+/// card."
+fn explorer() -> Effect {
+    Effect {
+        trigger: Trigger::Landfall,
+        ..milling(Some(Mill::all(1)))
+    }
+}
+
+#[test]
+fn hand_59_icetill_explorer_mills_one_for_each_land_after_it() {
+    // Forest x4, Icetill Explorer and Beast Within x2 in hand; the library,
+    // top first, Beast Within, Beast Within, Mountain, Beast Within, Life from
+    // the Loam, Beast Within. On the play. Turn 4 plays the fourth Forest and
+    // then casts the Explorer, so that drop fires nothing; turn 5's Mountain
+    // enters with it on the battlefield and mills the Loam. Turn 6 has no
+    // land to play and mills nothing.
+    let grouping = trigger_groups(creature("{2}{G}{G}"), 4, 6);
+    let (explorer_q, loam, land, beast) = (0, 1, 3, 4);
+    let schedule = |effects| {
+        Schedule::plain_with_fetches(
+            &[7, 0, 1, 1, 1, 1, 1],
+            effects,
+            Policies::casting(CastingPolicy::new(vec![explorer_q])),
+        )
+    };
+    let opener = [4, 1, 0, 0, 0, 2];
+
+    let today = schedule(vec![]);
+    let mut board = Board::new(&grouping, &today);
+    board.walk(&dealt6(&[
+        opener, NONE6, BEAST6, BEAST6, MOUNTAIN6, BEAST6, LOAM6,
+    ]));
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(board.count_at(4, explorer_q, Counted::Cast), 1);
+    assert_eq!(board.count_at(6, loam, Counted::In(Zone::Hand)), 1);
+
+    let landfall = schedule(vec![explorer()]);
+    let mut board = Board::new(&grouping, &landfall);
+    board.walk(&dealt6(&[opener, NONE6, BEAST6, BEAST6, MOUNTAIN6]));
+    assert_eq!(
+        board.next_gap(),
+        0,
+        "the drop the turn it is cast came before it"
+    );
+    board.walk(&dealt6(&[opener, NONE6, BEAST6, BEAST6, MOUNTAIN6, BEAST6]));
+    assert_eq!(board.next_gap(), 1, "turn 5's land mills one");
+    let path = dealt6(&[
+        opener, NONE6, BEAST6, BEAST6, MOUNTAIN6, BEAST6, LOAM6, BEAST6,
+    ]);
+    board.walk(&path);
+    assert_eq!(board.next_gap(), 0, "no land on turn 6, so no mill");
+    assert_eq!(board.count_at(4, explorer_q, Counted::Cast), 1);
+    assert_eq!(board.count_at(4, loam, Counted::In(Zone::Graveyard)), 0);
+    assert_eq!(board.count_at(5, loam, Counted::In(Zone::Graveyard)), 1);
+    assert_eq!(board.count_at(6, loam, Counted::In(Zone::Hand)), 0);
+    assert_eq!(board.count_at(6, beast, Counted::In(Zone::Graveyard)), 0);
+    assert_eq!(board.count_at(5, land, Counted::In(Zone::Battlefield)), 5);
+}
+
+/// Groups, in this order: Forest, Lumra, Life from the Loam, Mountain,
+/// Island, Beast Within, and a second creature. Queries: 0 Lumra, 1 Loam,
+/// 2 Forest, 3 land, 4 Beast Within, 5 the second creature.
+fn lumra_groups(second: ManaSource, forests: u32, beasts: u32) -> Grouping {
+    Grouping::with_mana(
+        q(&["lumra", "loam", "forest", "land", "beast", "second"]),
+        vec![
+            (0b001100, untapped("G"), forests),
+            (0b000001, creature("{4}{G}{G}"), 1),
+            (0b000010, ManaSource::Spell, 1),
+            (0b001000, untapped("R"), 1),
+            (0b001000, untapped("U"), 1),
+            (0b010000, ManaSource::Spell, beasts),
+            (0b100000, second, 1),
+        ],
+    )
+    .unwrap()
+}
+
+/// Lumra, Bellow of the Woods: "When Lumra enters, mill four cards. Then
+/// return all land cards from your graveyard to the battlefield tapped."
+fn lumra(returns: Option<usize>) -> Effect {
+    milling(Some(Mill {
+        returns,
+        ..Mill::all(4)
+    }))
+}
+
+/// `(Forest, Mountain, Island, Loam, Beast Within)` as a row over
+/// [`lumra_groups`].
+fn lumra_row(forest: u32, mountain: u32, island: u32, loam: u32, beast: u32) -> [u32; 7] {
+    [forest, 0, loam, mountain, island, beast, 0]
+}
+
+/// Rows over [`lumra_groups`], summed into a history.
+fn lumra_path(rows: &[[u32; 7]]) -> Vec<Vec<u32>> {
+    let mut total = [0u32; 7];
+    rows.iter()
+        .map(|r| {
+            for (t, x) in total.iter_mut().zip(r) {
+                *t += x;
+            }
+            total.to_vec()
+        })
+        .collect()
+}
+
+#[test]
+fn hand_60_lumra_returns_every_land_in_the_graveyard_and_the_loam_stays() {
+    // Forest x5, Lumra and Aftermath Analyst in hand; the library, top first,
+    // Beast Within, then the Analyst's three: Mountain, Beast Within, Beast
+    // Within; then Beast Within x3, Forest, and Lumra's four: Life from the
+    // Loam, Island, Beast Within, Forest. On the play. The Analyst is cast on
+    // turn 2 and bins the Mountain; Lumra is cast on turn 6 off six Forests,
+    // mills four, and every land in the graveyard comes back, the Mountain
+    // the Analyst milled with them.
+    let grouping = lumra_groups(creature("{1}{G}"), 7, 7);
+    let (lumra_q, loam, land, beast, analyst) = (0, 1, 3, 4, 5);
+    let schedule = |returns| {
+        let analysts = Effect {
+            matched_by: analyst,
+            ..milling(Some(Mill::all(3)))
+        };
+        Schedule::plain_with_fetches(
+            &[7, 0, 1, 1, 1, 1, 1],
+            vec![lumra(returns), analysts],
+            Policies::casting(CastingPolicy::new(vec![lumra_q, analyst])),
+        )
+    };
+    let b = lumra_row(0, 0, 0, 0, 1);
+    let path = lumra_path(&[
+        [5, 1, 0, 0, 0, 0, 1],
+        [0; 7],
+        b,
+        lumra_row(0, 1, 0, 0, 2),
+        b,
+        b,
+        b,
+        lumra_row(1, 0, 0, 0, 0),
+        lumra_row(1, 0, 1, 1, 1),
+    ]);
+    let mut rows = Vec::new();
+    for returns in [None, Some(land)] {
+        let schedule = schedule(returns);
+        let mut board = Board::new(&grouping, &schedule);
+        board.walk(&path[..8]);
+        assert_eq!(board.next_gap(), 4, "Lumra mills four");
+        board.walk(&path);
+        assert_eq!(board.next_gap(), 0);
+        assert_eq!(board.count_at(6, lumra_q, Counted::Cast), 1);
+        assert_eq!(board.count_at(5, land, Counted::In(Zone::Graveyard)), 1);
+        let at = |query, zone| board.count_at(6, query, Counted::In(zone));
+        rows.push((
+            at(loam, Zone::Graveyard),
+            at(land, Zone::Graveyard),
+            at(beast, Zone::Graveyard),
+            at(land, Zone::Battlefield),
+            at(land, Zone::Library),
+        ));
+    }
+    assert_eq!(
+        rows,
+        [(1, 3, 3, 6, 0), (1, 0, 3, 9, 0)],
+        "a mill that returns nothing leaves three lands in the yard; Lumra puts all \
+         three onto the battlefield, the Analyst's Mountain with its own two, \
+         and the Loam, a sorcery, stays"
+    );
+}
+
+#[test]
+fn each_land_lumra_returns_fires_a_landfall() {
+    // Forest x5, Lumra and Icetill Explorer in hand; the library, top first,
+    // Beast Within x2, Forest, Beast Within, Forest, Beast Within, Beast
+    // Within, then Lumra's four: the Loam, Island, Mountain, Beast Within,
+    // then Beast Within x3. The Explorer is cast on turn 4 and mills one on
+    // turn 5's drop, a Forest, and one on turn 6's; Lumra, cast on turn 6,
+    // returns the Island, the Mountain and that Forest, and each fires the
+    // Explorer once more.
+    let grouping = lumra_groups(creature("{2}{G}{G}"), 7, 9);
+    let (lumra_q, loam, land, beast, explorer_q) = (0, 1, 3, 4, 5);
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0, 1, 1, 1, 1, 1],
+        vec![
+            lumra(Some(land)),
+            Effect {
+                matched_by: explorer_q,
+                ..explorer()
+            },
+        ],
+        Policies::casting(CastingPolicy::new(vec![lumra_q, explorer_q])),
+    );
+    let b = lumra_row(0, 0, 0, 0, 1);
+    let f = lumra_row(1, 0, 0, 0, 0);
+    let path = lumra_path(&[
+        [5, 1, 0, 0, 0, 0, 1],
+        [0; 7],
+        b,
+        b,
+        f,                        // turn 4's draw; four Forests down, and the Explorer is cast
+        b,                        // turn 5's draw, and a fifth Forest is played: a landfall
+        f,                        // which mills a Forest
+        b,                        // turn 6's draw, and the sixth Forest is played
+        b,                        // which mills this
+        lumra_row(0, 1, 1, 1, 1), // Lumra's four
+        b,
+        b,
+        b, // one each for the Island, the Mountain and the milled Forest
+    ]);
+    let mut board = Board::new(&grouping, &schedule);
+    board.walk(&path);
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(board.count_at(4, explorer_q, Counted::Cast), 1);
+    assert_eq!(board.count_at(6, lumra_q, Counted::Cast), 1);
+    assert_eq!(board.count_at(5, land, Counted::In(Zone::Graveyard)), 1);
+    assert_eq!(board.count_at(6, loam, Counted::In(Zone::Graveyard)), 1);
+    assert_eq!(board.count_at(6, land, Counted::In(Zone::Graveyard)), 0);
+    assert_eq!(board.count_at(6, beast, Counted::In(Zone::Graveyard)), 5);
+    assert_eq!(board.count_at(6, land, Counted::In(Zone::Battlefield)), 9);
+}
+
+#[test]
+fn a_fetchland_is_two_lands_entering_and_fires_a_landfall_for_each() {
+    // Forest x4, Icetill Explorer, a fetchland and Beast Within in hand, and
+    // the declared drop plays Forests first. The Explorer is cast on turn 4;
+    // turn 5 plays the fetchland, which enters, and then the Forest it finds
+    // enters in its place: two lands, two mills.
+    let grouping = Grouping::with_mana(
+        q(&["explorer", "forest", "land", "fetchland"]),
+        vec![
+            (0b0110, untapped("G"), 5),
+            (0b0001, creature("{2}{G}{G}"), 1),
+            (0b1100, untapped("G"), 1),
+            (0b0000, ManaSource::Spell, 7),
+        ],
+    )
+    .unwrap();
+    let fetchland = Effect {
+        matched_by: 3,
+        look: 0,
+        trigger: Trigger::LandDrop,
+        route: Route::Nowhere,
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to: Fetched::Battlefield,
+        }),
+        delay: None,
+        draw: 0,
+        mill: None,
+        activation: None,
+        discard: None,
+        untap: 0,
+    };
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0, 1, 1, 1, 1],
+        vec![explorer(), fetchland],
+        Policies {
+            land_drop: Some(LandDropPolicy::new(vec![1], 2)),
+            casting: Some(CastingPolicy::new(vec![0])),
+            ..Policies::default()
+        },
+    );
+    let history = |rows: &[[u32; 4]]| {
+        let mut total = [0u32; 4];
+        rows.iter()
+            .map(|r| {
+                for (t, x) in total.iter_mut().zip(r) {
+                    *t += x;
+                }
+                total.to_vec()
+            })
+            .collect::<Vec<_>>()
+    };
+    let (opener, none, beast) = ([4, 1, 1, 1], [0; 4], [0, 0, 0, 1]);
+    let mut board = Board::new(&grouping, &schedule);
+    board.walk(&history(&[opener, none, beast, beast, beast, beast]));
+    assert_eq!(board.next_gap(), 1, "the fetchland entering mills one");
+    board.walk(&history(&[opener, none, beast, beast, beast, beast, beast]));
+    assert_eq!(board.next_gap(), 1, "and the Forest it found, one more");
+    board.walk(&history(&[
+        opener, none, beast, beast, beast, beast, beast, beast,
+    ]));
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(board.count_at(4, 0, Counted::Cast), 1);
+    assert_eq!(board.count_at(5, 1, Counted::In(Zone::Battlefield)), 5);
+    let milled = board.count_at(5, 2, Counted::In(Zone::Library));
+    assert_eq!(milled, 0, "every Forest and the fetchland left the library");
+}
+
+#[test]
+fn a_mill_that_returns_lands_is_dealt_where_it_fired() {
+    // Lumra's shape reads the graveyard it filled: a land dealt last would
+    // not be there for it to return.
+    let lumra = Mill {
+        returns: Some(2),
+        ..Mill::all(3)
+    };
+    let (grouping, in_place) = a_milling_deck(lumra, None);
+    let last = in_place.clone().deferring(0b110);
+    assert_eq!(
+        gauntlet_criteria::width(&grouping, &last),
+        gauntlet_criteria::width(&grouping, &in_place)
     );
 }

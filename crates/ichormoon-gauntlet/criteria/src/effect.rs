@@ -36,8 +36,9 @@ use thiserror::Error;
 
 /// When an effect gets to happen.
 ///
-/// Two variants, and the list is short for the same reason it has always been:
-/// a variant here is a promise that the engine knows when the effect fires. The
+/// Five variants, and the list is short for the same reason it has always
+/// been: a variant here is a promise that the engine knows when the effect
+/// fires. The
 /// free-non-land tier — cycling for zero — is still missing, and it is rare
 /// enough that guessing at it would cost more in wrong numbers than it pays in
 /// coverage.
@@ -64,18 +65,44 @@ pub enum Trigger {
     /// are in play and unactivated is a function of the path. What it costs
     /// and whether it sacrifices its source is the effect's [`Activation`].
     Activate,
+    /// Each turn a matching creature the line cast attacks: every turn after
+    /// the one it was cast on, because it is summoning-sick on that one (CR
+    /// 302.6), and after that turn's line, because combat follows the main
+    /// phase. What it may do is a [`Mill`] (ADR-0017 §1).
+    ///
+    /// Knowable only under an assumption about the table, which every run
+    /// that fires one names: it attacks every turn it can, and no opponent
+    /// blocks it or removes it. The trigger is on the attack, so a block
+    /// would not stop the one that turn; it could stop the next.
+    Attack,
+    /// Each land that enters the battlefield under your control while a
+    /// matching permanent the line cast is there: the land drop, the land a
+    /// fetchland puts down in its place, and the lands a spell returns. What
+    /// it may do is a [`Mill`].
+    ///
+    /// The drop comes before the line, so a permanent cast this turn sees the
+    /// next turn's drop and not this one's.
+    Landfall,
 }
 
 impl Trigger {
     /// Every trigger an effect may name, for the message that lists them.
-    pub const ACCEPTED: &'static str = "landdrop, cast, activate";
+    pub const ACCEPTED: &'static str = "landdrop, cast, activate, attack, landfall";
 
     pub fn as_str(self) -> &'static str {
         match self {
             Trigger::LandDrop => "landdrop",
             Trigger::Cast => "cast",
             Trigger::Activate => "activate",
+            Trigger::Attack => "attack",
+            Trigger::Landfall => "landfall",
         }
+    }
+
+    /// Whether this fires off a permanent the line cast, again and again,
+    /// rather than once when something is played: an attack or a landfall.
+    pub fn repeats(self) -> bool {
+        matches!(self, Trigger::Attack | Trigger::Landfall)
     }
 
     pub fn parse(name: &str) -> Result<Trigger, TriggerError> {
@@ -83,6 +110,8 @@ impl Trigger {
             "landdrop" => Ok(Trigger::LandDrop),
             "cast" => Ok(Trigger::Cast),
             "activate" => Ok(Trigger::Activate),
+            "attack" => Ok(Trigger::Attack),
+            "landfall" => Ok(Trigger::Landfall),
             _ => Err(TriggerError::Unknown {
                 name: name.to_string(),
             }),
@@ -297,10 +326,11 @@ pub struct Effect {
     ///
     /// [ADR-0017]: https://github.com/cramt/progress-engine/blob/main/docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md
     pub draw: u32,
-    /// Cards a cast of this puts into the graveyard off the top of the
-    /// library, less the ones it lets go to hand: also one sized gap, dealt
-    /// as one unordered block because every card it turns over is consumed
-    /// at once. Resolved after the draw. Only [`Trigger::Cast`] reads it.
+    /// Cards a cast, an attack or a landfall of this puts into the graveyard
+    /// off the top of the library, less the ones it lets go to hand: also
+    /// one sized gap each time it fires, dealt as one unordered block because
+    /// every card it turns over is consumed at once. On a cast, resolved
+    /// after the draw. A land drop never reads it.
     pub mill: Option<Mill>,
     /// What activating a copy in play costs, for [`Trigger::Activate`] and
     /// nothing else.
@@ -362,6 +392,15 @@ pub struct Mill {
     /// How many cards come off the top.
     pub cards: u32,
     pub to_hand: ToHand,
+    /// Then every card of the graveyard matching this query goes onto the
+    /// battlefield tapped, whatever anyone asks: Lumra, Bellow of the Woods'
+    /// lands, the ones it milled and the ones already there. `None` for a
+    /// mill that returns nothing, which is every other.
+    ///
+    /// Only lands are returned: a group this matches that is not a land
+    /// stays where it is, because nothing else a card returns this way has
+    /// been asked for.
+    pub returns: Option<usize>,
 }
 
 /// Which of a mill's cards go to hand rather than to the graveyard.
@@ -392,6 +431,7 @@ impl Mill {
                 of: None,
                 prefer: Vec::new(),
             },
+            returns: None,
         }
     }
 }
@@ -556,6 +596,20 @@ pub struct Board<'a> {
     /// `hand_every[effect][group]`: a mill's card of this group goes to hand
     /// whatever anyone asks, as Wrenn and Seven's lands do.
     hand_every: Vec<Vec<bool>>,
+    /// `returning[effect]`: the land groups a mill returns from the graveyard
+    /// to the battlefield once it has milled, as Lumra's does. Empty for
+    /// every other effect.
+    returning: Vec<Vec<usize>>,
+    /// The groups whose card attacks once the line has cast it, and the
+    /// effect each attack fires, in group order.
+    attackers: Vec<(usize, usize)>,
+    /// The groups whose card mills when a land enters while it is on the
+    /// battlefield, and the effect it fires, in group order.
+    landfallers: Vec<(usize, usize)>,
+    /// Lands that entered the battlefield with this turn's drop: the land
+    /// played, and the land a fetchland put down in its place. Scratch,
+    /// written by the drop and read by the line's landfalls.
+    entered: u32,
     /// Whether anything in this run removes a card from the library without
     /// drawing it. Read by the enumeration, which only pays for the shrinking
     /// population where there is one.
@@ -921,6 +975,33 @@ impl<'a> Board<'a> {
                 _ => vec![false; groups],
             })
             .collect();
+        let returning: Vec<Vec<usize>> = effects
+            .iter()
+            .map(
+                |effect| match effect.mill.as_ref().and_then(|m| m.returns) {
+                    Some(query) => land_groups
+                        .iter()
+                        .copied()
+                        .filter(|&g| has(g, query))
+                        .collect(),
+                    None => Vec::new(),
+                },
+            )
+            .collect();
+        // Which groups fire an attack or a landfall, read off last-wins as
+        // everything else is. Only a mill fires on either.
+        let firing = |trigger: Trigger| -> Vec<(usize, usize)> {
+            group_effect
+                .iter()
+                .enumerate()
+                .filter_map(|(g, e)| {
+                    let e = (*e)?;
+                    (effects[e].trigger == trigger && effects[e].mill.is_some()).then_some((g, e))
+                })
+                .collect()
+        };
+        let attackers = firing(Trigger::Attack);
+        let landfallers = firing(Trigger::Landfall);
         // The mulligan's bottoming list, resolved by the same rule as the other
         // three: a group belongs to the first tier that names it. What no entry
         // names is one more tier at the end, because a hand that has to put
@@ -946,9 +1027,11 @@ impl<'a> Board<'a> {
             tiers
         });
         // A mill is dealt last only where nothing reads its cards before the
-        // question: it keeps none of them, and nothing in the run searches the
-        // library they would still be in (see `Schedule::deferring`).
-        let searched = effects.iter().any(|e| e.fetch.is_some());
+        // question: it keeps none of them, nothing in the run searches the
+        // library they would still be in (see `Schedule::deferring`), and
+        // nothing returns what is in the graveyard, where they would be.
+        let searched =
+            effects.iter().any(|e| e.fetch.is_some()) || returning.iter().any(|r| !r.is_empty());
         let last: Vec<bool> = effects
             .iter()
             .map(|e| {
@@ -959,6 +1042,7 @@ impl<'a> Board<'a> {
                         e.mill,
                         Some(Mill {
                             to_hand: ToHand::Chosen { up_to: 0, .. },
+                            returns: None,
                             ..
                         })
                     )
@@ -1015,8 +1099,9 @@ impl<'a> Board<'a> {
             // A discard deals nothing, but which cards it takes can divide the
             // path, and only the sized walk divides.
             sizes: effects.iter().any(|e| {
-                e.trigger == Trigger::Cast
-                    && (e.draw > 0 || e.mill.is_some() || e.discard.is_some())
+                (e.trigger == Trigger::Cast
+                    && (e.draw > 0 || e.mill.is_some() || e.discard.is_some()))
+                    || (e.trigger.repeats() && e.mill.is_some())
             }),
             next_gap: 0,
             cursor: 0,
@@ -1024,6 +1109,10 @@ impl<'a> Board<'a> {
             fetch_tiers,
             hand_tiers,
             hand_every,
+            returning,
+            attackers,
+            landfallers,
+            entered: 0,
             drops: vec![0; turns],
             hand: vec![vec![0; groups]; turns],
             yard: vec![vec![0; groups]; turns],
@@ -1388,6 +1477,7 @@ impl<'a> Board<'a> {
             // land it is has two answers, and which one this run uses is the
             // whole of issue #54: a file that declared a priority gets the land
             // it declared, and every part of the run reads that same drop.
+            self.entered = 0;
             match turn.checked_sub(1) {
                 None => self.drops[turn] = 0,
                 Some(previous) if self.declared.is_some() => {
@@ -1420,6 +1510,9 @@ impl<'a> Board<'a> {
                                         Fetched::Battlefield => {
                                             landed = Some(got);
                                             self.live_landed[got] += 1;
+                                            // The fetchland entered, and
+                                            // then the land it found did.
+                                            self.entered += 1;
                                         }
                                     }
                                 }
@@ -1433,6 +1526,7 @@ impl<'a> Board<'a> {
                             self.drop_after_paying(turn, group);
                         }
                     }
+                    self.entered += u32::from(chosen.is_some());
                     self.drops[turn] = self.drops[previous] + u32::from(chosen.is_some());
                 }
                 Some(previous) => {
@@ -1452,6 +1546,7 @@ impl<'a> Board<'a> {
                     // never happened.
                     let held: u32 = self.land_groups.iter().map(|&g| self.live_hand[g]).sum();
                     self.drops[turn] = held.min(self.drops[previous] + 1);
+                    self.entered = self.drops[turn] - self.drops[previous];
                 }
             }
 
@@ -1578,6 +1673,12 @@ impl<'a> Board<'a> {
         // Turn 0 is the opening hand: no land has been played, so there is no
         // mana and nothing to spend it on.
         if turn > 0 {
+            // The lands this turn's drop put down enter before the line is
+            // cast, and each one fires every landfall already in play.
+            if let Some(size) = self.landfall(turn, self.entered, &casting.live_cast, history) {
+                self.next_gap = size;
+                finished = false;
+            }
             // Read again from the top whenever a tutor or a draw put a card
             // in hand, so a card it found is cast this turn if the pool still
             // pays for it, wherever the line lists it — and after every
@@ -1587,6 +1688,9 @@ impl<'a> Board<'a> {
             // the hand or the command zone, or an activation, which taps or
             // sacrifices a copy in play.
             'line: loop {
+                if !finished {
+                    break;
+                }
                 for tier in &casting.tiers {
                     for &group in tier {
                         let Some(cost) = casting.cost[group] else {
@@ -1665,7 +1769,7 @@ impl<'a> Board<'a> {
                             if self.untaps(group) >= cost.total() {
                                 *bill.last() = before;
                             }
-                            match self.draw_on_cast(turn, group, history) {
+                            match self.draw_on_cast(turn, group, &casting.live_cast, history) {
                                 Drew::Nothing if fetched => continue 'line,
                                 Drew::Nothing => {}
                                 Drew::Cards => continue 'line,
@@ -1683,6 +1787,14 @@ impl<'a> Board<'a> {
                     }
                 }
                 break;
+            }
+            // Combat, after the line: every creature cast by last turn
+            // attacks, and nothing blocks it or removes it.
+            if finished {
+                if let Some(size) = self.attack(turn, &casting.cast_at[turn - 1], history) {
+                    self.next_gap = size;
+                    finished = false;
+                }
             }
         }
         casting.bills[turn] = bill;
@@ -1921,10 +2033,15 @@ impl<'a> Board<'a> {
     /// mills, if it does either.
     ///
     /// Each is one block off the top of the library ([`Board::deal`]). A draw
-    /// puts its block in hand. A mill puts its block in the graveyard, less
-    /// what the card lets go to hand: the cards it compels there, and up to
-    /// as many as it allows of the ones the declared priority reaches.
-    fn draw_on_cast(&mut self, turn: usize, group: usize, history: Path<'_>) -> Drew {
+    /// puts its block in hand. A mill is [`Board::mill`], and a land it
+    /// returns to the battlefield fires every landfall in `on_field`.
+    fn draw_on_cast(
+        &mut self,
+        turn: usize,
+        group: usize,
+        on_field: &[u32],
+        history: Path<'_>,
+    ) -> Drew {
         let Some(effect) = self.group_effect[group] else {
             return Drew::Nothing;
         };
@@ -1932,7 +2049,7 @@ impl<'a> Board<'a> {
         if e.trigger != Trigger::Cast || (e.draw == 0 && e.mill.is_none() && e.discard.is_none()) {
             return Drew::Nothing;
         }
-        let (draw, mill) = (e.draw, e.mill.as_ref().map(|m| (m.cards, &m.to_hand)));
+        let (draw, mills) = (e.draw, e.mill.is_some());
         if draw > 0 {
             if let Some(size) = self.deal(draw, history) {
                 return Drew::Undealt(size);
@@ -1941,12 +2058,33 @@ impl<'a> Board<'a> {
                 *held += drawn;
             }
         }
-        let Some((cards, to_hand)) = mill else {
-            return self.discard_on_cast(effect);
+        if mills {
+            let returned = match self.mill(turn, effect, history) {
+                Ok(returned) => returned,
+                Err(size) => return Drew::Undealt(size),
+            };
+            if let Some(size) = self.landfall(turn, returned, on_field, history) {
+                return Drew::Undealt(size);
+            }
+        }
+        self.discard_on_cast(effect)
+    }
+
+    /// Resolve `effect`'s mill: its cards go to the graveyard, less what the
+    /// card lets go to hand — the cards it compels there, and up to as many
+    /// as it allows of the ones the declared priority reaches. Then, where it
+    /// returns lands, every such land in the graveyard goes onto the
+    /// battlefield tapped.
+    ///
+    /// `Ok` with how many lands it returned, which is how many landfalls it
+    /// fires; `Err` with the size of the gap the path has not dealt.
+    fn mill(&mut self, turn: usize, effect: usize, history: Path<'_>) -> Result<u32, u32> {
+        let Some(mill) = self.schedule.effects()[effect].mill.as_ref() else {
+            return Ok(0);
         };
-        let up_to = match to_hand {
-            ToHand::Chosen { up_to, .. } => *up_to,
-            ToHand::Every(_) => 0,
+        let (cards, up_to) = match &mill.to_hand {
+            ToHand::Chosen { up_to, .. } => (mill.cards, *up_to),
+            ToHand::Every(_) => (mill.cards, 0),
         };
         if self.last[effect] {
             // Whatever is already turned over on top goes now, as it would;
@@ -1959,10 +2097,10 @@ impl<'a> Board<'a> {
             for (yard, &milled) in self.live_yard.iter_mut().zip(&self.block) {
                 *yard += milled;
             }
-            return Drew::Cards;
+            return Ok(0);
         }
         if let Some(size) = self.deal(cards, history) {
-            return Drew::Undealt(size);
+            return Err(size);
         }
         for (g, every) in self.hand_every[effect].iter().enumerate() {
             if *every {
@@ -1982,7 +2120,18 @@ impl<'a> Board<'a> {
         for (yard, &milled) in self.live_yard.iter_mut().zip(&self.block) {
             *yard += milled;
         }
-        self.discard_on_cast(effect)
+        // Lumra's lands: out of the graveyard and onto the battlefield,
+        // where they are counted from now on and, tapped, pay nothing this
+        // turn. They took no land drop, and the turn's bill is still held to
+        // the drops.
+        let mut returned = 0;
+        for &g in &self.returning[effect] {
+            let back = std::mem::take(&mut self.live_yard[g]);
+            self.live_field[g] += back;
+            self.live_landed[g] += back;
+            returned += back;
+        }
+        Ok(returned)
     }
 
     /// Discard what a spell that has just drawn makes you discard, if it
@@ -2070,6 +2219,51 @@ impl<'a> Board<'a> {
             self.live_yard[g] += self.binned[g];
         }
         Drew::Cards
+    }
+
+    /// Fire every landfall in play once for each of `entered` lands: each is
+    /// its effect's mill, dealt where it fired. `on_field` is how many of
+    /// each group's card the line has cast, so on the battlefield.
+    ///
+    /// `Some` of the size of the first gap the path has not dealt.
+    fn landfall(
+        &mut self,
+        turn: usize,
+        entered: u32,
+        on_field: &[u32],
+        history: Path<'_>,
+    ) -> Option<u32> {
+        let mut left = entered;
+        while left > 0 {
+            left -= 1;
+            for i in 0..self.landfallers.len() {
+                let (group, effect) = self.landfallers[i];
+                for _ in 0..on_field[group] {
+                    match self.mill(turn, effect, history) {
+                        Ok(returned) => left += returned,
+                        Err(size) => return Some(size),
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Combat on `turn`: every attacker the line had cast by the turn before
+    /// attacks, `cast_before` copies of each, and each attack is its
+    /// effect's mill. A land an attack keeps waits for the next turn's drop.
+    ///
+    /// `Some` of the size of the first gap the path has not dealt.
+    fn attack(&mut self, turn: usize, cast_before: &[u32], history: Path<'_>) -> Option<u32> {
+        for i in 0..self.attackers.len() {
+            let (group, effect) = self.attackers[i];
+            for _ in 0..cast_before[group] {
+                if let Err(size) = self.mill(turn, effect, history) {
+                    return Some(size);
+                }
+            }
+        }
+        None
     }
 
     /// Cards of `group` in hand that a discard may take: every one held,

@@ -2232,6 +2232,7 @@ fn a_mill_that_keeps_a_chosen_permanent_agrees_with_the_exact_engine() {
                 of: Some(2),
                 prefer: vec![1, 2],
             },
+            returns: None,
         },
         47,
     );
@@ -2244,6 +2245,7 @@ fn a_mill_that_keeps_every_land_agrees_with_the_exact_engine() {
         Mill {
             cards: 4,
             to_hand: ToHand::Every(2),
+            returns: None,
         },
         53,
     );
@@ -2448,4 +2450,152 @@ fn an_any_number_discard_of_lands_agrees_with_the_exact_engine() {
         3,
         71,
     );
+}
+
+// --- Attack and landfall triggers mill (#89) --------------------------------
+//
+// An attack or a landfall is a mill that fires again and again off a
+// permanent the line cast, and Lumra's mill returns the lands in the
+// graveyard. The sampler deals each block off its deck where the same Board
+// asks for it; these hold the exact engine to it.
+
+/// Green creatures matched by query 0 at `{1}{G}`, carrying `effect`; a
+/// target, query 1; Forests, query 2; blanks. On the play, to `turns`.
+fn trigger_deck(effect: Effect, turns: u32) -> (Grouping, Schedule) {
+    let grouping = Grouping::with_mana(
+        q(&["creature", "target", "land"]),
+        vec![
+            (
+                0b001,
+                ManaSource::Castable {
+                    cost: Cost::parse("{1}{G}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                4,
+            ),
+            (0b010, ManaSource::Spell, 2),
+            (
+                0b100,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["G"]),
+                    lasts: None,
+                },
+                16,
+            ),
+            (0b000, ManaSource::Spell, 38),
+        ],
+    )
+    .unwrap();
+    let schedule = Schedule::build(
+        turns,
+        false,
+        vec![effect],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    (grouping, schedule)
+}
+
+fn triggers_agree(effect: Effect, turns: u32, seed: u64) {
+    let (grouping, schedule) = trigger_deck(effect, turns);
+    let t = turns as usize;
+    let question = || {
+        Closures(vec![
+            Box::new(move |v: &PathView<'_>| v.count_at(t, 1, Counted::In(Zone::Graveyard)) >= 1)
+                as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(t, 1, Counted::In(Zone::Hand)) >= 1)
+                as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(t, 1, Counted::In(Zone::Library)) == 2)
+                as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(t, 2, Counted::In(Zone::Battlefield)) >= 4)
+                as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(t, 2, Counted::In(Zone::Hand)) >= 5)
+                as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(t, 2, Counted::In(Zone::Graveyard)) >= 1)
+                as Check,
+            Box::new(move |v: &PathView<'_>| v.count_at(t, 0, Counted::Cast) >= 2) as Check,
+        ])
+    };
+    let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(7), &mut question())
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    assert!(exact[0] > 0.01, "the trigger reaches the target: {exact:?}");
+    let trials = TRIALS / 2;
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        trials,
+        seed,
+        only_criteria(7),
+        &mut question(),
+    )
+    .unwrap()
+    .proportions;
+    for (i, (e, s)) in exact.iter().zip(&sampled).enumerate() {
+        let se = standard_error(*s, trials).max(1e-4);
+        assert!(
+            (s - e).abs() < 4.0 * se,
+            "question {i}: sampled {s} vs exact {e} ({}x SE)",
+            (s - e).abs() / se
+        );
+    }
+}
+
+fn mill_of(cards: u32, to_hand: ToHand, returns: Option<usize>) -> Mill {
+    Mill {
+        cards,
+        to_hand,
+        returns,
+    }
+}
+
+fn trigger(trigger: Trigger, mill: Mill) -> Effect {
+    Effect {
+        matched_by: 0,
+        look: 0,
+        trigger,
+        route: Route::Nowhere,
+        fetch: None,
+        delay: None,
+        draw: 0,
+        mill: Some(mill),
+        activation: None,
+        discard: None,
+        untap: 0,
+    }
+}
+
+#[test]
+fn an_attack_that_mills_and_keeps_a_land_agrees_with_the_exact_engine() {
+    // Six's shape: three each attack, a land kept, from the turn after.
+    let keep_a_land = ToHand::Chosen {
+        up_to: 1,
+        of: Some(2),
+        prefer: vec![2],
+    };
+    triggers_agree(
+        trigger(Trigger::Attack, mill_of(3, keep_a_land, None)),
+        4,
+        61,
+    );
+}
+
+#[test]
+fn a_landfall_that_mills_agrees_with_the_exact_engine() {
+    // Icetill Explorer's shape: one for each land after it.
+    triggers_agree(trigger(Trigger::Landfall, Mill::all(1)), 5, 67);
+}
+
+#[test]
+fn a_mill_that_returns_the_lands_agrees_with_the_exact_engine() {
+    // Lumra's shape: four when it is cast, then every land in the graveyard
+    // onto the battlefield.
+    let returning = Mill {
+        returns: Some(2),
+        ..Mill::all(4)
+    };
+    triggers_agree(trigger(Trigger::Cast, returning), 4, 71);
 }

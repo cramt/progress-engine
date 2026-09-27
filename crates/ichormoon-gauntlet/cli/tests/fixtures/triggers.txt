@@ -1,0 +1,7 @@
+// Six, Icetill Explorer and Lumra, each milling off a trigger (#89).
+20x Forest [Land]
+1x Six [Mill]
+1x Icetill Explorer [Mill]
+1x Lumra, Bellow of the Woods [Mill]
+1x Life from the Loam [Engine]
+36x Beast Within [Removal]

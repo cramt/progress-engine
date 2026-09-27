@@ -1,0 +1,16 @@
+# Lumra alone, for the two engines to agree on through the binary.
+
+[casting]
+prefer = ['name:"Life from the Loam"', 'name:"Lumra, Bellow of the Woods"']
+
+[[criterion]]
+name = "Lumra cast by turn 6"
+require = [{ turn = 6, cast = 'name:"Lumra, Bellow of the Woods"', min = 1 }]
+
+[[criterion]]
+name = "seven lands on the battlefield on turn 6"
+require = [{ turn = 6, query = "t:land", zone = "battlefield", min = 7 }]
+
+[[criterion]]
+name = "Loam in the graveyard by turn 6"
+require = [{ turn = 6, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]

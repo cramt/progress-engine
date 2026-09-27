@@ -18,9 +18,10 @@ than estimated. Hands 19 to 25 pin what
 hands 26 to 33 what
 [ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) decided
 (now built, and tests),
-and hands 40 to 42 what
+hands 40 to 42 what
 [ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md) decided,
-before any of it was built (now built, and tests). That is the point: they pin the semantics before the
+before any of it was built (now built, and tests), and hands 58 to 60 the
+attack and landfall triggers ADR-0017 named (built, and tests). That is the point: they pin the semantics before the
 code exists, so that building
 the feature cannot quietly redefine the question — and hands 1, 2 and 3 are the
 worked case, written down as one Opt on turn 1 long before anything could say
@@ -1252,6 +1253,136 @@ simulation of the deck it moved nothing measurable.
 *Not answerable yet, deliberately: needs a clause that counts arrivals, and a
 dredge priority over queries against the graveyard (ADR-0017). Until then the
 tool never dredges, which is a line the pilot could play, and it says so.*
+
+## Attack and landfall
+
+Hands 58 to 60 are the mills that fire off a permanent the line cast rather
+than off the cast itself, which ADR-0017 §1 named and
+[#89](https://github.com/cramt/progress-engine/issues/89) built: an attack, a
+land entering, and a mill that returns what it finds. Each is dealt as one
+block where it fired, like a cast's. Loam deck cards, Beast Within as filler,
+on the play, the library's order written down. All three are tests.
+
+### 58. Six attacks the turn after it is cast
+
+```
+Forest ×3
+Six
+Beast Within ×3
+(library, top first: Beast Within ×3, Life from the Loam, Mountain,
+ Beast Within, Island, Beast Within, Forest, Beast Within)
+
+[[effect]]
+match = 'name:"Six" t:treefolk'
+on = "attack"
+mill = 3
+keep = 1
+keep_only = "t:land"
+to_hand = ['t:land']
+```
+
+**Turn 3:** play the third Forest and cast Six. It came under your control
+this turn, so it cannot attack (CR 302.6). **Turn 4:** draw a Beast Within,
+play nothing new, attack: mill Life from the Loam, Mountain, Beast Within, and
+keep the Mountain. **Turn 5:** draw the Island, play the Mountain, attack:
+mill Beast Within, Forest, Beast Within, and keep the Forest.
+
+**Naive models:** Six attacks the turn it arrives, and mills the Loam on turn
+3; or nothing about an attack fires, which is what the tool said before, and
+turn 5 draws the Loam.
+
+| | nothing fires | Six attacks |
+|---|---|---|
+| Six cast by turn 3 | yes | yes |
+| Loam in the graveyard on turn 3 | no | **no**, summoning-sick |
+| Loam in the graveyard on turn 4 | no | **yes** |
+| Loam in hand on turn 5 | yes | **no** |
+| Beast Within in the graveyard on turn 5 | 0 | **3** |
+| lands on the battlefield on turn 4, 5 | 3, 3 | 3, **4** |
+
+The kept Mountain came after turn 4's drop, because combat follows the main
+phase, so it is turn 5's land. **The run assumes Six attacks every turn and
+nobody blocks it or removes it**, because nobody else is at this table, and
+prints that it did.
+
+*Answerable, and a test:* `hand_58_six_attacks_the_turn_after_it_is_cast` in
+`crates/ichormoon-gauntlet/criteria/tests/engine.rs`. `checker/test_triggers.py`
+holds the same deal against the checker's line.
+
+### 59. Icetill Explorer mills one for each land after it
+
+```
+Forest ×4
+Icetill Explorer
+Beast Within ×2
+(library, top first: Beast Within, Beast Within, Mountain, Beast Within,
+ Life from the Loam, Beast Within)
+```
+
+"Landfall — Whenever a land you control enters, mill a card." **Turn 4:** play
+the fourth Forest and cast the Explorer. That drop came before it, so nothing
+fires. **Turn 5:** play the Mountain, which enters with the Explorer on the
+battlefield: mill the Loam. **Turn 6:** draw a Beast Within, and there is no
+land to play, so nothing is milled.
+
+| | nothing fires | landfall |
+|---|---|---|
+| Loam in the graveyard on turn 4 | no | **no** |
+| Loam in the graveyard on turn 5 | no | **yes** |
+| Loam in hand on turn 6 | yes | **no** |
+| Beast Within in the graveyard on turn 6 | 0 | **0**, no land |
+
+A fetchland is two lands entering, the fetchland and then the land it puts
+down in its place, so it mills two:
+`a_fetchland_is_two_lands_entering_and_fires_a_landfall_for_each`. The
+Explorer's additional land a turn, and lands played from the graveyard, are
+not modelled, so its landfalls are a floor.
+
+*Answerable, and a test:*
+`hand_59_icetill_explorer_mills_one_for_each_land_after_it` in
+`crates/ichormoon-gauntlet/criteria/tests/engine.rs`, and in
+`checker/test_triggers.py`.
+
+### 60. Lumra returns every land in the graveyard, and the Loam stays
+
+```
+Forest ×5
+Lumra, Bellow of the Woods
+Aftermath Analyst
+(library, top first: Beast Within, then Mountain, Beast Within, Beast Within,
+ then Beast Within ×3, Forest, then Life from the Loam, Island, Beast Within,
+ Forest)
+
+[casting]
+prefer = ['name:"Lumra, Bellow of the Woods"', 'name:"Aftermath Analyst"']
+```
+
+**Turn 2:** cast the Analyst and mill Mountain, Beast Within, Beast Within.
+**Turn 6:** draw the Forest, play it, and cast Lumra off six Forests: "mill
+four cards. Then return all land cards from your graveyard to the battlefield
+tapped." It mills Life from the Loam, Island, Beast Within, Forest, and every
+land in the graveyard comes back, the Analyst's Mountain with its own two.
+
+| On turn 6 | mill 4 only | returns only what it milled | Lumra |
+|---|---|---|---|
+| Loam in the graveyard | yes | yes | **yes** |
+| lands in the graveyard | 3 | 1 | **0** |
+| Beast Within in the graveyard | 3 | 3 | 3 |
+| lands on the battlefield | 6 | 8 | **9** |
+
+Nobody chooses, so the standard library states it, as `returns = "t:land"`.
+The lands took no drop, so a turn's bill is still held to its drops, and the
+mana they could make is a floor. A mill that returns lands reads the
+graveyard, so it is never dealt last. With the Explorer on the battlefield,
+each land Lumra returns is a landfall:
+`each_land_lumra_returns_fires_a_landfall`.
+
+*Answerable, and a test:*
+`hand_60_lumra_returns_every_land_in_the_graveyard_and_the_loam_stays` in
+`crates/ichormoon-gauntlet/criteria/tests/engine.rs`, the first and last
+columns. Through the binary, `every_trigger_route_agrees_with_the_sampler_through_the_binary`
+answers one file per card exactly, and the sampler agrees.
+
 ## Rocks and dorks are mana the line cast
 
 Hands 26 to 33 pinned

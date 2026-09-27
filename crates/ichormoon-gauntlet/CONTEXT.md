@@ -175,7 +175,7 @@ The effects that ship with the tool and load before a file's own. They declare w
 _Avoid_: stdlib, prelude, standard library
 
 **Trigger**:
-What fires an effect: a land drop, a cast, or an activation the line pays for (ADR-0019). An attack, and a land entering while a permanent is in play, are decided in ADR-0017 and not yet built.
+What fires an effect: a land drop, a cast, an activation the line pays for (ADR-0019), an attack, or a landfall. An **attack** fires each turn after the one the line cast its creature on, after that turn's line, on the stated assumption that nobody blocks or removes it. A **landfall** fires once for each land that enters while its permanent is on the battlefield. Either may only mill (ADR-0017 §1).
 
 **Look**:
 Examining cards off the top of the library. A look that routes nothing changes nothing.
@@ -202,7 +202,7 @@ A family of effects grouped by what pays for them: the land-drop tier (free, one
 _Avoid_: tier (unqualified)
 
 **Replacement draw**:
-Any card drawn because a spell or effect said so, Opt's plain "draw a card" included. Broader than the rules term, and the tier this glossary means by it: draws, looks and mills that fire off a cast rather than a land drop. Dealt as a sized gap ([ADR-0017](../../docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md)). Dredge, the one replacement in the rules' sense, is not modelled.
+Any card drawn because a spell or effect said so, Opt's plain "draw a card" included. Broader than the rules term, and the tier this glossary means by it: draws, looks and mills that fire off a cast, an attack or a landfall rather than a land drop. Dealt as a sized gap ([ADR-0017](../../docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md)). Dredge, the one replacement in the rules' sense, is not modelled.
 _Avoid_: cantrip (for the tier)
 
 **Sized gap**:
@@ -217,7 +217,7 @@ _Avoid_: lazy mill, tail (outside Reality Chip)
 Cards moved from the top of the library to the graveyard because the card says so. The destination is compelled rather than chosen, so the standard effect library may state it.
 
 **Compelled destination**:
-Where a card's own text sends the cards it moves, such as the graveyard for a mill or for what Malevolent Rumble does not keep. Stated by the effect library. Set against a **chosen destination**, which is the pilot's and is declared by the file.
+Where a card's own text sends the cards it moves, such as the graveyard for a mill or for what Malevolent Rumble does not keep, or the battlefield for the lands Lumra returns. Stated by the effect library. Set against a **chosen destination**, which is the pilot's and is declared by the file.
 
 **Discard**:
 A card moved from hand to the graveyard. The card fixes how many, whether it is at random, and which cards are eligible. The pilot chooses which, with `[discard] prefer`, and a forced discard with no list is refused. A land in play is not in hand, so a discard that could take a land also needs `[land_drop]`: only a declared drop says which lands are still held.
