@@ -1,15 +1,9 @@
-ESTIMATE: a question here was too wide to enumerate exactly: 1190260789300
-          compositions across 19 groups, against a ceiling of 5000000. It was
+ESTIMATE: a question here was too wide to enumerate exactly: 5000001
+          compositions across 39 groups, against a ceiling of 5000000. It was
           answered by sampling 200000 hands instead.
-          5 of the 17 questions here needed that, and they are the ones
-          quoted with a ±:
-          a line that resolves Lantern of Insight by turn 5
-          same routes, all 11 Tutor Package cards (OVERCOUNTS)
-          route 1: Lantern in hand and a mana for it, turn 5
-          route 2: a tutor that puts it in hand, cast in time
-          route 3: a tutor that puts it onto the battlefield, cast by turn 5
-          Everything else below was enumerated exactly. A difference
-          smaller than a figure's ± is not a difference.
+          Every percentage below is an ESTIMATE, not an exact answer.
+          The ± beside each one is its standard error, and a difference
+          smaller than that is not a difference.
           Pass --exact to refuse a question this wide rather than estimate it.
 note: effect "t:land otag:surveil" (look 1, on landdrop, everything stays on top)
       applies to 1 card: Hedge Maze
@@ -19,6 +13,111 @@ note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapp
 note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add {C}{C}.\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc" (adds 2, on cast)
       applies to 1 card: Sol Ring
       a mana source once the [casting] line casts it
+note: effect "name:\"Trinket Mage\"" (on cast)
+      applies to 1 card: Trinket Mage
+      and fetches, to your hand, the first of these the library still holds:
+      1. "name:\"Lantern of Insight\""
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+note: effect "name:\"Fabricate\"" (on cast)
+      applies to 1 card: Fabricate
+      and fetches, to your hand, the first of these the library still holds:
+      1. "name:\"Lantern of Insight\""
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+note: effect "name:\"Tezzeret, Cruel Captain\"" (on cast)
+      applies to 1 card: Tezzeret, Cruel Captain
+      and fetches, to your hand, the first of these the library still holds:
+      1. "name:\"Lantern of Insight\""
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+note: effect "name:\"Whir of Invention\"" (on cast)
+      applies to 1 card: Whir of Invention
+      and the [casting] line pays {1}{U}{U}{U} to play it, not its printed cost
+      and fetches, to your battlefield, the first of these the library still holds:
+      1. "name:\"Lantern of Insight\""
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+note: effect "name:\"Tezzeret the Seeker\"" (on cast)
+      applies to 1 card: Tezzeret the Seeker
+      and fetches, to your battlefield, the first of these the library still holds:
+      1. "name:\"Lantern of Insight\""
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+note: effect "name:\"Dizzy Spell\"" (on cast)
+      applies to 1 card: Dizzy Spell
+      and the [casting] line pays {1}{U}{U} to play it, not its printed cost
+      and fetches, to your hand, the first of these the library still holds:
+      1. "name:\"Lantern of Insight\""
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+note: effect "name:\"Urza's Saga\"" (on landdrop, 2 turns later, then sacrificed)
+      applies to 1 card: Urza's Saga
+      and fetches, to your battlefield, the first of these the library still holds:
+      1. "name:\"Lantern of Insight\""
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+note: effect "name:\"Expedition Map\"" (on activate)
+      applies to 1 card: Expedition Map
+      and the [casting] entry naming it pays {2} to activate a copy it put into play, sacrificing it, once a turn, after the land drop — before it only where what it fetches is a land [land_drop] ranks above every land in hand
+      and fetches, to your hand, the first of these the library still holds:
+      1. "name:\"Urza's Saga\""
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+note: effect "name:\"Artificer's Intuition\"" (on activate)
+      applies to 1 card: Artificer's Intuition
+      and the [casting] entry naming it pays {U} to activate a copy it put into play, once a turn, after the land drop
+      and discards 1 matching "t:artifact" as part of that cost: only a card the [discard] list names pays it, and without one it is not activated
+      and fetches, to your hand, the first of these the library still holds:
+      1. "name:\"Lantern of Insight\""
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+note: the land drop here is decided by the priority this file declared, and every
+      number below that depends on which land was played depends on it:
+      1. "name:\"Urza's Saga\""
+      2. "name:\"Ketria Triome\""
+      3. "name:\"Slagwoods Bridge\" or name:\"Stomping Ground\""
+      4. "name:\"Silverbluff Bridge\" or name:\"Steam Vents\" or name:\"Training Center\" or name:\"Turbulent Springs\""
+      5. "name:\"Breeding Pool\" or name:\"Hedge Maze\" or name:\"Rejuvenating Springs\" or name:\"Turbulent Wilderness\""
+      6. "name:\"Shatterskull Smashing\" or name:\"Spikefield Hazard\" or name:\"Valakut Awakening\""
+      7. "name:\"Jwari Disruption\" or name:\"Sea Gate Restoration\" or name:\"Silundi Vision\""
+      8. "name:\"Bala Ged Recovery\" or name:\"Shifting Woodland\""
+      9. "name:\"Maze of Ith\""
+      10. "name:\"Misty Rainforest\" or name:\"Prismatic Vista\" or name:\"Scalding Tarn\" or name:\"Wooded Foothills\""
+      11. "name:\"Volcanic Island\""
+      12. "name:\"Tropical Island\""
+      13. "name:\"Taiga\""
+      14. "t:basic name:\"Island\" or name:\"Otawara, Soaring City\" or name:\"Seat of the Synod\""
+      15. "t:basic name:\"Mountain\""
+      16. "t:basic name:\"Forest\" or name:\"Boseiju, Who Endures\""
+      17. "name:\"Academy Ruins\" or name:\"Castle Doom\" or name:\"Darksteel Citadel\" or name:\"Inventors' Fair\" or name:\"Spire of Industry\""
+      then any other land. Ties: a tie inside one entry goes to the deeper look, then to the card this decklist names first.
+note: the cards discarded here are decided by the priority this file declared, and every
+      number below that reads the hand or the graveyard depends on it:
+      1. "t:artifact -t:land -name:\"Lantern of Insight\" -name:\"Expedition Map\" -name:\"Sol Ring\" -name:\"Arcane Signet\" -name:\"Talisman of Creativity\" -name:\"Talisman of Curiosity\" -name:\"Talisman of Impulse\" -name:\"Mind Stone\""
+      Then a forced discard takes a card this list does not name only after every card it does, an "any number" discard never takes one, and nor does a discard an activation's cost makes. Ties: a tie inside one entry, and among the cards no entry names, is settled at random, and every way it could fall is priced.
+      And a card that discards at random ignores this list: every card in hand is as likely.
+note: the spells cast here are decided by the priority this file declared, and every
+      number below that depends on what was cast depends on it:
+      1. "name:\"Lantern of Insight\""
+      2. "name:\"Sol Ring\""
+      3. "name:\"Rashmi and Ragavan\""
+      4. "name:\"Whir of Invention\""
+      5. "name:\"Tezzeret the Seeker\""
+      6. "name:\"Trinket Mage\" or name:\"Fabricate\" or name:\"Tezzeret, Cruel Captain\""
+      7. "name:\"Dizzy Spell\""
+      8. "name:\"Expedition Map\""
+      9. "name:\"Arcane Signet\""
+      10. "name:\"Talisman of Creativity\""
+      11. "name:\"Talisman of Curiosity\""
+      12. "name:\"Talisman of Impulse\""
+      13. "name:\"Mind Stone\""
+      14. "name:\"Artificer's Intuition\""
+      Then a spell this list does not name is not cast at all. Ties: a tie inside one entry goes to the cheaper cost, then to the card this decklist names first.
+      Cast from the command zone — never drawn, always there, cast at most once: Rashmi and Ragavan.
+      At equal cost inside one entry, a card from the library is cast first.
+      Mana sources once cast — a rock's mana pays only for what the line casts after it, and a dork's from the next turn:
+      Arcane Signet: adds 1 of {U}{R}{G}
+      Mind Stone: adds 1 of {C}
+      Sol Ring: adds 2 of {C}
+      Talisman of Creativity: adds 1 of {U}{R}{C}
+      Talisman of Curiosity: adds 1 of {U}{G}{C}
+      Talisman of Impulse: adds 1 of {R}{G}{C}
+      Played at a cost an effect declares, not the printed one; a `cast` clause counts it as a casting:
+      Dizzy Spell: billed {1}{U}{U}, printed {U} (effect "name:\"Dizzy Spell\"")
+      Whir of Invention: billed {1}{U}{U}{U}, printed {X}{U}{U}{U} (effect "name:\"Whir of Invention\"")
+      Cost reductions are not modelled, so these pay their printed or declared cost in full: Whir of Invention.
 note: every number below keeps whatever seven it is dealt: this file declares no
       [mulligan], so no hand is ever sent back.
 note: 10 lands here let the pilot decide whether to enter tapped. This run assumes they do:
@@ -35,62 +134,12 @@ note: these lands make mana other than the card data lists, and this run reads t
       Spire of Industry: pays {C} only: its other colours come with a condition this engine cannot see.
       Urza's Saga: makes mana for three turns, the one it is played on and the two after: its last chapter sacrifices it.
       Wooded Foothills: a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find.
-FAIL a line that resolves Lantern of Insight by turn 5                    54.34% ± 0.11  (needs 75.0%)
-     same routes, all 11 Tutor Package cards (OVERCOUNTS)                 72.27% ± 0.10
-     route 1: Lantern in hand and a mana for it, turn 5                   12.04% ± 0.07
-     route 1 naive: Lantern in hand by turn 5, no mana asked              12.12%
-     route 1 control: {1} payable by turn 5, no Lantern asked             99.74%
-     route 2: a tutor that puts it in hand, cast in time                  32.64% ± 0.10
-     route 2 naive: one of those five tutors drawn by turn 5              48.34%
-     route 3: a tutor that puts it onto the battlefield, cast by turn 5    7.74% ± 0.06
-     route 3 naive: either of those two drawn by turn 5                   22.88%
-     route 4: Urza's Saga puts it onto the battlefield by turn 5           9.14%
-     route 4 naive: Urza's Saga drawn by turn 3 (the old upper bound)     10.10%
-     Lantern-capable tutors seen by turn 5                               mean 0.85
-                                                                         0: 39.3%
-                                                                         1: 40.7%
-                                                                         2: 16.4%
-                                                                         3: 3.3%
-                                                                         4: 0.4%
-     whole Tutor Package seen by turn 5                                  mean 1.33
-                                                                         0: 22.2%
-                                                                         1: 38.1%
-                                                                         2: 26.9%
-                                                                         3: 10.2%
-                                                                         4: 2.3%
-                                                                         5: 0.3%
-     t:land in the opener                                                mean 2.83
-                                                                         0: 2.3%
-                                                                         1: 12.1%
-                                                                         2: 26.2%
-                                                                         3: 30.2%
-                                                                         4: 20.0%
-                                                                         5: 7.6%
-                                                                         6: 1.5%
-                                                                         7: 0.1%
-     opener cards you could really play as a land                        mean 2.26
-                                                                         0: 5.8%
-                                                                         1: 21.5%
-                                                                         2: 32.2%
-                                                                         3: 25.5%
-                                                                         4: 11.6%
-                                                                         5: 3.0%
-                                                                         6: 0.4%
-     lands you can play, on the battlefield by turn 5                    mean 4.23
-                                                                         0: 0.2%
-                                                                         1: 1.4%
-                                                                         2: 6.0%
-                                                                         3: 14.6%
-                                                                         4: 22.8%
-                                                                         5: 55.0%
-     of those, cards that could really have been played as a land        mean 3.68
-                                                                         0: 0.6%
-                                                                         1: 4.4%
-                                                                         2: 13.3%
-                                                                         3: 22.9%
-                                                                         4: 25.4%
-                                                                         5: 33.3%
+     north star: Lantern of Insight on the battlefield and Rashmi and Ragavan cast, by turn 4    9.83% ± 0.07
+     north star: Lantern of Insight on the battlefield and Rashmi and Ragavan cast, by turn 5   40.94% ± 0.11
+     north star: Lantern of Insight on the battlefield and Rashmi and Ragavan cast, by turn 6   55.22% ± 0.11
+     north star: Lantern of Insight on the battlefield and Rashmi and Ragavan cast, by turn 7   62.88% ± 0.11
+     north star, Lantern half: Lantern of Insight on the battlefield by turn 5                  59.98% ± 0.11
+     north star, commander half: Rashmi and Ragavan cast by turn 5                              68.43% ± 0.10
+     north star line: Lantern of Insight hard-cast by turn 5                                    41.49% ± 0.11
 
-widest exact question: 1,031,250 compositions across 5 groups, 21% of the 5,000,000 ceiling, "route 1 control: {1} payable by turn 5, no Lantern asked"
-
-FAIL: 1 of 1 assertions missed
+PASS: 0 of 0 assertions met
