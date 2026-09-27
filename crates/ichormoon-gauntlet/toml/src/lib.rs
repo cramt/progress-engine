@@ -37,6 +37,7 @@
 //! than once per simulated hand.
 
 use facet::Facet;
+pub use gauntlet_criteria::Discards;
 use gauntlet_criteria::{
     Cost, CostError, Count, Counted, Criterion, Delay, Evaluator, Expectation, Fetched, NotACount,
     Palette, PathOutcomes, PathView, Plan, Trigger, TriggerError, Zone, ZoneError,
@@ -97,6 +98,17 @@ struct FileDef {
     /// Which openers are kept and what goes back. One table, because a game
     /// has one opening hand.
     mulligan: Option<MulliganDef>,
+    /// Which cards leave the hand when a card makes you discard (ADR-0017
+    /// §3). One table, because a game has one hand every outlet draws on.
+    discard: Option<DiscardDef>,
+}
+
+/// The declared priority over what a discard takes, as written: the same
+/// list shape as `[land_drop]` and `[casting]`, over the hand.
+#[derive(Facet)]
+#[facet(deny_unknown_fields)]
+struct DiscardDef {
+    prefer: Option<Vec<String>>,
 }
 
 /// The declared mulligan, as written.
@@ -229,6 +241,23 @@ struct EffectDef {
     /// half of the card, written in your own file for the reason
     /// `to_graveyard` is. Absent keeps nothing.
     to_hand: Option<Vec<String>>,
+    /// Cards a cast draws, dealt as one block the turn the line casts it
+    /// (ADR-0017 §1): Frantic Search's `draw = 2`.
+    draw: Option<i64>,
+    /// Cards a cast then makes you discard: Frantic Search's `discard = 2`.
+    /// Which ones is the file's `[discard] prefer`.
+    discard: Option<i64>,
+    /// "Discard any number": every eligible card the `[discard]` list names.
+    discard_any: Option<bool>,
+    /// The card picks the discard at random, whatever the list says:
+    /// Desperate Ravings.
+    at_random: Option<bool>,
+    /// Which cards the card lets you discard, as a query: Borborygmos and
+    /// Fblthp's `discard_only = "t:land"`.
+    discard_only: Option<String>,
+    /// Lands the cast untaps once it resolves: Frantic Search's `untap = 3`,
+    /// taken as the lands that paid for it.
+    untap: Option<i64>,
 }
 
 #[derive(Facet)]
@@ -475,6 +504,8 @@ pub struct Criteria {
     /// never sees a spell's mana cost: the caller holding the index prices the
     /// list and refuses what it cannot pay.
     casting: Vec<String>,
+    /// The discard priority, as text for the same reason.
+    discard: Vec<String>,
     /// The declared mulligan, queries still as text for the same reason.
     mulligan: Option<MulliganDecl>,
 }
@@ -562,6 +593,12 @@ pub struct EffectEntry {
     pub delay: Option<Delay>,
     /// What it mills when it is cast, if it mills.
     pub mill: Option<MillDecl>,
+    /// Cards it draws when it is cast. Zero for everything that does not.
+    pub draw: u32,
+    /// What it then makes you discard, if anything.
+    pub discard: Option<DiscardDecl>,
+    /// Lands it untaps once it resolves, taken as the ones that paid for it.
+    pub untap: u32,
     /// Which file declared it. Carried so a report can say where a surprising
     /// effect came from, and so the standard library can stay quiet about
     /// matching nothing while a hand-written entry does not.
@@ -608,6 +645,20 @@ pub enum HandDecl {
     /// `keep_every = query`: every such card, which nobody chooses.
     Every(String),
 }
+
+/// A declared discard, as written: what the card fixes. Which cards go is
+/// the file's `[discard] prefer`, and never the effect's (ADR-0017 §3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DiscardDecl {
+    pub cards: Discards,
+    pub at_random: bool,
+    /// The query a discarded card has to match, still as text.
+    pub only: Option<String>,
+}
+
+/// The most cards one `draw`, `discard` or `untap` may name: a bound on a
+/// typo, not on the game.
+pub const MAX_HAND: u32 = 10;
 
 /// The most cards one `mill` may turn over. Seven is the deepest a card in
 /// either deck mills; this is a bound on a typo, not on the game.
@@ -728,6 +779,17 @@ impl Criteria {
     /// you would be reporting a line nobody chose.
     pub fn casting(&self) -> &[String] {
         &self.casting
+    }
+
+    /// The discard priority this file declared, highest first, or empty
+    /// where it declared none.
+    ///
+    /// Empty is answerable wherever nothing the line casts forces a discard:
+    /// an "any number" discard then takes nothing, and a random one reads no
+    /// list. A forced discard beside it is refused by the caller, which knows
+    /// which cards the line casts (ADR-0017 §3).
+    pub fn discard(&self) -> &[String] {
+        &self.discard
     }
 
     /// The mulligan this file declared, or `None` where it declared none.
@@ -1107,9 +1169,11 @@ const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least
                       a require of their own, \
                       [[expect]] tables (name, turn, query, zone) or (name, turn, cast), [[effect]] \
                       tables (match, on, look, adds, to_graveyard, fetch, to, after, sacrifice, \
-                      mill, keep, keep_only, keep_every, to_hand), one \
+                      mill, keep, keep_only, keep_every, to_hand, draw, discard, discard_any, \
+                      at_random, discard_only, untap), one \
                       [land_drop] table (prefer), \
-                      one [casting] table (prefer) \
+                      one [casting] table (prefer), \
+                      one [discard] table (prefer) \
                       and one [mulligan] table (keep, bottom, down_to, optimise), whose keep \
                       clauses are (query, min, max).";
 
@@ -1408,6 +1472,18 @@ pub enum ErrorKind {
          Write `on = \"cast\"`: Dizzy Spell's transmute is `cost = \"{{1}}{{U}}{{U}}\"` on its cast"
     )]
     CostOffACast { at: String },
+    #[error(
+        "{at}: `{key} = {value}` is not a number of cards: it must be a whole number from 1 to \
+         {MAX_HAND}. A card that does none of it is written with no `{key}`"
+    )]
+    BadHand {
+        at: String,
+        key: &'static str,
+        value: i64,
+    },
+    /// Half a draw or a discard, refused by what is missing (ADR-0017 §3).
+    #[error("{at}: {why}")]
+    HandMisdeclared { at: String, why: &'static str },
 }
 
 /// A count with nowhere to go in a histogram, named against the expectation
@@ -1564,8 +1640,10 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
         let adds = adds_of(def, &at, trigger)?;
         let mill = mill_of(def, &at, trigger)?;
         let cost = cost_of(def, &at, trigger)?;
-        // `look` is required unless this effect fetches, adds mana, mills or
-        // declares a cost instead, and those are different things: a look turns over a card
+        let (draw, discard, untap) = hand_of(def, &at, trigger)?;
+        // `look` is required unless this effect fetches, adds mana, mills,
+        // draws or discards, or declares a cost instead, and those are
+        // different things: a look turns over a card
         // nobody has seen and leaves it on top, a fetch names one, a source
         // turns over nothing, and a mill turns over cards and takes them all
         // off the top. An entry doing none of them would be a checkpoint spent
@@ -1581,7 +1659,13 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
         }
         let look = match (
             def.look,
-            fetch.is_some() || adds.is_some() || mill.is_some() || cost.is_some(),
+            fetch.is_some()
+                || adds.is_some()
+                || mill.is_some()
+                || cost.is_some()
+                || draw > 0
+                || discard.is_some()
+                || untap > 0,
         ) {
             (Some(look), _) => u32::try_from(look)
                 .ok()
@@ -1631,6 +1715,9 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
             fetch,
             delay,
             mill,
+            draw,
+            discard,
+            untap,
             origin: origin.to_string(),
         });
     }
@@ -1735,6 +1822,76 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
             prefer,
         },
     }))
+}
+
+/// Validate the `draw`, `discard`, `discard_any`, `at_random`,
+/// `discard_only` and `untap` keys of one `[[effect]]` table.
+///
+/// All of it is what a cast does to the hand (ADR-0017 §3), so it fires on a
+/// cast. What the card fixes is written here — how many, "any number",
+/// whether at random, which cards may go — and which cards go is the file's
+/// `[discard] prefer`, so a key saying which is not one this table has.
+fn hand_of(
+    def: &EffectDef,
+    at: &str,
+    trigger: Trigger,
+) -> Result<(u32, Option<DiscardDecl>, u32), ErrorKind> {
+    let misdeclared = |why: &'static str| ErrorKind::HandMisdeclared {
+        at: at.to_string(),
+        why,
+    };
+    let count = |key: &'static str, value: Option<i64>| -> Result<u32, ErrorKind> {
+        match value {
+            None => Ok(0),
+            Some(value) => u32::try_from(value)
+                .ok()
+                .filter(|n| (1..=MAX_HAND).contains(n))
+                .ok_or(ErrorKind::BadHand {
+                    at: at.to_string(),
+                    key,
+                    value,
+                }),
+        }
+    };
+    let draw = count("draw", def.draw)?;
+    let exactly = count("discard", def.discard)?;
+    let untap = count("untap", def.untap)?;
+    let any = def.discard_any.unwrap_or(false);
+    let random = def.at_random.unwrap_or(false);
+    if exactly > 0 && any {
+        return Err(misdeclared(
+            "has `discard` and `discard_any`. A card discards a number of cards or any number \
+             of them, and says which",
+        ));
+    }
+    if any && random {
+        return Err(misdeclared(
+            "has `discard_any` and `at_random`. \"Any number\" is the pilot's choice of how many, \
+             and a card that picks at random picks how many too: write `discard = <n>`",
+        ));
+    }
+    let discards = (exactly > 0 || any).then_some(());
+    if discards.is_none() && (random || def.discard_only.is_some()) {
+        return Err(misdeclared(
+            "says how a discard is made and has no `discard` or `discard_any` for it to qualify",
+        ));
+    }
+    if (draw > 0 || discards.is_some() || untap > 0) && trigger != Trigger::Cast {
+        return Err(misdeclared(
+            "draws, discards or untaps on a landdrop. What a card does to the hand is what a \
+             cast does, written with `on = \"cast\"`",
+        ));
+    }
+    let discard = discards.map(|()| DiscardDecl {
+        cards: if any {
+            Discards::AnyNumber
+        } else {
+            Discards::Exactly(exactly)
+        },
+        at_random: random,
+        only: def.discard_only.clone(),
+    });
+    Ok((draw, discard, untap))
 }
 
 /// Validate the `adds` key of one `[[effect]]` table.
@@ -1898,6 +2055,11 @@ fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
     let effects = effects_of(&file, origin)?;
     let land_drop = land_drop_of(&file)?;
     let casting = casting_of(&file)?;
+    let discard = preference_of(
+        file.discard.as_ref().map(|d| &d.prefer),
+        "[discard]",
+        "prefer",
+    )?;
     let mulligan = file
         .mulligan
         .as_ref()
@@ -2025,6 +2187,7 @@ fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
         effects,
         land_drop,
         casting,
+        discard,
         mulligan,
     })
 }

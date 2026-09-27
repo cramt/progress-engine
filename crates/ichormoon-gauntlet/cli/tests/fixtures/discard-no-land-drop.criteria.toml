@@ -1,0 +1,9 @@
+# Desperate Ravings can bin a land, and this file does not say which lands
+# were played, so which lands are still in hand is not known.
+
+[casting]
+prefer = ['name:"Desperate Ravings"']
+
+[[criterion]]
+name = "Loam in the graveyard by turn 3"
+require = [{ turn = 3, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]

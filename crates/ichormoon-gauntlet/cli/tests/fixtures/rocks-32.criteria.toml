@@ -4,6 +4,17 @@
 [casting]
 prefer = ['name:"Lotus Cobra"', 'name:"Borborygmos and Fblthp"']
 
+# The standard library's Borborygmos draws a card as it enters, and this
+# eleven-card library is dealt to its last card by turn 5, so a run casting it
+# would be refused as running out. It is never cast here — four lands never
+# make five mana — so its entry is written again without the draw, and the
+# discard it keeps takes nothing with no [discard] list.
+[[effect]]
+match = 'name:"Borborygmos and Fblthp"'
+on = "cast"
+discard_any = true
+discard_only = "t:land"
+
 [[criterion]]
 name = "Lotus Cobra cast by turn 5"
 require = [{ turn = 5, cast = 'name:"Lotus Cobra"', min = 1 }]

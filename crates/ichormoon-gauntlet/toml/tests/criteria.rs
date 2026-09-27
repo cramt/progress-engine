@@ -9,12 +9,12 @@
 //! the same file still agree.
 
 use gauntlet_criteria::{
-    CastingPolicy, Cost, Delay, Effect, Fetched, Grouping, ManaSource, Outcomes, Palette, Policies,
-    Resolves, Route, RunError, Schedule, Trigger, Zone, ZoneError,
+    CastingPolicy, Cost, Delay, Discards, Effect, Fetched, Grouping, ManaSource, Outcomes, Palette,
+    Policies, Resolves, Route, RunError, Schedule, Trigger, Zone, ZoneError,
 };
 use gauntlet_toml::{
-    Criteria, Destination, EffectEntry, EffectLibrary, ErrorKind, HandDecl, MillDecl, MAX_TURN,
-    STANDARD_LIBRARY, STANDARD_LIBRARY_ORIGIN,
+    Criteria, Destination, DiscardDecl, EffectEntry, EffectLibrary, ErrorKind, HandDecl, MillDecl,
+    MAX_TURN, STANDARD_LIBRARY, STANDARD_LIBRARY_ORIGIN,
 };
 
 /// A synthetic library where every query the file names has cards of its own
@@ -2003,13 +2003,14 @@ fn the_standard_library_is_a_criteria_file_like_any_other() {
     for entry in std.entries() {
         // A look is only modelled on the land drop. What fires on a cast is a
         // source the line cast (ADR-0018), which declares what it adds and
-        // turns over nothing, or a mill (ADR-0017), whose graveyard the card
-        // compels.
+        // turns over nothing, a mill (ADR-0017), whose graveyard the card
+        // compels, or a draw and the discard after it, whose number the card
+        // fixes and whose cards the file chooses.
         match entry.trigger {
             Trigger::LandDrop => assert_eq!(entry.adds, None, "{entry:?}"),
             Trigger::Cast => assert!(
-                (entry.adds.is_some() || entry.mill.is_some()) && entry.look == 0,
-                "a cast entry here declares a source or a mill: {entry:?}"
+                (entry.adds.is_some() || entry.mill.is_some() || entry.draw > 0) && entry.look == 0,
+                "a cast entry here declares a source, a mill or a draw: {entry:?}"
             ),
             // Nothing ships an activation: which one a line pays for, and
             // what it fetches, is the pilot's (ADR-0019).
@@ -2908,4 +2909,141 @@ fn half_a_mill_is_refused_by_what_is_missing() {
     assert!(matches!(bad, ErrorKind::NoPreference { .. }), "{bad}");
     let bad = with("on = \"cast\"\nmill = 4\nkeep = 1\nto_hand = ['t:land', 't:land']");
     assert!(matches!(bad, ErrorKind::RepeatedPreference { .. }), "{bad}");
+}
+
+#[test]
+fn a_draw_and_a_discard_say_what_the_card_fixes_and_nothing_it_does_not() {
+    // Frantic Search: two drawn, two discarded, three lands untapped.
+    let frantic = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Frantic Search"'
+        on = "cast"
+        draw = 2
+        discard = 2
+        untap = 3
+        "#,
+    );
+    assert_eq!(frantic.draw, 2);
+    assert_eq!(
+        frantic.discard,
+        Some(DiscardDecl {
+            cards: Discards::Exactly(2),
+            at_random: false,
+            only: None,
+        })
+    );
+    assert_eq!(frantic.untap, 3);
+    // Desperate Ravings: the card picks.
+    let ravings = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Desperate Ravings"'
+        on = "cast"
+        draw = 2
+        discard = 1
+        at_random = true
+        "#,
+    );
+    assert_eq!(
+        ravings.discard,
+        Some(DiscardDecl {
+            cards: Discards::Exactly(1),
+            at_random: true,
+            only: None,
+        })
+    );
+    // Borborygmos and Fblthp: any number, and only land cards.
+    let borborygmos = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Borborygmos and Fblthp"'
+        on = "cast"
+        draw = 1
+        discard_any = true
+        discard_only = "t:land"
+        "#,
+    );
+    assert_eq!(
+        borborygmos.discard,
+        Some(DiscardDecl {
+            cards: Discards::AnyNumber,
+            at_random: false,
+            only: Some("t:land".into()),
+        })
+    );
+    assert_eq!(borborygmos.untap, 0);
+}
+
+#[test]
+fn half_a_discard_is_refused_by_what_is_missing() {
+    let with = |body: &str| {
+        refused_effect(&format!(
+            "[[effect]]\nmatch = 'name:\"Frantic Search\"'\n{body}\n"
+        ))
+    };
+    let cases: [(&str, &str); 9] = [
+        // What a cast does to the hand is a cast's.
+        ("on = \"landdrop\"\ndraw = 2", "landdrop"),
+        ("on = \"landdrop\"\nlook = 1\ndiscard = 1", "landdrop"),
+        ("on = \"cast\"\ndraw = 0", "draw = 0"),
+        ("on = \"cast\"\ndiscard = 0", "discard = 0"),
+        ("on = \"cast\"\nuntap = 0", "untap = 0"),
+        // A number and "any number" are two answers to one question.
+        (
+            "on = \"cast\"\ndiscard = 1\ndiscard_any = true",
+            "discard_any",
+        ),
+        // What qualifies a discard needs a discard to qualify.
+        ("on = \"cast\"\nat_random = true", "discard"),
+        ("on = \"cast\"\ndiscard_only = 't:land'", "discard"),
+        // "Any number at random" is not a card.
+        (
+            "on = \"cast\"\ndiscard_any = true\nat_random = true",
+            "at_random",
+        ),
+    ];
+    for (body, says) in cases {
+        let bad = with(body);
+        assert!(
+            bad.to_string().contains(says),
+            "{body:?} should be refused naming {says:?}: {bad}"
+        );
+    }
+}
+
+#[test]
+fn a_file_says_which_cards_it_discards_in_the_order_it_would() {
+    let criteria = parse(
+        r#"
+        [discard]
+        prefer = ['name:"Life from the Loam"', 't:land']
+
+        [[criterion]]
+        name = "a land by turn 1"
+        require = [{ turn = 1, query = "t:land", min = 1 }]
+        "#,
+    );
+    assert_eq!(
+        criteria.discard(),
+        ["name:\"Life from the Loam\"", "t:land"]
+    );
+    let silent = parse(
+        r#"
+        [[criterion]]
+        name = "a land by turn 1"
+        require = [{ turn = 1, query = "t:land", min = 1 }]
+        "#,
+    );
+    assert!(silent.discard().is_empty());
+    let empty = Criteria::parse(
+        "[discard]\nprefer = []\n[[criterion]]\nname = \"x\"\n\
+         require = [{ turn = 1, query = \"t:land\", min = 1 }]\n",
+        "x.toml",
+    )
+    .expect_err("an empty list decides nothing");
+    assert!(
+        matches!(empty.kind, ErrorKind::NoPreference { .. }),
+        "{empty}"
+    );
 }

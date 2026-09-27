@@ -172,3 +172,71 @@ match = 'name:"Wrenn and Seven"'
 on = "cast"
 mill = 4
 keep_every = "t:land"
+
+# --- Draw, then discard (ADR-0017 §3) ----------------------------------------
+#
+# A draw is one block dealt the turn the `[casting]` line casts the card, and
+# a spell drawn that way is cast that same turn if the pool still pays; a land
+# drawn that way waits for the next turn's drop. The discard after it is the
+# card's to size and the pilot's to choose: this file says how many, whether
+# the card picks at random, and which cards it lets go, and your file's
+# `[discard] prefer` says which of those go. A forced discard with no list is
+# refused by name; "any number" with no list discards nothing; a random one
+# reads no list at all.
+#
+# Keyed by name, because the numbers are printed on each card and no tag
+# carries them. Because, for all four: they are the Loam deck's discard
+# outlets that put a card from hand into the graveyard off a cast, which is
+# where its north star asks Life from the Loam to be.
+#
+# Not here, each for its own reason:
+#
+#   * Three Steps Ahead. Its draw-two-discard-one is a Spree mode costing {2}
+#     on top of the printed {U}, and nothing yet says a cast costs more than
+#     the card's mana cost; read at {U} it would be cast on turns it cannot be.
+#   * Cavalier of Flame. "Discard any number of cards, then draw that many" is
+#     a discard before a draw whose size the discard decides. At {2}{R}{R}{R}
+#     in a three-colour deck it is rarely cast by turn 5, and it is not
+#     modelled.
+
+# Frantic Search: "Draw two cards, then discard two cards. Untap up to three
+# lands." The untap is read as the three lands that paid for it, which leaves
+# the turn's mana where it was before the spell: a floor, because a pilot
+# could untap three better ones, and a run that relies on it says so.
+[[effect]]
+match = 'name:"Frantic Search"'
+on = "cast"
+draw = 2
+discard = 2
+untap = 3
+
+# Izzet Charm's third mode: "Draw two cards, then discard two cards." Its
+# other two modes are removal and a counter, which no question here asks
+# about, so a line that casts it is read as casting it for cards.
+[[effect]]
+match = 'name:"Izzet Charm"'
+on = "cast"
+draw = 2
+discard = 2
+
+# Desperate Ravings: "Draw two cards, then discard a card at random." The
+# card picks, so a `[discard]` list is ignored rather than obeyed. Its
+# flashback is a second casting from the graveyard, and it is not modelled.
+[[effect]]
+match = 'name:"Desperate Ravings"'
+on = "cast"
+draw = 2
+discard = 1
+at_random = true
+
+# Borborygmos and Fblthp: "Whenever Borborygmos and Fblthp enters or attacks,
+# draw a card, then you may discard any number of land cards." Read on
+# entering, the turn the line casts it; the attack is a later turn's and is
+# not modelled, which is a floor. Only land cards, so no list makes it
+# discard Life from the Loam.
+[[effect]]
+match = 'name:"Borborygmos and Fblthp"'
+on = "cast"
+draw = 1
+discard_any = true
+discard_only = "t:land"

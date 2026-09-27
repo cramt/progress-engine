@@ -121,6 +121,8 @@ pub struct PreparedRun {
     resolved: effects::Resolved,
     land_drop: Option<landdrop::Resolved>,
     casting: Option<casting::Resolved>,
+    /// The discard priority as the file wrote it, for the report.
+    discard: Vec<String>,
     mulligan: Option<mulligan::Resolved>,
     chose: Option<optimise::Chose>,
     /// Whether the run priced mana, which is when it assumed anything about a
@@ -231,6 +233,27 @@ fn prepare_noting(
         }
     };
     asked.extend(mulligan.iter().flat_map(|m| m.queries.iter().cloned()));
+    // The discard list last, on the same terms: its queries sit behind
+    // everything already asked for.
+    for query in criteria.discard() {
+        refusal::check_query(origin, QuerySite::Discard, query, library)?;
+    }
+    let mut discard_bits = Vec::with_capacity(criteria.discard().len());
+    for query in criteria.discard() {
+        let bit = match asked.iter().position(|a| a == query) {
+            Some(bit) => bit,
+            None => {
+                asked.push(query.clone());
+                asked.len() - 1
+            }
+        };
+        discard_bits.push(bit);
+        if library.matching(query)? == 0 {
+            notes.push(format!(
+                "note: discard preference {query:?} matches no card in this deck"
+            ));
+        }
+    }
     if let Some(resolved) = &mulligan {
         for query in &resolved.unmatched {
             notes.push(format!(
@@ -284,8 +307,13 @@ fn prepare_noting(
     }
 
     let line: Vec<bool> = match &casting {
-        Some(casting) => casting.costs.iter().map(Option::is_some).collect(),
-        None => vec![false; library.entries.len()],
+        Some(casting) => casting
+            .costs
+            .iter()
+            .chain(&casting.commanders)
+            .map(Option::is_some)
+            .collect(),
+        None => vec![false; library.entries.len() + library.commanders.len()],
     };
     let resolved = effects::resolve(&effect_library, library, &asked, &line)?;
     for query in &resolved.unmatched {
@@ -315,6 +343,13 @@ fn prepare_noting(
         &resolved,
         land_drop.as_ref(),
         casting.as_ref(),
+    )?;
+    refuse_undeclared_discards(
+        library,
+        origin,
+        &resolved,
+        land_drop.is_some(),
+        !discard_bits.is_empty(),
     )?;
 
     // A declared casting priority is a mana question whether or not any clause
@@ -361,7 +396,8 @@ fn prepare_noting(
         casting: casting.as_ref().map(|p| p.policy.clone()),
         mulligan: mulligan.as_ref().map(|m| m.policy.clone()),
         chosen: None,
-        discard: None,
+        discard: (!discard_bits.is_empty())
+            .then(|| gauntlet_criteria::DiscardPolicy::new(discard_bits.clone())),
     };
     let mut schedule = Schedule::build(
         criteria.horizon(),
@@ -405,7 +441,16 @@ fn prepare_noting(
                         of.iter().chain(prefer).fold(0u64, |b, &q| b | 1u64 << q)
                     }
                 };
-                bits | 1u64 << effect.matched_by | destination | fetched | kept
+                // And what a discard takes: which cards the card lets go, and
+                // the file's list over the hand, which decides the rest.
+                let binned = match &effect.discard {
+                    None => 0,
+                    Some(discard) => discard_bits
+                        .iter()
+                        .chain(&discard.only)
+                        .fold(0u64, |b, &q| b | 1u64 << q),
+                };
+                bits | 1u64 << effect.matched_by | destination | fetched | kept | binned
             }),
             on_the_drop: resolved
                 .effects
@@ -463,10 +508,55 @@ fn prepare_noting(
         resolved,
         land_drop,
         casting,
+        discard: criteria.discard().to_vec(),
         mulligan,
         chose,
         mana_modelled,
     })
+}
+
+/// What a discard needs of the run that declares it, refused by name before
+/// anything is enumerated (ADR-0017 §3).
+///
+/// A forced discard needs the list that says which cards go, because which
+/// ones is the pilot's. And a discard that can take a land needs the land
+/// drop declared, because a land in play is not in hand, and which lands are
+/// in play is which ones were played. A random discard needs no list, and an
+/// "any number" discard with none takes nothing.
+fn refuse_undeclared_discards(
+    library: &Library,
+    origin: &str,
+    resolved: &effects::Resolved,
+    land_drop: bool,
+    listed: bool,
+) -> Result<(), Unprepared> {
+    for applied in resolved.applied.iter().filter(|a| a.live) {
+        let Some(discard) = &applied.discard else {
+            continue;
+        };
+        let forced = matches!(discard.cards, gauntlet_criteria::Discards::Exactly(_));
+        if forced && !discard.at_random && !listed {
+            return Err(Refusal::DiscardWithoutPriority {
+                file: origin.to_string(),
+                effect: applied.matches.clone(),
+            }
+            .into());
+        }
+        // "Any number" with no list takes nothing, land or not.
+        let takes = forced || listed;
+        let lands = match &discard.only {
+            None => library.lands_matching("t:land")?,
+            Some(only) => library.lands_matching(only)?,
+        };
+        if takes && lands > 0 && !land_drop {
+            return Err(Refusal::DiscardWithoutLandDrop {
+                file: origin.to_string(),
+                effect: applied.matches.clone(),
+            }
+            .into());
+        }
+    }
+    Ok(())
 }
 
 /// What a tutor needs of the run that declares it, refused by name before
@@ -902,6 +992,15 @@ impl PreparedRun {
                         })
                         .collect()
                 }),
+            }),
+            // Read off the schedule too, and printed wherever a list was
+            // declared: which cards left the hand is an input to every
+            // number below it.
+            discard: schedule.discard().map(|_| report::DiscardUse {
+                prefer: self.discard.clone(),
+                then: gauntlet_criteria::DiscardPolicy::THEN,
+                tie_break: gauntlet_criteria::DiscardPolicy::TIE_BREAK,
+                at_random: gauntlet_criteria::DiscardPolicy::AT_RANDOM,
             }),
             // Read off the schedule too. A mulligan decides which hand every
             // other number is of, so it is printed above all of them.

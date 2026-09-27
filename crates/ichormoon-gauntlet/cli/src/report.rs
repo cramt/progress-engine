@@ -338,6 +338,26 @@ pub struct EffectUse {
     /// Malevolent Rumble's Eldrazi Spawn. Absent where there are none.
     #[facet(skip_serializing_if = Vec::is_empty)]
     pub unspent: Vec<String>,
+    /// Cards a cast of it draws, or absent where it draws none (ADR-0017).
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub draw: Option<u32>,
+    /// Cards it then makes you discard, or absent where it discards a number
+    /// of them rather than any number, or none.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub discard: Option<u32>,
+    /// True where it discards any number: every eligible card the file's
+    /// `[discard]` list names.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub discard_any: Option<bool>,
+    /// True where the card picks its discard at random, which no list moves.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub at_random: Option<bool>,
+    /// The cards the card lets you discard, where it limits them.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub discard_only: Option<String>,
+    /// Lands it untaps once it resolves, read as the lands that paid for it.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub untap: Option<u32>,
     /// Which file declared it: the standard library, or the criteria file.
     pub source: String,
     /// The cards it applied to, after the overlap was resolved. A card matched
@@ -560,6 +580,9 @@ pub struct Breakdown {
     /// The priority that decided which spells were cast, where the file
     /// declared one. The same kind of fact again, over the turn's mana.
     pub casting: Option<CastingUse>,
+    /// The priority that decided which cards were discarded, where the file
+    /// declared one.
+    pub discard: Option<DiscardUse>,
     /// The mulligan that decided which hand every number is of, where the
     /// file declared one.
     pub mulligan: Option<MulliganUse>,
@@ -707,6 +730,21 @@ pub struct LandDropUse {
     pub then: &'static str,
     /// How a tie inside one entry was settled, stated rather than buried.
     pub tie_break: &'static str,
+}
+
+/// The declared priority over which cards left the hand when a card made you
+/// discard (ADR-0017 §3). Reported for the reason the land drop's is: every
+/// number that reads the hand or the graveyard depends on it.
+#[derive(Facet)]
+pub struct DiscardUse {
+    /// What the file wrote, highest priority first.
+    pub prefer: Vec<String>,
+    /// What a discard does about the cards the list is silent on.
+    pub then: &'static str,
+    /// How a tie inside one entry was settled, stated rather than buried.
+    pub tie_break: &'static str,
+    /// What a card that discards at random does with the list.
+    pub at_random: &'static str,
 }
 
 /// The declared priority this run spent its mana by.
@@ -942,6 +980,11 @@ pub struct Report {
     /// below is of a hand nobody ever spent.
     #[facet(skip_serializing_if = Option::is_none)]
     pub casting: Option<CastingUse>,
+    /// The priority this run discarded by, where a file declared one. Absent
+    /// on a run that declared none: a forced discard was then refused, and
+    /// any other took nothing or picked at random.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub discard: Option<DiscardUse>,
     /// The mulligan every number here is of, where the file declared one.
     ///
     /// Absent on a run that declared none, and every number in that run keeps
@@ -981,6 +1024,7 @@ impl Report {
             assumed_mana,
             land_drop,
             casting,
+            discard,
             mulligan,
             optimised,
         } = breakdown;
@@ -1080,6 +1124,7 @@ impl Report {
             assumed_mana,
             land_drop,
             casting,
+            discard,
             mulligan,
             optimised,
             criteria: results,
@@ -1114,18 +1159,26 @@ impl Report {
         // An entry that matched nothing says nothing and is not mentioned.
         for e in &self.effects {
             let route = match (&e.to_graveyard, e.live) {
-                (None, _) if e.fetch.is_some() || e.adds.is_some() || e.mill.is_some() => {
+                (None, _)
+                    if e.fetch.is_some()
+                        || e.adds.is_some()
+                        || e.mill.is_some()
+                        || e.draw.is_some()
+                        || e.discard.is_some()
+                        || e.discard_any.is_some() =>
+                {
                     String::new()
                 }
                 (None, _) => ", everything stays on top".to_string(),
                 (Some(q), true) => format!(", {q} to the graveyard"),
                 (Some(q), false) => format!(", {q} to the graveyard — which no card here matches"),
             };
-            let look = match (e.look, e.adds, e.mill) {
-                (0, None, None) => String::new(),
-                (0, None, Some(n)) => format!("mill {n}, "),
-                (0, Some(n), _) => format!("adds {n}, "),
-                (n, _, _) => format!("look {n}, "),
+            let look = match (e.look, e.adds, e.mill, e.draw) {
+                (0, None, None, None) => String::new(),
+                (0, None, None, Some(n)) => format!("draw {n}, "),
+                (0, None, Some(n), _) => format!("mill {n}, "),
+                (0, Some(n), _, _) => format!("adds {n}, "),
+                (n, _, _, _) => format!("look {n}, "),
             };
             // A delayed effect says how long it waited and what it cost, in the
             // same parenthesis as the trigger it waited from: a Lantern that
@@ -1210,6 +1263,50 @@ impl Report {
                 )),
                 _ => {}
             }
+            // A draw and a discard say what the card fixed; which cards went
+            // is the file's list, printed with the policies. And the two
+            // floors a draw stands on are said where they apply.
+            if e.draw.is_some() || e.discard.is_some() || e.discard_any.is_some() {
+                let only = e
+                    .discard_only
+                    .as_ref()
+                    .map_or(String::new(), |q| format!(" matching {q:?}"));
+                match (e.discard, e.discard_any, e.at_random) {
+                    (Some(n), _, Some(true)) => out.push_str(&format!(
+                        "      then discards {n}{only} at random: the card picks, and no list \
+                         moves it\n"
+                    )),
+                    (Some(n), _, _) => out.push_str(&format!(
+                        "      then discards {n}{only}, chosen by the [discard] list\n"
+                    )),
+                    (None, Some(true), _) => out.push_str(&format!(
+                        "      then may discard any number{only}: every one the [discard] list \
+                         names, and none where there is no list\n"
+                    )),
+                    _ => {}
+                }
+                if !e.live {
+                    out.push_str(
+                        "      and the [casting] line does not cast it, so here it draws and \
+                         discards nothing\n",
+                    );
+                } else {
+                    if let Some(n) = e.untap {
+                        out.push_str(&format!(
+                            "      and untaps {n} lands, read as the lands that paid for it, \
+                             which leaves the turn's mana\n      where it was before the spell: \
+                             a floor, because better lands could be untapped\n"
+                        ));
+                    }
+                    if e.draw.is_some() {
+                        out.push_str(
+                            "      A spell it draws is cast this turn if the line reaches it and \
+                             the pool still pays; a land it draws\n      waits for the next \
+                             turn's land drop, even where this turn's was not made: a floor\n",
+                        );
+                    }
+                }
+            }
             // A tutor names what it went and got, in the order it would take
             // them. Same discipline as the land drop and the casting line
             // below, over the fourth contested resource: the library this run
@@ -1281,6 +1378,22 @@ impl Report {
         // uncastable — and a card the list never names is one this run did not
         // cast at all, which is a number no reader could reconstruct from the
         // deck and the criteria file alone.
+        // Which cards left the hand, when a card the line cast made you
+        // discard. The same argument again, over the hand.
+        if let Some(policy) = &self.discard {
+            out.push_str(
+                "note: the cards discarded here are decided by the priority this file declared, \
+                 and every\n      number below that reads the hand or the graveyard depends on \
+                 it:\n",
+            );
+            for (i, query) in policy.prefer.iter().enumerate() {
+                out.push_str(&format!("      {}. {query:?}\n", i + 1));
+            }
+            out.push_str(&format!(
+                "      Then {}. Ties: {}.\n      And {}.\n",
+                policy.then, policy.tie_break, policy.at_random
+            ));
+        }
         if let Some(policy) = &self.casting {
             out.push_str(
                 "note: the spells cast here are decided by the priority this file declared, and \
@@ -1811,6 +1924,19 @@ pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
                 _ => None,
             },
             unspent: a.unspent.clone(),
+            draw: (a.draw > 0).then_some(a.draw),
+            discard: match a.discard.as_ref().map(|d| d.cards) {
+                Some(gauntlet_criteria::Discards::Exactly(n)) => Some(n),
+                _ => None,
+            },
+            discard_any: a
+                .discard
+                .as_ref()
+                .filter(|d| d.cards == gauntlet_criteria::Discards::AnyNumber)
+                .map(|_| true),
+            at_random: a.discard.as_ref().filter(|d| d.at_random).map(|_| true),
+            discard_only: a.discard.as_ref().and_then(|d| d.only.clone()),
+            untap: (a.untap > 0).then_some(a.untap),
             source: a.origin.clone(),
             cards: a.cards.clone(),
             copies: a.copies,
@@ -2062,6 +2188,7 @@ mod tests {
             assumed_mana: Vec::new(),
             land_drop: None,
             casting: None,
+            discard: None,
             mulligan: None,
             optimised: None,
             criteria,

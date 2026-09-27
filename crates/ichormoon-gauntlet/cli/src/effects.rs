@@ -14,9 +14,10 @@
 use anyhow::{Context, Result};
 use chip_scryfall::index::TagGap;
 use chip_scryfall::Query;
-use gauntlet_criteria::{Activation, Cost, Effect, Fetch, Mill, Route, ToHand, Trigger};
+use gauntlet_criteria::{Activation, Cost, Discard, Effect, Fetch, Mill, Route, ToHand, Trigger};
 use gauntlet_toml::{
-    Destination, EffectEntry, EffectLibrary, HandDecl, MillDecl, STANDARD_LIBRARY_ORIGIN,
+    Destination, DiscardDecl, EffectEntry, EffectLibrary, HandDecl, MillDecl,
+    STANDARD_LIBRARY_ORIGIN,
 };
 
 use crate::library::{Adds, Library, Marked};
@@ -60,6 +61,12 @@ pub struct Applied {
     /// Malevolent Rumble's Eldrazi Spawn. A run that cast one names it,
     /// because every number beside it is a floor by that much (ADR-0017).
     pub unspent: Vec<String>,
+    /// Cards it draws when the line casts it, what it then makes you discard,
+    /// and the lands it untaps (ADR-0017 §3). A run that discarded says what
+    /// the card fixed, beside the file's list that chose the cards.
+    pub draw: u32,
+    pub discard: Option<DiscardDecl>,
+    pub untap: u32,
     pub origin: String,
     /// The cards this effect actually got, after the overlap was resolved. A
     /// card matched by a later entry is not here — it is under that entry.
@@ -125,8 +132,10 @@ pub struct Blind {
 /// question would split every group in the deck along a line that means
 /// nothing.
 ///
-/// `line` is one flag per library entry: whether the `[casting]` line names
-/// it. A mill fires only when the line casts its card.
+/// `line` is one flag per library entry and then one per commander: whether
+/// the `[casting]` line names it. A mill, a draw or a discard fires only when
+/// the line casts its card — and a commander is a card the line casts, out of
+/// the command zone, so its effect is resolved beside the library's.
 pub fn resolve(
     library: &EffectLibrary,
     deck: &Library,
@@ -135,6 +144,7 @@ pub fn resolve(
 ) -> Result<Resolved> {
     let matchers = matchers(library)?;
     let owner = owners(library, deck, &matchers);
+    let all: Vec<&crate::library::Entry> = deck.entries.iter().chain(&deck.commanders).collect();
 
     let mut applied = Vec::new();
     let mut unmatched = Vec::new();
@@ -202,7 +212,14 @@ pub fn resolve(
             parse(q, entry, "to_hand")?;
         }
         let mills = entry.mill.is_some() && mine.iter().any(|&c| line[c]);
-        let reachable = routes || fetches || mills;
+        // A draw, a discard and an untap are the same: they happen when the
+        // line casts the card, and only then.
+        for q in entry.discard.iter().filter_map(|d| d.only.as_ref()) {
+            parse(q, entry, "discard_only")?;
+        }
+        let hands = (entry.draw > 0 || entry.discard.is_some() || entry.untap > 0)
+            && mine.iter().any(|&c| line[c]);
+        let reachable = routes || fetches || mills || hands;
         if reachable {
             live.push(i);
         }
@@ -226,7 +243,7 @@ pub fn resolve(
             mill: entry.mill.clone(),
             unspent: mine
                 .iter()
-                .map(|&c| &deck.entries[c].card)
+                .map(|&c| &all[c].card)
                 .filter(|card| {
                     entry.mill.is_some()
                         && entry.adds.is_none()
@@ -235,12 +252,12 @@ pub fn resolve(
                 })
                 .map(|card| card.name.clone())
                 .collect(),
+            draw: entry.draw,
+            discard: entry.discard.clone(),
+            untap: entry.untap,
             origin: entry.origin.clone(),
-            cards: mine
-                .iter()
-                .map(|&c| deck.entries[c].card.name.clone())
-                .collect(),
-            copies: mine.iter().map(|&c| deck.entries[c].qty).sum(),
+            cards: mine.iter().map(|&c| all[c].card.name.clone()).collect(),
+            copies: mine.iter().map(|&c| all[c].qty).sum(),
             live: reachable,
         });
     }
@@ -272,6 +289,16 @@ pub fn resolve(
         // And a mill's: what the card lets go to hand, and the file's choice
         // among it.
         for q in library.entries()[i].mill.iter().flat_map(hand_queries) {
+            if bit_of(q, &queries).is_none() {
+                queries.push(q.clone());
+            }
+        }
+        // And which cards a discard may take, which the card fixes.
+        for q in library.entries()[i]
+            .discard
+            .iter()
+            .filter_map(|d| d.only.as_ref())
+        {
             if bit_of(q, &queries).is_none() {
                 queries.push(q.clone());
             }
@@ -308,7 +335,7 @@ pub fn resolve(
             }),
             delay: entry.delay,
             activation: activation_of(entry),
-            draw: 0,
+            draw: entry.draw,
             mill: entry.mill.as_ref().map(|m| Mill {
                 cards: m.cards,
                 to_hand: match &m.to_hand {
@@ -327,12 +354,20 @@ pub fn resolve(
                     },
                 },
             }),
-            discard: None,
-            untap: 0,
+            discard: entry.discard.as_ref().map(|d| Discard {
+                cards: d.cards,
+                at_random: d.at_random,
+                only: d
+                    .only
+                    .as_ref()
+                    .map(|q| bit_of(q, &queries).expect("just collected")),
+            }),
+            untap: entry.untap,
         });
     }
 
-    let adds = owner
+    // Per library entry: a commander's mana is not a source this reads.
+    let adds = owner[..deck.entries.len()]
         .iter()
         .map(|o| {
             let entry = &library.entries()[(*o)?];
@@ -380,9 +415,13 @@ fn matchers(library: &EffectLibrary) -> Result<Vec<Query>> {
 /// land is a back face it transforms into — and an effect claiming a card that
 /// is never played as a land would fire on a drop nobody can make, the moment
 /// a destination was declared (#61).
+///
+/// One per library entry and then one per commander: a commander is a card
+/// the line casts, so its effect is resolved beside the library's.
 fn owners(library: &EffectLibrary, deck: &Library, matchers: &[Query]) -> Vec<Option<usize>> {
     deck.entries
         .iter()
+        .chain(&deck.commanders)
         .map(|card| {
             let view = card.card.view(&card.categories);
             matchers
@@ -418,6 +457,7 @@ pub fn declared_costs(library: &EffectLibrary, deck: &Library) -> Result<Vec<Opt
     let matchers = matchers(library)?;
     Ok(owners(library, deck, &matchers)
         .into_iter()
+        .take(deck.entries.len())
         .map(|o| {
             let entry = &library.entries()[o?];
             // An activation's cost is what activating a copy in play costs,
@@ -488,6 +528,7 @@ impl MatchesAny for Query {
     fn matches_any(&self, deck: &Library) -> bool {
         deck.entries
             .iter()
+            .chain(&deck.commanders)
             .any(|e| self.matches(&e.card.view(&e.categories)))
     }
 }

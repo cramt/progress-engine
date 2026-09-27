@@ -395,7 +395,7 @@ impl Schedule {
     pub fn routes_to_graveyard(&self) -> bool {
         self.effects
             .iter()
-            .any(|e| e.route.is_live() || e.mill.is_some())
+            .any(|e| e.route.is_live() || e.mill.is_some() || e.discard.is_some())
     }
 }
 

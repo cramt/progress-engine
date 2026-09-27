@@ -1,0 +1,16 @@
+# Desperate Ravings picks its discard at random, so no list is needed: the
+# card chooses, and a list would be ignored anyway.
+
+[land_drop]
+prefer = ['t:land']
+
+[casting]
+prefer = ['name:"Desperate Ravings"']
+
+[[criterion]]
+name = "Loam in the graveyard by turn 3"
+require = [{ turn = 3, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "Desperate Ravings cast by turn 3"
+require = [{ turn = 3, cast = 'name:"Desperate Ravings"', min = 1 }]

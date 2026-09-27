@@ -1,0 +1,8 @@
+// HANDS.md hand 23, as a deck: Borborygmos and Fblthp in the command zone,
+// the lands that cast it, and a Life from the Loam it may not discard.
+1x Borborygmos and Fblthp [Commander{top}]
+4x Island [Land]
+5x Forest [Land]
+5x Mountain [Land]
+1x Life from the Loam [Engine]
+5x Beast Within [Removal]

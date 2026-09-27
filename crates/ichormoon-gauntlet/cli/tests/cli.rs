@@ -5298,3 +5298,165 @@ fn every_mill_route_agrees_with_the_sampler_through_the_binary() {
     // And the Eldrazi Spawn it makes, which nothing counts as mana.
     assert_eq!(rumble["unspent"][0], "Malevolent Rumble");
 }
+
+// --- A spell's discard (ADR-0017 §3) ----------------------------------------
+
+fn run_discard(deck: &str, criteria: &str, extra: &[&str]) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture(deck))
+        .arg(fixture(criteria))
+        .arg("--index")
+        .arg(fixture("discard-index.jsonl"))
+        .args(extra)
+        .output()
+        .expect("binary should run")
+}
+
+fn answered(out: &std::process::Output, what: &str) -> serde_json::Value {
+    assert!(
+        out.status.success(),
+        "{what} should answer: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    serde_json::from_slice(&out.stdout).unwrap()
+}
+
+#[test]
+fn a_forced_discard_with_no_list_is_refused_and_names_the_remedy() {
+    // HANDS.md hand 21's third column: Frantic Search makes you discard two,
+    // and which two is the pilot's. The tool does not pick.
+    let out = run_discard("discard-line.txt", "discard-no-list.criteria.toml", &[]);
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("Frantic Search"),
+        "names the card: {stderr}"
+    );
+    assert!(stderr.contains("[discard]"), "names the remedy: {stderr}");
+    assert!(stderr.contains("prefer"), "{stderr}");
+}
+
+#[test]
+fn a_discard_that_can_take_a_land_needs_a_declared_land_drop() {
+    // The discard is the second claimant on the lands in hand. Which of them
+    // are in hand rather than in play is which ones were played, and a file
+    // that did not say cannot say which one Ravings could bin.
+    let out = run_discard(
+        "discard-line.txt",
+        "discard-no-land-drop.criteria.toml",
+        &[],
+    );
+    assert!(!out.status.success(), "should refuse");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("Desperate Ravings"),
+        "names the card: {stderr}"
+    );
+    assert!(stderr.contains("[land_drop]"), "names the remedy: {stderr}");
+}
+
+#[test]
+fn a_random_or_an_optional_discard_needs_no_list() {
+    // HANDS.md hands 22 and 23's last columns: the card picks, or the pilot
+    // may discard nothing, so silence is an answer rather than a refusal.
+    let ravings = answered(
+        &run_discard("discard-line.txt", "ravings-no-list.criteria.toml", &[]),
+        "Desperate Ravings with no list",
+    );
+    assert!(percent(&ravings, "Desperate Ravings cast by turn 3") > 10.0);
+    assert!(percent(&ravings, "Loam in the graveyard by turn 3") > 0.0);
+    // Borborygmos and Fblthp with no list discards nothing: the line with the
+    // list bins lands, and the same line without it bins none.
+    let with = answered(
+        &run_discard("borborygmos.txt", "borborygmos.criteria.toml", &[]),
+        "Borborygmos and Fblthp",
+    );
+    assert_eq!(with["method"], "exact");
+    assert!(percent(&with, "a land in the graveyard on turn 5") > 10.0);
+    assert_eq!(
+        percent(&with, "Loam in the graveyard on turn 5"),
+        0.0,
+        "the card discards land cards, and the Loam is not one"
+    );
+}
+
+#[test]
+fn every_discard_route_agrees_with_the_sampler_through_the_binary() {
+    // The agreement ADR-0001 asks for, at the level a user runs it: Frantic
+    // Search, Izzet Charm and Desperate Ravings in one line, and Borborygmos
+    // and Fblthp from the command zone. The two engines answer the same files.
+    for (deck, criteria) in [
+        ("discard-line.txt", "discard-line.criteria.toml"),
+        ("borborygmos.txt", "borborygmos.criteria.toml"),
+    ] {
+        let exact = answered(&run_discard(deck, criteria, &[]), criteria);
+        assert_eq!(exact["method"], "exact", "{criteria}");
+        let sampled = answered(
+            &run_discard(deck, criteria, &["--simulate", "--trials", "40000"]),
+            criteria,
+        );
+        for c in exact["criteria"].as_array().unwrap() {
+            let name = c["name"].as_str().unwrap();
+            let (e, s) = (percent(&exact, name), percent(&sampled, name));
+            assert!((e - s).abs() < 1.0, "{name}: {e} exact against {s} sampled");
+        }
+    }
+}
+
+#[test]
+fn a_run_that_discarded_by_policy_says_which_policy() {
+    // Every number here turned on which cards left the hand, so the list is
+    // printed with the run, with what silence means and how a tie fell — and
+    // the floors the run stands on: the untap read as the lands that paid,
+    // and a land drawn mid-line waiting for the next drop.
+    let out = run_discard("discard-line.txt", "discard-line.criteria.toml", &[]);
+    let json = answered(&out, "the discard line");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("cards discarded here are decided"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("name:\\\"Life from the Loam\\\""),
+        "names the list: {stderr}"
+    );
+    assert!(stderr.contains("Ties:"), "states the tie rule: {stderr}");
+    assert!(stderr.contains("at random"), "{stderr}");
+    assert!(
+        stderr.contains("untaps"),
+        "states the untap floor: {stderr}"
+    );
+    assert!(
+        stderr.contains("waits for the next turn's land drop"),
+        "states the mid-line land floor: {stderr}"
+    );
+    assert_eq!(
+        json["discard"]["prefer"],
+        serde_json::json!(["name:\"Life from the Loam\"", "t:land"])
+    );
+    assert!(json["discard"]["tie_break"].is_string(), "{json}");
+    let frantic = json["effects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["match"] == r#"name:"Frantic Search""#)
+        .expect("the run says what Frantic Search did");
+    assert_eq!(frantic["draw"], 2);
+    assert_eq!(frantic["discard"], 2);
+    assert_eq!(frantic["untap"], 3);
+    assert_eq!(frantic["live"], true);
+    let ravings = json["effects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["match"] == r#"name:"Desperate Ravings""#)
+        .expect("the run says what Desperate Ravings did");
+    assert_eq!(ravings["at_random"], true);
+    // A file that declared no list has no field at all.
+    let plain = answered(
+        &run_discard("discard-line.txt", "ravings-no-list.criteria.toml", &[]),
+        "Ravings",
+    );
+    assert!(plain.get("discard").is_none(), "{plain}");
+}

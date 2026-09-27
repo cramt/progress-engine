@@ -1,0 +1,29 @@
+# The discard routes, for the two engines to agree on through the binary. The
+# standard library says what each card draws and discards; this file says
+# which cards go, and which land is played, because a discard is the second
+# claimant on the lands in hand.
+
+[land_drop]
+prefer = ['t:land']
+
+[casting]
+prefer = ['name:"Frantic Search"', 'name:"Desperate Ravings"']
+
+[discard]
+prefer = ['name:"Life from the Loam"', 't:land']
+
+[[criterion]]
+name = "Loam in the graveyard by turn 3"
+require = [{ turn = 3, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "a land in the graveyard on turn 3"
+require = [{ turn = 3, query = "t:land", zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "a Beast Within in the graveyard on turn 3"
+require = [{ turn = 3, query = 'name:"Beast Within"', zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "Frantic Search cast by turn 3"
+require = [{ turn = 3, cast = 'name:"Frantic Search"', min = 1 }]

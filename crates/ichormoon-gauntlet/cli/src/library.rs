@@ -39,7 +39,8 @@ pub struct Entry {
 
 /// A grouping bit the caller computed itself, rather than one read off a query.
 ///
-/// `members` is one flag per [`Library::entries`] position, so it is only
+/// `members` is one flag per [`Library::entries`] position and then one per
+/// [`Library::commanders`] position, so it is only
 /// meaningful beside the library it was built from — which is why it is passed
 /// straight into [`Library::grouping_for`] rather than stored anywhere.
 pub struct Marked {
@@ -363,21 +364,27 @@ impl Library {
             return Ok(grouping);
         };
         // The commanders the line casts, from the command zone. They carry the
-        // criteria file's query bits like any card, and no effect bit: an
-        // effect is resolved against the library, and a commander is not in
-        // it.
+        // criteria file's query bits like any card, and the bit of the effect
+        // that owns them: Borborygmos and Fblthp draws and discards as it
+        // enters, which is when the line casts it.
         let command = self
             .commanders
             .iter()
+            .enumerate()
             .zip(commanders)
-            .filter_map(|(e, cost)| {
+            .filter_map(|((at, e), cost)| {
                 let cost = (*cost)?;
                 let view = e.card.view(&e.categories);
-                let mask = parsed
+                let mut mask = parsed
                     .iter()
                     .enumerate()
                     .filter(|(_, q)| q.matches(&view))
                     .fold(0u64, |mask, (i, _)| mask | 1u64 << i);
+                for (i, m) in marked.iter().enumerate() {
+                    if m.members.get(self.entries.len() + at) == Some(&true) {
+                        mask |= 1u64 << (queries.len() + i);
+                    }
+                }
                 // A commander is a creature, or at least a permanent, so it
                 // resolves onto the battlefield; read off the card anyway.
                 let resolves = if is_permanent(&e.card) {

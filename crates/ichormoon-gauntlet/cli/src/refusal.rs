@@ -39,6 +39,8 @@ pub enum QuerySite {
     Casting,
     /// A query the `[mulligan]` table names.
     Mulligan(MulliganAt),
+    /// An entry in `[discard] prefer`.
+    Discard,
 }
 
 /// Which of a mulligan's queries, counted from one as a reader counts them.
@@ -225,6 +227,20 @@ pub enum Refusal {
         card: String,
         kind: &'static str,
     },
+    /// A forced discard with no declared discard priority (ADR-0017 §3).
+    ///
+    /// Frantic Search makes you discard two, and which two is the pilot's.
+    /// Settling it by some rule nobody wrote would be the tool playing the
+    /// deck, which ADR-0009 refuses for the mulligan and this refuses for the
+    /// hand.
+    DiscardWithoutPriority { file: String, effect: String },
+    /// A discard that could take a land, in a run that declared no land drop.
+    ///
+    /// A land in play is not in hand to be discarded, and which lands are in
+    /// play is which ones were played. With no priority the mana reading
+    /// assumes whichever lands pay, which names no land as held — so a discard
+    /// beside it would be binning a card nobody can say was there.
+    DiscardWithoutLandDrop { file: String, effect: String },
     /// A delayed fetch onto the battlefield that can find a land.
     ///
     /// A fetchland may only find lands because a land drop is the one way onto
@@ -363,6 +379,8 @@ impl Refusal {
             | Refusal::FetchWithoutLandDrop { file, .. }
             | Refusal::FetchWithoutCasting { file, .. }
             | Refusal::ActivationUnmodelled { file, .. }
+            | Refusal::DiscardWithoutPriority { file, .. }
+            | Refusal::DiscardWithoutLandDrop { file, .. }
             | Refusal::DelayedFetchFindsLand { file, .. }
             | Refusal::CastFetchFindsLand { file, .. }
             | Refusal::FetchNonPermanentToBattlefield { file, .. }
@@ -388,6 +406,7 @@ impl Refusal {
                 QuerySite::LandDrop => format!("[land_drop]: in `prefer` entry {query:?}"),
                 QuerySite::Casting => format!("[casting]: in `prefer` entry {query:?}"),
                 QuerySite::Mulligan(at) => format!("[mulligan]: {at}, query {query:?}"),
+                QuerySite::Discard => format!("[discard]: in `prefer` entry {query:?}"),
             }),
             Refusal::NoPrintedCost { .. } | Refusal::UnpayableCost { .. } => {
                 Some("[casting]".to_string())
@@ -409,6 +428,8 @@ impl Refusal {
             // it, and an infeasible run is about the whole file.
             Refusal::FetchWithoutLandDrop { .. }
             | Refusal::FetchWithoutCasting { .. }
+            | Refusal::DiscardWithoutPriority { .. }
+            | Refusal::DiscardWithoutLandDrop { .. }
             | Refusal::Infeasible { .. } => None,
         }
     }
@@ -521,6 +542,30 @@ impl Refusal {
                  Insight\"']\n\n      \
                  The list is read in order and the first entry the pool can still pay for is \
                  cast. A spell\n      the list does not name is not cast at all."
+            ),
+            Refusal::DiscardWithoutPriority { effect, .. } => write!(
+                f,
+                "effect {effect:?} makes you discard when the line casts it, and this file \
+                 declares no priority\n      over which cards go. Which ones leave your hand is \
+                 a decision this tool will not make\n      for you (ADR-0017).\n      \
+                 Declare it, highest priority first:\n\n      \
+                 [discard]\n      prefer = ['name:\"Life from the Loam\"', 't:land']\n\n      \
+                 A forced discard takes the first entry your hand holds, then the next, and \
+                 then the cards\n      no entry names; a tie inside one entry is settled at \
+                 random, and every way it could\n      fall is priced."
+            ),
+            Refusal::DiscardWithoutLandDrop { effect, .. } => write!(
+                f,
+                "effect {effect:?} can discard a land, and this file declares no priority over \
+                 the land drop.\n      \
+                 A land in play is not in your hand to be discarded, and which lands are in \
+                 play is which\n      ones you played. With none declared the mana reading \
+                 assumes whichever lands pay, which\n      names no land as still in hand — so \
+                 this is refused rather than guessed.\n      \
+                 Declare the drop, and the discard reads the lands it left in hand:\n\n      \
+                 [land_drop]\n      prefer = ['t:land']\n\n      \
+                 The list is read in order, the first entry a land in hand matches wins, and \
+                 any land the list\n      does not name is played last."
             ),
             Refusal::DelayedFetchFindsLand { query, lands, .. } => write!(
                 f,

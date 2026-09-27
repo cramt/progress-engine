@@ -1,0 +1,11 @@
+# Frantic Search makes you discard two, and this file does not say which.
+
+[land_drop]
+prefer = ['t:land']
+
+[casting]
+prefer = ['name:"Frantic Search"']
+
+[[criterion]]
+name = "Loam in the graveyard by turn 3"
+require = [{ turn = 3, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]

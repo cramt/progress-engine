@@ -1,0 +1,8 @@
+// Frantic Search and Desperate Ravings, each drawing two and discarding,
+// beside a Life from the Loam the discard list bins first.
+6x Island [Land]
+4x Mountain [Land]
+1x Frantic Search [Outlet]
+1x Desperate Ravings [Outlet]
+1x Life from the Loam [Engine]
+8x Beast Within [Removal]
