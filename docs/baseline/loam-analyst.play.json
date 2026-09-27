@@ -244,6 +244,10 @@
       "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain): pays {R}{G}, assuming one is still in the library to find"
     }
   ],
+  "never_dredged": [
+    "Life from the Loam",
+    "Shenanigans"
+  ],
   "casting": {
     "prefer": [
       "name:\"Aftermath Analyst\"",
@@ -270,7 +274,7 @@
     "tool_version": "0.1.0",
     "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
-    "criteria_sha256": "48e7fdc0c9ddb225163dc315b258d85f7d24a58a022a2f106b94f6e4459c35c0",
+    "criteria_sha256": "2fc07fd9d4da804c3ef2e6e65c6f4c394f96f88b218b911d35c5792f6892f3c7",
     "effect_library_sha256": "d0e1c9efcec3579040c2258b3a4f37b4697f0d675211f84a74ef9061cbc14415"
   }
 }

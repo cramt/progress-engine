@@ -20,15 +20,15 @@ lantern-route-tutors (lantern.txt) seat=play exit=0 wall=1.40s
 lantern-route-tutors (lantern.txt) seat=draw exit=0 wall=1.53s
 lantern (lantern.txt) seat=play exit=1 wall=0.53s
 lantern (lantern.txt) seat=draw exit=1 wall=0.56s
-loam-analyst (loam.txt) seat=play exit=0 wall=5.66s
-loam-analyst (loam.txt) seat=draw exit=0 wall=8.76s
-loam-cast (loam.txt) seat=play exit=0 wall=29.88s
-loam-cast (loam.txt) seat=draw exit=0 wall=34.71s
-loam-commander (loam.txt) seat=play exit=0 wall=0.48s (after #103)
-loam-commander (loam.txt) seat=draw exit=0 wall=0.49s (after #103)
-loam-rocks (loam.txt) seat=play exit=0 wall=0.46s (after #103)
-loam-rocks (loam.txt) seat=draw exit=0 wall=0.46s (after #103)
 loam-thinning (loam.txt) seat=play exit=0 wall=0.37s
 loam-thinning (loam.txt) seat=draw exit=0 wall=0.92s
-loam (loam.txt) seat=play exit=0 wall=0.21s
-loam (loam.txt) seat=draw exit=0 wall=0.59s
+loam (loam.txt) seat=play exit=0 wall=179.26s
+loam (loam.txt) seat=draw exit=0 wall=175.91s
+loam-access (loam.txt) seat=play exit=0 wall=0.34s
+loam-access (loam.txt) seat=draw exit=0 wall=0.91s
+loam-analyst (loam.txt) seat=play exit=0 wall=6.59s
+loam-analyst (loam.txt) seat=draw exit=0 wall=8.83s
+loam-commander (loam.txt) seat=play exit=0 wall=0.49s
+loam-commander (loam.txt) seat=draw exit=0 wall=0.49s
+loam-rocks (loam.txt) seat=play exit=0 wall=0.44s
+loam-rocks (loam.txt) seat=draw exit=0 wall=0.46s

@@ -273,6 +273,10 @@
       "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain): pays {R}{G}, assuming one is still in the library to find"
     }
   ],
+  "never_dredged": [
+    "Life from the Loam",
+    "Shenanigans"
+  ],
   "casting": {
     "prefer": [
       "name:\"Borborygmos and Fblthp\"",

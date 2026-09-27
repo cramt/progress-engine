@@ -1,11 +1,9 @@
-ESTIMATE: a question here was too wide to enumerate exactly: 6158592
-          compositions across 6 groups, against a ceiling of 5000000. It was
+ESTIMATE: a question here was too wide to enumerate exactly: 5000001
+          compositions across 44 groups, against a ceiling of 5000000. It was
           answered by sampling 200000 hands instead.
-          1 of the 13 questions here needed that, and it is the one
-          quoted with a ±:
-          Loam castable by turn 5, so Loam in the graveyard by turn 5
-          Everything else below was enumerated exactly. A difference
-          smaller than a figure's ± is not a difference.
+          Every percentage below is an ESTIMATE, not an exact answer.
+          The ± beside each one is its standard error, and a difference
+          smaller than that is not a difference.
           Pass --exact to refuse a question this wide rather than estimate it.
 note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc" (adds 1, on cast)
       applies to 2 cards: Birds of Paradise, Elvish Mystic
@@ -13,55 +11,101 @@ note: effect "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapp
 note: effect "name:\"Aftermath Analyst\"" (mill 3, on cast)
       applies to 1 card: Aftermath Analyst
       puts all it mills in the graveyard
-      and the [casting] line does not cast it, so here it mills nothing
-note: effect "name:\"Malevolent Rumble\"" (mill 4, on cast)
-      applies to 1 card: Malevolent Rumble
-      puts all it mills in the graveyard: the card lets you keep 1 matching "is:permanent", and this file declares no `to_hand` choosing one
-      and the [casting] line does not cast it, so here it mills nothing
-note: effect "name:\"Midnight Tilling\"" (mill 4, on cast)
-      applies to 1 card: Midnight Tilling
-      puts all it mills in the graveyard: the card lets you keep 1 matching "is:permanent", and this file declares no `to_hand` choosing one
-      and the [casting] line does not cast it, so here it mills nothing
 note: effect "name:\"Wrenn and Seven\"" (mill 4, on cast)
       applies to 1 card: Wrenn and Seven
       puts what it mills in the graveyard, except every card matching "t:land", which the card puts in your hand
-      and the [casting] line does not cast it, so here it mills nothing
 note: effect "name:\"Frantic Search\"" (draw 2, on cast)
       applies to 1 card: Frantic Search
       then discards 2, chosen by the [discard] list
-      and the [casting] line does not cast it, so here it draws and discards nothing
+      and untaps 3 lands, read as the lands that paid for it, which leaves the turn's mana
+      where it was before the spell: a floor, because better lands could be untapped
+      A spell it draws is cast this turn if the line reaches it and the pool still pays; a land it draws
+      waits for the next turn's land drop, even where this turn's was not made: a floor
 note: effect "name:\"Izzet Charm\"" (draw 2, on cast)
       applies to 1 card: Izzet Charm
       then discards 2, chosen by the [discard] list
-      and the [casting] line does not cast it, so here it draws and discards nothing
+      A spell it draws is cast this turn if the line reaches it and the pool still pays; a land it draws
+      waits for the next turn's land drop, even where this turn's was not made: a floor
 note: effect "name:\"Desperate Ravings\"" (draw 2, on cast)
       applies to 1 card: Desperate Ravings
       then discards 1 at random: the card picks, and no list moves it
-      and the [casting] line does not cast it, so here it draws and discards nothing
+      A spell it draws is cast this turn if the line reaches it and the pool still pays; a land it draws
+      waits for the next turn's land drop, even where this turn's was not made: a floor
 note: effect "name:\"Borborygmos and Fblthp\"" (draw 1, on cast)
       applies to 1 card: Borborygmos and Fblthp
       then may discard any number matching "t:land": every one the [discard] list names, and none where there is no list
-      and the [casting] line does not cast it, so here it draws and discards nothing
-note: effect "name:\"Six\" t:treefolk" (mill 3, on attack)
-      applies to 1 card: Six
-      puts all it mills in the graveyard: the card lets you keep 1 matching "t:land", and this file declares no `to_hand` choosing one
-      mills each time it attacks, every turn after the one the [casting] line casts it on
-      and the [casting] line does not cast it, so here it mills nothing
+      A spell it draws is cast this turn if the line reaches it and the pool still pays; a land it draws
+      waits for the next turn's land drop, even where this turn's was not made: a floor
 note: effect "name:\"Icetill Explorer\"" (mill 1, on landfall)
       applies to 1 card: Icetill Explorer
       puts all it mills in the graveyard
       mills once for each land that enters while it is on the battlefield, from the turn after the [casting] line casts it: the drop, a fetched land, a returned one
-      and the [casting] line does not cast it, so here it mills nothing
+note: effect "name:\"Spellseeker\"" (on cast)
+      applies to 1 card: Spellseeker
+      and fetches, to your hand, the first of these the library still holds:
+      1. "name:\"Life from the Loam\""
+      Ties: the card this decklist names first. A tutor that finds none of them fetches nothing.
+note: effect "name:\"Malevolent Rumble\"" (mill 4, on cast)
+      applies to 1 card: Malevolent Rumble
+      puts what it mills in the graveyard, except up to 1 matching "is:permanent", kept in your hand by the first of these that holds one:
+      1. "name:\"Spellseeker\""
+      2. "t:land"
+      Ties: the card this decklist names first.
+      The mana Malevolent Rumble makes in passing is not counted, so every number below that it could have paid for is a floor
+note: effect "name:\"Midnight Tilling\"" (mill 4, on cast)
+      applies to 1 card: Midnight Tilling
+      puts what it mills in the graveyard, except up to 1 matching "is:permanent", kept in your hand by the first of these that holds one:
+      1. "name:\"Spellseeker\""
+      2. "t:land"
+      Ties: the card this decklist names first.
+note: effect "name:\"Six\" t:treefolk" (mill 3, on attack)
+      applies to 1 card: Six
+      puts what it mills in the graveyard, except up to 1 matching "t:land", kept in your hand by the first of these that holds one:
+      1. "t:land"
+      Ties: the card this decklist names first.
+      mills each time it attacks, every turn after the one the [casting] line casts it on
+      ASSUMED: it attacks every turn it can, and no opponent blocks it or removes it; nobody else is at this table (ADR-0018)
 note: effect "name:\"Lumra, Bellow of the Woods\"" (mill 4, on cast)
       applies to 1 card: Lumra, Bellow of the Woods
       puts all it mills in the graveyard
-      then returns every card matching "t:land" in the graveyard to the battlefield tapped. They took no land drop, and a turn's bill is still held to its drops, so the mana they could make is a floor
-      and the [casting] line does not cast it, so here it mills nothing
-note: nothing routes a card to the graveyard in this run, so every count in
-      it is zero by construction rather than by measurement.
-      Asked by: "Life from the Loam in the graveyard by turn 5"
-      Declare `to_graveyard` on an [[effect]] to route one there, or name an
-      instant or sorcery in [casting]: one the line casts resolves into it.
+note: the land drop here is decided by the priority this file declared, and every
+      number below that depends on which land was played depends on it:
+      1. "otag:conditional-tapland"
+      2. "otag:tapland"
+      3. "otag:fetchland"
+      4. "t:land -produces:g -produces:u -produces:r"
+      5. "t:land -t:basic"
+      6. "t:land"
+      then any other land. Ties: a tie inside one entry goes to the deeper look, then to the card this decklist names first.
+note: the cards discarded here are decided by the priority this file declared, and every
+      number below that reads the hand or the graveyard depends on it:
+      1. "name:\"Life from the Loam\""
+      2. "-t:land -name:\"Borborygmos and Fblthp\" -name:\"Life from the Loam\" -name:\"Birds of Paradise\" -name:\"Elvish Mystic\" -name:\"Frantic Search\" -name:\"Spellseeker\" -name:\"Malevolent Rumble\" -name:\"Midnight Tilling\" -name:\"Izzet Charm\" -name:\"Desperate Ravings\" -name:\"Aftermath Analyst\" -name:\"Wrenn and Seven\" -(name:\"Six\" t:treefolk) -name:\"Icetill Explorer\" -name:\"Lumra, Bellow of the Woods\""
+      Then a forced discard takes a card this list does not name only after every card it does, an "any number" discard never takes one, and nor does a discard an activation's cost makes. Ties: a tie inside one entry, and among the cards no entry names, is settled at random, and every way it could fall is priced.
+      And a card that discards at random ignores this list: every card in hand is as likely.
+note: the spells cast here are decided by the priority this file declared, and every
+      number below that depends on what was cast depends on it:
+      1. "name:\"Borborygmos and Fblthp\""
+      2. "name:\"Life from the Loam\""
+      3. "name:\"Birds of Paradise\" or name:\"Elvish Mystic\""
+      4. "name:\"Frantic Search\""
+      5. "name:\"Spellseeker\""
+      6. "name:\"Malevolent Rumble\""
+      7. "name:\"Midnight Tilling\""
+      8. "name:\"Izzet Charm\""
+      9. "name:\"Desperate Ravings\""
+      10. "name:\"Aftermath Analyst\""
+      11. "name:\"Wrenn and Seven\""
+      12. "name:\"Six\" t:treefolk"
+      13. "name:\"Icetill Explorer\""
+      14. "name:\"Lumra, Bellow of the Woods\""
+      Then a spell this list does not name is not cast at all. Ties: a tie inside one entry goes to the cheaper cost, then to the card this decklist names first.
+      Cast from the command zone — never drawn, always there, cast at most once: Borborygmos and Fblthp.
+      At equal cost inside one entry, a card from the library is cast first.
+      Mana sources once cast — a rock's mana pays only for what the line casts after it, and a dork's from the next turn:
+      Birds of Paradise: adds 1 of {W}{U}{B}{R}{G}, from the turn after it is cast
+      Elvish Mystic: adds 1 of {G}, from the turn after it is cast
+      Cast and counted as making no mana, so every number that casts one is a lower bound: Malevolent Rumble.
 note: every number below keeps whatever seven it is dealt: this file declares no
       [mulligan], so no hand is ever sent back.
 note: 5 lands here let the pilot decide whether to enter tapped. This run assumes they do:
@@ -77,58 +121,21 @@ note: these lands make mana other than the card data lists, and this run reads t
       Scalding Tarn: a fetchland, read as the untapped lands it can find in this deck (Island, Mountain): pays {U}{R}, assuming one is still in the library to find.
       Simic Growth Chamber: counted as one mana a turn: the second mana it taps for, and the land it returns to hand, are not modelled.
       Wooded Foothills: a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain): pays {R}{G}, assuming one is still in the library to find.
-     Life from the Loam in the graveyard by turn 5                  0.00%
-     Loam castable by turn 5, so Loam in the graveyard by turn 5   11.24% ± 0.07
-     naive: Life from the Loam in hand by turn 5, no mana asked    12.24%
-     control: {1}{G} payable by turn 5, no Loam asked              92.86%
-PASS some Loam Access by turn 5 (drawn, not cast)                  83.80%  (needs 80.0%)
-     a two-mana Loam Access card and {1}{G} for it, turn 3         30.27%
-     naive: one of those four drawn by turn 3, no mana asked       35.45%
-PASS Loam Access drawn and three lands in play, turn 3             69.55%  (needs 55.0%)
-     Loam Access cards seen by turn 5                             mean 1.59
-                                                                  0: 16.2%
-                                                                  1: 34.1%
-                                                                  2: 30.0%
-                                                                  3: 14.5%
-                                                                  4: 4.2%
-                                                                  5: 0.8%
-                                                                  6: 0.1%
-     Loam Access cards still in library at turn 5                 mean 11.41
-                                                                  7: 0.1%
-                                                                  8: 0.8%
-                                                                  9: 4.2%
-                                                                  10: 14.5%
-                                                                  11: 30.0%
-                                                                  12: 34.1%
-                                                                  13: 16.2%
-     lands in opener                                              mean 3.14
-                                                                  0: 1.3%
-                                                                  1: 8.2%
-                                                                  2: 21.6%
-                                                                  3: 30.3%
-                                                                  4: 24.3%
-                                                                  5: 11.2%
-                                                                  6: 2.8%
-                                                                  7: 0.3%
-     t:land drawn by turn 5                                       mean 5.39
-                                                                  1: 0.5%
-                                                                  2: 2.8%
-                                                                  3: 8.7%
-                                                                  4: 17.4%
-                                                                  5: 23.7%
-                                                                  6: 22.4%
-                                                                  7: 14.9%
-                                                                  8: 6.9%
-                                                                  9: 2.2%
-                                                                  10: 0.4%
-                                                                  11: 0.1%
-     t:land on the battlefield by turn 5                          mean 4.55
-                                                                  1: 0.5%
-                                                                  2: 2.8%
-                                                                  3: 8.7%
-                                                                  4: 17.4%
-                                                                  5: 70.6%
+note: this run never dredges. Life from the Loam, Shenanigans have dredge, and this line can put cards in the
+      graveyard, but no draw here is ever replaced by a dredge (ADR-0017). Dredge is a
+      may, so that is a line the pilot could play: every number below is that line's,
+      a floor under the best line, which could dredge where dredging helps.
+     north star by turn 4: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast    0.80% ± 0.02
+     north star by turn 5: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast   10.71% ± 0.07
+     north star by turn 6: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast   22.06% ± 0.09
+     north star by turn 7: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast   27.93% ± 0.10
+     Life from the Loam in the graveyard by turn 4, north-star line                                    16.06% ± 0.08
+     Life from the Loam in the graveyard by turn 5, north-star line                                    19.55% ± 0.09
+     Life from the Loam in the graveyard by turn 6, north-star line                                    27.02% ± 0.10
+     Life from the Loam in the graveyard by turn 7, north-star line                                    31.51% ± 0.10
+     Borborygmos and Fblthp cast by turn 4, north-star line                                             8.98% ± 0.06
+     Borborygmos and Fblthp cast by turn 5, north-star line                                            59.10% ± 0.11
+     Borborygmos and Fblthp cast by turn 6, north-star line                                            79.14% ± 0.09
+     Borborygmos and Fblthp cast by turn 7, north-star line                                            86.22% ± 0.08
 
-widest exact question: 1,031,250 compositions across 5 groups, 21% of the 5,000,000 ceiling, "control: {1}{G} payable by turn 5, no Loam asked"
-
-PASS: 2 of 2 assertions met
+PASS: 0 of 0 assertions met

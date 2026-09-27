@@ -4,23 +4,56 @@
     "Borborygmos and Fblthp"
   ],
   "excluded": [],
-  "on_the_draw": false,
-  "method": "sampled",
+  "on_the_draw": true,
+  "method": "mixed",
   "sampled_because": "too_wide",
   "too_wide": {
-    "paths": 2861253525504,
-    "groups": 16,
+    "paths": 6158592,
+    "groups": 6,
     "ceiling": 5000000
   },
   "trials": 200000,
   "seed": 0,
   "queries": [
     {
-      "query": "name:\"Borborygmos and Fblthp\"",
+      "query": "name:\"Life from the Loam\"",
       "cards": 1
+    },
+    {
+      "query": "cat:\"Loam Access\"",
+      "cards": 13
+    },
+    {
+      "query": "name:\"Aftermath Analyst\" or name:\"Life from the Loam\" or name:\"Malevolent Rumble\" or name:\"Midnight Tilling\"",
+      "cards": 4
+    },
+    {
+      "query": "t:land",
+      "cards": 44
     }
   ],
-  "zones": [],
+  "zones": [
+    {
+      "zone": "graveyard",
+      "reachable": false,
+      "asked_by": "Life from the Loam in the graveyard by turn 5"
+    },
+    {
+      "zone": "hand",
+      "reachable": true,
+      "asked_by": "Loam castable by turn 5, so Loam in the graveyard by turn 5"
+    },
+    {
+      "zone": "battlefield",
+      "reachable": true,
+      "asked_by": "Loam Access drawn and three lands in play, turn 3"
+    },
+    {
+      "zone": "library",
+      "reachable": true,
+      "asked_by": "Loam Access cards still in library at turn 5"
+    }
+  ],
   "effects": [
     {
       "match": "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc",
@@ -144,7 +177,7 @@
         "Borborygmos and Fblthp"
       ],
       "copies": 1,
-      "live": true
+      "live": false
     },
     {
       "match": "name:\"Six\" t:treefolk",
@@ -189,96 +222,175 @@
   "enumerations": [
     {
       "criteria": [
-        "commander cast by turn 5",
-        "Borborygmos and Fblthp castable by turn 5, lands only"
+        "Life from the Loam in the graveyard by turn 5",
+        "naive: Life from the Loam in hand by turn 5, no mana asked"
       ],
       "expectations": [],
       "queries": [
-        "name:\"Borborygmos and Fblthp\"",
-        "t:land",
-        "<effect name:\"Borborygmos and Fblthp\">"
+        "name:\"Life from the Loam\""
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 13,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "Loam castable by turn 5, so Loam in the graveyard by turn 5"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Life from the Loam\""
       ],
       "turns": [
         5
       ],
       "reading": "per-turn",
       "pips": [
-        "{U}",
-        "{R}",
         "{G}"
       ],
-      "groups": 16,
-      "compositions": 11176771584,
+      "groups": 6,
+      "compositions": 6158592,
       "method": "sampled"
     },
     {
       "criteria": [
-        "commander cast by turn 6"
+        "control: {1}{G} payable by turn 5, no Loam asked"
       ],
       "expectations": [],
-      "queries": [
-        "name:\"Borborygmos and Fblthp\"",
-        "t:land",
-        "<effect name:\"Borborygmos and Fblthp\">"
-      ],
+      "queries": [],
       "turns": [
-        6
+        5
       ],
       "reading": "per-turn",
       "pips": [
-        "{U}",
-        "{R}",
         "{G}"
       ],
-      "groups": 16,
-      "compositions": 178828345344,
-      "method": "sampled"
+      "groups": 5,
+      "compositions": 1031250,
+      "method": "exact"
     },
     {
       "criteria": [
-        "commander cast by turn 7"
+        "some Loam Access by turn 5 (drawn, not cast)"
       ],
-      "expectations": [],
+      "expectations": [
+        "Loam Access cards seen by turn 5",
+        "Loam Access cards still in library at turn 5"
+      ],
       "queries": [
-        "name:\"Borborygmos and Fblthp\"",
-        "t:land",
-        "<effect name:\"Borborygmos and Fblthp\">"
+        "cat:\"Loam Access\""
       ],
       "turns": [
-        7
+        5
       ],
-      "reading": "per-turn",
-      "pips": [
-        "{U}",
-        "{R}",
-        "{G}"
-      ],
-      "groups": 16,
-      "compositions": 2861253525504,
-      "method": "sampled"
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 13,
+      "method": "exact"
     },
     {
       "criteria": [
-        "Borborygmos and Fblthp castable by turn 4, lands only"
+        "a two-mana Loam Access card and {1}{G} for it, turn 3"
       ],
       "expectations": [],
       "queries": [
-        "name:\"Borborygmos and Fblthp\"",
-        "t:land",
-        "<effect name:\"Borborygmos and Fblthp\">"
+        "name:\"Aftermath Analyst\" or name:\"Life from the Loam\" or name:\"Malevolent Rumble\" or name:\"Midnight Tilling\""
       ],
       "turns": [
-        4
+        3
       ],
       "reading": "per-turn",
       "pips": [
-        "{U}",
-        "{R}",
         "{G}"
       ],
-      "groups": 16,
-      "compositions": 698548224,
-      "method": "sampled"
+      "groups": 6,
+      "compositions": 171072,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "naive: one of those four drawn by turn 3, no mana asked"
+      ],
+      "expectations": [],
+      "queries": [
+        "name:\"Aftermath Analyst\" or name:\"Life from the Loam\" or name:\"Malevolent Rumble\" or name:\"Midnight Tilling\""
+      ],
+      "turns": [
+        3
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 11,
+      "method": "exact"
+    },
+    {
+      "criteria": [
+        "Loam Access drawn and three lands in play, turn 3"
+      ],
+      "expectations": [],
+      "queries": [
+        "cat:\"Loam Access\"",
+        "t:land"
+      ],
+      "turns": [
+        3
+      ],
+      "reading": "per-turn",
+      "groups": 3,
+      "compositions": 972,
+      "method": "exact"
+    },
+    {
+      "criteria": [],
+      "expectations": [
+        "lands in opener"
+      ],
+      "queries": [
+        "t:land"
+      ],
+      "turns": [
+        0
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 8,
+      "method": "exact"
+    },
+    {
+      "criteria": [],
+      "expectations": [
+        "t:land drawn by turn 5"
+      ],
+      "queries": [
+        "t:land"
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "cumulative",
+      "groups": 2,
+      "compositions": 13,
+      "method": "exact"
+    },
+    {
+      "criteria": [],
+      "expectations": [
+        "t:land on the battlefield by turn 5"
+      ],
+      "queries": [
+        "t:land"
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "groups": 2,
+      "compositions": 256,
+      "method": "exact"
     }
   ],
   "assumed_tapped": [
@@ -318,76 +430,172 @@
       "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain): pays {R}{G}, assuming one is still in the library to find"
     }
   ],
-  "never_dredged": [
-    "Life from the Loam",
-    "Shenanigans"
-  ],
-  "casting": {
-    "prefer": [
-      "name:\"Borborygmos and Fblthp\""
-    ],
-    "then": "a spell this list does not name is not cast at all",
-    "tie_break": "a tie inside one entry goes to the cheaper cost, then to the card this decklist names first",
-    "from_command_zone": [
-      "Borborygmos and Fblthp"
-    ]
-  },
   "criteria": [
     {
-      "name": "commander cast by turn 5",
-      "probability": 0.519855,
-      "percent": 51.99,
-      "at_least": null,
-      "standard_error": 0.001117,
-      "pass": true,
-      "method": "sampled"
-    },
-    {
-      "name": "commander cast by turn 6",
-      "probability": 0.62159,
-      "percent": 62.16,
-      "at_least": null,
-      "standard_error": 0.001084,
-      "pass": true,
-      "method": "sampled"
-    },
-    {
-      "name": "commander cast by turn 7",
-      "probability": 0.70838,
-      "percent": 70.84,
-      "at_least": null,
-      "standard_error": 0.001016,
-      "pass": true,
-      "method": "sampled"
-    },
-    {
-      "name": "Borborygmos and Fblthp castable by turn 4, lands only",
+      "name": "Life from the Loam in the graveyard by turn 5",
       "probability": 0,
       "percent": 0,
       "at_least": null,
-      "standard_error": 0,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "Loam castable by turn 5, so Loam in the graveyard by turn 5",
+      "probability": 0.112445,
+      "percent": 11.24,
+      "at_least": null,
+      "standard_error": 0.000706,
       "pass": true,
       "method": "sampled"
     },
     {
-      "name": "Borborygmos and Fblthp castable by turn 5, lands only",
-      "probability": 0.519855,
-      "percent": 51.99,
+      "name": "naive: Life from the Loam in hand by turn 5, no mana asked",
+      "probability": 0.122449,
+      "percent": 12.24,
       "at_least": null,
-      "standard_error": 0.001117,
       "pass": true,
-      "method": "sampled"
+      "method": "exact"
+    },
+    {
+      "name": "control: {1}{G} payable by turn 5, no Loam asked",
+      "probability": 0.928578,
+      "percent": 92.86,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "some Loam Access by turn 5 (drawn, not cast)",
+      "probability": 0.838037,
+      "percent": 83.8,
+      "at_least": 0.8,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "a two-mana Loam Access card and {1}{G} for it, turn 3",
+      "probability": 0.30271,
+      "percent": 30.27,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "naive: one of those four drawn by turn 3, no mana asked",
+      "probability": 0.354455,
+      "percent": 35.45,
+      "at_least": null,
+      "pass": true,
+      "method": "exact"
+    },
+    {
+      "name": "Loam Access drawn and three lands in play, turn 3",
+      "probability": 0.695519,
+      "percent": 69.55,
+      "at_least": 0.55,
+      "pass": true,
+      "method": "exact"
     }
   ],
-  "expectations": [],
-  "asserted": 0,
+  "expectations": [
+    {
+      "name": "Loam Access cards seen by turn 5",
+      "mean": 1.5918,
+      "distribution": [
+        0.161963,
+        0.341436,
+        0.300464,
+        0.144961,
+        0.042359,
+        0.00782,
+        0.000924,
+        0.000069,
+        0.000003,
+        0,
+        0,
+        0,
+        0
+      ],
+      "method": "exact"
+    },
+    {
+      "name": "Loam Access cards still in library at turn 5",
+      "mean": 11.4082,
+      "distribution": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.000003,
+        0.000069,
+        0.000924,
+        0.00782,
+        0.042359,
+        0.144961,
+        0.300464,
+        0.341436,
+        0.161963
+      ],
+      "method": "exact"
+    },
+    {
+      "name": "lands in opener",
+      "mean": 3.1429,
+      "distribution": [
+        0.012801,
+        0.082143,
+        0.216253,
+        0.302754,
+        0.243391,
+        0.112334,
+        0.027554,
+        0.00277
+      ],
+      "method": "exact"
+    },
+    {
+      "name": "t:land drawn by turn 5",
+      "mean": 5.3878,
+      "distribution": [
+        0.000422,
+        0.005185,
+        0.027869,
+        0.086703,
+        0.173876,
+        0.236768,
+        0.224436,
+        0.149188,
+        0.068999,
+        0.021647,
+        0.004371,
+        0.00051,
+        0.000026
+      ],
+      "method": "exact"
+    },
+    {
+      "name": "t:land on the battlefield by turn 5",
+      "mean": 4.5463,
+      "distribution": [
+        0.000422,
+        0.005185,
+        0.027869,
+        0.086703,
+        0.173876,
+        0.705945
+      ],
+      "method": "exact"
+    }
+  ],
+  "asserted": 2,
   "failed": 0,
   "ok": true,
   "provenance": {
     "tool_version": "0.1.0",
     "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
-    "criteria_sha256": "45100c348bc81de9cd6455a4507f7fc08e38a7dfcb7f4c94f0470386653acd93",
+    "criteria_sha256": "69152c0ce6e205300a62f0342500ea283dd51097c3b1a0a1b1bfd877190aeb8d",
     "effect_library_sha256": "d0e1c9efcec3579040c2258b3a4f37b4697f0d675211f84a74ef9061cbc14415"
   }
 }

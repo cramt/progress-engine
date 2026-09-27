@@ -5,45 +5,30 @@
   ],
   "excluded": [],
   "on_the_draw": false,
-  "method": "exact",
+  "method": "sampled",
+  "sampled_because": "too_wide",
+  "too_wide": {
+    "paths": 5000001,
+    "groups": 44,
+    "ceiling": 5000000
+  },
+  "trials": 200000,
+  "seed": 0,
   "queries": [
     {
       "query": "name:\"Life from the Loam\"",
       "cards": 1
     },
     {
-      "query": "cat:\"Loam Access\"",
-      "cards": 13
-    },
-    {
-      "query": "name:\"Aftermath Analyst\" or name:\"Life from the Loam\" or name:\"Malevolent Rumble\" or name:\"Midnight Tilling\"",
-      "cards": 4
-    },
-    {
-      "query": "t:land",
-      "cards": 44
+      "query": "name:\"Borborygmos and Fblthp\"",
+      "cards": 1
     }
   ],
   "zones": [
     {
       "zone": "graveyard",
-      "reachable": false,
-      "asked_by": "Life from the Loam in the graveyard by turn 5"
-    },
-    {
-      "zone": "hand",
       "reachable": true,
-      "asked_by": "Loam castable by turn 5, so Loam in the graveyard by turn 5"
-    },
-    {
-      "zone": "battlefield",
-      "reachable": true,
-      "asked_by": "Loam Access drawn and three lands in play, turn 3"
-    },
-    {
-      "zone": "library",
-      "reachable": true,
-      "asked_by": "Loam Access cards still in library at turn 5"
+      "asked_by": "north star by turn 4: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast"
     }
   ],
   "effects": [
@@ -70,38 +55,7 @@
         "Aftermath Analyst"
       ],
       "copies": 1,
-      "live": false
-    },
-    {
-      "match": "name:\"Malevolent Rumble\"",
-      "look": 0,
-      "on": "cast",
-      "mill": 4,
-      "keep": 1,
-      "keep_only": "is:permanent",
-      "unspent": [
-        "Malevolent Rumble"
-      ],
-      "source": "the standard effect library",
-      "cards": [
-        "Malevolent Rumble"
-      ],
-      "copies": 1,
-      "live": false
-    },
-    {
-      "match": "name:\"Midnight Tilling\"",
-      "look": 0,
-      "on": "cast",
-      "mill": 4,
-      "keep": 1,
-      "keep_only": "is:permanent",
-      "source": "the standard effect library",
-      "cards": [
-        "Midnight Tilling"
-      ],
-      "copies": 1,
-      "live": false
+      "live": true
     },
     {
       "match": "name:\"Wrenn and Seven\"",
@@ -114,7 +68,7 @@
         "Wrenn and Seven"
       ],
       "copies": 1,
-      "live": false
+      "live": true
     },
     {
       "match": "name:\"Frantic Search\"",
@@ -128,7 +82,7 @@
         "Frantic Search"
       ],
       "copies": 1,
-      "live": false
+      "live": true
     },
     {
       "match": "name:\"Izzet Charm\"",
@@ -141,7 +95,7 @@
         "Izzet Charm"
       ],
       "copies": 1,
-      "live": false
+      "live": true
     },
     {
       "match": "name:\"Desperate Ravings\"",
@@ -155,7 +109,7 @@
         "Desperate Ravings"
       ],
       "copies": 1,
-      "live": false
+      "live": true
     },
     {
       "match": "name:\"Borborygmos and Fblthp\"",
@@ -169,21 +123,7 @@
         "Borborygmos and Fblthp"
       ],
       "copies": 1,
-      "live": false
-    },
-    {
-      "match": "name:\"Six\" t:treefolk",
-      "look": 0,
-      "on": "attack",
-      "mill": 3,
-      "keep": 1,
-      "keep_only": "t:land",
-      "source": "the standard effect library",
-      "cards": [
-        "Six"
-      ],
-      "copies": 1,
-      "live": false
+      "live": true
     },
     {
       "match": "name:\"Icetill Explorer\"",
@@ -195,194 +135,329 @@
         "Icetill Explorer"
       ],
       "copies": 1,
-      "live": false
+      "live": true
+    },
+    {
+      "match": "name:\"Spellseeker\"",
+      "look": 0,
+      "on": "cast",
+      "fetch": [
+        "name:\"Life from the Loam\""
+      ],
+      "to": "hand",
+      "source": "decks/loam.criteria.toml",
+      "cards": [
+        "Spellseeker"
+      ],
+      "copies": 1,
+      "live": true
+    },
+    {
+      "match": "name:\"Malevolent Rumble\"",
+      "look": 0,
+      "on": "cast",
+      "mill": 4,
+      "keep": 1,
+      "keep_only": "is:permanent",
+      "to_hand": [
+        "name:\"Spellseeker\"",
+        "t:land"
+      ],
+      "unspent": [
+        "Malevolent Rumble"
+      ],
+      "source": "decks/loam.criteria.toml",
+      "cards": [
+        "Malevolent Rumble"
+      ],
+      "copies": 1,
+      "live": true
+    },
+    {
+      "match": "name:\"Midnight Tilling\"",
+      "look": 0,
+      "on": "cast",
+      "mill": 4,
+      "keep": 1,
+      "keep_only": "is:permanent",
+      "to_hand": [
+        "name:\"Spellseeker\"",
+        "t:land"
+      ],
+      "source": "decks/loam.criteria.toml",
+      "cards": [
+        "Midnight Tilling"
+      ],
+      "copies": 1,
+      "live": true
+    },
+    {
+      "match": "name:\"Six\" t:treefolk",
+      "look": 0,
+      "on": "attack",
+      "mill": 3,
+      "keep": 1,
+      "keep_only": "t:land",
+      "to_hand": [
+        "t:land"
+      ],
+      "assumes": "it attacks every turn it can, and no opponent blocks it or removes it; nobody else is at this table (ADR-0018)",
+      "source": "decks/loam.criteria.toml",
+      "cards": [
+        "Six"
+      ],
+      "copies": 1,
+      "live": true
     },
     {
       "match": "name:\"Lumra, Bellow of the Woods\"",
       "look": 0,
       "on": "cast",
       "mill": 4,
-      "returns": "t:land",
-      "source": "the standard effect library",
+      "source": "decks/loam.criteria.toml",
       "cards": [
         "Lumra, Bellow of the Woods"
       ],
       "copies": 1,
-      "live": false
+      "live": true
     }
   ],
   "enumerations": [
     {
       "criteria": [
-        "Life from the Loam in the graveyard by turn 5",
-        "naive: Life from the Loam in hand by turn 5, no mana asked"
+        "north star by turn 4: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast",
+        "Life from the Loam in the graveyard by turn 4, north-star line",
+        "Borborygmos and Fblthp cast by turn 4, north-star line"
       ],
       "expectations": [],
       "queries": [
-        "name:\"Life from the Loam\""
+        "name:\"Life from the Loam\"",
+        "name:\"Borborygmos and Fblthp\"",
+        "otag:conditional-tapland",
+        "otag:tapland",
+        "otag:fetchland",
+        "t:land -produces:g -produces:u -produces:r",
+        "t:land -t:basic",
+        "t:land",
+        "name:\"Birds of Paradise\" or name:\"Elvish Mystic\"",
+        "name:\"Frantic Search\"",
+        "name:\"Spellseeker\"",
+        "name:\"Malevolent Rumble\"",
+        "name:\"Midnight Tilling\"",
+        "name:\"Izzet Charm\"",
+        "name:\"Desperate Ravings\"",
+        "name:\"Aftermath Analyst\"",
+        "name:\"Wrenn and Seven\"",
+        "name:\"Six\" t:treefolk",
+        "name:\"Icetill Explorer\"",
+        "name:\"Lumra, Bellow of the Woods\"",
+        "-t:land -name:\"Borborygmos and Fblthp\" -name:\"Life from the Loam\" -name:\"Birds of Paradise\" -name:\"Elvish Mystic\" -name:\"Frantic Search\" -name:\"Spellseeker\" -name:\"Malevolent Rumble\" -name:\"Midnight Tilling\" -name:\"Izzet Charm\" -name:\"Desperate Ravings\" -name:\"Aftermath Analyst\" -name:\"Wrenn and Seven\" -(name:\"Six\" t:treefolk) -name:\"Icetill Explorer\" -name:\"Lumra, Bellow of the Woods\"",
+        "is:permanent",
+        "<effect name:\"Aftermath Analyst\">",
+        "<effect name:\"Wrenn and Seven\">",
+        "<effect name:\"Frantic Search\">",
+        "<effect name:\"Izzet Charm\">",
+        "<effect name:\"Desperate Ravings\">",
+        "<effect name:\"Borborygmos and Fblthp\">",
+        "<effect name:\"Icetill Explorer\">",
+        "<effect name:\"Spellseeker\">",
+        "<effect name:\"Malevolent Rumble\">",
+        "<effect name:\"Midnight Tilling\">",
+        "<effect name:\"Six\" t:treefolk>",
+        "<effect name:\"Lumra, Bellow of the Woods\">"
       ],
       "turns": [
-        5
+        4
       ],
-      "reading": "cumulative",
-      "groups": 2,
-      "compositions": 12,
-      "method": "exact"
+      "reading": "per-turn",
+      "pips": [
+        "{W}",
+        "{U}",
+        "{B}",
+        "{R}",
+        "{G}",
+        "{C}"
+      ],
+      "groups": 44,
+      "compositions": 8508552729600,
+      "method": "sampled"
     },
     {
       "criteria": [
-        "Loam castable by turn 5, so Loam in the graveyard by turn 5"
+        "north star by turn 5: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast",
+        "Life from the Loam in the graveyard by turn 5, north-star line",
+        "Borborygmos and Fblthp cast by turn 5, north-star line"
       ],
       "expectations": [],
       "queries": [
-        "name:\"Life from the Loam\""
+        "name:\"Life from the Loam\"",
+        "name:\"Borborygmos and Fblthp\"",
+        "otag:conditional-tapland",
+        "otag:tapland",
+        "otag:fetchland",
+        "t:land -produces:g -produces:u -produces:r",
+        "t:land -t:basic",
+        "t:land",
+        "name:\"Birds of Paradise\" or name:\"Elvish Mystic\"",
+        "name:\"Frantic Search\"",
+        "name:\"Spellseeker\"",
+        "name:\"Malevolent Rumble\"",
+        "name:\"Midnight Tilling\"",
+        "name:\"Izzet Charm\"",
+        "name:\"Desperate Ravings\"",
+        "name:\"Aftermath Analyst\"",
+        "name:\"Wrenn and Seven\"",
+        "name:\"Six\" t:treefolk",
+        "name:\"Icetill Explorer\"",
+        "name:\"Lumra, Bellow of the Woods\"",
+        "-t:land -name:\"Borborygmos and Fblthp\" -name:\"Life from the Loam\" -name:\"Birds of Paradise\" -name:\"Elvish Mystic\" -name:\"Frantic Search\" -name:\"Spellseeker\" -name:\"Malevolent Rumble\" -name:\"Midnight Tilling\" -name:\"Izzet Charm\" -name:\"Desperate Ravings\" -name:\"Aftermath Analyst\" -name:\"Wrenn and Seven\" -(name:\"Six\" t:treefolk) -name:\"Icetill Explorer\" -name:\"Lumra, Bellow of the Woods\"",
+        "is:permanent",
+        "<effect name:\"Aftermath Analyst\">",
+        "<effect name:\"Wrenn and Seven\">",
+        "<effect name:\"Frantic Search\">",
+        "<effect name:\"Izzet Charm\">",
+        "<effect name:\"Desperate Ravings\">",
+        "<effect name:\"Borborygmos and Fblthp\">",
+        "<effect name:\"Icetill Explorer\">",
+        "<effect name:\"Spellseeker\">",
+        "<effect name:\"Malevolent Rumble\">",
+        "<effect name:\"Midnight Tilling\">",
+        "<effect name:\"Six\" t:treefolk>",
+        "<effect name:\"Lumra, Bellow of the Woods\">"
       ],
       "turns": [
         5
       ],
       "reading": "per-turn",
       "pips": [
-        "{G}"
+        "{W}",
+        "{U}",
+        "{B}",
+        "{R}",
+        "{G}",
+        "{C}"
       ],
-      "groups": 6,
-      "compositions": 1026432,
-      "method": "exact"
+      "groups": 44,
+      "compositions": 374376320102400,
+      "method": "sampled"
     },
     {
       "criteria": [
-        "control: {1}{G} payable by turn 5, no Loam asked"
+        "north star by turn 6: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast",
+        "Life from the Loam in the graveyard by turn 6, north-star line",
+        "Borborygmos and Fblthp cast by turn 6, north-star line"
       ],
       "expectations": [],
-      "queries": [],
+      "queries": [
+        "name:\"Life from the Loam\"",
+        "name:\"Borborygmos and Fblthp\"",
+        "otag:conditional-tapland",
+        "otag:tapland",
+        "otag:fetchland",
+        "t:land -produces:g -produces:u -produces:r",
+        "t:land -t:basic",
+        "t:land",
+        "name:\"Birds of Paradise\" or name:\"Elvish Mystic\"",
+        "name:\"Frantic Search\"",
+        "name:\"Spellseeker\"",
+        "name:\"Malevolent Rumble\"",
+        "name:\"Midnight Tilling\"",
+        "name:\"Izzet Charm\"",
+        "name:\"Desperate Ravings\"",
+        "name:\"Aftermath Analyst\"",
+        "name:\"Wrenn and Seven\"",
+        "name:\"Six\" t:treefolk",
+        "name:\"Icetill Explorer\"",
+        "name:\"Lumra, Bellow of the Woods\"",
+        "-t:land -name:\"Borborygmos and Fblthp\" -name:\"Life from the Loam\" -name:\"Birds of Paradise\" -name:\"Elvish Mystic\" -name:\"Frantic Search\" -name:\"Spellseeker\" -name:\"Malevolent Rumble\" -name:\"Midnight Tilling\" -name:\"Izzet Charm\" -name:\"Desperate Ravings\" -name:\"Aftermath Analyst\" -name:\"Wrenn and Seven\" -(name:\"Six\" t:treefolk) -name:\"Icetill Explorer\" -name:\"Lumra, Bellow of the Woods\"",
+        "is:permanent",
+        "<effect name:\"Aftermath Analyst\">",
+        "<effect name:\"Wrenn and Seven\">",
+        "<effect name:\"Frantic Search\">",
+        "<effect name:\"Izzet Charm\">",
+        "<effect name:\"Desperate Ravings\">",
+        "<effect name:\"Borborygmos and Fblthp\">",
+        "<effect name:\"Icetill Explorer\">",
+        "<effect name:\"Spellseeker\">",
+        "<effect name:\"Malevolent Rumble\">",
+        "<effect name:\"Midnight Tilling\">",
+        "<effect name:\"Six\" t:treefolk>",
+        "<effect name:\"Lumra, Bellow of the Woods\">"
+      ],
       "turns": [
-        5
+        6
       ],
       "reading": "per-turn",
       "pips": [
-        "{G}"
+        "{W}",
+        "{U}",
+        "{B}",
+        "{R}",
+        "{G}",
+        "{C}"
       ],
-      "groups": 5,
-      "compositions": 206250,
-      "method": "exact"
+      "groups": 44,
+      "compositions": 16472558084505600,
+      "method": "sampled"
     },
     {
       "criteria": [
-        "some Loam Access by turn 5 (drawn, not cast)"
-      ],
-      "expectations": [
-        "Loam Access cards seen by turn 5",
-        "Loam Access cards still in library at turn 5"
-      ],
-      "queries": [
-        "cat:\"Loam Access\""
-      ],
-      "turns": [
-        5
-      ],
-      "reading": "cumulative",
-      "groups": 2,
-      "compositions": 12,
-      "method": "exact"
-    },
-    {
-      "criteria": [
-        "a two-mana Loam Access card and {1}{G} for it, turn 3"
+        "north star by turn 7: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast",
+        "Life from the Loam in the graveyard by turn 7, north-star line",
+        "Borborygmos and Fblthp cast by turn 7, north-star line"
       ],
       "expectations": [],
       "queries": [
-        "name:\"Aftermath Analyst\" or name:\"Life from the Loam\" or name:\"Malevolent Rumble\" or name:\"Midnight Tilling\""
+        "name:\"Life from the Loam\"",
+        "name:\"Borborygmos and Fblthp\"",
+        "otag:conditional-tapland",
+        "otag:tapland",
+        "otag:fetchland",
+        "t:land -produces:g -produces:u -produces:r",
+        "t:land -t:basic",
+        "t:land",
+        "name:\"Birds of Paradise\" or name:\"Elvish Mystic\"",
+        "name:\"Frantic Search\"",
+        "name:\"Spellseeker\"",
+        "name:\"Malevolent Rumble\"",
+        "name:\"Midnight Tilling\"",
+        "name:\"Izzet Charm\"",
+        "name:\"Desperate Ravings\"",
+        "name:\"Aftermath Analyst\"",
+        "name:\"Wrenn and Seven\"",
+        "name:\"Six\" t:treefolk",
+        "name:\"Icetill Explorer\"",
+        "name:\"Lumra, Bellow of the Woods\"",
+        "-t:land -name:\"Borborygmos and Fblthp\" -name:\"Life from the Loam\" -name:\"Birds of Paradise\" -name:\"Elvish Mystic\" -name:\"Frantic Search\" -name:\"Spellseeker\" -name:\"Malevolent Rumble\" -name:\"Midnight Tilling\" -name:\"Izzet Charm\" -name:\"Desperate Ravings\" -name:\"Aftermath Analyst\" -name:\"Wrenn and Seven\" -(name:\"Six\" t:treefolk) -name:\"Icetill Explorer\" -name:\"Lumra, Bellow of the Woods\"",
+        "is:permanent",
+        "<effect name:\"Aftermath Analyst\">",
+        "<effect name:\"Wrenn and Seven\">",
+        "<effect name:\"Frantic Search\">",
+        "<effect name:\"Izzet Charm\">",
+        "<effect name:\"Desperate Ravings\">",
+        "<effect name:\"Borborygmos and Fblthp\">",
+        "<effect name:\"Icetill Explorer\">",
+        "<effect name:\"Spellseeker\">",
+        "<effect name:\"Malevolent Rumble\">",
+        "<effect name:\"Midnight Tilling\">",
+        "<effect name:\"Six\" t:treefolk>",
+        "<effect name:\"Lumra, Bellow of the Woods\">"
       ],
       "turns": [
-        3
+        7
       ],
       "reading": "per-turn",
       "pips": [
-        "{G}"
+        "{W}",
+        "{U}",
+        "{B}",
+        "{R}",
+        "{G}",
+        "{C}"
       ],
-      "groups": 6,
-      "compositions": 28512,
-      "method": "exact"
-    },
-    {
-      "criteria": [
-        "naive: one of those four drawn by turn 3, no mana asked"
-      ],
-      "expectations": [],
-      "queries": [
-        "name:\"Aftermath Analyst\" or name:\"Life from the Loam\" or name:\"Malevolent Rumble\" or name:\"Midnight Tilling\""
-      ],
-      "turns": [
-        3
-      ],
-      "reading": "cumulative",
-      "groups": 2,
-      "compositions": 10,
-      "method": "exact"
-    },
-    {
-      "criteria": [
-        "Loam Access drawn and three lands in play, turn 3"
-      ],
-      "expectations": [],
-      "queries": [
-        "cat:\"Loam Access\"",
-        "t:land"
-      ],
-      "turns": [
-        3
-      ],
-      "reading": "per-turn",
-      "groups": 3,
-      "compositions": 324,
-      "method": "exact"
-    },
-    {
-      "criteria": [],
-      "expectations": [
-        "lands in opener"
-      ],
-      "queries": [
-        "t:land"
-      ],
-      "turns": [
-        0
-      ],
-      "reading": "cumulative",
-      "groups": 2,
-      "compositions": 8,
-      "method": "exact"
-    },
-    {
-      "criteria": [],
-      "expectations": [
-        "t:land drawn by turn 5"
-      ],
-      "queries": [
-        "t:land"
-      ],
-      "turns": [
-        5
-      ],
-      "reading": "cumulative",
-      "groups": 2,
-      "compositions": 12,
-      "method": "exact"
-    },
-    {
-      "criteria": [],
-      "expectations": [
-        "t:land on the battlefield by turn 5"
-      ],
-      "queries": [
-        "t:land"
-      ],
-      "turns": [
-        5
-      ],
-      "reading": "per-turn",
-      "groups": 2,
-      "compositions": 128,
-      "method": "exact"
+      "groups": 44,
+      "compositions": 724792555718246400,
+      "method": "sampled"
     }
   ],
   "assumed_tapped": [
@@ -422,169 +497,198 @@
       "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain): pays {R}{G}, assuming one is still in the library to find"
     }
   ],
+  "never_dredged": [
+    "Life from the Loam",
+    "Shenanigans"
+  ],
+  "land_drop": {
+    "prefer": [
+      "otag:conditional-tapland",
+      "otag:tapland",
+      "otag:fetchland",
+      "t:land -produces:g -produces:u -produces:r",
+      "t:land -t:basic",
+      "t:land"
+    ],
+    "then": "any other land",
+    "tie_break": "a tie inside one entry goes to the deeper look, then to the card this decklist names first"
+  },
+  "casting": {
+    "prefer": [
+      "name:\"Borborygmos and Fblthp\"",
+      "name:\"Life from the Loam\"",
+      "name:\"Birds of Paradise\" or name:\"Elvish Mystic\"",
+      "name:\"Frantic Search\"",
+      "name:\"Spellseeker\"",
+      "name:\"Malevolent Rumble\"",
+      "name:\"Midnight Tilling\"",
+      "name:\"Izzet Charm\"",
+      "name:\"Desperate Ravings\"",
+      "name:\"Aftermath Analyst\"",
+      "name:\"Wrenn and Seven\"",
+      "name:\"Six\" t:treefolk",
+      "name:\"Icetill Explorer\"",
+      "name:\"Lumra, Bellow of the Woods\""
+    ],
+    "then": "a spell this list does not name is not cast at all",
+    "tie_break": "a tie inside one entry goes to the cheaper cost, then to the card this decklist names first",
+    "from_command_zone": [
+      "Borborygmos and Fblthp"
+    ],
+    "sources": [
+      {
+        "card": "Birds of Paradise",
+        "adds": 1,
+        "makes": [
+          "{W}",
+          "{U}",
+          "{B}",
+          "{R}",
+          "{G}"
+        ],
+        "waits": 1
+      },
+      {
+        "card": "Elvish Mystic",
+        "adds": 1,
+        "makes": [
+          "{G}"
+        ],
+        "waits": 1
+      }
+    ],
+    "uncounted": [
+      "Malevolent Rumble"
+    ]
+  },
+  "discard": {
+    "prefer": [
+      "name:\"Life from the Loam\"",
+      "-t:land -name:\"Borborygmos and Fblthp\" -name:\"Life from the Loam\" -name:\"Birds of Paradise\" -name:\"Elvish Mystic\" -name:\"Frantic Search\" -name:\"Spellseeker\" -name:\"Malevolent Rumble\" -name:\"Midnight Tilling\" -name:\"Izzet Charm\" -name:\"Desperate Ravings\" -name:\"Aftermath Analyst\" -name:\"Wrenn and Seven\" -(name:\"Six\" t:treefolk) -name:\"Icetill Explorer\" -name:\"Lumra, Bellow of the Woods\""
+    ],
+    "then": "a forced discard takes a card this list does not name only after every card it does, an \"any number\" discard never takes one, and nor does a discard an activation's cost makes",
+    "tie_break": "a tie inside one entry, and among the cards no entry names, is settled at random, and every way it could fall is priced",
+    "at_random": "a card that discards at random ignores this list: every card in hand is as likely"
+  },
   "criteria": [
     {
-      "name": "Life from the Loam in the graveyard by turn 5",
-      "probability": 0,
-      "percent": 0,
+      "name": "north star by turn 4: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast",
+      "probability": 0.00526,
+      "percent": 0.53,
       "at_least": null,
+      "standard_error": 0.000162,
       "pass": true,
-      "method": "exact"
+      "method": "sampled"
     },
     {
-      "name": "Loam castable by turn 5, so Loam in the graveyard by turn 5",
-      "probability": 0.09921,
-      "percent": 9.92,
+      "name": "north star by turn 5: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast",
+      "probability": 0.082175,
+      "percent": 8.22,
       "at_least": null,
+      "standard_error": 0.000614,
       "pass": true,
-      "method": "exact"
+      "method": "sampled"
     },
     {
-      "name": "naive: Life from the Loam in hand by turn 5, no mana asked",
-      "probability": 0.112245,
-      "percent": 11.22,
+      "name": "north star by turn 6: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast",
+      "probability": 0.17931,
+      "percent": 17.93,
       "at_least": null,
+      "standard_error": 0.000858,
       "pass": true,
-      "method": "exact"
+      "method": "sampled"
     },
     {
-      "name": "control: {1}{G} payable by turn 5, no Loam asked",
-      "probability": 0.907268,
-      "percent": 90.73,
+      "name": "north star by turn 7: Life from the Loam put into the graveyard and Borborygmos and Fblthp cast",
+      "probability": 0.239775,
+      "percent": 23.98,
       "at_least": null,
+      "standard_error": 0.000955,
       "pass": true,
-      "method": "exact"
+      "method": "sampled"
     },
     {
-      "name": "some Loam Access by turn 5 (drawn, not cast)",
-      "probability": 0.809583,
-      "percent": 80.96,
-      "at_least": 0.8,
-      "pass": true,
-      "method": "exact"
-    },
-    {
-      "name": "a two-mana Loam Access card and {1}{G} for it, turn 3",
-      "probability": 0.261913,
-      "percent": 26.19,
+      "name": "Life from the Loam in the graveyard by turn 4, north-star line",
+      "probability": 0.141365,
+      "percent": 14.14,
       "at_least": null,
+      "standard_error": 0.000779,
       "pass": true,
-      "method": "exact"
+      "method": "sampled"
     },
     {
-      "name": "naive: one of those four drawn by turn 3, no mana asked",
-      "probability": 0.324076,
-      "percent": 32.41,
+      "name": "Life from the Loam in the graveyard by turn 5, north-star line",
+      "probability": 0.174395,
+      "percent": 17.44,
       "at_least": null,
+      "standard_error": 0.000848,
       "pass": true,
-      "method": "exact"
+      "method": "sampled"
     },
     {
-      "name": "Loam Access drawn and three lands in play, turn 3",
-      "probability": 0.615836,
-      "percent": 61.58,
-      "at_least": 0.55,
+      "name": "Life from the Loam in the graveyard by turn 6, north-star line",
+      "probability": 0.241325,
+      "percent": 24.13,
+      "at_least": null,
+      "standard_error": 0.000957,
       "pass": true,
-      "method": "exact"
+      "method": "sampled"
+    },
+    {
+      "name": "Life from the Loam in the graveyard by turn 7, north-star line",
+      "probability": 0.286395,
+      "percent": 28.64,
+      "at_least": null,
+      "standard_error": 0.001011,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "Borborygmos and Fblthp cast by turn 4, north-star line",
+      "probability": 0.07241,
+      "percent": 7.24,
+      "at_least": null,
+      "standard_error": 0.00058,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "Borborygmos and Fblthp cast by turn 5, north-star line",
+      "probability": 0.52114,
+      "percent": 52.11,
+      "at_least": null,
+      "standard_error": 0.001117,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "Borborygmos and Fblthp cast by turn 6, north-star line",
+      "probability": 0.72052,
+      "percent": 72.05,
+      "at_least": null,
+      "standard_error": 0.001003,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "Borborygmos and Fblthp cast by turn 7, north-star line",
+      "probability": 0.807835,
+      "percent": 80.78,
+      "at_least": null,
+      "standard_error": 0.000881,
+      "pass": true,
+      "method": "sampled"
     }
   ],
-  "expectations": [
-    {
-      "name": "Loam Access cards seen by turn 5",
-      "mean": 1.4592,
-      "distribution": [
-        0.190417,
-        0.363061,
-        0.286627,
-        0.12284,
-        0.031497,
-        0.005024,
-        0.000502,
-        0.000031,
-        0.000001,
-        0,
-        0,
-        0
-      ],
-      "method": "exact"
-    },
-    {
-      "name": "Loam Access cards still in library at turn 5",
-      "mean": 11.5408,
-      "distribution": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0.000001,
-        0.000031,
-        0.000502,
-        0.005024,
-        0.031497,
-        0.12284,
-        0.286627,
-        0.363061,
-        0.190417
-      ],
-      "method": "exact"
-    },
-    {
-      "name": "lands in opener",
-      "mean": 3.1429,
-      "distribution": [
-        0.012801,
-        0.082143,
-        0.216253,
-        0.302754,
-        0.243391,
-        0.112334,
-        0.027554,
-        0.00277
-      ],
-      "method": "exact"
-    },
-    {
-      "name": "t:land drawn by turn 5",
-      "mean": 4.9388,
-      "distribution": [
-        0.000854,
-        0.009398,
-        0.0449,
-        0.122986,
-        0.214571,
-        0.250333,
-        0.199244,
-        0.108161,
-        0.039235,
-        0.009054,
-        0.001196,
-        0.000068
-      ],
-      "method": "exact"
-    },
-    {
-      "name": "t:land on the battlefield by turn 5",
-      "mean": 4.3629,
-      "distribution": [
-        0.000854,
-        0.009398,
-        0.0449,
-        0.122986,
-        0.214571,
-        0.607292
-      ],
-      "method": "exact"
-    }
-  ],
-  "asserted": 2,
+  "expectations": [],
+  "asserted": 0,
   "failed": 0,
   "ok": true,
   "provenance": {
     "tool_version": "0.1.0",
     "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
-    "criteria_sha256": "2a06d4a722c4ed0c344f9dc1e8b3d527ea97e6a7775afa731e658e27990d99df",
+    "criteria_sha256": "506da36ec831a5d8f91dda6d2366e7ae86bf75c96e9dbe396981998f3c711592",
     "effect_library_sha256": "d0e1c9efcec3579040c2258b3a4f37b4697f0d675211f84a74ef9061cbc14415"
   }
 }
