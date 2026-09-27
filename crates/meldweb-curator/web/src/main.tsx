@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { loadDecklist } from "./decklist";
 import { routeTree } from "./routeTree.gen";
+import "./styles.css";
 
 const router = createRouter({ routeTree });
 
