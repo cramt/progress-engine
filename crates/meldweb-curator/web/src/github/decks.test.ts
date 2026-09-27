@@ -1,0 +1,149 @@
+import { beforeAll, describe, expect, it } from "vitest";
+import { parseDeck } from "../deck";
+import { createDeck, deckPath, listDecks, slugify } from "./decks";
+import type { DeckText, Imported } from "./deckText";
+import { loadWasm, mockConnection, seedDecks } from "./testkit";
+
+beforeAll(loadWasm);
+
+// `newDeck` and the typed `importArchidekt` are other agents' wasm; these
+// stand in with the contract's shapes, and parsing stays the real one.
+const fakeDeck = (imported?: Imported): DeckText => ({
+  parseDeck,
+  commitMessage: () => "unused",
+  newDeck: (name, format) =>
+    `name = ${JSON.stringify(name)}\nformat = ${JSON.stringify(format)}\ncards = []\n`,
+  importArchidekt: () =>
+    imported ?? { kind: "refused", message: "no import in this test" },
+});
+
+describe("the deck list", () => {
+  it("lists lantern and loam by name, the stem where the file names none", async () => {
+    const { api, repo } = mockConnection({
+      files: { ...seedDecks(), "decks/notes.md": "x", "README.md": "y" },
+    });
+    const decks = await listDecks(api, repo, { parseDeck });
+    expect(decks.map((d) => [d.path, d.name, d.refused])).toEqual([
+      ["decks/lantern.deck.toml", "lantern", undefined],
+      ["decks/loam.deck.toml", "loam", undefined],
+    ]);
+    expect(decks[0]?.sha).toMatch(/^[0-9a-f]{40}$/);
+  });
+
+  it("is empty for a repo with no decks directory", async () => {
+    const { api, repo } = mockConnection({ files: { VERSION: "1\n" } });
+    expect(await listDecks(api, repo, { parseDeck })).toEqual([]);
+  });
+
+  it("names a file the format refuses, with why", async () => {
+    const { api, repo } = mockConnection({
+      files: { "decks/bad.deck.toml": "cards = 3\n" },
+    });
+    const [bad] = await listDecks(api, repo, { parseDeck });
+    expect(bad?.name).toBe("bad");
+    expect(bad?.refused).toBeTruthy();
+  });
+});
+
+describe("a deck's path", () => {
+  it("is slugged from its name", () => {
+    expect(slugify("Rashmi's Lantern")).toBe("rashmi-s-lantern");
+    expect(slugify("  Lórien — Loam!! ")).toBe("lorien-loam");
+    expect(slugify("!!!")).toBe("");
+    expect(deckPath("Lantern")).toBe("decks/lantern.deck.toml");
+  });
+});
+
+describe("a new deck", () => {
+  it("starts empty, as its first commit", async () => {
+    const { api, mock, repo } = mockConnection({ files: seedDecks() });
+    const made = await createDeck(
+      api,
+      repo,
+      "Sol Ring Tribal",
+      { kind: "empty", format: "commander" },
+      fakeDeck(),
+    );
+    expect(made).toMatchObject({
+      kind: "created",
+      path: "decks/sol-ring-tribal.deck.toml",
+    });
+    const file = mock.file("decks/sol-ring-tribal.deck.toml");
+    expect(file?.text).toContain('name = "Sol Ring Tribal"');
+    expect(made.kind === "created" && made.sha).toBe(file?.sha);
+    expect(mock.commits().at(-1)?.message).toBe("sol-ring-tribal: new deck");
+    const parsed = parseDeck(file?.text ?? "");
+    expect(parsed).toMatchObject({
+      kind: "deck",
+      name: "Sol Ring Tribal",
+      total: 0,
+    });
+  });
+
+  it("refuses a slug that already exists, and writes nothing", async () => {
+    const { api, mock, repo } = mockConnection({ files: seedDecks() });
+    const made = await createDeck(
+      api,
+      repo,
+      "LANTERN",
+      { kind: "empty", format: "commander" },
+      fakeDeck(),
+    );
+    expect(made.kind).toBe("refused");
+    if (made.kind === "refused")
+      expect(made.message).toMatch(/lantern\.deck\.toml already exists/);
+    expect(mock.commits()).toHaveLength(0);
+  });
+
+  it("refuses a name with nothing to slug", async () => {
+    const { api, repo } = mockConnection();
+    const made = await createDeck(
+      api,
+      repo,
+      "???",
+      { kind: "empty", format: "" },
+      fakeDeck(),
+    );
+    expect(made.kind).toBe("refused");
+  });
+
+  it("from Archidekt text takes the import's toml, named, and keeps its unreadable lines", async () => {
+    const { api, mock, repo } = mockConnection();
+    const toml =
+      'cards = [\n  { name = "Sol Ring", in = ["Ramp"] },\n]\n\n[categories]\nRamp = {}\n';
+    const unreadable = [{ line: 3, text: "banana", reason: "no quantity" }];
+    const made = await createDeck(
+      api,
+      repo,
+      "Ramp Pile",
+      {
+        kind: "archidekt",
+        text: "1x Sol Ring [Ramp]\nbanana",
+        format: "commander",
+      },
+      fakeDeck({ kind: "imported", toml, unreadable }),
+    );
+    expect(made).toMatchObject({ kind: "created", unreadable });
+    const text = mock.file("decks/ramp-pile.deck.toml")?.text ?? "";
+    expect(parseDeck(text)).toMatchObject({
+      kind: "deck",
+      name: "Ramp Pile",
+      format: "commander",
+      total: 1,
+    });
+    expect(text.endsWith(toml)).toBe(true);
+  });
+
+  it("says why an import was refused, and writes nothing", async () => {
+    const { api, mock, repo } = mockConnection();
+    const made = await createDeck(
+      api,
+      repo,
+      "Nothing",
+      { kind: "archidekt", text: "" },
+      fakeDeck({ kind: "refused", message: "no card lines" }),
+    );
+    expect(made).toEqual({ kind: "refused", message: "no card lines" });
+    expect(mock.commits()).toHaveLength(0);
+  });
+});
