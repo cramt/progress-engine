@@ -8,22 +8,22 @@ most of this file is about: a Magic: The Gathering draw-probability engine. It
 answers *how often does this deck do this by turn N* by exact enumeration, with
 a sampling engine alongside as a cross-checking oracle.
 
-**Gitaxian Probe** (`crates/gitaxian-probe/`) is card scanning - a host that
-runs Delver X's downloaded recognition engine inside a deno_core sandbox. It is
-**parked**: a failed MVP whose source stays in the tree but is excluded from the
-cargo workspace and the flake, so nothing builds or tests it. The root
-`Cargo.toml` says how to bring it back. Its own README and FINDINGS.md are the
-authority on it, and the notes below about decks, criteria and the two engines
-do not apply to it.
+**Gitaxian Probe** (`crates/gitaxian-probe/`) is card scanning - a host for
+Delver X's downloaded recognition engine, with two execution models: natively
+inside a deno_core sandbox, and on the web as a sidecar the browser runs
+itself. It is a **cargo workspace of its own**, outside Gauntlet's and outside
+the flake, so neither `cargo` at the root nor CI builds it. Its engine README
+and FINDINGS.md are the authority on it, and the notes below about decks,
+criteria and the two engines do not apply to it.
 
 **Meldweb Curator** (`crates/meldweb-curator/`) is the deck editor: a
-decklist in a git repo is the deck, and saving is a commit. It is two halves:
+`.deck.toml` in a git repo is the deck, and saving is a commit. It is two halves:
 `meldweb-wasm`, which is `chip-decklist` compiled for the browser, and `web/`, a
 Vite + React + TanStack Router app in the root pnpm workspace. Copy Archidekt's
 editor before improving on it; [docs/research/archidekt-editor.md](docs/research/archidekt-editor.md)
 is what that editor does and the order to build it in. The TypeScript never
 reimplements what a decklist is: parsing, `commander` and `outside` come from
-Rust, and `web/src/decklist.gen.ts` is generated from the wire types
+Rust, and `web/src/deck.gen.ts` is generated from the wire types
 (`UPDATE_TS=1 cargo test -p meldweb-wasm`), with a test that fails when it is stale.
 
 Gauntlet stands on **Reality Chip** (`crates/reality-chip/`), the shared core:
@@ -93,12 +93,14 @@ hash in flake.nix** from `lib.fakeHash`. A stale hash does not fail: Nix reuses
 the deps it cached under that hash, so CI stays green on the old dependencies
 until the cache is gone.
 
-The parked probe needed the flake to build at all - a prebuilt V8 pinned by
-hash and an Android-patched deno_core symlinked into `vendor/` - which is why it
-was taken out of the workspace. If it comes back, so does that wiring, and its
-engine tests skip when the upstream blobs or the card fixtures are missing: run
-them with `PROBE_REQUIRE_ENGINE=1` before claiming its accuracy numbers, or a
-green suite has checked nothing.
+The probe builds from its own manifest - `cargo test --manifest-path
+crates/gitaxian-probe/Cargo.toml --workspace` natively, and
+`crates/gitaxian-probe/web-check/run.sh` for the web host in headless Chromium.
+Both need the network: V8 is a prebuilt download, and `gitaxian-probe-assets`
+fetches Delver's engine at build time against a hash pin. Its native engine
+tests skip when the upstream blobs or the card fixtures are missing: run them
+with `PROBE_REQUIRE_ENGINE=1` before claiming its accuracy numbers, or a green
+suite has checked nothing. The web check has no skip; it fails instead.
 
 ## Verifying a change
 

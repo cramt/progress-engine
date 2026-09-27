@@ -6,7 +6,7 @@ Everything below was observed directly unless marked **[inference]**.
 
 Status: the engine runs headless end to end — catalogue queries and card recognition
 both work. `src/` is a Rust library that runs the blob inside a deno_core sandbox
-(§13); see the README. The Node harness this was worked out through has since been
+(§13), and on the web as a sidecar in the browser (§15); see the README. The Node harness this was worked out through has since been
 removed — where the notes below compare against it, that is the historical record of
 how a behaviour was established, not a second codebase to go and read.
 
@@ -23,7 +23,9 @@ how a behaviour was established, not a second codebase to go and read.
 | `model-lambda.7z` | 28.1 MB | 58.8 MB | token-gated |
 | `model-gamma.7z` | 39.5 MB | 103.7 MB | token-gated |
 
-Sidecars per blob: `<name>.md5`, `<name>.size`. Plus `/version.txt` (`1.76.beta`).
+Sidecars per blob: `<name>.md5`, `<name>.size`, where `<name>` drops the extension -
+`data.md5`, `model-alpha.size`, never `data.7z.md5` (which is a 403). Plus
+`/version.txt` (`1.76.beta`).
 
 `<name>.size` is the size of the **unpacked** file and checks out exactly.
 `<name>.md5` is **not a digest of anything served** — neither the archive nor the
@@ -614,3 +616,38 @@ records how to read one when that is worth doing again.
 - Minified import names are positional and build-specific. `src/wasm.rs` hashes the import surface by arity, type histogram and memory limits instead, and `Engine::open` refuses to start on a mismatch. Current value: `3411ecc782a61347` — independently reproduced byte for byte by the Node probe's own implementation before that was removed.
 - Upstream rebuilds can land at any time and nothing about the blob is contractually stable. Over 2026-09-20/21 no rebuild landed, so "daily" is softer than first assumed — but the fingerprint guard, not the cadence, is what makes that safe to ignore.
 - The tag patch is applied in memory at load, by both harnesses. `core.wasm` on disk is never modified.
+
+---
+
+## 15. Running it on the web
+
+Observed 2026-09-27 against `1.83.beta`, whose import surface fingerprints the same
+as `1.76.beta` (`3411ecc782a61347`).
+
+**The origin sends no CORS headers.** Every file comes back from S3 through
+CloudFront with no `Access-Control-Allow-Origin` and no `Vary: Origin`, and an
+`OPTIONS` preflight is a 403. It does send `Cross-Origin-Resource-Policy:
+cross-origin` (with COOP `same-origin` and COEP `require-corp`, for its own page's
+isolation), so a cross-origin page may *embed* `core.js` with a `<script>` tag - but
+a no-cors response is opaque, and the engine needs `core.wasm` and the archives as
+bytes. Any other origin has to serve its own copy.
+
+**In a cross-origin-isolated page, none of §6's shims are needed.** Loaded as a
+classic script, `core.js` defines `createCore`; its pool spawns 32 real Web Workers
+from its own URL; `instantiateWasm` is still the only injection point; and the
+file-written hook fires on the main runtime thread and takes its `window` branch - 53
+`file-written` events over one boot, query and recognition. The bootstrap sequence
+(§8) and job protocol (§7) are unchanged. A dedicated worker has no `window`, so
+there the hook takes the `global.fileEvents` branch and needs that object, as Node
+did; a module worker also lacks a working `importScripts`, so `core.js` is fetched
+and evaluated at global scope.
+
+**Without cross-origin isolation the boot hangs rather than failing.** The pool
+transfers a `SharedArrayBuffer` in a Worker `postMessage`, which throws; the throw is
+uncaught inside core.js and `createCore` never settles. A host has to check
+`crossOriginIsolated` itself.
+
+**The numbers hold.** Six framed Scryfall scans, alpha tier, headless Chromium:
+card name 6/6, exact printing 4/6, the same two same-art misses as §12, on the page
+and in a module worker alike. Boot ~2.9–3.2 s including fetching the files from
+localhost, recognition ~280–430 ms per image.

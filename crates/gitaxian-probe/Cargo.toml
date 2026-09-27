@@ -1,0 +1,37 @@
+# Gitaxian Probe's own workspace, kept apart from Ichormoon Gauntlet's so that
+# neither a plain `cargo` at the root nor the flake has to resolve V8. Build it
+# from here: `cargo build --manifest-path crates/gitaxian-probe/Cargo.toml`.
+[workspace]
+resolver = "2"
+members = ["engine", "assets", "web-check"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/cramt/progress-engine"
+
+[workspace.dependencies]
+anyhow = "1"
+facet = { version = "0.46", features = ["nonzero"] }
+facet-json = "0.46"
+facet-msgpack = "0.46"
+facet-value = "0.46"
+sha2 = "0.10"
+sevenz-rust2 = "0.23"
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+
+# Native only: the host that builds a browser inside V8.
+tokio = { version = "1", features = ["rt", "time", "macros"] }
+deno_core = "0.412"
+# deno_core re-exports deno_error and the two must agree exactly: a caret range
+# resolves to a newer one and op2 stops matching its own error type.
+deno_error = "=0.7.1"
+
+# Web only: the host that lets the browser be the browser.
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+
+gitaxian-probe-assets = { path = "assets" }
+gitaxian-probe-engine = { path = "engine" }

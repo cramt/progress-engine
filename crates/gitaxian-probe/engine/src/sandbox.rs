@@ -9,7 +9,7 @@
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use deno_core::{
     op2, CompiledWasmModuleStore, Extension, JsRuntime, OpState, RuntimeOptions,
     SharedArrayBufferStore,
@@ -18,14 +18,7 @@ use deno_error::JsErrorBox;
 
 use crate::artifacts::Bundle;
 use crate::worker::{WorkerPort, WorkerRegistry};
-
-/// Progress report from the boot sequence.
-#[derive(Debug, Clone)]
-pub struct Progress {
-    pub stage: String,
-    pub percent: u32,
-    pub message: String,
-}
+use crate::Progress;
 
 /// Where `console` inside the sandbox ends up.
 ///
@@ -70,17 +63,10 @@ pub struct Artifacts {
 
 impl Artifacts {
     pub fn new(bundle: Bundle, allow_unknown_build: bool, known: &str) -> Result<Self> {
-        let fingerprint = crate::wasm::import_fingerprint(&bundle.core_wasm)?;
-        if fingerprint != known && !allow_unknown_build {
-            bail!(
-                "core.wasm import surface is {fingerprint}, expected {known}. The engine was \
-                 rebuilt and its ABI is unverified; re-check FINDINGS.md, then set \
-                 allow_unknown_build to run anyway."
-            );
-        }
-
+        let (fingerprint, wasm) =
+            crate::wasm::admit(&bundle.core_wasm, known, allow_unknown_build)?;
         Ok(Self {
-            wasm: crate::wasm::export_internal_tags(&bundle.core_wasm)?,
+            wasm,
             bundle,
             fingerprint,
         })
@@ -262,13 +248,7 @@ fn op_probe_wasm(state: &mut OpState) -> Vec<u8> {
 #[op2]
 #[string]
 fn op_probe_abi() -> String {
-    format!(
-        r#"{{"outputSlots":{},"maskBytes":{},"recRunning":{},"recFinishedWithDetections":{}}}"#,
-        crate::OUTPUT_SLOTS,
-        crate::SEGMENTATION_MASK_BYTES,
-        crate::REC_RUNNING,
-        crate::REC_FINISHED_WITH_DETECTIONS,
-    )
+    crate::abi_json()
 }
 
 #[op2(fast)]

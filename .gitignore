@@ -1,4 +1,6 @@
 /target
+# Gitaxian Probe is its own workspace, with its own target dir.
+crates/gitaxian-probe/target/
 result
 result-*
 
@@ -7,11 +9,20 @@ result-*
 crates/gitaxian-probe/engine/.fixtures/*.jpg
 crates/gitaxian-probe/engine/.fixtures/*.json
 
-# dx builds the Android app into a dist/ beside its crate.
-crates/gitaxian-probe/app/dist/
-
-# symlink to the nix-patched deno_core; see flake.nix
-vendor/
+# Delver X's engine files, which gitaxian-probe-assets downloads at build time
+# and a web build copies next to its output. They are Delver's, not ours to
+# commit, so they are ignored by name wherever a copy lands - not only under
+# target/, where the build leaves them.
+core.js
+core.wasm
+data.7z
+data.md5
+data.size
+model-*.7z
+model-*.dat
+model-*.md5
+model-*.size
+version.txt
 
 # the Python checker run in place
 __pycache__/

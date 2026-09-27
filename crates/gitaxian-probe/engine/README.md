@@ -1,7 +1,9 @@
 # gitaxian probe
 
-Running the [Delver X](https://mtg.delver.app) MTG card-recognition engine headlessly:
-a Rust library that runs the downloaded blob inside a deno_core sandbox.
+Running the [Delver X](https://mtg.delver.app) MTG card-recognition engine from Rust,
+with two execution models behind one API. Natively the downloaded blob runs inside a
+deno_core sandbox that builds it a browser out of seventeen ops; on the web
+(`wasm32`) it runs as a sidecar in the browser it was written for. See *On the web*.
 
 The engine was worked out first through a Node harness, which is where the numbers and
 the call sequence in FINDINGS came from. That harness has served its purpose and is
@@ -13,22 +15,29 @@ to put all of it behind a V8 isolate with no host access.
 
 ## Quick start
 
+The probe is its own cargo workspace, outside the repo root's and outside the flake,
+so run cargo from `crates/gitaxian-probe/`:
+
 ```sh
-nix develop                 # rust, imagemagick, wasm-tools, node
-./.fixtures/fetch-cards.sh  # grab a few reference scans from Scryfall
+cd crates/gitaxian-probe
+./engine/.fixtures/fetch-cards.sh   # a few reference scans from Scryfall; needs `magick`
 
 cargo run -p gitaxian-probe-engine --example query      # boot and query the catalogue
 cargo run -p gitaxian-probe-engine --example recognize  # identify a card in an image
-cargo test -p gitaxian-probe-engine                     # the accuracy numbers, below
+PROBE_REQUIRE_ENGINE=1 cargo test --workspace           # the accuracy numbers, below
+./web-check/run.sh                                      # the same numbers, in a browser
 ```
 
-There is nothing to download first: `Engine::open` pulls the engine, the catalogue
+Natively there is nothing to download first: `Engine::open` pulls the engine, the catalogue
 and the alpha model itself and caches them under `/tmp/gitaxian-probe`. The first run
 costs ~39 MB down and ~51 MB on disk; later ones cost one nine-byte request. See
 *Fetching and caching*.
 
-Everything the crate and its scripts shell out to comes from the flake, so they run
-the same way everywhere; outside the dev shell the scripts say what is missing.
+Building needs the network twice over: `deno_core` links a prebuilt V8 it downloads,
+and `gitaxian-probe-assets` downloads Delver's engine files in its build script. The
+tests shell out to ImageMagick 7's `magick`; the web check needs the
+`wasm32-unknown-unknown` target, a `wasm-bindgen` CLI matching `Cargo.lock`, python3,
+and node with playwright. Each script says what it is missing.
 
 ## Rust API
 
@@ -162,6 +171,57 @@ Arguments are rendered one line per call, not as a browser console would: typed 
 and `ArrayBuffer`s become `[Uint8Array 419430400]` rather than a serialised copy of the
 heap, cycles become `[Circular]`, and anything past 2000 characters is truncated.
 
+## On the web
+
+On `wasm32` the same `Engine` exists, but every call is `async`, the config names
+where the files are served rather than where they are cached, and nothing is built to
+stand in for a browser. `core.js` loads as a classic script, its 32-thread pool is Web
+Workers, `core.wasm` is instantiated beside this crate's own module, and the
+file-written hook takes its `window` branch. `js/web.js` is the whole of the glue: the
+bootstrap sequence and the job protocol, against the real globals. Rust keeps what it
+keeps natively - the fingerprint check and tag patch, the ABI constants, the job
+decoder and the types.
+
+```rust
+use gitaxian_probe_engine::{Engine, EngineConfig, Image};
+
+let mut engine = Engine::open(EngineConfig {
+    base: "/gitaxian-probe/".into(),
+    ..EngineConfig::default()
+})
+.await?;
+let found = engine.recognize(&Image { data: &rgba, width, height }).await?;
+```
+
+The page has to provide two things:
+
+- **Cross-origin isolation.** The pool shares one `WebAssembly.Memory`, so the page
+  needs `SharedArrayBuffer`: serve it with `Cross-Origin-Opener-Policy: same-origin`
+  and `Cross-Origin-Embedder-Policy: require-corp`. `open` refuses a page without it
+  up front; left to core.js, the boot would hang on a Worker `postMessage` instead.
+- **The files, from its own origin.** Delver's origin sends no CORS headers
+  (checked 2026-09-27: no `Access-Control-Allow-Origin` on any file, and a preflight
+  is a 403), so no other origin can `fetch` them. `gitaxian-probe-assets` is the copy:
+  its build script downloads the build pinned in `assets/src/pin.rs`, checks every
+  file's sha256, unpacks the weights, and lays the directory out in
+  `gitaxian_probe_assets::dir()`. A web build copies that next to its output -
+  `gitaxian_probe_assets::copy_to(dest)` from its own build step, or
+  `cargo run -p gitaxian-probe-assets --example copy -- <dest>` - and sets `base` to
+  wherever it is served.
+
+`open` works on the page or inside a dedicated worker, classic or module; in a worker
+there is no `window`, so the glue gives the hook the `global.fileEvents` it falls back
+to, exactly as the native sandbox does. The pool's workers cannot be stopped from
+outside (FINDINGS §6), so `close` frees the engine's buffers and the workers go with
+the page.
+
+The pin is also the web host's version lock. Upstream serves only its current build,
+so a new Delver release makes a fresh build fail with the replacement hashes printed;
+taking the new build means pasting those into `pin.rs` and re-running both checks.
+`GITAXIAN_PROBE_ASSETS_FROM=<dir>` takes the files from a directory instead of the
+network (still checked against the pin), and `GITAXIAN_PROBE_OFFLINE=1` forbids the
+download outright.
+
 ## What the sandbox actually allows
 
 `core.js` and `core.wasm` are downloaded from a vendor that rebuilds them on its own
@@ -195,18 +255,22 @@ Six Scryfall scans composited onto a plain background (`.fixtures/fetch-cards.sh
 alpha tier. Both harnesses produce the same `dataId`, the same confidences and the
 same `similar` ranking:
 
-| | Node probe | Rust |
-|---|---|---|
-| Card name | **6/6** | **6/6** |
-| Exact printing | **4/6** | **4/6** |
-| Boot (install + deserialise + model + recogniser) | ~2.7–3.1 s | ~3.8–4.2 s |
-| Recognition, per image after boot | ~280–570 ms | ~410–475 ms |
+| | Node probe | Rust, native | Rust, web (Chromium) |
+|---|---|---|---|
+| Card name | **6/6** | **6/6** | **6/6** |
+| Exact printing | **4/6** | **4/6** | **4/6** |
+| Boot (install + deserialise + model + recogniser) | ~2.7–3.1 s | ~3.8–4.2 s | ~2.9–3.2 s |
+| Recognition, per image after boot | ~280–570 ms | ~410–475 ms | ~280–430 ms |
 
 The Node column is the historical measurement the port was checked against, kept
 because it is what makes the Rust column mean anything. Boot costs about a second more
 under deno_core: 32 isolates each compile `core.js` themselves, and there is no
 snapshot. Recognition is the same work in the same wasm, so it lands in the same
-range.
+range. The web column is `web-check/run.sh` on 1.83.beta, on the page and in a module
+worker (the two agree), with the files served from localhost; its boot includes
+fetching them. The browser compiles `core.js` once per worker too, but with its own
+code cache. The native accuracy test also passes on 1.83.beta, whose import surface
+fingerprints the same as the 1.76.beta these notes were first written against.
 
 Both printing misses are same-art reprints — *Llanowar Elves* placed in Dominaria
 rather than M19, *Swords to Plowshares* in Foreign Black Border rather than Alpha.
@@ -217,10 +281,10 @@ behaviour fails the suite rather than the review.
 
 It only pins them where it can run. Every engine case needs the upstream blobs, and
 the accuracy ones need `magick` too; without either they skip and the suite still
-passes, which is not the same claim. `nix flake check` is one such place - it has no
-network, so it builds the crate and runs the pure tests and nothing here. Set
-`PROBE_REQUIRE_ENGINE=1` anywhere these numbers are meant to hold and a skip becomes
-a failure.
+passes, which is not the same claim. Set `PROBE_REQUIRE_ENGINE=1` anywhere these
+numbers are meant to hold and a skip becomes a failure. `web-check/run.sh` holds the
+web host to the same two numbers, on the page and in a worker, and has no skip: a
+missing frame or tool is a failure.
 
 ## Drift
 
@@ -235,7 +299,10 @@ on a mismatch. When that fires, re-verify the ABI against FINDINGS before passin
 
 | | |
 |---|---|
-| `src/lib.rs` | the Rust API — `Engine`, config, result types |
+| `src/lib.rs` | what both hosts share — models, result types, ABI constants |
+| `src/native.rs` | the native `Engine`: deno_core, blocking calls |
+| `src/web.rs` | the web `Engine`: the browser's own runtime, async calls |
+| `js/web.js` | the bootstrap sequence and job protocol, against real browser globals |
 | `src/sandbox.rs` | the isolate: every op the blob can reach, and the builtins it cannot |
 | `src/worker.rs` | the pthread pool — OS threads, isolates, termination |
 | `src/pump.rs` | driving the engine: deliver messages, fire timers, drain microtasks |
@@ -245,10 +312,13 @@ on a mismatch. When that fires, re-verify the ABI against FINDINGS before passin
 | `js/bootstrap.js` | the browser globals, built on those ops |
 | `js/main-prelude.js`, `js/worker-prelude.js` | the two halves of the `Worker` shim |
 | `js/engine.js` | the bootstrap sequence and job protocol, in-sandbox |
+| `../assets/` | `gitaxian-probe-assets`: the pinned engine files a web build serves |
+| `../web-check/` | the web host's acceptance check, in headless Chromium |
 
 ## Threading
 
-`JsRuntime` pins its isolate to the thread that built it, so `Engine` is `!Send` and
+On the web there is nothing to say: the engine lives on whichever thread opened it,
+and every call is a future. Natively, `JsRuntime` pins its isolate to the thread that built it, so `Engine` is `!Send` and
 every call blocks its thread - `recognize` for a few hundred milliseconds while the
 pool works. Embedding it anywhere with a UI therefore means giving the engine a
 thread of its own and talking to it over a channel; that is V8's constraint, not a
@@ -263,4 +333,6 @@ model 0 whatever the tier, so booting one would feed lambda or gamma weights to
 alpha's init and report success. The `_rec_set_jwt_token` gate was not touched and
 resolving the per-tier init export is what it would take.
 
-No Delver binaries are committed — the crate pulls them from the origin at run time.
+No Delver binaries are committed. The native host pulls them from the origin at run
+time; the web host serves the copy `gitaxian-probe-assets` downloads at build time,
+which means whoever deploys a page is hosting Delver's engine and weights themselves.

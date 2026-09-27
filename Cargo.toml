@@ -7,15 +7,10 @@ members = [
     "crates/reality-chip/*",
     "crates/meldweb-curator/wasm",
 ]
-# Gitaxian Probe is parked: a failed MVP whose source stays in the tree but out
-# of the build, so a plain `cargo` resolves the workspace without the flake's
-# patched deno_core. Its crates still inherit `*.workspace = true` keys, so they
-# do not build on their own either. To bring it back, restore from the commit
-# that parked it: this `members` glob as "crates/*/*", the probe-only
-# `[workspace.dependencies]`, the size-tuned `[profile.release]`, the
-# `[patch.crates-io]` deno_core entry, and flake.nix's V8, Skia, vendored
-# deno_core and Android wiring.
-exclude = ["crates/gitaxian-probe/*"]
+# Gitaxian Probe is a workspace of its own (crates/gitaxian-probe/Cargo.toml), so
+# a plain `cargo` here resolves neither V8 nor the build-time download of
+# Delver's engine files, and the flake never sees either.
+exclude = ["crates/gitaxian-probe"]
 
 [workspace.metadata.crane]
 # crane reads the package name from the root Cargo.toml, which a virtual

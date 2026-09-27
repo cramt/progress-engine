@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>gitaxian-probe web check</title>
+<script type="module">
+  // `?worker` runs the check inside a dedicated module worker instead of on
+  // the page, which is the other context the web host supports.
+  import init, { check } from "./pkg/gitaxian_probe_web_check.js";
+  import { frames } from "./frames.js";
+
+  async function onPage() {
+    await init();
+    return { ok: true, report: `on the page\n${await check("gitaxian-probe/", await frames())}` };
+  }
+
+  function inWorker() {
+    return new Promise((resolve) => {
+      const worker = new Worker("worker.js", { type: "module" });
+      worker.onmessage = (e) => resolve(e.data);
+      worker.onerror = (e) => resolve({ ok: false, report: `worker failed: ${e.message}` });
+    });
+  }
+
+  try {
+    window.__result = await (location.search.includes("worker") ? inWorker() : onPage());
+  } catch (e) {
+    window.__result = { ok: false, report: String(e?.message ?? e) };
+  }
+</script>
