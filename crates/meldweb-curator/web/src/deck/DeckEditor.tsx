@@ -1,6 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { declareCategory, parseDeck, setCardCategories } from "../deck";
+import {
+  type Card,
+  declareCategory,
+  parseDeck,
+  setCardCategories,
+} from "../deck";
 import type { GitHubApi, RepoRef } from "../github/api";
 import { deckStem } from "../github/decks";
 import { deckText } from "../github/deckText";
@@ -10,7 +15,9 @@ import { addByName } from "../quickadd/addByName";
 import { type AddByName, QuickAdd } from "../quickadd/QuickAdd";
 import type { Printings } from "../scryfall";
 import { SearchButton, SearchOverlay } from "../search/SearchOverlay";
+import { CopyArchidekt } from "./CopyArchidekt";
 import { dropOnto } from "./move";
+import { usePrintings } from "./printings";
 import { type OnDrop, StacksView } from "./StacksView";
 import { Toolbar, UndoRedo } from "./Toolbar";
 
@@ -70,6 +77,8 @@ export interface DeckEditorProps {
   printings: Printings;
 }
 
+const NO_CARDS: readonly Card[] = [];
+
 const statusText: Record<SaveState["status"], string> = {
   unsaved: "Unsaved",
   saving: "Saving…",
@@ -88,11 +97,16 @@ export function DeckEditor({
   sha,
   repo,
   api,
-  printings,
+  printings: loadedPrintings,
 }: DeckEditorProps) {
   const history = useHistory(loaded);
   const [refusal, setRefusal] = useState<string | null>(null);
   const parsed = useMemo(() => parseDeck(history.present), [history.present]);
+  // Cards an edit adds are looked up too, so they show as themselves.
+  const printings = usePrintings(
+    loadedPrintings,
+    parsed.kind === "deck" ? parsed.cards : NO_CARDS,
+  );
   const { undo, redo } = history;
   const [searching, setSearching] = useState(false);
 
@@ -187,6 +201,14 @@ export function DeckEditor({
         count={parsed.total}
         search={<SearchButton onClick={() => setSearching(true)} />}
         quickAdd={<QuickAdd categories={parsed.categories} onAdd={onAdd} />}
+        actions={
+          <CopyArchidekt
+            text={history.present}
+            cards={parsed.cards}
+            printings={printings}
+            onRefusal={setRefusal}
+          />
+        }
         status={
           <span
             className={`save-status save-${save.status}`}
