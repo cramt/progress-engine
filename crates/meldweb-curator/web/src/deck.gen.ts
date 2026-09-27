@@ -1,6 +1,22 @@
 // Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
+export type Imported =
+  | { kind: "imported"; toml: string; unreadable: Unreadable[] }
+  | { kind: "refused"; message: string };
+
+/**
+ * A line of pasted Archidekt text the import could not carry over whole.
+ */
+export interface Unreadable {
+  /**
+   * 1-based, counting every line of the pasted text.
+   */
+  line: number;
+  text: string;
+  reason: string;
+}
+
 export type Parsed =
   | { kind: "deck"; name?: string; format?: string; categories: Category[]; cards: Card[]; total: number }
   | { kind: "refused"; message: string };

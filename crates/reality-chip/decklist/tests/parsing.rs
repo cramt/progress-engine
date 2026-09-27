@@ -62,23 +62,58 @@ fn multiple_categories_split_on_comma() {
     assert_eq!(e.category, "Big Colorless,Test");
 }
 
+/// Archidekt makes a card a commander by `{top}` on its first category, and by
+/// nothing else (docs/research/archidekt-import-shapes.md).
 #[test]
-fn commander_is_detected_per_category_not_on_the_raw_string() {
+fn a_commander_is_the_first_category_carrying_top() {
     assert!(one("1x Rashmi and Ragavan [Commander{top}]").is_commander());
-    // The regression multi-category support could have introduced: the raw
-    // bracket no longer starts with "commander", but this is still the commander.
-    assert!(one("1x Rashmi and Ragavan [Ramp,Commander{top}]").is_commander());
+    assert!(one("1x Rashmi and Ragavan [Commander{top},Ramp]").is_commander());
+    assert!(one("1x Lightning Bolt [Burn{top}]").is_commander());
+    // Archidekt shows this under Ramp, with no crown.
+    assert!(!one("1x Rashmi and Ragavan [Ramp,Commander{top}]").is_commander());
+    // A group named Commander, Premier unticked.
+    assert!(!one("1x Kenrith, the Returned King [Commander]").is_commander());
     assert!(!one("1x Sol Ring [Ramp]").is_commander());
 }
 
+/// Out of the deck by the first category alone: `{noDeck}`, or exactly
+/// `Sideboard` or `Maybeboard`.
 #[test]
-fn outside_the_deck_is_detected_per_category() {
+fn outside_the_deck_is_read_from_the_first_category() {
     assert!(one("1x Lurrus of the Dream-Den [Companion{noDeck}]").is_outside());
     assert!(one("1x Foo [Sideboard]").is_outside());
     assert!(one("1x Foo [Maybeboard]").is_outside());
+    assert!(one("1x Foo [Maybeboard{noDeck}{noPrice}]").is_outside());
     assert!(one("1x Foo [Anything{noDeck}]").is_outside());
-    // Same regression class as above, in the other direction.
-    assert!(one("1x Foo [Ramp,Sideboard]").is_outside());
+    assert!(one("1x Path to Exile [Sideboard,Removal]").is_outside());
+    // Each of these counted toward Size in Archidekt.
+    assert!(!one("1x Wrath of God [Removal,Sideboard]").is_outside());
+    assert!(!one("1x Foo [sideboard]").is_outside());
+    assert!(!one("1x Foo [Sideboard Lessons]").is_outside());
+    assert!(!one("1x Lurrus of the Dream-Den [Companion]").is_outside());
+    assert!(!one("1x Foo [Draw,Maybeboard]").is_outside());
+}
+
+#[test]
+fn flags_are_every_brace_group_after_the_name() {
+    let e = one("1x Brainstorm [Maybeboard{noDeck}{noPrice}]");
+    assert_eq!(e.categories[0].name, "Maybeboard");
+    assert_eq!(e.categories[0].flags, vec!["nodeck", "noprice"]);
+}
+
+#[test]
+fn a_heading_is_the_first_category_of_every_card_below_it() {
+    let entries = decklist::parse(
+        "# Ramp\n1x Sol Ring [Artifacts]\n1x Arcane Signet [Ramp]\n# Commander\n1x Kenrith, the Returned King\n",
+    )
+    .unwrap();
+    let names = |e: &decklist::Entry| -> Vec<String> {
+        e.categories.iter().map(|c| c.to_string()).collect()
+    };
+    assert_eq!(names(&entries[0]), vec!["Ramp", "Artifacts"]);
+    assert_eq!(names(&entries[1]), vec!["Ramp"], "one Ramp, not two");
+    // `# Commander` sets Premier by itself, unlike `[Commander]`.
+    assert!(entries[2].is_commander());
 }
 
 #[test]

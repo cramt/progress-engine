@@ -1,13 +1,23 @@
-import type { Kind, Parsed } from "./deck.gen";
+import type { Imported, Kind, Parsed } from "./deck.gen";
 import init, {
   declare_category,
+  export_archidekt,
   import_archidekt,
   initSync,
   parse_deck,
   set_card_categories,
 } from "./wasm/pkg/meldweb_wasm.js";
 
-export type { Card, CardRef, Category, Finish, Kind, Parsed } from "./deck.gen";
+export type {
+  Card,
+  CardRef,
+  Category,
+  Finish,
+  Imported,
+  Kind,
+  Parsed,
+  Unreadable,
+} from "./deck.gen";
 
 /** Loads the parser. Everything else in this module needs it done first. */
 export async function loadDeck(): Promise<void> {
@@ -27,9 +37,26 @@ export function parseDeck(text: string): Parsed {
   return JSON.parse(parse_deck(text)) as Parsed;
 }
 
-/** Archidekt's text export as a `.deck.toml`. Throws what the import refuses. */
-export function importArchidekt(text: string): string {
-  return import_archidekt(text);
+/**
+ * Pasted Archidekt text as a `.deck.toml`, read the way Archidekt reads it,
+ * with every line that could not be carried over and why. `refused` when no
+ * line was a card.
+ */
+export function importArchidekt(text: string): Imported {
+  return JSON.parse(import_archidekt(text)) as Imported;
+}
+
+/**
+ * The deck as Archidekt text, names only. The file names some cards only by
+ * printing, so `names` maps each `"set/num"` to the card's name from the
+ * Scryfall data the page already has. Throws, listing them, when a printing
+ * has no name.
+ */
+export function exportArchidekt(
+  text: string,
+  names: Readonly<Record<string, string>> = {},
+): string {
+  return export_archidekt(text, JSON.stringify(names));
 }
 
 /**

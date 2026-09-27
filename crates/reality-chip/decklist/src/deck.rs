@@ -16,6 +16,10 @@ use std::num::NonZeroU32;
 use facet::Facet;
 use thiserror::Error;
 
+pub use crate::archidekt::{
+    export_archidekt, import_archidekt, ExportError, ImportError, Imported, Unreadable,
+};
+
 /// Where a category says its cards are. The tree is the tool's, not the deck's.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CategoryType {
@@ -102,7 +106,7 @@ pub struct Printing {
 }
 
 impl Printing {
-    fn parse(text: &str) -> Option<Printing> {
+    pub(crate) fn parse(text: &str) -> Option<Printing> {
         let (set, num) = text.split_once('/')?;
         let (set, num) = (set.trim(), num.trim());
         if set.is_empty() || num.is_empty() || num.contains('/') {
@@ -243,13 +247,13 @@ struct RawDeck {
 
 #[derive(Facet)]
 #[facet(deny_unknown_fields)]
-struct RawCard {
-    name: Option<String>,
-    printing: Option<String>,
-    qty: Option<u32>,
-    finish: Option<String>,
+pub(crate) struct RawCard {
+    pub(crate) name: Option<String>,
+    pub(crate) printing: Option<String>,
+    pub(crate) qty: Option<u32>,
+    pub(crate) finish: Option<String>,
     #[facet(rename = "in", default)]
-    categories: Vec<String>,
+    pub(crate) categories: Vec<String>,
 }
 
 #[derive(Facet)]
@@ -301,7 +305,7 @@ impl Deck {
     }
 }
 
-fn card(index: usize, raw: RawCard, declared: &[Category]) -> Result<Card, DeckError> {
+pub(crate) fn card(index: usize, raw: RawCard, declared: &[Category]) -> Result<Card, DeckError> {
     let card = match (raw.name, raw.printing) {
         (Some(_), Some(_)) => return Err(DeckError::NamedTwice { index }),
         (None, None) => return Err(DeckError::Unnamed { index }),
@@ -383,81 +387,7 @@ fn card(index: usize, raw: RawCard, declared: &[Category]) -> Result<Card, DeckE
     })
 }
 
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum ImportError {
-    #[error(transparent)]
-    Archidekt(#[from] crate::ParseError),
-    #[error(transparent)]
-    Deck(#[from] DeckError),
-}
-
-/// The type Archidekt's conventions give a category, read the way
-/// [`crate::Entry::is_commander`] and [`crate::Entry::is_outside`] read them,
-/// so an imported deck puts every card where Gauntlet always has.
-fn archidekt_type(category: &crate::Category) -> Option<CategoryType> {
-    let name = category.name.to_ascii_lowercase();
-    if name.starts_with("commander") {
-        Some(CategoryType::Commander)
-    } else if name.starts_with("companion") {
-        Some(CategoryType::Companion)
-    } else if name.starts_with("sideboard") {
-        Some(CategoryType::Sideboard)
-    } else if name.starts_with("maybe") {
-        Some(CategoryType::Maybeboard)
-    } else if category.flags.iter().any(|f| f == "nodeck") {
-        Some(CategoryType::NotInDeck)
-    } else {
-        None
-    }
-}
-
 impl Deck {
-    /// Reads Archidekt's text export. Its categories become declared ones,
-    /// typed by Archidekt's naming conventions; its `{top}` premier is dropped,
-    /// because this format has none.
-    pub fn from_archidekt(text: &str) -> Result<Deck, ImportError> {
-        let entries = crate::parse(text)?;
-
-        let mut kinds: BTreeMap<String, Option<CategoryType>> = BTreeMap::new();
-        for c in entries.iter().flat_map(|e| &e.categories) {
-            let kind = archidekt_type(c);
-            // A category is typed if any of its lines says so: `{noDeck}` is a
-            // property of the category that Archidekt repeats on each line.
-            let slot = kinds.entry(c.name.clone()).or_insert(kind);
-            *slot = slot.or(kind);
-        }
-        let categories: Vec<Category> = kinds
-            .into_iter()
-            .map(|(name, kind)| Category { name, kind })
-            .collect();
-
-        let cards = entries
-            .into_iter()
-            .enumerate()
-            .map(|(i, e)| {
-                let printing = match (e.set, e.num) {
-                    (Some(set), Some(num)) => Some(format!("{set}/{num}")),
-                    _ => None,
-                };
-                let raw = RawCard {
-                    name: printing.is_none().then_some(e.name),
-                    printing,
-                    qty: Some(e.qty.get()),
-                    finish: e.foil.then(|| "foil".to_string()),
-                    categories: e.categories.into_iter().map(|c| c.name).collect(),
-                };
-                card(i + 1, raw, &categories)
-            })
-            .collect::<Result<Vec<_>, DeckError>>()?;
-
-        Ok(Deck {
-            name: None,
-            format: None,
-            categories,
-            cards,
-        })
-    }
-
     /// The deck as `.deck.toml`, one card per line. `name_of` gives the name a
     /// printing is written with as a comment; the comment is never read back.
     pub fn to_toml(&self, name_of: impl Fn(&Printing) -> Option<String>) -> String {
@@ -542,20 +472,4 @@ fn key(s: &str) -> String {
     } else {
         quote(s)
     }
-}
-
-/// Archidekt's text export as `.deck.toml` text: [`Deck::from_archidekt`],
-/// written with each printing's name as a comment. The name is the one
-/// Archidekt gave that line, and a comment is never read back, so it cannot
-/// disagree with the printing it sits beside.
-pub fn import_archidekt(text: &str) -> Result<String, ImportError> {
-    let deck = Deck::from_archidekt(text)?;
-    let names: std::collections::HashMap<Printing, String> = crate::parse(text)?
-        .into_iter()
-        .filter_map(|e| {
-            let p = Printing::parse(&format!("{}/{}", e.set?, e.num?))?;
-            Some((p, e.name))
-        })
-        .collect();
-    Ok(deck.to_toml(|p| names.get(p).cloned()))
 }
