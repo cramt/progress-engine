@@ -1,18 +1,15 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { parseDeck } from "../deck";
 import { createDeck, deckPath, listDecks, slugify } from "./decks";
-import type { DeckText, Imported } from "./deckText";
+import { type DeckText, deckText, type Imported } from "./deckText";
 import { loadWasm, mockConnection, seedDecks } from "./testkit";
 
 beforeAll(loadWasm);
 
-// `newDeck` and the typed `importArchidekt` are other agents' wasm; these
-// stand in with the contract's shapes, and parsing stays the real one.
+// Everything is the real wasm but the import, which is another agent's and
+// stands in with the contract's typed shape.
 const fakeDeck = (imported?: Imported): DeckText => ({
-  parseDeck,
-  commitMessage: () => "unused",
-  newDeck: (name, format) =>
-    `name = ${JSON.stringify(name)}\nformat = ${JSON.stringify(format)}\ncards = []\n`,
+  ...deckText,
   importArchidekt: () =>
     imported ?? { kind: "refused", message: "no import in this test" },
 });
@@ -71,7 +68,10 @@ describe("a new deck", () => {
     const file = mock.file("decks/sol-ring-tribal.deck.toml");
     expect(file?.text).toContain('name = "Sol Ring Tribal"');
     expect(made.kind === "created" && made.sha).toBe(file?.sha);
-    expect(mock.commits().at(-1)?.message).toBe("sol-ring-tribal: new deck");
+    // The first save's message is #124's diff against nothing.
+    expect(mock.commits().at(-1)?.message).toBe(
+      'sol-ring-tribal: name: none → "Sol Ring Tribal", format: none → commander',
+    );
     const parsed = parseDeck(file?.text ?? "");
     expect(parsed).toMatchObject({
       kind: "deck",

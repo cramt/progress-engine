@@ -37,6 +37,8 @@ export function commitDeck(
 }
 
 export interface SaveStore {
+  /** The deck file this store saves. */
+  readonly path: string;
   getState(): SaveState;
   subscribe(listener: () => void): () => void;
   /** The deck's text after an edit (or an undo). Starts the idle clock. */
@@ -159,6 +161,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
   }
 
   const store: SaveStore = {
+    path,
     getState: () => state,
     subscribe(listener) {
       listeners.add(listener);
@@ -246,4 +249,24 @@ export function createSaveStore(options: SaveOptions): SaveStore {
     },
   };
   return store;
+}
+
+const leaving = new Map<string, Promise<void>>();
+
+/**
+ * Saves `store`'s pending edits as its editor goes away, remembered so that
+ * opening the same deck again reads it only after that save has landed and
+ * so starts from the new sha.
+ */
+export function flushOnLeave(store: SaveStore): Promise<void> {
+  const done = store.flush().finally(() => {
+    if (leaving.get(store.path) === done) leaving.delete(store.path);
+  });
+  leaving.set(store.path, done);
+  return done;
+}
+
+/** Resolves once any save made while leaving `path` has finished. */
+export function settled(path: string): Promise<void> {
+  return leaving.get(path) ?? Promise.resolve();
 }
