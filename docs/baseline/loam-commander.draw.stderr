@@ -1,4 +1,4 @@
-ESTIMATE: a question here was too wide to enumerate exactly: 5000001
+ESTIMATE: a question here was too wide to enumerate exactly: 45780056408064
           compositions across 16 groups, against a ceiling of 5000000. It was
           answered by sampling 200000 hands instead.
           Every percentage below is an ESTIMATE, not an exact answer.
@@ -78,8 +78,8 @@ note: these lands make mana other than the card data lists, and this run reads t
       Simic Growth Chamber: counted as one mana a turn: the second mana it taps for, and the land it returns to hand, are not modelled.
       Wooded Foothills: a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain): pays {R}{G}, assuming one is still in the library to find.
      commander cast by turn 5                                62.10% ± 0.11
-     commander cast by turn 6                                70.84% ± 0.10
-     commander cast by turn 7                                78.09% ± 0.09
+     commander cast by turn 6                                70.85% ± 0.10
+     commander cast by turn 7                                78.04% ± 0.09
      Borborygmos and Fblthp castable by turn 4, lands only    0.00% ± 0.00
      Borborygmos and Fblthp castable by turn 5, lands only   62.10% ± 0.11
 

@@ -8,7 +8,7 @@
   "method": "sampled",
   "sampled_because": "too_wide",
   "too_wide": {
-    "paths": 5000001,
+    "paths": 36332613504,
     "groups": 18,
     "ceiling": 5000000
   },
@@ -309,17 +309,17 @@
   "criteria": [
     {
       "name": "Borborygmos and Fblthp cast by turn 4, dorks in the line",
-      "probability": 0.095385,
-      "percent": 9.54,
+      "probability": 0.095615,
+      "percent": 9.56,
       "at_least": null,
-      "standard_error": 0.000657,
+      "standard_error": 0.000658,
       "pass": true,
       "method": "sampled"
     },
     {
       "name": "Borborygmos and Fblthp cast by turn 5, dorks in the line",
-      "probability": 0.567945,
-      "percent": 56.79,
+      "probability": 0.565195,
+      "percent": 56.52,
       "at_least": null,
       "standard_error": 0.001108,
       "pass": true,

@@ -8,7 +8,7 @@
   "method": "sampled",
   "sampled_because": "too_wide",
   "too_wide": {
-    "paths": 5000001,
+    "paths": 2861253525504,
     "groups": 16,
     "ceiling": 5000000
   },
@@ -331,8 +331,8 @@
   "criteria": [
     {
       "name": "commander cast by turn 5",
-      "probability": 0.519035,
-      "percent": 51.9,
+      "probability": 0.519855,
+      "percent": 51.99,
       "at_least": null,
       "standard_error": 0.001117,
       "pass": true,
@@ -340,19 +340,19 @@
     },
     {
       "name": "commander cast by turn 6",
-      "probability": 0.62097,
-      "percent": 62.1,
+      "probability": 0.62159,
+      "percent": 62.16,
       "at_least": null,
-      "standard_error": 0.001085,
+      "standard_error": 0.001084,
       "pass": true,
       "method": "sampled"
     },
     {
       "name": "commander cast by turn 7",
-      "probability": 0.707665,
-      "percent": 70.77,
+      "probability": 0.70838,
+      "percent": 70.84,
       "at_least": null,
-      "standard_error": 0.001017,
+      "standard_error": 0.001016,
       "pass": true,
       "method": "sampled"
     },
@@ -367,8 +367,8 @@
     },
     {
       "name": "Borborygmos and Fblthp castable by turn 5, lands only",
-      "probability": 0.519035,
-      "percent": 51.9,
+      "probability": 0.519855,
+      "percent": 51.99,
       "at_least": null,
       "standard_error": 0.001117,
       "pass": true,
@@ -383,7 +383,7 @@
     "tool_version": "0.1.0",
     "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
-    "criteria_sha256": "0d2ba70aa0f3bb753276e3d3ea6a1178dfec77f028289b0a44b3e5cab1f76980",
+    "criteria_sha256": "7353558bab3a6ea44fab099fcef6ceec4227b7efbdf2d3e4e5b1b2476904615d",
     "effect_library_sha256": "d0e1c9efcec3579040c2258b3a4f37b4697f0d675211f84a74ef9061cbc14415"
   }
 }
