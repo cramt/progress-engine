@@ -1,13 +1,30 @@
-import type { Kind, Parsed } from "./deck.gen";
+import type { Finish, Kind, NewCard, Parsed } from "./deck.gen";
 import init, {
+  add_card,
+  commit_message,
   declare_category,
   import_archidekt,
   initSync,
+  new_deck,
   parse_deck,
+  remove_card,
   set_card_categories,
+  set_card_finish,
+  set_card_printing,
+  set_card_qty,
+  set_commander,
+  set_deck_meta,
 } from "./wasm/pkg/meldweb_wasm.js";
 
-export type { Card, CardRef, Category, Finish, Kind, Parsed } from "./deck.gen";
+export type {
+  Card,
+  CardRef,
+  Category,
+  Finish,
+  Kind,
+  NewCard,
+  Parsed,
+} from "./deck.gen";
 
 /** Loads the parser. Everything else in this module needs it done first. */
 export async function loadDeck(): Promise<void> {
@@ -32,11 +49,14 @@ export function importArchidekt(text: string): string {
   return import_archidekt(text);
 }
 
-/**
- * The deck text with one card's categories replaced and the rest of the file
- * untouched. Throws when the result is a deck the format does not allow, such
- * as a card in two places at once.
+/*
+ * Every edit below takes the deck text and returns the next text, with only
+ * the lines the edit is about changed. Each throws when the result is a deck
+ * the format does not allow, such as a card in two places at once or in a
+ * category never declared. `index` is a card's `Card.index`.
  */
+
+/** The deck text with one card's categories replaced. */
 export function setCardCategories(
   text: string,
   index: number,
@@ -52,4 +72,85 @@ export function declareCategory(
   kind?: Kind,
 ): string {
   return declare_category(text, name, kind ?? "");
+}
+
+/** The deck text with a card at `qty` copies; 0 removes it. */
+export function setCardQty(text: string, index: number, qty: number): string {
+  return set_card_qty(text, index, qty);
+}
+
+/** The deck text without a card's line. */
+export function removeCard(text: string, index: number): string {
+  return remove_card(text, index);
+}
+
+/**
+ * The deck text with a card as a commander: it joins the deck's
+ * commander-typed category, first, declaring `Commander` if there is none,
+ * and leaves any category that put it outside the deck.
+ */
+export function setCommander(text: string, index: number): string {
+  return set_commander(text, index);
+}
+
+/** The deck text with a card named by the printing `set/num`. */
+export function setCardPrinting(
+  text: string,
+  index: number,
+  set: string,
+  num: string,
+): string {
+  return set_card_printing(text, index, set, num);
+}
+
+/** The deck text with a card's finish changed. */
+export function setCardFinish(
+  text: string,
+  index: number,
+  finish: Finish,
+): string {
+  return set_card_finish(text, index, finish);
+}
+
+/**
+ * The deck text with one more `card` in `categories`: a new last line, or
+ * one more of the card already there in exactly those categories. A printing
+ * may carry its `name`, written beside the line as a comment so the commit
+ * message can say it.
+ */
+export function addCard(
+  text: string,
+  card: NewCard,
+  categories: readonly string[] = [],
+): string {
+  return add_card(text, JSON.stringify(card), JSON.stringify(categories));
+}
+
+/**
+ * The commit message for saving `before` as `after` at `path`, a line of the
+ * deck's changelog. `before` is `""` for a deck's first save.
+ */
+export function commitMessage(
+  before: string,
+  after: string,
+  path: string,
+): string {
+  return commit_message(before, after, path);
+}
+
+/**
+ * The deck text with its `name` set, and its `format` when one is given; a
+ * file without them, as an Archidekt import is, gains them at its top.
+ */
+export function setDeckMeta(
+  text: string,
+  name: string,
+  format?: string,
+): string {
+  return set_deck_meta(text, name, format ?? "");
+}
+
+/** The text of a new, empty deck. An empty `format` is left out. */
+export function newDeck(name: string, format: string): string {
+  return new_deck(name, format);
 }
