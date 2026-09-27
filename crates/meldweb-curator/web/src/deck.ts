@@ -1,8 +1,9 @@
-import type { Finish, Kind, NewCard, Parsed } from "./deck.gen";
+import type { Finish, Imported, Kind, NewCard, Parsed } from "./deck.gen";
 import init, {
   add_card,
   commit_message,
   declare_category,
+  export_archidekt,
   import_archidekt,
   initSync,
   new_deck,
@@ -21,9 +22,11 @@ export type {
   CardRef,
   Category,
   Finish,
+  Imported,
   Kind,
   NewCard,
   Parsed,
+  Unreadable,
 } from "./deck.gen";
 
 /** Loads the parser. Everything else in this module needs it done first. */
@@ -44,9 +47,26 @@ export function parseDeck(text: string): Parsed {
   return JSON.parse(parse_deck(text)) as Parsed;
 }
 
-/** Archidekt's text export as a `.deck.toml`. Throws what the import refuses. */
-export function importArchidekt(text: string): string {
-  return import_archidekt(text);
+/**
+ * Pasted Archidekt text as a `.deck.toml`, read the way Archidekt reads it,
+ * with every line that could not be carried over and why. `refused` when no
+ * line was a card.
+ */
+export function importArchidekt(text: string): Imported {
+  return JSON.parse(import_archidekt(text)) as Imported;
+}
+
+/**
+ * The deck as Archidekt text, names only. The file names some cards only by
+ * printing, so `names` maps each `"set/num"` to the card's name from the
+ * Scryfall data the page already has. Throws, listing them, when a printing
+ * has no name.
+ */
+export function exportArchidekt(
+  text: string,
+  names: Readonly<Record<string, string>> = {},
+): string {
+  return export_archidekt(text, JSON.stringify(names));
 }
 
 /*

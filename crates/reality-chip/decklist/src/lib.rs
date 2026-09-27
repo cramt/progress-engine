@@ -6,6 +6,7 @@
 //! validate at 100 cards and then deal a different 100."* `scryfall check` and
 //! `scryfall play` now both shell out to `gauntlet parse`.
 
+pub mod archidekt;
 pub mod changelog;
 pub mod deck;
 pub mod edit;
@@ -45,11 +46,12 @@ impl Category {
         if raw.is_empty() {
             return None;
         }
+        // Flags are every `{...}` group after the name, and a group may hold
+        // several: Archidekt writes its maybeboard `Maybeboard{noDeck}{noPrice}`.
         let (name, flags) = match raw.split_once('{') {
             Some((name, rest)) => {
-                let inner = rest.strip_suffix('}').unwrap_or(rest);
-                let flags = inner
-                    .split(',')
+                let flags = rest
+                    .split(['{', '}', ','])
                     .map(|f| f.trim().to_ascii_lowercase())
                     .filter(|f| !f.is_empty())
                     .collect();
@@ -66,8 +68,15 @@ impl Category {
         })
     }
 
-    fn name_starts_with(&self, prefix: &str) -> bool {
-        self.name.to_ascii_lowercase().starts_with(prefix)
+    /// `{top}`, which Archidekt calls Premier: "this category marks cards as
+    /// being a Commander".
+    pub fn is_premier(&self) -> bool {
+        self.has_flag("top")
+    }
+
+    /// `{noDeck}`: the category's In Deck box is cleared.
+    pub fn is_no_deck(&self) -> bool {
+        self.has_flag("nodeck")
     }
 
     fn has_flag(&self, flag: &str) -> bool {
@@ -89,31 +98,32 @@ pub struct Entry {
 }
 
 impl Entry {
-    /// A commander line, `[Commander{top}]`.
-    ///
-    /// Tested per category rather than against the whole bracket: with multiple
-    /// categories `[Commander{top},Ramp]` no longer starts with "commander" as a
-    /// single string, and anchoring on the raw text would silently lose the
-    /// commander.
-    pub fn is_commander(&self) -> bool {
-        self.categories
-            .iter()
-            .any(|c| c.name_starts_with("commander"))
+    /// The first category, the only one Archidekt places a card by
+    /// (`docs/research/archidekt-import-shapes.md`). The rest are labels that
+    /// stay on the card.
+    pub fn primary(&self) -> Option<&Category> {
+        self.categories.first()
     }
 
-    /// In the list but not among the 100 — a companion is a 101st card (CR 903.11).
+    /// A commander, the way Archidekt reads one: the first category carries
+    /// `{top}`. `[Commander]` without it is an ordinary group, and
+    /// `[Ramp,Commander{top}]` shows under Ramp with no crown.
+    pub fn is_commander(&self) -> bool {
+        self.primary().is_some_and(Category::is_premier)
+    }
+
+    /// In the list but not among the 100, the way Archidekt reads it: the first
+    /// category is `{noDeck}`, or is exactly `Sideboard` or `Maybeboard`, its
+    /// only two boards. `sideboard`, `Sideboard Lessons`, `[Companion]` and
+    /// `[Removal,Sideboard]` all count toward the deck in Archidekt, and so they
+    /// do here.
     ///
-    /// Deliberately does NOT match `sticker`: sticker *sheets* sit outside the
-    /// deck, but "Sticker Package" is a normal category for the real cards that
-    /// apply them (Park Bleater, Ticketomaton). Matching that prefix once dropped
-    /// five cards from a 100-card list and reported them as companions.
+    /// Nothing is read from a name prefix. Matching `sticker` once dropped five
+    /// real cards in "Sticker Package" from a 100-card list; a sticker sheet is
+    /// out of the deck by its `{noDeck}` alone.
     pub fn is_outside(&self) -> bool {
-        self.categories.iter().any(|c| {
-            c.has_flag("nodeck")
-                || c.name_starts_with("companion")
-                || c.name_starts_with("sideboard")
-                || c.name_starts_with("maybe")
-        })
+        self.primary()
+            .is_some_and(|c| c.is_no_deck() || c.name == "Sideboard" || c.name == "Maybeboard")
     }
 }
 
@@ -174,7 +184,7 @@ pub fn parse_line(line: &str, number: usize) -> Result<Option<Entry>, ParseError
         .map(|m| m.as_str())
         .unwrap_or("")
         .to_string();
-    let categories = category.split(',').filter_map(Category::parse).collect();
+    let categories = merge(category.split(',').filter_map(Category::parse));
 
     Ok(Some(Entry {
         qty,
@@ -187,12 +197,64 @@ pub fn parse_line(line: &str, number: usize) -> Result<Option<Entry>, ParseError
     }))
 }
 
+/// One category per name: a second mention of a name adds its flags to the
+/// first rather than listing the card in it twice.
+fn merge(categories: impl IntoIterator<Item = Category>) -> Vec<Category> {
+    let mut out: Vec<Category> = Vec::new();
+    for c in categories {
+        match out.iter_mut().find(|o| o.name == c.name) {
+            Some(o) => {
+                for f in c.flags {
+                    if !o.flags.contains(&f) {
+                        o.flags.push(f);
+                    }
+                }
+            }
+            None => out.push(c),
+        }
+    }
+    out
+}
+
+/// A `# Heading` line: the category every following card gets as its first,
+/// until the next heading. `# Commander` sets Premier by itself, as it does in
+/// Archidekt; the bracket form `[Commander]` does not.
+fn heading(line: &str) -> Option<Option<Category>> {
+    let rest = line.trim().strip_prefix('#')?;
+    Some(Category::parse(rest).map(|mut c| {
+        if c.name == "Commander" && !c.is_premier() {
+            c.flags.push("top".to_string());
+        }
+        c
+    }))
+}
+
+/// Every card line of a decklist with its 1-based line number, each read or
+/// refused on its own, and `# Heading` lines applied to the cards below them.
+/// Blanks, `//` comments and headings yield nothing.
+pub fn lines(text: &str) -> impl Iterator<Item = (usize, Result<Entry, ParseError>)> + '_ {
+    let mut current: Option<Category> = None;
+    text.lines().enumerate().filter_map(move |(i, l)| {
+        if let Some(h) = heading(l) {
+            current = h;
+            return None;
+        }
+        let entry = parse_line(l, i + 1).transpose()?;
+        Some((
+            i + 1,
+            entry.map(|mut e| {
+                if let Some(h) = &current {
+                    e.categories = merge(std::iter::once(h.clone()).chain(e.categories));
+                }
+                e
+            }),
+        ))
+    })
+}
+
 /// Parse a whole decklist. Errors name the offending line rather than skipping it.
 pub fn parse(text: &str) -> Result<Vec<Entry>, ParseError> {
-    text.lines()
-        .enumerate()
-        .filter_map(|(i, l)| parse_line(l, i + 1).transpose())
-        .collect()
+    lines(text).map(|(_, e)| e).collect()
 }
 
 /// Total physical cards, which is not the line count the moment a list has `3x Plains`.

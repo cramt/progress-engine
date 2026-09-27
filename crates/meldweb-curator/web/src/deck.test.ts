@@ -4,6 +4,7 @@ import {
   addCard,
   commitMessage,
   declareCategory,
+  exportArchidekt,
   importArchidekt,
   loadDeckSync,
   newDeck,
@@ -144,9 +145,11 @@ describe("editing a card, through wasm", () => {
 
 describe("naming a deck", () => {
   it("names an imported deck at its top and renames one in place", () => {
-    const imported = importArchidekt(
+    const result = importArchidekt(
       "1x Rashmi and Ragavan (moc) 94 [Commander{top}]\n",
     );
+    if (result.kind !== "imported") throw new Error(JSON.stringify(result));
+    const imported = result.toml;
     const named = setDeckMeta(imported, "Lantern", "commander");
     expect(named).toBe(`name = "Lantern"\nformat = "commander"\n\n${imported}`);
     expect(deck(named)).toMatchObject({
@@ -179,12 +182,56 @@ describe("the commit message", () => {
 
 describe("importing Archidekt", () => {
   it("types a commander category and names the printing in a comment", () => {
-    const text = importArchidekt(
+    const imported = importArchidekt(
       "1x Rashmi and Ragavan (moc) 94 [Commander{top}]\n",
     );
-    expect(text).toContain(
+    if (imported.kind !== "imported") throw new Error(imported.message);
+    expect(imported.unreadable).toEqual([]);
+    expect(imported.toml).toContain(
       '{ printing = "moc/94", in = ["Commander"] },  # Rashmi and Ragavan',
     );
-    expect(parseDeck(text)).toMatchObject({ kind: "deck", total: 1 });
+    expect(parseDeck(imported.toml)).toMatchObject({ kind: "deck", total: 1 });
+  });
+
+  it("lists every line it could not read, and keeps the rest", () => {
+    const imported = importArchidekt(
+      "1x Sol Ring [Ramp]\nSol Ring without a count\n1x Arcane Signet\n",
+    );
+    if (imported.kind !== "imported") throw new Error(imported.message);
+    expect(imported.unreadable).toEqual([
+      {
+        line: 2,
+        text: "Sol Ring without a count",
+        reason: expect.stringContaining("not a card"),
+      },
+    ]);
+    expect(parseDeck(imported.toml)).toMatchObject({ kind: "deck", total: 2 });
+  });
+
+  it("refuses text with no card in it", () => {
+    expect(importArchidekt("hello\n")).toMatchObject({ kind: "refused" });
+  });
+});
+
+describe("copying as Archidekt", () => {
+  it("writes lantern with names only, and it imports back to 100 cards", () => {
+    const text = lantern();
+    const names: Record<string, string> = {};
+    for (const [, printing, name] of text.matchAll(
+      /printing = "([^"]+)".*\},\s+# (.+)$/gm,
+    )) {
+      if (printing && name) names[printing] = name;
+    }
+    const archidekt = exportArchidekt(text, names);
+    expect(archidekt).toContain("1x Rashmi and Ragavan [Commander{top}]\n");
+    expect(archidekt).not.toMatch(/\(/);
+    const back = importArchidekt(archidekt);
+    if (back.kind !== "imported") throw new Error(back.message);
+    expect(back.unreadable).toEqual([]);
+    expect(parseDeck(back.toml)).toMatchObject({ kind: "deck", total: 100 });
+  });
+
+  it("throws, naming the printing, when a printing has no name", () => {
+    expect(() => exportArchidekt(lantern())).toThrow(/moc\/346/);
   });
 });

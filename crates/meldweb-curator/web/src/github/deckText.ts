@@ -4,20 +4,15 @@
  */
 import {
   commitMessage,
-  importArchidekt as importArchidektRaw,
+  type Imported,
+  importArchidekt,
   newDeck,
   type Parsed,
   parseDeck,
   setDeckMeta,
 } from "../deck";
 
-export type Imported =
-  | {
-      kind: "imported";
-      toml: string;
-      unreadable: { line: number; text: string; reason: string }[];
-    }
-  | { kind: "refused"; message: string };
+export type { Imported };
 
 export interface DeckText {
   parseDeck(text: string): Parsed;
@@ -28,24 +23,6 @@ export interface DeckText {
   /** The text with `name` set, and `format` when given. */
   setDeckMeta(text: string, name: string, format?: string): string;
   importArchidekt(text: string): Imported;
-}
-
-/**
- * ADAPTER, to delete at merge: `importArchidekt` is changing from a string
- * that throws on refusal to the typed `Imported`. This takes either.
- */
-function importArchidekt(text: string): Imported {
-  try {
-    const r = importArchidektRaw(text) as unknown;
-    return typeof r === "string"
-      ? { kind: "imported", toml: r, unreadable: [] }
-      : (r as Imported);
-  } catch (e) {
-    return {
-      kind: "refused",
-      message: e instanceof Error ? e.message : String(e),
-    };
-  }
 }
 
 export const deckText: DeckText = {
