@@ -20,7 +20,7 @@ import random
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Iterator
 
 # --- Cards ------------------------------------------------------------------
 
@@ -1522,13 +1522,19 @@ def play(
     games: int,
     seed: str,
     commanders: tuple[Card, ...] = (),
+    state: tuple | None = None,
 ) -> dict[str, int]:
     """Deal `games` games from one seeded shuffle stream and count, per
     question, the games where it held. One deal answers every question, so
-    the questions are correlated with each other but each is a fair estimate."""
+    the questions are correlated with each other but each is a fair estimate.
+
+    `state` starts the stream part-way along instead of at `seed`: see
+    `stream_chunks`, which is how compare.py splits one stream across
+    processes without changing a single deal."""
     rng = random.Random(seed)  # str seeds are hashed deterministically
-    deepest = max(q.deepest_turn for q in questions)
-    depth = 7 + deepest  # enough for either seat
+    if state is not None:
+        rng.setstate(state)
+    depth = deal_depth(questions)
     hits = {q.name: 0 for q in questions}
     for _ in range(games):
         game = Game(
@@ -1542,6 +1548,34 @@ def play(
             if q.ask(game):
                 hits[q.name] += 1
     return hits
+
+
+def deal_depth(questions: list[Question]) -> int:
+    """How many cards off the top one deal takes: the seven, and enough draws
+    for the deepest question on either seat."""
+    return 7 + max(q.deepest_turn for q in questions)
+
+
+def stream_chunks(
+    seed: str, library_size: int, depth: int, games: int, chunk: int
+) -> Iterator[tuple[tuple, int]]:
+    """Cut the stream `play(..., games, seed)` deals into runs of `chunk` games,
+    as (the generator's state at the run's first game, games in the run).
+
+    Playing every run from its state deals exactly the games one `play` call
+    would, in the same order, so the counts they add up to are the same to the
+    game: the split is a matter of time, not of numbers. Finding each state
+    means drawing the shuffles themselves, which is cheap beside asking the
+    questions of them. A sample's draws depend only on the population's size
+    and the depth, never on the cards, so sampling positions stands in for
+    sampling the library."""
+    rng = random.Random(seed)
+    positions = range(library_size)
+    for start in range(0, games, chunk):
+        n = min(chunk, games - start)
+        yield rng.getstate(), n
+        for _ in range(n):
+            rng.sample(positions, depth)
 
 
 def main() -> None:

@@ -2541,9 +2541,16 @@ have cast:
 cargo build --release -p gauntlet-cli
 python3 checker/compare.py                       # or --gauntlet PATH, or $GAUNTLET
 python3 checker/compare.py --games 100000 --seed 7
+python3 checker/compare.py --jobs 1                # one process, the same numbers
 ```
 
-It takes about eight minutes. Where the engine's documented reading differs
+It deals its games across every CPU it may use (`--jobs`) while the engine
+runs beside them, and the split changes no game: each seeded stream is cut into
+runs of 5,000 at the generator's state where the run begins, so every number is
+the one a single process would deal, to the game, and depends on `--seed` alone
+(`checker/test_stream.py` holds a chunked stream to a whole one). On a
+four-CPU machine shared with other work it took 283 seconds where one process
+took 557, measured back to back. Where the engine's documented reading differs
 from the game — shocklands assumed tapped, a bounce land is one mana, a
 fetchland's target is still in the library to find — the checker implements the
 documented reading and says so beside the code, so a disagreement is a finding
