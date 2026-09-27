@@ -1,7 +1,7 @@
 # progress-engine
 
-Two products, one workspace. Read NAMES_FOR_FUTURE.md for why they are named
-what they are and where a third would go.
+Three products, one workspace. Read NAMES_FOR_FUTURE.md for why they are named
+what they are and where a fourth would go.
 
 **Ichormoon Gauntlet** (`crates/ichormoon-gauntlet/`, binary `gauntlet`) is what
 most of this file is about: a Magic: The Gathering draw-probability engine. It
@@ -15,6 +15,16 @@ itself. It is a **cargo workspace of its own**, outside Gauntlet's and outside
 the flake, so neither `cargo` at the root nor CI builds it. Its engine README
 and FINDINGS.md are the authority on it, and the notes below about decks,
 criteria and the two engines do not apply to it.
+
+**Meldweb Curator** (`crates/meldweb-curator/`) is the deck editor: a
+`.deck.toml` in a git repo is the deck, and saving is a commit. It is two halves:
+`meldweb-wasm`, which is `chip-decklist` compiled for the browser, and `web/`, a
+Vite + React + TanStack Router app in the root pnpm workspace. Copy Archidekt's
+editor before improving on it; [docs/research/archidekt-editor.md](docs/research/archidekt-editor.md)
+is what that editor does and the order to build it in. The TypeScript never
+reimplements what a decklist is: parsing, `commander` and `outside` come from
+Rust, and `web/src/deck.gen.ts` is generated from the wire types
+(`UPDATE_TS=1 cargo test -p meldweb-wasm`), with a test that fails when it is stale.
 
 Gauntlet stands on **Reality Chip** (`crates/reality-chip/`), the shared core:
 `chip-scryfall` (card index, query syntax), `chip-decklist` (Archidekt parsing)
@@ -47,9 +57,11 @@ what; respect those boundaries.
 
 ## Build and test
 
-Plain `cargo` works: the workspace is Gauntlet and Reality Chip only, and
-`rust-toolchain.toml` picks the toolchain. The flake devshell
-(`nix develop`) carries the same toolchain plus `jq` and `cargo-nextest`, and
+Plain `cargo` works: the workspace is Gauntlet, Reality Chip and
+`meldweb-wasm`, and `rust-toolchain.toml` picks the toolchain. Only a cargo
+that reads that file has the wasm32 target, so `pnpm dev` and a wasm32 clippy
+need the devshell; everything native builds with any cargo. The flake devshell (`nix develop`) carries the same toolchain plus
+`jq`, `cargo-nextest` and the web app's node, pnpm, biome and wasm-bindgen, and
 remains the CI path.
 
 ```
@@ -57,17 +69,29 @@ cargo test --all
 cargo clippy --all-targets -- -D warnings
 cargo fmt --all
 cargo test -p gauntlet-sim --test acceptance <name>   # one test
-cargo run --release -p gauntlet-cli -- test decks/lantern.txt decks/lantern.criteria.toml --index decks/index.jsonl
+cargo run --release -p gauntlet-cli -- test decks/lantern.deck.toml decks/lantern.criteria.toml --index decks/index.jsonl
 python3 checker/compare.py   # independent Python Monte Carlo vs target/release/gauntlet; exits 1 on disagreement
+
+# Meldweb Curator, inside `nix develop` (node, pnpm, biome and wasm-bindgen come from the flake)
+pnpm install
+pnpm dev      # rebuilds the wasm on every .rs save and reloads the page
+pnpm check    # biome + tsc;  pnpm test: vitest;  pnpm build: the site
 ```
 
 `checker/` must stay independent of the engine: write it from the README, HANDS.md
 and the rules, never from `crates/`, or it checks nothing.
 
-**Run `cargo fmt --all` before every commit.** CI is `nix flake check`, whose
-five checks are fmt, clippy, test, build and the Python checker; a fmt failure aborts the others, so
-an unformatted commit reports red without ever having run the tests. This has
+**Run `cargo fmt --all` before every commit**, and `pnpm fmt` when the web app
+changed. CI is `nix flake check`, whose six checks are fmt, clippy, test, build,
+the Python checker and `meldweb-web` (biome, tsc, vitest and the site build,
+against the crane-built wasm); a fmt failure aborts the others, so an
+unformatted commit reports red without ever having run the tests. This has
 hidden broken clippy and tests across four commits before.
+
+**After any change to `pnpm-lock.yaml`, regenerate `meldweb-web`'s pnpm deps
+hash in flake.nix** from `lib.fakeHash`. A stale hash does not fail: Nix reuses
+the deps it cached under that hash, so CI stays green on the old dependencies
+until the cache is gone.
 
 The probe builds from its own manifest - `cargo test --manifest-path
 crates/gitaxian-probe/Cargo.toml --workspace` natively, and
@@ -84,12 +108,12 @@ suite has checked nothing. The web check has no skip; it fails instead.
   is the deliverable, so "the tests pass" is not evidence that the number is
   right.
 - **Measure on the real decks.** `decks/` holds two Commander lists,
-  `lantern.txt` and `loam.txt`, with criteria files beside them. Report group
+  `lantern.deck.toml` and `loam.deck.toml`, with criteria files beside them. Report group
   counts, composition counts and wall times from a run rather than estimating
   them; `enumerations` in the JSON output carries them.
 - **`decks/index.jsonl` carries all ten oracle tags**, so the committed
   criteria files answer against the committed index and a clone can reproduce
-  every number in them: `gauntlet test decks/lantern.txt
+  every number in them: `gauntlet test decks/lantern.deck.toml
   decks/lantern.criteria.toml --index decks/index.jsonl`. It was built with
   `--from` and carried none until the `sync` in #59; if you rebuild it, check
   `provenance.index_updated_at` is a date rather than null before committing,

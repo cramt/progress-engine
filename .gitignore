@@ -26,3 +26,9 @@ version.txt
 
 # the Python checker run in place
 __pycache__/
+
+# Meldweb Curator's web app: dependencies, build output, and the wasm package
+# scripts/build-wasm.mjs regenerates from meldweb-wasm.
+node_modules/
+crates/meldweb-curator/web/dist/
+crates/meldweb-curator/web/src/wasm/pkg/

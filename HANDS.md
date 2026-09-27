@@ -196,7 +196,7 @@ of its own — an unordered pair cannot say which of two revealed cards the draw
 took. Each such checkpoint multiplies the enumeration by the number of groups,
 and a turn with *T* mana can cast *T* cantrips, so the floor is one extra
 checkpoint per turn. Measured off the group counts real runs report, on
-`decks/lantern.txt` and `decks/loam.txt`, that floor is:
+`decks/lantern.deck.toml` and `decks/loam.deck.toml`, that floor is:
 
 | Line | groups | exact to, today | exact to, with one replacement draw a turn |
 |---|---|---|---|
@@ -805,7 +805,7 @@ fetch empties all but the deals where the Mage was never cast.
 
 On the real deck this is the Lantern north star's Route B, and it is the
 difference between a route being priced and a route being answered: *Trinket
-Mage and a Lantern both cast by turn 5* on `decks/lantern.txt` reads **0.78%**
+Mage and a Lantern both cast by turn 5* on `decks/lantern.deck.toml` reads **0.78%**
 without the fetch and **7.67%** with it. The first figure was the deck drawing
 both halves naturally.
 

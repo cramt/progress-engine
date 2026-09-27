@@ -1,6 +1,12 @@
 [workspace]
 resolver = "2"
-members = ["crates/ichormoon-gauntlet/*", "crates/reality-chip/*"]
+# Meldweb Curator's crate is named rather than globbed: its directory also
+# holds the TypeScript app, which has no Cargo.toml.
+members = [
+    "crates/ichormoon-gauntlet/*",
+    "crates/reality-chip/*",
+    "crates/meldweb-curator/wasm",
+]
 # Gitaxian Probe is a workspace of its own (crates/gitaxian-probe/Cargo.toml), so
 # a plain `cargo` here resolves neither V8 nor the build-time download of
 # Delver's engine files, and the flake never sees either.
@@ -32,6 +38,7 @@ serde_json = "1"
 sha2 = "0.10"
 thiserror = "2"
 ureq = { version = "3", default-features = false, features = ["rustls"] }
+toml_edit = { version = "0.25", default-features = false, features = ["parse", "display"] }
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 
 chip-decklist = { path = "crates/reality-chip/decklist" }
@@ -40,3 +47,12 @@ gauntlet-criteria = { path = "crates/ichormoon-gauntlet/criteria" }
 gauntlet-toml = { path = "crates/ichormoon-gauntlet/toml" }
 gauntlet-sim = { path = "crates/ichormoon-gauntlet/sim" }
 chip-stats = { path = "crates/reality-chip/stats" }
+
+# meldweb-wasm ships over the network, so it trades build time for bytes. A
+# profile of its own leaves Gauntlet's release build as it was.
+[profile.wasm]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true

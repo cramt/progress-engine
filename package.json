@@ -1,0 +1,11 @@
+{
+  "name": "progress-engine",
+  "private": true,
+  "packageManager": "pnpm@11.22.0",
+  "scripts": {
+    "dev": "pnpm --filter meldweb-web dev",
+    "build": "pnpm --filter meldweb-web build",
+    "check": "pnpm --filter meldweb-web check",
+    "test": "pnpm --filter meldweb-web test"
+  }
+}

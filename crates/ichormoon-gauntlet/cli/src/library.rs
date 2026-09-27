@@ -7,6 +7,7 @@
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
+use chip_decklist::deck::{self, CardRef, Deck};
 use chip_scryfall::index::{Card, Index, IndexFile, KeywordVocabulary, TagVocabulary};
 use chip_scryfall::OutsideLibrary;
 use gauntlet_criteria::{Demand, Grouping, GroupingError, ManaSource, Palette, Resolves};
@@ -177,7 +178,7 @@ impl Library {
     pub fn load(deck: &Path, index_path: Option<&Path>) -> Result<Self> {
         let text = std::fs::read_to_string(deck)
             .with_context(|| format!("reading decklist {}", deck.display()))?;
-        let parsed = chip_decklist::parse(&text)?;
+        let parsed = read_deck(deck, &text)?;
 
         let path = index_path
             .map(Path::to_path_buf)
@@ -187,21 +188,20 @@ impl Library {
         let index_tags = index.tag_vocabulary();
         let index_keywords = index.keyword_vocabulary();
 
-        // Outside the deck by the decklist's own say-so — `{noDeck}`, a
-        // sideboard, a maybeboard, a companion — and never looked up. Such a
-        // line moves no probability, so failing to resolve it is an error
-        // about something declared irrelevant, and a token under `{noDeck}` is
-        // exactly that (#51). A commander is in the command zone rather than
-        // outside the game, and is still resolved.
-        let counted: Vec<&chip_decklist::Entry> = parsed
-            .iter()
-            .filter(|e| e.is_commander() || !e.is_outside())
-            .collect();
+        // Outside the deck by the deck's own say-so — a category typed
+        // not-in-deck, or Archidekt's `{noDeck}`, sideboard, maybeboard or
+        // companion — and never looked up. Such a line moves no probability,
+        // so failing to resolve it is an error about something declared
+        // irrelevant, and a token under `{noDeck}` is exactly that (#51). A
+        // commander is in the command zone, which is in the deck, and is
+        // still resolved.
+        let counted = resolve(parsed.cards.iter().filter(|c| c.in_deck()), &index, &path)?;
+        let counted: Vec<&Line> = counted.iter().collect();
 
         // Strict about unknown cards: you cannot compute a land count for a
         // card you cannot look up, so a typo here would silently skew every
         // probability.
-        let unknown: Vec<&chip_decklist::Entry> = counted
+        let unknown: Vec<&Line> = counted
             .iter()
             .copied()
             .filter(|e| !index.contains(&e.name))
@@ -236,10 +236,10 @@ impl Library {
         for e in counted {
             let entry = Entry {
                 card: index.get(&e.name)?.expect("checked above"),
-                categories: e.categories.iter().map(|c| c.name.clone()).collect(),
-                qty: e.qty.get(),
+                categories: e.categories.clone(),
+                qty: e.qty,
             };
-            if e.is_commander() {
+            if e.commander {
                 commanders.push(entry);
             } else if let Some(card_type) = entry.card.outside_library() {
                 excluded.push(Excluded {
@@ -253,7 +253,7 @@ impl Library {
                 // the index only holds the card — so this line resolved to a
                 // card the list may have meant as a token, and is in the
                 // library. Said out loud rather than decided (#51).
-                if e.categories.iter().any(|c| looks_like_tokens(&c.name)) {
+                if e.categories.iter().any(|c| looks_like_tokens(c)) {
                     token_named.push(entry.card.name.clone());
                 }
                 entries.push(entry);
@@ -696,11 +696,81 @@ fn looks_like_tokens(category: &str) -> bool {
 /// `sync` only helps a real card newer than the index. It never helps a token,
 /// because the index deliberately holds no tokens — so a line filed under a
 /// token category is told the remedy that works for it (#51).
-fn unknown_cards(unknown: &[&chip_decklist::Entry], not_cards: &[&chip_decklist::Entry]) -> String {
-    let (tokens, cards): (Vec<&chip_decklist::Entry>, Vec<&chip_decklist::Entry>) = unknown
+/// A deck line with its card named, whichever way the file named it.
+struct Line {
+    name: String,
+    qty: u32,
+    categories: Vec<String>,
+    commander: bool,
+}
+
+/// Reads a deck in either format the family knows: its own `.deck.toml`
+/// (ADR-0020), or Archidekt's text export, which imports into the same `Deck`
+/// and puts every card where this tool always has.
+pub fn read_deck(path: &Path, text: &str) -> Result<Deck> {
+    let deck = if path.extension().is_some_and(|e| e == "toml") {
+        Deck::parse(text)?
+    } else {
+        Deck::from_archidekt(text)?
+    };
+    Ok(deck)
+}
+
+/// Names every card, looking a printing up in the index.
+///
+/// A deck may name a card by printing and nothing else, so an index without
+/// printings cannot say which card it is. That is refused by name rather than
+/// reported as an unknown card: the remedy is a sync, not a spelling check.
+fn resolve<'a>(
+    cards: impl Iterator<Item = &'a deck::Card>,
+    index: &IndexFile,
+    path: &Path,
+) -> Result<Vec<Line>> {
+    let mut lines = Vec::new();
+    let mut unknown = Vec::new();
+    for c in cards {
+        let name = match &c.card {
+            CardRef::Name(name) => name.clone(),
+            CardRef::Printing(p) => {
+                if !index.has_printings() {
+                    bail!(
+                        "this deck names {p} by printing, and the index at {} carries no \
+                         printings to say which card that is.\nRebuild it with: gauntlet sync",
+                        path.display()
+                    );
+                }
+                match index.printing(&p.set, &p.num)? {
+                    Some(name) => name,
+                    None => {
+                        unknown.push(p.to_string());
+                        continue;
+                    }
+                }
+            }
+        };
+        lines.push(Line {
+            name,
+            qty: c.qty.get(),
+            categories: c.categories.clone(),
+            commander: c.is_commander(),
+        });
+    }
+    if !unknown.is_empty() {
+        bail!(
+            "unknown printing(s), so no number here can be computed:\n  {}\n  No such set and \
+             collector number in this card index. Check them; if the printing is newer than \
+             the index,\n  rebuild it with `gauntlet sync`.",
+            unknown.join(", ")
+        );
+    }
+    Ok(lines)
+}
+
+fn unknown_cards(unknown: &[&Line], not_cards: &[&Line]) -> String {
+    let (tokens, cards): (Vec<&Line>, Vec<&Line>) = unknown
         .iter()
-        .partition(|e| e.categories.iter().any(|c| looks_like_tokens(&c.name)));
-    let names = |list: &[&chip_decklist::Entry]| {
+        .partition(|e| e.categories.iter().any(|c| looks_like_tokens(c)));
+    let names = |list: &[&Line]| {
         list.iter()
             .map(|e| e.name.as_str())
             .collect::<Vec<_>>()

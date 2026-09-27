@@ -4,7 +4,7 @@ when this was measured, with the Treasure's measuring parameters.
 
 The north star: Lantern of Insight on the battlefield AND Rashmi and Ragavan
 cast, by the end of turn 5, out of one mana budget. This deals shuffles of
-`decks/lantern.txt` and plays each deal twice through the independent
+`decks/lantern.deck.toml` and plays each deal twice through the independent
 checker's line model (`checker/checker.py`, `line_path`), once with her
 Treasure and once without, so the difference is paired, deal by deal.
 
@@ -86,7 +86,7 @@ _library = _commanders = None
 def _init() -> None:
     global _library, _commanders
     index = checker.Index(ROOT / "decks" / "index.jsonl")
-    deck = ROOT / "decks" / "lantern.txt"
+    deck = ROOT / "decks" / "lantern.deck.toml"
     _library = checker.load_library(deck, index)
     _commanders = checker.commander_cards(deck, index)
 

@@ -130,3 +130,49 @@ fn total_counts_cards_not_lines() {
     assert_eq!(deck.len(), 2);
     assert_eq!(decklist::total(&deck), 18);
 }
+
+fn category(name: &str, flags: &[&str]) -> decklist::Category {
+    decklist::Category {
+        name: name.to_string(),
+        flags: flags.iter().map(|f| f.to_string()).collect(),
+    }
+}
+
+#[test]
+fn rewriting_categories_touches_nothing_else_on_the_line() {
+    let line = "1x Boseiju, Who Endures (pneo) 266s *F* [Land - Utility]";
+    assert_eq!(
+        decklist::with_categories(line, &[category("Ramp", &[]), category("Land", &["top"])]),
+        Some("1x Boseiju, Who Endures (pneo) 266s *F* [Ramp,Land{top}]".to_string())
+    );
+    assert_eq!(
+        decklist::with_categories("2 Island", &[category("Land", &[])]),
+        Some("2 Island [Land]".to_string())
+    );
+    assert_eq!(
+        decklist::with_categories("1 Sol Ring [Ramp]  ", &[]),
+        Some("1 Sol Ring  ".to_string())
+    );
+    assert_eq!(decklist::with_categories("// a comment", &[]), None);
+}
+
+/// Every line of both decks as Archidekt exported them, given back its own
+/// categories, parses to the same entry: the writer and the reader agree.
+#[test]
+fn rewriting_a_real_deck_round_trips_through_the_parser() {
+    for deck in ["lantern.txt", "loam.txt"] {
+        let path = format!("{}/tests/fixtures/{deck}", env!("CARGO_MANIFEST_DIR"));
+        let text = std::fs::read_to_string(path).unwrap();
+        for (i, line) in text.lines().enumerate() {
+            let Some(entry) = decklist::parse_line(line, i + 1).unwrap() else {
+                continue;
+            };
+            let rewritten = decklist::with_categories(line, &entry.categories).unwrap();
+            let mut again = decklist::parse_line(&rewritten, i + 1).unwrap().unwrap();
+            // The raw bracket text is the one field allowed to change: flags
+            // come back lowercased.
+            again.category = entry.category.clone();
+            assert_eq!(again, entry, "{deck}:{}: {line}", i + 1);
+        }
+    }
+}

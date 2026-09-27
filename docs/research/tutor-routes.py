@@ -6,7 +6,7 @@ one mana budget. Opponents neither help nor hinder.
 
 This is a throwaway measuring stick for ADR 0019, not a checker and not an
 engine; it lives outside crates/ and reads nothing in them. It deals shuffles
-of `decks/lantern.txt` and asks, per deal, whether SOME line of play reaches
+of `decks/lantern.deck.toml` and asks, per deal, whether SOME line of play reaches
 the north star using only the routes switched on. The pilot is clairvoyant
 about their own library (a depth-first search over every line), so each level
 is an upper bound on what a declared line reads; docs/research/suspect-numbers.md
@@ -24,7 +24,7 @@ Mana, as the engine will count it once #82 and ADR 0018 ship:
     --rocks, lands are the only sources, which is the engine today.
 Improvise, Treasure and Rashmi's trigger are not counted.
 
-    python3 docs/research/tutor-routes.py decks/index.jsonl decks/lantern.txt \\
+    python3 docs/research/tutor-routes.py decks/index.jsonl decks/lantern.deck.toml \\
         [--draw] [--rocks] [--no-commander] [--games N] [--sequence a,b+c,...]
 
 Standard library only.

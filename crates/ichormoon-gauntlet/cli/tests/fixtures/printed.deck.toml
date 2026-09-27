@@ -1,0 +1,8 @@
+# ADR-0020: a card named by printing only, which an index resolves or refuses.
+cards = [
+  { printing = "c21/235", in = ["Engine"] },  # Life from the Loam
+  { name = "Forest", qty = 40 },
+]
+
+[categories]
+Engine = {}

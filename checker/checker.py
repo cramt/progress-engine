@@ -18,6 +18,7 @@ import itertools
 import json
 import random
 import re
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Iterator
@@ -96,6 +97,15 @@ class Index:
             return json.loads(self._raw[name.lower()])
         except KeyError:
             raise SystemExit(f"checker: {name!r} is not in the index") from None
+
+    def printing(self, printing: str) -> str:
+        """The name of the card printed as `set/number`, from the index's
+        `printing:<set>/<number>` lines (ADR-0020)."""
+        set_code, _, number = printing.partition("/")
+        try:
+            return json.loads(self._raw[f"printing:{set_code.lower()}/{number}"])
+        except KeyError:
+            raise SystemExit(f"checker: printing {printing!r} is not in the index") from None
 
 
 BASIC_TYPES = ("Plains", "Island", "Swamp", "Mountain", "Forest")
@@ -238,26 +248,78 @@ def _resolve_fetches(library: list[Card]) -> list[Card]:
     return resolved
 
 
-_LINE = re.compile(r"^(\d+)x?\s+(.+?)(?:\s+\([^)]*\)\s*\S*)?(?:\s+\*[^*]*\*)?(?:\s+\[(.*)\])?\s*$")
+# The category type tree of ADR-0020: each type and the one above it.
+_PARENT: dict[str, str | None] = {
+    "in-deck": None,
+    "commander": "in-deck",
+    "not-in-deck": None,
+    "sideboard": "not-in-deck",
+    "companion": "sideboard",
+    "maybeboard": "not-in-deck",
+    "attractions": "not-in-deck",
+    "sticker-sheet": "not-in-deck",
+}
+
+
+def _up(kind: str) -> list[str]:
+    """`kind` and every type above it: companion, sideboard, not-in-deck."""
+    chain = [kind]
+    while (parent := _PARENT[chain[-1]]) is not None:
+        chain.append(parent)
+    return chain
+
+
+@dataclass(frozen=True)
+class DeckLine:
+    name: str
+    qty: int
+    categories: tuple[str, ...]
+    # The deepest type among the card's categories, in-deck when none is typed.
+    place: str
+
+
+def read_deck(path: Path, index: Index) -> list[DeckLine]:
+    """A `.deck.toml`, read from ADR-0020 rather than from the Rust that also
+    reads it: each card named once, by `name` or by `printing`; categories
+    declared under [categories], some typed; a card's place is the deepest of
+    its categories' types, and they must all lie on one path of the tree."""
+    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    declared: dict[str, dict] = data.get("categories", {})
+    lines: list[DeckLine] = []
+    for n, card in enumerate(data.get("cards", []), start=1):
+        if ("name" in card) == ("printing" in card):
+            raise SystemExit(f"checker: {path.name} card {n} is not named exactly once")
+        categories = tuple(card.get("in", []))
+        types = []
+        for c in categories:
+            if c not in declared:
+                raise SystemExit(f"checker: {path.name} card {n}: {c!r} is not declared")
+            if "type" in declared[c]:
+                types.append(declared[c]["type"])
+        place = max(types, key=lambda t: len(_up(t)), default="in-deck")
+        if any(t not in _up(place) for t in types):
+            raise SystemExit(f"checker: {path.name} card {n} is in two places: {types}")
+        # A card outside the deck moves no probability and is never looked up,
+        # so a token filed outside it need not be in the index.
+        in_deck = "in-deck" in _up(place)
+        if "name" in card:
+            name = card["name"]
+        else:
+            name = index.printing(card["printing"]) if in_deck else card["printing"]
+        lines.append(DeckLine(name, card.get("qty", 1), categories, place))
+    return lines
 
 
 def commanders(decklist: Path, index: Index) -> list[tuple[str, str]]:
-    """(name, printed mana cost) of every card the list files under Commander.
+    """(name, printed mana cost) of every card whose place is commander.
 
     A commander starts the game in the command zone, not the library: it is
     never drawn, and it can be cast from there on any turn its cost is paid.
     """
     found: list[tuple[str, str]] = []
-    for raw in decklist.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("//"):
-            continue
-        m = _LINE.match(line)
-        if not m:
-            raise SystemExit(f"checker: cannot read decklist line {raw!r}")
-        bare = [re.sub(r"\{.*\}$", "", c.strip()) for c in (m.group(3) or "").split(",")]
-        if "Commander" in bare:
-            record = index.card(m.group(2))
+    for line in read_deck(decklist, index):
+        if line.place == "commander":
+            record = index.card(line.name)
             found.append((record["name"], record["mana_cost"]))
     return found
 
@@ -270,27 +332,14 @@ def commander_cards(decklist: Path, index: Index) -> tuple[Card, ...]:
 
 
 def load_library(decklist: Path, index: Index) -> list[Card]:
-    """The library: every card in the list except commanders and anything the
-    list says is outside the deck. One Card object per copy."""
+    """The library: every card in the deck except commanders and anything
+    placed outside it. One Card object per copy."""
     library: list[Card] = []
-    for raw in decklist.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("//"):
+    for line in read_deck(decklist, index):
+        if line.place != "in-deck":
             continue
-        m = _LINE.match(line)
-        if not m:
-            raise SystemExit(f"checker: cannot read decklist line {raw!r}")
-        qty, name, cats = int(m.group(1)), m.group(2), m.group(3) or ""
-        categories = tuple(c.strip() for c in cats.split(",") if c.strip())
-        bare = [re.sub(r"\{.*\}$", "", c) for c in categories]
-        outside = any(
-            c == "Commander" or c in ("Companion", "Sideboard", "Maybeboard")
-            for c in bare
-        ) or any("{noDeck}" in c for c in categories)
-        if outside:
-            continue
-        card = _make_card(index.card(name), tuple(bare))
-        library.extend([card] * qty)
+        card = _make_card(index.card(line.name), line.categories)
+        library.extend([card] * line.qty)
     return _resolve_fetches(library)
 
 
@@ -1355,7 +1404,7 @@ def _cast_by(line: Line, name: str, turn: int, deepest: int) -> Callable[[Game],
 #   land tagged `surveil` or `scry` a look of one when it is played. A look
 #   digs deeper only where the file routes what it sees (`to_graveyard`):
 #   otherwise every card stays on top, the look moves nothing, and it breaks
-#   no tie, so Hedge Maze in decks/lantern.txt, whose surveil no file routes,
+#   no tie, so Hedge Maze in decks/lantern.deck.toml, whose surveil no file routes,
 #   is played in decklist order like any other land. (Measured against the
 #   engine on small decks rather than read from it: the README's "the deeper
 #   look" is the routed case, HANDS.md hand 12.) A land playable as a drop is
@@ -2224,9 +2273,9 @@ def check_commanders(decks: Path, index: Index) -> None:
     """The commanders written above are the ones the decklists name, at the
     costs the index prints."""
     for deck, expected in (("lantern", LANTERN_COMMANDER), ("loam", LOAM_COMMANDER)):
-        found = commanders(decks / f"{deck}.txt", index)
+        found = commanders(decks / f"{deck}.deck.toml", index)
         if found != [expected]:
-            raise SystemExit(f"checker: {deck}.txt names commanders {found}, expected {[expected]}")
+            raise SystemExit(f"checker: {deck}.deck.toml names commanders {found}, expected {[expected]}")
 
 
 # --- Rocks and dorks in the line (ADR 0018) ----------------------------------
@@ -2584,8 +2633,8 @@ def main() -> None:
     index = Index(args.decks / "index.jsonl")
     check_commanders(args.decks, index)
     for deck in sorted({q.deck for q in QUESTIONS}):
-        library = load_library(args.decks / f"{deck}.txt", index)
-        cmdrs = commander_cards(args.decks / f"{deck}.txt", index)
+        library = load_library(args.decks / f"{deck}.deck.toml", index)
+        cmdrs = commander_cards(args.decks / f"{deck}.deck.toml", index)
         for pending, games in ((False, args.games), (True, args.pending_games)):
             qs = [q for q in QUESTIONS if q.deck == deck and bool(q.pending) == pending]
             if not qs:

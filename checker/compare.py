@@ -1,7 +1,7 @@
 """Hold the engine's exact answers against the independent checker's.
 
 For every question in checker.QUESTIONS, on both seats, this runs
-`gauntlet test decks/<deck>.txt decks/<criteria> --index decks/index.jsonl`,
+`gauntlet test decks/<deck>.deck.toml decks/<criteria> --index decks/index.jsonl`,
 reads the criterion's probability out of the JSON, deals the same number of
 games through checker.py, and asks whether the engine's number lies inside the
 checker's 99.9% interval. It exits 1 when any does not.
@@ -58,7 +58,7 @@ def engine_answers(gauntlet: str, decks: Path, deck: str, criteria: str, draw: b
     cmd = [
         gauntlet,
         "test",
-        str(decks / f"{deck}.txt"),
+        str(decks / f"{deck}.deck.toml"),
         str(decks / criteria),
         "--index",
         str(decks / "index.jsonl"),
@@ -123,7 +123,7 @@ def _load_decks(decks: Path) -> None:
         return
     index = checker.Index(decks / "index.jsonl")
     for deck in sorted({q.deck for q in checker.QUESTIONS}):
-        path = decks / f"{deck}.txt"
+        path = decks / f"{deck}.deck.toml"
         _decks[deck] = (checker.load_library(path, index), checker.commander_cards(path, index))
 
 

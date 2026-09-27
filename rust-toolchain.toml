@@ -1,3 +1,6 @@
 [toolchain]
 channel = "stable"
 components = ["rustfmt", "clippy"]
+# Both web hosts build for the browser: Meldweb Curator's editor runs
+# chip-decklist there, and Gitaxian Probe's engine has a wasm32 host.
+targets = ["wasm32-unknown-unknown"]

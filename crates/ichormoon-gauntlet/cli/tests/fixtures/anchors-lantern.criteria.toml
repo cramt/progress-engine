@@ -1,4 +1,4 @@
-# Closed-form anchors for decks/lantern.txt (#76). Plain hypergeometric
+# Closed-form anchors for decks/lantern.deck.toml (#76). Plain hypergeometric
 # questions with no mana, effects or policy in them, so each has an exact
 # rational computed outside the engine; the derivations sit beside the
 # expected values in `the_committed_decks_answer_plain_questions_in_closed_form`

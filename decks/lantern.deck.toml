@@ -1,0 +1,120 @@
+cards = [
+  { printing = "moc/346", in = ["Artifact Count"] },  # Academy Manufactor
+  { printing = "drc/58", in = ["Land - Utility"] },  # Academy Ruins
+  { printing = "woc/145", in = ["Artifact Count"] },  # Arcane Signet
+  { printing = "otp/8", in = ["Interaction"] },  # Archmage's Charm
+  { printing = "5dn/23", in = ["Tutor Package"] },  # Artificer's Intuition
+  { printing = "znr/180", in = ["MDFC - Spell or Land"] },  # Bala Ged Recovery // Bala Ged Sanctuary
+  { printing = "ddl/69", in = ["Interaction"] },  # Beast Within
+  { printing = "2xm/117", in = ["Interaction"] },  # Blasphemous Act
+  { printing = "pneo/266s", in = ["Land - Utility"] },  # Boseiju, Who Endures
+  { printing = "peoe/251p", in = ["Land - Fixing"] },  # Breeding Pool
+  { printing = "msh/263", in = ["Land - Utility"] },  # Castle Doom
+  { printing = "c18/122", in = ["Topdeck Value"] },  # Chaos Warp
+  { printing = "cmr/304", in = ["Lantern - Sculpt"] },  # Codex Shredder
+  { printing = "mb2/157", in = ["Topdeck Value"] },  # Counterbalance
+  { printing = "cmr/395", in = ["Interaction"] },  # Counterspell
+  { printing = "plst/JOU-35", in = ["Lantern - Sculpt"] },  # Dakra Mystic
+  { printing = "c16/288", in = ["Land - Artifact"] },  # Darksteel Citadel
+  { printing = "c20/50", in = ["Interaction"] },  # Deflecting Swat
+  { printing = "rav/43", in = ["Tutor Package"] },  # Dizzy Spell
+  { printing = "peld/43p", in = ["Recursion"] },  # Emry, Lurker of the Loch
+  { printing = "2xm/255", in = ["Tutor Package"] },  # Expedition Map
+  { printing = "msc/29", in = ["Topdeck Value"] },  # Extract Power
+  { printing = "plst/M10-52", in = ["Tutor Package"] },  # Fabricate
+  { printing = "9ed/297", in = ["Artifact Count"] },  # Fellwar Stone
+  { printing = "leg/55", in = ["Lantern - Vision"] },  # Field of Dreams
+  { printing = "j25/94", in = ["Land - Basic"] },  # Forest
+  { printing = "moc/281", in = ["Interaction"] },  # Ghirapur Aether Grid
+  { printing = "dsk/248", in = ["Graveyard Police"] },  # Ghost Vacuum
+  { printing = "isd/224", in = ["Lantern - Sculpt"] },  # Ghoulcaller's Bell
+  { printing = "plst/MH1-128", in = ["Tutor Package"] },  # Goblin Engineer
+  { printing = "pmkm/262p", in = ["Land - Fixing"] },  # Hedge Maze
+  { printing = "scd/268", in = ["Draw"] },  # Idol of Oblivion
+  { printing = "kld/247", in = ["Land - Utility"] },  # Inventors' Fair
+  { printing = "dft/281", in = ["Land - Basic"] },  # Island
+  { printing = "znr/64", in = ["MDFC - Spell or Land"] },  # Jwari Disruption // Jwari Ruins
+  { printing = "iko/250", in = ["Land - Fixing"] },  # Ketria Triome
+  { printing = "5dn/135", in = ["Lantern - Vision"] },  # Lantern of Insight
+  { printing = "cmr/80", in = ["Interaction"] },  # Mana Drain
+  { printing = "dmr/250", in = ["Land - Utility"] },  # Maze of Ith
+  { printing = "hml/32b", in = ["Interaction"] },  # Memory Lapse
+  { printing = "40k/244", in = ["Artifact Count"] },  # Mind Stone
+  { printing = "mm3/240", in = ["Land - Fetch"] },  # Misty Rainforest
+  { printing = "msh/421", in = ["Draw"] },  # Moon Girl and Devil Dinosaur
+  { printing = "dft/288", in = ["Land - Basic"] },  # Mountain
+  { printing = "rvr/315", in = ["Interaction"] },  # Muddle the Mixture
+  { printing = "neo/271", in = ["Land - Utility"] },  # Otawara, Soaring City
+  { printing = "mh3/495", in = ["Topdeck Value"] },  # Powerbalance
+  { printing = "pstx/214p", in = ["Interaction"] },  # Prismari Command
+  { printing = "sld/2699", in = ["Land - Fetch"] },  # Prismatic Vista
+  { printing = "ths/220", in = ["Lantern - Sculpt"] },  # Pyxis of Pandemonium
+  { printing = "moc/94", in = ["Commander"] },  # Rashmi and Ragavan
+  { printing = "msc/260", in = ["Land - Fixing"] },  # Rejuvenating Springs
+  { printing = "md1/21", in = ["Graveyard Police"] },  # Relic of Progenitus
+  { printing = "pdft/56p", in = ["Tutor Package"] },  # Repurposing Bay
+  { printing = "dft/57", in = ["Lantern - Sculpt"] },  # Riverchurn Monument
+  { printing = "zen/223", in = ["Land - Fetch"] },  # Scalding Tarn
+  { printing = "znr/76", in = ["MDFC - Spell or Land"] },  # Sea Gate Restoration // Sea Gate, Reborn
+  { printing = "xln/74", in = ["Lantern - Vision"] },  # Search for Azcanta // Azcanta, the Sunken Ruin
+  { printing = "ddf/74", in = ["Land - Artifact"] },  # Seat of the Synod
+  { printing = "plst/C19-179", in = ["Lantern - Sculpt"] },  # Seedborn Muse
+  { printing = "2x2/314", in = ["Lantern - Vision"] },  # Sensei's Divining Top
+  { printing = "pznr/161s", in = ["MDFC - Spell or Land"] },  # Shatterskull Smashing // Shatterskull, the Hammer Pass
+  { printing = "mh3/228", in = ["Land - Utility"] },  # Shifting Woodland
+  { printing = "znr/80", in = ["MDFC - Spell or Land"] },  # Silundi Vision // Silundi Isle
+  { printing = "eoc/180", in = ["Land - Artifact"] },  # Silverbluff Bridge
+  { printing = "drc/171", in = ["Land - Artifact"] },  # Slagwoods Bridge
+  { printing = "cmr/472", in = ["Artifact Count"] },  # Sol Ring
+  { printing = "all/80", in = ["Lantern - Sculpt"] },  # Soldier of Fortune
+  { printing = "nph/159", in = ["Interaction"] },  # Spellskite
+  { printing = "znr/166", in = ["MDFC - Spell or Land"] },  # Spikefield Hazard // Spikefield Cave
+  { printing = "eoc/183", in = ["Land - Fixing"] },  # Spire of Industry
+  { printing = "pgrn/257p", in = ["Land - Fixing"] },  # Steam Vents
+  { printing = "bbd/64", in = ["Topdeck Value"] },  # Stolen Strategy
+  { printing = "gtc/247", in = ["Land - Fixing"] },  # Stomping Ground
+  { printing = "j25/370", in = ["Interaction"] },  # Supreme Will
+  { printing = "ths/65", in = ["Interaction"] },  # Swan Song
+  { printing = "30a/278", in = ["Land - Fixing"] },  # Taiga
+  { printing = "cmm/979", in = ["Artifact Count"] },  # Talisman of Creativity
+  { printing = "pip/245", in = ["Artifact Count"] },  # Talisman of Curiosity
+  { printing = "scd/281", in = ["Artifact Count"] },  # Talisman of Impulse
+  { printing = "ddf/39", in = ["Tutor Package"] },  # Tezzeret the Seeker
+  { printing = "eoe/2", in = ["Tutor Package"] },  # Tezzeret, Cruel Captain
+  { printing = "ltr/0", in = ["Draw"] },  # The One Ring
+  { printing = "pneo/74p", in = ["Draw"] },  # The Reality Chip
+  { printing = "mar/62", in = ["Interaction"] },  # Three Steps Ahead
+  { printing = "cmr/358", in = ["Land - Fixing"] },  # Training Center
+  { printing = "ddu/41", in = ["Tutor Package"] },  # Trinket Mage
+  { printing = "aer/48", in = ["Tutor Package"] },  # Trophy Mage
+  { printing = "cei/284", in = ["Land - Fixing"] },  # Tropical Island
+  { printing = "soc/105", in = ["Land - Fixing"] },  # Turbulent Springs
+  { printing = "soc/107", in = ["Land - Fixing"] },  # Turbulent Wilderness
+  { printing = "pdft/72p", in = ["Lantern - Sculpt"] },  # Unstoppable Plan
+  { printing = "brr/61", in = ["Lantern - Sculpt"] },  # Unwinding Clock
+  { printing = "mb2/114", in = ["Land - Utility"] },  # Urza's Saga
+  { printing = "znr/355", in = ["MDFC - Spell or Land"] },  # Valakut Awakening // Valakut Stoneforge
+  { printing = "peld/71p", in = ["Lantern - Sculpt"] },  # Vantress Gargoyle
+  { printing = "30a/282", in = ["Land - Fixing"] },  # Volcanic Island
+  { printing = "paer/49p", in = ["Tutor Package"] },  # Whir of Invention
+  { printing = "rav/75", in = ["Lantern - Vision"] },  # Wizened Snitches
+  { printing = "ktk/249", in = ["Land - Fetch"] },  # Wooded Foothills
+]
+
+[categories]
+"Artifact Count" = {}
+Commander = { type = "commander" }
+Draw = {}
+"Graveyard Police" = {}
+Interaction = {}
+"Land - Artifact" = {}
+"Land - Basic" = {}
+"Land - Fetch" = {}
+"Land - Fixing" = {}
+"Land - Utility" = {}
+"Lantern - Sculpt" = {}
+"Lantern - Vision" = {}
+"MDFC - Spell or Land" = {}
+Recursion = {}
+"Topdeck Value" = {}
+"Tutor Package" = {}

@@ -90,7 +90,7 @@ turn-2 one.
 ['name:"Trinket Mage"', 'name:"Lantern of Insight"']` spends the pool the way
 the pilot would and `cast` counts what it paid for; an `[[effect]]` with `on =
 "cast"` and `fetch = ['name:"Lantern of Insight"']` says what the spell then
-went and got. On `decks/lantern.txt` Trinket Mage resolves by turn 3 on 4.99% of
+went and got. On `decks/lantern.deck.toml` Trinket Mage resolves by turn 3 on 4.99% of
 hands, exactly, on 521,235 compositions — **unchanged by the fetch, and it has to
 be**, because what a spell does when it resolves cannot change whether the pool
 paid for it. What the fetch moves is the route: *Trinket Mage and a Lantern both
@@ -596,7 +596,7 @@ split the land it routes with.
 **What it is not free of is the colour narrowing**, and that is the one real
 cost of declaring a priority. The ranking ends in *the card your decklist names
 first*, so it reads the manabase in a way no cost does, and #55 cannot merge two
-lands it ranks apart. On `decks/lantern.txt` that is 41,250 compositions without
+lands it ranks apart. On `decks/lantern.deck.toml` that is 41,250 compositions without
 a priority against 1.2 billion with one — an exact answer against an estimate,
 at turn four. It is recoverable by merging only lands the ranking already places
 side by side, which is
@@ -647,7 +647,7 @@ refused by name because whether it enters tapped is a fact about the spell that
 fetched it and no tag separates Rampant Growth from Nature's Lore.
 
 **And deck thinning finally has a number.** Does a fetchland meaningfully
-improve your subsequent draws? On `decks/loam.txt`, where fetchlands are a large
+improve your subsequent draws? On `decks/loam.deck.toml`, where fetchlands are a large
 part of why the deck functions, the answer is **yes, exactly, and negligibly**:
 the largest figure `decks/loam-thinning.criteria.toml` moves is *two Loam Access
 cards by turn 8*, from 58.9176% to 59.0695%, which is one game in 658. Four
@@ -774,7 +774,7 @@ through the front door.
   ships**. `fetch = [...]` on an `[[effect]]` is the fourth declared priority
   over queries, `to` says where the card is put, and both are printed by every
   run that used one. It is a deterministic removal, so it costs no enumeration
-  width: Route B on `decks/lantern.txt` is 4,120,116 compositions at turn 5 with
+  width: Route B on `decks/lantern.deck.toml` is 4,120,116 compositions at turn 5 with
   the fetch and without it. Exiling off the top is the other half, it is a draw
   rather than a subtraction, and it is filed rather than estimated.
 - `on = "cast"` fires, and what it may do is a `fetch` rather than a `look`. The

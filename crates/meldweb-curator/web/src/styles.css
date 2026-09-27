@@ -1,0 +1,258 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f4f5f7;
+  --fg: #1c1e21;
+  --muted: #6b7079;
+  --card-radius: 4.75% / 3.5%;
+  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1d21;
+    --fg: #e6e7ea;
+    --muted: #9097a3;
+  }
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  padding: 16px 24px;
+}
+
+.stacks {
+  display: flex;
+  gap: var(--gap);
+  align-items: flex-start;
+}
+
+.stacks-column {
+  width: var(--card-w);
+  flex: none;
+}
+
+.stack {
+  margin-bottom: var(--gap);
+}
+
+.stack-header {
+  height: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: 4px;
+}
+
+.stack-header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.stack-qty {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.stack-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * Cards overlap by all but their name bar. Hovering one drops its overlap, so
+ * it shows in full and pushes the rest of the stack down, as Archidekt does.
+ */
+.card {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+  margin-bottom: calc(var(--peek) - var(--card-h));
+  transition: margin-bottom 120ms ease-out;
+}
+
+.card:last-child,
+.card:hover {
+  margin-bottom: 0;
+}
+
+.card img,
+.card-missing {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--card-radius);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
+}
+
+.card-missing {
+  box-sizing: border-box;
+  padding: 10px 12px;
+  background: #3a3d44;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.card-qty {
+  position: absolute;
+  top: 6px;
+  left: -6px;
+  min-width: 18px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #1c1e21;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.stack {
+  position: relative;
+}
+
+.card {
+  cursor: grab;
+}
+
+/* While dragging, stacks hold still so drop targets do not move under the cursor. */
+.stacks.dragging .card:hover:not(:last-child) {
+  margin-bottom: calc(var(--peek) - var(--card-h));
+}
+
+.drop-target {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 8px;
+  background: rgb(40 44 52 / 0.72);
+  color: #fff;
+  text-align: center;
+  transition: background 80ms;
+}
+
+.drop-target.over {
+  background: rgb(250 137 13 / 0.85);
+}
+
+.drop-plus {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.drop-name {
+  font-size: 22px;
+  font-weight: 600;
+  padding: 0 8px;
+}
+
+.drop-hint {
+  font-size: 13px;
+}
+
+.drop-strip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 12px;
+  background: rgb(0 0 0 / 0.15);
+}
+
+.strip-zone {
+  width: 200px;
+  padding: 20px 0;
+  border-radius: 6px;
+  background: #6b7079;
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+}
+
+.strip-zone.over {
+  background: #fa890d;
+}
+
+.new-category {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 4px 24px rgb(0 0 0 / 0.35);
+}
+
+.new-category label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.deck-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.deck-bar h1 {
+  margin: 0 0 8px;
+}
+
+.deck-bar .muted {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.stack-kind {
+  font-style: italic;
+}
+
+.refusal {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #b3261e;
+  color: #fff;
+}
+
+.refusal button {
+  margin-left: auto;
+}
+
+.source {
+  margin-bottom: 16px;
+}
+
+.source pre {
+  max-height: 50vh;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.06);
+  font-size: 12px;
+}

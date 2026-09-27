@@ -12,7 +12,7 @@
 //! absent field as a fact about the card is the confidently wrong number this
 //! project exists to prevent, so absence has to be representable everywhere.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -30,7 +30,16 @@ use crate::{CardView, Colors, OutsideLibrary};
 /// that was never there. An index with no schema at all predates the field and
 /// is treated as schema 0 — which is the truth about every index the external
 /// `scryfall sync` shell tool ever wrote.
+///
+/// Printings did not bump it: no query reads them, and like tags their absence
+/// is stated in the header ([`Header::printings`]), so a deck that needs them
+/// is refused for that reason by name rather than every query for staleness.
 pub const SCHEMA: u32 = 2;
+
+/// What a printing's key starts with, on the lines that map a printing to the
+/// card it is a printing of. Card keys are lowercased names, and no name
+/// contains a colon followed by a set code and a slash, so the two never meet.
+const PRINTING_PREFIX: &str = "printing:";
 
 /// What the index is called on disk.
 pub const FILE_NAME: &str = "index.jsonl";
@@ -250,6 +259,11 @@ pub struct Index {
     pub tags: Vec<String>,
     /// When those memberships were fetched; see [`Header::tags_fetched_at`].
     pub tags_fetched_at: Option<String>,
+    /// `set/number` to the name of the card it is a printing of; see
+    /// [`IndexFile::printing`].
+    pub printings: BTreeMap<String, String>,
+    /// When the printings were read; see [`Header::printings_fetched_at`].
+    pub printings_fetched_at: Option<String>,
 }
 
 /// What an index file says about itself, on its first line.
@@ -302,6 +316,16 @@ pub struct Header {
     /// standing for both would misdate whichever it was not.
     #[facet(default, skip_serializing_if = Option::is_none)]
     pub tags_fetched_at: Option<String>,
+    /// How many printing lines follow the cards. `None` means the index
+    /// carries no printings, and a deck naming a card by printing is refused
+    /// against it rather than answered.
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub printings: Option<usize>,
+    /// When the printings were read. Separate from [`Self::updated_at`] for the
+    /// reason tags are: they come from a different bulk file, published on its
+    /// own schedule.
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub printings_fetched_at: Option<String>,
 }
 
 /// An index on disk, read a card at a time.
@@ -319,6 +343,8 @@ pub struct IndexFile {
     text: String,
     /// Key to the byte range of that card's JSON within `text`.
     entries: HashMap<String, (usize, usize)>,
+    /// `set/number` to the byte range of the JSON string naming its card.
+    printings: HashMap<String, (usize, usize)>,
 }
 
 /// Hand-written because the derived one would print the whole file: this holds
@@ -359,6 +385,7 @@ impl IndexFile {
             })?;
 
         let mut entries = HashMap::new();
+        let mut printings = HashMap::new();
         let mut found = 0usize;
         let mut offset = header_end + 1;
         let mut line_number = 1usize;
@@ -372,22 +399,30 @@ impl IndexFile {
                     path: path.to_path_buf(),
                     line: line_number,
                 })?;
-                found += 1;
-                entries.insert(
-                    line[..separator].to_string(),
-                    (offset + separator + 1, offset + length),
-                );
+                let key = &line[..separator];
+                let range = (offset + separator + 1, offset + length);
+                match key.strip_prefix(PRINTING_PREFIX) {
+                    Some(printing) => {
+                        printings.insert(printing.to_string(), range);
+                    }
+                    None => {
+                        found += 1;
+                        entries.insert(key.to_string(), range);
+                    }
+                }
             }
             offset += length + 1;
         }
 
-        if let Some(expected) = header.cards {
-            if expected != found {
-                return Err(IndexError::Truncated {
-                    path: path.to_path_buf(),
-                    expected,
-                    found,
-                });
+        for (expected, found) in [(header.cards, found), (header.printings, printings.len())] {
+            if let Some(expected) = expected {
+                if expected != found {
+                    return Err(IndexError::Truncated {
+                        path: path.to_path_buf(),
+                        expected,
+                        found,
+                    });
+                }
             }
         }
 
@@ -396,7 +431,32 @@ impl IndexFile {
             header,
             text,
             entries,
+            printings,
         })
+    }
+
+    /// The name of the card printed as `set`/`num`, or `None` when this index
+    /// has no such printing.
+    ///
+    /// An index that carries no printings at all answers `None` for every
+    /// printing, which is not the same as "no such printing"; ask
+    /// [`Self::has_printings`] before reading a `None` as the second.
+    pub fn printing(&self, set: &str, num: &str) -> Result<Option<String>, IndexError> {
+        let key = printing_key(set, num);
+        let Some(&(start, end)) = self.printings.get(&key) else {
+            return Ok(None);
+        };
+        facet_json::from_str::<String>(&self.text[start..end])
+            .map(Some)
+            .map_err(|source| IndexError::Json {
+                path: self.path.clone(),
+                source: Box::new(source),
+            })
+    }
+
+    /// Whether this index was built with printings at all.
+    pub fn has_printings(&self) -> bool {
+        self.header.printings.is_some()
     }
 
     /// The card filed under this name, parsed now.
@@ -528,6 +588,13 @@ pub fn keyname(name: &str) -> String {
     name.trim().to_lowercase()
 }
 
+/// A printing as the index files it: `cmr/472`. The set is lowercased, as
+/// Scryfall writes it; the collector number is kept as printed, because `266s`
+/// and `266S` would be different claims about a card.
+pub fn printing_key(set: &str, num: &str) -> String {
+    format!("{}/{}", set.trim().to_lowercase(), num.trim())
+}
+
 impl Index {
     /// Where the index lives.
     ///
@@ -570,6 +637,11 @@ impl Index {
                 t
             },
             tags_fetched_at: self.tags_fetched_at.clone(),
+            printings: self
+                .printings_fetched_at
+                .is_some()
+                .then_some(self.printings.len()),
+            printings_fetched_at: self.printings_fetched_at.clone(),
         };
         let mut out =
             facet_json::to_string(&header).map_err(|e| IndexError::Serialize(e.to_string()))?;
@@ -582,6 +654,17 @@ impl Index {
             let json = facet_json::to_string(card)
                 .map_err(|e| IndexError::Serialize(format!("{}: {e}", card.name)))?;
             out.push_str(key);
+            out.push(SEPARATOR);
+            out.push_str(&json);
+            out.push('\n');
+        }
+        // After every card, and sorted as a BTreeMap is, for the same
+        // reproducible bytes.
+        for (printing, name) in &self.printings {
+            let json = facet_json::to_string(name)
+                .map_err(|e| IndexError::Serialize(format!("{printing}: {e}")))?;
+            out.push_str(PRINTING_PREFIX);
+            out.push_str(printing);
             out.push(SEPARATOR);
             out.push_str(&json);
             out.push('\n');
@@ -706,6 +789,10 @@ impl Index {
                 // from a bulk file honestly carries none.
                 tags: Vec::new(),
                 tags_fetched_at: None,
+                // Printings come from a different bulk file, attached the way
+                // tags are.
+                printings: BTreeMap::new(),
+                printings_fetched_at: None,
             },
             report,
         )
@@ -742,6 +829,34 @@ impl Index {
         self.tags = tags;
         self.tags_fetched_at = fetched_at;
         tagged
+    }
+
+    /// Files every printing whose card is in this index, from `(oracle_id,
+    /// set, collector_number)` records such as Scryfall's `default_cards`.
+    ///
+    /// A printing of a card the index does not hold (a token, an art card) is
+    /// left out rather than filed under a name nothing can look up. Returns how
+    /// many were filed, for `sync` to report.
+    pub fn attach_printings<'a>(
+        &mut self,
+        records: impl IntoIterator<Item = (&'a str, &'a str, &'a str)>,
+        fetched_at: Option<String>,
+    ) -> usize {
+        let names: HashMap<&str, &str> = self
+            .cards
+            .values()
+            .filter_map(|c| Some((c.oracle_id.as_deref()?, c.name.as_str())))
+            .collect();
+        let mut printings = BTreeMap::new();
+        for (oracle_id, set, num) in records {
+            if let Some(name) = names.get(oracle_id) {
+                printings.insert(printing_key(set, num), name.to_string());
+            }
+        }
+        let filed = printings.len();
+        self.printings = printings;
+        self.printings_fetched_at = fetched_at;
+        filed
     }
 
     pub fn get(&self, name: &str) -> Option<&Card> {

@@ -149,7 +149,7 @@ impl Shared {
     /// than the land drop, and the budget beside it has already said which
     /// spells the pool paid for, so it chooses no land and the manabase may
     /// still be narrowed to the pips the costs demand. Reading this as *any*
-    /// live effect cost `decks/lantern.txt` 19 groups and 62 billion
+    /// live effect cost `decks/lantern.deck.toml` 19 groups and 62 billion
     /// compositions for a tutor that never looked at a land.
     fn picks_a_land(&self) -> bool {
         self.land_drop.is_some() || self.effects.is_some_and(|e| e.on_the_drop)

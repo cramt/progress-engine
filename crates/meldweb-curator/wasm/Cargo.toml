@@ -1,0 +1,22 @@
+[package]
+name = "meldweb-wasm"
+description = "chip-decklist for Meldweb Curator's browser editor."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+chip-decklist.workspace = true
+facet.workspace = true
+facet-json.workspace = true
+# Exact, because the generated JS glue must come from the same wasm-bindgen
+# version as the crate. flake.nix provides the matching wasm-bindgen-cli_0_2_126
+# from nixpkgs; bump both together, to a version nixpkgs has an attr for.
+wasm-bindgen = "=0.2.126"
+
+[dev-dependencies]
+facet-typescript = "0.46"

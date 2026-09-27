@@ -134,8 +134,8 @@ row's own narrowing:
 | `lantern.criteria.toml --draw` | 16 / 178,828,345,344 | 18 / 653,987,043,072 | sampled | sampled, 2.4s |
 | `loam-access.criteria.toml`, then `loam.criteria.toml` | 8 / 14,057,472 | 6 / 1,026,432 | **sampled** | **exact**, 3.9s |
 | `loam-access.criteria.toml --draw` | 8 / 112,459,776 | 6 / 6,158,592 | sampled | sampled, 7.9s |
-| `lantern.txt`, `can_cast = "{1}{U}"` at turn 4 | 17 / 1,204,456,341 | 5 / 41,250 | **sampled**, 0.68s | **exact**, 0.27s |
-| `loam.txt`, the same clause | 18 / 2,018,478,528 | 5 / 41,250 | **sampled**, 0.81s | **exact**, 0.25s |
+| `lantern.deck.toml`, `can_cast = "{1}{U}"` at turn 4 | 17 / 1,204,456,341 | 5 / 41,250 | **sampled**, 0.68s | **exact**, 0.27s |
+| `loam.deck.toml`, the same clause | 18 / 2,018,478,528 | 5 / 41,250 | **sampled**, 0.81s | **exact**, 0.25s |
 
 The first two rows are what narrowing looks like once a file asks the question it exists for
 rather than a proxy for it. `lantern.criteria.toml` was then the Lantern north star written as a
@@ -252,6 +252,7 @@ Working today:
 |---|---|
 | `gauntlet sync` | Build the card index from Scryfall bulk data |
 | `gauntlet parse <deck>` | The canonical Archidekt decklist parser, as JSON |
+| `gauntlet import <deck.txt>` | An Archidekt export as a `.deck.toml`, on stdout |
 | `gauntlet test <deck> <criteria.toml>` | Evaluate criteria and report PASS/FAIL |
 
 ```
@@ -277,7 +278,7 @@ PASS: 3 of 3 assertions met
 The line above the verdict is how close the run came to the enumeration
 ceiling: the widest question it walked exactly, and its share. It is on every
 run so that the ceiling is visible before a question crosses it — Route B's
-turn-5 line on `decks/lantern.txt` sits at 82% of it, one more card or turn
+turn-5 line on `decks/lantern.deck.toml` sits at 82% of it, one more card or turn
 from being estimated.
 
 JSON goes to stdout, the verdict to stderr, and the exit code reflects it — so a
@@ -474,7 +475,7 @@ which is a confident zero, the failure this whole tool is about — so the run
 says so rather than letting `0.00%` pass for a measurement:
 
 ```
-$ gauntlet test loam.txt loam.criteria.toml
+$ gauntlet test loam.deck.toml loam.criteria.toml
 note: nothing routes a card to the graveyard in this run, so every count in
       it is zero by construction rather than by measurement.
       Asked by: "loam in the yard by turn 5"
@@ -659,7 +660,7 @@ types, without mana in the cost.
 **What it costs.** Maze of Ith and a Saga are each a land no other land is
 interchangeable with, so a class that prices mana on a deck holding them keeps
 up to two more land groups, even for a cost naming no colour. On
-`decks/lantern.txt` that took *route 1* — Lantern in hand and `{1}` by turn 5 —
+`decks/lantern.deck.toml` that took *route 1* — Lantern in hand and `{1}` by turn 5 —
 from 4 groups to 6: still exact on the play at 1,026,432 compositions, and 23%
 over the ceiling on the draw, where it is now sampled.
 
@@ -677,19 +678,19 @@ asking `can_cast = "{1}{U}"`, before and after
 
 | Deck | Turn | Before: groups / compositions | After | Before | After |
 |---|---|---|---|---|---|
-| `lantern.txt` | 4 | 17 / 1,204,456,341 | 5 / 41,250 | sampled, 0.68s | **exact**, 0.27s |
-| `lantern.txt` | 5 | 17 / 20,475,757,797 | 5 / 206,250 | sampled, 0.76s | **exact**, 0.74s |
-| `lantern.txt` | 6 | 17 / 348,087,882,549 | 5 / 1,031,250 | sampled, 0.84s | **exact**, 3.2s |
-| `lantern.txt` | 7 | 17 / 5,917,494,003,333 | 5 / 5,156,250 | sampled | sampled — over the ceiling by 3% |
-| `loam.txt` | 4 | 18 / 2,018,478,528 | 5 / 41,250 | sampled, 0.81s | **exact**, 0.25s |
-| `loam.txt` | 6 | 18 / 653,987,043,072 | 5 / 1,031,250 | sampled, 0.86s | **exact**, 3.1s |
+| `lantern.deck.toml` | 4 | 17 / 1,204,456,341 | 5 / 41,250 | sampled, 0.68s | **exact**, 0.27s |
+| `lantern.deck.toml` | 5 | 17 / 20,475,757,797 | 5 / 206,250 | sampled, 0.76s | **exact**, 0.74s |
+| `lantern.deck.toml` | 6 | 17 / 348,087,882,549 | 5 / 1,031,250 | sampled, 0.84s | **exact**, 3.2s |
+| `lantern.deck.toml` | 7 | 17 / 5,917,494,003,333 | 5 / 5,156,250 | sampled | sampled — over the ceiling by 3% |
+| `loam.deck.toml` | 4 | 18 / 2,018,478,528 | 5 / 41,250 | sampled, 0.81s | **exact**, 0.25s |
+| `loam.deck.toml` | 6 | 18 / 653,987,043,072 | 5 / 1,031,250 | sampled, 0.86s | **exact**, 3.1s |
 
 Reproduce any row with the `enumerations` block:
 
 ```
 $ gauntlet sync --index /tmp/index.jsonl
 $ printf '[[criterion]]\nname = "u"\nrequire = [{ turn = 4, can_cast = "{1}{U}" }]\n' > /tmp/u.toml
-$ gauntlet test decks/lantern.txt /tmp/u.toml --index /tmp/index.jsonl | jq -c '.enumerations[]'
+$ gauntlet test decks/lantern.deck.toml /tmp/u.toml --index /tmp/index.jsonl | jq -c '.enumerations[]'
 {"criteria":["u"],"expectations":[],"queries":[],"turns":[4],"reading":"per-turn",
  "pips":["{U}"],"groups":5,"compositions":41250,"method":"exact"}
 ```
@@ -740,7 +741,7 @@ first.
 > holding the engine to `checker/` on small decks. A look that routes nothing —
 > a surveil land in a file that declares no `to_graveyard`, whose card stays on
 > top — is no deeper than no look, and breaks no tie: Hedge Maze in
-> `decks/lantern.txt` is played in decklist order. And where one entry holds
+> `decks/lantern.deck.toml` is played in decklist order. And where one entry holds
 > lands that make different mana, the engine breaks the tie by **land group**
 > rather than by card: lands that make the same mana the same way are one
 > group, ranked where the first of them sits in the list. With Training
@@ -780,7 +781,7 @@ named rather than a default chosen, because *which land would you have played*
 is a question only you can answer:
 
 ```
-$ gauntlet test lantern.txt lantern.criteria.toml
+$ gauntlet test lantern.deck.toml lantern.criteria.toml
 Error: lantern.criteria.toml: Lantern castable on turn 1: a mana question and a live land-drop
       effect are both answers to which land you played this turn, and this file declares no
       priority between them. [...]
@@ -799,7 +800,7 @@ apart, are one card to the run (a Forest and Boseiju, Who Endures), so the tie
 is between kinds of land and goes to the kind the decklist names first. Merging a
 Plains with a Swamp because `{1}{U}` cannot tell them apart would renumber that
 ranking and play the wrong land, so a run that declares a priority keeps the
-whole palette and pays for it. Measured on `decks/lantern.txt` — a 99-card
+whole palette and pays for it. Measured on `decks/lantern.deck.toml` — a 99-card
 library whose 40 land-typed cards make sixteen distinct mana profiles — asking
 `can_cast = "{1}{U}"`:
 
@@ -822,7 +823,7 @@ the honest thing is the number the run actually walked.
 line nothing else drew. The preferences become grouping queries, so an entry
 separating lands an effect already separated is free, and one that splits a
 group nobody else split costs a group. The case this feature exists for is the
-free one: a surveil tier beside a live `to_graveyard` effect on `lantern.txt` is
+free one: a surveil tier beside a live `to_graveyard` effect on `lantern.deck.toml` is
 20 groups and 841,984,000,000,000 compositions with the tier and without it, to
 the path, because routing has already split the land it routes with.
 
@@ -957,7 +958,7 @@ play on turn 4 and never cast it. On the decks, from
 until the Lantern north star folded it in (`lantern-commander.criteria.toml`,
 last run at e1a49e4; [#100](https://github.com/cramt/progress-engine/issues/100)):
 
-| Commander cast by | Rashmi and Ragavan (`lantern.txt`), play / draw | Borborygmos and Fblthp (`loam.txt`), play / draw |
+| Commander cast by | Rashmi and Ragavan (`lantern.deck.toml`), play / draw | Borborygmos and Fblthp (`loam.deck.toml`), play / draw |
 |---|---|---|
 | turn 4 | 42.50% / 51.49% | — (five mana) |
 | turn 5 | 53.01% / 61.30% | 51.99% / 62.10% |
@@ -1088,17 +1089,17 @@ Measured on the decks in `decks/`, against an index synced with oracle tags:
 
 | Deck and line | Turn | groups / compositions | |
 |---|---|---|---|
-| `lantern.txt`, `cast` Lantern of Insight (`{1}`) | 4 | 4 / 7,680 | **exact**, 0.16s |
+| `lantern.deck.toml`, `cast` Lantern of Insight (`{1}`) | 4 | 4 / 7,680 | **exact**, 0.16s |
 | | 5 | 4 / 30,720 | **exact**, 0.18s |
 | | 6 | 4 / 122,880 | **exact**, 0.25s |
 | | 7 | 4 / 491,520 | **exact**, 0.52s |
 | | 8 | 4 / 1,966,080 | **exact** |
 | | 9 | 4 / 7,864,320 | sampled — 57% over |
-| `lantern.txt`, `cast` Trinket Mage (`{2}{U}`) then Lantern | 3 | 7 / 84,084 | **exact**, 0.26s |
+| `lantern.deck.toml`, `cast` Trinket Mage (`{2}{U}`) then Lantern | 3 | 7 / 84,084 | **exact**, 0.26s |
 | | 4 | 7 / 588,588 | **exact**, 0.84s |
 | | 5 | 7 / 4,120,116 | **exact**, 4.4s |
 | | 6 | 7 / 28,840,812 | sampled |
-| `loam.txt`, `cast` Life from the Loam (`{1}{G}{G}`) | 4 | 6 / 171,072 | **exact**, 0.44s |
+| `loam.deck.toml`, `cast` Life from the Loam (`{1}{G}{G}`) | 4 | 6 / 171,072 | **exact**, 0.44s |
 | | 5 | 6 / 1,026,432 | **exact**, 1.9s |
 | | 6 | 6 / 6,158,592 | sampled — 23% over |
 
@@ -1120,7 +1121,7 @@ Reproduce any row with the `enumerations` block:
 
 ```
 $ gauntlet sync --index /tmp/index.jsonl
-$ gauntlet test decks/lantern.txt /tmp/route-b.toml --index /tmp/index.jsonl \
+$ gauntlet test decks/lantern.deck.toml /tmp/route-b.toml --index /tmp/index.jsonl \
     | jq -c '.enumerations[]'
 {"criteria":["Trinket Mage cast by turn 3"],"expectations":[],
  "queries":["name:\"Trinket Mage\"","name:\"Lantern of Insight\""],"turns":[3],
@@ -1198,7 +1199,7 @@ find it anyway, so it moves no number at all.
 Write `to_graveyard` yourself and the same surveil starts binning:
 
 ```
-$ gauntlet test loam.txt loam.criteria.toml
+$ gauntlet test loam.deck.toml loam.criteria.toml
 note: effect "t:land otag:surveil" (look 1, on landdrop, name:"Life from the Loam" to the graveyard)
       applies to 4 cards: Undercity Sewers
      loam in the yard by turn 5    4.92%
@@ -1277,7 +1278,7 @@ construction.
 A tutor is a **deterministic removal from a named group**. Given what the path
 has done so far there is one answer, so it costs no branch — it is a subtraction
 from the pool the next draw comes out of, not a second distribution laid over
-it. Which means it is free: Route B on `decks/lantern.txt` is seven groups and
+it. Which means it is free: Route B on `decks/lantern.deck.toml` is seven groups and
 4,120,116 compositions at turn 5 with the fetch and without it, to the
 composition.
 
@@ -1315,7 +1316,7 @@ note: effect "name:\"Trinket Mage\"" (on cast)
 is the Lantern north star's second route on its own. Delete the `[[effect]]`
 block and re-run:
 
-| On `decks/lantern.txt`, on the play | drawn | fetched |
+| On `decks/lantern.deck.toml`, on the play | drawn | fetched |
 |---|---|---|
 | Trinket Mage cast by turn 3 | **4.99%** | **4.99%** |
 | Trinket Mage and a Lantern both cast by turn 5 | 0.78% ± 0.02 | **7.67% ± 0.06** |
@@ -1332,7 +1333,7 @@ needs it — its line reads Loam before Spellseeker, so that a Loam
 already in hand is not held a turn behind a three-mana tutor with nothing to
 find, and five lands cast Spellseeker and then the Loam it fetched:
 
-| On `decks/loam.txt`, Loam in the graveyard by turn 5 | play | draw |
+| On `decks/loam.deck.toml`, Loam in the graveyard by turn 5 | play | draw |
 |---|---|---|
 | casting Loam you drew | 9.92% | 11.23% ± 0.07 |
 | ... and the Loam Spellseeker fetched | **17.08% ± 0.08** | **19.58% ± 0.09** |
@@ -1369,7 +1370,7 @@ what you fetched either.
 almost nobody has the number. `decks/loam-thinning.criteria.toml` is the number,
 exactly, for a deck where fetchlands are a large part of why it functions:
 
-| On `decks/loam.txt`, on the play | as a land | fetching | moved by |
+| On `decks/loam.deck.toml`, on the play | as a land | fetching | moved by |
 |---|---|---|---|
 | some Loam Access by turn 5 | 80.9583% | 81.0158% | +0.0575 pp |
 | some Loam Access by turn 8 | 88.3546% | 88.4310% | +0.0764 pp |
@@ -1398,7 +1399,7 @@ there; see the next section.
 
 **What it costs: no width, and about five per cent of the wall clock.** A
 removal is decided once per path prefix rather than branched over, so the
-enumeration is the one that was already there. Measured on `decks/lantern.txt`,
+enumeration is the one that was already there. Measured on `decks/lantern.deck.toml`,
 Route B's two-spell line, on the play:
 
 | Turn | groups / compositions | drawn | fetching |
@@ -1476,7 +1477,7 @@ The same shape as the Saga's rule below, which is the mirror of a fetchland's.
 the route on its own, beside the Lantern cast from hand. Delete the
 `[[effect]]` block and re-run:
 
-| On `decks/lantern.txt` | play, drawn | play, fetched | draw, drawn | draw, fetched |
+| On `decks/lantern.deck.toml` | play, drawn | play, fetched | draw, drawn | draw, fetched |
 |---|---|---|---|---|
 | Tezzeret the Seeker cast by turn 5 | 2.80% | 2.84% | 4.30% | 4.22% |
 | Lantern of Insight cast by turn 5 | 10.99% | 11.10% | 12.11% | 12.14% |
@@ -1554,7 +1555,7 @@ on 130/132 deals.
 is `lantern-route-seeker.criteria.toml` with Dizzy Spell and Whir added to the
 line, so the two files differ by those two cards:
 
-| On `decks/lantern.txt` | play, Seeker | play, + both | draw, Seeker | draw, + both |
+| On `decks/lantern.deck.toml` | play, Seeker | play, + both | draw, Seeker | draw, + both |
 |---|---|---|---|---|
 | Lantern on the battlefield by turn 5 | 13.76% | **21.75%** | 16.03% | **25.87%** |
 | Lantern of Insight cast by turn 5 | 11.10% | 16.60% | 12.14% | 18.86% |
@@ -1612,7 +1613,7 @@ note: effect "name:\"Malevolent Rumble\"" (mill 4, on cast)
 whose line is now the north star's, added the four mills to it after
 Spellseeker:
 
-| On `decks/loam.txt`, Loam in the graveyard by turn 5 | play | draw |
+| On `decks/loam.deck.toml`, Loam in the graveyard by turn 5 | play | draw |
 |---|---|---|
 | casting the Loam, drawn or fetched by Spellseeker | 17.08% ± 0.08 | 19.58% ± 0.09 |
 | ... and Rumble and Tilling | 18.46% ± 0.09 | 21.26% ± 0.09 |
@@ -1633,7 +1634,7 @@ narrowing: it moves no number, and every committed file answers what it
 answered before, to the digit. It changes what can be answered exactly.
 `decks/loam-analyst.criteria.toml` is the Analyst's route alone:
 
-| On `decks/loam.txt`, turn 5, the Analyst then Loam | paths walked | answer |
+| On `decks/loam.deck.toml`, turn 5, the Analyst then Loam | paths walked | answer |
 |---|---|---|
 | on the play, milled where it fired | 27,283,512 | 10.15% ± 0.07, sampled |
 | on the play, dealt last | 1,459,454 | **10.19%, exact** |
@@ -1688,7 +1689,7 @@ added all three to the end of its line, after the mills and the discards
 ([Discard](#discard-a-spell-that-draws-and-then-bins)), with Six keeping a
 land:
 
-| On `decks/loam.txt`, Loam in the graveyard by turn 5, cast, milled or discarded | play | draw |
+| On `decks/loam.deck.toml`, Loam in the graveyard by turn 5, cast, milled or discarded | play | draw |
 |---|---|---|
 | the four mills and the three discards, land drop declared | 19.53% ± 0.09 | 22.14% ± 0.09 |
 | ... and Six, Icetill Explorer and Lumra | **19.79% ± 0.09** | **22.57% ± 0.09** |
@@ -1768,7 +1769,7 @@ the mills, with the list above. The discards made it declare its land drop —
 taplands first, then any land in decklist order — which is a line the pilot
 plays where the old reading was the best line, so it is worth less on its own:
 
-| On `decks/loam.txt`, Loam in the graveyard by turn 5 | play | draw |
+| On `decks/loam.deck.toml`, Loam in the graveyard by turn 5 | play | draw |
 |---|---|---|
 | casting, Spellseeker and the four mills, no land drop declared | 19.02% ± 0.09 | 21.82% ± 0.09 |
 | ... with the land drop declared | 18.43% ± 0.09 | 21.14% ± 0.09 |
@@ -1802,7 +1803,7 @@ every land it could have binned.
 It asks the north star at turns 4 to 7 and each half beside it, from the same
 games:
 
-| On `decks/loam.txt`, play / draw | turn 4 | turn 5 | turn 6 | turn 7 |
+| On `decks/loam.deck.toml`, play / draw | turn 4 | turn 5 | turn 6 | turn 7 |
 |---|---|---|---|---|
 | **Loam put into the graveyard and the commander cast** | 0.53% / 0.80% | **8.22% / 10.71%** | 17.93% / 22.06% | 23.98% / 27.93% |
 | Loam put into the graveyard | 14.14% / 16.06% | 17.44% / 19.55% | 24.13% / 27.02% | 28.64% / 31.51% |
@@ -1889,7 +1890,7 @@ fetch is the same subtraction from a named group an immediate one is, taken on
 a later turn. A delayed *look* would need a checkpoint on a turn the schedule
 cannot know, and it is refused.
 
-On `decks/lantern.txt`, exact, in 0.05s:
+On `decks/lantern.deck.toml`, exact, in 0.05s:
 
 | | play | draw |
 |---|---|---|
@@ -1982,7 +1983,7 @@ because the Saga needs a declared land drop, and declaring one moves the other
 file's numbers for reasons that are not the Map's. Against the same file
 without the Map:
 
-| On `decks/lantern.txt` | play, no Map | play, + Map | draw, no Map | draw, + Map |
+| On `decks/lantern.deck.toml` | play, no Map | play, + Map | draw, no Map | draw, + Map |
 |---|---|---|---|---|
 | Lantern on the battlefield by turn 5 | 26.93% | **31.64%** | 30.38% | **35.95%** |
 | Urza's Saga played by turn 3 | 9.18% | 14.77% | 10.24% | 16.95% |
@@ -2057,7 +2058,7 @@ casts and activates Intuition last in its line. Its `[discard]` list pays with
 any artifact card the line never casts that is not a land drop, so never the
 Lantern or the Map:
 
-| On `decks/lantern.txt` | play, before | play, + Intuition | draw, before | draw, + Intuition |
+| On `decks/lantern.deck.toml` | play, before | play, + Intuition | draw, before | draw, + Intuition |
 |---|---|---|---|---|
 | Lantern on the battlefield by turn 5 | 31.64% | **37.31%** | 35.96% | **42.24%** |
 | Lantern of Insight cast by turn 5 | 15.45% | 21.56% | 17.34% | 24.13% |
@@ -2084,7 +2085,7 @@ Expedition Map for the Saga; Artificer's Intuition, its discard paid from a
 `[discard]` list of the sixteen artifact cards the line never casts. The rocks
 of ADR-0018 are in the same line.
 
-| On `decks/lantern.txt` | play | draw |
+| On `decks/lantern.deck.toml` | play | draw |
 |---|---|---|
 | north star by turn 4 | 7.71% ± 0.06 | 9.83% ± 0.07 |
 | north star by turn 5 | **33.58% ± 0.11** | **40.94% ± 0.11** |
@@ -2213,7 +2214,7 @@ hand size. A file with no `[mulligan]` gets exactly the numbers it always got, a
 says, above them, that it kept every seven.
 
 **Measured on the real decks,** with the rule above appended to each committed
-file: kept at seven 83.96% on `decks/lantern.txt` and 87.47% on `decks/loam.txt`.
+file: kept at seven 83.96% on `decks/lantern.deck.toml` and 87.47% on `decks/loam.deck.toml`.
 Every exact criterion's keep-seven number is the old number to the last digit. No
 class crossed the ceiling it was not already over: `t:land` was already in the
 widest classes, and the others grow by one group — a cumulative class that read
@@ -2337,9 +2338,9 @@ trust it.
 
 **Measured on the real decks**, with objectives made of criteria each file
 already answers exactly (the north stars are sampled, so they cannot be weighed
-yet). On `decks/lantern.txt`, routes 1, 2 and 4 weighted 3 : 1 : 1: 6 groups and
+yet). On `decks/lantern.deck.toml`, routes 1, 2 and 4 weighted 3 : 1 : 1: 6 groups and
 338 openers, 134,469 paths walked on the play and 535,727 on the draw, 0.8s and
-1.0s for the whole file on four cores. On `decks/loam.txt`, Loam in hand, the
+1.0s for the whole file on four cores. On `decks/loam.deck.toml`, Loam in hand, the
 `{1}{G}` control and Loam Access with three lands weighted 3 : 1 : 1: 7 groups and
 1,253 openers, 2.0 million paths on the play and 10.2 million on the draw, 1.0s
 and 2.5s on four cores, 5.7s and 11.0s before the walk was split across them. Both
@@ -2749,7 +2750,7 @@ There are three ways an `otag:` question comes back with no cards, and they are
 three different answers:
 
 ```
-$ gauntlet test loam.txt mill.criteria.toml
+$ gauntlet test loam.deck.toml mill.criteria.toml
 Error: mill.criteria.toml: a mill card in the opener: in query "otag:mill": this index does not carry otag:mill, so counting it would be zero by construction
       rather than by measurement. This index carries: scry, surveil, tapland.
 
@@ -2759,7 +2760,7 @@ Error: surveil.criteria.toml: surveil lands in the opener: in query "t:land otag
       `sync --from` builds an index like this one: tags come from Scryfall's search API,
       not from the bulk file. Fetch them with: gauntlet sync
 
-$ gauntlet test loam.txt scry.criteria.toml
+$ gauntlet test loam.deck.toml scry.criteria.toml
 note: query "otag:scry" matched no cards in this deck
 ```
 
@@ -2847,7 +2848,7 @@ keyword the card pool carries, and a typo among them is that confident 0%
 wearing a valid query:
 
 ```
-$ gauntlet test loam.txt kw-typo.criteria.toml --index loam-index.jsonl
+$ gauntlet test loam.deck.toml kw-typo.criteria.toml --index loam-index.jsonl
 Error: kw-typo.criteria.toml: a typoed keyword: in query "kw:flyign": no card in this index has kw:flyign, so counting it would be zero by construction
       rather than by measurement — which reads exactly like a deck that plays none. The
       index lists every keyword the whole card pool carries, so this is a misspelling
@@ -2908,9 +2909,44 @@ Neither falls back to sampling the way a
 the point: a question that was only expensive still has an answer worth
 estimating, and one that was never modelled does not.
 
-## Decklist format
+## Deck format
 
-Archidekt's export format. Quantity and name are the only required parts:
+`test` reads two formats: the family's own `.deck.toml`, and Archidekt's text
+export. The committed decks are `.deck.toml`; `gauntlet import <file.txt>`
+converts an Archidekt export into one.
+[ADR-0020](docs/adr/0020-decks-are-toml-with-typed-categories.md) is the
+authority on the format.
+
+```toml
+name = "Izzet Lessons"
+
+cards = [
+  { printing = "tla/46", in = ["learnboard", "tempo"] },  # Boomerang Basics
+  { printing = "msc/183", qty = 4, in = ["tempo"] },  # Expressive Iteration
+  { name = "Lightning Bolt", qty = 4, finish = "foil", in = ["tempo"] },
+]
+
+[categories]
+learnboard = { type = "sideboard" }
+tempo = {}
+```
+
+- **A card is named exactly once**, by `printing = "set/number"` or by
+  `name`. A printing is resolved to its card through the index, which
+  `gauntlet sync` fills from Scryfall's `default_cards`; an index without
+  printings refuses a deck that needs them. The comment after a printing is
+  written by the tools and never read.
+- **Categories are declared**, so a misspelled one is an error. A category
+  may be typed: `commander` is in the deck; `sideboard`, `companion`,
+  `maybeboard`, `attractions` and `sticker-sheet` are outside it. An untyped
+  category is a label, and `cat:` matches any category a card is in.
+- **Where a card is follows from its types**, the most specific one winning,
+  so Lurrus in `companion` and `recursion` is a companion. Types from two
+  branches, such as `commander` and `sideboard`, refuse the deck.
+
+### Archidekt's text export
+
+Quantity and name are the only required parts:
 
 ```
 1x Sol Ring
@@ -3103,6 +3139,7 @@ owns them:
 ```
 crates/ichormoon-gauntlet/{cli,criteria,toml,sim}    this tool
 crates/reality-chip/{scryfall,decklist,stats}        the shared family core
+crates/meldweb-curator/{wasm,web}                    the deck editor: chip-decklist in wasm, and a TypeScript app
 ```
 
 `reality-chip` is the part a sibling tool depends on, kept in its own directory
@@ -3118,6 +3155,7 @@ See [NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md).
 | `gauntlet-toml` | Reading a criteria file and answering it, and shipping the standard effect library | The criteria format, and counts. No cards. |
 | `gauntlet-sim` | Sampling, validated against `chip-stats` | Shuffling. |
 | `gauntlet-cli` | The `gauntlet` binary, and the library behind it that prepares a run in-process | All of the above. |
+| `meldweb-wasm` | `chip-decklist` for Meldweb Curator's browser editor, with the TypeScript types generated from its wire types | Decklist text. No card data. |
 
 The seam worth knowing about is between `chip-scryfall` and `chip-decklist`: a query
 can filter on `cat:"Exile Outlet"`, which is decklist data, not card data. Rather
