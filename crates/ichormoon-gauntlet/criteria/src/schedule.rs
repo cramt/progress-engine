@@ -108,6 +108,11 @@ pub struct Schedule {
     /// is the state every run was in before the budget: nothing is cast, so
     /// nothing leaves the hand and the pool is never spent.
     policies: Policies,
+    /// What this class reads of the graveyard and the library, as grouping
+    /// bits, where a mill nothing else reads may be dealt last over them:
+    /// see [`Schedule::deferring`]. `None` deals every mill where it fired,
+    /// which is every run before ADR-0017 §4 and every sampled one.
+    deferred: Option<u64>,
 }
 
 impl Schedule {
@@ -124,6 +129,7 @@ impl Schedule {
             spans: (0..gaps.len()).map(|t| (t, t)).collect(),
             effects: Vec::new(),
             policies: Policies::default(),
+            deferred: None,
         }
     }
 
@@ -198,6 +204,7 @@ impl Schedule {
             spans,
             effects,
             policies,
+            deferred: None,
         }
     }
 
@@ -273,7 +280,59 @@ impl Schedule {
             spans: self.spans.clone(),
             effects: self.effects.clone(),
             policies: self.policies.clone(),
+            deferred: self.deferred,
         }
+    }
+
+    /// This schedule, where a mill that nothing reads is dealt **last**, over
+    /// only the cards `reads` can tell apart ([ADR-0017] §4): the grouping
+    /// bits a class's questions count in the graveyard or the library.
+    ///
+    /// A **narrowing** (ADR-0007): it moves no number, and only makes the
+    /// enumeration narrower where it applies. A shuffled library does not care
+    /// where in the order a block of cards sits, so long as whether the block
+    /// is dealt does not depend on its own cards and nothing reads them before
+    /// the question does. The first holds of every mill on a cast: it fires
+    /// off the hand and the pool. The second is what the board checks, per
+    /// effect, and a mill that fails it is dealt where it fired as before:
+    ///
+    /// - one that sends a card to hand, by a choice (Malevolent Rumble,
+    ///   Midnight Tilling) or by the card's own words (Wrenn and Seven), reads
+    ///   its block;
+    /// - one in a run where anything fetches is read by the tutor, which
+    ///   searches a library the undealt cards are still in.
+    ///
+    /// Nothing else on the board reads the graveyard. A clause that does reads
+    /// it after the path is dealt, and each deferred mill's cards are filed
+    /// under the turn it fired on, so a clause about any turn, earlier or
+    /// later than the mill, reads what it would have read in place. Where
+    /// `reads` cannot tell two groups apart the milled cards are split between
+    /// them arbitrarily, which no count over `reads` can see; a question
+    /// counting anything else in those zones must be in `reads`.
+    ///
+    /// The sampler never defers: it deals every card where it falls, which is
+    /// what makes its agreement with this a test of the claim.
+    ///
+    /// [ADR-0017]: https://github.com/cramt/progress-engine/blob/main/docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md
+    pub fn deferring(self, reads: u64) -> Schedule {
+        Schedule {
+            deferred: Some(reads),
+            ..self
+        }
+    }
+
+    /// This schedule with every mill dealt where it fired, whatever
+    /// [`Schedule::deferring`] said: what the sampler plays.
+    pub fn in_place(&self) -> Schedule {
+        Schedule {
+            deferred: None,
+            ..self.clone()
+        }
+    }
+
+    /// The bits [`Schedule::deferring`] was given, if it was.
+    pub fn deferred(&self) -> Option<u64> {
+        self.deferred
     }
 
     pub fn gaps(&self) -> &[u32] {

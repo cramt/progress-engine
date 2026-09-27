@@ -949,6 +949,8 @@ pub struct QuestionReads {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Reads {
     queries: u64,
+    /// The part of `queries` counted in the graveyard or the library.
+    piles: u64,
     turns: Vec<usize>,
     demands: Option<Palette>,
     battlefield: bool,
@@ -980,6 +982,12 @@ impl Reads {
 
     fn count(&mut self, turn: usize, query: usize, counted: Counted) {
         self.queries |= 1u64 << query;
+        if matches!(
+            counted,
+            Counted::In(Zone::Graveyard) | Counted::In(Zone::Library)
+        ) {
+            self.piles |= 1u64 << query;
+        }
         self.battlefield |= counted == Counted::In(Zone::Battlefield);
         self.at(turn);
     }
@@ -994,6 +1002,13 @@ impl Reads {
     /// The grouping bits this question counts, as a mask.
     pub fn queries(&self) -> u64 {
         self.queries
+    }
+
+    /// The grouping bits this question counts in the graveyard or the
+    /// library: all it reads of a mill dealt last, which is dealt over only
+    /// these (ADR-0017 §4).
+    pub fn piles(&self) -> u64 {
+        self.piles
     }
 
     /// Every turn it names, ascending. A criterion correlating two turns names

@@ -3953,3 +3953,152 @@ fn wrenn_and_sevens_lands_go_to_hand_whatever_the_file_asks() {
     assert_eq!(at(3, Zone::Hand), 3, "it is in hand beside the two Forests");
     assert_eq!(board.count_at(3, 3, Counted::In(Zone::Battlefield)), 3);
 }
+
+// --- A mill nothing reads is dealt last (ADR-0017 §4) ------------------------
+//
+// A narrowing, so the whole of its specification is that it moves no number:
+// the same questions, answered with the mill dealt where it fired and dealt
+// last over only what the questions read of the graveyard and the library.
+
+/// Green spells matched by query 0 at `{1}{G}`, whose cast mills `mill`; a
+/// target, query 1; Forests, query 2; blanks.
+fn a_milling_deck(mill: Mill, fetch: Option<Fetch>) -> (Grouping, Schedule) {
+    let grouping = Grouping::with_mana(
+        q(&["miller", "target", "land"]),
+        vec![
+            (0b001, two_mana(Resolves::IntoGraveyard), 4),
+            (0b010, ManaSource::Spell, 2),
+            (0b100, untapped("G"), 16),
+            (0b000, ManaSource::Spell, 38),
+        ],
+    )
+    .unwrap();
+    let effect = Effect {
+        fetch,
+        ..milling(Some(mill))
+    };
+    let schedule = Schedule::build(
+        3,
+        false,
+        vec![effect],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    (grouping, schedule)
+}
+
+/// Every zone the target and the lands can be in, on two turns, and the
+/// mill fired or not.
+fn every_zone() -> Closures {
+    let mut checks: Vec<Check> = Vec::new();
+    for turn in [2, 3] {
+        for query in [1, 2] {
+            for zone in [Zone::Graveyard, Zone::Hand, Zone::Library] {
+                checks.push(Box::new(move |v: &PathView<'_>| {
+                    v.count_at(turn, query, Counted::In(zone)) >= 1
+                }));
+            }
+        }
+        checks.push(Box::new(move |v: &PathView<'_>| {
+            v.count_at(turn, 1, Counted::In(Zone::Library)) == 2
+        }));
+        checks.push(Box::new(move |v: &PathView<'_>| {
+            v.count_at(turn, 2, Counted::In(Zone::Graveyard)) >= 2
+        }));
+        checks.push(Box::new(move |v: &PathView<'_>| {
+            v.count_at(turn, 2, Counted::In(Zone::Battlefield)) >= 3
+        }));
+        checks.push(Box::new(move |v: &PathView<'_>| {
+            v.count_at(turn, 0, Counted::Cast) >= 2
+        }));
+    }
+    Closures(checks)
+}
+
+fn every_zone_answered(grouping: &Grouping, schedule: &Schedule) -> Vec<f64> {
+    let mut ev = every_zone();
+    let n = ev.0.len();
+    gauntlet_criteria::run(grouping, schedule, only_criteria(n), &mut ev)
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect()
+}
+
+#[test]
+fn a_mill_nothing_reads_is_dealt_last_and_moves_no_number() {
+    let (grouping, in_place) = a_milling_deck(Mill::all(3), None);
+    // The graveyard and the library are read for the target and the lands,
+    // and for nothing else.
+    let last = in_place.clone().deferring(0b110);
+    let (a, b) = (
+        every_zone_answered(&grouping, &in_place),
+        every_zone_answered(&grouping, &last),
+    );
+    assert!(
+        a[0] > 0.01 && a[0] < 0.99,
+        "the mill reaches the target: {a:?}"
+    );
+    for (i, (x, y)) in a.iter().zip(&b).enumerate() {
+        assert!(
+            (x - y).abs() < 1e-12,
+            "question {i}: {x} in place, {y} last"
+        );
+    }
+    let (wide, narrow) = (
+        gauntlet_criteria::width(&grouping, &in_place),
+        gauntlet_criteria::width(&grouping, &last),
+    );
+    assert!(
+        narrow < wide,
+        "dealt last over three bins rather than in place over four groups: {narrow} vs {wide}"
+    );
+}
+
+#[test]
+fn a_mill_that_chooses_from_its_cards_is_dealt_where_it_fired() {
+    // Rumble's shape reads its own block to choose the card it keeps, so the
+    // block is not one nothing reads, and a class that would defer a mill
+    // leaves this one where it is.
+    let rumble = Mill {
+        cards: 4,
+        to_hand: ToHand::Chosen {
+            up_to: 1,
+            of: Some(2),
+            prefer: vec![2],
+        },
+    };
+    let (grouping, in_place) = a_milling_deck(rumble, None);
+    let last = in_place.clone().deferring(0b110);
+    assert_eq!(
+        gauntlet_criteria::width(&grouping, &last),
+        gauntlet_criteria::width(&grouping, &in_place)
+    );
+    // Nor Wrenn and Seven's, which sends every land among them to hand.
+    let wrenn = Mill {
+        cards: 4,
+        to_hand: ToHand::Every(2),
+    };
+    let (grouping, in_place) = a_milling_deck(wrenn, None);
+    let last = in_place.clone().deferring(0b110);
+    assert_eq!(
+        gauntlet_criteria::width(&grouping, &last),
+        gauntlet_criteria::width(&grouping, &in_place)
+    );
+}
+
+#[test]
+fn a_mill_beside_a_tutor_is_dealt_where_it_fired() {
+    // A tutor reads the library, and a card dealt last is still in the
+    // library to it: it could find the card the mill had already binned.
+    let fetch = Fetch {
+        prefer: vec![1],
+        to: Fetched::Hand,
+    };
+    let (grouping, in_place) = a_milling_deck(Mill::all(3), Some(fetch));
+    let last = in_place.clone().deferring(0b110);
+    assert_eq!(
+        gauntlet_criteria::width(&grouping, &last),
+        gauntlet_criteria::width(&grouping, &in_place)
+    );
+}

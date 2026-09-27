@@ -128,7 +128,12 @@ pub fn simulate<E>(
     // implementation of *where the cards went* is exactly the disagreement the
     // two engines exist to catch, so there is not one: this engine differs in
     // how it produces a path and in nothing after that.
-    let mut board = Board::new(grouping, schedule);
+    //
+    // Except in one respect, on purpose: it deals every card where it falls,
+    // a mill the exact engine deals last included (ADR-0017 §4). That is what
+    // makes the two agreeing a test of dealing it last.
+    let in_place = schedule.in_place();
+    let mut board = Board::new(grouping, &in_place);
     let groups = grouping.group_sizes().len();
     let mut hits: Vec<u32> = vec![0; plan.criteria];
     let mut histograms: Vec<DistributionBuilder> =

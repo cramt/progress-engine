@@ -170,6 +170,9 @@ pub struct Class {
     /// The turns whose counts this class reads. For [`Reading::PerTurn`] it is
     /// the last one, because that reading keeps every turn up to it anyway.
     turns: Vec<usize>,
+    /// The grouping bits any of its questions counts in the graveyard or the
+    /// library, joined: what a mill dealt last is dealt over.
+    piles: u64,
     criteria: Vec<usize>,
     expectations: Vec<usize>,
 }
@@ -180,9 +183,12 @@ impl Class {
         full.coarsened(self.keep, self.mana)
     }
 
-    /// The shortest schedule that still answers it.
+    /// The shortest schedule that still answers it, with every mill nothing
+    /// reads dealt last over what its questions read of the graveyard and
+    /// the library ([`Schedule::deferring`]).
     pub fn schedule(&self, full: &Schedule) -> Schedule {
         full.narrowed(&self.turns, self.reading)
+            .deferring(self.piles)
     }
 
     /// Which of the file's questions this enumeration is for.
@@ -230,7 +236,7 @@ impl Class {
         if !turns.contains(&0) {
             turns.insert(0, 0);
         }
-        full.narrowed(&turns, self.reading)
+        full.narrowed(&turns, self.reading).deferring(self.piles)
     }
 
     /// The turns whose counts this class reads, and how it reads them.
@@ -325,35 +331,38 @@ impl Need {
 /// and width is the thing this exists to spend less of.
 pub fn partition(reads: &QuestionReads, shared: &Shared) -> Vec<Class> {
     let mut classes: Vec<Class> = Vec::new();
-    let mut place = |need: Need, criterion: Option<usize>, expectation: Option<usize>| {
-        let slot = classes.iter().position(|c| {
-            c.keep == need.keep
-                && c.mana == need.mana
-                && c.reading == need.reading
-                && c.turns == need.turns
-        });
-        let class = match slot {
-            Some(i) => &mut classes[i],
-            None => {
-                classes.push(Class {
-                    keep: need.keep,
-                    mana: need.mana,
-                    reading: need.reading,
-                    turns: need.turns,
-                    criteria: Vec::new(),
-                    expectations: Vec::new(),
-                });
-                classes.last_mut().expect("just pushed")
-            }
+    let mut place =
+        |need: Need, piles: u64, criterion: Option<usize>, expectation: Option<usize>| {
+            let slot = classes.iter().position(|c| {
+                c.keep == need.keep
+                    && c.mana == need.mana
+                    && c.reading == need.reading
+                    && c.turns == need.turns
+            });
+            let class = match slot {
+                Some(i) => &mut classes[i],
+                None => {
+                    classes.push(Class {
+                        keep: need.keep,
+                        mana: need.mana,
+                        reading: need.reading,
+                        turns: need.turns,
+                        piles: 0,
+                        criteria: Vec::new(),
+                        expectations: Vec::new(),
+                    });
+                    classes.last_mut().expect("just pushed")
+                }
+            };
+            class.criteria.extend(criterion);
+            class.expectations.extend(expectation);
+            class.piles |= piles;
         };
-        class.criteria.extend(criterion);
-        class.expectations.extend(expectation);
-    };
     for (i, question) in reads.criteria.iter().enumerate() {
-        place(Need::of(question, shared), Some(i), None);
+        place(Need::of(question, shared), question.piles(), Some(i), None);
     }
     for (i, question) in reads.expectations.iter().enumerate() {
-        place(Need::of(question, shared), None, Some(i));
+        place(Need::of(question, shared), question.piles(), None, Some(i));
     }
     classes
 }
@@ -696,6 +705,41 @@ mod tests {
         // The seven on its own, then the four draws after it merged: the draws
         // still collapse, and the opener does not.
         assert_eq!(classes[0].schedule(&full).gaps(), &[7, 0, 0, 0, 0, 4]);
+    }
+
+    #[test]
+    fn a_mill_is_dealt_last_over_what_the_class_counts_in_the_graveyard_and_library() {
+        let classes = partition(
+            &reads_of(
+                r#"
+                [[criterion]]
+                name = "loam binned, lands in hand"
+                require = [
+                  { turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 },
+                  { turn = 5, query = "t:land", min = 3 },
+                ]
+
+                [[expect]]
+                name = "forests left"
+                turn = 5
+                query = "t:forest"
+                zone = "library"
+                "#,
+            ),
+            &Shared::default(),
+        );
+        // The Loam in the graveyard and the Forests in the library are what a
+        // mill dealt last is read by; the lands counted in hand are not.
+        let full = Schedule::build(5, false, Vec::new(), Policies::default());
+        let piles: Vec<Option<u64>> = classes
+            .iter()
+            .map(|c| c.schedule(&full).deferred())
+            .collect();
+        assert_eq!(
+            piles.iter().flatten().fold(0, |a, b| a | b),
+            bit(0) | bit(2)
+        );
+        assert!(piles.iter().flatten().all(|p| p & bit(1) == 0));
     }
 
     #[test]

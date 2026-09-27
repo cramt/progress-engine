@@ -567,6 +567,12 @@ pub fn width(grouping: &Grouping, schedule: &Schedule) -> u128 {
         fn gap(&mut self, _reached: chip_stats::Path<'_>) -> u32 {
             self.0.next_gap()
         }
+        fn tail(&mut self, reached: chip_stats::Path<'_>) -> u32 {
+            self.0.tail(reached)
+        }
+        fn coarsening(&self) -> &[usize] {
+            self.0.coarsening()
+        }
         fn path(&mut self, _reached: chip_stats::Path<'_>, _p: f64) {}
     }
     chip_stats::count_checkpoint_paths_sized(
@@ -834,6 +840,12 @@ impl<V: Evaluator<Error = E>, E> chip_stats::Walk for Walking<'_, '_, V, E> {
         // Asked straight after `removals` for the same prefix, so the board
         // has just walked it: where that walk stopped is the answer.
         self.board.next_gap()
+    }
+    fn tail(&mut self, reached: chip_stats::Path<'_>) -> u32 {
+        self.board.tail(reached)
+    }
+    fn coarsening(&self) -> &[usize] {
+        self.board.coarsening()
     }
     fn path(&mut self, reached: chip_stats::Path<'_>, p: f64) {
         self.mass.add(p);

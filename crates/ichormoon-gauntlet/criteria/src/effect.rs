@@ -590,6 +590,21 @@ pub struct Board<'a> {
     held: Vec<Vec<u32>>,
     /// The cards one draw or mill has turned over, per group. Scratch.
     block: Vec<u32>,
+    /// `last[effect]`: this effect's mill is dealt **last**, as a tail, rather
+    /// than where it fired ([`Schedule::deferring`]). Decided once here.
+    last: Vec<bool>,
+    /// Which tail bin each group's cards fall in: groups the class's
+    /// graveyard and library questions cannot tell apart share one. Empty
+    /// where nothing is dealt last.
+    bins: Vec<usize>,
+    /// The mills this path dealt last, in the order they fired: the turn each
+    /// fired on and how many cards it still has to deal. Scratch.
+    deferred: Vec<(usize, u32)>,
+    /// The size of the first tail the last walk's history did not hold, where
+    /// it played every turn; zero otherwise.
+    next_tail: u32,
+    /// The length of the history the last [`Board::walk`] was given.
+    walked: usize,
 }
 
 impl<'a> Board<'a> {
@@ -812,6 +827,44 @@ impl<'a> Board<'a> {
             tiers.push((0..groups).filter(|&g| !claimed[g]).collect());
             tiers
         });
+        // A mill is dealt last only where nothing reads its cards before the
+        // question: it keeps none of them, and nothing in the run searches the
+        // library they would still be in (see `Schedule::deferring`).
+        let searched = effects.iter().any(|e| e.fetch.is_some());
+        let last: Vec<bool> = effects
+            .iter()
+            .map(|e| {
+                schedule.deferred().is_some()
+                    && !searched
+                    && e.trigger == Trigger::Cast
+                    && matches!(
+                        e.mill,
+                        Some(Mill {
+                            to_hand: ToHand::Chosen { up_to: 0, .. },
+                            ..
+                        })
+                    )
+            })
+            .collect();
+        // One bin per distinct reading of the class's graveyard and library
+        // bits, in the order the groups first show it.
+        let bins = match schedule.deferred() {
+            Some(reads) if last.iter().any(|&l| l) => {
+                let mut seen: Vec<u64> = Vec::new();
+                grouping
+                    .group_masks()
+                    .iter()
+                    .map(|mask| {
+                        let key = mask & reads;
+                        seen.iter().position(|&k| k == key).unwrap_or_else(|| {
+                            seen.push(key);
+                            seen.len() - 1
+                        })
+                    })
+                    .collect()
+            }
+            _ => Vec::new(),
+        };
         Board {
             grouping,
             schedule,
@@ -854,6 +907,11 @@ impl<'a> Board<'a> {
             live_bottomed: vec![0; groups],
             held: vec![vec![0; groups]; turns],
             block: vec![0; groups],
+            last,
+            bins,
+            deferred: Vec::new(),
+            next_tail: 0,
+            walked: 0,
         }
     }
 
@@ -984,6 +1042,41 @@ impl<'a> Board<'a> {
         self.next_gap
     }
 
+    /// How many cards the first **tail** the last [`Board::walk`]'s history
+    /// did not hold asks for: a mill dealt last ([`Schedule::deferring`]),
+    /// in the order the mills fired. Zero where there is none left, and
+    /// wherever the walk stopped before its last turn.
+    pub fn next_tail(&self) -> u32 {
+        self.next_tail
+    }
+
+    /// Whether any mill in this run is dealt last. A run with none should not
+    /// pay to be asked for a tail.
+    pub fn defers(&self) -> bool {
+        !self.bins.is_empty()
+    }
+
+    /// Which tail bin each group falls in, for `chip_stats::Walk::coarsening`.
+    pub fn coarsening(&self) -> &[usize] {
+        &self.bins
+    }
+
+    /// [`Board::next_tail`] after `history`, for `chip_stats::Walk::tail`.
+    ///
+    /// The walk asks for the first tail straight after the removals and the
+    /// sized gap of the same history, so the board has just played it and
+    /// says without playing it again; a tail after a tail is a longer history,
+    /// which it plays. A run that deals nothing last answers zero for free.
+    pub fn tail(&mut self, history: Path<'_>) -> u32 {
+        if !self.defers() {
+            return 0;
+        }
+        if history.len() != self.walked {
+            self.walk(history);
+        }
+        self.next_tail
+    }
+
     /// Play one path out, turn by turn, filling the per-turn zone counts.
     ///
     /// `history` may be a **prefix** of a path rather than a whole one, and
@@ -1009,6 +1102,9 @@ impl<'a> Board<'a> {
         self.pending.clear();
         self.live_bottomed.copy_from_slice(&self.bottomed);
         self.next_gap = 0;
+        self.next_tail = 0;
+        self.deferred.clear();
+        self.walked = history.len();
         self.cursor = 0;
         self.sized_dealt = 0;
         if let Some(casting) = &mut self.casting {
@@ -1023,7 +1119,7 @@ impl<'a> Board<'a> {
             let (first, last) = self.schedule.checkpoints_of(turn);
             let (first, last) = (first + self.sized_dealt, last + self.sized_dealt);
             if last >= history.len() {
-                break;
+                return;
             }
             self.cursor = last;
             // Everything this turn reveals, in the order the checkpoints
@@ -1189,6 +1285,31 @@ impl<'a> Board<'a> {
                 }
             }
         }
+        self.tails(history);
+    }
+
+    /// The mills this path dealt last, read off the checkpoints after every
+    /// turn's: each one's cards go to the graveyard from the turn it fired
+    /// on, which is where they would have been had they been dealt there.
+    ///
+    /// Only the graveyard hears of them. Nothing on the board reads it, and
+    /// the library a question counts is what the other zones leave, so the
+    /// questions are the only readers and they read after this.
+    fn tails(&mut self, history: Path<'_>) {
+        // One checkpoint per mill, in the order they fired, from the first
+        // after the last one the turns consumed.
+        for (i, at) in (self.cursor + 1..).take(self.deferred.len()).enumerate() {
+            let (fired, cards) = self.deferred[i];
+            let (Some(now), Some(was)) = (history.get(at), history.get(at - 1)) else {
+                self.next_tail = cards;
+                return;
+            };
+            for yard in &mut self.yard[fired..] {
+                for (y, (n, w)) in yard.iter_mut().zip(now.iter().zip(was)) {
+                    *y += n - w;
+                }
+            }
+        }
     }
 
     /// Spend this turn's mana on the spells the file said to cast.
@@ -1315,7 +1436,7 @@ impl<'a> Board<'a> {
                             // which the line lists first. Its draw, if it
                             // draws, resolves after the fetch.
                             let fetched = self.fetch_on_cast(group) || grew;
-                            match self.draw_on_cast(group, history) {
+                            match self.draw_on_cast(turn, group, history) {
                                 Drew::Nothing if fetched => continue 'line,
                                 Drew::Nothing => {}
                                 Drew::Cards => continue 'line,
@@ -1343,7 +1464,7 @@ impl<'a> Board<'a> {
     /// puts its block in hand. A mill puts its block in the graveyard, less
     /// what the card lets go to hand: the cards it compels there, and up to
     /// as many as it allows of the ones the declared priority reaches.
-    fn draw_on_cast(&mut self, group: usize, history: Path<'_>) -> Drew {
+    fn draw_on_cast(&mut self, turn: usize, group: usize, history: Path<'_>) -> Drew {
         let Some(effect) = self.group_effect[group] else {
             return Drew::Nothing;
         };
@@ -1367,6 +1488,19 @@ impl<'a> Board<'a> {
             ToHand::Chosen { up_to, .. } => *up_to,
             ToHand::Every(_) => 0,
         };
+        if self.last[effect] {
+            // Whatever is already turned over on top goes now, as it would;
+            // the rest is dealt last, filed under this turn.
+            let left = self.turn_over(cards);
+            let size = left.min(self.library());
+            if size > 0 {
+                self.deferred.push((turn, size));
+            }
+            for (yard, &milled) in self.live_yard.iter_mut().zip(&self.block) {
+                *yard += milled;
+            }
+            return Drew::Cards;
+        }
         if let Some(size) = self.deal(cards, history) {
             return Drew::Undealt(size);
         }
@@ -1405,22 +1539,8 @@ impl<'a> Board<'a> {
     /// to the same count: both are what is left of the groups once everything
     /// revealed and everything fetched is out.
     fn deal(&mut self, count: u32, history: Path<'_>) -> Option<u32> {
-        self.block.fill(0);
-        let mut left = count;
-        while left > 0 {
-            let group = if !self.kept.is_empty() {
-                self.kept.remove(0)
-            } else if let Some(&g) = self.fresh.get(self.fresh_head) {
-                self.fresh_head += 1;
-                g
-            } else {
-                break;
-            };
-            self.block[group] += 1;
-            left -= 1;
-        }
-        let library: u32 = (0..self.revealed.len()).map(|g| self.unrevealed(g)).sum();
-        let size = left.min(library);
+        let left = self.turn_over(count);
+        let size = left.min(self.library());
         if size == 0 {
             return None;
         }
@@ -1441,6 +1561,36 @@ impl<'a> Board<'a> {
         self.cursor = at;
         self.sized_dealt += 1;
         None
+    }
+
+    /// Take up to `count` cards already turned over off the top of the
+    /// library into `block` — whatever an earlier look left there, then
+    /// whatever this turn revealed and nothing has taken — and say how many
+    /// are still to come off the unrevealed library.
+    fn turn_over(&mut self, count: u32) -> u32 {
+        self.block.fill(0);
+        let mut left = count;
+        while left > 0 {
+            let group = if !self.kept.is_empty() {
+                self.kept.remove(0)
+            } else if let Some(&g) = self.fresh.get(self.fresh_head) {
+                self.fresh_head += 1;
+                g
+            } else {
+                break;
+            };
+            self.block[group] += 1;
+            left -= 1;
+        }
+        left
+    }
+
+    /// Cards still in the unrevealed library: never turned over, never
+    /// fetched, and not owed to a mill dealt last.
+    fn library(&self) -> u32 {
+        let unrevealed: u32 = (0..self.revealed.len()).map(|g| self.unrevealed(g)).sum();
+        let owed: u32 = self.deferred.iter().map(|&(_, cards)| cards).sum();
+        unrevealed.saturating_sub(owed)
     }
 
     /// Resolve every delayed effect set up to fire on `turn`, in the order the

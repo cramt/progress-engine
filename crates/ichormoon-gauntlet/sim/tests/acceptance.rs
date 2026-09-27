@@ -2006,6 +2006,10 @@ fn milling_deck(mill: Mill) -> (Grouping, Schedule) {
 /// it can be in, the lands in play and in hand, and the mill fired or not.
 fn mills_agree(mill: Mill, seed: u64) {
     let (grouping, schedule) = milling_deck(mill);
+    mills_agree_on(&grouping, &schedule, seed);
+}
+
+fn mills_agree_on(grouping: &Grouping, schedule: &Schedule, seed: u64) {
     let question = || {
         Closures(vec![
             Box::new(|v: &PathView<'_>| v.count_at(3, 1, Counted::In(Zone::Graveyard)) >= 1)
@@ -2021,7 +2025,7 @@ fn mills_agree(mill: Mill, seed: u64) {
             Box::new(|v: &PathView<'_>| v.count_at(3, 0, Counted::Cast) >= 2) as Check,
         ])
     };
-    let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(8), &mut question())
+    let exact = gauntlet_criteria::run(grouping, schedule, only_criteria(8), &mut question())
         .unwrap()
         .probabilities
         .iter()
@@ -2033,8 +2037,8 @@ fn mills_agree(mill: Mill, seed: u64) {
     );
     let trials = TRIALS / 2;
     let sampled = simulate(
-        &grouping,
-        &schedule,
+        grouping,
+        schedule,
         trials,
         seed,
         only_criteria(8),
@@ -2084,4 +2088,20 @@ fn a_mill_that_keeps_every_land_agrees_with_the_exact_engine() {
         },
         53,
     );
+}
+
+#[test]
+fn a_mill_dealt_last_agrees_with_the_sampler_dealing_it_where_it_fell() {
+    // ADR-0017 §4. The exact engine deals the mill nothing reads last, over
+    // only what the questions read of the graveyard and the library — the
+    // target and the lands — and the sampler, handed the same schedule, deals
+    // every card where it falls. Their agreeing is the exchangeability claim
+    // tested directly.
+    let (grouping, schedule) = milling_deck(Mill::all(3));
+    let last = schedule.clone().deferring(0b110);
+    assert!(
+        gauntlet_criteria::width(&grouping, &last) < gauntlet_criteria::width(&grouping, &schedule),
+        "the mill is dealt last"
+    );
+    mills_agree_on(&grouping, &last, 59);
 }
