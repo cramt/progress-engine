@@ -1660,8 +1660,8 @@ sampler's acceptance tests.*
 Hands 40 to 42 and 50 pin
 [ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)
 before any of it was built. Hands 40 and 44 are answerable and tests (ADR-0019's
-first ticket, #96), and so are 41 and 50 (its second, #97) and 42 (its third,
-#98). Each is a small deck, on the play, with the deal
+first ticket, #96), and so are 41 and 50 (its second, #97), 42 (its third,
+#98) and 61 (its fourth, #99). Each is a small deck, on the play, with the deal
 worked turn by turn for one order of the library and then priced over every
 order. The tables were produced by brute force over every order of the deck, in
 `docs/research/tutor-routes-hands.py`, which reads nothing in `crates/`, and
@@ -1987,6 +1987,116 @@ acceptance tests. An activation on a creature or a land is refused by name
 `checker/test_activation.py` plays it from Expedition Map's and the Saga's
 text (CR 602, 118.3, 714) over every deal and gets both columns exactly, and
 without the payment before the drop gets less on both moving rows.
+
+### 61. Artificer's Intuition discards an artifact card and finds the Lantern
+
+```
+Island ×10, Artificer's Intuition, Codex Shredder, Lantern of Insight   (13 cards)
+
+[[effect]]
+match = '''name:"Artificer's Intuition"'''
+on = "activate"
+cost = "{U}"
+discard = 1
+discard_only = "t:artifact"
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+
+[discard]
+prefer = ['name:"Codex Shredder"']
+
+[casting]
+prefer = ['name:"Lantern of Insight"', '''name:"Artificer's Intuition"''']
+```
+
+**The deal:** Intuition and the Shredder in the opener, the Lantern deep in
+the library. **Turn 2:** the second Island pays `{1}{U}` for Intuition.
+**Turn 3:** the line reads the Lantern's entry and has no Lantern. It reads
+Intuition's entry, and the copy in play is activated: `{U}` from the third
+Island, and **the Shredder discarded as part of that cost**. The Lantern goes
+from the library to hand. The line is read again from its top, and the last
+Island casts the Lantern.
+
+Four things make up what the ticket means by "a discard as a cost".
+
+- **The discard is paid before the search, or the ability is not activated at
+  all** (CR 602.2b, 118.3). With no artifact card in hand there is no
+  activation: no `{U}` is spent and nothing is fetched. That is the opposite
+  of hand 21's Frantic Search, whose discard is an effect and resolves with
+  whatever the hand holds.
+- **Which artifact card pays is the file's `[discard] prefer`**, the one list
+  ADR-0017 made for every claimant on the hand. Only a card the list names can
+  pay. A forced discard falls back on the cards no entry names once the list
+  runs out. A cost does not: it is the pilot's choice to activate, and a line
+  that could pay with any artifact would pay with the Lantern it is looking
+  for. A tie inside one entry is priced every way it can fall, as a forced
+  discard's is. A file with no `[discard]` list is refused by name.
+- **Once a turn per copy, after the land drop.** Intuition's cost has no
+  `{T}`, so a pilot could activate it again the same turn. The line activates
+  a permanent at most once a turn, as ADR-0019 has it for the tapping tutors,
+  and so it gives a floor. For the Lantern the floor is exact, because a
+  second activation that turn could only find a Lantern the first one already
+  found. A cost that discards is never paid before the drop, because which
+  lands are still in hand is what the drop decides.
+- **An enchantment is activated the turn it is cast**, since nothing in the
+  cost needs it untapped. Activations on creatures and lands stay refused.
+
+| | never activated | `[discard] prefer = ['name:"Codex Shredder"']` | `prefer = ['t:land']` |
+|---|---|---|---|
+| Intuition cast by turn 2 | 89/156 = **57.05%** | 89/156 = **57.05%** | 89/156 = 57.05% |
+| Lantern on the battlefield by turn 4 | 10/13 = 76.92% | 265/286 = **92.66%** | 10/13 = 76.92% |
+| Codex Shredder in the graveyard by turn 4 | 0 | 15/26 = **57.69%** | **0** |
+
+The first row must not move, because what Intuition does cannot change
+whether it was cast. The third column names no artifact card, so nothing
+ever pays the cost. It equals the first column, and the Lantern in hand is
+never what pays to find itself.
+
+**On paper.** Ten of the thirteen cards are Islands, so the opener holds at
+least four and turn t always has t lands.
+
+- *The first row.* Intuition is cast by turn 2 when it is among the first
+  eight cards. The exception is a Lantern that is the eighth card: the line
+  lists it first, so it takes a mana on turn 2. That gives
+  8/13 − (7/13)(1/12) = 89/156.
+- *The second row.* Without the activation, the Lantern is cast the turn it
+  arrives whenever it is among the first ten cards, which is 10/13.
+  Activating adds the deals where the Lantern is not among the first ten but
+  Intuition and the Shredder both are, which is
+  (3/13)(10·9)/(12·11) = 45/286. That adds up to 265/286. Every such deal has
+  the mana:
+  - Intuition cast on turn 2 is activated, and the Lantern cast, on a later
+    turn for 2 of its 3 or 4 lands.
+  - Cast on turn 3, it is activated at once for the third mana, and the
+    Lantern waits for turn 4.
+  - Cast on turn 4, `{1}{U}` + `{U}` + `{1}` is exactly 4.
+- *The third row.* The Shredder goes whenever both it and Intuition are seen
+  by turn 4, which is (10·9)/(13·12) = 15/26. It goes even when the Lantern
+  is already drawn and the search finds nothing, because a declared line
+  activates whenever the pool and the hand pay (hand 42).
+
+**A tie.** `hand-61-tie.txt` trades an Island for Expedition Map, and
+`[discard] prefer = ['t:artifact -name:"Lantern of Insight"']` names the Map
+and the Shredder in one entry. Some artifact card is discarded by turn 4 on
+(10/13)(1 − (3·2)/(12·11)) = 105/143 = 73.43% of deals. Each of the two is
+discarded on 801/1430 = 56.01%, alike, and together they come to more than
+105/143 because Intuition is activated again on a later turn while the other
+card is still in hand.
+
+*Answerable, and a test* since #99. `hand-61.txt` is run against
+`hand-61-off.criteria.toml`, `hand-61-on.criteria.toml` and
+`hand-61-unlisted.criteria.toml`, one per column, in the CLI suite:
+`artificers_intuition_discards_an_artifact_chosen_by_the_list_and_finds_the_lantern`,
+`a_tie_in_what_pays_for_an_activation_is_priced_every_way_it_can_fall`,
+`a_run_says_a_discard_in_an_activations_cost_is_paid_only_with_what_the_list_names`,
+`a_discard_in_an_activations_cost_with_no_list_is_refused_and_names_the_remedy`
+and
+`a_discard_in_an_activations_cost_the_sampler_plays_agrees_with_the_enumeration`.
+The sampler's acceptance tests hold
+`an_activation_whose_cost_discards_agrees_in_both_engines`, a 99-card deck
+with the tie. `checker/test_intuition.py` reads Intuition's cost and search
+off its text (CR 602, 118.3) and plays every order of both decks. It gets
+every fraction above exactly.
 
 ---
 

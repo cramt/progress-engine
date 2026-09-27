@@ -1702,6 +1702,9 @@ The standard library says what each card fixes, and never which cards:
 - **"Any number" is every eligible card the list names**, and nothing it
   does not. With no list it discards nothing.
 - **At random ignores the list.** Desperate Ravings picks from the whole hand.
+- **A discard in an activation's cost takes only what the list names**, and
+  with too few of those in hand the card is not activated
+  ([Artificer's Intuition](#an-activation-whose-cost-discards-artificers-intuition)).
 - **A forced discard with no list is refused**, naming `[discard]` as the
   remedy (HANDS.md hand 21): which cards leave your hand is not the tool's to
   decide.
@@ -1902,6 +1905,84 @@ without the Map:
 Sampled, ± 0.06 to 0.11: 24 groups at turn 5. +4.71 points on the play and
 +5.57 on the draw, against ADR-0019's +3.25 and +3.52, which were measured with
 Trinket Mage, Fabricate and Cruel Captain already in the line.
+
+### An activation whose cost discards: Artificer's Intuition
+
+Artificer's Intuition is a `{1}{U}` enchantment: `{U}`, discard an artifact
+card: search your library for an artifact card with mana value 1 or less and
+put it into your hand. It is an activation like the Map's, and the discard is
+**part of its cost** ([ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)
+§4), written with the same keys a cast's discard uses:
+
+```toml
+[[effect]]
+match = '''name:"Artificer's Intuition"'''
+on = "activate"
+cost = "{U}"
+discard = 1             # the card fixes how many
+discard_only = "t:artifact"   # and which cards may go
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+
+[discard]
+prefer = ['name:"Codex Shredder"']   # which of them you pay with
+```
+
+- **Paid before the search, or not at all.** Every part of a cost is paid as
+  the ability is activated (CR 602.2b, 118.3). So the discarded card is gone
+  before the search, and with no card to discard there is no activation: no
+  `{U}` spent, nothing fetched. Frantic Search's discard is an effect and
+  resolves with whatever is in hand; this one is a condition on activating.
+- **Only a card `[discard] prefer` names pays.** It is the same list every
+  claimant on the hand reads, and there is no list of its own. A forced
+  discard falls back on the cards no entry names, but a cost does not: a
+  line that could pay with any artifact card would pay with the Lantern it is
+  looking for. A tie inside one entry is priced every way it can fall. With
+  no `[discard]` list the run is refused by name, and a list that can take an
+  artifact land needs `[land_drop]`, as a cast's discard does.
+- **An enchantment, activated the turn it is cast.** Nothing in its cost taps
+  it. The cost has no `{T}`, so a pilot could activate it twice in a turn. The
+  line activates a permanent once a turn, which is a floor, and an exact one
+  for a fetch that names only the Lantern. It is paid after the land drop,
+  never before: which lands are still in hand is what the drop decides.
+- A declared line activates whenever the pool and the list pay, even with
+  nothing left to find, as it does the Map.
+
+`draw`, `untap`, `at_random` and `discard_any` are refused on an activation,
+because a cost is paid with cards the pilot chooses. The run says it beside
+the effect:
+
+```
+      and the [casting] entry naming it pays {U} to activate a copy it put into play, once a turn, after the land drop
+      and discards 1 matching "t:artifact" as part of that cost: only a card the [discard] list names pays it, and without one it is not activated
+```
+
+**What it moves.** HANDS.md hand 61: ten Islands, Intuition, Codex Shredder
+and the Lantern, thirteen cards on the play, the line naming the Lantern and
+then Intuition:
+
+| | never activated | `prefer = ['name:"Codex Shredder"']` | `prefer = ['t:land']` |
+|---|---|---|---|
+| Intuition cast by turn 2 | 89/156 = 57.05% | 89/156 = 57.05% | 57.05% |
+| Lantern on the battlefield by turn 4 | 10/13 = 76.92% | **265/286 = 92.66%** | 76.92% |
+| Codex Shredder in the graveyard by turn 4 | 0 | **15/26 = 57.69%** | 0 |
+
+**On the deck it was built for.** `decks/lantern-route-map.criteria.toml` now
+casts and activates Intuition last in its line. Its `[discard]` list pays with
+any artifact card the line never casts that is not a land drop, so never the
+Lantern or the Map:
+
+| On `decks/lantern.txt` | play, before | play, + Intuition | draw, before | draw, + Intuition |
+|---|---|---|---|---|
+| Lantern on the battlefield by turn 5 | 31.64% | **37.31%** | 35.96% | **42.24%** |
+| Lantern of Insight cast by turn 5 | 15.45% | 21.56% | 17.34% | 24.13% |
+
+Sampled, ± 0.08 to 0.11: 30 groups at turn 5. That is +5.67 points on the play
+and +6.29 on the draw, against ADR-0019's +3.10 and +3.60, which were measured
+with more routes in the line for Intuition to overlap with. A discard can split
+the path, so the run counts the walk before it samples. That takes about 60s a
+seat where the file took 2s, as `loam-cast.criteria.toml` pays for its
+discards.
 
 ### Mulligans
 
@@ -2766,7 +2847,10 @@ hands 41 and 50 through them over every deal. An activation is its reading of
 CR 602 and 118.3 — the cost before the colon paid in full, the sacrifice part of
 it, an artifact free of summoning sickness — and `checker/test_activation.py`
 plays hand 42 from Expedition Map's text over every deal, the payment before
-the land drop included. It is still a check:
+the land drop included. A discard in a cost is its reading of the same rules.
+With no artifact card in hand the cost cannot be paid, so there is no
+activation. `checker/test_intuition.py` plays hand 61 from Artificer's
+Intuition's text over every order of the library. It is still a check:
 it is how the Spellseeker line found the engine holding a fetched Loam it could
 have cast:
 

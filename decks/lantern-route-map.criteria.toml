@@ -1,7 +1,8 @@
 # "Third Lantern Control" — https://archidekt.com/decks/25088186
-# Routes 1, 3 and C, and Expedition Map for the Saga: the Lantern cast from
-# hand, put there by a tutor the line pays for, or by Urza's Saga's third
-# chapter, with the Map going and getting the Saga.
+# Routes 1, 3 and C, Expedition Map for the Saga and Artificer's Intuition
+# for the Lantern: the Lantern cast from hand, put there by a tutor the line
+# pays for, or by Urza's Saga's third chapter, with the Map going and getting
+# the Saga. All four of ADR-0019's built routes.
 #
 # lantern-route-tutors.criteria.toml with Urza's Saga and Expedition Map
 # added (ADR-0019, third ticket, #98). It is a file of its own rather than
@@ -25,9 +26,19 @@
 #       after the land drop — and before it where the Saga is what the drop
 #       would rather play than anything in hand, so the Saga it finds is that
 #       turn's land (HANDS.md hand 42).
+#     * Artificer's Intuition, `on = "activate"` (ADR-0019's fourth ticket,
+#       #99): {U} and an artifact card discarded from hand, for the Lantern,
+#       to hand. The discard is part of the cost, so it is paid only with a
+#       card [discard] names and without one Intuition is not activated
+#       (HANDS.md hand 61). No {T} in the cost, so the enchantment is
+#       activated the turn it is cast if the pool pays; once a turn, which
+#       for the Lantern loses nothing.
 #   [land_drop] — the Saga first, the moment it is held, then any land.
-#   [casting]  — the tutors-route line, with the Map last: it is cast when
-#                nothing above it is, and activated whenever the pool pays.
+#   [discard]  — which artifact card pays for Intuition: any the line never
+#                casts that is not a land drop. Not the Lantern, not the Map.
+#   [casting]  — the tutors-route line, with the Map and then Intuition
+#                last: each is cast when nothing above it is, and activated
+#                whenever the pool pays.
 #
 # WHAT THE MAP IS WORTH, MEASURED
 # -------------------------------
@@ -56,12 +67,46 @@
 # and 3: the Lantern cast and Whir cast by turn 5 each give up a tenth of a
 # point or less.
 #
+# WHAT INTUITION IS WORTH, MEASURED
+# ---------------------------------
+# Against this file before Intuition joined it (docs/baseline, built at
+# 5e70b55), on the committed index, sampled:
+#
+#                                            play               draw
+#                                      before   + Int.    before   + Int.
+#   Lantern on the battlefield by t5   31.64%   37.31%    35.96%   42.24%
+#   Lantern of Insight cast by t5      15.45%   21.56%    17.34%   24.13%
+#   Artificer's Intuition cast by t5      —      9.67%       —     10.72%
+#   Expedition Map cast by t5          10.92%   11.04%    11.96%   12.05%
+#   Urza's Saga played by t3           14.77%   14.72%    16.95%   16.92%
+#   Whir of Invention cast by t5        2.32%    2.36%     2.98%    3.03%
+#
+# Sampled, ± 0.03 to 0.11: 30 groups and 6,761,620,800,000 compositions at
+# turn 5 on the play, 202,848,624,000,000 on the draw. About 60s a seat, up
+# from 2s: a discard can split the path, so the run counts the walk before
+# it refuses to enumerate it, as loam-cast.criteria.toml does; sampling
+# alone takes about 2s.
+#
+# The route question moves +5.67 points on the play and +6.29 on the draw,
+# all of it the Lantern found and then cast: the cast row moves by as much.
+# The last three rows move by less than two standard errors, both ways, and
+# nothing Intuition does can reach them — it is last in the line and never
+# discards the Map — so they are the sampler dealing a different grouping.
+# ADR-0019 estimated +3.10 and +3.60 for Intuition added after the other
+# three routes, over a line that also held Trinket Mage, Fabricate and
+# Cruel Captain and paid with rocks: more routes for it to overlap with, so
+# less for it to add, as the Map's +4.71 against +3.25 was.
+#
 # STILL NOT MODELLED
 # ------------------
 #   * Everything the tutors-route file lists: improvise, a larger X, rocks.
 #   * The Map finding any land but the Saga. Its text finds any land card;
 #     the pilot names the Saga, and a Map activated with the Saga already
 #     drawn finds nothing, as a declared line does.
+#   * Intuition finding any artifact but the Lantern. Its text finds any
+#     artifact card of mana value 1 or less; the pilot names the Lantern,
+#     and one activated with the Lantern already drawn finds nothing, as a
+#     declared line does, and still discards.
 #   * Mulligans. Turn 0 is a kept seven.
 
 [[effect]]
@@ -100,8 +145,23 @@ sacrifice = true
 fetch = ["name:\"Urza's Saga\""]
 to = "hand"
 
+[[effect]]
+match = '''name:"Artificer's Intuition"'''
+on = "activate"
+cost = "{U}"
+discard = 1
+discard_only = "t:artifact"
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+
 [land_drop]
 prefer = ["name:\"Urza's Saga\"", "t:land"]
+
+# Which artifact card pays for Intuition: one the line never casts and that
+# is not a land drop. Only a card this list names pays, so the Lantern and
+# the Map are never discarded for it.
+[discard]
+prefer = ['t:artifact -t:land -name:"Lantern of Insight" -name:"Expedition Map"']
 
 [casting]
 prefer = [
@@ -110,6 +170,7 @@ prefer = [
   'name:"Tezzeret the Seeker"',
   'name:"Dizzy Spell"',
   'name:"Expedition Map"',
+  '''name:"Artificer's Intuition"''',
 ]
 
 # THRESHOLD: none, for the reason route B's file gives. Four routes of four,
@@ -136,6 +197,10 @@ name = "Urza's Saga played by turn 3"
 [[criterion]]
 name = "Whir of Invention cast by turn 5"
 require = [{ turn = 5, cast = 'name:"Whir of Invention"', min = 1 }]
+
+[[criterion]]
+name = "Artificer's Intuition cast by turn 5"
+require = [{ turn = 5, cast = '''name:"Artificer's Intuition"''', min = 1 }]
 
 [[criterion]]
 name = "Lantern of Insight cast by turn 5"
