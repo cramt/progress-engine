@@ -71,6 +71,8 @@ export interface MockGitHub {
   refreshes(): number;
 }
 
+export const MOCK_APP_SLUG = "meldweb-curator-mock";
+
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
     status,
@@ -255,6 +257,12 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
       return json(200, {
         access_token: state.token,
         expires_at: now() + 8 * 60 * 60 * 1000,
+      });
+    }
+    if (method === "GET" && path === AUTH_ENDPOINTS.app) {
+      return json(200, {
+        app_slug: MOCK_APP_SLUG,
+        install_url: `https://github.com/apps/${MOCK_APP_SLUG}/installations/new`,
       });
     }
     if (method === "POST" && path === AUTH_ENDPOINTS.logout) {

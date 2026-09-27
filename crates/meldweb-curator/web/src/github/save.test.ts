@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { deckText } from "./deckText";
 import {
   createSaveStore,
+  flushOnLeave,
   IDLE_MS,
   type PageEvents,
   type SaveStore,
+  settled,
 } from "./save";
 import { mockConnection } from "./testkit";
 
@@ -145,6 +147,30 @@ describe("saving by itself", () => {
     expect(p.beforeunload()).toBe(true);
     await vi.advanceTimersByTimeAsync(IDLE_MS);
     expect(p.beforeunload()).toBe(false);
+  });
+
+  it("a second attach survives the first one's detach, as under StrictMode", async () => {
+    const p = page();
+    const first = store.attach(p.events);
+    store.attach(p.events);
+    first();
+    await flushOnLeave(store);
+    store.edit(v(1));
+    p.pagehide();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(puts()).toHaveLength(1);
+  });
+
+  it("reopening a deck waits for the save made while leaving it", async () => {
+    store.edit(v(1));
+    const leaving = flushOnLeave(store);
+    let landed = false;
+    const reopen = settled(PATH).then(() => {
+      landed = conn.mock.file(PATH)?.text === v(1);
+    });
+    await leaving;
+    await reopen;
+    expect(landed).toBe(true);
   });
 
   it("a detached store no longer listens to the page", async () => {

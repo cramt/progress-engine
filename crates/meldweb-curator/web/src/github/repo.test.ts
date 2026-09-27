@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { decodeBase64, encodeBase64, LoggedOutError } from "./api";
-import { installUrl, newRepoUrl } from "./onboarding";
+import { installUrl, newRepoUrl, resolveInstallUrl } from "./onboarding";
 import { findMagicRepo, type Migration, openMagicRepo } from "./repo";
 import { mockConnection } from "./testkit";
 
@@ -61,6 +61,13 @@ describe("onboarding URLs", () => {
     ]);
     expect(url.searchParams.get("name")).toBe("mtg");
     expect(url.searchParams.get("owner")).toBe("@me");
+  });
+
+  it("take the install URL from the worker", async () => {
+    const { mock } = mockConnection();
+    expect(await resolveInstallUrl(mock.fetch)).toBe(
+      "https://github.com/apps/meldweb-curator-mock/installations/new",
+    );
   });
 
   it("install the app by its slug", () => {
