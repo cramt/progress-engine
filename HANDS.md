@@ -1252,7 +1252,9 @@ simulation of the deck it moved nothing measurable.
 
 *Not answerable yet, deliberately: needs a clause that counts arrivals, and a
 dredge priority over queries against the graveyard (ADR-0017). Until then the
-tool never dredges, which is a line the pilot could play, and it says so.*
+tool never dredges, which is a line the pilot could play, and it says so: a
+run whose line can reach the graveyard names every card with dredge in the
+library as never dredged, in the report and as `never_dredged` in the JSON.*
 
 ## Attack and landfall
 

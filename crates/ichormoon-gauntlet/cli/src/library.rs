@@ -482,6 +482,23 @@ impl Library {
         line
     }
 
+    /// Which cards in this library have dredge, sorted and deduplicated.
+    ///
+    /// The engine never dredges (ADR-0017): a run whose line can put one of
+    /// these in the graveyard plays a line the pilot could have played, and
+    /// says so by naming them.
+    pub fn dredgers(&self) -> Vec<String> {
+        let mut names: Vec<String> = self
+            .entries
+            .iter()
+            .filter(|e| e.card.keywords.iter().any(|k| k == "Dredge"))
+            .map(|e| e.card.name.clone())
+            .collect();
+        names.sort_unstable();
+        names.dedup();
+        names
+    }
+
     /// Which lands in this deck have a tapped-ness the pilot decides.
     ///
     /// Named rather than counted, because a run that assumes one of those

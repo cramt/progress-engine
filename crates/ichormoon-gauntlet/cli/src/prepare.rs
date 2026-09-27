@@ -942,6 +942,14 @@ impl PreparedRun {
             } else {
                 Vec::new()
             },
+            // Only where something reaches the graveyard, read off the same
+            // reachability as the zone note: a dredger nothing can put there
+            // was never a dredge declined.
+            never_dredged: if reachable.graveyard {
+                library.dredgers()
+            } else {
+                Vec::new()
+            },
             // Read off the schedule the engine actually walked, like the zone
             // reachability above, so the note cannot claim a policy the
             // enumeration did not use.

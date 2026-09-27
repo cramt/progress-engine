@@ -2764,6 +2764,39 @@ fn a_sorcery_in_the_graveyard_agrees_with_the_sampler() {
     }
 }
 
+#[test]
+fn a_run_that_reaches_the_graveyard_names_the_dredgers_it_never_dredged() {
+    // ADR-0017: dredge is a may and the engine never takes it, so a run whose
+    // line can put Life from the Loam (Dredge 3) in the graveyard says so, by
+    // name, in the report and the JSON.
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture("hand-34.txt"))
+        .arg(fixture("loam-cast.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("yard-index.jsonl"))
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("note: this run never dredges. Life from the Loam has dredge"),
+        "the floor is named: {stderr}"
+    );
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(
+        json["never_dredged"],
+        serde_json::json!(["Life from the Loam"])
+    );
+
+    // And a run where nothing reaches the graveyard declined no dredge: the
+    // same card, held rather than cast, is not named.
+    let held = run_loam("loam-hand.criteria.toml");
+    let stderr = String::from_utf8_lossy(&held.stderr);
+    assert!(!stderr.contains("never dredges"), "{stderr}");
+    let json: serde_json::Value = serde_json::from_slice(&held.stdout).unwrap();
+    assert!(json.get("never_dredged").is_none(), "{json}");
+}
+
 fn run_held(deck: &str, extra: &[&str]) -> serde_json::Value {
     let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
         .arg("test")

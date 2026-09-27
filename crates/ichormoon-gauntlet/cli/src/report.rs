@@ -580,6 +580,10 @@ pub struct Breakdown {
     /// Lands read as making something other than their card data says. Empty
     /// unless the run asked a mana question, for the same reason.
     pub assumed_mana: Vec<ManaReading>,
+    /// Cards with dredge this run never dredged. Empty unless something can
+    /// reach the graveyard, because otherwise no dredger could have been
+    /// there to dredge.
+    pub never_dredged: Vec<String>,
     /// The priority that decided the land drop, where the file declared one.
     ///
     /// Beside the tapped-ness assumptions rather than anywhere else, because
@@ -974,6 +978,15 @@ pub struct Report {
     /// that asks no mana question.
     #[facet(skip_serializing_if = Vec::is_empty)]
     pub assumed_mana: Vec<ManaReading>,
+    /// Cards with dredge in a run that can put cards into the graveyard, none
+    /// of which this run ever dredged (ADR-0017).
+    ///
+    /// Reported for the reason `assumed_tapped` is: dredge is a may, so never
+    /// dredging is a line the pilot could play, and every number here is
+    /// that line's rather than the best one's. Empty on every run where
+    /// nothing reaches the graveyard.
+    #[facet(skip_serializing_if = Vec::is_empty)]
+    pub never_dredged: Vec<String>,
     /// The priority this run resolved its land drops by, where a file declared
     /// one.
     ///
@@ -1031,6 +1044,7 @@ impl Report {
             enumerations,
             assumed_tapped,
             assumed_mana,
+            never_dredged,
             land_drop,
             casting,
             discard,
@@ -1131,6 +1145,7 @@ impl Report {
             enumerations,
             assumed_tapped,
             assumed_mana,
+            never_dredged,
             land_drop,
             casting,
             discard,
@@ -1588,6 +1603,19 @@ impl Report {
             for m in &self.assumed_mana {
                 out.push_str(&format!("      {}: {}.\n", m.card, m.reading));
             }
+        }
+        // Dredge is a may, and this engine never takes it: a line that can
+        // put a dredger in the graveyard says so, naming the cards, the way
+        // it names the lands it assumed tapped.
+        if !self.never_dredged.is_empty() {
+            out.push_str(&format!(
+                "note: this run never dredges. {} {} dredge, and this line can put cards in the\n      \
+                 graveyard, but no draw here is ever replaced by a dredge (ADR-0017). Dredge is a\n      \
+                 may, so that is a line the pilot could play: every number below is that line's,\n      \
+                 a floor under the best line, which could dredge where dredging helps.\n",
+                self.never_dredged.join(", "),
+                if self.never_dredged.len() == 1 { "has" } else { "have" },
+            ));
         }
         // One width across both sections, so the numbers line up down the whole
         // report rather than restarting at the second heading.
@@ -2235,6 +2263,7 @@ mod tests {
             ],
             assumed_tapped: Vec::new(),
             assumed_mana: Vec::new(),
+            never_dredged: Vec::new(),
             land_drop: None,
             casting: None,
             discard: None,
