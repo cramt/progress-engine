@@ -3103,6 +3103,7 @@ owns them:
 ```
 crates/ichormoon-gauntlet/{cli,criteria,toml,sim}    this tool
 crates/reality-chip/{scryfall,decklist,stats}        the shared family core
+crates/meldweb-curator/{wasm,web}                    the deck editor: chip-decklist in wasm, and a TypeScript app
 ```
 
 `reality-chip` is the part a sibling tool depends on, kept in its own directory
@@ -3118,6 +3119,7 @@ See [NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md).
 | `gauntlet-toml` | Reading a criteria file and answering it, and shipping the standard effect library | The criteria format, and counts. No cards. |
 | `gauntlet-sim` | Sampling, validated against `chip-stats` | Shuffling. |
 | `gauntlet-cli` | The `gauntlet` binary, and the library behind it that prepares a run in-process | All of the above. |
+| `meldweb-wasm` | `chip-decklist` for Meldweb Curator's browser editor, with the TypeScript types generated from its wire types | Decklist text. No card data. |
 
 The seam worth knowing about is between `chip-scryfall` and `chip-decklist`: a query
 can filter on `cat:"Exile Outlet"`, which is decklist data, not card data. Rather

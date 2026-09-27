@@ -32,6 +32,7 @@ the narrow tag has come up empty, which it has not yet.
 | **Reality Chip** | The shared core: card data, Scryfall client, decklist parsing, the maths. `crates/reality-chip/`. | no — see below |
 | **Gitaxian Probe** | Card scanning. Point a camera at cards, learn what they are. `crates/gitaxian-probe/`. | yes |
 | **Experimental Augury** | The Monte Carlo cross-checking oracle, if `gauntlet-sim` is ever extracted. | yes |
+| **Meldweb Curator** | The git-backed deck editor: a decklist in a repo is the deck, and saving is a commit. `crates/meldweb-curator/`. | yes |
 
 A gauntlet is a set of trials you put something through, which is what a
 criteria file is. The card's own text is about planeswalkers and proliferate and
@@ -41,6 +42,11 @@ knowing when weighing a future candidate that has both.
 
 Gitaxian Probe is free perfect information about hidden state, which is what
 scanning a physical pile of cards is. That one rests on the mechanics.
+
+Meldweb Curator was banked for collection tracking and went to the deck editor
+instead, because it rests on both. A curator arranges a collection, and the
+card puts a card from your graveyard back on top of your library: restoring a
+cut card from history, which is what keeping the deck in git is for.
 
 ### Why Reality Chip is in here without the tag
 
@@ -74,7 +80,6 @@ From the tag, with the role each would fit. None of these are commitments.
 |---|---|
 | **Phyrexian Ingester** | Bulk data ingestion — the thing that eats Scryfall's dumps |
 | **Psychosis Crawler** | A crawler or scraper |
-| **Meldweb Curator** | Collection and inventory tracking |
 | **Malcator, Purity Overseer** | A linter or validator. There is also a card literally called **Reject Imperfection** |
 | **Annex Sentry** / **Malcator's Watcher** | Monitoring, or a file watcher |
 | **Unctus, Grand Metatect** | Codegen, schema generation, the thing that builds other things |
@@ -108,6 +113,7 @@ follows the directory:
 ```
 crates/ichormoon-gauntlet/{cli,criteria,toml,sim}    packages gauntlet-*
 crates/reality-chip/{scryfall,decklist,stats}        packages chip-*
+crates/meldweb-curator/{wasm}                        packages meldweb-*, beside web/, a pnpm package
 crates/gitaxian-probe/{engine}                       packages gitaxian-probe-*
 ```
 

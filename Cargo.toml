@@ -1,6 +1,12 @@
 [workspace]
 resolver = "2"
-members = ["crates/ichormoon-gauntlet/*", "crates/reality-chip/*"]
+# Meldweb Curator's crate is named rather than globbed: its directory also
+# holds the TypeScript app, which has no Cargo.toml.
+members = [
+    "crates/ichormoon-gauntlet/*",
+    "crates/reality-chip/*",
+    "crates/meldweb-curator/wasm",
+]
 # Gitaxian Probe is parked: a failed MVP whose source stays in the tree but out
 # of the build, so a plain `cargo` resolves the workspace without the flake's
 # patched deno_core. Its crates still inherit `*.workspace = true` keys, so they
@@ -45,3 +51,12 @@ gauntlet-criteria = { path = "crates/ichormoon-gauntlet/criteria" }
 gauntlet-toml = { path = "crates/ichormoon-gauntlet/toml" }
 gauntlet-sim = { path = "crates/ichormoon-gauntlet/sim" }
 chip-stats = { path = "crates/reality-chip/stats" }
+
+# meldweb-wasm ships over the network, so it trades build time for bytes. A
+# profile of its own leaves Gauntlet's release build as it was.
+[profile.wasm]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true

@@ -1,6 +1,8 @@
 [toolchain]
 channel = "stable"
 components = ["rustfmt", "clippy"]
+# Meldweb Curator's web editor runs chip-decklist in the browser.
+targets = ["wasm32-unknown-unknown"]
 # The parked gitaxian-probe-app cross-compiled to Android and shipped these
 # targets with the toolchain, because `dx` aborts with a bare ENOENT when one is
 # missing and a nix toolchain gives it no way to install them. Nothing in the
