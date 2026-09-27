@@ -6,7 +6,7 @@ progress-engine is a workspace of products that share a name family and, for now
 
 - [Ichormoon Gauntlet](crates/ichormoon-gauntlet/CONTEXT.md): the draw-probability engine. A decklist and a criteria file in, exact probabilities out.
 - [Reality Chip](crates/reality-chip/CONTEXT.md): the Magic-aware and Magic-free core Gauntlet stands on: card data, Scryfall query syntax, decklist parsing, and the hypergeometric walk.
-- **Meldweb Curator** (`crates/meldweb-curator/`): the deck editor. A `.deck.toml` in a git repo is the deck ([ADR-0020](docs/adr/0020-decks-are-toml-with-typed-categories.md)), and the editor is a browser front end over it, modelled on Archidekt's editor ([docs/research/archidekt-editor.md](docs/research/archidekt-editor.md)). It has no glossary yet; the deck words are Reality Chip's.
+- **Meldweb Curator** (`crates/meldweb-curator/`): the deck editor. A `.deck.toml` in a git repo is the deck ([ADR-0020](docs/adr/0020-decks-are-toml-with-typed-categories.md)), and the editor is a browser front end over it, modelled on Archidekt's editor ([docs/research/archidekt-editor.md](docs/research/archidekt-editor.md)). Its glossary is [crates/meldweb-curator/CONTEXT.md](crates/meldweb-curator/CONTEXT.md), where decks live and how they change ([ADR-0021](docs/adr/0021-curator-owns-one-fixed-name-repo-and-saves-by-itself.md)); what a deck is stays Reality Chip's.
 - **Gitaxian Probe** (`crates/gitaxian-probe/`): card scanning via Delver X's recognition engine, natively and on the web. It has no glossary or ADRs; its engine README.md and FINDINGS.md are the authority on it.
 
 ## Relationships
