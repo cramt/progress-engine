@@ -285,6 +285,48 @@ pub trait Walk {
     fn gap(&mut self, _reached: Path<'_>) -> u32 {
         0
     }
+
+    /// How many cards the **tail** after the checkpoints in `reached` deals,
+    /// or zero for none.
+    ///
+    /// A tail is a last draw: asked only once every fixed gap and every
+    /// sized gap is dealt, and dealt over [`Walk::coarsening`] rather than
+    /// over the groups. A non-zero answer is one more checkpoint, and the walk
+    /// then asks again about the longer prefix, so tails can follow one
+    /// another; nothing but a tail follows a tail. Neither the removals nor
+    /// the sized gap are asked about a prefix that ends in one.
+    ///
+    /// What it is for is a block of cards that nothing reads before the end
+    /// of the path, whose dealing does not depend on which cards it holds. A
+    /// shuffled population does not care where in the order such a block
+    /// sits, so dealing it last has the same joint law as dealing it where it
+    /// happened, and dealt last it need only be told apart as finely as
+    /// whatever reads it at the end. Whether a block is such a block is the
+    /// caller's to know; this crate only deals it.
+    ///
+    /// Only a sized walk ([`for_each_checkpoint_path_sized`]) asks. Like a
+    /// sized gap it is never dealt larger than what is left.
+    fn tail(&mut self, _reached: Path<'_>) -> u32 {
+        0
+    }
+
+    /// Which bin each group's cards fall in when a tail is dealt, indexed by
+    /// group: groups sharing a bin are one group to the tail. Empty, the
+    /// default, keeps every group apart.
+    ///
+    /// Read once, when the walk starts, so it is one partition for the whole
+    /// walk.
+    ///
+    /// **Which of a bin's groups a tail's card is filed under is not dealt.**
+    /// The probability of a tail is the probability of its count in each bin,
+    /// and the checkpoint it adds spreads each bin's count over the bin's
+    /// groups in group order, as many to each as it has left. That keeps the
+    /// history a history — no group ever holds more than it has — while
+    /// saying nothing a caller may read: a count over a union of bins is
+    /// exact, and a count that splits a bin reads the spread.
+    fn coarsening(&self) -> &[usize] {
+        &[]
+    }
 }
 
 /// [`for_each_checkpoint_path`], against a population that shrinks as the walk
@@ -549,12 +591,21 @@ fn sized_from<W: Walk>(
         walk.removals(&history, &mut removed[1]);
         pending = walk.gap(&history);
     }
+    let coarsening = walk.coarsening();
+    let bins: Vec<usize> = if coarsening.is_empty() {
+        (0..groups.len()).collect()
+    } else {
+        debug_assert_eq!(coarsening.len(), groups.len(), "one bin per group");
+        coarsening.to_vec()
+    };
     let mut state = Sized {
         groups,
         gaps,
         drawn,
         removed,
         history,
+        bin_count: bins.iter().max().map_or(0, |b| b + 1),
+        bins,
     };
     state.descend(0, pending, 1.0, walk, leaf);
 }
@@ -566,6 +617,9 @@ struct Sized<'a> {
     drawn: Vec<u32>,
     removed: Vec<Vec<u32>>,
     history: Vec<Vec<u32>>,
+    /// [`Walk::coarsening`], read once, with the identity where it was empty.
+    bins: Vec<usize>,
+    bin_count: usize,
 }
 
 impl Sized<'_> {
@@ -585,7 +639,9 @@ impl Sized<'_> {
         } else if let Some(&gap) = self.gaps.get(fixed) {
             (gap, fixed + 1)
         } else {
-            return leaf(walk, &self.history, acc);
+            let size = walk.tail(&self.history);
+            let level = self.history.len();
+            return self.tail(level, size, acc, walk, leaf);
         };
         let level = self.history.len();
         let available: Vec<u32> = self
@@ -626,6 +682,62 @@ impl Sized<'_> {
             self.history.pop();
             for (d, t) in self.drawn.iter_mut().zip(take) {
                 *d -= t;
+            }
+        });
+        going
+    }
+
+    /// Deal a tail of `size` over the bins, then ask for the next one, and
+    /// hand the path over when one is zero. `gone` is the history length the
+    /// tails started at, whose removals are the last ones asked for: nothing
+    /// is removed between tails. Returns whether to go on.
+    fn tail<W: Walk>(
+        &mut self,
+        gone: usize,
+        size: u32,
+        acc: f64,
+        walk: &mut W,
+        leaf: &mut impl FnMut(&mut W, Path<'_>, f64) -> bool,
+    ) -> bool {
+        if size == 0 {
+            return leaf(walk, &self.history, acc);
+        }
+        let available: Vec<u32> = self
+            .groups
+            .iter()
+            .zip(&self.drawn)
+            .zip(&self.removed[gone])
+            .map(|((total, used), gone)| total.saturating_sub(*used).saturating_sub(*gone))
+            .collect();
+        let mut in_bin = vec![0u32; self.bin_count];
+        for (g, &left) in available.iter().enumerate() {
+            in_bin[self.bins[g]] += left;
+        }
+        let size = size.min(in_bin.iter().sum());
+        let mut going = true;
+        let mut spread = vec![0u32; self.groups.len()];
+        for_each_composition(&in_bin, size, |take, p| {
+            if !going {
+                return;
+            }
+            // Each bin's count over its groups in group order, as many to
+            // each as it has left: the canonical spread, since which of them
+            // it was is not dealt.
+            let mut owed = take.to_vec();
+            for (g, s) in spread.iter_mut().enumerate() {
+                let b = self.bins[g];
+                *s = owed[b].min(available[g]);
+                owed[b] -= *s;
+            }
+            for (d, s) in self.drawn.iter_mut().zip(&spread) {
+                *d += s;
+            }
+            self.history.push(self.drawn.clone());
+            let next = walk.tail(&self.history);
+            going = self.tail(gone, next, acc * p, walk, leaf);
+            self.history.pop();
+            for (d, s) in self.drawn.iter_mut().zip(&spread) {
+                *d -= s;
             }
         });
         going

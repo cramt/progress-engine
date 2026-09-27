@@ -75,7 +75,7 @@ _Avoid_: tutor (here), fetch (here)
 A draw whose size is decided by the path so far rather than fixed before the walk starts. It is the random counterpart of a removal, asked for after every checkpoint right after the removals, and dealt as one more checkpoint; a size of zero costs one composition. A walk with sized gaps has no closed-form width, so it is counted. Decided in [ADR-0017](../../docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md).
 
 **Tail**:
-A last draw dealt over a coarsening of the groups: several groups counted as one, because nothing reads them apart. Decided in ADR-0017, not yet built.
+A last draw dealt over a coarsening of the groups: several groups counted as one, because nothing reads them apart. Asked for once every fixed and sized gap is dealt, and again after each tail; its probability is of the count in each bin, and which of a bin's groups holds those cards is not dealt. It is sound for a block whose dealing does not depend on its own cards and that nothing reads before the end, which is the caller's to know. Decided in ADR-0017.
 
 **Checkpoint**:
 A point in the sequence of draws where counts are read.

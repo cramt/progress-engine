@@ -281,3 +281,131 @@ fn a_sized_walk_sums_to_one_whatever_the_path_asks_for() {
         })
         .unwrap();
 }
+
+/// A block of `size` cards the path deals when its first checkpoint held a
+/// card of group 0: **in place**, as a sized gap straight after that
+/// checkpoint, or **last**, as a tail over `bins`. Either way what it is
+/// handed is filed as (the fixed checkpoints alone, the block counted per bin),
+/// which is everything a caller that deals the block last is allowed to read.
+struct Block {
+    size: u32,
+    last: bool,
+    bins: Vec<usize>,
+    fixed: usize,
+    seen: std::collections::BTreeMap<(Vec<Vec<u32>>, Vec<u32>), KahanSum>,
+}
+
+impl Block {
+    fn fires(&self, reached: h::Path<'_>) -> bool {
+        reached[0][0] >= 1
+    }
+}
+
+impl h::Walk for Block {
+    fn removals(&mut self, _: h::Path<'_>, _: &mut [u32]) {}
+    fn gap(&mut self, reached: h::Path<'_>) -> u32 {
+        if !self.last && reached.len() == 1 && self.fires(reached) {
+            self.size
+        } else {
+            0
+        }
+    }
+    fn tail(&mut self, reached: h::Path<'_>) -> u32 {
+        if self.last && reached.len() == self.fixed && self.fires(reached) {
+            self.size
+        } else {
+            0
+        }
+    }
+    fn coarsening(&self) -> &[usize] {
+        if self.last {
+            &self.bins
+        } else {
+            &[]
+        }
+    }
+    fn path(&mut self, reached: h::Path<'_>, p: f64) {
+        let bins = self.bins.iter().max().map_or(0, |b| b + 1);
+        let mut block = vec![0u32; reached[0].len()];
+        let fixed: Vec<Vec<u32>> = if reached.len() == self.fixed {
+            reached.to_vec()
+        } else if self.last {
+            let (fixed, tail) = reached.split_at(self.fixed);
+            for (g, b) in block.iter_mut().enumerate() {
+                *b = tail[0][g] - fixed[self.fixed - 1][g];
+            }
+            fixed.to_vec()
+        } else {
+            // In place: the block is the checkpoint after the first, and
+            // every later checkpoint holds it too.
+            for (g, b) in block.iter_mut().enumerate() {
+                *b = reached[1][g] - reached[0][g];
+            }
+            std::iter::once(reached[0].clone())
+                .chain(
+                    reached[2..]
+                        .iter()
+                        .map(|c| c.iter().zip(&block).map(|(n, b)| n - b).collect()),
+                )
+                .collect()
+        };
+        let mut binned = vec![0u32; bins];
+        for (g, b) in block.iter().enumerate() {
+            binned[self.bins[g]] += b;
+        }
+        self.seen.entry((fixed, binned)).or_default().add(p);
+    }
+}
+
+#[test]
+fn a_tail_is_a_marginal_of_the_block_dealt_in_place() {
+    // ADR-0017 §4, the exchangeability claim itself. A shuffled library does
+    // not care where in the order a block sits, so long as whether it is
+    // dealt does not depend on its own cards: the joint law of every fixed
+    // checkpoint and the block, read only as finely as the bins, is the same
+    // dealt last as dealt where it fired.
+    //
+    // Shaped so neither deal runs short: a block the library cannot cover is
+    // held to what is left, and that is a different count in place than last.
+    let cases = groups_and_gaps().prop_flat_map(|(groups, gaps)| {
+        let n = groups.len();
+        (
+            Just(groups),
+            Just(gaps),
+            1u32..=3,
+            prop::collection::vec(0usize..3, n),
+        )
+    });
+    runner(128)
+        .run(&cases, |(groups, gaps, size, bins)| {
+            let spare = groups.iter().sum::<u32>() - gaps.iter().sum::<u32>();
+            let size = size.min(spare);
+            let walked = |last: bool| {
+                let mut walk = Block {
+                    size,
+                    last,
+                    bins: bins.clone(),
+                    fixed: gaps.len(),
+                    seen: Default::default(),
+                };
+                h::for_each_checkpoint_path_sized(&groups, &gaps, &mut walk);
+                walk.seen
+            };
+            let (in_place, dealt_last) = (walked(false), walked(true));
+            let mass: f64 = dealt_last.values().map(|p| p.total()).sum();
+            prop_assert!((mass - 1.0).abs() < 1e-12, "the tail's mass was {mass}");
+            let keys: std::collections::BTreeSet<_> =
+                in_place.keys().chain(dealt_last.keys()).collect();
+            for key in keys {
+                let a = in_place.get(key).map_or(0.0, |p| p.total());
+                let b = dealt_last.get(key).map_or(0.0, |p| p.total());
+                prop_assert!(
+                    (a - b).abs() < 1e-12,
+                    "{groups:?} over {gaps:?}, a block of {size} over bins {bins:?}: \
+                     {key:?} is {a} in place and {b} dealt last"
+                );
+            }
+            Ok(())
+        })
+        .unwrap();
+}

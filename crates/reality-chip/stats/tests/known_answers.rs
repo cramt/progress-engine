@@ -863,3 +863,129 @@ fn the_paths_of_a_sized_walk_are_counted_without_walking_them() {
         plain
     );
 }
+
+// --- the tail ---------------------------------------------------------------
+//
+// A last draw dealt over a coarsening of the groups, after every fixed and
+// sized gap: groups that share a bin are one group to it. Nothing here knows
+// why a caller would want one.
+
+/// A walk whose tail is `size` cards over `bins` wherever `when` says, and
+/// which records every path.
+struct Tailing<'a, W> {
+    size: u32,
+    bins: Vec<usize>,
+    when: W,
+    paths: &'a mut Vec<(Vec<Vec<u32>>, f64)>,
+}
+
+impl<W: FnMut(h::Path<'_>) -> bool> h::Walk for Tailing<'_, W> {
+    fn removals(&mut self, _reached: h::Path<'_>, _out: &mut [u32]) {}
+    fn tail(&mut self, reached: h::Path<'_>) -> u32 {
+        if (self.when)(reached) {
+            self.size
+        } else {
+            0
+        }
+    }
+    fn coarsening(&self) -> &[usize] {
+        &self.bins
+    }
+    fn path(&mut self, reached: h::Path<'_>, p: f64) {
+        self.paths.push((reached.to_vec(), p))
+    }
+}
+
+#[test]
+fn a_tail_is_dealt_last_over_the_bins_it_is_given() {
+    // One A, one B, two C, with B and C one bin. Deal one card, then a tail of
+    // one over {A} and {B, C}.
+    //
+    //   A (1/4): only B and C are left, so the tail is the other bin, surely.
+    //   B (1/4): A (1/3), or one of the two Cs (2/3).
+    //   C (1/2): A (1/3), or one of B and the other C (2/3).
+    //
+    // Which of a bin's groups the card is filed under is not dealt, because
+    // nothing reads them apart: the bin's cards are spread over its groups in
+    // group order, as many to each as it has left. So after B the tail's
+    // other-bin card is a C, and after C it is the B.
+    let mut paths = Vec::new();
+    h::for_each_checkpoint_path_sized(
+        &[1, 1, 2],
+        &[1],
+        &mut Tailing {
+            size: 1,
+            bins: vec![0, 1, 1],
+            when: |reached: h::Path<'_>| reached.len() == 1,
+            paths: &mut paths,
+        },
+    );
+    let expected: Vec<(Vec<Vec<u32>>, f64)> = vec![
+        (vec![vec![0, 0, 1], vec![0, 1, 1]], 1.0 / 3.0),
+        (vec![vec![0, 0, 1], vec![1, 0, 1]], 1.0 / 6.0),
+        (vec![vec![0, 1, 0], vec![0, 1, 1]], 1.0 / 6.0),
+        (vec![vec![0, 1, 0], vec![1, 1, 0]], 1.0 / 12.0),
+        (vec![vec![1, 0, 0], vec![1, 1, 0]], 1.0 / 4.0),
+    ];
+    paths.sort_by(|a, b| a.0.cmp(&b.0));
+    assert_eq!(paths.len(), expected.len(), "{paths:?}");
+    for (a, b) in paths.iter().zip(&expected) {
+        assert_eq!(a.0, b.0);
+        assert!(close(a.1, b.1, 1e-12), "{:?}: {} vs {}", a.0, a.1, b.1);
+    }
+}
+
+#[test]
+fn a_tail_over_one_bin_is_one_composition() {
+    // The coarsest partition deals the tail's size and tells nothing apart,
+    // so a tail over it costs no width at all: one path per path without it.
+    let mut paths = Vec::new();
+    h::for_each_checkpoint_path_sized(
+        &[12, 8, 79],
+        &[7, 1],
+        &mut Tailing {
+            size: 3,
+            bins: vec![0, 0, 0],
+            when: |reached: h::Path<'_>| reached.len() == 2,
+            paths: &mut paths,
+        },
+    );
+    let mut plain = Vec::new();
+    h::for_each_checkpoint_path(&[12, 8, 79], &[7, 1], |hist, p| {
+        plain.push((hist.to_vec(), p))
+    });
+    assert_eq!(paths.len(), plain.len());
+    for (a, b) in paths.iter().zip(&plain) {
+        assert_eq!(&a.0[..2], &b.0[..]);
+        assert_eq!(a.0[2].iter().sum::<u32>(), 11);
+        assert!(close(a.1, b.1, 1e-12), "{} vs {}", a.1, b.1);
+    }
+}
+
+#[test]
+fn a_tail_is_asked_for_again_after_it_is_dealt_and_is_counted() {
+    // Two tails, one after the other, over every group apart (no coarsening
+    // given): [2, 2] dealing one, then a tail of one, then another, is the
+    // fixed [1, 1, 1] term for term.
+    let mut paths = Vec::new();
+    let mut walk = Tailing {
+        size: 1,
+        bins: Vec::new(),
+        when: |reached: h::Path<'_>| reached.len() < 3,
+        paths: &mut paths,
+    };
+    assert_eq!(
+        h::count_checkpoint_paths_sized(&[2, 2], &[1], &mut walk, u128::MAX),
+        6
+    );
+    h::for_each_checkpoint_path_sized(&[2, 2], &[1], &mut walk);
+    let mut fixed = Vec::new();
+    h::for_each_checkpoint_path(&[2, 2], &[1, 1, 1], |hist, p| {
+        fixed.push((hist.to_vec(), p))
+    });
+    assert_eq!(paths.len(), fixed.len());
+    for (a, b) in paths.iter().zip(&fixed) {
+        assert_eq!(a.0, b.0);
+        assert!(close(a.1, b.1, 1e-12), "{} vs {}", a.1, b.1);
+    }
+}
