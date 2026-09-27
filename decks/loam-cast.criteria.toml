@@ -5,9 +5,11 @@
 # graveyard; the Loam gets into the hand to be cast two ways — drawn, or
 # fetched by Spellseeker. Or mill it: Malevolent Rumble, Midnight Tilling,
 # Aftermath Analyst and Wrenn and Seven put cards off the top of the library
-# into the graveyard, and a Loam among them is there. HANDS.md hands 34 and 35
-# are the casting, hand 36 the fetch, and hands 19 and 20 the mill, one hand at
-# a time.
+# into the graveyard, and a Loam among them is there. Or discard it: Frantic
+# Search, Izzet Charm and Desperate Ravings draw two and then make you discard,
+# and a Loam in hand is the first card the list below bins. HANDS.md hands 34
+# and 35 are the casting, hand 36 the fetch, hands 19 and 20 the mill, and
+# hands 21 to 24 the discard, one hand at a time.
 #
 # WHY THIS IS NOT IN loam.criteria.toml
 # -------------------------------------
@@ -65,6 +67,52 @@
 # so a run pays nothing for the cards a mill would have turned over on the
 # deals it was never cast.
 #
+# THE DISCARDS
+# -----------
+# The standard library says what each card draws and makes you discard
+# (ADR-0017 §3), and this file says which cards go:
+#
+#   * Frantic Search draws two, discards two and untaps three lands, read as
+#     the three that paid for it, so it costs the turn nothing. A floor.
+#   * Izzet Charm, read as its third mode, draws two and discards two.
+#   * Desperate Ravings draws two and discards one AT RANDOM: the card picks,
+#     and the list below does not move it.
+#
+# The `[discard]` list bins the Loam first, and lands after it: a Loam deck
+# gets its lands back, and binning them is what it is for. A forced discard
+# past the list takes the cards no entry names, and which ones is priced at
+# random. A card drawn mid-line is cast that turn if the pool still pays, so
+# Frantic Search off three lands can draw the Loam and then cast it off the
+# lands it untapped (hand 24); a land drawn mid-line waits for the next drop.
+#
+# Frantic Search comes straight after the Loam, because it is free: it untaps
+# what it cost. The other two come after the mills, which reach the Loam in
+# the library rather than only a Loam already in hand.
+#
+# Three are not here:
+#
+#   * Borborygmos and Fblthp draws a card as it enters and may discard land
+#     cards, and the Loam is not one (hand 23). Cast from the command zone at
+#     five it spends turn 5's mana on a card that cannot put the Loam in the
+#     graveyard, so it is not in this line.
+#   * Three Steps Ahead's draw-two-discard-one is a Spree mode costing {2} on
+#     top of the printed {U}, and nothing yet says a cast costs more than the
+#     card's cost; read at {U} it would be cast on turns it cannot be.
+#   * Cavalier of Flame discards any number and then draws that many, at
+#     {2}{R}{R}{R}. Not modelled.
+#
+# THE LAND DROP
+# -------------
+# A discard can bin a land, and a land in play is not in hand to be binned:
+# which lands are still in hand is which ones were played. Before the discards
+# this file declared no land drop, and the mana reading assumed whichever
+# lands paid — which names no land as held — so the run with discards refuses
+# without one. The drop below plays a tapland first, when it costs the least,
+# and then any land in decklist order. It is a pilot's line where the old
+# reading was the best line, so it is worth less on its own: the same line with
+# no discards reads 18.43% ± 0.09 on the play and 21.14% ± 0.09 on the draw,
+# against the 19.02% and 21.82% below.
+#
 # Vastlands Scavenger is not here. Its Bind to Life mills seven, but it is a
 # prepared spell rather than an adventure: the Scavenger is cast first, for
 # {1}{G}{G}, and Bind to Life is a copy cast later, for {4}{G}, while the
@@ -73,8 +121,8 @@
 #
 # WHAT THE NUMBER IS
 # ------------------
-# A LOWER BOUND on the north star. Casting Loam and milling it are the routes
-# this engine follows; dredge (#57) and discard can only add to it.
+# A LOWER BOUND on the north star. Casting Loam, milling it and discarding it
+# are the routes this engine follows; dredge (#57) can only add to it.
 #
 # Without Spellseeker the line read 9.9210% on the play, exact, and equalled
 # "Loam castable by turn 5" in loam.criteria.toml to the digit, because one
@@ -89,16 +137,20 @@
 #   ... and Spellseeker fetching it           17.08% ± 0.08    19.58% ± 0.09
 #   ... and Rumble and Tilling                18.46% ± 0.09    21.26% ± 0.09
 #   ... and the Analyst and Wrenn and Seven   19.02% ± 0.09    21.82% ± 0.09
+#   ... with the land drop declared           18.43% ± 0.09    21.14% ± 0.09
+#   ... and the three discards                19.53% ± 0.09    22.14% ± 0.09
 #
 # So the four mills are worth about 1.9 points on the play and 2.2 on the
 # draw, and Rumble and Tilling most of it. Keeping nothing — the same line
 # with no `to_hand` — reads 18.33% ± 0.09 and 21.13% ± 0.09: the kept
 # Spellseeker and the kept land are the other 0.7 points, and they are why
-# "cast by turn 5" moves too.
+# "cast by turn 5" moves too. The three discards are worth 1.1 points on the
+# play and 1.0 on the draw over the same land drop, which is ADR-0017's
+# estimate; net of declaring the drop, the north star moves +0.5 and +0.3.
 #
-# Sampled is not unchecked: `checker/` plays this line a turn at a time, mills
-# and all, and holds both seats against the engine's answer and its standard
-# error.
+# Sampled is not unchecked: `checker/` plays this line a turn at a time —
+# mills, discards and the declared land drop — and holds both seats against
+# the engine's answer and its standard error.
 #
 # Flashback and retrace are out of scope: a card cast FROM the graveyard is a
 # second casting this line does not make.
@@ -130,22 +182,32 @@ to_hand = ['name:"Spellseeker"', 't:land']
 [casting]
 prefer = [
   'name:"Life from the Loam"',
+  'name:"Frantic Search"',
   'name:"Spellseeker"',
   'name:"Malevolent Rumble"',
   'name:"Midnight Tilling"',
+  'name:"Izzet Charm"',
+  'name:"Desperate Ravings"',
   'name:"Aftermath Analyst"',
   'name:"Wrenn and Seven"',
 ]
 
+[discard]
+prefer = ['name:"Life from the Loam"', 't:land']
+
+[land_drop]
+prefer = ["otag:tapland", "t:land"]
+
 # NO at_least, for the reason loam.criteria.toml gives: one of five routes, and
 # asserting on it asserts the deck reaches its yard by its slowest line.
 [[criterion]]
-name = "Life from the Loam in the graveyard by turn 5, cast or milled"
+name = "Life from the Loam in the graveyard by turn 5, cast, milled or discarded"
 require = [{ turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]
 
 # The same hands, counted as castings rather than as a zone. Before the mills
 # the two agreed, because a sorcery has nowhere else to go; now the difference
-# is the deals where a mill put the Loam there and nothing cast it.
+# is the deals where a mill or a discard put the Loam there and nothing cast
+# it.
 [[criterion]]
 name = "Life from the Loam cast by turn 5"
 require = [{ turn = 5, cast = 'name:"Life from the Loam"', min = 1 }]

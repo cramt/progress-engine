@@ -13,7 +13,8 @@ instead. Where those differ, that difference is the test.
 **Some of these are not answerable yet**, and each is marked with what it
 needs. Hand 5 also carries the measurement that says why it was refused rather
 than estimated. Hands 19 to 25 pin what
-[ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md) decided,
+[ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md) decided
+(19 to 24 now built, and tests),
 hands 26 to 33 what
 [ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) decided
 (now built, and tests),
@@ -919,8 +920,8 @@ graveyard by turn 5* goes from 9.92% to about 17.1% on the play and from about
 
 ## Discard, mill and dredge
 
-Hands 19 and 20, the mills, are answerable and are tests; the rest are not
-answerable yet. Each pins a behaviour that
+Hands 19 and 20, the mills, and 21 to 24, the discards, are answerable and
+are tests; hand 25, dredge, is not answerable yet. Each pins a behaviour that
 [ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md) decided,
 using the Loam deck's own cards, with Beast Within as filler. All are on the
 play. A resolved instant or sorcery goes to the graveyard
@@ -1079,7 +1080,18 @@ claimants and no `[land_drop]` is.
 The middle column also shows why a tie costs nothing here. The two discards
 come out of one entry that is one group, so there is one way to take them.
 
-*Not answerable yet: needs sized gaps and `[discard]` (ADR-0017).*
+*Answerable, and tests.* The first two columns are
+`hand_21_frantic_search_and_the_discard_list_decides_where_the_loam_goes` in
+`crates/ichormoon-gauntlet/criteria/tests/engine.rs`, the deal played on the
+board once per list: the walk stops at the cast and asks for two cards, and
+the discard takes them by the list. Every hand from here to 24 is played
+under a declared `[land_drop]`, because the discard is the second claimant on
+the lands in hand: a land in play is not one it can take, and only a declared
+drop says which lands are in play. The third column is
+`a_forced_discard_with_no_list_is_refused_and_names_the_remedy` in the CLI
+suite, and `a_discard_that_can_take_a_land_needs_a_declared_land_drop` beside
+it is the other refusal. `checker/test_discards.py` holds the first two
+columns against the checker's line.
 
 ### 22. Desperate Ravings discards at random, whatever the list says
 
@@ -1105,7 +1117,13 @@ ignored rather than obeyed, and no list is not refused. The random discard is
 priced as a branch over what the hand holds, three ways here, weighted 5/7,
 1/7 and 1/7.
 
-*Not answerable yet: needs sized gaps and a random discard (ADR-0017).*
+*Answerable, and a test:*
+`hand_22_desperate_ravings_discards_at_random_whatever_the_list_says` walks
+the rest of the game from this opener, both columns, and asserts the three
+rows to 1e-12: whichever order the library's three cards come in, the hand is
+the same seven. `a_random_or_an_optional_discard_needs_no_list` in the CLI
+suite is the second column through the binary, and
+`checker/test_discards.py` deals it two thousand times.
 
 ### 23. Borborygmos and Fblthp cannot discard the Loam
 
@@ -1136,9 +1154,23 @@ enters: draw the Forest, then you **may** discard any number of **land** cards.
 - **An optional discard with no list discards nothing**, and is not refused,
   where hand 21's forced one is.
 
-*Not answerable yet: needs casting from the command zone
-([#78](https://github.com/cramt/progress-engine/issues/78)), sized gaps and
-`[discard]` (ADR-0017).*
+*Answerable, and a test:* `hand_23_borborygmos_and_fblthp_cannot_discard_the_loam`
+casts the commander from the command zone on the deal and asserts the three
+columns. The standard library says what it does:
+
+```toml
+[[effect]]
+match = 'name:"Borborygmos and Fblthp"'
+on = "cast"
+draw = 1
+discard_any = true
+discard_only = "t:land"
+```
+
+`borborygmos.txt` against `borborygmos.criteria.toml` is the same card as a
+deck, through the binary and against the sampler, and the checker plays the
+three columns in `checker/test_discards.py`. The attack that draws again is a
+later turn's, and is not modelled.
 
 ### 24. A spell drawn mid-line is cast; a land drawn mid-line waits
 
@@ -1173,8 +1205,23 @@ asked of the graveyard and not of `cast`.
 - **The fourth row is the stated floor on mid-line lands.** It is printed by
   any run that dealt a card mid-line.
 
-*Not answerable yet: needs sized gaps, `[discard]` and a line that is re-read
-after each resolution (ADR-0017).*
+*Answerable, and a test:*
+`hand_24_a_spell_drawn_mid_line_is_cast_and_a_land_drawn_mid_line_waits`
+plays the deal once per list and asserts every row. The standard library's
+Frantic Search is:
+
+```toml
+[[effect]]
+match = 'name:"Frantic Search"'
+on = "cast"
+draw = 2
+discard = 2
+untap = 3
+```
+
+`draw` and `discard` are the card's; `[discard] prefer` is yours, and no
+effect table has a key for it. `checker/test_discards.py` holds both
+columns against the checker's line.
 
 ### 25. Dredge, and why a zone count is not an arrival
 

@@ -65,6 +65,8 @@ class Card:
     # A planeswalker's printed loyalty, the counters it enters with (CR
     # 306.5b), or None for anything else.
     loyalty: int | None = None
+    # Scryfall's oracle tags, as the index holds them: `otag:` in a file.
+    tags: frozenset[str] = frozenset()
 
     def is_named(self, *names: str) -> bool:
         return self.name in names
@@ -176,6 +178,7 @@ def _make_card(record: dict, categories: tuple[str, ...]) -> Card:
         oracle=oracle,
         identity=frozenset(record.get("ci") or []),
         loyalty=int(faces[0]["loyalty"]) if str(faces[0].get("loyalty", "")).isdigit() else None,
+        tags=frozenset(tags),
     )
 
 
@@ -223,6 +226,7 @@ def _resolve_fetches(library: list[Card]) -> list[Card]:
                 produces=frozenset().union(*(c.produces for c in found)),
                 enters_tapped=tapped,
                 makes_mana=bool(found),
+                tags=card.tags,
             )
         )
     return resolved
@@ -968,6 +972,210 @@ def line_path(
     return path
 
 
+# --- A line whose land drop and discards the pilot declared ---------------
+#
+# Written from ADR 0017 §3, README "Discard" and HANDS.md hands 21 to 24.
+#
+# * The land drop is the pilot's list (README "The land drop"): each turn,
+#   after the draw step and before any spell, play one land from hand, the
+#   first entry of the list that one matches; a land no entry names is played
+#   after every one that is named. ASSUMPTION (README): a tie inside one entry
+#   goes to the card the decklist names first. The lands on the battlefield
+#   then pay, every one but the one played this turn if it enters tapped - and
+#   nothing is searched for: this is the one line the pilot played, not the
+#   best of them. Two lands that make the same mana the same way, and that no
+#   entry of either list tells apart, are the same card to the run (README),
+#   so the tie goes to the kind of land the decklist names first.
+# * A spell that draws takes the next cards off the top into your hand. A
+#   spell among them is cast this turn if the line reaches it and the pool
+#   still pays; a land among them waits for the next turn's drop, because this
+#   turn's came before the line (ADR 0017).
+# * Then the discard, from the whole hand: every card that has been drawn, or
+#   put in hand, and has not been played, cast or discarded.
+#   - A forced discard of n takes the cards the pilot's list names, the first
+#     entry first, and then the cards it names nowhere. Where an entry holds
+#     more than is left to take, which of them go is at random (README).
+#   - "At random" (Desperate Ravings) is n cards picked uniformly from the
+#     whole hand, whatever the list says.
+#   - "Any number" of a kind (Borborygmos and Fblthp's lands) is every card of
+#     that kind the list names.
+# * Frantic Search: "Untap up to three lands." ASSUMPTION (README): read as
+#   untapping the lands that paid for it, so what the turn has left to spend
+#   is what it had before the spell.
+
+
+@dataclass(frozen=True)
+class Rummage:
+    """What casting one card does to the hand."""
+
+    draw: int
+    discard: int = 0  # 0 with `any_number` for "any number"
+    any_number: bool = False
+    at_random: bool = False
+    only: Callable[[Card], bool] | None = None
+    untaps_its_cost: bool = False
+
+
+@dataclass
+class DeclaredTurn:
+    number: int
+    cast: list[Card]
+    to_graveyard: list[Card]
+    lands_in_play: int
+
+
+class DeclaredPath(list):
+    """The turns of one declared line, from turn 1."""
+
+    def cast_by(self, name: str, turn: int) -> bool:
+        return any(c.name == name for t in self[:turn] for c in t.cast)
+
+    def in_graveyard_by(self, name: str, turn: int) -> bool:
+        """Put into the graveyard by `turn`: a resolved instant or sorcery
+        (CR 608.2n), a milled card, or a discarded one. Nothing takes a card
+        back out."""
+        return any(c.name == name for t in self[:turn] for c in t.to_graveyard)
+
+
+# (library, land drop, discard list) -> land name -> where its kind is first named.
+_LAND_RANKS: dict = {}
+
+
+def declared_line_path(
+    game: Game,
+    line: Line,
+    last_turn: int,
+    land_drop: tuple[Callable[[Card], bool], ...],
+    discard: tuple[Callable[[Card], bool], ...],
+    fetches: dict[str, tuple[str, ...]],
+    mills: dict[str, Mill],
+    rummages: dict[str, Rummage],
+) -> DeclaredPath:
+    """Play `line` out through `last_turn` under a declared land drop and a
+    declared discard list. Cached on the game."""
+    key = ("declared", line, last_turn, land_drop, discard,
+           tuple(sorted(fetches.items())), tuple(sorted(mills.items())),
+           tuple(sorted(rummages.items())))  # fmt: skip
+    if key in game._line_cache:
+        return game._line_cache[key]
+    # The card picked at random is a function of the deal, and the same one
+    # every time this game is asked: a string seed is hashed stably.
+    rng = random.Random("|".join(c.name for c in game.cards))
+    named = {n for entry in line for n in entry}
+    order = {n: j for entry in line for j, n in enumerate(entry)}
+    # Where the decklist first names each kind of land: two lands that make
+    # the same mana the same way, and that no entry of either list tells
+    # apart, are one card to this run, so a tie between them is no tie.
+    def kind(c: Card) -> tuple:
+        return (c.produces, c.enters_tapped, c.makes_mana, c.lasts,
+                tuple(wants(c) for wants in land_drop + discard))  # fmt: skip
+
+    ranks_key = (id(game.library), land_drop, discard)
+    if ranks_key not in _LAND_RANKS:
+        first_named: dict[tuple, int] = {}
+        for i, c in enumerate(game.library):
+            first_named.setdefault(kind(c), i)
+        _LAND_RANKS[ranks_key] = {c.name: first_named[kind(c)] for c in game.library}
+    rank = _LAND_RANKS[ranks_key]
+    library = list(game.cards)  # the top of the shuffled library
+    top = 0
+    taken: list[str] = []
+    hand: list[Card] = [c for c in game.commanders if c.name in named]
+    in_play: list[tuple[Card, int]] = []
+    path = DeclaredPath()
+
+    def draw(n: int) -> list[Card]:
+        nonlocal top
+        cards = library[top : top + n]
+        top += len(cards)
+        taken.extend(c.name for c in cards)
+        return cards
+
+    def tier_of(c: Card, tiers) -> int:
+        return next((i for i, wants in enumerate(tiers) if wants(c)), len(tiers))
+
+    hand += draw(7)
+    for t in range(1, last_turn + 1):
+        if game.on_the_draw or t > 1:
+            hand += draw(1)
+        # The land drop.
+        lands = [c for c in hand if c.playable_land]
+        if lands:
+            land = min(lands, key=lambda c: (tier_of(c, land_drop), rank.get(c.name, 0)))
+            hand.remove(land)
+            in_play.append((land, t))
+        pool = [
+            (0, c.produces)
+            for c, played in in_play
+            if c.makes_mana and not (played == t and c.enters_tapped)
+        ]
+        bill: list[Cost] = []
+        cast: list[Card] = []
+        to_graveyard: list[Card] = []
+        while True:
+            chosen = None
+            for entry in line:
+                options = [c for c in hand if c.name in entry]
+                options.sort(key=lambda c: (_mana_value(c), order[c.name]))
+                for c in options:
+                    cost = _parse_cost_cached(c.mana_cost)
+                    if _settles(pool, bill + [cost]):
+                        chosen = (c, cost)
+                        break
+                if chosen:
+                    break
+            if not chosen:
+                break
+            card, cost = chosen
+            hand.remove(card)
+            cast.append(card)
+            rummage = rummages.get(card.name)
+            if not (rummage and rummage.untaps_its_cost):
+                bill.append(cost)
+            if any(k in card.type_line for k in ("Instant", "Sorcery")):
+                to_graveyard.append(card)
+            for wanted in fetches.get(card.name, ()):
+                copies = [c for c in game.library if c.name == wanted]
+                if len(copies) <= taken.count(wanted):
+                    continue
+                taken.append(wanted)
+                hand.append(copies[0])
+                below = next(
+                    (i for i in range(top, len(library)) if library[i].name == wanted), None
+                )
+                if below is not None:
+                    del library[below]
+            mill = mills.get(card.name)
+            if mill is not None:
+                milled = draw(mill.cards)
+                kept = mill.kept(milled, game.library)
+                for i, c in enumerate(milled):
+                    (hand if i in kept else to_graveyard).append(c)
+            if rummage is not None:
+                hand += draw(rummage.draw)
+                allowed = [c for c in hand if rummage.only is None or rummage.only(c)]
+                if rummage.at_random:
+                    gone = rng.sample(allowed, min(rummage.discard, len(allowed)))
+                elif rummage.any_number:
+                    gone = [c for c in allowed if tier_of(c, discard) < len(discard)]
+                else:
+                    gone, left = [], rummage.discard
+                    for tier in range(len(discard) + 1):
+                        these = [c for c in allowed if tier_of(c, discard) == tier]
+                        if len(these) > left:
+                            these = rng.sample(these, left)
+                        gone += these
+                        left -= len(these)
+                        if left == 0:
+                            break
+                for c in gone:
+                    hand.remove(c)
+                    to_graveyard.append(c)
+        path.append(DeclaredTurn(t, cast, to_graveyard, len(in_play)))
+    game._line_cache[key] = path
+    return path
+
+
 def line_holds(game: Game, line: Line, last_turn: int, holds: Callable[[LinePath], bool]) -> bool:
     return holds(line_path(game, line, last_turn))
 
@@ -1059,7 +1267,10 @@ ANALYST, WRENN = "Aftermath Analyst", "Wrenn and Seven"
 #            fetch = ['name:"Life from the Loam"'], to = "hand"
 # [[effect]] match = 'name:"Malevolent Rumble"' and 'name:"Midnight Tilling"',
 #            to_hand = ['name:"Spellseeker"', 't:land']
-# [casting] prefer = [Loam, Spellseeker, Rumble, Tilling, Analyst, Wrenn and Seven]
+# [casting] prefer = [Loam, Frantic Search, Spellseeker, Rumble, Tilling,
+#                     Izzet Charm, Desperate Ravings, Analyst, Wrenn and Seven]
+# [discard] prefer = ['name:"Life from the Loam"', 't:land']
+# [land_drop] prefer = ["otag:tapland", "t:land"]
 #
 # Spellseeker's enters trigger searches the library for an instant or sorcery
 # with mana value 2 or less and puts it into your hand; Loam is a sorcery at
@@ -1079,9 +1290,23 @@ ANALYST, WRENN = "Aftermath Analyst", "Wrenn and Seven"
 #   rest into your graveyard." ASSUMPTION (the standard library's entry): it is
 #   activated once, on the turn it is cast, and not on the turns after.
 #
-# Dredge and discard are not routes here (README "Zones"). Everything else is
-# `line_path`.
-LOAM_CAST_LINE = ((LOAM,), (SEEKER,), (RUMBLE,), (TILLING,), (ANALYST,), (WRENN,))
+# And the third way in is a discard, read off each card:
+#
+# * Frantic Search: "Draw two cards, then discard two cards. Untap up to three
+#   lands." The untap is read as the lands that paid for it (README).
+# * Izzet Charm, its third mode: "Draw two cards, then discard two cards."
+#   ASSUMPTION (the standard library's entry): a line casting it chooses that
+#   mode.
+# * Desperate Ravings: "Draw two cards, then discard a card at random."
+#
+# Dredge is not a route here (README "Zones"). Everything else is
+# `declared_line_path`: the file declares its land drop and its discard list,
+# so this plays the line the pilot declared rather than the best one.
+FRANTIC, CHARM, RAVINGS = "Frantic Search", "Izzet Charm", "Desperate Ravings"
+LOAM_CAST_LINE = (
+    (LOAM,), (FRANTIC,), (SEEKER,), (RUMBLE,), (TILLING,), (CHARM,), (RAVINGS,),
+    (ANALYST,), (WRENN,),
+)  # fmt: skip
 SEEKER_FETCHES = {SEEKER: (LOAM,)}
 _PERMANENT_TYPES = ("Artifact", "Creature", "Enchantment", "Land", "Planeswalker", "Battle")
 
@@ -1106,13 +1331,39 @@ LOAM_MILLS = {
     TILLING: Mill(4, keep_up_to=1, keep_only=_is_permanent_card, prefer=_PILOT_KEEPS),
     WRENN: Mill(4, keep_every=_is_land),
 }
-# Turn 5, one card deeper for the Loam a fetch takes out, and every card the
-# four mills could take.
-LOAM_CAST_DEPTH = 6 + 3 + 4 + 4 + 4
+LOAM_RUMMAGES = {
+    FRANTIC: Rummage(draw=2, discard=2, untaps_its_cost=True),
+    CHARM: Rummage(draw=2, discard=2),
+    RAVINGS: Rummage(draw=2, discard=1, at_random=True),
+}
 
 
-def _loam_cast_path(g: Game) -> LinePath:
-    return line_path(g, LOAM_CAST_LINE, 5, SEEKER_FETCHES, mills=LOAM_MILLS)
+def _is_tapland(c: Card) -> bool:
+    return "tapland" in c.tags
+
+
+def _is_loam(c: Card) -> bool:
+    return c.name == LOAM
+
+
+LOAM_LAND_DROP = (_is_tapland, _is_land)
+LOAM_DISCARDS = (_is_loam, _is_land)
+# Turn 5, one card deeper for the Loam a fetch takes out, every card the four
+# mills could take, and the two each of the three rummages draws.
+LOAM_CAST_DEPTH = 6 + 3 + 4 + 4 + 4 + 2 + 2 + 2
+
+
+def _loam_cast_path(g: Game) -> DeclaredPath:
+    return declared_line_path(
+        g,
+        LOAM_CAST_LINE,
+        5,
+        LOAM_LAND_DROP,
+        LOAM_DISCARDS,
+        SEEKER_FETCHES,
+        LOAM_MILLS,
+        LOAM_RUMMAGES,
+    )
 
 
 def _loam_in_graveyard_by_5(g: Game) -> bool:
@@ -1277,7 +1528,7 @@ QUESTIONS: list[Question] = [
     Question(
         "loam",
         "loam-cast.criteria.toml",
-        "Life from the Loam in the graveyard by turn 5, cast or milled",
+        "Life from the Loam in the graveyard by turn 5, cast, milled or discarded",
         _loam_in_graveyard_by_5,
         LOAM_CAST_DEPTH,
     ),

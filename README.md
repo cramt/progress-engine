@@ -460,8 +460,8 @@ require = [
 
 | `zone` | What it counts |
 |---|---|
-| `hand` | the default. Cards drawn by that turn — nothing is cast or discarded yet, so nothing has left |
-| `graveyard` | cards an effect routed to the yard — see [Effects](#effects) — and every instant or sorcery the [`[casting]` line](#mana-as-a-budget) cast, which resolves into it. Zero in a run where neither can happen, and the run says so |
+| `hand` | the default. Cards drawn by that turn, less what the [`[casting]` line](#mana-as-a-budget) cast and what a [discard](#discard-a-spell-that-draws-and-then-bins) binned. A land counts from the turn it is drawn, played or not |
+| `graveyard` | cards an effect routed, milled or discarded to the yard — see [Effects](#effects) — and every instant or sorcery the [`[casting]` line](#mana-as-a-budget) cast, which resolves into it. Zero in a run where neither can happen, and the run says so |
 | `library` | cards matching the query that are still in the deck: the deck's total minus what has been drawn or binned |
 | `battlefield` | **lands you have played**, one drop a turn — the ones your `[land_drop]` priority played, or the most you could have played if you declared none — plus every permanent the [`[casting]` line](#mana-as-a-budget) cast and anything a [delayed effect](#delayed-effects-urzas-saga) or a [cast fetch](#a-cast-that-puts-a-card-onto-the-battlefield-tezzeret-the-seeker) put there. A permanent still in hand is not on it, declared land drop or not ([HANDS.md](HANDS.md) hand 43). Refused for any other card that would have to be cast |
 
@@ -767,7 +767,10 @@ Error: lantern.criteria.toml: Lantern castable on turn 1: a mana question and a 
 **What it costs, beside a mana question: the colour narrowing.** This is the
 price and it is not small. A priority plays the first land in hand that its list
 reaches, and the tie inside one entry goes to *the card your decklist names
-first* — so it reads the manabase for a reason no cost can state. Merging a
+first* — so it reads the manabase for a reason no cost can state. Two lands
+that make the same mana the same way, and that no query in the file tells
+apart, are one card to the run (a Forest and Boseiju, Who Endures), so the tie
+is between kinds of land and goes to the kind the decklist names first. Merging a
 Plains with a Swamp because `{1}{U}` cannot tell them apart would renumber that
 ranking and play the wrong land, so a run that declares a priority keeps the
 whole palette and pays for it. Measured on `decks/lantern.txt` — a 99-card
@@ -1606,6 +1609,87 @@ copy cast later from a creature already in play, which is a second casting the
 line does not make. A mill that fires on an attack or a landfall has no
 trigger here yet. And dredge, which would take the Loam back out, is ADR-0017's
 last word.
+
+### Discard: a spell that draws, and then bins
+
+Frantic Search draws two and then makes you discard two. The draw is a sized
+gap like a mill's, dealt the turn the line casts it; the discard is a zone move
+from hand to graveyard, and **which cards go is yours**, declared once for the
+whole file because the hand is one resource every outlet draws on
+([ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md) §3):
+
+```toml
+[discard]
+prefer = ['name:"Life from the Loam"', 't:land']
+```
+
+The standard library says what each card fixes, and never which cards:
+
+| card | draws | discards | the card fixes |
+|---|---|---|---|
+| Frantic Search | 2 | 2 | and untaps three lands |
+| Izzet Charm | 2 | 2 | its third mode, the one a line casts it for |
+| Desperate Ravings | 2 | 1 | **at random** |
+| Borborygmos and Fblthp, entering | 1 | any number | **land cards only** |
+
+- **A forced discard walks the list.** Each entry gives up everything it holds
+  until what is left to discard is less than that; that entry gives up the
+  rest. After the last entry, the cards no entry names are one more entry.
+- **A tie is priced, not broken.** Where an entry holds more than is left to
+  take, or the unnamed cards do, every set of that many is as likely, and the
+  exact engine walks every one of them at its chance — the reason the
+  mulligan's `bottom` gives. Name more entries to make it smaller.
+- **"Any number" is every eligible card the list names**, and nothing it
+  does not. With no list it discards nothing.
+- **At random ignores the list.** Desperate Ravings picks from the whole hand.
+- **A forced discard with no list is refused**, naming `[discard]` as the
+  remedy (HANDS.md hand 21): which cards leave your hand is not the tool's to
+  decide.
+- **A discard that can take a land needs `[land_drop]`.** A land in play is
+  not in your hand, and which lands are in play is which ones you played.
+  Without a declared drop the mana reading assumes whichever lands pay, which
+  names no land as still held, so the run is refused rather than guessed.
+- **Frantic Search's untap is read as the lands that paid for it**, so the
+  turn's mana is where it was before the spell. That is a floor: a pilot could
+  untap three better lands.
+- **A spell drawn mid-line is cast that turn** if the line reaches it and the
+  pool still pays; **a land drawn mid-line waits** for the next turn's drop,
+  even on a turn whose drop was not made (HANDS.md hand 24). Every run whose
+  line draws says both.
+
+Every run that discarded prints the list, beside the land drop and the line:
+
+```
+note: the cards discarded here are decided by the priority this file declared, and every
+      number below that reads the hand or the graveyard depends on it:
+      1. "name:\"Life from the Loam\""
+      2. "t:land"
+      Then a forced discard takes a card this list does not name only after every card it does, and an "any number" discard never takes one. Ties: a tie inside one entry, and among the cards no entry names, is settled at random, and every way it could fall is priced.
+      And a card that discards at random ignores this list: every card in hand is as likely.
+```
+
+**What it is worth to the Loam north star.** `decks/loam-cast.criteria.toml`
+adds Frantic Search after the Loam, and Izzet Charm and Desperate Ravings after
+the mills, with the list above. The discards made it declare its land drop —
+taplands first, then any land in decklist order — which is a line the pilot
+plays where the old reading was the best line, so it is worth less on its own:
+
+| On `decks/loam.txt`, Loam in the graveyard by turn 5 | play | draw |
+|---|---|---|
+| casting, Spellseeker and the four mills, no land drop declared | 19.02% ± 0.09 | 21.82% ± 0.09 |
+| ... with the land drop declared | 18.43% ± 0.09 | 21.14% ± 0.09 |
+| ... and the three discards | **19.53% ± 0.09** | **22.14% ± 0.09** |
+
+So the discards are worth 1.1 points on the play and 1.0 on the draw, which is
+ADR-0017's estimate. `checker/` plays the same declared line, discards and
+land drop and all, and agrees.
+
+**Not here yet.** Three Steps Ahead's draw-two-discard-one is a Spree mode that
+costs {2} more than the card's printed {U}, and nothing yet says a cast costs
+more than printed. Cavalier of Flame discards and then draws that many, which
+is a discard before a draw whose size the discard decides. Flashback on
+Desperate Ravings is a second casting from the graveyard. Borborygmos and
+Fblthp's attack trigger is a later turn's.
 
 ### Delayed effects: Urza's Saga
 
@@ -2662,6 +2746,15 @@ Stone and Lotus Cobra make nothing. `checker/test_rocks.py` holds HANDS.md hands
 decks and seats. Those are dealt 100,000 games rather than the default 400,000
 (`Question.games`): the line model is slow in Python, and the engine samples
 them anyway, so its own error bar is most of the interval.
+
+A line whose file declares its land drop and its discard list is a different
+line — the one the pilot played rather than the best one — so it has a model
+of its own (`declared_line_path`): one land a turn by the declared list, the
+lands on the battlefield paying and nothing searched for, and the whole hand
+kept so a discard can take from it. Frantic Search, Izzet Charm and Desperate
+Ravings draw and discard from their oracle text and the README's reading of
+each; `checker/test_discards.py` holds HANDS.md hands 21 to 24 against it, and
+`compare.py` holds `decks/loam-cast.criteria.toml` against it on both seats.
 
 A question the engine cannot answer yet is marked `pending="#NN"` in
 `QUESTIONS`: `compare.py` reports the checker's number, on `--pending-games`

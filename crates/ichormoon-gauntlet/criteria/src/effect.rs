@@ -292,9 +292,8 @@ pub struct Effect {
     /// replacement draw, dealt as one **sized gap** ([ADR-0017]) — so a path
     /// that never casts it deals nothing for it.
     ///
-    /// Engine vocabulary ahead of the words for it: no `[[effect]]` key sets
-    /// this yet, and nothing in the standard library draws, so every effect
-    /// a file can declare has zero here. Only [`Trigger::Cast`] reads it.
+    /// `draw = n` in an `[[effect]]` table: Frantic Search's two. Only
+    /// [`Trigger::Cast`] reads it.
     ///
     /// [ADR-0017]: https://github.com/cramt/progress-engine/blob/main/docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md
     pub draw: u32,

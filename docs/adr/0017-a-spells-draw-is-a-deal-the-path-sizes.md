@@ -23,6 +23,8 @@ Supersedes the second half of [ADR-0010](0010-mana-gate-then-budget-replacement-
 - **A tie inside one entry, and the cards no entry names, are settled at random and priced**, as `[mulligan] bottom` settles them and for the same reason: a discard changes the hand that every question in the class reads, and an order does not commute with narrowing. It is a branch over the tier's composition. It is small when a tier is one group, and the file controls it by naming more entries.
 - **A random discard ignores the list**: Desperate Ravings is priced over the whole hand.
 - **A forced discard with no list declared is refused by name, with the remedy.** Which card goes is the pilot's, and ADR-0009's rule of no defaults applies.
+- **A discard that can take a land is refused without `[land_drop]`**, found in building it (#86). A land in play is not in hand, and which lands are in play is which ones were played; with no declared drop the mana reading assumes whichever lands pay, which names no land as held. The discard is a second claimant on the lands in hand, refused as the land drop's other second claimants are.
+- **The division is `chip-stats`' third word, a branch**: after a checkpoint the caller may say the path divides into ways no dealt card decides, each with its chance, and the walk goes down every one. It is Magic-free, as the sized gap is.
 
 This is the sixth resource on the one mechanism of ADR-0004, not a sixth language: an ordered list of queries, first match chosen, printed by every run that used it.
 

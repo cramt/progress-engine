@@ -220,8 +220,15 @@ Cards moved from the top of the library to the graveyard because the card says s
 Where a card's own text sends the cards it moves, such as the graveyard for a mill or for what Malevolent Rumble does not keep. Stated by the effect library. Set against a **chosen destination**, which is the pilot's and is declared by the file.
 
 **Discard**:
-A card moved from hand to the graveyard. The card fixes how many, whether it is at random, and which cards are eligible. The pilot chooses which, with `[discard] prefer`, and a forced discard with no list is refused.
+A card moved from hand to the graveyard. The card fixes how many, whether it is at random, and which cards are eligible. The pilot chooses which, with `[discard] prefer`, and a forced discard with no list is refused. A land in play is not in hand, so a discard that could take a land also needs `[land_drop]`: only a declared drop says which lands are still held.
 _Avoid_: bin, pitch, loot (for the zone move)
+
+**Division**:
+A point on a path where what happens next is one of several outcomes no dealt card decides: a tie inside one `[discard]` entry, the cards no entry names, or a card the spell picks at random. The exact engine walks every way at its chance, one multivariate hypergeometric over what may go; the sampler picks the cards one at a time. Reality Chip calls it a branch.
+_Avoid_: coin flip, sub-path
+
+**Untap**:
+Frantic Search's "untap up to three lands", read as the lands that paid for it, so the turn's bill is where it was before the spell. A floor, and the run says so.
 
 **Dredge**:
 Replacing a draw by milling N and returning the dredger from the graveyard to hand. Never done today, which is a line the pilot could play, and the run says so.
