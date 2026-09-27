@@ -1,6 +1,14 @@
-import { describe, expect, it } from "vitest";
-import type { Card, Category } from "../deck";
+import { readFileSync } from "node:fs";
+import { beforeAll, describe, expect, it } from "vitest";
+import {
+  type Card,
+  type Category,
+  loadDeckSync,
+  parseDeck,
+  setCardCategories,
+} from "../deck";
 import { groupByCategory, packColumns } from "./layout";
+import { dropOnto } from "./move";
 
 let index = 0;
 const card = (name: string, ...categories: string[]): Card => ({
@@ -61,6 +69,80 @@ describe("grouping", () => {
       null,
       "learnboard",
     ]);
+  });
+});
+
+describe("headers", () => {
+  beforeAll(() => {
+    loadDeckSync(
+      readFileSync(
+        new URL("../wasm/pkg/meldweb_wasm_bg.wasm", import.meta.url),
+      ),
+    );
+  });
+
+  // The commander's category sorts last by name, and Sol Ring is in two.
+  const text = `cards = [
+  { name = "Island", qty = 3, in = ["Lands"] },
+  { name = "Rashmi and Ragavan", in = ["Zenith"] },
+  { name = "Sol Ring", in = ["Ramp", "Artifacts"] },
+  { name = "Arcane Signet", in = ["Ramp"] },
+]
+
+[categories]
+Artifacts = {}
+Lands = {}
+Ramp = {}
+Zenith = { type = "commander" }
+`;
+
+  const deck = (text: string) => {
+    const parsed = parseDeck(text);
+    if (parsed.kind !== "deck") throw new Error(parsed.message);
+    return parsed;
+  };
+  const headers = (text: string) => {
+    const parsed = deck(text);
+    return groupByCategory(parsed.categories, parsed.cards, nameOf).map(
+      (g) => [g.category, g.qty] as const,
+    );
+  };
+
+  it("count a card in every header it is under, and once in the deck", () => {
+    expect(headers(text)).toEqual([
+      ["Zenith", 1],
+      ["Artifacts", 1],
+      ["Lands", 3],
+      ["Ramp", 2],
+    ]);
+    expect(deck(text).total).toBe(6);
+  });
+
+  it("put the commander category first whatever it is called", () => {
+    const columns = packColumns(
+      groupByCategory(deck(text).categories, deck(text).cards, nameOf),
+      () => 1,
+      3,
+    );
+    expect(columns[0]?.[0]?.category).toBe("Zenith");
+    expect(columns[0]?.[0]?.kind).toBe("commander");
+  });
+
+  it("both change when a drag moves a card", () => {
+    const signet = deck(text).cards.find((c) => nameOf(c) === "Arcane Signet");
+    if (!signet) throw new Error("no signet");
+    const moved = setCardCategories(
+      text,
+      signet.index,
+      dropOnto(signet.categories, "Ramp", "Artifacts", false),
+    );
+    expect(headers(moved)).toEqual([
+      ["Zenith", 1],
+      ["Artifacts", 2],
+      ["Lands", 3],
+      ["Ramp", 1],
+    ]);
+    expect(deck(moved).total).toBe(6);
   });
 });
 

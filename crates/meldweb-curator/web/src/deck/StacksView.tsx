@@ -179,9 +179,23 @@ function useDropTarget(onDrop: (secondary: boolean) => void) {
   };
 }
 
-const KIND_LABEL: Partial<Record<string, string>> = {
-  commander: "♛ ",
-};
+/** Archidekt's mark on the commander category, which always comes first. */
+function Crown() {
+  return (
+    <svg
+      className="stack-crown"
+      viewBox="0 0 24 24"
+      role="img"
+      aria-label="Commander"
+    >
+      <title>Commander</title>
+      <path
+        fill="currentColor"
+        d="M2 7l5 4 5-7 5 7 5-4-2 12H4L2 7zm2 14h16v2H4v-2z"
+      />
+    </svg>
+  );
+}
 
 function Stack({
   group,
@@ -210,9 +224,7 @@ function Stack({
     <section className="stack">
       <header className="stack-header">
         <h2>
-          {group.kind && (
-            <span aria-hidden="true">{KIND_LABEL[group.kind] ?? ""}</span>
-          )}
+          {group.kind === "commander" && <Crown />}
           {title}
         </h2>
         <span className="stack-qty">

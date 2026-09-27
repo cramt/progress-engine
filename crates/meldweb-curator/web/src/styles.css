@@ -49,9 +49,19 @@ main {
 }
 
 .stack-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   margin: 0;
   font-size: 15px;
   font-weight: 600;
+}
+
+.stack-crown {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: #d4a017;
 }
 
 .stack-qty {
@@ -211,19 +221,57 @@ main {
   font-size: 13px;
 }
 
-.deck-bar {
+/*
+ * Sticky under the drop strip (z 20) and above the stacks' drop targets (z 10).
+ * It runs the full width of main, padding included, so cards never show beside it.
+ */
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: -16px -24px 16px;
+  padding: 10px 24px;
+  background: var(--bg);
+  border-bottom: 1px solid rgb(127 127 127 / 0.25);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.08);
+}
+
+.toolbar-deck {
   display: flex;
   align-items: baseline;
-  gap: 16px;
+  gap: 10px;
+  min-width: 0;
 }
 
-.deck-bar h1 {
-  margin: 0 0 8px;
+.toolbar-name {
+  margin: 0;
+  font-size: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.deck-bar .muted {
+.toolbar-count,
+.toolbar-status {
   color: var(--muted);
   font-size: 14px;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.toolbar-search,
+.toolbar-quick-add,
+.toolbar-actions,
+.toolbar-history {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .stack-kind {

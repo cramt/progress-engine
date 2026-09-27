@@ -4,6 +4,7 @@ import lantern from "../../../../../decks/lantern.deck.toml?raw";
 import { declareCategory, parseDeck, setCardCategories } from "../deck";
 import { dropOnto } from "../deck/move";
 import { type OnDrop, StacksView } from "../deck/StacksView";
+import { Toolbar, UndoRedo } from "../deck/Toolbar";
 import { fetchPrintings } from "../scryfall";
 
 // The committed lantern deck, until the editor reads decks from GitHub.
@@ -125,28 +126,23 @@ function DeckPage() {
     .filter((line, i) => line !== before[i]).length;
   return (
     <main>
-      <div className="deck-bar">
-        <h1>lantern.deck.toml · {parsed.total} cards</h1>
-        <span className="muted">
-          {changed === 0
+      <Toolbar
+        name={parsed.name ?? "lantern.deck.toml"}
+        count={parsed.total}
+        status={
+          changed === 0
             ? "no changes"
-            : `${changed} line${changed === 1 ? "" : "s"} changed`}
-        </span>
-        <button
-          type="button"
-          onClick={undo}
-          disabled={history.past.length === 0}
-        >
-          Undo
-        </button>
-        <button
-          type="button"
-          onClick={redo}
-          disabled={history.future.length === 0}
-        >
-          Redo
-        </button>
-      </div>
+            : `${changed} line${changed === 1 ? "" : "s"} changed`
+        }
+        history={
+          <UndoRedo
+            onUndo={undo}
+            onRedo={redo}
+            canUndo={history.past.length > 0}
+            canRedo={history.future.length > 0}
+          />
+        }
+      />
       {refusal && (
         <p className="refusal" role="alert">
           {refusal}

@@ -27,6 +27,12 @@ function identifier(ref: CardRef): Identifier {
 const BATCH = 75;
 
 /**
+ * Scryfall allows `/cards/collection` 2 requests a second, so a batch starts
+ * no sooner than this after the one before it has answered.
+ */
+export const COLLECTION_INTERVAL_MS = 500;
+
+/**
  * Looks up every card's printing in as few requests as Scryfall allows.
  * Cards Scryfall cannot find are absent from the map rather than an error: the
  * deck is still the deck, and the view shows what the file names instead.
@@ -39,8 +45,7 @@ export async function fetchPrintings(
   ];
   const found = new Map<string, Printing>();
   for (let i = 0; i < wanted.length; i += BATCH) {
-    // Scryfall asks for 50-100 ms between requests.
-    if (i > 0) await new Promise((r) => setTimeout(r, 100));
+    if (i > 0) await new Promise((r) => setTimeout(r, COLLECTION_INTERVAL_MS));
     const batch = wanted.slice(i, i + BATCH);
     const response = await fetch("https://api.scryfall.com/cards/collection", {
       method: "POST",
