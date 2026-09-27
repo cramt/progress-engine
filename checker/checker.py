@@ -65,7 +65,9 @@ class Card:
     # A planeswalker's printed loyalty, the counters it enters with (CR
     # 306.5b), or None for anything else.
     loyalty: int | None = None
-    # Scryfall's oracle tags, as the index holds them: `otag:` in a file.
+    # Scryfall's oracle tags, as the index holds them: `otag:` in a file. A
+    # declared land drop reads `tapland`, `conditional-tapland` and `surveil`
+    # (see `LandDrop`).
     tags: frozenset[str] = frozenset()
     # Scryfall's `produced_mana` at face value, which is what `produces:` in a
     # file reads: a fetchland lists none.
@@ -1332,6 +1334,359 @@ def _cast_by(line: Line, name: str, turn: int, deepest: int) -> Callable[[Game],
         return line_path(g, line, deepest).cast_by(name, turn)
 
     return ask
+
+
+# --- The line with a declared land drop ---------------------------------------
+#
+# `line_path` pays from the gate's lands: whichever lands would pay, asked
+# afresh each turn, which is the reading a file takes when it declares no
+# `[land_drop]`. A file that declares one plays the lands its list chooses,
+# one a turn, and the line pays from those and nothing else. That is what
+# `drop_line_path` plays. Written from README ("One land drop, one declared
+# policy", "Delayed effects: Urza's Saga", "An activation the line pays for:
+# Expedition Map"), ADR 0019 and the Comprehensive Rules, and held to HANDS.md
+# hands 12, 17 and 42 by checker/test_land_drop.py:
+#
+# * The drop (CR 305.2: one land a turn, from the hand). The list is read in
+#   order and the first entry a land in hand matches is played; a land no entry
+#   names is played after every land one does, never not at all. A tie inside
+#   an entry goes to the deeper look, then to the card the decklist names
+#   first (README). ASSUMPTION (README "Effects"): the standard library gives a
+#   land tagged `surveil` or `scry` a look of one when it is played. A look
+#   digs deeper only where the file routes what it sees (`to_graveyard`):
+#   otherwise every card stays on top, the look moves nothing, and it breaks
+#   no tie, so Hedge Maze in decks/lantern.txt, whose surveil no file routes,
+#   is played in decklist order like any other land. (Measured against the
+#   engine on small decks rather than read from it: the README's "the deeper
+#   look" is the routed case, HANDS.md hand 12.) A land playable as a drop is
+#   the gate's (`playable_land`): a modal double-faced card's land face counts,
+#   Search for Azcanta does not.
+# * What a land pays: every land in play untaps, so a land played on an earlier
+#   turn pays once a turn; one played this turn pays this turn unless it enters
+#   tapped. What it pays is the gate's reading of it (`produces`, `makes_mana`,
+#   `lasts`): a fetchland pays the untapped lands it finds, Maze of Ith nothing,
+#   the Saga for the turn it lands and the two after.
+# * A delayed chapter: a Saga gets a lore counter as it enters and after each
+#   draw step (CR 714.2b, 714.3b), so chapter III resolves two turns after the
+#   drop, after that turn's draw and before its land drop; it searches the
+#   library for the first card it names that the library still holds and puts
+#   it onto the battlefield, and the Saga is sacrificed (CR 714.4). The Saga's
+#   {C} that turn is still that turn's mana (HANDS.md hand 17).
+# * An activation (CR 602.2b, 118.3): the cost before the colon is paid in
+#   full, a sacrifice in it takes the permanent out of play, and an artifact
+#   has no summoning sickness to wait out, so a copy the line cast this turn may
+#   be activated this turn. ASSUMPTION (README, ADR 0019): the line's entry that
+#   names the card first activates a copy in play, then casts a copy from hand,
+#   and does either whenever the pool pays, even with nothing left to find. It
+#   is paid after the drop, except where what it would fetch is a land the drop
+#   list ranks above every land in hand: then, if the library still holds that
+#   land, it is paid before the drop out of what is already in play, and the
+#   drop plays the land it found. The drop's own mana then pays only for what
+#   comes after.
+# * A tutor to hand is read from the card: "search your library for an
+#   artifact card [with mana value N or less], reveal it, put it into your
+#   hand" on a cast (Fabricate), an enters trigger (Trinket Mage) or a loyalty
+#   ability the walker's starting loyalty pays for (Tezzeret, Cruel Captain's
+#   −3 off four, CR 606.3-606.6, the same reading as the Seeker's). The card it
+#   found is in hand, so the line may cast it this turn; a land a tutor puts in
+#   hand waits for the next turn's drop (ADR 0017).
+# * Everything else is `line_path`'s: the first entry the pool pays for is
+#   cast, the line is read again from its top after every cast or activation,
+#   a rock pays only for what comes after it, a transmute and a chosen X are
+#   what the pilot pays, the commander is in hand from turn 1.
+
+
+_TO_HAND = re.compile(
+    r"^(?:[−-](\d+): )?(?:When [^,]*, )?(?:you may )?[Ss]earch your library for an? (\w+) card"
+    r"(?: with mana value (\d+) or less)?, reveal (?:it|that card), put it into your hand",
+    re.M,
+)
+
+
+def searches_to_hand(source: Card, target: Card) -> bool:
+    """Could `source`, cast, put `target` from the library into your hand that
+    turn: by resolving, by an enters trigger, or by a loyalty ability its
+    starting loyalty pays for?"""
+    for m in _TO_HAND.finditer(source.oracle):
+        minus, kind, most = m.group(1), m.group(2), m.group(3)
+        if minus is not None and (source.loyalty is None or int(minus) > source.loyalty):
+            continue
+        if kind.capitalize() not in target.type_line:
+            continue
+        if most is not None and _mana_value(target) > int(most):
+            continue
+        return True
+    return False
+
+
+_CHAPTER_III_ONTO_BATTLEFIELD = re.compile(
+    r"^III — Search your library for an? (\w+) card with mana cost \{0\} or \{1\}, put it onto "
+    r"the battlefield",
+    re.M,
+)
+
+
+def chapter_three_puts(saga: Card, target: Card) -> bool:
+    """Could `saga`'s third chapter put `target` onto the battlefield? Its mana
+    cost must be {0} or {1}."""
+    m = _CHAPTER_III_ONTO_BATTLEFIELD.search(saga.oracle)
+    return (
+        bool(m)
+        and m.group(1).capitalize() in target.type_line
+        and target.mana_cost in ("{0}", "{1}")
+    )
+
+
+_TAP_SACRIFICE_SEARCH = re.compile(
+    r"^((?:\{\d+\})+), \{T\}, Sacrifice this artifact: Search your library for an? (\w+) card, "
+    r"reveal it, put it into your hand",
+    re.M,
+)
+
+
+def activated_search(card: Card) -> tuple[str, str] | None:
+    """(cost, card type it finds) of an artifact's "[cost], {T}, Sacrifice
+    this artifact: Search your library for a ... card, reveal it, put it into
+    your hand", or None. Everything before the colon is the cost (CR 602.1a)."""
+    m = _TAP_SACRIFICE_SEARCH.search(card.oracle)
+    return (m.group(1), m.group(2).lower()) if m else None
+
+
+def _looks(card: Card) -> int:
+    """How deep a land looks when it is played: the standard library's surveil
+    and scry lands look one."""
+    return 1 if card.tags & {"surveil", "scry"} else 0
+
+
+@dataclass(frozen=True)
+class LandDrop:
+    """A declared `[land_drop] prefer`, one predicate over a land per entry,
+    and whether the file routes what a land's look sees (only then is one
+    look deeper than another)."""
+
+    prefer: tuple[Callable[[Card], bool], ...]
+    routed: bool = False
+
+    def rank(self, card: Card) -> int:
+        return next((i for i, wants in enumerate(self.prefer) if wants(card)), len(self.prefer))
+
+    def choose(self, lands: list[Card], decklist: list[Card]) -> Card:
+        """The land played from `lands`: the best-ranked entry, then the
+        deeper look, then the card the decklist names first."""
+        position = {c.name: i for i, c in reversed(list(enumerate(decklist)))}
+        return min(
+            lands,
+            key=lambda c: (
+                self.rank(c),
+                -_looks(c) if self.routed else 0,
+                position.get(c.name, len(decklist)),
+            ),
+        )
+
+
+def drop_line_path(
+    game: Game,
+    line: Line,
+    last_turn: int,
+    land_drop: LandDrop,
+    fetches: dict[str, tuple[str, ...]] | None = None,
+    puts: dict[str, tuple[str, ...]] | None = None,
+    modes: dict[str, Mode] | None = None,
+    chapters: dict[str, tuple[str, ...]] | None = None,
+) -> LinePath:
+    """Play `line` out through `last_turn` with the lands `land_drop` plays.
+
+    `fetches` maps a card to what it puts into your hand when cast, `puts` to
+    what it puts onto the battlefield (both the first of them the library still
+    holds and the card can find), `modes` to how the pilot plays it, and
+    `chapters` maps a Saga land to what its third chapter puts onto the
+    battlefield. An artifact with a tap-and-sacrifice search is activated for
+    what `fetches` names for it, and its cast fetches nothing. Cached on the
+    game."""
+    fetches = fetches or {}
+    puts = puts or {}
+    modes = modes or {}
+    chapters = chapters or {}
+    key = (
+        "drop-path",
+        line,
+        last_turn,
+        land_drop,
+        tuple(sorted(fetches.items())),
+        tuple(sorted(puts.items())),
+        tuple(sorted(modes.items(), key=lambda kv: kv[0])),
+        tuple(sorted(chapters.items())),
+    )
+    if key in game._line_cache:
+        return game._line_cache[key]
+    named = {n for entry in line for n in entry}
+    identity = frozenset().union(*(c.identity for c in game.commanders))
+    order = {n: j for entry in line for j, n in enumerate(entry)}
+    g = game
+    hand: list[Card] = [c for c in game.commanders if c.name in named]
+    lands: list[Card] = []  # playable lands in hand
+    in_play: list[tuple[int, Card]] = []  # (turn played, land)
+    sources: list[Source] = []  # what the line cast that makes mana
+    ready: list[Card] = []  # permanents the line cast with an activation, still in play
+    waiting: list[tuple[int, Card]] = []  # (turn its chapter III resolves, the Saga)
+    taken: list[str] = []  # names seen or taken out of the library
+    seen_so_far = 0
+    path = LinePath()
+
+    def holds(name: str) -> bool:
+        return sum(1 for c in g.library if c.name == name) > taken.count(name)
+
+    def take(name: str) -> Card:
+        """Take one copy of `name` out of the library; later draws move up."""
+        nonlocal g
+        taken.append(name)
+        below = next(
+            (i for i in range(seen_so_far, len(g.cards)) if g.cards[i].name == name), None
+        )
+        if below is not None:
+            g = Game(
+                g.cards[:below] + g.cards[below + 1 :],
+                g.on_the_draw,
+                g.library_size - 1,
+                commanders=g.commanders,
+                library=g.library,
+            )
+        return next(c for c in g.library if c.name == name)
+
+    def pays(played: int, land: Card, t: int) -> bool:
+        if not land.makes_mana:
+            return False
+        if land.lasts is not None and t - played >= land.lasts:
+            return False  # sacrificed by its last chapter
+        return not (land.enters_tapped and played == t)
+
+    def activation_finds(card: Card) -> str | None:
+        """What activating `card` would fetch: the first card `fetches` names
+        for it, of the type its text finds, that the library still holds."""
+        _, kind = activated_search(card)
+        for wanted in fetches.get(card.name, ()):
+            copy = next(c for c in g.library if c.name == wanted)
+            if kind.capitalize() in copy.type_line and holds(wanted):
+                return wanted
+        return None
+
+    def activation_cost(card: Card) -> Cost:
+        return _parse_cost_cached(activated_search(card)[0])
+
+    for t in range(1, last_turn + 1):
+        new = g.seen(t)[seen_so_far:]
+        seen_so_far = g.seen_count(t)
+        taken += [c.name for c in new]
+        hand += [c for c in new if c.name in named]
+        lands += [c for c in new if c.playable_land]
+        put: list[Card] = []
+        cast: list[Card] = []
+        # Chapter III, after the draw step and before the drop.
+        for _, saga in [w for w in waiting if w[0] == t]:
+            for wanted in chapters.get(saga.name, ()):
+                target = next(c for c in g.library if c.name == wanted)
+                if holds(wanted) and chapter_three_puts(saga, target):
+                    put.append(take(wanted))
+                    break
+        waiting = [w for w in waiting if w[0] != t]
+        units: list[Unit] = [(0, land.produces) for p, land in in_play if pays(p, land, t)]
+        units += [(0, s.palette) for s in sources for _ in range(s.amount)]
+        bill: list[Cost] = []
+        # The one payment before the drop: an activation for a land the drop
+        # ranks above every land in hand, out of what is already in play.
+        for permanent in list(ready):
+            wanted = activation_finds(permanent)
+            if wanted is None:
+                continue
+            target = next(c for c in g.library if c.name == wanted)
+            if not target.playable_land or any(
+                land_drop.rank(c) <= land_drop.rank(target) for c in lands
+            ):
+                continue
+            if _settles(units, bill + [activation_cost(permanent)]):
+                bill.append(activation_cost(permanent))
+                ready.remove(permanent)
+                lands.append(take(wanted))
+        # The drop.
+        if lands:
+            land = land_drop.choose(lands, g.library)
+            lands.remove(land)
+            in_play.append((t, land))
+            if pays(t, land, t):
+                units.append((len(bill), land.produces))
+            if land.name in chapters:
+                waiting.append((t + 2, land))
+        # The line.
+        while True:
+            chosen = None
+            for entry in line:
+                for permanent in ready:
+                    if permanent.name in entry and _settles(
+                        units, bill + [activation_cost(permanent)]
+                    ):
+                        chosen = ("activate", permanent, activation_cost(permanent))
+                        break
+                if chosen:
+                    break
+                options = [c for c in hand if c.name in entry]
+                options.sort(key=lambda c: (_paid(c, modes), order[c.name]))
+                for c in options:
+                    cost = _parse_cost_cached(play_cost(c, modes.get(c.name)))
+                    if _settles(units, bill + [cost]):
+                        chosen = ("cast", c, cost)
+                        break
+                if chosen:
+                    break
+            if not chosen:
+                break
+            how, card, cost = chosen
+            bill.append(cost)
+            if how == "activate":
+                # Sacrificed as part of the cost: at most once, ever.
+                ready.remove(card)
+                wanted = activation_finds(card)
+                if wanted is not None:
+                    found = take(wanted)
+                    if found.playable_land:
+                        lands.append(found)  # waits for the next turn's drop
+                    else:
+                        hand.append(found)
+                continue
+            cast.append(card)
+            hand.remove(card)
+            src = mana_source(card, identity)
+            if src is not None:
+                if not src.sick:
+                    units += [(len(bill), src.palette)] * src.amount
+                sources.append(src)
+            if activated_search(card) is not None:
+                if card.name in fetches:
+                    ready.append(card)
+                continue
+            mode = modes.get(card.name)
+            for wanted in fetches.get(card.name, ()):
+                if not holds(wanted):
+                    continue
+                target = next(c for c in g.library if c.name == wanted)
+                finds = (
+                    transmute_finds(card, target)
+                    if mode and mode.transmute
+                    else searches_to_hand(card, target)
+                )
+                if finds:
+                    found = take(wanted)
+                    (lands if found.playable_land else hand).append(found)
+                    break
+            for wanted in puts.get(card.name, ()):
+                if not holds(wanted):
+                    continue
+                target = next(c for c in g.library if c.name == wanted)
+                if puts_onto_battlefield(card, target, mode.x if mode else None):
+                    put.append(take(wanted))
+                    break
+        path.append(Turn(t, cast, units, bill, g, put, list(taken)))
+    game._line_cache[key] = path
+    return path
 
 
 # --- Questions ----------------------------------------------------------------

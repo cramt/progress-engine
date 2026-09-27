@@ -220,18 +220,22 @@ def main() -> int:
             for deck, criteria, draw in runs
         ]
         dealt = deal_all(deals, args.decks, args.jobs)
-        engine: dict[tuple[str, bool], dict] = {}
-        for (deck, _, draw), future in zip(runs, answered):
-            engine.setdefault((deck, draw), {}).update(future.result())
+        # Keyed by the file as well as the seat: two files may ask questions
+        # of the same name, and each question is held to its own file's answer.
+        engine: dict[tuple[str, str, bool], dict] = {}
+        for (deck, criteria, draw), future in zip(runs, answered):
+            engine[(deck, criteria, draw)] = future.result()
 
     rows, failures = [], 0
     for deal, hits in zip(deals, dealt):
         seat = "draw" if deal.draw else "play"
-        answers = engine.get((deal.deck, deal.draw), {})
         for q in _questions(deal.names):
+            answers = engine.get((deal.deck, q.criteria, deal.draw), {})
             if not q.pending:
                 if q.name not in answers:
-                    raise SystemExit(f"compare: the engine answered no criterion named {q.name!r}")
+                    raise SystemExit(
+                        f"compare: {q.criteria} answered no criterion named {q.name!r}"
+                    )
                 row, failed = judge(q, answers[q.name], hits[q.name], deal.games)
                 failures += failed
             elif q.name in answers:
