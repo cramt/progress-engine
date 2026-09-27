@@ -1,0 +1,37 @@
+# "There's No Place Like Loam" — https://archidekt.com/decks/26329102
+#
+# The Loam north star by one mill alone: Aftermath Analyst, then Life from the
+# Loam. ADR-0017 §4's case, and the file that shows it.
+#
+# WHY IT IS EXACT
+# ---------------
+# The Analyst mills three when it enters and keeps none of them, and nothing
+# in this run reads those three before the question does: no tutor searches
+# the library they left, no card chooses among them, and the board never
+# reads the graveyard. A shuffled library does not care where in the order a
+# block of cards sits, so the engine deals the three LAST, after turn 5, and
+# only as finely as the question reads them: Loam, or not Loam. Filed under
+# the turn the Analyst was cast, they are in the graveyard from then on, as
+# they would have been. The sampler deals them where they fall, and the two
+# agree.
+#
+# Measured on the play, turn 5, 7 groups: the walk counts 27,283,512 paths
+# with the mill dealt where it fired, over the 5,000,000 ceiling, so the
+# question was sampled (10.15% ± 0.07). Dealt last it counts 1,459,454 and is
+# enumerated: 10.19%, exact. On the draw it is 8,468,217 paths dealt last, so
+# that seat is still sampled.
+#
+# Not in loam-cast.criteria.toml, whose line has Spellseeker in it: a tutor
+# searches the library, and three cards not yet dealt would still be in it to
+# be found. Nor Rumble or Tilling, which choose a card to keep from what they
+# turn over. Every mill there is dealt where it fired.
+#
+# A LOWER BOUND on the north star, as loam-cast.criteria.toml's is: one route
+# of five.
+
+[casting]
+prefer = ['name:"Aftermath Analyst"', 'name:"Life from the Loam"']
+
+[[criterion]]
+name = "Life from the Loam in the graveyard by turn 5, cast or milled by the Analyst"
+require = [{ turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }]

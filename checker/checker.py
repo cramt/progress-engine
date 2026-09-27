@@ -1132,6 +1132,19 @@ def _seeker_and_loam_cast_by_5(g: Game) -> bool:
     return path.cast_by(LOAM, 5) and path.cast_by(SEEKER, 5)
 
 
+# [casting] prefer = ['name:"Aftermath Analyst"', 'name:"Life from the Loam"']
+#
+# The Analyst alone, as loam-analyst.criteria.toml asks it: "When this creature
+# enters, mill three cards", and then Loam, cast off whatever is left.
+ANALYST_LINE = ((ANALYST,), (LOAM,))
+ANALYST_MILLS = {ANALYST: Mill(3)}
+
+
+def _analyst_route_loam_in_graveyard_by_5(g: Game) -> bool:
+    # { turn = 5, query = 'name:"Life from the Loam"', zone = "graveyard", min = 1 }
+    return line_path(g, ANALYST_LINE, 5, mills=ANALYST_MILLS).in_graveyard_by(LOAM, 5)
+
+
 def _loam_two_drop_and_mana_t3(g: Game) -> bool:
     # { turn = 3, query = <the four {1}{G} Loam Access cards>, min = 1 }
     # { turn = 3, can_cast = "{1}{G}" }
@@ -1281,6 +1294,13 @@ QUESTIONS: list[Question] = [
         "Spellseeker and Life from the Loam both cast by turn 5",
         _seeker_and_loam_cast_by_5,
         LOAM_CAST_DEPTH,
+    ),
+    Question(
+        "loam",
+        "loam-analyst.criteria.toml",
+        "Life from the Loam in the graveyard by turn 5, cast or milled by the Analyst",
+        _analyst_route_loam_in_graveyard_by_5,
+        5 + 3,  # turn 5, and the three cards the Analyst mills
     ),
     Question(
         "loam",

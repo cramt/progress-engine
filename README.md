@@ -1576,6 +1576,28 @@ Both seats are sampled, as they were before: a class with a sized gap has no
 closed-form width, so it is counted against the ceiling, and this one passes
 it. `checker/` replays each mill from the card's text and agrees.
 
+**A mill nothing reads is dealt last, and only as finely as the question reads
+it** (ADR-0017 §4). A shuffled library does not care where in the order a
+block of cards sits, so a mill that keeps none of its cards, in a run where no
+tutor searches the library it came from, is dealt after the last turn instead
+of where it fired, over only what the class's questions count in the
+graveyard and the library — Loam or not Loam. Its cards are filed under the
+turn it fired, so a clause about any turn reads what it would have. It is a
+narrowing: it moves no number, and every committed file answers what it
+answered before, to the digit. It changes what can be answered exactly.
+`decks/loam-analyst.criteria.toml` is the Analyst's route alone:
+
+| On `decks/loam.txt`, turn 5, the Analyst then Loam | paths walked | answer |
+|---|---|---|
+| on the play, milled where it fired | 27,283,512 | 10.15% ± 0.07, sampled |
+| on the play, dealt last | 1,459,454 | **10.19%, exact** |
+| on the draw, dealt last | 8,468,217 | sampled |
+
+Rumble and Tilling choose from their cards, Wrenn and Seven sends the lands
+among them to hand, and `loam-cast.criteria.toml` has Spellseeker searching the
+library, so every mill there is still dealt where it fired. The sampler never
+defers, which makes its agreement the test of the claim.
+
 **Not here yet.** Vastlands Scavenger's Bind to Life mills seven, but it is a
 copy cast later from a creature already in play, which is a second casting the
 line does not make. A mill that fires on an attack or a landfall has no
