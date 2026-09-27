@@ -38,9 +38,18 @@ enum Command {
         #[facet(args::positional)]
         file: PathBuf,
     },
-    /// Run a criteria file against a decklist.
-    Test {
+    /// Convert Archidekt's text export into a `.deck.toml`, printed to stdout.
+    ///
+    /// Archidekt's categories become declared ones, typed by its naming
+    /// conventions, and each printing is written with its name as a comment.
+    Import {
         /// Decklist file in Archidekt format.
+        #[facet(args::positional)]
+        file: PathBuf,
+    },
+    /// Run a criteria file against a deck.
+    Test {
+        /// Deck file: a `.deck.toml`, or Archidekt's text export.
         #[facet(args::positional)]
         deck: PathBuf,
         /// TOML criteria file.
@@ -175,6 +184,12 @@ fn main() -> Result<()> {
                 })
                 .collect();
             println!("{}", facet_json::to_string_pretty(&augmented)?);
+            Ok(())
+        }
+        Command::Import { file } => {
+            let text = std::fs::read_to_string(&file)
+                .with_context(|| format!("reading decklist {}", file.display()))?;
+            print!("{}", chip_decklist::deck::import_archidekt(&text)?);
             Ok(())
         }
         Command::Test {

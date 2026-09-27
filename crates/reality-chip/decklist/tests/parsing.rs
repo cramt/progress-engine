@@ -156,12 +156,12 @@ fn rewriting_categories_touches_nothing_else_on_the_line() {
     assert_eq!(decklist::with_categories("// a comment", &[]), None);
 }
 
-/// Every line of both committed decks, given back its own categories, parses
-/// to the same entry: the writer and the reader agree on the format.
+/// Every line of both decks as Archidekt exported them, given back its own
+/// categories, parses to the same entry: the writer and the reader agree.
 #[test]
 fn rewriting_a_real_deck_round_trips_through_the_parser() {
     for deck in ["lantern.txt", "loam.txt"] {
-        let path = format!("{}/../../../decks/{deck}", env!("CARGO_MANIFEST_DIR"));
+        let path = format!("{}/tests/fixtures/{deck}", env!("CARGO_MANIFEST_DIR"));
         let text = std::fs::read_to_string(path).unwrap();
         for (i, line) in text.lines().enumerate() {
             let Some(entry) = decklist::parse_line(line, i + 1).unwrap() else {

@@ -69,7 +69,7 @@ cargo test --all
 cargo clippy --all-targets -- -D warnings
 cargo fmt --all
 cargo test -p gauntlet-sim --test acceptance <name>   # one test
-cargo run --release -p gauntlet-cli -- test decks/lantern.txt decks/lantern.criteria.toml --index decks/index.jsonl
+cargo run --release -p gauntlet-cli -- test decks/lantern.deck.toml decks/lantern.criteria.toml --index decks/index.jsonl
 python3 checker/compare.py   # independent Python Monte Carlo vs target/release/gauntlet; exits 1 on disagreement
 
 # Meldweb Curator, inside `nix develop` (node, pnpm, biome and wasm-bindgen come from the flake)
@@ -106,12 +106,12 @@ green suite has checked nothing.
   is the deliverable, so "the tests pass" is not evidence that the number is
   right.
 - **Measure on the real decks.** `decks/` holds two Commander lists,
-  `lantern.txt` and `loam.txt`, with criteria files beside them. Report group
+  `lantern.deck.toml` and `loam.deck.toml`, with criteria files beside them. Report group
   counts, composition counts and wall times from a run rather than estimating
   them; `enumerations` in the JSON output carries them.
 - **`decks/index.jsonl` carries all ten oracle tags**, so the committed
   criteria files answer against the committed index and a clone can reproduce
-  every number in them: `gauntlet test decks/lantern.txt
+  every number in them: `gauntlet test decks/lantern.deck.toml
   decks/lantern.criteria.toml --index decks/index.jsonl`. It was built with
   `--from` and carried none until the `sync` in #59; if you rebuild it, check
   `provenance.index_updated_at` is a date rather than null before committing,

@@ -10,7 +10,7 @@ import {
 
 const repo = new URL("../../../../", import.meta.url);
 const lantern = () =>
-  importArchidekt(readFileSync(new URL("decks/lantern.txt", repo), "utf8"));
+  readFileSync(new URL("decks/lantern.deck.toml", repo), "utf8");
 
 beforeAll(() => {
   loadDeckSync(
@@ -21,7 +21,7 @@ beforeAll(() => {
 });
 
 describe("the deck, through wasm", () => {
-  it("imports lantern.txt as Gauntlet reads it: 100 cards, Rashmi commanding", () => {
+  it("reads lantern.deck.toml as Gauntlet does: 100 cards, Rashmi commanding", () => {
     const parsed = parseDeck(lantern());
     if (parsed.kind !== "deck") throw new Error(parsed.message);
     expect(parsed.total).toBe(100);
@@ -44,5 +44,17 @@ describe("the deck, through wasm", () => {
     expect(parseDeck("cards = [{ qty = 1 }]")).toMatchObject({
       kind: "refused",
     });
+  });
+});
+
+describe("importing Archidekt", () => {
+  it("types a commander category and names the printing in a comment", () => {
+    const text = importArchidekt(
+      "1x Rashmi and Ragavan (moc) 94 [Commander{top}]\n",
+    );
+    expect(text).toContain(
+      '{ printing = "moc/94", in = ["Commander"] },  # Rashmi and Ragavan',
+    );
+    expect(parseDeck(text)).toMatchObject({ kind: "deck", total: 1 });
   });
 });

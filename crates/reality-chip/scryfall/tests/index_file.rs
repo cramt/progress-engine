@@ -153,3 +153,70 @@ fn the_header_carries_the_keywords_of_the_cards_written_with_it() {
     assert!(vocabulary.contains("flying"));
     assert!(!vocabulary.contains("trample"));
 }
+
+fn with_oracle_ids(mut index: Index) -> Index {
+    for card in index.cards.values_mut() {
+        card.oracle_id = Some(format!("oracle-{}", card.name));
+    }
+    index
+}
+
+/// ADR-0020: a deck may name a card by printing, and the index is what says
+/// which card `cmr/472` is.
+#[test]
+fn a_printing_reads_back_as_the_card_it_is_a_printing_of() {
+    let mut index = with_oracle_ids(index_of(&["Sol Ring", "Arcane Signet"]));
+    let filed = index.attach_printings(
+        [
+            ("oracle-Sol Ring", "CMR", "472"),
+            ("oracle-Sol Ring", "ltc", "284"),
+            ("oracle-Arcane Signet", "woc", "145"),
+            // A printing of a card the index does not hold, such as a token.
+            ("oracle-Treasure", "tltr", "22"),
+        ],
+        Some("2026-09-27".into()),
+    );
+    assert_eq!(filed, 3);
+
+    let file = memory(&index.to_lines().unwrap()).unwrap();
+    assert!(file.has_printings());
+    assert_eq!(
+        file.printing("cmr", "472").unwrap().as_deref(),
+        Some("Sol Ring")
+    );
+    assert_eq!(
+        file.printing("CMR", "472").unwrap().as_deref(),
+        Some("Sol Ring")
+    );
+    assert_eq!(
+        file.printing("woc", "145").unwrap().as_deref(),
+        Some("Arcane Signet")
+    );
+    assert_eq!(file.printing("tltr", "22").unwrap(), None);
+    // Printings are not cards: the card count and card lookups are unchanged.
+    assert_eq!(file.len(), 2);
+    assert!(!file.contains("printing:cmr/472"));
+}
+
+#[test]
+fn an_index_without_printings_says_so() {
+    let file = memory(&index_of(&["Sol Ring"]).to_lines().unwrap()).unwrap();
+    assert!(!file.has_printings());
+    assert_eq!(file.printing("cmr", "472").unwrap(), None);
+}
+
+#[test]
+fn a_missing_printing_line_is_a_truncated_index() {
+    let mut index = with_oracle_ids(index_of(&["Sol Ring"]));
+    index.attach_printings(
+        [("oracle-Sol Ring", "cmr", "472")],
+        Some("2026-09-27".into()),
+    );
+    let text = index.to_lines().unwrap();
+    let cut: String = text
+        .lines()
+        .filter(|l| !l.starts_with("printing:"))
+        .map(|l| format!("{l}\n"))
+        .collect();
+    assert!(memory(&cut).is_err());
+}

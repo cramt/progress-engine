@@ -4,7 +4,7 @@ Settled for [#80](https://github.com/cramt/progress-engine/issues/80). The Lante
 
 ## What each route is worth
 
-Measured with `docs/research/tutor-routes.py`, which lives outside `crates/` and reads nothing in them. It deals 4,000 shuffles of `decks/lantern.txt` per seat and asks, per deal, whether *some* line reaches the north star with a given set of routes switched on. Its pilot is clairvoyant about their own library, so its levels sit above what a declared line reads; every set is played on the same deals, and the differences are what this ADR uses. "Today" is the hard-cast Lantern plus the three routes that already ship as a cast fetch or a delayed fetch: Trinket Mage, Fabricate, Tezzeret, Cruel Captain, and Urza's Saga.
+Measured with `docs/research/tutor-routes.py`, which lives outside `crates/` and reads nothing in them. It deals 4,000 shuffles of `decks/lantern.deck.toml` per seat and asks, per deal, whether *some* line reaches the north star with a given set of routes switched on. Its pilot is clairvoyant about their own library, so its levels sit above what a declared line reads; every set is played on the same deals, and the differences are what this ADR uses. "Today" is the hard-cast Lantern plus the three routes that already ship as a cast fetch or a delayed fetch: Trinket Mage, Fabricate, Tezzeret, Cruel Captain, and Urza's Saga.
 
 Rocks counted as ADR-0018 counts them; 4,000 deals per seat, seed 80. *Alone* is today plus that route; *last out* is everything minus it; *in order* is what it adds when the routes are added in the order this ADR builds them.
 
@@ -74,7 +74,7 @@ Tickets 1 and 2 are independent of each other; Whir of Invention needs both. Tic
 
 ## What it costs
 
-**No width of its own.** Each route is a removal or a deterministic change of state, and adds no group beyond the card the line names. That card costs a group, as any `[casting]` entry does: adding Dizzy Spell, Tezzeret the Seeker and Expedition Map to a line that already casts the Lantern, the three hand tutors and plays the Saga first takes it from 22 groups and 277,368,474,240 compositions to 25 groups and 1,027,177,734,375 at turn 5 on the play (`gauntlet test` on `decks/lantern.txt`). Both are far over the ceiling and sampled, as the north star has been since it priced a cost; nothing here moves a question from exact to sampled.
+**No width of its own.** Each route is a removal or a deterministic change of state, and adds no group beyond the card the line names. That card costs a group, as any `[casting]` entry does: adding Dizzy Spell, Tezzeret the Seeker and Expedition Map to a line that already casts the Lantern, the three hand tutors and plays the Saga first takes it from 22 groups and 277,368,474,240 compositions to 25 groups and 1,027,177,734,375 at turn 5 on the play (`gauntlet test` on `decks/lantern.deck.toml`). Both are far over the ceiling and sampled, as the north star has been since it priced a cost; nothing here moves a question from exact to sampled.
 
 **The sampler learns nothing separately.** It walks the same `Board` ([ADR-0013](0013-one-board-deterministic-parallelism.md)), so its agreement is asserted at the three levels of [ADR-0001](0001-exact-enumeration-with-a-sampling-oracle.md) and is not evidence on its own. The independent evidence is `checker/`, which learns each route from the Comprehensive Rules, README and HANDS.md, never from `crates/`: loyalty abilities at sorcery speed (CR 606), transmute (CR 702.53), activated-ability costs (CR 602.2, 118.3), and sacrifice as a cost.
 

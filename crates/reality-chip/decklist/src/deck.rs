@@ -543,3 +543,19 @@ fn key(s: &str) -> String {
         quote(s)
     }
 }
+
+/// Archidekt's text export as `.deck.toml` text: [`Deck::from_archidekt`],
+/// written with each printing's name as a comment. The name is the one
+/// Archidekt gave that line, and a comment is never read back, so it cannot
+/// disagree with the printing it sits beside.
+pub fn import_archidekt(text: &str) -> Result<String, ImportError> {
+    let deck = Deck::from_archidekt(text)?;
+    let names: std::collections::HashMap<Printing, String> = crate::parse(text)?
+        .into_iter()
+        .filter_map(|e| {
+            let p = Printing::parse(&format!("{}/{}", e.set?, e.num?))?;
+            Some((p, e.name))
+        })
+        .collect();
+    Ok(deck.to_toml(|p| names.get(p).cloned()))
+}

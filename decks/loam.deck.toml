@@ -1,0 +1,119 @@
+cards = [
+  { printing = "eoc/91", in = ["Land Recursion", "Loam Access"] },  # Aftermath Analyst
+  { printing = "bro/256", in = ["Land - Utility"] },  # Argoth, Sanctum of Nature
+  { printing = "soc/263", in = ["Interaction"] },  # Beast Within
+  { printing = "rvr/133", in = ["Ramp"] },  # Birds of Paradise
+  { printing = "war/244", in = ["Land - Sac Utility"] },  # Blast Zone
+  { printing = "mom/219", in = ["Commander", "Discard Outlet - Hand"] },  # Borborygmos and Fblthp
+  { printing = "neo/266", in = ["Land - Channel"] },  # Boseiju, Who Endures
+  { printing = "plst/C20-4", in = ["Discard Payoff"] },  # Brallin, Skyshark Rider
+  { printing = "eoe/251", in = ["Land - Fixing"] },  # Breeding Pool
+  { printing = "c19/135", in = ["Yard Cast Payoff", "Damage Engine"] },  # Burning Vengeance
+  { printing = "plst/M20-125", in = ["Discard Outlet - Hand", "Loam Access", "Damage Engine"] },  # Cavalier of Flame
+  { printing = "tdc/349", in = ["Land - Sac Utility"] },  # Cephalid Coliseum
+  { printing = "clu/81", in = ["Card Advantage", "Discard Outlet - Hand", "From Graveyard - Flashback"] },  # Chemister's Insight
+  { printing = "soc/52", in = ["Land - Cycling", "Discard Outlet - Hand"] },  # Coastal Peak
+  { printing = "tdc/352", in = ["Land - Sac Utility"] },  # Command Beacon
+  { printing = "scd/297", in = ["Land - Utility"] },  # Command Tower
+  { printing = "msc/171", in = ["Land Recursion"] },  # Conduit of Worlds
+  { printing = "c18/137", in = ["Land Recursion", "From Graveyard - Flashback"] },  # Creeping Renaissance
+  { printing = "j22/644", in = ["Ramp"] },  # Cultivate
+  { printing = "who/80", in = ["Discard Outlet - Yard", "From Graveyard - Retrace"] },  # Decaying Time Loop
+  { printing = "soc/194", in = ["Card Advantage", "From Graveyard - Flashback"] },  # Deep Analysis
+  { printing = "j25/764", in = ["Land - Cycling", "Discard Outlet - Hand"] },  # Desert of the Fervent
+  { printing = "plst/C15-149", in = ["Card Advantage", "Discard Outlet - Hand", "From Graveyard - Flashback"] },  # Desperate Ravings
+  { printing = "tdc/359", in = ["Land - Sac Utility", "Discard Outlet - Hand"] },  # Drownyard Temple
+  { printing = "cmm/284", in = ["Ramp"] },  # Elvish Mystic
+  { printing = "msc/241", in = ["Land - Fixing"] },  # Exotic Orchard
+  { printing = "who/278", in = ["Land - Fixing", "Land - Sac Utility"] },  # Fiery Islet
+  { printing = "plst/EMA-131", in = ["Discard Outlet - Yard", "From Graveyard - Retrace", "Damage Engine"] },  # Flame Jab
+  { printing = "mh3/154", in = ["Ramp"] },  # Flare of Cultivation
+  { printing = "sos/271", qty = 5, in = ["Land - Basic"] },  # Forest
+  { printing = "j25/766", in = ["Land - Cycling", "Discard Outlet - Hand"] },  # Forgotten Cave
+  { printing = "eoc/96", in = ["Discard Outlet - Yard", "From Graveyard - Retrace", "Damage Engine"] },  # Formless Genesis
+  { printing = "tdc/153", in = ["Discard Outlet - Hand", "Loam Access", "Self-Mill & Filtering"] },  # Frantic Search
+  { printing = "j22/539", in = ["Discard Payoff", "Discard Outlet - Hand"] },  # Glint-Horn Buccaneer
+  { printing = "eoe/192", in = ["Land Recursion", "Loam Access"] },  # Icetill Explorer
+  { printing = "sos/268", qty = 3, in = ["Land - Basic"] },  # Island
+  { printing = "m3c/350", in = ["Land - Bounce"] },  # Izzet Boilerworks
+  { printing = "rvr/190", in = ["Interaction", "Discard Outlet - Hand", "Card Advantage"] },  # Izzet Charm
+  { printing = "eoc/164", in = ["Land - Fixing"] },  # Karplusan Forest
+  { printing = "plst/IKO-250", in = ["Land - Cycling", "Discard Outlet - Hand"] },  # Ketria Triome
+  { printing = "ecc/113", in = ["Ramp"] },  # Kodama's Reach
+  { printing = "tdc/96", in = ["Loam Engine", "Loam Access"] },  # Life from the Loam
+  { printing = "znc/93", in = ["Discard Outlet - Hand", "Damage Engine"] },  # Living Twister
+  { printing = "eoc/99", in = ["Discard Outlet - Hand", "Graveyard Recursion"] },  # Loamcrafter Faun
+  { printing = "eoc/166", in = ["Land - Cycling", "Discard Outlet - Hand"] },  # Lonely Sandbar
+  { printing = "j25/685", in = ["Ramp"] },  # Lotus Cobra
+  { printing = "blb/183", in = ["Land Recursion", "Loam Access"] },  # Lumra, Bellow of the Woods
+  { printing = "otc/173", in = ["Discard Outlet - Hand"] },  # Magmatic Insight
+  { printing = "mh3/161", in = ["Self-Mill & Filtering", "Loam Access"] },  # Malevolent Rumble
+  { printing = "ecl/182", in = ["Self-Mill & Filtering", "Loam Access"] },  # Midnight Tilling
+  { printing = "mh2/250", in = ["Land - Fixing"] },  # Misty Rainforest
+  { printing = "dft/237", in = ["Discard Payoff"] },  # Monument to Endurance
+  { printing = "sos/270", qty = 4, in = ["Land - Basic"] },  # Mountain
+  { printing = "soc/388", in = ["Land - Fixing", "Graveyard Recursion"] },  # Mystic Sanctuary
+  { printing = "eoc/101", in = ["Ramp"] },  # Nature's Lore
+  { printing = "tor/135", in = ["Graveyard Recursion", "Discard Outlet - Hand"] },  # Nostalgic Dreams
+  { printing = "onc/110", in = ["Graveyard Protection"] },  # Noxious Revival
+  { printing = "c19/91", in = ["Discard Outlet - Yard", "From Graveyard - Retrace"] },  # Oona's Grace
+  { printing = "neo/271", in = ["Land - Channel"] },  # Otawara, Soaring City
+  { printing = "mh1/244", in = ["Land - Fixing"] },  # Prismatic Vista
+  { printing = "soc/325", in = ["Interaction", "Graveyard Protection"] },  # Quandrix Command
+  { printing = "m3c/241", in = ["Land Recursion"] },  # Ramunap Excavator
+  { printing = "otc/311", in = ["Land - Sac Utility", "Damage Engine"] },  # Ramunap Ruins
+  { printing = "iko/203", in = ["Discard Payoff"] },  # Rielle, the Everwise
+  { printing = "mh2/254", in = ["Land - Fixing"] },  # Scalding Tarn
+  { printing = "c19/95", in = ["Card Advantage", "Yard Cast Payoff"] },  # Secrets of the Dead
+  { printing = "ecc/167", in = ["Land - Cycling", "Discard Outlet - Hand"] },  # Sheltered Thicket
+  { printing = "plst/MH1-146", in = ["Interaction", "Loam Access", "Self-Mill & Filtering"] },  # Shenanigans
+  { printing = "dsc/298", in = ["Land - Bounce"] },  # Simic Growth Chamber
+  { printing = "mh3/169", in = ["Land Recursion", "Loam Access", "Discard Outlet - Yard"] },  # Six
+  { printing = "neo/276", in = ["Land - Channel"] },  # Sokenzan, Crucible of Defiance
+  { printing = "cmm/120", in = ["Tutor", "Loam Access"] },  # Spellseeker
+  { printing = "msc/705", in = ["Discard Payoff"] },  # Spider-Man, New Champion
+  { printing = "soc/254", in = ["Discard Outlet - Hand", "From Graveyard - Retrace"] },  # Squee, Goblin Nabob
+  { printing = "trk/298", in = ["Land - Fixing"] },  # Steam Vents
+  { printing = "soa/24", in = ["Card Advantage"] },  # Stock Up
+  { printing = "trk/299", in = ["Land - Fixing"] },  # Stomping Ground
+  { printing = "c20/57", in = ["Discard Payoff"] },  # Surly Badgersaur
+  { printing = "c20/162", in = ["Loam Engine", "Discard Outlet - Hand"] },  # Tectonic Reformation
+  { printing = "otj/75", in = ["Interaction", "Discard Outlet - Hand", "Card Advantage"] },  # Three Steps Ahead
+  { printing = "soc/257", in = ["Discard Outlet - Yard", "From Graveyard - Retrace"] },  # Throes of Chaos
+  { printing = "bro/193", in = ["Land Recursion"] },  # Titania, Voice of Gaea
+  { printing = "tsr/286", in = ["Land - Sac Utility", "Discard Outlet - Hand", "Tutor"] },  # Tolaria West
+  { printing = "plst/MMQ-112", in = ["Loam Engine", "Discard Outlet - Hand"] },  # Trade Routes
+  { printing = "sos/166", in = ["Self-Mill & Filtering", "Loam Access"] },  # Vastlands Scavenger // Bind to Life
+  { printing = "who/331", in = ["Land - Fixing", "Land - Sac Utility"] },  # Waterlogged Grove
+  { printing = "mh3/236", in = ["Land - Fixing"] },  # Wooded Foothills
+  { printing = "inr/226", in = ["Land Recursion", "Loam Access", "Self-Mill & Filtering"] },  # Wrenn and Seven
+  { printing = "2x2/296", in = ["Land Recursion"] },  # Wrenn and Six
+  { printing = "m3c/409", in = ["Land - Utility"] },  # Yavimaya, Cradle of Growth
+]
+
+[categories]
+"Card Advantage" = {}
+Commander = { type = "commander" }
+"Damage Engine" = {}
+"Discard Outlet - Hand" = {}
+"Discard Outlet - Yard" = {}
+"Discard Payoff" = {}
+"From Graveyard - Flashback" = {}
+"From Graveyard - Retrace" = {}
+"Graveyard Protection" = {}
+"Graveyard Recursion" = {}
+Interaction = {}
+"Land - Basic" = {}
+"Land - Bounce" = {}
+"Land - Channel" = {}
+"Land - Cycling" = {}
+"Land - Fixing" = {}
+"Land - Sac Utility" = {}
+"Land - Utility" = {}
+"Land Recursion" = {}
+"Loam Access" = {}
+"Loam Engine" = {}
+Ramp = {}
+"Self-Mill & Filtering" = {}
+Tutor = {}
+"Yard Cast Payoff" = {}

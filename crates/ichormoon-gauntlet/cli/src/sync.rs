@@ -30,6 +30,12 @@ const BULK_DATA_API: &str = "https://api.scryfall.com/bulk-data";
 /// answers to a question nobody here asks.
 const WANTED: &str = "oracle_cards";
 
+/// Where printings come from: one record per printing, about fifteen times
+/// the rows of `oracle_cards`, streamed and kept as three short fields each.
+/// A deck may name a card by printing (ADR-0020), and this is how the index
+/// learns which card `cmr/472` is.
+const PRINTINGS: &str = "default_cards";
+
 /// Scryfall asks for a descriptive user agent and a good citizen gives one.
 const USER_AGENT: &str = concat!("ichormoon-gauntlet/", env!("CARGO_PKG_VERSION"));
 
@@ -83,7 +89,7 @@ pub fn run(index_path: Option<&Path>, from: Option<&Path>, force: bool) -> Resul
             (read_local(file)?, None)
         }
         None => {
-            let bulk = find_bulk_file()?;
+            let bulk = find_bulk_file(WANTED)?;
             let updated_at = bulk.updated_at.clone();
             if !force && already_current(&path, updated_at.as_deref(), &wanted_tags) {
                 eprintln!(
@@ -134,6 +140,28 @@ pub fn run(index_path: Option<&Path>, from: Option<&Path>, force: bool) -> Resul
              nothing. Run `gauntlet sync` without --from to fetch them."
         );
     }
+    // Printings, like tags, are a second fetch that must not cost the first.
+    let printings_failed = if from.is_none() {
+        match fetch_printings() {
+            Ok((records, fetched_at)) => {
+                let filed = index.attach_printings(
+                    records
+                        .iter()
+                        .map(|r| (r.oracle_id.as_str(), r.set.as_str(), r.num.as_str())),
+                    fetched_at,
+                );
+                eprintln!("filed {filed} printings");
+                None
+            }
+            Err(e) => Some(e),
+        }
+    } else {
+        eprintln!(
+            "skipping printings: --from reads one bulk file, and printings come from another.\n\
+             A deck naming a card by printing is refused against this index."
+        );
+        None
+    };
     // Written before the tag phase is judged, always. The download is the
     // expensive half and the tags are the flaky one, so a tag that failed must
     // not cost the 25MB that succeeded (#50). What the header claims is exactly
@@ -143,6 +171,13 @@ pub fn run(index_path: Option<&Path>, from: Option<&Path>, force: bool) -> Resul
         .write_atomically(&path)
         .with_context(|| format!("writing the index to {}", path.display()))?;
     eprintln!("wrote {} cards to {}", report.kept, path.display());
+    if let Some(e) = printings_failed {
+        return Err(e.context(format!(
+            "this sync did not finish: the index at {} was written without printings, so a \
+             deck naming a card by printing is refused against it. Run `gauntlet sync` again.",
+            path.display()
+        )));
+    }
     if !missing.is_empty() {
         return Err(partial_sync(&path, wanted_tags.len(), &missing));
     }
@@ -196,12 +231,15 @@ fn already_current(path: &Path, updated_at: Option<&str>, wanted_tags: &[String]
             existing.updated_at() == Some(updated_at)
                 && !existing.is_stale()
                 && wanted_tags.iter().all(|t| tags.contains(t))
+                // A sync whose printing fetch failed wrote an index to be
+                // finished, as one missing tags did.
+                && existing.has_printings()
         }
         Err(_) => false,
     }
 }
 
-fn find_bulk_file() -> Result<BulkFile> {
+fn find_bulk_file(kind: &str) -> Result<BulkFile> {
     let body = ureq::get(BULK_DATA_API)
         .header("User-Agent", USER_AGENT)
         .header("Accept", "application/json")
@@ -217,8 +255,8 @@ fn find_bulk_file() -> Result<BulkFile> {
     listing
         .data
         .into_iter()
-        .find(|f| f.kind == WANTED)
-        .with_context(|| format!("Scryfall's bulk-data listing has no {WANTED} file"))
+        .find(|f| f.kind == kind)
+        .with_context(|| format!("Scryfall's bulk-data listing has no {kind} file"))
 }
 
 /// One page of a Scryfall search, reduced to what a tag fetch needs.
@@ -702,4 +740,77 @@ mod tests {
         assert!(message.contains("the 5 that did succeed"), "{message}");
         assert!(message.contains("gauntlet sync"), "{message}");
     }
+}
+
+/// One `default_cards` record, as far as a printing needs: which card it is a
+/// printing of, and where it was printed.
+#[derive(Facet)]
+struct PrintingRecord {
+    #[facet(default)]
+    oracle_id: Option<String>,
+    set: String,
+    collector_number: String,
+    /// A reversible card has no top-level oracle ID; its faces carry it.
+    #[facet(default)]
+    card_faces: Vec<PrintingFace>,
+}
+
+#[derive(Facet)]
+struct PrintingFace {
+    #[facet(default)]
+    oracle_id: Option<String>,
+}
+
+/// Every printing Scryfall lists, and
+/// when that listing was published.
+fn fetch_printings() -> Result<(Vec<Printed>, Option<String>)> {
+    let bulk = find_bulk_file(PRINTINGS)?;
+    let uri = bulk
+        .jsonl_download_uri
+        .clone()
+        .with_context(|| format!("Scryfall listed {PRINTINGS} without a jsonl_download_uri"))?;
+    eprintln!(
+        "downloading {PRINTINGS} for printings ({})",
+        bulk.compressed_size
+            .map_or("size unstated".into(), megabytes)
+    );
+    let reader = ureq::get(&uri)
+        .header("User-Agent", USER_AGENT)
+        .call()
+        .with_context(|| format!("downloading {uri}"))?
+        .into_body()
+        .into_reader();
+    let records = printing_lines(flate2::read::GzDecoder::new(reader))?;
+    Ok((records, bulk.updated_at))
+}
+
+fn printing_lines(source: impl Read) -> Result<Vec<Printed>> {
+    let mut out = Vec::new();
+    for (n, line) in BufReader::new(source).lines().enumerate() {
+        let line = line.with_context(|| format!("reading printing record {}", n + 1))?;
+        let line = line.trim().trim_end_matches(',');
+        if line.is_empty() || line == "[" || line == "]" {
+            continue;
+        }
+        let record: PrintingRecord = facet_json::from_str(line)
+            .with_context(|| format!("parsing printing record {}", n + 1))?;
+        let oracle_id = record
+            .oracle_id
+            .or_else(|| record.card_faces.into_iter().find_map(|f| f.oracle_id));
+        if let Some(oracle_id) = oracle_id {
+            out.push(Printed {
+                oracle_id,
+                set: record.set,
+                num: record.collector_number,
+            });
+        }
+    }
+    Ok(out)
+}
+
+/// A printing, as the index files it: which card, and where it was printed.
+struct Printed {
+    oracle_id: String,
+    set: String,
+    num: String,
 }

@@ -3896,11 +3896,11 @@ fn run_lantern(criteria: &str, flags: &[&str]) -> serde_json::Value {
     run_lantern_with(deck_file(criteria), flags)
 }
 
-/// `decks/lantern.txt` against any criteria file, a fixture included.
+/// `decks/lantern.deck.toml` against any criteria file, a fixture included.
 fn run_lantern_with(criteria: PathBuf, flags: &[&str]) -> serde_json::Value {
     let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
         .arg("test")
-        .arg(deck_file("lantern.txt"))
+        .arg(deck_file("lantern.deck.toml"))
         .arg(&criteria)
         .arg("--index")
         .arg(deck_file("index.jsonl"))
@@ -4046,14 +4046,14 @@ fn query_cards(deck: &str, criteria: &str, query: &str) -> u64 {
 
 #[test]
 fn the_lantern_deck_answers_plain_questions_in_closed_form() {
-    // decks/lantern.txt: 100 cards, commander Rashmi and Ragavan, so N = 99.
+    // decks/lantern.deck.toml: 100 cards, commander Rashmi and Ragavan, so N = 99.
     //   name:"Lantern of Insight"         K = 1
     //   cat:"Tutor Package"               K = 11 (the owner's category)
     //   t:land                            K = 40: 32 cards whose front face is
     //     a land, plus seven MDFCs with a land back and Search for Azcanta,
     //     because `t:land` reads every face as Scryfall's does
     //   t:land -is:mdfc -is:transform     K = 32, the front-face lands
-    let deck = "lantern.txt";
+    let deck = "lantern.deck.toml";
     let file = "anchors-lantern.criteria.toml";
     for (query, k) in [
         ("name:\"Lantern of Insight\"", 1),
@@ -4104,7 +4104,7 @@ fn the_lantern_deck_answers_plain_questions_in_closed_form() {
 
 #[test]
 fn the_loam_deck_answers_plain_questions_in_closed_form() {
-    // decks/loam.txt: 99 cards (the tokens were dropped), commander
+    // decks/loam.deck.toml: 99 cards (the tokens were dropped), commander
     // Borborygmos and Fblthp, so N = 98.
     //   name:"Life from the Loam"         K = 1
     //   cat:"Discard Outlet - Hand"       K = 22 in the library; the commander
@@ -4112,7 +4112,7 @@ fn the_loam_deck_answers_plain_questions_in_closed_form() {
     //   t:land                            K = 44: 32 nonbasic entries and 12
     //     basics (5 Forest, 3 Island, 4 Mountain); no MDFCs, so every face
     //     reading agrees
-    let deck = "loam.txt";
+    let deck = "loam.deck.toml";
     let file = "anchors-loam.criteria.toml";
     for (query, k) in [
         ("name:\"Life from the Loam\"", 1),
@@ -5186,7 +5186,7 @@ fn the_standard_library_makes_sources_of_the_rocks_and_dorks_and_nothing_else() 
     // landfall trigger rather than a tap. Neither is a source.
     let strings = |names: &[&str]| names.iter().map(|n| n.to_string()).collect::<Vec<_>>();
     assert_eq!(
-        sources_in("lantern.txt", "anchors-lantern.criteria.toml"),
+        sources_in("lantern.deck.toml", "anchors-lantern.criteria.toml"),
         vec![
             (
                 1,
@@ -5202,7 +5202,7 @@ fn the_standard_library_makes_sources_of_the_rocks_and_dorks_and_nothing_else() 
         ]
     );
     assert_eq!(
-        sources_in("loam.txt", "anchors-loam.criteria.toml"),
+        sources_in("loam.deck.toml", "anchors-loam.criteria.toml"),
         vec![(1, strings(&["Birds of Paradise", "Elvish Mystic"]))]
     );
 }
@@ -5680,4 +5680,22 @@ fn a_run_that_attacks_names_what_it_assumed_of_the_table() {
         report.contains("ASSUMED: it attacks every turn it can"),
         "{report}"
     );
+}
+
+/// ADR-0020. A deck that names a card only by printing needs an index that
+/// carries printings to know which card it is. One that does not is refused
+/// with that reason and its remedy, not reported as an unknown card, because
+/// no spelling fix will help.
+#[test]
+fn a_deck_naming_a_printing_is_refused_against_an_index_without_printings() {
+    let out = run_with(
+        "printed.deck.toml",
+        "kw-real.criteria.toml",
+        "loam-index.jsonl",
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success(), "{stderr}");
+    assert!(stderr.contains("c21/235 by printing"), "{stderr}");
+    assert!(stderr.contains("carries no printings"), "{stderr}");
+    assert!(stderr.contains("gauntlet sync"), "{stderr}");
 }

@@ -129,9 +129,11 @@ fn unknown_types_keys_and_finishes_are_refused() {
     ));
 }
 
-fn committed(deck: &str) -> String {
+/// The committed decks as Archidekt exported them, kept as import fixtures
+/// when `decks/` moved to `.deck.toml`.
+fn archidekt(deck: &str) -> String {
     std::fs::read_to_string(format!(
-        "{}/../../../decks/{deck}",
+        "{}/tests/fixtures/{deck}",
         env!("CARGO_MANIFEST_DIR")
     ))
     .unwrap()
@@ -143,7 +145,7 @@ fn committed(deck: &str) -> String {
 #[test]
 fn importing_archidekt_places_every_card_where_gauntlet_did() {
     for name in ["lantern.txt", "loam.txt"] {
-        let text = committed(name);
+        let text = archidekt(name);
         let old = chip_decklist::parse(&text).unwrap();
         let new = Deck::from_archidekt(&text).unwrap();
         assert_eq!(old.len(), new.cards.len(), "{name}");
@@ -161,8 +163,8 @@ fn importing_archidekt_places_every_card_where_gauntlet_did() {
 fn writing_a_deck_reads_back_as_the_same_deck() {
     for deck in [
         Deck::parse(LESSONS).unwrap(),
-        Deck::from_archidekt(&committed("lantern.txt")).unwrap(),
-        Deck::from_archidekt(&committed("loam.txt")).unwrap(),
+        Deck::from_archidekt(&archidekt("lantern.txt")).unwrap(),
+        Deck::from_archidekt(&archidekt("loam.txt")).unwrap(),
     ] {
         let text = deck.to_toml(|p| Some(format!("name of {p}")));
         assert_eq!(Deck::parse(&text).unwrap(), deck, "{text}");

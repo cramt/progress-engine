@@ -40,7 +40,7 @@ tempo        = {}
 - **`finish`** is `"foil"` or `"etched"`, absent for nonfoil. **`qty`** is absent for one. Unknown keys are refused, as in criteria files ([ADR-0002](0002-criteria-are-toml-data.md)).
 - **`format` is metadata.** Gauntlet does not read it ([ADR-0005](0005-format-agnostic-no-legality-checking.md)): the tree decides what is in the library, not what is legal.
 
-A printing identifies a card only through printing data, so resolving `msc/183` to Expressive Iteration offline needs the card index to carry printings. That is the price of naming a card once.
+A printing identifies a card only through printing data, so resolving `msc/183` to Expressive Iteration offline needs the card index to carry printings. That is the price of naming a card once. `gauntlet sync` reads them from Scryfall's `default_cards` and files each after the cards as a line `printing:<set>/<number><TAB>"<card name>"`, the set lowercased; the header's `printings` counts them, and is absent from an index that carries none.
 
 ## Considered Options
 

@@ -32,19 +32,31 @@ _Avoid_: filter, search, predicate
 
 ## Decklists
 
-**Decklist**:
-An Archidekt-format list of entries, each a quantity, a card name and categories.
+**Deck**:
+A `.deck.toml` ([ADR-0020](../../docs/adr/0020-decks-are-toml-with-typed-categories.md)): cards, each named once and filed in declared categories. Archidekt's text export imports into the same Deck.
 _Avoid_: deck file, list
 
+**Decklist**:
+Archidekt's text export, as `gauntlet parse` reads it and `gauntlet import` converts it.
+
+**Printing**:
+A card as printed in one set, written `set/number` (`msc/183`). A deck may name a card by printing instead of by name, never both; the card index says which card a printing is.
+
 **Category**:
-A label the deck's owner gave a card in Archidekt (`Tutor Package`, `Loam Access`), queryable as `cat:`. It is the owner's, not Scryfall's.
+A label the deck's owner gave a card (`Tutor Package`, `Loam Access`), declared in the deck and queryable as `cat:`. A card may be in any number. It is the owner's, not Scryfall's.
 _Avoid_: tag, group
 
+**Category type**:
+What a category says about where its cards are, from a fixed tree: in-deck > commander; not-in-deck > sideboard > companion, maybeboard, attractions, sticker-sheet. An untyped category says nothing about it.
+
+**Place**:
+Where a card is: the most specific type among its categories, or in-deck when none is typed.
+
 **Commander**:
-A card nominated in a `Commander` category; it starts in the command zone and is not in the library.
+A card whose place is commander; it starts in the command zone and is not in the library.
 
 **Outside**:
-A decklist entry that is not part of the deck: a companion, sideboard or `{noDeck}` line.
+A card whose place is outside the deck: a companion, sideboard, maybeboard or anything else not-in-deck.
 _Avoid_: excluded
 
 **Excluded**:

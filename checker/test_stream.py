@@ -25,7 +25,7 @@ INDEX = checker.Index(DECKS / "index.jsonl")
 class Chunks(unittest.TestCase):
     def test_chunked_stream_counts_what_one_stream_counts(self):
         for deck in ("lantern", "loam"):
-            path = DECKS / f"{deck}.txt"
+            path = DECKS / f"{deck}.deck.toml"
             library = checker.load_library(path, INDEX)
             cmdrs = checker.commander_cards(path, INDEX)
             questions = [q for q in checker.QUESTIONS if q.deck == deck and not q.pending]

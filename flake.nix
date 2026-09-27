@@ -55,7 +55,7 @@
           (builtins.match ".*/crates/gitaxian-probe(/.*)?$" path == null)
           && (
             (builtins.match ".*/crates/meldweb-curator/web(/.*)?$" path == null)
-            || (builtins.match ".*/crates/meldweb-curator/web(/src(/decklist\\.gen\\.ts)?)?$" path != null)
+            || (builtins.match ".*/crates/meldweb-curator/web(/src(/deck\\.gen\\.ts)?)?$" path != null)
           )
           && ((builtins.match ".*\\.(json|jsonl|txt|ts)$" path != null)
             || (craneLib.filterCargoSources path type));
@@ -104,7 +104,7 @@
           ./package.json
           ./pnpm-lock.yaml
           ./pnpm-workspace.yaml
-          ./decks/lantern.txt
+          ./decks/lantern.deck.toml
           (pkgs.lib.fileset.difference ./crates/meldweb-curator/web
             (pkgs.lib.fileset.maybeMissing ./crates/meldweb-curator/web/src/wasm/pkg))
         ];

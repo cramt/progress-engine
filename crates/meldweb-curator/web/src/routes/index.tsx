@@ -1,20 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import lantern from "../../../../../decks/lantern.txt?raw";
-import {
-  declareCategory,
-  importArchidekt,
-  parseDeck,
-  setCardCategories,
-} from "../deck";
+import lantern from "../../../../../decks/lantern.deck.toml?raw";
+import { declareCategory, parseDeck, setCardCategories } from "../deck";
 import { dropOnto } from "../deck/move";
 import { type OnDrop, StacksView } from "../deck/StacksView";
 import { fetchPrintings } from "../scryfall";
 
-// The committed lantern list, imported, until the editor reads decks from GitHub.
+// The committed lantern deck, until the editor reads decks from GitHub.
 export const Route = createFileRoute("/")({
   loader: async () => {
-    const text = importArchidekt(lantern);
+    const text = lantern;
     const parsed = parseDeck(text);
     return {
       text,

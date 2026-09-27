@@ -9,9 +9,7 @@
 //! `web/src/deck.gen.ts` is generated from them; the test at the bottom fails
 //! when it is stale and rewrites it under `UPDATE_TS=1`.
 
-use std::collections::HashMap;
-
-use chip_decklist::deck::{self, CategoryType, Deck, Printing};
+use chip_decklist::deck::{self, CategoryType, Deck};
 use chip_decklist::edit;
 use facet::Facet;
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
@@ -170,19 +168,7 @@ pub fn parse_deck(text: &str) -> String {
 /// beside it as a comment from the name Archidekt gave it.
 #[wasm_bindgen]
 pub fn import_archidekt(text: &str) -> Result<String, JsError> {
-    let deck = Deck::from_archidekt(text).map_err(|e| JsError::new(&e.to_string()))?;
-    let names: HashMap<Printing, String> = chip_decklist::parse(text)
-        .map_err(|e| JsError::new(&e.to_string()))?
-        .into_iter()
-        .filter_map(|e| {
-            let p = Printing {
-                set: e.set?.to_ascii_lowercase(),
-                num: e.num?,
-            };
-            Some((p, e.name))
-        })
-        .collect();
-    Ok(deck.to_toml(|p| names.get(p).cloned()))
+    deck::import_archidekt(text).map_err(|e| JsError::new(&e.to_string()))
 }
 
 /// `text` with card `index`'s categories replaced by `categories` (JSON of
@@ -239,22 +225,26 @@ mod tests {
         );
     }
 
-    fn lantern() -> String {
-        let text = std::fs::read_to_string(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../../decks/lantern.txt"
-        ))
-        .unwrap();
-        import_archidekt(&text).unwrap()
-    }
-
     #[test]
-    fn lantern_imports_as_a_hundred_cards_with_one_commander() {
-        let text = lantern();
+    fn an_archidekt_import_names_each_printing_in_a_comment() {
+        let text = import_archidekt("1x Rashmi and Ragavan (moc) 94 [Commander{top}]\n").unwrap();
         assert!(
             text.contains(r#"{ printing = "moc/94", in = ["Commander"] },  # Rashmi and Ragavan"#),
             "{text}"
         );
+        assert!(
+            text.contains(r#"Commander = { type = "commander" }"#),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn lantern_is_a_hundred_cards_with_one_commander() {
+        let text = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../decks/lantern.deck.toml"
+        ))
+        .unwrap();
         let Parsed::Deck { cards, total, .. } = parse_deck_text(&text) else {
             panic!("lantern refused");
         };

@@ -259,7 +259,7 @@ zone = "battlefield"
 
 # --- `t:land` IS CLEAN IN THIS DECK, AND IT IS WORTH SAYING WHY -----------
 # All 44 cards this file's `t:land` matches are cards you can put onto the
-# battlefield from your hand as a land. Unlike `decks/lantern.txt`, whose
+# battlefield from your hand as a land. Unlike `decks/lantern.deck.toml`, whose
 # `t:land` picks up seven modal double-faced cards and one transforming
 # enchantment, this list has none — `t:land -is:mdfc -is:transform` is 44 here
 # and 32 there.
@@ -267,7 +267,7 @@ zone = "battlefield"
 # DO NOT WRITE `t:land -is:dfc` as a shorthand for that. On this deck it is
 # 43: it also removes Argoth, Sanctum of Nature, a meld card whose front face
 # is an ordinary land you play on an ordinary land drop. The two spellings
-# agree on `lantern.txt` and disagree here, which is the sort of query bug
+# agree on `lantern.deck.toml` and disagree here, which is the sort of query bug
 # that produces a number nobody questions.
 
 # --- A MILL IS A LOOK, AND THE TOOL REFUSES IT AS A DRAW -----------------
