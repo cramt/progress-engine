@@ -1,9 +1,10 @@
 """The checker's declared land drop (`drop_line_path`), held to the hands in
 HANDS.md whose numbers are settled on paper: hand 12 (which land the list
-plays), hand 17 (Urza's Saga's third chapter, two turns after the drop) and
-hand 42 (Expedition Map paid for before the drop that plays the Saga it
-found). Every deal of each small deck is played - the opening seven as one
-unordered hand, the draws in order - and weighed by how many orders of the
+plays), hand 17 (Urza's Saga's third chapter, two turns after the drop), hand
+42 (Expedition Map paid for before the drop that plays the Saga it found) and
+hand 61 (Artificer's Intuition's discard, paid as a cost). Every deal of each
+small deck is played - the opening seven as one unordered hand, the draws in
+order - and weighed by how many orders of the
 whole deck produce it, so the answers are exact fractions.
 
 `checker/test_activation.py` plays hand 42 with a model of its own, written
@@ -193,6 +194,49 @@ class HandFortyTwo(unittest.TestCase):
         got = self.rows({MAP: (SAGA,)})
         self.assertEqual(got["map_turn_1"], Fraction(4921, 11440))
         self.assertEqual(got["lantern_by_5"], Fraction(3977, 12870))
+
+
+class HandSixtyOne(unittest.TestCase):
+    """Ten Islands, Artificer's Intuition, Codex Shredder and the Lantern, on
+    the play to turn 4; the line names the Lantern, then Intuition. The
+    activation's discard is paid only with a card the [discard] list names."""
+
+    INTUITION, SHREDDER = "Artificer's Intuition", "Codex Shredder"
+    DECK = [(ISLAND, 10), (INTUITION, 1), (SHREDDER, 1), (LANTERN, 1)]
+
+    def rows(self, fetches, discard) -> dict[str, Fraction]:
+        out = Counter()
+        line = ((LANTERN,), (self.INTUITION,))
+        for p, g in deals(self.DECK, 3, False):
+            path = checker.drop_line_path(
+                g, line, 4, checker.LandDrop((_any_land,)), fetches=fetches, discard=discard
+            )
+            out["intuition_by_2"] += p * path.cast_by(self.INTUITION, 2)
+            out["lantern_by_4"] += p * path.on_battlefield_by(LANTERN, 4)
+        return out
+
+    def test_the_intuition_is_read_from_its_text(self):
+        a = checker.activation_of(card(self.INTUITION))
+        self.assertEqual(
+            (a.cost, a.discards, a.finds, a.most, a.sacrifice),
+            ("{U}", "artifact", "artifact", 1, False),
+        )
+
+    def test_never_activated(self):
+        got = self.rows({}, None)
+        self.assertEqual(got["intuition_by_2"], Fraction(89, 156))
+        self.assertEqual(got["lantern_by_4"], Fraction(10, 13))
+
+    def test_the_shredder_pays_the_discard(self):
+        shredder = lambda c: c.name == self.SHREDDER  # noqa: E731
+        got = self.rows({self.INTUITION: (LANTERN,)}, shredder)
+        self.assertEqual(got["intuition_by_2"], Fraction(89, 156))
+        self.assertEqual(got["lantern_by_4"], Fraction(265, 286))
+
+    def test_a_list_naming_no_artifact_card_pays_nothing(self):
+        lands = lambda c: "Land" in c.type_line  # noqa: E731
+        got = self.rows({self.INTUITION: (LANTERN,)}, lands)
+        self.assertEqual(got["lantern_by_4"], Fraction(10, 13))
 
 
 if __name__ == "__main__":

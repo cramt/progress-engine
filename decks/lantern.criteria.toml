@@ -11,10 +11,10 @@
 # for a route and none needs a mana proxy.
 #
 #                              play              draw
-#   north star by turn 4    7.12% ± 0.06     9.35% ± 0.07
-#   north star by turn 5   31.09% ± 0.10    38.18% ± 0.11
-#   north star by turn 6   44.02% ± 0.11    52.01% ± 0.11
-#   north star by turn 7   52.22% ± 0.11    59.48% ± 0.11
+#   north star by turn 4    7.71% ± 0.06     9.83% ± 0.07
+#   north star by turn 5   33.58% ± 0.11    40.94% ± 0.11
+#   north star by turn 6   47.06% ± 0.11    55.22% ± 0.11
+#   north star by turn 7   55.71% ± 0.11    62.88% ± 0.11
 #
 # Sampled, 200,000 hands a seat: see the width note at the foot of the file.
 # `checker/` plays the same line and land drop from the rules, turn by turn,
@@ -34,13 +34,12 @@
 #
 #   * it did not ask for the commander, which costs {1}{G}{U}{R} out of the
 #     same lands the routes spend — half of the north star, and a hard one:
-#     Rashmi cast by turn 5 on this line reads about 62% on the play;
+#     Rashmi cast by turn 5 on this line reads about 61% on the play;
 #   * each gate was clairvoyant about the lands — played in the order that
 #     suited that clause, knowing the draws — where this line plays the lands
 #     a declared list chooses, one a turn, and pays everything out of them;
-#   * it paid nothing for rocks (lands only), priced no route to the
-#     battlefield beside a hand route, and counted Artificer's Intuition,
-#     which is not modelled here yet.
+#   * it paid nothing for rocks (lands only), and priced no route to the
+#     battlefield beside a hand route.
 #
 # THE LINE
 # --------
@@ -58,6 +57,8 @@
 #   Expedition Map          {1}, then {2}, {T}, sacrifice: the Saga, to hand;
 #                           paid before the drop when the Saga is what the drop
 #                           would play (HANDS.md hand 42)
+#   Artificer's Intuition   {1}{U}, then {U} and discard an artifact card the
+#                           [discard] list names: it, to hand (hand 61, #99)
 #
 # and the rocks of ADR 0018 — Sol Ring, Arcane Signet, the three Talismans and
 # Mind Stone — which the line casts and which pay for what it casts after them.
@@ -80,8 +81,12 @@
 #      the Saga whenever the pool pays.
 #   7. The two-mana rocks, coloured first: {2} for one a turn, cast on a turn
 #      nothing above them was payable.
+#   8. Artificer's Intuition, cast when nothing else is, and activated each
+#      turn after that the pool pays {U} and an allowed artifact card is held.
 #
-# Measured, on the play then the draw, turn 5, with the land drop below:
+# Measured, on the play then the draw, turn 5, with the land drop below —
+# before Intuition joined the line (#99 landed after), so read these as the
+# order of the other entries, which Intuition, last, does not reach:
 #
 #   the line above                                        31.09%   38.18%
 #   Map after the rocks                                   31.39%   38.34%
@@ -96,6 +101,18 @@
 # where the Map, Sol Ring and the tutors sit among themselves moves nothing
 # measurable. Where the commander sits does, by up to four points on the play
 # and five and a half on the draw, and it goes first of the four-mana cards.
+#
+# Intuition, measured at three places in the line, play, turn 5:
+#
+#   last, after the rocks (this file)                     33.58%
+#   after the hand tutors                                 33.04%
+#   after Dizzy Spell                                     33.05%
+#
+# ± 0.11 each. Last is the half-point better: {1}{U} spent early is a Rashmi
+# or a tutor a turn later, and the activation needs an artifact card in hand
+# anyway, which the later turns are likelier to hold. Intuition added 2.49
+# points on the play at turn 5 and 2.76 on the draw (31.09% and 38.18%
+# without it).
 #
 # THE LAND DROP
 # -------------
@@ -114,7 +131,7 @@
 #     and the colourless utility lands last. Rashmi wants three colours and
 #     Whir three blue, so the colours go down while they can still matter.
 #
-# Measured, the line above, turn 5, play then draw:
+# Measured, the line above without Intuition, turn 5, play then draw:
 #
 #   the list below                                        31.09%   38.18%
 #   the same kinds, fewest colours first                  28.62%   34.87%
@@ -146,8 +163,9 @@
 # WHAT IS NOT MODELLED, AND WHICH WAY IT MOVES THE NUMBER
 # -------------------------------------------------------
 # Down — this is a floor for each of these:
-#   * Artificer's Intuition, a fourth hand tutor, waits for its discard (#99).
-#     ADR 0019 measured it at about three points on the play.
+#   * Intuition activated once a turn: its cost has no {T}, so a pilot with
+#     two artifact cards and {U}{U} could search twice. Only the Lantern is
+#     fetched, so a second search would find nothing it wants.
 #   * Digging: Sensei's Divining Top, Search for Azcanta and Dakra Mystic see
 #     deeper and are not modelled (ADR 0017); nor is any card that draws.
 #   * Goblin Engineer, Repurposing Bay and Inventors' Fair, refused by
@@ -177,7 +195,7 @@
 # that measured it, and they are kept as that evidence: lantern-route-b (Trinket
 # Mage), lantern-route-c (the Saga, exact and checkable by hand),
 # lantern-route-seeker (the Seeker), lantern-route-tutors (Dizzy Spell and
-# Whir), lantern-route-map (the Map), lantern-rocks and lantern-rocks-first
+# Whir), lantern-route-map (the Map and Intuition), lantern-rocks and lantern-rocks-first
 # (the commander with rocks, in two orders). Their question names differ from
 # every name here, so `checker/compare.py` never confuses one file's answer for
 # another's. The commander on its own, with only lands paying, was
@@ -186,13 +204,15 @@
 #
 # HOW WIDE THIS IS
 # ----------------
-# Read it off the run: `jq '.enumerations'`. Each turn is one class of 33
+# Read it off the run: `jq '.enumerations'`. Each turn is one class of 39
 # groups — every card the line names, each land kind the drop ranks with its
-# palette kept whole, and the effects — and turn 5 is 18,240,576,187,977
-# compositions on the play and 601,939,014,203,241 on the draw, six and eight
-# orders of magnitude over the 5,000,000 ceiling. So every number here is
-# SAMPLED, 200,000 hands, in about 6 seconds a seat. The old union was
-# sampled too, at 19 groups.
+# palette kept whole, the discard list's cards, and the effects — and turn 5
+# is 104,983,073,472,420 compositions on the play and 4,094,339,865,424,380 on
+# the draw, seven and nine orders of magnitude over the 5,000,000 ceiling. So
+# every number here is SAMPLED, 200,000 hands. A discard can split a path, so
+# the run counts the walk before it samples, and that costs about 7.5 minutes
+# a seat where the file took 6 seconds before Intuition joined it. The old
+# union was sampled too, at 19 groups.
 
 # --- The routes, each as the effect that is the route ------------------------
 
@@ -251,6 +271,25 @@ sacrifice = true
 fetch = ["name:\"Urza's Saga\""]
 to = "hand"
 
+[[effect]]
+match = '''name:"Artificer's Intuition"'''
+on = "activate"
+cost = "{U}"
+discard = 1
+discard_only = "t:artifact"
+fetch = ['name:"Lantern of Insight"']
+to = "hand"
+
+# The discard Intuition's cost pays with: an artifact card the line never
+# casts and the drop never plays — so never the Lantern, the Map, a rock or an
+# artifact land. Sixteen cards in this list: Academy Manufactor, Codex
+# Shredder, Fellwar Stone, Ghost Vacuum, Ghoulcaller's Bell, Idol of Oblivion,
+# Pyxis of Pandemonium, Relic of Progenitus, Repurposing Bay, Riverchurn
+# Monument, Sensei's Divining Top, Spellskite, The One Ring, The Reality Chip,
+# Unwinding Clock and Vantress Gargoyle. With none in hand, no activation.
+[discard]
+prefer = ['t:artifact -t:land -name:"Lantern of Insight" -name:"Expedition Map" -name:"Sol Ring" -name:"Arcane Signet" -name:"Talisman of Creativity" -name:"Talisman of Curiosity" -name:"Talisman of Impulse" -name:"Mind Stone"']
+
 # --- The land drop: the Saga, tapped lands, then untapped, most colours first -
 
 [land_drop]
@@ -294,6 +333,7 @@ prefer = [
   'name:"Talisman of Curiosity"',
   'name:"Talisman of Impulse"',
   'name:"Mind Stone"',
+  '''name:"Artificer's Intuition"''',
 ]
 
 # --- The north star, one criterion a turn --------------------------------------

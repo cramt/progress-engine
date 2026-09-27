@@ -2080,40 +2080,45 @@ clauses, and every route to the Lantern is the effect that is the route rather
 than a clause standing in for it: the Lantern cast; Trinket Mage, Fabricate and
 Tezzeret, Cruel Captain to hand; Whir of Invention at X = 1 and Tezzeret the
 Seeker onto the battlefield; Dizzy Spell's transmute; Urza's Saga's chapter III;
-Expedition Map for the Saga. The rocks of ADR-0018 are in the same line.
+Expedition Map for the Saga; Artificer's Intuition, its discard paid from a
+`[discard]` list of the sixteen artifact cards the line never casts. The rocks
+of ADR-0018 are in the same line.
 
 | On `decks/lantern.txt` | play | draw |
 |---|---|---|
-| north star by turn 4 | 7.12% ± 0.06 | 9.35% ± 0.07 |
-| north star by turn 5 | **31.09% ± 0.10** | **38.18% ± 0.11** |
-| north star by turn 6 | 44.02% ± 0.11 | 52.01% ± 0.11 |
-| north star by turn 7 | 52.22% ± 0.11 | 59.48% ± 0.11 |
-| the Lantern half alone, turn 5 | 49.68% ± 0.11 | 55.99% ± 0.11 |
-| the commander half alone, turn 5 | 61.63% ± 0.11 | 68.31% ± 0.10 |
+| north star by turn 4 | 7.71% ± 0.06 | 9.83% ± 0.07 |
+| north star by turn 5 | **33.58% ± 0.11** | **40.94% ± 0.11** |
+| north star by turn 6 | 47.06% ± 0.11 | 55.22% ± 0.11 |
+| north star by turn 7 | 55.71% ± 0.11 | 62.88% ± 0.11 |
+| the Lantern half alone, turn 5 | 53.64% ± 0.11 | 59.98% ± 0.11 |
+| the commander half alone, turn 5 | 61.48% ± 0.11 | 68.43% ± 0.10 |
 
-Sampled: each turn is a class of 33 groups, 18,240,576,187,977 compositions at
-turn 5 on the play, about 6 seconds a seat. No bound: the owner chooses one,
-and its turn, from the curve.
+Sampled: each turn is a class of 39 groups, 104,983,073,472,420 compositions
+at turn 5 on the play, and the discard makes the run count its walk before it
+samples, about 7.5 minutes a seat (6 seconds before Intuition joined). No
+bound: the owner chooses one, and its turn, from the curve. Without Intuition
+the line read 31.09% / 38.18% at turn 5.
 
 **The line** casts the Lantern first, then Sol Ring (which pays for what follows
 it the same turn), then Rashmi the moment the pool pays, then the tutors — the
 two that land the Lantern, then the three-mana hand tutors, then Dizzy Spell —
-then the Map, then the two-mana rocks. Where the commander sits is the one
+then the Map, then the two-mana rocks, then Intuition, which is half a point
+better last than after the other tutors. Where the commander sits is the one
 choice that measurably moves the answer: behind every tutor it costs 3.8 points
 on the play and 5.5 on the draw. **The land drop** plays the Saga the moment it
 is held, then the lands that enter tapped, then the untapped ones, most colours
 first within each, one kind of land per entry; tapped-first is worth
 five to six points over playing any land after the Saga. The file lists both
 choices against the alternatives it was measured beside, and everything it
-does not model with the direction each moves the number — Artificer's
-Intuition (#99), digging, the three refused tutors, improvise, the Treasure and
-the pilot adapting all make it a floor.
+does not model with the direction each moves the number — digging, the three
+refused tutors, improvise, the Treasure, Intuition searched once a turn and the
+pilot adapting all make it a floor.
 
 It is not the number the file used to report. That was *a line that resolves
 Lantern of Insight by turn 5*, 47.10% / 54.34%: no commander, lands only, and
 every gate reading the lands in whichever order suited it. `checker/` plays the
 new line and land drop from the rules a turn at a time (`drop_line_path`, held
-to HANDS.md hands 12, 17 and 42 by `checker/test_land_drop.py`) and holds every
+to HANDS.md hands 12, 17, 42 and 61 by `checker/test_land_drop.py`) and holds every
 turn of the curve, both seats, to the engine's answer.
 
 ### Mulligans
@@ -3034,18 +3039,23 @@ each; `checker/test_discards.py` holds HANDS.md hands 21 to 24 against it, and
 on both seats and at every turn it asks, with the commander, the dorks and
 Lumra's mill in the line (`checker/test_north_star.py` pins those three).
 
-A file that declares **a land drop** is played by a second model,
-`drop_line_path`, because `line_path` pays from the gate's lands — whichever
-would pay — which is the reading only of a file that declares none. It plays
+The Lantern side has a declared-land-drop model too, `drop_line_path`,
+written for #100 alongside `declared_line_path` rather than on it: the two
+were built in parallel for the two north stars, and each knows the routes its
+deck needs — the Loam one discards, mills and dredges, the Lantern one tutors
+by card text, fires the Saga's chapter and pays activations. Folding them into
+one is follow-up work; each is held to its own hands. `drop_line_path` plays
 one land a turn, chosen by the file's `[land_drop]` list as README states it
 (first entry held wins, a tie to the card the decklist names first, a look
 that routes nothing breaking no tie), pays the line out of the lands it played
 and the rocks it cast, fires Urza's Saga's chapter III two turns after the drop
 and sacrifices it (CR 714), and activates Expedition Map for the Saga (CR 602,
-118.3), before the drop when the Saga is what the drop would play. Each route
+118.3), before the drop when the Saga is what the drop would play, and
+Artificer's Intuition, whose cost discards a card the file's `[discard]` list
+names or is not paid at all (CR 118.3, 602.2b). Each route
 is read from its card's text: a tutor to hand, a loyalty ability or a chosen X
 onto the battlefield, a transmute. `checker/test_land_drop.py` holds it to
-HANDS.md hands 12, 17 and 42 exactly, and `compare.py` holds the Lantern north
+HANDS.md hands 12, 17, 42 and 61 exactly, and `compare.py` holds the Lantern north
 star — every turn of its curve, its two halves and the hard-cast Lantern, both
 seats — to it. `compare.py` reads each question's answer from the file the
 question names, so two files may ask questions of the same name.

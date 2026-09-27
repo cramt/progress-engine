@@ -1383,6 +1383,18 @@ def _cast_by(line: Line, name: str, turn: int, deepest: int) -> Callable[[Game],
 #   land, it is paid before the drop out of what is already in play, and the
 #   drop plays the land it found. The drop's own mana then pays only for what
 #   comes after.
+# * An activation whose cost discards (Artificer's Intuition: "{U}, Discard an
+#   artifact card: Search your library for an artifact card with mana value 1
+#   or less, reveal it, put it into your hand"): the discard is part of the
+#   cost (CR 118.3, 701.9), paid as the ability is activated (CR 602.2b), so
+#   with no card to discard there is no activation, no mana spent and nothing
+#   found. Nothing in its cost taps or sacrifices the enchantment, so it stays.
+#   ASSUMPTION (README, ADR 0019 §4): only a card the file's `[discard]` list
+#   names pays the discard; the line activates a permanent at most once a
+#   turn, always after the drop; and it does so whenever the pool and the list
+#   pay, even with nothing left to find. Which of the cards the list allows
+#   goes changes nothing here, because the list never allows a card the line
+#   names.
 # * A tutor to hand is read from the card: "search your library for an
 #   artifact card [with mana value N or less], reveal it, put it into your
 #   hand" on a cast (Fabricate), an enters trigger (Trinket Mage) or a loyalty
@@ -1442,14 +1454,40 @@ _TAP_SACRIFICE_SEARCH = re.compile(
     r"reveal it, put it into your hand",
     re.M,
 )
+_DISCARD_SEARCH = re.compile(
+    r"^((?:\{[0-9WUBRGC]\})+), Discard an? (\w+) card: Search your library for an? (\w+) card"
+    r"(?: with mana value (\d+) or less)?, reveal it, put it into your hand",
+    re.M,
+)
+
+
+@dataclass(frozen=True)
+class Activation:
+    """An activated search read off a permanent's text. Everything before the
+    colon is the cost (CR 602.1a)."""
+
+    cost: str
+    finds: str  # the card type it searches for
+    most: int | None = None  # the highest mana value it finds, if it says
+    discards: str | None = None  # the card type its cost discards
+    sacrifice: bool = False  # the cost sacrifices it: once, ever
+
+
+def activation_of(card: Card) -> Activation | None:
+    m = _TAP_SACRIFICE_SEARCH.search(card.oracle)
+    if m:
+        return Activation(m.group(1), m.group(2).lower(), sacrifice=True)
+    m = _DISCARD_SEARCH.search(card.oracle)
+    if m:
+        most = int(m.group(4)) if m.group(4) else None
+        return Activation(m.group(1), m.group(3).lower(), most, discards=m.group(2).lower())
+    return None
 
 
 def activated_search(card: Card) -> tuple[str, str] | None:
-    """(cost, card type it finds) of an artifact's "[cost], {T}, Sacrifice
-    this artifact: Search your library for a ... card, reveal it, put it into
-    your hand", or None. Everything before the colon is the cost (CR 602.1a)."""
-    m = _TAP_SACRIFICE_SEARCH.search(card.oracle)
-    return (m.group(1), m.group(2).lower()) if m else None
+    """(cost, card type it finds) of a permanent's activated search, or None."""
+    a = activation_of(card)
+    return (a.cost, a.finds) if a else None
 
 
 def _looks(card: Card) -> int:
@@ -1493,6 +1531,7 @@ def drop_line_path(
     puts: dict[str, tuple[str, ...]] | None = None,
     modes: dict[str, Mode] | None = None,
     chapters: dict[str, tuple[str, ...]] | None = None,
+    discard: Callable[[Card], bool] | None = None,
 ) -> LinePath:
     """Play `line` out through `last_turn` with the lands `land_drop` plays.
 
@@ -1500,9 +1539,10 @@ def drop_line_path(
     what it puts onto the battlefield (both the first of them the library still
     holds and the card can find), `modes` to how the pilot plays it, and
     `chapters` maps a Saga land to what its third chapter puts onto the
-    battlefield. An artifact with a tap-and-sacrifice search is activated for
-    what `fetches` names for it, and its cast fetches nothing. Cached on the
-    game."""
+    battlefield. A permanent with an activated search is activated for what
+    `fetches` names for it, and its cast fetches nothing; `discard` is the
+    file's `[discard] prefer`, the cards a cost that discards may be paid
+    with. Cached on the game."""
     fetches = fetches or {}
     puts = puts or {}
     modes = modes or {}
@@ -1516,6 +1556,7 @@ def drop_line_path(
         tuple(sorted(puts.items())),
         tuple(sorted(modes.items(), key=lambda kv: kv[0])),
         tuple(sorted(chapters.items())),
+        discard,
     )
     if key in game._line_cache:
         return game._line_cache[key]
@@ -1528,6 +1569,7 @@ def drop_line_path(
     in_play: list[tuple[int, Card]] = []  # (turn played, land)
     sources: list[Source] = []  # what the line cast that makes mana
     ready: list[Card] = []  # permanents the line cast with an activation, still in play
+    payers: list[Card] = []  # cards in hand `discard` allows a cost to discard
     waiting: list[tuple[int, Card]] = []  # (turn its chapter III resolves, the Saga)
     taken: list[str] = []  # names seen or taken out of the library
     seen_so_far = 0
@@ -1563,15 +1605,27 @@ def drop_line_path(
     def activation_finds(card: Card) -> str | None:
         """What activating `card` would fetch: the first card `fetches` names
         for it, of the type its text finds, that the library still holds."""
-        _, kind = activated_search(card)
+        a = activation_of(card)
         for wanted in fetches.get(card.name, ()):
             copy = next(c for c in g.library if c.name == wanted)
-            if kind.capitalize() in copy.type_line and holds(wanted):
+            if (
+                a.finds.capitalize() in copy.type_line
+                and (a.most is None or _mana_value(copy) <= a.most)
+                and holds(wanted)
+            ):
                 return wanted
         return None
 
     def activation_cost(card: Card) -> Cost:
-        return _parse_cost_cached(activated_search(card)[0])
+        return _parse_cost_cached(activation_of(card).cost)
+
+    def payer(card: Card) -> Card | None:
+        """The card an activation of `card` would discard, or None when its
+        cost discards and nothing in hand the list allows can pay it."""
+        kind = activation_of(card).discards
+        if kind is None:
+            return card  # nothing to discard: the cost is mana alone
+        return next((c for c in payers if kind.capitalize() in c.type_line), None)
 
     for t in range(1, last_turn + 1):
         new = g.seen(t)[seen_so_far:]
@@ -1579,6 +1633,9 @@ def drop_line_path(
         taken += [c.name for c in new]
         hand += [c for c in new if c.name in named]
         lands += [c for c in new if c.playable_land]
+        if discard is not None:
+            payers += [c for c in new if c.name not in named and discard(c)]
+        activated: list[Card] = []  # permanents activated this turn
         put: list[Card] = []
         cast: list[Card] = []
         # Chapter III, after the draw step and before the drop.
@@ -1596,7 +1653,7 @@ def drop_line_path(
         # ranks above every land in hand, out of what is already in play.
         for permanent in list(ready):
             wanted = activation_finds(permanent)
-            if wanted is None:
+            if wanted is None or not activation_of(permanent).sacrifice:
                 continue
             target = next(c for c in g.library if c.name == wanted)
             if not target.playable_land or any(
@@ -1621,8 +1678,11 @@ def drop_line_path(
             chosen = None
             for entry in line:
                 for permanent in ready:
-                    if permanent.name in entry and _settles(
-                        units, bill + [activation_cost(permanent)]
+                    if (
+                        permanent.name in entry
+                        and permanent not in activated
+                        and payer(permanent) is not None
+                        and _settles(units, bill + [activation_cost(permanent)])
                     ):
                         chosen = ("activate", permanent, activation_cost(permanent))
                         break
@@ -1642,8 +1702,12 @@ def drop_line_path(
             how, card, cost = chosen
             bill.append(cost)
             if how == "activate":
-                # Sacrificed as part of the cost: at most once, ever.
-                ready.remove(card)
+                if activation_of(card).sacrifice:
+                    ready.remove(card)  # sacrificed as part of the cost: once, ever
+                else:
+                    activated.append(card)  # once a turn
+                if activation_of(card).discards is not None:
+                    payers.remove(payer(card))  # discarded as part of the cost
                 wanted = activation_finds(card)
                 if wanted is not None:
                     found = take(wanted)
@@ -2330,6 +2394,7 @@ LANTERN_LAND_DROP = LandDrop(
 )
 SAGA, MAP = "Urza's Saga", "Expedition Map"
 FABRICATE, CAPTAIN = "Fabricate", "Tezzeret, Cruel Captain"
+INTUITION = "Artificer's Intuition"
 # [casting] prefer, the hand tutors' entry in decklist order.
 LANTERN_LINE: Line = (
     (LANTERN,),
@@ -2345,7 +2410,19 @@ LANTERN_LINE: Line = (
     ("Talisman of Curiosity",),
     ("Talisman of Impulse",),
     ("Mind Stone",),
+    (INTUITION,),
 )
+_LANTERN_NAMED = frozenset(n for entry in LANTERN_LINE for n in entry)
+
+
+def _lantern_discards(c: Card) -> bool:
+    """[discard] prefer = ['t:artifact -t:land -name:"Lantern of Insight"
+    -name:"Expedition Map" -name:<each rock the line casts>']: an artifact card
+    that is not a land and not one the line casts. (Every other card the line
+    names is not an artifact.)"""
+    return "Artifact" in c.type_line and "Land" not in c.type_line and c.name not in _LANTERN_NAMED
+
+
 LANTERN_ROUTES = dict(
     fetches={
         TRINKET: (LANTERN,),
@@ -2353,10 +2430,12 @@ LANTERN_ROUTES = dict(
         CAPTAIN: (LANTERN,),
         DIZZY: (LANTERN,),
         MAP: (SAGA,),
+        INTUITION: (LANTERN,),
     },
     puts={WHIR: (LANTERN,), TEZZERET: (LANTERN,)},
     modes={DIZZY: TRANSMUTE, WHIR: x_is(1)},
     chapters={SAGA: (LANTERN,)},
+    discard=_lantern_discards,
 )
 LANTERN_TURNS = 7
 # Turn 7, and two cards deeper for the Saga and the Lantern a search can take

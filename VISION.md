@@ -155,32 +155,32 @@ with no proxy anywhere: every route is the effect that is the route — the
 Lantern cast; Trinket Mage, Fabricate and Tezzeret, Cruel Captain to hand; Whir
 of Invention at a declared X = 1 and Tezzeret the Seeker onto the battlefield;
 Dizzy Spell's declared transmute; Urza's Saga's chapter III; Expedition Map for
-the Saga — and the rocks of ADR-0018 pay in the same line. A declared land drop
+the Saga; Artificer's Intuition, its discard paid as a cost — and the rocks of
+ADR-0018 pay in the same line. A declared land drop
 plays the Saga first, then the tapped lands, then the untapped ones, most
 colours first; the line casts the Lantern, Sol Ring, then the commander, then
-the tutors, then the Map and the other rocks. Both orders were chosen by
+the tutors, then the Map, the other rocks and Intuition. Both orders were chosen by
 measuring the alternatives, and the file lists them.
 
 | North star by | play | draw |
 |---|---|---|
-| turn 4 | 7.12% ± 0.06 | 9.35% ± 0.07 |
-| turn 5 | **31.09% ± 0.10** | **38.18% ± 0.11** |
-| turn 6 | 44.02% ± 0.11 | 52.01% ± 0.11 |
-| turn 7 | 52.22% ± 0.11 | 59.48% ± 0.11 |
+| turn 4 | 7.71% ± 0.06 | 9.83% ± 0.07 |
+| turn 5 | **33.58% ± 0.11** | **40.94% ± 0.11** |
+| turn 6 | 47.06% ± 0.11 | 55.22% ± 0.11 |
+| turn 7 | 55.71% ± 0.11 | 62.88% ± 0.11 |
 
-Sampled, at 33 groups and 1.8 × 10¹³ compositions at turn 5 on the play, and
+Sampled, at 39 groups and 1.0 × 10¹⁴ compositions at turn 5 on the play, and
 held turn by turn, both seats, against `checker/`, which plays the same line
 and land drop from the rules. It is lower than the old union because it asks
 more — the commander too, on the same lands — and pays every route out of one
 budget rather than reading each gate with its own clairvoyant land order; the
 rocks and the battlefield tutors give some of that back. The halves say which
-binds: the Lantern on the battlefield by turn 5 alone reads 49.68% / 55.99%,
-Rashmi cast alone 61.63% / 68.31%.
+binds: the Lantern on the battlefield by turn 5 alone reads 53.64% / 59.98%,
+Rashmi cast alone 61.48% / 68.43%.
 
 **No bound yet.** The old file's 0.75 was set for an easier question; the owner
 chooses a bound, and the turn it applies to, from this curve. The number is a
-floor for everything the file names as not modelled — Artificer's Intuition
-([#99](https://github.com/cramt/progress-engine/issues/99)), digging with Top,
+floor for everything the file names as not modelled — digging with Top,
 Azcanta and Dakra Mystic, the three tutors ADR-0019 refused, improvise,
 Rashmi's Treasure, the pilot adapting their land drop to the hand, mulligans —
 and a ceiling only for opponents, who are out of scope, and a fetchland never
