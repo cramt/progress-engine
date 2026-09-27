@@ -1,0 +1,296 @@
+{
+  "library_size": 99,
+  "commanders": [
+    "Rashmi and Ragavan"
+  ],
+  "excluded": [],
+  "on_the_draw": false,
+  "method": "sampled",
+  "sampled_because": "too_wide",
+  "too_wide": {
+    "paths": 284738168,
+    "groups": 11,
+    "ceiling": 5000000
+  },
+  "trials": 200000,
+  "seed": 0,
+  "queries": [
+    {
+      "query": "name:\"Whir of Invention\"",
+      "cards": 1
+    },
+    {
+      "query": "name:\"Dizzy Spell\"",
+      "cards": 1
+    },
+    {
+      "query": "name:\"Lantern of Insight\"",
+      "cards": 1
+    }
+  ],
+  "zones": [
+    {
+      "zone": "battlefield",
+      "reachable": true,
+      "asked_by": "Lantern of Insight on the battlefield by turn 5, cast or put there by a tutor"
+    },
+    {
+      "zone": "library",
+      "reachable": true,
+      "asked_by": "Lanterns still in the library on turn 5"
+    }
+  ],
+  "effects": [
+    {
+      "match": "t:land otag:surveil",
+      "look": 1,
+      "on": "landdrop",
+      "source": "the standard effect library",
+      "cards": [
+        "Hedge Maze"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc",
+      "look": 0,
+      "adds": 1,
+      "on": "cast",
+      "source": "the standard effect library",
+      "cards": [
+        "Arcane Signet",
+        "Mind Stone",
+        "Talisman of Creativity",
+        "Talisman of Curiosity",
+        "Talisman of Impulse"
+      ],
+      "copies": 5,
+      "live": false
+    },
+    {
+      "match": "(otag:mana-rock or otag:mana-dork) o:\"{T}: Add {C}{C}.\" -o:\"enters tapped\" -o:\"doesn't untap\" -o:\"Spend this mana only\" -o:\"can't be spent\" -o:\"Activate only\" -o:\"could produce\" -o:\", {T}: Add\" -o:\"for each\" -o:\"{X}\" -o:\"an amount of\" -is:transform -is:mdfc",
+      "look": 0,
+      "adds": 2,
+      "on": "cast",
+      "source": "the standard effect library",
+      "cards": [
+        "Sol Ring"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "name:\"Whir of Invention\"",
+      "look": 0,
+      "cost": "{1}{U}{U}{U}",
+      "on": "cast",
+      "fetch": [
+        "name:\"Lantern of Insight\""
+      ],
+      "to": "battlefield",
+      "source": "decks/lantern-route-tutors.criteria.toml",
+      "cards": [
+        "Whir of Invention"
+      ],
+      "copies": 1,
+      "live": true
+    },
+    {
+      "match": "name:\"Tezzeret the Seeker\"",
+      "look": 0,
+      "on": "cast",
+      "fetch": [
+        "name:\"Lantern of Insight\""
+      ],
+      "to": "battlefield",
+      "source": "decks/lantern-route-tutors.criteria.toml",
+      "cards": [
+        "Tezzeret the Seeker"
+      ],
+      "copies": 1,
+      "live": true
+    },
+    {
+      "match": "name:\"Dizzy Spell\"",
+      "look": 0,
+      "cost": "{1}{U}{U}",
+      "on": "cast",
+      "fetch": [
+        "name:\"Lantern of Insight\""
+      ],
+      "to": "hand",
+      "source": "decks/lantern-route-tutors.criteria.toml",
+      "cards": [
+        "Dizzy Spell"
+      ],
+      "copies": 1,
+      "live": true
+    }
+  ],
+  "enumerations": [
+    {
+      "criteria": [
+        "Whir of Invention cast by turn 5",
+        "Dizzy Spell transmuted by turn 5",
+        "Lantern of Insight cast by turn 5",
+        "Lantern of Insight on the battlefield by turn 5, cast or put there by a tutor"
+      ],
+      "expectations": [
+        "Lanterns still in the library on turn 5"
+      ],
+      "queries": [
+        "name:\"Whir of Invention\"",
+        "name:\"Dizzy Spell\"",
+        "name:\"Lantern of Insight\"",
+        "name:\"Tezzeret the Seeker\"",
+        "<effect name:\"Whir of Invention\">",
+        "<effect name:\"Tezzeret the Seeker\">",
+        "<effect name:\"Dizzy Spell\">"
+      ],
+      "turns": [
+        5
+      ],
+      "reading": "per-turn",
+      "pips": [
+        "{U}"
+      ],
+      "groups": 11,
+      "compositions": 284738168,
+      "method": "sampled"
+    }
+  ],
+  "assumed_tapped": [
+    "Breeding Pool",
+    "Rejuvenating Springs",
+    "Sea Gate Restoration // Sea Gate, Reborn",
+    "Shatterskull Smashing // Shatterskull, the Hammer Pass",
+    "Shifting Woodland",
+    "Steam Vents",
+    "Stomping Ground",
+    "Training Center",
+    "Turbulent Springs",
+    "Turbulent Wilderness"
+  ],
+  "assumed_mana": [
+    {
+      "card": "Castle Doom",
+      "reading": "pays {C} only: its other colours come with a condition this engine cannot see"
+    },
+    {
+      "card": "Maze of Ith",
+      "reading": "makes no mana: it has no mana ability, so it is a land drop and pays for nothing"
+    },
+    {
+      "card": "Misty Rainforest",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Island, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find"
+    },
+    {
+      "card": "Prismatic Vista",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Island, Mountain): pays {U}{R}{G}, assuming one is still in the library to find"
+    },
+    {
+      "card": "Scalding Tarn",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Island, Mountain, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find"
+    },
+    {
+      "card": "Spire of Industry",
+      "reading": "pays {C} only: its other colours come with a condition this engine cannot see"
+    },
+    {
+      "card": "Urza's Saga",
+      "reading": "makes mana for three turns, the one it is played on and the two after: its last chapter sacrifices it"
+    },
+    {
+      "card": "Wooded Foothills",
+      "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain, Taiga, Tropical Island, Volcanic Island): pays {U}{R}{G}, assuming one is still in the library to find"
+    }
+  ],
+  "casting": {
+    "prefer": [
+      "name:\"Lantern of Insight\"",
+      "name:\"Whir of Invention\"",
+      "name:\"Tezzeret the Seeker\"",
+      "name:\"Dizzy Spell\""
+    ],
+    "then": "a spell this list does not name is not cast at all",
+    "tie_break": "a tie inside one entry goes to the cheaper cost, then to the card this decklist names first",
+    "printed_cost": [
+      "Whir of Invention"
+    ],
+    "declared_costs": [
+      {
+        "card": "Dizzy Spell",
+        "billed": "{1}{U}{U}",
+        "printed": "{U}",
+        "effect": "name:\"Dizzy Spell\""
+      },
+      {
+        "card": "Whir of Invention",
+        "billed": "{1}{U}{U}{U}",
+        "printed": "{X}{U}{U}{U}",
+        "effect": "name:\"Whir of Invention\""
+      }
+    ]
+  },
+  "criteria": [
+    {
+      "name": "Whir of Invention cast by turn 5",
+      "probability": 0.032015,
+      "percent": 3.2,
+      "at_least": null,
+      "standard_error": 0.000394,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "Dizzy Spell transmuted by turn 5",
+      "probability": 0.066375,
+      "percent": 6.64,
+      "at_least": null,
+      "standard_error": 0.000557,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "Lantern of Insight cast by turn 5",
+      "probability": 0.16597,
+      "percent": 16.6,
+      "at_least": null,
+      "standard_error": 0.000832,
+      "pass": true,
+      "method": "sampled"
+    },
+    {
+      "name": "Lantern of Insight on the battlefield by turn 5, cast or put there by a tutor",
+      "probability": 0.217455,
+      "percent": 21.75,
+      "at_least": null,
+      "standard_error": 0.000922,
+      "pass": true,
+      "method": "sampled"
+    }
+  ],
+  "expectations": [
+    {
+      "name": "Lanterns still in the library on turn 5",
+      "mean": 0.7773,
+      "distribution": [
+        0.222715,
+        0.777285
+      ],
+      "standard_error": 0.00093,
+      "method": "sampled"
+    }
+  ],
+  "asserted": 0,
+  "failed": 0,
+  "ok": true,
+  "provenance": {
+    "tool_version": "0.1.0",
+    "index_updated_at": "2026-09-26T09:01:56.801+00:00",
+    "deck_sha256": "b39ac98bea3f6724d9811f28c50bc966d28734bcb31de6e1349b8fe526f2ab09",
+    "criteria_sha256": "ce83421a6d31b8639717d79d6ba39613f7440fa6155f2781bd8d5cce5fdc167d",
+    "effect_library_sha256": "331c6ec9ff4b9ffb698ec4fae066b674a98e6fdf2eb3f426c09815fb586546e1"
+  }
+}
