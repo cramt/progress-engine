@@ -1,8 +1,3 @@
 [toolchain]
 channel = "stable"
 components = ["rustfmt", "clippy"]
-# The parked gitaxian-probe-app cross-compiled to Android and shipped these
-# targets with the toolchain, because `dx` aborts with a bare ENOENT when one is
-# missing and a nix toolchain gives it no way to install them. Nothing in the
-# workspace names either triple now; restore this line with the probe.
-# targets = ["aarch64-linux-android", "x86_64-linux-android"]

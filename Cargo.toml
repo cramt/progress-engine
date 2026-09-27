@@ -2,13 +2,12 @@
 resolver = "2"
 members = ["crates/ichormoon-gauntlet/*", "crates/reality-chip/*"]
 # Gitaxian Probe is parked: a failed MVP whose source stays in the tree but out
-# of the build, so a plain `cargo` resolves the workspace without the flake's
-# patched deno_core. Its crates still inherit `*.workspace = true` keys, so they
-# do not build on their own either. To bring it back, restore from the commit
-# that parked it: this `members` glob as "crates/*/*", the probe-only
-# `[workspace.dependencies]`, the size-tuned `[profile.release]`, the
-# `[patch.crates-io]` deno_core entry, and flake.nix's V8, Skia, vendored
-# deno_core and Android wiring.
+# of the build, so a plain `cargo` resolves the workspace without V8. Its engine
+# crate still inherits `*.workspace = true` keys, so it does not build on its own
+# either. To bring it back, restore from the commit that parked it: this
+# `members` glob as "crates/*/*", the probe-only `[workspace.dependencies]`, and
+# flake.nix's prebuilt V8. The Android app, the deno_core errno patch and the
+# size-tuned release profile it once needed are deleted, not parked.
 exclude = ["crates/gitaxian-probe/*"]
 
 [workspace.metadata.crane]

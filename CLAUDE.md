@@ -70,8 +70,8 @@ an unformatted commit reports red without ever having run the tests. This has
 hidden broken clippy and tests across four commits before.
 
 The parked probe needed the flake to build at all - a prebuilt V8 pinned by
-hash and an Android-patched deno_core symlinked into `vendor/` - which is why it
-was taken out of the workspace. If it comes back, so does that wiring, and its
+hash - which is why it was taken out of the workspace. Its Android app is
+deleted rather than parked. If it comes back, so does the V8 wiring, and its
 engine tests skip when the upstream blobs or the card fixtures are missing: run
 them with `PROBE_REQUIRE_ENGINE=1` before claiming its accuracy numbers, or a
 green suite has checked nothing.

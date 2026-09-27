@@ -12,13 +12,11 @@
   };
 
   # Gitaxian Probe is parked outside the cargo workspace (see the root
-  # Cargo.toml), and everything this flake carried only for it went with it:
-  # the prebuilt librusty_v8 and Skia fixed-output derivations, the
-  # Android-patched deno_core symlinked into vendor/, the WebView libraries, and
-  # the `android` and `android-emulator` shells. Bringing the probe back means
-  # restoring them from the commit that parked it - the V8 hashes are pinned to
-  # the `v8` crate version and its simdutf variant, so check both still match.
-  # patches/deno_core-android-errno.patch stays in the tree for that day.
+  # Cargo.toml), and the prebuilt librusty_v8 fixed-output derivation it needed
+  # went with it. Bringing the probe back means restoring that from the commit
+  # that parked it - the V8 hashes are pinned to the `v8` crate version and its
+  # simdutf variant, so check both still match. Its Android app, and the Skia,
+  # WebView, patched-deno_core and android shells that served it, are deleted.
 
   outputs = {
     nixpkgs,
