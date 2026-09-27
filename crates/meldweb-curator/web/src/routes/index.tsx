@@ -5,7 +5,10 @@ import { declareCategory, parseDeck, setCardCategories } from "../deck";
 import { dropOnto } from "../deck/move";
 import { type OnDrop, StacksView } from "../deck/StacksView";
 import { Toolbar, UndoRedo } from "../deck/Toolbar";
+import { addByName } from "../quickadd/addByName"; // #116/#117 mount
+import { type AddByName, QuickAdd } from "../quickadd/QuickAdd"; // #116 mount
 import { fetchPrintings } from "../scryfall";
+import { SearchButton, SearchOverlay } from "../search/SearchOverlay"; // #117 mount
 
 // The committed lantern deck, until the editor reads decks from GitHub.
 export const Route = createFileRoute("/")({
@@ -70,6 +73,7 @@ function DeckPage() {
   const [refusal, setRefusal] = useState<string | null>(null);
   const parsed = useMemo(() => parseDeck(history.present), [history.present]);
   const { undo, redo } = history;
+  const [searching, setSearching] = useState(false); // #117 mount
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -120,6 +124,18 @@ function DeckPage() {
     }
   };
 
+  // #116/#117 mount: quick add and the search add one copy, undoably.
+  const onAdd: AddByName = (name, category) => {
+    try {
+      history.edit(
+        addByName(history.present, parsed.cards, printings, name, category),
+      );
+      setRefusal(null);
+    } catch (e) {
+      setRefusal(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const before = loaded.split("\n");
   const changed = history.present
     .split("\n")
@@ -129,6 +145,8 @@ function DeckPage() {
       <Toolbar
         name={parsed.name ?? "lantern.deck.toml"}
         count={parsed.total}
+        search={<SearchButton onClick={() => setSearching(true)} />} // #117 mount
+        quickAdd={<QuickAdd categories={parsed.categories} onAdd={onAdd} />} // #116 mount
         status={
           changed === 0
             ? "no changes"
@@ -150,6 +168,16 @@ function DeckPage() {
             ×
           </button>
         </p>
+      )}
+      {searching && ( // #117 mount
+        <SearchOverlay
+          cards={parsed.cards}
+          printings={printings}
+          format={parsed.format}
+          categories={parsed.categories}
+          onAdd={onAdd}
+          onClose={() => setSearching(false)}
+        />
       )}
       <details className="source">
         <summary>The file</summary>
