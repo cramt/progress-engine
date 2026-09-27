@@ -1,4 +1,4 @@
-ESTIMATE: a question here was too wide to enumerate exactly: 2861253525504
+ESTIMATE: a question here was too wide to enumerate exactly: 5000001
           compositions across 16 groups, against a ceiling of 5000000. It was
           answered by sampling 200000 hands instead.
           Every percentage below is an ESTIMATE, not an exact answer.
@@ -24,6 +24,38 @@ note: effect "name:\"Wrenn and Seven\"" (mill 4, on cast)
       applies to 1 card: Wrenn and Seven
       puts what it mills in the graveyard, except every card matching "t:land", which the card puts in your hand
       and the [casting] line does not cast it, so here it mills nothing
+note: effect "name:\"Frantic Search\"" (draw 2, on cast)
+      applies to 1 card: Frantic Search
+      then discards 2, chosen by the [discard] list
+      and the [casting] line does not cast it, so here it draws and discards nothing
+note: effect "name:\"Izzet Charm\"" (draw 2, on cast)
+      applies to 1 card: Izzet Charm
+      then discards 2, chosen by the [discard] list
+      and the [casting] line does not cast it, so here it draws and discards nothing
+note: effect "name:\"Desperate Ravings\"" (draw 2, on cast)
+      applies to 1 card: Desperate Ravings
+      then discards 1 at random: the card picks, and no list moves it
+      and the [casting] line does not cast it, so here it draws and discards nothing
+note: effect "name:\"Borborygmos and Fblthp\"" (draw 1, on cast)
+      applies to 1 card: Borborygmos and Fblthp
+      then may discard any number matching "t:land": every one the [discard] list names, and none where there is no list
+      A spell it draws is cast this turn if the line reaches it and the pool still pays; a land it draws
+      waits for the next turn's land drop, even where this turn's was not made: a floor
+note: effect "name:\"Six\" t:treefolk" (mill 3, on attack)
+      applies to 1 card: Six
+      puts all it mills in the graveyard: the card lets you keep 1 matching "t:land", and this file declares no `to_hand` choosing one
+      mills each time it attacks, every turn after the one the [casting] line casts it on
+      and the [casting] line does not cast it, so here it mills nothing
+note: effect "name:\"Icetill Explorer\"" (mill 1, on landfall)
+      applies to 1 card: Icetill Explorer
+      puts all it mills in the graveyard
+      mills once for each land that enters while it is on the battlefield, from the turn after the [casting] line casts it: the drop, a fetched land, a returned one
+      and the [casting] line does not cast it, so here it mills nothing
+note: effect "name:\"Lumra, Bellow of the Woods\"" (mill 4, on cast)
+      applies to 1 card: Lumra, Bellow of the Woods
+      puts all it mills in the graveyard
+      then returns every card matching "t:land" in the graveyard to the battlefield tapped. They took no land drop, and a turn's bill is still held to its drops, so the mana they could make is a floor
+      and the [casting] line does not cast it, so here it mills nothing
 note: the spells cast here are decided by the priority this file declared, and every
       number below that depends on what was cast depends on it:
       1. "name:\"Borborygmos and Fblthp\""
@@ -45,10 +77,10 @@ note: these lands make mana other than the card data lists, and this run reads t
       Scalding Tarn: a fetchland, read as the untapped lands it can find in this deck (Island, Mountain): pays {U}{R}, assuming one is still in the library to find.
       Simic Growth Chamber: counted as one mana a turn: the second mana it taps for, and the land it returns to hand, are not modelled.
       Wooded Foothills: a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain): pays {R}{G}, assuming one is still in the library to find.
-     commander cast by turn 5                                51.99% ± 0.11
-     commander cast by turn 6                                62.16% ± 0.11
-     commander cast by turn 7                                70.84% ± 0.10
+     commander cast by turn 5                                51.90% ± 0.11
+     commander cast by turn 6                                62.10% ± 0.11
+     commander cast by turn 7                                70.77% ± 0.10
      Borborygmos and Fblthp castable by turn 4, lands only    0.00% ± 0.00
-     Borborygmos and Fblthp castable by turn 5, lands only   51.99% ± 0.11
+     Borborygmos and Fblthp castable by turn 5, lands only   51.90% ± 0.11
 
 PASS: 0 of 0 assertions met

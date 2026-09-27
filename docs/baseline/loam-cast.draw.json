@@ -9,7 +9,7 @@
   "sampled_because": "too_wide",
   "too_wide": {
     "paths": 5000001,
-    "groups": 16,
+    "groups": 37,
     "ceiling": 5000000
   },
   "trials": 200000,
@@ -28,7 +28,7 @@
     {
       "zone": "graveyard",
       "reachable": true,
-      "asked_by": "Life from the Loam in the graveyard by turn 5, cast or milled"
+      "asked_by": "Life from the Loam in the graveyard by turn 5, cast, milled or discarded"
     }
   ],
   "effects": [
@@ -66,6 +66,86 @@
       "source": "the standard effect library",
       "cards": [
         "Wrenn and Seven"
+      ],
+      "copies": 1,
+      "live": true
+    },
+    {
+      "match": "name:\"Frantic Search\"",
+      "look": 0,
+      "on": "cast",
+      "draw": 2,
+      "discard": 2,
+      "untap": 3,
+      "source": "the standard effect library",
+      "cards": [
+        "Frantic Search"
+      ],
+      "copies": 1,
+      "live": true
+    },
+    {
+      "match": "name:\"Izzet Charm\"",
+      "look": 0,
+      "on": "cast",
+      "draw": 2,
+      "discard": 2,
+      "source": "the standard effect library",
+      "cards": [
+        "Izzet Charm"
+      ],
+      "copies": 1,
+      "live": true
+    },
+    {
+      "match": "name:\"Desperate Ravings\"",
+      "look": 0,
+      "on": "cast",
+      "draw": 2,
+      "discard": 1,
+      "at_random": true,
+      "source": "the standard effect library",
+      "cards": [
+        "Desperate Ravings"
+      ],
+      "copies": 1,
+      "live": true
+    },
+    {
+      "match": "name:\"Borborygmos and Fblthp\"",
+      "look": 0,
+      "on": "cast",
+      "draw": 1,
+      "discard_any": true,
+      "discard_only": "t:land",
+      "source": "the standard effect library",
+      "cards": [
+        "Borborygmos and Fblthp"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "name:\"Icetill Explorer\"",
+      "look": 0,
+      "on": "landfall",
+      "mill": 1,
+      "source": "the standard effect library",
+      "cards": [
+        "Icetill Explorer"
+      ],
+      "copies": 1,
+      "live": true
+    },
+    {
+      "match": "name:\"Lumra, Bellow of the Woods\"",
+      "look": 0,
+      "on": "cast",
+      "mill": 4,
+      "returns": "t:land",
+      "source": "the standard effect library",
+      "cards": [
+        "Lumra, Bellow of the Woods"
       ],
       "copies": 1,
       "live": true
@@ -123,12 +203,30 @@
       ],
       "copies": 1,
       "live": true
+    },
+    {
+      "match": "name:\"Six\" t:treefolk",
+      "look": 0,
+      "on": "attack",
+      "mill": 3,
+      "keep": 1,
+      "keep_only": "t:land",
+      "to_hand": [
+        "t:land"
+      ],
+      "assumes": "it attacks every turn it can, and no opponent blocks it or removes it; nobody else is at this table (ADR-0018)",
+      "source": "decks/loam-cast.criteria.toml",
+      "cards": [
+        "Six"
+      ],
+      "copies": 1,
+      "live": true
     }
   ],
   "enumerations": [
     {
       "criteria": [
-        "Life from the Loam in the graveyard by turn 5, cast or milled",
+        "Life from the Loam in the graveyard by turn 5, cast, milled or discarded",
         "Life from the Loam cast by turn 5",
         "Spellseeker and Life from the Loam both cast by turn 5"
       ],
@@ -136,28 +234,45 @@
       "queries": [
         "name:\"Life from the Loam\"",
         "name:\"Spellseeker\"",
+        "otag:tapland",
+        "t:land",
+        "name:\"Frantic Search\"",
         "name:\"Malevolent Rumble\"",
         "name:\"Midnight Tilling\"",
+        "name:\"Izzet Charm\"",
+        "name:\"Desperate Ravings\"",
         "name:\"Aftermath Analyst\"",
         "name:\"Wrenn and Seven\"",
-        "t:land",
+        "name:\"Six\" t:treefolk",
+        "name:\"Icetill Explorer\"",
+        "name:\"Lumra, Bellow of the Woods\"",
         "is:permanent",
         "<effect name:\"Aftermath Analyst\">",
         "<effect name:\"Wrenn and Seven\">",
+        "<effect name:\"Frantic Search\">",
+        "<effect name:\"Izzet Charm\">",
+        "<effect name:\"Desperate Ravings\">",
+        "<effect name:\"Icetill Explorer\">",
+        "<effect name:\"Lumra, Bellow of the Woods\">",
         "<effect name:\"Spellseeker\">",
         "<effect name:\"Malevolent Rumble\">",
-        "<effect name:\"Midnight Tilling\">"
+        "<effect name:\"Midnight Tilling\">",
+        "<effect name:\"Six\" t:treefolk>"
       ],
       "turns": [
         5
       ],
       "reading": "per-turn",
       "pips": [
+        "{W}",
         "{U}",
-        "{G}"
+        "{B}",
+        "{R}",
+        "{G}",
+        "{C}"
       ],
-      "groups": 16,
-      "compositions": 178828345344,
+      "groups": 37,
+      "compositions": 2234547575579098,
       "method": "sampled"
     }
   ],
@@ -198,14 +313,28 @@
       "reading": "a fetchland, read as the untapped lands it can find in this deck (Forest, Mountain): pays {R}{G}, assuming one is still in the library to find"
     }
   ],
+  "land_drop": {
+    "prefer": [
+      "otag:tapland",
+      "t:land"
+    ],
+    "then": "any other land",
+    "tie_break": "a tie inside one entry goes to the deeper look, then to the card this decklist names first"
+  },
   "casting": {
     "prefer": [
       "name:\"Life from the Loam\"",
+      "name:\"Frantic Search\"",
       "name:\"Spellseeker\"",
       "name:\"Malevolent Rumble\"",
       "name:\"Midnight Tilling\"",
+      "name:\"Izzet Charm\"",
+      "name:\"Desperate Ravings\"",
       "name:\"Aftermath Analyst\"",
-      "name:\"Wrenn and Seven\""
+      "name:\"Wrenn and Seven\"",
+      "name:\"Six\" t:treefolk",
+      "name:\"Icetill Explorer\"",
+      "name:\"Lumra, Bellow of the Woods\""
     ],
     "then": "a spell this list does not name is not cast at all",
     "tie_break": "a tie inside one entry goes to the cheaper cost, then to the card this decklist names first",
@@ -213,31 +342,40 @@
       "Malevolent Rumble"
     ]
   },
+  "discard": {
+    "prefer": [
+      "name:\"Life from the Loam\"",
+      "t:land"
+    ],
+    "then": "a forced discard takes a card this list does not name only after every card it does, and an \"any number\" discard never takes one",
+    "tie_break": "a tie inside one entry, and among the cards no entry names, is settled at random, and every way it could fall is priced",
+    "at_random": "a card that discards at random ignores this list: every card in hand is as likely"
+  },
   "criteria": [
     {
-      "name": "Life from the Loam in the graveyard by turn 5, cast or milled",
-      "probability": 0.218175,
-      "percent": 21.82,
+      "name": "Life from the Loam in the graveyard by turn 5, cast, milled or discarded",
+      "probability": 0.225665,
+      "percent": 22.57,
       "at_least": null,
-      "standard_error": 0.000924,
+      "standard_error": 0.000935,
       "pass": true,
       "method": "sampled"
     },
     {
       "name": "Life from the Loam cast by turn 5",
-      "probability": 0.20312,
-      "percent": 20.31,
+      "probability": 0.199365,
+      "percent": 19.94,
       "at_least": null,
-      "standard_error": 0.0009,
+      "standard_error": 0.000893,
       "pass": true,
       "method": "sampled"
     },
     {
       "name": "Spellseeker and Life from the Loam both cast by turn 5",
-      "probability": 0.104785,
-      "percent": 10.48,
+      "probability": 0.10117,
+      "percent": 10.12,
       "at_least": null,
-      "standard_error": 0.000685,
+      "standard_error": 0.000674,
       "pass": true,
       "method": "sampled"
     }
@@ -250,7 +388,7 @@
     "tool_version": "0.1.0",
     "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
-    "criteria_sha256": "5560153d9b0444e3276a76da5f0da399d4100cdafe803649fbf072aee0bcb890",
-    "effect_library_sha256": "331c6ec9ff4b9ffb698ec4fae066b674a98e6fdf2eb3f426c09815fb586546e1"
+    "criteria_sha256": "e1e6acefdd7cb3aacba0c4e74080dd176e81cabb6d3e5c02bc46e355cac4c5e1",
+    "effect_library_sha256": "d0e1c9efcec3579040c2258b3a4f37b4697f0d675211f84a74ef9061cbc14415"
   }
 }

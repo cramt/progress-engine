@@ -8,7 +8,7 @@
   "method": "sampled",
   "sampled_because": "too_wide",
   "too_wide": {
-    "paths": 36332613504,
+    "paths": 5000001,
     "groups": 18,
     "ceiling": 5000000
   },
@@ -90,6 +90,100 @@
       ],
       "copies": 1,
       "live": false
+    },
+    {
+      "match": "name:\"Frantic Search\"",
+      "look": 0,
+      "on": "cast",
+      "draw": 2,
+      "discard": 2,
+      "untap": 3,
+      "source": "the standard effect library",
+      "cards": [
+        "Frantic Search"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "name:\"Izzet Charm\"",
+      "look": 0,
+      "on": "cast",
+      "draw": 2,
+      "discard": 2,
+      "source": "the standard effect library",
+      "cards": [
+        "Izzet Charm"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "name:\"Desperate Ravings\"",
+      "look": 0,
+      "on": "cast",
+      "draw": 2,
+      "discard": 1,
+      "at_random": true,
+      "source": "the standard effect library",
+      "cards": [
+        "Desperate Ravings"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "name:\"Borborygmos and Fblthp\"",
+      "look": 0,
+      "on": "cast",
+      "draw": 1,
+      "discard_any": true,
+      "discard_only": "t:land",
+      "source": "the standard effect library",
+      "cards": [
+        "Borborygmos and Fblthp"
+      ],
+      "copies": 1,
+      "live": true
+    },
+    {
+      "match": "name:\"Six\" t:treefolk",
+      "look": 0,
+      "on": "attack",
+      "mill": 3,
+      "keep": 1,
+      "keep_only": "t:land",
+      "source": "the standard effect library",
+      "cards": [
+        "Six"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "name:\"Icetill Explorer\"",
+      "look": 0,
+      "on": "landfall",
+      "mill": 1,
+      "source": "the standard effect library",
+      "cards": [
+        "Icetill Explorer"
+      ],
+      "copies": 1,
+      "live": false
+    },
+    {
+      "match": "name:\"Lumra, Bellow of the Woods\"",
+      "look": 0,
+      "on": "cast",
+      "mill": 4,
+      "returns": "t:land",
+      "source": "the standard effect library",
+      "cards": [
+        "Lumra, Bellow of the Woods"
+      ],
+      "copies": 1,
+      "live": false
     }
   ],
   "enumerations": [
@@ -100,7 +194,9 @@
       "expectations": [],
       "queries": [
         "name:\"Borborygmos and Fblthp\"",
-        "name:\"Birds of Paradise\" or name:\"Elvish Mystic\""
+        "name:\"Birds of Paradise\" or name:\"Elvish Mystic\"",
+        "t:land",
+        "<effect name:\"Borborygmos and Fblthp\">"
       ],
       "turns": [
         4
@@ -122,7 +218,9 @@
       "expectations": [],
       "queries": [
         "name:\"Borborygmos and Fblthp\"",
-        "name:\"Birds of Paradise\" or name:\"Elvish Mystic\""
+        "name:\"Birds of Paradise\" or name:\"Elvish Mystic\"",
+        "t:land",
+        "<effect name:\"Borborygmos and Fblthp\">"
       ],
       "turns": [
         5
@@ -211,17 +309,17 @@
   "criteria": [
     {
       "name": "Borborygmos and Fblthp cast by turn 4, dorks in the line",
-      "probability": 0.095615,
-      "percent": 9.56,
+      "probability": 0.095385,
+      "percent": 9.54,
       "at_least": null,
-      "standard_error": 0.000658,
+      "standard_error": 0.000657,
       "pass": true,
       "method": "sampled"
     },
     {
       "name": "Borborygmos and Fblthp cast by turn 5, dorks in the line",
-      "probability": 0.565195,
-      "percent": 56.52,
+      "probability": 0.567945,
+      "percent": 56.79,
       "at_least": null,
       "standard_error": 0.001108,
       "pass": true,
@@ -237,6 +335,6 @@
     "index_updated_at": "2026-09-26T09:01:56.801+00:00",
     "deck_sha256": "39181294330c7cf0f3e26728e1213e2d9a5cd47de8ef098fc1a75f90da49f538",
     "criteria_sha256": "0faa25759b73db32741c705fbdaf39f16a29585331a131fb0731af648cb273a0",
-    "effect_library_sha256": "331c6ec9ff4b9ffb698ec4fae066b674a98e6fdf2eb3f426c09815fb586546e1"
+    "effect_library_sha256": "d0e1c9efcec3579040c2258b3a4f37b4697f0d675211f84a74ef9061cbc14415"
   }
 }

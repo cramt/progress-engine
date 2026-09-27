@@ -27,6 +27,37 @@ note: effect "name:\"Wrenn and Seven\"" (mill 4, on cast)
       applies to 1 card: Wrenn and Seven
       puts what it mills in the graveyard, except every card matching "t:land", which the card puts in your hand
       and the [casting] line does not cast it, so here it mills nothing
+note: effect "name:\"Frantic Search\"" (draw 2, on cast)
+      applies to 1 card: Frantic Search
+      then discards 2, chosen by the [discard] list
+      and the [casting] line does not cast it, so here it draws and discards nothing
+note: effect "name:\"Izzet Charm\"" (draw 2, on cast)
+      applies to 1 card: Izzet Charm
+      then discards 2, chosen by the [discard] list
+      and the [casting] line does not cast it, so here it draws and discards nothing
+note: effect "name:\"Desperate Ravings\"" (draw 2, on cast)
+      applies to 1 card: Desperate Ravings
+      then discards 1 at random: the card picks, and no list moves it
+      and the [casting] line does not cast it, so here it draws and discards nothing
+note: effect "name:\"Borborygmos and Fblthp\"" (draw 1, on cast)
+      applies to 1 card: Borborygmos and Fblthp
+      then may discard any number matching "t:land": every one the [discard] list names, and none where there is no list
+      and the [casting] line does not cast it, so here it draws and discards nothing
+note: effect "name:\"Six\" t:treefolk" (mill 3, on attack)
+      applies to 1 card: Six
+      puts all it mills in the graveyard: the card lets you keep 1 matching "t:land", and this file declares no `to_hand` choosing one
+      mills each time it attacks, every turn after the one the [casting] line casts it on
+      and the [casting] line does not cast it, so here it mills nothing
+note: effect "name:\"Icetill Explorer\"" (mill 1, on landfall)
+      applies to 1 card: Icetill Explorer
+      puts all it mills in the graveyard
+      mills once for each land that enters while it is on the battlefield, from the turn after the [casting] line casts it: the drop, a fetched land, a returned one
+      and the [casting] line does not cast it, so here it mills nothing
+note: effect "name:\"Lumra, Bellow of the Woods\"" (mill 4, on cast)
+      applies to 1 card: Lumra, Bellow of the Woods
+      puts all it mills in the graveyard
+      then returns every card matching "t:land" in the graveyard to the battlefield tapped. They took no land drop, and a turn's bill is still held to its drops, so the mana they could make is a floor
+      and the [casting] line does not cast it, so here it mills nothing
 note: effect "otag:fetchland" (on landdrop)
       applies to 4 cards: Misty Rainforest, Prismatic Vista, Scalding Tarn, Wooded Foothills
       and fetches, to your battlefield, the first of these the library still holds:
