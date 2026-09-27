@@ -304,3 +304,141 @@ main {
   background: rgb(0 0 0 / 0.06);
   font-size: 12px;
 }
+
+/* Saving (#120): the toolbar's status slot and the conflict banner. */
+.save-status.save-unsaved,
+.save-status.save-saving {
+  font-style: italic;
+}
+
+.save-status.save-conflict,
+.save-status.save-error {
+  color: #b3261e;
+  font-weight: 600;
+}
+
+.toolbar-back {
+  color: inherit;
+  font-weight: 400;
+}
+
+.conflict {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #f2c94c;
+  color: #1c1e21;
+  font-weight: 600;
+}
+
+/* The deck list, login and onboarding (#119), and new deck (#121). */
+.home {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.home-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.deck-list {
+  list-style: none;
+  padding: 0;
+}
+
+.deck-list li {
+  padding: 10px 0;
+  border-bottom: 1px solid rgb(127 127 127 / 0.2);
+}
+
+.deck-list a {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.refusal-inline {
+  color: #b3261e;
+}
+
+.onboarding li {
+  margin-bottom: 16px;
+}
+
+.hint {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.done {
+  color: #2e7d32;
+}
+
+.button {
+  display: inline-block;
+  padding: 1px 6px;
+  text-decoration: none;
+}
+
+.primary {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: #2f6fed;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.new-deck {
+  width: min(560px, calc(100vw - 32px));
+  border: 1px solid rgb(127 127 127 / 0.4);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.new-deck form,
+.new-deck > div {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.new-deck label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.new-deck fieldset {
+  display: flex;
+  gap: 16px;
+  border: 0;
+  padding: 0;
+}
+
+.new-deck fieldset label {
+  flex-direction: row;
+  align-items: center;
+}
+
+.new-deck textarea {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

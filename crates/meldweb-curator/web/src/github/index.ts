@@ -22,7 +22,12 @@ export {
   slugify,
 } from "./decks";
 export { type DeckText, deckText, type Imported } from "./deckText";
-export { installUrl, newRepoUrl, type Onboarding } from "./onboarding";
+export {
+  installUrl,
+  newRepoUrl,
+  type Onboarding,
+  resolveInstallUrl,
+} from "./onboarding";
 export {
   type FoundRepo,
   findMagicRepo,
@@ -33,9 +38,12 @@ export {
 } from "./repo";
 export {
   createSaveStore,
+  flushOnLeave,
   IDLE_MS,
   type SaveState,
   type SaveStatus,
   type SaveStore,
+  settled,
 } from "./save";
+export { forgetSession, openSession, type Session } from "./session";
 export { useSave } from "./useSave";
