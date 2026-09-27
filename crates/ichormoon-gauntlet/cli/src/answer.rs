@@ -102,6 +102,11 @@ pub(crate) fn answer(
     // class that hit it, because that is the number a caller deciding whether
     // to narrow its question needs.
     let mut why: Option<report::WhySampled> = None;
+    // What every sampled class counts casts of, where that is all any of them
+    // reads: the draws none of them can see are dropped from the sampler's
+    // deal too (#103), so it deals exactly the games it dealt before the
+    // library knew those cards drew. `None` once one reads anything else.
+    let mut sampled_casts: Option<u64> = Some(0);
 
     if run.engine == Engine::Sample {
         why = Some(report::WhySampled::Requested);
@@ -113,7 +118,7 @@ pub(crate) fn answer(
             .answering(plan)
             .context("a class named a question this file does not hold")?;
         let narrowed = class.grouping(grouping);
-        let walk = class.schedule(schedule);
+        let walk = class.schedule(schedule, grouping);
         // How this class was answered, decided before its entry is written
         // rather than corrected afterwards.
         let method = if run.engine == Engine::Sample {
@@ -173,6 +178,9 @@ pub(crate) fn answer(
                 Err(e) => return Err(e.into()),
             }
         };
+        if method == report::Method::Sampled {
+            sampled_casts = sampled_casts.zip(class.casts()).map(|(a, b)| a | b);
+        }
         let groups = narrowed.dealt();
         enumerations.push(report::Enumeration {
             criteria: named(&criteria_names, answering.criteria()),
@@ -202,8 +210,14 @@ pub(crate) fn answer(
     let sampled = match why {
         None => None,
         Some(why) => {
+            // Its answers are used only where a class was sampled, so a draw
+            // none of those can see is one it need not deal either.
+            let dealt = match sampled_casts {
+                Some(casts) => schedule.unheard(grouping, casts),
+                None => schedule.clone(),
+            };
             let sampled =
-                gauntlet_sim::simulate(grouping, schedule, run.trials, run.seed, plan, criteria)?;
+                gauntlet_sim::simulate(grouping, &dealt, run.trials, run.seed, plan, criteria)?;
             for (i, estimated) in estimated.criteria.iter().enumerate() {
                 if *estimated {
                     probabilities[i] = Some(sampled.proportions[i]);

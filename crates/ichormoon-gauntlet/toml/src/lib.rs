@@ -1025,6 +1025,10 @@ pub struct Reads {
     queries: u64,
     /// The part of `queries` counted in the graveyard or the library.
     piles: u64,
+    /// The part of `queries` counted as cast rather than in a zone.
+    casts: u64,
+    /// Whether any clause counts cards in a zone.
+    zoned: bool,
     turns: Vec<usize>,
     demands: Option<Palette>,
     battlefield: bool,
@@ -1063,6 +1067,10 @@ impl Reads {
             self.piles |= 1u64 << query;
         }
         self.battlefield |= counted == Counted::In(Zone::Battlefield);
+        match counted {
+            Counted::Cast => self.casts |= 1u64 << query,
+            Counted::In(_) => self.zoned = true,
+        }
         self.at(turn);
     }
 
@@ -1102,6 +1110,16 @@ impl Reads {
     /// play and untapped but cannot tell one colour from another.
     pub fn demands(&self) -> Option<Palette> {
         self.demands
+    }
+
+    /// The queries it counts casts of, where that is **all** it reads: no
+    /// zone counted, no cost asked. `None` where it reads anything else.
+    ///
+    /// Such a question cannot see a card drawn after the last cast it counts,
+    /// which is what lets its class drop that draw
+    /// ([`gauntlet_criteria::Schedule::unheard`]).
+    pub fn only_casts(&self) -> Option<u64> {
+        (!self.zoned && self.demands.is_none()).then_some(self.casts)
     }
 
     /// Whether it counts cards on the battlefield, which reads the land drops

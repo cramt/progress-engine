@@ -213,6 +213,9 @@ _Avoid_: extra checkpoint, draw slot
 A mill that nothing reads before the question, dealt at the end of the path and only as finely as the question reads. A narrowing, so it moves no number.
 _Avoid_: lazy mill, tail (outside Reality Chip)
 
+**Unheard draw**:
+A cast's draw and discard that nothing a class reads can depend on, so the class does not walk them: every question in it counts only casts, of one-copy cards, and the draw fires only off that copy, after which the count is final. A narrowing, so it moves no number; the sampler drops it too where every sampled class hears nothing of it ([#103](https://github.com/cramt/progress-engine/issues/103)).
+
 **Mill**:
 Cards moved from the top of the library to the graveyard because the card says so. The destination is compelled rather than chosen, so the standard effect library may state it.
 

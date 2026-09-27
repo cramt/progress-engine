@@ -173,6 +173,10 @@ pub struct Class {
     /// The grouping bits any of its questions counts in the graveyard or the
     /// library, joined: what a mill dealt last is dealt over.
     piles: u64,
+    /// The queries its questions count casts of, where that is all any of
+    /// them reads: what a draw no question here can see is dropped over
+    /// ([`Schedule::unheard`]). `None` where one of them reads more.
+    casts: Option<u64>,
     criteria: Vec<usize>,
     expectations: Vec<usize>,
 }
@@ -185,10 +189,26 @@ impl Class {
 
     /// The shortest schedule that still answers it, with every mill nothing
     /// reads dealt last over what its questions read of the graveyard and
-    /// the library ([`Schedule::deferring`]).
-    pub fn schedule(&self, full: &Schedule) -> Schedule {
-        full.narrowed(&self.turns, self.reading)
+    /// the library ([`Schedule::deferring`]), and every draw and discard
+    /// nothing it reads can depend on dropped ([`Schedule::unheard`]).
+    /// `grouping` is the run's, which says how many copies each query holds.
+    pub fn schedule(&self, full: &Schedule, grouping: &Grouping) -> Schedule {
+        self.unheard(full.narrowed(&self.turns, self.reading), grouping)
             .deferring(self.piles)
+    }
+
+    /// `schedule` with the draws this class cannot see dropped, where it
+    /// reads nothing but casts.
+    pub fn unheard(&self, schedule: Schedule, grouping: &Grouping) -> Schedule {
+        match self.casts {
+            Some(casts) => schedule.unheard(grouping, casts),
+            None => schedule,
+        }
+    }
+
+    /// The queries this class counts casts of, where that is all it reads.
+    pub fn casts(&self) -> Option<u64> {
+        self.casts
     }
 
     /// Which of the file's questions this enumeration is for.
@@ -231,12 +251,13 @@ impl Class {
 
     /// The shortest schedule that still answers it with the opener as a
     /// checkpoint of its own, which is what a mulligan decides on.
-    pub fn schedule_with_opener(&self, full: &Schedule) -> Schedule {
+    pub fn schedule_with_opener(&self, full: &Schedule, grouping: &Grouping) -> Schedule {
         let mut turns = self.turns.clone();
         if !turns.contains(&0) {
             turns.insert(0, 0);
         }
-        full.narrowed(&turns, self.reading).deferring(self.piles)
+        self.unheard(full.narrowed(&turns, self.reading), grouping)
+            .deferring(self.piles)
     }
 
     /// The turns whose counts this class reads, and how it reads them.
@@ -332,7 +353,7 @@ impl Need {
 pub fn partition(reads: &QuestionReads, shared: &Shared) -> Vec<Class> {
     let mut classes: Vec<Class> = Vec::new();
     let mut place =
-        |need: Need, piles: u64, criterion: Option<usize>, expectation: Option<usize>| {
+        |need: Need, question: &Reads, criterion: Option<usize>, expectation: Option<usize>| {
             let slot = classes.iter().position(|c| {
                 c.keep == need.keep
                     && c.mana == need.mana
@@ -348,6 +369,7 @@ pub fn partition(reads: &QuestionReads, shared: &Shared) -> Vec<Class> {
                         reading: need.reading,
                         turns: need.turns,
                         piles: 0,
+                        casts: Some(0),
                         criteria: Vec::new(),
                         expectations: Vec::new(),
                     });
@@ -356,13 +378,14 @@ pub fn partition(reads: &QuestionReads, shared: &Shared) -> Vec<Class> {
             };
             class.criteria.extend(criterion);
             class.expectations.extend(expectation);
-            class.piles |= piles;
+            class.piles |= question.piles();
+            class.casts = class.casts.zip(question.only_casts()).map(|(a, b)| a | b);
         };
     for (i, question) in reads.criteria.iter().enumerate() {
-        place(Need::of(question, shared), question.piles(), Some(i), None);
+        place(Need::of(question, shared), question, Some(i), None);
     }
     for (i, question) in reads.expectations.iter().enumerate() {
-        place(Need::of(question, shared), question.piles(), None, Some(i));
+        place(Need::of(question, shared), question, None, Some(i));
     }
     classes
 }
@@ -382,6 +405,11 @@ mod tests {
     /// order, which is what a clause holds.
     fn bit(i: usize) -> u64 {
         1u64 << i
+    }
+
+    /// The run's grouping, for a schedule with no effect in it to drop.
+    fn no_cards() -> Grouping {
+        Grouping::build(Vec::new(), Vec::<(u64, u32)>::new()).unwrap()
     }
 
     #[test]
@@ -446,7 +474,10 @@ mod tests {
         let full = Schedule::build(5, false, Vec::new(), Policies::default());
         assert_eq!(full.gaps(), &[7, 0, 1, 1, 1, 1]);
         // Eleven cards seen by turn five, and nothing about the order.
-        assert_eq!(classes[0].schedule(&full).gaps(), &[0, 0, 0, 0, 0, 11]);
+        assert_eq!(
+            classes[0].schedule(&full, &no_cards()).gaps(),
+            &[0, 0, 0, 0, 0, 11]
+        );
     }
 
     #[test]
@@ -555,7 +586,10 @@ mod tests {
         // But nothing here asks what a land makes.
         assert_eq!(classes[0].mana, LandDetail::Ignored);
         let full = Schedule::build(5, false, Vec::new(), Policies::default());
-        assert_eq!(classes[0].schedule(&full).gaps(), &[7, 0, 1, 1, 1, 0]);
+        assert_eq!(
+            classes[0].schedule(&full, &no_cards()).gaps(),
+            &[7, 0, 1, 1, 1, 0]
+        );
     }
 
     #[test]
@@ -704,7 +738,10 @@ mod tests {
         );
         // The seven on its own, then the four draws after it merged: the draws
         // still collapse, and the opener does not.
-        assert_eq!(classes[0].schedule(&full).gaps(), &[7, 0, 0, 0, 0, 4]);
+        assert_eq!(
+            classes[0].schedule(&full, &no_cards()).gaps(),
+            &[7, 0, 0, 0, 0, 4]
+        );
     }
 
     #[test]
@@ -733,13 +770,93 @@ mod tests {
         let full = Schedule::build(5, false, Vec::new(), Policies::default());
         let piles: Vec<Option<u64>> = classes
             .iter()
-            .map(|c| c.schedule(&full).deferred())
+            .map(|c| c.schedule(&full, &no_cards()).deferred())
             .collect();
         assert_eq!(
             piles.iter().flatten().fold(0, |a, b| a | b),
             bit(0) | bit(2)
         );
         assert!(piles.iter().flatten().all(|p| p & bit(1) == 0));
+    }
+
+    #[test]
+    fn a_class_counting_only_the_commanders_cast_does_not_walk_the_card_it_draws() {
+        // #103, loam-commander's shape: the commander draws as it enters, and
+        // "cast by turn 5" is settled by then. A question counting lands in
+        // hand beside it reads that draw, so its class walks it.
+        let reads = reads_of(
+            r#"
+            [[criterion]]
+            name = "commander by five"
+            require = [{ turn = 5, cast = 'name:"Borborygmos and Fblthp"', min = 1 }]
+
+            [[criterion]]
+            name = "lands in hand"
+            require = [{ turn = 5, query = "t:land", min = 2 }]
+            "#,
+        );
+        let commander = gauntlet_criteria::ManaSource::Castable {
+            cost: gauntlet_criteria::Cost::parse("{2}{G}{U}{R}")
+                .unwrap()
+                .demand(),
+            resolves: gauntlet_criteria::Resolves::OntoBattlefield,
+        };
+        let land = gauntlet_criteria::ManaSource::Land {
+            enters_tapped: false,
+            produces: Palette::ALL,
+            lasts: None,
+        };
+        let grouping = Grouping::with_mana(
+            vec!["name:\"Borborygmos and Fblthp\"".into(), "t:land".into()],
+            [
+                (bit(1), land, 40),
+                (0, gauntlet_criteria::ManaSource::Spell, 59),
+            ],
+        )
+        .unwrap()
+        .with_command_zone([(bit(0), commander, 1)]);
+        let draws = gauntlet_criteria::Effect {
+            matched_by: 0,
+            look: 0,
+            trigger: gauntlet_criteria::Trigger::Cast,
+            route: gauntlet_criteria::Route::Nowhere,
+            fetch: None,
+            delay: None,
+            draw: 1,
+            mill: None,
+            activation: None,
+            discard: None,
+            untap: 0,
+        };
+        let full = Schedule::plain_with_fetches(
+            &[7, 0, 1, 1, 1, 1],
+            vec![draws],
+            Policies::casting(gauntlet_criteria::CastingPolicy::new(vec![0])),
+        );
+        let shared = Shared {
+            effects: Some(Effects {
+                queries: bit(0),
+                on_the_drop: false,
+            }),
+            casting: Some(Casting {
+                queries: bit(0),
+                demands: Palette::ALL,
+            }),
+            ..Shared::default()
+        };
+        let classes = partition(&reads, &shared);
+        assert_eq!(classes.len(), 2);
+        let drawn = |class: &Class| class.schedule(&full, &grouping).effects()[0].draw;
+        assert_eq!(
+            drawn(&classes[0]),
+            0,
+            "nothing it reads comes after the cast"
+        );
+        assert_eq!(
+            drawn(&classes[1]),
+            1,
+            "the hand it counts holds what was drawn"
+        );
     }
 
     #[test]

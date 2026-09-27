@@ -74,7 +74,7 @@ pub fn choose(
     for &ci in &objective_classes {
         let class = &classes[ci];
         let narrowed = class.grouping(grouping);
-        let walk = class.schedule_with_opener(schedule);
+        let walk = class.schedule_with_opener(schedule, grouping);
         let answering = class
             .answering(plan)
             .context("a class named a question this file does not hold")?;

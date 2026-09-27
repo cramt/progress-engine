@@ -5,8 +5,9 @@
 # and Fblthp costs {2}{G}{U}{R} and starts in the command zone: it is never
 # drawn, it is always there, and the line below spends the turn's lands on it
 # the way it would on any spell. Casting it once is the question, so commander
-# tax never comes up, and the card it draws on entering is not modelled — a
-# replacement draw, refused everywhere else for the reason README gives.
+# tax never comes up. The card it draws on entering, and the lands it may
+# discard, come after the cast every question here counts, so no class walks
+# them (#103): they cannot move a number asked here.
 #
 # ON ITS OWN, DELIBERATELY, for the reason `lantern-commander.criteria.toml`
 # gives: a `[casting]` line is one pool with every `can_cast` in the file that
