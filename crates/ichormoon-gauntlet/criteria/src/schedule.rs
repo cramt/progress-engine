@@ -19,7 +19,8 @@
 //! to sample the look, and a sampled surveil inside an exact engine is a
 //! percentage nobody can attribute.
 
-use crate::effect::Effect;
+use crate::effect::{Effect, Trigger};
+use crate::grouping::Grouping;
 use crate::policy::{CastingPolicy, DiscardPolicy, LandDropPolicy, MulliganPolicy};
 use crate::strategy::Chosen;
 
@@ -323,6 +324,59 @@ impl Schedule {
         Schedule {
             deferred: Some(reads),
             ..self
+        }
+    }
+
+    /// This schedule as a class that reads **only how many cards matching
+    /// `casts` were cast** sees it: every draw and discard a cast makes that
+    /// nothing such a class reads can depend on is dropped
+    /// ([#103](https://github.com/cramt/progress-engine/issues/103)).
+    ///
+    /// A **narrowing** (ADR-0007): it moves no number. The caller's promise is
+    /// the premise — the class counts no zone, asks no cost and expects
+    /// nothing but casts of `casts` — and the rest is checked here, per cast
+    /// query: it matches **one copy** in the library and the command zone
+    /// together, and every card the effect fires off is that copy. Then the
+    /// effect fires only on that card's cast, which it cannot have enabled,
+    /// and after that the count is final: nothing casts a card twice. A cast
+    /// the draw enables later in the line, a land it gives the next drop, a
+    /// card it bins — all of them come after the last thing the class reads.
+    ///
+    /// Only the draw and the discard: a mill, a look and a fetch stay, and so
+    /// does every effect that fails the check for any one query. It is the
+    /// draw that makes a path's width unknowable in advance, so dropping it
+    /// is what gives the class its closed-form bound back.
+    pub fn unheard(&self, grouping: &Grouping, casts: u64) -> Schedule {
+        let cards = |g: usize| grouping.group_sizes()[g] + grouping.group_command()[g];
+        let last_read = |effect: &Effect, query: usize| {
+            let copies: u32 = grouping.members(query).iter().map(|&g| cards(g)).sum();
+            copies == 1
+                && grouping
+                    .members(effect.matched_by)
+                    .iter()
+                    .all(|&g| cards(g) == 0 || grouping.group_masks()[g] & (1u64 << query) != 0)
+        };
+        let effects = self
+            .effects
+            .iter()
+            .map(|effect| {
+                let unheard = effect.trigger == Trigger::Cast
+                    && (0..u64::BITS as usize)
+                        .filter(|q| casts & (1u64 << q) != 0)
+                        .all(|q| last_read(effect, q));
+                match unheard {
+                    true => Effect {
+                        draw: 0,
+                        discard: None,
+                        ..effect.clone()
+                    },
+                    false => effect.clone(),
+                }
+            })
+            .collect();
+        Schedule {
+            effects,
+            ..self.clone()
         }
     }
 

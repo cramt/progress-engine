@@ -1512,3 +1512,228 @@ fn a_staged_bill_settles_exactly_when_some_assignment_pays_it() {
         })
         .unwrap();
 }
+
+// --- A draw nothing reads (#103) --------------------------------------------
+
+/// A line whose one card draws and discards as it is cast — Borborygmos and
+/// Fblthp's shape — beside other spells and dorks, and a manabase to pay for
+/// them.
+#[derive(Debug, Clone)]
+struct DrawnQuestion {
+    grouping: Grouping,
+    gaps: Vec<u32>,
+    effect: gauntlet_criteria::Effect,
+    line: Vec<usize>,
+    discard: Vec<usize>,
+}
+
+/// The card that draws, the rest of the line, and the lands.
+const THE_ONE: usize = 0;
+const THE_LINE: usize = 1;
+const A_LAND: usize = 2;
+
+fn drawn_question() -> impl Strategy<Value = DrawnQuestion> {
+    let costs = || prop::sample::select(vec!["{1}", "{G}", "{1}{G}", "{2}", "{1}{U}"]);
+    (
+        prop::collection::vec((0u8..(1 << 6), any::<bool>(), 1u32..=3), 1..=2),
+        prop::collection::vec((costs(), any::<bool>(), 1u32..=2), 0..=2),
+        (costs(), any::<bool>()),
+        0u32..=2,
+        (1u32..=2, 0u8..3, any::<bool>(), any::<bool>()),
+        (3u32..=6, 2usize..=3),
+    )
+        .prop_map(
+            |(
+                lands,
+                spells,
+                (cost, commander),
+                blanks,
+                (draw, discard, first, lands_first),
+                (opening, turns),
+            )| {
+                use gauntlet_criteria::{Discard, Discards, Effect, Route, Trigger};
+                let mut cards: Vec<(u64, ManaSource, u32)> = Vec::new();
+                for (cost, dork, qty) in spells {
+                    let cost = Cost::parse(cost).unwrap().demand();
+                    let mana = match dork {
+                        true => ManaSource::RockOrDork {
+                            cost,
+                            adds: 1,
+                            makes: Palette::from_letters(["G"]),
+                            waits: 1,
+                        },
+                        false => ManaSource::Castable {
+                            cost,
+                            resolves: gauntlet_criteria::Resolves::OntoBattlefield,
+                        },
+                    };
+                    cards.push((1 << THE_LINE, mana, qty));
+                }
+                for (bits, enters_tapped, qty) in lands {
+                    cards.push((
+                        1 << A_LAND,
+                        ManaSource::Land {
+                            enters_tapped,
+                            produces: palette_of(bits),
+                            lasts: None,
+                        },
+                        qty,
+                    ));
+                }
+                cards.push((0, ManaSource::Spell, blanks));
+                let one = ManaSource::Castable {
+                    cost: Cost::parse(cost).unwrap().demand(),
+                    resolves: gauntlet_criteria::Resolves::OntoBattlefield,
+                };
+                // In the command zone, or the one copy in the library.
+                if !commander {
+                    cards.push((1 << THE_ONE, one, 1));
+                }
+                let names = ["the one", "the line", "land"].map(String::from).to_vec();
+                let grouping = Grouping::with_mana(names, cards).unwrap();
+                let grouping = match commander {
+                    true => grouping.with_command_zone([(1 << THE_ONE, one, 1)]),
+                    false => grouping,
+                };
+                let discard = match discard {
+                    0 => Discard {
+                        cards: Discards::AnyNumber,
+                        at_random: false,
+                        only: Some(A_LAND),
+                    },
+                    1 => Discard {
+                        cards: Discards::Exactly(1),
+                        at_random: false,
+                        only: None,
+                    },
+                    _ => Discard {
+                        cards: Discards::Exactly(1),
+                        at_random: true,
+                        only: None,
+                    },
+                };
+                let effect = Effect {
+                    matched_by: THE_ONE,
+                    look: 0,
+                    trigger: Trigger::Cast,
+                    route: Route::Nowhere,
+                    fetch: None,
+                    delay: None,
+                    draw,
+                    mill: None,
+                    activation: None,
+                    discard: Some(discard),
+                    untap: 0,
+                };
+                let population = grouping.population();
+                let mut gaps = vec![opening.min(population)];
+                let mut drawn = gaps[0];
+                for _ in 1..=turns {
+                    // Room left for every card the cast can draw.
+                    let gap = u32::from(drawn + draw < population);
+                    drawn += gap;
+                    gaps.push(gap);
+                }
+                DrawnQuestion {
+                    grouping,
+                    gaps,
+                    effect,
+                    line: match first {
+                        true => vec![THE_ONE, THE_LINE],
+                        false => vec![THE_LINE, THE_ONE],
+                    },
+                    discard: match lands_first {
+                        true => vec![A_LAND, THE_LINE],
+                        false => vec![THE_LINE],
+                    },
+                }
+            },
+        )
+}
+
+impl DrawnQuestion {
+    fn schedule(&self, effect: gauntlet_criteria::Effect) -> Schedule {
+        Schedule::plain_with_fetches(
+            &self.gaps,
+            vec![effect],
+            Policies {
+                land_drop: Some(gauntlet_criteria::LandDropPolicy::new(vec![A_LAND], A_LAND)),
+                casting: Some(gauntlet_criteria::CastingPolicy::new(self.line.clone())),
+                discard: Some(gauntlet_criteria::DiscardPolicy::new(self.discard.clone())),
+                ..Policies::default()
+            },
+        )
+    }
+
+    /// Whether `query` had been cast at least once, and at least twice, by
+    /// each turn.
+    fn casts(&self, query: usize) -> Closures {
+        Closures(
+            (0..self.gaps.len())
+                .flat_map(|turn| {
+                    [1, 2].map(move |k| {
+                        Box::new(move |v: &PathView<'_>| {
+                            v.count_at(turn, query, Counted::Cast) >= k
+                        }) as Check
+                    })
+                })
+                .collect(),
+        )
+    }
+
+    fn answers(&self, schedule: &Schedule, query: usize) -> Result<Vec<f64>, TestCaseError> {
+        let mut questions = self.casts(query);
+        let plan = only_criteria(questions.0.len());
+        gauntlet_criteria::run(&self.grouping, schedule, plan, &mut questions)
+            .map(|o| o.probabilities.iter().map(|p| p.get()).collect())
+            .map_err(|e| TestCaseError::fail(format!("{self:?} was refused: {e}")))
+    }
+}
+
+#[test]
+fn a_draw_nothing_a_class_reads_depends_on_moves_no_number_when_dropped() {
+    // #103. A class that reads only how often one card was cast, where that
+    // card is the only one whose cast draws and discards, reads nothing the
+    // draw can reach: it happens after the cast it counts, and there is no
+    // second copy to cast. So the draw and the discard are dropped from its
+    // walk, and every answer must come out the same, exactly.
+    //
+    // And the control, which is why the rule is no wider: counting casts of
+    // the rest of the line reads the draw — the card it drew can be cast — so
+    // there it is kept, and dropping it anyway moves a number somewhere.
+    let moved = std::cell::Cell::new(0u32);
+    runner(64)
+        .run(&drawn_question(), |q| {
+            let full = q.schedule(q.effect.clone());
+            let hushed = full.unheard(&q.grouping, 1 << THE_ONE);
+            prop_assert_eq!(hushed.effects()[0].draw, 0, "{:?}", q);
+            prop_assert_eq!(hushed.effects()[0].discard, None, "{:?}", q);
+            for (i, (a, b)) in q
+                .answers(&full, THE_ONE)?
+                .iter()
+                .zip(q.answers(&hushed, THE_ONE)?)
+                .enumerate()
+            {
+                prop_assert!(
+                    (a - b).abs() < SAME_ANSWER,
+                    "question {i}: {a} drawn, {b} not, {q:?}"
+                );
+            }
+            let line = 1 << THE_ONE | 1 << THE_LINE;
+            prop_assert_eq!(full.unheard(&q.grouping, line), full.clone(), "{:?}", q);
+            let dropped = q.answers(&hushed, THE_LINE)?;
+            if q.answers(&full, THE_LINE)?
+                .iter()
+                .zip(dropped)
+                .any(|(a, b)| (a - b).abs() >= SAME_ANSWER)
+            {
+                moved.set(moved.get() + 1);
+            }
+            Ok(())
+        })
+        .unwrap();
+    assert!(
+        moved.get() > 0,
+        "the draw never moved a later cast, so the control proves nothing"
+    );
+}
