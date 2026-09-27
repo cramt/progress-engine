@@ -1,0 +1,22 @@
+// Meldweb Curator's one worker: the built site as static assets, and the four
+// GitHub login routes. It stores nothing and never proxies api.github.com;
+// the page calls GitHub itself with the access token these routes hand it.
+
+import { type AuthEnv, handleAuth } from "./auth";
+
+export interface Env extends AuthEnv {
+  /** The static assets binding from wrangler.toml's `[assets]`. */
+  ASSETS: { fetch(request: Request): Promise<Response> };
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
+      return handleAuth(request, env);
+    }
+    // `run_worker_first` sends only /api/* here, so this is a safety net for
+    // a config without it: everything else is a file or an SPA route.
+    return env.ASSETS.fetch(request);
+  },
+};

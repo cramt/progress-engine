@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "pnpm --filter meldweb-web dev",
     "build": "pnpm --filter meldweb-web build",
-    "check": "pnpm --filter meldweb-web check",
-    "test": "pnpm --filter meldweb-web test"
+    "check": "pnpm --recursive check",
+    "fmt": "pnpm --recursive fmt",
+    "test": "pnpm --recursive test"
   }
 }

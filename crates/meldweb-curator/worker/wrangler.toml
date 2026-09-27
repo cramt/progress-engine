@@ -1,0 +1,36 @@
+# Meldweb Curator's one Cloudflare Worker: the built site as static assets,
+# plus the four GitHub login routes under /api/auth/. See README.md.
+#
+# Deploy from the repo root (wrangler comes from nixpkgs, via `nix develop`):
+#   nix run .#deploy-curator
+# which is the same as
+#   nix build .#meldweb-web -o crates/meldweb-curator/worker/site
+#   wrangler deploy --config crates/meldweb-curator/worker/wrangler.toml
+
+name = "meldweb-curator"
+main = "src/index.ts"
+compatibility_date = "2026-09-27"
+
+[assets]
+# The built web app: a gitignored symlink to `nix build .#meldweb-web`'s output
+# (or to ../web/dist after `pnpm build`, for a local `wrangler dev`).
+directory = "./site"
+binding = "ASSETS"
+# Deep deck URLs are TanStack Router routes, not files: answer them with
+# index.html so a reload reopens the same deck.
+not_found_handling = "single-page-application"
+# Only the auth routes run the worker; every other request is a file.
+run_worker_first = ["/api/*"]
+
+[vars]
+# Public values from the GitHub App's settings page (#125). Until they are
+# filled in, /api/auth/login answers 503.
+GITHUB_CLIENT_ID = "REPLACE_WITH_GITHUB_APP_CLIENT_ID"
+GITHUB_APP_SLUG = "REPLACE_WITH_GITHUB_APP_SLUG"
+
+# The client secret is never in this file:
+#   wrangler secret put GITHUB_CLIENT_SECRET --config crates/meldweb-curator/worker/wrangler.toml
+# For `wrangler dev`, put GITHUB_CLIENT_SECRET=... in a gitignored .dev.vars
+# beside this file.
+[secrets]
+required = ["GITHUB_CLIENT_SECRET"]

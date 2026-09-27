@@ -1,2 +1,3 @@
 packages:
   - crates/meldweb-curator/web
+  - crates/meldweb-curator/worker

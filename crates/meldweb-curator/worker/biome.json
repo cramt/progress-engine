@@ -1,0 +1,9 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.9/schema.json",
+  "files": {
+    "includes": ["**", "!site", "!.wrangler"]
+  },
+  "formatter": { "indentStyle": "space" },
+  "linter": { "rules": { "preset": "recommended" } },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } }
+}

@@ -32,3 +32,9 @@ __pycache__/
 node_modules/
 crates/meldweb-curator/web/dist/
 crates/meldweb-curator/web/src/wasm/pkg/
+
+# Meldweb Curator's worker: the symlink to the built site it deploys, wrangler's
+# local state, and the client secret `wrangler dev` reads.
+crates/meldweb-curator/worker/site
+crates/meldweb-curator/worker/.wrangler/
+crates/meldweb-curator/worker/.dev.vars
