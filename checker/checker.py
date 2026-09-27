@@ -842,6 +842,8 @@ def line_path(
     puts: dict[str, tuple[str, ...]] | None = None,
     mills: dict[str, Mill] | None = None,
     modes: dict[str, Mode] | None = None,
+    attacks: dict[str, Mill] | None = None,
+    landfalls: dict[str, Mill] | None = None,
 ) -> LinePath:
     """Play `line` out through `last_turn`. `fetches` maps a card to the cards
     it puts into your hand from the library when cast, `puts` to the cards
@@ -850,11 +852,16 @@ def line_path(
     what it does to the top of the library. `modes` maps a card to how the
     pilot plays it, where that is not casting it for its printed cost: its
     transmute, whose search is then the one `fetches` names, or its spell with
-    X chosen. Cached on the game."""
+    X chosen. `attacks` maps a creature to what it mills each time it attacks,
+    and `landfalls` a permanent to what it mills each time a land enters
+    while it is on the battlefield, each from the turn after the line cast
+    it (see "Attack and landfall" among the questions). Cached on the game."""
     fetches = fetches or {}
     puts = puts or {}
     mills = mills or {}
     modes = modes or {}
+    attacks = attacks or {}
+    landfalls = landfalls or {}
     key = (
         "path",
         line,
@@ -863,6 +870,8 @@ def line_path(
         tuple(sorted(puts.items())),
         tuple(sorted(mills.items())),
         tuple(sorted(modes.items(), key=lambda kv: kv[0])),
+        tuple(sorted(attacks.items())),
+        tuple(sorted(landfalls.items())),
     )
     if key in game._line_cache:
         return game._line_cache[key]
@@ -874,7 +883,34 @@ def line_path(
     seen_so_far = 0
     taken: list[str] = []  # names seen or fetched: not in the library any more
     sources: list[Source] = []
+    # Permanents the line cast that trigger, and the turn each was cast on.
+    in_play: list[tuple[int, Card]] = []
     path = LinePath()
+
+    def mill_top(t: int, mill: Mill, milled: list[Card]) -> None:
+        """The next `mill.cards` off the top: the kept ones to hand (a land
+        waits for the next turn's drop), the rest into `milled`."""
+        nonlocal g, taken
+        top = g.cards[seen_so_far : seen_so_far + mill.cards]
+        kept = mill.kept(top, g.library)
+        taken += [c.name for c in top]
+        lands: list[tuple[int, Card]] = []
+        for i, c in enumerate(top):
+            if i not in kept:
+                milled.append(c)
+            elif c.playable_land:
+                lands.append((t + 1, c))
+            elif c.name in named:
+                hand.append(c)
+        g = Game(
+            g.cards[:seen_so_far] + g.cards[seen_so_far + len(top) :],
+            g.on_the_draw,
+            g.library_size - len(top),
+            commanders=g.commanders,
+            library=g.library,
+            kept_lands=g.kept_lands + tuple(lands),
+        )
+
     for t in range(1, last_turn + 1):
         new = g.seen(t)[seen_so_far:]
         seen_so_far = g.seen_count(t)
@@ -885,6 +921,14 @@ def line_path(
         cast: list[Card] = []
         put: list[Card] = []
         milled: list[Card] = []
+        # This turn's land drop, before the line: one land entered if the
+        # gate's schedule played one. Each fires every landfall permanent the
+        # line cast on an earlier turn.
+        entered = g.lands_played(t) - g.lands_played(t - 1)
+        for when, permanent in in_play:
+            if when < t and permanent.name in landfalls:
+                for _ in range(entered):
+                    mill_top(t, landfalls[permanent.name], milled)
         while True:
             chosen = None
             for entry in line:
@@ -904,6 +948,8 @@ def line_path(
             bill.append(cost)
             cast.append(card)
             hand.remove(card)
+            if card.name in attacks or card.name in landfalls:
+                in_play.append((t, card))
             src = mana_source(card, identity)
             if src is not None:
                 if not src.sick:
@@ -948,25 +994,12 @@ def line_path(
                     )
             mill = mills.get(card.name)
             if mill is not None:
-                top = g.cards[seen_so_far : seen_so_far + mill.cards]
-                kept = mill.kept(top, g.library)
-                taken += [c.name for c in top]
-                lands: list[tuple[int, Card]] = []
-                for i, c in enumerate(top):
-                    if i not in kept:
-                        milled.append(c)
-                    elif c.playable_land:
-                        lands.append((t + 1, c))
-                    elif c.name in named:
-                        hand.append(c)
-                g = Game(
-                    g.cards[:seen_so_far] + g.cards[seen_so_far + len(top) :],
-                    g.on_the_draw,
-                    g.library_size - len(top),
-                    commanders=g.commanders,
-                    library=g.library,
-                    kept_lands=g.kept_lands + tuple(lands),
-                )
+                mill_top(t, mill, milled)
+        # Combat, after the line: a creature cast on an earlier turn is no
+        # longer summoning-sick (CR 302.6), and attacks.
+        for when, creature in in_play:
+            if when < t and creature.name in attacks:
+                mill_top(t, attacks[creature.name], milled)
         path.append(Turn(t, cast, units, bill, g, put, list(taken), milled))
     game._line_cache[key] = path
     return path
@@ -1050,12 +1083,19 @@ def declared_line_path(
     fetches: dict[str, tuple[str, ...]],
     mills: dict[str, Mill],
     rummages: dict[str, Rummage],
+    attacks: dict[str, Mill] | None = None,
+    landfalls: dict[str, Mill] | None = None,
 ) -> DeclaredPath:
     """Play `line` out through `last_turn` under a declared land drop and a
-    declared discard list. Cached on the game."""
+    declared discard list. `attacks` and `landfalls` are what a permanent the
+    line cast mills each time it attacks or a land enters, each from the turn
+    after it was cast (see `line_path`). Cached on the game."""
+    attacks = attacks or {}
+    landfalls = landfalls or {}
     key = ("declared", line, last_turn, land_drop, discard,
            tuple(sorted(fetches.items())), tuple(sorted(mills.items())),
-           tuple(sorted(rummages.items())))  # fmt: skip
+           tuple(sorted(rummages.items())), tuple(sorted(attacks.items())),
+           tuple(sorted(landfalls.items())))  # fmt: skip
     if key in game._line_cache:
         return game._line_cache[key]
     # The card picked at random is a function of the deal, and the same one
@@ -1082,6 +1122,8 @@ def declared_line_path(
     taken: list[str] = []
     hand: list[Card] = [c for c in game.commanders if c.name in named]
     in_play: list[tuple[Card, int]] = []
+    # Permanents the line cast that trigger, and the turn each was cast on.
+    triggers: list[tuple[Card, int]] = []
     path = DeclaredPath()
 
     def draw(n: int) -> list[Card]:
@@ -1104,6 +1146,18 @@ def declared_line_path(
             land = min(lands, key=lambda c: (tier_of(c, land_drop), rank.get(c.name, 0)))
             hand.remove(land)
             in_play.append((land, t))
+        to_graveyard: list[Card] = []
+
+        def mill_off(mill: Mill) -> None:
+            milled = draw(mill.cards)
+            kept = mill.kept(milled, game.library)
+            for i, c in enumerate(milled):
+                (hand if i in kept else to_graveyard).append(c)
+
+        # The land that entered fires every landfall cast on an earlier turn.
+        for permanent, when in triggers:
+            if lands and when < t and permanent.name in landfalls:
+                mill_off(landfalls[permanent.name])
         pool = [
             (0, c.produces)
             for c, played in in_play
@@ -1111,7 +1165,6 @@ def declared_line_path(
         ]
         bill: list[Cost] = []
         cast: list[Card] = []
-        to_graveyard: list[Card] = []
         while True:
             chosen = None
             for entry in line:
@@ -1129,6 +1182,8 @@ def declared_line_path(
             card, cost = chosen
             hand.remove(card)
             cast.append(card)
+            if card.name in attacks or card.name in landfalls:
+                triggers.append((card, t))
             rummage = rummages.get(card.name)
             if not (rummage and rummage.untaps_its_cost):
                 bill.append(cost)
@@ -1171,6 +1226,10 @@ def declared_line_path(
                 for c in gone:
                     hand.remove(c)
                     to_graveyard.append(c)
+        # Combat, after the line: a creature cast on an earlier turn attacks.
+        for creature, when in triggers:
+            if when < t and creature.name in attacks:
+                mill_off(attacks[creature.name])
         path.append(DeclaredTurn(t, cast, to_graveyard, len(in_play)))
     game._line_cache[key] = path
     return path
@@ -1263,12 +1322,15 @@ def _loam_castable_by_5(g: Game) -> bool:
 LOAM, SEEKER = "Life from the Loam", "Spellseeker"
 RUMBLE, TILLING = "Malevolent Rumble", "Midnight Tilling"
 ANALYST, WRENN = "Aftermath Analyst", "Wrenn and Seven"
+SIX, EXPLORER, LUMRA = "Six", "Icetill Explorer", "Lumra, Bellow of the Woods"
 # [[effect]] match = 'name:"Spellseeker"', on = "cast",
 #            fetch = ['name:"Life from the Loam"'], to = "hand"
 # [[effect]] match = 'name:"Malevolent Rumble"' and 'name:"Midnight Tilling"',
 #            to_hand = ['name:"Spellseeker"', 't:land']
+# [[effect]] match = 'name:"Six" t:treefolk', on = "attack", to_hand = ['t:land']
 # [casting] prefer = [Loam, Frantic Search, Spellseeker, Rumble, Tilling,
-#                     Izzet Charm, Desperate Ravings, Analyst, Wrenn and Seven]
+#                     Izzet Charm, Desperate Ravings, Analyst, Wrenn and Seven,
+#                     Six, Icetill Explorer, Lumra]
 # [discard] prefer = ['name:"Life from the Loam"', 't:land']
 # [land_drop] prefer = ["otag:tapland", "t:land"]
 #
@@ -1290,6 +1352,26 @@ ANALYST, WRENN = "Aftermath Analyst", "Wrenn and Seven"
 #   rest into your graveyard." ASSUMPTION (the standard library's entry): it is
 #   activated once, on the turn it is cast, and not on the turns after.
 #
+# Attack and landfall (#89), read off each card and the rules:
+#
+# * Six: "Whenever Six attacks, mill three cards. You may put a land card from
+#   among them into your hand." A creature cannot attack the turn it came under
+#   your control (CR 302.6), so Six first attacks the turn after it is cast.
+#   Combat follows the main phase the line is cast in (CR 505, 506), so the
+#   mill comes after that turn's spells. The pilot keeps a land. ASSUMPTION
+#   (README): it attacks every turn it can and nobody blocks or removes it -
+#   there is no opponent at this table.
+# * Icetill Explorer: "Whenever a land you control enters, mill a card." The
+#   land drop comes before the line, so the drop of the turn it is cast does
+#   not trigger it; every drop after that does. This line plays no fetchland
+#   and returns no land by turn 5, so the drop is the only land that enters.
+#   ASSUMPTION (README): its additional land a turn, and playing lands from the
+#   graveyard, are not used.
+# * Lumra: "When Lumra enters, mill four cards. Then return all land cards
+#   from your graveyard to the battlefield tapped." It costs six, and the line
+#   casts no mana source, so it needs six land drops: it is never cast by turn
+#   5, and neither its mill nor its return is played here.
+#
 # And the third way in is a discard, read off each card:
 #
 # * Frantic Search: "Draw two cards, then discard two cards. Untap up to three
@@ -1305,7 +1387,7 @@ ANALYST, WRENN = "Aftermath Analyst", "Wrenn and Seven"
 FRANTIC, CHARM, RAVINGS = "Frantic Search", "Izzet Charm", "Desperate Ravings"
 LOAM_CAST_LINE = (
     (LOAM,), (FRANTIC,), (SEEKER,), (RUMBLE,), (TILLING,), (CHARM,), (RAVINGS,),
-    (ANALYST,), (WRENN,),
+    (ANALYST,), (WRENN,), (SIX,), (EXPLORER,), (LUMRA,),
 )  # fmt: skip
 SEEKER_FETCHES = {SEEKER: (LOAM,)}
 _PERMANENT_TYPES = ("Artifact", "Creature", "Enchantment", "Land", "Planeswalker", "Battle")
@@ -1348,9 +1430,13 @@ def _is_loam(c: Card) -> bool:
 
 LOAM_LAND_DROP = (_is_tapland, _is_land)
 LOAM_DISCARDS = (_is_loam, _is_land)
+LOAM_ATTACKS = {SIX: Mill(3, keep_up_to=1, keep_only=_is_land, prefer=(_is_land,))}
+LOAM_LANDFALLS = {EXPLORER: Mill(1)}
 # Turn 5, one card deeper for the Loam a fetch takes out, every card the four
-# mills could take, and the two each of the three rummages draws.
-LOAM_CAST_DEPTH = 6 + 3 + 4 + 4 + 4 + 2 + 2 + 2
+# mills could take, the two each of the three rummages draws, and Six's two
+# attacks and the Explorer's one landfall: cast on turns 3 and 4 at the
+# earliest, they fire on 4 and 5, and on 5.
+LOAM_CAST_DEPTH = 6 + 3 + 4 + 4 + 4 + 2 + 2 + 2 + 3 + 3 + 1
 
 
 def _loam_cast_path(g: Game) -> DeclaredPath:
@@ -1363,6 +1449,8 @@ def _loam_cast_path(g: Game) -> DeclaredPath:
         SEEKER_FETCHES,
         LOAM_MILLS,
         LOAM_RUMMAGES,
+        attacks=LOAM_ATTACKS,
+        landfalls=LOAM_LANDFALLS,
     )
 
 

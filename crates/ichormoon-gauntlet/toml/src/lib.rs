@@ -1177,7 +1177,7 @@ const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least
                       [[expect]] tables (name, turn, query, zone) or (name, turn, cast), [[effect]] \
                       tables (match, on, look, adds, to_graveyard, fetch, to, after, sacrifice, \
                       mill, keep, keep_only, keep_every, to_hand, draw, discard, discard_any, \
-                      at_random, discard_only, untap), one \
+                      at_random, discard_only, untap, returns), one \
                       [land_drop] table (prefer), \
                       one [casting] table (prefer), \
                       one [discard] table (prefer) \

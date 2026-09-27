@@ -494,8 +494,13 @@ the Loam (HANDS.md hand 36, and [Tutors](#tutors-and-a-library-that-shrinks)),
 and read 17.08% ± 0.08 on the play and 19.58% ± 0.09 on the draw — sampled,
 because Spellseeker's `{2}{U}` makes the manabase tell blue from green and the
 question 284,738,168 compositions wide. With the four mills in the line as
-well it reads 19.02% ± 0.09 and 21.82% ± 0.09
-([Mills](#mills-a-spell-that-turns-cards-over)). It is a file of its own because a
+well it read 19.02% ± 0.09 and 21.82% ± 0.09
+([Mills](#mills-a-spell-that-turns-cards-over)), with the discards and a
+declared land drop 19.53% ± 0.09 and 22.14% ± 0.09
+([Discard](#discard-a-spell-that-draws-and-then-bins)), and with Six, Icetill
+Explorer and Lumra, whose mills are an attack's, a landfall's and an enters
+trigger's, it reads 19.79% ± 0.09 and 22.57% ± 0.09
+([Attack and landfall](#attack-and-landfall-a-mill-that-fires-again)). It is a file of its own because a
 `[casting]` line takes the cards it casts out of the hand and prices the manabase on every question
 beside it, which would move every other number in `loam.criteria.toml`.
 Flashback and retrace, which cast a card *from* the yard, are not modelled.
@@ -1122,17 +1127,18 @@ to_graveyard = 'name:"Life from the Loam"'
 |---|---|
 | `match` | which cards this is about, in Scryfall syntax |
 | `look` | how many cards off the top it examines |
-| `on` | when it fires: `landdrop`, `cast` or `activate`, see below and [An activation the line pays for](#an-activation-the-line-pays-for-expedition-map) |
+| `on` | when it fires: `landdrop`, `cast`, `activate`, `attack` or `landfall`, see below, [An activation the line pays for](#an-activation-the-line-pays-for-expedition-map) and [Attack and landfall](#attack-and-landfall-a-mill-that-fires-again) |
 | `cost` | what the line pays: on a cast, in place of the printed cost; on an activation, to activate a copy in play. See [A cost the line pays](#a-cost-the-line-pays-that-is-not-printed-dizzy-spell-and-whir-of-invention) |
 | `sacrifice` | beside `after`, the card that waited leaves play when the effect resolves (a Saga); on an activation, paying it sacrifices the card (Expedition Map) |
 | `to_graveyard` | the routing policy: which examined cards go to the yard. `"*"` is all of them, which is mill. Absent means none of them |
 | `fetch` | the cards it goes and gets out of the library, highest priority first. See [Tutors](#tutors-and-a-library-that-shrinks) |
 | `to` | where a fetched card is put: `hand` or `battlefield` |
 | `adds` | how much mana a card adds a turn once the `[casting]` line has cast it, `on = "cast"` only, of the colours its card makes. With `after = n` it adds nothing for `n` turns, which is a rock that enters tapped. See [Mana, as a budget](#mana-as-a-budget) and [ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) |
-| `mill` | how many cards a cast puts off the top of the library into the graveyard, `on = "cast"` only. See [Mills](#mills-a-spell-that-turns-cards-over) |
+| `mill` | how many cards a cast, an attack or a landfall puts off the top of the library into the graveyard. Not on a `landdrop`, whose way to do that is a `look`. See [Mills](#mills-a-spell-that-turns-cards-over) |
 | `keep`, `keep_only` | how many of a mill's cards the card lets go to hand instead, and which cards it allows |
 | `keep_every` | the cards of a mill the card puts in hand whatever you want: Wrenn and Seven's lands |
 | `to_hand` | your choice among what `keep` allows, highest priority first. Absent keeps nothing |
+| `returns` | after a mill, every land card in the graveyard matching this goes onto the battlefield tapped, whatever you want: Lumra's lands |
 
 **Looking is a land drop, fetching can be a cast.** Playing a land is free and
 hard-capped at one a turn, so by turn *T* at most *T* of those have happened
@@ -1211,6 +1217,9 @@ And four mills, `on = "cast"`, keyed by name because the count is printed on
 each card and no tag carries it: Aftermath Analyst (`mill = 3`), Malevolent
 Rumble and Midnight Tilling (`mill = 4`, `keep = 1`, `keep_only =
 "is:permanent"`) and Wrenn and Seven's +1 (`mill = 4`, `keep_every = "t:land"`).
+And three whose mills are triggers: Six (`on = "attack"`, `mill = 3`, `keep =
+1`, `keep_only = "t:land"`), Icetill Explorer (`on = "landfall"`, `mill = 1`)
+and Lumra, Bellow of the Woods (`mill = 4`, `returns = "t:land"`).
 Each fires only where the `[casting]` line names its card, so every other file
 is answered exactly as it was.
 
@@ -1606,9 +1615,60 @@ defers, which makes its agreement the test of the claim.
 
 **Not here yet.** Vastlands Scavenger's Bind to Life mills seven, but it is a
 copy cast later from a creature already in play, which is a second casting the
-line does not make. A mill that fires on an attack or a landfall has no
-trigger here yet. And dredge, which would take the Loam back out, is ADR-0017's
-last word.
+line does not make. And dredge, which would take the Loam back out, is
+ADR-0017's last word.
+
+### Attack and landfall: a mill that fires again
+
+A spell mills once, the turn the line casts it. A creature that mills when it
+attacks, or a permanent that mills when a land enters, mills again and again
+for as long as it is on the battlefield. Each firing is the same thing a cast's
+mill is: one block off the top, dealt where it fired, on the paths where it
+fired ([ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md)
+§1 names both). Two more words for `on`, and nothing else new: what either may
+do is a `mill`, with `keep` and `to_hand` as a cast's, and anything else on it
+is refused by name.
+
+- **`on = "attack"`** fires once a turn for each copy the line cast on an
+  earlier turn: a creature is summoning-sick the turn it arrives (CR 302.6),
+  so Six cast on turn 3 mills on turns 4 and 5. Combat follows the main phase,
+  so it fires after that turn's line, and a land it keeps waits for the next
+  turn's drop. **The run assumes it attacks every turn and nobody blocks it or
+  removes it**, because nobody else is at this table, and every run that fires
+  one says so, as `ASSUMED:` in the report and `assumes` in the JSON.
+- **`on = "landfall"`** fires once for each land that enters while its
+  permanent is on the battlefield: the drop, the land a fetchland puts down in
+  its place, and every land a spell returns. The drop comes before the line,
+  so the Explorer cast on turn 4 sees turn 5's drop and not turn 4's.
+- **`returns = "t:land"`**, beside a `mill`, puts every land in the graveyard
+  onto the battlefield tapped once the mill is done: Lumra's four and whatever
+  an earlier mill left there. Nobody chooses, so the library states it. A mill
+  that returns lands is never dealt last, because what it returns is read off
+  the graveyard. The lands took no drop, and a turn's bill is still held to its
+  drops, so what they could pay for is a floor.
+
+Icetill Explorer's other two lines, an additional land a turn and lands played
+from the graveyard, are not modelled; its landfalls, and every number beside
+them, are floors by that much. Six's retrace is a casting from the graveyard,
+which no line makes. HANDS.md hands 58 to 60 pin each one.
+
+**What they are worth to the Loam north star.** `decks/loam-cast.criteria.toml`
+adds all three to the end of its line, after the mills and the discards
+([Discard](#discard-a-spell-that-draws-and-then-bins)), with Six keeping a
+land:
+
+| On `decks/loam.txt`, Loam in the graveyard by turn 5, cast, milled or discarded | play | draw |
+|---|---|---|
+| the four mills and the three discards, land drop declared | 19.53% ± 0.09 | 22.14% ± 0.09 |
+| ... and Six, Icetill Explorer and Lumra | **19.79% ± 0.09** | **22.57% ± 0.09** |
+
+About a quarter of a point on the play and 0.4 on the draw. Six cast on
+turn 3 mills six cards by turn 5; the Explorer, cast on turn 4 at the
+earliest, one. Lumra costs six and the line casts no mana source, so it is
+never cast by turn 5 and moves nothing here. The file's other two questions,
+which count castings, move by less than two standard errors of the
+difference, which is noise between two samples. `checker/` plays Six's attacks and the Explorer's landfalls from the cards'
+text and the rules, and agrees.
 
 ### Discard: a spell that draws, and then bins
 
