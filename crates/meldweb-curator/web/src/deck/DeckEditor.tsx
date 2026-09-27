@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useCardEditor } from "../card/useCardEditor";
 import { declareCategory, parseDeck, setCardCategories } from "../deck";
 import type { GitHubApi, RepoRef } from "../github/api";
 import { deckStem } from "../github/decks";
@@ -91,6 +92,14 @@ export function DeckEditor({
   const [refusal, setRefusal] = useState<string | null>(null);
   const parsed = useMemo(() => parseDeck(history.present), [history.present]);
   const { undo, redo } = history;
+  // Each card's menu, hotkeys and details modal, every change an edit here.
+  const cards = useCardEditor({
+    text: history.present,
+    deck: parsed,
+    printings,
+    edit: history.edit,
+    refuse: setRefusal,
+  });
 
   const [store] = useState(() =>
     createSaveStore({ api, repo, path, text: loaded, sha, deckText }),
@@ -218,9 +227,11 @@ export function DeckEditor({
       <StacksView
         categories={parsed.categories}
         cards={parsed.cards}
-        printings={printings}
+        printings={cards.printings}
         onDrop={onDrop}
+        cardProps={cards.cardProps}
       />
+      {cards.overlay}
     </main>
   );
 }
