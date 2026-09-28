@@ -10,13 +10,12 @@ import type { DeckText } from "./deckText";
 
 export const IDLE_MS = 10_000;
 
-export type SaveStatus = "unsaved" | "saving" | "saved" | "conflict" | "error";
+export type SaveState =
+  | { status: "unsaved" | "saving" | "saved" | "conflict" }
+  /** `message` is why the last save failed. */
+  | { status: "error"; message: string };
 
-export interface SaveState {
-  status: SaveStatus;
-  /** Why the last save failed, for `error`. */
-  message?: string;
-}
+export type SaveStatus = SaveState["status"];
 
 /**
  * The one way a deck file reaches GitHub, for an ordinary save, an overwrite
@@ -107,28 +106,22 @@ export function createSaveStore(options: SaveOptions): SaveStore {
     }
   };
 
-  function save(keepalive: boolean): Promise<void> {
-    clear();
-    if (stopped()) return Promise.resolve();
-    if (inflight) {
-      // The sha comes back with the save in flight; the next one waits for it.
-      if (keepalive) hideWhileSaving = true;
-      return inflight;
-    }
-    if (!pending()) {
-      if (state.status !== "saved") set({ status: "saved" });
-      return Promise.resolve();
-    }
-    const before = base;
-    const after = current;
+  /**
+   * The one commit in flight, which every later save, overwrite and reload
+   * waits behind: each needs the sha this one comes back with.
+   */
+  function run(guard: () => Promise<{ before: string; sha: string | null }>) {
     set({ status: "saving" });
-    inflight = (async () => {
+    // What is committed is the text as of now; later edits are the next save's.
+    const after = current;
+    const committing = (async () => {
       try {
-        const message = deckText.commitMessage(before, after, path);
+        const from = await guard();
+        const message = deckText.commitMessage(from.before, after, path);
         const r = await commitDeck(api, repo, path, {
           text: after,
           message,
-          sha,
+          sha: from.sha,
           keepalive: true,
         });
         base = after;
@@ -151,13 +144,28 @@ export function createSaveStore(options: SaveOptions): SaveStore {
         schedule();
       }
     });
-    return inflight;
+    inflight = committing;
+    return committing;
   }
 
-  async function resolve(apply: () => Promise<void>) {
+  function save(keepalive: boolean): Promise<void> {
     clear();
-    await inflight;
-    await apply();
+    if (stopped()) return Promise.resolve();
+    if (inflight) {
+      if (keepalive) hideWhileSaving = true;
+      return inflight;
+    }
+    if (!pending()) {
+      if (state.status !== "saved") set({ status: "saved" });
+      return Promise.resolve();
+    }
+    return run(async () => ({ before: base, sha }));
+  }
+
+  /** Waits out every commit in flight, including one a finished one started. */
+  async function idle() {
+    clear();
+    while (inflight) await inflight;
   }
 
   const store: SaveStore = {
@@ -178,45 +186,23 @@ export function createSaveStore(options: SaveOptions): SaveStore {
       return save(opts?.keepalive ?? false);
     },
     async reload() {
-      let text = "";
-      await resolve(async () => {
-        const file = await api.getFile(repo, path);
-        if (!file) throw new Error(`${path} is no longer on GitHub`);
-        base = current = text = file.text;
-        sha = file.sha;
-        set({ status: "saved" });
-      });
-      return text;
+      await idle();
+      const file = await api.getFile(repo, path);
+      if (!file) throw new Error(`${path} is no longer on GitHub`);
+      base = current = file.text;
+      sha = file.sha;
+      set({ status: "saved" });
+      return file.text;
     },
     async overwrite() {
-      await resolve(async () => {
-        set({ status: "saving" });
-        try {
-          const file = await api.getFile(repo, path);
-          const after = current;
-          const message = deckText.commitMessage(
-            file?.text ?? base,
-            after,
-            path,
-          );
-          const r = await commitDeck(api, repo, path, {
-            text: after,
-            message,
-            sha: file?.sha ?? null,
-            keepalive: true,
-          });
-          base = after;
-          sha = r.sha;
-          set({ status: pending() ? "unsaved" : "saved" });
-          schedule();
-        } catch (e) {
-          if (e instanceof ConflictError) set({ status: "conflict" });
-          else
-            set({
-              status: "error",
-              message: String((e as Error).message ?? e),
-            });
-        }
+      clear();
+      // Claims `inflight` in this tick when it is free, so a save asked for
+      // right after queues behind the overwrite rather than racing it.
+      if (inflight) await idle();
+      // Diffed against, and guarded by, what is on GitHub now.
+      await run(async () => {
+        const file = await api.getFile(repo, path);
+        return { before: file?.text ?? base, sha: file?.sha ?? null };
       });
     },
     attach(target) {

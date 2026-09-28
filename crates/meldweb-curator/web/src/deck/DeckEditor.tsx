@@ -208,7 +208,7 @@ export function DeckEditor({
         status={
           <span
             className={`save-status save-${save.status}`}
-            title={save.message ?? path}
+            title={save.status === "error" ? save.message : path}
           >
             {statusText[save.status]}
           </span>

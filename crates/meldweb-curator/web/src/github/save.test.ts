@@ -230,6 +230,33 @@ describe("a conflict", () => {
       `${PATH}: ${"# edited on github.com\ncards = []\n".length} -> ${v(2).length} bytes`,
     );
   });
+
+  it("a save asked for during an overwrite waits for the overwrite's sha", async () => {
+    await conflicted();
+    const p = page();
+    store.attach(p.events);
+    store.edit(v(2));
+    const overwriting = store.overwrite();
+    store.edit(v(3));
+    // Hiding the page mid-overwrite, as leaving the deck would.
+    p.hide();
+    await overwriting;
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store.getState().status).toBe("saved");
+    expect(conn.mock.file(PATH)?.text).toBe(v(3));
+    // The conflicted PUT, the overwrite, then the hide's save: none refused.
+    expect(puts()).toHaveLength(3);
+  });
+
+  it("an overwrite asked for during a save runs after it", async () => {
+    store.edit(v(1));
+    const saving = store.flush();
+    conn.mock.editOnGitHub(PATH, "# edited on github.com\ncards = []\n");
+    const overwriting = store.overwrite();
+    await Promise.all([saving, overwriting]);
+    expect(store.getState().status).toBe("saved");
+    expect(conn.mock.file(PATH)?.text).toBe(v(1));
+  });
 });
 
 describe("a failed save", () => {
