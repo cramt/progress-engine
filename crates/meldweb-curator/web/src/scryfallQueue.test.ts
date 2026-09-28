@@ -62,6 +62,49 @@ describe("a rate gate", () => {
     await vi.runAllTimersAsync();
     expect(await settled).toBe("aborted");
   });
+
+  it("holds a caller already waiting through a pause", async () => {
+    vi.useFakeTimers();
+    const t0 = Date.now();
+    const gate = new RateGate(500);
+    await gate.wait();
+    let started = 0;
+    const waiting = gate.wait().then(() => {
+      started = Date.now();
+    });
+    await vi.advanceTimersByTimeAsync(100);
+    gate.pause(BACKOFF_MS);
+    await vi.runAllTimersAsync();
+    await waiting;
+    expect(started - t0).toBeGreaterThanOrEqual(100 + BACKOFF_MS);
+  });
+
+  it("rejects an aborted caller at once, and gives its slot to the next", async () => {
+    vi.useFakeTimers();
+    const t0 = Date.now();
+    const gate = new RateGate(500);
+    await gate.wait();
+    const controller = new AbortController();
+    const aborted = gate.wait(controller.signal).then(
+      () => "started",
+      () => "aborted",
+    );
+    let started = 0;
+    const after = gate.wait().then(() => {
+      started = Date.now();
+    });
+    controller.abort();
+    // No time passes: the aborted caller does not sit out its turn.
+    await vi.advanceTimersByTimeAsync(0);
+    expect(await aborted).toBe("aborted");
+    await vi.runAllTimersAsync();
+    await after;
+    expect(started - t0).toBe(500);
+  });
+
+  it("rejects a caller whose signal aborted before it asked", async () => {
+    await expect(new RateGate(500).wait(AbortSignal.abort())).rejects.toThrow();
+  });
 });
 
 describe("scryfallFetch", () => {

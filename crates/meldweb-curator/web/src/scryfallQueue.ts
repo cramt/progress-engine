@@ -6,29 +6,67 @@
  * so no feature can send a burst another feature's pacing does not know about.
  */
 
+interface Waiter {
+  start: () => void;
+}
+
 /**
- * Hands out start times at least `intervalMs` apart. A slot is reserved the
- * moment `wait` is called, so callers racing each other still queue in order.
+ * Lets callers start at least `intervalMs` apart, in the order they called
+ * `wait`. Waiters are a queue rather than start times handed out up front, so
+ * a pause holds back everyone still waiting, and a caller who gives up leaves
+ * its turn to the next.
  */
 export class RateGate {
+  /** The earliest the next caller may start. */
   private next = 0;
+  private readonly queue: Waiter[] = [];
+  private timer: ReturnType<typeof setTimeout> | undefined;
   constructor(
     readonly intervalMs: number,
     private readonly now: () => number = () => Date.now(),
   ) {}
 
-  /** Resolves when this caller may start; rejects if `signal` aborts first. */
-  async wait(signal?: AbortSignal): Promise<void> {
-    const now = this.now();
-    const at = Math.max(now, this.next);
-    this.next = at + this.intervalMs;
-    if (at > now) await new Promise((r) => setTimeout(r, at - now));
-    signal?.throwIfAborted();
+  /** Resolves when this caller may start; rejects as soon as `signal` aborts. */
+  wait(signal?: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) return reject(signal.reason);
+      const onAbort = () => {
+        const at = this.queue.indexOf(waiter);
+        if (at >= 0) this.queue.splice(at, 1);
+        reject(signal?.reason);
+      };
+      const waiter: Waiter = {
+        start: () => {
+          signal?.removeEventListener("abort", onAbort);
+          resolve();
+        },
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+      this.queue.push(waiter);
+      this.drain();
+    });
   }
 
   /** Nothing starts for `ms` from now: what a 429 asks of us. */
   pause(ms: number): void {
     this.next = Math.max(this.next, this.now() + ms);
+    this.drain();
+  }
+
+  /** Starts whoever may start now, and wakes up again for the rest. */
+  private drain(): void {
+    clearTimeout(this.timer);
+    this.timer = undefined;
+    for (let waiter = this.queue[0]; waiter; waiter = this.queue[0]) {
+      const now = this.now();
+      if (now < this.next) {
+        this.timer = setTimeout(() => this.drain(), this.next - now);
+        return;
+      }
+      this.queue.shift();
+      this.next = now + this.intervalMs;
+      waiter.start();
+    }
   }
 }
 
