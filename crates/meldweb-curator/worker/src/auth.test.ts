@@ -418,6 +418,16 @@ describe("login", () => {
   it.each([
     ["//evil.example/x", "/"],
     ["/\\evil.example", "/"],
+    // Browsers strip tab, newline and CR from a URL, so these are `//evil`.
+    ["/\t/evil.example", "/"],
+    // Still encoded, it is a path segment on this site, not a stripped tab.
+    ["/%09/evil.example", "/%09/evil.example"],
+    ["/\n/evil.example", "/"],
+    ["/\r/evil.example", "/"],
+    ["/\r\n/evil.example", "/"],
+    ["/\t\\evil.example", "/"],
+    ["/api/../api/auth/logout", "/"],
+    ["/decks/a%20b.deck.toml#top", "/decks/a%20b.deck.toml#top"],
     ["https://evil.example", "/"],
     ["/api/auth/logout", "/"],
     ["/decks/loam.deck.toml?tab=stats", "/decks/loam.deck.toml?tab=stats"],

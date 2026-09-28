@@ -64,7 +64,7 @@ async function login(url: URL, env: AuthEnv): Promise<Response> {
   if (!configured(env.GITHUB_CLIENT_ID) || !env.GITHUB_CLIENT_SECRET) {
     return json(503, { error: "not_configured" });
   }
-  const back = returnPath(url.searchParams.get("return"));
+  const back = returnPath(url.searchParams.get("return"), url.origin);
   const state = randomToken();
   const verifier = randomToken();
   const challenge = base64url(
@@ -293,7 +293,10 @@ function readLoginCookie(
   if (!state) return undefined;
   let path = "/";
   try {
-    path = returnPath(new TextDecoder().decode(unbase64url(back ?? "")));
+    path = returnPath(
+      new TextDecoder().decode(unbase64url(back ?? "")),
+      new URL(request.url).origin,
+    );
   } catch {
     // A mangled return path is not worth failing a login over.
   }
@@ -301,12 +304,20 @@ function readLoginCookie(
 }
 
 /** A path on this site to come back to; anything else is `/`. */
-function returnPath(raw: string | null): string {
+function returnPath(raw: string | null, origin: string): string {
   if (!raw?.startsWith("/")) return "/";
-  // `//host` and `/\host` are other origins to a browser.
-  if (raw.startsWith("//") || raw.startsWith("/\\")) return "/";
-  if (raw === "/api" || raw.startsWith("/api/")) return "/";
-  return raw;
+  // Resolved the way the browser will resolve the Location, which strips
+  // tab and newline and reads `/\host` as `//host`: a prefix check on the
+  // raw string misses those, the parsed origin does not.
+  let url: URL;
+  try {
+    url = new URL(raw, origin);
+  } catch {
+    return "/";
+  }
+  if (url.origin !== origin) return "/";
+  if (url.pathname === "/api" || url.pathname.startsWith("/api/")) return "/";
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 /** A POST whose Origin is another site's: refused before touching the cookie. */
