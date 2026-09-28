@@ -25,6 +25,7 @@ export interface MockRequest {
   method: string;
   url: string;
   keepalive: boolean;
+  cache: RequestCache | undefined;
 }
 
 interface State {
@@ -295,7 +296,12 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
         throw new TypeError(`mock GitHub has no route for ${href}`);
       return passthrough(input, init);
     }
-    requests.push({ method, url: href, keepalive: init?.keepalive === true });
+    requests.push({
+      method,
+      url: href,
+      keepalive: init?.keepalive === true,
+      cache: init?.cache,
+    });
     return isApi
       ? api(method, url, headers.get("Authorization"), body)
       : worker(method, url.pathname);

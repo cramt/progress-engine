@@ -129,6 +129,9 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
   ) =>
     fetchImpl(`${base}${path}`, {
       method,
+      // GitHub answers GETs with `private, max-age=60`; a cached read after a
+      // save carries the old sha and turns our own commit into a conflict.
+      cache: "no-store",
       headers: {
         Accept: "application/vnd.github+json",
         Authorization: `Bearer ${token}`,
