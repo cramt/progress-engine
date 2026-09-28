@@ -16,7 +16,7 @@ use std::sync::OnceLock;
 
 use facet::Facet;
 
-use crate::deck::Finish;
+use crate::deck::{CategoryType, Finish};
 use regex::Regex;
 use thiserror::Error;
 
@@ -92,6 +92,30 @@ impl Category {
     fn has_flag(&self, flag: &str) -> bool {
         self.flags.iter().any(|f| f == flag)
     }
+
+    /// The type Archidekt gives this category when it is a card's first, from
+    /// its exact name and its flags. The one place a category is typed: both a
+    /// parsed [`Entry`] and an imported deck ask it.
+    pub fn archidekt_type(&self) -> Option<CategoryType> {
+        if self.is_premier() {
+            Some(CategoryType::Commander)
+        } else if self.name == "Sideboard" {
+            Some(CategoryType::Sideboard)
+        } else if self.name == "Maybeboard" {
+            Some(CategoryType::Maybeboard)
+        } else if self.is_no_deck() {
+            // Archidekt has no board for these; `{noDeck}` is all it knows. The
+            // names are the ones the export writes, so they read back as written.
+            Some(match self.name.as_str() {
+                "Companion" => CategoryType::Companion,
+                "Attractions" => CategoryType::Attractions,
+                "Sticker Sheet" => CategoryType::StickerSheet,
+                _ => CategoryType::NotInDeck,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Facet)]
@@ -117,11 +141,21 @@ impl Entry {
         self.categories.first()
     }
 
+    /// Where Archidekt puts the card: its first category's type
+    /// ([`Category::archidekt_type`]), or in the deck. The flags are the ones
+    /// this entry carries, so an entry from [`parse`] is placed by the whole
+    /// list's flags, as [`deck::Deck::read_archidekt`] places it.
+    pub fn place(&self) -> CategoryType {
+        self.primary()
+            .and_then(Category::archidekt_type)
+            .unwrap_or(CategoryType::InDeck)
+    }
+
     /// A commander, the way Archidekt reads one: the first category carries
     /// `{top}`. `[Commander]` without it is an ordinary group, and
     /// `[Ramp,Commander{top}]` shows under Ramp with no crown.
     pub fn is_commander(&self) -> bool {
-        self.primary().is_some_and(Category::is_premier)
+        self.place() == CategoryType::Commander
     }
 
     /// In the list but not among the 100, the way Archidekt reads it: the first
@@ -134,8 +168,7 @@ impl Entry {
     /// real cards in "Sticker Package" from a 100-card list; a sticker sheet is
     /// out of the deck by its `{noDeck}` alone.
     pub fn is_outside(&self) -> bool {
-        self.primary()
-            .is_some_and(|c| c.is_no_deck() || c.name == "Sideboard" || c.name == "Maybeboard")
+        !self.place().is_within(CategoryType::InDeck)
     }
 }
 
@@ -296,9 +329,39 @@ pub fn lines(text: &str) -> impl Iterator<Item = (usize, Result<Entry, ParseErro
     })
 }
 
-/// Parse a whole decklist. Errors name the offending line rather than skipping it.
+/// Parse a whole decklist. Errors name the offending line rather than skipping
+/// it. Every mention of a category carries the flags the list gives it
+/// ([`share_flags`]), so each entry is placed as the whole list places it.
 pub fn parse(text: &str) -> Result<Vec<Entry>, ParseError> {
-    lines(text).map(|(_, e)| e).collect()
+    let mut entries = lines(text).map(|(_, e)| e).collect::<Result<Vec<_>, _>>()?;
+    share_flags(&mut entries);
+    Ok(entries)
+}
+
+/// A flag belongs to the category, not the line: Archidekt repeats it on each
+/// line, and a line that leaves it off does not clear it. Gives every mention
+/// of a category the flags any mention gave it, in first-seen order.
+pub fn share_flags(entries: &mut [Entry]) {
+    let mut flags: Vec<(String, Vec<String>)> = Vec::new();
+    for c in entries.iter().flat_map(|e| &e.categories) {
+        let have = match flags.iter_mut().find(|(n, _)| *n == c.name) {
+            Some((_, have)) => have,
+            None => {
+                flags.push((c.name.clone(), Vec::new()));
+                &mut flags.last_mut().expect("just pushed").1
+            }
+        };
+        for f in &c.flags {
+            if !have.contains(f) {
+                have.push(f.clone());
+            }
+        }
+    }
+    for c in entries.iter_mut().flat_map(|e| &mut e.categories) {
+        if let Some((_, all)) = flags.iter().find(|(n, _)| *n == c.name) {
+            c.flags.clone_from(all);
+        }
+    }
 }
 
 /// Total physical cards, which is not the line count the moment a list has `3x Plains`.

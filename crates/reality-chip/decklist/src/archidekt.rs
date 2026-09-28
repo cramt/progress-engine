@@ -86,30 +86,6 @@ fn reason(e: &ParseError) -> String {
     }
 }
 
-/// The type Archidekt gives a category that is some card's first, from its
-/// exact name and its flags.
-fn archidekt_type(name: &str, flags: &[String]) -> Option<CategoryType> {
-    let flag = |f: &str| flags.iter().any(|x| x == f);
-    if flag("top") {
-        Some(CategoryType::Commander)
-    } else if name == "Sideboard" {
-        Some(CategoryType::Sideboard)
-    } else if name == "Maybeboard" {
-        Some(CategoryType::Maybeboard)
-    } else if flag("nodeck") {
-        // Archidekt has no board for these; `{noDeck}` is all it knows. The
-        // names are the ones the export writes, so they read back as written.
-        Some(match name {
-            "Companion" => CategoryType::Companion,
-            "Attractions" => CategoryType::Attractions,
-            "Sticker Sheet" => CategoryType::StickerSheet,
-            _ => CategoryType::NotInDeck,
-        })
-    } else {
-        None
-    }
-}
-
 impl Deck {
     /// Reads Archidekt text as Archidekt does, keeping every card it can and
     /// naming every line it could not carry over whole. Each card is named once
@@ -121,6 +97,8 @@ impl Deck {
         let mut unreadable = Vec::new();
 
         let mut entries = Vec::new();
+        // Each entry's line and printing, by index into `entries`.
+        let mut origins = Vec::new();
         for (line, entry) in crate::lines(text) {
             let entry = match entry {
                 Ok(e) => e,
@@ -147,34 +125,28 @@ impl Deck {
                 },
                 _ => None,
             };
-            entries.push((line, entry, printing));
+            entries.push(entry);
+            origins.push((line, printing));
         }
+        crate::share_flags(&mut entries);
 
-        // A flag belongs to the category, and Archidekt repeats it on each
-        // line; a line that leaves it off does not clear it.
-        let mut flags: BTreeMap<&str, Vec<String>> = BTreeMap::new();
+        // With flags shared, every mention of a category is the same, so
+        // any one of them types it.
+        let mut mentions: BTreeMap<&str, &crate::Category> = BTreeMap::new();
         let mut first: BTreeSet<&str> = BTreeSet::new();
-        for (_, e, _) in &entries {
+        for e in &entries {
             if let Some(p) = e.primary() {
                 first.insert(&p.name);
             }
             for c in &e.categories {
-                let have = flags.entry(&c.name).or_default();
-                for f in &c.flags {
-                    if !have.contains(f) {
-                        have.push(f.clone());
-                    }
-                }
+                mentions.entry(&c.name).or_insert(c);
             }
         }
-        let categories: Vec<Category> = flags
+        let categories: Vec<Category> = mentions
             .iter()
-            .map(|(&name, flags)| Category {
+            .map(|(&name, c)| Category {
                 name: name.to_string(),
-                kind: first
-                    .contains(name)
-                    .then(|| archidekt_type(name, flags))
-                    .flatten(),
+                kind: first.contains(name).then(|| c.archidekt_type()).flatten(),
             })
             .collect();
         let kind = |name: &str| {
@@ -186,11 +158,8 @@ impl Deck {
 
         let mut cards = Vec::new();
         let mut names = HashMap::new();
-        for (line, e, printing) in &entries {
-            let place = e
-                .primary()
-                .and_then(|p| kind(&p.name))
-                .unwrap_or(CategoryType::InDeck);
+        for (e, (line, printing)) in entries.iter().zip(&origins) {
+            let place = e.place();
             let mut at = place;
             let mut kept = Vec::new();
             for (n, c) in e.categories.iter().enumerate() {

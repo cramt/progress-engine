@@ -4,7 +4,7 @@
 //! are deliberately fixing). These are the contract `scryfall check` and
 //! `scryfall play` rely on when they delegate parsing.
 
-use chip_decklist::deck::Finish;
+use chip_decklist::deck::{Deck, Finish};
 use chip_decklist::{self as decklist, ParseError};
 
 fn one(line: &str) -> decklist::Entry {
@@ -189,6 +189,36 @@ fn a_heading_is_the_first_category_of_every_card_below_it() {
     assert_eq!(names(&entries[1]), vec!["Ramp"], "one Ramp, not two");
     // `# Commander` sets Premier by itself, unlike `[Commander]`.
     assert!(entries[2].is_commander());
+}
+
+/// A flag belongs to the category, not the line: Archidekt merges a category's
+/// flags across every line that names it. A list read line by line and the
+/// same list imported as a deck must put every card in the same place.
+#[test]
+fn a_category_s_flags_are_shared_by_every_line_that_names_it() {
+    for text in [
+        "1x Kenrith, the Returned King [Commander{top}]\n1x Sol Ring [Commander]\n",
+        "1x Sol Ring [Commander]\n1x Kenrith, the Returned King [Commander{top}]\n",
+        "1x Treasure [Tokens{noDeck}]\n1x Clue [Tokens]\n",
+    ] {
+        let entries = decklist::parse(text).unwrap();
+        let deck = Deck::from_archidekt(text).unwrap();
+        for (e, c) in entries.iter().zip(&deck.cards) {
+            assert_eq!(e.is_commander(), c.is_commander(), "{text}: {}", e.name);
+            assert_eq!(e.is_outside(), !c.in_deck(), "{text}: {}", e.name);
+        }
+        assert!(
+            entries
+                .iter()
+                .all(|e| e.categories == entries[0].categories),
+            "{text}"
+        );
+    }
+    assert!(decklist::parse(
+        "1x Kenrith, the Returned King [Commander{top}]\n1x Sol Ring [Commander]\n"
+    )
+    .unwrap()[1]
+        .is_commander());
 }
 
 #[test]
