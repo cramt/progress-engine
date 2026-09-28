@@ -1,0 +1,102 @@
+/* The scan dialog: the source (camera or file) on the left, what it found on the right. */
+
+.scan-modal {
+  width: min(1100px, 100%);
+}
+
+.scan-body {
+  display: flex;
+  gap: 20px;
+  min-height: 0;
+  padding: 16px;
+  overflow: auto;
+}
+
+.scan-source {
+  flex: none;
+  width: min(380px, 40%);
+}
+
+.scan-source video {
+  width: 100%;
+  border-radius: 6px;
+  background: #000;
+}
+
+.scan-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.scan-file input {
+  display: block;
+  max-width: 100%;
+}
+
+.scan-status,
+.scan-added {
+  font-size: 14px;
+}
+
+.scan-results {
+  flex: 1;
+  min-width: 0;
+}
+
+.scan-others {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.scan-found h3 {
+  margin: 0;
+}
+
+.scan-candidates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.scan-candidates li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.scan-candidates img,
+.scan-noimage {
+  width: 100%;
+  aspect-ratio: 488 / 680;
+  border-radius: var(--card-radius);
+}
+
+.scan-noimage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(127 127 127 / 0.2);
+  text-align: center;
+}
+
+.scan-candidates li.pick img {
+  outline: 3px solid #4a90d9;
+}
+
+@media (max-width: 700px) {
+  .scan-body {
+    flex-direction: column;
+  }
+
+  .scan-source {
+    width: 100%;
+  }
+}

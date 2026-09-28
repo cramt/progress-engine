@@ -279,6 +279,12 @@ number, and cannot separate printings that share an illustration. See FINDINGS Â
 `tests/engine.rs` pins both numbers, so a port that quietly changes the engine's
 behaviour fails the suite rather than the review.
 
+The table is 1.83.beta's. The pin is now 1.89.beta (fingerprint `e7615396c5ece313`),
+because upstream stopped serving 1.83.beta. On 1.89.beta, card name held at 6/6 on the
+web, but exact printing came out at 2/6 or 3/6 on fixture frames made without ImageMagick,
+and the native test has not been rerun. See
+[probe-in-curator.md](../../../docs/research/probe-in-curator.md).
+
 It only pins them where it can run. Every engine case needs the upstream blobs, and
 the accuracy ones need `magick` too; without either they skip and the suite still
 passes, which is not the same claim. Set `PROBE_REQUIRE_ENGINE=1` anywhere these
@@ -314,6 +320,7 @@ on a mismatch. When that fires, re-verify the ABI against FINDINGS before passin
 | `js/engine.js` | the bootstrap sequence and job protocol, in-sandbox |
 | `../assets/` | `gitaxian-probe-assets`: the pinned engine files a web build serves |
 | `../web-check/` | the web host's acceptance check, in headless Chromium |
+| `../bindgen/` | `gitaxian-probe-bindgen`: the web host as a JavaScript class, for Meldweb Curator's scan dialog |
 
 ## Threading
 

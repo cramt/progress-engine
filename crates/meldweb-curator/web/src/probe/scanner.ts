@@ -1,0 +1,98 @@
+import probe, { type ScannerHandle } from "virtual:gitaxian-probe";
+
+/** Whether this build carries the card scanner: `MELDWEB_PROBE=1 pnpm dev`. */
+export const scannerAvailable = probe !== null;
+
+/** A catalogue printing, as the probe resolves it from Delver's own SQLite. */
+export interface ProbeCard {
+  name: string;
+  /** Delver's edition name, e.g. "Limited Edition Alpha": not a set code. */
+  edition: string;
+  number: string;
+  /** The join key to Scryfall, and so to how the deck names a printing. */
+  scryfall_id: string | null;
+}
+
+/** One card found in a frame: the engine's pick and its runners-up. */
+export interface Found {
+  card: ProbeCard;
+  /** The engine's confidence, 0-100, in the card and in the printing. */
+  rec_conf: number;
+  set_conf: number;
+  /** Best first. A same-art reprint is usually here rather than in `card`. */
+  alternatives: ProbeCard[];
+}
+
+export type Progress = (stage: string, percent: number) => void;
+
+let opening: Promise<ScannerHandle> | null = null;
+
+/**
+ * The page's one scanner, booted on first use. Boot costs a few seconds and
+ * ~80 MB of downloads, then 32 workers that live as long as the page, so it
+ * is shared by every scan and never closed. A failed boot is forgotten, so
+ * the next call tries again.
+ */
+export function openScanner(progress?: Progress): Promise<ScannerHandle> {
+  if (!probe) return Promise.reject(new Error("this build has no scanner"));
+  if (!crossOriginIsolated) {
+    return Promise.reject(
+      new Error(
+        "the page is not cross-origin isolated, so the scanner cannot start",
+      ),
+    );
+  }
+  const { init, Scanner, base } = probe;
+  opening ??= init()
+    .then(() =>
+      Scanner.open(base, (stage, percent) => progress?.(stage, percent)),
+    )
+    .catch((e: unknown) => {
+      opening = null;
+      throw e;
+    });
+  return opening;
+}
+
+/** The cards in one RGBA frame. */
+export async function scan(
+  scanner: ScannerHandle,
+  frame: ImageData,
+): Promise<Found[]> {
+  const rgba = new Uint8Array(
+    frame.data.buffer,
+    frame.data.byteOffset,
+    frame.data.byteLength,
+  );
+  return JSON.parse(await scanner.scan(rgba, frame.width, frame.height));
+}
+
+/** The longest side a frame is scanned at: a phone photo is ~4000 px. */
+const MAX_SIDE = 1280;
+
+/**
+ * `source` as a frame the engine can read: scaled down to at most
+ * `MAX_SIDE`, and set on a dark border. The detector finds a card by its
+ * edge against the background, so a tight crop - a Scryfall image, a
+ * screenshot - finds nothing without one, and a camera frame loses nothing
+ * by having one.
+ */
+export function frameOf(
+  source: CanvasImageSource,
+  width: number,
+  height: number,
+): ImageData {
+  const scale = Math.min(1, MAX_SIDE / Math.max(width, height));
+  const w = Math.round(width * scale);
+  const h = Math.round(height * scale);
+  const margin = Math.round(Math.max(w, h) * 0.15);
+  const canvas = document.createElement("canvas");
+  canvas.width = w + 2 * margin;
+  canvas.height = h + 2 * margin;
+  const g = canvas.getContext("2d", { willReadFrequently: true });
+  if (!g) throw new Error("no 2d canvas");
+  g.fillStyle = "#2b2b30";
+  g.fillRect(0, 0, canvas.width, canvas.height);
+  g.drawImage(source, margin, margin, w, h);
+  return g.getImageData(0, 0, canvas.width, canvas.height);
+}

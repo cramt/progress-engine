@@ -10,6 +10,9 @@ import { deckStem } from "../github/decks";
 import { deckText } from "../github/deckText";
 import { createSaveStore, type SaveState } from "../github/save";
 import { useSave } from "../github/useSave";
+import { addPrinting } from "../probe/printings";
+import { ScanDialog } from "../probe/ScanDialog";
+import { scannerAvailable } from "../probe/scanner";
 import { addByName } from "../quickadd/addByName";
 import { type AddByName, QuickAdd } from "../quickadd/QuickAdd";
 import type { Printings } from "../scryfall";
@@ -108,6 +111,7 @@ export function DeckEditor({
     refuse: setRefusal,
   });
   const [searching, setSearching] = useState(false);
+  const [scanning, setScanning] = useState(false);
   // The deck's printings, grown by every card an edit adds.
   const { printings } = cards;
 
@@ -198,12 +202,19 @@ export function DeckEditor({
         search={<SearchButton onClick={() => setSearching(true)} />}
         quickAdd={<QuickAdd categories={parsed.categories} onAdd={onAdd} />}
         actions={
-          <CopyArchidekt
-            text={history.present}
-            cards={parsed.cards}
-            printings={printings}
-            onRefusal={setRefusal}
-          />
+          <>
+            {scannerAvailable && (
+              <button type="button" onClick={() => setScanning(true)}>
+                Scan
+              </button>
+            )}
+            <CopyArchidekt
+              text={history.present}
+              cards={parsed.cards}
+              printings={printings}
+              onRefusal={setRefusal}
+            />
+          </>
         }
         status={
           <span
@@ -256,6 +267,21 @@ export function DeckEditor({
           onAdd={onAdd}
           renderResult={renderCardResult}
           onClose={() => setSearching(false)}
+        />
+      )}
+      {scanning && (
+        <ScanDialog
+          onAdd={(printing) => {
+            try {
+              history.edit(
+                addPrinting(history.present, parsed.cards, printing),
+              );
+              setRefusal(null);
+            } catch (e) {
+              setRefusal(e instanceof Error ? e.message : String(e));
+            }
+          }}
+          onClose={() => setScanning(false)}
         />
       )}
       <details className="source">

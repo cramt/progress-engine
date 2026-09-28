@@ -893,6 +893,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "gitaxian-probe-bindgen"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "facet",
+ "facet-json",
+ "gitaxian-probe-engine",
+ "js-sys",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+]
+
+[[package]]
 name = "gitaxian-probe-engine"
 version = "0.1.0"
 dependencies = [

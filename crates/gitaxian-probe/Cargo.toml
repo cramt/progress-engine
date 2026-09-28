@@ -3,7 +3,7 @@
 # from here: `cargo build --manifest-path crates/gitaxian-probe/Cargo.toml`.
 [workspace]
 resolver = "2"
-members = ["engine", "assets", "web-check"]
+members = ["engine", "assets", "web-check", "bindgen"]
 
 [workspace.package]
 version = "0.1.0"
