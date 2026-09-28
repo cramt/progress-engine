@@ -5,4 +5,4 @@ The exact engine and the sampler walk the same `Board` and differ only in how th
 ## Considered Options
 
 - **fearless_simd.** Rejected on measurement: 7.4s became 9.5s.
-- **A hand-written GPU kernel.** Deferred, because it would be the first second copy of the rules ([#65](https://github.com/cramt/progress-engine/issues/65)).
+- **A hand-written GPU kernel.** Deferred, because it would be the first second copy of the rules ([#65](https://github.com/cramt/progress-engine/issues/65)). The spike and what the walk keeps for it are [ADR-0022](0022-a-gpu-port-waits-for-the-board.md).
