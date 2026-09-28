@@ -259,6 +259,43 @@ describe("a conflict", () => {
   });
 });
 
+describe("leaving the deck", () => {
+  it("settles once every edit is committed, even ones made during a save", async () => {
+    store.edit(v(1));
+    const saving = store.flush();
+    store.edit(v(2));
+    expect(await store.settle()).toBe(true);
+    await saving;
+    expect(conn.mock.file(PATH)?.text).toBe(v(2));
+    expect(store.getState().status).toBe("saved");
+  });
+
+  it("settles at once with nothing to save", async () => {
+    expect(await store.settle()).toBe(true);
+    expect(puts()).toHaveLength(0);
+  });
+
+  it("does not settle in a conflict: the edits cannot be committed", async () => {
+    conn.mock.editOnGitHub(PATH, "# edited on github.com\ncards = []\n");
+    store.edit(v(1));
+    expect(await store.settle()).toBe(false);
+    expect(store.getState().status).toBe("conflict");
+  });
+
+  it("does not settle when saving fails, and the page warns before unload", async () => {
+    const p = page();
+    store.attach(p.events);
+    await conn.auth.logout();
+    store.edit(v(1));
+    const settling = store.settle();
+    // A logged-out token check waits one task for other tabs' news.
+    await vi.advanceTimersByTimeAsync(10);
+    expect(await settling).toBe(false);
+    expect(store.getState()).toMatchObject({ status: "error" });
+    expect(p.beforeunload()).toBe(true);
+  });
+});
+
 describe("a failed save", () => {
   it("shows the error and retries after the idle time", async () => {
     await conn.auth.logout();

@@ -1,13 +1,20 @@
+import { useBlocker } from "@tanstack/react-router";
 import { useEffect, useSyncExternalStore } from "react";
 import { flushOnLeave, type SaveState, type SaveStore } from "./save";
 
 const idle: SaveState = { status: "saved" };
 const none = () => () => {};
 
+const unsaved: Record<"conflict" | "error", string> = {
+  conflict: "This deck changed on GitHub, so your edits were not saved.",
+  error: "Saving failed, so your latest edits are not on GitHub.",
+};
+
 /**
  * The save status of `store`, with the page's hide, close and unload listeners
- * attached while the component is mounted. Unmounting (leaving the deck for
- * another route) saves what is pending at once.
+ * attached while the component is mounted. Leaving the deck for another route
+ * saves what is pending first, and asks before throwing away edits that
+ * cannot be saved.
  */
 export function useSave(store: SaveStore | null): SaveState {
   useEffect(() => {
@@ -20,6 +27,17 @@ export function useSave(store: SaveStore | null): SaveState {
       void flushOnLeave(store);
     };
   }, [store]);
+  useBlocker({
+    disabled: !store,
+    shouldBlockFn: async () => {
+      if (!store || (await store.settle())) return false;
+      const { status } = store.getState();
+      const why = status === "conflict" ? unsaved.conflict : unsaved.error;
+      return !window.confirm(`${why}\n\nLeave and lose them?`);
+    },
+    // `store.attach` already warns on unload while anything is unsaved.
+    enableBeforeUnload: false,
+  });
   return useSyncExternalStore(
     store ? store.subscribe : none,
     store ? store.getState : () => idle,

@@ -44,6 +44,11 @@ export interface SaveStore {
   edit(text: string): void;
   /** Saves now; `keepalive` lets the request outlive the page. */
   flush(options?: { keepalive?: boolean }): Promise<void>;
+  /**
+   * Saves until nothing is pending, for leaving the deck. `true` when every
+   * edit is on GitHub; `false` when a conflict or a failed save holds some back.
+   */
+  settle(): Promise<boolean>;
   /** Conflict: drops local edits and takes GitHub's file. Returns its text. */
   reload(): Promise<string>;
   /** Conflict: re-reads the sha and commits the local text over GitHub's. */
@@ -184,6 +189,15 @@ export function createSaveStore(options: SaveOptions): SaveStore {
     },
     flush(opts) {
       return save(opts?.keepalive ?? false);
+    },
+    async settle() {
+      for (;;) {
+        await idle();
+        if (state.status === "conflict") return false;
+        if (!pending()) return true;
+        await save(false);
+        if (state.status === "error") return false;
+      }
     },
     async reload() {
       await idle();
