@@ -12,6 +12,11 @@ gauntlet-criteria.workspace = true
 facet.workspace = true
 facet-toml.workspace = true
 
+[features]
+# Issue #65's GPU spike reads a criterion as plain counts, to lower it into a
+# kernel. Only crates/ichormoon-gauntlet/gpu-spike turns it on.
+gpu-spike = []
+
 [dev-dependencies]
 chip-stats.workspace = true
 gauntlet-sim.workspace = true

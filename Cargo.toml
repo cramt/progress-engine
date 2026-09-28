@@ -10,7 +10,7 @@ members = [
 # Gitaxian Probe is a workspace of its own (crates/gitaxian-probe/Cargo.toml), so
 # a plain `cargo` here resolves neither V8 nor the build-time download of
 # Delver's engine files, and the flake never sees either.
-exclude = ["crates/gitaxian-probe"]
+exclude = ["crates/gitaxian-probe", "crates/ichormoon-gauntlet/gpu-spike"]
 
 [workspace.metadata.crane]
 # crane reads the package name from the root Cargo.toml, which a virtual

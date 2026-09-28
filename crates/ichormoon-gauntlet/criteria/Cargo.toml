@@ -10,5 +10,10 @@ repository.workspace = true
 thiserror.workspace = true
 chip-stats.workspace = true
 
+[features]
+# Issue #65's GPU spike times the CPU engine on walks past MAX_PATHS, which
+# this lifts everywhere it is checked. Only crates/ichormoon-gauntlet/gpu-spike turns it on.
+gpu-spike = []
+
 [dev-dependencies]
 proptest.workspace = true

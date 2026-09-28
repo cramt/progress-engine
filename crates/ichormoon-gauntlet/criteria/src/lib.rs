@@ -495,7 +495,12 @@ pub fn threads() -> usize {
 /// a caller that falls back to sampling has to be able to tell a reader how far
 /// over the line the question went, and a second copy of the number in the CLI
 /// would be a constant that could drift from the one that actually refused.
+#[cfg(not(feature = "gpu-spike"))]
 pub const MAX_PATHS: u128 = 5_000_000;
+/// Lifted for issue #65's spike, which times this engine on walks past the
+/// ceiling. Nothing but crates/ichormoon-gauntlet/gpu-spike turns it on.
+#[cfg(feature = "gpu-spike")]
+pub const MAX_PATHS: u128 = u64::MAX as u128;
 
 /// How far the total probability mass may sit from 1 before the run is a bug
 /// rather than arithmetic.
