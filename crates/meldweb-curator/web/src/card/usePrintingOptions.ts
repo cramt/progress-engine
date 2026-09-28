@@ -23,16 +23,13 @@ export function usePrintingOptions(uri: string | undefined): PrintingOptions {
   useEffect(() => {
     if (!uri) return;
     const abort = new AbortController();
-    const load = async (attempt: number): Promise<void> => {
+    const load = async (): Promise<void> => {
       try {
         const printings = await fetchAllPrintings(uri, abort.signal);
         if (!abort.signal.aborted)
           setState({ uri, options: { status: "done", printings } });
       } catch (e) {
         if (abort.signal.aborted) return;
-        // Another view of this card abandoned the shared request: ask anew.
-        if (e instanceof DOMException && e.name === "AbortError" && attempt < 2)
-          return load(attempt + 1);
         setState({
           uri,
           options: {
@@ -42,7 +39,7 @@ export function usePrintingOptions(uri: string | undefined): PrintingOptions {
         });
       }
     };
-    const timer = setTimeout(() => void load(0), SETTLE_MS);
+    const timer = setTimeout(() => void load(), SETTLE_MS);
     return () => {
       clearTimeout(timer);
       abort.abort();

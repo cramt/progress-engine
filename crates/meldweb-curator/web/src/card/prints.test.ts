@@ -124,4 +124,33 @@ describe("scryfall's printings", () => {
     expect(await fetchAllPrintings("https://api/prints")).toBe(all);
     expect(started).toHaveLength(2);
   });
+
+  it("are still fetched for one view when another view of the card gives up", async () => {
+    vi.useFakeTimers();
+    let requests = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        init?.signal?.throwIfAborted();
+        requests++;
+        return new Response(
+          JSON.stringify({ data: [raw("m21", "1", "2020-07-03")] }),
+        );
+      }),
+    );
+    const leaving = new AbortController();
+    const left = fetchAllPrintings("https://api/shared", leaving.signal).then(
+      () => "done",
+      () => "aborted",
+    );
+    const staying = fetchAllPrintings(
+      "https://api/shared",
+      new AbortController().signal,
+    );
+    leaving.abort();
+    await vi.runAllTimersAsync();
+    expect(await left).toBe("aborted");
+    expect((await staying).map(printingId)).toEqual(["m21/1"]);
+    expect(requests).toBe(1);
+  });
 });

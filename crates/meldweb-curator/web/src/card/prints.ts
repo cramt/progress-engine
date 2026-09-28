@@ -132,28 +132,88 @@ async function searchRequest(
   return response.json();
 }
 
-const cache = new Map<string, Promise<PrintingOption[]>>();
+async function loadAll(
+  uri: string,
+  signal: AbortSignal,
+): Promise<PrintingOption[]> {
+  const all: PrintingOption[] = [];
+  let url: string | null = uri;
+  while (url) {
+    const page = parsePrintsPage(await searchRequest(url, signal));
+    all.push(...page.printings);
+    url = page.next;
+  }
+  return all;
+}
 
-/** Every printing behind a `prints_search_uri`, all pages, asked for once. */
+/**
+ * One search shared by every view asking for the same card. It belongs to no
+ * caller's signal: it is abandoned only once every caller has left, so one
+ * view giving up never fails another.
+ */
+interface SharedSearch {
+  promise: Promise<PrintingOption[]>;
+  abandon: AbortController;
+  callers: number;
+  settled: boolean;
+}
+
+const cache = new Map<string, SharedSearch>();
+
+function shared(uri: string): SharedSearch {
+  const cached = cache.get(uri);
+  if (cached) return cached;
+  const abandon = new AbortController();
+  const search: SharedSearch = {
+    promise: loadAll(uri, abandon.signal),
+    abandon,
+    callers: 0,
+    settled: false,
+  };
+  cache.set(uri, search);
+  search.promise.then(
+    () => {
+      search.settled = true;
+    },
+    () => {
+      search.settled = true;
+      // A failed lookup is asked again next time.
+      if (cache.get(uri) === search) cache.delete(uri);
+    },
+  );
+  return search;
+}
+
+/**
+ * Every printing behind a `prints_search_uri`, all pages, asked for once.
+ * `signal` rejects this caller at once; the search itself is abandoned, and
+ * never sent if it is still queued, only when no caller is left waiting.
+ */
 export function fetchAllPrintings(
   uri: string,
   signal?: AbortSignal,
 ): Promise<PrintingOption[]> {
-  const cached = cache.get(uri);
-  if (cached) return cached;
-  const load = async () => {
-    const all: PrintingOption[] = [];
-    let url: string | null = uri;
-    while (url) {
-      const page = parsePrintsPage(await searchRequest(url, signal));
-      all.push(...page.printings);
-      url = page.next;
-    }
-    return all;
-  };
-  const promise = load();
-  cache.set(uri, promise);
-  // A failed or abandoned lookup is asked again next time.
-  promise.catch(() => cache.delete(uri));
-  return promise;
+  if (signal?.aborted) return Promise.reject(signal.reason);
+  const search = shared(uri);
+  if (!signal) {
+    // A caller that cannot leave keeps the search alive.
+    search.callers = Number.POSITIVE_INFINITY;
+    return search.promise;
+  }
+  search.callers++;
+  return new Promise((resolve, reject) => {
+    const leave = () => {
+      reject(signal.reason);
+      search.callers--;
+      if (search.callers === 0 && !search.settled) {
+        // Gone from the cache now, so the next caller starts afresh.
+        if (cache.get(uri) === search) cache.delete(uri);
+        search.abandon.abort();
+      }
+    };
+    signal.addEventListener("abort", leave, { once: true });
+    search.promise
+      .finally(() => signal.removeEventListener("abort", leave))
+      .then(resolve, reject);
+  });
 }

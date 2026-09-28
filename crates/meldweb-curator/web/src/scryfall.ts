@@ -43,9 +43,11 @@ export const COLLECTION_INTERVAL_MS = SEARCH_GATE.intervalMs;
  * Looks up every card's printing in as few requests as Scryfall allows.
  * Cards Scryfall cannot find are absent from the map rather than an error: the
  * deck is still the deck, and the view shows what the file names instead.
+ * A batch still queued when `signal` aborts is never sent.
  */
 export async function fetchPrintings(
   cards: readonly Card[],
+  signal?: AbortSignal,
 ): Promise<Printings> {
   const wanted = [
     ...new Map(cards.map((c) => [printingKey(c.card), c.card])).values(),
@@ -60,6 +62,7 @@ export async function fetchPrintings(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifiers: batch.map(identifier) }),
+        ...(signal ? { signal } : {}),
       },
     );
     if (!response.ok) throw new Error(`Scryfall answered ${response.status}`);
