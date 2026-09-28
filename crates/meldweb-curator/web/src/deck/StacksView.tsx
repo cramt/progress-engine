@@ -1,7 +1,7 @@
 import { type DragEvent, useEffect, useRef, useState } from "react";
 import { CardView, type CardViewProps } from "../card/CardView";
 import type { Category, Card as DeckCard } from "../deck";
-import { type Printings, printingKey } from "../scryfall";
+import { cardName, type Printings, printingKey } from "../scryfall";
 import {
   type Group,
   groupByCategory,
@@ -156,14 +156,6 @@ export function StacksView({
         ))}
       </div>
     </>
-  );
-}
-
-function cardName(card: DeckCard, printings: Printings): string {
-  if (card.card.kind === "name") return card.card.name;
-  return (
-    printings.get(printingKey(card.card))?.name ??
-    `${card.card.set}/${card.card.num}`
   );
 }
 

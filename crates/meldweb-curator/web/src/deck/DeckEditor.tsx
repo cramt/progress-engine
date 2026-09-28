@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { withBoard } from "../card/apply";
 import { isTyping } from "../card/hotkeys";
 import { renderCardResult } from "../card/searchResult";
 import { useCardEditor } from "../card/useCardEditor";
@@ -146,11 +147,7 @@ export function DeckEditor({
       } else {
         // The strip's Sideboard is the deck's sideboard-typed category, made
         // if the deck has none yet.
-        const existing = parsed.categories.find((c) => c.kind === to.type);
-        name =
-          existing?.name ??
-          (to.type === "maybeboard" ? "Maybeboard" : "Sideboard");
-        if (!existing) text = declareCategory(text, name, to.type);
+        ({ text, name } = withBoard(text, parsed.categories, to.type));
       }
       history.edit(
         setCardCategories(

@@ -16,10 +16,41 @@ export interface Printing {
 /** A card's printing, keyed the way the deck names it. */
 export type Printings = ReadonlyMap<string, Printing>;
 
+/** `set/num`, lowercased: how a printing is compared with the deck's. */
+export function printingId(p: { set: string; num: string }): string {
+  return `${p.set.toLowerCase()}/${p.num.toLowerCase()}`;
+}
+
 export function printingKey(ref: CardRef): string {
   return ref.kind === "printing"
-    ? `${ref.set.toLowerCase()}/${ref.num.toLowerCase()}`
+    ? printingId(ref)
     : `name:${ref.name.toLowerCase()}`;
+}
+
+/**
+ * A card's name: the file's, or Scryfall's for a card named by printing, or
+ * `set/num` for a printing Scryfall has not named.
+ */
+export function cardName(card: Card, printings: Printings): string {
+  const ref = card.card;
+  return ref.kind === "name"
+    ? ref.name
+    : (printings.get(printingKey(ref))?.name ?? `${ref.set}/${ref.num}`);
+}
+
+/**
+ * A Scryfall card's `image_uris`: its own, or its front face's for a
+ * double-faced card, which has them per face.
+ */
+export function imageUris(
+  card: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  const faces = Array.isArray(card.card_faces)
+    ? (card.card_faces as Record<string, unknown>[])
+    : [];
+  return (card.image_uris ?? faces[0]?.image_uris) as
+    | Record<string, unknown>
+    | undefined;
 }
 
 type Identifier = { set: string; collector_number: string } | { name: string };
@@ -32,12 +63,6 @@ function identifier(ref: CardRef): Identifier {
 
 // Scryfall's limit per request.
 const BATCH = 75;
-
-/**
- * Scryfall allows `/cards/collection` 2 requests a second, so a batch starts
- * no sooner than this after the one before it, through the search queue.
- */
-export const COLLECTION_INTERVAL_MS = SEARCH_GATE.intervalMs;
 
 /**
  * Looks up every card's printing in as few requests as Scryfall allows.
@@ -67,7 +92,10 @@ export async function fetchPrintings(
     );
     if (!response.ok) throw new Error(`Scryfall answered ${response.status}`);
     for (const card of parseCollection(await response.json())) {
-      const byPrinting = `${card.set}/${card.collector_number}`;
+      const byPrinting = printingId({
+        set: card.set,
+        num: card.collector_number,
+      });
       const printing: Printing = {
         name: card.name,
         image: card.image,
@@ -102,13 +130,7 @@ function parseCollection(json: unknown): CollectionCard[] {
     throw new Error("Scryfall collection response has no data");
   return data.flatMap((raw: unknown): CollectionCard[] => {
     const c = raw as Record<string, unknown>;
-    const faces = Array.isArray(c.card_faces)
-      ? (c.card_faces as Record<string, unknown>[])
-      : [];
-    const uris = (c.image_uris ?? faces[0]?.image_uris) as
-      | Record<string, unknown>
-      | undefined;
-    const image = uris?.normal;
+    const image = imageUris(c)?.normal;
     if (
       typeof c.name !== "string" ||
       typeof c.set !== "string" ||

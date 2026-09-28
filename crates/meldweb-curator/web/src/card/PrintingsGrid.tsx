@@ -1,10 +1,6 @@
 import { useState } from "react";
-import {
-  byRelease,
-  filterBySet,
-  type PrintingOption,
-  printingId,
-} from "./prints";
+import { printingId } from "../scryfall";
+import { byRelease, filterBySet, type PrintingOption } from "./prints";
 
 /**
  * Archidekt's All printings: every printing of the card as a picture, newest

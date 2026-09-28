@@ -8,6 +8,7 @@ import {
 } from "react";
 import type { Card, Parsed } from "../deck";
 import {
+  cardName,
   fetchPrintings,
   type Printing,
   type Printings,
@@ -25,15 +26,6 @@ import type { CardViewProps, MenuEntry } from "./CardView";
 import { DetailsModal } from "./DetailsModal";
 import { actionForKey, type CardAction, isTyping } from "./hotkeys";
 import { displayOrder } from "./order";
-
-/** A card's name: the file's, or Scryfall's for a card named by printing. */
-export function cardName(card: Card, printings: Printings): string {
-  if (card.card.kind === "name") return card.card.name;
-  return (
-    printings.get(printingKey(card.card))?.name ??
-    `${card.card.set}/${card.card.num}`
-  );
-}
 
 /** Scryfall's page for the card, the one card extra Curator keeps. */
 function scryfallPage(card: Card, name: string): string {

@@ -1,5 +1,6 @@
 import type { Finish } from "../deck";
-import { SEARCH_GATE, scryfallFetch } from "../scryfallQueue";
+import { imageUris } from "../scryfall";
+import { API, SEARCH_GATE, scryfallFetch } from "../scryfallQueue";
 
 /** One printing of a card, as the printing dropdown and the grid show it. */
 export interface PrintingOption {
@@ -14,12 +15,12 @@ export interface PrintingOption {
   finishes: Finish[];
 }
 
-/** `set/num`, lowercased: how a printing is compared with the deck's. */
-export function printingId(p: { set: string; num: string }): string {
-  return `${p.set.toLowerCase()}/${p.num.toLowerCase()}`;
-}
+/** Every finish a deck line can have, in the order the details modal offers them. */
+export const FINISHES: readonly Finish[] = ["nonfoil", "foil", "etched"];
 
-const FINISHES: readonly string[] = ["nonfoil", "foil", "etched"];
+function isFinish(f: unknown): f is Finish {
+  return FINISHES.some((finish) => finish === f);
+}
 
 /** One page of Scryfall's search, checked into `PrintingOption`s. */
 export function parsePrintsPage(json: unknown): {
@@ -35,12 +36,7 @@ export function parsePrintsPage(json: unknown): {
     throw new Error("Scryfall's list of printings has no data");
   const printings = page.data.flatMap((raw: unknown): PrintingOption[] => {
     const c = raw as Record<string, unknown>;
-    const faces = Array.isArray(c.card_faces)
-      ? (c.card_faces as Record<string, unknown>[])
-      : [];
-    const uris = (c.image_uris ?? faces[0]?.image_uris) as
-      | Record<string, unknown>
-      | undefined;
+    const uris = imageUris(c);
     if (
       typeof c.name !== "string" ||
       typeof c.set !== "string" ||
@@ -48,9 +44,7 @@ export function parsePrintsPage(json: unknown): {
     )
       return [];
     const finishes = Array.isArray(c.finishes)
-      ? (c.finishes.filter(
-          (f): f is Finish => typeof f === "string" && FINISHES.includes(f),
-        ) as Finish[])
+      ? c.finishes.filter(isFinish)
       : [];
     return [
       {
@@ -105,11 +99,8 @@ export function filterBySet(
  */
 export function printsByName(name: string): string {
   const q = encodeURIComponent(`!"${name}"`);
-  return `https://api.scryfall.com/cards/search?q=${q}&unique=prints&order=released&include_extras=true`;
+  return `${API}/cards/search?q=${q}&unique=prints&order=released&include_extras=true`;
 }
-
-/** Scryfall allows `/cards/search` 2 requests a second: the shared search queue's pace. */
-export const SEARCH_INTERVAL_MS = SEARCH_GATE.intervalMs;
 
 /**
  * A search request on the shared search queue, which spaces it from every

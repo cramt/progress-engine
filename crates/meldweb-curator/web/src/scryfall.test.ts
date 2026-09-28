@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Card } from "./deck";
-import { COLLECTION_INTERVAL_MS, fetchPrintings } from "./scryfall";
+import { fetchPrintings } from "./scryfall";
+import { SEARCH_GATE } from "./scryfallQueue";
 
 const card = (i: number): Card => ({
   index: i,
@@ -32,7 +33,7 @@ describe("collection lookups", () => {
     const done = fetchPrintings(Array.from({ length: 160 }, (_, i) => card(i)));
     await vi.runAllTimersAsync();
     await done;
-    expect(COLLECTION_INTERVAL_MS).toBeGreaterThanOrEqual(500);
+    expect(SEARCH_GATE.intervalMs).toBeGreaterThanOrEqual(500);
     expect(started).toHaveLength(3);
     for (let i = 1; i < started.length; i++)
       expect((started[i] ?? 0) - (started[i - 1] ?? 0)).toBeGreaterThanOrEqual(

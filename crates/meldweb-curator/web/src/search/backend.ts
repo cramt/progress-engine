@@ -1,3 +1,4 @@
+import { imageUris } from "../scryfall";
 import { API, SEARCH_GATE, scryfallFetch } from "../scryfallQueue";
 
 /** A card as the search overlay shows it. */
@@ -99,13 +100,10 @@ export function readPage(
 
 function readCard(raw: unknown): ResultCard[] {
   const c = raw as Record<string, unknown>;
-  const faces = Array.isArray(c.card_faces)
-    ? (c.card_faces as Record<string, unknown>[])
-    : [];
-  const uris = (c.image_uris ?? faces[0]?.image_uris) as
-    | Record<string, unknown>
-    | undefined;
-  const front = faces[0] ?? {};
+  const uris = imageUris(c);
+  const front = Array.isArray(c.card_faces)
+    ? ((c.card_faces[0] ?? {}) as Record<string, unknown>)
+    : {};
   if (
     typeof c.id !== "string" ||
     typeof c.name !== "string" ||

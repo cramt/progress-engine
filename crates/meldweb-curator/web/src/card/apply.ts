@@ -42,6 +42,21 @@ export const BOARD_NAME = {
   sideboard: "Sideboard",
 } as const;
 
+/**
+ * The deck's category of board `type`, and the text with it declared (as
+ * `BOARD_NAME` names it) if the deck has none yet.
+ */
+export function withBoard(
+  text: string,
+  categories: readonly Category[],
+  type: keyof typeof BOARD_NAME,
+): { text: string; name: string } {
+  const existing = categories.find((c) => c.kind === type);
+  if (existing) return { text, name: existing.name };
+  const name = BOARD_NAME[type];
+  return { text: declareCategory(text, name, type), name };
+}
+
 /** A selection: each selected card's index, and the stack it was picked in. */
 export type Selection = ReadonlyMap<number, string | null>;
 
@@ -80,9 +95,11 @@ export function applyEdit(
   let next = text;
   let destination = "";
   if (action.kind === "board") {
-    const existing = deck.categories.find((c) => c.kind === action.type);
-    destination = existing?.name ?? BOARD_NAME[action.type];
-    if (!existing) next = declareCategory(next, destination, action.type);
+    ({ text: next, name: destination } = withBoard(
+      next,
+      deck.categories,
+      action.type,
+    ));
   } else if (action.kind === "category") {
     destination = action.name;
     if (!deck.categories.some((c) => c.name === destination))

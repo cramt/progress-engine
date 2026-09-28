@@ -10,13 +10,12 @@ import {
   setCardPrinting,
   setCardQty,
 } from "../deck";
-import type { Printing } from "../scryfall";
+import { type Printing, printingId } from "../scryfall";
 import { afterRemoval, neighbours } from "./order";
 import { PrintingsGrid } from "./PrintingsGrid";
-import { type PrintingOption, printingId, printsByName } from "./prints";
+import { FINISHES, type PrintingOption, printsByName } from "./prints";
 import { usePrintingOptions } from "./usePrintingOptions";
 
-const FINISHES: readonly Finish[] = ["nonfoil", "foil", "etched"];
 const NEW_CATEGORY = "\u0000new";
 
 export interface DetailsModalProps {

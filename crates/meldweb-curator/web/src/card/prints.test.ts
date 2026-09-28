@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { printingId } from "../scryfall";
+import { SEARCH_GATE } from "../scryfallQueue";
 import {
   byRelease,
   fetchAllPrintings,
   filterBySet,
   type PrintingOption,
   parsePrintsPage,
-  printingId,
-  SEARCH_INTERVAL_MS,
 } from "./prints";
 
 const raw = (set: string, num: string, released: string, extra = {}) => ({
@@ -118,7 +118,7 @@ describe("scryfall's printings", () => {
     expect(all.map(printingId)).toEqual(["cmr/472", "lea/270"]);
     expect(started).toHaveLength(2);
     expect((started[1] ?? 0) - (started[0] ?? 0)).toBeGreaterThanOrEqual(
-      SEARCH_INTERVAL_MS,
+      SEARCH_GATE.intervalMs,
     );
     // Asked again, it is answered without a request.
     expect(await fetchAllPrintings("https://api/prints")).toBe(all);
