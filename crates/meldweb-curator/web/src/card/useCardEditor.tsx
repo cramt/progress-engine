@@ -64,13 +64,17 @@ function useLivePrintings(initial: Printings, cards: readonly Card[]) {
       return !printings.has(key) && !asked.current?.has(key);
     });
     if (missing.length === 0) return;
-    for (const c of missing) asked.current?.add(printingKey(c.card));
+    const keys = missing.map((c) => printingKey(c.card));
+    for (const key of keys) asked.current?.add(key);
     fetchPrintings(missing)
       .then((found) => {
         if (found.size > 0) setKnown((k) => new Map([...k, ...found]));
       })
-      // The card shows its name instead; nothing else depends on the picture.
-      .catch(() => undefined);
+      // The card shows its name meanwhile; a failed lookup (a 429, say) is
+      // not an answer, so the next change to the deck asks again.
+      .catch(() => {
+        for (const key of keys) asked.current?.delete(key);
+      });
   }, [cards, printings]);
   const remember = useCallback((key: string, printing: Printing) => {
     setKnown((k) => new Map([...k, [key, printing]]));
