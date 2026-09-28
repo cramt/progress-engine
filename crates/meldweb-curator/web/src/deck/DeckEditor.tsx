@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { isTyping } from "../card/hotkeys";
 import { renderCardResult } from "../card/searchResult";
 import { useCardEditor } from "../card/useCardEditor";
 import { declareCategory, parseDeck, setCardCategories } from "../deck";
@@ -118,8 +119,7 @@ export function DeckEditor({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.target instanceof HTMLInputElement)
-        return;
+      if (!(e.ctrlKey || e.metaKey) || isTyping(e.target)) return;
       const key = e.key.toLowerCase();
       if (key === "z" && !e.shiftKey) undo();
       else if ((key === "z" && e.shiftKey) || key === "y") redo();
