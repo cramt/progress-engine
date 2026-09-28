@@ -64,7 +64,7 @@ use facet::Facet;
 
 /// The build this host was verified against. Import names are positional
 /// (FINDINGS.md §5), so a changed import surface means an unverified ABI.
-pub const KNOWN_FINGERPRINT: &str = "3411ecc782a61347";
+pub const KNOWN_FINGERPRINT: &str = "e7615396c5ece313";
 
 // Engine ABI constants, lifted from the app bundle (FINDINGS.md §7/§12). Each
 // host hands them to its glue, so these are the only copy - neither file in js/

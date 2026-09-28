@@ -7,7 +7,7 @@
 // fresh build fails; the failure prints the replacement table.
 
 /// The build string `version.txt` carries.
-pub const VERSION: &str = "1.83.beta";
+pub const VERSION: &str = "1.89.beta";
 
 /// Where upstream serves them.
 pub const ORIGIN: &str = "https://mtg.delver.app";
@@ -23,35 +23,35 @@ pub struct Pinned {
 pub const PINNED: &[Pinned] = &[
     Pinned {
         name: "version.txt",
-        sha256: "a62860d0722990fd83ca5e74db7ea0c4860797b86734dd4546d04869b38c0f71",
+        sha256: "862f14ee0649380f28479e412558e7a9b55c32655def449fb69ab9515c5d0d56",
     },
     Pinned {
         name: "core.js",
-        sha256: "b2726070abe302427dff168134ecfe8b289a0ad806cae1cf647b6d188a82db65",
+        sha256: "d4de616e9f3485b2dd7ea3800d938a8e002d266bc87dcbf18a63e4e43a3b19c9",
     },
     Pinned {
         name: "core.wasm",
-        sha256: "5172360a5c9196523a85b67bb665978c8249cc09ad2985ec10774306859f66c6",
+        sha256: "fb8ce43fc99febf288f2123233602822184a3539d7b362d9576563f0c28bac50",
     },
     Pinned {
         name: "data.7z",
-        sha256: "9aeae631e87d7157e9adf3790d45fe573042d57f20754962ecb33e98e0035050",
+        sha256: "46e75f46fd18a6d041178c6f9d65f9b935d285e84b8cbe3b37ac8a844aa80b87",
     },
     Pinned {
         name: "data.md5",
-        sha256: "b956491fadb38e368c99be563b04ea89dd27e9212b68ea127e65971ee5e5641e",
+        sha256: "b05a686500d97843d3549bda84059f57d6d555344a958573efbaf8f3474b963e",
     },
     Pinned {
         name: "data.size",
-        sha256: "5380d19560ccf7e76e09ccaa3e1c05143454e87e88ba3a51e3b6809cdc9fae06",
+        sha256: "334d6ac44ca2d1166721d7214de39220de3b27d7999c2681eee562be0e0b49a7",
     },
     Pinned {
         name: "model-alpha.7z",
-        sha256: "f0d3e2d90c8abe3b53937ddd29b0998d7889c086a1b691bae5ddcac3385ba8ef",
+        sha256: "e380ee6364a777c3e37c9b6245f36c8552699911eccc300f98abf2bf671b4552",
     },
     Pinned {
         name: "model-alpha.size",
-        sha256: "b9f6bae6a9f2be6dbe4c8665304bda7d29b94df6b49d55bd8e6a85a9e0c816b5",
+        sha256: "e1b467adce40a5df58de2b7bf347d0b0e33bb2f25c7c02b96e97a3264a475b0c",
     },
 ];
 
