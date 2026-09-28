@@ -765,8 +765,11 @@ pub fn run_answering<E>(
     // later turns is split there so its parts can be walked at once. Both are
     // the London deal: the second is the first at depth 0 alone, with every
     // seven kept, and the keep-seven number it takes beside that is dropped
-    // because no mulligan was asked about.
-    if schedule.mulligan().is_some() || (gaps.len() > 1 && gaps[0] > 0) {
+    // because no mulligan was asked about. The opener is the first checkpoint
+    // that deals anything: a class that reads no turn 0 deals it at the first
+    // turn it reads, and is split there rather than walked on one thread.
+    let opener = gaps.iter().position(|&g| g > 0);
+    if schedule.mulligan().is_some() || opener.is_some_and(|at| at + 1 < gaps.len()) {
         let mut conditionals =
             Conditionals::new(grouping, schedule, answering, evaluator, Table::default())?;
         let identity: Vec<usize> = (0..groups).collect();
@@ -778,7 +781,7 @@ pub fn run_answering<E>(
         return Ok(outcomes);
     }
 
-    // One checkpoint, or none dealt before the one that is read: a single
+    // Nothing dealt after the first checkpoint that deals anything: a single
     // multivariate hypergeometric, which is instant, so it is walked here.
     let mut totals = vec![KahanSum::new(); answering.criteria().len()];
     let mut histograms = vec![DistributionBuilder::new(); answering.expectations().len()];

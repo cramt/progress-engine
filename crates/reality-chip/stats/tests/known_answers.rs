@@ -478,6 +478,37 @@ fn a_walk_resumed_after_its_first_checkpoint_is_the_same_walk() {
 }
 
 #[test]
+fn a_walk_resumed_past_its_empty_checkpoints_is_the_same_walk() {
+    // A walk whose first checkpoints deal nothing, split at the first one that
+    // deals something: the empty ones stay in every history, because their
+    // index is the turn they name, and the terms come back one for one.
+    let groups = [5, 3, 7];
+    let gaps = [0, 0, 4, 1, 2];
+    let mut full = Vec::new();
+    h::for_each_checkpoint_path(&groups, &gaps, |hist, p| full.push((hist.to_vec(), p)));
+
+    let mut split = Vec::new();
+    h::for_each_composition(&groups, gaps[2], |first, p_first| {
+        let reached = [vec![0; 3], vec![0; 3], first.to_vec()];
+        h::for_each_checkpoint_path_from(&groups, &reached, &gaps[3..], |hist, p| {
+            split.push((hist.to_vec(), p_first * p))
+        });
+    });
+    assert_eq!(full.len(), split.len());
+    for (a, b) in full.iter().zip(&split) {
+        assert_eq!(a.0, b.0, "the same history, in the same order");
+        assert!(close(a.1, b.1, 1e-12), "{} vs {}", a.1, b.1);
+    }
+
+    // Resumed from nothing at all, it is the whole walk.
+    let mut whole = Vec::new();
+    h::for_each_checkpoint_path_from(&groups, &[], &gaps, |hist, p| {
+        whole.push((hist.to_vec(), p))
+    });
+    assert_eq!(full, whole);
+}
+
+#[test]
 fn a_resumed_walk_asks_for_its_removals_where_the_full_walk_does() {
     // The removing walk, split the same way: TakesFrom decides from the
     // history it is handed, so it has to be asked after checkpoint 0 exactly

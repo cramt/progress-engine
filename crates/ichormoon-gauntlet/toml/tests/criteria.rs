@@ -2667,6 +2667,70 @@ fn how_many_threads_walked_it_never_reaches_a_digit() {
 }
 
 #[test]
+fn a_class_that_reads_no_turn_zero_is_split_at_the_first_turn_it_reads() {
+    // Narrowed, a class that reads turns 2 and 4 deals nothing at turn 0 and
+    // the whole nine-card opener at turn 2. Split at checkpoint 0 that was one
+    // continuation, walked on one thread (#65's spike: 581 s against 173 s).
+    // Split where the cards are first dealt, it is one continuation per
+    // opener, and one thread and eight still agree bit for bit.
+    use gauntlet_criteria::{Answering, Conditionals, Reading, Table};
+    let mut criteria = parse(
+        r#"
+        [[criterion]]
+        name = "two on 2 and three on 4"
+        require = [
+          { turn = 2, query = "t:land", min = 2 },
+          { turn = 4, query = "t:land", min = 3 },
+        ]
+        "#,
+    );
+    let grouping = grouping_for(&criteria, 20);
+    let full = schedule(&criteria);
+    let narrowed = full.narrowed(&[2, 4], Reading::Cumulative);
+    assert_eq!(
+        narrowed.gaps(),
+        [0, 0, 9, 0, 2],
+        "turns 2 and 4, on the draw"
+    );
+    let answering = Answering::all(criteria.plan());
+    let table = |threads: usize| {
+        let mut ev = criteria.clone();
+        let mut conditionals =
+            Conditionals::new(&grouping, &narrowed, &answering, &mut ev, Table::default())
+                .unwrap()
+                .with_threads(threads);
+        assert_eq!(conditionals.opener(), 9);
+        conditionals.fill(0).unwrap();
+        conditionals.into_table()
+    };
+    let (one, eight) = (table(1), table(8));
+    let mut openers = Vec::new();
+    chip_stats::for_each_composition(grouping.group_sizes(), 9, |h, _| openers.push(h.to_vec()));
+    assert_eq!(openers.len(), 10, "a land count in nine cards");
+    assert_eq!(one.len(), openers.len(), "one continuation per opener");
+    let back = vec![0; grouping.group_sizes().len()];
+    for first in &openers {
+        let bits = |t: &Table| -> Vec<u64> {
+            t.get(first, &back)
+                .unwrap()
+                .held
+                .iter()
+                .map(|x| x.to_bits())
+                .collect()
+        };
+        assert_eq!(bits(&one), bits(&eight), "{first:?}");
+    }
+
+    // And the run over the narrowed schedule, which now takes that split,
+    // answers what the full schedule does.
+    let plan = criteria.plan();
+    let wide = gauntlet_criteria::run(&grouping, &full, plan, &mut criteria.clone()).unwrap();
+    let narrow = gauntlet_criteria::run(&grouping, &narrowed, plan, &mut criteria).unwrap();
+    let (wide, narrow) = (wide.probabilities[0].get(), narrow.probabilities[0].get());
+    assert!((wide - narrow).abs() < 1e-12, "{wide} vs {narrow}");
+}
+
+#[test]
 fn a_range_of_one_value_is_exactly_that_many() {
     // `min = max` is a question, not an empty range: exactly two.
     let out = run_exact(

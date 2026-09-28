@@ -417,6 +417,59 @@ pub fn for_each_checkpoint_path_after(
     for_each_checkpoint_path_removing_after(groups, first, gaps, &mut Drawing(&mut f));
 }
 
+/// [`for_each_checkpoint_path`], resumed from every checkpoint in `reached`
+/// rather than only the first.
+///
+/// The same promise as [`for_each_checkpoint_path_after`]: the histories
+/// handed to `f` start with `reached`, and the probabilities are conditional
+/// on it. What it is for is a walk whose first checkpoints deal nothing, which
+/// a caller wants to split at the first one that deals something: those empty
+/// checkpoints are a prefix every path shares, and they have to stay in the
+/// history because a checkpoint's index is the turn it names.
+///
+/// Only the plain walk resumes this way. A walk that removes or sizes is asked
+/// about every prefix it passes, and a resumed one would skip those questions.
+pub fn for_each_checkpoint_path_from(
+    groups: &[u32],
+    reached: Path<'_>,
+    gaps: &[u32],
+    mut f: impl FnMut(Path<'_>, f64),
+) {
+    struct Drawing<F>(F);
+    impl<F: FnMut(Path<'_>, f64)> Walk for Drawing<F> {
+        fn removals(&mut self, _reached: Path<'_>, _out: &mut [u32]) {}
+        fn path(&mut self, reached: Path<'_>, p: f64) {
+            (self.0)(reached, p)
+        }
+    }
+    let mut drawn = reached
+        .last()
+        .cloned()
+        .unwrap_or_else(|| vec![0; groups.len()]);
+    debug_assert_eq!(groups.len(), drawn.len(), "one count per group");
+    debug_assert!(
+        groups.iter().zip(&drawn).all(|(g, d)| d <= g),
+        "the prefix drew more of a group than it holds"
+    );
+    let population: u32 = groups.iter().sum();
+    if drawn.iter().sum::<u32>() + gaps.iter().sum::<u32>() > population {
+        return;
+    }
+    let mut history: Vec<Vec<u32>> = Vec::with_capacity(reached.len() + gaps.len());
+    history.extend(reached.iter().cloned());
+    let mut removed = vec![vec![0u32; groups.len()]; gaps.len() + 1];
+    descend(
+        groups,
+        gaps,
+        0,
+        &mut drawn,
+        &mut removed,
+        &mut history,
+        1.0,
+        &mut Drawing(&mut f),
+    );
+}
+
 /// [`for_each_checkpoint_path_removing`], resumed from a first checkpoint that
 /// has already been reached. See [`for_each_checkpoint_path_after`].
 ///

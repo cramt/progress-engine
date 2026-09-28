@@ -115,12 +115,15 @@ pub struct Conditionals<'a, V> {
     board: Board<'a>,
     table: Table,
     threads: usize,
+    /// How many checkpoints before the opener deal nothing ([`lead`]).
+    lead: usize,
 }
 
 impl<'a, V: Evaluator> Conditionals<'a, V> {
-    /// `schedule` has to keep the opener as its first checkpoint, which any
-    /// schedule narrowed with turn 0 observed does. `seed` is anything
-    /// already walked for this same class, schedule and set of questions.
+    /// The opener is the first checkpoint that deals anything, which is the
+    /// first checkpoint of any schedule narrowed with turn 0 observed. `seed`
+    /// is anything already walked for this same class, schedule and set of
+    /// questions.
     pub fn new(
         grouping: &'a Grouping,
         schedule: &'a Schedule,
@@ -138,12 +141,14 @@ impl<'a, V: Evaluator> Conditionals<'a, V> {
                 queries: grouping.queries().to_vec(),
             });
         }
+        let board = Board::new(grouping, schedule);
         Ok(Conditionals {
             grouping,
             schedule,
             answering,
             evaluator,
-            board: Board::new(grouping, schedule),
+            lead: lead(schedule, &board),
+            board,
             table: seed,
             threads: crate::threads(),
         })
@@ -167,9 +172,10 @@ impl<'a, V: Evaluator> Conditionals<'a, V> {
         self.answering
     }
 
-    /// The opener this class deals, which is its schedule's first gap.
+    /// The opener this class deals: its schedule's first gap that deals
+    /// anything.
     pub fn opener(&self) -> u32 {
-        self.schedule.gaps().first().copied().unwrap_or(0)
+        self.schedule.gaps().get(self.lead).copied().unwrap_or(0)
     }
 
     /// The rest of the game from `first` with `back` put on the bottom.
@@ -186,6 +192,7 @@ impl<'a, V: Evaluator> Conditionals<'a, V> {
                 self.grouping,
                 self.schedule,
                 self.answering,
+                self.lead,
                 first,
                 back,
             )?;
@@ -226,7 +233,8 @@ impl<'a, V: Evaluator> Conditionals<'a, V> {
             return Ok(());
         };
         let next = std::sync::atomic::AtomicUsize::new(0);
-        let (grouping, schedule, answering) = (self.grouping, self.schedule, self.answering);
+        let (grouping, schedule, answering, lead) =
+            (self.grouping, self.schedule, self.answering, self.lead);
         let missing = &missing;
         let mut walked: Vec<Walked<V::Error>> = std::thread::scope(|scope| {
             let workers: Vec<_> = forks
@@ -247,6 +255,7 @@ impl<'a, V: Evaluator> Conditionals<'a, V> {
                                 grouping,
                                 schedule,
                                 answering,
+                                lead,
                                 first,
                                 back,
                             );
@@ -300,7 +309,7 @@ impl<'a, V: Evaluator> Conditionals<'a, V> {
                 chip_stats::for_each_composition(h, depth, |_, _| pairs += 1);
             }
         });
-        let later = self.schedule.gaps().get(1..).unwrap_or(&[]);
+        let later = self.schedule.gaps().get(self.lead + 1..).unwrap_or(&[]);
         pairs.saturating_mul(compositions(self.grouping.dealt(), later))
     }
 
@@ -308,6 +317,28 @@ impl<'a, V: Evaluator> Conditionals<'a, V> {
     pub fn into_table(self) -> Table {
         self.table
     }
+}
+
+/// How many checkpoints before the opener deal nothing, and so how far along
+/// the schedule the walk splits.
+///
+/// A class that reads no turn 0 is narrowed to a schedule whose first
+/// checkpoints are empty, with the opener dealt at the first turn it reads.
+/// Split at checkpoint 0 it would be one continuation, walked on one thread;
+/// split at the opener it is one per opener, as a class that reads turn 0 is.
+/// The empty checkpoints stay in every history, because a checkpoint's index
+/// is the turn it names.
+///
+/// Zero for a walk that removes or sizes, which is asked about every prefix
+/// it passes and so cannot be resumed past one. Narrowing only empties a
+/// checkpoint where there is no effect, so no such walk has an empty one.
+fn lead(schedule: &Schedule, board: &Board<'_>) -> usize {
+    if board.fetches() || board.sizes() {
+        return 0;
+    }
+    let gaps = schedule.gaps();
+    let empty = gaps.iter().take_while(|&&g| g == 0).count();
+    empty.min(gaps.len().saturating_sub(1))
 }
 
 /// One thread's answer for one (opener, put back) pair, filed under the
@@ -319,18 +350,21 @@ type Walked<E> = (usize, Result<Continuation, RunError<E>>);
 ///
 /// A free function rather than a method because the threads of
 /// [`Conditionals::prefill`] each bring their own board and evaluator, and
-/// this is the one walk every one of them does.
+/// this is the one walk every one of them does. `first` is dealt at
+/// checkpoint `lead`, after that many empty ones.
+#[allow(clippy::too_many_arguments)]
 fn continue_from<'a, V: Evaluator>(
     board: &mut Board<'a>,
     evaluator: &mut V,
     grouping: &'a Grouping,
     schedule: &'a Schedule,
     answering: &Answering,
+    lead: usize,
     first: &[u32],
     back: &[u32],
 ) -> Result<Continuation, RunError<V::Error>> {
     let plan = answering.plan();
-    let later = schedule.gaps().get(1..).unwrap_or(&[]);
+    let later = schedule.gaps().get(lead + 1..).unwrap_or(&[]);
     let sizes = grouping.group_sizes();
     let fetches = board.fetches();
     let sized = board.sizes();
@@ -358,6 +392,12 @@ fn continue_from<'a, V: Evaluator>(
         chip_stats::for_each_checkpoint_path_sized_after(sizes, first, later, &mut walking);
     } else if fetches {
         chip_stats::for_each_checkpoint_path_removing_after(sizes, first, later, &mut walking);
+    } else if lead > 0 {
+        let mut reached = vec![vec![0u32; sizes.len()]; lead];
+        reached.push(first.to_vec());
+        chip_stats::for_each_checkpoint_path_from(sizes, &reached, later, |h, p| {
+            chip_stats::Walk::path(&mut walking, h, p)
+        });
     } else {
         chip_stats::for_each_checkpoint_path_after(sizes, first, later, |h, p| {
             chip_stats::Walk::path(&mut walking, h, p)
