@@ -27,8 +27,12 @@ export const Route = createFileRoute("/deck/$")({
       file,
       repo: session.repo,
       api,
+      // A Scryfall outage costs the pictures, not the deck: each card shows
+      // its name instead.
       printings:
-        parsed.kind === "deck" ? await fetchPrintings(parsed.cards) : new Map(),
+        parsed.kind === "deck"
+          ? await fetchPrintings(parsed.cards).catch(() => new Map())
+          : new Map(),
     };
   },
   // Never reopen a deck from a cached read: its sha would be stale.
