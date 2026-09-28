@@ -123,7 +123,6 @@ export function useCardEditor({
     [categories, cards, nameOf],
   );
 
-  const hovered = useRef<Target | null>(null);
   const [selection, setSelection] = useState<Selection>(() => new Map());
   const [details, setDetails] = useState<Details | null>(null);
   const [naming, setNaming] = useState<Target[] | null>(null);
@@ -133,11 +132,10 @@ export function useCardEditor({
     setDetails({ index, order, focusPrinting, grid: false });
 
   // Indices move when a card is added or removed (an undo included), so what
-  // was hovered or selected by index may now be another card.
+  // was selected by index may now be another card.
   const count = cards.length;
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs on the count changing
   useEffect(() => {
-    hovered.current = null;
     setSelection(new Map());
     setDetails((d) => d && { ...d, order });
   }, [count]);
@@ -202,7 +200,7 @@ export function useCardEditor({
         setSelection(new Map());
         return;
       }
-      const target = hovered.current;
+      const target = hoveredTarget();
       const action = actionForKey(e);
       if (!target || !action) return;
       e.preventDefault();
@@ -322,14 +320,7 @@ export function useCardEditor({
       menu: menuFor(card, target),
       onOpen: () => openDetails(card.index, false),
       onSelect: () => setSelection((s) => toggleSelected(s, target)),
-      onHover: (on) => {
-        if (on) hovered.current = target;
-        else if (
-          hovered.current?.index === target.index &&
-          hovered.current.from === target.from
-        )
-          hovered.current = null;
-      },
+      hotkeyTarget: target,
       onIncrease: () =>
         run({ kind: "increase" }, targetsFor(target, selection)),
       onDecrease: () =>
@@ -407,4 +398,14 @@ function NamePrompt({ onDone }: { onDone: (name: string | null) => void }) {
       </button>
     </form>
   );
+}
+
+/** The deck card under the pointer, read from the DOM `CardView` marks. */
+function hoveredTarget(): Target | null {
+  const el = document.querySelector<HTMLElement>("[data-hotkey-index]:hover");
+  if (!el) return null;
+  return {
+    index: Number(el.dataset.hotkeyIndex),
+    from: el.dataset.hotkeyFrom ?? null,
+  };
 }

@@ -8,6 +8,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { Finish } from "../deck";
+import type { Target } from "./apply";
 import "./card.css";
 
 /**
@@ -44,8 +45,12 @@ export interface CardViewProps {
   onOpen?: () => void;
   /** A Ctrl+click (Cmd on a Mac): multi-select. */
   onSelect?: () => void;
-  /** The pointer came onto the card (true) or left it (false). */
-  onHover?: (hovering: boolean) => void;
+  /**
+   * The deck card the hover hotkeys act on while the pointer is over this one.
+   * It lives in the DOM so a key reads it through `:hover`, which stays right
+   * when an edit re-renders the card under a pointer that has not moved.
+   */
+  hotkeyTarget?: Target;
   onIncrease?: () => void;
   onDecrease?: () => void;
   /** Makes the card itself draggable, for a card with no draggable container. */
@@ -68,7 +73,7 @@ export function CardView({
   menu,
   onOpen,
   onSelect,
-  onHover,
+  hotkeyTarget,
   onIncrease,
   onDecrease,
   onDragStart,
@@ -101,8 +106,8 @@ export function CardView({
       aria-pressed={selected}
       onClick={click}
       onKeyDown={(e) => e.key === "Enter" && onOpen?.()}
-      onMouseEnter={() => onHover?.(true)}
-      onMouseLeave={() => onHover?.(false)}
+      data-hotkey-index={hotkeyTarget?.index}
+      data-hotkey-from={hotkeyTarget?.from ?? undefined}
       onContextMenu={(e) => {
         if (!menu) return;
         e.preventDefault();
