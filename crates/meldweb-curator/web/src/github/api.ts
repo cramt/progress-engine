@@ -76,12 +76,22 @@ export class GitHubError extends Error {
  * already there.
  *
  * GitHub's docs list both 409 and 422 for the Contents `PUT` without saying
- * which a stale sha gets, so both count. NEEDS CONFIRMING against real GitHub
- * once the app exists (#125): pin the one it sends and narrow this.
+ * which a stale sha gets. A 409 counts, and so does a 422 whose message is a
+ * sha refusal (`isShaRefusal`); any other 422 is a malformed request, which
+ * reloading or overwriting would not fix. NEEDS CONFIRMING against real
+ * GitHub once the app exists (#125): pin the status and message it sends and
+ * narrow this.
  */
 export class ConflictError extends GitHubError {
   override name = "ConflictError";
 }
+
+/**
+ * A 422 that is about the sha: GitHub's `"sha" wasn't supplied` for a create
+ * over an existing file, or a `does not match` for a stale one.
+ */
+const isShaRefusal = (message: string) =>
+  /"sha" wasn't supplied|does not match/.test(message);
 
 /** No token: the refresh cookie is gone or was never set. Log in again. */
 export class LoggedOutError extends Error {
@@ -159,15 +169,22 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
     return send(again, method, path, json, ka);
   }
 
-  async function fail(r: Response): Promise<never> {
-    let message = `GitHub answered ${r.status}`;
+  /** GitHub's `message` for a failed request, or `""` when it sent none. */
+  async function messageOf(r: Response): Promise<string> {
     try {
       const body = (await r.json()) as { message?: unknown };
-      if (typeof body.message === "string") message += `: ${body.message}`;
+      return typeof body.message === "string" ? body.message : "";
     } catch {
-      // no JSON body
+      return "";
     }
-    throw new GitHubError(r.status, message);
+  }
+
+  async function fail(r: Response, said?: string): Promise<never> {
+    const message = said ?? (await messageOf(r));
+    throw new GitHubError(
+      r.status,
+      `GitHub answered ${r.status}${message ? `: ${message}` : ""}`,
+    );
   }
 
   async function json<T>(method: string, path: string): Promise<T> {
@@ -259,11 +276,18 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
           },
           put.keepalive ?? false,
         );
-        if (r.status === 409 || r.status === 422) {
-          throw new ConflictError(
-            r.status,
-            `${path} changed on GitHub (${r.status})`,
-          );
+        if (r.status === 409) {
+          throw new ConflictError(r.status, `${path} changed on GitHub (409)`);
+        }
+        if (r.status === 422) {
+          const message = await messageOf(r);
+          if (isShaRefusal(message)) {
+            throw new ConflictError(
+              r.status,
+              `${path} changed on GitHub (422)`,
+            );
+          }
+          return fail(r, message);
         }
         if (!r.ok) return fail(r);
         const body = (await r.json()) as { content: { sha: string } };
