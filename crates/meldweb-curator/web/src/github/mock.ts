@@ -9,7 +9,7 @@
  * token answer 401.
  */
 
-import { decodeBase64, encodeBase64, GITHUB_API } from "./api";
+import { CONTENTS_LIMIT, decodeBase64, encodeBase64, GITHUB_API } from "./api";
 import { AUTH_ENDPOINTS } from "./auth";
 import { MAGIC_REPO } from "./repo";
 
@@ -127,14 +127,21 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
     const files = state.repo?.files ?? {};
     const file = files[path];
     if (file) {
+      const size = new TextEncoder().encode(file.text).length;
       return json(200, {
         type: "file",
         name: path.slice(path.lastIndexOf("/") + 1),
         path,
         sha: file.sha,
-        encoding: "base64",
-        // GitHub wraps its base64 at 60 columns.
-        content: encodeBase64(file.text).replace(/(.{60})/g, "$1\n"),
+        size,
+        // Past 1 MB GitHub sends no content and says so in `encoding`.
+        ...(size > CONTENTS_LIMIT
+          ? { encoding: "none", content: "" }
+          : {
+              encoding: "base64",
+              // GitHub wraps its base64 at 60 columns.
+              content: encodeBase64(file.text).replace(/(.{60})/g, "$1\n"),
+            }),
       });
     }
     const prefix = path === "" ? "" : `${path}/`;

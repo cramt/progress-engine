@@ -98,6 +98,12 @@ export class LoggedOutError extends Error {
   override name = "LoggedOutError";
 }
 
+/**
+ * The largest file the Contents API returns inline: past it GitHub sends
+ * `content: ""` with `encoding: "none"`.
+ */
+export const CONTENTS_LIMIT = 1024 * 1024;
+
 /** Browsers refuse a keepalive request whose body passes 64 KiB. */
 const KEEPALIVE_LIMIT = 60_000;
 
@@ -255,13 +261,22 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       if (!r.ok) return fail(r);
       const body = (await r.json()) as {
         type?: string;
+        encoding?: string;
         content?: string;
         sha: string;
       };
       if (Array.isArray(body) || body.type !== "file") {
         throw new GitHubError(422, `${path} is not a file`);
       }
-      return { text: decodeBase64(body.content ?? ""), sha: body.sha };
+      // Anything but base64 is GitHub withholding the content, and reading
+      // it as "" would open, and then save, an empty deck over the file.
+      if (body.encoding !== "base64" || typeof body.content !== "string") {
+        throw new GitHubError(
+          413,
+          `${path} is over 1 MB, which GitHub will not hand to Curator`,
+        );
+      }
+      return { text: decodeBase64(body.content), sha: body.sha };
     },
 
     putFile(repo, path, put) {

@@ -70,3 +70,19 @@ describe("a refused commit", () => {
     expect((e as Error).message).toContain("nil is not a string");
   });
 });
+
+describe("reading a file", () => {
+  it("refuses one over 1 MB rather than reading it as empty", async () => {
+    const big = `# ${"x".repeat(1024 * 1024)}\n`;
+    const { api, auth, mock, repo } = mockConnection({
+      files: { [PATH]: big },
+    });
+    // The mock answers as GitHub does past 1 MB: no content, encoding "none".
+    const r = await mock.fetch(
+      `${GITHUB_API}/repos/octocat/mtg/contents/${PATH}`,
+      { headers: { Authorization: `Bearer ${await auth.token()}` } },
+    );
+    expect(await r.json()).toMatchObject({ content: "", encoding: "none" });
+    await expect(api.getFile(repo, PATH)).rejects.toThrow(/over 1 MB/);
+  });
+});
