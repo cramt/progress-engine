@@ -5,7 +5,7 @@
 // Upstream serves only its current build, from one origin, with no history.
 // When it ships a new one these hashes stop matching what is served, so a
 // build that still wants this one takes it from the archive instead
-// (../../archive/README.md). `archive/archive.py pin` rewrites this file to a
+// (the engine README, *The archive*). `../repin.py` rewrites this file to a
 // build the archive holds; a build that fails on drift prints the table too.
 
 /// The build string `version.txt` carries.

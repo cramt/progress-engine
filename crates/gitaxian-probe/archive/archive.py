@@ -1,52 +1,43 @@
 #!/usr/bin/env python3
-"""Keep every Delver X build the probe might be pinned to.
+"""Archive the Delver X build https://mtg.delver.app is serving right now.
 
-Upstream serves only its current build (engine README, "On the web"), so a pin
-stops building the day Delver ships. The archive is a private GitHub repo that
-holds nothing but releases: one per build, the files exactly as upstream served
-them, plus a SHA256SUMS. `gitaxian-probe-assets` fetches a pinned build from it
-once upstream has moved on (archive/README.md).
+Delver serves only its current build, so one not saved the day it ships is
+gone. This repo keeps each as a release: the files exactly as served, plus a
+SHA256SUMS. See README.md.
 
     archive.py fetch <dir>     download upstream's current build into <dir>
-    archive.py publish <dir>   make <dir>'s release in the archive, unless it has one (gh, GH_TOKEN)
-    archive.py pin <dir>       point assets/src/pin.rs at <dir>'s build
+    archive.py publish <dir>   make <dir>'s release here, unless it has one (gh, GH_TOKEN)
 
 A build's tag is `delver-<version>-<first 12 hex of sha256(SHA256SUMS)>`, so a
 rebuild upstream ships under an unchanged version string still gets its own.
-SHA256SUMS lists the files in pin.rs's order, in `sha256sum` format, and
-assets/build.rs recomputes the tag from pin.rs the same way.
+SHA256SUMS lists FILES in order, in `sha256sum` format. Gitaxian Probe's pin
+recomputes the tag the same way (progress-engine's assets/build.rs), so FILES
+and that rule are a contract with it: change either there too.
 """
 
 import hashlib
 import os
-import re
 import subprocess
 import sys
 import urllib.request
 from pathlib import Path
 
-PIN = Path(__file__).resolve().parent.parent / "assets" / "src" / "pin.rs"
+ORIGIN = "https://mtg.delver.app"
 USER_AGENT = "gitaxian-probe-archive/0.1"
 
-
-def pin_text() -> str:
-    return PIN.read_text()
-
-
-def pin_const(name: str) -> str:
-    m = re.search(rf'pub const {name}: &str = "([^"]*)";', pin_text())
-    if not m:
-        sys.exit(f"{PIN} has no {name}")
-    return m.group(1)
-
-
-def pinned_names() -> list[str]:
-    """The files a build is made of: pin.rs's table, in its order."""
-    return re.findall(r'name: "([^"]+)",\n\s*sha256:', pin_text())
-
-
-def sums_text(hashes: list[tuple[str, str]]) -> str:
-    return "".join(f"{sha}  {name}\n" for name, sha in hashes)
+# The alpha tier only: lambda and gamma are gated behind a token, and the probe
+# refuses to boot them anyway. The same list, in the same order, as the PINNED
+# table in progress-engine's crates/gitaxian-probe/assets/src/pin.rs.
+FILES = [
+    "version.txt",
+    "core.js",
+    "core.wasm",
+    "data.7z",
+    "data.md5",
+    "data.size",
+    "model-alpha.7z",
+    "model-alpha.size",
+]
 
 
 def tag_of(version: str, sums: str) -> str:
@@ -69,32 +60,22 @@ def output(**values: str) -> None:
                 f.write(f"{k}={v}\n")
 
 
-def read_build(d: Path) -> tuple[str, str, str]:
-    """(version, SHA256SUMS, tag) of a directory `fetch` filled."""
-    sums = (d / "SHA256SUMS").read_text()
-    version = (d / "version.txt").read_text().strip()
-    return version, sums, tag_of(version, sums)
-
-
 def fetch(d: Path) -> None:
-    origin = pin_const("ORIGIN")
     d.mkdir(parents=True, exist_ok=True)
-    before = get(f"{origin}/version.txt")
-    hashes = []
-    for name in pinned_names():
-        data = before if name == "version.txt" else get(f"{origin}/{name}")
+    before = get(f"{ORIGIN}/version.txt")
+    sums = ""
+    for name in FILES:
+        data = before if name == "version.txt" else get(f"{ORIGIN}/{name}")
         (d / name).write_bytes(data)
-        hashes.append((name, hashlib.sha256(data).hexdigest()))
+        sums += f"{hashlib.sha256(data).hexdigest()}  {name}\n"
     # Upstream deploys the bundle atomically, but not atomically with us: a
     # deploy between the first request and the last would mix two builds.
-    after = get(f"{origin}/version.txt")
+    after = get(f"{ORIGIN}/version.txt")
     if after != before:
         sys.exit(f"upstream moved from {before!r} to {after!r} mid-fetch; run again")
-    sums = sums_text(hashes)
     (d / "SHA256SUMS").write_text(sums)
     version = before.decode().strip()
-    tag = tag_of(version, sums)
-    output(version=version, tag=tag, pinned=str(tag == pin_const("ARCHIVE_TAG")).lower())
+    output(version=version, tag=tag_of(version, sums))
 
 
 def gh(*args: str, check: bool = True) -> subprocess.CompletedProcess:
@@ -102,41 +83,22 @@ def gh(*args: str, check: bool = True) -> subprocess.CompletedProcess:
 
 
 def publish(d: Path) -> None:
-    version, sums, tag = read_build(d)
-    repo = os.environ.get("ARCHIVE_REPO") or pin_const("ARCHIVE")
+    sums = (d / "SHA256SUMS").read_text()
+    version = (d / "version.txt").read_text().strip()
+    tag = tag_of(version, sums)
+    repo = os.environ.get("ARCHIVE_REPO") or os.environ["GITHUB_REPOSITORY"]
     if gh("release", "view", tag, "--repo", repo, check=False).returncode == 0:
         output(tag=tag, archived="already")
         return
-    files = [str(d / n) for n in pinned_names()] + [str(d / "SHA256SUMS")]
-    notes = (
-        f"Delver X {version}, as {pin_const('ORIGIN')} served it.\n\n"
-        f"```\n{sums}```\n"
-    )
+    notes = f"Delver X {version}, as {ORIGIN} served it.\n\n```\n{sums}```\n"
+    files = [str(d / n) for n in FILES] + [str(d / "SHA256SUMS")]
     gh("release", "create", tag, "--repo", repo, "--title", f"Delver X {version}",
        "--notes", notes, *files)
     output(tag=tag, archived="new")
 
 
-def pin(d: Path) -> None:
-    version, sums, tag = read_build(d)
-    got = {name: sha for sha, name in (l.split("  ", 1) for l in sums.splitlines())}
-    if set(got) != set(pinned_names()):
-        sys.exit(f"{d} holds {sorted(got)}, pin.rs pins {sorted(pinned_names())}")
-    text = pin_text()
-    for name, sha in got.items():
-        text = re.sub(
-            rf'(name: "{re.escape(name)}",\n\s*sha256: ")[0-9a-f]+',
-            rf"\g<1>{sha}",
-            text,
-        )
-    text = re.sub(r'(pub const VERSION: &str = ")[^"]*', rf"\g<1>{version}", text)
-    text = re.sub(r'(pub const ARCHIVE_TAG: &str = ")[^"]*', rf"\g<1>{tag}", text)
-    PIN.write_text(text)
-    output(version=version, tag=tag)
-
-
 def main() -> None:
-    commands = {"fetch": fetch, "publish": publish, "pin": pin}
+    commands = {"fetch": fetch, "publish": publish}
     if len(sys.argv) != 3 or sys.argv[1] not in commands:
         sys.exit(__doc__)
     commands[sys.argv[1]](Path(sys.argv[2]))

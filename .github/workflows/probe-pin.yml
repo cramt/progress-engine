@@ -1,0 +1,62 @@
+# Propose pinning each new Delver X build the private archive holds
+# (cramt/gitaxian-probe-archive, whose own workflow does the archiving).
+# One PR per build, ever: a PR closed without merging is an answer.
+#
+# Needs the GITAXIAN_PROBE_ARCHIVE_TOKEN secret: a fine-grained token with
+# Contents read on the archive, and Contents and Pull requests read/write here.
+# It pushes the branch too, rather than GITHUB_TOKEN, because a PR opened with
+# GITHUB_TOKEN runs no workflows, and the probe web check is what reviews the
+# new build. Until the secret exists, every run skips.
+name: Probe pin
+
+on:
+  schedule:
+    - cron: "47 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency: probe-pin
+
+jobs:
+  pin:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITAXIAN_PROBE_ARCHIVE_TOKEN }}
+    steps:
+      - name: The token is set
+        id: token
+        run: |
+          if [ -n "$GH_TOKEN" ]; then echo "set=true" >> "$GITHUB_OUTPUT"
+          else echo "::notice::GITAXIAN_PROBE_ARCHIVE_TOKEN is not set, so nothing is pinned; see crates/gitaxian-probe/engine/README.md"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.token.outputs.set == 'true'
+        with:
+          token: ${{ secrets.GITAXIAN_PROBE_ARCHIVE_TOKEN }}
+      - name: Pin the archive's newest build
+        if: steps.token.outputs.set == 'true'
+        run: |
+          archive=$(sed -n 's/^pub const ARCHIVE: &str = "\(.*\)";/\1/p' crates/gitaxian-probe/assets/src/pin.rs)
+          tag=$(gh release list --repo "$archive" --limit 1 --json tagName --jq '.[0].tagName')
+          [ -n "$tag" ] || { echo "$archive has no releases yet"; exit 0; }
+          branch="delver/$tag"
+          if [ -n "$(gh pr list --head "$branch" --state all --json number --jq '.[].number')" ]; then
+            echo "$tag has had its PR"
+            exit 0
+          fi
+          gh release download "$tag" --repo "$archive" --pattern SHA256SUMS --dir "$RUNNER_TEMP"
+          changed=$(python3 crates/gitaxian-probe/assets/repin.py "$tag" "$RUNNER_TEMP/SHA256SUMS")
+          [ "$changed" = "changed=true" ] || { echo "$tag is already pinned"; exit 0; }
+          version=$(sed -n 's/^pub const VERSION: &str = "\(.*\)";/\1/p' crates/gitaxian-probe/assets/src/pin.rs)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -am "probe: pin delver x $version, archived as $tag"
+          git push origin "$branch"
+          gh pr create --head "$branch" \
+            --title "probe: pin delver x $version, archived as $tag" \
+            --body "The archive holds Delver X $version as \`$tag\`, and this PR pins it.
+
+          The probe web check on this PR says whether \`KNOWN_FINGERPRINT\` still holds and whether card name (6/6) and exact printing (4/6) moved. A moved fingerprint or number needs a person's reading of FINDINGS.md before this merges. CI does not run the native accuracy test (\`PROBE_REQUIRE_ENGINE=1\`)."

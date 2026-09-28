@@ -155,7 +155,7 @@ here, and it cannot be retried on the frames it was written against without
 
 Anything that ships this carries Delver's release schedule. A new build breaks
 a fresh `cargo build` until the pin moves, unless the pinned build is in the
-private archive that `crates/gitaxian-probe/archive/` keeps.
+private archive (the engine README, *The archive*).
 
 ## Not checked
 

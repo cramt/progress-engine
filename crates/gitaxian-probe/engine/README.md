@@ -216,14 +216,38 @@ outside (FINDINGS §6), so `close` frees the engine's buffers and the workers go
 the page.
 
 The pin is also the web host's version lock. Upstream serves only its current build,
-so a new Delver release makes a fresh build fail with the replacement hashes printed.
-The fix is the archive, a private repo holding every build (`../archive/README.md`).
-With `GITAXIAN_PROBE_ARCHIVE_TOKEN` set, a build takes the pinned files from there
-instead, and a daily workflow archives each new build and opens a PR that pins it.
-Taking that PR still means re-running both checks.
+so a new Delver release makes a fresh build fail with the replacement hashes printed,
+unless the pinned build is in the archive (*The archive*, next).
 `GITAXIAN_PROBE_ASSETS_FROM=<dir>` takes the files from a directory instead of the
 network (still checked against the pin), and `GITAXIAN_PROBE_OFFLINE=1` forbids the
 download outright.
+
+### The archive
+
+`cramt/gitaxian-probe-archive` is a private repo that keeps every Delver build as a
+release, tagged `delver-<version>-<12 hex of its SHA256SUMS>`. It is written at
+`../archive/`, and its README covers how builds get there and how to move it into
+its own repo. This repo uses it in three places:
+
+- **Building an old pin.** With `GITAXIAN_PROBE_ARCHIVE_TOKEN` set to a token that
+  can read the archive, `gitaxian-probe-assets` takes the pinned files from the
+  release `pin.rs` names as `ARCHIVE_TAG`, before asking Delver. Every file is still
+  checked against the pin. The build recomputes `ARCHIVE_TAG` from the table, so
+  one edited by hand without its tag fails with the tag it should be.
+- **Pinning a new build.** `.github/workflows/probe-pin.yml` runs daily. It takes the
+  archive's newest release, rewrites `pin.rs` to it with `assets/repin.py`, and
+  opens one PR per build. It never merges.
+- **Reviewing that PR.** `.github/workflows/probe-web-check.yml` runs
+  `web-check/run.sh` on every PR that touches the probe, with ImageMagick-made
+  frames. It shows whether `KNOWN_FINGERPRINT` still holds and whether 6/6 and 4/6
+  moved. A moved fingerprint or number needs someone to read FINDINGS before the PR
+  merges. CI does not run the native accuracy test.
+
+Both workflows need one Actions secret, `GITAXIAN_PROBE_ARCHIVE_TOKEN`: a
+fine-grained token with Contents read on the archive, and Contents and Pull requests
+read/write on this repo. The pin PR is pushed with it, not `GITHUB_TOKEN`, because a
+PR opened with `GITHUB_TOKEN` runs no workflows, and then the web check would never
+see it. Until the secret exists, probe-pin skips and the web check builds from Delver.
 
 ## What the sandbox actually allows
 

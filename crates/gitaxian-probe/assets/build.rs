@@ -128,7 +128,7 @@ fn obtain(file: &pin::Pinned, path: &Path) -> Result<Option<String>> {
 }
 
 /// The pin's own tag, recomputed: `delver-<VERSION>-` and 12 hex of the sha256
-/// of the table as `sha256sum` writes it. archive/archive.py names releases by
+/// of the table as `sha256sum` writes it. the archive names its releases by
 /// the same rule, so a table edited by hand without its tag fails here rather
 /// than as a missing release.
 fn check_archive_tag() -> Result<()> {
@@ -140,7 +140,7 @@ fn check_archive_tag() -> Result<()> {
     if pin::ARCHIVE_TAG != want {
         return Err(format!(
             "pin.rs's ARCHIVE_TAG is {}, but its table and VERSION make it {want}. \
-             Set it to {want}, or rewrite the pin with archive/archive.py pin.",
+             Set it to {want}, or rewrite the pin with assets/repin.py.",
             pin::ARCHIVE_TAG
         ));
     }
@@ -275,8 +275,8 @@ fn explain_drift(drift: &[(&str, String)]) -> String {
         "the files served no longer match the {} pin.\n\n\
          Upstream serves only its current build, so this is what a new Delver X \
          release looks like. To build the pinned one anyway, set {ARCHIVE_TOKEN} to \
-         a token that can read {}'s releases. If the new build is wanted, take it \
-         with `archive/archive.py fetch`, `publish` and `pin` (archive/README.md), \
+         a token that can read {}'s releases. If the new build is wanted, pin it \
+         from the archive with assets/repin.py (the engine README, *The archive*), \
          and check the engine's KNOWN_FINGERPRINT still holds. What is served now:\n",
         pin::VERSION,
         pin::ARCHIVE,

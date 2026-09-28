@@ -1,82 +1,75 @@
-# The Delver X archive
+# gitaxian-probe-archive
 
-Delver serves only its current build, and it ships often: 1.83.beta to
-1.89.beta took about a week. So a pin in `../assets/src/pin.rs` stops building
-the day upstream moves, and a build that is not saved the day it ships is gone.
+Every Delver X engine build that [Gitaxian Probe](https://github.com/cramt/progress-engine/tree/main/crates/gitaxian-probe)
+might be pinned to, kept after upstream has stopped serving it.
 
-The archive keeps every build. It is a **private** GitHub repo,
-`cramt/gitaxian-probe-archive`, that holds nothing but releases: one per
-build, carrying the files exactly as `https://mtg.delver.app` served them, plus
-a `SHA256SUMS`. It is a cache for building and testing this repo. It is not a
-place anyone else downloads Delver's engine from, and it has to stay private
-for that reason ([probe-in-curator.md](../../../docs/research/probe-in-curator.md)).
+**This repo must stay private.** It is a build cache for progress-engine, not a
+place anyone downloads Delver's engine from. The files are Delver Lab's, and
+serving them to anyone else is redistribution. progress-engine's
+`docs/research/probe-in-curator.md` explains the distinction.
 
-## How a build is named
+It is written inside progress-engine at `crates/gitaxian-probe/archive/`, to be
+moved into its own repo with
+`git filter-repo --subdirectory-filter crates/gitaxian-probe/archive`. Until
+then its workflow is inert, since GitHub runs workflows only from a repo's root
+`.github/`.
+
+## Why
+
+`https://mtg.delver.app` serves only its current build, and it ships often:
+1.83.beta to 1.89.beta took about a week. A pin stops building the day upstream
+moves, and a build nobody saved the day it shipped is gone.
+
+## What is here
+
+Nothing but releases, one per build. Each carries the files exactly as upstream
+served them (`version.txt`, `core.js`, `core.wasm`, `data.7z`, `data.md5`,
+`data.size`, `model-alpha.7z`, `model-alpha.size`) plus a `SHA256SUMS`, about
+42 MB in all. Only the alpha tier is kept: lambda and gamma are gated behind a
+token, and the probe refuses to boot them anyway.
+
+A build's tag is:
 
 ```
 delver-<version.txt>-<first 12 hex of sha256(SHA256SUMS)>
 e.g. delver-1.89.beta-eeb9c6a9c3ec
 ```
 
-`SHA256SUMS` lists the files in `pin.rs`'s order, in `sha256sum` format, so
+`SHA256SUMS` lists the files in the order above, in `sha256sum` format, so
 `sha256sum -c SHA256SUMS` checks a downloaded release. The hash is in the tag
-because upstream rebuilds its data and model often (FINDINGS §5 has them
-rebuilt daily), and nothing guarantees each rebuild changes `version.txt`.
-Two different builds must never share a release.
+because upstream rebuilds its data and model often (the probe's FINDINGS §5
+has them rebuilt daily), and nothing guarantees each rebuild changes
+`version.txt`. Two different builds must never share a release.
 
-`pin.rs` carries the tag as `ARCHIVE_TAG`, and `../assets/build.rs`
-recomputes it from the table on every build. A table edited by hand without
-its tag fails the build with the tag it should be.
+**The file list and the tag rule are a contract with progress-engine.** Its
+`assets/src/pin.rs` pins the same files in the same order, and its
+`assets/build.rs` recomputes the tag from them. Change one side and you must
+change the other.
 
-## What uses it
+## How builds get here
 
-- **`gitaxian-probe-assets`** takes the pinned build from the archive when
-  `GITAXIAN_PROBE_ARCHIVE_TOKEN` holds a token that can read it. The order is
-  its build cache, `GITAXIAN_PROBE_ASSETS_FROM`, the archive, then Delver. So
-  with the token set, any pin builds whatever Delver is serving that day, and
-  every file is still checked against the pin. The Scan button's
-  `MELDWEB_PROBE=1 pnpm dev` runs that same build and inherits the variable.
-- **`.github/workflows/delver-archive.yml`**, daily and on demand:
-  `archive.py fetch` what Delver serves, `publish` it to the archive if it is
-  new, and when it is not the pinned build, `pin` it on a branch and open a PR.
-  It opens one PR per build, ever: a PR closed without merging stays closed.
-- **`.github/workflows/probe-web-check.yml`** runs `web-check/run.sh` on every
-  PR that touches the probe, the pin PRs included, with ImageMagick-made
-  fixture frames. That check says whether the new build still fingerprints as
-  `KNOWN_FINGERPRINT` and still scores 6/6 on card name and 4/6 on exact
-  printing. The workflow does not merge anything. A moved fingerprint or a
-  moved number needs someone to read FINDINGS.md first.
+`.github/workflows/archive.yml` runs daily, and on demand from the Actions tab.
+It `fetch`es what Delver serves and `publish`es it as a release, unless a
+release with that tag already exists. It needs nothing but this repo's own
+`GITHUB_TOKEN`.
 
-## By hand
+By hand:
 
 ```sh
-cd crates/gitaxian-probe
-python3 archive/archive.py fetch /tmp/delver    # prints version, tag, and whether it is the pinned build
-GH_TOKEN=… python3 archive/archive.py publish /tmp/delver
-python3 archive/archive.py pin /tmp/delver      # rewrites assets/src/pin.rs
+python3 archive.py fetch /tmp/delver      # prints the version and the tag
+GH_TOKEN=… ARCHIVE_REPO=cramt/gitaxian-probe-archive python3 archive.py publish /tmp/delver
 ```
 
-`publish` needs the `gh` CLI. `ARCHIVE_REPO=owner/name` points it somewhere
-other than `pin.rs`'s `ARCHIVE`.
+`publish` needs the `gh` CLI. Under Actions it publishes to the repo it runs in.
 
-## Setting it up
+## Moving it out
 
-1. Create the repo, private and empty:
-   `gh repo create cramt/gitaxian-probe-archive --private`.
-2. Create a fine-grained personal access token, owned by `cramt`, for the two
-   repos:
-   - `cramt/gitaxian-probe-archive`: Contents read and write, which is what
-     creating releases needs.
-   - `cramt/progress-engine`: Contents and Pull requests read and write, to
-     push the pin branch and open its PR.
-3. Save it as the `GITAXIAN_PROBE_ARCHIVE_TOKEN` Actions secret in
-   `cramt/progress-engine`. The pin PR is pushed with this token, not
-   `GITHUB_TOKEN`, because a PR opened with `GITHUB_TOKEN` runs no workflows,
-   and the web check is what reviews the new build.
-4. Run **Delver archive** once from the Actions tab (`workflow_dispatch`). If
-   Delver still serves the pinned build, that archives it and opens nothing.
-5. For local builds, a second token with only Contents read on the archive is
-   enough: `export GITAXIAN_PROBE_ARCHIVE_TOKEN=…`.
-
-Until step 4 has run, the pinned build exists only on Delver's origin and in
-whatever build caches have it.
+1. `git filter-repo --subdirectory-filter crates/gitaxian-probe/archive` on a
+   fresh clone of progress-engine, then push the result to a new **private**
+   `cramt/gitaxian-probe-archive`.
+2. Check that Actions may write releases: Settings → Actions → General →
+   Workflow permissions. The workflow asks for `contents: write`, which a
+   repo's default settings can still deny.
+3. Run **Archive** once, so the build pinned today is saved before Delver ships
+   the next one.
+4. Delete `crates/gitaxian-probe/archive/` from progress-engine.

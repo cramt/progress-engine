@@ -105,7 +105,7 @@ crates/gitaxian-probe/Cargo.toml --workspace` natively, and
 Both need the network: V8 is a prebuilt download, and `gitaxian-probe-assets`
 fetches Delver's engine at build time against a hash pin. Delver serves only
 its current build, so an older pin builds only from the private archive, with
-`GITAXIAN_PROBE_ARCHIVE_TOKEN` set (`crates/gitaxian-probe/archive/README.md`).
+`GITAXIAN_PROBE_ARCHIVE_TOKEN` set (the engine README, *The archive*).
 Its native engine
 tests skip when the upstream blobs or the card fixtures are missing: run them
 with `PROBE_REQUIRE_ENGINE=1` before claiming its accuracy numbers, or a green

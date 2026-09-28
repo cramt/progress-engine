@@ -14,7 +14,7 @@
 //! The build downloads unless told otherwise. `GITAXIAN_PROBE_ASSETS_FROM=<dir>`
 //! takes the files from a directory instead (still checked against the pin),
 //! `GITAXIAN_PROBE_ARCHIVE_TOKEN=<token>` takes them from [`ARCHIVE`]'s release
-//! for the pin, which outlives upstream serving it (`archive/README.md`), and
+//! for the pin, which outlives upstream serving it (the engine README, *The archive*), and
 //! `GITAXIAN_PROBE_OFFLINE=1` refuses to touch the network.
 
 use std::io;
