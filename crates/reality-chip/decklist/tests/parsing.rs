@@ -36,12 +36,29 @@ fn set_code_and_collector_number() {
     assert_eq!(e.num.as_deref(), Some("267"));
 }
 
+/// A printing is a set and a collector number. A parenthetical with no number
+/// after it is part of the name, which is where real names end in one, and a
+/// bare set is kept in the name rather than dropped, so it fails to resolve
+/// out loud instead of quietly becoming a different printing.
 #[test]
-fn set_code_without_collector_number() {
+fn a_parenthetical_without_a_number_is_part_of_the_name() {
+    for name in [
+        "Erase (Not the Urza's Legacy One)",
+        "B.F.M. (Big Furry Monster)",
+        "B.F.M. (Big Furry Monster, Right Side)",
+    ] {
+        let e = one(&format!("1x {name} [Removal]"));
+        assert_eq!(e.name, name);
+        assert_eq!((e.set, e.num), (None, None), "{name}");
+    }
     let e = one("1x Myr Battlesphere (tdc) [Big Colorless,Test]");
-    assert_eq!(e.name, "Myr Battlesphere");
-    assert_eq!(e.set.as_deref(), Some("tdc"));
-    assert_eq!(e.num, None);
+    assert_eq!(e.name, "Myr Battlesphere (tdc)");
+    assert_eq!((e.set, e.num), (None, None));
+
+    let e = one("1x Erase (Not the Urza's Legacy One) (unh) 42 [Removal]");
+    assert_eq!(e.name, "Erase (Not the Urza's Legacy One)");
+    assert_eq!(e.set.as_deref(), Some("unh"));
+    assert_eq!(e.num.as_deref(), Some("42"));
 }
 
 #[test]

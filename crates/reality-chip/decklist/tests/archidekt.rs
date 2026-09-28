@@ -197,6 +197,16 @@ fn each_card_is_named_once() {
     assert_eq!(deck.cards[1].card, CardRef::Name("Sol Ring".into()));
 }
 
+/// A name ending in a parenthetical is the whole name, not a name and a set.
+#[test]
+fn a_name_ending_in_a_parenthetical_is_named_whole() {
+    let (erase, _) = import("1x Erase (Not the Urza's Legacy One) [Removal]");
+    assert_eq!(
+        erase.card,
+        CardRef::Name("Erase (Not the Urza's Legacy One)".into())
+    );
+}
+
 // --- What cannot be read is said, never dropped ----------------------------
 
 #[test]

@@ -133,10 +133,13 @@ fn line_re() -> &'static Regex {
         // "2x Card Name (set) 123 *F* [Category{flags},Other]".
         // Only quantity and name are mandatory. The name is lazy so the trailing
         // optional groups win the ambiguity, which keeps multi-word names intact.
+        // A printing needs its number: names end in parentheticals too
+        // (`Erase (Not the Urza's Legacy One)`), and one with no number after
+        // it stays in the name.
         Regex::new(
             r"(?x)
             ^\s*(?P<qty>[0-9]+)\s*[xX]?\s+(?P<name>.*?)
-            (?:\s+\((?P<set>[^)]+)\)(?:\s+(?P<num>[^\s\[]+))?)?
+            (?:\s+\((?P<set>[^)]+)\)\s+(?P<num>[^\s\[*(][^\s\[]*))?
             (?:\s+\*[Ff]\*)?
             (?:\s+\[(?P<cat>[^\]]*)\])?\s*$",
         )
