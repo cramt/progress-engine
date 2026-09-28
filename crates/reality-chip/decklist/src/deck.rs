@@ -143,7 +143,9 @@ impl fmt::Display for CardRef {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Facet)]
+#[repr(u8)]
+#[facet(rename_all = "lowercase")]
 pub enum Finish {
     #[default]
     Nonfoil,

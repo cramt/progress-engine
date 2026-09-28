@@ -207,7 +207,33 @@ fn a_name_ending_in_a_parenthetical_is_named_whole() {
     );
 }
 
+#[test]
+fn an_etched_line_imports_as_etched() {
+    let (ring, _) = import("1x Sol Ring (c21) 263 *E* [Ramp]");
+    assert_eq!(ring.finish, chip_decklist::deck::Finish::Etched);
+    assert_eq!(
+        ring.card,
+        CardRef::Printing(Printing {
+            set: "c21".into(),
+            num: "263".into()
+        })
+    );
+}
+
 // --- What cannot be read is said, never dropped ----------------------------
+
+#[test]
+fn a_marker_the_import_cannot_read_is_named_and_the_rest_imports() {
+    let imported = Deck::read_archidekt("1x Sol Ring (c21) 263 *X* [Ramp]\n1x Arcane Signet\n");
+    assert_eq!(imported.unreadable.len(), 1, "{:?}", imported.unreadable);
+    assert_eq!(imported.unreadable[0].line, 1);
+    assert!(
+        imported.unreadable[0].reason.contains("*X*"),
+        "{}",
+        imported.unreadable[0].reason
+    );
+    assert_eq!(imported.deck.cards.len(), 1);
+}
 
 #[test]
 fn every_unreadable_line_is_named_with_its_reason_and_the_rest_imports() {

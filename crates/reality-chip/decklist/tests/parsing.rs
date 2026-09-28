@@ -4,6 +4,7 @@
 //! are deliberately fixing). These are the contract `scryfall check` and
 //! `scryfall play` rely on when they delegate parsing.
 
+use chip_decklist::deck::Finish;
 use chip_decklist::{self as decklist, ParseError};
 
 fn one(line: &str) -> decklist::Entry {
@@ -64,10 +65,41 @@ fn a_parenthetical_without_a_number_is_part_of_the_name() {
 #[test]
 fn foil_marker() {
     let e = one("1x Lightning Bolt (sos) 267 *F* [Interaction]");
-    assert!(e.foil);
+    assert_eq!(e.finish, Finish::Foil);
     assert_eq!(e.name, "Lightning Bolt");
     assert_eq!(e.category, "Interaction");
-    assert!(!one("1x Lightning Bolt [Interaction]").foil);
+    assert_eq!(
+        one("1x Lightning Bolt [Interaction]").finish,
+        Finish::Nonfoil
+    );
+}
+
+#[test]
+fn etched_marker() {
+    let e = one("1x Sol Ring (c21) 263 *E* [Ramp]");
+    assert_eq!(e.finish, Finish::Etched);
+    assert_eq!(e.name, "Sol Ring");
+    assert_eq!(e.set.as_deref(), Some("c21"));
+    assert_eq!(e.num.as_deref(), Some("263"));
+    assert_eq!(e.category, "Ramp");
+}
+
+/// A marker this parser does not know is refused by name, never read as part
+/// of the card's name.
+#[test]
+fn an_unknown_marker_is_refused_not_named() {
+    assert_eq!(
+        decklist::parse_line("1x Sol Ring (c21) 263 *X* [Ramp]", 3),
+        Err(ParseError::UnknownMarker {
+            line: 3,
+            text: "1x Sol Ring (c21) 263 *X* [Ramp]".into(),
+            marker: "*X*".into(),
+        })
+    );
+    assert!(matches!(
+        decklist::parse_line("1x Sol Ring *Glossy*", 1),
+        Err(ParseError::UnknownMarker { .. })
+    ));
 }
 
 #[test]

@@ -22,7 +22,9 @@ use std::fmt;
 
 use thiserror::Error;
 
-use crate::deck::{card, CardRef, Category, CategoryType, Deck, DeckError, Printing, RawCard};
+use crate::deck::{
+    card, CardRef, Category, CategoryType, Deck, DeckError, Finish, Printing, RawCard,
+};
 use crate::ParseError;
 
 /// A line of Archidekt text the import could not carry over whole.
@@ -77,6 +79,10 @@ fn reason(e: &ParseError) -> String {
         }
         ParseError::ZeroQuantity { .. } => "a quantity of 0 is no card".into(),
         ParseError::EmptyName { .. } => "the card has no name".into(),
+        ParseError::UnknownMarker { marker, .. } => format!(
+            "{marker} is no finish this reads, which are *F* (foil) and *E* (etched), \
+             so the card is left out rather than imported in the wrong one"
+        ),
     }
 }
 
@@ -221,7 +227,11 @@ impl Deck {
                 name: printing.is_none().then(|| e.name.clone()),
                 printing: printing.as_ref().map(Printing::to_string),
                 qty: Some(e.qty.get()),
-                finish: e.foil.then(|| "foil".to_string()),
+                finish: match e.finish {
+                    Finish::Nonfoil => None,
+                    Finish::Foil => Some("foil".to_string()),
+                    Finish::Etched => Some("etched".to_string()),
+                },
                 categories: kept,
             };
             match card(cards.len() + 1, raw, &categories) {

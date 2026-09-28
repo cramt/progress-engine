@@ -15,6 +15,8 @@ use std::num::NonZeroU32;
 use std::sync::OnceLock;
 
 use facet::Facet;
+
+use crate::deck::Finish;
 use regex::Regex;
 use thiserror::Error;
 
@@ -28,6 +30,14 @@ pub enum ParseError {
     ZeroQuantity { line: usize, text: String },
     #[error("line {line}: card name is empty: {text:?}")]
     EmptyName { line: usize, text: String },
+    /// Read as part of the name, an unknown marker made a card no index has,
+    /// and its meaning (a finish, most likely) was lost without a word.
+    #[error("line {line}: {marker} is not a marker this reads, which are *F* (foil) and *E* (etched): {text:?}")]
+    UnknownMarker {
+        line: usize,
+        text: String,
+        marker: String,
+    },
 }
 
 /// One `[Category{flag}]` element. Archidekt allows several per line,
@@ -90,7 +100,9 @@ pub struct Entry {
     pub name: String,
     pub set: Option<String>,
     pub num: Option<String>,
-    pub foil: bool,
+    /// From the marker after the printing: `*F*` foil, `*E*` etched, none
+    /// nonfoil.
+    pub finish: Finish,
     /// Raw bracket contents exactly as written, `""` when absent. Preserved so
     /// nothing downstream that matched on the old opaque string breaks silently.
     pub category: String,
@@ -140,7 +152,7 @@ fn line_re() -> &'static Regex {
             r"(?x)
             ^\s*(?P<qty>[0-9]+)\s*[xX]?\s+(?P<name>.*?)
             (?:\s+\((?P<set>[^)]+)\)\s+(?P<num>[^\s\[*(][^\s\[]*))?
-            (?:\s+\*[Ff]\*)?
+            (?:\s+(?P<marker>\*[^*\s\[\]]+\*))?
             (?:\s+\[(?P<cat>[^\]]*)\])?\s*$",
         )
         .expect("decklist line regex is valid")
@@ -189,12 +201,27 @@ pub fn parse_line(line: &str, number: usize) -> Result<Option<Entry>, ParseError
         .to_string();
     let categories = merge(split_categories(&category).filter_map(Category::parse));
 
+    // `*E*` is as a user-posted Archidekt export writes an etched card; the
+    // sandbox probes in archidekt-import-shapes.md never had one.
+    let finish = match caps.name("marker").map(|m| m.as_str()) {
+        None => Finish::Nonfoil,
+        Some("*F*" | "*f*") => Finish::Foil,
+        Some("*E*") => Finish::Etched,
+        Some(other) => {
+            return Err(ParseError::UnknownMarker {
+                line: number,
+                text: trimmed.to_string(),
+                marker: other.to_string(),
+            })
+        }
+    };
+
     Ok(Some(Entry {
         qty,
         name,
         set: caps.name("set").map(|m| m.as_str().trim().to_string()),
         num: caps.name("num").map(|m| m.as_str().trim().to_string()),
-        foil: line.contains("*F*") || line.contains("*f*"),
+        finish,
         category,
         categories,
     }))
