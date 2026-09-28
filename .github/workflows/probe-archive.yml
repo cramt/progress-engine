@@ -1,0 +1,36 @@
+# Archive whatever Delver X build https://mtg.delver.app serves, once a day, as
+# a version of the private npm package @cramt/delver-x on GitHub Packages.
+# Upstream serves only its current build, so a build not saved the day it
+# ships is gone. See crates/gitaxian-probe/archive/README.md.
+#
+# GITHUB_TOKEN is enough: it publishes to this repo's owner, and links the
+# package here so this repo's workflows can read it back.
+name: Probe archive
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency: probe-archive
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: "@cramt"
+      - name: Fetch what Delver serves
+        run: python3 crates/gitaxian-probe/archive/archive.py fetch "$RUNNER_TEMP/build"
+      - name: Keep it, if it is new
+        run: python3 crates/gitaxian-probe/archive/archive.py publish "$RUNNER_TEMP/build"

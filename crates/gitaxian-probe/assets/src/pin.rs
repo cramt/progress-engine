@@ -14,14 +14,19 @@ pub const VERSION: &str = "1.89.beta";
 /// Where upstream serves them.
 pub const ORIGIN: &str = "https://mtg.delver.app";
 
-/// The private GitHub repo whose releases keep every build, once upstream
-/// has stopped serving it.
-pub const ARCHIVE: &str = "cramt/gitaxian-probe-archive";
+/// The private npm package on GitHub Packages that keeps every build, one
+/// version each, once upstream has stopped serving it. It holds the files and
+/// no code; `crates/gitaxian-probe/archive/` publishes it.
+pub const ARCHIVE: &str = "@cramt/delver-x";
 
-/// This build's release in [`ARCHIVE`]: `delver-<VERSION>-` and the first 12
-/// hex of the sha256 of [`PINNED`] written as `sha256sum` writes it. The build
+/// The registry [`ARCHIVE`] is published to.
+pub const ARCHIVE_REGISTRY: &str = "https://npm.pkg.github.com";
+
+/// This build's version of [`ARCHIVE`]: `0.0.0-delver-<VERSION>-` and the
+/// first 12 hex of the sha256 of [`PINNED`] written as `sha256sum` writes it,
+/// with anything semver refuses in a prerelease turned into `-`. The build
 /// script recomputes it, so it cannot drift from the table.
-pub const ARCHIVE_TAG: &str = "delver-1.89.beta-eeb9c6a9c3ec";
+pub const ARCHIVE_VERSION: &str = "0.0.0-delver-1-89-beta-eeb9c6a9c3ec";
 
 /// One file as upstream serves it, and the sha256 it has to have.
 pub struct Pinned {

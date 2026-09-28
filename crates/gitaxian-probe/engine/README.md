@@ -224,30 +224,35 @@ download outright.
 
 ### The archive
 
-`cramt/gitaxian-probe-archive` is a private repo that keeps every Delver build as a
-release, tagged `delver-<version>-<12 hex of its SHA256SUMS>`. It is written at
-`../archive/`, and its README covers how builds get there and how to move it into
-its own repo. This repo uses it in three places:
+`@cramt/delver-x` is a private npm package on GitHub Packages that keeps every
+Delver build as one version, `0.0.0-delver-<version>-<12 hex of its SHA256SUMS>`.
+It carries the files and no code. `.github/workflows/probe-archive.yml` publishes
+each new build daily with its own `GITHUB_TOKEN`, and `../archive/README.md`
+covers the version rule and why the package must stay private. This repo uses it
+in three places:
 
 - **Building an old pin.** With `GITAXIAN_PROBE_ARCHIVE_TOKEN` set to a token that
-  can read the archive, `gitaxian-probe-assets` takes the pinned files from the
-  release `pin.rs` names as `ARCHIVE_TAG`, before asking Delver. Every file is still
-  checked against the pin. The build recomputes `ARCHIVE_TAG` from the table, so
-  one edited by hand without its tag fails with the tag it should be.
-- **Pinning a new build.** `.github/workflows/probe-pin.yml` runs daily. It takes the
-  archive's newest release, rewrites `pin.rs` to it with `assets/repin.py`, and
-  opens one PR per build. It never merges.
+  can read the package, `gitaxian-probe-assets` takes the pinned files from the
+  version `pin.rs` names as `ARCHIVE_VERSION`, before asking Delver. Every file is
+  still checked against the pin. The build recomputes `ARCHIVE_VERSION` from the
+  table, so one edited by hand without its version fails with the one it should be.
+  Locally that token has to be a classic one with `read:packages`: GitHub Packages
+  takes no fine-grained token.
+- **Pinning a new build.** `.github/workflows/probe-pin.yml` runs daily. It takes
+  the package's `latest` version, rewrites `pin.rs` to it with `assets/repin.py`,
+  and opens one PR per build. It never merges.
 - **Reviewing that PR.** `.github/workflows/probe-web-check.yml` runs
   `web-check/run.sh` on every PR that touches the probe, with ImageMagick-made
   frames. It shows whether `KNOWN_FINGERPRINT` still holds and whether 6/6 and 4/6
   moved. A moved fingerprint or number needs someone to read FINDINGS before the PR
   merges. CI does not run the native accuracy test.
 
-Both workflows need one Actions secret, `GITAXIAN_PROBE_ARCHIVE_TOKEN`: a
-fine-grained token with Contents read on the archive, and Contents and Pull requests
-read/write on this repo. The pin PR is pushed with it, not `GITHUB_TOKEN`, because a
-PR opened with `GITHUB_TOKEN` runs no workflows, and then the web check would never
-see it. Until the secret exists, probe-pin skips and the web check builds from Delver.
+The package is linked to this repo, so every workflow here reads it with its own
+`GITHUB_TOKEN` and `packages: read`. A fork's PR cannot, and builds from Delver.
+The one secret is `GITAXIAN_PROBE_PIN_TOKEN`, for probe-pin: a fine-grained token
+with Contents and Pull requests read/write on this repo. The pin PR is pushed with
+it, not `GITHUB_TOKEN`, because a PR opened with `GITHUB_TOKEN` runs no workflows,
+and then the web check would never see it. Until the secret exists, probe-pin skips.
 
 ## What the sandbox actually allows
 

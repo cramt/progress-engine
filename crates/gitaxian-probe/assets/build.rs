@@ -2,13 +2,14 @@
 //!
 //! Each file comes from, in order: this crate's `OUT_DIR` if an earlier build
 //! already verified it, the directory `GITAXIAN_PROBE_ASSETS_FROM` names, the
-//! archive's release for the pin when `GITAXIAN_PROBE_ARCHIVE_TOKEN` is set,
-//! or the origin. Whatever the source, it has to hash to the pin, so a
+//! archive's npm version for the pin when `GITAXIAN_PROBE_ARCHIVE_TOKEN` is
+//! set, or the origin. Whatever the source, it has to hash to the pin, so a
 //! directory handed in by a network-less build (a nix fixed-output derivation,
 //! a CI cache) is held to the same standard as a download.
 //! `GITAXIAN_PROBE_OFFLINE=1` turns "not found locally" into a failure instead
 //! of a download.
 
+use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::fs;
 use std::io::Read;
@@ -26,10 +27,13 @@ mod pin {
 
 const FROM: &str = "GITAXIAN_PROBE_ASSETS_FROM";
 const OFFLINE: &str = "GITAXIAN_PROBE_OFFLINE";
-/// A GitHub token that can read [`pin::ARCHIVE`]'s releases.
+/// A GitHub token that can read [`pin::ARCHIVE`]: a classic one with
+/// `read:packages`, since GitHub Packages takes no fine-grained token, or a
+/// workflow's own `GITHUB_TOKEN` in this repo.
 const ARCHIVE_TOKEN: &str = "GITAXIAN_PROBE_ARCHIVE_TOKEN";
-/// The GitHub API the archive is read through; overridden only by tests.
-const ARCHIVE_API: &str = "GITAXIAN_PROBE_ARCHIVE_API";
+/// The npm registry the archive is read from, instead of
+/// [`pin::ARCHIVE_REGISTRY`]; for testing against a stand-in.
+const ARCHIVE_REGISTRY: &str = "GITAXIAN_PROBE_ARCHIVE_REGISTRY";
 const USER_AGENT: &str = "gitaxian-probe-assets/0.1";
 
 type Result<T> = std::result::Result<T, String>;
@@ -40,7 +44,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed={FROM}");
     println!("cargo:rerun-if-env-changed={OFFLINE}");
     println!("cargo:rerun-if-env-changed={ARCHIVE_TOKEN}");
-    println!("cargo:rerun-if-env-changed={ARCHIVE_API}");
+    println!("cargo:rerun-if-env-changed={ARCHIVE_REGISTRY}");
 
     let out = PathBuf::from(std::env::var("OUT_DIR").expect("cargo sets OUT_DIR"));
     let served = out.join("assets");
@@ -59,7 +63,7 @@ fn main() {
 }
 
 fn build(fetched: &Path, served: &Path) -> Result<()> {
-    check_archive_tag()?;
+    check_archive_version()?;
     mkdir(fetched)?;
     mkdir(served)?;
 
@@ -127,21 +131,32 @@ fn obtain(file: &pin::Pinned, path: &Path) -> Result<Option<String>> {
     Ok(None)
 }
 
-/// The pin's own tag, recomputed: `delver-<VERSION>-` and 12 hex of the sha256
-/// of the table as `sha256sum` writes it. the archive names its releases by
-/// the same rule, so a table edited by hand without its tag fails here rather
-/// than as a missing release.
-fn check_archive_tag() -> Result<()> {
+/// The pin's own npm version, recomputed: `0.0.0-delver-<VERSION>-` and 12
+/// hex of the sha256 of the table as `sha256sum` writes it, with anything a
+/// semver prerelease refuses turned into `-`. The archive versions its builds
+/// by the same rule, so a table edited by hand without its version fails here
+/// rather than as a missing package version.
+fn check_archive_version() -> Result<()> {
     let sums: String = pin::PINNED
         .iter()
         .map(|f| format!("{}  {}\n", f.sha256, f.name))
         .collect();
-    let want = format!("delver-{}-{}", pin::VERSION, &sha256(sums.as_bytes())[..12]);
-    if pin::ARCHIVE_TAG != want {
+    let tag = format!("delver-{}-{}", pin::VERSION, &sha256(sums.as_bytes())[..12]);
+    let want: String = "0.0.0-"
+        .chars()
+        .chain(tag.chars().map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' {
+                c
+            } else {
+                '-'
+            }
+        }))
+        .collect();
+    if pin::ARCHIVE_VERSION != want {
         return Err(format!(
-            "pin.rs's ARCHIVE_TAG is {}, but its table and VERSION make it {want}. \
+            "pin.rs's ARCHIVE_VERSION is {}, but its table and VERSION make it {want}. \
              Set it to {want}, or rewrite the pin with assets/repin.py.",
-            pin::ARCHIVE_TAG
+            pin::ARCHIVE_VERSION
         ));
     }
     Ok(())
@@ -151,68 +166,93 @@ fn archive_token() -> Option<String> {
     std::env::var(ARCHIVE_TOKEN).ok().filter(|t| !t.is_empty())
 }
 
+/// The registry's document for the package: every version it holds.
 #[derive(Facet)]
-struct Release {
-    assets: Vec<Asset>,
+struct Packument {
+    versions: HashMap<String, Manifest>,
 }
 
 #[derive(Facet)]
-struct Asset {
-    name: String,
-    /// The API URL, which answers `Accept: application/octet-stream` with the
-    /// bytes. A private repo's browser download URL does not take a token.
-    url: String,
+struct Manifest {
+    dist: Dist,
 }
 
-/// One file of the pinned build from the archive's release for it. The
-/// release's asset list is read once per build.
+#[derive(Facet)]
+struct Dist {
+    tarball: String,
+}
+
+/// One file of the pinned build from the archive's version for it. The
+/// tarball is downloaded and unpacked once per build.
 fn from_archive(token: &str, name: &str) -> Result<Vec<u8>> {
-    static RELEASE: OnceLock<Result<Vec<(String, String)>>> = OnceLock::new();
-    let api = std::env::var(ARCHIVE_API).unwrap_or_else(|_| "https://api.github.com".into());
-    let where_ = format!("{} release {}", pin::ARCHIVE, pin::ARCHIVE_TAG);
-    let assets = RELEASE
-        .get_or_init(|| {
-            let url = format!(
-                "{api}/repos/{}/releases/tags/{}",
-                pin::ARCHIVE,
-                pin::ARCHIVE_TAG
-            );
-            let json = github(&url, token, "application/vnd.github+json")
-                .map_err(|e| format!("reading {where_}: {e}"))?;
-            let release: Release = facet_json::from_str(&String::from_utf8_lossy(&json))
-                .map_err(|e| format!("reading {where_}: {e}"))?;
-            Ok(release
-                .assets
-                .into_iter()
-                .map(|a| (a.name, a.url))
-                .collect())
-        })
+    static FILES: OnceLock<Result<HashMap<String, Vec<u8>>>> = OnceLock::new();
+    let where_ = format!("{}@{}", pin::ARCHIVE, pin::ARCHIVE_VERSION);
+    let files = FILES
+        .get_or_init(|| archived_files(token).map_err(|e| format!("reading {where_}: {e}")))
         .as_ref()
         .map_err(Clone::clone)?;
-    let (_, url) = assets
-        .iter()
-        .find(|(n, _)| n == name)
-        .ok_or_else(|| format!("{where_} has no {name}"))?;
-    github(url, token, "application/octet-stream")
-        .map_err(|e| format!("downloading {name} from {where_}: {e}"))
+    files
+        .get(name)
+        .cloned()
+        .ok_or_else(|| format!("{where_} has no {name}"))
 }
 
-/// A GET against the GitHub API. The asset download redirects to storage that
+fn archived_files(token: &str) -> Result<HashMap<String, Vec<u8>>> {
+    let registry = std::env::var(ARCHIVE_REGISTRY).unwrap_or_else(|_| pin::ARCHIVE_REGISTRY.into());
+    let url = format!(
+        "{}/{}",
+        registry.trim_end_matches('/'),
+        pin::ARCHIVE.replace('/', "%2f")
+    );
+    let json = get_authorized(&url, token, "application/json")?;
+    let packument: Packument =
+        facet_json::from_str(&String::from_utf8_lossy(&json)).map_err(|e| format!("{url}: {e}"))?;
+    let tarball = &packument
+        .versions
+        .get(pin::ARCHIVE_VERSION)
+        .ok_or("the registry has no such version")?
+        .dist
+        .tarball;
+    let gz = get_authorized(tarball, token, "application/octet-stream")?;
+
+    // npm puts everything under `package/`.
+    let mut files = HashMap::new();
+    let mut tar = tar::Archive::new(flate2::read::GzDecoder::new(gz.as_slice()));
+    for entry in tar.entries().map_err(|e| format!("{tarball}: {e}"))? {
+        let mut entry = entry.map_err(|e| format!("{tarball}: {e}"))?;
+        let path = entry.path().map_err(|e| format!("{tarball}: {e}"))?;
+        let Some(name) = path
+            .strip_prefix("package")
+            .ok()
+            .and_then(|p| p.to_str())
+            .map(str::to_owned)
+        else {
+            continue;
+        };
+        let mut bytes = Vec::new();
+        entry
+            .read_to_end(&mut bytes)
+            .map_err(|e| format!("{tarball}: {e}"))?;
+        files.insert(name, bytes);
+    }
+    Ok(files)
+}
+
+/// A GET with the token. The tarball download may redirect to storage that
 /// refuses a second credential, and ureq drops `Authorization` on a redirect.
-fn github(url: &str, token: &str, accept: &str) -> Result<Vec<u8>> {
+fn get_authorized(url: &str, token: &str, accept: &str) -> Result<Vec<u8>> {
     let mut response = ureq::get(url)
         .header("User-Agent", USER_AGENT)
         .header("Accept", accept)
         .header("Authorization", &format!("Bearer {token}"))
-        .header("X-GitHub-Api-Version", "2022-11-28")
         .call()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("{url}: {e}"))?;
     let mut bytes = Vec::new();
     response
         .body_mut()
         .as_reader()
         .read_to_end(&mut bytes)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("{url}: {e}"))?;
     Ok(bytes)
 }
 
@@ -275,7 +315,7 @@ fn explain_drift(drift: &[(&str, String)]) -> String {
         "the files served no longer match the {} pin.\n\n\
          Upstream serves only its current build, so this is what a new Delver X \
          release looks like. To build the pinned one anyway, set {ARCHIVE_TOKEN} to \
-         a token that can read {}'s releases. If the new build is wanted, pin it \
+         a classic GitHub token with read:packages, which can read {}. If the new build is wanted, pin it \
          from the archive with assets/repin.py (the engine README, *The archive*), \
          and check the engine's KNOWN_FINGERPRINT still holds. What is served now:\n",
         pin::VERSION,

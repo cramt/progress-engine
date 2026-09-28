@@ -104,8 +104,9 @@ crates/gitaxian-probe/Cargo.toml --workspace` natively, and
 `crates/gitaxian-probe/web-check/run.sh` for the web host in headless Chromium.
 Both need the network: V8 is a prebuilt download, and `gitaxian-probe-assets`
 fetches Delver's engine at build time against a hash pin. Delver serves only
-its current build, so an older pin builds only from the private archive, with
-`GITAXIAN_PROBE_ARCHIVE_TOKEN` set (the engine README, *The archive*).
+its current build, so an older pin builds only from the private archive, an
+npm package on GitHub Packages, with `GITAXIAN_PROBE_ARCHIVE_TOKEN` set to a
+classic token with `read:packages` (the engine README, *The archive*).
 Its native engine
 tests skip when the upstream blobs or the card fixtures are missing: run them
 with `PROBE_REQUIRE_ENGINE=1` before claiming its accuracy numbers, or a green
