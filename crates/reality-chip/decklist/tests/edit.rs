@@ -298,6 +298,23 @@ fn an_added_card_is_a_new_last_line_in_the_file_s_style() {
         )
     );
 
+    // An added card is nonfoil, so a foil one of it is another card.
+    let foil = "cards = [\n  { name = \"Sol Ring\", finish = \"foil\" },\n]\n";
+    let sol_ring = CardRef::Name("Sol Ring".into());
+    let added = add_card(foil, &sol_ring, &[], None).unwrap();
+    assert_eq!(
+        added,
+        "cards = [\n  { name = \"Sol Ring\", finish = \"foil\" },\n  { name = \"Sol Ring\" },\n]\n"
+    );
+    let cards = Deck::parse(&added).unwrap().cards;
+    assert_eq!(
+        cards
+            .iter()
+            .map(|c| (c.qty.get(), c.finish))
+            .collect::<Vec<_>>(),
+        [(1, Finish::Foil), (1, Finish::Nonfoil)]
+    );
+
     // An undeclared category is refused, as every edit refuses.
     assert!(matches!(
         add_card(DECK, &printing, &["nope".into()], None).unwrap_err(),

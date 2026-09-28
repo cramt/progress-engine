@@ -324,8 +324,9 @@ fn same_categories(a: &[String], b: &[String]) -> bool {
 
 /// Adds one of `card` in `categories`, as a new line at the end of `cards`
 /// in the file's style, with `comment` beside it (the card's name, for a
-/// printing). When the deck already has that card in those categories, its
-/// quantity goes up by one instead.
+/// printing). The card is nonfoil, so when the deck already has it nonfoil in
+/// those categories its quantity goes up by one instead; a foil one of it is
+/// another card.
 pub fn add_card(
     text: &str,
     card: &CardRef,
@@ -333,12 +334,9 @@ pub fn add_card(
     comment: Option<&str>,
 ) -> Result<String, EditError> {
     let deck = Deck::parse(text)?;
-    if let Some((i, c)) = deck
-        .cards
-        .iter()
-        .enumerate()
-        .find(|(_, c)| &c.card == card && same_categories(&c.categories, categories))
-    {
+    if let Some((i, c)) = deck.cards.iter().enumerate().find(|(_, c)| {
+        &c.card == card && c.finish == Finish::Nonfoil && same_categories(&c.categories, categories)
+    }) {
         return set_card_qty(text, i, c.qty.get() + 1);
     }
 
