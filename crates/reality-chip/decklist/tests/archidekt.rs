@@ -453,6 +453,52 @@ fn a_category_archidekt_cannot_spell_is_refused() {
     ));
 }
 
+/// Archidekt reads a word as one category, so two categories written as the
+/// same word come back as one, and a card in the untyped one would move.
+#[test]
+fn two_categories_written_as_the_same_word_are_refused() {
+    let text = r#"cards = [
+  { name = "Kenrith, the Returned King", in = ["boss"] },
+  { name = "Sol Ring", in = ["Commander"] },
+]
+[categories]
+boss = { type = "commander" }
+Commander = {}
+"#;
+    // What the export would have written, and why it cannot be.
+    let (sol_ring, _) = {
+        let imported = Deck::read_archidekt(
+            "1x Kenrith, the Returned King [Commander{top}]\n1x Sol Ring [Commander]\n",
+        );
+        (imported.deck.cards[1].clone(), imported.deck)
+    };
+    assert_eq!(
+        sol_ring.place, Commander,
+        "Sol Ring would come back a commander"
+    );
+    let err = export_archidekt(text, &HashMap::new()).unwrap_err();
+    assert!(
+        matches!(&err, ExportError::SameWord { word, .. } if word == "Commander"),
+        "{err}"
+    );
+    assert!(err.to_string().contains("boss"), "{err}");
+
+    // Two categories of the same type come back as one of that type, and no
+    // card moves: that is the typed name Archidekt has no room for.
+    let text = r#"cards = [
+  { name = "Counterspell", in = ["learnboard"] },
+  { name = "Negate", in = ["sb"] },
+]
+[categories]
+learnboard = { type = "sideboard" }
+sb = { type = "sideboard" }
+"#;
+    assert_eq!(
+        export_archidekt(text, &HashMap::new()).unwrap(),
+        "1x Counterspell [Sideboard]\n1x Negate [Sideboard]\n"
+    );
+}
+
 /// A label that happens to be spelled like one of Archidekt's boards goes
 /// after the card's other labels, and is refused when it would come first.
 #[test]

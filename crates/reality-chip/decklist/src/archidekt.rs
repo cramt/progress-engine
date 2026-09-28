@@ -285,6 +285,15 @@ pub enum ExportError {
     Unnamed(Vec<Printing>),
     #[error("category {0:?} cannot be written as Archidekt text, which has no way to escape `,`, `[`, `]`, `{{` or `}}` in a category name")]
     Unwritable(String),
+    #[error(
+        "categories {first:?} and {second:?} would both be written as Archidekt's {word:?}, \
+         which reads back as one category, so a card in one of them would move"
+    )]
+    SameWord {
+        word: String,
+        first: String,
+        second: String,
+    },
     #[error("card {index} ({card}): its only categories are named like Archidekt's boards ({category:?}), so Archidekt would take it out of the deck")]
     Misread {
         index: usize,
@@ -344,6 +353,34 @@ impl Deck {
             .collect();
         if !unnamed.is_empty() {
             return Err(ExportError::Unnamed(unnamed));
+        }
+
+        // Archidekt merges a category's flags across lines, so a word names
+        // one category however it is flagged. Two of the same type merging
+        // loses only a name; of different types, it moves a card.
+        let mut by_word: BTreeMap<String, &Category> = BTreeMap::new();
+        let used: BTreeSet<&str> = self
+            .cards
+            .iter()
+            .flat_map(|c| c.categories.iter().map(String::as_str))
+            .collect();
+        let placing_kind = |c: &Category| c.kind.filter(|k| *k != CategoryType::InDeck);
+        for cat in used.iter().filter_map(|n| self.category(n)) {
+            let word = archidekt_word(cat);
+            let name = word.split('{').next().unwrap_or(&word).to_string();
+            match by_word.get(&name) {
+                Some(other) if placing_kind(other) != placing_kind(cat) => {
+                    return Err(ExportError::SameWord {
+                        word: name,
+                        first: other.name.clone(),
+                        second: cat.name.clone(),
+                    });
+                }
+                Some(_) => {}
+                None => {
+                    by_word.insert(name, cat);
+                }
+            }
         }
 
         let mut out = String::new();
