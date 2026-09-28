@@ -2952,7 +2952,8 @@ Quantity and name are the only required parts:
 1x Sol Ring
 3x Plains
 1x Lightning Bolt (sos) 267 *F* [Interaction]
-1x Myr Battlesphere (tdc) [Big Colorless,Test]
+1x Sol Ring (c21) 263 *E* [Ramp]
+1x Erase (Not the Urza's Legacy One) [Removal,Test]
 1x Rashmi and Ragavan [Commander{top}]
 1x Lurrus of the Dream-Den [Companion{noDeck}]
 // line-leading double slashes are comments
@@ -2960,7 +2961,17 @@ Quantity and name are the only required parts:
 
 Notes:
 
-- **Multiple categories** are comma-separated inside the brackets.
+- **Multiple categories** are comma-separated inside the brackets. A comma
+  inside braces separates flags: `Maybeboard{noDeck,noPrice}` is one category.
+- **A printing is a set and a collector number.** A parenthetical with no
+  number after it is part of the name, as in `Erase (Not the Urza's Legacy
+  One)`, so a bare `(tdc)` stays in the name and fails to resolve out loud.
+- **The finish marker** after the printing is `*F*` for foil or `*E*` for
+  etched. Any other `*X*` is refused by name rather than read into the card's
+  name.
+- **A category's flags belong to the category, not the line**, as in Archidekt:
+  `[Commander{top}]` on one line makes every `[Commander]` line a commander
+  too, in `parse` and in an import alike.
 - **`//` is a comment only at the start of a line.** Card names contain it —
   `Unstable Glyphbridge // Sandswirl Wanderglyph` — and treating it as an inline marker would
   truncate every double-faced card.
