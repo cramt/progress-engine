@@ -184,7 +184,7 @@ pub fn parse_line(line: &str, number: usize) -> Result<Option<Entry>, ParseError
         .map(|m| m.as_str())
         .unwrap_or("")
         .to_string();
-    let categories = merge(category.split(',').filter_map(Category::parse));
+    let categories = merge(split_categories(&category).filter_map(Category::parse));
 
     Ok(Some(Entry {
         qty,
@@ -195,6 +195,20 @@ pub fn parse_line(line: &str, number: usize) -> Result<Option<Entry>, ParseError
         category,
         categories,
     }))
+}
+
+/// The bracket's categories, split at each `,` outside braces: inside them a
+/// comma separates flags, as in `Maybeboard{noDeck,noPrice}`.
+fn split_categories(bracket: &str) -> impl Iterator<Item = &str> {
+    let mut depth = 0usize;
+    bracket.split(move |c| {
+        match c {
+            '{' => depth += 1,
+            '}' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+        c == ',' && depth == 0
+    })
 }
 
 /// One category per name: a second mention of a name adds its flags to the
@@ -263,12 +277,13 @@ pub fn total(entries: &[Entry]) -> u32 {
 }
 
 impl std::fmt::Display for Category {
-    /// `Name{flag,flag}`, the form [`Category::parse`] reads. Flags come out
-    /// lowercased, as parsing left them: `{noDeck}` is written back `{nodeck}`.
+    /// `Name{flag}{flag}`, the form Archidekt exports and [`Category::parse`]
+    /// reads. Flags come out lowercased, as parsing left them: `{noDeck}` is
+    /// written back `{nodeck}`.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.name)?;
-        if !self.flags.is_empty() {
-            write!(f, "{{{}}}", self.flags.join(","))?;
+        for flag in &self.flags {
+            write!(f, "{{{flag}}}")?;
         }
         Ok(())
     }

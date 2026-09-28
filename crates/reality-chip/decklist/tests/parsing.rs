@@ -101,6 +101,32 @@ fn flags_are_every_brace_group_after_the_name() {
     assert_eq!(e.categories[0].flags, vec!["nodeck", "noprice"]);
 }
 
+/// A comma between categories splits them; one inside braces is between flags.
+#[test]
+fn a_comma_inside_braces_separates_flags_not_categories() {
+    let e = one("1x Brainstorm [Maybeboard{noDeck,noPrice},Draw]");
+    assert_eq!(
+        e.categories,
+        vec![
+            category("Maybeboard", &["nodeck", "noprice"]),
+            category("Draw", &[])
+        ]
+    );
+}
+
+/// What a category is written as reads back as that category, bracketed with
+/// others.
+#[test]
+fn a_written_category_reads_back_as_itself() {
+    let written = [
+        category("Maybeboard", &["nodeck", "noprice"]),
+        category("Ramp", &[]),
+    ];
+    assert_eq!(written[0].to_string(), "Maybeboard{nodeck}{noprice}");
+    let line = decklist::with_categories("1x Brainstorm", &written).unwrap();
+    assert_eq!(one(&line).categories, written, "{line}");
+}
+
 #[test]
 fn a_heading_is_the_first_category_of_every_card_below_it() {
     let entries = decklist::parse(
