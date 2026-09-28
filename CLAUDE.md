@@ -103,7 +103,10 @@ The probe builds from its own manifest - `cargo test --manifest-path
 crates/gitaxian-probe/Cargo.toml --workspace` natively, and
 `crates/gitaxian-probe/web-check/run.sh` for the web host in headless Chromium.
 Both need the network: V8 is a prebuilt download, and `gitaxian-probe-assets`
-fetches Delver's engine at build time against a hash pin. Its native engine
+fetches Delver's engine at build time against a hash pin. Delver serves only
+its current build, so an older pin builds only from the private archive, with
+`GITAXIAN_PROBE_ARCHIVE_TOKEN` set (`crates/gitaxian-probe/archive/README.md`).
+Its native engine
 tests skip when the upstream blobs or the card fixtures are missing: run them
 with `PROBE_REQUIRE_ENGINE=1` before claiming its accuracy numbers, or a green
 suite has checked nothing. The web check has no skip; it fails instead.

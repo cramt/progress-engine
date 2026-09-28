@@ -1,0 +1,68 @@
+# Keep every Delver X build Gitaxian Probe might be pinned to, and propose
+# pinning each new one. Upstream serves only its current build, so a build
+# not archived the day it ships is gone. See crates/gitaxian-probe/archive/.
+#
+# Needs the GITAXIAN_PROBE_ARCHIVE_TOKEN secret: a fine-grained token with
+# Contents read/write on cramt/gitaxian-probe-archive, and Contents and Pull
+# requests read/write here. It pushes the pin branch too, rather than
+# GITHUB_TOKEN, because a PR opened with GITHUB_TOKEN runs no workflows and the
+# probe web check is what reviews the new build.
+name: Delver archive
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency: delver-archive
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITAXIAN_PROBE_ARCHIVE_TOKEN }}
+      ARCHIVE: python3 crates/gitaxian-probe/archive/archive.py
+    steps:
+      - name: The token is set
+        run: |
+          [ -n "$GH_TOKEN" ] || {
+            echo "::error::GITAXIAN_PROBE_ARCHIVE_TOKEN is not set; see crates/gitaxian-probe/archive/README.md"
+            exit 1
+          }
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITAXIAN_PROBE_ARCHIVE_TOKEN }}
+
+      - name: Fetch what Delver serves
+        id: fetch
+        run: $ARCHIVE fetch build
+
+      - name: Archive it
+        run: $ARCHIVE publish build
+
+      - name: Propose pinning it
+        if: steps.fetch.outputs.pinned == 'false'
+        env:
+          TAG: ${{ steps.fetch.outputs.tag }}
+          VERSION: ${{ steps.fetch.outputs.version }}
+        run: |
+          branch="delver/$TAG"
+          # Once per build: a PR that was closed without merging is an answer.
+          if [ -n "$(gh pr list --head "$branch" --state all --json number --jq '.[].number')" ]; then
+            echo "$TAG has had its PR"
+            exit 0
+          fi
+          $ARCHIVE pin build
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -am "probe: pin delver x $VERSION, archived as $TAG"
+          git push origin "$branch"
+          gh pr create --head "$branch" \
+            --title "probe: pin delver x $VERSION, archived as $TAG" \
+            --body "Delver X now serves $VERSION, and it is archived as \`$TAG\` in cramt/gitaxian-probe-archive.
+
+          This PR only moves the pin. The probe web check on it says whether \`KNOWN_FINGERPRINT\` still holds and whether card name (6/6) and exact printing (4/6) moved. A moved fingerprint or number needs a person's reading of FINDINGS.md before it merges, and the native accuracy test (\`PROBE_REQUIRE_ENGINE=1\`) is not run by CI."

@@ -216,8 +216,11 @@ outside (FINDINGS §6), so `close` frees the engine's buffers and the workers go
 the page.
 
 The pin is also the web host's version lock. Upstream serves only its current build,
-so a new Delver release makes a fresh build fail with the replacement hashes printed;
-taking the new build means pasting those into `pin.rs` and re-running both checks.
+so a new Delver release makes a fresh build fail with the replacement hashes printed.
+The fix is the archive, a private repo holding every build (`../archive/README.md`).
+With `GITAXIAN_PROBE_ARCHIVE_TOKEN` set, a build takes the pinned files from there
+instead, and a daily workflow archives each new build and opens a PR that pins it.
+Taking that PR still means re-running both checks.
 `GITAXIAN_PROBE_ASSETS_FROM=<dir>` takes the files from a directory instead of the
 network (still checked against the pin), and `GITAXIAN_PROBE_OFFLINE=1` forbids the
 download outright.

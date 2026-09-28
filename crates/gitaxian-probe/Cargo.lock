@@ -887,6 +887,8 @@ dependencies = [
 name = "gitaxian-probe-assets"
 version = "0.1.0"
 dependencies = [
+ "facet",
+ "facet-json",
  "sevenz-rust2",
  "sha2 0.10.9",
  "ureq",

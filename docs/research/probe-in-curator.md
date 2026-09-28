@@ -153,8 +153,9 @@ printing assertion met or changed: it fails on 2/6 and 3/6 with the frames made
 here, and it cannot be retried on the frames it was written against without
 `magick`. That is a check to rerun, not a number to move.
 
-Anything that ships this carries Delver's release schedule: a new build breaks
-a fresh `cargo build` until the pin moves (engine README, *On the web*).
+Anything that ships this carries Delver's release schedule. A new build breaks
+a fresh `cargo build` until the pin moves, unless the pinned build is in the
+private archive that `crates/gitaxian-probe/archive/` keeps.
 
 ## Not checked
 

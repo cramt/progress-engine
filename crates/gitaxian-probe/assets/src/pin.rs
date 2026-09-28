@@ -3,14 +3,25 @@
 // is the table the library reports.
 //
 // Upstream serves only its current build, from one origin, with no history.
-// When it ships a new one these hashes stop matching what is served and a
-// fresh build fails; the failure prints the replacement table.
+// When it ships a new one these hashes stop matching what is served, so a
+// build that still wants this one takes it from the archive instead
+// (../../archive/README.md). `archive/archive.py pin` rewrites this file to a
+// build the archive holds; a build that fails on drift prints the table too.
 
 /// The build string `version.txt` carries.
 pub const VERSION: &str = "1.89.beta";
 
 /// Where upstream serves them.
 pub const ORIGIN: &str = "https://mtg.delver.app";
+
+/// The private GitHub repo whose releases keep every build, once upstream
+/// has stopped serving it.
+pub const ARCHIVE: &str = "cramt/gitaxian-probe-archive";
+
+/// This build's release in [`ARCHIVE`]: `delver-<VERSION>-` and the first 12
+/// hex of the sha256 of [`PINNED`] written as `sha256sum` writes it. The build
+/// script recomputes it, so it cannot drift from the table.
+pub const ARCHIVE_TAG: &str = "delver-1.89.beta-eeb9c6a9c3ec";
 
 /// One file as upstream serves it, and the sha256 it has to have.
 pub struct Pinned {

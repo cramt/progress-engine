@@ -4,14 +4,15 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 UA='gitaxian-probe/0.1'
-command -v magick >/dev/null || { echo "ImageMagick not found - run this inside \`nix develop\`" >&2; exit 1; }
+# ImageMagick 7's `magick`, or 6's `convert`, which is what Ubuntu packages.
+im=$(command -v magick || command -v convert) || { echo "ImageMagick not found - run this inside \`nix develop\`" >&2; exit 1; }
 while IFS='|' read -r slug name set; do
   [ -z "$slug" ] && continue
   url=$(curl -fsSL -H "User-Agent: $UA" \
     "https://api.scryfall.com/cards/named?exact=$(printf %s "$name" | sed 's/ /+/g')&set=$set" \
     | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).image_uris.large))')
   curl -fsSL -H "User-Agent: $UA" "$url" -o "$slug.jpg"
-  magick "$slug.jpg" -resize 55% -background '#2b2b30' \
+  "$im" "$slug.jpg" -resize 55% -background '#2b2b30' \
     -gravity center -extent 1280x960 "$slug-frame.jpg"
   sleep 0.1
 done <<'CARDS'
