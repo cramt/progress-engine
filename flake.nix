@@ -221,7 +221,8 @@
           installPhaseCommand = ''
             wasm-bindgen --target web --out-dir $out/pkg \
               target/wasm32-unknown-unknown/release/gitaxian_probe_bindgen.wasm
-            cp -r ${probeAssets} $out/gitaxian-probe
+            # Writable, as crane's install hook rewrites what it installed.
+            cp -r --no-preserve=mode ${probeAssets} $out/gitaxian-probe
           '';
         });
     in {
