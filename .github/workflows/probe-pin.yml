@@ -1,8 +1,8 @@
-# Propose pinning each new Delver X build the archive holds (the npm package
-# @cramt/delver-x, which probe-archive.yml publishes). One PR per build, ever:
-# a PR closed without merging is an answer.
+# Propose pinning each new Delver X build the archive holds (the OCI artifact
+# ghcr.io/cramt/delver-x, which probe-archive.yml publishes). One PR per build,
+# ever: a PR closed without merging is an answer.
 #
-# The package is read with this repo's own GITHUB_TOKEN. The branch is pushed
+# The archive is public and read anonymously. The branch is pushed
 # and the PR opened with the GITAXIAN_PROBE_PIN_TOKEN secret instead, a
 # fine-grained token with Contents and Pull requests read/write here, because a
 # PR opened with GITHUB_TOKEN runs no workflows, and the probe web check is
@@ -16,7 +16,6 @@ on:
 
 permissions:
   contents: read
-  packages: read
 
 concurrency: probe-pin
 
@@ -25,7 +24,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITAXIAN_PROBE_PIN_TOKEN }}
-      NODE_AUTH_TOKEN: ${{ github.token }}
     steps:
       - name: The token is set
         id: token
@@ -37,29 +35,23 @@ jobs:
         if: steps.token.outputs.set == 'true'
         with:
           token: ${{ secrets.GITAXIAN_PROBE_PIN_TOKEN }}
-      - uses: actions/setup-node@v4
+      - uses: oras-project/setup-oras@v1
         if: steps.token.outputs.set == 'true'
-        with:
-          node-version: 22
-          registry-url: https://npm.pkg.github.com
-          scope: "@cramt"
       - name: Pin the archive's newest build
         if: steps.token.outputs.set == 'true'
         run: |
-          pin=crates/gitaxian-probe/assets/src/pin.rs
-          package=$(sed -n 's/^pub const ARCHIVE: &str = "\(.*\)";/\1/p' "$pin")
-          latest=$(npm view "$package@latest" version 2>/dev/null || true)
-          [ -n "$latest" ] || { echo "$package has no versions yet"; exit 0; }
+          pin=crates/gitaxian-probe/assets/pin.json
+          oras manifest fetch ghcr.io/cramt/delver-x:latest > "$RUNNER_TEMP/manifest.json" \
+            || { echo "the archive has no latest tag yet"; exit 0; }
+          changed=$(python3 crates/gitaxian-probe/assets/repin.py "$RUNNER_TEMP/manifest.json")
+          [ "$changed" = "changed=true" ] || { echo "latest is already pinned"; exit 0; }
+          latest=$(jq -r .tag "$pin")
           branch="delver/$latest"
           if [ -n "$(gh pr list --head "$branch" --state all --json number --jq '.[].number')" ]; then
             echo "$latest has had its PR"
             exit 0
           fi
-          (cd "$RUNNER_TEMP" && npm pack "$package@$latest" --silent > tarball)
-          tar -xzf "$RUNNER_TEMP/$(cat "$RUNNER_TEMP/tarball")" -C "$RUNNER_TEMP"
-          changed=$(python3 crates/gitaxian-probe/assets/repin.py "$RUNNER_TEMP/package")
-          [ "$changed" = "changed=true" ] || { echo "$latest is already pinned"; exit 0; }
-          version=$(sed -n 's/^pub const VERSION: &str = "\(.*\)";/\1/p' "$pin")
+          version=$(jq -r .version "$pin")
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "$branch"
@@ -67,6 +59,6 @@ jobs:
           git push origin "$branch"
           gh pr create --head "$branch" \
             --title "probe: pin delver x $version, archived as $latest" \
-            --body "The archive holds Delver X $version as \`$package@$latest\`, and this PR pins it.
+            --body "The archive holds Delver X $version as \`ghcr.io/cramt/delver-x:$latest\`, and this PR pins it.
 
           The probe web check on this PR says whether \`KNOWN_FINGERPRINT\` still holds and whether card name (6/6) and exact printing (4/6) moved. A moved fingerprint or number needs a person's reading of FINDINGS.md before this merges. CI does not run the native accuracy test (\`PROBE_REQUIRE_ENGINE=1\`)."

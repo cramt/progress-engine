@@ -10,8 +10,6 @@ publish = false
 [build-dependencies]
 facet.workspace = true
 facet-json.workspace = true
-flate2.workspace = true
 sevenz-rust2.workspace = true
 sha2.workspace = true
-tar.workspace = true
 ureq.workspace = true

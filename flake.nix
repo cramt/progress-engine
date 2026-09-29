@@ -11,13 +11,10 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  # Gitaxian Probe is a cargo workspace of its own (crates/gitaxian-probe/) and
-  # is not built here: its native host links a prebuilt V8 and its assets crate
-  # downloads Delver's engine at build time, and the Nix sandbox has no network
-  # for either. Bringing it in means fixed-output derivations for both - the V8
-  # one pinned to the `v8` crate version and its simdutf variant, as it was
-  # before the probe was parked, and GITAXIAN_PROBE_ASSETS_FROM pointed at one
-  # holding the files crates/gitaxian-probe/assets/src/pin.rs names.
+  # Gitaxian Probe is a cargo workspace of its own (crates/gitaxian-probe/).
+  # Its web build is here: the assets its pin names, fetched from the public
+  # archive by hash, and the JavaScript API compiled for the browser. Its native
+  # host is not, because it links a prebuilt V8 the sandbox cannot download.
 
   outputs = {
     nixpkgs,
@@ -142,10 +139,97 @@
           cp -r crates/meldweb-curator/web/dist $out
         '';
       });
+
+      # Gitaxian Probe's web build. The pin (assets/pin.json) names every file
+      # of the Delver X build by sha256, and on ghcr.io that sha256 is the
+      # file's blob digest, so each file is a fixed-output derivation whose
+      # hash is the pin: it may reach the network, and nothing unpinned gets
+      # in. The registry wants a token even for a public blob, and hands an
+      # anonymous one to anybody, which plain fetchurl cannot ask for.
+      probePin = builtins.fromJSON (builtins.readFile ./crates/gitaxian-probe/assets/pin.json);
+      probeBlob = file:
+        pkgs.runCommand "delver-x-${file.name}" {
+          nativeBuildInputs = [pkgs.curl pkgs.jq];
+          SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+          impureEnvVars = pkgs.lib.fetchers.proxyImpureEnvVars;
+          outputHashMode = "flat";
+          outputHashAlgo = "sha256";
+          outputHash = file.sha256;
+        } ''
+          repo=cramt/delver-x
+          token=$(curl -fsS --retry 3 "https://ghcr.io/token?scope=repository:$repo:pull" | jq -r .token)
+          curl -fsSL --retry 3 -H "Authorization: Bearer $token" -o $out \
+            "https://ghcr.io/v2/$repo/blobs/sha256:${file.sha256}"
+        '';
+      probeFiles = pkgs.linkFarm "delver-x-${probePin.version}" (map (file: {
+          inherit (file) name;
+          path = probeBlob file;
+        })
+        probePin.files);
+
+      # The probe's own workspace, without its build output, the fixtures
+      # fetched for its tests, or the archive's publisher.
+      probeSrc = pkgs.lib.cleanSourceWith {
+        src = ./crates/gitaxian-probe;
+        filter = path: type:
+          builtins.match ".*/crates/gitaxian-probe/(target|archive|engine/\\.fixtures)(/.*)?$" path == null;
+        name = "gitaxian-probe-source";
+      };
+      probeArgs = {
+        src = probeSrc;
+        strictDeps = true;
+        version = "0.1.0";
+        # The assets crate's build script takes the files from here and still
+        # checks every one against the pin; offline, it cannot fall back to a
+        # download.
+        GITAXIAN_PROBE_ASSETS_FROM = probeFiles;
+        GITAXIAN_PROBE_OFFLINE = "1";
+      };
+
+      # The served directory: the pinned files, the weights unpacked, as the
+      # assets crate lays them out. Its tests check each one is there and that
+      # version.txt says what the pin does.
+      probeAssetsArgs =
+        probeArgs
+        // {
+          pname = "gitaxian-probe-assets";
+          cargoExtraArgs = "-p gitaxian-probe-assets";
+        };
+      probeAssets = craneLib.buildPackage (probeAssetsArgs
+        // {
+          cargoArtifacts = craneLib.buildDepsOnly probeAssetsArgs;
+          installPhaseCommand = ''
+            cargo run --release --offline -p gitaxian-probe-assets --example copy -- $out
+          '';
+        });
+
+      # The probe's JavaScript API for a page, beside the files it serves:
+      # pkg/ is the wasm and its glue, gitaxian-probe/ the engine's files. The
+      # same wasm-bindgen as meldweb-wasm, which the probe's Cargo.lock pins to.
+      probeWebArgs =
+        probeArgs
+        // {
+          pname = "gitaxian-probe-web";
+          cargoExtraArgs = "-p gitaxian-probe-bindgen";
+          CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
+          doCheck = false;
+        };
+      probeWeb = craneLib.buildPackage (probeWebArgs
+        // {
+          cargoArtifacts = craneLib.buildDepsOnly probeWebArgs;
+          nativeBuildInputs = [wasmBindgen];
+          installPhaseCommand = ''
+            wasm-bindgen --target web --out-dir $out/pkg \
+              target/wasm32-unknown-unknown/release/gitaxian_probe_bindgen.wasm
+            cp -r ${probeAssets} $out/gitaxian-probe
+          '';
+        });
     in {
       packages = {
         default = gauntlet;
         meldweb-web = meldwebWeb;
+        gitaxian-probe-assets = probeAssets;
+        gitaxian-probe-web = probeWeb;
       };
 
       # Deploys Meldweb Curator: this flake's built site as the worker's static
@@ -167,6 +251,7 @@
       checks = {
         inherit gauntlet;
         meldweb-web = meldwebWeb;
+        gitaxian-probe-web = probeWeb;
         clippy = craneLib.cargoClippy (commonArgs
           // {
             inherit cargoArtifacts;

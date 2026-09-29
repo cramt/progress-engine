@@ -2,10 +2,8 @@
 # numbers (crates/gitaxian-probe/web-check/run.sh). The probe is outside the
 # flake (ADR-0015), so `nix flake check` never runs this.
 #
-# The engine files come from the archive (the npm package @cramt/delver-x,
-# linked to this repo, so GITHUB_TOKEN reads it), so a pin keeps building after
-# Delver has moved on. Where the token cannot read it, as on a fork's PR, they
-# come from Delver and only a current pin builds.
+# The engine files come from the public archive (ghcr.io/cramt/delver-x), so a
+# pin keeps building after Delver has moved on.
 name: Probe web check
 
 on:
@@ -17,13 +15,10 @@ on:
 
 permissions:
   contents: read
-  packages: read
 
 jobs:
   web-check:
     runs-on: ubuntu-latest
-    env:
-      GITAXIAN_PROBE_ARCHIVE_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2

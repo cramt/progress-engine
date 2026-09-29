@@ -14,7 +14,10 @@ shipping, most serious first:
    have to serve its own copy (engine README, *On the web*). That is
    redistributing a vendor's binaries and model, and it needs their permission
    before it needs any code. The spike keeps the files out of every build on
-   purpose (*What was built*).
+   purpose (*What was built*). The archive of Delver's builds on ghcr.io was
+   made public on 2026-09-28 so that builds need no credentials, which already
+   serves the files to anyone who asks; asking Delver Lab is still the step
+   before the site ships them.
 2. **The model is too big for the host.** `model-alpha.dat` is 34,050,684 bytes
    (32.5 MiB). Cloudflare Workers static assets take at most 25 MiB per file.
    The fixes are to serve it from R2, to split it and join it in the page, or to
@@ -155,7 +158,7 @@ here, and it cannot be retried on the frames it was written against without
 
 Anything that ships this carries Delver's release schedule. A new build breaks
 a fresh `cargo build` until the pin moves, unless the pinned build is in the
-private archive (the engine README, *The archive*).
+archive (the engine README, *The archive*).
 
 ## Not checked
 

@@ -3,10 +3,9 @@
 // src/ or public/, so `pnpm build` never carries Delver's files into the site.
 //
 // Opt-in and dev-only (`MELDWEB_PROBE=1 pnpm dev`): the probe is its own cargo
-// workspace outside the flake, its build downloads Delver's engine against a
-// hash pin, and its wasm-bindgen is not the editor's. `WASM_BINDGEN_PROBE`
-// names a wasm-bindgen CLI matching the probe's Cargo.lock, when the one on
-// PATH matches the editor's instead.
+// workspace, and its build downloads Delver's engine against a hash pin. Its
+// Cargo.lock pins the editor's wasm-bindgen, so the devshell's CLI serves both;
+// `WASM_BINDGEN_PROBE` names another CLI, should the two ever part.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";

@@ -1,0 +1,38 @@
+{
+  "version": "1.89.beta",
+  "tag": "delver-1.89.beta-eeb9c6a9c3ec",
+  "files": [
+    {
+      "name": "version.txt",
+      "sha256": "862f14ee0649380f28479e412558e7a9b55c32655def449fb69ab9515c5d0d56"
+    },
+    {
+      "name": "core.js",
+      "sha256": "d4de616e9f3485b2dd7ea3800d938a8e002d266bc87dcbf18a63e4e43a3b19c9"
+    },
+    {
+      "name": "core.wasm",
+      "sha256": "fb8ce43fc99febf288f2123233602822184a3539d7b362d9576563f0c28bac50"
+    },
+    {
+      "name": "data.7z",
+      "sha256": "46e75f46fd18a6d041178c6f9d65f9b935d285e84b8cbe3b37ac8a844aa80b87"
+    },
+    {
+      "name": "data.md5",
+      "sha256": "b05a686500d97843d3549bda84059f57d6d555344a958573efbaf8f3474b963e"
+    },
+    {
+      "name": "data.size",
+      "sha256": "334d6ac44ca2d1166721d7214de39220de3b27d7999c2681eee562be0e0b49a7"
+    },
+    {
+      "name": "model-alpha.7z",
+      "sha256": "e380ee6364a777c3e37c9b6245f36c8552699911eccc300f98abf2bf671b4552"
+    },
+    {
+      "name": "model-alpha.size",
+      "sha256": "e1b467adce40a5df58de2b7bf347d0b0e33bb2f25c7c02b96e97a3264a475b0c"
+    }
+  ]
+}

@@ -11,16 +11,17 @@
 //! Nothing here is compiled into a binary. The files are ~80 MB; they belong
 //! beside the app, where a browser can cache them apart from it.
 //!
-//! The build downloads unless told otherwise. `GITAXIAN_PROBE_ASSETS_FROM=<dir>`
-//! takes the files from a directory instead (still checked against the pin),
-//! `GITAXIAN_PROBE_ARCHIVE_TOKEN=<token>` takes them from [`ARCHIVE`]'s version
-//! for the pin, which outlives upstream serving it (the engine README, *The archive*), and
-//! `GITAXIAN_PROBE_OFFLINE=1` refuses to touch the network.
+//! The pin is `pin.json`. The build downloads unless told otherwise, from the
+//! public archive at [`ARCHIVE_REGISTRY`] (the engine README, *The archive*)
+//! and then the origin. `GITAXIAN_PROBE_ASSETS_FROM=<dir>` takes the files from
+//! a directory instead (still checked against the pin), which is how the flake
+//! builds it, and `GITAXIAN_PROBE_OFFLINE=1` refuses to touch the network.
 
 use std::io;
 use std::path::Path;
 
-include!("pin.rs");
+include!(concat!(env!("OUT_DIR"), "/pin.rs"));
+include!("layout.rs");
 
 /// Where the build left the served files: [`SERVED`], and nothing else.
 pub fn dir() -> &'static Path {

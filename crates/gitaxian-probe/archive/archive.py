@@ -2,25 +2,22 @@
 """Archive the Delver X build https://mtg.delver.app is serving right now.
 
 Delver serves only its current build, so one not saved the day it ships is
-gone. Each is kept as one version of a private npm package on GitHub Packages:
-the files exactly as served, plus a SHA256SUMS and a package.json, and no code.
-See README.md.
+gone. Each is kept as one tag of the public OCI artifact ghcr.io/cramt/delver-x:
+every file exactly as served, and a SHA256SUMS, each its own blob, so a blob's
+digest is the file's sha256 and a pin can fetch it by that alone. See README.md.
 
     archive.py fetch <dir>     download upstream's current build into <dir>
-    archive.py publish <dir>   publish <dir> as its version, unless it exists (npm)
+    archive.py publish <dir>   push <dir> as its tag, unless it exists (oras)
 
-A build's npm version is `0.0.0-delver-<version>-<first 12 hex of
-sha256(SHA256SUMS)>`, with every character semver refuses in a prerelease
-turned into `-`, so a rebuild upstream ships under an unchanged version string
-still gets its own. SHA256SUMS lists FILES in order, in `sha256sum` format.
-Gitaxian Probe's pin recomputes the version the same way (assets/build.rs), so
-FILES and that rule are a contract with it: change either there too.
+A build's tag is `delver-<version>-<first 12 hex of sha256(SHA256SUMS)>`, so a
+rebuild upstream ships under an unchanged version string still gets its own.
+SHA256SUMS lists FILES in order, in `sha256sum` format. Gitaxian Probe's pin
+(assets/pin.json) is checked against the same rule by assets/build.rs, so FILES
+and that rule are a contract with it: change either there too.
 """
 
 import hashlib
-import json
 import os
-import re
 import subprocess
 import sys
 import urllib.request
@@ -28,8 +25,8 @@ from pathlib import Path
 
 ORIGIN = "https://mtg.delver.app"
 USER_AGENT = "gitaxian-probe-archive/0.1"
-PACKAGE = "@cramt/delver-x"
-REGISTRY = "https://npm.pkg.github.com"
+ARTIFACT = "ghcr.io/cramt/delver-x"
+ARTIFACT_TYPE = "application/vnd.progress-engine.delver-x"
 REPOSITORY = "https://github.com/cramt/progress-engine"
 
 # The alpha tier only: lambda and gamma are gated behind a token, and the probe
@@ -47,9 +44,8 @@ FILES = [
 ]
 
 
-def npm_version(version: str, sums: str) -> str:
-    digest = hashlib.sha256(sums.encode()).hexdigest()[:12]
-    return "0.0.0-" + re.sub(r"[^0-9A-Za-z-]", "-", f"delver-{version}-{digest}")
+def tag_of(version: str, sums: str) -> str:
+    return f"delver-{version}-{hashlib.sha256(sums.encode()).hexdigest()[:12]}"
 
 
 def get(url: str) -> bytes:
@@ -83,40 +79,32 @@ def fetch(d: Path) -> None:
         sys.exit(f"upstream moved from {before!r} to {after!r} mid-fetch; run again")
     (d / "SHA256SUMS").write_text(sums)
     version = before.decode().strip()
-    (d / "package.json").write_text(json.dumps(package_json(version, sums), indent=2) + "\n")
-    output(version=version, npm_version=npm_version(version, sums))
+    output(version=version, tag=tag_of(version, sums))
 
 
-def package_json(version: str, sums: str) -> dict:
-    # `repository` links the package to progress-engine, whose workflows can
-    # then read it with their own GITHUB_TOKEN. The link carries access, not
-    # visibility: the package stays private, and must, because making a package
-    # public cannot be undone and these files are Delver Lab's.
-    return {
-        "name": PACKAGE,
-        "version": npm_version(version, sums),
-        "description": f"Delver X {version}, as {ORIGIN} served it. Not for redistribution.",
-        "repository": {"type": "git", "url": f"git+{REPOSITORY}.git"},
-        "license": "UNLICENSED",
-        "files": [*FILES, "SHA256SUMS"],
-        "publishConfig": {"registry": REGISTRY},
-    }
-
-
-def npm(*args: str, cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(["npm", *args], cwd=cwd, check=check, capture_output=True, text=True)
+def oras(*args: str, cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
+    return subprocess.run(["oras", *args], cwd=cwd, check=check, capture_output=True, text=True)
 
 
 def publish(d: Path) -> None:
-    version = json.loads((d / "package.json").read_text())["version"]
-    seen = npm("view", f"{PACKAGE}@{version}", "version", "--registry", REGISTRY, cwd=d, check=False)
-    if seen.returncode == 0 and seen.stdout.strip() == version:
-        output(npm_version=version, archived="already")
+    sums = (d / "SHA256SUMS").read_text()
+    version = (d / "version.txt").read_text().strip()
+    tag = tag_of(version, sums)
+    if oras("manifest", "fetch", f"{ARTIFACT}:{tag}", cwd=d, check=False).returncode == 0:
+        output(tag=tag, archived="already")
         return
-    # A prerelease version needs an explicit dist-tag; `latest` is what the
-    # pin workflow reads as the newest build.
-    npm("publish", "--tag", "latest", cwd=d)
-    output(npm_version=version, archived="new")
+    # Each file is pushed as it is, not tarred, so its blob's digest is its
+    # sha256. `source` links the package to progress-engine; `version` is what
+    # assets/repin.py reads back.
+    layers = [f"{n}:application/octet-stream" for n in [*FILES, "SHA256SUMS"]]
+    oras("push", f"{ARTIFACT}:{tag}", "--artifact-type", ARTIFACT_TYPE,
+         "--annotation", f"org.opencontainers.image.source={REPOSITORY}",
+         "--annotation", f"org.opencontainers.image.version={version}",
+         "--annotation", f"org.opencontainers.image.description=Delver X {version}, as {ORIGIN} served it",
+         *layers, cwd=d)
+    # `latest` is what probe-pin reads as the newest build.
+    oras("tag", f"{ARTIFACT}:{tag}", "latest", cwd=d)
+    output(tag=tag, archived="new")
 
 
 def main() -> None:

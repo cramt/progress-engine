@@ -11,8 +11,9 @@ a sampling engine alongside as a cross-checking oracle.
 **Gitaxian Probe** (`crates/gitaxian-probe/`) is card scanning - a host for
 Delver X's downloaded recognition engine, with two execution models: natively
 inside a deno_core sandbox, and on the web as a sidecar the browser runs
-itself. It is a **cargo workspace of its own**, outside Gauntlet's and outside
-the flake, so neither `cargo` at the root nor CI builds it. Its engine README
+itself. It is a **cargo workspace of its own**, outside Gauntlet's, so `cargo`
+at the root does not build it; the flake builds its web half
+(`gitaxian-probe-web`) but not its native host, which links a prebuilt V8. Its engine README
 and FINDINGS.md are the authority on it, and the notes below about decks,
 criteria and the two engines do not apply to it.
 
@@ -103,10 +104,9 @@ The probe builds from its own manifest - `cargo test --manifest-path
 crates/gitaxian-probe/Cargo.toml --workspace` natively, and
 `crates/gitaxian-probe/web-check/run.sh` for the web host in headless Chromium.
 Both need the network: V8 is a prebuilt download, and `gitaxian-probe-assets`
-fetches Delver's engine at build time against a hash pin. Delver serves only
-its current build, so an older pin builds only from the private archive, an
-npm package on GitHub Packages, with `GITAXIAN_PROBE_ARCHIVE_TOKEN` set to a
-classic token with `read:packages` (the engine README, *The archive*).
+fetches Delver's engine at build time against a hash pin, `assets/pin.json`,
+from the public archive on ghcr.io and then from Delver, which serves only its
+current build (the engine README, *The archive*).
 Its native engine
 tests skip when the upstream blobs or the card fixtures are missing: run them
 with `PROBE_REQUIRE_ENGINE=1` before claiming its accuracy numbers, or a green

@@ -202,7 +202,7 @@ The page has to provide two things:
 - **The files, from its own origin.** Delver's origin sends no CORS headers
   (checked 2026-09-27: no `Access-Control-Allow-Origin` on any file, and a preflight
   is a 403), so no other origin can `fetch` them. `gitaxian-probe-assets` is the copy:
-  its build script downloads the build pinned in `assets/src/pin.rs`, checks every
+  its build script downloads the build pinned in `assets/pin.json`, checks every
   file's sha256, unpacks the weights, and lays the directory out in
   `gitaxian_probe_assets::dir()`. A web build copies that next to its output -
   `gitaxian_probe_assets::copy_to(dest)` from its own build step, or
@@ -216,30 +216,33 @@ outside (FINDINGS §6), so `close` frees the engine's buffers and the workers go
 the page.
 
 The pin is also the web host's version lock. Upstream serves only its current build,
-so a new Delver release makes a fresh build fail with the replacement hashes printed,
-unless the pinned build is in the archive (*The archive*, next).
+so a pinned build comes from the archive (*The archive*, next), and Delver is asked
+only when the archive cannot be reached.
 `GITAXIAN_PROBE_ASSETS_FROM=<dir>` takes the files from a directory instead of the
 network (still checked against the pin), and `GITAXIAN_PROBE_OFFLINE=1` forbids the
 download outright.
 
 ### The archive
 
-`@cramt/delver-x` is a private npm package on GitHub Packages that keeps every
-Delver build as one version, `0.0.0-delver-<version>-<12 hex of its SHA256SUMS>`.
-It carries the files and no code. `.github/workflows/probe-archive.yml` publishes
-each new build daily with its own `GITHUB_TOKEN`, and `../archive/README.md`
-covers the version rule and why the package must stay private. This repo uses it
-in three places:
+`ghcr.io/cramt/delver-x` is a public OCI artifact that keeps every Delver build as
+one tag, `delver-<version>-<12 hex of its SHA256SUMS>`, with each file its own
+blob. `.github/workflows/probe-archive.yml` pushes each new build daily with its own
+`GITHUB_TOKEN`, and `../archive/README.md` covers the tag rule and why it is
+public. A blob's digest is its file's sha256, so the pin, `assets/pin.json`, is
+also the list of blobs to fetch. This repo uses it in four places:
 
-- **Building an old pin.** With `GITAXIAN_PROBE_ARCHIVE_TOKEN` set to a token that
-  can read the package, `gitaxian-probe-assets` takes the pinned files from the
-  version `pin.rs` names as `ARCHIVE_VERSION`, before asking Delver. Every file is
-  still checked against the pin. The build recomputes `ARCHIVE_VERSION` from the
-  table, so one edited by hand without its version fails with the one it should be.
-  Locally that token has to be a classic one with `read:packages`: GitHub Packages
-  takes no fine-grained token.
-- **Pinning a new build.** `.github/workflows/probe-pin.yml` runs daily. It takes
-  the package's `latest` version, rewrites `pin.rs` to it with `assets/repin.py`,
+- **Building, outside Nix.** `gitaxian-probe-assets`'s build script reads
+  `pin.json` and fetches each file by digest from ghcr.io with an anonymous token,
+  before asking Delver. Every file is still checked against the pin, and the build
+  recomputes the tag from the table, so one edited by hand fails with the tag it
+  should be.
+- **Building, in Nix.** The flake reads the same `pin.json`, fetches each blob as a
+  fixed-output derivation whose hash is the pin, and hands the directory to the
+  build script as `GITAXIAN_PROBE_ASSETS_FROM`. Its `gitaxian-probe-web` package is
+  the JavaScript API (`pkg/`) beside the served files (`gitaxian-probe/`), and
+  `nix flake check` builds it.
+- **Pinning a new build.** `.github/workflows/probe-pin.yml` runs daily. It reads
+  the `latest` tag's manifest, rewrites `pin.json` from it with `assets/repin.py`,
   and opens one PR per build. It never merges.
 - **Reviewing that PR.** `.github/workflows/probe-web-check.yml` runs
   `web-check/run.sh` on every PR that touches the probe, with ImageMagick-made
@@ -247,8 +250,6 @@ in three places:
   moved. A moved fingerprint or number needs someone to read FINDINGS before the PR
   merges. CI does not run the native accuracy test.
 
-The package is linked to this repo, so every workflow here reads it with its own
-`GITHUB_TOKEN` and `packages: read`. A fork's PR cannot, and builds from Delver.
 The one secret is `GITAXIAN_PROBE_PIN_TOKEN`, for probe-pin: a fine-grained token
 with Contents and Pull requests read/write on this repo. The pin PR is pushed with
 it, not `GITHUB_TOKEN`, because a PR opened with `GITHUB_TOKEN` runs no workflows,

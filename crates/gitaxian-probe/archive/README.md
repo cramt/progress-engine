@@ -1,16 +1,17 @@
 # The Delver X archive
 
 Every Delver X engine build that [Gitaxian Probe](../) might be pinned to, kept
-after upstream has stopped serving it, as one version each of the npm package
-`@cramt/delver-x` on GitHub Packages. The package is only a vehicle for the
-files: it has no code, and nothing installs it.
+after upstream has stopped serving it, as one tag each of the public OCI
+artifact `ghcr.io/cramt/delver-x`. The artifact is only a vehicle for the
+files: no image, no code.
 
-**The package must stay private.** It is a build cache for progress-engine, not
-a place anyone downloads Delver's engine from. The files are Delver Lab's, and
-serving them to anyone else is redistribution;
-`docs/research/probe-in-curator.md` explains the distinction. A package on
-GitHub Packages starts private, and linking it to this public repo gives it the
-repo's access, not its visibility. Making it public cannot be undone.
+**It is public**, so that a build needs no credentials anywhere: ghcr.io hands
+an anonymous pull token to anybody, where GitHub's npm registry wants a token
+even for a public package. That makes the archive a place anyone can download
+Delver Lab's engine from, which is redistribution; it was chosen on
+2026-09-28, knowing that. A GitHub package made public cannot be made private
+again. `docs/research/probe-in-curator.md` covers what shipping the engine in
+the site would still need.
 
 ## Why
 
@@ -18,59 +19,58 @@ repo's access, not its visibility. Making it public cannot be undone.
 1.83.beta to 1.89.beta took about a week. A pin stops building the day upstream
 moves, and a build nobody saved the day it shipped is gone.
 
-## What is in a version
+## What is in a tag
 
 The files exactly as upstream served them (`version.txt`, `core.js`,
 `core.wasm`, `data.7z`, `data.md5`, `data.size`, `model-alpha.7z`,
-`model-alpha.size`), a `SHA256SUMS`, and the `package.json`: about 36 MB as a
-tarball. Only the alpha tier is kept: lambda and gamma are gated behind a token,
-and the probe refuses to boot them anyway.
+`model-alpha.size`) and a `SHA256SUMS`, about 42 MB. Each is its own blob,
+pushed as it is rather than tarred, so **a blob's digest is the file's
+sha256**: the pin in `assets/pin.json` is a list of blob addresses, and a file
+is at `ghcr.io/v2/cramt/delver-x/blobs/sha256:<its sha256>`. Only the alpha
+tier is kept: lambda and gamma are gated behind a token, and the probe refuses
+to boot them anyway.
 
-A build's version is:
+A build's tag is:
 
 ```
-0.0.0-delver-<version.txt>-<first 12 hex of sha256(SHA256SUMS)>
-with every character but [0-9A-Za-z-] turned into -
-e.g. 0.0.0-delver-1-89-beta-eeb9c6a9c3ec
+delver-<version.txt>-<first 12 hex of sha256(SHA256SUMS)>
+e.g. delver-1.89.beta-eeb9c6a9c3ec
 ```
 
-npm wants semver, and `1.89.beta` is not, so the whole identity is one
-prerelease identifier. `SHA256SUMS` lists the files in the order above, in
-`sha256sum` format, so `sha256sum -c SHA256SUMS` checks an unpacked version. The
-hash is in the version because upstream rebuilds its data and model often (the
-probe's FINDINGS §5 has them rebuilt daily), and nothing guarantees each rebuild
-changes `version.txt`. Two different builds must never share a version. The
-`latest` dist-tag is the newest one published.
+`SHA256SUMS` lists the files in the order above, in `sha256sum` format. The
+hash is in the tag because upstream rebuilds its data and model often (the
+probe's FINDINGS §5 has them rebuilt daily), and nothing guarantees each
+rebuild changes `version.txt`. Two different builds must never share a tag.
+`latest` is the newest one pushed, and the manifest's
+`org.opencontainers.image.version` annotation carries `version.txt`.
 
-**The file list and the version rule are a contract with the probe.**
-`assets/src/pin.rs` pins the same files in the same order, `assets/build.rs`
-recomputes the version from them, and `assets/repin.py` checks it. Change one
-side and you must change the other.
+**The file list and the tag rule are a contract with the probe.**
+`assets/pin.json` pins the same files in the same order, `assets/build.rs`
+recomputes the tag from them, and `assets/repin.py` writes the pin from a
+manifest. Change one side and you must change the other.
 
 ## How builds get here
 
 `.github/workflows/probe-archive.yml` runs daily, and on demand from the
-Actions tab. It `fetch`es what Delver serves and `publish`es it, unless that
-version already exists. It needs nothing but the workflow's own `GITHUB_TOKEN`
-with `packages: write`.
+Actions tab. It `fetch`es what Delver serves and `publish`es it with
+[oras](https://oras.land), unless that tag already exists. It needs nothing but
+the workflow's own `GITHUB_TOKEN` with `packages: write`.
 
-By hand, with an `.npmrc` that authenticates to `npm.pkg.github.com` (a classic
-token with `write:packages`):
+By hand, after `oras login ghcr.io` with a token that can write packages:
 
 ```sh
-python3 archive.py fetch /tmp/delver      # prints the version and the npm version
+python3 archive.py fetch /tmp/delver      # prints the version and the tag
 python3 archive.py publish /tmp/delver
 ```
 
 ## Reading it
 
-The engine README's *The archive* says how the probe's build, pin and web check
-use it. By hand:
+Nothing needs a login:
 
 ```sh
-npm view @cramt/delver-x versions --registry https://npm.pkg.github.com
-npm pack @cramt/delver-x@latest --registry https://npm.pkg.github.com
+oras manifest fetch ghcr.io/cramt/delver-x:latest
+oras pull ghcr.io/cramt/delver-x:delver-1.89.beta-eeb9c6a9c3ec -o /tmp/delver
 ```
 
-Both need a classic token with `read:packages`; GitHub Packages takes no
-fine-grained token.
+The engine README's *The archive* says how the probe's build, the flake and
+the pin workflow use it.
