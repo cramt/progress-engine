@@ -3,6 +3,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Probe pin starts it on the PRs it opens, which start no workflows themselves.
+  workflow_dispatch:
 
 jobs:
   check:

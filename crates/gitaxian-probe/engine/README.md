@@ -250,10 +250,12 @@ also the list of blobs to fetch. This repo uses it in four places:
   moved. A moved fingerprint or number needs someone to read FINDINGS before the PR
   merges. CI does not run the native accuracy test.
 
-The one secret is `GITAXIAN_PROBE_PIN_TOKEN`, for probe-pin: a fine-grained token
-with Contents and Pull requests read/write on this repo. The pin PR is pushed with
-it, not `GITHUB_TOKEN`, because a PR opened with `GITHUB_TOKEN` runs no workflows,
-and then the web check would never see it. Until the secret exists, probe-pin skips.
+None of this needs a secret. probe-pin pushes its branch and opens its PR with its
+own `GITHUB_TOKEN`, which needs *Allow GitHub Actions to create and approve pull
+requests* (Settings → Actions → General). A PR opened that way starts no workflows,
+so probe-pin starts CI and the web check on the branch itself with a dispatch, the
+one event `GITHUB_TOKEN` may start runs with; their results land on the PR's head
+commit. A later push to that branch is not checked without dispatching them again.
 
 ## What the sandbox actually allows
 
