@@ -24,7 +24,7 @@ Vite + React + TanStack Router app in the root pnpm workspace; and `worker/`, th
 one Cloudflare Worker that serves the site and trades a GitHub login for tokens
 without storing anything (deployed with `nix run .#deploy-curator`). In dev,
 `VITE_MOCK_GITHUB=1 pnpm dev` runs the app against an in-page fake GitHub
-(`=no-repo` starts at onboarding), so no worker or app is needed. `MELDWEB_PROBE=1 pnpm dev` adds
+(`=no-repo` or `=no-install` start at onboarding), so no worker or app is needed. `MELDWEB_PROBE=1 pnpm dev` adds
 a Scan button backed by Gitaxian Probe; it is a dev-only spike that no build
 carries, and [docs/research/probe-in-curator.md](docs/research/probe-in-curator.md) says why. Copy Archidekt's
 editor before improving on it; [docs/research/archidekt-editor.md](docs/research/archidekt-editor.md)
