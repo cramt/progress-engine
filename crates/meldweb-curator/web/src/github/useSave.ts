@@ -6,7 +6,7 @@ const idle: SaveState = { status: "saved" };
 const none = () => () => {};
 
 const unsaved: Record<"conflict" | "error", string> = {
-  conflict: "This deck changed on GitHub, so your edits were not saved.",
+  conflict: "This file changed on GitHub, so your edits were not saved.",
   error: "Saving failed, so your latest edits are not on GitHub.",
 };
 
@@ -14,7 +14,7 @@ const unsaved: Record<"conflict" | "error", string> = {
  * The save status of `store`, with the page's hide, close and unload listeners
  * attached while the component is mounted. Leaving the deck for another route
  * saves what is pending first, and asks before throwing away edits that
- * cannot be saved.
+ * cannot be saved. A deck and the collection save alike.
  */
 export function useSave(store: SaveStore | null): SaveState {
   useEffect(() => {

@@ -7,7 +7,7 @@ import {
   scryfallAutocomplete,
 } from "./autocomplete";
 
-/** Adds one copy of `name` to `category`; `null` is Automatic. */
+/** Adds one copy of `name` to `category`; `null` is Automatic (or `anywhere`). */
 export type AddByName = (name: string, category: string | null) => void;
 
 /** True for Archidekt's quick add hotkey, `Ctrl+'`. */
@@ -24,10 +24,13 @@ export function QuickAdd({
   categories,
   onAdd,
   lookup = scryfallAutocomplete,
+  anywhere = "Automatic",
 }: {
-  categories: readonly Category[];
+  categories: readonly Pick<Category, "name">[];
   onAdd: AddByName;
   lookup?: Lookup;
+  /** What the `null` option is called: the collection's is Unsorted. */
+  anywhere?: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const listId = useId();
@@ -165,7 +168,7 @@ export function QuickAdd({
         value={category ?? ""}
         onChange={(e) => setCategory(e.target.value || null)}
       >
-        <option value="">Automatic</option>
+        <option value="">{anywhere}</option>
         {categories.map((c) => (
           <option key={c.name} value={c.name}>
             {c.name}

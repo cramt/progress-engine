@@ -1,4 +1,4 @@
-import type { Card, CardRef } from "./deck";
+import type { CardRef } from "./deck";
 import { API, SEARCH_GATE, scryfallFetch } from "./scryfallQueue";
 
 /**
@@ -31,7 +31,10 @@ export function printingKey(ref: CardRef): string {
  * A card's name: the file's, or Scryfall's for a card named by printing, or
  * `set/num` for a printing Scryfall has not named.
  */
-export function cardName(card: Card, printings: Printings): string {
+export function cardName(
+  card: { card: CardRef },
+  printings: Printings,
+): string {
   const ref = card.card;
   return ref.kind === "name"
     ? ref.name
@@ -71,7 +74,7 @@ const BATCH = 75;
  * A batch still queued when `signal` aborts is never sent.
  */
 export async function fetchPrintings(
-  cards: readonly Card[],
+  cards: readonly { card: CardRef }[],
   signal?: AbortSignal,
 ): Promise<Printings> {
   const wanted = [

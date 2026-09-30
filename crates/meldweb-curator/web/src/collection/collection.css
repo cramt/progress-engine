@@ -1,0 +1,125 @@
+/* The collection (ADR-0023): a table of owned cards per place. */
+.collection-filter {
+  width: 200px;
+}
+
+.place {
+  max-width: 980px;
+  margin: 20px 0 28px;
+}
+
+.place-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  border-bottom: 1px solid rgb(127 127 127 / 0.3);
+}
+
+.place-header h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.place-deck {
+  font-size: 14px;
+}
+
+.place-remove {
+  margin-left: auto;
+}
+
+/* Fixed, so every place's columns line up with the others'. */
+.owned {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.owned th:nth-child(1) {
+  width: 104px;
+}
+
+.owned th:nth-child(3),
+.owned th:nth-child(4) {
+  width: 100px;
+}
+
+.owned th:nth-child(5) {
+  width: 200px;
+}
+
+.owned th:nth-child(6) {
+  width: 32px;
+}
+
+.owned th {
+  padding: 6px 8px;
+  color: var(--muted);
+  font-weight: 500;
+  text-align: left;
+}
+
+.owned td {
+  padding: 3px 8px;
+  border-bottom: 1px solid rgb(127 127 127 / 0.12);
+}
+
+.owned-qty {
+  white-space: nowrap;
+}
+
+.owned-qty span {
+  display: inline-block;
+  min-width: 2.5ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.owned-name {
+  position: relative;
+  overflow: visible;
+}
+
+/* The card's picture while the pointer is on its name. */
+.owned-preview {
+  display: none;
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 50%;
+  width: 200px;
+  border-radius: var(--card-radius);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.35);
+  pointer-events: none;
+}
+
+.owned-name:hover .owned-preview {
+  display: block;
+}
+
+.owned-move {
+  white-space: nowrap;
+}
+
+.owned-move input {
+  width: 4em;
+  margin-right: 4px;
+}
+
+.owned-remove {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

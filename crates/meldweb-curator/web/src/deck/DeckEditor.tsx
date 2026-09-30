@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { withBoard } from "../card/apply";
-import { isTyping } from "../card/hotkeys";
 import { renderCardResult } from "../card/searchResult";
 import { useCardEditor } from "../card/useCardEditor";
 import { declareCategory, parseDeck, setCardCategories } from "../deck";
@@ -10,6 +9,7 @@ import { deckStem } from "../github/decks";
 import { deckText } from "../github/deckText";
 import { createSaveStore, type SaveState } from "../github/save";
 import { useSave } from "../github/useSave";
+import { useHistory, useUndoKeys } from "../history";
 import { addPrinting } from "../probe/printings";
 import { ScanDialog } from "../probe/ScanDialog";
 import { scannerAvailable } from "../probe/scanner";
@@ -21,51 +21,6 @@ import { CopyArchidekt } from "./CopyArchidekt";
 import { dropOnto } from "./move";
 import { type OnDrop, StacksView } from "./StacksView";
 import { Toolbar, UndoRedo } from "./Toolbar";
-
-/**
- * The deck is its text. An edit is a new text, which makes undo a stack of
- * texts and every change a line diff against the file as loaded.
- */
-interface History {
-  past: string[];
-  present: string;
-  future: string[];
-}
-
-function useHistory(initial: string) {
-  const [h, setH] = useState<History>({
-    past: [],
-    present: initial,
-    future: [],
-  });
-  const edit = (next: string) =>
-    setH((h) =>
-      next === h.present
-        ? h
-        : { past: [...h.past, h.present], present: next, future: [] },
-    );
-  const undo = () =>
-    setH((h) => {
-      const previous = h.past.at(-1);
-      return previous === undefined
-        ? h
-        : {
-            past: h.past.slice(0, -1),
-            present: previous,
-            future: [h.present, ...h.future],
-          };
-    });
-  const redo = () =>
-    setH((h) => {
-      const [next, ...future] = h.future;
-      return next === undefined
-        ? h
-        : { past: [...h.past, h.present], present: next, future };
-    });
-  /** Starts over from `text` with nothing to undo, as after a reload. */
-  const reset = (text: string) => setH({ past: [], present: text, future: [] });
-  return { ...h, edit, undo, redo, reset };
-}
 
 export interface DeckEditorProps {
   /** The deck's path in the Magic repo, e.g. `decks/lantern.deck.toml`. */
@@ -122,18 +77,7 @@ export function DeckEditor({
   // Every change to the text, edit, undo or redo alike, is what gets saved.
   useEffect(() => store.edit(history.present), [store, history.present]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || isTyping(e.target)) return;
-      const key = e.key.toLowerCase();
-      if (key === "z" && !e.shiftKey) undo();
-      else if ((key === "z" && e.shiftKey) || key === "y") redo();
-      else return;
-      e.preventDefault();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo]);
+  useUndoKeys(undo, redo);
 
   if (parsed.kind === "refused") return <p>{parsed.message}</p>;
 

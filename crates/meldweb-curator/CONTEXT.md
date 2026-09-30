@@ -5,7 +5,7 @@ The deck editor: a browser front end over decks kept in git, modelled on Archide
 ## Where decks live
 
 **Magic repo**:
-The one GitHub repository per user that Curator reads and writes, always named `mtg`. It holds the user's decks now and their collection later, and nothing Curator does reaches outside it.
+The one GitHub repository per user that Curator reads and writes, always named `mtg`. It holds the user's decks and their collection, and nothing Curator does reaches outside it.
 _Avoid_: deck repo, decklists repo, storage
 
 **Repo version**:
@@ -16,13 +16,27 @@ _Avoid_: schema version, format version
 One `decks/*.deck.toml` file in the Magic repo. Its path is its identity; the `name` inside it is what the user sees and may change without the path following.
 _Avoid_: list, decklist (for the file)
 
+**Collection**:
+The Magic repo's `collection.toml`: every card the user owns, and the place each copy is in ([ADR-0023](../../docs/adr/0023-the-collection-is-one-file-and-a-copy-is-in-one-place.md)). A repo without the file owns nothing yet.
+_Avoid_: inventory, card pool (that is every card in the card index)
+
+**Place**:
+Where owned copies physically are, declared in the collection: a trade binder, a bulk box, or a deck, for the copies sleeved in it. A copy is in one place at a time, unlike a deck's categories.
+_Avoid_: category, location, bin
+
+**Deck place**:
+A place that names a deck's path, so the copies in it are the ones in that deck.
+
+**Unsorted**:
+Owned copies in no place yet.
+
 ## Changing a deck
 
 **Edit**:
-One change to a deck's text through `chip-decklist`, such as a move, a quantity or a printing. Undo steps back one edit.
+One change to a deck's or the collection's text through `chip-decklist`, such as a move, a quantity or a printing. Undo steps back one edit.
 
 **Save**:
-The commit that carries a deck's pending edits to the Magic repo. Curator makes it by itself once the deck has been idle ten seconds, or at once when the page is being closed or hidden. The user never saves by hand.
+The commit that carries a deck's (or the collection's) pending edits to the Magic repo. Curator makes it by itself once the deck has been idle ten seconds, or at once when the page is being closed or hidden. The user never saves by hand.
 _Avoid_: sync, push
 
 **Conflict**:

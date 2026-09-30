@@ -32,6 +32,7 @@ function Home() {
           {session.repo.owner}/{session.repo.name}
         </span>
         <div className="toolbar-spacer" />
+        <Link to="/collection">Collection</Link>
         <NewDeckDialog repo={session.repo} />
       </header>
       {decks.length === 0 ? (
