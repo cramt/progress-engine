@@ -1,3 +1,4 @@
+import { cachedOne } from "../scryfallCache";
 import { API, AUTOCOMPLETE_GATE, scryfallFetch } from "../scryfallQueue";
 
 /** Looks up the names a prefix could be; aborting `signal` abandons it. */
@@ -5,21 +6,23 @@ export type Lookup = (query: string, signal: AbortSignal) => Promise<string[]>;
 
 /**
  * Scryfall's `/cards/autocomplete`: up to 20 names, nearest first, paced by
- * the 10-a-second queue. Below two characters Scryfall answers an empty
- * catalog, so we do not ask.
+ * the 10-a-second queue and cached per prefix, so typing back over a prefix
+ * asks nothing. Below two characters Scryfall answers an empty catalog, so we
+ * do not ask.
  */
-export const scryfallAutocomplete: Lookup = async (query, signal) => {
-  const response = await scryfallFetch(
-    AUTOCOMPLETE_GATE,
-    `${API}/cards/autocomplete?q=${encodeURIComponent(query)}`,
-    { signal },
-  );
-  if (!response.ok) throw new Error(`Scryfall answered ${response.status}`);
-  const data = ((await response.json()) as { data?: unknown }).data;
-  return Array.isArray(data)
-    ? data.filter((n): n is string => typeof n === "string")
-    : [];
-};
+export const scryfallAutocomplete: Lookup = (query, signal) =>
+  cachedOne(["scryfall", "autocomplete", query], async () => {
+    const response = await scryfallFetch(
+      AUTOCOMPLETE_GATE,
+      `${API}/cards/autocomplete?q=${encodeURIComponent(query)}`,
+      { signal },
+    );
+    if (!response.ok) throw new Error(`Scryfall answered ${response.status}`);
+    const data = ((await response.json()) as { data?: unknown }).data;
+    return Array.isArray(data)
+      ? data.filter((n): n is string => typeof n === "string")
+      : [];
+  });
 
 export const DEBOUNCE_MS = 150;
 export const MIN_LENGTH = 2;

@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { loadDeck } from "./deck";
 import { LoadError } from "./home/LoadError";
 import { routeTree } from "./routeTree.gen";
+import { persistScryfallCache } from "./scryfallCache";
 import "./styles.css";
 
 // Every route's loader can meet a login that died or a worker that is down.
@@ -15,7 +16,8 @@ declare module "@tanstack/react-router" {
   }
 }
 
-await loadDeck();
+// Restored before the first loader runs, so a reload asks Scryfall nothing.
+await Promise.all([loadDeck(), persistScryfallCache()]);
 
 const root = document.getElementById("root");
 if (!root) throw new Error("index.html has no #root");

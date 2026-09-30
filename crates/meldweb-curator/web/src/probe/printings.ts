@@ -1,5 +1,6 @@
 import { addCard, type Card, setCardQty } from "../deck";
 import { imageUris, printingId } from "../scryfall";
+import { cachedMany } from "../scryfallCache";
 import { API, SEARCH_GATE, scryfallFetch } from "../scryfallQueue";
 
 /** A scanned printing as the deck names it, with Scryfall's picture of it. */
@@ -17,11 +18,16 @@ export interface ScannedPrinting {
  * how a scan becomes a `set/num` the deck can hold. Ids Scryfall does not
  * know are absent.
  */
-export async function printingsById(
+export function printingsById(
   ids: readonly string[],
 ): Promise<Map<string, ScannedPrinting>> {
+  return cachedMany(["scryfall", "by-id"], ids, (id) => id, lookUp);
+}
+
+async function lookUp(
+  wanted: readonly string[],
+): Promise<Map<string, ScannedPrinting>> {
   const found = new Map<string, ScannedPrinting>();
-  const wanted = [...new Set(ids)];
   for (let i = 0; i < wanted.length; i += 75) {
     const response = await scryfallFetch(
       SEARCH_GATE,
@@ -49,7 +55,7 @@ export async function printingsById(
       const image = imageUris(raw)?.normal;
       found.set(id, {
         set: set.toLowerCase(),
-        num: num.toLowerCase(),
+        num,
         name,
         image: typeof image === "string" ? image : null,
       });

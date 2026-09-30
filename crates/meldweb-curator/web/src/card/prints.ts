@@ -1,5 +1,6 @@
 import type { Finish } from "../deck";
 import { imageUris } from "../scryfall";
+import { cachedOne } from "../scryfallCache";
 import { API, SEARCH_GATE, scryfallFetch } from "../scryfallQueue";
 
 /** One printing of a card, as the printing dropdown and the grid show it. */
@@ -138,72 +139,21 @@ async function loadAll(
 }
 
 /**
- * One search shared by every view asking for the same card. It belongs to no
- * caller's signal: it is abandoned only once every caller has left, so one
- * view giving up never fails another.
- */
-interface SharedSearch {
-  promise: Promise<PrintingOption[]>;
-  abandon: AbortController;
-  callers: number;
-  settled: boolean;
-}
-
-const cache = new Map<string, SharedSearch>();
-
-function shared(uri: string): SharedSearch {
-  const cached = cache.get(uri);
-  if (cached) return cached;
-  const abandon = new AbortController();
-  const search: SharedSearch = {
-    promise: loadAll(uri, abandon.signal),
-    abandon,
-    callers: 0,
-    settled: false,
-  };
-  cache.set(uri, search);
-  search.promise.then(
-    () => {
-      search.settled = true;
-    },
-    () => {
-      search.settled = true;
-      // A failed lookup is asked again next time.
-      if (cache.get(uri) === search) cache.delete(uri);
-    },
-  );
-  return search;
-}
-
-/**
- * Every printing behind a `prints_search_uri`, all pages, asked for once.
- * `signal` rejects this caller at once; the search itself is abandoned, and
- * never sent if it is still queued, only when no caller is left waiting.
+ * Every printing behind a `prints_search_uri`, all pages, asked for once and
+ * then kept: any view asking for the same card shares the one search.
+ * `signal` rejects this caller alone; the search carries on for the cache.
  */
 export function fetchAllPrintings(
   uri: string,
   signal?: AbortSignal,
 ): Promise<PrintingOption[]> {
   if (signal?.aborted) return Promise.reject(signal.reason);
-  const search = shared(uri);
-  if (!signal) {
-    // A caller that cannot leave keeps the search alive.
-    search.callers = Number.POSITIVE_INFINITY;
-    return search.promise;
-  }
-  search.callers++;
+  const search = cachedOne(["scryfall", "prints", uri], (s) => loadAll(uri, s));
+  if (!signal) return search;
   return new Promise((resolve, reject) => {
-    const leave = () => {
-      reject(signal.reason);
-      search.callers--;
-      if (search.callers === 0 && !search.settled) {
-        // Gone from the cache now, so the next caller starts afresh.
-        if (cache.get(uri) === search) cache.delete(uri);
-        search.abandon.abort();
-      }
-    };
+    const leave = () => reject(signal.reason);
     signal.addEventListener("abort", leave, { once: true });
-    search.promise
+    search
       .finally(() => signal.removeEventListener("abort", leave))
       .then(resolve, reject);
   });

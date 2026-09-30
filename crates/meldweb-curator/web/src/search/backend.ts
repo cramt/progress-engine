@@ -1,4 +1,5 @@
 import { imageUris } from "../scryfall";
+import { cachedOne } from "../scryfallCache";
 import { API, SEARCH_GATE, scryfallFetch } from "../scryfallQueue";
 
 /** A card as the search overlay shows it. */
@@ -52,18 +53,58 @@ export const scryfallSearch: SearchBackend = {
     fetchPage(`${API}/cards/search?q=${encodeURIComponent(query)}`, signal),
 };
 
+/** A page as the cache keeps it: plain data, with the next page by its URL. */
+type KeptPage =
+  | {
+      kind: "page";
+      cards: ResultCard[];
+      total: number;
+      warnings: string[];
+      next?: string;
+    }
+  | { kind: "refused"; message: string; warnings: string[] };
+
+/**
+ * One page, cached by its URL. `signal` is the request's own: a search given
+ * up on is never sent if it is still queued, and leaves nothing cached.
+ */
 async function fetchPage(
   url: string,
   signal?: AbortSignal,
 ): Promise<SearchPage> {
-  const response = await scryfallFetch(
-    SEARCH_GATE,
-    url,
-    signal ? { signal } : {},
+  const kept = await cachedOne<KeptPage>(
+    ["scryfall", "search", url],
+    async (own) => {
+      const response = await scryfallFetch(SEARCH_GATE, url, {
+        signal: signal ?? own,
+      });
+      const json: unknown = await response.json();
+      try {
+        const { cards, total, warnings } = readPage(response.status, json, () =>
+          Promise.reject(new Error("not followed here")),
+        );
+        const body = (json ?? {}) as Record<string, unknown>;
+        const next =
+          body.has_more === true && typeof body.next_page === "string"
+            ? body.next_page
+            : undefined;
+        return {
+          kind: "page",
+          cards,
+          total,
+          warnings,
+          ...(next ? { next } : {}),
+        };
+      } catch (e) {
+        if (!(e instanceof SearchRefused)) throw e;
+        return { kind: "refused", message: e.message, warnings: e.warnings };
+      }
+    },
   );
-  return readPage(response.status, await response.json(), (next) =>
-    fetchPage(next, signal),
-  );
+  if (kept.kind === "refused")
+    throw new SearchRefused(kept.message, kept.warnings);
+  const { next, kind: _, ...page } = kept;
+  return next ? { ...page, more: () => fetchPage(next, signal) } : page;
 }
 
 const strings = (x: unknown): string[] =>

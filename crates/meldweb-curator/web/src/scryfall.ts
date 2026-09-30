@@ -1,4 +1,5 @@
 import type { CardRef } from "./deck";
+import { cachedMany, scryfallClient } from "./scryfallCache";
 import { API, SEARCH_GATE, scryfallFetch } from "./scryfallQueue";
 
 /**
@@ -81,54 +82,84 @@ function frontFace(name: string): string {
 // Scryfall's limit per request.
 const BATCH = 75;
 
+const PRINTING = ["scryfall", "printing"] as const;
+const IN_SET = ["scryfall", "in-set"] as const;
+
+function toPrinting(card: CollectionCard): Printing {
+  return {
+    name: card.name,
+    image: card.image,
+    colorIdentity: card.colorIdentity,
+    ...(card.prints ? { prints: card.prints } : {}),
+  };
+}
+
 /**
- * Looks up every card's printing in as few requests as Scryfall allows.
- * Cards Scryfall cannot find are absent from the map rather than an error: the
- * deck is still the deck, and the view shows what the file names instead.
- * A batch still queued when `signal` aborts is never sent.
+ * The keys a found card answers to: its printing, and, since a name lookup
+ * returns whichever printing Scryfall prefers, its name, front face included
+ * for double-faced cards.
  */
-export async function fetchPrintings(
-  cards: readonly { card: CardRef }[],
-  signal?: AbortSignal,
-): Promise<Printings> {
-  const wanted = [
-    ...new Map(cards.map((c) => [printingKey(c.card), c.card])).values(),
+function printingKeys(card: CollectionCard): string[] {
+  const keys = [
+    printingId({ set: card.set, num: card.collector_number }),
+    `name:${card.name.toLowerCase()}`,
   ];
-  const found = new Map<string, Printing>();
-  for (let i = 0; i < wanted.length; i += BATCH) {
-    const batch = wanted.slice(i, i + BATCH);
+  const front = card.name.split(" // ")[0];
+  if (front !== undefined) keys.push(`name:${front.toLowerCase()}`);
+  return keys;
+}
+
+/** `/cards/collection` for `identifiers`, 75 to a request. */
+async function collection(
+  identifiers: readonly object[],
+  signal?: AbortSignal,
+): Promise<CollectionCard[]> {
+  const cards: CollectionCard[] = [];
+  for (let i = 0; i < identifiers.length; i += BATCH) {
     const response = await scryfallFetch(
       SEARCH_GATE,
       `${API}/cards/collection`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifiers: batch.map(identifier) }),
+        body: JSON.stringify({ identifiers: identifiers.slice(i, i + BATCH) }),
         ...(signal ? { signal } : {}),
       },
     );
     if (!response.ok) throw new Error(`Scryfall answered ${response.status}`);
-    for (const card of parseCollection(await response.json())) {
-      const byPrinting = printingId({
-        set: card.set,
-        num: card.collector_number,
-      });
-      const printing: Printing = {
-        name: card.name,
-        image: card.image,
-        colorIdentity: card.colorIdentity,
-        ...(card.prints ? { prints: card.prints } : {}),
-      };
-      found.set(byPrinting, printing);
-      // A name lookup returns whichever printing Scryfall prefers, so it is
-      // also keyed by name, front face included for double-faced cards.
-      found.set(`name:${card.name.toLowerCase()}`, printing);
-      const front = card.name.split(" // ")[0];
-      if (front !== undefined)
-        found.set(`name:${front.toLowerCase()}`, printing);
-    }
+    cards.push(...parseCollection(await response.json()));
+  }
+  return cards;
+}
+
+/** Remembers each card under every key it answers to. */
+function remember(cards: readonly CollectionCard[]): Map<string, Printing> {
+  const found = new Map<string, Printing>();
+  for (const card of cards) {
+    const printing = toPrinting(card);
+    for (const key of printingKeys(card)) found.set(key, printing);
   }
   return found;
+}
+
+/**
+ * Looks up every card's printing, from the cache where any lookup has found
+ * it before and otherwise in as few requests as Scryfall allows. Cards
+ * Scryfall cannot find are absent from the map rather than an error: the deck
+ * is still the deck, and the view shows what the file names instead. A batch
+ * still queued when `signal` aborts is never sent.
+ */
+export async function fetchPrintings(
+  cards: readonly { card: CardRef }[],
+  signal?: AbortSignal,
+): Promise<Printings> {
+  return cachedMany(
+    PRINTING,
+    cards.map((c) => c.card),
+    printingKey,
+    async (misses) =>
+      remember(await collection(misses.map(identifier), signal)),
+  );
 }
 
 interface CollectionCard {
@@ -177,39 +208,29 @@ function parseCollection(json: unknown): CollectionCard[] {
 /**
  * Each card's printing in the set given with it, `null` where Scryfall has no
  * card of that name there. A set holds several printings of some cards, and
- * Scryfall picks one the way Archidekt does for a line with no number.
+ * Scryfall picks one the way Archidekt does for a line with no number. What
+ * it finds is also cached as a printing, so the deck it lands in opens with
+ * its pictures already known.
  */
 export async function fetchPrintingsInSets(
   wanted: readonly { name: string; set: string }[],
   signal?: AbortSignal,
 ): Promise<({ set: string; num: string } | null)[]> {
-  const key = (name: string, set: string) =>
-    `${set.toLowerCase()}:${name.toLowerCase()}`;
-  const found = new Map<string, { set: string; num: string }>();
-  for (let i = 0; i < wanted.length; i += BATCH) {
-    const batch = wanted.slice(i, i + BATCH);
-    const response = await scryfallFetch(
-      SEARCH_GATE,
-      `${API}/cards/collection`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          identifiers: batch.map((w) => ({
-            name: frontFace(w.name),
-            set: w.set,
-          })),
-        }),
-        ...(signal ? { signal } : {}),
-      },
+  const key = (w: { name: string; set: string }) =>
+    `${w.set.toLowerCase()}:${frontFace(w.name).toLowerCase()}`;
+  const found = await cachedMany(IN_SET, wanted, key, async (misses) => {
+    const cards = await collection(
+      misses.map((w) => ({ name: frontFace(w.name), set: w.set })),
+      signal,
     );
-    if (!response.ok) throw new Error(`Scryfall answered ${response.status}`);
-    for (const card of parseCollection(await response.json())) {
-      const printing = { set: card.set, num: card.collector_number };
-      found.set(key(card.name, card.set), printing);
-      const front = card.name.split(" // ")[0];
-      if (front !== undefined) found.set(key(front, card.set), printing);
-    }
-  }
-  return wanted.map((w) => found.get(key(w.name, w.set)) ?? null);
+    for (const [k, printing] of remember(cards))
+      scryfallClient.setQueryData([...PRINTING, k], printing);
+    return new Map(
+      cards.map((card) => [
+        key(card),
+        { set: card.set, num: card.collector_number },
+      ]),
+    );
+  });
+  return wanted.map((w) => found.get(key(w)) ?? null);
 }

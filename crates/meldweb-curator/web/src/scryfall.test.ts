@@ -40,4 +40,32 @@ describe("collection lookups", () => {
         500,
       );
   });
+
+  it("ask scryfall only about the cards no earlier lookup found", async () => {
+    const asked: string[][] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        const { identifiers } = JSON.parse(String(init?.body)) as {
+          identifiers: { name: string }[];
+        };
+        asked.push(identifiers.map((i) => i.name));
+        return new Response(
+          JSON.stringify({
+            data: identifiers.map(({ name }) => ({
+              name,
+              set: "tst",
+              collector_number: name.slice(5),
+              image_uris: { normal: `n/${name}` },
+            })),
+          }),
+        );
+      }),
+    );
+    await fetchPrintings([card(900), card(901)]);
+    const again = await fetchPrintings([card(901), card(902)]);
+    expect(asked).toEqual([["Card 900", "Card 901"], ["Card 902"]]);
+    expect(again.get("name:card 901")?.image).toBe("n/Card 901");
+    expect(again.get("name:card 902")?.image).toBe("n/Card 902");
+  });
 });
