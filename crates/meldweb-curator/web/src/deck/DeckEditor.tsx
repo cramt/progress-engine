@@ -19,6 +19,7 @@ import { SearchButton, SearchOverlay } from "../search/SearchOverlay";
 import { ScanIcon } from "../ui/icons";
 import { CopyArchidekt } from "./CopyArchidekt";
 import { dropOnto } from "./move";
+import { ReplaceArchidekt } from "./ReplaceArchidekt";
 import { type OnDrop, StacksView } from "./StacksView";
 import { Banners, SaveStatus, Toolbar, UndoRedo } from "./Toolbar";
 
@@ -157,6 +158,14 @@ export function DeckEditor({
               cards={parsed.cards}
               printings={printings}
               onRefusal={setRefusal}
+            />
+            <ReplaceArchidekt
+              name={parsed.name ?? deckStem(path)}
+              format={parsed.format}
+              onReplace={(text) => {
+                history.edit(text);
+                setRefusal(null);
+              }}
             />
           </>
         }

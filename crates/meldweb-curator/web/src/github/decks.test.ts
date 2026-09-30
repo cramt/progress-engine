@@ -1,6 +1,12 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { parseDeck } from "../deck";
-import { createDeck, deckPath, listDecks, slugify } from "./decks";
+import {
+  createDeck,
+  deckFromArchidekt,
+  deckPath,
+  listDecks,
+  slugify,
+} from "./decks";
 import { type DeckText, deckText, type Imported } from "./deckText";
 import { loadWasm, mockConnection, seedDecks } from "./testkit";
 
@@ -204,5 +210,27 @@ describe("a new deck", () => {
     );
     expect(made).toEqual({ kind: "refused", message: "no card lines" });
     expect(mock.commits()).toHaveLength(0);
+  });
+});
+
+describe("replacing a deck from Archidekt", () => {
+  it("makes the paste the whole deck under the deck's own name and format", async () => {
+    const made = await deckFromArchidekt(
+      "1x Sol Ring [Ramp]\n1x Kellan, the Kid [Commander{top}]",
+      "lantern",
+      "commander",
+      deckText,
+      async () => [],
+    );
+    const parsed = made.kind === "deck" ? parseDeck(made.text) : made;
+    expect(parsed).toMatchObject({
+      kind: "deck",
+      name: "lantern",
+      format: "commander",
+      total: 2,
+    });
+    expect(
+      parsed.kind === "deck" && parsed.categories.map((c) => c.name).sort(),
+    ).toEqual(["Commander", "Ramp"]);
   });
 });

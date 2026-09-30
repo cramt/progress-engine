@@ -147,19 +147,15 @@ export async function createDeck(
   if (source.kind === "empty") {
     text = deck.newDeck(name, source.format);
   } else {
-    const imported = deck.importArchidekt(source.text);
-    if (imported.kind === "refused") {
-      return { kind: "refused", message: imported.message };
-    }
-    unreadable = [...imported.unreadable];
-    text = imported.toml;
-    text = await pinSets(text, imported.setOnly, deck, inSets, unreadable);
-    // Archidekt's text carries no deck name, so the dialog's goes in.
-    text = deck.setDeckMeta(text, name, source.format);
-    const parsed = deck.parseDeck(text);
-    if (parsed.kind === "refused") {
-      return { kind: "refused", message: parsed.message };
-    }
+    const made = await deckFromArchidekt(
+      source.text,
+      name,
+      source.format,
+      deck,
+      inSets,
+    );
+    if (made.kind === "refused") return made;
+    ({ text, unreadable } = made);
   }
 
   try {
@@ -173,6 +169,50 @@ export async function createDeck(
     if (e instanceof ConflictError) return taken();
     throw e;
   }
+}
+
+export type FromArchidekt =
+  | {
+      kind: "deck";
+      text: string;
+      /** Archidekt lines the import could not read, with why; empty otherwise. */
+      unreadable: { line: number; text: string; reason: string }[];
+    }
+  | { kind: "refused"; message: string };
+
+/**
+ * Archidekt text as a whole `.deck.toml` named `name`: what New deck commits,
+ * and what Replace from Archidekt swaps an open deck's text for.
+ */
+export async function deckFromArchidekt(
+  source: string,
+  name: string,
+  format: string | undefined,
+  deck: Pick<
+    DeckText,
+    "parseDeck" | "importArchidekt" | "setCardPrinting" | "setDeckMeta"
+  >,
+  inSets: typeof fetchPrintingsInSets = fetchPrintingsInSets,
+): Promise<FromArchidekt> {
+  const imported = deck.importArchidekt(source);
+  if (imported.kind === "refused") {
+    return { kind: "refused", message: imported.message };
+  }
+  const unreadable = [...imported.unreadable];
+  let text = await pinSets(
+    imported.toml,
+    imported.setOnly,
+    deck,
+    inSets,
+    unreadable,
+  );
+  // Archidekt's text carries no deck name, so the caller's goes in.
+  text = deck.setDeckMeta(text, name, format);
+  const parsed = deck.parseDeck(text);
+  if (parsed.kind === "refused") {
+    return { kind: "refused", message: parsed.message };
+  }
+  return { kind: "deck", text, unreadable };
 }
 
 /**

@@ -160,7 +160,8 @@ function parseCollection(json: unknown): CollectionCard[] {
       {
         name: c.name,
         set: c.set.toLowerCase(),
-        collector_number: c.collector_number.toLowerCase(),
+        // Scryfall matches collector numbers case-sensitively (The List's `RIX-1`).
+        collector_number: c.collector_number,
         image,
         colorIdentity: Array.isArray(c.color_identity)
           ? c.color_identity.filter((x): x is string => typeof x === "string")
