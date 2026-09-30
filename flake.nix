@@ -9,6 +9,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-utils.url = "github:numtide/flake-utils";
+    terranix = {
+      url = "github:terranix/terranix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   # Gitaxian Probe is a cargo workspace of its own (crates/gitaxian-probe/).
@@ -21,6 +25,7 @@
     crane,
     flake-utils,
     rust-overlay,
+    terranix,
     ...
   }:
     flake-utils.lib.eachDefaultSystem (system: let
@@ -225,28 +230,100 @@
             cp -r --no-preserve=mode ${probeAssets} $out/gitaxian-probe
           '';
         });
+      # Meldweb Curator's deploy: the worker's own source (not its node_modules
+      # or the dev symlink to a site) with this flake's built site as its assets.
+      curatorWorker = pkgs.lib.fileset.toSource {
+        root = ./crates/meldweb-curator/worker;
+        fileset = pkgs.lib.fileset.unions [
+          ./crates/meldweb-curator/worker/src
+          ./crates/meldweb-curator/worker/wrangler.toml
+        ];
+      };
+      curatorDeploy = pkgs.callPackage ./crates/meldweb-curator/infra/deploy.nix {
+        worker = curatorWorker;
+        site = meldwebWeb;
+      };
+
+      # wrangler.toml names the worker and its account, so tofu reads them from
+      # there rather than keeping a second copy
+      curatorWrangler = builtins.fromTOML (builtins.readFile ./crates/meldweb-curator/worker/wrangler.toml);
+      infraConfig = terranix.lib.terranixConfiguration {
+        inherit system;
+        modules = [./crates/meldweb-curator/infra/infra.nix];
+        extraArgs = {
+          curator =
+            import ./crates/meldweb-curator/infra/config.nix
+            // {
+              accountId = curatorWrangler.account_id;
+              workerName = curatorWrangler.name;
+            };
+          deploy = curatorDeploy;
+        };
+      };
+
+      tofu = pkgs.opentofu.withPlugins (p: [p.cloudflare_cloudflare]);
+
+      # State is remote (R2), so a throwaway working dir per run is enough.
+      # Reads the repo root's gitignored secrets.env (see secrets.env.example)
+      infra = pkgs.writeShellApplication {
+        name = "infra";
+        runtimeInputs = [tofu pkgs.curl pkgs.jq pkgs.git];
+        text = ''
+          root=$(git rev-parse --show-toplevel)
+          if [ ! -f "$root/secrets.env" ]; then
+            echo "no secrets.env: copy secrets.env.example and fill it in" >&2
+            exit 1
+          fi
+          set -a
+          # shellcheck source=/dev/null
+          . "$root/secrets.env"
+          set +a
+          : "''${CLOUDFLARE_API_TOKEN:?set it in secrets.env}"
+          : "''${GITHUB_CLIENT_SECRET:?set it in secrets.env}"
+          export TF_VAR_github_client_secret=$GITHUB_CLIENT_SECRET
+
+          token=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            https://api.cloudflare.com/client/v4/accounts/${curatorWrangler.account_id}/tokens/verify)
+          # verify says "active" even before not_before; every real call then fails
+          if jq -e '.result.not_before // empty | fromdateiso8601 > now' <<<"$token" >/dev/null; then
+            echo "CLOUDFLARE_API_TOKEN is not valid until $(jq -r .result.not_before <<<"$token")" >&2
+            exit 1
+          fi
+          # R2's S3 API takes an account token as-is: key id = token id,
+          # secret = sha256(token). One secret covers the API and the state backend
+          AWS_ACCESS_KEY_ID=$(jq -r .result.id <<<"$token")
+          AWS_SECRET_ACCESS_KEY=$(printf %s "$CLOUDFLARE_API_TOKEN" | sha256sum | cut -d' ' -f1)
+          export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+
+          work=$(mktemp -d)
+          trap 'rm -rf "$work"' EXIT
+          cp ${infraConfig} "$work/config.tf.json"
+          tofu -chdir="$work" init -input=false >/dev/null
+          tofu -chdir="$work" "$@"
+        '';
+      };
     in {
       packages = {
         default = gauntlet;
         meldweb-web = meldwebWeb;
         gitaxian-probe-assets = probeAssets;
         gitaxian-probe-web = probeWeb;
+        infra-config = infraConfig;
       };
 
-      # Deploys Meldweb Curator: this flake's built site as the worker's static
-      # assets, and the worker itself. Run from the repo root, logged in to
-      # Cloudflare (or with CLOUDFLARE_API_TOKEN set), after the one-time
-      # `wrangler secret put GITHUB_CLIENT_SECRET` (see the worker's README).
+      # `nix run .#infra -- plan|apply` is the one command that ships Meldweb
+      # Curator: the worker, the site, the client secret and meldweb.cramt.dk.
+      # deploy-curator is only the worker and site, with the secret uploaded
+      # when GITHUB_CLIENT_SECRET is set and kept when it isn't.
       apps.deploy-curator = {
         type = "app";
         meta.description = "Deploy Meldweb Curator's site and worker with wrangler";
-        program = toString (pkgs.writeShellScript "deploy-curator" ''
-          set -eu
-          cd "$(${pkgs.git}/bin/git rev-parse --show-toplevel)"
-          ln -sfn ${meldwebWeb} crates/meldweb-curator/worker/site
-          exec ${pkgs.wrangler}/bin/wrangler deploy \
-            --config crates/meldweb-curator/worker/wrangler.toml "$@"
-        '');
+        program = pkgs.lib.getExe curatorDeploy;
+      };
+      apps.infra = {
+        type = "app";
+        meta.description = "Run OpenTofu on Meldweb Curator's Cloudflare stack";
+        program = pkgs.lib.getExe infra;
       };
 
       checks = {

@@ -52,47 +52,58 @@ something the dev GitHub mock accepts.
 
 ## Configuration
 
-`wrangler.toml` holds the public values, filled in by the owner from the
-GitHub App's settings ([#125]):
+`wrangler.toml` holds the public values from the GitHub App's settings
+([#125], [meldweb-curator](https://github.com/apps/meldweb-curator)), and the
+worker's name and Cloudflare account, which the tofu stack reads from it:
 
-- `GITHUB_CLIENT_ID`: the app's client ID. While it is still the
-  `REPLACE_WITH_…` placeholder, `/api/auth/login` answers `503`.
+- `GITHUB_CLIENT_ID`: the app's client ID. While it is a `REPLACE_WITH_…`
+  placeholder, `/api/auth/login` answers `503`.
 - `GITHUB_APP_SLUG`: the app's URL name, for `/api/auth/app`.
 
-The client secret is a Worker secret, never in a file that is committed:
+The client secret is `GITHUB_CLIENT_SECRET` in the repo root's gitignored
+`secrets.env` (copy `secrets.env.example`), never in a committed file. Every
+deploy uploads it as a Worker secret.
 
-```
-wrangler secret put GITHUB_CLIENT_SECRET --config crates/meldweb-curator/worker/wrangler.toml
-```
-
-The GitHub App's callback URL is `https://<curator-domain>/api/auth/callback`
+The GitHub App's callback URL is `https://meldweb.cramt.dk/api/auth/callback`
 (the worker builds `redirect_uri` from the request's own origin).
 
 [#125]: https://github.com/cramt/progress-engine/issues/125
 
 ## Deploying
 
-`wrangler` comes from nixpkgs (it is in `nix develop`), not npm. From the repo
-root:
+The Cloudflare side is an OpenTofu stack written in terranix,
+[`../infra/`](../infra/): the worker and site, the client secret and the
+`meldweb.cramt.dk` custom domain. From the repo root:
 
 ```
-nix run .#deploy-curator
+nix run .#infra -- plan
+nix run .#infra -- apply
 ```
 
-which builds the site and runs the same as
+`apply` redeploys whenever the Nix build of the worker or site changes, or the
+secret does. State is in the R2 bucket `cramt-tofu-state` on the cramt
+account; `infra` derives its credentials from `CLOUDFLARE_API_TOKEN`.
 
-```
-nix build .#meldweb-web -o crates/meldweb-curator/worker/site
-wrangler deploy --config crates/meldweb-curator/worker/wrangler.toml
-```
+One-time setup, before the first apply:
 
-`site` is a gitignored symlink: `[assets]` serves it with
+1. Enable R2 on the cramt account and create the bucket `cramt-tofu-state`
+   (tofu can't create the bucket that holds its own state).
+2. Create an account API token with the scopes `secrets.env.example` lists.
+3. Fill in `secrets.env`.
+
+`nix run .#deploy-curator` ships only the worker and site, uploading the
+secret when `GITHUB_CLIENT_SECRET` is set in the environment. It copies both
+into a temporary directory, so it touches nothing in the repo. `wrangler`
+comes from nixpkgs (it is in `nix develop`), not npm.
+
+`[assets]` serves the site with
 `not_found_handling = "single-page-application"`, so a reload on a deck's URL
 gets `index.html`, and `run_worker_first = ["/api/*"]` is the only traffic that
 runs the worker.
 
-To run the real worker locally instead, `pnpm build`, point `site` at the web
-build (`ln -sfn ../web/dist crates/meldweb-curator/worker/site`), put
+To run the real worker locally instead, `pnpm build`, point the gitignored
+`site` symlink at the web build
+(`ln -sfn ../web/dist crates/meldweb-curator/worker/site`), put
 `GITHUB_CLIENT_SECRET=…` in a gitignored `.dev.vars` beside `wrangler.toml`,
 and `wrangler dev --config crates/meldweb-curator/worker/wrangler.toml`. The
 GitHub App needs `http://localhost:8787/api/auth/callback` among its callback

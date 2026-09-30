@@ -38,3 +38,6 @@ crates/meldweb-curator/web/src/wasm/pkg/
 crates/meldweb-curator/worker/site
 crates/meldweb-curator/worker/.wrangler/
 crates/meldweb-curator/worker/.dev.vars
+
+# Tofu and deploy credentials, read by `nix run .#infra` (see secrets.env.example).
+/secrets.env

@@ -1,15 +1,17 @@
 # Meldweb Curator's one Cloudflare Worker: the built site as static assets,
 # plus the four GitHub login routes under /api/auth/. See README.md.
 #
-# Deploy from the repo root (wrangler comes from nixpkgs, via `nix develop`):
-#   nix run .#deploy-curator
-# which is the same as
-#   nix build .#meldweb-web -o crates/meldweb-curator/worker/site
-#   wrangler deploy --config crates/meldweb-curator/worker/wrangler.toml
+# Deployed by `nix run .#infra -- apply` from the repo root, which also owns
+# the domain (crates/meldweb-curator/infra/). `nix run .#deploy-curator` ships
+# just the worker and site.
 
 name = "meldweb-curator"
+account_id = "37acee5cdd3b5fb5c88adbeeac754644" # cramt
 main = "src/index.ts"
 compatibility_date = "2026-09-27"
+# meldweb.cramt.dk is the only way in; tofu owns it
+workers_dev = false
+preview_urls = false
 
 [assets]
 # The built web app: a gitignored symlink to `nix build .#meldweb-web`'s output
@@ -27,8 +29,8 @@ run_worker_first = ["/api/*"]
 GITHUB_CLIENT_ID = "Iv23lihWEqL1CJ481glQ"
 GITHUB_APP_SLUG = "meldweb-curator"
 
-# The client secret is never in this file:
-#   wrangler secret put GITHUB_CLIENT_SECRET --config crates/meldweb-curator/worker/wrangler.toml
+# The client secret is never in this file: it is GITHUB_CLIENT_SECRET in the
+# repo root's gitignored secrets.env, which every deploy uploads.
 # For `wrangler dev`, put GITHUB_CLIENT_SECRET=... in a gitignored .dev.vars
 # beside this file.
 [secrets]
