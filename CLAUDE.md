@@ -99,10 +99,9 @@ against the crane-built wasm); a fmt failure aborts the others, so an
 unformatted commit reports red without ever having run the tests. This has
 hidden broken clippy and tests across four commits before.
 
-**After any change to `pnpm-lock.yaml`, regenerate `meldweb-web`'s pnpm deps
-hash in flake.nix** from `lib.fakeHash`. A stale hash does not fail: Nix reuses
-the deps it cached under that hash, so CI stays green on the old dependencies
-until the cache is gone.
+`meldweb-web`'s node_modules come from `cramt/pnpm2nix`, which fetches each
+package by the integrity `pnpm-lock.yaml` records, so a lockfile change needs
+no hash in flake.nix.
 
 The probe builds from its own manifest - `cargo test --manifest-path
 crates/gitaxian-probe/Cargo.toml --workspace` natively, and

@@ -13,6 +13,10 @@
       url = "github:terranix/terranix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    pnpm2nix = {
+      url = "github:cramt/pnpm2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   # Gitaxian Probe is a cargo workspace of its own (crates/gitaxian-probe/).
@@ -26,6 +30,7 @@
     flake-utils,
     rust-overlay,
     terranix,
+    pnpm2nix,
     ...
   }:
     flake-utils.lib.eachDefaultSystem (system: let
@@ -118,19 +123,26 @@
           ./crates/meldweb-curator/worker/src
         ];
       };
-      meldwebWeb = pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
-        pname = "meldweb-web";
-        version = "0.1.0";
-        src = meldwebWebSrc;
-        pnpmDeps = pkgs.fetchPnpmDeps {
-          inherit (finalAttrs) pname version src;
-          fetcherVersion = 4;
-          # Regenerate after any pnpm-lock.yaml change: set lib.fakeHash, build,
-          # and paste the hash the failure reports.
-          hash = "sha256-3VLWAXJ+bEbwjfDi1aswWianzz4qwt5owtwYz4VjR4U=";
-        };
-        nativeBuildInputs = [pkgs.nodejs pkgs.pnpm pkgs.pnpmConfigHook pkgs.biome];
-        MELDWEB_WASM_PREBUILT = "1";
+      # node_modules come from pnpm2nix, which fetches each package by the
+      # integrity pnpm-lock.yaml already records, so there is no deps hash to
+      # keep: the lockfile is the pin. The worker is a package here because
+      # the root check and test run it too.
+      meldwebWorkspace = pnpm2nix.lib.${system}.mkPnpmWorkspace {
+        workspace = ./.;
+        appSrc = _: meldwebWebSrc;
+        packages = ["crates/meldweb-curator/worker"];
+        apps = [
+          {
+            name = "meldweb-web";
+            path = "crates/meldweb-curator/web";
+            version = "0.1.0";
+            extraNativeBuildInputs = [pkgs.biome];
+          }
+        ];
+        nodejs = pkgs.nodejs;
+      };
+      meldwebWeb = meldwebWorkspace.apps.meldweb-web.overrideAttrs (old: {
+        env = old.env // {MELDWEB_WASM_PREBUILT = "1";};
         buildPhase = ''
           runHook preBuild
           mkdir -p crates/meldweb-curator/web/src/wasm
