@@ -23,10 +23,9 @@ not_found_handling = "single-page-application"
 run_worker_first = ["/api/*"]
 
 [vars]
-# Public values from the GitHub App's settings page (#125). Until they are
-# filled in, /api/auth/login answers 503.
-GITHUB_CLIENT_ID = "REPLACE_WITH_GITHUB_APP_CLIENT_ID"
-GITHUB_APP_SLUG = "REPLACE_WITH_GITHUB_APP_SLUG"
+# Public values from the GitHub App's settings page (#125), github.com/apps/meldweb-curator.
+GITHUB_CLIENT_ID = "Iv23lihWEqL1CJ481glQ"
+GITHUB_APP_SLUG = "meldweb-curator"
 
 # The client secret is never in this file:
 #   wrangler secret put GITHUB_CLIENT_SECRET --config crates/meldweb-curator/worker/wrangler.toml
