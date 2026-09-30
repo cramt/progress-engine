@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createTracker } from "./tracker";
+import { createTracker, TRACKING } from "./tracker";
 
 /** What each frame scanned, for frames of these names in turn. */
 function run(frames: string[][], confirm = 2, clear = 2): string[][] {
@@ -87,5 +87,14 @@ describe("scanning a stream of frames", () => {
     expect(tracker.holding("Sol Ring")).toBe(true);
     tracker.frame([]);
     expect(tracker.holding("Sol Ring")).toBe(false);
+  });
+
+  it("keeps what it holds when the speed changes", () => {
+    const tracker = createTracker(TRACKING.careful);
+    tracker.frame(["Sol Ring"]);
+    expect(tracker.frame(["Sol Ring"])).toEqual(["Sol Ring"]);
+    tracker.setOptions(TRACKING.fast);
+    expect(tracker.frame(["Sol Ring"])).toEqual([]);
+    expect(tracker.frame(["Mana Crypt"])).toEqual(["Mana Crypt"]);
   });
 });

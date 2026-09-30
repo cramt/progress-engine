@@ -57,15 +57,18 @@ read continuously: a frame is scanned, and the next is taken 150 ms after that
 scan ends, so the rate is set by the engine. Each card that goes in beeps, and
 lands in a log with a Take back, since its printing is a guess. The panel
 chooses the place the cards go to (Unsorted by default, as quick add does),
-the finish, which the engine cannot see, and whether to keep the printing it
-guesses or add by name.
+the finish, which the engine cannot see, whether to keep the printing it
+guesses or add by name, and the speed. These are kept in the browser's
+`localStorage` for the next session, and a place since removed falls back to
+Unsorted.
 
 **The same card is not added twice for lying there.** `probe/tracker.ts`
 decides, by card name, since the printing can change between two frames of the
 same card:
 
 - a card goes in once it has been in **2 frames in a row**, so a card read
-  wrongly while it slides into place is not added;
+  wrongly while it slides into place is not added. **Fast** takes it on the
+  first frame that reads it, about a frame sooner, misreads included;
 - it goes in **once**, and counts again only after it has been out of **2
   frames in a row**, so one missed detection with the card still there does
   not add a second copy. Taking it away, or covering it with the hand that puts
@@ -74,7 +77,9 @@ same card:
 
 The cost of the rule: two copies of one card in the same frame are one copy,
 and a second copy put down faster than two frames is missed. Both are in
-`tracker.test.ts`.
+`tracker.test.ts`. **Same again** (a button, or Space) is how to scan a stack of
+one card: it adds one more of the last card counted, with its printing, place
+and finish, without the card leaving the frame.
 
 The beep sounds when the card is counted, before Scryfall is asked for its
 printing, and the log shows it as "Naming the printing…" until it goes in. If
@@ -88,7 +93,10 @@ card lying still, around eight each time, added nothing more. Boot took
 3.5–3.6 s. A frame took 0.73–0.91 s once the first had been scanned (the first
 took about 1.1 s), and a card was counted 0.5–1.1 s after the first frame that
 read it. The two Lotuses came back as `lea/232` and `o90p/2`, the misread named
-in *Accuracy* below. A real camera and a phone remain unchecked (*Not checked*).
+in *Accuracy* below. The same video on Fast, into Bulk, with one Space after
+the first Lotus, gave three Lotuses and a Counterspell, as `3ed/54`. Fast
+counted each card on the first frame that read it. A real camera and a phone
+remain unchecked (*Not checked*).
 
 ## Joining a scan to the deck
 

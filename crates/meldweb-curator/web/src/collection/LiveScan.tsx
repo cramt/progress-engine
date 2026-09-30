@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { isTyping } from "../card/hotkeys";
 import type { Place } from "../collection";
 import type { Finish, NewCard } from "../deck";
 import { beep } from "../probe/beep";
@@ -10,8 +11,13 @@ import {
   scan,
   useScanner,
 } from "../probe/scanner";
-import { createTracker } from "../probe/tracker";
+import { createTracker, type Speed, TRACKING } from "../probe/tracker";
 import type { ScannedCopy } from "./scanned";
+import {
+  loadScanSettings,
+  type ScanSettings,
+  saveScanSettings,
+} from "./scanSettings";
 import { UNSORTED } from "./sections";
 import "../card/card.css";
 import "../probe/probe.css";
@@ -45,8 +51,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Scanning cards into the collection, one after another: the camera is read a
  * frame at a time, and each card that holds still under it goes in once,
  * with a beep. The same card goes in again only after it has left the frame,
- * so a card left lying there is one copy (../probe/tracker.ts). Each copy is logged
- * with a Take back, since the printing is the scanner's guess.
+ * so a card left lying there is one copy (../probe/tracker.ts), and Same
+ * again adds another for a stack of one card. Each copy is logged with a
+ * Take back, since the printing is the scanner's guess.
  *
  * `onAdd` and `onTakeBack` apply to the collection as it is when called and
  * return a refusal, or null.
@@ -71,14 +78,22 @@ export function LiveScan({
   const [inView, setInView] = useState<InView | null>(null);
   const [log, setLog] = useState<Entry[]>([]);
 
-  const [at, setAt] = useState<string | null>(null);
-  const [finish, setFinish] = useState<Finish>("nonfoil");
-  const [keepPrinting, setKeepPrinting] = useState(true);
-  const [sound, setSound] = useState(true);
+  const nextId = useRef(0);
+
+  const [prefs, setPrefs] = useState(() =>
+    loadScanSettings(places.map((p) => p.name)),
+  );
+  const set = (change: Partial<ScanSettings>) =>
+    setPrefs((p) => {
+      const next = { ...p, ...change };
+      saveScanSettings(next);
+      return next;
+    });
+  const { at, finish, keepPrinting, sound, speed } = prefs;
   // The loop reads these as they are when a card is taken, rather than
   // restarting, and forgetting what it holds, whenever one changes.
-  const settings = useRef({ at, finish, keepPrinting, sound, audio, onAdd });
-  settings.current = { at, finish, keepPrinting, sound, audio, onAdd };
+  const settings = useRef({ ...prefs, audio, onAdd });
+  settings.current = { ...prefs, audio, onAdd };
 
   useEffect(() => {
     if (video.current) video.current.srcObject = camera;
@@ -99,8 +114,7 @@ export function LiveScan({
   useEffect(() => {
     if (!running || !scanner || !camera) return;
     let stopped = false;
-    let next = 0;
-    const tracker = createTracker();
+    const tracker = createTracker(TRACKING[settings.current.speed]);
 
     const update = (id: number, change: Partial<Entry>) =>
       setLog((l) => l.map((e) => (e.id === id ? { ...e, ...change } : e)));
@@ -113,8 +127,8 @@ export function LiveScan({
       const s = settings.current;
       if (s.sound && s.audio) beep(s.audio);
       const name = found.card.name;
-      next += 1;
-      const id = next;
+      nextId.current += 1;
+      const id = nextId.current;
       setLog((l) => [
         {
           id,
@@ -169,6 +183,7 @@ export function LiveScan({
         if (stopped) return;
         const took = performance.now() - t0;
         const names = found.map((f) => f.card.name);
+        tracker.setOptions(TRACKING[settings.current.speed]);
         for (const name of tracker.frame(names)) {
           const f = found.find((f) => f.card.name === name);
           if (f) void take(f);
@@ -207,6 +222,42 @@ export function LiveScan({
     }
     setRunning(true);
   };
+
+  // The last card counted, when it went in: what Same again adds another of.
+  const last =
+    log[0]?.copy && !log[0].refused && !log[0].takenBack ? log[0] : null;
+
+  /**
+   * One more copy of the last card, without lifting it out of frame: for a
+   * stack of the same card, which the tracker counts once.
+   */
+  const sameAgain = () => {
+    if (!last?.copy) return;
+    const { copy } = last;
+    const refused = onAdd(copy);
+    if (audio && sound) beep(audio, refused ? 220 : 1320, refused ? 250 : 90);
+    nextId.current += 1;
+    const entry: Entry = {
+      ...last,
+      id: nextId.current,
+      refused,
+      note: "Same again",
+      takenBack: false,
+    };
+    setLog((l) => [entry, ...l]);
+  };
+  const sameAgainRef = useRef(sameAgain);
+  sameAgainRef.current = sameAgain;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== " " || e.repeat || isTyping(e.target)) return;
+      e.preventDefault();
+      sameAgainRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const takeBack = (entry: Entry) => {
     if (!entry.copy) return;
@@ -270,11 +321,23 @@ export function LiveScan({
                   {camera ? "Resume" : "Start scanning"}
                 </button>
               )}
+              <button
+                type="button"
+                disabled={!last}
+                title={
+                  last
+                    ? `One more ${last.name} (Space), for a stack of the same card`
+                    : "Adds another of the last card scanned (Space)"
+                }
+                onClick={sameAgain}
+              >
+                Same again
+              </button>
               <label className="scan-toggle">
                 <input
                   type="checkbox"
                   checked={sound}
-                  onChange={(e) => setSound(e.target.checked)}
+                  onChange={(e) => set({ sound: e.target.checked })}
                 />
                 Beep
               </label>
@@ -290,7 +353,7 @@ export function LiveScan({
                 Into
                 <select
                   value={at ?? ""}
-                  onChange={(e) => setAt(e.target.value || null)}
+                  onChange={(e) => set({ at: e.target.value || null })}
                 >
                   <option value="">{UNSORTED}</option>
                   {places.map((p) => (
@@ -304,18 +367,32 @@ export function LiveScan({
                 Finish
                 <select
                   value={finish}
-                  onChange={(e) => setFinish(e.target.value as Finish)}
+                  onChange={(e) => set({ finish: e.target.value as Finish })}
                 >
                   <option value="nonfoil">nonfoil</option>
                   <option value="foil">foil</option>
                   <option value="etched">etched</option>
                 </select>
               </label>
+              <label className="field">
+                Speed
+                <select
+                  value={speed}
+                  onChange={(e) => set({ speed: e.target.value as Speed })}
+                >
+                  <option value="careful">
+                    Careful: a card holds for two frames
+                  </option>
+                  <option value="fast">
+                    Fast: the first frame that reads it
+                  </option>
+                </select>
+              </label>
               <label className="scan-toggle">
                 <input
                   type="checkbox"
                   checked={keepPrinting}
-                  onChange={(e) => setKeepPrinting(e.target.checked)}
+                  onChange={(e) => set({ keepPrinting: e.target.checked })}
                 />
                 Keep the printing it guesses
               </label>

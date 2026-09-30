@@ -20,7 +20,14 @@ export interface TrackerOptions {
   clear: number;
 }
 
-export const DEFAULT_TRACKING: TrackerOptions = { confirm: 2, clear: 2 };
+/** The two speeds a scan runs at: careful is the default. */
+export const TRACKING = {
+  careful: { confirm: 2, clear: 2 },
+  /** Counts on the first frame that reads a card, misreads and all. */
+  fast: { confirm: 1, clear: 2 },
+} satisfies Record<string, TrackerOptions>;
+
+export type Speed = keyof typeof TRACKING;
 
 interface Seen {
   /** Frames in a row it has been in, and out of. */
@@ -37,11 +44,14 @@ export interface Tracker {
   frame(names: readonly string[]): string[];
   /** Whether a card is taken and still in view, so will not count again yet. */
   holding(name: string): boolean;
+  /** New thresholds from the next frame on, keeping what it holds. */
+  setOptions(options: TrackerOptions): void;
 }
 
 export function createTracker(
-  options: TrackerOptions = DEFAULT_TRACKING,
+  initial: TrackerOptions = TRACKING.careful,
 ): Tracker {
+  let options = initial;
   const seen = new Map<string, Seen>();
   return {
     frame(names) {
@@ -67,6 +77,9 @@ export function createTracker(
     },
     holding(name) {
       return seen.get(name)?.taken ?? false;
+    },
+    setOptions(next) {
+      options = next;
     },
   };
 }
