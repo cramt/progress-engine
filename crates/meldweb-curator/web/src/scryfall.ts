@@ -56,6 +56,14 @@ export function imageUris(
     | undefined;
 }
 
+/**
+ * The art alone of a card whose picture is Scryfall's `normal` image: the
+ * same file under `art_crop`. Any other URL comes back as it is.
+ */
+export function artCrop(image: string): string {
+  return image.replace("/normal/", "/art_crop/");
+}
+
 type Identifier = { set: string; collector_number: string } | { name: string };
 
 function identifier(ref: CardRef): Identifier {

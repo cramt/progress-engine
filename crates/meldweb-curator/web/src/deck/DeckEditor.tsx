@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { withBoard } from "../card/apply";
 import { renderCardResult } from "../card/searchResult";
@@ -7,7 +6,7 @@ import { declareCategory, parseDeck, setCardCategories } from "../deck";
 import type { GitHubApi, RepoRef } from "../github/api";
 import { deckStem } from "../github/decks";
 import { deckText } from "../github/deckText";
-import { createSaveStore, type SaveState } from "../github/save";
+import { createSaveStore } from "../github/save";
 import { useSave } from "../github/useSave";
 import { useHistory, useUndoKeys } from "../history";
 import { addPrinting } from "../probe/printings";
@@ -17,10 +16,11 @@ import { addByName } from "../quickadd/addByName";
 import { type AddByName, QuickAdd } from "../quickadd/QuickAdd";
 import type { Printings } from "../scryfall";
 import { SearchButton, SearchOverlay } from "../search/SearchOverlay";
+import { ScanIcon } from "../ui/icons";
 import { CopyArchidekt } from "./CopyArchidekt";
 import { dropOnto } from "./move";
 import { type OnDrop, StacksView } from "./StacksView";
-import { Toolbar, UndoRedo } from "./Toolbar";
+import { Banners, SaveStatus, Toolbar, UndoRedo } from "./Toolbar";
 
 export interface DeckEditorProps {
   /** The deck's path in the Magic repo, e.g. `decks/lantern.deck.toml`. */
@@ -32,14 +32,6 @@ export interface DeckEditorProps {
   api: GitHubApi;
   printings: Printings;
 }
-
-const statusText: Record<SaveState["status"], string> = {
-  unsaved: "Unsaved",
-  saving: "Saving…",
-  saved: "Saved",
-  conflict: "Not saved",
-  error: "Not saved",
-};
 
 /**
  * One open deck: the stacks, the toolbar, undo, and saving by itself. Mount it
@@ -79,7 +71,22 @@ export function DeckEditor({
 
   useUndoKeys(undo, redo);
 
-  if (parsed.kind === "refused") return <p>{parsed.message}</p>;
+  if (parsed.kind === "refused") {
+    return (
+      <main>
+        <Toolbar name={deckStem(path)} />
+        <div className="banners">
+          <p className="refusal" role="alert">
+            {path} is not a deck Curator can read: {parsed.message}
+          </p>
+        </div>
+        <details className="source" open>
+          <summary>The file</summary>
+          <pre>{history.present}</pre>
+        </details>
+      </main>
+    );
+  }
 
   const onDrop: OnDrop = (card, from, to, secondary) => {
     const declared = (name: string) =>
@@ -133,15 +140,7 @@ export function DeckEditor({
   return (
     <main>
       <Toolbar
-        name={
-          <>
-            <Link to="/" className="toolbar-back" title="All decks">
-              Decks
-            </Link>
-            <span className="muted"> / </span>
-            {parsed.name ?? deckStem(path)}
-          </>
-        }
+        name={parsed.name ?? deckStem(path)}
         count={parsed.total}
         search={<SearchButton onClick={() => setSearching(true)} />}
         quickAdd={<QuickAdd categories={parsed.categories} onAdd={onAdd} />}
@@ -149,6 +148,7 @@ export function DeckEditor({
           <>
             {scannerAvailable && (
               <button type="button" onClick={() => setScanning(true)}>
+                <ScanIcon />
                 Scan
               </button>
             )}
@@ -160,14 +160,7 @@ export function DeckEditor({
             />
           </>
         }
-        status={
-          <span
-            className={`save-status save-${save.status}`}
-            title={save.status === "error" ? save.message : path}
-          >
-            {statusText[save.status]}
-          </span>
-        }
+        status={<SaveStatus save={save} path={path} />}
         history={
           <UndoRedo
             onUndo={undo}
@@ -177,31 +170,13 @@ export function DeckEditor({
           />
         }
       />
-      {save.status === "conflict" && (
-        <p className="conflict" role="alert">
-          Changed on GitHub -{" "}
-          <button type="button" onClick={reload}>
-            Reload (discard my edits)
-          </button>{" "}
-          /{" "}
-          <button type="button" onClick={() => void store.overwrite()}>
-            Overwrite
-          </button>
-        </p>
-      )}
-      {save.status === "error" && (
-        <p className="refusal" role="alert">
-          Saving failed, and will be tried again: {save.message}
-        </p>
-      )}
-      {refusal && (
-        <p className="refusal" role="alert">
-          {refusal}
-          <button type="button" onClick={() => setRefusal(null)}>
-            ×
-          </button>
-        </p>
-      )}
+      <Banners
+        save={save}
+        refusal={refusal}
+        onReload={() => void reload()}
+        onOverwrite={() => void store.overwrite()}
+        onDismiss={() => setRefusal(null)}
+      />
       {searching && (
         <SearchOverlay
           cards={parsed.cards}
@@ -228,10 +203,15 @@ export function DeckEditor({
           onClose={() => setScanning(false)}
         />
       )}
-      <details className="source">
-        <summary>The file</summary>
-        <pre>{history.present}</pre>
-      </details>
+      {parsed.cards.length === 0 && (
+        <div className="stacks-empty">
+          <h2>No cards yet</h2>
+          <p>
+            Type a name into quick add (<kbd>Ctrl</kbd> <kbd>'</kbd>), or open
+            card search and drag results into the deck.
+          </p>
+        </div>
+      )}
       <StacksView
         categories={parsed.categories}
         cards={parsed.cards}
@@ -239,6 +219,10 @@ export function DeckEditor({
         onDrop={onDrop}
         cardProps={cards.cardProps}
       />
+      <details className="source">
+        <summary>The file</summary>
+        <pre>{history.present}</pre>
+      </details>
       {cards.overlay}
     </main>
   );

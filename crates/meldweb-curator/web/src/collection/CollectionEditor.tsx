@@ -12,10 +12,10 @@ import {
   undeclarePlace,
 } from "../collection";
 import type { Finish } from "../deck";
-import { Toolbar, UndoRedo } from "../deck/Toolbar";
+import { Banners, SaveStatus, Toolbar, UndoRedo } from "../deck/Toolbar";
 import type { GitHubApi, RepoRef } from "../github/api";
 import type { DeckEntry } from "../github/decks";
-import { createSaveStore, type SaveState } from "../github/save";
+import { createSaveStore } from "../github/save";
 import { useSave } from "../github/useSave";
 import { useHistory, useUndoKeys } from "../history";
 import { QuickAdd } from "../quickadd/QuickAdd";
@@ -27,6 +27,7 @@ import {
 } from "../scryfall";
 import { addOwnedByName, type Section, sections, UNSORTED } from "./sections";
 import "./collection.css";
+import { CloseIcon, PlusIcon, SearchIcon } from "../ui/icons";
 
 export interface CollectionEditorProps {
   /** `collection.toml` in the Magic repo. */
@@ -40,14 +41,6 @@ export interface CollectionEditorProps {
   /** The repo's decks, which a place can stand for. */
   decks: readonly DeckEntry[];
 }
-
-const statusText: Record<SaveState["status"], string> = {
-  unsaved: "Unsaved",
-  saving: "Saving…",
-  saved: "Saved",
-  conflict: "Not saved",
-  error: "Not saved",
-};
 
 const FINISHES: readonly Finish[] = ["nonfoil", "foil", "etched"];
 
@@ -117,11 +110,17 @@ export function CollectionEditor({
 
   if (parsed.kind === "refused") {
     return (
-      <main className="home">
-        <p className="refusal" role="alert">
-          {path} is not a collection this Curator can read: {parsed.message}
-        </p>
-        <Link to="/">← Decks</Link>
+      <main>
+        <Toolbar name="Collection" />
+        <div className="banners">
+          <p className="refusal" role="alert">
+            {path} is not a collection this Curator can read: {parsed.message}
+          </p>
+        </div>
+        <details className="source" open>
+          <summary>The file</summary>
+          <pre>{history.present}</pre>
+        </details>
       </main>
     );
   }
@@ -151,25 +150,19 @@ export function CollectionEditor({
   return (
     <main>
       <Toolbar
-        name={
-          <>
-            <Link to="/" className="toolbar-back" title="All decks">
-              Decks
-            </Link>
-            <span className="muted"> / </span>
-            Collection
-          </>
-        }
+        name="Collection"
         count={parsed.total}
         search={
-          <input
-            type="search"
-            className="collection-filter"
-            aria-label="Filter by name"
-            placeholder="Filter by name"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          />
+          <div className="collection-filter">
+            <SearchIcon />
+            <input
+              type="search"
+              aria-label="Filter by name"
+              placeholder="Filter by name"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+          </div>
         }
         quickAdd={
           <QuickAdd
@@ -189,14 +182,7 @@ export function CollectionEditor({
             onAdd={(name, deck) => change((t) => declarePlace(t, name, deck))}
           />
         }
-        status={
-          <span
-            className={`save-status save-${save.status}`}
-            title={save.status === "error" ? save.message : path}
-          >
-            {statusText[save.status]}
-          </span>
-        }
+        status={<SaveStatus save={save} path={path} />}
         history={
           <UndoRedo
             onUndo={undo}
@@ -206,36 +192,21 @@ export function CollectionEditor({
           />
         }
       />
-      {save.status === "conflict" && (
-        <p className="conflict" role="alert">
-          Changed on GitHub -{" "}
-          <button type="button" onClick={reload}>
-            Reload (discard my edits)
-          </button>{" "}
-          /{" "}
-          <button type="button" onClick={() => void store.overwrite()}>
-            Overwrite
-          </button>
-        </p>
-      )}
-      {save.status === "error" && (
-        <p className="refusal" role="alert">
-          Saving failed, and will be tried again: {save.message}
-        </p>
-      )}
-      {refusal && (
-        <p className="refusal" role="alert">
-          {refusal}
-          <button type="button" onClick={() => setRefusal(null)}>
-            ×
-          </button>
-        </p>
-      )}
+      <Banners
+        save={save}
+        refusal={refusal}
+        onReload={() => void reload()}
+        onOverwrite={() => void store.overwrite()}
+        onDismiss={() => setRefusal(null)}
+      />
       {parsed.cards.length === 0 && parsed.places.length === 0 && (
-        <p className="muted">
-          Nothing here yet. Add cards with quick add, and make places, like a
-          trade binder, a bulk box or one of your decks, with New place.
-        </p>
+        <div className="stacks-empty">
+          <h2>Nothing here yet</h2>
+          <p>
+            Add cards with quick add, and make places, like a trade binder, a
+            bulk box or one of your decks, with New place.
+          </p>
+        </div>
       )}
       {shown.map((s) => (
         <PlaceSection
@@ -248,7 +219,7 @@ export function CollectionEditor({
         />
       ))}
       {filter && shown.length === 0 && (
-        <p className="muted">No card owned matches “{filter}”.</p>
+        <p className="collection-none">No card owned matches “{filter}”.</p>
       )}
       <details className="source">
         <summary>The file</summary>
@@ -281,8 +252,8 @@ function PlaceSection({
     >
       <header className="place-header">
         <h2>{place?.name ?? UNSORTED}</h2>
-        <span className="muted">
-          {section.qty} card{section.qty === 1 ? "" : "s"}
+        <span className="badge" title="Cards">
+          {section.qty}
         </span>
         {place?.deck &&
           (deckName !== undefined ? (
@@ -291,7 +262,7 @@ function PlaceSection({
               params={{ _splat: place.deck }}
               className="place-deck"
             >
-              Deck: {deckName}
+              Deck · {deckName}
             </Link>
           ) : (
             <span className="refusal-inline">
@@ -302,7 +273,7 @@ function PlaceSection({
         {place && section.qty === 0 && (
           <button
             type="button"
-            className="place-remove"
+            className="place-remove small ghost"
             title="Remove this place"
             onClick={() => change((t) => undeclarePlace(t, place.name))}
           >
@@ -318,7 +289,7 @@ function PlaceSection({
               <th>Card</th>
               <th>Printing</th>
               <th>Finish</th>
-              <th>Move</th>
+              <th>Move to</th>
               <th>
                 <span className="visually-hidden">Remove</span>
               </th>
@@ -365,42 +336,47 @@ function OwnedRow({
   return (
     <tr className="owned-row">
       <td className="owned-qty">
-        <button
-          type="button"
-          aria-label={`One fewer ${name}`}
-          onClick={() =>
-            change((t) => setOwnedQty(t, card.index, card.qty - 1))
-          }
-        >
-          −
-        </button>
-        <span>{card.qty}</span>
-        <button
-          type="button"
-          aria-label={`One more ${name}`}
-          onClick={() =>
-            change((t) => setOwnedQty(t, card.index, card.qty + 1))
-          }
-        >
-          +
-        </button>
+        <div className="stepper">
+          <button
+            type="button"
+            aria-label={`One fewer ${name}`}
+            onClick={() =>
+              change((t) => setOwnedQty(t, card.index, card.qty - 1))
+            }
+          >
+            −
+          </button>
+          <span>{card.qty}</span>
+          <button
+            type="button"
+            aria-label={`One more ${name}`}
+            onClick={() =>
+              change((t) => setOwnedQty(t, card.index, card.qty + 1))
+            }
+          >
+            +
+          </button>
+        </div>
       </td>
       <td className="owned-name">
-        {name}
+        <span className="owned-thumb">
+          {image && <img src={image} alt="" loading="lazy" />}
+        </span>
+        <span className="owned-title">{name}</span>
         {image && (
           <img className="owned-preview" src={image} alt="" loading="lazy" />
         )}
       </td>
       <td className="owned-printing">
         {card.card.kind === "printing" ? (
-          <code>
-            {card.card.set.toUpperCase()} {card.card.num}
-          </code>
+          <span className="set-chip">
+            {card.card.set.toUpperCase()} <span>#{card.card.num}</span>
+          </span>
         ) : (
           <span className="muted">any</span>
         )}
       </td>
-      <td>
+      <td className="owned-finish">
         <select
           aria-label={`Finish of ${name}`}
           value={card.finish}
@@ -452,15 +428,15 @@ function OwnedRow({
           </select>
         )}
       </td>
-      <td>
+      <td className="owned-remove-cell">
         <button
           type="button"
-          className="owned-remove"
+          className="owned-remove icon ghost small"
           aria-label={`Remove ${name}`}
           title="Remove from the collection"
           onClick={() => change((t) => setOwnedQty(t, card.index, 0))}
         >
-          ×
+          <CloseIcon />
         </button>
       </td>
     </tr>
@@ -493,9 +469,10 @@ function NewPlace({
   return (
     <>
       <button type="button" onClick={() => dialog.current?.showModal()}>
+        <PlusIcon />
         New place
       </button>
-      <dialog ref={dialog} className="new-deck" aria-label="New place">
+      <dialog ref={dialog} className="sheet" aria-label="New place">
         <form
           method="dialog"
           onSubmit={(e) => {
@@ -506,7 +483,7 @@ function NewPlace({
           }}
         >
           <h2>New place</h2>
-          <label>
+          <label className="field">
             Name
             <input
               value={name}
@@ -514,7 +491,7 @@ function NewPlace({
               onChange={(e) => setName(e.target.value)}
             />
           </label>
-          <label>
+          <label className="field">
             It is a deck
             <select
               value={deck}

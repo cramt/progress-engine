@@ -9,6 +9,7 @@ import {
   slugify,
 } from "../github/decks";
 import { deckText } from "../github/deckText";
+import { PlusIcon } from "../ui/icons";
 
 const FORMATS = [
   "commander",
@@ -78,9 +79,10 @@ export function NewDeckDialog({ repo }: { repo: RepoRef }) {
         className="primary"
         onClick={() => dialog.current?.showModal()}
       >
+        <PlusIcon />
         New deck
       </button>
-      <dialog ref={dialog} className="new-deck" aria-label="New deck">
+      <dialog ref={dialog} className="sheet" aria-label="New deck">
         {made ? (
           <div>
             <h2>Created {made.path}</h2>
@@ -104,7 +106,7 @@ export function NewDeckDialog({ repo }: { repo: RepoRef }) {
         ) : (
           <form onSubmit={submit}>
             <h2>New deck</h2>
-            <label>
+            <label className="field">
               Name
               <input
                 name="name"
@@ -114,14 +116,14 @@ export function NewDeckDialog({ repo }: { repo: RepoRef }) {
                 onChange={(e) => setName(e.target.value)}
               />
             </label>
-            <p className="hint">
+            <p className="hint field-hint">
               {slugify(name) ? (
                 <code>{deckPath(name)}</code>
               ) : (
                 "The file is named from this."
               )}
             </p>
-            <label>
+            <label className="field">
               Format
               <select
                 name="format"
@@ -135,7 +137,8 @@ export function NewDeckDialog({ repo }: { repo: RepoRef }) {
                 ))}
               </select>
             </label>
-            <fieldset>
+            <fieldset className="choice">
+              <legend className="visually-hidden">Start from</legend>
               <label>
                 <input
                   type="radio"

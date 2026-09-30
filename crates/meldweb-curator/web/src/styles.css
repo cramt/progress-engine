@@ -1,30 +1,736 @@
+/*
+ * The design tokens and the base look of every control. Components style
+ * their own layout in their own sheets and take colours, radii and shadows
+ * from here, so light and dark are decided in one place.
+ *
+ * One accent, Archidekt's orange, marks what is selected, active or droppable
+ * and fills the primary button. Everything else is neutral.
+ */
 :root {
-  color-scheme: light dark;
-  --bg: #f4f5f7;
-  --fg: #1c1e21;
-  --muted: #6b7079;
+  color-scheme: light;
+  --bg: #f5f5f3;
+  --surface: #ffffff;
+  --surface-2: #f0efec;
+  --surface-3: #e6e5e1;
+  --border: #e3e2de;
+  --border-strong: #cdccc6;
+  --fg: #1c1c1a;
+  --muted: #6b6a65;
+  --faint: #9a9993;
+  --accent: #f08a1c;
+  --accent-strong: #d9730a;
+  --accent-fg: #1f1204;
+  --accent-soft: rgb(240 138 28 / 0.14);
+  --danger: #c2352b;
+  --danger-soft: #fbe9e7;
+  --warning-soft: #fcf2d4;
+  --warning-fg: #6a4b00;
+  --success: #2e7d4a;
+  --scrim: rgb(20 20 18 / 0.5);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow: 0 2px 6px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 12px 40px rgb(0 0 0 / 0.18), 0 2px 8px rgb(0 0 0 / 0.08);
+  --card-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+  --r-sm: 6px;
+  --r: 8px;
+  --r-lg: 12px;
+  --control-h: 32px;
+  --bar-h: 56px;
+  --gutter: 24px;
   --card-radius: 4.75% / 3.5%;
-  font-family: system-ui, sans-serif;
+  --font:
+    "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.45;
   background: var(--bg);
   color: var(--fg);
+  -webkit-font-smoothing: antialiased;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1b1d21;
-    --fg: #e6e7ea;
-    --muted: #9097a3;
+    color-scheme: dark;
+    --bg: #131416;
+    --surface: #1b1c1f;
+    --surface-2: #232428;
+    --surface-3: #2c2e33;
+    --border: #2b2d31;
+    --border-strong: #3b3e44;
+    --fg: #ececea;
+    --muted: #9c9c97;
+    --faint: #6f706c;
+    --accent: #f59a3a;
+    --accent-strong: #ffad55;
+    --accent-fg: #1f1204;
+    --accent-soft: rgb(245 154 58 / 0.16);
+    --danger: #ef6b61;
+    --danger-soft: #3a1e1c;
+    --warning-soft: #3a3016;
+    --warning-fg: #f4d88a;
+    --success: #5cc084;
+    --scrim: rgb(0 0 0 / 0.62);
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+    --shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 16px 48px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.3);
+    --card-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
   }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --gutter: 16px;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
 }
 
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: inherit;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  text-decoration-color: currentColor;
+}
+
+code,
+kbd,
+pre {
+  font-family: var(--mono);
+  font-size: 0.92em;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 4px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* Controls. A bare <button>, <input> or <select> looks like this everywhere. */
+button,
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--control-h);
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition:
+    background 80ms,
+    border-color 80ms,
+    color 80ms;
+}
+
+button:hover:not(:disabled),
+.button:hover {
+  background: var(--surface-2);
+}
+
+button:active:not(:disabled) {
+  background: var(--surface-3);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+button.primary,
+.button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+button.primary:hover:not(:disabled),
+.button.primary:hover {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+
+button.ghost {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+button.ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+button.small {
+  --control-h: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+/* A square button holding one icon or symbol. */
+button.icon {
+  width: var(--control-h);
+  padding: 0;
+}
+
+button svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+input:not([type="checkbox"], [type="radio"]),
+select,
+textarea {
+  height: var(--control-h);
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  transition:
+    border-color 80ms,
+    box-shadow 80ms;
+}
+
+textarea {
+  height: auto;
+  padding: 8px 10px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--faint);
+}
+
+input:not([type="checkbox"], [type="radio"]):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+select {
+  appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%238e8d88' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  cursor: pointer;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+input[type="search"]::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+label {
+  font-size: 13px;
+}
+
+/* A labelled form field: its label above it. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.field > input,
+.field > select,
+.field > textarea {
+  font-weight: 400;
+}
+
+/* A hint under the field it is about, closer to it than to the next one. */
+.field-hint {
+  margin-top: -10px;
+}
+
+/* A row of buttons joined into one control; the pressed one is the value. */
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.segmented button {
+  --control-h: 26px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.segmented button:hover:not(:disabled) {
+  background: transparent;
+  color: var(--fg);
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow);
+}
+
+/* A number between − and +. */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.stepper button {
+  width: var(--control-h);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.stepper button:hover:not(:disabled) {
+  color: var(--fg);
+}
+
+.stepper input,
+.stepper > span {
+  width: 3.5em;
+  height: calc(var(--control-h) - 2px);
+  border: 0;
+  border-inline: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.stepper > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75em;
+  font-size: 13px;
+}
+
+.stepper input:focus {
+  box-shadow: none;
+}
+
+.stepper input::-webkit-inner-spin-button {
+  display: none;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 10px;
+  background: var(--surface-3);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * The bar along the top of every page, sticky on scroll: the mark, where you
+ * are, and that page's tools. Above the stacks' drop targets (z 10) and below
+ * the drop strip (z 20).
+ */
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-height: var(--bar-h);
+  padding: 10px var(--gutter);
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+}
+
+.toolbar-deck {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: block;
+  width: 26px;
+  height: 26px;
+}
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.crumbs a {
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.crumbs a:hover {
+  color: var(--fg);
+}
+
+.crumb-sep {
+  color: var(--faint);
+  font-weight: 400;
+}
+
+.crumb-here {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.toolbar-search,
+.toolbar-quick-add,
+.toolbar-actions,
+.toolbar-status,
+.toolbar-history {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+}
+
+/* Whether the page's file is committed. */
+.save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.save-status::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.save-status.save-unsaved::before,
+.save-status.save-saving::before {
+  background: var(--accent);
+}
+
+.save-status.save-saving::before {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.save-status.save-conflict,
+.save-status.save-error {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.save-status.save-conflict::before,
+.save-status.save-error::before {
+  background: var(--danger);
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* Banners: a refusal, a failed save, a conflict. */
+.banners {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.banners:empty {
+  display: none;
+}
+
+.refusal,
+.conflict {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  border-radius: var(--r);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.conflict {
+  border-color: color-mix(in srgb, var(--warning-fg) 30%, transparent);
+  background: var(--warning-soft);
+  color: var(--warning-fg);
+}
+
+.refusal > button:last-child:not(:first-child) {
+  margin-left: auto;
+}
+
+.refusal-inline {
+  color: var(--danger);
+}
+
+.done {
+  color: var(--success);
+  font-weight: 500;
+}
+
+/* A page's body under the bar. */
 main {
-  padding: 16px 24px;
+  padding: 20px var(--gutter) 48px;
 }
 
+main > .toolbar {
+  margin: -20px calc(-1 * var(--gutter)) 20px;
+}
+
+/* The file as it will be committed, at the foot of the page. */
+.source {
+  max-width: 980px;
+  margin-top: 40px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.source summary {
+  width: fit-content;
+  padding: 12px 0;
+  cursor: pointer;
+}
+
+.source pre {
+  max-height: 60vh;
+  overflow: auto;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+/* A modal <dialog>: new deck, new place. */
+dialog.sheet {
+  width: min(560px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow-lg);
+}
+
+dialog.sheet::backdrop {
+  background: var(--scrim);
+}
+
+.sheet form,
+.sheet > div {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 24px 20px;
+}
+
+.sheet h2 {
+  font-size: 18px;
+}
+
+.sheet textarea {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.sheet fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sheet .choice {
+  display: flex;
+  gap: 8px;
+}
+
+.sheet .choice label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+
+.sheet .choice label:has(:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.sheet .unreadable {
+  max-height: 40vh;
+  overflow: auto;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* The stacks. */
 .stacks {
   display: flex;
   gap: var(--gap);
@@ -37,42 +743,56 @@ main {
 }
 
 .stack {
+  position: relative;
   margin-bottom: var(--gap);
 }
 
 .stack-header {
-  height: 48px;
   display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  padding-bottom: 4px;
+  align-items: flex-end;
+  gap: 8px;
+  height: 40px;
+  padding: 0 2px 8px;
 }
 
 .stack-header h2 {
   display: flex;
   align-items: center;
-  gap: 5px;
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stack-crown {
   flex: none;
   width: 16px;
   height: 16px;
-  color: #d4a017;
+  color: var(--accent);
 }
 
 .stack-qty {
-  font-size: 12px;
-  color: var(--muted);
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.stack-kind {
+  color: var(--faint);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-transform: capitalize;
 }
 
 .stack-cards {
-  list-style: none;
   margin: 0;
   padding: 0;
+  list-style: none;
 }
 
 /*
@@ -84,7 +804,8 @@ main {
   width: var(--card-w);
   height: var(--card-h);
   margin-bottom: calc(var(--peek) - var(--card-h));
-  transition: margin-bottom 120ms ease-out;
+  cursor: grab;
+  transition: margin-bottom 140ms ease-out;
 }
 
 .card:last-child,
@@ -98,38 +819,18 @@ main {
   width: 100%;
   height: 100%;
   border-radius: var(--card-radius);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
+  box-shadow: var(--card-shadow);
 }
 
 .card-missing {
-  box-sizing: border-box;
-  padding: 10px 12px;
-  background: #3a3d44;
-  color: #fff;
-  font-size: 13px;
+  padding: 9px 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--fg);
+  font-size: 12.5px;
   font-weight: 600;
-}
-
-.card-qty {
-  position: absolute;
-  top: 6px;
-  left: -6px;
-  min-width: 18px;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: #1c1e21;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  text-align: center;
-}
-
-.stack {
-  position: relative;
-}
-
-.card {
-  cursor: grab;
+  line-height: 1.3;
+  box-shadow: none;
 }
 
 /* While dragging, stacks hold still so drop targets do not move under the cursor. */
@@ -146,299 +847,104 @@ main {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  border-radius: 8px;
-  background: rgb(40 44 52 / 0.72);
-  color: #fff;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  backdrop-filter: blur(2px);
+  color: var(--fg);
   text-align: center;
-  transition: background 80ms;
+  transition:
+    background 80ms,
+    border-color 80ms;
 }
 
 .drop-target.over {
-  background: rgb(250 137 13 / 0.85);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
 }
 
 .drop-plus {
-  font-size: 32px;
+  color: var(--accent);
+  font-size: 30px;
+  font-weight: 300;
   line-height: 1;
 }
 
 .drop-name {
-  font-size: 22px;
-  font-weight: 600;
   padding: 0 8px;
+  font-size: 18px;
+  font-weight: 650;
 }
 
 .drop-hint {
-  font-size: 13px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .drop-strip {
   position: fixed;
   top: 0;
-  left: 0;
   right: 0;
+  left: 0;
   z-index: 20;
   display: flex;
   justify-content: center;
-  gap: 16px;
-  padding: 12px;
-  background: rgb(0 0 0 / 0.15);
+  gap: 12px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow);
 }
 
 .strip-zone {
   width: 200px;
-  padding: 20px 0;
-  border-radius: 6px;
-  background: #6b7079;
-  color: #fff;
+  padding: 16px 0;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--r);
+  color: var(--muted);
   font-weight: 600;
   text-align: center;
 }
 
 .strip-zone.over {
-  background: #fa890d;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--fg);
 }
 
 .new-category {
   position: fixed;
   top: 24px;
   left: 50%;
-  transform: translateX(-50%);
   z-index: 30;
   display: flex;
   gap: 8px;
   align-items: end;
   padding: 16px;
-  border-radius: 8px;
-  background: var(--bg);
-  box-shadow: 0 4px 24px rgb(0 0 0 / 0.35);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(-50%);
 }
 
 .new-category label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
+  gap: 6px;
+  font-weight: 500;
 }
 
-/*
- * Sticky under the drop strip (z 20) and above the stacks' drop targets (z 10).
- * It runs the full width of main, padding included, so cards never show beside it.
- */
-.toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 15;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  margin: -16px -24px 16px;
-  padding: 10px 24px;
-  background: var(--bg);
-  border-bottom: 1px solid rgb(127 127 127 / 0.25);
-  box-shadow: 0 2px 6px rgb(0 0 0 / 0.08);
-}
-
-.toolbar-deck {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-}
-
-.toolbar-name {
-  margin: 0;
-  font-size: 20px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.toolbar-count,
-.toolbar-status {
+.stacks-empty {
+  max-width: 420px;
+  margin: 72px auto;
   color: var(--muted);
-  font-size: 14px;
+  text-align: center;
 }
 
-.toolbar-spacer {
-  flex: 1;
-}
-
-.toolbar-search,
-.toolbar-quick-add,
-.toolbar-actions,
-.toolbar-history {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.stack-kind {
-  font-style: italic;
-}
-
-.refusal {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: #b3261e;
-  color: #fff;
-}
-
-.refusal button {
-  margin-left: auto;
-}
-
-.source {
-  margin-bottom: 16px;
-}
-
-.source pre {
-  max-height: 50vh;
-  overflow: auto;
-  padding: 12px;
-  border-radius: 6px;
-  background: rgb(0 0 0 / 0.06);
-  font-size: 12px;
-}
-
-/* Saving (#120): the toolbar's status slot and the conflict banner. */
-.save-status.save-unsaved,
-.save-status.save-saving {
-  font-style: italic;
-}
-
-.save-status.save-conflict,
-.save-status.save-error {
-  color: #b3261e;
-  font-weight: 600;
-}
-
-.toolbar-back {
-  color: inherit;
-  font-weight: 400;
-}
-
-.conflict {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: #f2c94c;
-  color: #1c1e21;
-  font-weight: 600;
-}
-
-/* The deck list, login and onboarding (#119), and new deck (#121). */
-.home {
-  max-width: 760px;
-  margin: 0 auto;
-}
-
-.home-header {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-
-.muted {
-  color: var(--muted);
-}
-
-.deck-list {
-  list-style: none;
-  padding: 0;
-}
-
-.deck-list li {
-  padding: 10px 0;
-  border-bottom: 1px solid rgb(127 127 127 / 0.2);
-}
-
-.deck-list a {
-  font-size: 17px;
-  font-weight: 600;
-}
-
-.refusal-inline {
-  color: #b3261e;
-}
-
-.onboarding li {
-  margin-bottom: 16px;
-}
-
-.hint {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.done {
-  color: #2e7d32;
-}
-
-.button {
-  display: inline-block;
-  padding: 1px 6px;
-  text-decoration: none;
-}
-
-.primary {
-  padding: 6px 14px;
-  border: 0;
-  border-radius: 6px;
-  background: #2f6fed;
-  color: #fff;
-  font: inherit;
-  cursor: pointer;
-}
-
-.new-deck {
-  width: min(560px, calc(100vw - 32px));
-  border: 1px solid rgb(127 127 127 / 0.4);
-  border-radius: 8px;
-  background: var(--bg);
+.stacks-empty h2 {
+  margin-bottom: 8px;
   color: var(--fg);
-}
-
-.new-deck form,
-.new-deck > div {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.new-deck label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.new-deck fieldset {
-  display: flex;
-  gap: 16px;
-  border: 0;
-  padding: 0;
-}
-
-.new-deck fieldset label {
-  flex-direction: row;
-  align-items: center;
-}
-
-.new-deck textarea {
-  font-family: ui-monospace, monospace;
-  font-size: 12px;
-}
-
-.dialog-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  font-size: 17px;
 }

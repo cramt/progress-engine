@@ -9,15 +9,36 @@ import {
   UNCATEGORIZED,
 } from "./layout";
 
-// Card geometry, in px. The peek is the name bar a stacked card leaves showing.
-const CARD_W = 236;
-const CARD_H = Math.round((CARD_W * 88) / 63);
-const PEEK = Math.round(CARD_H * 0.112);
-const HEADER = 48;
-const GAP = 24;
+// Card geometry, in px. A card is as wide as fills the page with whole
+// columns, between these two, or up to MAX_ALONE when a phone fits only one;
+// the peek is the name bar a stacked card leaves showing, and follows from
+// the width.
+const MIN_W = 200;
+const MAX_W = 250;
+const MAX_ALONE = 340;
+const HEADER = 40;
+const GAP = 20;
 
-const stackHeight = (g: Group) =>
-  HEADER + (g.cards.length - 1) * PEEK + CARD_H + GAP;
+interface Geometry {
+  columns: number;
+  width: number;
+  height: number;
+  peek: number;
+}
+
+function geometry(available: number): Geometry {
+  const columns = Math.max(1, Math.floor((available + GAP) / (MIN_W + GAP)));
+  const fits = Math.floor((available - (columns - 1) * GAP) / columns);
+  const width = Math.max(
+    MIN_W,
+    Math.min(columns > 1 ? MAX_W : MAX_ALONE, fits),
+  );
+  const height = Math.round((width * 88) / 63);
+  return { columns, width, height, peek: Math.round(height * 0.112) };
+}
+
+const stackHeight = (at: Geometry) => (g: Group) =>
+  HEADER + (g.cards.length - 1) * at.peek + at.height + GAP;
 
 /** Where a card was dropped: a category, or a place on the strip that may not be one yet. */
 export type DropTarget =
@@ -38,20 +59,22 @@ interface Dragging {
   from: string | null;
 }
 
-function useColumnCount() {
+function useGeometry() {
   const ref = useRef<HTMLDivElement>(null);
-  const [columns, setColumns] = useState(1);
+  const [at, setAt] = useState(() => geometry(0));
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const observer = new ResizeObserver(([e]) => {
-      const width = e?.contentRect.width ?? 0;
-      setColumns(Math.max(1, Math.floor((width + GAP) / (CARD_W + GAP))));
+      const next = geometry(e?.contentRect.width ?? 0);
+      setAt((now) =>
+        now.columns === next.columns && now.width === next.width ? now : next,
+      );
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  return [ref, columns] as const;
+  return [ref, at] as const;
 }
 
 /** What a card in the stack for `from` shows and does; see `useCardEditor`. */
@@ -74,7 +97,7 @@ export function StacksView({
   /** Without it a card is only drawn: no menu, hotkeys or details. */
   cardProps?: CardPropsFor;
 }) {
-  const [ref, columns] = useColumnCount();
+  const [ref, at] = useGeometry();
   const [dragging, setDragging] = useState<Dragging | null>(null);
   const [naming, setNaming] = useState<{
     drag: Dragging;
@@ -83,8 +106,8 @@ export function StacksView({
   const nameOf = (c: DeckCard) => cardName(c, printings);
   const packed = packColumns(
     groupByCategory(categories, cards, nameOf),
-    stackHeight,
-    columns,
+    stackHeight(at),
+    at.columns,
   );
 
   const drop = (to: DropTarget, secondary: boolean) => {
@@ -122,9 +145,9 @@ export function StacksView({
         className={dragging ? "stacks dragging" : "stacks"}
         style={
           {
-            "--card-w": `${CARD_W}px`,
-            "--card-h": `${CARD_H}px`,
-            "--peek": `${PEEK}px`,
+            "--card-w": `${at.width}px`,
+            "--card-h": `${at.height}px`,
+            "--peek": `${at.peek}px`,
             "--gap": `${GAP}px`,
           } as React.CSSProperties
         }
@@ -233,10 +256,12 @@ function Stack({
           {title}
         </h2>
         <span className="stack-qty">
-          Qty: {group.qty}
           {group.kind && group.kind !== "commander" && (
-            <span className="stack-kind"> · {group.kind}</span>
+            <span className="stack-kind">{group.kind}</span>
           )}
+          <span className="badge" title={`Qty: ${group.qty}`}>
+            {group.qty}
+          </span>
         </span>
       </header>
       <ol className="stack-cards">

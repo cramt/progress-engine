@@ -27,6 +27,28 @@ describe("the deck list", () => {
     expect(decks[0]?.sha).toMatch(/^[0-9a-f]{40}$/);
   });
 
+  it("carries each deck's format, size and commanders, for its tile", async () => {
+    const { api, repo } = mockConnection({
+      files: {
+        ...seedDecks(),
+        "decks/burn.deck.toml": deckText.newDeck("Burn", "modern"),
+      },
+    });
+    const [burn, lantern, loam] = await listDecks(api, repo, { parseDeck });
+    expect([burn?.format, burn?.total, burn?.commanders]).toEqual([
+      "modern",
+      0,
+      [],
+    ]);
+    // The committed decks declare no format.
+    expect([lantern?.format, lantern?.total]).toEqual([undefined, 100]);
+    expect(loam?.total).toBe(99);
+    expect(lantern?.commanders).toEqual([
+      { kind: "printing", set: "moc", num: "94" },
+    ]);
+    expect(loam?.commanders).toHaveLength(1);
+  });
+
   it("is empty for a repo with no decks directory", async () => {
     const { api, repo } = mockConnection({ files: { VERSION: "1\n" } });
     expect(await listDecks(api, repo, { parseDeck })).toEqual([]);

@@ -2,23 +2,24 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 
 .quick-add-box {
   position: relative;
 }
 
+.quick-add-box {
+  min-width: 0;
+}
+
 .quick-add-box input {
   width: 240px;
-  padding: 5px 8px;
-  font: inherit;
-  font-size: 14px;
+  max-width: 100%;
 }
 
 .quick-add select {
   max-width: 150px;
-  font: inherit;
-  font-size: 13px;
 }
 
 .quick-add-list {
@@ -32,21 +33,23 @@
   margin: 2px 0 0;
   padding: 4px 0;
   list-style: none;
-  border-radius: 6px;
-  background: var(--bg);
-  box-shadow: 0 4px 18px rgb(0 0 0 / 0.3);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
 }
 
 .quick-add-list [role="option"] {
-  padding: 5px 10px;
-  font-size: 14px;
+  margin: 0 4px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  font-size: 13px;
   white-space: nowrap;
   cursor: pointer;
 }
 
 .quick-add-list [role="option"].active {
-  background: #fa890d;
-  color: #fff;
+  background: var(--accent-soft);
 }
 
 .quick-add-status {
@@ -54,4 +57,28 @@
   color: var(--muted);
   font-size: 13px;
   white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .toolbar-quick-add {
+    flex: 1 1 100%;
+    order: 1;
+  }
+
+  .quick-add,
+  .quick-add-box {
+    flex: 1;
+  }
+
+  .quick-add-box input {
+    width: 100%;
+  }
+
+  .quick-add select {
+    max-width: 120px;
+  }
+
+  .quick-add-status {
+    display: none;
+  }
 }

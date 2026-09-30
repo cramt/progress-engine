@@ -11,6 +11,7 @@ import {
   setCardQty,
 } from "../deck";
 import { type Printing, printingId } from "../scryfall";
+import { ChevronLeft, ChevronRight, CloseIcon } from "../ui/icons";
 import { afterRemoval, neighbours } from "./order";
 import { PrintingsGrid } from "./PrintingsGrid";
 import { FINISHES, type PrintingOption, printsByName } from "./prints";
@@ -133,11 +134,12 @@ export function DetailsModal(props: DetailsModalProps) {
           )}
           <button
             type="button"
-            className="details-close"
+            className="details-close icon ghost"
             aria-label="Close"
+            title="Close (Esc)"
             onClick={onClose}
           >
-            ×
+            <CloseIcon />
           </button>
         </header>
         {props.refusal && (
@@ -195,8 +197,10 @@ export function DetailsModal(props: DetailsModalProps) {
             type="button"
             disabled={prev === null}
             onClick={() => prev !== null && onStep(prev)}
+            title="Previous card (←)"
           >
-            ‹ Previous
+            <ChevronLeft />
+            Previous
           </button>
           <span className="details-position">
             {position + 1} of {order.length}
@@ -205,8 +209,10 @@ export function DetailsModal(props: DetailsModalProps) {
             type="button"
             disabled={next === null}
             onClick={() => next !== null && onStep(next)}
+            title="Next card (→)"
           >
-            Next ›
+            Next
+            <ChevronRight />
           </button>
         </footer>
       </div>
@@ -248,29 +254,31 @@ function Quantity({
   return (
     <fieldset className="details-field details-qty">
       <legend>Quantity</legend>
-      <button
-        type="button"
-        aria-label="Decrease quantity"
-        onClick={() => onChange(qty - 1)}
-      >
-        −
-      </button>
-      <input
-        type="number"
-        min={0}
-        aria-label="Quantity"
-        value={typed ?? String(qty)}
-        onChange={(e) => setTyped(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => e.key === "Enter" && commit()}
-      />
-      <button
-        type="button"
-        aria-label="Increase quantity"
-        onClick={() => onChange(qty + 1)}
-      >
-        +
-      </button>
+      <div className="stepper">
+        <button
+          type="button"
+          aria-label="Decrease quantity"
+          onClick={() => onChange(qty - 1)}
+        >
+          −
+        </button>
+        <input
+          type="number"
+          min={0}
+          aria-label="Quantity"
+          value={typed ?? String(qty)}
+          onChange={(e) => setTyped(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => e.key === "Enter" && commit()}
+        />
+        <button
+          type="button"
+          aria-label="Increase quantity"
+          onClick={() => onChange(qty + 1)}
+        >
+          +
+        </button>
+      </div>
     </fieldset>
   );
 }
@@ -345,19 +353,21 @@ function FinishToggle({
   return (
     <fieldset className="details-field details-finish">
       <legend>Finish</legend>
-      {FINISHES.map((f) => (
-        <button
-          key={f}
-          type="button"
-          aria-pressed={f === finish}
-          disabled={
-            f !== finish && available !== undefined && !available.includes(f)
-          }
-          onClick={() => f !== finish && onChange(f)}
-        >
-          {f}
-        </button>
-      ))}
+      <div className="segmented">
+        {FINISHES.map((f) => (
+          <button
+            key={f}
+            type="button"
+            aria-pressed={f === finish}
+            disabled={
+              f !== finish && available !== undefined && !available.includes(f)
+            }
+            onClick={() => f !== finish && onChange(f)}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
     </fieldset>
   );
 }
@@ -399,6 +409,7 @@ function Categories({
             <button
               type="button"
               aria-label={`Remove from ${name}`}
+              title={`Remove from ${name}`}
               onClick={() =>
                 onEdit((t) =>
                   setCardCategories(
@@ -409,7 +420,7 @@ function Categories({
                 )
               }
             >
-              ×
+              <CloseIcon />
             </button>
           </li>
         ))}
@@ -425,6 +436,7 @@ function Categories({
         >
           <input
             name="name"
+            className="details-new-category"
             aria-label="New category"
             placeholder="New category"
             // biome-ignore lint/a11y/noAutofocus: the user just asked to type a name

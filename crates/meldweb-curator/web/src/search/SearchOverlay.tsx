@@ -18,11 +18,13 @@ import {
 import { type RenderResult, renderMinimalResult } from "./ResultCard";
 import { startResultDrag, useResultDrops } from "./resultDrag";
 import "./search.css";
+import { CloseIcon, LockIcon, PlusIcon, SearchIcon } from "../ui/icons";
 
 /** The toolbar's button that opens the overlay. */
 export function SearchButton({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} title="Card search">
+      <SearchIcon />
       Card search
     </button>
   );
@@ -252,13 +254,18 @@ export function SearchOverlay({
                   aria-label="Close tab"
                   onClick={() => closeTab(t.id)}
                 >
-                  ×
+                  <CloseIcon />
                 </button>
               )}
             </div>
           ))}
-          <button type="button" aria-label="New search tab" onClick={addTab}>
-            +
+          <button
+            type="button"
+            className="icon ghost small search-tab-new"
+            aria-label="New search tab"
+            onClick={addTab}
+          >
+            <PlusIcon />
           </button>
         </div>
         <div className="search-head-actions">
@@ -275,10 +282,17 @@ export function SearchOverlay({
               writeLocked(!locked);
             }}
           >
+            <LockIcon open={!locked} />
             {locked ? "Unlock" : "Lock"}
           </button>
-          <button type="button" aria-label="Close search" onClick={onClose}>
-            ×
+          <button
+            type="button"
+            className="icon ghost"
+            aria-label="Close search"
+            title="Close (Esc)"
+            onClick={onClose}
+          >
+            <CloseIcon />
           </button>
         </div>
       </div>
@@ -290,26 +304,31 @@ export function SearchOverlay({
           run(tab.id, tab.query, smart);
         }}
       >
-        <input
-          ref={input}
-          type="search"
-          aria-label="Scryfall syntax"
-          placeholder="Scryfall syntax, e.g. t:artifact mv<=2 o:draw"
-          list={historyId}
-          autoComplete="off"
-          spellCheck={false}
-          value={tab.query}
-          onChange={(e) => {
-            const query = e.target.value;
-            update(tab.id, () => ({ query }));
-          }}
-        />
+        <div className="search-box">
+          <SearchIcon />
+          <input
+            ref={input}
+            type="search"
+            aria-label="Scryfall syntax"
+            placeholder="Scryfall syntax, e.g. t:artifact mv<=2 o:draw"
+            list={historyId}
+            autoComplete="off"
+            spellCheck={false}
+            value={tab.query}
+            onChange={(e) => {
+              const query = e.target.value;
+              update(tab.id, () => ({ query }));
+            }}
+          />
+        </div>
         <datalist id={historyId}>
           {history.map((q) => (
             <option key={q} value={q} />
           ))}
         </datalist>
-        <button type="submit">Search</button>
+        <button type="submit" className="primary">
+          Search
+        </button>
         <label
           className="search-smart"
           title="Keep results to the deck's colour identity and format"
@@ -383,6 +402,19 @@ export function SearchOverlay({
             </div>
           ))}
         </div>
+        {tab.sent === null && (
+          <div className="search-start">
+            <p>
+              Search with Scryfall syntax, e.g. <code>t:artifact mv&lt;=2</code>{" "}
+              or <code>o:"draw a card" c:u</code>.
+            </p>
+            <p>
+              Hover a result and press <strong>+</strong> to add it, or drag it
+              onto a category. <strong>Lock</strong> keeps search beside the
+              deck.
+            </p>
+          </div>
+        )}
         {tab.loading && <p className="search-loading">Searching…</p>}
         {!tab.loading && tab.more && (
           <button

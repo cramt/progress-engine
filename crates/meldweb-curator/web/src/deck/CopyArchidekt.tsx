@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { type Card, exportArchidekt } from "../deck";
 import type { Printings } from "../scryfall";
+import { CheckIcon, CopyIcon } from "../ui/icons";
 import { printingNames } from "./archidektNames";
 
 /**
@@ -42,6 +43,7 @@ export function CopyArchidekt({
       onClick={() => void copy()}
       title="Copy the deck as Archidekt text"
     >
+      {copied ? <CheckIcon /> : <CopyIcon />}
       {copied ? "Copied" : "Copy as Archidekt"}
     </button>
   );

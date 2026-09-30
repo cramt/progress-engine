@@ -1,0 +1,252 @@
+/* The deck list (#119): a tile per deck, its commanders' art on top. */
+.home {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.home-repo {
+  margin-right: 6px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.deck-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.deck-tile {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color 120ms,
+    box-shadow 120ms,
+    transform 120ms;
+}
+
+.deck-tile:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.deck-art {
+  display: flex;
+  aspect-ratio: 16 / 8;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 30% 20%, var(--accent-soft), transparent 60%),
+    var(--surface-3);
+}
+
+.deck-art img {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  object-fit: cover;
+}
+
+.deck-art img + img {
+  border-left: 2px solid var(--surface);
+}
+
+.deck-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px 16px;
+}
+
+.deck-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.deck-title h2 {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-commander,
+.deck-meta,
+.deck-refused {
+  margin: 0;
+  font-size: 13px;
+}
+
+.deck-commander {
+  color: var(--muted);
+}
+
+.deck-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.deck-meta .badge {
+  text-transform: capitalize;
+}
+
+.deck-path {
+  margin-top: auto;
+  padding-top: 6px;
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.deck-tile.refused .deck-art {
+  background: var(--danger-soft);
+}
+
+/* Colour identity, as the mana symbols' colours. */
+.pips {
+  display: inline-flex;
+  flex: none;
+  gap: 3px;
+  margin-left: auto;
+}
+
+.pip {
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgb(0 0 0 / 0.25);
+  border-radius: 50%;
+}
+
+.pip-W {
+  background: #f8f4dc;
+}
+
+.pip-U {
+  background: #3d8fd1;
+}
+
+.pip-B {
+  background: #3a3431;
+}
+
+.pip-R {
+  background: #e0533d;
+}
+
+.pip-G {
+  background: #2f9460;
+}
+
+/* Login and onboarding: one card in the middle of the page. */
+.gate {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 24px var(--gutter);
+}
+
+.gate-card {
+  width: min(480px, 100%);
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.gate-card .brand {
+  margin-bottom: 20px;
+  font-size: 15px;
+}
+
+.gate-card .brand-mark {
+  width: 34px;
+  height: 34px;
+}
+
+.gate-card h1 {
+  margin-bottom: 10px;
+  font-size: 22px;
+}
+
+.gate-card > p {
+  margin: 0 0 20px;
+  color: var(--muted);
+}
+
+.gate-card > .primary {
+  --control-h: 40px;
+  width: 100%;
+  font-size: 14px;
+}
+
+.gate-card .refusal {
+  margin-top: 16px;
+}
+
+.onboarding {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.onboarding li {
+  position: relative;
+  padding: 14px 16px 14px 52px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  counter-increment: step;
+}
+
+.onboarding li::before {
+  content: counter(step);
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.onboarding li.complete::before {
+  content: "✓";
+  background: var(--success);
+  color: #fff;
+}
+
+.onboarding .hint {
+  margin-top: 8px;
+}
+
+.onboarding .done {
+  margin-left: 8px;
+  font-size: 13px;
+}

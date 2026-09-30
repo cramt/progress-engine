@@ -3,6 +3,7 @@
  * path, which is slugged from the name when the deck is made and never follows
  * a rename (ADR-0021).
  */
+import type { CardRef } from "../deck";
 import { ConflictError, type GitHubApi, type RepoRef } from "./api";
 import type { DeckText } from "./deckText";
 import { commitDeck } from "./save";
@@ -17,6 +18,12 @@ export interface DeckEntry {
   name: string;
   /** Set when the file is not a deck the format allows, with why. */
   refused?: string;
+  /** The deck's `format`, when it declares one. */
+  format?: string;
+  /** Cards in the deck, as the editor counts them. */
+  total?: number;
+  /** The cards in its commander-typed categories, for the deck list's art. */
+  commanders?: CardRef[];
 }
 
 /** `decks/lantern.deck.toml` → `lantern`. */
@@ -45,14 +52,24 @@ export async function listDecks(
           refused: "gone",
         };
       const parsed = deck.parseDeck(file.text);
-      return parsed.kind === "deck"
-        ? { path: f.path, sha: file.sha, name: parsed.name ?? deckStem(f.path) }
-        : {
-            path: f.path,
-            sha: file.sha,
-            name: deckStem(f.path),
-            refused: parsed.message,
-          };
+      if (parsed.kind === "deck") {
+        return {
+          path: f.path,
+          sha: file.sha,
+          name: parsed.name ?? deckStem(f.path),
+          ...(parsed.format ? { format: parsed.format } : {}),
+          total: parsed.total,
+          commanders: parsed.cards
+            .filter((c) => c.place === "commander")
+            .map((c) => c.card),
+        };
+      }
+      return {
+        path: f.path,
+        sha: file.sha,
+        name: deckStem(f.path),
+        refused: parsed.message,
+      };
     }),
   );
   return entries.sort((a, b) => a.name.localeCompare(b.name));

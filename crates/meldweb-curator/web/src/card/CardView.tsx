@@ -122,7 +122,12 @@ export function CardView({
       ) : (
         <div className="card-missing">{name}</div>
       )}
-      {qty !== undefined && <span className="card-qty">{qty}</span>}
+      {/* A single copy goes without saying: most of a Commander deck is one. */}
+      {qty !== undefined && qty > 1 && (
+        <span className="card-qty" title={`${qty} copies`}>
+          {qty}
+        </span>
+      )}
       {finish && finish !== "nonfoil" && (
         <span className="card-finish">{finish}</span>
       )}
