@@ -21,7 +21,7 @@ const printings = (entries: [string, string[]][]): Printings =>
   new Map(
     entries.map(([key, colorIdentity]) => [
       key,
-      { name: key, image: "", colorIdentity },
+      { name: key, image: "", colorIdentity, typeLine: "" },
     ]),
   );
 

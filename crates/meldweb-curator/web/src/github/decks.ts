@@ -4,7 +4,7 @@
  * a rename (ADR-0021).
  */
 import type { CardRef, SetOnly } from "../deck";
-import { fetchPrintingsInSets } from "../scryfall";
+import { fetchPrintings, fetchPrintingsInSets, printingKey } from "../scryfall";
 import { ConflictError, type GitHubApi, type RepoRef } from "./api";
 import type { DeckText } from "./deckText";
 import { commitDeck } from "./save";
@@ -117,16 +117,8 @@ export async function createDeck(
   repo: RepoRef,
   name: string,
   source: NewDeckSource,
-  deck: Pick<
-    DeckText,
-    | "parseDeck"
-    | "newDeck"
-    | "importArchidekt"
-    | "setCardPrinting"
-    | "setDeckMeta"
-    | "commitMessage"
-  >,
-  inSets: typeof fetchPrintingsInSets = fetchPrintingsInSets,
+  deck: ImportText & Pick<DeckText, "newDeck" | "commitMessage">,
+  lookups: Lookups = scryfallLookups,
 ): Promise<CreatedDeck> {
   const slug = slugify(name);
   if (!slug) {
@@ -152,7 +144,7 @@ export async function createDeck(
       name,
       source.format,
       deck,
-      inSets,
+      lookups,
     );
     if (made.kind === "refused") return made;
     ({ text, unreadable } = made);
@@ -171,6 +163,27 @@ export async function createDeck(
   }
 }
 
+type ImportText = Pick<
+  DeckText,
+  | "parseDeck"
+  | "importArchidekt"
+  | "setCardPrinting"
+  | "setDeckMeta"
+  | "declareCategory"
+  | "setCardCategories"
+>;
+
+/** What an import asks Scryfall, as one seam tests can replace. */
+export interface Lookups {
+  inSets: typeof fetchPrintingsInSets;
+  printings: typeof fetchPrintings;
+}
+
+const scryfallLookups: Lookups = {
+  inSets: fetchPrintingsInSets,
+  printings: fetchPrintings,
+};
+
 export type FromArchidekt =
   | {
       kind: "deck";
@@ -188,11 +201,8 @@ export async function deckFromArchidekt(
   source: string,
   name: string,
   format: string | undefined,
-  deck: Pick<
-    DeckText,
-    "parseDeck" | "importArchidekt" | "setCardPrinting" | "setDeckMeta"
-  >,
-  inSets: typeof fetchPrintingsInSets = fetchPrintingsInSets,
+  deck: ImportText,
+  lookups: Lookups = scryfallLookups,
 ): Promise<FromArchidekt> {
   const imported = deck.importArchidekt(source);
   if (imported.kind === "refused") {
@@ -203,9 +213,10 @@ export async function deckFromArchidekt(
     imported.toml,
     imported.setOnly,
     deck,
-    inSets,
+    lookups.inSets,
     unreadable,
   );
+  text = await fileByType(text, deck, lookups.printings);
   // Archidekt's text carries no deck name, so the caller's goes in.
   text = deck.setDeckMeta(text, name, format);
   const parsed = deck.parseDeck(text);
@@ -250,5 +261,50 @@ async function pinSets(
     }
   });
   unreadable.sort((a, b) => a.line - b.line);
+  return text;
+}
+
+// Archidekt's own order when a card has several types: a land creature is a
+// land, an artifact creature a creature.
+const TYPES = [
+  "Land",
+  "Creature",
+  "Battle",
+  "Planeswalker",
+  "Instant",
+  "Sorcery",
+  "Artifact",
+  "Enchantment",
+] as const;
+
+function mainType(typeLine: string): string | undefined {
+  const types = (typeLine.split(" — ")[0] ?? "").split(" ");
+  return TYPES.find((t) => types.includes(t));
+}
+
+/**
+ * Files every card the text left without a category under its front face's
+ * main type. Archidekt gives a bracketless line a category of its own choosing
+ * as it imports it (archidekt-import-shapes.md, rule 6), which for its own
+ * export means the type it was grouped by. A card Scryfall cannot place is
+ * left as it is.
+ */
+async function fileByType(
+  text: string,
+  deck: Pick<DeckText, "parseDeck" | "declareCategory" | "setCardCategories">,
+  printings: typeof fetchPrintings,
+): Promise<string> {
+  const parsed = deck.parseDeck(text);
+  if (parsed.kind === "refused") return text;
+  const bare = parsed.cards.filter((c) => c.categories.length === 0);
+  if (bare.length === 0) return text;
+  const found = await printings(bare).catch(() => new Map());
+  for (const card of bare) {
+    const typeLine = found.get(printingKey(card.card))?.typeLine;
+    const type = typeLine && mainType(typeLine);
+    if (!type) continue;
+    text = deck.declareCategory(text, type);
+    text = deck.setCardCategories(text, card.index, [type]);
+  }
   return text;
 }

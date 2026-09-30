@@ -116,7 +116,7 @@ export function persistScryfallCache(): Promise<void> {
     maxAge: CACHE_MS,
     // Bump when a cached shape changes, so old answers are dropped rather
     // than read as the new shape.
-    buster: "1",
+    buster: "2",
   });
   // A cache that cannot be read is an empty cache, not a page that fails.
   return restored.catch(() => undefined);

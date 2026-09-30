@@ -10,6 +10,8 @@ export interface Printing {
   name: string;
   image: string;
   colorIdentity: readonly string[];
+  /** The front face's type line, `Battle — Siege` for an Invasion. */
+  typeLine: string;
   /** Scryfall's search for every printing of the card, when it gave one. */
   prints?: string;
 }
@@ -90,6 +92,7 @@ function toPrinting(card: CollectionCard): Printing {
     name: card.name,
     image: card.image,
     colorIdentity: card.colorIdentity,
+    typeLine: card.typeLine,
     ...(card.prints ? { prints: card.prints } : {}),
   };
 }
@@ -168,7 +171,16 @@ interface CollectionCard {
   collector_number: string;
   image: string;
   colorIdentity: string[];
+  typeLine: string;
   prints?: string;
+}
+
+function frontTypeLine(c: Record<string, unknown>): string {
+  const faces = Array.isArray(c.card_faces)
+    ? (c.card_faces as Record<string, unknown>[])
+    : [];
+  const line = c.type_line ?? faces[0]?.type_line;
+  return typeof line === "string" ? (line.split(" // ")[0] ?? line) : "";
 }
 
 /** Scryfall's JSON is outside our types until it has been checked. */
@@ -197,6 +209,7 @@ function parseCollection(json: unknown): CollectionCard[] {
         colorIdentity: Array.isArray(c.color_identity)
           ? c.color_identity.filter((x): x is string => typeof x === "string")
           : [],
+        typeLine: frontTypeLine(c),
         ...(typeof c.prints_search_uri === "string"
           ? { prints: c.prints_search_uri }
           : {}),

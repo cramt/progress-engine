@@ -20,7 +20,10 @@ Lantern = { deck = "decks/lantern.deck.toml" }
 `;
 
 const printings: Printings = new Map([
-  ["moc/94", { name: "Rashmi and Ragavan", image: "", colorIdentity: [] }],
+  [
+    "moc/94",
+    { name: "Rashmi and Ragavan", image: "", colorIdentity: [], typeLine: "" },
+  ],
 ]);
 
 function parsed() {

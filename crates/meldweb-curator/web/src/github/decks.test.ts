@@ -175,11 +175,14 @@ describe("a new deck", () => {
         format: "commander",
       },
       deckText,
-      async (wanted) => {
-        asked.push(...wanted.map(({ name, set }) => ({ name, set })));
-        return wanted.map((w) =>
-          w.set === "khm" ? { set: "khm", num: "3" } : null,
-        );
+      {
+        inSets: async (wanted) => {
+          asked.push(...wanted.map(({ name, set }) => ({ name, set })));
+          return wanted.map((w) =>
+            w.set === "khm" ? { set: "khm", num: "3" } : null,
+          );
+        },
+        printings: async () => new Map(),
       },
     );
     expect(asked).toEqual([
@@ -220,7 +223,7 @@ describe("replacing a deck from Archidekt", () => {
       "lantern",
       "commander",
       deckText,
-      async () => [],
+      { inSets: async () => [], printings: async () => new Map() },
     );
     const parsed = made.kind === "deck" ? parseDeck(made.text) : made;
     expect(parsed).toMatchObject({
@@ -232,5 +235,54 @@ describe("replacing a deck from Archidekt", () => {
     expect(
       parsed.kind === "deck" && parsed.categories.map((c) => c.name).sort(),
     ).toEqual(["Commander", "Ramp"]);
+  });
+});
+
+describe("an archidekt line with no category", () => {
+  it("is filed under its front face's main type, as archidekt's import files it", async () => {
+    const typed = (typeLine: string) => ({
+      name: "",
+      image: "",
+      colorIdentity: [],
+      typeLine,
+    });
+    const made = await deckFromArchidekt(
+      [
+        "1x Adarkar Wastes",
+        "1x Invasion of Ixalan // Belligerent Regisaur",
+        "1x Dryad Arbor",
+        "1x Sol Ring [Ramp]",
+        "1x Mystery Card",
+      ].join("\n"),
+      "Kellan",
+      "commander",
+      deckText,
+      {
+        inSets: async () => [],
+        printings: async () =>
+          new Map([
+            ["name:adarkar wastes", typed("Land")],
+            [
+              "name:invasion of ixalan // belligerent regisaur",
+              typed("Battle — Siege"),
+            ],
+            ["name:dryad arbor", typed("Land Creature — Forest Dryad")],
+          ]),
+      },
+    );
+    const parsed = made.kind === "deck" ? parseDeck(made.text) : made;
+    expect(
+      parsed.kind === "deck" &&
+        parsed.cards.map((c) => [
+          c.card.kind === "name" && c.card.name,
+          c.categories,
+        ]),
+    ).toEqual([
+      ["Adarkar Wastes", ["Land"]],
+      ["Invasion of Ixalan // Belligerent Regisaur", ["Battle"]],
+      ["Dryad Arbor", ["Land"]],
+      ["Sol Ring", ["Ramp"]],
+      ["Mystery Card", []],
+    ]);
   });
 });

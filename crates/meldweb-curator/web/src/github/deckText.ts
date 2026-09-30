@@ -4,11 +4,13 @@
  */
 import {
   commitMessage,
+  declareCategory,
   type Imported,
   importArchidekt,
   newDeck,
   type Parsed,
   parseDeck,
+  setCardCategories,
   setCardPrinting,
   setDeckMeta,
 } from "../deck";
@@ -31,6 +33,14 @@ export interface DeckText {
     set: string,
     num: string,
   ): string;
+  /** The text with `name` declared, typed or not. */
+  declareCategory(text: string, name: string): string;
+  /** The text with card `index`'s categories replaced. */
+  setCardCategories(
+    text: string,
+    index: number,
+    categories: readonly string[],
+  ): string;
 }
 
 export const deckText: DeckText = {
@@ -40,4 +50,6 @@ export const deckText: DeckText = {
   setDeckMeta,
   importArchidekt,
   setCardPrinting,
+  declareCategory,
+  setCardCategories,
 };
