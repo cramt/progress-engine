@@ -33,9 +33,16 @@ What the page does with it:
   `navigator.locks.request("meldweb-refresh", …)`.
 - **Before navigating to login**, persist unsaved edits: the page is left.
 
-### Faking it in dev
+### In dev
 
-`pnpm dev` runs without the worker; nothing in Vite serves `/api/auth`. A fake
+`pnpm dev` serves these routes from this worker's own `handleAuth`, mounted in
+Vite by `web/scripts/dev-auth.ts`, so it logs in through the real app. It
+reads the public values from `wrangler.toml` and the secret from
+`$GITHUB_CLIENT_SECRET`, then `.dev.vars`, then 1Password the way `infra`
+does. Vite pins port 5173, because the app only redirects to registered
+callback URLs and `http://localhost:5173/api/auth/callback` is one of them.
+
+`VITE_MOCK_GITHUB=1 pnpm dev` fakes these routes in the page instead. The fake
 only has to answer the table above: `refresh` → `200` with any token and an
 `expires_at` in the future (or `401` to test logged out), `logout` → `204`,
 `login` → `302` straight back to `return`. The access token then has to be

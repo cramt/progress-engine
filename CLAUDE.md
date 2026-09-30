@@ -24,8 +24,10 @@ box, a deck), edited at `/collection` and saved the same way (ADR-0023). It is t
 parts: `meldweb-wasm`, which is `chip-decklist` compiled for the browser; `web/`, a
 Vite + React + TanStack Router app in the root pnpm workspace; and `worker/`, the
 one Cloudflare Worker that serves the site and trades a GitHub login for tokens
-without storing anything (deployed with `nix run .#infra -- apply`, an OpenTofu stack in `crates/meldweb-curator/infra/`). In dev,
-`VITE_MOCK_GITHUB=1 pnpm dev` runs the app against an in-page fake GitHub
+without storing anything (deployed with `nix run .#infra -- apply`, an OpenTofu stack in `crates/meldweb-curator/infra/`). In dev, plain
+`pnpm dev` logs in through the real GitHub App on localhost:5173, running the
+worker's auth routes inside Vite with the client secret from 1Password
+(`web/scripts/dev-auth.ts`); `VITE_MOCK_GITHUB=1 pnpm dev` runs the app against an in-page fake GitHub
 (`=no-repo` or `=no-install` start at onboarding), so no worker or app is needed. `MELDWEB_PROBE=1 pnpm dev` adds
 a Scan button backed by Gitaxian Probe; it is a dev-only spike that no build
 carries, and [docs/research/probe-in-curator.md](docs/research/probe-in-curator.md) says why. Copy Archidekt's

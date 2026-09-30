@@ -12,6 +12,7 @@
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
     "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "noEmit": true
   },

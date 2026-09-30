@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import { buildProbe, probeOut } from "./scripts/build-probe.mjs";
 import { buildWasm, watched } from "./scripts/build-wasm.mjs";
+import { devAuth } from "./scripts/dev-auth.ts";
 
 // Rebuilds the parser whenever its Rust changes, so `pnpm dev` is the only
 // command a session needs. A failed build keeps the last good package and
@@ -99,6 +100,7 @@ function gitaxianProbe(): Plugin {
 
 export default defineConfig({
   plugins: [
+    devAuth(),
     gitaxianProbe(),
     decklistWasm(),
     tanstackRouter({ target: "react", autoCodeSplitting: true }),
