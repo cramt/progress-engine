@@ -61,6 +61,21 @@ pub struct Imported {
     pub unreadable: Vec<Unreadable>,
     /// The name each printing's line gave it.
     pub names: HashMap<Printing, String>,
+    /// Cards whose line gave a set but no collector number. A set alone is no
+    /// printing, so each is named by name, and whoever can ask Scryfall pins
+    /// the printing that set has.
+    pub set_only: Vec<SetOnly>,
+}
+
+/// A card named by name whose line also gave a set.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetOnly {
+    /// Into the deck's cards.
+    pub index: usize,
+    pub line: usize,
+    pub text: String,
+    pub name: String,
+    pub set: String,
 }
 
 impl Imported {
@@ -158,6 +173,7 @@ impl Deck {
 
         let mut cards = Vec::new();
         let mut names = HashMap::new();
+        let mut set_only = Vec::new();
         for (e, (line, printing)) in entries.iter().zip(&origins) {
             let place = e.place();
             let mut at = place;
@@ -207,6 +223,14 @@ impl Deck {
                 Ok(c) => {
                     if let Some(p) = printing {
                         names.insert(p.clone(), e.name.clone());
+                    } else if let Some(set) = &e.set {
+                        set_only.push(SetOnly {
+                            index: cards.len(),
+                            line: *line,
+                            text: whole(*line),
+                            name: e.name.clone(),
+                            set: set.clone(),
+                        });
                     }
                     cards.push(c);
                 }
@@ -227,6 +251,7 @@ impl Deck {
             },
             unreadable,
             names,
+            set_only,
         }
     }
 

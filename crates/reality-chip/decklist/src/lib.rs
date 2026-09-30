@@ -180,12 +180,14 @@ fn line_re() -> &'static Regex {
         // Only quantity and name are mandatory. The name is lazy so the trailing
         // optional groups win the ambiguity, which keeps multi-word names intact.
         // A printing needs its number: names end in parentheticals too
-        // (`Erase (Not the Urza's Legacy One)`), and one with no number after
-        // it stays in the name.
+        // (`Erase (Not the Urza's Legacy One)`). Without a number, only a
+        // parenthetical shaped like a set code is a set, which is what
+        // Archidekt's export writes with collector numbers switched off.
         Regex::new(
             r"(?x)
             ^\s*(?P<qty>[0-9]+)\s*[xX]?\s+(?P<name>.*?)
-            (?:\s+\((?P<set>[^)]+)\)\s+(?P<num>[^\s\[*(][^\s\[]*))?
+            (?:\s+\((?P<set>[^)]+)\)\s+(?P<num>[^\s\[*(][^\s\[]*)
+              |\s+\((?P<code>[A-Za-z0-9]{2,6})\))?
             (?:\s+(?P<marker>\*[^*\s\[\]]+\*))?
             (?:\s+\[(?P<cat>[^\]]*)\])?\s*$",
         )
@@ -253,7 +255,10 @@ pub fn parse_line(line: &str, number: usize) -> Result<Option<Entry>, ParseError
     Ok(Some(Entry {
         qty,
         name,
-        set: caps.name("set").map(|m| m.as_str().trim().to_string()),
+        set: caps
+            .name("set")
+            .or_else(|| caps.name("code"))
+            .map(|m| m.as_str().trim().to_string()),
         num: caps.name("num").map(|m| m.as_str().trim().to_string()),
         finish,
         category,

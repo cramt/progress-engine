@@ -37,8 +37,22 @@ export interface Place {
 }
 
 export type Imported =
-  | { kind: "imported"; toml: string; unreadable: Unreadable[] }
+  | { kind: "imported"; toml: string; unreadable: Unreadable[]; setOnly: SetOnly[] }
   | { kind: "refused"; message: string };
+
+/**
+ * A card named by name whose Archidekt line also gave a set.
+ */
+export interface SetOnly {
+  /**
+   * Into the deck's cards, as the edits index them.
+   */
+  index: number;
+  line: number;
+  text: string;
+  name: string;
+  set: string;
+}
 
 /**
  * A line of pasted Archidekt text the import could not carry over whole.

@@ -69,7 +69,13 @@ type Identifier = { set: string; collector_number: string } | { name: string };
 function identifier(ref: CardRef): Identifier {
   return ref.kind === "printing"
     ? { set: ref.set, collector_number: ref.num }
-    : { name: ref.name };
+    : { name: frontFace(ref.name) };
+}
+
+// Scryfall finds a double-faced card by its front face alone: named
+// `A // B` in whole, `/cards/collection` answers not found.
+function frontFace(name: string): string {
+  return name.split(" // ")[0] ?? name;
 }
 
 // Scryfall's limit per request.
@@ -165,4 +171,44 @@ function parseCollection(json: unknown): CollectionCard[] {
       },
     ];
   });
+}
+
+/**
+ * Each card's printing in the set given with it, `null` where Scryfall has no
+ * card of that name there. A set holds several printings of some cards, and
+ * Scryfall picks one the way Archidekt does for a line with no number.
+ */
+export async function fetchPrintingsInSets(
+  wanted: readonly { name: string; set: string }[],
+  signal?: AbortSignal,
+): Promise<({ set: string; num: string } | null)[]> {
+  const key = (name: string, set: string) =>
+    `${set.toLowerCase()}:${name.toLowerCase()}`;
+  const found = new Map<string, { set: string; num: string }>();
+  for (let i = 0; i < wanted.length; i += BATCH) {
+    const batch = wanted.slice(i, i + BATCH);
+    const response = await scryfallFetch(
+      SEARCH_GATE,
+      `${API}/cards/collection`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identifiers: batch.map((w) => ({
+            name: frontFace(w.name),
+            set: w.set,
+          })),
+        }),
+        ...(signal ? { signal } : {}),
+      },
+    );
+    if (!response.ok) throw new Error(`Scryfall answered ${response.status}`);
+    for (const card of parseCollection(await response.json())) {
+      const printing = { set: card.set, num: card.collector_number };
+      found.set(key(card.name, card.set), printing);
+      const front = card.name.split(" // ")[0];
+      if (front !== undefined) found.set(key(front, card.set), printing);
+    }
+  }
+  return wanted.map((w) => found.get(key(w.name, w.set)) ?? null);
 }

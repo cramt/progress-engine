@@ -143,7 +143,7 @@ describe("a new deck", () => {
         text: "1x Sol Ring [Ramp]\nbanana",
         format: "commander",
       },
-      fakeDeck({ kind: "imported", toml, unreadable }),
+      fakeDeck({ kind: "imported", toml, unreadable, setOnly: [] }),
     );
     expect(made).toMatchObject({ kind: "created", unreadable });
     const text = mock.file("decks/ramp-pile.deck.toml")?.text ?? "";
@@ -154,6 +154,43 @@ describe("a new deck", () => {
       total: 1,
     });
     expect(text.endsWith(toml)).toBe(true);
+  });
+
+  it("names a card whose line gave only a set by the printing Scryfall has there, and says which it could not", async () => {
+    const { api, mock, repo } = mockConnection();
+    const asked: { name: string; set: string }[] = [];
+    const made = await createDeck(
+      api,
+      repo,
+      "Sets Only",
+      {
+        kind: "archidekt",
+        text: "1x Doomskar (khm) [Board Wipe]\n1x Sol Ring (zzz) [Ramp]",
+        format: "commander",
+      },
+      deckText,
+      async (wanted) => {
+        asked.push(...wanted.map(({ name, set }) => ({ name, set })));
+        return wanted.map((w) =>
+          w.set === "khm" ? { set: "khm", num: "3" } : null,
+        );
+      },
+    );
+    expect(asked).toEqual([
+      { name: "Doomskar", set: "khm" },
+      { name: "Sol Ring", set: "zzz" },
+    ]);
+    expect(made).toMatchObject({
+      kind: "created",
+      unreadable: [{ line: 2, text: "1x Sol Ring (zzz) [Ramp]" }],
+    });
+    const parsed = parseDeck(
+      mock.file("decks/sets-only.deck.toml")?.text ?? "",
+    );
+    expect(parsed.kind === "deck" && parsed.cards.map((c) => c.card)).toEqual([
+      { kind: "printing", set: "khm", num: "3" },
+      { kind: "name", name: "Sol Ring" },
+    ]);
   });
 
   it("says why an import was refused, and writes nothing", async () => {

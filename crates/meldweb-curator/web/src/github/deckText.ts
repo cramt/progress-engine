@@ -9,6 +9,7 @@ import {
   newDeck,
   type Parsed,
   parseDeck,
+  setCardPrinting,
   setDeckMeta,
 } from "../deck";
 
@@ -23,6 +24,13 @@ export interface DeckText {
   /** The text with `name` set, and `format` when given. */
   setDeckMeta(text: string, name: string, format?: string): string;
   importArchidekt(text: string): Imported;
+  /** The text with card `index` named by the printing `set/num`. */
+  setCardPrinting(
+    text: string,
+    index: number,
+    set: string,
+    num: string,
+  ): string;
 }
 
 export const deckText: DeckText = {
@@ -31,4 +39,5 @@ export const deckText: DeckText = {
   newDeck,
   setDeckMeta,
   importArchidekt,
+  setCardPrinting,
 };

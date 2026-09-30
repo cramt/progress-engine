@@ -3,7 +3,8 @@
  * path, which is slugged from the name when the deck is made and never follows
  * a rename (ADR-0021).
  */
-import type { CardRef } from "../deck";
+import type { CardRef, SetOnly } from "../deck";
+import { fetchPrintingsInSets } from "../scryfall";
 import { ConflictError, type GitHubApi, type RepoRef } from "./api";
 import type { DeckText } from "./deckText";
 import { commitDeck } from "./save";
@@ -121,9 +122,11 @@ export async function createDeck(
     | "parseDeck"
     | "newDeck"
     | "importArchidekt"
+    | "setCardPrinting"
     | "setDeckMeta"
     | "commitMessage"
   >,
+  inSets: typeof fetchPrintingsInSets = fetchPrintingsInSets,
 ): Promise<CreatedDeck> {
   const slug = slugify(name);
   if (!slug) {
@@ -148,8 +151,9 @@ export async function createDeck(
     if (imported.kind === "refused") {
       return { kind: "refused", message: imported.message };
     }
-    unreadable = imported.unreadable;
+    unreadable = [...imported.unreadable];
     text = imported.toml;
+    text = await pinSets(text, imported.setOnly, deck, inSets, unreadable);
     // Archidekt's text carries no deck name, so the dialog's goes in.
     text = deck.setDeckMeta(text, name, source.format);
     const parsed = deck.parseDeck(text);
@@ -169,4 +173,42 @@ export async function createDeck(
     if (e instanceof ConflictError) return taken();
     throw e;
   }
+}
+
+/**
+ * Names each card whose Archidekt line gave a set and no number by the
+ * printing Scryfall has in that set, and says of each it could not which one
+ * stayed named by name, so a set the import dropped is never silent.
+ */
+async function pinSets(
+  text: string,
+  setOnly: readonly SetOnly[],
+  deck: Pick<DeckText, "setCardPrinting">,
+  inSets: typeof fetchPrintingsInSets,
+  unreadable: { line: number; text: string; reason: string }[],
+): Promise<string> {
+  if (setOnly.length === 0) return text;
+  let found: ({ set: string; num: string } | null)[];
+  let why: string;
+  try {
+    found = await inSets(setOnly);
+    why = "Scryfall has no card of that name in it";
+  } catch (e) {
+    found = setOnly.map(() => null);
+    why = `Scryfall could not be asked (${e instanceof Error ? e.message : String(e)})`;
+  }
+  setOnly.forEach((s, i) => {
+    const printing = found[i];
+    if (printing) {
+      text = deck.setCardPrinting(text, s.index, printing.set, printing.num);
+    } else {
+      unreadable.push({
+        line: s.line,
+        text: s.text,
+        reason: `kept by name without its set (${s.set}): ${why}`,
+      });
+    }
+  });
+  unreadable.sort((a, b) => a.line - b.line);
+  return text;
 }

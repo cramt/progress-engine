@@ -26,6 +26,7 @@ export type {
   Kind,
   NewCard,
   Parsed,
+  SetOnly,
   Unreadable,
 } from "./deck.gen";
 

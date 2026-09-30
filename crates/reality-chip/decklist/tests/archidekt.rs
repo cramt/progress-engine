@@ -207,6 +207,29 @@ fn a_name_ending_in_a_parenthetical_is_named_whole() {
     );
 }
 
+/// Archidekt's export with collector numbers off: a set is no printing, so
+/// the card is named by name and the set is handed on for Scryfall to pin.
+#[test]
+fn a_set_without_a_number_is_named_by_name_and_handed_on() {
+    let text = "1x Sol Ring (c21) 263\n1x Doomskar (khm) [Board Wipe,Cast From Exile]";
+    let imported = Deck::read_archidekt(text);
+    assert_eq!(imported.unreadable, vec![]);
+    assert_eq!(
+        imported.deck.cards[1].card,
+        CardRef::Name("Doomskar".into())
+    );
+    assert_eq!(
+        imported.set_only,
+        vec![chip_decklist::deck::SetOnly {
+            index: 1,
+            line: 2,
+            text: "1x Doomskar (khm) [Board Wipe,Cast From Exile]".into(),
+            name: "Doomskar".into(),
+            set: "khm".into(),
+        }]
+    );
+}
+
 #[test]
 fn an_etched_line_imports_as_etched() {
     let (ring, _) = import("1x Sol Ring (c21) 263 *E* [Ramp]");

@@ -38,9 +38,9 @@ fn set_code_and_collector_number() {
 }
 
 /// A printing is a set and a collector number. A parenthetical with no number
-/// after it is part of the name, which is where real names end in one, and a
-/// bare set is kept in the name rather than dropped, so it fails to resolve
-/// out loud instead of quietly becoming a different printing.
+/// after it is part of the name, which is where real names end in one, unless
+/// it is shaped like a set code: that is Archidekt's export with collector
+/// numbers off, and left in the name no card of that name is ever found.
 #[test]
 fn a_parenthetical_without_a_number_is_part_of_the_name() {
     for name in [
@@ -52,9 +52,19 @@ fn a_parenthetical_without_a_number_is_part_of_the_name() {
         assert_eq!(e.name, name);
         assert_eq!((e.set, e.num), (None, None), "{name}");
     }
+}
+
+#[test]
+fn a_set_code_without_a_number_is_a_set() {
     let e = one("1x Myr Battlesphere (tdc) [Big Colorless,Test]");
-    assert_eq!(e.name, "Myr Battlesphere (tdc)");
-    assert_eq!((e.set, e.num), (None, None));
+    assert_eq!(e.name, "Myr Battlesphere");
+    assert_eq!((e.set.as_deref(), e.num), (Some("tdc"), None));
+    assert_eq!(e.category, "Big Colorless,Test");
+
+    let e = one("1x Doomskar (khm) *F*");
+    assert_eq!(e.name, "Doomskar");
+    assert_eq!(e.set.as_deref(), Some("khm"));
+    assert_eq!(e.finish, Finish::Foil);
 
     let e = one("1x Erase (Not the Urza's Legacy One) (unh) 42 [Removal]");
     assert_eq!(e.name, "Erase (Not the Urza's Legacy One)");

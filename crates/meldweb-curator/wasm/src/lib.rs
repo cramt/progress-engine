@@ -201,9 +201,24 @@ pub enum Imported {
     Imported {
         toml: String,
         unreadable: Vec<Unreadable>,
+        /// Cards the line gave a set but no number, named by name until the
+        /// browser pins the printing that set has.
+        #[facet(rename = "setOnly")]
+        set_only: Vec<SetOnly>,
     },
     /// Nothing usable came out: no line was a card.
     Refused { message: String },
+}
+
+/// A card named by name whose Archidekt line also gave a set.
+#[derive(Debug, Facet)]
+pub struct SetOnly {
+    /// Into the deck's cards, as the edits index them.
+    pub index: u32,
+    pub line: u32,
+    pub text: String,
+    pub name: String,
+    pub set: String,
 }
 
 pub fn import_archidekt_text(text: &str) -> Imported {
@@ -228,6 +243,17 @@ pub fn import_archidekt_text(text: &str) -> Imported {
     Imported::Imported {
         toml: imported.to_toml(),
         unreadable,
+        set_only: imported
+            .set_only
+            .iter()
+            .map(|s| SetOnly {
+                index: u32::try_from(s.index).unwrap_or(u32::MAX),
+                line: u32::try_from(s.line).unwrap_or(u32::MAX),
+                text: s.text.clone(),
+                name: s.name.clone(),
+                set: s.set.clone(),
+            })
+            .collect(),
     }
 }
 
@@ -582,12 +608,15 @@ mod tests {
 
     #[test]
     fn an_archidekt_import_names_each_printing_in_a_comment() {
-        let Imported::Imported { toml, unreadable } =
-            import_archidekt_text("1x Rashmi and Ragavan (moc) 94 [Commander{top}]\n")
+        let Imported::Imported {
+            toml,
+            unreadable,
+            set_only,
+        } = import_archidekt_text("1x Rashmi and Ragavan (moc) 94 [Commander{top}]\n")
         else {
             panic!("refused");
         };
-        assert!(unreadable.is_empty());
+        assert!(unreadable.is_empty() && set_only.is_empty());
         assert!(
             toml.contains(r#"{ printing = "moc/94", in = ["Commander"] },  # Rashmi and Ragavan"#),
             "{toml}"

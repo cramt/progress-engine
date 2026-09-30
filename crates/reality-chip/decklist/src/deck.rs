@@ -17,7 +17,7 @@ use facet::Facet;
 use thiserror::Error;
 
 pub use crate::archidekt::{
-    export_archidekt, import_archidekt, ExportError, ImportError, Imported, Unreadable,
+    export_archidekt, import_archidekt, ExportError, ImportError, Imported, SetOnly, Unreadable,
 };
 
 /// Where a category says its cards are. The tree is the tool's, not the deck's.
