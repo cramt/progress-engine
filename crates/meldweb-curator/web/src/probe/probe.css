@@ -91,6 +91,81 @@
   outline: 3px solid #4a90d9;
 }
 
+/* Scanning into the collection: the camera, live, and a log of what went in. */
+
+.scan-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background: rgb(127 127 127 / 0.12);
+  text-align: center;
+}
+
+.scan-view.live {
+  border-color: #4a90d9;
+}
+
+.scan-view p {
+  padding: 16px;
+}
+
+.scan-toggle {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.scan-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  border: none;
+}
+
+.scan-log {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.scan-entry {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.scan-entry img,
+.scan-entry .scan-noimage {
+  flex: none;
+  width: 48px;
+  aspect-ratio: 488 / 680;
+  border-radius: 3px;
+}
+
+.scan-entry-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.scan-entry.gone {
+  opacity: 0.55;
+}
+
+.scan-entry.gone strong {
+  text-decoration: line-through;
+}
+
 @media (max-width: 700px) {
   .scan-body {
     flex-direction: column;

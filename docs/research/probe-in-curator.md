@@ -49,6 +49,47 @@ cargo install wasm-bindgen-cli --version 0.2.129 --locked --root ~/.wbg129
 WASM_BINDGEN_PROBE=~/.wbg129/bin/wasm-bindgen MELDWEB_PROBE=1 VITE_MOCK_GITHUB=1 pnpm dev
 ```
 
+## Scanning into the collection
+
+The collection page has its own Scan, for putting a stack of cards away one
+after another rather than one card into a deck. Press Start, and the camera is
+read continuously: a frame is scanned, and the next is taken 150 ms after that
+scan ends, so the rate is set by the engine. Each card that goes in beeps, and
+lands in a log with a Take back, since its printing is a guess. The panel
+chooses the place the cards go to (Unsorted by default, as quick add does),
+the finish, which the engine cannot see, and whether to keep the printing it
+guesses or add by name.
+
+**The same card is not added twice for lying there.** `probe/tracker.ts`
+decides, by card name, since the printing can change between two frames of the
+same card:
+
+- a card goes in once it has been in **2 frames in a row**, so a card read
+  wrongly while it slides into place is not added;
+- it goes in **once**, and counts again only after it has been out of **2
+  frames in a row**, so one missed detection with the card still there does
+  not add a second copy. Taking it away, or covering it with the hand that puts
+  the next copy down, is what rearms it;
+- a different card counts straight away, with no gap needed.
+
+The cost of the rule: two copies of one card in the same frame are one copy,
+and a second copy put down faster than two frames is missed. Both are in
+`tracker.test.ts`.
+
+The beep sounds when the card is counted, before Scryfall is asked for its
+printing, and the log shows it as "Naming the printing…" until it goes in. If
+Scryfall cannot be reached, it goes in by name, and the log says why.
+
+Measured on 2026-09-30 in headless Chromium, with a fake camera playing a video
+of the fixture frames: 5 s of empty table, Black Lotus for 8 s, 5 s empty,
+Black Lotus for 8 s, then Counterspell for 8 s with no gap. It beeped three
+times and added Black Lotus, Black Lotus and Counterspell. The frames of the
+card lying still, around eight each time, added nothing more. Boot took
+3.5–3.6 s. A frame took 0.73–0.91 s once the first had been scanned (the first
+took about 1.1 s), and a card was counted 0.5–1.1 s after the first frame that
+read it. The two Lotuses came back as `lea/232` and `o90p/2`, the misread named
+in *Accuracy* below. A real camera and a phone remain unchecked (*Not checked*).
+
 ## Joining a scan to the deck
 
 Delver's catalogue names editions ("Limited Edition Alpha"), not set codes, and

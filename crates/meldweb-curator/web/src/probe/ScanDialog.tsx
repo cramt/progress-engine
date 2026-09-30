@@ -1,13 +1,7 @@
-import type { ScannerHandle } from "virtual:gitaxian-probe";
 import { useEffect, useRef, useState } from "react";
 import { printingsById, type ScannedPrinting } from "./printings";
-import { type Found, frameOf, openScanner, scan } from "./scanner";
+import { type Found, frameOf, scan, useScanner } from "./scanner";
 import "./probe.css";
-
-type Boot =
-  | { phase: "booting"; stage: string; percent: number }
-  | { phase: "ready"; scanner: ScannerHandle }
-  | { phase: "failed"; message: string };
 
 /** One card found, with Scryfall's printing for each of its candidates. */
 interface Result {
@@ -30,11 +24,7 @@ export function ScanDialog({
   onAdd: (printing: ScannedPrinting) => void;
   onClose: () => void;
 }) {
-  const [boot, setBoot] = useState<Boot>({
-    phase: "booting",
-    stage: "load",
-    percent: 0,
-  });
+  const boot = useScanner();
   const [camera, setCamera] = useState<MediaStream | null>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [busy, setBusy] = useState(false);
@@ -42,19 +32,6 @@ export function ScanDialog({
   const [took, setTook] = useState<number | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [added, setAdded] = useState<string[]>([]);
-
-  useEffect(() => {
-    let live = true;
-    openScanner((stage, percent) => {
-      if (live) setBoot({ phase: "booting", stage, percent });
-    }).then(
-      (scanner) => live && setBoot({ phase: "ready", scanner }),
-      (e) => live && setBoot({ phase: "failed", message: message(e) }),
-    );
-    return () => {
-      live = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (video.current) video.current.srcObject = camera;

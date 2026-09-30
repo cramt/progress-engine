@@ -1,4 +1,5 @@
 import probe, { type ScannerHandle } from "virtual:gitaxian-probe";
+import { useEffect, useState } from "react";
 
 /** Whether this build carries the card scanner: `MELDWEB_PROBE=1 pnpm dev`. */
 export const scannerAvailable = probe !== null;
@@ -95,4 +96,36 @@ export function frameOf(
   g.fillRect(0, 0, canvas.width, canvas.height);
   g.drawImage(source, margin, margin, w, h);
   return g.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+export type Boot =
+  | { phase: "booting"; stage: string; percent: number }
+  | { phase: "ready"; scanner: ScannerHandle }
+  | { phase: "failed"; message: string };
+
+/** The page's scanner, booted when the first component using it mounts. */
+export function useScanner(): Boot {
+  const [boot, setBoot] = useState<Boot>({
+    phase: "booting",
+    stage: "load",
+    percent: 0,
+  });
+  useEffect(() => {
+    let live = true;
+    openScanner((stage, percent) => {
+      if (live) setBoot({ phase: "booting", stage, percent });
+    }).then(
+      (scanner) => live && setBoot({ phase: "ready", scanner }),
+      (e: unknown) =>
+        live &&
+        setBoot({
+          phase: "failed",
+          message: e instanceof Error ? e.message : String(e),
+        }),
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
+  return boot;
 }

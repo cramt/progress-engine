@@ -18,6 +18,7 @@ import type { DeckEntry } from "../github/decks";
 import { createSaveStore } from "../github/save";
 import { useSave } from "../github/useSave";
 import { useHistory, useUndoKeys } from "../history";
+import { scannerAvailable } from "../probe/scanner";
 import { QuickAdd } from "../quickadd/QuickAdd";
 import {
   cardName,
@@ -25,9 +26,11 @@ import {
   type Printings,
   printingKey,
 } from "../scryfall";
+import { LiveScan } from "./LiveScan";
+import { addScanned, removeScanned } from "./scanned";
 import { addOwnedByName, type Section, sections, UNSORTED } from "./sections";
 import "./collection.css";
-import { CloseIcon, PlusIcon, SearchIcon } from "../ui/icons";
+import { CloseIcon, PlusIcon, ScanIcon, SearchIcon } from "../ui/icons";
 
 export interface CollectionEditorProps {
   /** `collection.toml` in the Magic repo. */
@@ -86,6 +89,11 @@ export function CollectionEditor({
   const history = useHistory(loaded);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
+  const [scanning, setScanning] = useState(false);
+  // The text as of the last edit, for the scanner, whose edits land between
+  // renders: two cards taken from one frame must each see the other.
+  const latest = useRef(loaded);
+  latest.current = history.present;
   const parsed = useMemo(
     () => parseCollection(history.present),
     [history.present],
@@ -135,6 +143,18 @@ export function CollectionEditor({
     }
   };
 
+  /** As `change`, on the text as of the last edit; returns the refusal. */
+  const scanChange = (next: (text: string) => string): string | null => {
+    try {
+      const text = next(latest.current);
+      latest.current = text;
+      history.edit(text);
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e);
+    }
+  };
+
   const reload = async () => {
     try {
       history.reset(await store.reload());
@@ -176,11 +196,19 @@ export function CollectionEditor({
           />
         }
         actions={
-          <NewPlace
-            places={parsed.places}
-            decks={decks}
-            onAdd={(name, deck) => change((t) => declarePlace(t, name, deck))}
-          />
+          <>
+            {scannerAvailable && (
+              <button type="button" onClick={() => setScanning(true)}>
+                <ScanIcon />
+                Scan
+              </button>
+            )}
+            <NewPlace
+              places={parsed.places}
+              decks={decks}
+              onAdd={(name, deck) => change((t) => declarePlace(t, name, deck))}
+            />
+          </>
         }
         status={<SaveStatus save={save} path={path} />}
         history={
@@ -199,6 +227,14 @@ export function CollectionEditor({
         onOverwrite={() => void store.overwrite()}
         onDismiss={() => setRefusal(null)}
       />
+      {scanning && (
+        <LiveScan
+          places={parsed.places}
+          onAdd={(copy) => scanChange((t) => addScanned(t, copy))}
+          onTakeBack={(copy) => scanChange((t) => removeScanned(t, copy))}
+          onClose={() => setScanning(false)}
+        />
+      )}
       {parsed.cards.length === 0 && parsed.places.length === 0 && (
         <div className="stacks-empty">
           <h2>Nothing here yet</h2>

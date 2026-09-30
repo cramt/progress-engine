@@ -29,7 +29,7 @@ without storing anything (deployed with `nix run .#infra -- apply`, an OpenTofu 
 worker's auth routes inside Vite with the client secret from 1Password
 (`web/scripts/dev-auth.ts`); `VITE_MOCK_GITHUB=1 pnpm dev` runs the app against an in-page fake GitHub
 (`=no-repo` or `=no-install` start at onboarding), so no worker or app is needed. `MELDWEB_PROBE=1 pnpm dev` adds
-a Scan button backed by Gitaxian Probe; it is a dev-only spike that no build
+a Scan button backed by Gitaxian Probe, to a deck and, scanning continuously, to the collection; it is a dev-only spike that no build
 carries, and [docs/research/probe-in-curator.md](docs/research/probe-in-curator.md) says why. Copy Archidekt's
 editor before improving on it; [docs/research/archidekt-editor.md](docs/research/archidekt-editor.md)
 is what that editor does and the order to build it in. The TypeScript never
