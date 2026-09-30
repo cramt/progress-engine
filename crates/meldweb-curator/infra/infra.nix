@@ -10,19 +10,10 @@
 in {
   terraform = {
     required_providers.cloudflare.source = "cloudflare/cloudflare";
-    # R2 speaks S3; the skips cover the AWS-only calls R2 doesn't implement
-    backend.s3 = {
-      bucket = curator.stateBucket;
-      key = "meldweb-curator/terraform.tfstate";
-      region = "auto";
-      endpoints.s3 = "https://${accountId}.r2.cloudflarestorage.com";
-      use_path_style = true;
-      skip_credentials_validation = true;
-      skip_region_validation = true;
-      skip_requesting_account_id = true;
-      skip_metadata_api_check = true;
-      skip_s3_checksum = true;
-    };
+    # The same Postgres on luna as ~/nixconf's infra, reached through
+    # PG_CONN_STR (`infra` builds it). Its own schema, because the backend keys
+    # state by schema and workspace, and nixconf's already has the default one
+    backend.pg.schema_name = "meldweb_curator";
   };
 
   # token comes from CLOUDFLARE_API_TOKEN
@@ -30,7 +21,7 @@ in {
 
   data.cloudflare_zone.curator.filter.name = zone;
 
-  # From the GitHub App's settings page; `infra` passes it in from secrets.env
+  # From the GitHub App's settings page; `infra` reads it from 1Password
   variable.github_client_secret = {
     type = "string";
     sensitive = true;

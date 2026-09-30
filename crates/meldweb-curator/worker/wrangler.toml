@@ -29,8 +29,8 @@ run_worker_first = ["/api/*"]
 GITHUB_CLIENT_ID = "Iv23lihWEqL1CJ481glQ"
 GITHUB_APP_SLUG = "meldweb-curator"
 
-# The client secret is never in this file: it is GITHUB_CLIENT_SECRET in the
-# repo root's gitignored secrets.env, which every deploy uploads.
+# The client secret is never in this file: it is in 1Password (Homelab /
+# MeldwebCurator / githubClientSecret), and every tofu apply uploads it.
 # For `wrangler dev`, put GITHUB_CLIENT_SECRET=... in a gitignored .dev.vars
 # beside this file.
 [secrets]

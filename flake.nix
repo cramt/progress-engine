@@ -263,24 +263,21 @@
 
       tofu = pkgs.opentofu.withPlugins (p: [p.cloudflare_cloudflare]);
 
-      # State is remote (R2), so a throwaway working dir per run is enough.
-      # Reads the repo root's gitignored secrets.env (see secrets.env.example)
+      # State is remote, so a throwaway working dir per run is enough
       infra = pkgs.writeShellApplication {
         name = "infra";
-        runtimeInputs = [tofu pkgs.curl pkgs.jq pkgs.git];
+        runtimeInputs = [tofu pkgs.curl pkgs.jq];
         text = ''
-          root=$(git rev-parse --show-toplevel)
-          if [ ! -f "$root/secrets.env" ]; then
-            echo "no secrets.env: copy secrets.env.example and fill it in" >&2
-            exit 1
-          fi
-          set -a
-          # shellcheck source=/dev/null
-          . "$root/secrets.env"
-          set +a
-          : "''${CLOUDFLARE_API_TOKEN:?set it in secrets.env}"
-          : "''${GITHUB_CLIENT_SECRET:?set it in secrets.env}"
-          export TF_VAR_github_client_secret=$GITHUB_CLIENT_SECRET
+          # Every secret is in 1Password's Homelab vault, as ~/nixconf's infra
+          # does it: the token is the service account opnix reads with, and
+          # `op` is the system's, as it is unfree and wrapped there
+          OP_SERVICE_ACCOUNT_TOKEN=$(cat /etc/opnix-token)
+          export OP_SERVICE_ACCOUNT_TOKEN
+          CLOUDFLARE_API_TOKEN=$(op read 'op://Homelab/MeldwebCurator/cloudflareApiToken')
+          TF_VAR_github_client_secret=$(op read 'op://Homelab/MeldwebCurator/githubClientSecret')
+          # State lives where nixconf's does: the terraformremotestate database on luna
+          PG_CONN_STR="postgres://terraformremotestate:$(op read 'op://Homelab/TerraformRemoteState/password')@$(op read 'op://Homelab/Infrastructure/lunaInternalAddress'):5432"
+          export CLOUDFLARE_API_TOKEN TF_VAR_github_client_secret PG_CONN_STR
 
           token=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             https://api.cloudflare.com/client/v4/accounts/${curatorWrangler.account_id}/tokens/verify)
@@ -289,11 +286,6 @@
             echo "CLOUDFLARE_API_TOKEN is not valid until $(jq -r .result.not_before <<<"$token")" >&2
             exit 1
           fi
-          # R2's S3 API takes an account token as-is: key id = token id,
-          # secret = sha256(token). One secret covers the API and the state backend
-          AWS_ACCESS_KEY_ID=$(jq -r .result.id <<<"$token")
-          AWS_SECRET_ACCESS_KEY=$(printf %s "$CLOUDFLARE_API_TOKEN" | sha256sum | cut -d' ' -f1)
-          export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
 
           work=$(mktemp -d)
           trap 'rm -rf "$work"' EXIT

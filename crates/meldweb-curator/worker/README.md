@@ -60,9 +60,8 @@ worker's name and Cloudflare account, which the tofu stack reads from it:
   placeholder, `/api/auth/login` answers `503`.
 - `GITHUB_APP_SLUG`: the app's URL name, for `/api/auth/app`.
 
-The client secret is `GITHUB_CLIENT_SECRET` in the repo root's gitignored
-`secrets.env` (copy `secrets.env.example`), never in a committed file. Every
-deploy uploads it as a Worker secret.
+The client secret is never in a committed file. It is in 1Password, beside the
+Cloudflare token (below), and every apply uploads it as a Worker secret.
 
 The GitHub App's callback URL is `https://meldweb.cramt.dk/api/auth/callback`
 (the worker builds `redirect_uri` from the request's own origin).
@@ -81,15 +80,15 @@ nix run .#infra -- apply
 ```
 
 `apply` redeploys whenever the Nix build of the worker or site changes, or the
-secret does. State is in the R2 bucket `cramt-tofu-state` on the cramt
-account; `infra` derives its credentials from `CLOUDFLARE_API_TOKEN`.
+secret does. It works the way ~/nixconf's infra does:
 
-One-time setup, before the first apply:
-
-1. Enable R2 on the cramt account and create the bucket `cramt-tofu-state`
-   (tofu can't create the bucket that holds its own state).
-2. Create an account API token with the scopes `secrets.env.example` lists.
-3. Fill in `secrets.env`.
+- **Secrets** are read with `op` from the Homelab vault, as the service account
+  in `/etc/opnix-token`: `MeldwebCurator` holds `cloudflareApiToken` (a cramt
+  account token with Workers Scripts, and on cramt.dk Zone read, DNS and
+  Workers Routes) and `githubClientSecret`.
+- **State** is in the `terraformremotestate` Postgres on luna (the `pg`
+  backend), under its own schema `meldweb_curator` so it never meets
+  nixconf's.
 
 `nix run .#deploy-curator` ships only the worker and site, uploading the
 secret when `GITHUB_CLIENT_SECRET` is set in the environment. It copies both

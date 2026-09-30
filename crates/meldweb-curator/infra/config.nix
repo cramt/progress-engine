@@ -4,6 +4,4 @@
 {
   zone = "cramt.dk";
   hostname = "meldweb.cramt.dk";
-  # Created by hand once: tofu can't create the bucket that holds its own state
-  stateBucket = "cramt-tofu-state";
 }
