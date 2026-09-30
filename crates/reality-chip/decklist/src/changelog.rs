@@ -67,7 +67,7 @@ fn categories(list: &[String]) -> String {
     }
 }
 
-fn finish_name(f: Finish) -> &'static str {
+pub(crate) fn finish_name(f: Finish) -> &'static str {
     match f {
         Finish::Nonfoil => "nonfoil",
         Finish::Foil => "foil",
@@ -75,7 +75,7 @@ fn finish_name(f: Finish) -> &'static str {
     }
 }
 
-fn reference(r: &CardRef) -> String {
+pub(crate) fn reference(r: &CardRef) -> String {
     match r {
         CardRef::Printing(p) => p.to_string(),
         CardRef::Name(_) => "any printing".to_string(),
@@ -277,11 +277,18 @@ pub fn commit_message(
         ))
     });
 
+    let lines: Vec<&str> = changes.iter().map(|c| c.text.as_str()).collect();
+    message(path, &lines)
+}
+
+/// The message for `lines`, already in order, saving the file at `path`:
+/// the file's stem, then the first [`SUBJECT_CHANGES`] of them, and past that
+/// every line in the body.
+pub(crate) fn message(path: &str, lines: &[&str]) -> String {
     let stem = stem(path);
-    if changes.is_empty() {
+    if lines.is_empty() {
         return format!("{stem}: reformat");
     }
-    let lines: Vec<&str> = changes.iter().map(|c| c.text.as_str()).collect();
     if lines.len() <= SUBJECT_CHANGES {
         return format!("{stem}: {}", lines.join(", "));
     }

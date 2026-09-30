@@ -8,6 +8,7 @@
 
 pub mod archidekt;
 pub mod changelog;
+pub mod collection;
 pub mod deck;
 pub mod edit;
 

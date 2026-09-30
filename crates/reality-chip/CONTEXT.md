@@ -36,6 +36,10 @@ _Avoid_: filter, search, predicate
 A `.deck.toml` ([ADR-0020](../../docs/adr/0020-decks-are-toml-with-typed-categories.md)): cards, each named once and filed in declared categories. Archidekt's text export imports into the same Deck.
 _Avoid_: deck file, list
 
+**Collection**:
+A `collection.toml` ([ADR-0023](../../docs/adr/0023-the-collection-is-one-file-and-a-copy-is-in-one-place.md)): owned cards, each line written as a deck's is, and each in one declared place or unsorted.
+_Avoid_: card pool
+
 **Decklist**:
 Archidekt's text export, as `gauntlet parse` reads it and `gauntlet import` converts it.
 

@@ -1,6 +1,41 @@
 // Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
+export type ParsedCollection =
+  | { kind: "collection"; places: Place[]; cards: OwnedCard[]; total: number }
+  | { kind: "refused"; message: string };
+
+/**
+ * One line of the collection (ADR-0023).
+ */
+export interface OwnedCard {
+  /**
+   * Position in the file's `cards` list, 0-based: how an edit finds it.
+   */
+  index: number;
+  card: CardRef;
+  qty: number;
+  finish: Finish;
+  /**
+   * The place the copies are in; absent for unsorted.
+   */
+  at?: string;
+}
+
+export type Finish = "nonfoil" | "foil" | "etched";
+
+export type CardRef =
+  | { kind: "printing"; set: string; num: string }
+  | { kind: "name"; name: string };
+
+export interface Place {
+  name: string;
+  /**
+   * The path of the deck this place is, when it is one.
+   */
+  deck?: string;
+}
+
 export type Imported =
   | { kind: "imported"; toml: string; unreadable: Unreadable[] }
   | { kind: "refused"; message: string };
@@ -52,12 +87,6 @@ export interface Card {
  * The category type tree (ADR-0020), as the strings the file uses.
  */
 export type Kind = "in-deck" | "commander" | "not-in-deck" | "sideboard" | "companion" | "maybeboard" | "attractions" | "sticker-sheet";
-
-export type Finish = "nonfoil" | "foil" | "etched";
-
-export type CardRef =
-  | { kind: "printing"; set: string; num: string }
-  | { kind: "name"; name: string };
 
 export interface Category {
   name: string;

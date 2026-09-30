@@ -307,8 +307,17 @@ impl Deck {
     }
 }
 
-pub(crate) fn card(index: usize, raw: RawCard, declared: &[Category]) -> Result<Card, DeckError> {
-    let card = match (raw.name, raw.printing) {
+/// What names a card line and how many of it there are, as every file in the
+/// family that lists cards writes them: named once, `qty` absent for one,
+/// `finish` absent for nonfoil. `index` is 1-based, for the error.
+pub(crate) fn line(
+    index: usize,
+    name: Option<String>,
+    printing: Option<String>,
+    qty: Option<u32>,
+    finish: Option<&str>,
+) -> Result<(CardRef, NonZeroU32, Finish), DeckError> {
+    let card = match (name, printing) {
         (Some(_), Some(_)) => return Err(DeckError::NamedTwice { index }),
         (None, None) => return Err(DeckError::Unnamed { index }),
         (Some(name), None) => CardRef::Name(name),
@@ -317,7 +326,7 @@ pub(crate) fn card(index: usize, raw: RawCard, declared: &[Category]) -> Result<
         }
     };
 
-    let qty = match raw.qty {
+    let qty = match qty {
         None => NonZeroU32::MIN,
         Some(n) => NonZeroU32::new(n).ok_or_else(|| DeckError::ZeroQty {
             index,
@@ -325,7 +334,7 @@ pub(crate) fn card(index: usize, raw: RawCard, declared: &[Category]) -> Result<
         })?,
     };
 
-    let finish = match raw.finish.as_deref() {
+    let finish = match finish {
         None => Finish::Nonfoil,
         Some("foil") => Finish::Foil,
         Some("etched") => Finish::Etched,
@@ -337,6 +346,17 @@ pub(crate) fn card(index: usize, raw: RawCard, declared: &[Category]) -> Result<
             })
         }
     };
+    Ok((card, qty, finish))
+}
+
+pub(crate) fn card(index: usize, raw: RawCard, declared: &[Category]) -> Result<Card, DeckError> {
+    let (card, qty, finish) = line(
+        index,
+        raw.name,
+        raw.printing,
+        raw.qty,
+        raw.finish.as_deref(),
+    )?;
 
     let mut typed: Vec<(&str, CategoryType)> = Vec::new();
     for (n, name) in raw.categories.iter().enumerate() {
@@ -447,7 +467,7 @@ impl Deck {
 }
 
 /// A TOML basic string.
-fn quote(s: &str) -> String {
+pub(crate) fn quote(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');
     for ch in s.chars() {

@@ -14,11 +14,12 @@ use std::num::NonZeroU32;
 use thiserror::Error;
 use toml_edit::{Array, DocumentMut, InlineTable, Item, Key, Table, Value};
 
+use crate::collection::CollectionError;
 use crate::deck::{CardRef, CategoryType, Deck, DeckError, Finish};
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum EditError {
-    #[error("not a deck file: {0}")]
+    #[error("not a TOML file: {0}")]
     Toml(String),
     #[error("there is no card {0}")]
     NoCard(usize),
@@ -26,16 +27,32 @@ pub enum EditError {
     DeclaredDifferently { name: String, existing: String },
     #[error(transparent)]
     Invalid(#[from] DeckError),
+    #[error(transparent)]
+    Collection(#[from] CollectionError),
 }
 
-fn document(text: &str) -> Result<DocumentMut, EditError> {
+/// What an edited file must still be once edited: [`check_deck`] for a deck,
+/// and the collection's own for a collection. The line edits here work on
+/// any file whose `cards` are one inline table per line.
+pub(crate) type Check = fn(&str) -> Result<(), EditError>;
+
+fn check_deck(text: &str) -> Result<(), EditError> {
+    Deck::parse(text)?;
+    Ok(())
+}
+
+pub(crate) fn document(text: &str) -> Result<DocumentMut, EditError> {
     text.parse::<DocumentMut>()
         .map_err(|e| EditError::Toml(e.to_string()))
 }
 
 fn finish(doc: DocumentMut) -> Result<String, EditError> {
+    finish_with(doc, check_deck)
+}
+
+pub(crate) fn finish_with(doc: DocumentMut, check: Check) -> Result<String, EditError> {
     let text = doc.to_string();
-    Deck::parse(&text)?;
+    check(&text)?;
     Ok(text)
 }
 
@@ -46,7 +63,7 @@ fn cards_mut(doc: &mut DocumentMut, index: usize) -> Result<&mut Array, EditErro
         .ok_or(EditError::NoCard(index))
 }
 
-fn card_mut(doc: &mut DocumentMut, index: usize) -> Result<&mut InlineTable, EditError> {
+pub(crate) fn card_mut(doc: &mut DocumentMut, index: usize) -> Result<&mut InlineTable, EditError> {
     cards_mut(doc, index)?
         .get_mut(index)
         .and_then(Value::as_inline_table_mut)
@@ -55,7 +72,7 @@ fn card_mut(doc: &mut DocumentMut, index: usize) -> Result<&mut InlineTable, Edi
 
 /// Where a key sits on a card's line, in the order [`Deck::to_toml`] writes.
 fn rank(key: &str) -> usize {
-    ["name", "printing", "qty", "finish", "in"]
+    ["name", "printing", "qty", "finish", "in", "at"]
         .iter()
         .position(|k| *k == key)
         .unwrap_or(usize::MAX)
@@ -63,7 +80,7 @@ fn rank(key: &str) -> usize {
 
 /// Sets `key` on a card. An existing key is replaced where it stands, keeping
 /// its spacing; a new one goes where the writer would put it.
-fn put(card: &mut InlineTable, key: &str, value: impl Into<Value>) {
+pub(crate) fn put(card: &mut InlineTable, key: &str, value: impl Into<Value>) {
     let value = value.into();
     match card.get_mut(key) {
         Some(existing) => {
@@ -85,7 +102,7 @@ fn raw(s: Option<&toml_edit::RawString>) -> String {
 
 /// The text after card `index`'s comma: the start of the next card's line, or
 /// the end of the array. Its first line ends card `index`'s line.
-fn follower(cards: &Array, index: usize) -> String {
+pub(crate) fn follower(cards: &Array, index: usize) -> String {
     match cards.get(index + 1) {
         Some(next) => raw(next.decor().prefix()),
         None => raw(Some(cards.trailing())),
@@ -100,7 +117,7 @@ fn set_follower(cards: &mut Array, index: usize, text: String) {
 }
 
 /// The comment on a card's line, from the text that follows its comma.
-fn comment(follower: &str) -> Option<String> {
+pub(crate) fn comment(follower: &str) -> Option<String> {
     let (line, _) = follower.split_once('\n')?;
     let text = line.trim().strip_prefix('#')?.trim();
     (!text.is_empty()).then(|| text.to_string())
@@ -191,6 +208,10 @@ pub fn declare_category(
 
 /// Drops card `index`'s line, its comment with it.
 pub fn remove_card(text: &str, index: usize) -> Result<String, EditError> {
+    remove_line(text, index, check_deck)
+}
+
+pub(crate) fn remove_line(text: &str, index: usize, check: Check) -> Result<String, EditError> {
     let mut doc = document(text)?;
     let cards = cards_mut(&mut doc, index)?;
     let own = raw(cards.get(index).and_then(|c| c.decor().prefix()));
@@ -211,14 +232,23 @@ pub fn remove_card(text: &str, index: usize) -> Result<String, EditError> {
             None => cards.set_trailing(joined),
         }
     }
-    finish(doc)
+    finish_with(doc, check)
 }
 
 /// Sets card `index`'s quantity. Zero removes the card, and one drops the
 /// `qty` key, as the format writes it.
 pub fn set_card_qty(text: &str, index: usize, qty: u32) -> Result<String, EditError> {
+    set_qty(text, index, qty, check_deck)
+}
+
+pub(crate) fn set_qty(
+    text: &str,
+    index: usize,
+    qty: u32,
+    check: Check,
+) -> Result<String, EditError> {
     let Some(qty) = NonZeroU32::new(qty) else {
-        return remove_card(text, index);
+        return remove_line(text, index, check);
     };
     let mut doc = document(text)?;
     let card = card_mut(&mut doc, index)?;
@@ -230,11 +260,20 @@ pub fn set_card_qty(text: &str, index: usize, qty: u32) -> Result<String, EditEr
     } else {
         put(card, "qty", i64::from(qty.get()));
     }
-    finish(doc)
+    finish_with(doc, check)
 }
 
 /// Sets card `index`'s finish. Nonfoil is the absent key.
 pub fn set_card_finish(text: &str, index: usize, finish_: Finish) -> Result<String, EditError> {
+    set_finish(text, index, finish_, check_deck)
+}
+
+pub(crate) fn set_finish(
+    text: &str,
+    index: usize,
+    finish_: Finish,
+    check: Check,
+) -> Result<String, EditError> {
     let mut doc = document(text)?;
     let card = card_mut(&mut doc, index)?;
     match finish_ {
@@ -247,7 +286,7 @@ pub fn set_card_finish(text: &str, index: usize, finish_: Finish) -> Result<Stri
         Finish::Foil => put(card, "finish", "foil"),
         Finish::Etched => put(card, "finish", "etched"),
     }
-    finish(doc)
+    finish_with(doc, check)
 }
 
 /// Names card `index` by the printing `set/num`, keeping its quantity,
@@ -258,6 +297,16 @@ pub fn set_card_printing(
     index: usize,
     set: &str,
     num: &str,
+) -> Result<String, EditError> {
+    set_printing(text, index, set, num, check_deck)
+}
+
+pub(crate) fn set_printing(
+    text: &str,
+    index: usize,
+    set: &str,
+    num: &str,
+    check: Check,
 ) -> Result<String, EditError> {
     let printing = format!("{}/{}", set.trim().to_ascii_lowercase(), num.trim());
     let mut doc = document(text)?;
@@ -278,7 +327,7 @@ pub fn set_card_printing(
             }
         }
     }
-    finish(doc)
+    finish_with(doc, check)
 }
 
 /// Makes card `index` a commander: it joins the deck's commander-typed
@@ -350,9 +399,20 @@ pub fn add_card(
         line.insert("in", Value::Array(list));
     }
     line.fmt();
-    let mut line = Value::InlineTable(line);
 
     let mut doc = document(text)?;
+    push_line(&mut doc, line, comment)?;
+    finish(doc)
+}
+
+/// Appends `line` as the last of `cards`, in the file's style, with `comment`
+/// beside it; a file with no `cards` gains them.
+pub(crate) fn push_line(
+    doc: &mut DocumentMut,
+    line: InlineTable,
+    comment: Option<&str>,
+) -> Result<(), EditError> {
+    let mut line = Value::InlineTable(line);
     if !doc.contains_key("cards") {
         doc.insert("cards", Item::Value(Value::Array(Array::new())));
     }
@@ -388,7 +448,7 @@ pub fn add_card(
             cards.push_formatted(line);
         }
     }
-    finish(doc)
+    Ok(())
 }
 
 /// Sets the deck's `name`, and its `format` unless `format` is empty, each in

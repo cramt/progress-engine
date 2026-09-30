@@ -11,6 +11,7 @@
 
 use std::collections::HashMap;
 
+use chip_decklist::collection::{self, Collection};
 use chip_decklist::deck::{self, CategoryType, Deck};
 use chip_decklist::{changelog, edit};
 use facet::Facet;
@@ -328,11 +329,17 @@ pub fn set_card_finish(text: &str, index: usize, finish: &str) -> Result<String,
 /// those categories.
 #[wasm_bindgen]
 pub fn add_card(text: &str, card: &str, categories: &str) -> Result<String, JsError> {
-    let card: NewCard =
-        facet_json::from_str(card).map_err(|e| refused(format!("card is not a CardRef: {e}")))?;
+    let (card, comment) = new_card(card)?;
     let categories: Vec<String> = facet_json::from_str(categories)
         .map_err(|e| refused(format!("categories are not string[]: {e}")))?;
-    let (card, comment) = match card {
+    edit::add_card(text, &card, &categories, comment.as_deref()).map_err(refused)
+}
+
+/// A card to add, from JSON of [`NewCard`], and the name to comment it with.
+fn new_card(json: &str) -> Result<(deck::CardRef, Option<String>), JsError> {
+    let card: NewCard =
+        facet_json::from_str(json).map_err(|e| refused(format!("card is not a CardRef: {e}")))?;
+    Ok(match card {
         NewCard::Name { name } => (deck::CardRef::Name(name), None),
         NewCard::Printing { set, num, name } => (
             deck::CardRef::Printing(deck::Printing {
@@ -341,8 +348,7 @@ pub fn add_card(text: &str, card: &str, categories: &str) -> Result<String, JsEr
             }),
             name,
         ),
-    };
-    edit::add_card(text, &card, &categories, comment.as_deref()).map_err(refused)
+    })
 }
 
 /// The commit message that saves `before` as `after` at `path`, per
@@ -365,6 +371,183 @@ pub fn new_deck(name: &str, format: &str) -> Result<String, JsError> {
     edit::new_deck(name, format).map_err(refused)
 }
 
+/// One line of the collection (ADR-0023).
+#[derive(Debug, Facet)]
+#[facet(rename_all = "camelCase")]
+pub struct OwnedCard {
+    /// Position in the file's `cards` list, 0-based: how an edit finds it.
+    pub index: usize,
+    pub card: CardRef,
+    pub qty: u32,
+    pub finish: Finish,
+    /// The place the copies are in; absent for unsorted.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub at: Option<String>,
+}
+
+#[derive(Debug, Facet)]
+pub struct Place {
+    pub name: String,
+    /// The path of the deck this place is, when it is one.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub deck: Option<String>,
+}
+
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum ParsedCollection {
+    Collection {
+        places: Vec<Place>,
+        cards: Vec<OwnedCard>,
+        /// Physical cards owned, wherever they are.
+        total: u32,
+    },
+    /// The file is not one the format allows, and this says why.
+    Refused { message: String },
+}
+
+fn finish_wire(f: deck::Finish) -> Finish {
+    match f {
+        deck::Finish::Nonfoil => Finish::Nonfoil,
+        deck::Finish::Foil => Finish::Foil,
+        deck::Finish::Etched => Finish::Etched,
+    }
+}
+
+fn card_wire(c: deck::CardRef) -> CardRef {
+    match c {
+        deck::CardRef::Printing(p) => CardRef::Printing {
+            set: p.set,
+            num: p.num,
+        },
+        deck::CardRef::Name(name) => CardRef::Name { name },
+    }
+}
+
+pub fn parse_collection_text(text: &str) -> ParsedCollection {
+    match Collection::parse(text) {
+        Ok(c) => ParsedCollection::Collection {
+            total: c.cards.iter().map(|o| o.qty.get()).sum(),
+            places: c
+                .places
+                .into_iter()
+                .map(|p| Place {
+                    name: p.name,
+                    deck: p.deck,
+                })
+                .collect(),
+            cards: c
+                .cards
+                .into_iter()
+                .enumerate()
+                .map(|(index, o)| OwnedCard {
+                    index,
+                    card: card_wire(o.card),
+                    qty: o.qty.get(),
+                    finish: finish_wire(o.finish),
+                    at: o.at,
+                })
+                .collect(),
+        },
+        Err(e) => ParsedCollection::Refused {
+            message: e.to_string(),
+        },
+    }
+}
+
+/// JSON of [`ParsedCollection`]; `web/src/collection.ts` is the typed side.
+#[wasm_bindgen]
+pub fn parse_collection(text: &str) -> String {
+    facet_json::to_string(&parse_collection_text(text)).expect("ParsedCollection serialises")
+}
+
+fn finish_arg(finish: &str) -> Result<deck::Finish, JsError> {
+    match finish {
+        "nonfoil" => Ok(deck::Finish::Nonfoil),
+        "foil" => Ok(deck::Finish::Foil),
+        "etched" => Ok(deck::Finish::Etched),
+        other => Err(refused(format!("{other:?} is not a finish"))),
+    }
+}
+
+/// A place argument: the empty string is unsorted.
+fn place_arg(place: &str) -> Option<&str> {
+    (!place.is_empty()).then_some(place)
+}
+
+/// `text` with `qty` more of `card` (JSON of [`NewCard`]) in `finish`, at the
+/// place `at` or unsorted when it is empty.
+#[wasm_bindgen]
+pub fn collection_add(
+    text: &str,
+    card: &str,
+    qty: u32,
+    finish: &str,
+    at: &str,
+) -> Result<String, JsError> {
+    let (card, comment) = new_card(card)?;
+    collection::add(
+        text,
+        &card,
+        qty,
+        finish_arg(finish)?,
+        place_arg(at),
+        comment.as_deref(),
+    )
+    .map_err(refused)
+}
+
+/// `text` with `qty` of card `index` moved to the place `to`, or to unsorted
+/// when it is empty.
+#[wasm_bindgen]
+pub fn collection_move(text: &str, index: usize, qty: u32, to: &str) -> Result<String, JsError> {
+    collection::move_cards(text, index, qty, place_arg(to)).map_err(refused)
+}
+
+/// `text` with card `index` at `qty` copies; zero removes it.
+#[wasm_bindgen]
+pub fn collection_set_qty(text: &str, index: usize, qty: u32) -> Result<String, JsError> {
+    collection::set_qty(text, index, qty).map_err(refused)
+}
+
+/// `text` with card `index`'s finish `"nonfoil"`, `"foil"` or `"etched"`.
+#[wasm_bindgen]
+pub fn collection_set_finish(text: &str, index: usize, finish: &str) -> Result<String, JsError> {
+    collection::set_finish(text, index, finish_arg(finish)?).map_err(refused)
+}
+
+/// `text` with card `index` named by the printing `set/num`.
+#[wasm_bindgen]
+pub fn collection_set_printing(
+    text: &str,
+    index: usize,
+    set: &str,
+    num: &str,
+) -> Result<String, JsError> {
+    collection::set_printing(text, index, set, num).map_err(refused)
+}
+
+/// `text` with the place `name` declared, standing for the deck at `deck`
+/// unless it is empty.
+#[wasm_bindgen]
+pub fn declare_place(text: &str, name: &str, deck: &str) -> Result<String, JsError> {
+    collection::declare_place(text, name, place_arg(deck)).map_err(refused)
+}
+
+/// `text` without the place `name`, which must hold nothing.
+#[wasm_bindgen]
+pub fn undeclare_place(text: &str, name: &str) -> Result<String, JsError> {
+    collection::undeclare_place(text, name).map_err(refused)
+}
+
+/// The commit message that saves the collection `before` as `after` at
+/// `path`. An empty `before` is the file's first save.
+#[wasm_bindgen]
+pub fn collection_commit_message(before: &str, after: &str, path: &str) -> Result<String, JsError> {
+    collection::commit_message_for_text(before, after, path).map_err(refused)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -376,6 +559,7 @@ mod tests {
         g.add_type::<Parsed>();
         g.add_type::<NewCard>();
         g.add_type::<Imported>();
+        g.add_type::<ParsedCollection>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",
@@ -495,6 +679,37 @@ mod tests {
         assert_eq!(
             commit_message("", &text, "decks/new.deck.toml").unwrap(),
             "new: +2 Rashmi and Ragavan, +1 Sol Ring"
+        );
+    }
+
+    #[test]
+    fn a_collection_names_each_card_once_and_its_place_when_it_has_one() {
+        let text = declare_place("", "Bulk", "").unwrap();
+        let text = collection_add(
+            &text,
+            r#"{"kind":"name","name":"Sol Ring"}"#,
+            2,
+            "foil",
+            "Bulk",
+        )
+        .unwrap();
+        let text = collection_add(
+            &text,
+            r#"{"kind":"printing","set":"MOC","num":"94","name":"Rashmi and Ragavan"}"#,
+            1,
+            "nonfoil",
+            "",
+        )
+        .unwrap();
+        let json = parse_collection(&text);
+        assert!(!json.contains("null"), "{json}");
+        assert_eq!(
+            json,
+            r#"{"kind":"collection","places":[{"name":"Bulk"}],"cards":[{"index":0,"card":{"kind":"name","name":"Sol Ring"},"qty":2,"finish":"foil","at":"Bulk"},{"index":1,"card":{"kind":"printing","set":"moc","num":"94"},"qty":1,"finish":"nonfoil"}],"total":3}"#
+        );
+        assert_eq!(
+            collection_commit_message("", &text, "collection.toml").unwrap(),
+            "collection: +1 Rashmi and Ragavan, +2 Sol Ring to bulk, +place bulk"
         );
     }
 
