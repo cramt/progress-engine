@@ -24,3 +24,22 @@ centred when drawn at one size: fitted to the drawing, scaled toward equal ink a
 halfway toward the ink centroid (which is why Azorius's triangle sits a little high in its box).
 Every file was measured against the same target, the mean ink area of the twenty guild, clan and
 family sigils.
+
+## The tile
+
+`index.html` shows every sigil on its tile, and is the look Meldweb Curator uses. A tile is a
+circle with the sigil at 5/6 of its width (100px in 120px), a `#b8862f` ring 1/20 of its width,
+and a background in the identity's colours:
+
+| W | U | B | R | G | colorless |
+|---|---|---|---|---|---|
+| `#f8f0b0` | `#a9d8f2` | `#888` | `#f4a99a` | `#9fd3a8` | `#cdc6b8` |
+
+One colour or none is a flat fill. Two or more are equal wedges clockwise from the top, in the
+order written next to each sigil (`GWU` is green first), with each seam blended over 22°:
+
+```css
+/* Selesnya, GW: each colour holds its wedge to 11° short of the seam; the end stops pad past
+   0° and 360° with the neighbour so the seam at the top blends like the others */
+background: conic-gradient(#f8f0b0 -11deg, #9fd3a8 11deg 169deg, #f8f0b0 191deg 349deg, #9fd3a8 371deg);
+```
