@@ -77,6 +77,10 @@
   gap: 10px;
 }
 
+.deck-title .sigil {
+  margin-left: auto;
+}
+
 .deck-title h2 {
   min-width: 0;
   overflow: hidden;
@@ -116,41 +120,6 @@
 
 .deck-tile.refused .deck-art {
   background: var(--danger-soft);
-}
-
-/* Colour identity, as the mana symbols' colours. */
-.pips {
-  display: inline-flex;
-  flex: none;
-  gap: 3px;
-  margin-left: auto;
-}
-
-.pip {
-  width: 12px;
-  height: 12px;
-  border: 1px solid rgb(0 0 0 / 0.25);
-  border-radius: 50%;
-}
-
-.pip-W {
-  background: #f8f4dc;
-}
-
-.pip-U {
-  background: #3d8fd1;
-}
-
-.pip-B {
-  background: #3a3431;
-}
-
-.pip-R {
-  background: #e0533d;
-}
-
-.pip-G {
-  background: #2f9460;
 }
 
 /* Login and onboarding: one card in the middle of the page. */

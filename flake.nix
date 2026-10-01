@@ -115,6 +115,8 @@
           ./pnpm-workspace.yaml
           ./decks/lantern.deck.toml
           ./decks/loam.deck.toml
+          # The colour-identity sigils a deck tile draws
+          ./assets
           (pkgs.lib.fileset.difference ./crates/meldweb-curator/web
             (pkgs.lib.fileset.maybeMissing ./crates/meldweb-curator/web/src/wasm/pkg))
           ./crates/meldweb-curator/worker/package.json

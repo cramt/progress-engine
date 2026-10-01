@@ -3,10 +3,8 @@ import { useState } from "react";
 import { CardMenu, type MenuEntry } from "../card/CardView";
 import type { DeckEntry } from "../github/decks";
 import { artCrop, type Printings, printingKey } from "../scryfall";
+import { Sigil } from "../ui/Sigil";
 import "./home.css";
-
-/** WUBRG order, as Scryfall and every decklist write colour identity. */
-const COLOURS = ["W", "U", "B", "R", "G"] as const;
 
 /**
  * One deck in the list: its cover's art, or its commanders', its name, what it
@@ -51,16 +49,7 @@ export function DeckTile({
         <div className="deck-info">
           <div className="deck-title">
             <h2>{deck.name}</h2>
-            {identity.size > 0 && (
-              <span
-                className="pips"
-                title={`Colour identity: ${COLOURS.filter((c) => identity.has(c)).join("")}`}
-              >
-                {COLOURS.filter((c) => identity.has(c)).map((c) => (
-                  <span key={c} className={`pip pip-${c}`} />
-                ))}
-              </span>
-            )}
+            {commanders.length > 0 && <Sigil identity={identity} />}
           </div>
           {commanders.length > 0 && (
             <p className="deck-commander">

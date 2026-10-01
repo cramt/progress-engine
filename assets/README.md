@@ -28,8 +28,8 @@ family sigils.
 ## The tile
 
 `index.html` shows every sigil on its tile, and is the look Meldweb Curator uses. A tile is a
-circle with the sigil at 5/6 of its width (100px in 120px), a `#b8862f` ring 1/20 of its width,
-and a background in the identity's colours:
+circle with the sigil at 5/6 of its width (100px in 120px) and no ring, on a background in the
+identity's colours:
 
 | W | U | B | R | G | colorless |
 |---|---|---|---|---|---|
