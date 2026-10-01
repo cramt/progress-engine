@@ -3,8 +3,8 @@
 use chip_decklist::deck::{CardRef, CategoryType, Deck, DeckError, Finish, Printing};
 use chip_decklist::edit::{
     add_card, card_comments, declare_category, new_deck, remove_card, set_card_finish,
-    set_card_printing, set_card_qty, set_categories, set_commander, set_deck_cover, set_deck_meta,
-    EditError,
+    set_card_printing, set_card_qty, set_categories, set_commander, set_deck_cover,
+    set_deck_description, set_deck_meta, EditError,
 };
 
 const DECK: &str = r#"name = "Izzet Lessons"
@@ -418,6 +418,40 @@ fn a_cover_goes_under_the_meta_and_is_set_and_dropped_in_place() {
     assert_eq!(
         set_deck_cover(DECK, Some("tla")).unwrap_err(),
         EditError::Invalid(DeckError::BadCover { text: "tla".into() })
+    );
+}
+
+#[test]
+fn a_description_goes_under_the_cover_and_a_line_of_it_is_a_line_of_diff() {
+    let covered = set_deck_cover(DECK, Some("tla/46")).unwrap();
+    let described =
+        set_deck_description(&covered, Some("Tempo.\n\nWin with *lessons*.\n")).unwrap();
+    assert!(
+        described.starts_with(
+            "name = \"Izzet Lessons\"\ncover = \"tla/46\"\ndescription = \"\"\"\nTempo.\n\nWin with *lessons*.\n\"\"\"\n"
+        ),
+        "{described}"
+    );
+    assert_eq!(
+        Deck::parse(&described).unwrap().description.as_deref(),
+        Some("Tempo.\n\nWin with *lessons*.\n")
+    );
+    let reworded =
+        set_deck_description(&described, Some("Tempo.\n\nWin with **lessons**.\n")).unwrap();
+    assert_eq!(
+        changed_lines(&described, &reworded),
+        one("Win with *lessons*.", "Win with **lessons**.")
+    );
+    assert_eq!(
+        set_deck_description(&reworded, Some("  \n")).unwrap(),
+        covered
+    );
+    assert_eq!(set_deck_description(&reworded, None).unwrap(), covered);
+    // With nothing above it, the prose still ends in a blank line before the cards.
+    let bare = "cards = [\n  { name = \"Island\" },\n]\n";
+    assert_eq!(
+        set_deck_description(bare, Some("Islands.")).unwrap(),
+        format!("description = \"\"\"\nIslands.\"\"\"\n\n{bare}")
     );
 }
 

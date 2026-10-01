@@ -123,6 +123,9 @@ pub enum Parsed {
         /// The printing whose art stands for the deck in the deck list.
         #[facet(skip_serializing_if = Option::is_none)]
         cover: Option<Printing>,
+        /// Markdown about the deck, for a person to read.
+        #[facet(skip_serializing_if = Option::is_none)]
+        description: Option<String>,
         categories: Vec<Category>,
         cards: Vec<Card>,
         /// Physical cards in the deck, so counting nothing outside it.
@@ -170,6 +173,7 @@ fn wire(d: Deck) -> Parsed {
             set: p.set,
             num: p.num,
         }),
+        description: d.description,
         categories: d
             .categories
             .into_iter()
@@ -410,6 +414,13 @@ pub fn set_deck_meta(text: &str, name: &str, format: &str) -> Result<String, JsE
 #[wasm_bindgen]
 pub fn set_deck_cover(text: &str, cover: Option<String>) -> Result<String, JsError> {
     edit::set_deck_cover(text, cover.as_deref()).map_err(refused)
+}
+
+/// `text` with the deck's Markdown `description` set, or dropped when it is
+/// absent or only whitespace.
+#[wasm_bindgen]
+pub fn set_deck_description(text: &str, description: Option<String>) -> Result<String, JsError> {
+    edit::set_deck_description(text, description.as_deref()).map_err(refused)
 }
 
 /// The text of a new, empty deck. An empty `format` is left out.

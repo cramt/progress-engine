@@ -172,6 +172,22 @@ fn writing_a_deck_reads_back_as_the_same_deck() {
 }
 
 #[test]
+fn a_description_is_markdown_written_as_prose_and_read_back_whole() {
+    let mut deck = Deck::parse(LESSONS).unwrap();
+    let description = "# Plan\n\nBounce *their* stuff, \"learn\" \\ draw.\n\n- tab:\there\n- \"\"\"quotes\"\"\"\n";
+    deck.description = Some(description.into());
+    let text = deck.to_toml(|_| None);
+    assert!(
+        text.contains("description = \"\"\"\n# Plan\n\nBounce"),
+        "{text}"
+    );
+    assert_eq!(
+        Deck::parse(&text).unwrap().description.as_deref(),
+        Some(description)
+    );
+}
+
+#[test]
 fn a_printing_carries_its_name_as_a_comment_only() {
     let deck = Deck::parse(LESSONS).unwrap();
     let text = deck.to_toml(|p| (p.to_string() == "tla/46").then(|| "Boomerang Basics".into()));

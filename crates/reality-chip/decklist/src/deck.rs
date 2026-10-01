@@ -184,6 +184,9 @@ pub struct Deck {
     /// The printing whose art stands for the deck in Curator's deck list. It
     /// need not be in the deck, and nothing in the family reads it otherwise.
     pub cover: Option<Printing>,
+    /// Markdown about the deck, for a person to read. Nothing in the family
+    /// reads it.
+    pub description: Option<String>,
     /// Sorted by name, as a TOML table is.
     pub categories: Vec<Category>,
     /// In file order.
@@ -247,6 +250,7 @@ struct RawDeck {
     name: Option<String>,
     format: Option<String>,
     cover: Option<String>,
+    description: Option<String>,
     #[facet(default)]
     cards: Vec<RawCard>,
     #[facet(default)]
@@ -309,6 +313,7 @@ impl Deck {
             name: raw.name,
             format: raw.format,
             cover,
+            description: raw.description,
             categories,
             cards,
         })
@@ -435,6 +440,9 @@ impl Deck {
         if let Some(cover) = &self.cover {
             out += &format!("cover = {}\n", quote(&cover.to_string()));
         }
+        if let Some(description) = &self.description {
+            out += &format!("description = {}\n", quote_multiline(description));
+        }
         if !out.is_empty() {
             out.push('\n');
         }
@@ -496,6 +504,23 @@ pub(crate) fn quote(s: &str) -> String {
         }
     }
     out.push('"');
+    out
+}
+
+/// A TOML multi-line basic string, so prose reads as prose in the file and a
+/// one-line change to it is a one-line diff.
+pub(crate) fn quote_multiline(s: &str) -> String {
+    let mut out = String::from("\"\"\"\n");
+    for ch in s.chars() {
+        match ch {
+            '"' => out += "\\\"",
+            '\\' => out += "\\\\",
+            '\n' | '\t' => out.push(ch),
+            c if c.is_control() => out += &format!("\\u{:04X}", c as u32),
+            c => out.push(c),
+        }
+    }
+    out += "\"\"\"";
     out
 }
 

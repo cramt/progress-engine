@@ -4,7 +4,7 @@ use chip_decklist::changelog::commit_message_for_text;
 use chip_decklist::deck::{CardRef, CategoryType, Finish};
 use chip_decklist::edit::{
     add_card, declare_category, remove_card, set_card_finish, set_card_printing, set_card_qty,
-    set_categories, set_deck_cover,
+    set_categories, set_deck_cover, set_deck_description,
 };
 
 const PATH: &str = "decks/lantern.deck.toml";
@@ -107,6 +107,25 @@ fn a_cover_is_named_by_the_card_when_the_deck_names_it() {
         )
         .unwrap(),
         "lantern: cover: Sol Ring → ltr/1"
+    );
+}
+
+#[test]
+fn a_description_change_is_one_line_however_long_the_prose() {
+    let described = set_deck_description(DECK, Some("Lock them out.\n")).unwrap();
+    assert_eq!(message(&described), "lantern: description: added");
+    assert_eq!(
+        commit_message_for_text(
+            &described,
+            &set_deck_description(&described, Some("Lock them out, then win.\n")).unwrap(),
+            PATH
+        )
+        .unwrap(),
+        "lantern: description: rewritten"
+    );
+    assert_eq!(
+        commit_message_for_text(&described, DECK, PATH).unwrap(),
+        "lantern: description: removed"
     );
 }
 

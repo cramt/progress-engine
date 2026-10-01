@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { withBoard } from "../card/apply";
 import { renderCardResult } from "../card/searchResult";
 import { useCardEditor } from "../card/useCardEditor";
-import { declareCategory, parseDeck, setCardCategories } from "../deck";
+import {
+  declareCategory,
+  parseDeck,
+  setCardCategories,
+  setDeckDescription,
+} from "../deck";
 import type { GitHubApi, RepoRef } from "../github/api";
 import { deckStem } from "../github/decks";
 import { deckText } from "../github/deckText";
@@ -18,6 +23,7 @@ import type { Printings } from "../scryfall";
 import { SearchButton, SearchOverlay } from "../search/SearchOverlay";
 import { ScanIcon } from "../ui/icons";
 import { CopyArchidekt } from "./CopyArchidekt";
+import { Description } from "./Description";
 import { dropOnto } from "./move";
 import { ReplaceArchidekt } from "./ReplaceArchidekt";
 import { type OnDrop, StacksView } from "./StacksView";
@@ -163,7 +169,10 @@ export function DeckEditor({
               name={parsed.name ?? deckStem(path)}
               format={parsed.format}
               onReplace={(text) => {
-                history.edit(text);
+                // Archidekt has no description to replace it with.
+                history.edit(
+                  setDeckDescription(text, parsed.description ?? ""),
+                );
                 setRefusal(null);
               }}
             />
@@ -185,6 +194,17 @@ export function DeckEditor({
         onReload={() => void reload()}
         onOverwrite={() => void store.overwrite()}
         onDismiss={() => setRefusal(null)}
+      />
+      <Description
+        text={parsed.description}
+        onSave={(description) => {
+          try {
+            history.edit(setDeckDescription(history.present, description));
+            setRefusal(null);
+          } catch (e) {
+            setRefusal(e instanceof Error ? e.message : String(e));
+          }
+        }}
       />
       {searching && (
         <SearchOverlay

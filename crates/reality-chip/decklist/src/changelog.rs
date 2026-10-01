@@ -35,6 +35,7 @@ enum Kind {
     Rename,
     Format,
     Cover,
+    Description,
 }
 
 struct Change {
@@ -280,6 +281,18 @@ pub fn commit_message(
             kind: Kind::Cover,
             subject: String::new(),
             text: format!("cover: {} → {}", c(&before.cover), c(&after.cover)),
+        });
+    }
+    if before.description != after.description {
+        let text = match (&before.description, &after.description) {
+            (None, Some(_)) => "description: added",
+            (Some(_), None) => "description: removed",
+            _ => "description: rewritten",
+        };
+        changes.push(Change {
+            kind: Kind::Description,
+            subject: String::new(),
+            text: text.to_string(),
         });
     }
     changes.sort_by(|x, y| {

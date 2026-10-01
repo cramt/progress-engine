@@ -75,7 +75,7 @@ export type NewCard =
   | { kind: "name"; name: string };
 
 export type Parsed =
-  | { kind: "deck"; name?: string; format?: string; cover?: Printing; categories: Category[]; cards: Card[]; total: number }
+  | { kind: "deck"; name?: string; format?: string; cover?: Printing; description?: string; categories: Category[]; cards: Card[]; total: number }
   | { kind: "refused"; message: string };
 
 export interface Card {

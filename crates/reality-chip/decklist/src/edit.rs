@@ -15,7 +15,7 @@ use thiserror::Error;
 use toml_edit::{Array, DocumentMut, InlineTable, Item, Key, Table, Value};
 
 use crate::collection::CollectionError;
-use crate::deck::{CardRef, CategoryType, Deck, DeckError, Finish};
+use crate::deck::{quote_multiline, CardRef, CategoryType, Deck, DeckError, Finish};
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum EditError {
@@ -532,12 +532,73 @@ pub fn set_deck_cover(text: &str, cover: Option<&str>) -> Result<String, EditErr
     finish(doc)
 }
 
+/// Sets the deck's Markdown `description`, written as a multi-line string
+/// below `name`, `format` and `cover`. `None`, or only whitespace, drops it.
+pub fn set_deck_description(text: &str, description: Option<&str>) -> Result<String, EditError> {
+    let mut doc = document(text)?;
+    match description.filter(|d| !d.trim().is_empty()) {
+        None => {
+            doc.remove("description");
+        }
+        Some(description) => {
+            let value: Value = quote_multiline(description)
+                .parse()
+                .map_err(|e: toml_edit::TomlError| EditError::Toml(e.to_string()))?;
+            match doc.get_mut("description").and_then(Item::as_value_mut) {
+                Some(existing) => {
+                    let decor = existing.decor().clone();
+                    *existing = value;
+                    *existing.decor_mut() = decor;
+                }
+                None => {
+                    doc.insert("description", Item::Value(value));
+                    let meta = |k: &Key| match k.get() {
+                        "name" => 0,
+                        "format" => 1,
+                        "cover" => 2,
+                        "description" => 3,
+                        _ => 4,
+                    };
+                    doc.sort_values_by(|a, _, b, _| meta(a).cmp(&meta(b)));
+                    // A block of prose wants a blank line before what follows it.
+                    let next = doc
+                        .iter()
+                        .map(|(k, _)| k.to_string())
+                        .skip_while(|k| k != "description")
+                        .nth(1);
+                    if let Some(next) = next {
+                        let blank = |d: &toml_edit::Decor| {
+                            let prefix = raw(d.prefix());
+                            if prefix.starts_with('\n') {
+                                prefix
+                            } else {
+                                format!("\n{prefix}")
+                            }
+                        };
+                        if doc.get(&next).is_some_and(Item::is_value) {
+                            let mut key = doc.key_mut(&next).expect("the key was read");
+                            let prefix = blank(key.leaf_decor());
+                            key.leaf_decor_mut().set_prefix(prefix);
+                        } else if let Some(table) = doc.get_mut(&next).and_then(Item::as_table_mut)
+                        {
+                            let prefix = blank(table.decor());
+                            table.decor_mut().set_prefix(prefix);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    finish(doc)
+}
+
 /// The text of a new deck with nothing in it. An empty `format` is left out.
 pub fn new_deck(name: &str, format: &str) -> Result<String, EditError> {
     let deck = Deck {
         name: Some(name.to_string()),
         format: (!format.trim().is_empty()).then(|| format.trim().to_string()),
         cover: None,
+        description: None,
         categories: Vec::new(),
         cards: Vec::new(),
     };

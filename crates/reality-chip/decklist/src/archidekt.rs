@@ -247,6 +247,7 @@ impl Deck {
                 name: None,
                 format: None,
                 cover: None,
+                description: None,
                 categories,
                 cards,
             },

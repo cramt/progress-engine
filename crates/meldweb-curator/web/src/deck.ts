@@ -15,6 +15,7 @@ import init, {
   set_card_qty,
   set_commander,
   set_deck_cover,
+  set_deck_description,
   set_deck_meta,
 } from "./wasm/pkg/meldweb_wasm.js";
 
@@ -178,6 +179,11 @@ export function setDeckCover(
   cover: { set: string; num: string } | null,
 ): string {
   return set_deck_cover(text, cover && `${cover.set}/${cover.num}`);
+}
+
+/** The deck text with its Markdown `description` set, or dropped for blank. */
+export function setDeckDescription(text: string, description: string): string {
+  return set_deck_description(text, description);
 }
 
 /** The text of a new, empty deck. An empty `format` is left out. */

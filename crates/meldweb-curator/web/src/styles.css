@@ -627,6 +627,79 @@ main > .toolbar {
   margin: -20px calc(-1 * var(--gutter)) 20px;
 }
 
+/* The deck's Markdown description, above its stacks. */
+.description {
+  display: flex;
+  max-width: 760px;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.description.editing {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.description-body {
+  min-width: 0;
+  flex: 1;
+  line-height: 1.55;
+}
+
+.description-body > :first-child {
+  margin-top: 0;
+}
+
+.description-body > :last-child {
+  margin-bottom: 0;
+}
+
+.description-body :is(h1, h2, h3, h4) {
+  margin: 1em 0 0.4em;
+  font-size: 15px;
+}
+
+.description-body :is(p, ul, ol, blockquote, pre) {
+  margin: 0 0 0.7em;
+}
+
+.description-body :is(ul, ol) {
+  padding-left: 1.4em;
+}
+
+.description-body blockquote {
+  padding-left: 12px;
+  border-left: 3px solid var(--border-strong);
+  color: var(--muted);
+}
+
+.description-body code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+}
+
+.description-body a {
+  color: var(--accent-strong);
+}
+
+.description textarea {
+  font-family: var(--mono);
+  font-size: 13px;
+  resize: vertical;
+}
+
+.description-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.description-add {
+  margin-bottom: 12px;
+  color: var(--muted);
+}
+
 /* The file as it will be committed, at the foot of the page. */
 .source {
   max-width: 980px;
