@@ -85,6 +85,16 @@ against the real ghcr.io (Node, in this sandbox: `wrangler dev` was not run):
 | `web-check/run.sh`, same machine | 4.0 s with the model served unpacked, 4.8-5.1 s unpacking it in the page |
 | The scan itself | the fake-camera run of *Scanning into the collection*, unchanged: three beeps, Black Lotus, Black Lotus, Counterspell |
 
+On the deployed site, meldweb.cramt.dk, checked on 2026-10-01 in headless
+Chromium (Playwright's build, no login): the page is cross-origin isolated, the
+worker answers each `/gitaxian-probe/<sha256>/<name>` with 200, the bytes
+hash to the digest in the URL, and the answer carries
+`Cross-Origin-Embedder-Policy: credentialless`. The shipped chunk's
+`openScanner` booted the engine in 15.9 s, and `scan` read the six
+`engine/.fixtures` frames in 0.2-0.4 s each: 6/6 names and 5/6 printings,
+with the same miss as the web check (Swords to Plowshares placed in Foreign
+Black Border).
+
 ## Scanning into the collection
 
 The collection page has its own Scan, for putting a stack of cards away one
@@ -252,8 +262,6 @@ archive (the engine README, *The archive*).
 
 - A real camera. The `getUserMedia` path is written but has not run (headless
   Chromium has no camera), and nothing has been checked on a phone.
-- The deployed worker. Its route was run in Node against the real ghcr.io, not
-  in `wrangler dev` or on Cloudflare, so the `_headers` file is untested there.
 - Firefox, Safari, and memory on mobile.
 - Several cards in one frame. The dialog lists every detection, but every
   fixture holds one card.
