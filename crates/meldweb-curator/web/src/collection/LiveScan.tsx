@@ -481,7 +481,7 @@ function LogRow({
       }
     >
       {entry.image ? (
-        <img src={entry.image} alt="" />
+        <img crossOrigin="anonymous" src={entry.image} alt="" />
       ) : (
         <div className="scan-noimage" />
       )}

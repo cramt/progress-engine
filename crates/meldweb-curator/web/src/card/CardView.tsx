@@ -118,7 +118,13 @@ export function CardView({
       onDragEnd={onDragEnd}
     >
       {image ? (
-        <img src={image} alt={name} loading="lazy" draggable={false} />
+        <img
+          crossOrigin="anonymous"
+          src={image}
+          alt={name}
+          loading="lazy"
+          draggable={false}
+        />
       ) : (
         <div className="card-missing">{name}</div>
       )}

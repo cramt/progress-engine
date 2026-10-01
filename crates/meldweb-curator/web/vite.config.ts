@@ -45,13 +45,14 @@ const TYPES: Record<string, string> = {
 };
 
 // The engine's thread pool needs SharedArrayBuffer, so every page is
-// cross-origin isolated. `credentialless` rather than `require-corp`, so
-// Scryfall's images, which send CORS headers but no CORP, load without a
-// `crossorigin` on every <img>. Chromium and Firefox honour it; Safari does
-// not, so Safari has no scanner.
+// cross-origin isolated. `require-corp` rather than `credentialless`, which
+// would spare every <img> its `crossOrigin`, because Firefox for Android and
+// Safari never shipped `credentialless` and the scanner is for phones. So a
+// cross-origin image must load in CORS mode, which Scryfall's CDN allows, and
+// src/crossOrigin.test.ts fails on an <img> without it.
 const ISOLATION = {
   "Cross-Origin-Opener-Policy": "same-origin",
-  "Cross-Origin-Embedder-Policy": "credentialless",
+  "Cross-Origin-Embedder-Policy": "require-corp",
 };
 
 // Gitaxian Probe's card scanner. `virtual:gitaxian-probe` is the probe's

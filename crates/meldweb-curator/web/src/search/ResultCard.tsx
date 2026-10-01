@@ -39,6 +39,7 @@ export function MinimalResult({
     <div className="result" title={card.name} {...actions.dragProps}>
       {card.image ? (
         <img
+          crossOrigin="anonymous"
           src={card.image}
           alt={card.name}
           loading="lazy"

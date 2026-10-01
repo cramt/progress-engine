@@ -132,7 +132,7 @@ export function Sigil({ identity }: { identity: ReadonlySet<string> }) {
       title={`${sigil.name}${sigil.key ? ` (${sigil.key})` : ""}`}
       style={{ background: sigil.background }}
     >
-      <img src={sigil.src} alt={sigil.name} />
+      <img crossOrigin="anonymous" src={sigil.src} alt={sigil.name} />
     </span>
   );
 }

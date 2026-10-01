@@ -43,7 +43,13 @@ export function DeckTile({
       >
         <div className="deck-art">
           {art.map((p) => (
-            <img key={p.image} src={artCrop(p.image)} alt="" loading="lazy" />
+            <img
+              crossOrigin="anonymous"
+              key={p.image}
+              src={artCrop(p.image)}
+              alt=""
+              loading="lazy"
+            />
           ))}
         </div>
         <div className="deck-info">

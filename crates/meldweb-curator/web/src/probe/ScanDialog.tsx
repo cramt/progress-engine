@@ -232,7 +232,7 @@ function FoundCard({
           return (
             <li key={c.scryfall_id ?? i} className={i === 0 ? "pick" : ""}>
               {p?.image ? (
-                <img src={p.image} alt={c.name} />
+                <img crossOrigin="anonymous" src={p.image} alt={c.name} />
               ) : (
                 <div className="scan-noimage">{c.name}</div>
               )}

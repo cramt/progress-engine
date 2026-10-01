@@ -381,7 +381,12 @@ function CoverDialog({
                   if (ok) onClose();
                 }}
               >
-                <img src={artCrop(c.printing.image)} alt="" loading="lazy" />
+                <img
+                  crossOrigin="anonymous"
+                  src={artCrop(c.printing.image)}
+                  alt=""
+                  loading="lazy"
+                />
                 <span>{c.printing.name}</span>
               </button>
             </li>

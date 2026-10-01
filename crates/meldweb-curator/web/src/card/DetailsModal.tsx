@@ -248,7 +248,11 @@ function Picture({
   // Fetched ahead, so turning the card over shows the back at once.
   const backImage = back?.image;
   useEffect(() => {
-    if (backImage) new Image().src = backImage;
+    if (!backImage) return;
+    // In CORS mode, as the image element asks, or the page blocks it.
+    const preload = new Image();
+    preload.crossOrigin = "anonymous";
+    preload.src = backImage;
   }, [backImage]);
   return (
     <div className="details-image">
@@ -261,6 +265,7 @@ function Picture({
           // Keyed by picture, so a new face never shows the old one at its new turn
           // while it loads.
           <img
+            crossOrigin="anonymous"
             key={face.image}
             src={face.image}
             alt={name}

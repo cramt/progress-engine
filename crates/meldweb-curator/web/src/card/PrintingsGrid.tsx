@@ -58,7 +58,12 @@ export function PrintingsGrid({
                 onClick={() => onPick(p)}
               >
                 {p.image ? (
-                  <img src={p.image} alt={p.name} loading="lazy" />
+                  <img
+                    crossOrigin="anonymous"
+                    src={p.image}
+                    alt={p.name}
+                    loading="lazy"
+                  />
                 ) : (
                   <span className="card-missing">{p.name}</span>
                 )}

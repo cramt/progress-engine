@@ -396,11 +396,19 @@ function OwnedRow({
       </td>
       <td className="owned-name">
         <span className="owned-thumb">
-          {image && <img src={image} alt="" loading="lazy" />}
+          {image && (
+            <img crossOrigin="anonymous" src={image} alt="" loading="lazy" />
+          )}
         </span>
         <span className="owned-title">{name}</span>
         {image && (
-          <img className="owned-preview" src={image} alt="" loading="lazy" />
+          <img
+            crossOrigin="anonymous"
+            className="owned-preview"
+            src={image}
+            alt=""
+            loading="lazy"
+          />
         )}
       </td>
       <td className="owned-printing">

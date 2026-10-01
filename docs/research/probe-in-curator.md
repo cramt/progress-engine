@@ -25,8 +25,7 @@ settled as follows:
    served as the archive holds it, the 23 MB `model-alpha.7z`, and unpacked in
    the page.
 3. **The whole site has to be cross-origin isolated.** It is, with
-   `credentialless`, which Safari does not support, so Safari has no scanner.
-   That was accepted: see *Cross-origin isolation*.
+   `require-corp`, so that phones can scan: see *Cross-origin isolation*.
 
 The spike's measurements were taken on 2026-09-28 in headless Chromium
 (Playwright's build), against `VITE_MOCK_GITHUB=1 MELDWEB_PROBE=1 pnpm dev`,
@@ -60,7 +59,7 @@ checks nothing and caches nothing. It adds two headers, both needed:
 
 - `Content-Type` from the name, because a Web Worker's script must be
   JavaScript, and core.js runs as 32 of them.
-- `Cross-Origin-Embedder-Policy: credentialless`. Without it Chromium refuses
+- `Cross-Origin-Embedder-Policy: require-corp`, the page's own. Without a COEP Chromium refuses
   those workers' scripts in the isolated page, and the engine never boots
   (checked: the boot timed out after 120 s).
 
@@ -216,13 +215,20 @@ popup.
 COEP is where it costs. The editor shows Scryfall images with plain `<img>`,
 and `cards.scryfall.io` sends `access-control-allow-origin: *` but no
 `Cross-Origin-Resource-Policy`, so under `require-corp` every card picture is
-blocked. The site uses `credentialless`, where a plain `<img>` from Scryfall
-loaded in the isolated page (checked with `crossOriginIsolated === true`).
-Chromium and Firefox support `credentialless`. Safari does not, and every
-browser on an iPhone is Safari's engine underneath, so neither has a scanner;
-the rest of the site works there as it did. That was decided on 2026-10-01.
-Should it change, Safari needs `require-corp` plus `crossorigin="anonymous"`
-on every Scryfall `<img>`, which works because Scryfall answers CORS.
+blocked. `credentialless` lets a plain `<img>` load, and the site shipped with
+it on 2026-10-01, but only Chromium and desktop Firefox support it: Firefox for
+Android and Safari, and so every browser on an iPhone, ignore it, and there the
+scanner refused with "the page is not cross-origin isolated". Since the
+scanner is for phones, the site moved the same day to `require-corp`, which
+Firefox has supported since 79 and iOS Safari since 15.2, and every `<img>`
+carries `crossOrigin="anonymous"`, which works because Scryfall answers CORS.
+`web/src/crossOrigin.test.ts` fails on an `<img>` without it, since a missing
+one shows nothing until a browser blocks the picture.
+
+Checked on 2026-10-01 at 390x844 against `MELDWEB_PROBE=1 VITE_MOCK_GITHUB=1
+pnpm dev`, in Playwright's Chromium, Firefox and WebKit builds: each page is
+`crossOriginIsolated`, every visible card image loads, and the collection's
+scanner boots in 3.0-3.6 s.
 
 Isolating only a scan page avoids that, but it would have to be a
 separately loaded document, since a TanStack route change does not re-send
@@ -262,7 +268,7 @@ archive (the engine README, *The archive*).
 
 - A real camera. The `getUserMedia` path is written but has not run (headless
   Chromium has no camera), and nothing has been checked on a phone.
-- Firefox, Safari, and memory on mobile.
+- Firefox for Android and Safari on a real phone, and memory on mobile.
 - Several cards in one frame. The dialog lists every detection, but every
   fixture holds one card.
 - `lambda` and `gamma`, which the engine refuses (engine README, *Scope*).

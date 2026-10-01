@@ -56,7 +56,7 @@ archive `ghcr.io/cramt/delver-x`, which sends no CORS headers itself: an
 anonymous pull token, the blob, and ghcr.io's status and body back. Nothing is
 checked or cached; the page knows which digest is which file. It sets
 `Content-Type` from the name, since core.js runs as Web Workers, and COEP
-`credentialless`, without which the isolated page refuses those workers. The
+`require-corp`, without which the isolated page refuses those workers. The
 rest of the site gets COOP and COEP from the build's `_headers` file.
 [probe-in-curator.md](../../../docs/research/probe-in-curator.md) has the why.
 

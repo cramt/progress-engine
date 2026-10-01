@@ -35,7 +35,7 @@ export async function handleProbe(request: Request): Promise<Response> {
         TYPES[name.slice(name.lastIndexOf(".") + 1)] ??
         "application/octet-stream",
       // The page is cross-origin isolated, and so must its workers' scripts be.
-      "Cross-Origin-Embedder-Policy": "credentialless",
+      "Cross-Origin-Embedder-Policy": "require-corp",
     },
   });
 }
