@@ -1,5 +1,5 @@
 import type { Finish } from "../deck";
-import { imageUris } from "../scryfall";
+import { type Face, faces, imageUris, type Turn } from "../scryfall";
 import { cachedOne } from "../scryfallCache";
 import { API, SEARCH_GATE, scryfallFetch } from "../scryfallQueue";
 
@@ -14,6 +14,8 @@ export interface PrintingOption {
   image?: string;
   small?: string;
   finishes: Finish[];
+  turn?: Turn;
+  back?: Face;
 }
 
 /** Every finish a deck line can have, in the order the details modal offers them. */
@@ -57,6 +59,7 @@ export function parsePrintsPage(json: unknown): {
         ...(typeof uris?.normal === "string" ? { image: uris.normal } : {}),
         ...(typeof uris?.small === "string" ? { small: uris.small } : {}),
         finishes,
+        ...faces(c),
       },
     ];
   });
@@ -148,7 +151,11 @@ export function fetchAllPrintings(
   signal?: AbortSignal,
 ): Promise<PrintingOption[]> {
   if (signal?.aborted) return Promise.reject(signal.reason);
-  const search = cachedOne(["scryfall", "prints", uri], (s) => loadAll(uri, s));
+  const search = cachedOne(
+    // `v2` drops what was cached before a printing carried its faces.
+    ["scryfall", "prints", "v2", uri],
+    (s) => loadAll(uri, s),
+  );
   if (!signal) return search;
   return new Promise((resolve, reject) => {
     const leave = () => reject(signal.reason);

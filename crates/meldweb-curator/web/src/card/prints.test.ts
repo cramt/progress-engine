@@ -65,6 +65,55 @@ describe("scryfall's printings", () => {
     ]);
   });
 
+  it("read which way each face is turned, and the back where there is one", () => {
+    const turned = (extra: object) => {
+      const [p] = parsePrintsPage({
+        data: [raw("x", "1", "2023-04-21", extra)],
+      }).printings;
+      return { turn: p?.turn, back: p?.back };
+    };
+    const dfc = {
+      image_uris: undefined,
+      card_faces: [
+        { image_uris: { normal: "front" } },
+        { image_uris: { normal: "back" } },
+      ],
+    };
+    expect(
+      turned({
+        layout: "transform",
+        ...dfc,
+        card_faces: [
+          { type_line: "Battle — Siege", image_uris: { normal: "front" } },
+          { type_line: "Creature — Angel", image_uris: { normal: "back" } },
+        ],
+      }),
+    ).toEqual({
+      turn: "sideways",
+      back: { image: "back", turn: "upright" },
+    });
+    expect(turned({ layout: "modal_dfc", ...dfc })).toEqual({
+      turn: undefined,
+      back: { image: "back", turn: "upright" },
+    });
+    expect(turned({ layout: "split" })).toEqual({
+      turn: "sideways",
+      back: undefined,
+    });
+    expect(turned({ layout: "split", keywords: ["Aftermath"] })).toEqual({
+      turn: undefined,
+      back: undefined,
+    });
+    expect(turned({ layout: "flip" })).toEqual({
+      turn: undefined,
+      back: { image: "n/x", turn: "upside-down" },
+    });
+    expect(turned({ layout: "normal" })).toEqual({
+      turn: undefined,
+      back: undefined,
+    });
+  });
+
   it("order by release date, newest first unless asked otherwise, and filter by set name", () => {
     const list = parsePrintsPage({
       data: [

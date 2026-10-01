@@ -259,15 +259,57 @@
 .details-image {
   flex: none;
   width: min(320px, 45%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 
-.details-image img,
-.details-image .card-missing {
-  display: block;
+.details-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 63 / 88;
+}
+
+.details-frame.sideways {
+  aspect-ratio: 88 / 63;
+}
+
+/* A sideways card gets a column as wide as an upright card is tall, so it reads
+   at the size an upright one does. */
+.details-modal.wide {
+  width: min(1160px, 100%);
+}
+
+.details-modal.wide .details-image {
+  width: min(620px, 58%);
+}
+
+/* The upright back of a sideways card, as tall as its front is. */
+.details-modal.wide .details-frame:not(.sideways) {
+  width: calc(100% * 63 / 88 * 63 / 88);
+}
+
+.details-frame img,
+.details-frame .card-missing {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: 100%;
   aspect-ratio: 63 / 88;
   border-radius: var(--card-radius);
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.3);
+  transform: translate(-50%, -50%);
+}
+
+/* Turned a quarter, the card is as wide as the frame: its height before turning. */
+.details-frame img.turn-sideways {
+  width: calc(100% * 63 / 88);
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.details-frame img.turn-upside-down {
+  transform: translate(-50%, -50%) rotate(180deg);
 }
 
 .details-options {
@@ -502,6 +544,11 @@
     width: 100%;
     max-width: 320px;
     margin: 0 auto;
+  }
+
+  .details-modal.wide .details-image {
+    width: 100%;
+    max-width: 440px;
   }
 }
 

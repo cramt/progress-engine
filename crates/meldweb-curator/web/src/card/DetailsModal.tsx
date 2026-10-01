@@ -10,8 +10,8 @@ import {
   setCardPrinting,
   setCardQty,
 } from "../deck";
-import { type Printing, printingId } from "../scryfall";
-import { ChevronLeft, ChevronRight, CloseIcon } from "../ui/icons";
+import { type Face, type Printing, printingId } from "../scryfall";
+import { ChevronLeft, ChevronRight, CloseIcon, FlipIcon } from "../ui/icons";
 import { afterRemoval, neighbours } from "./order";
 import { PrintingsGrid } from "./PrintingsGrid";
 import { FINISHES, type PrintingOption, printsByName } from "./prints";
@@ -70,6 +70,10 @@ export function DetailsModal(props: DetailsModalProps) {
       ? options.printings.find((p) => printingId(p) === current)
       : undefined;
   const image = printing?.image ?? currentOption?.image;
+  const front: Face | undefined = image
+    ? { image, turn: printing?.turn ?? currentOption?.turn ?? "upright" }
+    : undefined;
+  const back = printing?.back ?? currentOption?.back;
   const { prev, next, position } = neighbours(order, card.index);
 
   const pick = (p: PrintingOption) => {
@@ -83,6 +87,8 @@ export function DetailsModal(props: DetailsModalProps) {
       colorIdentity: printing?.colorIdentity ?? [],
       typeLine: printing?.typeLine ?? "",
       ...(uri ? { prints: uri } : {}),
+      ...(p.turn ? { turn: p.turn } : {}),
+      ...(p.back ? { back: p.back } : {}),
     });
     onEdit((t) => setCardPrinting(t, card.index, p.set, p.num));
   };
@@ -123,7 +129,13 @@ export function DetailsModal(props: DetailsModalProps) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className={grid ? "details-modal grid" : "details-modal"}
+        className={
+          grid
+            ? "details-modal grid"
+            : front?.turn === "sideways"
+              ? "details-modal wide"
+              : "details-modal"
+        }
         role="dialog"
         aria-modal="true"
         aria-label={`${name} details`}
@@ -163,13 +175,7 @@ export function DetailsModal(props: DetailsModalProps) {
             )
           ) : (
             <>
-              <div className="details-image">
-                {image ? (
-                  <img src={image} alt={name} />
-                ) : (
-                  <div className="card-missing">{name}</div>
-                )}
-              </div>
+              <Picture key={card.index} name={name} front={front} back={back} />
               <div className="details-options">
                 <Quantity qty={card.qty} onChange={setQty} />
                 <PrintingPicker
@@ -219,6 +225,57 @@ export function DetailsModal(props: DetailsModalProps) {
           </button>
         </footer>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The card big, turned the way it is read, with a button to turn it over
+ * when it has a back. The frame stays card-shaped either way, so turning a
+ * battle over does not move the options beside it.
+ */
+function Picture({
+  name,
+  front,
+  back,
+}: {
+  name: string;
+  front: Face | undefined;
+  back: Face | undefined;
+}) {
+  const [showBack, setShowBack] = useState(false);
+  const face = showBack && back ? back : front;
+  // Fetched ahead, so turning the card over shows the back at once.
+  const backImage = back?.image;
+  useEffect(() => {
+    if (backImage) new Image().src = backImage;
+  }, [backImage]);
+  return (
+    <div className="details-image">
+      <div
+        className={
+          face?.turn === "sideways" ? "details-frame sideways" : "details-frame"
+        }
+      >
+        {face ? (
+          // Keyed by picture, so a new face never shows the old one at its new turn
+          // while it loads.
+          <img
+            key={face.image}
+            src={face.image}
+            alt={name}
+            className={`turn-${face.turn}`}
+          />
+        ) : (
+          <div className="card-missing">{name}</div>
+        )}
+      </div>
+      {back && (
+        <button type="button" onClick={() => setShowBack((b) => !b)}>
+          <FlipIcon />
+          {showBack ? "Show front" : "Show back"}
+        </button>
+      )}
     </div>
   );
 }

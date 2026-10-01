@@ -17,6 +17,51 @@ export interface Printing {
   typeLine: string;
   /** Scryfall's search for every printing of the card, when it gave one. */
   prints?: string;
+  /** How the front is turned to be read, when not upright. */
+  turn?: Turn;
+  /** The other face, for a double-faced card or a flip card. */
+  back?: Face;
+}
+
+/**
+ * Which way a card's picture is turned to be read: a battle's front and a
+ * split card sideways, a flip card's other half upside down.
+ */
+export type Turn = "upright" | "sideways" | "upside-down";
+
+export interface Face {
+  image: string;
+  turn: Turn;
+}
+
+/**
+ * How a Scryfall card's faces read: the front's turn, and the back where it
+ * has one. A battle is a `transform` card whose front alone is a Battle, so
+ * it is told by the type line, not the layout. Aftermath is a split card whose
+ * top half reads upright, so it is not turned; a meld card's back is another
+ * card, so it has none here.
+ */
+export function faces(card: Record<string, unknown>): {
+  turn?: Turn;
+  back?: Face;
+} {
+  const cardFaces = Array.isArray(card.card_faces)
+    ? (card.card_faces as Record<string, unknown>[])
+    : [];
+  const keywords = Array.isArray(card.keywords) ? card.keywords : [];
+  const typeLine = cardFaces[0]?.type_line ?? card.type_line;
+  const sideways =
+    (typeof typeLine === "string" && typeLine.startsWith("Battle")) ||
+    (card.layout === "split" && !keywords.includes("Aftermath"));
+  const turn: { turn?: Turn } = sideways ? { turn: "sideways" } : {};
+  const front = imageUris(card)?.normal;
+  if (card.layout === "flip" && typeof front === "string")
+    return { ...turn, back: { image: front, turn: "upside-down" } };
+  const back = (cardFaces[1]?.image_uris as Record<string, unknown> | undefined)
+    ?.normal;
+  return typeof back === "string"
+    ? { ...turn, back: { image: back, turn: "upright" } }
+    : turn;
 }
 
 /** A card's printing, keyed the way the deck names it. */
@@ -87,8 +132,8 @@ function frontFace(name: string): string {
 // Scryfall's limit per request.
 const BATCH = 75;
 
-// `v2` drops what was cached before a printing carried its set and number.
-const PRINTING = ["scryfall", "printing", "v2"] as const;
+// `v3` drops what was cached before a printing carried its faces.
+const PRINTING = ["scryfall", "printing", "v3"] as const;
 const IN_SET = ["scryfall", "in-set"] as const;
 
 function toPrinting(card: CollectionCard): Printing {
@@ -100,6 +145,8 @@ function toPrinting(card: CollectionCard): Printing {
     colorIdentity: card.colorIdentity,
     typeLine: card.typeLine,
     ...(card.prints ? { prints: card.prints } : {}),
+    ...(card.turn ? { turn: card.turn } : {}),
+    ...(card.back ? { back: card.back } : {}),
   };
 }
 
@@ -179,6 +226,8 @@ interface CollectionCard {
   colorIdentity: string[];
   typeLine: string;
   prints?: string;
+  turn?: Turn;
+  back?: Face;
 }
 
 function frontTypeLine(c: Record<string, unknown>): string {
@@ -219,6 +268,7 @@ function parseCollection(json: unknown): CollectionCard[] {
         ...(typeof c.prints_search_uri === "string"
           ? { prints: c.prints_search_uri }
           : {}),
+        ...faces(c),
       },
     ];
   });
