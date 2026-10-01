@@ -8,8 +8,8 @@ import {
   collection_add,
   collection_commit_message,
   collection_move,
-  collection_set_finish,
-  collection_set_printing,
+  collection_move_lines,
+  collection_reprint,
   collection_set_qty,
   declare_place,
   parse_collection,
@@ -59,26 +59,43 @@ export function moveOwned(
   return collection_move(text, index, qty, to ?? "");
 }
 
+/**
+ * All of each line in `indices` moved to `to`, as one edit, each joining a
+ * line already holding the card alike there.
+ */
+export function moveOwnedLines(
+  text: string,
+  indices: readonly number[],
+  to: string | null,
+): string {
+  return collection_move_lines(text, Uint32Array.from(indices), to ?? "");
+}
+
+/**
+ * `qty` of a line's copies made `printing` (or left the card they are, for
+ * null) in `finish`, where they are. All of a line changes in place, part
+ * leaves the rest; either way they join a line already holding them alike.
+ */
+export function reprintOwned(
+  text: string,
+  index: number,
+  qty: number,
+  printing: { set: string; num: string } | null,
+  finish: Finish,
+): string {
+  return collection_reprint(
+    text,
+    index,
+    qty,
+    printing?.set ?? "",
+    printing?.num ?? "",
+    finish,
+  );
+}
+
 /** A line at `qty` copies; 0 removes it. */
 export function setOwnedQty(text: string, index: number, qty: number): string {
   return collection_set_qty(text, index, qty);
-}
-
-export function setOwnedFinish(
-  text: string,
-  index: number,
-  finish: Finish,
-): string {
-  return collection_set_finish(text, index, finish);
-}
-
-export function setOwnedPrinting(
-  text: string,
-  index: number,
-  set: string,
-  num: string,
-): string {
-  return collection_set_printing(text, index, set, num);
 }
 
 /** Declares a place, standing for the deck at `deck` when one is given. */

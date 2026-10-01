@@ -4,10 +4,11 @@ import {
   collectionCommitMessage,
   declarePlace,
   moveOwned,
+  moveOwnedLines,
   type OwnedCard,
   type Place,
   parseCollection,
-  setOwnedFinish,
+  reprintOwned,
   setOwnedQty,
   undeclarePlace,
 } from "../collection";
@@ -27,6 +28,7 @@ import {
   printingKey,
 } from "../scryfall";
 import { LiveScan } from "./LiveScan";
+import { ReprintDialog } from "./ReprintDialog";
 import { addScanned, removeScanned } from "./scanned";
 import { addOwnedByName, type Section, sections, UNSORTED } from "./sections";
 import "./collection.css";
@@ -46,6 +48,11 @@ export interface CollectionEditorProps {
 }
 
 const FINISHES: readonly Finish[] = ["nonfoil", "foil", "etched"];
+
+/** A move's option for unsorted, which no place can be named. */
+const TO_UNSORTED = "\u0000unsorted";
+
+const NOTHING: ReadonlySet<number> = new Set();
 
 /**
  * The printings of cards added since the page loaded, looked up as they
@@ -90,6 +97,14 @@ export function CollectionEditor({
   const [refusal, setRefusal] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [scanning, setScanning] = useState(false);
+  const [reprinting, setReprinting] = useState<number | null>(null);
+  // The lines ticked, by index, as of the text they were ticked in: an edit
+  // moves indices (an undo included), so any edit clears them.
+  const [ticked, setTicked] = useState<{
+    text: string;
+    lines: ReadonlySet<number>;
+  }>({ text: loaded, lines: NOTHING });
+  const selected = ticked.text === history.present ? ticked.lines : NOTHING;
   // The text as of the last edit, for the scanner, whose edits land between
   // renders: two cards taken from one frame must each see the other.
   const latest = useRef(loaded);
@@ -102,6 +117,17 @@ export function CollectionEditor({
   const printings = useGrowingPrintings(loadedPrintings, cards);
   const { undo, redo } = history;
   useUndoKeys(undo, redo);
+
+  const hasSelection = selected.size > 0;
+  const dialogOpen = scanning || reprinting !== null;
+  useEffect(() => {
+    if (!hasSelection || dialogOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTicked({ text: "", lines: NOTHING });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [hasSelection, dialogOpen]);
 
   const [store] = useState(() =>
     createSaveStore({
@@ -133,14 +159,28 @@ export function CollectionEditor({
     );
   }
 
-  /** Every change is an edit, undoable, and a refusal says why instead. */
-  const change = (next: (text: string) => string) => {
+  /**
+   * Every change is an edit, undoable, and a refusal says why instead;
+   * returns whether it went in.
+   */
+  const change = (next: (text: string) => string): boolean => {
     try {
       history.edit(next(history.present));
       setRefusal(null);
+      return true;
     } catch (e) {
       setRefusal(e instanceof Error ? e.message : String(e));
+      return false;
     }
+  };
+
+  const tick = (indices: readonly number[], on: boolean) => {
+    const lines = new Set(selected);
+    for (const i of indices) {
+      if (on) lines.add(i);
+      else lines.delete(i);
+    }
+    setTicked({ text: history.present, lines });
   };
 
   /** As `change`, on the text as of the last edit; returns the refusal. */
@@ -166,6 +206,13 @@ export function CollectionEditor({
   const nameOf = (c: OwnedCard) => cardName(c, printings);
   const shown = sections(parsed.places, parsed.cards, nameOf, filter);
   const deckNames = new Map(decks.map((d) => [d.path, d.name]));
+  const reprinted =
+    reprinting === null
+      ? undefined
+      : parsed.cards.find((c) => c.index === reprinting);
+  const selectedCopies = parsed.cards
+    .filter((c) => selected.has(c.index))
+    .reduce((n, c) => n + c.qty, 0);
 
   return (
     <main>
@@ -251,6 +298,9 @@ export function CollectionEditor({
           places={parsed.places}
           printings={printings}
           deckName={s.place?.deck ? deckNames.get(s.place.deck) : undefined}
+          selected={selected}
+          onTick={tick}
+          onReprint={setReprinting}
           change={change}
         />
       ))}
@@ -261,6 +311,52 @@ export function CollectionEditor({
         <summary>The file</summary>
         <pre>{history.present}</pre>
       </details>
+      {hasSelection && (
+        <section className="bulk-bar" aria-label="Selected cards">
+          <span>
+            {selected.size} {selected.size === 1 ? "line" : "lines"},{" "}
+            {selectedCopies} {selectedCopies === 1 ? "card" : "cards"}
+          </span>
+          <select
+            aria-label="Move the selected cards to"
+            value=""
+            onChange={(e) => {
+              const to = e.target.value === TO_UNSORTED ? null : e.target.value;
+              change((t) => moveOwnedLines(t, [...selected], to));
+            }}
+          >
+            <option value="" disabled>
+              Move to…
+            </option>
+            <option value={TO_UNSORTED}>{UNSORTED}</option>
+            {parsed.places.map((p) => (
+              <option key={p.name} value={p.name}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="ghost"
+            title="Clear the selection (Esc)"
+            onClick={() => setTicked({ text: "", lines: NOTHING })}
+          >
+            Clear
+          </button>
+        </section>
+      )}
+      {reprinted && (
+        <ReprintDialog
+          key={reprinted.index}
+          card={reprinted}
+          name={nameOf(reprinted)}
+          printing={printings.get(printingKey(reprinted.card))}
+          onApply={(qty, p, finish) =>
+            change((t) => reprintOwned(t, reprinted.index, qty, p, finish))
+          }
+          onClose={() => setReprinting(null)}
+        />
+      )}
     </main>
   );
 }
@@ -270,6 +366,9 @@ function PlaceSection({
   places,
   printings,
   deckName,
+  selected,
+  onTick,
+  onReprint,
   change,
 }: {
   section: Section;
@@ -277,9 +376,14 @@ function PlaceSection({
   printings: Printings;
   /** The name of the deck the place is, when the repo has it. */
   deckName: string | undefined;
-  change: (next: (text: string) => string) => void;
+  selected: ReadonlySet<number>;
+  onTick: (indices: readonly number[], on: boolean) => void;
+  onReprint: (index: number) => void;
+  change: (next: (text: string) => string) => boolean;
 }) {
   const { place } = section;
+  const here = section.cards.map((c) => c.index);
+  const all = here.length > 0 && here.every((i) => selected.has(i));
   return (
     <section
       className="place"
@@ -321,6 +425,14 @@ function PlaceSection({
         <table className="owned">
           <thead>
             <tr>
+              <th className="owned-tick">
+                <input
+                  type="checkbox"
+                  aria-label={`Select every card in ${place?.name ?? UNSORTED}`}
+                  checked={all}
+                  onChange={(e) => onTick(here, e.target.checked)}
+                />
+              </th>
               <th>Qty</th>
               <th>Card</th>
               <th>Printing</th>
@@ -338,6 +450,9 @@ function PlaceSection({
                 card={c}
                 places={places}
                 printings={printings}
+                selected={selected.has(c.index)}
+                onTick={(on) => onTick([c.index], on)}
+                onReprint={() => onReprint(c.index)}
                 change={change}
               />
             ))}
@@ -352,12 +467,18 @@ function OwnedRow({
   card,
   places,
   printings,
+  selected,
+  onTick,
+  onReprint,
   change,
 }: {
   card: OwnedCard;
   places: readonly Place[];
   printings: Printings;
-  change: (next: (text: string) => string) => void;
+  selected: boolean;
+  onTick: (on: boolean) => void;
+  onReprint: () => void;
+  change: (next: (text: string) => string) => boolean;
 }) {
   const name = cardName(card, printings);
   const image = printings.get(printingKey(card.card))?.image;
@@ -370,7 +491,15 @@ function OwnedRow({
     ...places.map((p) => p.name).filter((p) => p !== here),
   ];
   return (
-    <tr className="owned-row">
+    <tr className={selected ? "owned-row selected" : "owned-row"}>
+      <td className="owned-tick">
+        <input
+          type="checkbox"
+          aria-label={`Select ${name}`}
+          checked={selected}
+          onChange={(e) => onTick(e.target.checked)}
+        />
+      </td>
       <td className="owned-qty">
         <div className="stepper">
           <button
@@ -400,7 +529,14 @@ function OwnedRow({
             <img crossOrigin="anonymous" src={image} alt="" loading="lazy" />
           )}
         </span>
-        <span className="owned-title">{name}</span>
+        <button
+          type="button"
+          className="owned-title"
+          title="Pick the printing, or the finish of some copies"
+          onClick={onReprint}
+        >
+          {name}
+        </button>
         {image && (
           <img
             crossOrigin="anonymous"
@@ -412,13 +548,21 @@ function OwnedRow({
         )}
       </td>
       <td className="owned-printing">
-        {card.card.kind === "printing" ? (
-          <span className="set-chip">
-            {card.card.set.toUpperCase()} <span>#{card.card.num}</span>
-          </span>
-        ) : (
-          <span className="muted">any</span>
-        )}
+        <button
+          type="button"
+          className="owned-printing-pick"
+          title="Pick the printing, or the finish of some copies"
+          aria-label={`Printing of ${name}`}
+          onClick={onReprint}
+        >
+          {card.card.kind === "printing" ? (
+            <span className="set-chip">
+              {card.card.set.toUpperCase()} <span>#{card.card.num}</span>
+            </span>
+          ) : (
+            <span className="muted">any</span>
+          )}
+        </button>
       </td>
       <td className="owned-finish">
         <select
@@ -426,7 +570,13 @@ function OwnedRow({
           value={card.finish}
           onChange={(e) =>
             change((t) =>
-              setOwnedFinish(t, card.index, e.target.value as Finish),
+              reprintOwned(
+                t,
+                card.index,
+                card.qty,
+                null,
+                e.target.value as Finish,
+              ),
             )
           }
         >

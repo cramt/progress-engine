@@ -563,27 +563,36 @@ pub fn collection_move(text: &str, index: usize, qty: u32, to: &str) -> Result<S
     collection::move_cards(text, index, qty, place_arg(to)).map_err(refused)
 }
 
+/// `text` with all of each line in `indices` moved to the place `to`, or to
+/// unsorted when it is empty.
+#[wasm_bindgen]
+pub fn collection_move_lines(text: &str, indices: &[u32], to: &str) -> Result<String, JsError> {
+    let indices: Vec<usize> = indices.iter().map(|&i| i as usize).collect();
+    collection::move_lines(text, &indices, place_arg(to)).map_err(refused)
+}
+
+/// `text` with `qty` of card `index` made the printing `set/num`, or left the
+/// card it is when `set` is empty, in `finish`.
+#[wasm_bindgen]
+pub fn collection_reprint(
+    text: &str,
+    index: usize,
+    qty: u32,
+    set: &str,
+    num: &str,
+    finish: &str,
+) -> Result<String, JsError> {
+    let printing = (!set.is_empty()).then(|| deck::Printing {
+        set: set.to_string(),
+        num: num.to_string(),
+    });
+    collection::reprint(text, index, qty, printing.as_ref(), finish_arg(finish)?).map_err(refused)
+}
+
 /// `text` with card `index` at `qty` copies; zero removes it.
 #[wasm_bindgen]
 pub fn collection_set_qty(text: &str, index: usize, qty: u32) -> Result<String, JsError> {
     collection::set_qty(text, index, qty).map_err(refused)
-}
-
-/// `text` with card `index`'s finish `"nonfoil"`, `"foil"` or `"etched"`.
-#[wasm_bindgen]
-pub fn collection_set_finish(text: &str, index: usize, finish: &str) -> Result<String, JsError> {
-    collection::set_finish(text, index, finish_arg(finish)?).map_err(refused)
-}
-
-/// `text` with card `index` named by the printing `set/num`.
-#[wasm_bindgen]
-pub fn collection_set_printing(
-    text: &str,
-    index: usize,
-    set: &str,
-    num: &str,
-) -> Result<String, JsError> {
-    collection::set_printing(text, index, set, num).map_err(refused)
 }
 
 /// `text` with the place `name` declared, standing for the deck at `deck`

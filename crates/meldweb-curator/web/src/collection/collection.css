@@ -82,22 +82,26 @@
 }
 
 .owned th:nth-child(1) {
-  width: 124px;
+  width: 44px;
 }
 
-.owned th:nth-child(3) {
-  width: 120px;
+.owned th:nth-child(2) {
+  width: 112px;
 }
 
 .owned th:nth-child(4) {
-  width: 116px;
+  width: 120px;
 }
 
 .owned th:nth-child(5) {
-  width: 230px;
+  width: 116px;
 }
 
 .owned th:nth-child(6) {
+  width: 230px;
+}
+
+.owned th:nth-child(7) {
   width: 48px;
 }
 
@@ -246,8 +250,8 @@
 }
 
 @media (max-width: 860px) {
-  .owned th:nth-child(3),
-  .owned td:nth-child(3) {
+  .owned th:nth-child(4),
+  .owned td:nth-child(4) {
     display: none;
   }
 }
@@ -283,17 +287,27 @@
     background: none;
   }
 
+  .owned-tick {
+    order: -3;
+  }
+
   .owned-name {
-    flex: 1 1 calc(100% - 48px);
+    flex: 1 1 calc(100% - 80px);
     order: -2;
+  }
+
+  /* A row is a block here, so there is room for the printing again. */
+  .owned td.owned-printing {
+    display: block;
   }
 
   .owned-remove-cell {
     order: -1;
   }
 
+  /* Its own row, so a line of one card lines up with a line of many. */
   .owned-move {
-    flex: 1;
+    flex: 1 1 100%;
     display: flex;
   }
 
@@ -301,4 +315,92 @@
     flex: 1;
     width: auto;
   }
+}
+
+.reprint-finish {
+  margin: 0;
+}
+
+.owned-tick input {
+  display: block;
+}
+
+.owned tbody tr.selected td {
+  background: var(--accent-soft);
+}
+
+/* The name and the printing open the printing picker, and read as text. */
+.owned-name > .owned-title,
+.owned-printing-pick {
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.owned-name > .owned-title:hover,
+.owned-printing-pick:hover .muted {
+  text-decoration: underline;
+}
+
+.owned-printing-pick {
+  font-weight: inherit;
+}
+
+.owned-printing-pick:hover .set-chip {
+  border-color: var(--accent);
+}
+
+/* Moving what is ticked: pinned to the foot of the page while there is any. */
+.bulk-bar {
+  position: sticky;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  max-width: 1080px;
+  margin: 12px auto 0;
+  padding: 10px 12px 10px 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  font-weight: 600;
+}
+
+.bulk-bar select {
+  flex: 0 1 220px;
+}
+
+.reprint-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.reprint-bar .primary {
+  margin-left: auto;
+}
+
+.reprint-qty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reprint-qty input {
+  width: 4.5em;
+  padding: 0 6px;
 }

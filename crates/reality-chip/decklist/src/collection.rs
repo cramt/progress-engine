@@ -342,6 +342,83 @@ pub fn move_cards(
     finish_with(doc, check)
 }
 
+/// Moves all of each line in `indices` to the place `to`, or to unsorted, as
+/// one edit: what sorting a pile of unsorted cards takes. Each joins a line
+/// already holding the card alike there, as [`move_cards`] does.
+pub fn move_lines(text: &str, indices: &[usize], to: Option<&str>) -> Result<String, EditError> {
+    let c = parse(text)?;
+    let mut indices = indices.to_vec();
+    indices.sort_unstable();
+    indices.dedup();
+    // Last first: a move that joins another line drops its own, which shifts
+    // only the lines after it, and those have already moved.
+    let mut text = text.to_string();
+    for &index in indices.iter().rev() {
+        text = move_cards(&text, index, no_card(&c, index)?.qty.get(), to)?;
+    }
+    Ok(text)
+}
+
+/// `qty` of card `index`'s copies made the printing `printing` (or left the
+/// card they are, for `None`) in `finish`, where they are: a scanned guess
+/// corrected, or the foil found in a stack. All of a line changes in place;
+/// part of one leaves the rest as it was. Either way the copies join a line
+/// already holding them alike in that place, rather than making a second.
+pub fn reprint(
+    text: &str,
+    index: usize,
+    qty: u32,
+    printing: Option<&Printing>,
+    finish: Finish,
+) -> Result<String, EditError> {
+    let c = parse(text)?;
+    let from = no_card(&c, index)?;
+    let have = from.qty.get();
+    if qty == 0 || qty > have {
+        return Err(CollectionError::TooMany { index, have, qty }.into());
+    }
+    let printing = printing.map(|p| Printing {
+        set: p.set.trim().to_ascii_lowercase(),
+        num: p.num.trim().to_string(),
+    });
+    let card = printing
+        .clone()
+        .map_or_else(|| from.card.clone(), CardRef::Printing);
+    if card == from.card && finish == from.finish {
+        return Ok(text.to_string());
+    }
+    let at = from.at.as_deref();
+
+    if let Some(j) = line_for(&c, &card, finish, at, Some(index)) {
+        let text = set_qty(text, j, c.cards[j].qty.get() + qty)?;
+        return set_qty(&text, index, have - qty);
+    }
+    if qty == have {
+        let text = match &printing {
+            Some(p) if card != from.card => set_printing(text, index, &p.set, &p.num)?,
+            _ => text.to_string(),
+        };
+        return set_finish(&text, index, finish);
+    }
+    // A printing's line is commented with the card's name, as an import
+    // writes one: the old line's name, or its comment when it was a printing.
+    let comment = match (&card, &from.card) {
+        (CardRef::Name(_), _) => None,
+        (CardRef::Printing(_), CardRef::Name(name)) => Some(name.clone()),
+        (CardRef::Printing(_), CardRef::Printing(_)) => {
+            card_comments(text).into_iter().nth(index).flatten()
+        }
+    };
+    let text = set_qty(text, index, have - qty)?;
+    let mut doc = document(&text)?;
+    edit::push_line(
+        &mut doc,
+        new_line(&card, qty, finish, at),
+        comment.as_deref(),
+    )?;
+    finish_with(doc, check)
+}
+
 /// Declares the place `name` under `[places]`, standing for the deck at
 /// `deck` when one is given. Declaring it again the same way changes nothing.
 pub fn declare_place(text: &str, name: &str, deck: Option<&str>) -> Result<String, EditError> {
