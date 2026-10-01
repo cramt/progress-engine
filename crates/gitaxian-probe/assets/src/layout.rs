@@ -14,10 +14,10 @@ pub const ARCHIVE_REGISTRY: &str = "https://ghcr.io";
 /// gives it. `crates/gitaxian-probe/archive/` publishes it.
 pub const ARCHIVE_REPOSITORY: &str = "cramt/delver-x";
 
-/// What ends up in the asset directory, which is what a page serves. The same
-/// names as upstream, except that the weights arrive unpacked: the engine
-/// unpacks its own catalogue but not its model, so something has to, and doing
-/// it at build time keeps an LZMA decoder out of the page.
+/// What ends up in the asset directory, which is what a page serves: the
+/// archive's files as upstream shipped them, so a page can as well proxy the
+/// archive as serve this directory. The model stays packed, and the web host
+/// unpacks it in the page.
 pub const SERVED: &[&str] = &[
     "version.txt",
     "core.js",
@@ -25,5 +25,6 @@ pub const SERVED: &[&str] = &[
     "data.7z",
     "data.md5",
     "data.size",
-    "model-alpha.dat",
+    "model-alpha.7z",
+    "model-alpha.size",
 ];

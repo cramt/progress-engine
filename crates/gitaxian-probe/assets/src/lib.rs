@@ -3,8 +3,8 @@
 //! The origin sends no CORS headers, so a page on any other origin cannot
 //! `fetch` the engine from Delver - it has to serve its own copy. This crate is
 //! that copy: its build script downloads the pinned build once, checks every
-//! byte against [`PINNED`], unpacks the weights, and leaves the lot in [`dir`],
-//! named as a page serves them. A web build copies that directory next to its
+//! byte against [`PINNED`], and leaves the lot in [`dir`], named and packed as
+//! upstream shipped them, which is also how the archive holds them. A web build copies that directory next to its
 //! own output and points `gitaxian-probe-engine`'s web host at wherever it ends
 //! up.
 //!

@@ -10,6 +10,5 @@ publish = false
 [build-dependencies]
 facet.workspace = true
 facet-json.workspace = true
-sevenz-rust2.workspace = true
 sha2.workspace = true
 ureq.workspace = true

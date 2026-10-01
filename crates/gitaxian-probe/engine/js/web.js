@@ -186,18 +186,19 @@ class JobQueue {
  * host's job decoder (bytes -> JSON string), and `progress` an optional
  * (stage, percent, message) callback.
  */
-export function open(base, wasm, tier, abi, decode, progress, timeoutMs) {
+export function open(base, wasm, model, tier, abi, decode, progress, timeoutMs) {
   // Boot unpacks a 44 MB catalogue and loads a 34 MB model, so it gets more
   // room than an ordinary call - the same floor the native host uses. The
   // deadline covers createCore too: a pool that cannot start never settles it.
   return bounded(
-    boot(base, wasm, tier, abi, decode, progress, timeoutMs),
+    boot(base, wasm, model, tier, abi, decode, progress, timeoutMs),
     "booting the engine",
     Math.max(timeoutMs, 120000),
   );
 }
 
-async function boot(base, wasm, tier, abi, decode, progress, timeoutMs) {
+// `model` is the weights, which the Rust side fetched packed and unpacked.
+async function boot(base, wasm, model, tier, abi, decode, progress, timeoutMs) {
   const root = new URL(base, globalThis.location.href);
   const url = (name) => new URL(name, root).href;
   const report = (stage, percent, message) => progress?.(stage, percent, message);
@@ -205,13 +206,12 @@ async function boot(base, wasm, tier, abi, decode, progress, timeoutMs) {
 
   report("load", 0, "loading core.js");
   const coreUrl = url("core.js");
-  const [, db7z, md5, size, version, model] = await Promise.all([
+  const [, db7z, md5, size, version] = await Promise.all([
     loadCore(coreUrl),
     fetchBytes(url("data.7z")),
     fetchBytes(url("data.md5")),
     fetchBytes(url("data.size")),
     fetchBytes(url("version.txt")),
-    fetchBytes(url(`model-${tier}.dat`)),
   ]);
 
   report("load", 0, "instantiating");

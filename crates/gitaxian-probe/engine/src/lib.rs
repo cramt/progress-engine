@@ -33,6 +33,7 @@
 //! provide.
 
 mod job;
+mod packed;
 pub mod wasm;
 
 #[cfg(not(target_arch = "wasm32"))]

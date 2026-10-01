@@ -18,7 +18,8 @@ facet-json = "0.46"
 facet-msgpack = "0.46"
 facet-value = "0.46"
 sha2 = "0.10"
-sevenz-rust2 = "0.23"
+# Unpacking only: no encryption, which pulls in getrandom, a wasm32 build error.
+sevenz-rust2 = { version = "0.23", default-features = false }
 ureq = { version = "3", default-features = false, features = ["rustls"] }
 
 # Native only: the host that builds a browser inside V8.

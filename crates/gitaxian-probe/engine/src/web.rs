@@ -14,8 +14,10 @@
 //!   `Cross-Origin-Embedder-Policy: require-corp`. Without them `open` fails
 //!   before the engine starts.
 //! - **The files, from its own origin.** Delver's origin sends no CORS
-//!   headers, so the page serves its own copy: the directory
-//!   `gitaxian-probe-assets` lays out, at [`EngineConfig::base`].
+//!   headers, and neither does the archive on ghcr.io, so the page serves its
+//!   own copy, or proxies the archive: the files as upstream shipped them,
+//!   which `gitaxian-probe-assets` lays out, at [`EngineConfig::base`]. The
+//!   model comes packed, and is unpacked here, in the page.
 //!
 //! Every call is a future, and `open` can run on the page or in a dedicated
 //! worker. The pool's workers cannot be stopped from outside (FINDINGS.md §6),
@@ -52,6 +54,7 @@ extern "C" {
     fn open(
         base: &str,
         wasm: Uint8Array,
+        model: Uint8Array,
         tier: &str,
         abi: JsValue,
         decode: &Function,
@@ -143,9 +146,24 @@ impl Engine {
             format!("{}/", config.base)
         };
 
-        let core = settle(fetch_bytes(&format!("{base}core.wasm")))
+        // Every download starts before the first is awaited.
+        let packed_name = format!("model-{}.7z", tier.name());
+        let size_name = format!("model-{}.size", tier.name());
+        let core = fetch_bytes(&format!("{base}core.wasm"));
+        let packed = fetch_bytes(&format!("{base}{packed_name}"));
+        let size = fetch_bytes(&format!("{base}{size_name}"));
+        let core = settle(core).await.context("fetching core.wasm")?;
+        let packed = settle(packed)
             .await
-            .context("fetching core.wasm")?;
+            .with_context(|| format!("fetching {packed_name}"))?;
+        let size = settle(size)
+            .await
+            .with_context(|| format!("fetching {size_name}"))?;
+        let model = unpack_model(
+            &Uint8Array::new(&packed).to_vec(),
+            &Uint8Array::new(&size).to_vec(),
+            tier,
+        )?;
         let (fingerprint, patched) = wasm::admit(
             &Uint8Array::new(&core).to_vec(),
             KNOWN_FINGERPRINT,
@@ -171,6 +189,7 @@ impl Engine {
         let probe: Probe = settle(open(
             &base,
             Uint8Array::from(patched.as_slice()),
+            Uint8Array::from(model.as_slice()),
             tier.name(),
             abi,
             decode.as_ref().unchecked_ref(),
@@ -319,4 +338,23 @@ fn isolation_problem() -> Option<&'static str> {
          SharedArrayBuffer; serve it with Cross-Origin-Opener-Policy: same-origin and \
          Cross-Origin-Embedder-Policy: require-corp",
     )
+}
+
+/// The weights out of upstream's archive, checked against the size sidecar:
+/// short weights do not crash the engine, they recognise the wrong card.
+fn unpack_model(packed: &[u8], size: &[u8], tier: Tier) -> Result<Vec<u8>> {
+    let name = format!("model-{}.dat", tier.name());
+    let weights =
+        crate::packed::unpack(packed, &name).with_context(|| format!("unpacking {name}"))?;
+    let want: usize = String::from_utf8_lossy(size)
+        .trim()
+        .parse()
+        .with_context(|| format!("model-{}.size is not a byte count", tier.name()))?;
+    if weights.len() != want {
+        bail!(
+            "{name} unpacked to {} bytes, its sidecar says {want}",
+            weights.len()
+        );
+    }
+    Ok(weights)
 }

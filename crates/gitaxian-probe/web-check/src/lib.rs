@@ -1,6 +1,6 @@
 //! The web host's acceptance check.
 //!
-//! `engine/tests/engine.rs` pins 6/6 on card name and 4/6 on exact printing
+//! `engine/tests/engine.rs` pins 6/6 on card name and 5/6 on exact printing
 //! for the six fixture frames. The web host runs the same engine through a
 //! different execution model, so it is held to the same numbers - and nothing
 //! short of a real, cross-origin-isolated browser can run it. `run.sh` builds
@@ -147,9 +147,9 @@ async fn run(base: String, frames: JsValue) -> Result<String> {
     if names != 6 {
         bail!("card-name accuracy regressed\n{report}");
     }
-    // The engine's own ceiling, as natively: no OCR, so same-art reprints
-    // (Llanowar Elves, Swords to Plowshares) land on the wrong printing.
-    if printings != 4 {
+    // The engine's own ceiling, as natively: no OCR, so a same-art reprint
+    // (Swords to Plowshares) lands on the wrong printing.
+    if printings != 5 {
         bail!("printing accuracy moved - the web host changed behaviour\n{report}");
     }
     Ok(report)

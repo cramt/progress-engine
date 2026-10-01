@@ -114,8 +114,10 @@ fn engine_boots_queries_and_recognises() {
 }
 
 /// FINDINGS.md §13 measured 6/6 on card name and 4/6 on exact printing through
-/// the Node harness. The sandbox must not move those numbers - if it does, the
-/// port changed the engine's behaviour rather than just its host.
+/// the Node harness, on 1.76.beta; 1.83.beta held them. 1.89.beta, pinned since
+/// 2026-09-28, gets one more printing right, natively and on the web alike, so
+/// the pin is 6/6 and 5/6. The sandbox must not move those numbers - if it
+/// does, the port changed the engine's behaviour rather than just its host.
 #[test]
 fn accuracy_matches_the_node_harness() {
     if !ready() {
@@ -178,12 +180,13 @@ fn accuracy_matches_the_node_harness() {
         fixtures.len()
     );
     assert_eq!(names, 6, "card-name accuracy regressed");
-    // 4/6 is the engine's own ceiling, not the host's: it ships no OCR, never
+    // 5/6 is the engine's own ceiling, not the host's: it ships no OCR, never
     // reads the collector number, and cannot separate same-art reprints. The
-    // two misses are Llanowar Elves (Dominaria, not M19) and Swords to
-    // Plowshares (Foreign Black Border, not Alpha) - both same-art reprints.
+    // miss is Swords to Plowshares (Foreign Black Border, not Alpha), a
+    // same-art reprint. Up to 1.83.beta, Llanowar Elves (Dominaria, not M19)
+    // missed as well.
     assert_eq!(
-        printings, 4,
+        printings, 5,
         "printing accuracy moved - the port changed behaviour"
     );
 }

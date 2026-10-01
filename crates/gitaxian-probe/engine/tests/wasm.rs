@@ -1,6 +1,6 @@
 mod skip;
 
-use gitaxian_probe_engine::{wasm, Artifact, Source};
+use gitaxian_probe_engine::{wasm, Artifact, Source, KNOWN_FINGERPRINT};
 
 /// `core.wasm` exactly as upstream serves it, from the cache or the network.
 fn core_wasm() -> Option<Vec<u8>> {
@@ -15,7 +15,7 @@ fn fingerprint_matches_the_verified_build() {
         skip::skipped("core.wasm could not be fetched");
         return;
     };
-    assert_eq!(wasm::import_fingerprint(&buf).unwrap(), "3411ecc782a61347");
+    assert_eq!(wasm::import_fingerprint(&buf).unwrap(), KNOWN_FINGERPRINT);
 }
 
 #[test]

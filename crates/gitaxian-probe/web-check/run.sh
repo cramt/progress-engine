@@ -2,7 +2,7 @@
 # Build the web check, serve it cross-origin isolated, and run it in headless
 # Chromium - once on the page and once inside a module worker. Exits non-zero
 # unless both match the native accuracy numbers (card name 6/6, exact printing
-# 4/6).
+# 5/6).
 #
 # Needs: the wasm32-unknown-unknown target, a wasm-bindgen CLI matching the
 # wasm-bindgen crate in Cargo.lock, python3, node with playwright, and the

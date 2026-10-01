@@ -122,16 +122,7 @@ fn build(pin: &Pin, fetched: &Path, served: &Path) -> Result<()> {
     }
 
     for name in layout::SERVED {
-        let dst = served.join(name);
-        if *name == "model-alpha.dat" {
-            unpack_model(
-                &fetched.join("model-alpha.7z"),
-                &fetched.join("model-alpha.size"),
-                &dst,
-            )?;
-        } else {
-            copy(&fetched.join(name), &dst)?;
-        }
+        copy(&fetched.join(name), &served.join(name))?;
     }
     Ok(())
 }
@@ -256,45 +247,6 @@ fn download(name: &str) -> Result<Vec<u8>> {
         .read_to_end(&mut bytes)
         .map_err(|e| format!("reading {url}: {e}"))?;
     Ok(bytes)
-}
-
-/// The weights as upstream ships them are one LZMA2 member; the size sidecar is
-/// the byte count of what comes out, and the only check upstream's sidecars
-/// can actually make (FINDINGS.md §1).
-fn unpack_model(archive: &Path, size: &Path, dst: &Path) -> Result<()> {
-    let want: u64 = String::from_utf8_lossy(&read(size)?)
-        .trim()
-        .parse()
-        .map_err(|e| format!("{}: {e}", size.display()))?;
-    if fs::metadata(dst).is_ok_and(|m| m.len() == want) {
-        return Ok(());
-    }
-
-    let file = fs::File::open(archive).map_err(|e| format!("{}: {e}", archive.display()))?;
-    let mut reader = sevenz_rust2::ArchiveReader::new(file, sevenz_rust2::Password::empty())
-        .map_err(|e| format!("opening {}: {e}", archive.display()))?;
-    let name = dst.file_name().and_then(|n| n.to_str()).unwrap_or_default();
-    let mut out = None;
-    reader
-        .for_each_entries(|entry, r| {
-            if entry.name() != name {
-                return Ok(true);
-            }
-            let mut buf = Vec::with_capacity(want as usize);
-            r.read_to_end(&mut buf)?;
-            out = Some(buf);
-            Ok(false)
-        })
-        .map_err(|e| format!("unpacking {}: {e}", archive.display()))?;
-    let bytes = out.ok_or_else(|| format!("{} holds no {name}", archive.display()))?;
-    if bytes.len() as u64 != want {
-        return Err(format!(
-            "{} unpacked to {} bytes, but its size sidecar says {want}",
-            archive.display(),
-            bytes.len()
-        ));
-    }
-    write(dst, &bytes)
 }
 
 fn explain_drift(pin: &Pin, drift: &[(&str, String)]) -> String {

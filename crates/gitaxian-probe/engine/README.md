@@ -201,13 +201,21 @@ The page has to provide two things:
   up front; left to core.js, the boot would hang on a Worker `postMessage` instead.
 - **The files, from its own origin.** Delver's origin sends no CORS headers
   (checked 2026-09-27: no `Access-Control-Allow-Origin` on any file, and a preflight
-  is a 403), so no other origin can `fetch` them. `gitaxian-probe-assets` is the copy:
-  its build script downloads the build pinned in `assets/pin.json`, checks every
-  file's sha256, unpacks the weights, and lays the directory out in
-  `gitaxian_probe_assets::dir()`. A web build copies that next to its output -
-  `gitaxian_probe_assets::copy_to(dest)` from its own build step, or
-  `cargo run -p gitaxian-probe-assets --example copy -- <dest>` - and sets `base` to
-  wherever it is served.
+  is a 403), and nor does the archive on ghcr.io (checked 2026-10-01: none on the
+  token, the manifests or any blob, nor on the storage the blobs redirect to), so
+  no other origin can `fetch` them. The page serves the pinned files as upstream
+  shipped them, from either of two places. `gitaxian-probe-assets` is a copy: its
+  build script downloads the build pinned in `assets/pin.json`, checks every file's
+  sha256, and lays the directory out in `gitaxian_probe_assets::dir()`, for a web
+  build to copy next to its output - `gitaxian_probe_assets::copy_to(dest)`, or
+  `cargo run -p gitaxian-probe-assets --example copy -- <dest>`. Or a server on the
+  page's origin proxies the archive's blobs by the pin's digests, as Meldweb
+  Curator's worker does. Either way `base` is where they are served.
+
+The model comes packed, `model-<tier>.7z` and its `.size`, and `open` unpacks it in
+the page with the same LZMA2 reader the native host uses, then checks it against the
+sidecar. That keeps the served files byte for byte the archive's, so a proxy needs no
+file of its own. It costs a decode of 34 MB on every boot.
 
 `open` works on the page or inside a dedicated worker, classic or module; in a worker
 there is no `window`, so the glue gives the hook the `global.fileEvents` it falls back
@@ -246,7 +254,7 @@ also the list of blobs to fetch. This repo uses it in four places:
   and opens one PR per build. It never merges.
 - **Reviewing that PR.** `.github/workflows/probe-web-check.yml` runs
   `web-check/run.sh` on every PR that touches the probe, with ImageMagick-made
-  frames. It shows whether `KNOWN_FINGERPRINT` still holds and whether 6/6 and 4/6
+  frames. It shows whether `KNOWN_FINGERPRINT` still holds and whether 6/6 and 5/6
   moved. A moved fingerprint or number needs someone to read FINDINGS before the PR
   merges. CI does not run the native accuracy test.
 
@@ -315,10 +323,14 @@ number, and cannot separate printings that share an illustration. See FINDINGS Â
 behaviour fails the suite rather than the review.
 
 The table is 1.83.beta's. The pin is now 1.89.beta (fingerprint `e7615396c5ece313`),
-because upstream stopped serving 1.83.beta. On 1.89.beta, card name held at 6/6 on the
-web, but exact printing came out at 2/6 or 3/6 on fixture frames made without ImageMagick,
-and the native test has not been rerun. See
-[probe-in-curator.md](../../../docs/research/probe-in-curator.md).
+because upstream stopped serving 1.83.beta. Rerun on 2026-10-01 with ImageMagick-made
+frames, 1.89.beta gets **6/6** on card name and **5/6** on exact printing, natively
+(`PROBE_REQUIRE_ENGINE=1`) and on the web (`web-check/run.sh`, page and worker) alike,
+with the same picks: Llanowar Elves now lands on Core Set 2019, and Swords to
+Plowshares is the one miss. Both tests pin 5/6. The web check booted in 4.8-5.1 s with the model
+unpacked in the page, against 4.0 s when it was served unpacked. Earlier, frames made without
+ImageMagick had given 2/6 or 3/6 on the web
+([probe-in-curator.md](../../../docs/research/probe-in-curator.md)).
 
 It only pins them where it can run. Every engine case needs the upstream blobs, and
 the accuracy ones need `magick` too; without either they skip and the suite still
