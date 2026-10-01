@@ -1,5 +1,6 @@
 # Meldweb Curator's one Cloudflare Worker: the built site as static assets,
-# plus the four GitHub login routes under /api/auth/. See README.md.
+# plus the four GitHub login routes under /api/auth/ and the card scanner's
+# engine files under /gitaxian-probe/. See README.md.
 #
 # Deployed by `nix run .#infra -- apply` from the repo root, which also owns
 # the domain (crates/meldweb-curator/infra/). `nix run .#deploy-curator` ships
@@ -21,8 +22,9 @@ binding = "ASSETS"
 # Deep deck URLs are TanStack Router routes, not files: answer them with
 # index.html so a reload reopens the same deck.
 not_found_handling = "single-page-application"
-# Only the auth routes run the worker; every other request is a file.
-run_worker_first = ["/api/*"]
+# Only the auth routes and the scanner's engine files, proxied from ghcr.io,
+# run the worker; every other request is a file.
+run_worker_first = ["/api/*", "/gitaxian-probe/*"]
 
 [vars]
 # Public values from the GitHub App's settings page (#125), github.com/apps/meldweb-curator.

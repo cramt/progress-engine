@@ -121,6 +121,8 @@
           ./crates/meldweb-curator/worker/biome.json
           ./crates/meldweb-curator/worker/tsconfig.json
           ./crates/meldweb-curator/worker/src
+          # The scanner's build names the engine files it fetches by this pin
+          ./crates/gitaxian-probe/assets/pin.json
         ];
       };
       # node_modules come from pnpm2nix, which fetches each package by the
@@ -142,7 +144,14 @@
         nodejs = pkgs.nodejs;
       };
       meldwebWeb = meldwebWorkspace.apps.meldweb-web.overrideAttrs (old: {
-        env = old.env // {MELDWEB_WASM_PREBUILT = "1";};
+        env =
+          old.env
+          // {
+            MELDWEB_WASM_PREBUILT = "1";
+            # The scanner's API; the site never carries the engine's files,
+            # which the worker proxies from the archive
+            MELDWEB_PROBE_PREBUILT = "${probeBindgen}";
+          };
         buildPhase = ''
           runHook preBuild
           mkdir -p crates/meldweb-curator/web/src/wasm
@@ -203,8 +212,8 @@
         GITAXIAN_PROBE_OFFLINE = "1";
       };
 
-      # The served directory: the pinned files, the weights unpacked, as the
-      # assets crate lays them out. Its tests check each one is there and that
+      # The served directory: the pinned files as upstream shipped them, as
+      # the assets crate lays them out. Its tests check each one is there and that
       # version.txt says what the pin does.
       probeAssetsArgs =
         probeArgs
@@ -220,28 +229,35 @@
           '';
         });
 
-      # The probe's JavaScript API for a page, beside the files it serves:
-      # pkg/ is the wasm and its glue, gitaxian-probe/ the engine's files. The
-      # same wasm-bindgen as meldweb-wasm, which the probe's Cargo.lock pins to.
-      probeWebArgs =
-        probeArgs
+      # The probe's JavaScript API for a page: the wasm and its glue. The same
+      # wasm-bindgen as meldweb-wasm, which the probe's Cargo.lock pins to. It
+      # needs no engine file, so Meldweb Curator's site builds from it alone.
+      probeBindgenArgs =
+        # Not the engine's files: naming them would make every site build
+        # fetch the 42 MB it never carries
+        builtins.removeAttrs probeArgs ["GITAXIAN_PROBE_ASSETS_FROM"]
         // {
-          pname = "gitaxian-probe-web";
+          pname = "gitaxian-probe-bindgen";
           cargoExtraArgs = "-p gitaxian-probe-bindgen";
           CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
           doCheck = false;
         };
-      probeWeb = craneLib.buildPackage (probeWebArgs
+      probeBindgen = craneLib.buildPackage (probeBindgenArgs
         // {
-          cargoArtifacts = craneLib.buildDepsOnly probeWebArgs;
+          cargoArtifacts = craneLib.buildDepsOnly probeBindgenArgs;
           nativeBuildInputs = [wasmBindgen];
           installPhaseCommand = ''
-            wasm-bindgen --target web --out-dir $out/pkg \
+            wasm-bindgen --target web --out-dir $out \
               target/wasm32-unknown-unknown/release/gitaxian_probe_bindgen.wasm
-            # Writable, as crane's install hook rewrites what it installed.
-            cp -r --no-preserve=mode ${probeAssets} $out/gitaxian-probe
           '';
         });
+      # The API beside the files it serves: pkg/ the API, gitaxian-probe/ the
+      # engine's files, for a page that serves its own copy.
+      probeWeb = pkgs.runCommand "gitaxian-probe-web" {} ''
+        mkdir $out
+        ln -s ${probeBindgen} $out/pkg
+        ln -s ${probeAssets} $out/gitaxian-probe
+      '';
       # Meldweb Curator's deploy: the worker's own source (not its node_modules
       # or the dev symlink to a site) with this flake's built site as its assets.
       curatorWorker = pkgs.lib.fileset.toSource {

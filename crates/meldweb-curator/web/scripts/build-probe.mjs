@@ -1,11 +1,13 @@
-// Builds Gitaxian Probe's JavaScript API and lays out Delver X's engine files
-// for the scan dialog, under the probe's own target dir: nothing here lands in
-// src/ or public/, so `pnpm build` never carries Delver's files into the site.
+// Builds Gitaxian Probe's JavaScript API for the scanner, and for the dev
+// server lays out Delver X's engine files too, all under the probe's own target
+// dir. The site carries the API but never the engine's files: the worker
+// proxies those from the archive (worker/src/probe.ts).
 //
-// Opt-in and dev-only (`MELDWEB_PROBE=1 pnpm dev`): the probe is its own cargo
-// workspace, and its build downloads Delver's engine against a hash pin. Its
-// Cargo.lock pins the editor's wasm-bindgen, so the devshell's CLI serves both;
-// `WASM_BINDGEN_PROBE` names another CLI, should the two ever part.
+// The probe is its own cargo workspace, and laying out the files downloads them
+// against a hash pin. Its Cargo.lock pins the editor's wasm-bindgen, so the
+// devshell's CLI serves both; `WASM_BINDGEN_PROBE` names another CLI, should
+// the two ever part. The Nix build sets MELDWEB_PROBE_PREBUILT to a built API
+// instead, as it does MELDWEB_WASM_PREBUILT.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -14,13 +16,22 @@ const repo = fileURLToPath(new URL("../../../..", import.meta.url));
 const probe = `${repo}crates/gitaxian-probe/`;
 const out = `${probe}target/meldweb/`;
 
-/** Where the dev server finds the API's JS glue, and the engine's files. */
+const prebuilt = process.env.MELDWEB_PROBE_PREBUILT;
+
+/** Where the API's JS glue is, and where the dev server finds the engine's files. */
 export const probeOut = {
-  glue: `${out}pkg/gitaxian_probe_bindgen.js`,
+  glue: `${prebuilt ? `${prebuilt}/` : `${out}pkg/`}gitaxian_probe_bindgen.js`,
   assets: `${out}gitaxian-probe/`,
 };
 
-export function buildProbe() {
+/** The pinned build: `{ version, tag, files: [{ name, sha256 }] }`. */
+export const probePin = JSON.parse(
+  readFileSync(`${probe}assets/pin.json`, "utf8"),
+);
+
+/** The API, and the engine's files as well when `assets`, for the dev server. */
+export function buildProbe({ assets = true } = {}) {
+  if (prebuilt) return;
   const lock = readFileSync(`${probe}Cargo.lock`, "utf8");
   const want = /name = "wasm-bindgen"\nversion = "([^"]+)"/.exec(lock)?.[1];
   const bindgen = process.env.WASM_BINDGEN_PROBE ?? "wasm-bindgen";
@@ -56,6 +67,7 @@ export function buildProbe() {
     ],
     { stdio: "inherit" },
   );
+  if (!assets) return;
   cargo(
     "run",
     "--quiet",

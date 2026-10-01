@@ -28,9 +28,13 @@ without storing anything (deployed with `nix run .#infra -- apply`, an OpenTofu 
 `pnpm dev` logs in through the real GitHub App on localhost:5173, running the
 worker's auth routes inside Vite with the client secret from 1Password
 (`web/scripts/dev-auth.ts`); `VITE_MOCK_GITHUB=1 pnpm dev` runs the app against an in-page fake GitHub
-(`=no-repo` or `=no-install` start at onboarding), so no worker or app is needed. `MELDWEB_PROBE=1 pnpm dev` adds
-a Scan button backed by Gitaxian Probe, to a deck and, scanning continuously, to the collection; it is a dev-only spike that no build
-carries, and [docs/research/probe-in-curator.md](docs/research/probe-in-curator.md) says why. Copy Archidekt's
+(`=no-repo` or `=no-install` start at onboarding), so no worker or app is needed. A deck
+and the collection have a Scan button backed by Gitaxian Probe, the collection's
+scanning continuously. Every site build carries it, and the whole site is
+cross-origin isolated for it; the worker proxies Delver's engine files from the
+archive on ghcr.io, so the site never holds them. Plain `pnpm dev` leaves it out
+and `MELDWEB_PROBE=1 pnpm dev` builds it in;
+[docs/research/probe-in-curator.md](docs/research/probe-in-curator.md) is how it works. Copy Archidekt's
 editor before improving on it; [docs/research/archidekt-editor.md](docs/research/archidekt-editor.md)
 is what that editor does and the order to build it in. The TypeScript never
 reimplements what a decklist is: parsing, `commander` and `outside` come from

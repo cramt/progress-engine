@@ -1,53 +1,93 @@
-# Gitaxian Probe in Meldweb Curator: a scan button, as a spike
+# Gitaxian Probe in Meldweb Curator: scanning cards
 
 Question: can Meldweb Curator scan a physical card into a deck, using Gitaxian
 Probe's web host? And what stands between that and shipping it?
 
-**Answer: it works in `pnpm dev`, and three things block shipping it.** A Scan
-button in the deck toolbar boots Delver X's engine on the page, reads a camera
-frame or an image file, and adds the printing it names to the deck in one
-undoable edit. Card names come back right; printings are a guess. What blocks
-shipping, most serious first:
+**Answer: it ships.** It began on 2026-09-28 as a dev-only spike: a Scan button
+in the deck toolbar boots Delver X's engine on the page, reads a camera frame
+or an image file, and adds the printing it names to the deck in one undoable
+edit. The collection got a continuous scanner on 2026-09-30 (*Scanning into
+the collection*). On 2026-10-01 it went into every site build. Card names come
+back right; printings are a guess. Three things blocked shipping, and each was
+settled as follows:
 
-1. **Deploying it means hosting Delver's engine and weights.** Their origin
-   sends no CORS headers, so no other site can fetch the files. The site would
-   have to serve its own copy (engine README, *On the web*). That is
-   redistributing a vendor's binaries and model, and it needs their permission
-   before it needs any code. The spike keeps the files out of every build on
-   purpose (*What was built*). The archive of Delver's builds on ghcr.io was
-   made public on 2026-09-28 so that builds need no credentials, which already
-   serves the files to anyone who asks; asking Delver Lab is still the step
-   before the site ships them.
-2. **The model is too big for the host.** `model-alpha.dat` is 34,050,684 bytes
-   (32.5 MiB). Cloudflare Workers static assets take at most 25 MiB per file.
-   The fixes are to serve it from R2, to split it and join it in the page, or to
-   serve the 23 MB `.7z` and unpack it in the page, which puts an LZMA decoder in
-   the page that `gitaxian-probe-assets` currently keeps out.
-3. **The whole site has to be cross-origin isolated, and Safari needs more for
-   that than Chromium does.** See *Cross-origin isolation*.
+1. **Hosting Delver's engine and weights.** Their origin sends no CORS headers,
+   and neither does the public archive of their builds on ghcr.io (checked
+   2026-10-01: not the token, the manifests, any blob, or the storage a blob
+   redirects to; a preflight is a 405 or a 403). So the site serves the files
+   from its own origin: the worker proxies each pinned file from the archive
+   by its digest (*How the site serves the engine*). The archive was made
+   public on 2026-09-28, knowing it is redistribution, and the site serving
+   it was decided on 2026-10-01 in the same way.
+2. **The model was too big for the host.** `model-alpha.dat` is 34,050,684
+   bytes (32.5 MiB), and Cloudflare's static assets take at most 25 MiB per
+   file. The files no longer come from static assets at all, and the model is
+   served as the archive holds it, the 23 MB `model-alpha.7z`, and unpacked in
+   the page.
+3. **The whole site has to be cross-origin isolated.** It is, with
+   `credentialless`, which Safari does not support, so Safari has no scanner.
+   That was accepted: see *Cross-origin isolation*.
 
-Measured on 2026-09-28 in headless Chromium (Playwright's build), against
-`VITE_MOCK_GITHUB=1 MELDWEB_PROBE=1 pnpm dev`, with the lantern deck open.
+The spike's measurements were taken on 2026-09-28 in headless Chromium
+(Playwright's build), against `VITE_MOCK_GITHUB=1 MELDWEB_PROBE=1 pnpm dev`,
+with the lantern deck open.
 
 ## What was built
 
 | | |
 |---|---|
 | `crates/gitaxian-probe/bindgen/` | `gitaxian-probe-bindgen`: the web `Engine` as a wasm-bindgen class, `Scanner.open(base, onProgress)` / `scan(rgba, w, h)`. `scan` resolves each detection and its runners-up to catalogue rows with `scryfall_id`, on the Rust side |
-| `web/scripts/build-probe.mjs` | builds that crate from the probe's own workspace, runs *its* wasm-bindgen (0.2.129, while the editor's is 0.2.126), and copies the pinned engine files. Everything lands under `crates/gitaxian-probe/target/meldweb/` |
-| `web/vite.config.ts`, `gitaxianProbe()` | with `MELDWEB_PROBE=1` in `vite` serve mode only, it sets COOP/COEP, serves the engine files at `/gitaxian-probe/`, and resolves `virtual:gitaxian-probe` to the API. Everywhere else, `pnpm build` and vitest included, the virtual module is `null` |
-| `web/src/probe/` | `scanner.ts` (the page's one scanner, and framing an image), `printings.ts` (`scryfall_id` to `set/num`, and adding a printing), `ScanDialog.tsx` |
+| `web/scripts/build-probe.mjs` | builds that crate from the probe's own workspace with its wasm-bindgen (the probe's Cargo.lock now pins the editor's, 0.2.126), and for the dev server copies the pinned engine files. Everything lands under `crates/gitaxian-probe/target/meldweb/`. The Nix build takes the API from the flake's `gitaxian-probe-bindgen` instead (`MELDWEB_PROBE_PREBUILT`) |
+| `web/vite.config.ts`, `gitaxianProbe()` | makes every page cross-origin isolated, in dev and, through a `_headers` file, on the site. Resolves `virtual:gitaxian-probe` to the API in every site build and in `MELDWEB_PROBE=1 pnpm dev`, and to `null` in plain `pnpm dev` and vitest. A build writes `gitaxian-probe-pin.json` beside the site; the dev server serves the engine files itself |
+| `worker/src/probe.ts` | `GET /gitaxian-probe/<tag>/<name>`: the pinned file, proxied from ghcr.io and cached at the edge for good |
+| `web/src/probe/` | `scanner.ts` (the page's one scanner, and framing an image), `printings.ts` (`scryfall_id` to `set/num`, and adding a printing), `ScanDialog.tsx`, and the collection scanner's `tracker.ts` and `beep.ts` |
 
-The Scan button appears only when `virtual:gitaxian-probe` is not `null`.
-`MELDWEB_PROBE=1 vite build` was checked: `dist/` has no engine file and no
-probe code. The flake, CI and the deployed site are therefore unchanged.
+The Scan buttons appear only when `virtual:gitaxian-probe` is not `null`. The
+site carries the probe's API, a 1.9 MB wasm, and none of Delver's files.
 
-Run it:
+Run it in dev:
 
 ```
-cargo install wasm-bindgen-cli --version 0.2.129 --locked --root ~/.wbg129
-WASM_BINDGEN_PROBE=~/.wbg129/bin/wasm-bindgen MELDWEB_PROBE=1 VITE_MOCK_GITHUB=1 pnpm dev
+MELDWEB_PROBE=1 VITE_MOCK_GITHUB=1 pnpm dev
 ```
+
+## How the site serves the engine
+
+The page asks for each file at `/gitaxian-probe/<tag>/<name>`, where `<tag>` is
+the archive tag the pin names (`delver-1.89.beta-eeb9c6a9c3ec`). The worker
+answers those, and only those:
+
+- It reads the pin from the site's own `gitaxian-probe-pin.json`, which the same
+  build wrote, so the files the worker serves and the scanner the site carries
+  are always one build. A tag other than the pin's, or a name the pin does not
+  list, is a 404, and nothing is fetched.
+- It fetches the blob by the digest the pin gives: an anonymous pull token from
+  `ghcr.io/token` (kept, and replaced on a 401), then
+  `/v2/cramt/delver-x/blobs/sha256:<digest>`, which redirects to GitHub's
+  storage. A blob is addressed by its sha256, so what comes back is what was
+  pinned.
+- A URL names one build, so its answer never changes: `immutable` for a year,
+  and kept in Cloudflare's edge cache, so ghcr.io is asked once per location.
+- Every answer is `Cross-Origin-Resource-Policy: same-origin` and carries the
+  page's COOP and COEP, since core.js runs as Web Workers, whose scripts need
+  the policy too.
+
+The files are served byte for byte as upstream shipped them, the model packed,
+so the engine's web host now unpacks `model-alpha.7z` in the page with the same
+LZMA2 reader the native host uses (`sevenz-rust2` without its encryption, which
+does not build for wasm32), and checks it against `model-alpha.size`.
+`gitaxian-probe-assets` lays out the same files, so the dev server and the web
+check serve what the worker does.
+
+Measured on 2026-10-01, with the built site served by the worker's own code
+against the real ghcr.io (Node, in this sandbox: `wrangler dev` was not run):
+
+| | |
+|---|---|
+| First fetch of each file through the worker | `model-alpha.7z` 23,247,473 bytes in 1.5 s; `core.wasm` 8,895,139 in 1.6 s; `data.7z` 9,627,184 in 0.7 s; the small files 0.1-0.9 s |
+| From the edge cache after | 0-1 ms each |
+| Boot, Scan clicked to ready, files cached | 5.4-6.4 s in that harness. `web-check/run.sh`, same machine: 4.0 s with the model served unpacked, 4.8 s unpacking it in the page |
+| The scan itself | the fake-camera run of *Scanning into the collection*, unchanged: three beeps, Black Lotus, Black Lotus, Counterspell |
 
 ## Scanning into the collection
 
@@ -153,7 +193,7 @@ image. On its own the detector finds nothing in it (engine README).
 
 | | |
 |---|---|
-| Boot, Scan clicked to ready | 5.9–8.7 s, including ~52 MB of engine files from localhost |
+| Boot, Scan clicked to ready | 5.9–8.7 s in the spike, including ~52 MB of engine files from localhost. Shipped, it downloads 42 MB and unpacks the model in the page (*How the site serves the engine*) |
 | One scan | 0.6–1.8 s, including the catalogue lookups for the runners-up; the first scan after boot is the slowest |
 | Resident | a 1 GiB shared `WebAssembly.Memory` (FINDINGS §5) and 32 Web Workers, for the life of the page, since the pool cannot be stopped (FINDINGS §6). Not measured on a phone |
 
@@ -170,12 +210,13 @@ popup.
 COEP is where it costs. The editor shows Scryfall images with plain `<img>`,
 and `cards.scryfall.io` sends `access-control-allow-origin: *` but no
 `Cross-Origin-Resource-Policy`, so under `require-corp` every card picture is
-blocked. The spike uses `credentialless`, where a plain `<img>` from Scryfall
+blocked. The site uses `credentialless`, where a plain `<img>` from Scryfall
 loaded in the isolated page (checked with `crossOriginIsolated === true`).
-Chromium and Firefox support `credentialless`. Safari does not, and iOS
-Safari is where a phone camera is. Shipping to Safari means `require-corp`
-plus `crossorigin="anonymous"` on every Scryfall `<img>`, which works because
-Scryfall answers CORS.
+Chromium and Firefox support `credentialless`. Safari does not, and every
+browser on an iPhone is Safari's engine underneath, so neither has a scanner;
+the rest of the site works there as it did. That was decided on 2026-10-01.
+Should it change, Safari needs `require-corp` plus `crossorigin="anonymous"`
+on every Scryfall `<img>`, which works because Scryfall answers CORS.
 
 Isolating only a scan page avoids that, but it would have to be a
 separately loaded document, since a TanStack route change does not re-send
@@ -199,11 +240,13 @@ had to move before anything ran. It is now 1.89.beta. Every file changed,
 The fingerprint hashes type *indices*, so renumbering the type section moves it
 even when no signature changed. On the web host this cannot misroute anything,
 because `core.js` supplies its own imports. `KNOWN_FINGERPRINT` is now the
-1.89.beta value, on the web checks above. **The native accuracy test was not
-run** (no ImageMagick, and V8 was not built). Nor was `web-check/run.sh`'s 4/6
-printing assertion met or changed: it fails on 2/6 and 3/6 with the frames made
-here, and it cannot be retried on the frames it was written against without
-`magick`. That is a check to rerun, not a number to move.
+1.89.beta value, on the web checks above. The native accuracy test and
+`web-check/run.sh` could not be run on 2026-09-28 (no ImageMagick, and V8 was
+not built), and the web check failed its 4/6 printing assertion on 2/6 and 3/6
+with frames made another way. Both were rerun on 2026-10-01 with ImageMagick
+frames: 6/6 names and 5/6 printings, natively and on the web, with the same
+picks. 1.89.beta places Llanowar Elves right, where 1.83.beta did not, so both
+tests now pin 5/6 (engine README, *Accuracy and cost, measured*).
 
 Anything that ships this carries Delver's release schedule. A new build breaks
 a fresh `cargo build` until the pin moves, unless the pinned build is in the
@@ -213,6 +256,9 @@ archive (the engine README, *The archive*).
 
 - A real camera. The `getUserMedia` path is written but has not run (headless
   Chromium has no camera), and nothing has been checked on a phone.
+- The deployed worker. Its route was run in Node against the real ghcr.io, not
+  in `wrangler dev` or on Cloudflare, so the edge cache and the `_headers`
+  file are untested there.
 - Firefox, Safari, and memory on mobile.
 - Several cards in one frame. The dialog lists every detection, but every
   fixture holds one card.

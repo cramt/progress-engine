@@ -2,7 +2,7 @@ import { createReadStream, statSync } from "node:fs";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
-import { buildProbe, probeOut } from "./scripts/build-probe.mjs";
+import { buildProbe, probeOut, probePin } from "./scripts/build-probe.mjs";
 import { buildWasm, watched } from "./scripts/build-wasm.mjs";
 import { devAuth } from "./scripts/dev-auth.ts";
 
@@ -32,31 +32,58 @@ function decklistWasm(): Plugin {
 }
 
 const PROBE = "virtual:gitaxian-probe";
-const PROBE_BASE = "/gitaxian-probe/";
+// One URL per build, so the worker can cache its answers for good.
+const PROBE_BASE = `/gitaxian-probe/${probePin.tag}/`;
 const TYPES: Record<string, string> = {
   ".js": "text/javascript",
   ".wasm": "application/wasm",
   ".txt": "text/plain",
 };
 
-// Gitaxian Probe's card scanner, in `MELDWEB_PROBE=1 pnpm dev` only. It builds
-// the probe's JavaScript API, serves Delver X's engine files from the probe's
-// target dir, and makes the page cross-origin isolated, which the engine's
-// thread pool cannot start without. `virtual:gitaxian-probe` is that API, or
-// `null` everywhere else - `pnpm build` included, so the site never carries
-// Delver's files (docs/research/probe-in-curator.md says why).
+// The engine's thread pool needs SharedArrayBuffer, so every page is
+// cross-origin isolated. `credentialless` rather than `require-corp`, so
+// Scryfall's images, which send CORS headers but no CORP, load without a
+// `crossorigin` on every <img>. Chromium and Firefox honour it; Safari does
+// not, so Safari has no scanner.
+const ISOLATION = {
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Embedder-Policy": "credentialless",
+};
+
+// Gitaxian Probe's card scanner. `virtual:gitaxian-probe` is the probe's
+// JavaScript API, in every site build and in `MELDWEB_PROBE=1 pnpm dev`, and
+// `null` in plain `pnpm dev` and in tests. The site never carries Delver X's
+// engine files: the build writes their pin beside it, and the worker proxies
+// each pinned file from the archive on ghcr.io (worker/src/probe.ts). The dev
+// server serves them from the probe's target dir instead.
 function gitaxianProbe(): Plugin {
   let enabled = false;
+  let building = false;
   return {
     name: "meldweb-gitaxian-probe",
     config(_, { command, mode }) {
+      building = command === "build";
       enabled =
-        command === "serve" &&
-        mode !== "test" &&
-        process.env.MELDWEB_PROBE === "1";
+        mode !== "test" && (building || process.env.MELDWEB_PROBE === "1");
     },
     buildStart() {
-      if (enabled) buildProbe();
+      if (enabled) buildProbe({ assets: !building });
+    },
+    generateBundle() {
+      if (!enabled) return;
+      this.emitFile({
+        type: "asset",
+        fileName: "gitaxian-probe-pin.json",
+        source: JSON.stringify({ tag: probePin.tag, files: probePin.files }),
+      });
+      // Cloudflare's static assets read their response headers from here.
+      this.emitFile({
+        type: "asset",
+        fileName: "_headers",
+        source: `/*\n${Object.entries(ISOLATION)
+          .map(([k, v]) => `  ${k}: ${v}\n`)
+          .join("")}`,
+      });
     },
     resolveId(id) {
       return id === PROBE ? `\0${PROBE}` : undefined;
@@ -70,15 +97,12 @@ function gitaxianProbe(): Plugin {
       ].join("\n");
     },
     configureServer(server) {
-      if (!enabled) return;
-      // `credentialless` rather than `require-corp`, so Scryfall's images,
-      // which send CORS headers but no CORP, load without a `crossorigin` on
-      // every <img>. Chromium and Firefox honour it; Safari does not.
+      // Isolated with the scanner or without it, as the site always is.
       server.middlewares.use((_req, res, next) => {
-        res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-        res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
+        for (const [k, v] of Object.entries(ISOLATION)) res.setHeader(k, v);
         next();
       });
+      if (!enabled) return;
       server.middlewares.use(PROBE_BASE, (req, res, next) => {
         const name = (req.url ?? "").split("?")[0]?.replace(/^\//, "") ?? "";
         if (!/^[\w.-]+$/.test(name)) return next();

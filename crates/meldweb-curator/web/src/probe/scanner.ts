@@ -1,7 +1,7 @@
 import probe, { type ScannerHandle } from "virtual:gitaxian-probe";
 import { useEffect, useState } from "react";
 
-/** Whether this build carries the card scanner: `MELDWEB_PROBE=1 pnpm dev`. */
+/** Whether this build carries the card scanner: every site build, and `MELDWEB_PROBE=1 pnpm dev`. */
 export const scannerAvailable = probe !== null;
 
 /** A catalogue printing, as the probe resolves it from Delver's own SQLite. */
@@ -30,7 +30,7 @@ let opening: Promise<ScannerHandle> | null = null;
 
 /**
  * The page's one scanner, booted on first use. Boot costs a few seconds and
- * ~80 MB of downloads, then 32 workers that live as long as the page, so it
+ * ~42 MB of downloads and unpacking the model, then 32 workers that live as long as the page, so it
  * is shared by every scan and never closed. A failed boot is forgotten, so
  * the next call tries again.
  */
