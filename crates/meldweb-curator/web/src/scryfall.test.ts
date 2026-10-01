@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Card } from "./deck";
-import { fetchPrintings } from "./scryfall";
+import { fetchPrices, fetchPrintings } from "./scryfall";
 import { SEARCH_GATE } from "./scryfallQueue";
 
 const card = (i: number): Card => ({
@@ -67,5 +67,37 @@ describe("collection lookups", () => {
     expect(asked).toEqual([["Card 900", "Card 901"], ["Card 902"]]);
     expect(again.get("name:card 901")?.image).toBe("n/Card 901");
     expect(again.get("name:card 902")?.image).toBe("n/Card 902");
+  });
+});
+
+describe("price lookups", () => {
+  it("read today's prices off any collection lookup, by finish", async () => {
+    let requests = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        requests++;
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                name: "Card 950",
+                set: "tst",
+                collector_number: "950",
+                image_uris: { normal: "n/950" },
+                prices: { eur: "1.25", eur_foil: null, usd: "2.00" },
+              },
+            ],
+          }),
+        );
+      }),
+    );
+    await fetchPrintings([card(950)]);
+    const prices = await fetchPrices([card(950)]);
+    expect(requests).toBe(1);
+    expect(prices.get("name:card 950")).toEqual({
+      eur: { nonfoil: 1.25 },
+      usd: { nonfoil: 2 },
+    });
   });
 });

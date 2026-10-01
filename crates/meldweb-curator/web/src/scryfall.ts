@@ -1,4 +1,4 @@
-import type { CardRef } from "./deck";
+import type { CardRef, Finish } from "./deck";
 import { cachedMany, scryfallClient } from "./scryfallCache";
 import { API, SEARCH_GATE, scryfallFetch } from "./scryfallQueue";
 
@@ -136,6 +136,27 @@ const BATCH = 75;
 // was cached while a battle was looked for by layout, which left it upright.
 const PRINTING = ["scryfall", "printing", "v4"] as const;
 const IN_SET = ["scryfall", "in-set"] as const;
+// Unlike the rest, a price moves: Scryfall refreshes them once a day, so each
+// day's are kept under that day and the days before dropped.
+const PRICE = ["scryfall", "price"] as const;
+
+/** What one copy sells for, by currency and finish, where Scryfall knows. */
+export type Currency = "eur" | "usd";
+export type CardPrices = Readonly<
+  Record<Currency, Readonly<Partial<Record<Finish, number>>>>
+>;
+
+/** Today's price day, in UTC as Scryfall's daily refresh is. */
+function priceDay(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function rememberPrices(cards: readonly CollectionCard[]): void {
+  const day = priceDay();
+  for (const card of cards)
+    for (const key of printingKeys(card))
+      scryfallClient.setQueryData([...PRICE, day, key], card.prices);
+}
 
 function toPrinting(card: CollectionCard): Printing {
   return {
@@ -186,6 +207,9 @@ async function collection(
     if (!response.ok) throw new Error(`Scryfall answered ${response.status}`);
     cards.push(...parseCollection(await response.json()));
   }
+  // Every answer carries today's prices, so a lookup for anything else is
+  // one for prices too.
+  rememberPrices(cards);
   return cards;
 }
 
@@ -219,8 +243,36 @@ export async function fetchPrintings(
   );
 }
 
+/**
+ * Today's price of every card, keyed as `fetchPrintings` keys them. A card
+ * named by name is priced as the printing Scryfall picks for it. Cards
+ * Scryfall cannot find are absent.
+ */
+export async function fetchPrices(
+  cards: readonly { card: CardRef }[],
+  signal?: AbortSignal,
+): Promise<ReadonlyMap<string, CardPrices>> {
+  const day = priceDay();
+  scryfallClient.removeQueries({
+    queryKey: PRICE,
+    predicate: (q) => q.queryKey[2] !== day,
+  });
+  return cachedMany(
+    [...PRICE, day],
+    cards.map((c) => c.card),
+    printingKey,
+    async (misses) => {
+      const found = new Map<string, CardPrices>();
+      for (const card of await collection(misses.map(identifier), signal))
+        for (const key of printingKeys(card)) found.set(key, card.prices);
+      return found;
+    },
+  );
+}
+
 interface CollectionCard {
   name: string;
+  prices: CardPrices;
   set: string;
   collector_number: string;
   image: string;
@@ -237,6 +289,24 @@ function frontTypeLine(c: Record<string, unknown>): string {
     : [];
   const line = c.type_line ?? faces[0]?.type_line;
   return typeof line === "string" ? (line.split(" // ")[0] ?? line) : "";
+}
+
+/** Scryfall's prices are decimal strings, or null where it has none. */
+function parsePrices(raw: unknown): CardPrices {
+  const p = (raw ?? {}) as Record<string, unknown>;
+  const byFinish = (
+    fields: Record<Finish, unknown>,
+  ): Partial<Record<Finish, number>> =>
+    Object.fromEntries(
+      Object.entries(fields).flatMap(([finish, v]) => {
+        const n = typeof v === "string" ? Number(v) : Number.NaN;
+        return Number.isFinite(n) ? [[finish, n]] : [];
+      }),
+    );
+  return {
+    eur: byFinish({ nonfoil: p.eur, foil: p.eur_foil, etched: p.eur_etched }),
+    usd: byFinish({ nonfoil: p.usd, foil: p.usd_foil, etched: p.usd_etched }),
+  };
 }
 
 /** Scryfall's JSON is outside our types until it has been checked. */
@@ -258,6 +328,7 @@ function parseCollection(json: unknown): CollectionCard[] {
     return [
       {
         name: c.name,
+        prices: parsePrices(c.prices),
         set: c.set.toLowerCase(),
         // Scryfall matches collector numbers case-sensitively (The List's `RIX-1`).
         collector_number: c.collector_number,

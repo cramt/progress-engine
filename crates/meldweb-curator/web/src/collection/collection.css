@@ -98,10 +98,14 @@
 }
 
 .owned th:nth-child(6) {
-  width: 230px;
+  width: 96px;
 }
 
 .owned th:nth-child(7) {
+  width: 230px;
+}
+
+.owned th:nth-child(8) {
   width: 48px;
 }
 
@@ -403,4 +407,29 @@
 .reprint-qty input {
   width: 4.5em;
   padding: 0 6px;
+}
+
+.owned .owned-price {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.place-worth {
+  font-variant-numeric: tabular-nums;
+}
+
+.collection-worth {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  max-width: 1080px;
+  margin: 0 auto 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.collection-worth-source {
+  margin-left: auto;
+  font-size: 12px;
 }

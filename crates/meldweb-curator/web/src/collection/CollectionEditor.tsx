@@ -22,12 +22,23 @@ import { useHistory, useUndoKeys } from "../history";
 import { scannerAvailable } from "../probe/scanner";
 import { QuickAdd } from "../quickadd/QuickAdd";
 import {
+  type Currency,
   cardName,
+  fetchPrices,
   fetchPrintings,
   type Printings,
   printingKey,
 } from "../scryfall";
 import { LiveScan } from "./LiveScan";
+import {
+  CURRENCIES,
+  formatPrice,
+  loadCurrency,
+  type PriceBook,
+  saveCurrency,
+  unitPrice,
+  worth,
+} from "./prices";
 import { ReprintDialog } from "./ReprintDialog";
 import { addScanned, removeScanned } from "./scanned";
 import { addOwnedByName, type Section, sections, UNSORTED } from "./sections";
@@ -80,6 +91,26 @@ function useGrowingPrintings(
 }
 
 /**
+ * Today's price of every card owned, looked up after the page has opened, so
+ * a slow or failed lookup costs the prices and nothing else.
+ */
+function usePrices(cards: readonly OwnedCard[]): PriceBook {
+  const [prices, setPrices] = useState<PriceBook>(new Map());
+  const asked = useRef(new Set<string>());
+  useEffect(() => {
+    const missing = cards.filter(
+      (c) => !asked.current.has(printingKey(c.card)),
+    );
+    if (missing.length === 0) return;
+    for (const c of missing) asked.current.add(printingKey(c.card));
+    fetchPrices(missing)
+      .then((found) => setPrices((p) => new Map([...p, ...found])))
+      .catch(() => {});
+  }, [cards]);
+  return prices;
+}
+
+/**
  * The collection: every card owned, by the place it is in, saved by itself
  * as a deck is. Mount it with a `key`; it reads its props once and then owns
  * the text.
@@ -115,6 +146,8 @@ export function CollectionEditor({
   );
   const cards = parsed.kind === "collection" ? parsed.cards : [];
   const printings = useGrowingPrintings(loadedPrintings, cards);
+  const prices = usePrices(cards);
+  const [currency, setCurrency] = useState(loadCurrency);
   const { undo, redo } = history;
   useUndoKeys(undo, redo);
 
@@ -282,6 +315,17 @@ export function CollectionEditor({
           onClose={() => setScanning(false)}
         />
       )}
+      {parsed.cards.length > 0 && (
+        <CollectionWorth
+          cards={parsed.cards}
+          prices={prices}
+          currency={currency}
+          onCurrency={(c) => {
+            setCurrency(c);
+            saveCurrency(c);
+          }}
+        />
+      )}
       {parsed.cards.length === 0 && parsed.places.length === 0 && (
         <div className="stacks-empty">
           <h2>Nothing here yet</h2>
@@ -297,6 +341,8 @@ export function CollectionEditor({
           section={s}
           places={parsed.places}
           printings={printings}
+          prices={prices}
+          currency={currency}
           deckName={s.place?.deck ? deckNames.get(s.place.deck) : undefined}
           selected={selected}
           onTick={tick}
@@ -361,10 +407,60 @@ export function CollectionEditor({
   );
 }
 
+/** What the whole collection is worth, and the currency it is priced in. */
+function CollectionWorth({
+  cards,
+  prices,
+  currency,
+  onCurrency,
+}: {
+  cards: readonly OwnedCard[];
+  prices: PriceBook;
+  currency: Currency;
+  onCurrency: (currency: Currency) => void;
+}) {
+  const { total, unpriced } = worth(cards, prices, currency);
+  const copies = cards.reduce((n, c) => n + c.qty, 0);
+  return (
+    <section className="collection-worth" aria-label="Collection value">
+      <span>
+        Worth <strong>{formatPrice(total, currency)}</strong>
+        {prices.size === 0 ? (
+          <span className="muted"> · looking up prices…</span>
+        ) : (
+          unpriced > 0 && (
+            <span className="muted">
+              {" "}
+              · {unpriced} of {copies} {copies === 1 ? "card" : "cards"} without
+              a price
+            </span>
+          )
+        )}
+      </span>
+      <select
+        aria-label="Currency"
+        value={currency}
+        onChange={(e) => onCurrency(e.target.value as Currency)}
+      >
+        {CURRENCIES.map((c) => (
+          <option key={c} value={c}>
+            {c.toUpperCase()}
+          </option>
+        ))}
+      </select>
+      <span className="muted collection-worth-source">
+        Scryfall's prices, refreshed daily
+      </span>
+    </section>
+  );
+}
+
 function PlaceSection({
   section,
   places,
   printings,
+  prices,
+  currency,
   deckName,
   selected,
   onTick,
@@ -374,6 +470,8 @@ function PlaceSection({
   section: Section;
   places: readonly Place[];
   printings: Printings;
+  prices: PriceBook;
+  currency: Currency;
   /** The name of the deck the place is, when the repo has it. */
   deckName: string | undefined;
   selected: ReadonlySet<number>;
@@ -384,6 +482,7 @@ function PlaceSection({
   const { place } = section;
   const here = section.cards.map((c) => c.index);
   const all = here.length > 0 && here.every((i) => selected.has(i));
+  const value = worth(section.cards, prices, currency);
   return (
     <section
       className="place"
@@ -395,6 +494,18 @@ function PlaceSection({
         <span className="badge" title="Cards">
           {section.qty}
         </span>
+        {value.total > 0 && (
+          <span
+            className="badge place-worth"
+            title={
+              value.unpriced > 0
+                ? `Value, leaving out ${value.unpriced} without a price`
+                : "Value"
+            }
+          >
+            {formatPrice(value.total, currency)}
+          </span>
+        )}
         {place?.deck &&
           (deckName !== undefined ? (
             <Link
@@ -437,6 +548,7 @@ function PlaceSection({
               <th>Card</th>
               <th>Printing</th>
               <th>Finish</th>
+              <th className="owned-price">Price</th>
               <th>Move to</th>
               <th>
                 <span className="visually-hidden">Remove</span>
@@ -450,6 +562,8 @@ function PlaceSection({
                 card={c}
                 places={places}
                 printings={printings}
+                price={unitPrice(c, prices, currency)}
+                currency={currency}
                 selected={selected.has(c.index)}
                 onTick={(on) => onTick([c.index], on)}
                 onReprint={() => onReprint(c.index)}
@@ -467,6 +581,8 @@ function OwnedRow({
   card,
   places,
   printings,
+  price,
+  currency,
   selected,
   onTick,
   onReprint,
@@ -475,6 +591,9 @@ function OwnedRow({
   card: OwnedCard;
   places: readonly Place[];
   printings: Printings;
+  /** One copy's price, absent where Scryfall has none for its finish. */
+  price: number | undefined;
+  currency: Currency;
   selected: boolean;
   onTick: (on: boolean) => void;
   onReprint: () => void;
@@ -586,6 +705,20 @@ function OwnedRow({
             </option>
           ))}
         </select>
+      </td>
+      <td
+        className="owned-price"
+        title={
+          price === undefined
+            ? undefined
+            : `${formatPrice(price, currency)} each${card.card.kind === "name" ? ", as Scryfall's usual printing" : ""}`
+        }
+      >
+        {price === undefined ? (
+          <span className="muted">—</span>
+        ) : (
+          formatPrice(price * card.qty, currency)
+        )}
       </td>
       <td className="owned-move">
         {card.qty > 1 && (
