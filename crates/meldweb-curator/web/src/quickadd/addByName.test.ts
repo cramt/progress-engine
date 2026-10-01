@@ -25,7 +25,17 @@ Maybe = { type = "maybeboard" }
 `;
 
 const printings: Printings = new Map([
-  ["cmm/410", { name: "Sol Ring", image: "", colorIdentity: [], typeLine: "" }],
+  [
+    "cmm/410",
+    {
+      name: "Sol Ring",
+      set: "cmm",
+      num: "410",
+      image: "",
+      colorIdentity: [],
+      typeLine: "",
+    },
+  ],
 ]);
 
 function add(text: string, name: string, category: string | null) {

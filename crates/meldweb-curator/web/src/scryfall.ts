@@ -8,6 +8,9 @@ import { API, SEARCH_GATE, scryfallFetch } from "./scryfallQueue";
  */
 export interface Printing {
   name: string;
+  /** Which printing this is, which for a card named by name is Scryfall's pick. */
+  set: string;
+  num: string;
   image: string;
   colorIdentity: readonly string[];
   /** The front face's type line, `Battle — Siege` for an Invasion. */
@@ -84,12 +87,15 @@ function frontFace(name: string): string {
 // Scryfall's limit per request.
 const BATCH = 75;
 
-const PRINTING = ["scryfall", "printing"] as const;
+// `v2` drops what was cached before a printing carried its set and number.
+const PRINTING = ["scryfall", "printing", "v2"] as const;
 const IN_SET = ["scryfall", "in-set"] as const;
 
 function toPrinting(card: CollectionCard): Printing {
   return {
     name: card.name,
+    set: card.set,
+    num: card.collector_number,
     image: card.image,
     colorIdentity: card.colorIdentity,
     typeLine: card.typeLine,

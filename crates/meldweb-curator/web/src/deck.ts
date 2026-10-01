@@ -14,6 +14,7 @@ import init, {
   set_card_printing,
   set_card_qty,
   set_commander,
+  set_deck_cover,
   set_deck_meta,
 } from "./wasm/pkg/meldweb_wasm.js";
 
@@ -169,6 +170,14 @@ export function setDeckMeta(
   format?: string,
 ): string {
   return set_deck_meta(text, name, format ?? "");
+}
+
+/** The deck text with its `cover` set to the printing, or dropped for `null`. */
+export function setDeckCover(
+  text: string,
+  cover: { set: string; num: string } | null,
+): string {
+  return set_deck_cover(text, cover && `${cover.set}/${cover.num}`);
 }
 
 /** The text of a new, empty deck. An empty `format` is left out. */

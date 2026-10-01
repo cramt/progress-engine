@@ -4,7 +4,7 @@ use chip_decklist::changelog::commit_message_for_text;
 use chip_decklist::deck::{CardRef, CategoryType, Finish};
 use chip_decklist::edit::{
     add_card, declare_category, remove_card, set_card_finish, set_card_printing, set_card_qty,
-    set_categories,
+    set_categories, set_deck_cover,
 };
 
 const PATH: &str = "decks/lantern.deck.toml";
@@ -92,6 +92,21 @@ fn each_kind_of_change_says_what_it_is() {
     assert_eq!(
         message(&DECK.replace("name = \"Lantern\"", "name = \"Lantern Control\"")),
         "lantern: name: \"Lantern\" → \"Lantern Control\""
+    );
+}
+
+#[test]
+fn a_cover_is_named_by_the_card_when_the_deck_names_it() {
+    let sol_ring = set_deck_cover(DECK, Some("cmm/410")).unwrap();
+    assert_eq!(message(&sol_ring), "lantern: cover: none → Sol Ring");
+    assert_eq!(
+        commit_message_for_text(
+            &sol_ring,
+            &set_deck_cover(DECK, Some("ltr/1")).unwrap(),
+            PATH
+        )
+        .unwrap(),
+        "lantern: cover: Sol Ring → ltr/1"
     );
 }
 

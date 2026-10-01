@@ -57,6 +57,12 @@ export interface GitHubApi {
   getFile(repo: RepoRef, path: string): Promise<FileAt | null>;
   /** One commit on the default branch. Throws `ConflictError` on a stale or missing sha. */
   putFile(repo: RepoRef, path: string, put: PutFile): Promise<{ sha: string }>;
+  /** One commit removing the file. Throws `ConflictError` on a stale or missing sha. */
+  deleteFile(
+    repo: RepoRef,
+    path: string,
+    del: { message: string; sha: string },
+  ): Promise<void>;
   /** A directory's entries, empty when it does not exist. */
   listDir(repo: RepoRef, path: string): Promise<DirEntry[]>;
 }
@@ -307,6 +313,33 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
         if (!r.ok) return fail(r);
         const body = (await r.json()) as { content: { sha: string } };
         return { sha: body.content.sha };
+      });
+      writes = run.catch(() => undefined);
+      return run;
+    },
+
+    deleteFile(repo, path, del) {
+      const run = writes.then(async () => {
+        const r = await request("DELETE", contents(repo, path), del);
+        // A missing file is a 404 here, which for a deck means someone
+        // else got there first: the same as a stale sha.
+        if (r.status === 409 || r.status === 404) {
+          throw new ConflictError(
+            r.status,
+            `${path} changed on GitHub (${r.status})`,
+          );
+        }
+        if (r.status === 422) {
+          const message = await messageOf(r);
+          if (isShaRefusal(message)) {
+            throw new ConflictError(
+              r.status,
+              `${path} changed on GitHub (422)`,
+            );
+          }
+          return fail(r, message);
+        }
+        if (!r.ok) return fail(r);
       });
       writes = run.catch(() => undefined);
       return run;

@@ -503,11 +503,41 @@ pub fn set_deck_meta(text: &str, name: &str, format: &str) -> Result<String, Edi
     finish(doc)
 }
 
+/// Sets the deck's `cover` to the printing `set/num` in place, or adds it
+/// below `name` and `format`; `None` drops it.
+pub fn set_deck_cover(text: &str, cover: Option<&str>) -> Result<String, EditError> {
+    let mut doc = document(text)?;
+    match cover {
+        None => {
+            doc.remove("cover");
+        }
+        Some(cover) => match doc.get_mut("cover").and_then(Item::as_value_mut) {
+            Some(existing) => {
+                let decor = existing.decor().clone();
+                *existing = cover.into();
+                *existing.decor_mut() = decor;
+            }
+            None => {
+                doc.insert("cover", toml_edit::value(cover));
+                let meta = |k: &Key| match k.get() {
+                    "name" => 0,
+                    "format" => 1,
+                    "cover" => 2,
+                    _ => 3,
+                };
+                doc.sort_values_by(|a, _, b, _| meta(a).cmp(&meta(b)));
+            }
+        },
+    }
+    finish(doc)
+}
+
 /// The text of a new deck with nothing in it. An empty `format` is left out.
 pub fn new_deck(name: &str, format: &str) -> Result<String, EditError> {
     let deck = Deck {
         name: Some(name.to_string()),
         format: (!format.trim().is_empty()).then(|| format.trim().to_string()),
+        cover: None,
         categories: Vec::new(),
         cards: Vec::new(),
     };

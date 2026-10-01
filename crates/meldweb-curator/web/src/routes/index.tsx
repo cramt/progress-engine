@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Toolbar } from "../deck/Toolbar";
+import type { RepoRef } from "../github/api";
 import { connect } from "../github/connect";
 import { type DeckEntry, listDecks } from "../github/decks";
 import { deckText } from "../github/deckText";
 import { openSession } from "../github/session";
+import { useDeckActions } from "../home/DeckActions";
 import { DeckTile } from "../home/DeckTile";
 import { NewDeckDialog } from "../home/NewDeckDialog";
 import { SessionGate } from "../home/SessionGate";
@@ -24,11 +26,12 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
-/** Every deck's commanders in one lookup; an outage costs the art, not the list. */
+/** Every deck's cover and commanders in one lookup; an outage costs the art, not the list. */
 function commanderArt(decks: readonly DeckEntry[]): Promise<Printings> {
-  const cards = decks.flatMap((d) =>
-    (d.commanders ?? []).map((card) => ({ card })),
-  );
+  const cards = decks.flatMap((d) => [
+    ...(d.commanders ?? []).map((card) => ({ card })),
+    ...(d.cover ? [{ card: { kind: "printing" as const, ...d.cover } }] : []),
+  ]);
   if (cards.length === 0) return Promise.resolve(new Map());
   return fetchPrintings(cards).catch(() => new Map());
 }
@@ -38,6 +41,19 @@ function Home() {
   if (session.kind !== "open") {
     return <SessionGate session={session} returnPath="/" />;
   }
+  return <Decks repo={session.repo} decks={decks} printings={printings} />;
+}
+
+function Decks({
+  repo,
+  decks,
+  printings,
+}: {
+  repo: RepoRef;
+  decks: DeckEntry[];
+  printings: Printings;
+}) {
+  const { menuFor, dialogs } = useDeckActions(repo);
   return (
     <main>
       <Toolbar
@@ -49,12 +65,12 @@ function Home() {
               className="home-repo"
               title="Every deck is a file in this repository"
             >
-              {session.repo.owner}/{session.repo.name}
+              {repo.owner}/{repo.name}
             </span>
             <Link to="/collection" className="button">
               Collection
             </Link>
-            <NewDeckDialog repo={session.repo} />
+            <NewDeckDialog repo={repo} />
           </>
         }
       />
@@ -71,12 +87,13 @@ function Home() {
           <ul className="deck-grid">
             {decks.map((d) => (
               <li key={d.path}>
-                <DeckTile deck={d} printings={printings} />
+                <DeckTile deck={d} printings={printings} menu={menuFor(d)} />
               </li>
             ))}
           </ul>
         )}
       </div>
+      {dialogs}
     </main>
   );
 }

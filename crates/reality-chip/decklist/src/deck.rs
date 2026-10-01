@@ -181,6 +181,9 @@ pub struct Deck {
     pub name: Option<String>,
     /// Metadata. Nothing in the family reads it to decide what is legal (ADR-0005).
     pub format: Option<String>,
+    /// The printing whose art stands for the deck in Curator's deck list. It
+    /// need not be in the deck, and nothing in the family reads it otherwise.
+    pub cover: Option<Printing>,
     /// Sorted by name, as a TOML table is.
     pub categories: Vec<Category>,
     /// In file order.
@@ -197,6 +200,8 @@ pub enum DeckError {
     Unnamed { index: usize },
     #[error("card {index}: printing {text:?} is not set/number, like \"msc/183\"")]
     BadPrinting { index: usize, text: String },
+    #[error("cover {text:?} is not set/number, like \"msc/183\"")]
+    BadCover { text: String },
     #[error("card {index} ({card}): qty must be at least 1")]
     ZeroQty { index: usize, card: CardRef },
     #[error("card {index} ({card}): finish {text:?} is not \"foil\" or \"etched\"")]
@@ -241,6 +246,7 @@ fn type_names() -> String {
 struct RawDeck {
     name: Option<String>,
     format: Option<String>,
+    cover: Option<String>,
     #[facet(default)]
     cards: Vec<RawCard>,
     #[facet(default)]
@@ -294,9 +300,15 @@ impl Deck {
             .map(|(i, c)| card(i + 1, c, &categories))
             .collect::<Result<Vec<_>, DeckError>>()?;
 
+        let cover = raw
+            .cover
+            .map(|text| Printing::parse(&text).ok_or(DeckError::BadCover { text }))
+            .transpose()?;
+
         Ok(Deck {
             name: raw.name,
             format: raw.format,
+            cover,
             categories,
             cards,
         })
@@ -419,6 +431,9 @@ impl Deck {
         }
         if let Some(format) = &self.format {
             out += &format!("format = {}\n", quote(format));
+        }
+        if let Some(cover) = &self.cover {
+            out += &format!("cover = {}\n", quote(&cover.to_string()));
         }
         if !out.is_empty() {
             out.push('\n');

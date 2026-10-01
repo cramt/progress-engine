@@ -76,6 +76,8 @@ export function DetailsModal(props: DetailsModalProps) {
     if (printingId(p) === current) return;
     onRemember(printingId(p), {
       name: p.name,
+      set: p.set,
+      num: p.num,
       image: p.image ?? "",
       // Every printing of a card shares its colour identity.
       colorIdentity: printing?.colorIdentity ?? [],

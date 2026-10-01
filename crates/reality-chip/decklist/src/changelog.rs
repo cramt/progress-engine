@@ -34,6 +34,7 @@ enum Kind {
     Retype,
     Rename,
     Format,
+    Cover,
 }
 
 struct Change {
@@ -266,6 +267,19 @@ pub fn commit_message(
             kind: Kind::Format,
             subject: String::new(),
             text: format!("format: {} → {}", f(&before.format), f(&after.format)),
+        });
+    }
+    if before.cover != after.cover {
+        let c = |p: &Option<Printing>| {
+            p.as_ref().map_or_else(
+                || "none".to_string(),
+                |p| name_of(p).unwrap_or_else(|| p.to_string()),
+            )
+        };
+        changes.push(Change {
+            kind: Kind::Cover,
+            subject: String::new(),
+            text: format!("cover: {} → {}", c(&before.cover), c(&after.cover)),
         });
     }
     changes.sort_by(|x, y| {

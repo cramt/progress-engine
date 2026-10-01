@@ -1,9 +1,11 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { parseDeck } from "../deck";
+import { parseDeck, setDeckCover, setDeckMeta } from "../deck";
 import {
   createDeck,
   deckFromArchidekt,
   deckPath,
+  deleteDeck,
+  editDeckFile,
   listDecks,
   slugify,
 } from "./decks";
@@ -67,6 +69,94 @@ describe("the deck list", () => {
     const [bad] = await listDecks(api, repo, { parseDeck });
     expect(bad?.name).toBe("bad");
     expect(bad?.refused).toBeTruthy();
+  });
+});
+
+describe("a deck from the list", () => {
+  const LANTERN = "decks/lantern.deck.toml";
+
+  it("is renamed and given a cover in a commit each, its path staying put", async () => {
+    const { api, mock, repo } = mockConnection({ files: seedDecks() });
+    await editDeckFile(
+      api,
+      repo,
+      LANTERN,
+      (t) => setDeckMeta(t, "Lantern Control"),
+      deckText,
+    );
+    await editDeckFile(
+      api,
+      repo,
+      LANTERN,
+      (t) => setDeckCover(t, { set: "cmr", num: "304" }),
+      deckText,
+    );
+    expect(mock.commits().map((c) => c.message)).toEqual([
+      'lantern: name: none → "Lantern Control"',
+      "lantern: cover: none → Codex Shredder",
+    ]);
+    const [lantern] = await listDecks(api, repo, { parseDeck });
+    expect(lantern).toMatchObject({
+      path: LANTERN,
+      name: "Lantern Control",
+      cover: { set: "cmr", num: "304" },
+    });
+  });
+
+  it("is deleted as the list read it, and refused once it changed since", async () => {
+    const { api, mock, repo } = mockConnection({ files: seedDecks() });
+    const [lantern, loam] = await listDecks(api, repo, { parseDeck });
+    if (!lantern || !loam) throw new Error("seeded");
+    expect(await deleteDeck(api, repo, lantern)).toEqual({ kind: "deleted" });
+    expect(mock.file(LANTERN)).toBeUndefined();
+    expect(mock.commits().at(-1)?.message).toBe("lantern: delete");
+
+    await editDeckFile(
+      api,
+      repo,
+      loam.path,
+      (t) => setDeckMeta(t, "Loam"),
+      deckText,
+    );
+    expect(await deleteDeck(api, repo, loam)).toMatchObject({
+      kind: "refused",
+    });
+    expect(mock.file(loam.path)).toBeDefined();
+  });
+
+  it("is not deleted while the collection keeps copies in it, and its empty place goes with it", async () => {
+    const collection = (cards: string) =>
+      `cards = [\n${cards}]\n\n[places]\nLantern = { deck = "${LANTERN}" }\n`;
+    const full = mockConnection({
+      files: {
+        ...seedDecks(),
+        "collection.toml": collection(
+          '  { name = "Sol Ring", qty = 2, at = "Lantern" },\n',
+        ),
+      },
+    });
+    const [lantern] = await listDecks(full.api, full.repo, { parseDeck });
+    if (!lantern) throw new Error("seeded");
+    expect(await deleteDeck(full.api, full.repo, lantern)).toEqual({
+      kind: "refused",
+      message:
+        "The collection has 2 copies in Lantern, this deck's place. Move them out in the collection first.",
+    });
+    expect(full.mock.commits()).toEqual([]);
+
+    const empty = mockConnection({
+      files: { ...seedDecks(), "collection.toml": collection("") },
+    });
+    const [again] = await listDecks(empty.api, empty.repo, { parseDeck });
+    if (!again) throw new Error("seeded");
+    expect(await deleteDeck(empty.api, empty.repo, again)).toEqual({
+      kind: "deleted",
+    });
+    expect(empty.mock.file("collection.toml")?.text).not.toContain("Lantern");
+    expect(empty.mock.commits().map((c) => c.path)).toEqual([
+      "collection.toml",
+      LANTERN,
+    ]);
   });
 });
 
@@ -242,6 +332,8 @@ describe("an archidekt line with no category", () => {
   it("is filed under its front face's main type, as archidekt's import files it", async () => {
     const typed = (typeLine: string) => ({
       name: "",
+      set: "",
+      num: "",
       image: "",
       colorIdentity: [],
       typeLine,

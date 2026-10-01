@@ -3,7 +3,8 @@
 use chip_decklist::deck::{CardRef, CategoryType, Deck, DeckError, Finish, Printing};
 use chip_decklist::edit::{
     add_card, card_comments, declare_category, new_deck, remove_card, set_card_finish,
-    set_card_printing, set_card_qty, set_categories, set_commander, set_deck_meta, EditError,
+    set_card_printing, set_card_qty, set_categories, set_commander, set_deck_cover, set_deck_meta,
+    EditError,
 };
 
 const DECK: &str = r#"name = "Izzet Lessons"
@@ -379,6 +380,44 @@ fn deck_meta_is_set_in_place_or_written_at_the_top() {
     assert_eq!(
         set_deck_meta("", "Empty", "").unwrap(),
         "name = \"Empty\"\n"
+    );
+}
+
+#[test]
+fn a_cover_goes_under_the_meta_and_is_set_and_dropped_in_place() {
+    let covered = set_deck_cover(DECK, Some("tla/46")).unwrap();
+    assert_eq!(
+        covered,
+        DECK.replacen(
+            "name = \"Izzet Lessons\"\n",
+            "name = \"Izzet Lessons\"\ncover = \"tla/46\"\n",
+            1
+        )
+    );
+    let deck = Deck::parse(&covered).unwrap();
+    assert_eq!(
+        deck.cover,
+        Some(Printing {
+            set: "tla".into(),
+            num: "46".into()
+        })
+    );
+    let moved = set_deck_cover(&covered, Some("msc/183")).unwrap();
+    assert_eq!(
+        changed_lines(&covered, &moved),
+        one(r#"cover = "tla/46""#, r#"cover = "msc/183""#)
+    );
+    assert_eq!(set_deck_cover(&moved, None).unwrap(), DECK);
+    // The format still goes between the name and the cover.
+    let formatted = set_deck_meta(&covered, "Izzet Lessons", "modern").unwrap();
+    assert!(
+        formatted
+            .starts_with("name = \"Izzet Lessons\"\nformat = \"modern\"\ncover = \"tla/46\"\n"),
+        "{formatted}"
+    );
+    assert_eq!(
+        set_deck_cover(DECK, Some("tla")).unwrap_err(),
+        EditError::Invalid(DeckError::BadCover { text: "tla".into() })
     );
 }
 

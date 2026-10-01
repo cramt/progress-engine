@@ -196,6 +196,24 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
     });
   }
 
+  function contentsDelete(path: string, body: string | null): Response {
+    const files = state.repo?.files;
+    const existing = files?.[path];
+    if (!files || !existing) return notFound();
+    const del = JSON.parse(body ?? "{}") as { message?: string; sha?: string };
+    if (typeof del.message !== "string" || typeof del.sha !== "string") {
+      return json(422, { message: "Invalid request." });
+    }
+    if (del.sha !== existing.sha) {
+      return json(409, { message: `${path} does not match ${del.sha}` });
+    }
+    delete files[path];
+    const sha = nextSha(state);
+    state.commits.push({ path, message: del.message, sha, outOfBand: false });
+    persist();
+    return json(200, { content: null, commit: { sha, message: del.message } });
+  }
+
   function api(
     method: string,
     url: URL,
@@ -249,6 +267,7 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
       const path = rest.split("/").map(decodeURIComponent).join("/");
       if (method === "GET") return contentsGet(path);
       if (method === "PUT") return contentsPut(path, body);
+      if (method === "DELETE") return contentsDelete(path, body);
     }
     return notFound();
   }

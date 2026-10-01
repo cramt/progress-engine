@@ -250,3 +250,96 @@
   margin-left: 8px;
   font-size: 13px;
 }
+
+/* A tile's `...`, over the top right of its art, as a card's sits on its edge. */
+.deck-tile-wrap {
+  position: relative;
+  height: 100%;
+}
+
+.deck-more {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  opacity: 0;
+  transition: opacity 80ms;
+}
+
+.deck-tile-wrap:hover .deck-more,
+.deck-tile-wrap.menu-open .deck-more,
+.deck-more:focus-visible {
+  opacity: 1;
+}
+
+/* What a menu action did, at the foot of the page. */
+.home-notice {
+  position: fixed;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  z-index: 50;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  font-size: 13.5px;
+  transform: translateX(-50%);
+}
+
+.home-notice.refusal {
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* Set cover: the deck's cards as art, to pick one. */
+dialog.cover-sheet {
+  width: min(880px, calc(100vw - 32px));
+}
+
+.cover-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  max-height: 60vh;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cover-choice {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: var(--r);
+  background: var(--surface-2);
+  text-align: left;
+}
+
+.cover-choice:hover:not(:disabled),
+.cover-choice.current {
+  border-color: var(--accent);
+}
+
+.cover-choice img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.cover-choice span {
+  overflow: hidden;
+  padding: 6px 8px;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

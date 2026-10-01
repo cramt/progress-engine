@@ -42,6 +42,13 @@ pub enum NewCard {
     },
 }
 
+/// A printing, `set/num` in the file.
+#[derive(Debug, Facet)]
+pub struct Printing {
+    pub set: String,
+    pub num: String,
+}
+
 /// The category type tree (ADR-0020), as the strings the file uses.
 #[derive(Debug, Clone, Copy, Facet)]
 #[repr(u8)]
@@ -113,6 +120,9 @@ pub enum Parsed {
         name: Option<String>,
         #[facet(skip_serializing_if = Option::is_none)]
         format: Option<String>,
+        /// The printing whose art stands for the deck in the deck list.
+        #[facet(skip_serializing_if = Option::is_none)]
+        cover: Option<Printing>,
         categories: Vec<Category>,
         cards: Vec<Card>,
         /// Physical cards in the deck, so counting nothing outside it.
@@ -156,6 +166,10 @@ fn wire(d: Deck) -> Parsed {
     Parsed::Deck {
         name: d.name,
         format: d.format,
+        cover: d.cover.map(|p| Printing {
+            set: p.set,
+            num: p.num,
+        }),
         categories: d
             .categories
             .into_iter()
@@ -389,6 +403,13 @@ pub fn commit_message(before: &str, after: &str, path: &str) -> Result<String, J
 #[wasm_bindgen]
 pub fn set_deck_meta(text: &str, name: &str, format: &str) -> Result<String, JsError> {
     edit::set_deck_meta(text, name, format).map_err(refused)
+}
+
+/// `text` with the deck's `cover` set to the printing `set/num`, or dropped
+/// when `cover` is absent.
+#[wasm_bindgen]
+pub fn set_deck_cover(text: &str, cover: Option<String>) -> Result<String, JsError> {
+    edit::set_deck_cover(text, cover.as_deref()).map_err(refused)
 }
 
 /// The text of a new, empty deck. An empty `format` is left out.

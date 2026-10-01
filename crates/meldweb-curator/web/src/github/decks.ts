@@ -3,11 +3,17 @@
  * path, which is slugged from the name when the deck is made and never follows
  * a rename (ADR-0021).
  */
+import {
+  collectionCommitMessage,
+  parseCollection,
+  undeclarePlace,
+} from "../collection";
 import type { CardRef, SetOnly } from "../deck";
 import { fetchPrintings, fetchPrintingsInSets, printingKey } from "../scryfall";
 import { ConflictError, type GitHubApi, type RepoRef } from "./api";
+import { COLLECTION_PATH, loadCollection } from "./collection";
 import type { DeckText } from "./deckText";
-import { commitDeck } from "./save";
+import { commitDeck, settled } from "./save";
 
 export const DECKS_DIR = "decks";
 export const DECK_SUFFIX = ".deck.toml";
@@ -25,6 +31,8 @@ export interface DeckEntry {
   total?: number;
   /** The cards in its commander-typed categories, for the deck list's art. */
   commanders?: CardRef[];
+  /** The printing it chose to stand for it, ahead of its commanders. */
+  cover?: { set: string; num: string };
 }
 
 /** `decks/lantern.deck.toml` → `lantern`. */
@@ -59,6 +67,7 @@ export async function listDecks(
           sha: file.sha,
           name: parsed.name ?? deckStem(f.path),
           ...(parsed.format ? { format: parsed.format } : {}),
+          ...(parsed.cover ? { cover: parsed.cover } : {}),
           total: parsed.total,
           commanders: parsed.cards
             .filter((c) => c.place === "commander")
@@ -307,4 +316,93 @@ async function fileByType(
     text = deck.setCardCategories(text, card.index, [type]);
   }
   return text;
+}
+
+/**
+ * One commit of `edit` applied to the deck as it is on GitHub now, after any
+ * save still landing from its editor: what the deck list's Rename and Set
+ * cover do without opening the deck.
+ */
+export async function editDeckFile(
+  api: GitHubApi,
+  repo: RepoRef,
+  path: string,
+  edit: (text: string) => string,
+  deck: Pick<DeckText, "commitMessage">,
+): Promise<void> {
+  await settled(path);
+  const file = await api.getFile(repo, path);
+  if (!file) throw new Error(`${path} is no longer in the repo`);
+  const text = edit(file.text);
+  if (text === file.text) return;
+  await commitDeck(api, repo, path, {
+    text,
+    message: deck.commitMessage(file.text, text, path),
+    sha: file.sha,
+  });
+}
+
+export type DeletedDeck =
+  | { kind: "deleted" }
+  | { kind: "refused"; message: string };
+
+/**
+ * Deletes the deck as the list last read it, so a deck changed since is
+ * refused as a conflict rather than lost. A deck the collection keeps copies
+ * in is refused, as a place that holds anything cannot be dropped (ADR-0023);
+ * an empty place for it is dropped first, in its own commit.
+ */
+export async function deleteDeck(
+  api: GitHubApi,
+  repo: RepoRef,
+  deck: Pick<DeckEntry, "path" | "sha">,
+): Promise<DeletedDeck> {
+  await Promise.all([settled(deck.path), settled(COLLECTION_PATH)]);
+  const collection = await loadCollection(api, repo);
+  if (collection.sha !== null) {
+    const parsed = parseCollection(collection.text);
+    if (parsed.kind === "refused") {
+      return {
+        kind: "refused",
+        message: `collection.toml must be read to see whether copies are in this deck, and it is refused: ${parsed.message}`,
+      };
+    }
+    const place = parsed.places.find((p) => p.deck === deck.path);
+    if (place) {
+      const copies = parsed.cards
+        .filter((c) => c.at === place.name)
+        .reduce((n, c) => n + c.qty, 0);
+      if (copies > 0) {
+        return {
+          kind: "refused",
+          message: `The collection has ${copies} cop${copies === 1 ? "y" : "ies"} in ${place.name}, this deck's place. Move them out in the collection first.`,
+        };
+      }
+      const text = undeclarePlace(collection.text, place.name);
+      await api.putFile(repo, COLLECTION_PATH, {
+        text,
+        message: collectionCommitMessage(
+          collection.text,
+          text,
+          COLLECTION_PATH,
+        ),
+        sha: collection.sha,
+      });
+    }
+  }
+  try {
+    await api.deleteFile(repo, deck.path, {
+      message: `${deckStem(deck.path)}: delete`,
+      sha: deck.sha,
+    });
+  } catch (e) {
+    if (e instanceof ConflictError) {
+      return {
+        kind: "refused",
+        message: `${deck.path} changed on GitHub since the list was read. Reload and look before deleting it.`,
+      };
+    }
+    throw e;
+  }
+  return { kind: "deleted" };
 }
