@@ -54,9 +54,12 @@ something the dev GitHub mock accepts.
 `GET /gitaxian-probe/<sha256>/<name>` pipes the blob with that digest from the
 archive `ghcr.io/cramt/delver-x`, which sends no CORS headers itself: an
 anonymous pull token, the blob, and ghcr.io's status and body back. Nothing is
-checked or cached; the page knows which digest is which file. It sets
+checked; the page knows which digest is which file. It sets
 `Content-Type` from the name, since core.js runs as Web Workers, and COEP
-`require-corp`, without which the isolated page refuses those workers. The
+`require-corp`, without which the isolated page refuses those workers. A
+URL names one digest, so a 2xx is `Cache-Control: public, max-age=31536000,
+immutable` and also goes into the edge cache, which answers the next ask for
+it without ghcr.io; anything else is `no-store` and kept nowhere. The
 rest of the site gets COOP and COEP from the build's `_headers` file.
 [probe-in-curator.md](../../../docs/research/probe-in-curator.md) has the why.
 

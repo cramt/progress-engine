@@ -13,11 +13,23 @@ const TYPES: Record<string, string> = {
   wasm: "application/wasm",
 };
 
-export async function handleProbe(request: Request): Promise<Response> {
+// A path names its blob by digest, so what it serves never changes: the
+// browser keeps it for a year without asking again, and the edge keeps it so
+// ghcr.io is asked once per blob per data centre rather than once per visit.
+const IMMUTABLE = "public, max-age=31536000, immutable";
+
+export async function handleProbe(
+  request: Request,
+  waitUntil: (promise: Promise<unknown>) => void,
+): Promise<Response> {
   const path = new URL(request.url).pathname;
   const [, sha256, name] =
     /^\/gitaxian-probe\/([0-9a-f]{64})\/([\w.-]+)$/.exec(path) ?? [];
   if (!sha256 || !name) return new Response("not found", { status: 404 });
+
+  const edge = await caches.open("gitaxian-probe");
+  const cached = await edge.match(request);
+  if (cached) return cached;
 
   // ghcr.io wants a token even for a public blob, and gives one to anybody.
   const { token } = (await (
@@ -27,9 +39,11 @@ export async function handleProbe(request: Request): Promise<Response> {
     `https://ghcr.io/v2/${ARCHIVE}/blobs/sha256:${sha256}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
-  return new Response(blob.body, {
+  const response = new Response(blob.body, {
     status: blob.status,
     headers: {
+      // A failure is ghcr.io's for now, not this digest's forever.
+      "Cache-Control": blob.ok ? IMMUTABLE : "no-store",
       // A Web Worker's script must be JavaScript, and core.js runs as 32.
       "Content-Type":
         TYPES[name.slice(name.lastIndexOf(".") + 1)] ??
@@ -38,4 +52,6 @@ export async function handleProbe(request: Request): Promise<Response> {
       "Cross-Origin-Embedder-Policy": "require-corp",
     },
   });
+  if (blob.ok) waitUntil(edge.put(request, response.clone()));
+  return response;
 }

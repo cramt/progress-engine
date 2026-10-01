@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import worker, { type Env } from "./index";
 
 const SITE = "https://curator.example";
+// The auth routes never wait on anything after answering.
+const ctx = { waitUntil() {} };
 const CLIENT_ID = "Iv1.testclient";
 const SECRET = "test-secret";
 
@@ -138,6 +140,7 @@ class Browser {
     const response = await worker.fetch(
       new Request(url, { method, headers: h }),
       env,
+      ctx,
     );
     for (const line of response.headers.getSetCookie()) {
       const [pair = "", ...attrs] = line.split("; ");
@@ -437,10 +440,14 @@ describe("login", () => {
   });
 
   it("answers 503 until the app's client id is filled in", async () => {
-    const response = await worker.fetch(new Request(`${SITE}/api/auth/login`), {
-      ...env,
-      GITHUB_CLIENT_ID: "REPLACE_WITH_GITHUB_APP_CLIENT_ID",
-    });
+    const response = await worker.fetch(
+      new Request(`${SITE}/api/auth/login`),
+      {
+        ...env,
+        GITHUB_CLIENT_ID: "REPLACE_WITH_GITHUB_APP_CLIENT_ID",
+      },
+      ctx,
+    );
     expect(response.status).toBe(503);
   });
 });

@@ -12,9 +12,24 @@ const env: Env = {
 };
 
 let calls: { url: string; auth: string | null }[];
+// Cloudflare's edge cache, by URL, and what the worker left running after it
+// answered.
+let edge: Map<string, Response>;
+let pending: Promise<unknown>[];
+const ctx = { waitUntil: (p: Promise<unknown>) => pending.push(p) };
 
 beforeEach(() => {
   calls = [];
+  edge = new Map();
+  pending = [];
+  vi.stubGlobal("caches", {
+    open: async () => ({
+      match: async (r: Request) => edge.get(r.url)?.clone(),
+      put: async (r: Request, response: Response) => {
+        edge.set(r.url, response);
+      },
+    }),
+  });
   // ghcr.io: an anonymous token, then a blob by digest for that token.
   vi.stubGlobal(
     "fetch",
@@ -32,7 +47,8 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-const get = (path: string) => worker.fetch(new Request(`${SITE}${path}`), env);
+const get = (path: string) =>
+  worker.fetch(new Request(`${SITE}${path}`), env, ctx);
 
 it("pipes the blob with that digest from ghcr.io, typed by its name", async () => {
   const response = await get(`/gitaxian-probe/${CORE}/core.wasm`);
@@ -56,7 +72,24 @@ it("serves core.js as JavaScript, which a Web Worker needs", async () => {
   expect(response.headers.get("Content-Type")).toBe("text/javascript");
 });
 
-it("passes ghcr.io's status through", async () => {
+it("lets the browser keep a blob for a year, since its digest never changes", async () => {
+  const response = await get(`/gitaxian-probe/${CORE}/core.wasm`);
+  expect(response.headers.get("Cache-Control")).toBe(
+    "public, max-age=31536000, immutable",
+  );
+});
+
+it("asks ghcr.io once per blob and serves the rest from the edge", async () => {
+  await get(`/gitaxian-probe/${CORE}/core.wasm`);
+  await Promise.all(pending);
+  calls = [];
+  const again = await get(`/gitaxian-probe/${CORE}/core.wasm`);
+  expect(await again.text()).toBe(`blob ${CORE}`);
+  expect(again.headers.get("Content-Type")).toBe("application/wasm");
+  expect(calls).toEqual([]);
+});
+
+it("passes ghcr.io's status through, and keeps none of a failure", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL) =>
@@ -65,7 +98,10 @@ it("passes ghcr.io's status through", async () => {
         : new Response("", { status: 404 }),
     ),
   );
-  expect((await get(`/gitaxian-probe/${CORE}/core.wasm`)).status).toBe(404);
+  const response = await get(`/gitaxian-probe/${CORE}/core.wasm`);
+  expect(response.status).toBe(404);
+  expect(response.headers.get("Cache-Control")).toBe("no-store");
+  expect(pending).toEqual([]);
 });
 
 it("asks ghcr.io nothing for a path that is not a digest and a name", async () => {

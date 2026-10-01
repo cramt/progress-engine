@@ -12,13 +12,17 @@ export interface Env extends AuthEnv {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: { waitUntil(promise: Promise<unknown>): void },
+  ): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
       return handleAuth(request, env);
     }
     if (url.pathname.startsWith(PREFIX)) {
-      return handleProbe(request);
+      return handleProbe(request, (p) => ctx.waitUntil(p));
     }
     // `run_worker_first` sends only those two here, so this is a safety net for
     // a config without it: everything else is a file or an SPA route.

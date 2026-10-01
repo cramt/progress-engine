@@ -54,14 +54,19 @@ MELDWEB_PROBE=1 VITE_MOCK_GITHUB=1 pnpm dev
 
 The worker is a pipe. `GET /gitaxian-probe/<sha256>/<name>` asks ghcr.io for an
 anonymous pull token, fetches the blob with that digest from
-`cramt/delver-x`, and returns its body with ghcr.io's status. It knows no pin,
-checks nothing and caches nothing. It adds two headers, both needed:
+`cramt/delver-x`, and returns its body with ghcr.io's status. It knows no pin
+and checks nothing. It adds three headers:
 
 - `Content-Type` from the name, because a Web Worker's script must be
   JavaScript, and core.js runs as 32 of them.
 - `Cross-Origin-Embedder-Policy: require-corp`, the page's own. Without a COEP Chromium refuses
   those workers' scripts in the isolated page, and the engine never boots
   (checked: the boot timed out after 120 s).
+- `Cache-Control: public, max-age=31536000, immutable` on a 2xx, since a URL
+  names one digest and so can never change; `no-store` on anything else.
+  Without it the browser fetched core.js once per pool worker, about 33 times
+  a boot (see the numbers below). A 2xx also goes into the edge cache, so
+  ghcr.io is asked once per blob per data centre rather than once per visit.
 
 The page knows which digest is which file. The build turns the pin into a map
 from each name to `/gitaxian-probe/<sha256>/<name>`, and the engine's web host
@@ -80,7 +85,7 @@ against the real ghcr.io (Node, in this sandbox: `wrangler dev` was not run):
 | | |
 |---|---|
 | Each file through the worker | `model-alpha.7z` 23,247,473 bytes in 1.4 s; `core.wasm` 8,895,139 in 1.1 s; `data.7z` 9,627,184 in 0.6 s; the small files 0.2-0.9 s, each a token and a blob from ghcr.io |
-| Boot, Scan clicked to ready | 12.3-12.6 s. Nothing is cached, so each of the pool's workers fetches core.js through ghcr.io again: about 33 fetches of it per boot. With `Cache-Control: immutable` on the worker's answers, which is correct since a URL names one digest, it was 6.5-6.9 s and core.js was fetched once. That header is left out, to keep the worker a pipe |
+| Boot, Scan clicked to ready | 12.3-12.6 s without caching, since each of the pool's workers fetches core.js through ghcr.io again: about 33 fetches of it per boot. With `Cache-Control: immutable` on the worker's answers, which is correct since a URL names one digest, it was 6.5-6.9 s and core.js was fetched once. The worker now sends it |
 | `web-check/run.sh`, same machine | 4.0 s with the model served unpacked, 4.8-5.1 s unpacking it in the page |
 | The scan itself | the fake-camera run of *Scanning into the collection*, unchanged: three beeps, Black Lotus, Black Lotus, Counterspell |
 
