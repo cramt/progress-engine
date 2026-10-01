@@ -43,10 +43,10 @@ export function openScanner(progress?: Progress): Promise<ScannerHandle> {
       ),
     );
   }
-  const { init, Scanner, base } = probe;
+  const { init, Scanner, base, files } = probe;
   opening ??= init()
     .then(() =>
-      Scanner.open(base, (stage, percent) => progress?.(stage, percent)),
+      Scanner.open(base, (stage, percent) => progress?.(stage, percent), files),
     )
     .catch((e: unknown) => {
       opening = null;

@@ -48,10 +48,26 @@ pub struct Scanner {
 #[wasm_bindgen]
 impl Scanner {
     /// Boot the engine from the files served at `base`. `onProgress`, if given,
-    /// is called as `(stage, percent, message)`. Resolves to a `Scanner` once
-    /// the catalogue is queryable and the model loaded.
-    pub fn open(base: String, on_progress: Option<Function>) -> Promise {
+    /// is called as `(stage, percent, message)`. `files`, if given, is
+    /// `{ name: url }` for files that are not at `base` + name. Resolves to a
+    /// `Scanner` once the catalogue is queryable and the model loaded.
+    pub fn open(
+        base: String,
+        on_progress: Option<Function>,
+        files: Option<js_sys::Object>,
+    ) -> Promise {
         future_to_promise(async move {
+            let files = files
+                .map(|f| {
+                    js_sys::Object::entries(&f)
+                        .iter()
+                        .filter_map(|entry| {
+                            let pair = js_sys::Array::from(&entry);
+                            Some((pair.get(0).as_string()?, pair.get(1).as_string()?))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
             let report = on_progress.map(|f| {
                 Rc::new(move |p: gitaxian_probe_engine::Progress| {
                     let _ = f.call3(
@@ -64,6 +80,7 @@ impl Scanner {
             });
             let engine = Engine::open(EngineConfig {
                 base,
+                files,
                 on_progress: report,
                 ..EngineConfig::default()
             })

@@ -16,10 +16,12 @@ declare module "virtual:gitaxian-probe" {
       open(
         base: string,
         onProgress?: (stage: string, percent: number, message: string) => void,
+        files?: Record<string, string>,
       ): Promise<ScannerHandle>;
     };
-    /** Where Delver X's engine files are: the worker's proxy, or the dev server. */
     base: string;
+    /** Each of Delver X's engine files, by name: `/gitaxian-probe/<sha256>/<name>`. */
+    files: Record<string, string>;
   } | null;
   export default probe;
 }

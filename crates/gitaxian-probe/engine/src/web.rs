@@ -53,6 +53,7 @@ extern "C" {
     #[wasm_bindgen(catch)]
     fn open(
         base: &str,
+        files: &js_sys::Object,
         wasm: Uint8Array,
         model: Uint8Array,
         tier: &str,
@@ -96,6 +97,10 @@ pub struct EngineConfig {
     /// resolved against the page: `"probe/"`, `"/static/probe/"`, or a full
     /// URL on the same origin.
     pub base: String,
+    /// Where a file is, by name, when it is not at `base` + name: for a page
+    /// that fetches each file by its digest, as Meldweb Curator's proxy of the
+    /// archive does. Resolved against the page as `base` is.
+    pub files: Vec<(String, String)>,
     pub model: Model,
     /// Run even though core.wasm's import surface no longer matches
     /// [`KNOWN_FINGERPRINT`].
@@ -109,6 +114,7 @@ impl Default for EngineConfig {
     fn default() -> Self {
         Self {
             base: "gitaxian-probe/".into(),
+            files: Vec::new(),
             model: Model::Alpha,
             allow_unknown_build: false,
             on_progress: None,
@@ -146,12 +152,24 @@ impl Engine {
             format!("{}/", config.base)
         };
 
+        let files = js_sys::Object::new();
+        for (name, url) in &config.files {
+            js_sys::Reflect::set(&files, &name.into(), &url.into()).map_err(js_error)?;
+        }
+        let url = |name: &str| {
+            config
+                .files
+                .iter()
+                .find(|(n, _)| n == name)
+                .map_or_else(|| format!("{base}{name}"), |(_, url)| url.clone())
+        };
+
         // Every download starts before the first is awaited.
         let packed_name = format!("model-{}.7z", tier.name());
         let size_name = format!("model-{}.size", tier.name());
-        let core = fetch_bytes(&format!("{base}core.wasm"));
-        let packed = fetch_bytes(&format!("{base}{packed_name}"));
-        let size = fetch_bytes(&format!("{base}{size_name}"));
+        let core = fetch_bytes(&url("core.wasm"));
+        let packed = fetch_bytes(&url(&packed_name));
+        let size = fetch_bytes(&url(&size_name));
         let core = settle(core).await.context("fetching core.wasm")?;
         let packed = settle(packed)
             .await
@@ -188,6 +206,7 @@ impl Engine {
         let abi = js_sys::JSON::parse(&crate::abi_json()).map_err(js_error)?;
         let probe: Probe = settle(open(
             &base,
+            &files,
             Uint8Array::from(patched.as_slice()),
             Uint8Array::from(model.as_slice()),
             tier.name(),

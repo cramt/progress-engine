@@ -15,8 +15,8 @@ settled as follows:
    and neither does the public archive of their builds on ghcr.io (checked
    2026-10-01: not the token, the manifests, any blob, or the storage a blob
    redirects to; a preflight is a 405 or a 403). So the site serves the files
-   from its own origin: the worker proxies each pinned file from the archive
-   by its digest (*How the site serves the engine*). The archive was made
+   from its own origin: the worker pipes each file from the archive by the
+   digest the page asks for (*How the site serves the engine*). The archive was made
    public on 2026-09-28, knowing it is redistribution, and the site serving
    it was decided on 2026-10-01 in the same way.
 2. **The model was too big for the host.** `model-alpha.dat` is 34,050,684
@@ -38,8 +38,8 @@ with the lantern deck open.
 |---|---|
 | `crates/gitaxian-probe/bindgen/` | `gitaxian-probe-bindgen`: the web `Engine` as a wasm-bindgen class, `Scanner.open(base, onProgress)` / `scan(rgba, w, h)`. `scan` resolves each detection and its runners-up to catalogue rows with `scryfall_id`, on the Rust side |
 | `web/scripts/build-probe.mjs` | builds that crate from the probe's own workspace with its wasm-bindgen (the probe's Cargo.lock now pins the editor's, 0.2.126), and for the dev server copies the pinned engine files. Everything lands under `crates/gitaxian-probe/target/meldweb/`. The Nix build takes the API from the flake's `gitaxian-probe-bindgen` instead (`MELDWEB_PROBE_PREBUILT`) |
-| `web/vite.config.ts`, `gitaxianProbe()` | makes every page cross-origin isolated, in dev and, through a `_headers` file, on the site. Resolves `virtual:gitaxian-probe` to the API in every site build and in `MELDWEB_PROBE=1 pnpm dev`, and to `null` in plain `pnpm dev` and vitest. A build writes `gitaxian-probe-pin.json` beside the site; the dev server serves the engine files itself |
-| `worker/src/probe.ts` | `GET /gitaxian-probe/<tag>/<name>`: the pinned file, proxied from ghcr.io and cached at the edge for good |
+| `web/vite.config.ts`, `gitaxianProbe()` | makes every page cross-origin isolated, in dev and, through a `_headers` file, on the site. Resolves `virtual:gitaxian-probe` to the API and each engine file's URL by its digest, in every site build and in `MELDWEB_PROBE=1 pnpm dev`, and to `null` in plain `pnpm dev` and vitest. The dev server serves the engine files itself |
+| `worker/src/probe.ts` | `GET /gitaxian-probe/<sha256>/<name>`: that blob, piped from ghcr.io |
 | `web/src/probe/` | `scanner.ts` (the page's one scanner, and framing an image), `printings.ts` (`scryfall_id` to `set/num`, and adding a printing), `ScanDialog.tsx`, and the collection scanner's `tracker.ts` and `beep.ts` |
 
 The Scan buttons appear only when `virtual:gitaxian-probe` is not `null`. The
@@ -53,40 +53,36 @@ MELDWEB_PROBE=1 VITE_MOCK_GITHUB=1 pnpm dev
 
 ## How the site serves the engine
 
-The page asks for each file at `/gitaxian-probe/<tag>/<name>`, where `<tag>` is
-the archive tag the pin names (`delver-1.89.beta-eeb9c6a9c3ec`). The worker
-answers those, and only those:
+The worker is a pipe. `GET /gitaxian-probe/<sha256>/<name>` asks ghcr.io for an
+anonymous pull token, fetches the blob with that digest from
+`cramt/delver-x`, and returns its body with ghcr.io's status. It knows no pin,
+checks nothing and caches nothing. It adds two headers, both needed:
 
-- It reads the pin from the site's own `gitaxian-probe-pin.json`, which the same
-  build wrote, so the files the worker serves and the scanner the site carries
-  are always one build. A tag other than the pin's, or a name the pin does not
-  list, is a 404, and nothing is fetched.
-- It fetches the blob by the digest the pin gives: an anonymous pull token from
-  `ghcr.io/token` (kept, and replaced on a 401), then
-  `/v2/cramt/delver-x/blobs/sha256:<digest>`, which redirects to GitHub's
-  storage. A blob is addressed by its sha256, so what comes back is what was
-  pinned.
-- A URL names one build, so its answer never changes: `immutable` for a year,
-  and kept in Cloudflare's edge cache, so ghcr.io is asked once per location.
-- Every answer is `Cross-Origin-Resource-Policy: same-origin` and carries the
-  page's COOP and COEP, since core.js runs as Web Workers, whose scripts need
-  the policy too.
+- `Content-Type` from the name, because a Web Worker's script must be
+  JavaScript, and core.js runs as 32 of them.
+- `Cross-Origin-Embedder-Policy: credentialless`. Without it Chromium refuses
+  those workers' scripts in the isolated page, and the engine never boots
+  (checked: the boot timed out after 120 s).
 
-The files are served byte for byte as upstream shipped them, the model packed,
-so the engine's web host now unpacks `model-alpha.7z` in the page with the same
-LZMA2 reader the native host uses (`sevenz-rust2` without its encryption, which
-does not build for wasm32), and checks it against `model-alpha.size`.
-`gitaxian-probe-assets` lays out the same files, so the dev server and the web
-check serve what the worker does.
+The page knows which digest is which file. The build turns the pin into a map
+from each name to `/gitaxian-probe/<sha256>/<name>`, and the engine's web host
+takes it (`EngineConfig::files`), so it fetches each file there rather than at
+`base` + name. The dev server answers the same URLs from the probe's target
+dir.
+
+The files are byte for byte as upstream shipped them, the model packed, so the
+engine's web host unpacks `model-alpha.7z` in the page with the same LZMA2
+reader the native host uses (`sevenz-rust2` without its encryption, which does
+not build for wasm32), and checks it against `model-alpha.size`.
 
 Measured on 2026-10-01, with the built site served by the worker's own code
 against the real ghcr.io (Node, in this sandbox: `wrangler dev` was not run):
 
 | | |
 |---|---|
-| First fetch of each file through the worker | `model-alpha.7z` 23,247,473 bytes in 1.5 s; `core.wasm` 8,895,139 in 1.6 s; `data.7z` 9,627,184 in 0.7 s; the small files 0.1-0.9 s |
-| From the edge cache after | 0-1 ms each |
-| Boot, Scan clicked to ready, files cached | 5.4-6.4 s in that harness. `web-check/run.sh`, same machine: 4.0 s with the model served unpacked, 4.8 s unpacking it in the page |
+| Each file through the worker | `model-alpha.7z` 23,247,473 bytes in 1.4 s; `core.wasm` 8,895,139 in 1.1 s; `data.7z` 9,627,184 in 0.6 s; the small files 0.2-0.9 s, each a token and a blob from ghcr.io |
+| Boot, Scan clicked to ready | 12.3-12.6 s. Nothing is cached, so each of the pool's workers fetches core.js through ghcr.io again: about 33 fetches of it per boot. With `Cache-Control: immutable` on the worker's answers, which is correct since a URL names one digest, it was 6.5-6.9 s and core.js was fetched once. That header is left out, to keep the worker a pipe |
+| `web-check/run.sh`, same machine | 4.0 s with the model served unpacked, 4.8-5.1 s unpacking it in the page |
 | The scan itself | the fake-camera run of *Scanning into the collection*, unchanged: three beeps, Black Lotus, Black Lotus, Counterspell |
 
 ## Scanning into the collection
@@ -257,8 +253,7 @@ archive (the engine README, *The archive*).
 - A real camera. The `getUserMedia` path is written but has not run (headless
   Chromium has no camera), and nothing has been checked on a phone.
 - The deployed worker. Its route was run in Node against the real ghcr.io, not
-  in `wrangler dev` or on Cloudflare, so the edge cache and the `_headers`
-  file are untested there.
+  in `wrangler dev` or on Cloudflare, so the `_headers` file is untested there.
 - Firefox, Safari, and memory on mobile.
 - Several cards in one frame. The dialog lists every detection, but every
   fixture holds one card.

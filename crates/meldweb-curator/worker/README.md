@@ -3,8 +3,8 @@
 Meldweb Curator's one Cloudflare Worker ([#123], designed in
 [github-login-static-site.md](../../../docs/research/github-login-static-site.md)).
 It serves the built site as static assets, trades a GitHub App login for
-tokens, and proxies the card scanner's engine files from ghcr.io (*The
-scanner's engine*). It stores nothing: the refresh token lives in a cookie, the access
+tokens, and pipes the card scanner's engine files from ghcr.io (*The scanner's
+engine*). It stores nothing: the refresh token lives in a cookie, the access
 token in the page's memory. It never proxies `api.github.com`; the page calls
 GitHub itself, which allows any origin.
 
@@ -51,16 +51,13 @@ something the dev GitHub mock accepts.
 
 ## The scanner's engine
 
-`GET /gitaxian-probe/<tag>/<name>` is one file of the Delver X build the site
-was built against, proxied from the archive `ghcr.io/cramt/delver-x`, which
-sends no CORS headers itself. The site's build writes the pin beside it, as
-`/gitaxian-probe-pin.json`, and the worker serves only that tag and only the
-names it lists (`404` otherwise), each fetched by the digest the pin gives with
-an anonymous pull token. A URL names one build, so the answer is `immutable`
-and kept in the edge cache; `502` when ghcr.io fails, and nothing is cached.
-Every answer carries `Cross-Origin-Resource-Policy: same-origin` and the
-page's COOP and COEP, which the engine's Web Workers need. The rest of the site
-gets the same COOP and COEP from the build's `_headers` file.
+`GET /gitaxian-probe/<sha256>/<name>` pipes the blob with that digest from the
+archive `ghcr.io/cramt/delver-x`, which sends no CORS headers itself: an
+anonymous pull token, the blob, and ghcr.io's status and body back. Nothing is
+checked or cached; the page knows which digest is which file. It sets
+`Content-Type` from the name, since core.js runs as Web Workers, and COEP
+`credentialless`, without which the isolated page refuses those workers. The
+rest of the site gets COOP and COEP from the build's `_headers` file.
 [probe-in-curator.md](../../../docs/research/probe-in-curator.md) has the why.
 
 ## Cookies

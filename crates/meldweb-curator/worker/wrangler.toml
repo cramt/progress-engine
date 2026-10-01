@@ -22,7 +22,7 @@ binding = "ASSETS"
 # Deep deck URLs are TanStack Router routes, not files: answer them with
 # index.html so a reload reopens the same deck.
 not_found_handling = "single-page-application"
-# Only the auth routes and the scanner's engine files, proxied from ghcr.io,
+# Only the auth routes and the scanner's engine files, piped from ghcr.io,
 # run the worker; every other request is a file.
 run_worker_first = ["/api/*", "/gitaxian-probe/*"]
 

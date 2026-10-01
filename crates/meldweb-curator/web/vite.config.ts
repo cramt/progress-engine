@@ -32,8 +32,12 @@ function decklistWasm(): Plugin {
 }
 
 const PROBE = "virtual:gitaxian-probe";
-// One URL per build, so the worker can cache its answers for good.
-const PROBE_BASE = `/gitaxian-probe/${probePin.tag}/`;
+// Each engine file by its digest: the worker pipes `<sha256>` from the archive
+// on ghcr.io, and the dev server serves `<name>` from the probe's target dir.
+const PROBE_BASE = "/gitaxian-probe/";
+const PROBE_FILES = Object.fromEntries(
+  probePin.files.map((f) => [f.name, `${PROBE_BASE}${f.sha256}/${f.name}`]),
+);
 const TYPES: Record<string, string> = {
   ".js": "text/javascript",
   ".wasm": "application/wasm",
@@ -53,8 +57,8 @@ const ISOLATION = {
 // Gitaxian Probe's card scanner. `virtual:gitaxian-probe` is the probe's
 // JavaScript API, in every site build and in `MELDWEB_PROBE=1 pnpm dev`, and
 // `null` in plain `pnpm dev` and in tests. The site never carries Delver X's
-// engine files: the build writes their pin beside it, and the worker proxies
-// each pinned file from the archive on ghcr.io (worker/src/probe.ts). The dev
+// engine files: the page asks for each by the digest the pin gives it, and the
+// worker pipes it from the archive on ghcr.io (worker/src/probe.ts). The dev
 // server serves them from the probe's target dir instead.
 function gitaxianProbe(): Plugin {
   let enabled = false;
@@ -70,12 +74,6 @@ function gitaxianProbe(): Plugin {
       if (enabled) buildProbe({ assets: !building });
     },
     generateBundle() {
-      if (!enabled) return;
-      this.emitFile({
-        type: "asset",
-        fileName: "gitaxian-probe-pin.json",
-        source: JSON.stringify({ tag: probePin.tag, files: probePin.files }),
-      });
       // Cloudflare's static assets read their response headers from here.
       this.emitFile({
         type: "asset",
@@ -93,7 +91,7 @@ function gitaxianProbe(): Plugin {
       if (!enabled) return "export default null;";
       return [
         `import init, { Scanner } from ${JSON.stringify(`/@fs${probeOut.glue}`)};`,
-        `export default { init, Scanner, base: ${JSON.stringify(PROBE_BASE)} };`,
+        `export default { init, Scanner, base: ${JSON.stringify(PROBE_BASE)}, files: ${JSON.stringify(PROBE_FILES)} };`,
       ].join("\n");
     },
     configureServer(server) {
@@ -104,8 +102,9 @@ function gitaxianProbe(): Plugin {
       });
       if (!enabled) return;
       server.middlewares.use(PROBE_BASE, (req, res, next) => {
-        const name = (req.url ?? "").split("?")[0]?.replace(/^\//, "") ?? "";
-        if (!/^[\w.-]+$/.test(name)) return next();
+        const path = (req.url ?? "").split("?")[0] ?? "";
+        const name = /^\/[0-9a-f]{64}\/([\w.-]+)$/.exec(path)?.[1];
+        if (!name) return next();
         const file = `${probeOut.assets}${name}`;
         let size: number;
         try {

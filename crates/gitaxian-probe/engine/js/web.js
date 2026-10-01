@@ -186,21 +186,25 @@ class JobQueue {
  * host's job decoder (bytes -> JSON string), and `progress` an optional
  * (stage, percent, message) callback.
  */
-export function open(base, wasm, model, tier, abi, decode, progress, timeoutMs) {
+export function open(base, files, wasm, model, tier, abi, decode, progress, timeoutMs) {
   // Boot unpacks a 44 MB catalogue and loads a 34 MB model, so it gets more
   // room than an ordinary call - the same floor the native host uses. The
   // deadline covers createCore too: a pool that cannot start never settles it.
   return bounded(
-    boot(base, wasm, model, tier, abi, decode, progress, timeoutMs),
+    boot(base, files, wasm, model, tier, abi, decode, progress, timeoutMs),
     "booting the engine",
     Math.max(timeoutMs, 120000),
   );
 }
 
 // `model` is the weights, which the Rust side fetched packed and unpacked.
-async function boot(base, wasm, model, tier, abi, decode, progress, timeoutMs) {
+// `files` names where a file is when it is not at `base` + its name.
+async function boot(base, files, wasm, model, tier, abi, decode, progress, timeoutMs) {
   const root = new URL(base, globalThis.location.href);
-  const url = (name) => new URL(name, root).href;
+  const url = (name) =>
+    Object.hasOwn(files, name)
+      ? new URL(files[name], globalThis.location.href).href
+      : new URL(name, root).href;
   const report = (stage, percent, message) => progress?.(stage, percent, message);
   const decodeJob = (u8) => JSON.parse(decode(u8));
 

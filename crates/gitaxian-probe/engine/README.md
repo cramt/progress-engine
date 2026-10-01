@@ -209,8 +209,9 @@ The page has to provide two things:
   sha256, and lays the directory out in `gitaxian_probe_assets::dir()`, for a web
   build to copy next to its output - `gitaxian_probe_assets::copy_to(dest)`, or
   `cargo run -p gitaxian-probe-assets --example copy -- <dest>`. Or a server on the
-  page's origin proxies the archive's blobs by the pin's digests, as Meldweb
-  Curator's worker does. Either way `base` is where they are served.
+  page's origin proxies the archive's blobs by digest, as Meldweb Curator's
+  worker does, and `EngineConfig::files` gives the engine each file's URL by
+  name. Otherwise a file is at `base` + its name.
 
 The model comes packed, `model-<tier>.7z` and its `.size`, and `open` unpacks it in
 the page with the same LZMA2 reader the native host uses, then checks it against the
