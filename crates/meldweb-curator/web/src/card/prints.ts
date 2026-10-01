@@ -152,8 +152,9 @@ export function fetchAllPrintings(
 ): Promise<PrintingOption[]> {
   if (signal?.aborted) return Promise.reject(signal.reason);
   const search = cachedOne(
-    // `v2` drops what was cached before a printing carried its faces.
-    ["scryfall", "prints", "v2", uri],
+    // `v3` drops what was cached before a printing carried its faces, and what
+    // was cached while a battle was looked for by layout, which left it upright.
+    ["scryfall", "prints", "v3", uri],
     (s) => loadAll(uri, s),
   );
   if (!signal) return search;

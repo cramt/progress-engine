@@ -132,8 +132,9 @@ function frontFace(name: string): string {
 // Scryfall's limit per request.
 const BATCH = 75;
 
-// `v3` drops what was cached before a printing carried its faces.
-const PRINTING = ["scryfall", "printing", "v3"] as const;
+// `v4` drops what was cached before a printing carried its faces, and what
+// was cached while a battle was looked for by layout, which left it upright.
+const PRINTING = ["scryfall", "printing", "v4"] as const;
 const IN_SET = ["scryfall", "in-set"] as const;
 
 function toPrinting(card: CollectionCard): Printing {
