@@ -77,6 +77,9 @@ export function LiveScan({
   const [refusal, setRefusal] = useState<string | null>(null);
   const [inView, setInView] = useState<InView | null>(null);
   const [log, setLog] = useState<Entry[]>([]);
+  // Open until scanning starts, so on a phone the camera and the log are what
+  // fills the screen while cards go in.
+  const [settingsOpen, setSettingsOpen] = useState(true);
 
   const nextId = useRef(0);
 
@@ -206,6 +209,7 @@ export function LiveScan({
 
   const start = async () => {
     setRefusal(null);
+    setSettingsOpen(false);
     // Made in the click, since a page may only start sound from a gesture.
     if (!audio) setAudio(new AudioContext());
     if (!camera) {
@@ -271,7 +275,17 @@ export function LiveScan({
     }
   };
 
-  const added = log.filter((e) => e.copy && !e.refused && !e.takenBack).length;
+  const counted = log.filter((e) => e.copy && !e.refused && !e.takenBack);
+  const added = counted.length;
+  // How many of each card went in, most first: the session at a glance.
+  const tally = [
+    ...counted
+      .reduce(
+        (m, e) => m.set(e.name, (m.get(e.name) ?? 0) + 1),
+        new Map<string, number>(),
+      )
+      .entries(),
+  ].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the backdrop closes on a click, Escape does it by key
     // biome-ignore lint/a11y/useKeyWithClickEvents: Escape is handled on window
@@ -348,60 +362,77 @@ export function LiveScan({
                 {refusal}
               </p>
             )}
-            <fieldset className="scan-settings">
-              <label className="field">
-                Into
-                <select
-                  value={at ?? ""}
-                  onChange={(e) => set({ at: e.target.value || null })}
-                >
-                  <option value="">{UNSORTED}</option>
-                  {places.map((p) => (
-                    <option key={p.name} value={p.name}>
-                      {p.name}
+            <details
+              className="scan-settings-fold"
+              open={settingsOpen}
+              onToggle={(e) => setSettingsOpen(e.currentTarget.open)}
+            >
+              <summary>
+                Settings
+                {!settingsOpen && (
+                  <span className="muted">
+                    {" "}
+                    · into {at ?? UNSORTED}, {finish}, {speed}
+                    {keepPrinting ? "" : ", by name"}
+                  </span>
+                )}
+              </summary>
+              <fieldset className="scan-settings">
+                <label className="field">
+                  Into
+                  <select
+                    value={at ?? ""}
+                    onChange={(e) => set({ at: e.target.value || null })}
+                  >
+                    <option value="">{UNSORTED}</option>
+                    {places.map((p) => (
+                      <option key={p.name} value={p.name}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  Finish
+                  <select
+                    className="scan-finish"
+                    value={finish}
+                    onChange={(e) => set({ finish: e.target.value as Finish })}
+                  >
+                    <option value="nonfoil">nonfoil</option>
+                    <option value="foil">foil</option>
+                    <option value="etched">etched</option>
+                  </select>
+                </label>
+                <label className="field">
+                  Speed
+                  <select
+                    value={speed}
+                    onChange={(e) => set({ speed: e.target.value as Speed })}
+                  >
+                    <option value="careful">
+                      Careful: a card holds for two frames
                     </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                Finish
-                <select
-                  value={finish}
-                  onChange={(e) => set({ finish: e.target.value as Finish })}
-                >
-                  <option value="nonfoil">nonfoil</option>
-                  <option value="foil">foil</option>
-                  <option value="etched">etched</option>
-                </select>
-              </label>
-              <label className="field">
-                Speed
-                <select
-                  value={speed}
-                  onChange={(e) => set({ speed: e.target.value as Speed })}
-                >
-                  <option value="careful">
-                    Careful: a card holds for two frames
-                  </option>
-                  <option value="fast">
-                    Fast: the first frame that reads it
-                  </option>
-                </select>
-              </label>
-              <label className="scan-toggle">
-                <input
-                  type="checkbox"
-                  checked={keepPrinting}
-                  onChange={(e) => set({ keepPrinting: e.target.checked })}
-                />
-                Keep the printing it guesses
-              </label>
-              <p className="hint">
-                The card's name is reliable; which printing it is, is a guess
-                between reprints with the same art. Unticked, cards go in by
-                name.
-              </p>
-            </fieldset>
+                    <option value="fast">
+                      Fast: the first frame that reads it
+                    </option>
+                  </select>
+                </label>
+                <label className="scan-toggle">
+                  <input
+                    type="checkbox"
+                    checked={keepPrinting}
+                    onChange={(e) => set({ keepPrinting: e.target.checked })}
+                  />
+                  Keep the printing it guesses
+                </label>
+                <p className="hint">
+                  The card's name is reliable; which printing it is, is a guess
+                  between reprints with the same art. Unticked, cards go in by
+                  name.
+                </p>
+              </fieldset>
+            </details>
           </div>
           <div className="scan-results">
             <h3>
@@ -409,6 +440,15 @@ export function LiveScan({
                 ? "Nothing scanned yet"
                 : `${added} ${added === 1 ? "copy" : "copies"} added`}
             </h3>
+            {tally.length > 1 && (
+              <ul className="scan-tally" aria-label="Copies of each card">
+                {tally.map(([name, n]) => (
+                  <li key={name}>
+                    {name} <span className="muted">×{n}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
             <ol className="scan-log">
               {log.map((e) => (
                 <LogRow key={e.id} entry={e} onTakeBack={() => takeBack(e)} />

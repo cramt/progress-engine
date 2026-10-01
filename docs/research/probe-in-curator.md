@@ -130,6 +130,17 @@ The beep sounds when the card is counted, before Scryfall is asked for its
 printing, and the log shows it as "Naming the printing…" until it goes in. If
 Scryfall cannot be reached, it goes in by name, and the log says why.
 
+Above the log, a tally counts each card's copies (Counterspell ×4, Shock ×2),
+so a session can be checked against the stack at a glance. The settings fold
+to one line once Start is pressed, so on a phone the camera and the log fill
+the screen. A guessed printing that turns out wrong is fixed afterwards on the
+collection page: a line's name or printing opens every printing as a picture,
+to match against the card in hand, and Apply changes as many of the line's
+copies as asked, to that printing and a finish it comes in. Those copies join
+a line already holding them alike (`collection::reprint`), as a move's do.
+Sorting what a scan left in Unsorted is ticking lines and moving them together,
+one edit (`collection::move_lines`).
+
 Measured on 2026-09-30 in headless Chromium, with a fake camera playing a video
 of the fixture frames: 5 s of empty table, Black Lotus for 8 s, 5 s empty,
 Black Lotus for 8 s, then Counterspell for 8 s with no gap. It beeped three
