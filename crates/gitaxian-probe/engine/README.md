@@ -73,7 +73,7 @@ refuses to run if `core.wasm`'s import surface has changed (see *Drift*).
 
 | Method | |
 |---|---|
-| `Engine::open(EngineConfig)` | boot. `model` is `Model::Alpha`; the gated tiers carry their own `Jwt` and are refused (see *Scope*) |
+| `Engine::open(EngineConfig)` | boot. `model` is a `Tier`, `Alpha` by default; all three boot the same way (see *Scope*) |
 | `query(sql)` / `exec(sql)` | direct SQLite against the catalogue and collection |
 | `card_by_id(data_id)` | resolve a recognition result to catalogue columns |
 | `recognize(&Image)` | identify cards in a still RGBA image |
@@ -333,12 +333,21 @@ unpacked in the page, against 4.0 s when it was served unpacked. Earlier, frames
 ImageMagick had given 2/6 or 3/6 on the web
 ([probe-in-curator.md](../../../docs/research/probe-in-curator.md)).
 
+Lambda and gamma were measured the same way on 2026-10-02, booting through alpha's
+init call as *Scope* describes, and they are not alpha's weights under another name:
+both get **6/6** on card name but only **4/6** on exact printing, natively and on the
+web alike. Counterspell is the extra miss on both, landing on Foreign Black Border
+rather than Alpha, on top of the Swords to Plowshares miss alpha also has — except
+gamma's Swords miss lands on a third wrong printing, Intl. Collectors' Edition.
+`web-check`'s per-tier run is what pins these: `ceiling()` in `web-check/src/lib.rs`
+holds each tier to its own two numbers, not alpha's.
+
 It only pins them where it can run. Every engine case needs the upstream blobs, and
 the accuracy ones need `magick` too; without either they skip and the suite still
 passes, which is not the same claim. Set `PROBE_REQUIRE_ENGINE=1` anywhere these
 numbers are meant to hold and a skip becomes a failure. `web-check/run.sh` holds the
-web host to the same two numbers, on the page and in a worker, and has no skip: a
-missing frame or tool is a failure.
+web host to each tier's own numbers, on the page and in a worker, for alpha, lambda
+and gamma alike, and has no skip: a missing frame or tool is a failure.
 
 ## Drift
 
@@ -382,12 +391,16 @@ wherever and handed across.
 
 ## Scope
 
-`alpha` tier only. `Model::Lambda` and `Model::Gamma` carry the `Jwt` that unlocks
-them, but `Engine::open` refuses both: the glue calls `_rec_alpha_init` and selects
-model 0 whatever the tier, so booting one would feed lambda or gamma weights to
-alpha's init and report success. The `_rec_set_jwt_token` gate was not touched and
-resolving the per-tier init export is what it would take. Their weights are pinned
-and archived beside alpha's all the same, since fetching them needs no token.
+All three tiers boot, through the one call the glue has always made: `_rec_alpha_init`,
+loaded with whichever tier's weights `Engine::open` fetched, then `_rec_set_model(0)`.
+The engine also exports `_rec_lambda_init`/`_rec_gamma_init`, each gated behind a JWT
+through `_rec_set_jwt_token` (FINDINGS §8), but the host never resolves or calls them —
+feeding lambda's or gamma's `.dat` bytes to alpha's untokened init boots clean and
+recognises correctly, so that is the one path every tier takes. `EngineConfig::model`
+just picks which `.dat` to fetch and load. Verified by
+`engine_boots_queries_and_recognises_{alpha,lambda,gamma}` and `web-check/run.sh`
+per tier — but the tiers are not identical weights: see *Accuracy and cost* for how
+their ceilings diverge.
 
 No Delver binaries are committed. The native host pulls them from the origin at run
 time; the web host serves the copy `gitaxian-probe-assets` downloads at build time,
