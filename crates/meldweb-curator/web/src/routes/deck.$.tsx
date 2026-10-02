@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { parseDeck } from "../deck";
 import { DeckEditor } from "../deck/DeckEditor";
+import { parseSearch, searchFor, viewingOf } from "../deck/versions";
 import { connect } from "../github/connect";
 import { settled } from "../github/save";
 import { openSession } from "../github/session";
@@ -8,8 +9,10 @@ import { SessionGate } from "../home/SessionGate";
 import { fetchPrintings } from "../scryfall";
 
 // One deck, by its path in the Magic repo: /deck/decks/lantern.deck.toml.
-// The URL is the deck, so a reload reopens it.
+// The URL is the deck, so a reload reopens it; `?at=<commit>` is the deck as
+// that commit left it, and `?vs=<path>` compares it with another deck.
 export const Route = createFileRoute("/deck/$")({
+  validateSearch: parseSearch,
   loader: async ({ params }) => {
     const path = params._splat ?? "";
     const session = await openSession();
@@ -37,11 +40,17 @@ export const Route = createFileRoute("/deck/$")({
   },
   // Never reopen a deck from a cached read: its sha would be stale.
   gcTime: 0,
+  // Moving through the deck's history changes only the search, and the open
+  // editor owns the text from its first load on; reading the file again for
+  // it would throw the read away.
+  shouldReload: false,
   component: DeckPage,
 });
 
 function DeckPage() {
   const data = Route.useLoaderData();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
   if (data.kind === "session") {
     return (
       <SessionGate session={data.session} returnPath={`/deck/${data.path}`} />
@@ -66,6 +75,11 @@ function DeckPage() {
       repo={data.repo}
       api={data.api}
       printings={data.printings}
+      viewing={viewingOf(search)}
+      drawer={search.history === true}
+      onNavigate={(viewing, drawer) =>
+        void navigate({ search: searchFor(viewing, drawer) })
+      }
     />
   );
 }

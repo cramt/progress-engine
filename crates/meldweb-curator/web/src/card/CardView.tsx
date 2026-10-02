@@ -56,6 +56,12 @@ export interface CardViewProps {
   /** Makes the card itself draggable, for a card with no draggable container. */
   onDragStart?: (e: DragEvent<HTMLDivElement>) => void;
   onDragEnd?: () => void;
+  /**
+   * A word across its corner about how it compares with another version of
+   * the deck: `in` for a card that version lacks, `changed` for one it has
+   * otherwise.
+   */
+  mark?: { tone: "in" | "changed"; label: string };
 }
 
 /**
@@ -78,6 +84,7 @@ export function CardView({
   onDecrease,
   onDragStart,
   onDragEnd,
+  mark,
 }: CardViewProps) {
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const openMenu = (x: number, y: number) => {
@@ -136,6 +143,9 @@ export function CardView({
       )}
       {finish && finish !== "nonfoil" && (
         <span className="card-finish">{finish}</span>
+      )}
+      {mark && (
+        <span className={`card-mark card-mark-${mark.tone}`}>{mark.label}</span>
       )}
       <div className="card-edge">
         {onIncrease && (

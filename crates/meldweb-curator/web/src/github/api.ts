@@ -90,6 +90,8 @@ export interface GitHubApi {
     path: string,
     page?: { until?: string; page?: number; perPage?: number },
   ): Promise<Revision[]>;
+  /** One commit, or `null` when the repo has none by that sha. */
+  revision(repo: RepoRef, commit: string): Promise<Revision | null>;
   /** The annotated tags whose names start with `prefix`. */
   snapshots(repo: RepoRef, prefix: string): Promise<Snapshot[]>;
   /** Tags `commit` as `tag`. Throws `ConflictError` when the name is taken. */
@@ -277,6 +279,18 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
     return (await r.json()) as T;
   }
 
+  interface CommitJson {
+    sha: string;
+    commit: { message: string; committer: { date: string } | null };
+    author: { login: string } | null;
+  }
+  const revisionOf = (c: CommitJson): Revision => ({
+    commit: c.sha,
+    message: c.commit.message,
+    date: c.commit.committer?.date ?? "",
+    author: c.author?.login ?? null,
+  });
+
   interface TagObject {
     sha: string;
     tag: string;
@@ -359,19 +373,22 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
         page: String(page.page ?? 1),
         ...(page.until ? { until: page.until } : {}),
       });
-      const commits = await json<
-        {
-          sha: string;
-          commit: { message: string; committer: { date: string } | null };
-          author: { login: string } | null;
-        }[]
-      >("GET", `${repoPath(repo)}/commits?${query}`);
-      return commits.map((c) => ({
-        commit: c.sha,
-        message: c.commit.message,
-        date: c.commit.committer?.date ?? "",
-        author: c.author?.login ?? null,
-      }));
+      const commits = await json<CommitJson[]>(
+        "GET",
+        `${repoPath(repo)}/commits?${query}`,
+      );
+      return commits.map(revisionOf);
+    },
+
+    async revision(repo, commit) {
+      const r = await request(
+        "GET",
+        `${repoPath(repo)}/commits/${encodeURIComponent(commit)}`,
+      );
+      // GitHub answers a sha it has never seen with 422 as often as 404.
+      if (r.status === 404 || r.status === 422) return null;
+      if (!r.ok) return fail(r);
+      return revisionOf((await r.json()) as CommitJson);
     },
 
     async snapshots(repo, prefix) {

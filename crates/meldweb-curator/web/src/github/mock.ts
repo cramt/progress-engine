@@ -331,18 +331,26 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
       )
       .reverse()
       .slice((page - 1) * perPage, page * perPage);
-    return json(
-      200,
-      hits.map((r) => ({
-        sha: r.commit,
-        commit: {
-          message: r.message,
-          author: { name: state.login, date: r.date },
-          committer: { name: state.login, date: r.date },
-        },
-        author: { login: state.login },
-      })),
-    );
+    return json(200, hits.map(commitJson));
+  }
+
+  function commitGet(sha: string): Response {
+    const r = state.log.find((r) => r.commit === sha);
+    return r
+      ? json(200, commitJson(r))
+      : json(422, { message: `No commit found for SHA: ${sha}` });
+  }
+
+  function commitJson(r: Revision) {
+    return {
+      sha: r.commit,
+      commit: {
+        message: r.message,
+        author: { name: state.login, date: r.date },
+        committer: { name: state.login, date: r.date },
+      },
+      author: { login: state.login },
+    };
   }
 
   /** The tags and refs of git's database that snapshots use. */
@@ -464,7 +472,9 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
     if (git) {
       const [, owner = "", name = "", kind = "", rest = ""] = git;
       if (!reachable(owner, name)) return notFound();
-      if (kind === "commits" && method === "GET") return commitsGet(url);
+      if (kind === "commits" && method === "GET") {
+        return rest === "" ? commitsGet(url) : commitGet(rest.slice(1));
+      }
       if (kind === "git") return gitDatabase(method, rest, body);
     }
     const contents = p.match(/^\/repos\/([^/]+)\/([^/]+)\/contents\/?(.*)$/);

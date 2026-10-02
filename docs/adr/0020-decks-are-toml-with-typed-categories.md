@@ -41,6 +41,7 @@ tempo        = {}
 - **`format` is metadata.** Gauntlet does not read it ([ADR-0005](0005-format-agnostic-no-legality-checking.md)): the tree decides what is in the library, not what is legal.
 - **`cover = "set/num"`** is the printing whose art stands for the deck in Meldweb Curator's deck list, ahead of its commanders'. It need not be in the deck, and nothing else reads it.
 - **`description`** is Markdown about the deck, for a person: what it is for, how it wins. It is written as a multi-line string under the other metadata, so a line of prose is a line of diff, and Curator renders it above the stacks without raw HTML. Nothing in the family reads it otherwise.
+- **`variant_of = "decks/<parent>.deck.toml"`** says the deck is a variant of another, such as a budget build of it ([ADR-0024](0024-a-decks-past-is-gits-and-a-variant-is-a-deck.md)). Curator compares the two and lists them together. Nothing else reads it.
 
 A printing identifies a card only through printing data, so resolving `msc/183` to Expressive Iteration offline needs the card index to carry printings. That is the price of naming a card once. `gauntlet sync` reads them from Scryfall's `default_cards` and files each after the cards as a line `printing:<set>/<number><TAB>"<card name>"`, the set lowercased; the header's `printings` counts them, and is absent from an index that carries none.
 

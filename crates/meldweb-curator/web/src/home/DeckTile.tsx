@@ -3,6 +3,7 @@ import { useState } from "react";
 import { CardMenu, type MenuEntry } from "../card/CardView";
 import type { DeckEntry } from "../github/decks";
 import { artCrop, type Printings, printingKey } from "../scryfall";
+import { BranchIcon } from "../ui/icons";
 import { Sigil } from "../ui/Sigil";
 import "./home.css";
 
@@ -15,10 +16,13 @@ export function DeckTile({
   deck,
   printings,
   menu,
+  parent,
 }: {
   deck: DeckEntry;
   printings: Printings;
   menu: MenuEntry[];
+  /** The name of the deck this one is a variant of, when it is one. */
+  parent?: string | undefined;
 }) {
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const commanders = (deck.commanders ?? []).flatMap((c) => {
@@ -60,6 +64,12 @@ export function DeckTile({
           {commanders.length > 0 && (
             <p className="deck-commander">
               {commanders.map((p) => p.name).join(" & ")}
+            </p>
+          )}
+          {deck.variantOf && (
+            <p className="deck-variant">
+              <BranchIcon />
+              variant of {parent ?? deck.variantOf}
             </p>
           )}
           {deck.refused ? (
