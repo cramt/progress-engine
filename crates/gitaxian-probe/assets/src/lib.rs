@@ -8,8 +8,9 @@
 //! own output and points `gitaxian-probe-engine`'s web host at wherever it ends
 //! up.
 //!
-//! Nothing here is compiled into a binary. The files are ~80 MB; they belong
-//! beside the app, where a browser can cache them apart from it.
+//! Nothing here is compiled into a binary. The files are ~105 MB, every tier's
+//! weights among them; they belong beside the app, where a browser can cache
+//! them apart from it, and a page fetches only the tier it opens.
 //!
 //! The pin is `pin.json`. The build downloads unless told otherwise, from the
 //! public archive at [`ARCHIVE_REGISTRY`] (the engine README, *The archive*)

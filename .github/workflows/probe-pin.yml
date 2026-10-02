@@ -1,5 +1,6 @@
 # Propose pinning each new Delver X build the archive holds (the OCI artifact
-# ghcr.io/cramt/delver-x, which probe-archive.yml publishes). One PR per build,
+# ghcr.io/cramt/delver-x, which probe-archive.yml publishes as one tag per
+# model tier, each tier's newest as latest-<tier>). One PR per build,
 # ever: a PR closed without merging is an answer.
 #
 # The archive is public and read anonymously, and GITHUB_TOKEN pushes the
@@ -33,25 +34,28 @@ jobs:
       - name: Pin the archive's newest build
         run: |
           pin=crates/gitaxian-probe/assets/pin.json
-          oras manifest fetch ghcr.io/cramt/delver-x:latest > "$RUNNER_TEMP/manifest.json" \
-            || { echo "the archive has no latest tag yet"; exit 0; }
-          changed=$(python3 crates/gitaxian-probe/assets/repin.py "$RUNNER_TEMP/manifest.json")
+          for tier in $(jq -r '.tiers | keys[]' "$pin"); do
+            oras manifest fetch "ghcr.io/cramt/delver-x:latest-$tier" > "$RUNNER_TEMP/$tier.json" \
+              || { echo "the archive has no latest-$tier tag yet"; exit 0; }
+          done
+          changed=$(python3 crates/gitaxian-probe/assets/repin.py $(jq -r --arg d "$RUNNER_TEMP" '.tiers | keys[] | "\($d)/\(.).json"' "$pin"))
           [ "$changed" = "changed=true" ] || { echo "latest is already pinned"; exit 0; }
-          latest=$(jq -r .tag "$pin")
-          branch="delver/$latest"
+          version=$(jq -r .version "$pin")
+          tags=$(jq -r '[.tiers[].tag] | join(", ")' "$pin")
+          # A tier's model can be rebuilt alone, so the build is all its tags.
+          branch="delver/$version-$(jq -r '[.tiers[].tag] | join(" ")' "$pin" | sha256sum | cut -c1-12)"
           if [ -n "$(gh pr list --head "$branch" --state all --json number --jq '.[].number')" ]; then
-            echo "$latest has had its PR"
+            echo "$tags has had its PR"
             exit 0
           fi
-          version=$(jq -r .version "$pin")
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "$branch"
-          git commit -am "probe: pin delver x $version, archived as $latest"
+          git commit -am "probe: pin delver x $version, archived as $tags"
           git push origin "$branch"
           gh pr create --head "$branch" \
-            --title "probe: pin delver x $version, archived as $latest" \
-            --body "The archive holds Delver X $version as \`ghcr.io/cramt/delver-x:$latest\`, and this PR pins it.
+            --title "probe: pin delver x $version" \
+            --body "The archive holds Delver X $version in \`ghcr.io/cramt/delver-x\` as $tags, and this PR pins it.
 
           CI and the probe web check were started on this branch by the pin workflow, since a PR it opens starts none. The web check says whether \`KNOWN_FINGERPRINT\` still holds and whether card name (6/6) and exact printing (4/6) moved. A moved fingerprint or number needs a person's reading of FINDINGS.md before this merges. CI does not run the native accuracy test (\`PROBE_REQUIRE_ENGINE=1\`)."
           gh workflow run ci.yml --ref "$branch"

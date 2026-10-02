@@ -169,12 +169,13 @@
       });
 
       # Gitaxian Probe's web build. The pin (assets/pin.json) names every file
-      # of the Delver X build by sha256, and on ghcr.io that sha256 is the
+      # of the Delver X build by sha256, the engine's and each tier's model, and on ghcr.io that sha256 is the
       # file's blob digest, so each file is a fixed-output derivation whose
       # hash is the pin: it may reach the network, and nothing unpinned gets
       # in. The registry wants a token even for a public blob, and hands an
       # anonymous one to anybody, which plain fetchurl cannot ask for.
       probePin = builtins.fromJSON (builtins.readFile ./crates/gitaxian-probe/assets/pin.json);
+      probePinned = probePin.engine ++ builtins.concatMap (tier: tier.model) (builtins.attrValues probePin.tiers);
       probeBlob = file:
         pkgs.runCommand "delver-x-${file.name}" {
           nativeBuildInputs = [pkgs.curl pkgs.jq];
@@ -193,7 +194,7 @@
           inherit (file) name;
           path = probeBlob file;
         })
-        probePin.files);
+        probePinned);
 
       # The probe's own workspace, without its build output, the fixtures
       # fetched for its tests, or the archive's publisher.

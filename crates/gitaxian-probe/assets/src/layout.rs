@@ -1,6 +1,6 @@
 // Where the pinned build comes from and how it is laid out for serving. Shared
 // by build.rs and the library through `include!`; the pin itself is
-// `pin.json`, which build.rs turns into the library's VERSION, ARCHIVE_TAG and
+// `pin.json`, which build.rs turns into the library's VERSION, ARCHIVE_TAGS and
 // PINNED.
 
 /// Where upstream serves its current build, and only that one.
@@ -16,8 +16,8 @@ pub const ARCHIVE_REPOSITORY: &str = "cramt/delver-x";
 
 /// What ends up in the asset directory, which is what a page serves: the
 /// archive's files as upstream shipped them, so a page can as well proxy the
-/// archive as serve this directory. The model stays packed, and the web host
-/// unpacks it in the page.
+/// archive as serve this directory. Every tier's model, packed: a page fetches
+/// only the tier it opens and unpacks it there.
 pub const SERVED: &[&str] = &[
     "version.txt",
     "core.js",
@@ -27,4 +27,8 @@ pub const SERVED: &[&str] = &[
     "data.size",
     "model-alpha.7z",
     "model-alpha.size",
+    "model-lambda.7z",
+    "model-lambda.size",
+    "model-gamma.7z",
+    "model-gamma.size",
 ];

@@ -234,8 +234,8 @@ download outright.
 ### The archive
 
 `ghcr.io/cramt/delver-x` is a public OCI artifact that keeps every Delver build as
-one tag, `delver-<version>-<12 hex of its SHA256SUMS>`, with each file its own
-blob. `.github/workflows/probe-archive.yml` pushes each new build daily with its own
+one tag per model tier, `delver-<version>-<tier>-<12 hex of its SHA256SUMS>`,
+each the engine and that tier's model, with each file its own blob. `.github/workflows/probe-archive.yml` pushes each new build daily with its own
 `GITHUB_TOKEN`, and `../archive/README.md` covers the tag rule and why it is
 public. A blob's digest is its file's sha256, so the pin, `assets/pin.json`, is
 also the list of blobs to fetch. This repo uses it in four places:
@@ -243,16 +243,16 @@ also the list of blobs to fetch. This repo uses it in four places:
 - **Building, outside Nix.** `gitaxian-probe-assets`'s build script reads
   `pin.json` and fetches each file by digest from ghcr.io with an anonymous token,
   before asking Delver. Every file is still checked against the pin, and the build
-  recomputes the tag from the table, so one edited by hand fails with the tag it
-  should be.
+  recomputes each tier's tag from the table, so one edited by hand fails with the
+  tag it should be.
 - **Building, in Nix.** The flake reads the same `pin.json`, fetches each blob as a
   fixed-output derivation whose hash is the pin, and hands the directory to the
   build script as `GITAXIAN_PROBE_ASSETS_FROM`. Its `gitaxian-probe-web` package is
   the JavaScript API (`pkg/`) beside the served files (`gitaxian-probe/`), and
   `nix flake check` builds it.
 - **Pinning a new build.** `.github/workflows/probe-pin.yml` runs daily. It reads
-  the `latest` tag's manifest, rewrites `pin.json` from it with `assets/repin.py`,
-  and opens one PR per build. It never merges.
+  each tier's `latest-<tier>` manifest, rewrites `pin.json` from them with
+  `assets/repin.py`, and opens one PR per build. It never merges.
 - **Reviewing that PR.** `.github/workflows/probe-web-check.yml` runs
   `web-check/run.sh` on every PR that touches the probe, with ImageMagick-made
   frames. It shows whether `KNOWN_FINGERPRINT` still holds and whether 6/6 and 5/6
@@ -386,7 +386,8 @@ wherever and handed across.
 them, but `Engine::open` refuses both: the glue calls `_rec_alpha_init` and selects
 model 0 whatever the tier, so booting one would feed lambda or gamma weights to
 alpha's init and report success. The `_rec_set_jwt_token` gate was not touched and
-resolving the per-tier init export is what it would take.
+resolving the per-tier init export is what it would take. Their weights are pinned
+and archived beside alpha's all the same, since fetching them needs no token.
 
 No Delver binaries are committed. The native host pulls them from the origin at run
 time; the web host serves the copy `gitaxian-probe-assets` downloads at build time,

@@ -1,7 +1,7 @@
 //! Fetch the pinned Delver X build, check it, and lay it out for serving.
 //!
-//! The pin is `pin.json`: the build's version, its archive tag, and every
-//! file's sha256. Each file comes from, in order: this crate's `OUT_DIR` if an
+//! The pin is `pin.json`: the build's version, the engine's files, and per
+//! model tier its archive tag and its model's files, each with its sha256. Each file comes from, in order: this crate's `OUT_DIR` if an
 //! earlier build already verified it, the directory `GITAXIAN_PROBE_ASSETS_FROM`
 //! names (the flake hands in one it fetched itself), the public archive on
 //! ghcr.io, or the origin. Whatever the source, it has to hash to the pin, so a
@@ -36,8 +36,41 @@ type Result<T> = std::result::Result<T, String>;
 #[derive(Facet)]
 struct Pin {
     version: String,
+    engine: Vec<Pinned>,
+    tiers: Tiers,
+}
+
+/// A field per tier rather than a map, so a pin missing one does not parse.
+#[derive(Facet)]
+struct Tiers {
+    alpha: TierPin,
+    lambda: TierPin,
+    gamma: TierPin,
+}
+
+/// One tier's tag in the archive, which holds the engine and this model.
+#[derive(Facet)]
+struct TierPin {
     tag: String,
-    files: Vec<Pinned>,
+    model: Vec<Pinned>,
+}
+
+impl Pin {
+    fn tiers(&self) -> [(&'static str, &TierPin); 3] {
+        let t = &self.tiers;
+        [
+            ("alpha", &t.alpha),
+            ("lambda", &t.lambda),
+            ("gamma", &t.gamma),
+        ]
+    }
+
+    /// Every file once: the engine, then each tier's model.
+    fn files(&self) -> impl Iterator<Item = &Pinned> {
+        self.engine
+            .iter()
+            .chain(self.tiers().into_iter().flat_map(|(_, t)| &t.model))
+    }
 }
 
 #[derive(Facet)]
@@ -76,7 +109,9 @@ fn main() {
 fn read_pin() -> Result<Pin> {
     let json = fs::read_to_string("pin.json").map_err(|e| format!("reading pin.json: {e}"))?;
     let pin: Pin = facet_json::from_str(&json).map_err(|e| format!("pin.json: {e}"))?;
-    check_tag(&pin)?;
+    for (tier, pinned) in pin.tiers() {
+        check_tier(&pin, tier, pinned)?;
+    }
     Ok(pin)
 }
 
@@ -86,16 +121,28 @@ fn pin_rs(pin: &Pin) -> String {
     let mut rs = format!(
         "/// The build string `version.txt` carries.\n\
          pub const VERSION: &str = {:?};\n\n\
-         /// This build's tag in [`ARCHIVE_REPOSITORY`].\n\
-         pub const ARCHIVE_TAG: &str = {:?};\n\n\
+         /// A model tier's tag in [`ARCHIVE_REPOSITORY`]: the engine and that tier's model.\n\
+         pub struct ArchiveTag {{\n    pub tier: &'static str,\n    pub tag: &'static str,\n}}\n\n\
+         /// This build's tags, one per tier.\n\
+         pub const ARCHIVE_TAGS: &[ArchiveTag] = &[\n",
+        pin.version
+    );
+    for (tier, pinned) in pin.tiers() {
+        let _ = writeln!(
+            rs,
+            "    ArchiveTag {{ tier: {tier:?}, tag: {:?} }},",
+            pinned.tag
+        );
+    }
+    rs.push_str(
+        "];\n\n\
          /// One file as upstream serves it, and the sha256 it has to have: also\n\
          /// its blob's digest in the archive.\n\
-         pub struct Pinned {{\n    pub name: &'static str,\n    pub sha256: &'static str,\n}}\n\n\
+         pub struct Pinned {\n    pub name: &'static str,\n    pub sha256: &'static str,\n}\n\n\
          /// Every file fetched, in `pin.json`'s order.\n\
          pub const PINNED: &[Pinned] = &[\n",
-        pin.version, pin.tag
     );
-    for f in &pin.files {
+    for f in pin.files() {
         let _ = writeln!(
             rs,
             "    Pinned {{ name: {:?}, sha256: {:?} }},",
@@ -111,7 +158,7 @@ fn build(pin: &Pin, fetched: &Path, served: &Path) -> Result<()> {
     mkdir(served)?;
 
     let mut drift = Vec::new();
-    for file in &pin.files {
+    for file in pin.files() {
         let path = fetched.join(&file.name);
         if let Some(actual) = obtain(file, &path)? {
             drift.push((file.name.as_str(), actual));
@@ -166,21 +213,34 @@ fn obtain(file: &Pinned, path: &Path) -> Result<Option<String>> {
     Ok(None)
 }
 
-/// The pin's tag, recomputed: `delver-<version>-` and 12 hex of the sha256 of
-/// the table as `sha256sum` writes it. The archive tags its builds by the same
+/// A tier's model is its two files, and its tag, recomputed, is
+/// `delver-<version>-<tier>-` and 12 hex of the sha256 of the engine and the
+/// model as `sha256sum` writes them. The archive tags its builds by the same
 /// rule, so a table edited by hand without its tag fails here.
-fn check_tag(pin: &Pin) -> Result<()> {
+fn check_tier(pin: &Pin, tier: &str, pinned: &TierPin) -> Result<()> {
+    let names: Vec<&str> = pinned.model.iter().map(|f| f.name.as_str()).collect();
+    let want = [format!("model-{tier}.7z"), format!("model-{tier}.size")];
+    if names != want {
+        return Err(format!(
+            "pin.json's {tier} model is {names:?}, where it has to be {want:?}"
+        ));
+    }
     let sums: String = pin
-        .files
+        .engine
         .iter()
+        .chain(&pinned.model)
         .map(|f| format!("{}  {}\n", f.sha256, f.name))
         .collect();
-    let want = format!("delver-{}-{}", pin.version, &sha256(sums.as_bytes())[..12]);
-    if pin.tag != want {
+    let want = format!(
+        "delver-{}-{tier}-{}",
+        pin.version,
+        &sha256(sums.as_bytes())[..12]
+    );
+    if pinned.tag != want {
         return Err(format!(
-            "pin.json's tag is {}, but its files and version make it {want}. \
+            "pin.json's {tier} tag is {}, but its files and version make it {want}. \
              Set it to {want}, or rewrite the pin with assets/repin.py.",
-            pin.tag
+            pinned.tag
         ));
     }
     Ok(())
