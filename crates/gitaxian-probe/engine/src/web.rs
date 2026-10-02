@@ -34,7 +34,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
 use crate::{
-    job, wasm, Card, Detection, Image, Model, Point, Progress, Tier, KNOWN_FINGERPRINT, MAX_FRAMES,
+    job, wasm, Card, Detection, Image, Point, Progress, Tier, KNOWN_FINGERPRINT, MAX_FRAMES,
     SETTLE_TIMEOUT_MS,
 };
 
@@ -101,7 +101,7 @@ pub struct EngineConfig {
     /// that fetches each file by its digest, as Meldweb Curator's proxy of the
     /// archive does. Resolved against the page as `base` is.
     pub files: Vec<(String, String)>,
-    pub model: Model,
+    pub model: Tier,
     /// Run even though core.wasm's import surface no longer matches
     /// [`KNOWN_FINGERPRINT`].
     pub allow_unknown_build: bool,
@@ -115,7 +115,7 @@ impl Default for EngineConfig {
         Self {
             base: "gitaxian-probe/".into(),
             files: Vec::new(),
-            model: Model::Alpha,
+            model: Tier::Alpha,
             allow_unknown_build: false,
             on_progress: None,
             timeout: Duration::from_secs(120),
@@ -140,7 +140,7 @@ impl Engine {
     /// running, model loaded. Resolves only once all of that holds, so the
     /// engine handed back is never half-built.
     pub async fn open(config: EngineConfig) -> Result<Self> {
-        let tier = config.model.bootable()?;
+        let tier = config.model;
         // Checked first because nothing later fails cleanly without it: core.js
         // throws inside a Worker postMessage and the boot never settles.
         if let Some(why) = isolation_problem() {

@@ -11,9 +11,7 @@ mod skip;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use gitaxian_probe_engine::{
-    Bundle, Engine, EngineConfig, Image, Model, Source, Tier, KNOWN_FINGERPRINT,
-};
+use gitaxian_probe_engine::{Bundle, Engine, EngineConfig, Image, Source, Tier, KNOWN_FINGERPRINT};
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -51,12 +49,26 @@ fn to_rgba(file: &Path) -> Option<(Vec<u8>, u32, u32)> {
 }
 
 #[test]
-fn engine_boots_queries_and_recognises() {
+fn engine_boots_queries_and_recognises_alpha() {
+    engine_boots_queries_and_recognises(Tier::Alpha);
+}
+
+#[test]
+fn engine_boots_queries_and_recognises_lambda() {
+    engine_boots_queries_and_recognises(Tier::Lambda);
+}
+
+#[test]
+fn engine_boots_queries_and_recognises_gamma() {
+    engine_boots_queries_and_recognises(Tier::Gamma);
+}
+
+fn engine_boots_queries_and_recognises(tier: Tier) {
     if !ready() {
         return;
     }
     let mut engine = Engine::open(EngineConfig {
-        model: Model::Alpha,
+        model: tier,
         ..Default::default()
     })
     .expect("engine should boot");

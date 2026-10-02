@@ -89,69 +89,6 @@ pub(crate) fn abi_json() -> String {
 pub(crate) const MAX_FRAMES: f64 = 12.0;
 pub(crate) const SETTLE_TIMEOUT_MS: f64 = 4000.0;
 
-/// The JWT that unlocks a gated tier. A newtype so that the only way to reach
-/// [`Model::Lambda`] or [`Model::Gamma`] is to have produced one.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Jwt(String);
-
-impl Jwt {
-    pub fn new(token: impl Into<String>) -> Self {
-        Self(token.into())
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-/// Which weights to boot with.
-///
-/// The token rides on the variants that need it rather than sitting beside
-/// them in the config, so a tokenless Gamma is not a runtime check that fires
-/// late in `open` - it does not typecheck.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Model {
-    Alpha,
-    Lambda(Jwt),
-    Gamma(Jwt),
-}
-
-impl Model {
-    /// Which file of weights this is, independently of what unlocks it.
-    pub fn tier(&self) -> Tier {
-        match self {
-            Model::Alpha => Tier::Alpha,
-            Model::Lambda(_) => Tier::Lambda,
-            Model::Gamma(_) => Tier::Gamma,
-        }
-    }
-
-    pub fn token(&self) -> Option<&Jwt> {
-        match self {
-            Model::Alpha => None,
-            Model::Lambda(t) | Model::Gamma(t) => Some(t),
-        }
-    }
-
-    /// The tier to boot, or why it cannot be. The glue hardcodes
-    /// `_rec_alpha_init` and model id 0, so a gated tier would boot by feeding
-    /// lambda or gamma weights to alpha's init and reporting success. Refusing
-    /// is the honest answer until the per-tier init export is resolved
-    /// host-side (README, *Scope*).
-    pub(crate) fn bootable(&self) -> Result<Tier> {
-        if self.token().is_some() {
-            bail!(
-                "{} is gated behind _rec_set_jwt_token and its init export is not resolved \
-                 host-side yet; only Model::Alpha can boot",
-                self.tier().name()
-            );
-        }
-        Ok(self.tier())
-    }
-}
-
-/// One tier of weights, as the artefact store names it. Separate from [`Model`]
-/// because fetching `model-lambda.dat` needs the name and not the token.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Tier {
     Alpha,

@@ -13,7 +13,7 @@ pub use crate::sandbox::ProgressFn;
 use crate::sandbox::{self, Artifacts, HostState, LogSink, RoleState, Stores};
 use crate::worker::{self, SpawnContext, WorkerRegistry};
 use crate::{
-    pump, BootInfo, Card, Detection, Image, Model, Point, Tier, KNOWN_FINGERPRINT, MAX_FRAMES,
+    pump, BootInfo, Card, Detection, Image, Point, Tier, KNOWN_FINGERPRINT, MAX_FRAMES,
     SETTLE_TIMEOUT_MS,
 };
 
@@ -22,7 +22,7 @@ pub struct EngineConfig {
     /// runs. The default downloads them from the origin into
     /// `/tmp/gitaxian-probe`.
     pub source: Source,
-    pub model: Model,
+    pub model: Tier,
     /// What `navigator.hardwareConcurrency` reports inside the sandbox. It does
     /// not size the pool: this build preallocates 32 pthreads whatever it says.
     pub reported_concurrency: u32,
@@ -38,7 +38,7 @@ impl Default for EngineConfig {
     fn default() -> Self {
         Self {
             source: Source::default(),
-            model: Model::Alpha,
+            model: Tier::Alpha,
             reported_concurrency: std::thread::available_parallelism()
                 .map_or(4, |n| n.get() as u32),
             allow_unknown_build: false,
@@ -77,9 +77,7 @@ impl Engine {
     /// running, model loaded. Returns only once all of that holds, so the
     /// engine handed back is never half-built.
     pub fn open(config: EngineConfig) -> Result<Self> {
-        let tier = config.model.bootable()?;
-
-        let bundle = Bundle::fetch(&config.source, tier, config.on_progress.as_deref())
+        let bundle = Bundle::fetch(&config.source, config.model, config.on_progress.as_deref())
             .context("fetching the engine")?;
         let artifacts = Arc::new(Artifacts::new(
             bundle,
@@ -128,7 +126,7 @@ impl Engine {
         // Boot unpacks a 44 MB catalogue and loads a 34 MB model, so it gets
         // more room than an ordinary call.
         let boot_timeout = config.timeout.max(Duration::from_secs(120));
-        let boot = call_method(&mut js, &api, "boot", &[Arg::Str(tier.name())])?;
+        let boot = call_method(&mut js, &api, "boot", &[Arg::Str(config.model.name())])?;
         let info = pump::run_until(&mut js, &pump, boot, boot_timeout)
             .map_err(|e| worker::explain(e, &failures))
             .context("booting the engine")?;
@@ -145,7 +143,7 @@ impl Engine {
             timeout: config.timeout,
             version: info.version,
             fingerprint,
-            tier,
+            tier: config.model,
             closed: false,
         })
     }
