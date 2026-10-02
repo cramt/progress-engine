@@ -246,6 +246,7 @@ impl Deck {
             deck: Deck {
                 name: None,
                 format: None,
+                variant_of: None,
                 cover: None,
                 description: None,
                 categories,

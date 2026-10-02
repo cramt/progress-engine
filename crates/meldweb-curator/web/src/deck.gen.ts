@@ -1,6 +1,31 @@
 // Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
+export type Compared =
+  | { kind: "diff"; changes: DeckChange[] }
+  | { kind: "refused"; message: string };
+
+/**
+ * One change between two decks, as `chip_decklist::diff` finds it. A card
+ * line is named by its index in the `before` deck, the `after` deck, or
+ * both; `text` is the line a commit message says the change with.
+ */
+export type DeckChange =
+  | { kind: "add"; after: number; text: string }
+  | { kind: "remove"; before: number; text: string }
+  | { kind: "qty"; before: number; after: number; text: string }
+  | { kind: "move"; before: number; after: number; text: string }
+  | { kind: "printing"; before: number; after: number; text: string }
+  | { kind: "finish"; before: number; after: number; text: string }
+  | { kind: "declare"; category: string; text: string }
+  | { kind: "undeclare"; category: string; text: string }
+  | { kind: "retype"; category: string; text: string }
+  | { kind: "rename"; text: string }
+  | { kind: "format"; text: string }
+  | { kind: "variantOf"; text: string }
+  | { kind: "cover"; text: string }
+  | { kind: "description"; text: string };
+
 export type ParsedCollection =
   | { kind: "collection"; places: Place[]; cards: OwnedCard[]; total: number }
   | { kind: "refused"; message: string };
@@ -75,7 +100,7 @@ export type NewCard =
   | { kind: "name"; name: string };
 
 export type Parsed =
-  | { kind: "deck"; name?: string; format?: string; cover?: Printing; description?: string; categories: Category[]; cards: Card[]; total: number }
+  | { kind: "deck"; name?: string; format?: string; variantOf?: string; cover?: Printing; description?: string; categories: Category[]; cards: Card[]; total: number }
   | { kind: "refused"; message: string };
 
 export interface Card {
