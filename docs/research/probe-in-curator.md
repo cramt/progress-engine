@@ -39,7 +39,7 @@ with the lantern deck open.
 | `web/scripts/build-probe.mjs` | builds that crate from the probe's own workspace with its wasm-bindgen (the probe's Cargo.lock now pins the editor's, 0.2.126), and for the dev server copies the pinned engine files. Everything lands under `crates/gitaxian-probe/target/meldweb/`. The Nix build takes the API from the flake's `gitaxian-probe-bindgen` instead (`MELDWEB_PROBE_PREBUILT`) |
 | `web/vite.config.ts`, `gitaxianProbe()` | makes every page cross-origin isolated, in dev and, through a `_headers` file, on the site. Resolves `virtual:gitaxian-probe` to the API and each engine file's URL by its digest, in every site build and in `MELDWEB_PROBE=1 pnpm dev`, and to `null` in plain `pnpm dev` and vitest. The dev server serves the engine files itself |
 | `worker/src/probe.ts` | `GET /gitaxian-probe/<sha256>/<name>`: that blob, piped from ghcr.io |
-| `web/src/probe/` | `scanner.ts` (the page's one scanner, and framing an image), `printings.ts` (`scryfall_id` to `set/num`, and adding a printing), `ScanDialog.tsx`, and the collection scanner's `tracker.ts` and `beep.ts` |
+| `web/src/probe/` | `scanner.ts` (the page's scanner for each model, and framing an image), `models.ts` and `ModelPicker.tsx` (which model, picked per browser), `printings.ts` (`scryfall_id` to `set/num`, and adding a printing), `ScanDialog.tsx`, and the collection scanner's `tracker.ts` and `beep.ts` |
 
 The Scan buttons appear only when `virtual:gitaxian-probe` is not `null`. The
 site carries the probe's API, a 1.9 MB wasm, and none of Delver's files.
@@ -74,10 +74,21 @@ takes it (`EngineConfig::files`), so it fetches each file there rather than at
 `base` + name. The dev server answers the same URLs from the probe's target
 dir.
 
+The map carries every tier's model, and the scan dialog and the collection's
+scan panel each have a Model picker: alpha (the default, 23 MB), lambda (28 MB)
+or gamma (40 MB). The pick is kept per browser and shared by both. A page
+fetches and boots a model the first time it is picked and keeps it: the
+engine's 32 workers outlive `close()`, so a page holds at most three engines,
+and going back to one already booted is instant. Alpha is the default because
+it names one more exact printing on the fixtures than the other two
+(the engine README, *Accuracy and cost*). The collection's picker is locked
+while scanning, since a new model is a new tracker and would count the card
+in view again.
+
 The files are byte for byte as upstream shipped them, the model packed, so the
-engine's web host unpacks `model-alpha.7z` in the page with the same LZMA2
+engine's web host unpacks `model-<tier>.7z` in the page with the same LZMA2
 reader the native host uses (`sevenz-rust2` without its encryption, which does
-not build for wasm32), and checks it against `model-alpha.size`.
+not build for wasm32), and checks it against `model-<tier>.size`.
 
 Measured on 2026-10-01, with the built site served by the worker's own code
 against the real ghcr.io (Node, in this sandbox: `wrangler dev` was not run):

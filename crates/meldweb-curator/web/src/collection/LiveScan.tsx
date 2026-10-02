@@ -3,6 +3,7 @@ import { isTyping } from "../card/hotkeys";
 import type { Place } from "../collection";
 import type { Finish, NewCard } from "../deck";
 import { beep } from "../probe/beep";
+import { ModelPicker, useModel } from "../probe/ModelPicker";
 import { printingsById } from "../probe/printings";
 import {
   type Boot,
@@ -69,7 +70,8 @@ export function LiveScan({
   onTakeBack: (copy: ScannedCopy) => string | null;
   onClose: () => void;
 }) {
-  const boot = useScanner();
+  const [model, setModel] = useModel();
+  const boot = useScanner(model);
   const video = useRef<HTMLVideoElement>(null);
   const [camera, setCamera] = useState<MediaStream | null>(null);
   const [audio, setAudio] = useState<AudioContext | null>(null);
@@ -373,11 +375,17 @@ export function LiveScan({
                   <span className="muted">
                     {" "}
                     · into {at ?? UNSORTED}, {finish}, {speed}
-                    {keepPrinting ? "" : ", by name"}
+                    {keepPrinting ? "" : ", by name"}, {model}
                   </span>
                 )}
               </summary>
               <fieldset className="scan-settings">
+                {/* A new model is a new tracker, which would count the card in view again. */}
+                <ModelPicker
+                  model={model}
+                  onChange={setModel}
+                  disabled={running}
+                />
                 <label className="field">
                   Into
                   <select

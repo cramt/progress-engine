@@ -34,13 +34,14 @@ function decklistWasm(): Plugin {
 const PROBE = "virtual:gitaxian-probe";
 // Each engine file by its digest: the worker pipes `<sha256>` from the archive
 // on ghcr.io, and the dev server serves `<name>` from the probe's target dir.
-// The scanner boots alpha, so the engine and alpha's model are all it asks for.
+// The scanner boots whichever model is picked (src/probe/models.ts), so every
+// tier's is listed; a page fetches only the ones it boots.
 const PROBE_BASE = "/gitaxian-probe/";
 const PROBE_FILES = Object.fromEntries(
-  [...probePin.engine, ...probePin.tiers.alpha.model].map((f) => [
-    f.name,
-    `${PROBE_BASE}${f.sha256}/${f.name}`,
-  ]),
+  [
+    ...probePin.engine,
+    ...Object.values(probePin.tiers).flatMap((t) => t.model),
+  ].map((f) => [f.name, `${PROBE_BASE}${f.sha256}/${f.name}`]),
 );
 const TYPES: Record<string, string> = {
   ".js": "text/javascript",

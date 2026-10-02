@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ModelPicker, useModel } from "./ModelPicker";
 import { printingsById, type ScannedPrinting } from "./printings";
 import { type Found, frameOf, scan, useScanner } from "./scanner";
 import "./probe.css";
@@ -24,7 +25,8 @@ export function ScanDialog({
   onAdd: (printing: ScannedPrinting) => void;
   onClose: () => void;
 }) {
-  const boot = useScanner();
+  const [model, setModel] = useModel();
+  const boot = useScanner(model);
   const [camera, setCamera] = useState<MediaStream | null>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [busy, setBusy] = useState(false);
@@ -160,6 +162,7 @@ export function ScanDialog({
                   }}
                 />
               </label>
+              <ModelPicker model={model} onChange={setModel} disabled={busy} />
             </div>
             <p className="scan-status" role="status">
               {boot.phase === "booting" &&

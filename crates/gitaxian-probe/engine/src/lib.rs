@@ -97,12 +97,23 @@ pub enum Tier {
 }
 
 impl Tier {
-    pub(crate) fn name(self) -> &'static str {
+    pub const ALL: [Tier; 3] = [Tier::Alpha, Tier::Lambda, Tier::Gamma];
+
+    /// The name the artefacts carry: `model-<name>.7z`, and the pin's key.
+    pub fn name(self) -> &'static str {
         match self {
             Tier::Alpha => "alpha",
             Tier::Lambda => "lambda",
             Tier::Gamma => "gamma",
         }
+    }
+
+    /// The tier [`Tier::name`] names.
+    pub fn from_name(name: &str) -> Result<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|t| t.name() == name)
+            .ok_or_else(|| anyhow::anyhow!("unknown tier {name:?}: alpha, lambda or gamma"))
     }
 }
 

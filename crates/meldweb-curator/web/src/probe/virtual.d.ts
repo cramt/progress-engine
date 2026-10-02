@@ -15,12 +15,13 @@ declare module "virtual:gitaxian-probe" {
     Scanner: {
       open(
         base: string,
+        tier: "alpha" | "lambda" | "gamma",
         onProgress?: (stage: string, percent: number, message: string) => void,
         files?: Record<string, string>,
       ): Promise<ScannerHandle>;
     };
     base: string;
-    /** Each of Delver X's engine files, by name: `/gitaxian-probe/<sha256>/<name>`. */
+    /** Each of Delver X's engine files and every tier's model, by name: `/gitaxian-probe/<sha256>/<name>`. */
     files: Record<string, string>;
   } | null;
   export default probe;

@@ -33,15 +33,6 @@ const CASES: &[(&str, &str, &str)] = &[
     ("thoughtseize", "Thoughtseize", "Theros"),
 ];
 
-fn parse_tier(tier: &str) -> Result<Tier> {
-    match tier {
-        "alpha" => Ok(Tier::Alpha),
-        "lambda" => Ok(Tier::Lambda),
-        "gamma" => Ok(Tier::Gamma),
-        other => bail!("unknown tier {other:?}"),
-    }
-}
-
 /// Each tier's own ceiling on the six fixtures (card name, exact printing),
 /// measured natively and held here rather than one shared number.
 fn ceiling(tier: Tier) -> (u32, u32) {
@@ -62,7 +53,7 @@ pub async fn check(base: String, tier: String, frames: JsValue) -> Result<String
 }
 
 async fn run(base: String, tier: String, frames: JsValue) -> Result<String> {
-    let model = parse_tier(&tier)?;
+    let model = Tier::from_name(&tier)?;
     let mut report = String::new();
     let stages = Rc::new(std::cell::RefCell::new(Vec::<String>::new()));
     let seen = stages.clone();

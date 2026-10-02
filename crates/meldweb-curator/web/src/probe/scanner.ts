@@ -1,5 +1,6 @@
 import probe, { type ScannerHandle } from "virtual:gitaxian-probe";
 import { useEffect, useState } from "react";
+import type { Model } from "./models";
 
 /** Whether this build carries the card scanner: every site build, and `MELDWEB_PROBE=1 pnpm dev`. */
 export const scannerAvailable = probe !== null;
@@ -26,15 +27,26 @@ export interface Found {
 
 export type Progress = (stage: string, percent: number) => void;
 
-let opening: Promise<ScannerHandle> | null = null;
+interface Opening {
+  scanner: Promise<ScannerHandle>;
+  /** Everyone waiting on this boot, so a second caller sees its progress too. */
+  listeners: Set<Progress>;
+}
+
+const opening = new Map<Model, Opening>();
 
 /**
- * The page's one scanner, booted on first use. Boot costs a few seconds and
- * ~42 MB of downloads and unpacking the model, then 32 workers that live as long as the page, so it
- * is shared by every scan and never closed. A failed boot is forgotten, so
- * the next call tries again.
+ * The page's scanner for `model`, booted on its first use. Boot costs a few
+ * seconds, tens of MB of downloads and unpacking the model, then 32 workers
+ * that live as long as the page whether the scanner is closed or not. So each
+ * model's scanner is shared by every scan and never closed, and going back to
+ * a model already booted is instant. A failed boot is forgotten, so the next
+ * call tries again.
  */
-export function openScanner(progress?: Progress): Promise<ScannerHandle> {
+export function openScanner(
+  model: Model,
+  progress?: Progress,
+): Promise<ScannerHandle> {
   if (!probe) return Promise.reject(new Error("this build has no scanner"));
   if (!crossOriginIsolated) {
     return Promise.reject(
@@ -44,15 +56,32 @@ export function openScanner(progress?: Progress): Promise<ScannerHandle> {
     );
   }
   const { init, Scanner, base, files } = probe;
-  opening ??= init()
-    .then(() =>
-      Scanner.open(base, (stage, percent) => progress?.(stage, percent), files),
-    )
-    .catch((e: unknown) => {
-      opening = null;
-      throw e;
-    });
-  return opening;
+  let boot = opening.get(model);
+  if (!boot) {
+    const listeners = new Set<Progress>();
+    boot = {
+      listeners,
+      scanner: init()
+        .then(() =>
+          Scanner.open(
+            base,
+            model,
+            (stage, percent) => {
+              for (const l of listeners) l(stage, percent);
+            },
+            files,
+          ),
+        )
+        .catch((e: unknown) => {
+          opening.delete(model);
+          throw e;
+        })
+        .finally(() => listeners.clear()),
+    };
+    opening.set(model, boot);
+  }
+  if (progress) boot.listeners.add(progress);
+  return boot.scanner;
 }
 
 /** The cards in one RGBA frame. */
@@ -103,8 +132,8 @@ export type Boot =
   | { phase: "ready"; scanner: ScannerHandle }
   | { phase: "failed"; message: string };
 
-/** The page's scanner, booted when the first component using it mounts. */
-export function useScanner(): Boot {
+/** The page's scanner for `model`, booted when first asked for. */
+export function useScanner(model: Model): Boot {
   const [boot, setBoot] = useState<Boot>({
     phase: "booting",
     stage: "load",
@@ -112,7 +141,8 @@ export function useScanner(): Boot {
   });
   useEffect(() => {
     let live = true;
-    openScanner((stage, percent) => {
+    setBoot({ phase: "booting", stage: "load", percent: 0 });
+    openScanner(model, (stage, percent) => {
       if (live) setBoot({ phase: "booting", stage, percent });
     }).then(
       (scanner) => live && setBoot({ phase: "ready", scanner }),
@@ -126,6 +156,6 @@ export function useScanner(): Boot {
     return () => {
       live = false;
     };
-  }, []);
+  }, [model]);
   return boot;
 }

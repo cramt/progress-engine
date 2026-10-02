@@ -18,7 +18,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use facet::Facet;
-use gitaxian_probe_engine::{Card, Engine, EngineConfig, Image};
+use gitaxian_probe_engine::{Card, Engine, EngineConfig, Image, Tier};
 use js_sys::{Function, Promise, Uint8Array};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
@@ -47,16 +47,19 @@ pub struct Scanner {
 
 #[wasm_bindgen]
 impl Scanner {
-    /// Boot the engine from the files served at `base`. `onProgress`, if given,
+    /// Boot the engine from the files served at `base`, with the weights of
+    /// `tier`: `"alpha"`, `"lambda"` or `"gamma"`. `onProgress`, if given,
     /// is called as `(stage, percent, message)`. `files`, if given, is
     /// `{ name: url }` for files that are not at `base` + name. Resolves to a
     /// `Scanner` once the catalogue is queryable and the model loaded.
     pub fn open(
         base: String,
+        tier: String,
         on_progress: Option<Function>,
         files: Option<js_sys::Object>,
     ) -> Promise {
         future_to_promise(async move {
+            let model = Tier::from_name(&tier).map_err(to_js)?;
             let files = files
                 .map(|f| {
                     js_sys::Object::entries(&f)
@@ -81,6 +84,7 @@ impl Scanner {
             let engine = Engine::open(EngineConfig {
                 base,
                 files,
+                model,
                 on_progress: report,
                 ..EngineConfig::default()
             })
