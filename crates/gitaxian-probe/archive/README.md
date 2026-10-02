@@ -1,8 +1,8 @@
 # The Delver X archive
 
 Every Delver X engine build that [Gitaxian Probe](../) might be pinned to, kept
-after upstream has stopped serving it, as one tag each of the public OCI
-artifact `ghcr.io/cramt/delver-x`. The artifact is only a vehicle for the
+after upstream has stopped serving it, as one tag per model tier in the public
+OCI artifact `ghcr.io/cramt/delver-x`. The artifact is only a vehicle for the
 files: no image, no code.
 
 **It is public**, so that a build needs no credentials anywhere: ghcr.io hands
@@ -21,45 +21,59 @@ moves, and a build nobody saved the day it shipped is gone.
 
 ## What is in a tag
 
-The files exactly as upstream served them (`version.txt`, `core.js`,
-`core.wasm`, `data.7z`, `data.md5`, `data.size`, `model-alpha.7z`,
-`model-alpha.size`) and a `SHA256SUMS`, about 42 MB. Each is its own blob,
-pushed as it is rather than tarred, so **a blob's digest is the file's
-sha256**: the pin in `assets/pin.json` is a list of blob addresses, and a file
-is at `ghcr.io/v2/cramt/delver-x/blobs/sha256:<its sha256>`. Only the alpha
-tier is kept: lambda and gamma are gated behind a token, and the probe refuses
-to boot them anyway.
+A build is three tags, one per model tier: alpha, lambda and gamma. Each holds
+the engine exactly as upstream served it (`version.txt`, `core.js`,
+`core.wasm`, `data.7z`, `data.md5`, `data.size`), then that tier's
+`model-<tier>.7z` and `model-<tier>.size`, and a `SHA256SUMS`. A tag is
+self-contained, so pulling alpha's takes about 42 MB and never lambda's or
+gamma's weights, and the registry keeps the engine's blobs once however many
+tags hold them. Each file is its own blob, pushed as it is rather than tarred,
+so **a blob's digest is the file's sha256**: the pin in `assets/pin.json` is a
+list of blob addresses, and a file is at
+`ghcr.io/v2/cramt/delver-x/blobs/sha256:<its sha256>`.
 
-A build's tag is:
+Lambda and gamma download from Delver without a token, which gates booting them
+and not fetching them. The probe refuses to boot them so far (the engine
+README, *Scope*); they are kept so a host that holds a token and can boot them
+finds every build's weights here.
+
+A tier's tag is:
 
 ```
-delver-<version.txt>-<first 12 hex of sha256(SHA256SUMS)>
-e.g. delver-1.89.beta-eeb9c6a9c3ec
+delver-<version.txt>-<tier>-<first 12 hex of sha256(SHA256SUMS)>
+e.g. delver-1.89.beta-alpha-eeb9c6a9c3ec
 ```
 
-`SHA256SUMS` lists the files in the order above, in `sha256sum` format. The
-hash is in the tag because upstream rebuilds its data and model often (the
-probe's FINDINGS §5 has them rebuilt daily), and nothing guarantees each
-rebuild changes `version.txt`. Two different builds must never share a tag.
-`latest` is the newest one pushed, and the manifest's
-`org.opencontainers.image.version` annotation carries `version.txt`.
+`SHA256SUMS` lists the engine and then the model in the order above, in
+`sha256sum` format. The hash is in the tag because upstream rebuilds its data
+and model often (the probe's FINDINGS §5 has them rebuilt daily), and nothing
+guarantees each rebuild changes `version.txt`. Two different builds must never
+share a tag. `latest-<tier>` is the newest one pushed for that tier, and the
+manifest's `org.opencontainers.image.version` annotation carries
+`version.txt`.
 
-**The file list and the tag rule are a contract with the probe.**
-`assets/pin.json` pins the same files in the same order, `assets/build.rs`
-recomputes the tag from them, and `assets/repin.py` writes the pin from a
-manifest. Change one side and you must change the other.
+Tags from before 2026-10-02 are alpha only and carry no tier,
+`delver-<version>-<12 hex>`, and `latest` is the last of them. They stay, since
+a published tag is an address someone may hold, but nothing pushes or reads
+them any more.
+
+**The file lists and the tag rule are a contract with the probe.**
+`assets/pin.json` pins the same files in the same order (the engine once, and
+each tier's model with its tag), `assets/build.rs` recomputes each tag from
+them, and `assets/repin.py` writes the pin from the three tiers' manifests.
+Change one side and you must change the other.
 
 ## How builds get here
 
 `.github/workflows/probe-archive.yml` runs daily, and on demand from the
-Actions tab. It `fetch`es what Delver serves and `publish`es it with
-[oras](https://oras.land), unless that tag already exists. It needs nothing but
+Actions tab. It `fetch`es what Delver serves and `publish`es each tier's tag
+with [oras](https://oras.land), unless that tag already exists. It needs nothing but
 the workflow's own `GITHUB_TOKEN` with `packages: write`.
 
 By hand, after `oras login ghcr.io` with a token that can write packages:
 
 ```sh
-python3 archive.py fetch /tmp/delver      # prints the version and the tag
+python3 archive.py fetch /tmp/delver      # prints the version and each tier's tag
 python3 archive.py publish /tmp/delver
 ```
 
@@ -68,8 +82,8 @@ python3 archive.py publish /tmp/delver
 Nothing needs a login:
 
 ```sh
-oras manifest fetch ghcr.io/cramt/delver-x:latest
-oras pull ghcr.io/cramt/delver-x:delver-1.89.beta-eeb9c6a9c3ec -o /tmp/delver
+oras manifest fetch ghcr.io/cramt/delver-x:latest-alpha
+oras pull ghcr.io/cramt/delver-x:delver-1.89.beta-alpha-eeb9c6a9c3ec -o /tmp/delver
 ```
 
 The engine README's *The archive* says how the probe's build, the flake and
