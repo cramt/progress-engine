@@ -3,25 +3,29 @@
 <title>gitaxian-probe web check</title>
 <script type="module">
   // `?worker` runs the check inside a dedicated module worker instead of on
-  // the page, which is the other context the web host supports.
+  // the page, which is the other context the web host supports. `?tier=`
+  // picks which model boots - alpha, lambda or gamma - defaulting to alpha.
   import init, { check } from "./pkg/gitaxian_probe_web_check.js";
   import { frames } from "./frames.js";
 
+  const params = new URLSearchParams(location.search);
+  const tier = params.get("tier") || "alpha";
+
   async function onPage() {
     await init();
-    return { ok: true, report: `on the page\n${await check("gitaxian-probe/", await frames())}` };
+    return { ok: true, report: `on the page\n${await check("gitaxian-probe/", tier, await frames())}` };
   }
 
   function inWorker() {
     return new Promise((resolve) => {
-      const worker = new Worker("worker.js", { type: "module" });
+      const worker = new Worker(`worker.js?tier=${tier}`, { type: "module" });
       worker.onmessage = (e) => resolve(e.data);
       worker.onerror = (e) => resolve({ ok: false, report: `worker failed: ${e.message}` });
     });
   }
 
   try {
-    window.__result = await (location.search.includes("worker") ? inWorker() : onPage());
+    window.__result = await (params.has("worker") ? inWorker() : onPage());
   } catch (e) {
     window.__result = { ok: false, report: String(e?.message ?? e) };
   }

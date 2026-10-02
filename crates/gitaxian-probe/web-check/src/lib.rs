@@ -1,11 +1,15 @@
 //! The web host's acceptance check.
 //!
-//! `engine/tests/engine.rs` pins 6/6 on card name and 5/6 on exact printing
-//! for the six fixture frames. The web host runs the same engine through a
-//! different execution model, so it is held to the same numbers - and nothing
-//! short of a real, cross-origin-isolated browser can run it. `run.sh` builds
-//! this, serves it and drives headless Chromium; the page decodes the frames
-//! and hands them to [`check`], which fails unless both numbers hold.
+//! `engine/tests/engine.rs` pins 6/6 on card name for all three tiers, and
+//! 5/6 on exact printing for alpha, 4/6 for lambda and gamma - a real gap
+//! between the tiers' weights (the alpha-only miss is Swords to Plowshares, a
+//! same-art reprint with no OCR to separate it; lambda and gamma also miss
+//! Counterspell's printing). The web host runs the same engine through a
+//! different execution model, so each tier is held to its own number - and
+//! nothing short of a real, cross-origin-isolated browser can run it. `run.sh`
+//! builds this, serves it and drives headless Chromium once per tier; the
+//! page decodes the frames and hands them to [`check`], which fails unless
+//! both numbers hold for the tier it booted.
 //!
 //! Empty on native targets, so the workspace still builds and tests there.
 #![cfg(target_arch = "wasm32")]
@@ -14,7 +18,7 @@ use std::fmt::Write as _;
 use std::rc::Rc;
 
 use anyhow::{anyhow, bail, Result};
-use gitaxian_probe_engine::{Engine, EngineConfig, Image};
+use gitaxian_probe_engine::{Engine, EngineConfig, Image, Tier};
 use js_sys::{Reflect, Uint8Array};
 use wasm_bindgen::prelude::*;
 
@@ -29,16 +33,36 @@ const CASES: &[(&str, &str, &str)] = &[
     ("thoughtseize", "Thoughtseize", "Theros"),
 ];
 
+fn parse_tier(tier: &str) -> Result<Tier> {
+    match tier {
+        "alpha" => Ok(Tier::Alpha),
+        "lambda" => Ok(Tier::Lambda),
+        "gamma" => Ok(Tier::Gamma),
+        other => bail!("unknown tier {other:?}"),
+    }
+}
+
+/// Each tier's own ceiling on the six fixtures (card name, exact printing),
+/// measured natively and held here rather than one shared number.
+fn ceiling(tier: Tier) -> (u32, u32) {
+    match tier {
+        Tier::Alpha => (6, 5),
+        Tier::Lambda => (6, 4),
+        Tier::Gamma => (6, 4),
+    }
+}
+
 /// `frames` maps each slug to `{ rgba: Uint8Array, width, height }`. Resolves
 /// to a report the runner prints, or rejects with why the check failed.
 #[wasm_bindgen]
-pub async fn check(base: String, frames: JsValue) -> Result<String, JsValue> {
-    run(base, frames)
+pub async fn check(base: String, tier: String, frames: JsValue) -> Result<String, JsValue> {
+    run(base, tier, frames)
         .await
         .map_err(|e| js_sys::Error::new(&format!("{e:#}")).into())
 }
 
-async fn run(base: String, frames: JsValue) -> Result<String> {
+async fn run(base: String, tier: String, frames: JsValue) -> Result<String> {
+    let model = parse_tier(&tier)?;
     let mut report = String::new();
     let stages = Rc::new(std::cell::RefCell::new(Vec::<String>::new()));
     let seen = stages.clone();
@@ -46,6 +70,7 @@ async fn run(base: String, frames: JsValue) -> Result<String> {
 
     let mut engine = Engine::open(EngineConfig {
         base,
+        model,
         on_progress: Some(Rc::new(move |p| {
             let mut seen = seen.borrow_mut();
             if seen.last() != Some(&p.stage) {
@@ -58,7 +83,7 @@ async fn run(base: String, frames: JsValue) -> Result<String> {
     let boot_ms = now() - t0;
     writeln!(
         report,
-        "Delver X {} (fingerprint {}), booted in {boot_ms:.0} ms via {}",
+        "Delver X {} (fingerprint {}), tier {tier}, booted in {boot_ms:.0} ms via {}",
         engine.version(),
         engine.fingerprint(),
         stages.borrow().join(" > ")
@@ -144,13 +169,15 @@ async fn run(base: String, frames: JsValue) -> Result<String> {
         CASES.len(),
         CASES.len()
     )?;
-    if names != 6 {
-        bail!("card-name accuracy regressed\n{report}");
+    let (want_names, want_printings) = ceiling(model);
+    if names != want_names {
+        bail!("card-name accuracy regressed for {tier}\n{report}");
     }
-    // The engine's own ceiling, as natively: no OCR, so a same-art reprint
-    // (Swords to Plowshares) lands on the wrong printing.
-    if printings != 5 {
-        bail!("printing accuracy moved - the web host changed behaviour\n{report}");
+    // Each tier's own ceiling, as measured natively: no OCR, so a same-art
+    // reprint lands on the wrong printing, and lambda/gamma miss one more
+    // than alpha does.
+    if printings != want_printings {
+        bail!("printing accuracy moved for {tier} - the web host changed behaviour\n{report}");
     }
     Ok(report)
 }

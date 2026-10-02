@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Build the web check, serve it cross-origin isolated, and run it in headless
-# Chromium - once on the page and once inside a module worker. Exits non-zero
-# unless both match the native accuracy numbers (card name 6/6, exact printing
-# 5/6).
+# Chromium - once on the page and once inside a module worker, for each of the
+# three model tiers. Exits non-zero unless all six match the native accuracy
+# numbers (card name 6/6, exact printing 5/6).
 #
 # Needs: the wasm32-unknown-unknown target, a wasm-bindgen CLI matching the
 # wasm-bindgen crate in Cargo.lock, python3, node with playwright, and the
@@ -42,5 +42,7 @@ port=${PORT:-8791}
 python3 "$here/serve.py" "$out" "$port" &
 server=$!
 trap 'kill $server 2>/dev/null' EXIT
-node "$here/drive.mjs" "http://127.0.0.1:$port/"
-node "$here/drive.mjs" "http://127.0.0.1:$port/?worker"
+for tier in alpha lambda gamma; do
+  node "$here/drive.mjs" "http://127.0.0.1:$port/?tier=$tier"
+  node "$here/drive.mjs" "http://127.0.0.1:$port/?tier=$tier&worker"
+done
