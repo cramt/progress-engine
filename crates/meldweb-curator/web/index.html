@@ -4,9 +4,102 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Meldweb Curator</title>
+    <!--
+      The splash is plain HTML inside #root, so it paints before any
+      JavaScript arrives and React replaces it on its first render; from then
+      on src/ui/Loading.tsx draws the same thing. Its look lives here rather
+      than in styles.css because it must apply before that sheet loads, so
+      each colour falls back to its token's value.
+    -->
+    <style>
+      body {
+        margin: 0;
+      }
+      .boot {
+        min-height: 100vh;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 12px;
+        padding: 16px;
+        text-align: center;
+        font:
+          14px/1.45 system-ui,
+          sans-serif;
+        background: var(--bg, #f5f5f3);
+        color: var(--muted, #6b6a65);
+      }
+      .boot h1 {
+        margin: 0;
+        font-size: 18px;
+        color: var(--fg, #1c1c1a);
+      }
+      .boot-spinner {
+        width: 24px;
+        height: 24px;
+        border: 3px solid var(--border, #e3e2de);
+        border-top-color: var(--accent, #f08a1c);
+        border-radius: 50%;
+        animation: boot-spin 0.8s linear infinite;
+      }
+      .boot[data-failed] .boot-spinner {
+        display: none;
+      }
+      .boot[data-failed] p {
+        max-width: 40em;
+        color: var(--danger, #c2352b);
+      }
+      @keyframes boot-spin {
+        to {
+          transform: rotate(1turn);
+        }
+      }
+      @media (prefers-color-scheme: dark) {
+        .boot {
+          background: var(--bg, #131416);
+          color: var(--muted, #9c9c97);
+        }
+        .boot h1 {
+          color: var(--fg, #ececea);
+        }
+        .boot-spinner {
+          border-color: var(--border, #2b2d31);
+          border-top-color: var(--accent, #f59a3a);
+        }
+        .boot[data-failed] p {
+          color: var(--danger, #ef6b61);
+        }
+      }
+    </style>
+    <script>
+      // A bundle that never loads, or throws before React mounts, would leave
+      // the splash spinning forever; say so instead. Capture phase, so a
+      // <script> that fails to load reaches here too.
+      addEventListener(
+        "error",
+        (e) => {
+          const boot = document.getElementById("boot");
+          if (!boot || boot.dataset.failed !== undefined) return;
+          boot.dataset.failed = "";
+          boot.querySelector("p").textContent =
+            "The app failed to start: " +
+            (e.target instanceof Element
+              ? `could not load ${e.target.src || e.target.href}`
+              : e.message) +
+            ". Reload to try again.";
+        },
+        true,
+      );
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot" class="boot" role="status">
+        <h1>Meldweb Curator</h1>
+        <div class="boot-spinner"></div>
+        <p>Loading…</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
