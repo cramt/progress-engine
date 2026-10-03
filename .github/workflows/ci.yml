@@ -33,16 +33,30 @@ jobs:
     needs: check
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    # A slower older run must not land after a newer one
+    # The group only keeps two deploys from overlapping. An older run whose
+    # check finishes after a newer run has deployed would still deploy next
+    # and roll the site back, so a deploy ships only while its commit is
+    # main's tip.
     concurrency:
       group: deploy-curator
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: Mic92/hestia-beta@v4.0.0-beta.2
+      - id: tip
+        run: |
+          tip=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ "$tip" = "$GITHUB_SHA" ]; then
+            echo "latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::main has moved on to $tip; not deploying $GITHUB_SHA over it"
+          fi
+      - if: steps.tip.outputs.latest == 'true'
+        uses: DeterminateSystems/nix-installer-action@main
+      - if: steps.tip.outputs.latest == 'true'
+        uses: Mic92/hestia-beta@v4.0.0-beta.2
         with:
           version: v4.0.0-beta.2
-      - run: nix run -L .#deploy-curator
+      - if: steps.tip.outputs.latest == 'true'
+        run: nix run -L .#deploy-curator
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
