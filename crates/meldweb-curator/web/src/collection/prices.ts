@@ -1,4 +1,5 @@
 import type { OwnedCard } from "../collection";
+import type { CardRef, Finish } from "../deck";
 import { type CardPrices, type Currency, printingKey } from "../scryfall";
 
 /** Today's prices, keyed as printings are; see `fetchPrices`. */
@@ -10,7 +11,7 @@ export type PriceBook = ReadonlyMap<string, CardPrices>;
  * unpriced rather than guessed.
  */
 export function unitPrice(
-  card: OwnedCard,
+  card: { card: CardRef; finish: Finish },
   prices: PriceBook,
   currency: Currency,
 ): number | undefined {

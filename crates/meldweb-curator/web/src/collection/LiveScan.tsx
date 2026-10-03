@@ -13,6 +13,8 @@ import {
   useScanner,
 } from "../probe/scanner";
 import { createTracker, type Speed, TRACKING } from "../probe/tracker";
+import type { Currency } from "../scryfall";
+import { formatPrice, type PriceBook, unitPrice } from "./prices";
 import type { ScannedCopy } from "./scanned";
 import {
   loadScanSettings,
@@ -56,18 +58,28 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * again adds another for a stack of one card. Each copy is logged with a
  * Take back, since the printing is the scanner's guess.
  *
- * `onAdd` and `onTakeBack` apply to the collection as it is when called and
+ * `onAdd`, `onTakeBack` and `onMove` apply to the collection as it is when called and
  * return a refusal, or null.
  */
 export function LiveScan({
   places,
+  prices,
+  currency,
   onAdd,
   onTakeBack,
+  onMove,
   onClose,
 }: {
   places: readonly Place[];
+  /**
+   * The collection's prices, which pick a scanned card up once it is in, so
+   * the log prices each copy without a lookup of its own.
+   */
+  prices: PriceBook;
+  currency: Currency;
   onAdd: (copy: ScannedCopy) => string | null;
   onTakeBack: (copy: ScannedCopy) => string | null;
+  onMove: (copy: ScannedCopy, to: string | null) => string | null;
   onClose: () => void;
 }) {
   const [model, setModel] = useModel();
@@ -277,8 +289,24 @@ export function LiveScan({
     }
   };
 
+  /** Moves a logged copy elsewhere, say a pricey one to the trade binder. */
+  const move = (entry: Entry, to: string | null) => {
+    if (!entry.copy) return;
+    const refused = onMove(entry.copy, to);
+    if (refused) setRefusal(`Could not move ${entry.name}: ${refused}`);
+    else {
+      setRefusal(null);
+      const copy = { ...entry.copy, at: to };
+      setLog((l) => l.map((e) => (e.id === entry.id ? { ...e, copy } : e)));
+    }
+  };
+
   const counted = log.filter((e) => e.copy && !e.refused && !e.takenBack);
   const added = counted.length;
+  const priceOf = (e: Entry) =>
+    e.copy ? unitPrice(e.copy, prices, currency) : undefined;
+  const priced = counted.flatMap((e) => priceOf(e) ?? []);
+  const sessionWorth = priced.reduce((sum, p) => sum + p, 0);
   // How many of each card went in, most first: the session at a glance.
   const tally = [
     ...counted
@@ -447,6 +475,20 @@ export function LiveScan({
               {added === 0
                 ? "Nothing scanned yet"
                 : `${added} ${added === 1 ? "copy" : "copies"} added`}
+              {priced.length > 0 && (
+                <span
+                  className="muted"
+                  title={
+                    priced.length < added
+                      ? `${added - priced.length} not priced: still being looked up, or Scryfall has no price for them`
+                      : undefined
+                  }
+                >
+                  {" "}
+                  · {formatPrice(sessionWorth, currency)}
+                  {priced.length < added ? "+" : ""}
+                </span>
+              )}
             </h3>
             {tally.length > 1 && (
               <ul className="scan-tally" aria-label="Copies of each card">
@@ -459,7 +501,15 @@ export function LiveScan({
             )}
             <ol className="scan-log">
               {log.map((e) => (
-                <LogRow key={e.id} entry={e} onTakeBack={() => takeBack(e)} />
+                <LogRow
+                  key={e.id}
+                  entry={e}
+                  price={priceOf(e)}
+                  currency={currency}
+                  places={places}
+                  onMove={(to) => move(e, to)}
+                  onTakeBack={() => takeBack(e)}
+                />
               ))}
             </ol>
           </div>
@@ -507,11 +557,20 @@ function ScanStatus({
 
 function LogRow({
   entry,
+  price,
+  currency,
+  places,
+  onMove,
   onTakeBack,
 }: {
   entry: Entry;
+  price: number | undefined;
+  currency: Currency;
+  places: readonly Place[];
+  onMove: (to: string | null) => void;
   onTakeBack: () => void;
 }) {
+  const live = entry.copy !== null && !entry.refused && !entry.takenBack;
   const { copy } = entry;
   let detail = "Naming the printing…";
   if (copy) {
@@ -520,7 +579,8 @@ function LogRow({
         ? `${copy.card.set.toUpperCase()} #${copy.card.num}`
         : "any printing";
     const finish = copy.finish === "nonfoil" ? "" : `, ${copy.finish}`;
-    detail = `${printing}${finish} → ${copy.at ?? UNSORTED}`;
+    detail = `${printing}${finish}`;
+    if (!live) detail += ` → ${copy.at ?? UNSORTED}`;
   }
   return (
     <li
@@ -542,10 +602,37 @@ function LogRow({
         )}
         {entry.takenBack && <span className="muted">Taken back</span>}
       </div>
-      {copy && !entry.refused && !entry.takenBack && (
-        <button type="button" className="small" onClick={onTakeBack}>
-          Take back
-        </button>
+      {price !== undefined && (
+        <span
+          className="scan-price"
+          title={
+            copy?.card.kind === "name"
+              ? "As Scryfall's usual printing"
+              : undefined
+          }
+        >
+          {formatPrice(price, currency)}
+        </span>
+      )}
+      {live && copy && (
+        <>
+          <select
+            className="scan-move"
+            aria-label={`Where ${entry.name} goes`}
+            value={copy.at ?? ""}
+            onChange={(e) => onMove(e.target.value || null)}
+          >
+            <option value="">{UNSORTED}</option>
+            {places.map((p) => (
+              <option key={p.name} value={p.name}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="small" onClick={onTakeBack}>
+            Take back
+          </button>
+        </>
       )}
     </li>
   );

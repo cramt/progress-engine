@@ -39,3 +39,15 @@ export function removeScanned(text: string, copy: ScannedCopy): string {
   }
   return setOwnedQty(text, line.index, line.qty - 1);
 }
+
+/**
+ * The collection with the scanned copy moved from where the scan put it to
+ * `to`. Throws, changing nothing, when it is no longer there.
+ */
+export function moveScanned(
+  text: string,
+  copy: ScannedCopy,
+  to: string | null,
+): string {
+  return addScanned(removeScanned(text, copy), { ...copy, at: to });
+}

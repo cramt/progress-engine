@@ -191,6 +191,12 @@
   font-size: 13px;
 }
 
+.scan-price {
+  flex: none;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
 .scan-entry.gone {
   opacity: 0.55;
 }
@@ -207,4 +213,10 @@
   .scan-source {
     width: 100%;
   }
+}
+
+.scan-move {
+  flex: none;
+  max-width: 9rem;
+  font-size: 12.5px;
 }

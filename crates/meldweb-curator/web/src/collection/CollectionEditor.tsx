@@ -40,7 +40,7 @@ import {
   worth,
 } from "./prices";
 import { ReprintDialog } from "./ReprintDialog";
-import { addScanned, removeScanned } from "./scanned";
+import { addScanned, moveScanned, removeScanned } from "./scanned";
 import { addOwnedByName, type Section, sections, UNSORTED } from "./sections";
 import "./collection.css";
 import { CloseIcon, PlusIcon, ScanIcon, SearchIcon } from "../ui/icons";
@@ -310,8 +310,11 @@ export function CollectionEditor({
       {scanning && (
         <LiveScan
           places={parsed.places}
+          prices={prices}
+          currency={currency}
           onAdd={(copy) => scanChange((t) => addScanned(t, copy))}
           onTakeBack={(copy) => scanChange((t) => removeScanned(t, copy))}
+          onMove={(copy, to) => scanChange((t) => moveScanned(t, copy, to))}
           onClose={() => setScanning(false)}
         />
       )}

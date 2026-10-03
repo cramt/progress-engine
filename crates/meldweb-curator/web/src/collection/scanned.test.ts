@@ -1,7 +1,12 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { parseCollection } from "../collection";
 import { loadWasm } from "../github/testkit";
-import { addScanned, removeScanned, type ScannedCopy } from "./scanned";
+import {
+  addScanned,
+  moveScanned,
+  removeScanned,
+  type ScannedCopy,
+} from "./scanned";
 
 beforeAll(loadWasm);
 
@@ -27,6 +32,21 @@ function cards(text: string) {
 }
 
 describe("a scanned copy", () => {
+  it("moves to another place, leaving the rest of its line behind", () => {
+    const two = addScanned(TEXT, lotus);
+    const moved = cards(moveScanned(two, lotus, null));
+    expect(moved.find((c) => c.at === "Binder")).toMatchObject({ qty: 1 });
+    expect(
+      moved.find((c) => c.at === undefined && c.card.kind === "printing"),
+    ).toMatchObject({ qty: 1 });
+  });
+
+  it("refuses to move a copy that is no longer where the scan put it", () => {
+    expect(() =>
+      moveScanned(TEXT, { ...lotus, finish: "foil" }, null),
+    ).toThrow();
+  });
+
   it("joins the line that already holds it in that place", () => {
     const after = addScanned(TEXT, lotus);
     expect(after).toContain(`{ printing = "lea/232", qty = 2, at = "Binder" }`);
