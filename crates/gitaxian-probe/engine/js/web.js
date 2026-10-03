@@ -26,10 +26,56 @@ function bounded(promise, what, ms) {
   return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
 }
 
-async function fetchBytes(url) {
-  const response = await fetch(url);
-  if (!response.ok) fail(`${url}: HTTP ${response.status}`);
-  return new Uint8Array(await response.arrayBuffer());
+// Every file a boot needs, fetched at once so the wait is the slowest file
+// rather than the sum, and read as it streams in so the page can show it
+// arriving. The proxy puts a content-length on the archives, which are nearly
+// all of the bytes, but core.wasm comes compressed without one: the percentage
+// is over the files that said how big they are, and the message counts every
+// byte. The same "fetch" stage the native host reports.
+async function fetchAll(urls, progress) {
+  const MB = 1 << 20;
+  let expected = 0;
+  let arrived = 0;
+  let total = 0;
+  let announced = -1;
+  const report = () => {
+    const percent = expected ? Math.min(100, Math.floor((arrived * 100) / expected)) : 0;
+    const mb = Math.floor(total / MB);
+    // One report per percent or megabyte, not one per chunk.
+    const step = percent * 1e6 + mb;
+    if (step === announced) return;
+    announced = step;
+    progress?.("fetch", percent, `${mb} MB`);
+  };
+  const one = async (url) => {
+    const response = await fetch(url).catch((e) => fail(`${url}: ${e.message}`));
+    if (!response.ok) fail(`${url}: HTTP ${response.status}`);
+    const length = Number(response.headers.get("content-length")) || 0;
+    expected += length;
+    const chunks = [];
+    const reader = response.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      total += value.length;
+      if (length) arrived += value.length;
+      report();
+    }
+    return concat(chunks);
+  };
+  report();
+  return Promise.all(urls.map(one));
+}
+
+function concat(chunks) {
+  const bytes = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+  let at = 0;
+  for (const c of chunks) {
+    bytes.set(c, at);
+    at += c.length;
+  }
+  return bytes;
 }
 
 // Every engine's JobQueue, so one file-written event reaches all of them. The
@@ -182,24 +228,26 @@ class JobQueue {
 /**
  * Bring up one engine. `base` is where the page serves the files
  * gitaxian-probe-assets lays out, `wasm` the core.wasm bytes the host has
- * already fingerprinted and patched, `abi` the host's constants, `decode` the
+ * already fingerprinted and patched, `catalogue` the data.7z, data.md5,
+ * data.size and version.txt bytes, `abi` the host's constants, `decode` the
  * host's job decoder (bytes -> JSON string), and `progress` an optional
  * (stage, percent, message) callback.
  */
-export function open(base, files, wasm, model, tier, abi, decode, progress, timeoutMs) {
+export function open(base, files, wasm, model, catalogue, tier, abi, decode, progress, timeoutMs) {
   // Boot unpacks a 44 MB catalogue and loads a 34 MB model, so it gets more
   // room than an ordinary call - the same floor the native host uses. The
   // deadline covers createCore too: a pool that cannot start never settles it.
   return bounded(
-    boot(base, files, wasm, model, tier, abi, decode, progress, timeoutMs),
+    boot(base, files, wasm, model, catalogue, tier, abi, decode, progress, timeoutMs),
     "booting the engine",
     Math.max(timeoutMs, 120000),
   );
 }
 
-// `model` is the weights, which the Rust side fetched packed and unpacked.
+// `model` is the weights, which the Rust side fetched packed and unpacked, and
+// `catalogue` came down alongside them in the same fetchAll.
 // `files` names where a file is when it is not at `base` + its name.
-async function boot(base, files, wasm, model, tier, abi, decode, progress, timeoutMs) {
+async function boot(base, files, wasm, model, catalogue, tier, abi, decode, progress, timeoutMs) {
   const root = new URL(base, globalThis.location.href);
   const url = (name) =>
     Object.hasOwn(files, name)
@@ -210,13 +258,8 @@ async function boot(base, files, wasm, model, tier, abi, decode, progress, timeo
 
   report("load", 0, "loading core.js");
   const coreUrl = url("core.js");
-  const [, db7z, md5, size, version] = await Promise.all([
-    loadCore(coreUrl),
-    fetchBytes(url("data.7z")),
-    fetchBytes(url("data.md5")),
-    fetchBytes(url("data.size")),
-    fetchBytes(url("version.txt")),
-  ]);
+  await loadCore(coreUrl);
+  const [db7z, md5, size, version] = catalogue;
 
   report("load", 0, "instantiating");
   const mod = await createCore({
@@ -468,4 +511,4 @@ class Probe {
   }
 }
 
-export { fetchBytes };
+export { fetchAll };

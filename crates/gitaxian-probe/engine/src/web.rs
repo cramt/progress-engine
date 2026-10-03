@@ -56,6 +56,7 @@ extern "C" {
         files: &js_sys::Object,
         wasm: Uint8Array,
         model: Uint8Array,
+        catalogue: &js_sys::Array,
         tier: &str,
         abi: JsValue,
         decode: &Function,
@@ -63,8 +64,8 @@ extern "C" {
         timeout_ms: f64,
     ) -> Result<Promise, JsValue>;
 
-    #[wasm_bindgen(catch, js_name = fetchBytes)]
-    fn fetch_bytes(url: &str) -> Result<Promise, JsValue>;
+    #[wasm_bindgen(catch, js_name = fetchAll)]
+    fn fetch_all(urls: &js_sys::Array, progress: Option<Function>) -> Result<Promise, JsValue>;
 
     #[wasm_bindgen(method, getter)]
     fn version(this: &Probe) -> String;
@@ -164,35 +165,6 @@ impl Engine {
                 .map_or_else(|| format!("{base}{name}"), |(_, url)| url.clone())
         };
 
-        // Every download starts before the first is awaited.
-        let packed_name = format!("model-{}.7z", tier.name());
-        let size_name = format!("model-{}.size", tier.name());
-        let core = fetch_bytes(&url("core.wasm"));
-        let packed = fetch_bytes(&url(&packed_name));
-        let size = fetch_bytes(&url(&size_name));
-        let core = settle(core).await.context("fetching core.wasm")?;
-        let packed = settle(packed)
-            .await
-            .with_context(|| format!("fetching {packed_name}"))?;
-        let size = settle(size)
-            .await
-            .with_context(|| format!("fetching {size_name}"))?;
-        let model = unpack_model(
-            &Uint8Array::new(&packed).to_vec(),
-            &Uint8Array::new(&size).to_vec(),
-            tier,
-        )?;
-        let (fingerprint, patched) = wasm::admit(
-            &Uint8Array::new(&core).to_vec(),
-            KNOWN_FINGERPRINT,
-            config.allow_unknown_build,
-        )?;
-
-        let decode =
-            Closure::<dyn Fn(Uint8Array) -> Result<String, JsValue>>::new(|bytes: Uint8Array| {
-                job::decode_to_json(&bytes.to_vec())
-                    .map_err(|e| js_sys::Error::new(&format!("{e:#}")).into())
-            });
         let progress = config.on_progress.map(|report| {
             ProgressJs::new(move |stage: String, percent: f64, message: String| {
                 report(Progress {
@@ -202,6 +174,42 @@ impl Engine {
                 })
             })
         });
+        let progress_fn = || {
+            progress
+                .as_ref()
+                .map(|c| c.as_ref().unchecked_ref::<Function>().clone())
+        };
+
+        // Every file the boot reads comes down in one go: the wait is the
+        // slowest file rather than the sum, and the page sees bytes arrive.
+        let packed_name = format!("model-{}.7z", tier.name());
+        let size_name = format!("model-{}.size", tier.name());
+        let names = [
+            "core.wasm",
+            &packed_name,
+            &size_name,
+            "data.7z",
+            "data.md5",
+            "data.size",
+            "version.txt",
+        ];
+        let urls: js_sys::Array = names.iter().map(|n| JsValue::from(url(n))).collect();
+        let fetched: js_sys::Array = settle(fetch_all(&urls, progress_fn()))
+            .await
+            .context("fetching the engine")?
+            .unchecked_into();
+        let bytes = |i: u32| Uint8Array::new(&fetched.get(i)).to_vec();
+        let catalogue = fetched.slice(3, 7);
+
+        let model = unpack_model(&bytes(1), &bytes(2), tier)?;
+        let (fingerprint, patched) =
+            wasm::admit(&bytes(0), KNOWN_FINGERPRINT, config.allow_unknown_build)?;
+
+        let decode =
+            Closure::<dyn Fn(Uint8Array) -> Result<String, JsValue>>::new(|bytes: Uint8Array| {
+                job::decode_to_json(&bytes.to_vec())
+                    .map_err(|e| js_sys::Error::new(&format!("{e:#}")).into())
+            });
 
         let abi = js_sys::JSON::parse(&crate::abi_json()).map_err(js_error)?;
         let probe: Probe = settle(open(
@@ -209,12 +217,11 @@ impl Engine {
             &files,
             Uint8Array::from(patched.as_slice()),
             Uint8Array::from(model.as_slice()),
+            &catalogue,
             tier.name(),
             abi,
             decode.as_ref().unchecked_ref(),
-            progress
-                .as_ref()
-                .map(|c| c.as_ref().unchecked_ref::<Function>().clone()),
+            progress_fn(),
             config.timeout.as_millis() as f64,
         ))
         .await
