@@ -43,8 +43,23 @@ import {
 import { ReprintDialog } from "./ReprintDialog";
 import { addScanned, moveScanned, removeScanned } from "./scanned";
 import { addOwnedByName, type Section, sections, UNSORTED } from "./sections";
+import {
+  type CollectionView,
+  clickSort,
+  loadView,
+  ownedOrder,
+  type Sort,
+  type SortField,
+  saveView,
+} from "./view";
 import "./collection.css";
-import { CloseIcon, PlusIcon, ScanIcon, SearchIcon } from "../ui/icons";
+import {
+  ChevronRight,
+  CloseIcon,
+  PlusIcon,
+  ScanIcon,
+  SearchIcon,
+} from "../ui/icons";
 
 export interface CollectionEditorProps {
   /** `collection.toml` in the Magic repo. */
@@ -149,6 +164,11 @@ export function CollectionEditor({
   const printings = useGrowingPrintings(loadedPrintings, cards);
   const prices = usePrices(cards);
   const [currency, setCurrency] = useState(loadCurrency);
+  const [view, setView] = useState(loadView);
+  const changeView = (next: CollectionView) => {
+    setView(next);
+    saveView(next);
+  };
   const { undo, redo } = history;
   useUndoKeys(undo, redo);
 
@@ -238,7 +258,21 @@ export function CollectionEditor({
   };
 
   const nameOf = (c: OwnedCard) => cardName(c, printings);
-  const shown = sections(parsed.places, parsed.cards, nameOf, filter);
+  const shown = sections(
+    parsed.places,
+    parsed.cards,
+    nameOf,
+    filter,
+    ownedOrder(view.sort, nameOf, (c) => {
+      const each = unitPrice(c, prices, currency);
+      return each === undefined ? undefined : each * c.qty;
+    }),
+  );
+  const toggleFold = (place: string | null) => {
+    const folded = new Set(view.folded);
+    if (!folded.delete(place)) folded.add(place);
+    changeView({ ...view, folded });
+  };
   const deckNames = new Map(decks.map((d) => [d.path, d.name]));
   const reprinted =
     reprinting === null
@@ -352,6 +386,12 @@ export function CollectionEditor({
           onTick={tick}
           onReprint={setReprinting}
           change={change}
+          sort={view.sort}
+          onSort={(by) =>
+            changeView({ ...view, sort: clickSort(view.sort, by) })
+          }
+          folded={view.folded.has(s.place?.name ?? null)}
+          onFold={() => toggleFold(s.place?.name ?? null)}
         />
       ))}
       {filter && shown.length === 0 && (
@@ -470,6 +510,10 @@ function PlaceSection({
   onTick,
   onReprint,
   change,
+  sort,
+  onSort,
+  folded,
+  onFold,
 }: {
   section: Section;
   places: readonly Place[];
@@ -482,19 +526,44 @@ function PlaceSection({
   onTick: (indices: readonly number[], on: boolean) => void;
   onReprint: (index: number) => void;
   change: (next: (text: string) => string) => boolean;
+  sort: Sort;
+  onSort: (by: SortField) => void;
+  folded: boolean;
+  onFold: () => void;
 }) {
   const { place } = section;
+  const label = place?.name ?? UNSORTED;
+  const header = (by: SortField, text: string, className?: string) => (
+    <SortHeader
+      by={by}
+      text={text}
+      sort={sort}
+      onSort={onSort}
+      className={className}
+    />
+  );
   const here = section.cards.map((c) => c.index);
   const all = here.length > 0 && here.every((i) => selected.has(i));
   const value = worth(section.cards, prices, currency);
   return (
     <section
-      className="place"
+      className={folded ? "place folded" : "place"}
       data-place={place?.name ?? undefined}
       aria-label={place?.name ?? UNSORTED}
     >
       <header className="place-header">
-        <h2>{place?.name ?? UNSORTED}</h2>
+        <h2>
+          <button
+            type="button"
+            className="place-fold"
+            aria-expanded={!folded}
+            title={folded ? `Unfold ${label}` : `Fold ${label}`}
+            onClick={onFold}
+          >
+            <ChevronRight />
+            {label}
+          </button>
+        </h2>
         <span className="badge" title="Cards">
           {section.qty}
         </span>
@@ -544,7 +613,7 @@ function PlaceSection({
           </button>
         )}
       </header>
-      {section.cards.length > 0 && (
+      {section.cards.length > 0 && !folded && (
         <table className="owned">
           <thead>
             <tr>
@@ -556,11 +625,11 @@ function PlaceSection({
                   onChange={(e) => onTick(here, e.target.checked)}
                 />
               </th>
-              <th>Qty</th>
-              <th>Card</th>
-              <th>Printing</th>
-              <th>Finish</th>
-              <th className="owned-price">Price</th>
+              {header("qty", "Qty")}
+              {header("name", "Card")}
+              {header("printing", "Printing")}
+              {header("finish", "Finish")}
+              {header("price", "Price", "owned-price")}
               <th>Move to</th>
               <th>
                 <span className="visually-hidden">Remove</span>
@@ -779,6 +848,43 @@ function OwnedRow({
         </button>
       </td>
     </tr>
+  );
+}
+
+/** A column header that sorts every place by its column, or flips the sort. */
+function SortHeader({
+  by,
+  text,
+  sort,
+  onSort,
+  className,
+}: {
+  by: SortField;
+  text: string;
+  sort: Sort;
+  onSort: (by: SortField) => void;
+  className?: string | undefined;
+}) {
+  const active = sort.by === by;
+  return (
+    <th
+      className={className}
+      aria-sort={
+        active ? (sort.descending ? "descending" : "ascending") : undefined
+      }
+    >
+      <button
+        type="button"
+        className={active ? "owned-sort active" : "owned-sort"}
+        title={`Sort by ${text.toLowerCase()}`}
+        onClick={() => onSort(by)}
+      >
+        {text}
+        <span className="owned-sort-arrow" aria-hidden="true">
+          {active ? (sort.descending ? "▼" : "▲") : ""}
+        </span>
+      </button>
+    </th>
   );
 }
 

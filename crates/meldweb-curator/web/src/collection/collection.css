@@ -53,6 +53,32 @@
   font-weight: 650;
 }
 
+.place.folded .place-header {
+  border-bottom: none;
+}
+
+/* The heading itself folds the place, so the whole name is the target. */
+.place-fold {
+  height: auto;
+  margin-left: -8px;
+  padding: 4px 8px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.place-fold svg {
+  color: var(--faint);
+  transform: rotate(90deg);
+  transition: transform 120ms;
+}
+
+.place-fold[aria-expanded="false"] svg {
+  transform: none;
+}
+
 .place-deck {
   display: inline-flex;
   align-items: center;
@@ -117,6 +143,33 @@
   letter-spacing: 0.04em;
   text-align: left;
   text-transform: uppercase;
+}
+
+.owned-sort {
+  gap: 4px;
+  height: auto;
+  margin-left: -6px;
+  padding: 2px 6px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.owned-sort.active {
+  color: var(--fg);
+}
+
+.owned-sort-arrow {
+  font-size: 9px;
+}
+
+.owned-price .owned-sort {
+  margin-left: 0;
+  margin-right: -6px;
 }
 
 .owned th:first-child,

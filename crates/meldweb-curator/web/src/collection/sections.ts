@@ -18,6 +18,8 @@ export function sections(
   cards: readonly OwnedCard[],
   nameOf: (card: OwnedCard) => string,
   filter = "",
+  order: (a: OwnedCard, b: OwnedCard) => number = (a, b) =>
+    nameOf(a).localeCompare(nameOf(b)) || a.index - b.index,
 ): Section[] {
   const wanted = filter.trim().toLowerCase();
   const shown = wanted
@@ -26,9 +28,7 @@ export function sections(
   const section = (place: Place | null): Section => {
     const here = shown
       .filter((c) => (c.at ?? null) === (place?.name ?? null))
-      .toSorted(
-        (a, b) => nameOf(a).localeCompare(nameOf(b)) || a.index - b.index,
-      );
+      .toSorted(order);
     return { place, cards: here, qty: here.reduce((n, c) => n + c.qty, 0) };
   };
   const all = [section(null), ...places.map(section)];
