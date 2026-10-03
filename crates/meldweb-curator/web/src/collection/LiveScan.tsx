@@ -615,7 +615,7 @@ function LogRow({
         </span>
       )}
       {live && copy && (
-        <>
+        <div className="scan-entry-actions">
           <select
             className="scan-move"
             aria-label={`Where ${entry.name} goes`}
@@ -632,7 +632,7 @@ function LogRow({
           <button type="button" className="small" onClick={onTakeBack}>
             Take back
           </button>
-        </>
+        </div>
       )}
     </li>
   );

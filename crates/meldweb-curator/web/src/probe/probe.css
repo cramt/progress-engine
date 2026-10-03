@@ -169,15 +169,21 @@
   list-style: none;
 }
 
+/* The name and price share a line and the controls get their own beneath, so
+   on a phone the name isn't squeezed to nothing by the controls beside it. */
 .scan-entry {
-  display: flex;
-  gap: 10px;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "art text price"
+    "art actions actions";
+  gap: 6px 10px;
+  align-items: start;
 }
 
 .scan-entry img,
 .scan-entry .scan-noimage {
-  flex: none;
+  grid-area: art;
   width: 48px;
   aspect-ratio: 488 / 680;
   border-radius: 3px;
@@ -185,14 +191,14 @@
 
 .scan-entry-text {
   display: flex;
-  flex: 1;
+  grid-area: text;
   flex-direction: column;
-  min-width: 0;
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .scan-price {
-  flex: none;
+  grid-area: price;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
@@ -215,8 +221,15 @@
   }
 }
 
+.scan-entry-actions {
+  display: flex;
+  grid-area: actions;
+  gap: 8px;
+  align-items: center;
+}
+
 .scan-move {
-  flex: none;
-  max-width: 9rem;
+  flex: 0 1 14rem;
+  min-width: 0;
   font-size: 12.5px;
 }
