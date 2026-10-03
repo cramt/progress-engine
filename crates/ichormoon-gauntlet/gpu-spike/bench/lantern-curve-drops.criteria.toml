@@ -1,0 +1,50 @@
+# The spike's throughput bench (#65): count-only questions wide enough to
+# time. Every criterion reads the same five queries on every turn from 1 to 6,
+# so the file is one class and that class walks every draw of every turn. The
+# committed decks' count-only classes are single hypergeometrics of a dozen
+# compositions and time nothing.
+#
+# Run against decks/lantern.deck.toml. Not a question anybody asked of the
+# deck: a shape of walk, with numbers that should be plausible and are exact.
+
+[[criterion]]
+name = "a land every turn to 6, an artifact by 2, a creature by 3, Lantern by 6"
+require = [
+  { turn = 0, query = "t:land", min = 0 },
+  { turn = 1, query = "t:land", min = 1 },
+  { turn = 2, query = "t:land", min = 2 },
+  { turn = 2, query = "t:artifact", min = 1 },
+  { turn = 3, query = "t:land", min = 3 },
+  { turn = 3, query = "t:creature", min = 1 },
+  { turn = 3, query = "t:land -is:transform", zone = "battlefield", min = 3 },
+  { turn = 4, query = "t:land", min = 4 },
+  { turn = 5, query = "t:land", min = 5 },
+  { turn = 6, query = "t:land", min = 6 },
+  { turn = 6, query = 'name:"Lantern of Insight"', min = 1 },
+  { turn = 6, query = "t:instant", min = 0 },
+]
+
+[[criterion]]
+name = "not flooded: at most four lands by 4 and at most five by 6, with an instant by 6"
+require = [
+  { turn = 0, query = "t:land", min = 0 },
+  { turn = 1, query = "t:land", min = 2 },
+  { turn = 2, query = "t:artifact", min = 0 },
+  { turn = 3, query = "t:creature", min = 0 },
+  { turn = 4, query = "t:land", max = 4 },
+  { turn = 5, query = 'name:"Lantern of Insight"', min = 0 },
+  { turn = 6, query = "t:land", max = 5 },
+  { turn = 6, query = "t:instant", min = 1 },
+  { turn = 6, query = "t:land -is:transform", zone = "battlefield", max = 4 },
+]
+
+[[criterion]]
+name = "Lantern or an artifact and a creature, on some turn from 2 to 6"
+require = [{ turn = 0, query = "t:land", min = 0 }]
+any_of = [
+  { require = [{ turn = 2, query = 'name:"Lantern of Insight"', min = 1 }, { turn = 1, query = "t:land", min = 1 }] },
+  { require = [{ turn = 3, query = "t:artifact", min = 1 }, { turn = 3, query = "t:creature", min = 1 }] },
+  { require = [{ turn = 4, query = "t:artifact", min = 2 }, { turn = 4, query = "t:instant", min = 1 }] },
+  { require = [{ turn = 5, query = "t:creature", min = 2 }, { turn = 5, query = "t:land", min = 4 }] },
+  { require = [{ turn = 6, query = 'name:"Lantern of Insight"', min = 1 }, { turn = 6, query = "t:land", min = 5 }] },
+]

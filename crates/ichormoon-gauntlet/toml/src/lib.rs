@@ -472,6 +472,55 @@ impl Predicate {
     }
 }
 
+/// One counting clause, as the GPU spike (#65) lowers it: `min <= count <=
+/// max`, with `max` at `u32::MAX` where the file set no ceiling.
+#[cfg(feature = "gpu-spike")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CountClause {
+    pub turn: usize,
+    pub query: usize,
+    pub counted: Counted,
+    pub min: u32,
+    pub max: u32,
+}
+
+#[cfg(feature = "gpu-spike")]
+impl Criteria {
+    /// Criterion `i` as a union of conjunctions of counts, or `None` where a
+    /// clause asks whether a cost could be paid, which is not a count.
+    pub fn counts_of(&self, i: usize) -> Option<Vec<Vec<CountClause>>> {
+        let lower = |cs: &[Clause]| -> Option<Vec<CountClause>> {
+            cs.iter()
+                .map(|c| {
+                    let t = c.counting()?;
+                    let (min, max) = match t.bounds {
+                        Bounds::AtLeast(min) => (min, u32::MAX),
+                        Bounds::AtMost(max) => (0, max),
+                        Bounds::Between { min, max } => (min, max),
+                    };
+                    Some(CountClause {
+                        turn: t.turn,
+                        query: t.query,
+                        counted: t.counted,
+                        min,
+                        max,
+                    })
+                })
+                .collect()
+        };
+        match &self.predicates[i] {
+            Predicate::All(all) => Some(vec![lower(all)?]),
+            Predicate::Any(any) => any.iter().map(|b| lower(b)).collect(),
+            Predicate::AllAndAny { all, any } => {
+                let all = lower(all)?;
+                any.iter()
+                    .map(|b| Some([all.clone(), lower(b)?].concat()))
+                    .collect()
+            }
+        }
+    }
+}
+
 /// Where an expectation reads its number.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Probe {

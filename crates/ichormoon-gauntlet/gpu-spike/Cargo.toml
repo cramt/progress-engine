@@ -1,0 +1,32 @@
+[package]
+name = "gauntlet-gpu-spike"
+description = "Issue #65: the count-only walk as one CubeCL kernel, measured against the exact engine."
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+# A workspace of its own, like Gitaxian Probe: CubeCL's CPU backend downloads a
+# prebuilt LLVM/MLIR at build time and its CUDA backend needs NVRTC, and
+# neither belongs in `cargo test --all` or the flake's checks. Build it in
+# `nix develop .#gpu-spike`.
+[workspace]
+
+[features]
+default = ["cuda", "cpu"]
+cuda = ["cubecl/cuda"]
+cpu = ["cubecl/cpu"]
+
+[dependencies]
+anyhow = "1"
+num-traits = "0.2"
+# Pinned exactly: the kernel dialect moved between 0.9 and 0.10, and a spike
+# that silently re-resolves measures a different compiler.
+cubecl = { version = "=0.10.0", default-features = false, features = ["std"] }
+chip-stats = { path = "../../reality-chip/stats" }
+gauntlet-cli = { path = "../cli", features = ["gpu-spike"] }
+gauntlet-criteria = { path = "../criteria", features = ["gpu-spike"] }
+gauntlet-toml = { path = "../toml", features = ["gpu-spike"] }
+
+[profile.release]
+debug = false
