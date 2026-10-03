@@ -13,6 +13,7 @@ use std::collections::HashMap;
 
 use chip_decklist::collection::{self, Collection};
 use chip_decklist::deck::{self, CategoryType, Deck};
+use chip_decklist::diff::{self, Change, Diff};
 use chip_decklist::{changelog, edit};
 use facet::Facet;
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
@@ -120,6 +121,9 @@ pub enum Parsed {
         name: Option<String>,
         #[facet(skip_serializing_if = Option::is_none)]
         format: Option<String>,
+        /// The path of the deck this one is a variant of.
+        #[facet(rename = "variantOf", skip_serializing_if = Option::is_none)]
+        variant_of: Option<String>,
         /// The printing whose art stands for the deck in the deck list.
         #[facet(skip_serializing_if = Option::is_none)]
         cover: Option<Printing>,
@@ -169,6 +173,7 @@ fn wire(d: Deck) -> Parsed {
     Parsed::Deck {
         name: d.name,
         format: d.format,
+        variant_of: d.variant_of,
         cover: d.cover.map(|p| Printing {
             set: p.set,
             num: p.num,
@@ -402,6 +407,162 @@ pub fn commit_message(before: &str, after: &str, path: &str) -> Result<String, J
     changelog::commit_message_for_text(before, after, path).map_err(refused)
 }
 
+/// One change between two decks, as `chip_decklist::diff` finds it. A card
+/// line is named by its index in the `before` deck, the `after` deck, or
+/// both; `text` is the line a commit message says the change with.
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum DeckChange {
+    Add {
+        after: u32,
+        text: String,
+    },
+    Remove {
+        before: u32,
+        text: String,
+    },
+    Qty {
+        before: u32,
+        after: u32,
+        text: String,
+    },
+    /// The line's categories.
+    Move {
+        before: u32,
+        after: u32,
+        text: String,
+    },
+    Printing {
+        before: u32,
+        after: u32,
+        text: String,
+    },
+    Finish {
+        before: u32,
+        after: u32,
+        text: String,
+    },
+    Declare {
+        category: String,
+        text: String,
+    },
+    Undeclare {
+        category: String,
+        text: String,
+    },
+    Retype {
+        category: String,
+        text: String,
+    },
+    Rename {
+        text: String,
+    },
+    Format {
+        text: String,
+    },
+    VariantOf {
+        text: String,
+    },
+    Cover {
+        text: String,
+    },
+    Description {
+        text: String,
+    },
+}
+
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum Compared {
+    /// Every change, in commit-message order. A change's position here is
+    /// how `apply_changes` takes it.
+    Diff { changes: Vec<DeckChange> },
+    /// One of the two texts is not a deck, and this says why.
+    Refused { message: String },
+}
+
+fn index(i: usize) -> u32 {
+    u32::try_from(i).unwrap_or(u32::MAX)
+}
+
+pub fn compare_texts(before: &str, after: &str) -> Compared {
+    let (old, new, names) = match diff::parse_pair(before, after) {
+        Ok(pair) => pair,
+        Err(e) => {
+            return Compared::Refused {
+                message: e.to_string(),
+            }
+        }
+    };
+    let changes = Diff::new(&old, &new, |p| names.get(p).cloned())
+        .changes
+        .into_iter()
+        .map(|(change, text)| match change {
+            Change::Add { after } => DeckChange::Add {
+                after: index(after),
+                text,
+            },
+            Change::Remove { before } => DeckChange::Remove {
+                before: index(before),
+                text,
+            },
+            Change::Qty { before, after } => DeckChange::Qty {
+                before: index(before),
+                after: index(after),
+                text,
+            },
+            Change::Move { before, after } => DeckChange::Move {
+                before: index(before),
+                after: index(after),
+                text,
+            },
+            Change::Printing { before, after } => DeckChange::Printing {
+                before: index(before),
+                after: index(after),
+                text,
+            },
+            Change::Finish { before, after } => DeckChange::Finish {
+                before: index(before),
+                after: index(after),
+                text,
+            },
+            Change::Declare(category) => DeckChange::Declare { category, text },
+            Change::Undeclare(category) => DeckChange::Undeclare { category, text },
+            Change::Retype(category) => DeckChange::Retype { category, text },
+            Change::Rename => DeckChange::Rename { text },
+            Change::Format => DeckChange::Format { text },
+            Change::VariantOf => DeckChange::VariantOf { text },
+            Change::Cover => DeckChange::Cover { text },
+            Change::Description => DeckChange::Description { text },
+        })
+        .collect();
+    Compared::Diff { changes }
+}
+
+/// JSON of [`Compared`]: every change from `before` to `after`.
+#[wasm_bindgen]
+pub fn compare_decks(before: &str, after: &str) -> String {
+    facet_json::to_string(&compare_texts(before, after)).expect("Compared serialises")
+}
+
+/// `before` with the changes at `take`, positions in [`compare_decks`]'s
+/// list, taken from `after` and nothing else touched.
+#[wasm_bindgen]
+pub fn apply_changes(before: &str, after: &str, take: &[u32]) -> Result<String, JsError> {
+    let take: Vec<usize> = take.iter().map(|&i| i as usize).collect();
+    diff::apply(before, after, &take).map_err(refused)
+}
+
+/// `text` as a variant of the deck at `parent`, or standing alone when
+/// `parent` is absent or empty.
+#[wasm_bindgen]
+pub fn set_variant_of(text: &str, parent: Option<String>) -> Result<String, JsError> {
+    let parent = parent.filter(|p| !p.is_empty());
+    edit::set_variant_of(text, parent.as_deref()).map_err(refused)
+}
+
 /// `text` with the deck's `name` set, and its `format` unless `format` is
 /// empty; a file without them gains them at its top.
 #[wasm_bindgen]
@@ -627,6 +788,7 @@ mod tests {
         g.add_type::<NewCard>();
         g.add_type::<Imported>();
         g.add_type::<ParsedCollection>();
+        g.add_type::<Compared>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",

@@ -312,3 +312,18 @@ dialog.cover-sheet {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* A tile names the deck it is a variant of. */
+.deck-variant {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.deck-variant svg {
+  width: 12px;
+  height: 12px;
+}

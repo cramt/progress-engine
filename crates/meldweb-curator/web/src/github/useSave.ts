@@ -29,7 +29,10 @@ export function useSave(store: SaveStore | null): SaveState {
   }, [store]);
   useBlocker({
     disabled: !store,
-    shouldBlockFn: async () => {
+    shouldBlockFn: async ({ current, next }) => {
+      // Opening the history or a past version stays on the page, and the
+      // editor with it; only leaving the page is leaving.
+      if (current.pathname === next.pathname) return false;
       if (!store || (await store.settle())) return false;
       const { status } = store.getState();
       const why = status === "conflict" ? unsaved.conflict : unsaved.error;

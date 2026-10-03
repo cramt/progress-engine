@@ -45,6 +45,29 @@ export interface PutFile {
   keepalive?: boolean;
 }
 
+/** One commit that touched a file, as its history lists it. */
+export interface Revision {
+  /** The commit sha, which `getFile` reads the file at. */
+  commit: string;
+  message: string;
+  /** When it was committed, ISO 8601. */
+  date: string;
+  /** The GitHub login that made it, when GitHub knows one. */
+  author: string | null;
+}
+
+/** An annotated tag: a version of a file kept under a name of the user's. */
+export interface Snapshot {
+  /** The tag's name without `refs/tags/`, e.g. `decks/lantern/fnm`. */
+  tag: string;
+  /** What the user called it. */
+  label: string;
+  /** The commit it points at. */
+  commit: string;
+  /** When it was taken, ISO 8601. */
+  date: string;
+}
+
 export interface GitHubApi {
   user(): Promise<GitHubUser>;
   /** `GET /user/installations`: the app's installations this user can reach. */
@@ -53,8 +76,30 @@ export interface GitHubApi {
   installationRepos(installation: number): Promise<RepoRef[]>;
   /** Whether the repo answers at all; a private repo without the app reads as absent. */
   repoExists(repo: RepoRef): Promise<boolean>;
-  /** The file on the default branch, or `null` when there is none (or the repo is empty). */
-  getFile(repo: RepoRef, path: string): Promise<FileAt | null>;
+  /**
+   * The file on the default branch, or at commit `ref` when given; `null`
+   * when there is none there (or the repo is empty).
+   */
+  getFile(repo: RepoRef, path: string, ref?: string): Promise<FileAt | null>;
+  /**
+   * The commits on the default branch that touched `path`, newest first, a
+   * page of up to `perPage` (100 at most) at a time, none after `until`.
+   */
+  history(
+    repo: RepoRef,
+    path: string,
+    page?: { until?: string; page?: number; perPage?: number },
+  ): Promise<Revision[]>;
+  /** One commit, or `null` when the repo has none by that sha. */
+  revision(repo: RepoRef, commit: string): Promise<Revision | null>;
+  /** The annotated tags whose names start with `prefix`. */
+  snapshots(repo: RepoRef, prefix: string): Promise<Snapshot[]>;
+  /** Tags `commit` as `tag`. Throws `ConflictError` when the name is taken. */
+  takeSnapshot(
+    repo: RepoRef,
+    snapshot: { tag: string; label: string; commit: string },
+  ): Promise<Snapshot>;
+  dropSnapshot(repo: RepoRef, tag: string): Promise<void>;
   /** One commit on the default branch. Throws `ConflictError` on a stale or missing sha. */
   putFile(repo: RepoRef, path: string, put: PutFile): Promise<{ sha: string }>;
   /** One commit removing the file. Throws `ConflictError` on a stale or missing sha. */
@@ -223,8 +268,43 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
     }
   }
 
+  const repoPath = (repo: RepoRef) =>
+    `/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`;
   const contents = (repo: RepoRef, path: string) =>
-    `/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}/contents/${encodePath(path)}`;
+    `${repoPath(repo)}/contents/${encodePath(path)}`;
+
+  async function sendJson<T>(method: string, path: string, body: unknown) {
+    const r = await request(method, path, body);
+    if (!r.ok) return fail(r);
+    return (await r.json()) as T;
+  }
+
+  interface CommitJson {
+    sha: string;
+    commit: { message: string; committer: { date: string } | null };
+    author: { login: string } | null;
+  }
+  const revisionOf = (c: CommitJson): Revision => ({
+    commit: c.sha,
+    message: c.commit.message,
+    date: c.commit.committer?.date ?? "",
+    author: c.author?.login ?? null,
+  });
+
+  interface TagObject {
+    sha: string;
+    tag: string;
+    message: string;
+    object: { sha: string; type: string };
+    tagger?: { date?: string };
+  }
+  const snapshotOf = (t: TagObject): Snapshot => ({
+    tag: t.tag,
+    // Git ends a tag message with a newline whether or not it was sent one.
+    label: t.message.replace(/\n+$/, ""),
+    commit: t.object.sha,
+    date: t.tagger?.date ?? "",
+  });
 
   // GitHub says concurrent Contents writes conflict, so they go one at a time.
   let writes: Promise<unknown> = Promise.resolve();
@@ -261,8 +341,9 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       return true;
     },
 
-    async getFile(repo, path) {
-      const r = await request("GET", contents(repo, path));
+    async getFile(repo, path, ref) {
+      const at = ref === undefined ? "" : `?ref=${encodeURIComponent(ref)}`;
+      const r = await request("GET", `${contents(repo, path)}${at}`);
       if (r.status === 404) return null;
       if (!r.ok) return fail(r);
       const body = (await r.json()) as {
@@ -283,6 +364,80 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
         );
       }
       return { text: decodeBase64(body.content), sha: body.sha };
+    },
+
+    async history(repo, path, page = {}) {
+      const query = new URLSearchParams({
+        path,
+        per_page: String(Math.min(page.perPage ?? 100, 100)),
+        page: String(page.page ?? 1),
+        ...(page.until ? { until: page.until } : {}),
+      });
+      const commits = await json<CommitJson[]>(
+        "GET",
+        `${repoPath(repo)}/commits?${query}`,
+      );
+      return commits.map(revisionOf);
+    },
+
+    async revision(repo, commit) {
+      const r = await request(
+        "GET",
+        `${repoPath(repo)}/commits/${encodeURIComponent(commit)}`,
+      );
+      // GitHub answers a sha it has never seen with 422 as often as 404.
+      if (r.status === 404 || r.status === 422) return null;
+      if (!r.ok) return fail(r);
+      return revisionOf((await r.json()) as CommitJson);
+    },
+
+    async snapshots(repo, prefix) {
+      const refs = await json<
+        { ref: string; object: { sha: string; type: string } }[]
+      >(
+        "GET",
+        `${repoPath(repo)}/git/matching-refs/tags/${encodePath(prefix)}`,
+      );
+      // A lightweight tag has no label or date to show, so it is not one of
+      // Curator's snapshots.
+      const annotated = refs.filter((r) => r.object.type === "tag");
+      const tags = await Promise.all(
+        annotated.map((r) =>
+          json<TagObject>("GET", `${repoPath(repo)}/git/tags/${r.object.sha}`),
+        ),
+      );
+      return tags.map(snapshotOf);
+    },
+
+    async takeSnapshot(repo, { tag, label, commit }) {
+      const object = await sendJson<TagObject>(
+        "POST",
+        `${repoPath(repo)}/git/tags`,
+        { tag, message: label, object: commit, type: "commit" },
+      );
+      const r = await request("POST", `${repoPath(repo)}/git/refs`, {
+        ref: `refs/tags/${tag}`,
+        sha: object.sha,
+      });
+      if (r.status === 422) {
+        const message = await messageOf(r);
+        if (/already exists/i.test(message)) {
+          throw new ConflictError(422, `there is already a snapshot ${tag}`);
+        }
+        return fail(r, message);
+      }
+      if (!r.ok) return fail(r);
+      return snapshotOf(object);
+    },
+
+    async dropSnapshot(repo, tag) {
+      const r = await request(
+        "DELETE",
+        `${repoPath(repo)}/git/refs/tags/${encodePath(tag)}`,
+      );
+      // GitHub answers a tag that is already gone with 422 or 404; either way
+      // it is gone, which is what was asked.
+      if (!r.ok && r.status !== 404 && r.status !== 422) return fail(r);
     },
 
     putFile(repo, path, put) {

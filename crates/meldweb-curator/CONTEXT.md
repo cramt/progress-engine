@@ -45,3 +45,21 @@ A save refused because the deck changed on GitHub since Curator loaded it. Savin
 **Import** / **Copy as Archidekt**:
 Archidekt text into a deck, and a deck out as Archidekt text. The Archidekt text is read and written the way Archidekt itself reads it ([archidekt-import-shapes.md](../../docs/research/archidekt-import-shapes.md)).
 _Avoid_: export (unqualified)
+
+## A deck's past
+
+**Revision**:
+A deck as one of the commits that touched its path left it ([ADR-0024](../../docs/adr/0024-a-decks-past-is-gits-and-a-variant-is-a-deck.md)). Every save makes one, and its commit message says what changed. `?at=<commit>` shows it in place of the deck.
+_Avoid_: version (unqualified), checkpoint
+
+**Take**:
+To apply some of the changes between the deck and another revision or deck to the deck as it is now, as one edit that saves by itself and undoes. **Restore** is taking every change from a revision.
+_Avoid_: merge, revert, cherry-pick
+
+**Snapshot**:
+A revision kept under a name the user chose, such as the list taken to an event. It is an annotated git tag under the deck's path, `decks/<stem>/<slug>`.
+_Avoid_: tag (for what the user sees), save point
+
+**Variant**:
+A deck that names another as its parent with `variant_of`, such as a budget build. It is a deck file of its own, not a branch. Either can take the other's changes, except the variant's name and parent.
+_Avoid_: branch, fork, copy

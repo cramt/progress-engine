@@ -4,7 +4,7 @@
  * which it got.
  *
  * `VITE_MOCK_GITHUB=1 pnpm dev` fakes GitHub and the worker in the page, seeded
- * with Lantern and Loam; `no-repo` or `no-install` start at onboarding. The
+ * with Lantern (and six weeks of its history) and Loam; `no-repo` or `no-install` start at onboarding. The
  * fake lives in sessionStorage, so a reload keeps its commits, and it is on
  * `window.__mockGitHub` for simulating an edit on github.com from the console.
  */
@@ -46,6 +46,10 @@ async function choose(): Promise<Connection> {
   const mock = createMockGitHub({
     start: mode === "no-repo" || mode === "no-install" ? mode : "ready",
     files: mode === "no-repo" || mode === "no-install" ? {} : seed.files,
+    history:
+      mode === "no-repo" || mode === "no-install"
+        ? []
+        : seed.history(Date.now()),
     storage: sessionStorage,
   });
   (window as unknown as { __mockGitHub: MockGitHub }).__mockGitHub = mock;

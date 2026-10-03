@@ -9,6 +9,7 @@ import { useDeckActions } from "../home/DeckActions";
 import { DeckTile } from "../home/DeckTile";
 import { NewDeckDialog } from "../home/NewDeckDialog";
 import { SessionGate } from "../home/SessionGate";
+import { familyOrder } from "../home/variants";
 import { fetchPrintings, type Printings } from "../scryfall";
 
 // Login, onboarding, or the Magic repo's decks (#119).
@@ -85,9 +86,14 @@ function Decks({
           </div>
         ) : (
           <ul className="deck-grid">
-            {decks.map((d) => (
+            {familyOrder(decks).map((d) => (
               <li key={d.path}>
-                <DeckTile deck={d} printings={printings} menu={menuFor(d)} />
+                <DeckTile
+                  deck={d}
+                  printings={printings}
+                  menu={menuFor(d)}
+                  parent={decks.find((p) => p.path === d.variantOf)?.name}
+                />
               </li>
             ))}
           </ul>

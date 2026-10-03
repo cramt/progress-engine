@@ -1,16 +1,19 @@
+import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { withBoard } from "../card/apply";
 import { renderCardResult } from "../card/searchResult";
 import { useCardEditor } from "../card/useCardEditor";
 import {
+  applyChanges,
   declareCategory,
   parseDeck,
   setCardCategories,
   setDeckDescription,
 } from "../deck";
 import type { GitHubApi, RepoRef } from "../github/api";
-import { deckStem } from "../github/decks";
+import { createDeck, deckStem } from "../github/decks";
 import { deckText } from "../github/deckText";
+import { head, takeSnapshot } from "../github/history";
 import { createSaveStore } from "../github/save";
 import { useSave } from "../github/useSave";
 import { useHistory, useUndoKeys } from "../history";
@@ -21,13 +24,20 @@ import { addByName } from "../quickadd/addByName";
 import { type AddByName, QuickAdd } from "../quickadd/QuickAdd";
 import type { Printings } from "../scryfall";
 import { SearchButton, SearchOverlay } from "../search/SearchOverlay";
-import { ScanIcon } from "../ui/icons";
+import { BranchIcon, HistoryIcon, ScanIcon } from "../ui/icons";
+import { messageOf } from "../ui/Sheet";
 import { CopyArchidekt } from "./CopyArchidekt";
 import { Description } from "./Description";
+import { HistoryDrawer } from "./HistoryDrawer";
+import "./history.css";
 import { dropOnto } from "./move";
 import { ReplaceArchidekt } from "./ReplaceArchidekt";
 import { type OnDrop, StacksView } from "./StacksView";
 import { Banners, SaveStatus, Toolbar, UndoRedo } from "./Toolbar";
+import { useOther } from "./useOther";
+import { SnapshotDialog, VariantDialog } from "./VersionDialogs";
+import { VersionView, when } from "./VersionView";
+import type { Viewing } from "./versions";
 
 export interface DeckEditorProps {
   /** The deck's path in the Magic repo, e.g. `decks/lantern.deck.toml`. */
@@ -38,7 +48,18 @@ export interface DeckEditorProps {
   repo: RepoRef;
   api: GitHubApi;
   printings: Printings;
+  /** The deck now, or another version of it shown in place of its stacks. */
+  viewing: Viewing;
+  /** Whether the history drawer is open. */
+  drawer: boolean;
+  /** Goes to another version, or opens or shuts the drawer, through the URL. */
+  onNavigate: (viewing: Viewing, drawer: boolean) => void;
 }
+
+type Dialog =
+  /** `commit: null` is the deck as it is now, once saved. */
+  | { kind: "snapshot"; commit: string | null; of: string }
+  | { kind: "variant"; text: string; of: string };
 
 /**
  * One open deck: the stacks, the toolbar, undo, and saving by itself. Mount it
@@ -51,6 +72,9 @@ export function DeckEditor({
   repo,
   api,
   printings: loadedPrintings,
+  viewing,
+  drawer,
+  onNavigate,
 }: DeckEditorProps) {
   const history = useHistory(loaded);
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -78,10 +102,120 @@ export function DeckEditor({
 
   useUndoKeys(undo, redo);
 
+  const navigate = useNavigate();
+  const other = useOther(api, repo, path, viewing);
+  const [dialog, setDialog] = useState<Dialog | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  // Bumped when a snapshot is taken, so the drawer reads them again.
+  const [snapshots, setSnapshots] = useState(0);
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 5000);
+    return () => clearTimeout(t);
+  }, [notice]);
+  const go = (v: Viewing) => onNavigate(v, drawer);
+  const stem = deckStem(path);
+  const otherOf =
+    other?.kind === "loaded" && other.revision
+      ? `the deck as it was on ${when(other.revision.date)}`
+      : other?.kind === "loaded"
+        ? other.name
+        : "the deck as it is now";
+
+  const snapshot = async (commit: string | null, label: string) => {
+    let at = commit;
+    if (at === null) {
+      if (!(await store.settle()))
+        return "Your latest edits are not saved, so there is no version of them to snapshot yet.";
+      at = (await head(api, repo, path))?.commit ?? null;
+    }
+    if (at === null) return "The deck has no save to snapshot yet.";
+    const taken = await takeSnapshot(api, repo, path, label, at);
+    if (taken.kind === "refused") return taken.message;
+    setSnapshots((n) => n + 1);
+    setNotice(`Snapshot “${taken.snapshot.label}” taken.`);
+    return null;
+  };
+
+  const variant = async (text: string, name: string) => {
+    const made = await createDeck(
+      api,
+      repo,
+      name,
+      { kind: "variant", text, of: path },
+      deckText,
+    );
+    if (made.kind === "refused") return made.message;
+    void navigate({
+      to: "/deck/$",
+      params: { _splat: made.path },
+      search: { history: true, vs: path },
+    });
+    return null;
+  };
+
+  const historyButton = (
+    <button
+      type="button"
+      aria-pressed={drawer}
+      onClick={() => onNavigate(viewing, !drawer)}
+      title="Every save of this deck, its snapshots and its variants"
+    >
+      <HistoryIcon />
+      History
+    </button>
+  );
+  const drawerView = drawer && (
+    <HistoryDrawer
+      api={api}
+      repo={repo}
+      path={path}
+      stem={parsed.kind === "deck" ? (parsed.name ?? stem) : stem}
+      variantOf={parsed.kind === "deck" ? parsed.variantOf : undefined}
+      viewing={viewing}
+      saveStatus={save.status}
+      refresh={snapshots}
+      onView={go}
+      onClose={() => onNavigate(viewing, false)}
+      onSnapshot={(commit) =>
+        setDialog({
+          kind: "snapshot",
+          commit,
+          of:
+            commit === null
+              ? "the deck as it is now"
+              : "that version of the deck",
+        })
+      }
+      onVariant={() =>
+        setDialog({
+          kind: "variant",
+          text: history.present,
+          of: "the deck as it is now",
+        })
+      }
+    />
+  );
+  const dialogView =
+    dialog?.kind === "snapshot" ? (
+      <SnapshotDialog
+        of={dialog.of}
+        onClose={() => setDialog(null)}
+        onTake={(label) => snapshot(dialog.commit, label)}
+      />
+    ) : dialog?.kind === "variant" ? (
+      <VariantDialog
+        parent={parsed.kind === "deck" ? (parsed.name ?? stem) : stem}
+        of={dialog.of}
+        onClose={() => setDialog(null)}
+        onCreate={(name) => variant(dialog.text, name)}
+      />
+    ) : null;
+
   if (parsed.kind === "refused") {
     return (
       <main>
-        <Toolbar name={deckStem(path)} />
+        <Toolbar name={deckStem(path)} actions={historyButton} />
         <div className="banners">
           <p className="refusal" role="alert">
             {path} is not a deck Curator can read: {parsed.message}
@@ -91,9 +225,36 @@ export function DeckEditor({
           <summary>The file</summary>
           <pre>{history.present}</pre>
         </details>
+        {drawerView}
+        {dialogView}
       </main>
     );
   }
+
+  const take = (take: readonly number[], text: string, all: boolean) => {
+    try {
+      history.edit(applyChanges(history.present, text, take));
+      setRefusal(null);
+      if (all) {
+        go({ kind: "now" });
+        setNotice(
+          viewing.kind === "revision"
+            ? "Restored that version. Ctrl+Z undoes it."
+            : "Took every change. Ctrl+Z undoes it.",
+        );
+      } else {
+        setNotice(
+          `Took ${take.length} change${take.length === 1 ? "" : "s"}. Ctrl+Z undoes ${take.length === 1 ? "it" : "them"}.`,
+        );
+      }
+    } catch (e) {
+      setRefusal(messageOf(e));
+    }
+  };
+  // Another version in place of the stacks, once the URL names one.
+  const version =
+    viewing.kind !== "now" && other !== null ? { viewing, other } : null;
+  const looking = version !== null;
 
   const onDrop: OnDrop = (card, from, to, secondary) => {
     const declared = (name: string) =>
@@ -145,15 +306,44 @@ export function DeckEditor({
   };
 
   return (
-    <main>
+    <main className={drawer ? "with-drawer" : undefined}>
       <Toolbar
-        name={parsed.name ?? deckStem(path)}
+        name={
+          <>
+            {parsed.name ?? stem}
+            {parsed.variantOf && (
+              <button
+                type="button"
+                className="variant-chip"
+                onClick={() =>
+                  onNavigate(
+                    { kind: "deck", path: parsed.variantOf ?? "" },
+                    drawer,
+                  )
+                }
+                title="Compare with the deck this is a variant of"
+              >
+                <BranchIcon />
+                variant of {deckStem(parsed.variantOf)}
+              </button>
+            )}
+          </>
+        }
         count={parsed.total}
-        search={<SearchButton onClick={() => setSearching(true)} />}
-        quickAdd={<QuickAdd categories={parsed.categories} onAdd={onAdd} />}
+        search={
+          looking ? undefined : (
+            <SearchButton onClick={() => setSearching(true)} />
+          )
+        }
+        quickAdd={
+          looking ? undefined : (
+            <QuickAdd categories={parsed.categories} onAdd={onAdd} />
+          )
+        }
         actions={
           <>
-            {scannerAvailable && (
+            {historyButton}
+            {scannerAvailable && !looking && (
               <button type="button" onClick={() => setScanning(true)}>
                 <ScanIcon />
                 Scan
@@ -194,65 +384,88 @@ export function DeckEditor({
         onReload={() => void reload()}
         onOverwrite={() => void store.overwrite()}
         onDismiss={() => setRefusal(null)}
+        notice={notice}
       />
-      <Description
-        text={parsed.description}
-        onSave={(description) => {
-          try {
-            history.edit(setDeckDescription(history.present, description));
-            setRefusal(null);
-          } catch (e) {
-            setRefusal(e instanceof Error ? e.message : String(e));
+      {version && (
+        <VersionView
+          viewing={version.viewing}
+          other={version.other}
+          present={{ text: history.present, deck: parsed, printings }}
+          stem={stem}
+          onTake={take}
+          onBack={() => go({ kind: "now" })}
+          onSnapshot={(commit) =>
+            setDialog({ kind: "snapshot", commit, of: otherOf })
           }
-        }}
-      />
-      {searching && (
-        <SearchOverlay
-          cards={parsed.cards}
-          printings={printings}
-          format={parsed.format}
-          categories={parsed.categories}
-          onAdd={onAdd}
-          renderResult={renderCardResult}
-          onClose={() => setSearching(false)}
+          onVariant={(text) =>
+            setDialog({ kind: "variant", text, of: otherOf })
+          }
         />
       )}
-      {scanning && (
-        <ScanDialog
-          onAdd={(printing) => {
-            try {
-              history.edit(
-                addPrinting(history.present, parsed.cards, printing),
-              );
-              setRefusal(null);
-            } catch (e) {
-              setRefusal(e instanceof Error ? e.message : String(e));
-            }
-          }}
-          onClose={() => setScanning(false)}
-        />
+      {!looking && (
+        <>
+          <Description
+            text={parsed.description}
+            onSave={(description) => {
+              try {
+                history.edit(setDeckDescription(history.present, description));
+                setRefusal(null);
+              } catch (e) {
+                setRefusal(e instanceof Error ? e.message : String(e));
+              }
+            }}
+          />
+          {searching && (
+            <SearchOverlay
+              cards={parsed.cards}
+              printings={printings}
+              format={parsed.format}
+              categories={parsed.categories}
+              onAdd={onAdd}
+              renderResult={renderCardResult}
+              onClose={() => setSearching(false)}
+            />
+          )}
+          {scanning && (
+            <ScanDialog
+              onAdd={(printing) => {
+                try {
+                  history.edit(
+                    addPrinting(history.present, parsed.cards, printing),
+                  );
+                  setRefusal(null);
+                } catch (e) {
+                  setRefusal(e instanceof Error ? e.message : String(e));
+                }
+              }}
+              onClose={() => setScanning(false)}
+            />
+          )}
+          {parsed.cards.length === 0 && (
+            <div className="stacks-empty">
+              <h2>No cards yet</h2>
+              <p>
+                Type a name into quick add (<kbd>Ctrl</kbd> <kbd>'</kbd>), or
+                open card search and drag results into the deck.
+              </p>
+            </div>
+          )}
+          <StacksView
+            categories={parsed.categories}
+            cards={parsed.cards}
+            printings={cards.printings}
+            onDrop={onDrop}
+            cardProps={cards.cardProps}
+          />
+          <details className="source">
+            <summary>The file</summary>
+            <pre>{history.present}</pre>
+          </details>
+        </>
       )}
-      {parsed.cards.length === 0 && (
-        <div className="stacks-empty">
-          <h2>No cards yet</h2>
-          <p>
-            Type a name into quick add (<kbd>Ctrl</kbd> <kbd>'</kbd>), or open
-            card search and drag results into the deck.
-          </p>
-        </div>
-      )}
-      <StacksView
-        categories={parsed.categories}
-        cards={parsed.cards}
-        printings={cards.printings}
-        onDrop={onDrop}
-        cardProps={cards.cardProps}
-      />
-      <details className="source">
-        <summary>The file</summary>
-        <pre>{history.present}</pre>
-      </details>
       {cards.overlay}
+      {drawerView}
+      {dialogView}
     </main>
   );
 }

@@ -136,3 +136,31 @@ export const FlipIcon = () => (
     <path d="M3 21v-5h5" />
   </Icon>
 );
+
+/** A clock turned back: the deck's history. */
+export const HistoryIcon = () => (
+  <Icon>
+    <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+    <path d="M3 3v5h5" />
+    <path d="M12 7v5l3 2" />
+  </Icon>
+);
+
+/** A fork in a line: a variant of the deck. */
+export const BranchIcon = () => (
+  <Icon>
+    <circle cx="6" cy="5" r="2" />
+    <circle cx="6" cy="19" r="2" />
+    <circle cx="18" cy="7" r="2" />
+    <path d="M6 7v10" />
+    <path d="M18 9c0 5-12 3-12 8" />
+  </Icon>
+);
+
+/** A tag: a snapshot of the deck kept under a name. */
+export const TagIcon = () => (
+  <Icon>
+    <path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z" />
+    <circle cx="8" cy="8" r="1.5" />
+  </Icon>
+);

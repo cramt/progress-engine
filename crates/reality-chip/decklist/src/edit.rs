@@ -25,6 +25,10 @@ pub enum EditError {
     NoCard(usize),
     #[error("category {name:?} is already declared as {existing}")]
     DeclaredDifferently { name: String, existing: String },
+    #[error("there is no change {0} between those two decks")]
+    NoChange(usize),
+    #[error("category {0:?} cannot go while a card is still in it")]
+    StillUsed(String),
     #[error(transparent)]
     Invalid(#[from] DeckError),
     #[error(transparent)]
@@ -144,6 +148,15 @@ pub fn set_categories(
     index: usize,
     categories: &[String],
 ) -> Result<String, EditError> {
+    set_categories_with(text, index, categories, check_deck)
+}
+
+pub(crate) fn set_categories_with(
+    text: &str,
+    index: usize,
+    categories: &[String],
+    check: Check,
+) -> Result<String, EditError> {
     let mut doc = document(text)?;
     let card = card_mut(&mut doc, index)?;
     if categories.is_empty() {
@@ -166,7 +179,7 @@ pub fn set_categories(
         }
         card.fmt();
     }
-    finish(doc)
+    finish_with(doc, check)
 }
 
 /// Declares `name` under `[categories]`, typed or not. Declaring it again the
@@ -175,6 +188,15 @@ pub fn declare_category(
     text: &str,
     name: &str,
     kind: Option<CategoryType>,
+) -> Result<String, EditError> {
+    declare_category_with(text, name, kind, check_deck)
+}
+
+pub(crate) fn declare_category_with(
+    text: &str,
+    name: &str,
+    kind: Option<CategoryType>,
+    check: Check,
 ) -> Result<String, EditError> {
     let mut doc = document(text)?;
     if !doc.contains_key("categories") {
@@ -203,7 +225,46 @@ pub fn declare_category(
         value.fmt();
     }
     table.insert(name, Item::Value(Value::InlineTable(value)));
-    finish(doc)
+    finish_with(doc, check)
+}
+
+/// Sets declared category `name`'s type, `None` making it a label.
+pub(crate) fn retype_category(
+    text: &str,
+    name: &str,
+    kind: Option<CategoryType>,
+    check: Check,
+) -> Result<String, EditError> {
+    let mut doc = document(text)?;
+    let mut value = InlineTable::new();
+    if let Some(kind) = kind {
+        value.insert("type", kind.as_str().into());
+        value.fmt();
+    }
+    let existing = doc
+        .get_mut("categories")
+        .and_then(Item::as_table_like_mut)
+        .and_then(|t| t.get_mut(name))
+        .ok_or_else(|| EditError::Toml(format!("category {name:?} is not declared")))?;
+    match existing.as_value_mut() {
+        Some(v) => {
+            let decor = v.decor().clone();
+            *v = Value::InlineTable(value);
+            *v.decor_mut() = decor;
+        }
+        None => *existing = Item::Value(Value::InlineTable(value)),
+    }
+    finish_with(doc, check)
+}
+
+/// Drops category `name` from `[categories]`, unchecked: whether a card is
+/// still in it is for the caller to check once every edit is made.
+pub(crate) fn undeclare_category(text: &str, name: &str) -> Result<String, EditError> {
+    let mut doc = document(text)?;
+    if let Some(table) = doc.get_mut("categories").and_then(Item::as_table_like_mut) {
+        table.remove(name);
+    }
+    Ok(doc.to_string())
 }
 
 /// Drops card `index`'s line, its comment with it.
@@ -328,6 +389,107 @@ pub(crate) fn set_printing(
         }
     }
     finish_with(doc, check)
+}
+
+/// Names card `index` by `name`, any printing of it, keeping its quantity,
+/// finish and categories. The comment that named its printing goes with the
+/// printing, since the line now says the name itself.
+pub(crate) fn set_name(
+    text: &str,
+    index: usize,
+    name: &str,
+    check: Check,
+) -> Result<String, EditError> {
+    let mut doc = document(text)?;
+    let cards = cards_mut(&mut doc, index)?;
+    let card = cards
+        .get_mut(index)
+        .and_then(Value::as_inline_table_mut)
+        .ok_or(EditError::NoCard(index))?;
+    let had_printing = card.remove("printing").is_some();
+    put(card, "name", name);
+    if had_printing {
+        let after = follower(cards, index);
+        if comment(&after).is_some() {
+            if let Some((_, rest)) = after.split_once('\n') {
+                set_follower(cards, index, format!("\n{rest}"));
+            }
+        }
+    }
+    finish_with(doc, check)
+}
+
+/// Appends `card` as a new line, every field as the format writes it and
+/// `comment` beside it, unchecked: its categories may not be declared yet.
+pub(crate) fn push_card(
+    text: &str,
+    card: &crate::deck::Card,
+    comment: Option<&str>,
+) -> Result<String, EditError> {
+    let mut line = InlineTable::new();
+    match &card.card {
+        CardRef::Name(name) => line.insert("name", name.as_str().into()),
+        CardRef::Printing(p) => line.insert("printing", p.to_string().into()),
+    };
+    if card.qty != NonZeroU32::MIN {
+        line.insert("qty", i64::from(card.qty.get()).into());
+    }
+    match card.finish {
+        Finish::Nonfoil => {}
+        Finish::Foil => {
+            line.insert("finish", "foil".into());
+        }
+        Finish::Etched => {
+            line.insert("finish", "etched".into());
+        }
+    }
+    if !card.categories.is_empty() {
+        let list: Array = card.categories.iter().map(String::as_str).collect();
+        line.insert("in", Value::Array(list));
+    }
+    line.fmt();
+    let mut doc = document(text)?;
+    push_line(&mut doc, line, comment)?;
+    Ok(doc.to_string())
+}
+
+/// The deck's own keys, in the order [`Deck::to_toml`] writes them above its
+/// cards.
+const META: [&str; 5] = ["name", "format", "variant_of", "cover", "description"];
+
+fn meta_rank(key: &Key) -> usize {
+    META.iter()
+        .position(|k| *k == key.get())
+        .unwrap_or(META.len())
+}
+
+/// Sets one of the deck's own keys in place, or adds it where [`META`] puts
+/// it; `None` drops it.
+pub(crate) fn set_meta(doc: &mut DocumentMut, key: &str, value: Option<Value>) {
+    match value {
+        None => {
+            doc.remove(key);
+        }
+        Some(value) => match doc.get_mut(key).and_then(Item::as_value_mut) {
+            Some(existing) => {
+                let decor = existing.decor().clone();
+                *existing = value;
+                *existing.decor_mut() = decor;
+            }
+            None => {
+                doc.insert(key, Item::Value(value));
+                doc.sort_values_by(|a, _, b, _| meta_rank(a).cmp(&meta_rank(b)));
+            }
+        },
+    }
+}
+
+/// Says the deck is a variant of the deck at `parent`, or, with `None`, that
+/// it stands on its own.
+pub fn set_variant_of(text: &str, parent: Option<&str>) -> Result<String, EditError> {
+    let mut doc = document(text)?;
+    set_meta(&mut doc, "variant_of", parent.map(Value::from));
+    finish(doc)
 }
 
 /// Makes card `index` a commander: it joins the deck's commander-typed
@@ -482,12 +644,7 @@ pub fn set_deck_meta(text: &str, name: &str, format: &str) -> Result<String, Edi
     }
 
     if inserted {
-        let meta = |k: &Key| match k.get() {
-            "name" => 0,
-            "format" => 1,
-            _ => 2,
-        };
-        doc.sort_values_by(|a, _, b, _| meta(a).cmp(&meta(b)));
+        doc.sort_values_by(|a, _, b, _| meta_rank(a).cmp(&meta_rank(b)));
         if let (false, Some(first)) = (had_meta, first) {
             let blank = |d: &toml_edit::Decor| format!("\n{}", raw(d.prefix()));
             if doc.get(&first).is_some_and(Item::is_value) {
@@ -519,13 +676,7 @@ pub fn set_deck_cover(text: &str, cover: Option<&str>) -> Result<String, EditErr
             }
             None => {
                 doc.insert("cover", toml_edit::value(cover));
-                let meta = |k: &Key| match k.get() {
-                    "name" => 0,
-                    "format" => 1,
-                    "cover" => 2,
-                    _ => 3,
-                };
-                doc.sort_values_by(|a, _, b, _| meta(a).cmp(&meta(b)));
+                doc.sort_values_by(|a, _, b, _| meta_rank(a).cmp(&meta_rank(b)));
             }
         },
     }
@@ -552,14 +703,7 @@ pub fn set_deck_description(text: &str, description: Option<&str>) -> Result<Str
                 }
                 None => {
                     doc.insert("description", Item::Value(value));
-                    let meta = |k: &Key| match k.get() {
-                        "name" => 0,
-                        "format" => 1,
-                        "cover" => 2,
-                        "description" => 3,
-                        _ => 4,
-                    };
-                    doc.sort_values_by(|a, _, b, _| meta(a).cmp(&meta(b)));
+                    doc.sort_values_by(|a, _, b, _| meta_rank(a).cmp(&meta_rank(b)));
                     // A block of prose wants a blank line before what follows it.
                     let next = doc
                         .iter()
@@ -597,6 +741,7 @@ pub fn new_deck(name: &str, format: &str) -> Result<String, EditError> {
     let deck = Deck {
         name: Some(name.to_string()),
         format: (!format.trim().is_empty()).then(|| format.trim().to_string()),
+        variant_of: None,
         cover: None,
         description: None,
         categories: Vec::new(),

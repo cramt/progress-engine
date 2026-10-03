@@ -33,6 +33,8 @@ export interface DeckEntry {
   commanders?: CardRef[];
   /** The printing it chose to stand for it, ahead of its commanders. */
   cover?: { set: string; num: string };
+  /** The path of the deck it is a variant of. */
+  variantOf?: string;
 }
 
 /** `decks/lantern.deck.toml` → `lantern`. */
@@ -68,6 +70,7 @@ export async function listDecks(
           name: parsed.name ?? deckStem(f.path),
           ...(parsed.format ? { format: parsed.format } : {}),
           ...(parsed.cover ? { cover: parsed.cover } : {}),
+          ...(parsed.variantOf ? { variantOf: parsed.variantOf } : {}),
           total: parsed.total,
           commanders: parsed.cards
             .filter((c) => c.place === "commander")
@@ -104,7 +107,9 @@ export function deckPath(name: string): string {
 
 export type NewDeckSource =
   | { kind: "empty"; format: string }
-  | { kind: "archidekt"; text: string; format?: string };
+  | { kind: "archidekt"; text: string; format?: string }
+  /** A copy of `text`, a version of the deck at `of`, as a variant of it. */
+  | { kind: "variant"; text: string; of: string };
 
 export type CreatedDeck =
   | {
@@ -126,7 +131,8 @@ export async function createDeck(
   repo: RepoRef,
   name: string,
   source: NewDeckSource,
-  deck: ImportText & Pick<DeckText, "newDeck" | "commitMessage">,
+  deck: ImportText &
+    Pick<DeckText, "newDeck" | "commitMessage" | "setVariantOf">,
   lookups: Lookups = scryfallLookups,
 ): Promise<CreatedDeck> {
   const slug = slugify(name);
@@ -147,6 +153,8 @@ export async function createDeck(
   let unreadable: { line: number; text: string; reason: string }[] = [];
   if (source.kind === "empty") {
     text = deck.newDeck(name, source.format);
+  } else if (source.kind === "variant") {
+    text = deck.setVariantOf(deck.setDeckMeta(source.text, name), source.of);
   } else {
     const made = await deckFromArchidekt(
       source.text,

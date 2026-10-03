@@ -93,7 +93,8 @@ export function StacksView({
   categories: readonly Category[];
   cards: readonly DeckCard[];
   printings: Printings;
-  onDrop: OnDrop;
+  /** Without it nothing can be dragged: the deck is only looked at. */
+  onDrop?: OnDrop;
   /** Without it a card is only drawn: no menu, hotkeys or details. */
   cardProps?: CardPropsFor;
 }) {
@@ -111,7 +112,7 @@ export function StacksView({
   );
 
   const drop = (to: DropTarget, secondary: boolean) => {
-    if (dragging) onDrop(dragging.card, dragging.from, to, secondary);
+    if (dragging) onDrop?.(dragging.card, dragging.from, to, secondary);
     setDragging(null);
   };
 
@@ -130,7 +131,7 @@ export function StacksView({
         <NewCategory
           onDone={(name) => {
             if (name)
-              onDrop(
+              onDrop?.(
                 naming.drag.card,
                 naming.drag.from,
                 { kind: "new", name },
@@ -163,6 +164,7 @@ export function StacksView({
                 printings={printings}
                 cardProps={cardProps}
                 dragging={dragging}
+                draggable={onDrop !== undefined}
                 onDragStart={(card) =>
                   // Deferred: changing the DOM inside dragstart makes Chrome
                   // cancel the drag it has just begun.
@@ -228,6 +230,7 @@ function Stack({
   printings,
   cardProps,
   dragging,
+  draggable,
   onDragStart,
   onDragEnd,
   onDrop,
@@ -236,6 +239,7 @@ function Stack({
   printings: Printings;
   cardProps: CardPropsFor | undefined;
   dragging: Dragging | null;
+  draggable: boolean;
   onDragStart: (card: DeckCard) => void;
   onDragEnd: () => void;
   onDrop: (secondary: boolean) => void;
@@ -269,7 +273,7 @@ function Stack({
           <li
             className="card"
             key={c.index}
-            draggable
+            draggable={draggable || undefined}
             onDragStart={(ev) => {
               ev.dataTransfer.effectAllowed = "copyMove";
               // Firefox starts no drag without data.

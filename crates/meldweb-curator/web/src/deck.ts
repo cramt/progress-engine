@@ -1,7 +1,16 @@
-import type { Finish, Imported, Kind, NewCard, Parsed } from "./deck.gen";
+import type {
+  Compared,
+  Finish,
+  Imported,
+  Kind,
+  NewCard,
+  Parsed,
+} from "./deck.gen";
 import init, {
   add_card,
+  apply_changes,
   commit_message,
+  compare_decks,
   declare_category,
   export_archidekt,
   import_archidekt,
@@ -17,12 +26,15 @@ import init, {
   set_deck_cover,
   set_deck_description,
   set_deck_meta,
+  set_variant_of,
 } from "./wasm/pkg/meldweb_wasm.js";
 
 export type {
   Card,
   CardRef,
   Category,
+  Compared,
+  DeckChange,
   Finish,
   Imported,
   Kind,
@@ -189,4 +201,31 @@ export function setDeckDescription(text: string, description: string): string {
 /** The text of a new, empty deck. An empty `format` is left out. */
 export function newDeck(name: string, format: string): string {
   return new_deck(name, format);
+}
+
+/**
+ * Every change from `before` to `after`, as a save's commit message lists
+ * them, or `refused` when either is not a deck.
+ */
+export function compareDecks(before: string, after: string): Compared {
+  return JSON.parse(compare_decks(before, after)) as Compared;
+}
+
+/**
+ * `before` with the changes at `take`, positions in `compareDecks(before,
+ * after)`, taken from `after` and nothing else touched. Taking them all is
+ * restoring `after`. Throws when the result is not a deck, such as a
+ * category dropped while a card is still in it.
+ */
+export function applyChanges(
+  before: string,
+  after: string,
+  take: readonly number[],
+): string {
+  return apply_changes(before, after, Uint32Array.from(take));
+}
+
+/** The deck text as a variant of the deck at `parent`, or alone for `null`. */
+export function setVariantOf(text: string, parent: string | null): string {
+  return set_variant_of(text, parent ?? undefined);
 }

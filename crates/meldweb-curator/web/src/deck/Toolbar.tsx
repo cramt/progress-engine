@@ -134,7 +134,8 @@ export function SaveStatus({ save, path }: { save: SaveState; path: string }) {
 
 /**
  * What stops a save or an edit, under the toolbar: a commit made elsewhere, a
- * failed save, and the last edit refused, each with its way out.
+ * failed save, and the last edit refused, each with its way out. A `notice`
+ * says what an action just did, such as a snapshot taken.
  */
 export function Banners({
   save,
@@ -142,12 +143,14 @@ export function Banners({
   onReload,
   onOverwrite,
   onDismiss,
+  notice,
 }: {
   save: SaveState;
   refusal: string | null;
   onReload: () => void;
   onOverwrite: () => void;
   onDismiss: () => void;
+  notice?: string | null;
 }) {
   return (
     <div className="banners">
@@ -165,6 +168,11 @@ export function Banners({
       {save.status === "error" && (
         <p className="refusal" role="alert">
           Saving failed, and will be tried again: {save.message}
+        </p>
+      )}
+      {notice && (
+        <p className="notice" role="status">
+          {notice}
         </p>
       )}
       {refusal && (

@@ -38,6 +38,37 @@ interface State {
   seq: number;
   token: string | null;
   commits: MockCommit[];
+  /** Every revision of every file, oldest first, seeds included. */
+  log: Revision[];
+  /** Annotated tag objects by sha, and `refs/tags/*` to the sha each names. */
+  tags: Record<string, TagObject>;
+  refs: Record<string, string>;
+}
+
+interface Revision {
+  commit: string;
+  path: string;
+  /** The file after the commit; `null` deleted it. */
+  file: { text: string; sha: string } | null;
+  message: string;
+  date: string;
+}
+
+interface TagObject {
+  sha: string;
+  tag: string;
+  message: string;
+  object: { sha: string; type: "commit" };
+  tagger: { name: string; date: string };
+}
+
+/** A commit made before the mock starts, so a fresh dev session has a past. */
+export interface SeedCommit {
+  path: string;
+  text: string;
+  message: string;
+  /** ISO 8601. */
+  date: string;
 }
 
 export interface MockOptions {
@@ -46,6 +77,8 @@ export interface MockOptions {
   start?: "ready" | "no-repo" | "no-install";
   /** Seed files by path, e.g. `decks/lantern.deck.toml`. */
   files?: Record<string, string>;
+  /** Commits before `files`, oldest first; a file's last one is its text. */
+  history?: SeedCommit[];
   loggedIn?: boolean;
   /** Keeps the fake across reloads, e.g. `sessionStorage`. */
   storage?: Pick<Storage, "getItem" | "setItem"> | null;
@@ -98,11 +131,34 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
       seq: 0,
       token: null,
       commits: [],
+      log: [],
+      tags: {},
+      refs: {},
     };
     if (start !== "no-repo") {
       st.repo = { installed: start === "ready", files: {} };
+      for (const c of options.history ?? []) {
+        const file = { text: c.text, sha: nextSha(st) };
+        st.repo.files[c.path] = file;
+        st.log.push({
+          commit: nextSha(st),
+          path: c.path,
+          file,
+          message: c.message,
+          date: c.date,
+        });
+      }
+      const seeded = new Date(now() - 60_000).toISOString();
       for (const [path, text] of Object.entries(options.files ?? {})) {
-        st.repo.files[path] = { text, sha: nextSha(st) };
+        const file = { text, sha: nextSha(st) };
+        st.repo.files[path] = file;
+        st.log.push({
+          commit: nextSha(st),
+          path,
+          file,
+          message: `add ${path}`,
+          date: seeded,
+        });
       }
     }
     return st;
@@ -114,7 +170,13 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
   }
 
   const stored = storage?.getItem(key);
-  const state: State = stored ? (JSON.parse(stored) as State) : fresh();
+  const state: State = stored
+    ? // A mock stored before history kept no log, tags or refs.
+      ({
+        ...{ log: [], tags: {}, refs: {} },
+        ...(JSON.parse(stored) as Partial<State>),
+      } as State)
+    : fresh();
   const persist = () => storage?.setItem(key, JSON.stringify(state));
   persist();
 
@@ -123,8 +185,43 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
     name.toLowerCase() === MAGIC_REPO &&
     state.repo?.installed === true;
 
-  function contentsGet(path: string): Response {
-    const files = state.repo?.files ?? {};
+  /** A commit on the log, made now, and its sha. */
+  function record(
+    path: string,
+    file: { text: string; sha: string } | null,
+    message: string,
+  ): string {
+    const commit = nextSha(state);
+    state.log.push({
+      commit,
+      path,
+      file,
+      message,
+      date: new Date(now()).toISOString(),
+    });
+    return commit;
+  }
+
+  /** Every file as it was once `ref` was committed, or `null` for no such commit. */
+  function treeAt(
+    ref: string,
+  ): Record<string, { text: string; sha: string }> | null {
+    const at = state.log.findIndex((r) => r.commit === ref);
+    if (at < 0) return null;
+    const files: Record<string, { text: string; sha: string }> = {};
+    for (const r of state.log.slice(0, at + 1)) {
+      if (r.file) files[r.path] = r.file;
+      else delete files[r.path];
+    }
+    return files;
+  }
+
+  function contentsGet(path: string, ref: string | null): Response {
+    const tree = ref === null ? (state.repo?.files ?? {}) : treeAt(ref);
+    if (!tree) {
+      return json(404, { message: `No commit found for the ref ${ref}` });
+    }
+    const files = tree;
     const file = files[path];
     if (file) {
       const size = new TextEncoder().encode(file.text).length;
@@ -189,10 +286,11 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
     const sha = nextSha(state);
     files[path] = { text: decodeBase64(put.content), sha };
     state.commits.push({ path, message: put.message, sha, outOfBand: false });
+    const commit = record(path, files[path], put.message);
     persist();
     return json(existing ? 200 : 201, {
       content: { path, sha },
-      commit: { sha: nextSha(state), message: put.message },
+      commit: { sha: commit, message: put.message },
     });
   }
 
@@ -210,8 +308,118 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
     delete files[path];
     const sha = nextSha(state);
     state.commits.push({ path, message: del.message, sha, outOfBand: false });
+    const commit = record(path, null, del.message);
     persist();
-    return json(200, { content: null, commit: { sha, message: del.message } });
+    return json(200, {
+      content: null,
+      commit: { sha: commit, message: del.message },
+    });
+  }
+
+  /** `GET /commits`: the log filtered by `path` and `until`, newest first, paged. */
+  function commitsGet(url: URL): Response {
+    const q = url.searchParams;
+    const path = q.get("path");
+    const until = q.get("until");
+    const perPage = Number(q.get("per_page") ?? "30");
+    const page = Number(q.get("page") ?? "1");
+    const hits = state.log
+      .filter(
+        (r) =>
+          (path === null || r.path === path) &&
+          (!until || Date.parse(r.date) <= Date.parse(until)),
+      )
+      .reverse()
+      .slice((page - 1) * perPage, page * perPage);
+    return json(200, hits.map(commitJson));
+  }
+
+  function commitGet(sha: string): Response {
+    const r = state.log.find((r) => r.commit === sha);
+    return r
+      ? json(200, commitJson(r))
+      : json(422, { message: `No commit found for SHA: ${sha}` });
+  }
+
+  function commitJson(r: Revision) {
+    return {
+      sha: r.commit,
+      commit: {
+        message: r.message,
+        author: { name: state.login, date: r.date },
+        committer: { name: state.login, date: r.date },
+      },
+      author: { login: state.login },
+    };
+  }
+
+  /** The tags and refs of git's database that snapshots use. */
+  function gitDatabase(method: string, rest: string, body: string | null) {
+    const sent = JSON.parse(body ?? "{}") as Record<string, unknown>;
+    if (method === "POST" && rest === "/tags") {
+      const { tag, message, object } = sent;
+      if (
+        typeof tag !== "string" ||
+        typeof message !== "string" ||
+        typeof object !== "string" ||
+        !state.log.some((r) => r.commit === object)
+      ) {
+        return json(422, { message: "Invalid request." });
+      }
+      const t: TagObject = {
+        sha: nextSha(state),
+        tag,
+        // Git ends a tag message with a newline.
+        message: message.endsWith("\n") ? message : `${message}\n`,
+        object: { sha: object, type: "commit" },
+        tagger: { name: state.login, date: new Date(now()).toISOString() },
+      };
+      state.tags[t.sha] = t;
+      persist();
+      return json(201, t);
+    }
+    if (method === "POST" && rest === "/refs") {
+      const { ref, sha } = sent;
+      if (typeof ref !== "string" || typeof sha !== "string") {
+        return json(422, { message: "Invalid request." });
+      }
+      if (state.refs[ref]) {
+        return json(422, { message: "Reference already exists" });
+      }
+      state.refs[ref] = sha;
+      persist();
+      return json(201, { ref, object: { sha, type: "tag" } });
+    }
+    const tagGet = rest.match(/^\/tags\/([0-9a-f]+)$/);
+    if (method === "GET" && tagGet) {
+      const t = state.tags[tagGet[1] ?? ""];
+      return t ? json(200, t) : notFound();
+    }
+    const matching = rest.match(/^\/matching-refs\/(.*)$/);
+    if (method === "GET" && matching) {
+      const prefix = `refs/${(matching[1] ?? "").split("/").map(decodeURIComponent).join("/")}`;
+      return json(
+        200,
+        Object.entries(state.refs)
+          .filter(([ref]) => ref.startsWith(prefix))
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([ref, sha]) => ({
+            ref,
+            object: { sha, type: state.tags[sha] ? "tag" : "commit" },
+          })),
+      );
+    }
+    const refDelete = rest.match(/^\/refs\/(.*)$/);
+    if (method === "DELETE" && refDelete) {
+      const ref = `refs/${(refDelete[1] ?? "").split("/").map(decodeURIComponent).join("/")}`;
+      if (!state.refs[ref]) {
+        return json(422, { message: "Reference does not exist" });
+      }
+      delete state.refs[ref];
+      persist();
+      return new Response(null, { status: 204 });
+    }
+    return notFound();
   }
 
   function api(
@@ -260,12 +468,23 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
         ? json(200, { name: MAGIC_REPO, owner: { login: state.login } })
         : notFound();
     }
+    const git = p.match(/^\/repos\/([^/]+)\/([^/]+)\/(commits|git)(\/.*)?$/);
+    if (git) {
+      const [, owner = "", name = "", kind = "", rest = ""] = git;
+      if (!reachable(owner, name)) return notFound();
+      if (kind === "commits" && method === "GET") {
+        return rest === "" ? commitsGet(url) : commitGet(rest.slice(1));
+      }
+      if (kind === "git") return gitDatabase(method, rest, body);
+    }
     const contents = p.match(/^\/repos\/([^/]+)\/([^/]+)\/contents\/?(.*)$/);
     if (contents) {
       const [, owner = "", name = "", rest = ""] = contents;
       if (!reachable(owner, name)) return notFound();
       const path = rest.split("/").map(decodeURIComponent).join("/");
-      if (method === "GET") return contentsGet(path);
+      if (method === "GET") {
+        return contentsGet(path, url.searchParams.get("ref"));
+      }
       if (method === "PUT") return contentsPut(path, body);
       if (method === "DELETE") return contentsDelete(path, body);
     }
@@ -358,6 +577,7 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
         sha,
         outOfBand: true,
       });
+      record(path, state.repo.files[path], `edit ${path}`);
       persist();
     },
     file: (path) => state.repo?.files[path],
