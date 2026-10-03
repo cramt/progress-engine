@@ -255,7 +255,7 @@ also the list of blobs to fetch. This repo uses it in four places:
   `assets/repin.py`, and opens one PR per build. It never merges.
 - **Reviewing that PR.** `.github/workflows/probe-web-check.yml` runs
   `web-check/run.sh` on every PR that touches the probe, with ImageMagick-made
-  frames. It shows whether `KNOWN_FINGERPRINT` still holds and whether 6/6 and 5/6
+  frames. It shows whether `KNOWN_FINGERPRINT` still holds and whether 6/6 and 4/6
   moved. A moved fingerprint or number needs someone to read FINDINGS before the PR
   merges. CI does not run the native accuracy test.
 
@@ -328,17 +328,26 @@ because upstream stopped serving 1.83.beta. Rerun on 2026-10-01 with ImageMagick
 frames, 1.89.beta gets **6/6** on card name and **5/6** on exact printing, natively
 (`PROBE_REQUIRE_ENGINE=1`) and on the web (`web-check/run.sh`, page and worker) alike,
 with the same picks: Llanowar Elves now lands on Core Set 2019, and Swords to
-Plowshares is the one miss. Both tests pin 5/6. The web check booted in 4.8-5.1 s with the model
+Plowshares is the one miss. Both tests pinned 5/6. The web check booted in 4.8-5.1 s with the model
 unpacked in the page, against 4.0 s when it was served unpacked. Earlier, frames made without
 ImageMagick had given 2/6 or 3/6 on the web
 ([probe-in-curator.md](../../../docs/research/probe-in-curator.md)).
 
+1.90.beta (2026-10-03) keeps the fingerprint, so the engine is the same code and only
+the catalogue moved (124894 cards to 124958). It gives that printing back: Llanowar
+Elves lands on Game Night: Free-for-All, which reprints M19's art (same Scryfall
+`illustration_id`). Alpha is **6/6** and **4/6** again, natively and on the web alike,
+and both tests pin 4/6. A same-art reprint goes wherever the catalogue ranks it, so
+this pick can move with any build.
+
 Lambda and gamma were measured the same way on 2026-10-02, booting through alpha's
 init call as *Scope* describes, and they are not alpha's weights under another name:
 both get **6/6** on card name but only **4/6** on exact printing, natively and on the
-web alike. Counterspell is the extra miss on both, landing on Foreign Black Border
-rather than Alpha, on top of the Swords to Plowshares miss alpha also has — except
-gamma's Swords miss lands on a third wrong printing, Intl. Collectors' Edition.
+web alike, and hold both on 1.90.beta with the same picks. Counterspell is the extra
+miss on both, landing on Foreign Black Border rather than Alpha, on top of the Swords
+to Plowshares miss alpha also has — except gamma's Swords miss lands on a third
+wrong printing, Intl. Collectors' Edition. Both still place Llanowar Elves in M19,
+which alpha has not since 1.90.beta.
 `web-check`'s per-tier run is what pins these: `ceiling()` in `web-check/src/lib.rs`
 holds each tier to its own two numbers, not alpha's.
 

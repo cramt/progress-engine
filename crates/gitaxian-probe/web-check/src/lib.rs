@@ -1,15 +1,15 @@
 //! The web host's acceptance check.
 //!
-//! `engine/tests/engine.rs` pins 6/6 on card name for all three tiers, and
-//! 5/6 on exact printing for alpha, 4/6 for lambda and gamma - a real gap
-//! between the tiers' weights (the alpha-only miss is Swords to Plowshares, a
-//! same-art reprint with no OCR to separate it; lambda and gamma also miss
-//! Counterspell's printing). The web host runs the same engine through a
-//! different execution model, so each tier is held to its own number - and
-//! nothing short of a real, cross-origin-isolated browser can run it. `run.sh`
-//! builds this, serves it and drives headless Chromium once per tier; the
-//! page decodes the frames and hands them to [`check`], which fails unless
-//! both numbers hold for the tier it booted.
+//! `engine/tests/engine.rs` pins 6/6 on card name and 4/6 on exact printing.
+//! The tiers reach 4/6 differently: all three miss Swords to Plowshares, a
+//! same-art reprint with no OCR to separate it; alpha also misses Llanowar
+//! Elves (another, since 1.90.beta), and lambda and gamma miss Counterspell.
+//! The web host runs the same engine through a different execution model, so
+//! each tier is held to its own number - and nothing short of a real,
+//! cross-origin-isolated browser can run it. `run.sh` builds this, serves it
+//! and drives headless Chromium once per tier; the page decodes the frames and
+//! hands them to [`check`], which fails unless both numbers hold for the tier
+//! it booted.
 //!
 //! Empty on native targets, so the workspace still builds and tests there.
 #![cfg(target_arch = "wasm32")]
@@ -37,7 +37,9 @@ const CASES: &[(&str, &str, &str)] = &[
 /// measured natively and held here rather than one shared number.
 fn ceiling(tier: Tier) -> (u32, u32) {
     match tier {
-        Tier::Alpha => (6, 5),
+        // 5/6 on 1.89.beta; 1.90.beta's catalogue puts Llanowar Elves on a
+        // same-art reprint.
+        Tier::Alpha => (6, 4),
         Tier::Lambda => (6, 4),
         Tier::Gamma => (6, 4),
     }
@@ -165,8 +167,7 @@ async fn run(base: String, tier: String, frames: JsValue) -> Result<String> {
         bail!("card-name accuracy regressed for {tier}\n{report}");
     }
     // Each tier's own ceiling, as measured natively: no OCR, so a same-art
-    // reprint lands on the wrong printing, and lambda/gamma miss one more
-    // than alpha does.
+    // reprint lands on the wrong printing.
     if printings != want_printings {
         bail!("printing accuracy moved for {tier} - the web host changed behaviour\n{report}");
     }

@@ -285,7 +285,9 @@ not built), and the web check failed its 4/6 printing assertion on 2/6 and 3/6
 with frames made another way. Both were rerun on 2026-10-01 with ImageMagick
 frames: 6/6 names and 5/6 printings, natively and on the web, with the same
 picks. 1.89.beta places Llanowar Elves right, where 1.83.beta did not, so both
-tests now pin 5/6 (engine README, *Accuracy and cost, measured*).
+tests then pinned 5/6. 1.90.beta moved Llanowar Elves to a same-art reprint in
+Game Night: Free-for-All, and they pin 4/6 again (engine README, *Accuracy and
+cost, measured*).
 
 Anything that ships this carries Delver's release schedule. A new build breaks
 a fresh `cargo build` until the pin moves, unless the pinned build is in the
