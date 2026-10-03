@@ -6,11 +6,43 @@ on:
   # Probe pin starts it on the PRs it opens, which start no workflows themselves.
   workflow_dispatch:
 
+permissions:
+  contents: read
+  # hestia lists the cache to find what earlier jobs pushed; without it the
+  # job still pushes but substitutes nothing
+  actions: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      # The beta fork, ahead of github.com/Mic92/hestia's v3. Move to
+      # Mic92/hestia once it releases a v4.
+      - uses: Mic92/hestia-beta@v4.0.0-beta.2
+        with:
+          version: Mic92/hestia-beta@v4.0.0-beta.2
       - run: nix flake check -L
+
+  # Only the worker and site, as `nix run .#deploy-curator` ships them. The
+  # domain and the client secret stay with `nix run .#infra -- apply`, whose
+  # state is on luna's LAN and out of a runner's reach; the secret survives a
+  # deploy that doesn't upload it.
+  deploy-curator:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # A slower older run must not land after a newer one
+    concurrency:
+      group: deploy-curator
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: Mic92/hestia-beta@v4.0.0-beta.2
+        with:
+          version: Mic92/hestia-beta@v4.0.0-beta.2
+      - run: nix run -L .#deploy-curator
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

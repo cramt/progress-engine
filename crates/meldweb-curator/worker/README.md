@@ -117,6 +117,14 @@ secret when `GITHUB_CLIENT_SECRET` is set in the environment. It copies both
 into a temporary directory, so it touches nothing in the repo. `wrangler`
 comes from nixpkgs (it is in `nix develop`), not npm.
 
+CI runs `deploy-curator` on every push to `main` once `nix flake check`
+passes, so code goes live without an `apply`. Its only secret is the
+repository secret `CLOUDFLARE_API_TOKEN`. The client secret stays whatever the
+last `apply` set. The domain and the state stay with `infra`, which can only
+run from the homelab because luna's Postgres is on its LAN. Rotating the
+client secret or changing the domain still takes an `apply`. A new
+`cloudflareApiToken` also has to go to `gh secret set CLOUDFLARE_API_TOKEN`.
+
 `[assets]` serves the site with
 `not_found_handling = "single-page-application"`, so a reload on a deck's URL
 gets `index.html`, and `run_worker_first = ["/api/*"]` is the only traffic that

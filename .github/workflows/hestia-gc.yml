@@ -1,0 +1,41 @@
+# Keeps CI's hestia cache inside GitHub's 10 GB quota by deleting what no
+# branch uses any more. It has to run on the default branch: that scope is the
+# one that grows, since a PR's dies with the PR. From hestia's own gc.yml.
+name: Cache GC
+
+# A second GC racing the first's pack deletes can corrupt the repack
+concurrency:
+  group: hestia-gc
+  cancel-in-progress: false
+
+on:
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Plan only; repack, touch and delete nothing.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  gc:
+    runs-on: ubuntu-latest
+    permissions:
+      # REST cache deletes
+      actions: write
+      contents: read
+    steps:
+      - uses: DeterminateSystems/nix-installer-action@main
+      # For the binary ($HESTIA_BIN) and the cache API's tokens
+      - uses: Mic92/hestia-beta@v4.0.0-beta.2
+        with:
+          version: Mic92/hestia-beta@v4.0.0-beta.2
+      - name: Run garbage collection
+        run: |
+          "$HESTIA_BIN" gc ${{ inputs.dry-run && '--dry-run' || '' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

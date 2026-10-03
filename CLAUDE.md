@@ -24,7 +24,7 @@ box, a deck), edited at `/collection` and saved the same way (ADR-0023). It is t
 parts: `meldweb-wasm`, which is `chip-decklist` compiled for the browser; `web/`, a
 Vite + React + TanStack Router app in the root pnpm workspace; and `worker/`, the
 one Cloudflare Worker that serves the site and trades a GitHub login for tokens
-without storing anything (deployed with `nix run .#infra -- apply`, an OpenTofu stack in `crates/meldweb-curator/infra/`). In dev, plain
+without storing anything (CI deploys its code on every push to `main`; the domain and secret are `nix run .#infra -- apply`, an OpenTofu stack in `crates/meldweb-curator/infra/`). In dev, plain
 `pnpm dev` logs in through the real GitHub App on localhost:5173, running the
 worker's auth routes inside Vite with the client secret from 1Password
 (`web/scripts/dev-auth.ts`); `VITE_MOCK_GITHUB=1 pnpm dev` runs the app against an in-page fake GitHub

@@ -2,9 +2,10 @@
 # plus the four GitHub login routes under /api/auth/ and the card scanner's
 # engine files under /gitaxian-probe/. See README.md.
 #
-# Deployed by `nix run .#infra -- apply` from the repo root, which also owns
-# the domain (crates/meldweb-curator/infra/). `nix run .#deploy-curator` ships
-# just the worker and site.
+# CI deploys it on every push to main with `nix run .#deploy-curator`, which
+# ships just the worker and site. `nix run .#infra -- apply` from the repo root
+# owns the domain and the client secret (crates/meldweb-curator/infra/), and
+# redeploys too.
 
 name = "meldweb-curator"
 account_id = "37acee5cdd3b5fb5c88adbeeac754644" # cramt
