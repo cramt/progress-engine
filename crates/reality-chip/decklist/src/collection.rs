@@ -87,6 +87,8 @@ pub enum CollectionError {
     NotEmpty { name: String, qty: u32 },
     #[error("there is no place {0:?}")]
     NoPlace(String),
+    #[error("there is already a place {0:?}")]
+    Taken(String),
     #[error("card {index} has {have}, so {qty} of it cannot move")]
     TooMany { index: usize, have: u32, qty: u32 },
 }
@@ -473,6 +475,40 @@ pub fn undeclare_place(text: &str, name: &str) -> Result<String, EditError> {
     finish_with(doc, check)
 }
 
+/// The place `from` called `to`, keeping where it sits among the places, its
+/// deck, and every card in it.
+pub fn rename_place(text: &str, from: &str, to: &str) -> Result<String, EditError> {
+    let c = parse(text)?;
+    if c.place(from).is_none() {
+        return Err(CollectionError::NoPlace(from.to_string()).into());
+    }
+    if from == to {
+        return Ok(text.to_string());
+    }
+    if c.place(to).is_some() {
+        return Err(CollectionError::Taken(to.to_string()).into());
+    }
+    let mut doc = document(text)?;
+    for (index, owned) in c.cards.iter().enumerate() {
+        if owned.at.as_deref() == Some(from) {
+            put(card_mut(&mut doc, index)?, "at", to);
+        }
+    }
+    let table = doc["places"]
+        .as_table_like_mut()
+        .ok_or_else(|| EditError::Toml("places is not a table".into()))?;
+    // A key can't be renamed where it stands, so the table is laid out again.
+    let entries: Vec<(String, Item)> = table
+        .iter()
+        .map(|(k, v)| (if k == from { to } else { k }.to_string(), v.clone()))
+        .collect();
+    table.clear();
+    for (k, v) in entries {
+        table.insert(&k, v);
+    }
+    finish_with(doc, check)
+}
+
 /// What the changelog tells apart about a copy.
 #[derive(Clone, PartialEq, Eq)]
 struct Key {
@@ -490,12 +526,53 @@ enum Kind {
     Finish,
     Declare,
     Undeclare,
+    Rename,
     Redeck,
 }
 
 fn place_name(at: &Option<String>) -> String {
     at.as_deref()
         .map_or_else(|| "unsorted".to_string(), str::to_lowercase)
+}
+
+/// Places gone from `before` and new in `after`, paired when they are the
+/// same deck or none and hold the same copies: a rename, not a move.
+fn renames(before: &Collection, after: &Collection) -> Vec<(String, String)> {
+    let held = |c: &Collection, place: &str| -> Vec<(Key, u32)> {
+        copies(c)
+            .into_iter()
+            .filter(|(k, _)| k.at.as_deref() == Some(place))
+            .map(|(k, n)| (Key { at: None, ..k }, n))
+            .collect()
+    };
+    let same =
+        |a: &[(Key, u32)], b: &[(Key, u32)]| a.len() == b.len() && a.iter().all(|x| b.contains(x));
+    let mut pairs: Vec<(String, String)> = Vec::new();
+    for gone in before
+        .places
+        .iter()
+        .filter(|p| after.place(&p.name).is_none())
+    {
+        let was = held(before, &gone.name);
+        let to = after.places.iter().find(|p| {
+            before.place(&p.name).is_none()
+                && p.deck == gone.deck
+                && !pairs.iter().any(|(_, t)| *t == p.name)
+                && same(&was, &held(after, &p.name))
+        });
+        if let Some(to) = to {
+            pairs.push((gone.name.clone(), to.name.clone()));
+        }
+    }
+    pairs
+}
+
+fn old_name(renamed: &[(String, String)], name: &str) -> String {
+    renamed
+        .iter()
+        .find(|(_, to)| to == name)
+        .map_or(name, |(from, _)| from)
+        .to_string()
 }
 
 fn copies(c: &Collection) -> Vec<(Key, u32)> {
@@ -528,6 +605,27 @@ pub fn commit_message(
     let label = |r: &CardRef| match r {
         CardRef::Name(n) => n.clone(),
         CardRef::Printing(p) => name_of(p).unwrap_or_else(|| p.to_string()),
+    };
+    let renamed = renames(before, after);
+    // Read as if the renamed places kept their names, so the cards in them
+    // didn't move and the places weren't dropped and declared.
+    let after = &Collection {
+        places: after
+            .places
+            .iter()
+            .map(|p| Place {
+                name: old_name(&renamed, &p.name),
+                deck: p.deck.clone(),
+            })
+            .collect(),
+        cards: after
+            .cards
+            .iter()
+            .map(|o| Owned {
+                at: o.at.as_deref().map(|at| old_name(&renamed, at)),
+                ..o.clone()
+            })
+            .collect(),
     };
     let old = copies(before);
     let new = copies(after);
@@ -610,6 +708,14 @@ pub fn commit_message(
         changes.push((Kind::Add, name, text));
     }
 
+    for (from, to) in &renamed {
+        let name = from.to_lowercase();
+        changes.push((
+            Kind::Rename,
+            name.clone(),
+            format!("place {name} → {}", to.to_lowercase()),
+        ));
+    }
     for p in &after.places {
         let name = p.name.to_lowercase();
         match before.place(&p.name) {

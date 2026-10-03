@@ -2,8 +2,8 @@
 //! what they say and nothing else in the file.
 
 use chip_decklist::collection::{
-    add, commit_message_for_text, declare_place, move_cards, move_lines, remove, reprint,
-    set_finish, set_printing, set_qty, undeclare_place, Collection, CollectionError,
+    add, commit_message_for_text, declare_place, move_cards, move_lines, remove, rename_place,
+    reprint, set_finish, set_printing, set_qty, undeclare_place, Collection, CollectionError,
 };
 use chip_decklist::deck::{CardRef, DeckError, Finish, Printing};
 use chip_decklist::edit::EditError;
@@ -265,6 +265,40 @@ fn places_are_declared_once_and_dropped_only_when_empty() {
 }
 
 #[test]
+fn a_renamed_place_keeps_its_spot_its_deck_and_its_cards() {
+    let text = rename_place(COLLECTION, "Bulk", "Shoebox").unwrap();
+    assert_eq!(
+        changed_lines(COLLECTION, &text),
+        vec![
+            (
+                r#"  { name = "Sol Ring", qty = 3, at = "Bulk" },"#.into(),
+                r#"  { name = "Sol Ring", qty = 3, at = "Shoebox" },"#.into(),
+            ),
+            ("Bulk = {}".into(), "Shoebox = {}".into()),
+        ]
+    );
+    let text = rename_place(COLLECTION, "Lantern", "Lantern, sleeved").unwrap();
+    let c = Collection::parse(&text).unwrap();
+    assert_eq!(
+        c.place("Lantern, sleeved").unwrap().deck.as_deref(),
+        Some("decks/lantern.deck.toml")
+    );
+    assert_eq!(c.qty_at(Some("Lantern, sleeved")), 1);
+    assert_eq!(
+        rename_place(COLLECTION, "Bulk", "Bulk").unwrap(),
+        COLLECTION
+    );
+    assert_eq!(
+        rename_place(COLLECTION, "Bulk", "Trade binder").unwrap_err(),
+        EditError::Collection(CollectionError::Taken("Trade binder".into()))
+    );
+    assert_eq!(
+        rename_place(COLLECTION, "Shoebox", "Bulk").unwrap_err(),
+        EditError::Collection(CollectionError::NoPlace("Shoebox".into()))
+    );
+}
+
+#[test]
 fn line_edits_are_the_decks() {
     let text = set_qty(COLLECTION, 1, 1).unwrap();
     assert_eq!(
@@ -327,6 +361,14 @@ fn the_changelog_is_about_copies_moving_not_lines() {
     assert_eq!(
         msg(&declare_place(COLLECTION, "Loam", Some("decks/loam.deck.toml")).unwrap()),
         "collection: +place loam (decks/loam.deck.toml)"
+    );
+    assert_eq!(
+        msg(&rename_place(COLLECTION, "Bulk", "Shoebox").unwrap()),
+        "collection: place bulk → shoebox"
+    );
+    assert_eq!(
+        msg(&rename_place(COLLECTION, "Trade binder", "Binder").unwrap()),
+        "collection: place trade binder → binder"
     );
     assert_eq!(
         commit_message_for_text("", COLLECTION, "collection.toml").unwrap(),

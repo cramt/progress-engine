@@ -8,6 +8,7 @@ import {
   type OwnedCard,
   type Place,
   parseCollection,
+  renamePlace,
   reprintOwned,
   setOwnedQty,
   undeclarePlace,
@@ -524,6 +525,14 @@ function PlaceSection({
               — the deck {place.deck} is not in the repo
             </span>
           ))}
+        {place && (
+          <RenamePlace
+            name={place.name}
+            onRename={(to) => {
+              change((t) => renamePlace(t, place.name, to));
+            }}
+          />
+        )}
         {place && section.qty === 0 && (
           <button
             type="button"
@@ -770,6 +779,59 @@ function OwnedRow({
         </button>
       </td>
     </tr>
+  );
+}
+
+/** Renaming a place, which takes its cards and its deck with it. */
+function RenamePlace({
+  name,
+  onRename,
+}: {
+  name: string;
+  onRename: (to: string) => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [to, setTo] = useState(name);
+  const close = () => dialog.current?.close();
+  return (
+    <>
+      <button
+        type="button"
+        className="place-rename small ghost"
+        title={`Rename ${name}`}
+        onClick={() => {
+          setTo(name);
+          dialog.current?.showModal();
+        }}
+      >
+        Rename
+      </button>
+      <dialog ref={dialog} className="sheet" aria-label={`Rename ${name}`}>
+        <form
+          method="dialog"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!to.trim()) return;
+            onRename(to.trim());
+            close();
+          }}
+        >
+          <h2>Rename {name}</h2>
+          <label className="field">
+            Name
+            <input value={to} onChange={(e) => setTo(e.target.value)} />
+          </label>
+          <div className="dialog-buttons">
+            <button type="button" onClick={close}>
+              Cancel
+            </button>
+            <button type="submit" className="primary" disabled={!to.trim()}>
+              Rename
+            </button>
+          </div>
+        </form>
+      </dialog>
+    </>
   );
 }
 

@@ -13,6 +13,7 @@ import {
   collection_set_qty,
   declare_place,
   parse_collection,
+  rename_place,
   undeclare_place,
 } from "./wasm/pkg/meldweb_wasm.js";
 
@@ -110,6 +111,11 @@ export function declarePlace(
 /** Drops a place, which must hold nothing. */
 export function undeclarePlace(text: string, name: string): string {
   return undeclare_place(text, name);
+}
+
+/** The place `from` called `to`, its cards with it. */
+export function renamePlace(text: string, from: string, to: string): string {
+  return rename_place(text, from, to);
 }
 
 /** A line of the collection's changelog; `before` is `""` for the first save. */

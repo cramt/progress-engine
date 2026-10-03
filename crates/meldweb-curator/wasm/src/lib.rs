@@ -769,6 +769,12 @@ pub fn undeclare_place(text: &str, name: &str) -> Result<String, JsError> {
     collection::undeclare_place(text, name).map_err(refused)
 }
 
+/// `text` with the place `from` called `to`, its cards with it.
+#[wasm_bindgen]
+pub fn rename_place(text: &str, from: &str, to: &str) -> Result<String, JsError> {
+    collection::rename_place(text, from, to).map_err(refused)
+}
+
 /// The commit message that saves the collection `before` as `after` at
 /// `path`. An empty `before` is the file's first save.
 #[wasm_bindgen]
