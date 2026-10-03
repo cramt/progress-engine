@@ -145,22 +145,6 @@
   text-transform: capitalize;
 }
 
-.scan-tally {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0 0 12px;
-  padding: 0;
-  list-style: none;
-}
-
-.scan-tally li {
-  padding: 2px 8px;
-  border-radius: 11px;
-  background: var(--surface-2);
-  font-size: 12.5px;
-}
-
 .scan-log {
   display: flex;
   flex-direction: column;

@@ -307,15 +307,6 @@ export function LiveScan({
     e.copy ? unitPrice(e.copy, prices, currency) : undefined;
   const priced = counted.flatMap((e) => priceOf(e) ?? []);
   const sessionWorth = priced.reduce((sum, p) => sum + p, 0);
-  // How many of each card went in, most first: the session at a glance.
-  const tally = [
-    ...counted
-      .reduce(
-        (m, e) => m.set(e.name, (m.get(e.name) ?? 0) + 1),
-        new Map<string, number>(),
-      )
-      .entries(),
-  ].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the backdrop closes on a click, Escape does it by key
     // biome-ignore lint/a11y/useKeyWithClickEvents: Escape is handled on window
@@ -490,15 +481,6 @@ export function LiveScan({
                 </span>
               )}
             </h3>
-            {tally.length > 1 && (
-              <ul className="scan-tally" aria-label="Copies of each card">
-                {tally.map(([name, n]) => (
-                  <li key={name}>
-                    {name} <span className="muted">×{n}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
             <ol className="scan-log">
               {log.map((e) => (
                 <LogRow
