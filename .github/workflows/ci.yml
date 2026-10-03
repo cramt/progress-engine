@@ -22,7 +22,7 @@ jobs:
       # Mic92/hestia once it releases a v4.
       - uses: Mic92/hestia-beta@v4.0.0-beta.2
         with:
-          version: Mic92/hestia-beta@v4.0.0-beta.2
+          version: v4.0.0-beta.2
       - run: nix flake check -L
 
   # Only the worker and site, as `nix run .#deploy-curator` ships them. The
@@ -42,7 +42,7 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: Mic92/hestia-beta@v4.0.0-beta.2
         with:
-          version: Mic92/hestia-beta@v4.0.0-beta.2
+          version: v4.0.0-beta.2
       - run: nix run -L .#deploy-curator
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

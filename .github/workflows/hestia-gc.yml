@@ -33,7 +33,7 @@ jobs:
       # For the binary ($HESTIA_BIN) and the cache API's tokens
       - uses: Mic92/hestia-beta@v4.0.0-beta.2
         with:
-          version: Mic92/hestia-beta@v4.0.0-beta.2
+          version: v4.0.0-beta.2
       - name: Run garbage collection
         run: |
           "$HESTIA_BIN" gc ${{ inputs.dry-run && '--dry-run' || '' }}
