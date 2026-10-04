@@ -263,10 +263,7 @@ export function CollectionEditor({
     parsed.cards,
     nameOf,
     filter,
-    ownedOrder(view.sort, nameOf, (c) => {
-      const each = unitPrice(c, prices, currency);
-      return each === undefined ? undefined : each * c.qty;
-    }),
+    ownedOrder(view.sort, nameOf, (c) => unitPrice(c, prices, currency)),
   );
   const toggleFold = (place: string | null) => {
     const folded = new Set(view.folded);
@@ -792,13 +789,13 @@ function OwnedRow({
         title={
           price === undefined
             ? undefined
-            : `${formatPrice(price, currency)} each${card.card.kind === "name" ? ", as Scryfall's usual printing" : ""}`
+            : `${formatPrice(price, currency)} each${card.qty > 1 ? `, ${formatPrice(price * card.qty, currency)} for ${card.qty}` : ""}${card.card.kind === "name" ? ", as Scryfall's usual printing" : ""}`
         }
       >
         {price === undefined ? (
           <span className="muted">—</span>
         ) : (
-          formatPrice(price * card.qty, currency)
+          formatPrice(price, currency)
         )}
       </td>
       <td className="owned-move">

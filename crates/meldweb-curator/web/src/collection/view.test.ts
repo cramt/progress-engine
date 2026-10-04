@@ -33,7 +33,7 @@ const nameOf = (c: OwnedCard) =>
     ? c.card.name
     : (NAMES[`${c.card.set}/${c.card.num}`] ?? "?");
 
-/** Line totals; Island has no price. */
+/** One copy's price each; Island has none. */
 const PRICES: Record<string, number> = {
   "Sol Ring": 3,
   "Arcane Signet": 0.5,
