@@ -32,7 +32,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 
 pub use answer::Engine;
-pub use library::Library;
+pub use library::{archidekt_text, Library};
 
 use answer::{Answered, Run};
 use prepare::Preparation;

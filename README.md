@@ -251,7 +251,7 @@ Working today:
 | Command | What it does |
 |---|---|
 | `gauntlet sync` | Build the card index from Scryfall bulk data |
-| `gauntlet parse <deck>` | The canonical Archidekt decklist parser, as JSON |
+| `gauntlet parse <deck>` | The canonical decklist parser, as JSON; a `.deck.toml` is named from the index |
 | `gauntlet import <deck.txt>` | An Archidekt export as a `.deck.toml`, on stdout |
 | `gauntlet test <deck> <criteria.toml>` | Evaluate criteria and report PASS/FAIL |
 

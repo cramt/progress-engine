@@ -34,9 +34,12 @@ enum Command {
     /// This is the canonical decklist parser; other tools shell out to it so
     /// there is exactly one definition of what a decklist is.
     Parse {
-        /// Decklist file in Archidekt format.
+        /// Deck file: a `.deck.toml`, or Archidekt's text export.
         #[facet(args::positional)]
         file: PathBuf,
+        /// Card index naming a `.deck.toml`'s printings (default: the synced one).
+        #[facet(args::named, default)]
+        index: Option<PathBuf>,
     },
     /// Convert Archidekt's text export into a `.deck.toml`, printed to stdout.
     ///
@@ -172,9 +175,10 @@ fn parse_args() -> Cli {
 
 fn main() -> Result<()> {
     match parse_args().command {
-        Command::Parse { file } => {
+        Command::Parse { file, index } => {
             let text = std::fs::read_to_string(&file)
                 .with_context(|| format!("reading decklist {}", file.display()))?;
+            let text = gauntlet_cli::archidekt_text(&file, &text, index.as_deref())?;
             let augmented: Vec<ParsedEntry> = chip_decklist::parse(&text)?
                 .into_iter()
                 .map(|entry| ParsedEntry {

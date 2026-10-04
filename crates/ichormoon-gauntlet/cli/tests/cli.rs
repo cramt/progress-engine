@@ -3892,6 +3892,32 @@ fn deck_file(name: &str) -> PathBuf {
         .join(name)
 }
 
+/// `parse` is what other tools shell out to for "what is this decklist", so it
+/// has to read a `.deck.toml` too, or they can only see decks pasted out of
+/// Archidekt and never the ones kept in git.
+#[test]
+fn parse_reads_a_deck_toml_by_naming_its_printings() {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("parse")
+        .arg(deck_file("lantern.deck.toml"))
+        .arg("--index")
+        .arg(deck_file("index.jsonl"))
+        .output()
+        .expect("binary should run");
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let lines: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let lines = lines.as_array().unwrap();
+    let total: u64 = lines.iter().map(|l| l["qty"].as_u64().unwrap()).sum();
+    assert_eq!(total, 100);
+    let commanders: Vec<&str> = lines
+        .iter()
+        .filter(|l| l["commander"] == true)
+        .map(|l| l["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(commanders, ["Rashmi and Ragavan"]);
+    assert!(lines.iter().any(|l| l["name"] == "Bala Ged Recovery // Bala Ged Sanctuary"));
+}
+
 fn run_lantern(criteria: &str, flags: &[&str]) -> serde_json::Value {
     run_lantern_with(deck_file(criteria), flags)
 }

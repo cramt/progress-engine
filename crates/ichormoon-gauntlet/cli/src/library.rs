@@ -716,6 +716,33 @@ pub fn read_deck(path: &Path, text: &str) -> Result<Deck> {
     Ok(deck)
 }
 
+/// A deck in either format as Archidekt text, the one shape `parse` emits.
+///
+/// A `.deck.toml` names cards by printing only, so its names come from the
+/// index at `index_path` (the default index when `None`). Going through the
+/// exporter rather than a second reader keeps one definition of what a line
+/// means: `commander`, `outside` and categories come out exactly as they
+/// would for the same deck pasted from Archidekt.
+pub fn archidekt_text(path: &Path, text: &str, index_path: Option<&Path>) -> Result<String> {
+    if !path.extension().is_some_and(|e| e == "toml") {
+        return Ok(text.to_owned());
+    }
+    let deck = Deck::parse(text)?;
+    let index_path = index_path
+        .map(Path::to_path_buf)
+        .unwrap_or_else(Index::default_path);
+    let index = IndexFile::open(&index_path)?;
+    if !index.has_printings() {
+        bail!(
+            "{} names cards by printing, and the index at {} carries no printings to say \
+             which card that is.\nRebuild it with: gauntlet sync",
+            path.display(),
+            index_path.display()
+        );
+    }
+    Ok(deck.to_archidekt(|p| index.printing(&p.set, &p.num).ok().flatten())?)
+}
+
 /// Names every card, looking a printing up in the index.
 ///
 /// A deck may name a card by printing and nothing else, so an index without
