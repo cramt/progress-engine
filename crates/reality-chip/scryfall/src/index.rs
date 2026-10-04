@@ -345,6 +345,10 @@ pub struct IndexFile {
     entries: HashMap<String, (usize, usize)>,
     /// `set/number` to the byte range of the JSON string naming its card.
     printings: HashMap<String, (usize, usize)>,
+    /// A double-faced card's front face to its full `Front // Back` key.
+    /// Archidekt, `scryfall check` and people all name these by the front
+    /// face, and a deck that resolves everywhere else must resolve here.
+    fronts: HashMap<String, String>,
 }
 
 /// Hand-written because the derived one would print the whole file: this holds
@@ -414,6 +418,15 @@ impl IndexFile {
             offset += length + 1;
         }
 
+        // A front face never shadows a card filed under that exact name.
+        let fronts = entries
+            .keys()
+            .filter_map(|key| {
+                let (front, _) = key.split_once(" // ")?;
+                (!entries.contains_key(front)).then(|| (front.to_string(), key.clone()))
+            })
+            .collect();
+
         for (expected, found) in [(header.cards, found), (header.printings, printings.len())] {
             if let Some(expected) = expected {
                 if expected != found {
@@ -432,6 +445,7 @@ impl IndexFile {
             text,
             entries,
             printings,
+            fronts,
         })
     }
 
@@ -465,6 +479,7 @@ impl IndexFile {
     /// index is the cost of the cards you name.
     pub fn get(&self, name: &str) -> Result<Option<Card>, IndexError> {
         let key = keyname(name);
+        let key = self.fronts.get(&key).cloned().unwrap_or(key);
         let Some(&(start, end)) = self.entries.get(&key) else {
             return Ok(None);
         };
@@ -488,7 +503,8 @@ impl IndexFile {
 
     /// Whether this index has an entry for a name, without parsing it.
     pub fn contains(&self, name: &str) -> bool {
-        self.entries.contains_key(&keyname(name))
+        let key = keyname(name);
+        self.entries.contains_key(&key) || self.fronts.contains_key(&key)
     }
 
     pub fn len(&self) -> usize {
