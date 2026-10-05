@@ -3904,7 +3904,11 @@ fn parse_reads_a_deck_toml_by_naming_its_printings() {
         .arg(deck_file("index.jsonl"))
         .output()
         .expect("binary should run");
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let lines: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     let lines = lines.as_array().unwrap();
     let total: u64 = lines.iter().map(|l| l["qty"].as_u64().unwrap()).sum();
@@ -3915,7 +3919,9 @@ fn parse_reads_a_deck_toml_by_naming_its_printings() {
         .map(|l| l["name"].as_str().unwrap())
         .collect();
     assert_eq!(commanders, ["Rashmi and Ragavan"]);
-    assert!(lines.iter().any(|l| l["name"] == "Bala Ged Recovery // Bala Ged Sanctuary"));
+    assert!(lines
+        .iter()
+        .any(|l| l["name"] == "Bala Ged Recovery // Bala Ged Sanctuary"));
 }
 
 fn run_lantern(criteria: &str, flags: &[&str]) -> serde_json::Value {

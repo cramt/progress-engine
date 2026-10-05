@@ -226,12 +226,18 @@ fn a_missing_printing_line_is_a_truncated_index() {
 /// an unknown card.
 #[test]
 fn a_double_faced_card_is_found_by_its_front_face() {
-    let index = index_of(&["Sink into Stupor // Soporific Springs", "Fire // Ice", "Fire"]);
+    let index = index_of(&[
+        "Sink into Stupor // Soporific Springs",
+        "Fire // Ice",
+        "Fire",
+    ]);
     let file = memory(&index.to_lines().expect("should serialise")).expect("should read back");
 
     assert_eq!(file.len(), 3, "aliases are lookups, not cards");
     assert_eq!(
-        file.get("sink into stupor").expect("should read").map(|c| c.name),
+        file.get("sink into stupor")
+            .expect("should read")
+            .map(|c| c.name),
         Some("Sink into Stupor // Soporific Springs".to_string())
     );
     assert!(file.contains("Sink into Stupor"));
