@@ -79,6 +79,7 @@ export function DetailsModal(props: DetailsModalProps) {
   const pick = (p: PrintingOption) => {
     if (printingId(p) === current) return;
     onRemember(printingId(p), {
+      id: p.id,
       name: p.name,
       set: p.set,
       num: p.num,

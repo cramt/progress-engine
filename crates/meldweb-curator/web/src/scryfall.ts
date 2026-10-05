@@ -7,6 +7,8 @@ import { API, SEARCH_GATE, scryfallFetch } from "./scryfallQueue";
  * identity (as Scryfall's letters, `W U B R G`) for the search's smart filters.
  */
 export interface Printing {
+  /** Scryfall's id for the printing, which Archidekt calls a card's `uid`. */
+  id: string;
   name: string;
   /** Which printing this is, which for a card named by name is Scryfall's pick. */
   set: string;
@@ -160,6 +162,7 @@ function rememberPrices(cards: readonly CollectionCard[]): void {
 
 function toPrinting(card: CollectionCard): Printing {
   return {
+    id: card.id,
     name: card.name,
     set: card.set,
     num: card.collector_number,
@@ -271,6 +274,7 @@ export async function fetchPrices(
 }
 
 interface CollectionCard {
+  id: string;
   name: string;
   prices: CardPrices;
   set: string;
@@ -318,6 +322,7 @@ function parseCollection(json: unknown): CollectionCard[] {
     const c = raw as Record<string, unknown>;
     const image = imageUris(c)?.normal;
     if (
+      typeof c.id !== "string" ||
       typeof c.name !== "string" ||
       typeof c.set !== "string" ||
       typeof c.collector_number !== "string" ||
@@ -327,6 +332,7 @@ function parseCollection(json: unknown): CollectionCard[] {
     }
     return [
       {
+        id: c.id,
         name: c.name,
         prices: parsePrices(c.prices),
         set: c.set.toLowerCase(),

@@ -28,6 +28,7 @@ const printings: Printings = new Map([
   [
     "cmm/410",
     {
+      id: "cmm/410",
       name: "Sol Ring",
       set: "cmm",
       num: "410",

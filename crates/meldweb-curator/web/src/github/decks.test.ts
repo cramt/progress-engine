@@ -331,6 +331,7 @@ describe("replacing a deck from Archidekt", () => {
 describe("an archidekt line with no category", () => {
   it("is filed under its front face's main type, as archidekt's import files it", async () => {
     const typed = (typeLine: string) => ({
+      id: "",
       name: "",
       set: "",
       num: "",

@@ -53,6 +53,7 @@ describe("collection lookups", () => {
         return new Response(
           JSON.stringify({
             data: identifiers.map(({ name }) => ({
+              id: name,
               name,
               set: "tst",
               collector_number: name.slice(5),
@@ -81,6 +82,7 @@ describe("price lookups", () => {
           JSON.stringify({
             data: [
               {
+                id: "card-950",
                 name: "Card 950",
                 set: "tst",
                 collector_number: "950",

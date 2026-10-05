@@ -11,6 +11,7 @@ import {
 
 const raw = (set: string, num: string, released: string, extra = {}) => ({
   object: "card",
+  id: `${set}/${num}`,
   name: "Sol Ring",
   set,
   set_name: `Set ${set.toUpperCase()}`,
@@ -44,6 +45,7 @@ describe("scryfall's printings", () => {
     expect(page.next).toBe("https://api.scryfall.com/next");
     expect(page.printings).toEqual([
       {
+        id: "CMR/472",
         name: "Sol Ring",
         set: "cmr",
         num: "472",
@@ -54,6 +56,7 @@ describe("scryfall's printings", () => {
         finishes: ["nonfoil", "foil"],
       },
       {
+        id: "znr/180",
         name: "Sol Ring",
         set: "znr",
         num: "180",

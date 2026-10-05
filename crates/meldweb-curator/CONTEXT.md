@@ -46,6 +46,9 @@ A save refused because the deck changed on GitHub since Curator loaded it. Savin
 Archidekt text into a deck, and a deck out as Archidekt text. The Archidekt text is read and written the way Archidekt itself reads it ([archidekt-import-shapes.md](../../docs/research/archidekt-import-shapes.md)).
 _Avoid_: export (unqualified)
 
+**Playtest**:
+The deck as it stands in the editor, saved or not, opened in Archidekt's playtester. The whole deck rides in the URL as Scryfall ids, the same way Archidekt's own sandbox opens its playtester, so nothing is uploaded to Archidekt. Only cards the game sees are sent: commanders to the command zone, sideboard and companions to the sideboard, attractions to the attraction deck.
+
 ## A deck's past
 
 **Revision**:

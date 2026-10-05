@@ -23,6 +23,7 @@ const printings: Printings = new Map([
   [
     "moc/94",
     {
+      id: "moc/94",
       name: "Rashmi and Ragavan",
       set: "moc",
       num: "94",

@@ -31,6 +31,7 @@ import { Description } from "./Description";
 import { HistoryDrawer } from "./HistoryDrawer";
 import "./history.css";
 import { dropOnto } from "./move";
+import { PlaytestArchidekt } from "./PlaytestArchidekt";
 import { ReplaceArchidekt } from "./ReplaceArchidekt";
 import { type OnDrop, StacksView } from "./StacksView";
 import { Banners, SaveStatus, Toolbar, UndoRedo } from "./Toolbar";
@@ -349,6 +350,11 @@ export function DeckEditor({
                 Scan
               </button>
             )}
+            <PlaytestArchidekt
+              cards={parsed.cards}
+              printings={printings}
+              onRefusal={setRefusal}
+            />
             <CopyArchidekt
               text={history.present}
               cards={parsed.cards}

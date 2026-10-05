@@ -5,6 +5,8 @@ import { API, SEARCH_GATE, scryfallFetch } from "../scryfallQueue";
 
 /** One printing of a card, as the printing dropdown and the grid show it. */
 export interface PrintingOption {
+  /** Scryfall's id for the printing. */
+  id: string;
   name: string;
   set: string;
   num: string;
@@ -41,6 +43,7 @@ export function parsePrintsPage(json: unknown): {
     const c = raw as Record<string, unknown>;
     const uris = imageUris(c);
     if (
+      typeof c.id !== "string" ||
       typeof c.name !== "string" ||
       typeof c.set !== "string" ||
       typeof c.collector_number !== "string"
@@ -51,6 +54,7 @@ export function parsePrintsPage(json: unknown): {
       : [];
     return [
       {
+        id: c.id,
         name: c.name,
         set: c.set.toLowerCase(),
         num: c.collector_number,

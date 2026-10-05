@@ -17,7 +17,15 @@ const known = (names: Record<string, string>): Printings =>
   new Map(
     Object.entries(names).map(([key, name]) => [
       key,
-      { name, set: "", num: "", image: "", colorIdentity: [], typeLine: "" },
+      {
+        id: key,
+        name,
+        set: "",
+        num: "",
+        image: "",
+        colorIdentity: [],
+        typeLine: "",
+      },
     ]),
   );
 
