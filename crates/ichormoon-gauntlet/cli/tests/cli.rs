@@ -584,6 +584,54 @@ fn asking_for_help_succeeds_and_goes_to_stdout() {
 }
 
 #[test]
+fn version_and_completions_succeed_and_go_to_stdout() {
+    // Both fell through to the usage-error arm: printed to stderr, exit 1.
+    for args in [vec!["--version"], vec!["--completions", "bash"]] {
+        let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+            .args(&args)
+            .output()
+            .expect("binary should run");
+        assert!(out.status.success(), "{args:?} should exit 0");
+        assert!(out.stderr.is_empty(), "{args:?} should leave stderr clean");
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        assert!(stdout.contains("gauntlet"), "{args:?} printed: {stdout}");
+    }
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("--version")
+        .output()
+        .expect("binary should run");
+    assert!(
+        String::from_utf8_lossy(&out.stdout).contains(env!("CARGO_PKG_VERSION")),
+        "--version should name the crate version, not \"unknown\""
+    );
+}
+
+#[test]
+fn there_is_no_json_schema_export_to_pretend_to_do() {
+    // `--export-jsonschemas DIR` printed "Wrote JSON Schema files:", wrote
+    // nothing because this binary has no config roots, and exited 1. It is a
+    // usage error now, and it still writes nothing.
+    let dir = std::env::temp_dir().join(format!("gauntlet-schemas-{}", std::process::id()));
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("--export-jsonschemas")
+        .arg(&dir)
+        .output()
+        .expect("binary should run");
+    assert!(!out.status.success());
+    assert!(out.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !stderr.contains("Wrote JSON Schema files"),
+        "stderr was: {stderr}"
+    );
+    assert!(
+        stderr.contains("export-jsonschemas"),
+        "stderr was: {stderr}"
+    );
+    assert!(!dir.exists());
+}
+
+#[test]
 fn a_usage_error_fails_and_goes_to_stderr() {
     // figue renders a missing argument as a help request on stdout with exit 0.
     // Both halves of that would break callers here: other tools shell out to

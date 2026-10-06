@@ -13,7 +13,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use facet::Facet;
-use figue::{self as args, DriverError, FigueBuiltins};
+use figue::{self as args, DriverError, Shell};
 
 use gauntlet_cli::{sync, Engine};
 
@@ -23,7 +23,27 @@ struct Cli {
     #[facet(args::subcommand)]
     command: Command,
     #[facet(flatten)]
-    _builtins: FigueBuiltins,
+    _builtins: Builtins,
+}
+
+/// figue's `FigueBuiltins`, less the two this binary cannot honour.
+///
+/// `--export-jsonschemas` writes one schema per config root, and this binary
+/// has none, so it printed "Wrote JSON Schema files:" over an empty list and
+/// exited 1. A flag that writes nothing is a flag that lies, so it is not
+/// offered; nor is `--html-help`, which wrote a page and reported that as a
+/// failure.
+#[derive(Facet, Default)]
+struct Builtins {
+    /// Show help message and exit.
+    #[facet(args::named, args::short = 'h', args::help, default)]
+    help: bool,
+    /// Show version and exit.
+    #[facet(args::named, args::short = 'V', args::version, default)]
+    version: bool,
+    /// Generate shell completions.
+    #[facet(args::named, args::completions, default)]
+    completions: Option<Shell>,
 }
 
 #[derive(Facet)]
@@ -144,13 +164,23 @@ struct ParsedEntry {
 /// otherwise it is a usage error, and it goes to stderr with a non-zero status.
 fn parse_args() -> Cli {
     let asked_for_help = std::env::args().skip(1).any(|a| {
-        matches!(a.as_str(), "-h" | "--help" | "-V" | "--version")
-            || a.starts_with("--completions")
-            || a.starts_with("--html-help")
-            || a.starts_with("--export-jsonschemas")
+        matches!(a.as_str(), "-h" | "--help" | "-V" | "--version") || a.starts_with("--completions")
     });
 
-    match figue::from_std_args::<Cli>().into_result() {
+    let config = match figue::builder::<Cli>() {
+        Ok(builder) => builder
+            .cli(|cli| cli.args(std::env::args().skip(1)))
+            .help(|help| {
+                help.program_name("gauntlet")
+                    .version(env!("CARGO_PKG_VERSION"))
+            })
+            .build(),
+        Err(error) => {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+    };
+    match figue::Driver::new(config).run().into_result() {
         Ok(output) => output.get(),
         Err(DriverError::Help { text, suggestion }) if asked_for_help => {
             println!("{text}");
@@ -165,6 +195,16 @@ fn parse_args() -> Cli {
                 eprintln!("{}", s.render_pretty());
             }
             std::process::exit(2);
+        }
+        // Asked for, so stdout and success, like help. Falling through to the
+        // arm below printed them to stderr and exited 1.
+        Err(DriverError::Version { text }) => {
+            println!("{text}");
+            std::process::exit(0);
+        }
+        Err(DriverError::Completions { script }) => {
+            println!("{script}");
+            std::process::exit(0);
         }
         Err(other) => {
             eprintln!("{other}");
