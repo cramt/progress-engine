@@ -545,7 +545,7 @@ otherwise produces a percentage that looks exactly like a real one:
 | a file with no `[[criterion]]` and no `[[expect]]` | it asks nothing |
 | `look` on an `on = "cast"` effect | the budget knows you cast it; what it does not know is what casting it drew, and a replacement draw is over the enumeration ceiling on every question this tool exists for ([#57](https://github.com/cramt/progress-engine/issues/57)). A `fetch` on a cast is answered |
 | `fetch` with no `to`, or `to` with no `fetch` | half a declaration, and half a declaration is where a default nobody stated gets invented |
-| `fetch ... to = "battlefield"` on an `on = "cast"` effect whose priority matches a land | a land arriving off a spell enters tapped for Rampant Growth and untapped for Nature's Lore, and no tag separates them. Anything else a cast may put there, as Tezzeret the Seeker puts the Lantern ([HANDS.md](HANDS.md) hand 40) |
+| `fetch ... to = "battlefield"` on an `on = "cast"` or `"activate"` effect whose priority matches a land, in a file with no `[land_drop]` | a land a spell puts down is counted beside the lands played, and only a declared drop records which those are (ADR-0025). With one declared, it is answered: the land is read as entering tapped, and pays from the next turn |
 | `fetch ... to = "battlefield"` on an `on = "landdrop"` effect, naming a card that is not a land | a fetchland finds a land; anything else has to be cast, or put there by a cast or a delayed effect |
 | `fetch ... to = "battlefield"` on a cast or delayed effect whose priority matches an instant or a sorcery | it is not a permanent, and nothing can put it onto the battlefield |
 | a `fetch` beside a `can_cast`, a `cast` or a `[casting]` table, where it puts a land onto the battlefield | what a fetched land taps for on the turn it arrives is a fact about the spell that fetched it, and `otag:fetchland` holds both kinds |
@@ -1411,11 +1411,31 @@ untapped and a Terramorphic Expanse fetches tapped, `otag:fetchland` holds both,
 and nothing on the land it *found* tells them apart — so a `can_cast` or a
 `cast` clause beside a battlefield fetch is refused rather than answered in
 whichever direction happens to flatter. What left the library is exact; what it
-makes is not modelled. For the same reason `on = "cast"` with `to =
-"battlefield"` is refused wherever its priority can find a land — Rampant
-Growth: whether that land enters tapped is a fact about the spell, and no tag
-separates Rampant Growth from Nature's Lore. Anything else a cast may put
-there; see the next section.
+makes is not modelled. A land that `on = "cast"` (or `"activate"`) with `to =
+"battlefield"` puts down — Rampant Growth, Nature's Lore, Cultivate, Wood Elves —
+is counted on the battlefield at once and pays from the next turn, read as
+entering tapped because whether it does is a fact about the spell, and no tag
+separates Rampant Growth from Nature's Lore. That is exact for Rampant Growth
+and a floor for Nature's Lore, the run says so beside the fetch, and it needs
+`[land_drop]` declared, because only a declared drop records which lands are
+standing ([ADR-0025](docs/adr/0025-a-land-a-spell-puts-down-is-tapped-and-pays-from-the-next-turn.md),
+[HANDS.md](HANDS.md) hand 62):
+
+```toml
+[land_drop]
+prefer = ['t:land']
+
+[casting]
+prefer = ['name:"Llanowar Elves"', '''name:"Nature's Lore"''', 'name:"Rampant Growth"']
+
+[[effect]]
+match = '''name:"Nature's Lore" or name:"Rampant Growth"'''
+on = "cast"
+fetch = ['t:forest']
+to = "battlefield"
+```
+
+Anything else a cast may put there; see the next section.
 
 **What it costs: no width, and about five per cent of the wall clock.** A
 removal is decided once per path prefix rather than branched over, so the

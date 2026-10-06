@@ -1,0 +1,25 @@
+# HANDS.md hand 61: a land a spell puts onto the battlefield is counted
+# there at once, and pays from the next turn (ADR-0025).
+
+[casting]
+prefer = ['''name:"Nature's Lore"''']
+
+[[effect]]
+match = '''name:"Nature's Lore"'''
+on = "cast"
+fetch = ['t:forest']
+to = "battlefield"
+
+[[criterion]]
+name = "four lands in play by turn 3"
+require = [{ turn = 3, query = "t:land", zone = "battlefield", min = 4 }]
+
+# Turn 2's two Forests paid for the Lore, and the Forest it found arrived
+# tapped: what is left is nothing, unless the Lore was not there to cast.
+[[criterion]]
+name = "{1} left on turn 2"
+require = [{ turn = 2, can_cast = "{1}" }]
+
+[[criterion]]
+name = "{4} left on turn 3"
+require = [{ turn = 3, can_cast = "{4}" }]

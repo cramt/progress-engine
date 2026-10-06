@@ -109,9 +109,10 @@
 # LUMRA'S RETURN IS NOT DECLARED
 # ------------------------------
 # The standard library's Lumra mills four and then returns every land in the
-# graveyard to the battlefield. Declared here without the return: those lands
-# pay for nothing in this model (a turn's bill is held to its drops), so their
-# one effect is an Icetill landfall each, and with it in the line the run is
+# graveyard to the battlefield. Declared here without the return: when this was
+# written those lands paid for nothing (a turn's bill was held to its drops;
+# ADR-0025 has them pay from the next turn, unmeasured here), so their one
+# effect was an Icetill landfall each, and with it in the line the run is
 # refused at turn 6 and turn 7 on both seats — the bound on what the library
 # can lose counts every land in the deck coming back, and a turn-6 run reads
 # 12 cards drawn and 91 more that spells could turn over, from 98. At turn 5,

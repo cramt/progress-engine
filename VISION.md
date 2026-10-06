@@ -643,8 +643,10 @@ discipline as `[land_drop]` and `[casting]`, and it is a declared priority over
 queries rather than a fifth policy language. What it is allowed to do is
 restricted rather than open: `to = "hand"` is a tutor, `to = "battlefield"` on a
 land drop is a fetchland replacing itself, and a land arriving off a *spell* is
-refused by name because whether it enters tapped is a fact about the spell that
-fetched it and no tag separates Rampant Growth from Nature's Lore.
+read as entering tapped and paying from the next turn, because whether it enters
+tapped is a fact about the spell that fetched it and no tag separates Rampant
+Growth from Nature's Lore. The run says so, and it needs the drop declared
+([ADR-0025](docs/adr/0025-a-land-a-spell-puts-down-is-tapped-and-pays-from-the-next-turn.md)).
 
 **And deck thinning finally has a number.** Does a fetchland meaningfully
 improve your subsequent draws? On `decks/loam.deck.toml`, where fetchlands are a large

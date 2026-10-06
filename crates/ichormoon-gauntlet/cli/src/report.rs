@@ -1274,8 +1274,9 @@ impl Report {
                 if let Some(q) = &e.returns {
                     out.push_str(&format!(
                         "      then returns every card matching {q:?} in the graveyard to the \
-                         battlefield tapped. They took no land drop, and a turn's bill is still \
-                         held to its drops, so the mana they could make is a floor\n"
+                         battlefield tapped. With [land_drop] declared they pay from the next turn \
+                         (ADR-0025); without one a turn's bill is held to its drops, so the mana \
+                         they could make is a floor\n"
                     ));
                 }
                 match e.on {
@@ -1390,6 +1391,17 @@ impl Report {
                     "      Ties: the card this decklist names first. A tutor that finds none of \
                      them fetches nothing.\n",
                 );
+                // Nature's Lore's Forest enters untapped and Rampant Growth's
+                // tapped, and nothing in the card data says which: the
+                // pessimistic half, said where the number that rests on it is.
+                if to == "battlefield" && matches!(e.on, "cast" | "activate") {
+                    out.push_str(
+                        "      A land among them is read as entering tapped: on the battlefield \
+                         at once, and paying\n      from the next turn (ADR-0025). Where it \
+                         would enter untapped, every number that\n      spends it the same \
+                         turn is a floor.\n",
+                    );
+                }
             }
         }
         // The same failure as an empty query, arriving by a different door. A

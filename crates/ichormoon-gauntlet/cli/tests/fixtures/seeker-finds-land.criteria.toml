@@ -1,6 +1,6 @@
-# A cast fetch onto the battlefield whose priority can find a land: refused
-# as Rampant Growth is, because a land a spell puts down is not a land drop and
-# nothing says whether it enters tapped. The Lantern entry alone is accepted
+# A cast fetch onto the battlefield whose priority can find a land, with no
+# [land_drop]: refused, because a land a spell puts down is counted beside the
+# lands played, which only a declared drop names (ADR-0025). The Lantern entry alone is accepted
 # (hand-40-on.criteria.toml); the Island behind it is what is refused.
 
 [[effect]]

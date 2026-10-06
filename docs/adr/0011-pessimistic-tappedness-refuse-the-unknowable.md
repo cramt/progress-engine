@@ -9,3 +9,5 @@ Amended by #82: a fetchland *played as a land* — no fetch effect declared — 
 See [VISION.md: Decided](../../VISION.md#decided).
 
 Amended: the assumption is declarable. `[assume] untapped = [...]` names the conditional taplands the pilot plays untapped — a shockland whose 2 life is paid, a Battlebond land in a game with two or more opponents — and every run that read one so prints it beside `assumed_tapped`. Undeclared, the pessimistic half still stands. A land tagged `otag:tapland` has no condition to settle and is refused by name. The condition is never evaluated: the opponent count is a fact about the game, not the deck (ADR-0005), and a checkland's basic-type condition would need land types in the grouping.
+
+Superseded in part by [ADR-0025](0025-a-land-a-spell-puts-down-is-tapped-and-pays-from-the-next-turn.md): a land put onto the battlefield by a spell or an activation is no longer refused. It takes the pessimistic half, as a conditional tapland does: read as entering tapped, and paying from the next turn.

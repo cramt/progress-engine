@@ -88,3 +88,5 @@ Tickets 1 and 2 are independent of each other; Whir of Invention needs both. Tic
 - **All activations after the land drop, with no exception.** Rejected on measurement: it keeps 1.42 of the Map's 3.67 points.
 - **The line read before and after the drop.** Rejected. A pass before the drop spends the old lands on whatever the list reaches first, so `[commander, Lantern]` on three lands would cast the Lantern before the drop and then be unable to cast the commander after it, which is not the line declared.
 - **Deriving a transmute cost from oracle text.** Rejected for now, for [ADR-0006](0006-oracle-tags-are-fetched-and-dated.md)'s reason. The library may ship `cost` entries keyed by query later, as ADR-0018 ships `adds`.
+
+Amended by [ADR-0025](0025-a-land-a-spell-puts-down-is-tapped-and-pays-from-the-next-turn.md): §1's refusal of a land off a cast is lifted where `[land_drop]` is declared. The land is read as entering tapped and pays from the next turn.

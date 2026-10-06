@@ -3593,17 +3593,16 @@ fn a_declared_cost_agrees_with_the_sampler() {
 }
 
 #[test]
-fn a_cast_that_could_put_a_land_onto_the_battlefield_is_refused_by_name() {
-    // Rampant Growth, and ADR-0019's line: a cast may put down anything but a
-    // land, because whether that land enters tapped is a fact about the spell
-    // and no tag carries it. Refused on what the query can match in this
-    // deck, so the Seeker's own entry is refused the moment it could find an
-    // Island.
+fn a_cast_that_could_put_a_land_onto_the_battlefield_needs_the_drop_declared() {
+    // Rampant Growth (ADR-0025): a land a cast puts down is counted beside the
+    // lands played, which only a declared drop names, so with none it is
+    // refused. Refused on what the query can match in this deck, so the
+    // Seeker's own entry is refused the moment it could find an Island.
     let out = run_tutor("hand-40.txt", "seeker-finds-land.criteria.toml");
     assert!(!out.status.success(), "should refuse");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
-        stderr.contains("matches 10 lands") && stderr.contains("Rampant Growth"),
+        stderr.contains("matches 10 lands") && stderr.contains("[land_drop]"),
         "{stderr}"
     );
     // And the other thing a cast cannot put there: an instant or a sorcery is
@@ -5839,4 +5838,60 @@ fn a_land_that_always_enters_tapped_cannot_be_declared_untapped() {
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("[assume]"), "{stderr}");
     assert!(stderr.contains("Tranquil Cove"), "{stderr}");
+}
+
+#[test]
+fn natures_lore_puts_a_forest_onto_the_battlefield_that_pays_from_the_next_turn() {
+    // HANDS.md hand 61. `fetch` + `to = "battlefield"` off a cast was refused
+    // whenever it could find a land, so Rampant Growth, Nature's Lore and
+    // Cultivate could not be modelled. Ten cards, the Lore and nine Forests,
+    // on the play: the Lore is in hand by turn 2 on 8 deals in 10 and arrives
+    // on turn 3 on 1 in 10. Cast on turn 2 or 3, its Forest is a fourth land
+    // in play by turn 3; cast on turn 2, it eats both lands and its Forest is
+    // tapped, so `{1}` is left only where it was not cast; and on turn 3 its
+    // Forest pays, so `{4}` is left where it was cast on turn 2.
+    let out = run_with(
+        "natures-lore.txt",
+        "natures-lore.criteria.toml",
+        "ramp-index.jsonl",
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "{stderr}");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert!((percent(&json, "four lands in play by turn 3") - 90.0).abs() < 1e-9);
+    assert!((percent(&json, "{1} left on turn 2") - 20.0).abs() < 1e-9);
+    assert!((percent(&json, "{4} left on turn 3") - 80.0).abs() < 1e-9);
+    assert!(stderr.contains("read as entering tapped"), "{stderr}");
+
+    // The sampler walks the same board, and agrees.
+    let sampled = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture("natures-lore.txt"))
+        .arg(fixture("natures-lore.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("ramp-index.jsonl"))
+        .arg("--simulate")
+        .output()
+        .expect("binary should run");
+    let sampled: serde_json::Value = serde_json::from_slice(&sampled.stdout).unwrap();
+    for name in [
+        "four lands in play by turn 3",
+        "{1} left on turn 2",
+        "{4} left on turn 3",
+    ] {
+        assert!(
+            (percent(&sampled, name) - percent(&json, name)).abs() < 0.5,
+            "{name}: {sampled}"
+        );
+    }
+
+    // And with no land drop declared there is nothing to count it against.
+    let out = run_with(
+        "natures-lore.txt",
+        "natures-lore-no-drop.criteria.toml",
+        "ramp-index.jsonl",
+    );
+    assert!(!out.status.success());
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("[land_drop]"), "{stderr}");
 }

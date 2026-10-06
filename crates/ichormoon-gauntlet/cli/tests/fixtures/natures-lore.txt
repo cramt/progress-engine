@@ -1,0 +1,5 @@
+// HANDS.md hand 61: Nature's Lore and nine Forests. On the play the opener
+// and turn 2's draw are eight of the ten cards, so the Lore is in hand by
+// turn 2 on 8 deals in 10 and arrives on turn 3 on 1 in 10.
+1x Nature's Lore [Ramp]
+9x Forest [Land]

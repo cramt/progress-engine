@@ -188,7 +188,7 @@ _Avoid_: filtering, discarding
 Where a routed or fetched card goes.
 
 **Tutor**:
-An effect that takes a named card out of the library and puts it in hand or onto the battlefield. It shrinks the library without drawing from it. A cast or an activation may put a non-land onto the battlefield; a land arriving off one stays refused, because nothing says whether it enters tapped.
+An effect that takes a named card out of the library and puts it in hand or onto the battlefield. It shrinks the library without drawing from it. A cast or an activation may put anything onto the battlefield; a land arriving off one is read as entering tapped and pays from the next turn, and needs `[land_drop]` declared ([ADR-0025](../../docs/adr/0025-a-land-a-spell-puts-down-is-tapped-and-pays-from-the-next-turn.md)).
 _Avoid_: search, fetch (as a noun for the effect)
 
 **Delayed effect**:

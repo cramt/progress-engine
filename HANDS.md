@@ -1379,8 +1379,9 @@ land in the graveyard comes back, the Analyst's Mountain with its own two.
 | lands on the battlefield | 6 | 8 | **9** |
 
 Nobody chooses, so the standard library states it, as `returns = "t:land"`.
-The lands took no drop, so a turn's bill is still held to its drops, and the
-mana they could make is a floor. A mill that returns lands reads the
+The lands took no drop. With `[land_drop]` declared they pay from the next
+turn, as any land a spell puts down does (ADR-0025, hand 62); without one a
+turn's bill is held to its drops, and the mana they could make is a floor. A mill that returns lands reads the
 graveyard, so it is never dealt last. With the Explorer on the battlefield,
 each land Lumra returns is a landfall:
 `each_land_lumra_returns_fires_a_landfall`.
@@ -2105,6 +2106,51 @@ The sampler's acceptance tests hold
 with the tie. `checker/test_intuition.py` reads Intuition's cost and search
 off its text (CR 602, 118.3) and plays every order of both decks. It gets
 every fraction above exactly.
+
+### 62. Nature's Lore's Forest is in play at once and pays the turn after
+
+```
+Nature's Lore, Forest ×9   (10 cards, no commander)
+
+[land_drop]
+prefer = ['t:land']
+
+[casting]
+prefer = ['''name:"Nature's Lore"''']
+
+[[effect]]
+match = '''name:"Nature's Lore"'''
+on = "cast"
+fetch = ['t:forest']
+to = "battlefield"
+```
+
+On the play the opener and turn 2's draw are eight of the ten cards, so the
+Lore is in hand by turn 2 on 8 deals in 10, arrives on turn 3 on 1 in 10, and is
+the last card on 1 in 10. **Turn 1:** a Forest. **Turn 2:** a second Forest, and
+both pay `{1}{G}` for the Lore, which puts a third Forest onto the battlefield.
+**Turn 3:** a fourth land on the drop, and the fetched Forest untaps with the
+rest. Where the Lore first shows up on turn 3, it is cast then off three Forests
+and still finds one, the last card in the library.
+
+| | before ADR-0025 | now |
+|---|---|---|
+| four lands in play by turn 3 | refused | 9/10 = **90%** |
+| `{1}` left on turn 2 | refused | 2/10 = **20%** |
+| `{4}` left on turn 3 | refused | 8/10 = **80%** |
+
+`{1}` on turn 2 is where the tapped reading shows: the Lore spent both lands,
+and its Forest arrived after the line had paid, so only the two deals without
+the Lore have a mana left. An untapped reading would say 100%, which is true of
+Nature's Lore and not of Rampant Growth, and nothing in the card data tells the
+two apart ([ADR-0025](docs/adr/0025-a-land-a-spell-puts-down-is-tapped-and-pays-from-the-next-turn.md)).
+Without `[land_drop]` the fetch is refused by name, because only a declared
+drop says which lands are standing.
+
+*Answerable, and a test:*
+`natures_lore_puts_a_forest_onto_the_battlefield_that_pays_from_the_next_turn`
+in `crates/ichormoon-gauntlet/cli/tests/cli.rs`, every row, with the sampler
+agreeing. `checker/` has not learned it.
 
 ---
 

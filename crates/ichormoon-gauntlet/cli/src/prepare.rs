@@ -670,13 +670,15 @@ fn refuse_unfirable_tutors(
             }
         }
         // A delayed fetch and a cast fetch are the other ways onto the
-        // battlefield, and they are refused the opposite half: a Saga puts an
-        // artifact beside itself and Tezzeret the Seeker's −X puts one down,
-        // and a land arriving either way is a land nobody knows the
-        // tapped-ness of — Rampant Growth's, where Nature's Lore's is
-        // untapped. They are checked here, before the fetchland's rule below,
-        // because the two are about different cards arriving for different
-        // reasons (ADR-0019).
+        // battlefield. A Saga puts an artifact beside itself and a land
+        // arriving off its chapter is still refused. A cast or an activation
+        // may put a land down — Rampant Growth, Wood Elves, Wayfarer's
+        // Bauble — read as entering tapped and paying from the next turn
+        // (ADR-0025), which needs the drop declared: only a declared drop
+        // says which lands are standing, so only it can count one more.
+        // They are checked here, before the fetchland's rule below, because
+        // the two are about different cards arriving for different reasons
+        // (ADR-0019).
         let delayed = effect.delay.is_some();
         let cast = matches!(
             effect.trigger,
@@ -697,7 +699,7 @@ fn refuse_unfirable_tutors(
                     .into());
                 }
                 let lands = library.lands_matching(query)?;
-                if lands == 0 {
+                if lands == 0 || (!delayed && land_drop.is_some()) {
                     continue;
                 }
                 let (file, effect, query) =

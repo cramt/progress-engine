@@ -284,13 +284,13 @@ pub enum Refusal {
         query: String,
         lands: u32,
     },
-    /// A cast fetch onto the battlefield that can find a land.
+    /// A cast fetch onto the battlefield that can find a land, in a run that
+    /// declared no land drop.
     ///
-    /// Rampant Growth. A cast may put an artifact onto the battlefield —
-    /// Tezzeret the Seeker's −X, ADR-0019 — because an artifact has no
-    /// question about how it arrives. A land does: whether it enters tapped is
-    /// a fact about the spell that fetched it, tapped for Rampant Growth and
-    /// untapped for Nature's Lore, and no tag separates the two.
+    /// Rampant Growth's land is counted on the battlefield and pays from the
+    /// next turn (ADR-0025), and both are read off which lands are standing,
+    /// which only a declared drop says. Without one the mana reading assumes
+    /// whichever lands pay, and has nowhere to put one more.
     CastFetchFindsLand {
         file: String,
         effect: String,
@@ -597,8 +597,9 @@ impl Refusal {
                     "This index predates the `produces` field, so every card reads as making \
                      none.\n      Rebuild it with: gauntlet sync"
                 } else {
-                    "A card that searches for a land is a tutor, written with\n      `fetch` \
-                     and `to`, not a source."
+                    "A card that puts a land onto the battlefield is a tutor, not a\n      source: \
+                     `on = \"cast\"`, `fetch = ['t:forest']`, `to = \"battlefield\"`, with \
+                     [land_drop] declared\n      (ADR-0025)."
                 }
             ),
             Refusal::FetchWithoutCasting { effect, .. } => write!(
@@ -663,14 +664,15 @@ impl Refusal {
             ),
             Refusal::CastFetchFindsLand { query, lands, .. } => write!(
                 f,
-                "`fetch = {query:?}` with `on = \"cast\"` and `to = \"battlefield\"` matches \
-                 {lands} land{} in this deck.\n      \
-                 A land a spell puts onto the battlefield is not a land drop, and whether it \
-                 enters tapped is a\n      fact about the spell — tapped for Rampant Growth, \
-                 untapped for Nature's Lore — which no tag\n      carries. A cast may put \
-                 anything else there, as Tezzeret the Seeker puts an artifact; narrow\n      the \
-                 query to what it can actually find, such as `-t:land`, or fetch the land \
-                 `to = \"hand\"`.",
+                "`fetch = {query:?}` with `to = \"battlefield\"` on a cast or an activation \
+                 matches {lands} land{} in\n      this deck, and this file declares no priority \
+                 over the land drop. A land a spell puts\n      down is counted beside the \
+                 lands you played, and pays from the next turn, and which lands\n      you \
+                 played is what `[land_drop]` declares. With none the mana reading assumes \
+                 whichever\n      lands pay, so there is nothing to count one more against \
+                 (ADR-0025). Declare the drop:\n\n      \
+                 [land_drop]\n      prefer = ['t:land']\n\n      \
+                 or narrow the query to what the effect can actually find, such as `-t:land`.",
                 if *lands == 1 { "" } else { "s" }
             ),
             Refusal::FetchNonPermanentToBattlefield { query, spells, .. } => write!(

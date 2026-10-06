@@ -676,6 +676,12 @@ pub struct Board<'a> {
     /// turn rather than recomputed, because the gate reads both this turn's and
     /// last turn's on every question it answers.
     drops: Vec<u32>,
+    /// Lands a spell, an activation or a mill put onto the battlefield
+    /// before each turn began, on a run with a declared drop: Rampant
+    /// Growth's, Lumra's. Each arrived tapped, after the line had paid, and
+    /// pays from the next turn on, so a turn's bill is held to its drops and
+    /// these together (ADR-0025).
+    ramped: Vec<u32>,
     // --- scratch, reused across paths -----------------------------------
     /// Revealed and not yet consumed, in reveal order: the top of the library.
     fresh: Vec<usize>,
@@ -1127,6 +1133,7 @@ impl<'a> Board<'a> {
             landfallers,
             entered: 0,
             drops: vec![0; turns],
+            ramped: vec![0; turns],
             hand: vec![vec![0; groups]; turns],
             yard: vec![vec![0; groups]; turns],
             drop_at: vec![None; turns],
@@ -1492,8 +1499,18 @@ impl<'a> Board<'a> {
             // it declared, and every part of the run reads that same drop.
             self.entered = 0;
             match turn.checked_sub(1) {
-                None => self.drops[turn] = 0,
+                None => {
+                    self.drops[turn] = 0;
+                    self.ramped[turn] = 0;
+                }
                 Some(previous) if self.declared.is_some() => {
+                    let arrived: u32 = self.declared.as_ref().map_or(0, |d| {
+                        self.land_groups
+                            .iter()
+                            .map(|&g| d.cast_landed[previous][g])
+                            .sum()
+                    });
+                    self.ramped[turn] = self.ramped[previous] + arrived;
                     // Whatever an earlier drop set up for this turn resolves
                     // first: a chapter ability goes on the stack as the main
                     // phase begins, before the land it could be played beside.
@@ -1740,7 +1757,9 @@ impl<'a> Board<'a> {
                             // you have land drops and rock mana cannot be paid
                             // however they are coloured, and this runs on
                             // every path.
-                            if bill.total() + cost.total() > self.drops[turn] + bill.made_total() {
+                            if bill.total() + cost.total()
+                                > self.drops[turn] + self.ramped[turn] + bill.made_total()
+                            {
                                 break;
                             }
                             let before = *bill.last();
@@ -1939,11 +1958,12 @@ impl<'a> Board<'a> {
         let cost = activation.cost;
         // The count first, as for a cast. Before the drop, this turn's has
         // not been made.
-        let lands = if before_drop {
-            self.drops[turn - 1]
-        } else {
-            self.drops[turn]
-        };
+        let lands = self.ramped[turn]
+            + if before_drop {
+                self.drops[turn - 1]
+            } else {
+                self.drops[turn]
+            };
         if bill.total() + cost.total() > lands + bill.made_total() {
             return Activated::No;
         }
