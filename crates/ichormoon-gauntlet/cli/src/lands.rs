@@ -23,12 +23,15 @@ pub struct Reading {
 }
 
 /// Each entry's mana, parallel to `entries`, and the readings behind it.
-pub fn read(entries: &[Entry]) -> (Vec<ManaSource>, Vec<Reading>) {
+///
+/// `untapped` names the conditional taplands the file declared enter
+/// untapped (`[assume] untapped`); every other one is assumed tapped.
+pub fn read(entries: &[Entry], untapped: &[String]) -> (Vec<ManaSource>, Vec<Reading>) {
     let mut readings = Vec::new();
     let sources = entries
         .iter()
         .map(|e| {
-            let (source, reading) = land(&e.card, entries);
+            let (source, reading) = land(&e.card, entries, untapped);
             if let Some(reading) = reading {
                 readings.push(Reading {
                     card: e.card.name.clone(),
@@ -43,20 +46,19 @@ pub fn read(entries: &[Entry]) -> (Vec<ManaSource>, Vec<Reading>) {
     (sources, readings)
 }
 
-fn enters_tapped(card: &Card) -> bool {
-    card.tags
-        .iter()
-        .any(|t| t == TAPLAND || t == CONDITIONAL_TAPLAND)
+fn enters_tapped(card: &Card, untapped: &[String]) -> bool {
+    let tagged = |tag: &str| card.tags.iter().any(|t| t == tag);
+    tagged(TAPLAND) || (tagged(CONDITIONAL_TAPLAND) && !untapped.contains(&card.name))
 }
 
 /// One card's mana, and what was assumed to get it.
-fn land(card: &Card, deck: &[Entry]) -> (ManaSource, Option<String>) {
+fn land(card: &Card, deck: &[Entry], untapped: &[String]) -> (ManaSource, Option<String>) {
     if !is_land(card) {
         // A Sol Ring makes mana and is not here. Getting it onto the
         // battlefield costs mana, which is the budget half of #10.
         return (ManaSource::Spell, None);
     }
-    let tapped = enters_tapped(card);
+    let tapped = enters_tapped(card, untapped);
     let listed = Palette::from_letters(&card.produces);
     let make = |produces: Palette, enters_tapped: bool, lasts: Option<u8>| ManaSource::Land {
         enters_tapped,
@@ -65,7 +67,7 @@ fn land(card: &Card, deck: &[Entry]) -> (ManaSource, Option<String>) {
     };
     if listed.is_empty() {
         return match fetches(card) {
-            Some(search) => fetchland(&search, deck),
+            Some(search) => fetchland(&search, deck, untapped),
             None => (
                 make(Palette::EMPTY, tapped, Some(0)),
                 Some("makes no mana: it has no mana ability, so it is a land drop and pays for nothing".into()),
@@ -162,7 +164,7 @@ fn fetches(card: &Card) -> Option<Search> {
 /// to find — which ignores running out, and with several targets that is
 /// rare. A shockland it could find is left out, for the reason hand 8 gives:
 /// it enters tapped unless somebody pays the life.
-fn fetchland(search: &Search, deck: &[Entry]) -> (ManaSource, Option<String>) {
+fn fetchland(search: &Search, deck: &[Entry], untapped: &[String]) -> (ManaSource, Option<String>) {
     let targets: Vec<&Card> = deck
         .iter()
         .map(|e| &e.card)
@@ -178,7 +180,7 @@ fn fetchland(search: &Search, deck: &[Entry]) -> (ManaSource, Option<String>) {
     let untapped: Vec<&Card> = targets
         .iter()
         .copied()
-        .filter(|c| !enters_tapped(c))
+        .filter(|c| !enters_tapped(c, untapped))
         .collect();
     let (found, tapped) = if search.tapped || untapped.is_empty() {
         (targets, true)

@@ -314,9 +314,12 @@ pay understates a real shockland manabase, which is the direction this tool
 prefers to be wrong in — a number the deck can beat is a better failure than one
 it cannot reach.
 
-*Still open: making the choice declarable per file, which is what this hand
-originally asked for and is the right end state. A default nobody stated is what
-was refused; a default everybody is told about is what shipped.*
+*Declarable now: `[assume] untapped = ['name:"Hallowed Fountain"']` reads the
+Fountain untapped and the run names it as `declared_untapped`, and hand 7's
+`{1}` on turn 1 goes from 77.78% to 97.22%
+(`a_conditional_tapland_declared_untapped_is_read_untapped_and_named` in
+`crates/ichormoon-gauntlet/cli/tests/cli.rs`). Undeclared, the default is the
+one everybody is told about.*
 
 ### 38. A fetchland pays the colour of the land it finds
 

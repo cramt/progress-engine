@@ -167,6 +167,10 @@ pub struct Library {
     /// Every land read as something other than its card data's face value,
     /// and how. Named by any run that prices mana.
     mana_readings: Vec<Reading>,
+    /// The conditional taplands the file declared enter untapped, by name:
+    /// read as untapped, and out of [`Library::conditional_taplands`],
+    /// because the run no longer assumes anything about them.
+    pub declared_untapped: Vec<String>,
     /// Cards counted in the library from a category whose name says tokens.
     /// Each resolved to a real card that shares a token's name, which is right
     /// if the list meant the card and wrong if it meant the token, and only
@@ -260,10 +264,11 @@ impl Library {
             }
         }
 
-        let (mana, mana_readings) = lands::read(&entries);
+        let (mana, mana_readings) = lands::read(&entries, &[]);
         Ok(Library {
             mana,
             mana_readings,
+            declared_untapped: Vec::new(),
             entries,
             commanders,
             token_named,
@@ -499,6 +504,58 @@ impl Library {
         names
     }
 
+    /// Read the conditional taplands `queries` match as entering untapped,
+    /// as the file's `[assume] untapped` declares, and say which they were.
+    ///
+    /// Only a conditional tapland: one Scryfall tags as always tapped has no
+    /// condition for a declaration to settle, so naming one is refused rather
+    /// than read as untapped, which no game would let it be. A query matching
+    /// no conditional tapland comes back in the second list, to be noted.
+    pub fn declare_untapped(
+        &mut self,
+        queries: &[String],
+        file: &str,
+    ) -> Result<Vec<String>, crate::refusal::Refusal> {
+        let mut unmatched = Vec::new();
+        for query in queries {
+            crate::refusal::check_query(file, crate::refusal::QuerySite::Assume, query, self)?;
+            let q = chip_scryfall::parse(query).expect("checked above");
+            let lands = self
+                .entries
+                .iter()
+                .filter(|e| is_land(&e.card) && q.matches(&e.card.view(&e.categories)));
+            let mut always = Vec::new();
+            let mut matched = false;
+            for e in lands {
+                let tagged = |tag: &str| e.card.tags.iter().any(|t| t == tag);
+                if tagged(TAPLAND) {
+                    always.push(e.card.name.clone());
+                } else if tagged(CONDITIONAL_TAPLAND) {
+                    matched = true;
+                    self.declared_untapped.push(e.card.name.clone());
+                }
+            }
+            if !always.is_empty() {
+                always.sort_unstable();
+                always.dedup();
+                return Err(crate::refusal::Refusal::UntappedAlwaysTapped {
+                    file: file.to_string(),
+                    query: query.clone(),
+                    lands: always,
+                });
+            }
+            if !matched {
+                unmatched.push(query.clone());
+            }
+        }
+        self.declared_untapped.sort_unstable();
+        self.declared_untapped.dedup();
+        let (mana, readings) = lands::read(&self.entries, &self.declared_untapped);
+        self.mana = mana;
+        self.mana_readings = readings;
+        Ok(unmatched)
+    }
+
     /// Which lands in this deck have a tapped-ness the pilot decides.
     ///
     /// Named rather than counted, because a run that assumes one of those
@@ -509,6 +566,7 @@ impl Library {
             .entries
             .iter()
             .filter(|e| e.card.tags.iter().any(|t| t == CONDITIONAL_TAPLAND))
+            .filter(|e| !self.declared_untapped.contains(&e.card.name))
             .map(|e| e.card.name.clone())
             .collect();
         names.sort_unstable();

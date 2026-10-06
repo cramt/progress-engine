@@ -615,16 +615,34 @@ pessimistic half of that decision, and does not take it quietly:
 ```
 note: one land here lets the pilot decide whether to enter tapped. This run assumes they do:
       Hallowed Fountain.
-      A shockland's 2 life is a decision no criteria file has made yet, so the pessimistic
-      reading is taken: it makes no mana the turn it arrives. Every number below that
-      depends on one of these is a floor rather than a measurement.
+      A shockland's 2 life is the pilot's decision, so the pessimistic reading is taken: it makes
+      no mana the turn it arrives. Every number below that depends on one of these is a
+      floor rather than a measurement. Declare the ones you play untapped with
+      `[assume] untapped = ['name:"Breeding Pool"']`.
 ```
 
 The same list is in the JSON as `assumed_tapped`. It understates a real
 shockland manabase, which is the direction this tool prefers to be wrong in: a
-number your deck can beat is a better failure than one it cannot reach. Making
-the choice declarable per file is the obvious next step and is deliberately not
-a default nobody stated.
+number your deck can beat is a better failure than one it cannot reach.
+
+The file can settle the condition instead. `[assume] untapped` is a list of
+queries, and every conditional tapland one matches is read as entering untapped:
+
+```toml
+[assume]
+# Battlebond lands: untapped in any game with two or more opponents.
+untapped = ['o:"two or more opponents"', 'name:"Breeding Pool"']
+```
+
+The run prints the lands it read so, and the JSON carries them as
+`declared_untapped`. Only a conditional tapland can be declared: a query that
+matches a land Scryfall tags `otag:tapland`, such as a guildgate, is refused by
+name, and one that matches no conditional tapland is noted as declaring nothing.
+Nothing reads the condition itself. The tool does not know how many opponents
+the game has (it is format-agnostic, ADR-0005), and a checkland's "unless you
+control a Forest or an Island" would need every land's basic types in the
+grouping, which no question pays for today. So declaring a checkland untapped
+is the pilot's claim that the condition holds, and the run prints it as one.
 
 **Lands that make other than they list.** Scryfall's `produced_mana` is every
 kind of mana a card *could* make, with conditions ignored, and nothing for a

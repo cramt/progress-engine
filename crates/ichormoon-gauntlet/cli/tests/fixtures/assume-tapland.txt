@@ -1,0 +1,4 @@
+// A conditional tapland beside one that always enters tapped.
+1x Hallowed Fountain [Land]
+1x Tranquil Cove [Land]
+7x Lightning Bolt [Burn]

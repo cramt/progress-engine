@@ -5810,3 +5810,33 @@ fn adds_on_a_card_that_makes_no_mana_is_refused_by_name() {
     assert!(stderr.contains("declares `adds`"), "stderr was: {stderr}");
     assert!(stderr.contains("Trinket Mage"), "stderr was: {stderr}");
 }
+
+#[test]
+fn a_conditional_tapland_declared_untapped_is_read_untapped_and_named() {
+    // Bountiful Promenade and the other Battlebond lands enter untapped in any
+    // game with two or more opponents, and shocklands when the 2 life is paid.
+    // Both were always read tapped, with no way to say otherwise. Hand 7: with
+    // the Fountain untapped, {1} on turn 1 needs any land in the opener, which
+    // misses only the one seven of nine with neither: 35 in 36.
+    let out = run_mana("hand-7.txt", "assume-untapped.criteria.toml");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "{stderr}");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert!((percent(&json, "{1} payable on turn 1") - 97.22).abs() < 0.01);
+    assert_eq!(
+        json["declared_untapped"],
+        serde_json::json!(["Hallowed Fountain"])
+    );
+    assert!(json.get("assumed_tapped").is_none(), "{json}");
+    assert!(stderr.contains("[assume] untapped"), "{stderr}");
+}
+
+#[test]
+fn a_land_that_always_enters_tapped_cannot_be_declared_untapped() {
+    let out = run_mana("assume-tapland.txt", "assume-tapland.criteria.toml");
+    assert!(!out.status.success());
+    assert!(out.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("[assume]"), "{stderr}");
+    assert!(stderr.contains("Tranquil Cove"), "{stderr}");
+}

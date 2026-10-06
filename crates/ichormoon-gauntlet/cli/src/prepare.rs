@@ -967,6 +967,11 @@ impl PreparedRun {
             } else {
                 Vec::new()
             },
+            declared_untapped: if self.mana_modelled {
+                library.declared_untapped.clone()
+            } else {
+                Vec::new()
+            },
             assumed_mana: if self.mana_modelled {
                 library
                     .mana_readings()

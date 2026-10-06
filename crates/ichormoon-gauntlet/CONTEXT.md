@@ -302,4 +302,4 @@ How many turns a land makes mana for, counting the one it is played on. Every tu
 A land Scryfall tags as always entering tapped.
 
 **Conditional tapland**:
-A land whose tapped-ness is the pilot's choice or a condition (shocklands, MDFC backs). Assumed tapped, and named in every run that assumed it.
+A land whose tapped-ness is the pilot's choice or a condition (shocklands, MDFC backs, Battlebond lands). Assumed tapped, and named in every run that assumed it, unless the file declares it untapped with `[assume] untapped`, which every run that used it prints.

@@ -789,8 +789,8 @@ through the front door.
   every run that depended on the assumption names the cards it made it about.
   Understating a shockland manabase is the failure this project would rather
   have: a number a deck can beat is better than one it cannot reach. It is a
-  stated assumption rather than a hidden one, and it is meant to become
-  declarable.
+  stated assumption rather than a hidden one, and the file can declare it the
+  other way with `[assume] untapped`, which the run prints in turn.
 - Castability is refused where the card data cannot price it — an index with no
   `produces`, or without both tapland tags — rather than answered as zero or as
   untapped, which are the two confident wrong numbers available.

@@ -1,0 +1,8 @@
+# HANDS.md hand 7's turn-1 question, with the Fountain's 2 life declared paid:
+# the pilot settles the condition, and the run reads the land untapped.
+[assume]
+untapped = ['name:"Hallowed Fountain"']
+
+[[criterion]]
+name = "{1} payable on turn 1"
+require = [{ turn = 1, can_cast = "{1}" }]

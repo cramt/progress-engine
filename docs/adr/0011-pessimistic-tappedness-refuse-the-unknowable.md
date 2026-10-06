@@ -7,3 +7,5 @@ What cannot be known is refused rather than guessed in whichever direction flatt
 Amended by #82: a fetchland *played as a land* — no fetch effect declared — is not unknowable. Its oracle text says what it searches for and whether the land arrives tapped, and the deck says which such lands exist, so it is read as the untapped lands it can find, and named with its one assumption: that one of them is still in the library. A mana question beside a declared fetch *effect* is still refused.
 
 See [VISION.md: Decided](../../VISION.md#decided).
+
+Amended: the assumption is declarable. `[assume] untapped = [...]` names the conditional taplands the pilot plays untapped — a shockland whose 2 life is paid, a Battlebond land in a game with two or more opponents — and every run that read one so prints it beside `assumed_tapped`. Undeclared, the pessimistic half still stands. A land tagged `otag:tapland` has no condition to settle and is refused by name. The condition is never evaluated: the opponent count is a fact about the game, not the deck (ADR-0005), and a checkland's basic-type condition would need land types in the grouping.

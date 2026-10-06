@@ -577,6 +577,9 @@ pub struct Breakdown {
     /// Lands whose tapped-ness this run decided for the pilot. Empty unless the
     /// run asked a mana question, because otherwise it decided nothing.
     pub assumed_tapped: Vec<String>,
+    /// Conditional taplands the file declared enter untapped. Empty unless
+    /// the run asked a mana question, for the same reason.
+    pub declared_untapped: Vec<String>,
     /// Lands read as making something other than their card data says. Empty
     /// unless the run asked a mana question, for the same reason.
     pub assumed_mana: Vec<ManaReading>,
@@ -968,6 +971,10 @@ pub struct Report {
     /// Empty on every run that asks no mana question.
     #[facet(skip_serializing_if = Vec::is_empty)]
     pub assumed_tapped: Vec<String>,
+    /// Conditional taplands `[assume] untapped` declared enter untapped:
+    /// the pilot's decision, printed because it moved numbers.
+    #[facet(skip_serializing_if = Vec::is_empty)]
+    pub declared_untapped: Vec<String>,
     /// Lands this run read as making mana other than their card data lists:
     /// a fetchland as the lands it can find, Maze of Ith as none, Castle Doom
     /// as `{C}`, Urza's Saga as three turns of it.
@@ -1043,6 +1050,7 @@ impl Report {
             effects,
             enumerations,
             assumed_tapped,
+            declared_untapped,
             assumed_mana,
             never_dredged,
             land_drop,
@@ -1144,6 +1152,7 @@ impl Report {
             effects,
             enumerations,
             assumed_tapped,
+            declared_untapped,
             assumed_mana,
             never_dredged,
             land_drop,
@@ -1580,16 +1589,26 @@ impl Report {
             out.push_str(&format!(
                 "note: {} here let the pilot decide whether to enter tapped. This run assumes \
                  they do:\n      {}.\n      \
-                 A shockland's 2 life is a decision no criteria file has made yet, so the \
-                 pessimistic\n      reading is taken: it makes no mana the turn it arrives. \
-                 Every number below that\n      depends on one of these is a floor rather than \
-                 a measurement.\n",
+                 A shockland's 2 life is the pilot's decision, so the pessimistic reading is \
+                 taken: it makes\n      no mana the turn it arrives. Every number below \
+                 that depends on one of these is a\n      floor rather than a measurement. Declare \
+                 the ones you play untapped with\n      `[assume] untapped = ['name:\"Breeding \
+                 Pool\"']`.\n",
                 if self.assumed_tapped.len() == 1 {
                     "one land".to_string()
                 } else {
                     format!("{} lands", self.assumed_tapped.len())
                 },
                 self.assumed_tapped.join(", ")
+            ));
+        }
+        if !self.declared_untapped.is_empty() {
+            out.push_str(&format!(
+                "note: [assume] untapped declares these lands enter untapped, and this run \
+                 reads them so:\n      {}.\n      \
+                 Every number below that depends on one of these holds only where the \
+                 condition does.\n",
+                self.declared_untapped.join(", ")
             ));
         }
         // The same kind of fact about what the lands make rather than when:
@@ -2271,6 +2290,7 @@ mod tests {
                 enumeration(&["flood by turn 5"], 56789.0, Method::Exact),
             ],
             assumed_tapped: Vec::new(),
+            declared_untapped: Vec::new(),
             assumed_mana: Vec::new(),
             never_dredged: Vec::new(),
             land_drop: None,

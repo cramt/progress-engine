@@ -101,6 +101,20 @@ struct FileDef {
     /// Which cards leave the hand when a card makes you discard (ADR-0017
     /// §3). One table, because a game has one hand every outlet draws on.
     discard: Option<DiscardDef>,
+    /// What the pilot declares about the game that the card data cannot
+    /// settle: which conditional taplands enter untapped (ADR-0011). One
+    /// table, because a run is one game.
+    assume: Option<AssumeDef>,
+}
+
+/// The declared assumptions, as written.
+///
+/// `untapped` is a list of queries for the shape's sake only: there is no
+/// priority in it, because every land it names is read the same way.
+#[derive(Facet)]
+#[facet(deny_unknown_fields)]
+struct AssumeDef {
+    untapped: Option<Vec<String>>,
 }
 
 /// The declared priority over what a discard takes, as written: the same
@@ -512,6 +526,9 @@ pub struct Criteria {
     discard: Vec<String>,
     /// The declared mulligan, queries still as text for the same reason.
     mulligan: Option<MulliganDecl>,
+    /// The conditional taplands this file declares enter untapped, as text
+    /// for the same reason.
+    untapped: Vec<String>,
 }
 
 /// A declared mulligan, validated but not yet resolved against any deck.
@@ -786,6 +803,12 @@ impl Criteria {
     /// you would be reporting a line nobody chose.
     pub fn casting(&self) -> &[String] {
         &self.casting
+    }
+
+    /// The conditional taplands this file declares enter untapped, or empty
+    /// where it declared none, which leaves every one assumed tapped.
+    pub fn untapped(&self) -> &[String] {
+        &self.untapped
     }
 
     /// The discard priority this file declared, highest first, or empty
@@ -1198,7 +1221,8 @@ const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least
                       at_random, discard_only, untap, returns), one \
                       [land_drop] table (prefer), \
                       one [casting] table (prefer), \
-                      one [discard] table (prefer) \
+                      one [discard] table (prefer), \
+                      one [assume] table (untapped) \
                       and one [mulligan] table (keep, bottom, down_to, optimise), whose keep \
                       clauses are (query, min, max).";
 
@@ -2151,6 +2175,11 @@ fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
         "[discard]",
         "prefer",
     )?;
+    let untapped = preference_of(
+        file.assume.as_ref().map(|d| &d.untapped),
+        "[assume]",
+        "untapped",
+    )?;
     let mulligan = file
         .mulligan
         .as_ref()
@@ -2280,6 +2309,7 @@ fn build(source: &str, origin: &str) -> Result<Criteria, ErrorKind> {
         casting,
         discard,
         mulligan,
+        untapped,
     })
 }
 

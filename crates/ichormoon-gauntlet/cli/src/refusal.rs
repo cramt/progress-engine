@@ -41,6 +41,8 @@ pub enum QuerySite {
     Mulligan(MulliganAt),
     /// An entry in `[discard] prefer`.
     Discard,
+    /// An entry in `[assume] untapped`.
+    Assume,
 }
 
 /// Which of a mulligan's queries, counted from one as a reader counts them.
@@ -241,6 +243,14 @@ pub enum Refusal {
         /// making nothing and the remedy is a rebuild, not a different card.
         stale_index: bool,
     },
+    /// `[assume] untapped` naming a land Scryfall tags as always entering
+    /// tapped. A guildgate has no condition to settle, so reading it as
+    /// untapped would be a land no game lets you have.
+    UntappedAlwaysTapped {
+        file: String,
+        query: String,
+        lands: Vec<String>,
+    },
     /// A forced discard with no declared discard priority (ADR-0017 §3).
     ///
     /// Frantic Search makes you discard two, and which two is the pilot's.
@@ -401,6 +411,7 @@ impl Refusal {
             | Refusal::FetchWithoutCasting { file, .. }
             | Refusal::ActivationUnmodelled { file, .. }
             | Refusal::AddsWithoutMana { file, .. }
+            | Refusal::UntappedAlwaysTapped { file, .. }
             | Refusal::DiscardWithoutPriority { file, .. }
             | Refusal::DiscardWithoutLandDrop { file, .. }
             | Refusal::DelayedFetchFindsLand { file, .. }
@@ -429,9 +440,13 @@ impl Refusal {
                 QuerySite::Casting => format!("[casting]: in `prefer` entry {query:?}"),
                 QuerySite::Mulligan(at) => format!("[mulligan]: {at}, query {query:?}"),
                 QuerySite::Discard => format!("[discard]: in `prefer` entry {query:?}"),
+                QuerySite::Assume => format!("[assume]: in `untapped` entry {query:?}"),
             }),
             Refusal::NoPrintedCost { .. } | Refusal::UnpayableCost { .. } => {
                 Some("[casting]".to_string())
+            }
+            Refusal::UntappedAlwaysTapped { query, .. } => {
+                Some(format!("[assume]: in `untapped` entry {query:?}"))
             }
             Refusal::CastingWithoutPriority { asked_by, .. }
             | Refusal::BattlefieldNonLand { asked_by, .. }
@@ -553,6 +568,17 @@ impl Refusal {
                      Inventors' Fair, the one this deck plays, also counts the artifacts in \
                      play, which nothing reads: it is refused at 0.22 points."
                 }
+            ),
+            Refusal::UntappedAlwaysTapped { lands, .. } => write!(
+                f,
+                "names {} that always {} tapped: {}.\n      \
+                 `untapped` settles a condition a land offers, such as a shockland's 2 life or \
+                 Bountiful\n      Promenade's two opponents, and these have none to settle \
+                 (Scryfall tags them\n      otag:tapland). Narrow the query to the lands \
+                 whose tapped-ness you are declaring.",
+                if lands.len() == 1 { "a land" } else { "lands" },
+                if lands.len() == 1 { "enters" } else { "enter" },
+                lands.join(", ")
             ),
             Refusal::AddsWithoutMana {
                 cards, stale_index, ..

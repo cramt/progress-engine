@@ -51,7 +51,7 @@ pub fn run_test(
     trials: u32,
     seed: u64,
 ) -> Result<bool> {
-    let library = Library::load(deck, index_path)?;
+    let mut library = Library::load(deck, index_path)?;
     for note in report::library_notes(&library) {
         eprintln!("{note}");
     }
@@ -62,6 +62,14 @@ pub fn run_test(
     let criteria_sha256 = report::sha256_hex(source.as_bytes());
     let origin = criteria_path.display().to_string();
     let mut criteria = gauntlet_toml::Criteria::parse(&source, &origin)?;
+    // Before anything is grouped: what a land makes is read once, at load,
+    // and a declaration changes that reading rather than adding a second.
+    for query in library.declare_untapped(criteria.untapped(), &origin)? {
+        eprintln!(
+            "note: [assume] untapped entry {query:?} matches no land here whose tapped-ness \
+             has a condition,\n      so it declares nothing"
+        );
+    }
 
     let Preparation { notes, run } =
         prepare::prepare(&library, &mut criteria, &origin, on_the_draw);

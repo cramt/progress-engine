@@ -1,0 +1,7 @@
+# Tranquil Cove always enters tapped: there is no condition to declare.
+[assume]
+untapped = ['t:land']
+
+[[criterion]]
+name = "{1} payable on turn 1"
+require = [{ turn = 1, can_cast = "{1}" }]
