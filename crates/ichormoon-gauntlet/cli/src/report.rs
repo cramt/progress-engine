@@ -1745,7 +1745,16 @@ impl Report {
         }
 
         out.push('\n');
-        out.push_str(&if self.ok {
+        // "PASS: 0 of 0 assertions met" reads as a green run to anyone who
+        // checks only the last line, and a file that lost every bound to a
+        // typo or never had one asserted nothing. Still exit 0: an
+        // informational criterion cannot fail by definition, and most of the
+        // measurement files in decks/ are informational on purpose.
+        out.push_str(&if self.asserted == 0 {
+            "NOTHING ASSERTED: no criterion here has `at_least` or `at_most`, so this run\n\
+             \x20                 reports numbers and cannot fail. Add a bound to make it a test."
+                .to_string()
+        } else if self.ok {
             format!(
                 "PASS: {} of {} assertions met",
                 self.asserted, self.asserted

@@ -5779,3 +5779,17 @@ fn a_deck_naming_a_printing_is_refused_against_an_index_without_printings() {
     assert!(stderr.contains("carries no printings"), "{stderr}");
     assert!(stderr.contains("gauntlet sync"), "{stderr}");
 }
+
+#[test]
+fn a_file_that_asserts_nothing_says_so_instead_of_passing() {
+    // It printed "PASS: 0 of 0 assertions met". Exit 0 is kept on purpose: an
+    // informational criterion cannot fail, and most of decks/ is informational.
+    let out = run("nothing-asserted.criteria.toml");
+    assert!(out.status.success());
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!stderr.contains("PASS"), "stderr was: {stderr}");
+    assert!(stderr.contains("NOTHING ASSERTED"), "stderr was: {stderr}");
+    let json: serde_json::Value =
+        serde_json::from_slice(&out.stdout).expect("stdout should be JSON");
+    assert_eq!(json["asserted"], 0);
+}

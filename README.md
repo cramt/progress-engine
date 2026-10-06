@@ -285,7 +285,8 @@ JSON goes to stdout, the verdict to stderr, and the exit code reflects it — so
 caller piping stdout through `jq` cannot lose the failure.
 
 A criterion with no `at_least` and no `at_most` is informational: it reports a
-number and cannot fail. The two blocks with means under them are `[[expect]]` rather than
+number and cannot fail. A file with no bound anywhere still exits 0, but its last
+line says `NOTHING ASSERTED` rather than `PASS`, because it tested nothing. The two blocks with means under them are `[[expect]]` rather than
 `[[criterion]]`, and they are the subject of [how many, not just how
 often](#how-many-not-just-how-often). Add `--draw` to model being on the draw,
 `--simulate` to sample instead of enumerate (slower, approximate, and reported
