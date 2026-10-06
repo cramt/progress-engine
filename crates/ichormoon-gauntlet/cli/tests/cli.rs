@@ -5793,3 +5793,20 @@ fn a_file_that_asserts_nothing_says_so_instead_of_passing() {
         serde_json::from_slice(&out.stdout).expect("stdout should be JSON");
     assert_eq!(json["asserted"], 0);
 }
+
+#[test]
+fn adds_on_a_card_that_makes_no_mana_is_refused_by_name() {
+    // Wood Elves, Solemn Simulacrum and Simulacrum Shaper with `adds = 1`:
+    // accepted, reported as applying to three cards, and none of them became
+    // a source. Trinket Mage is the same card shape in the rocks index.
+    let out = run_with(
+        "adds-no-mana.txt",
+        "adds-no-mana.criteria.toml",
+        "rocks-index.jsonl",
+    );
+    assert!(!out.status.success());
+    assert!(out.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("declares `adds`"), "stderr was: {stderr}");
+    assert!(stderr.contains("Trinket Mage"), "stderr was: {stderr}");
+}

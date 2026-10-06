@@ -553,6 +553,7 @@ otherwise produces a percentage that looks exactly like a real one:
 | `after` on an `on = "cast"` effect that does not `adds`, or beside a `look` | a delayed look turns over cards on a turn the schedule cannot know in advance, and a cast leaves nothing in play to wait with but a rock or dork, whose `after` is how long it adds nothing |
 | `sacrifice = true` beside `adds` | a rock that waits is a rock entering tapped, and nothing is sacrificed when the wait is over |
 | `after = 0`, or more than 100 | an effect that waits no turns is written without `after` |
+| `adds` on a card whose card data produces no mana, such as Wood Elves | a source taps for the colours its card produces, so this one would count nothing while the run said it applied. A card that searches for a land is a `fetch` |
 | `sacrifice = true` with no `after` | a land that sacrifices itself the moment it is played is a fetchland, and is already written `to = "battlefield"` |
 | a delayed `fetch ... to = "battlefield"` whose priority matches a land | a land arriving off an ability is not a land drop, and whether it enters tapped is a fact no tag carries |
 

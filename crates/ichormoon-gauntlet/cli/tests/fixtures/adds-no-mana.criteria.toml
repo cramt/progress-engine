@@ -1,0 +1,14 @@
+# `adds` on a card that makes no mana: Trinket Mage taps for nothing, so
+# counting it as a source would count nothing while reading as counted.
+
+[casting]
+prefer = ['name:"Trinket Mage"']
+
+[[effect]]
+match = 'name:"Trinket Mage"'
+on = "cast"
+adds = 1
+
+[[criterion]]
+name = "Trinket Mage cast by turn 3"
+require = [{ turn = 3, cast = 'name:"Trinket Mage"', min = 1 }]

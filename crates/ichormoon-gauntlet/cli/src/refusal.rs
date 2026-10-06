@@ -227,6 +227,20 @@ pub enum Refusal {
         card: String,
         kind: &'static str,
     },
+    /// `adds` on a card whose card data says it makes no mana.
+    ///
+    /// `adds` is how much a source taps for, and what it taps for is the
+    /// card's `produces`. Wood Elves has none, so the source was dropped
+    /// while the run still said the effect applied to it: a declaration that
+    /// changed nothing and read as honoured.
+    AddsWithoutMana {
+        file: String,
+        effect: String,
+        cards: Vec<String>,
+        /// Whether the index predates `produces`, so every card reads as
+        /// making nothing and the remedy is a rebuild, not a different card.
+        stale_index: bool,
+    },
     /// A forced discard with no declared discard priority (ADR-0017 §3).
     ///
     /// Frantic Search makes you discard two, and which two is the pilot's.
@@ -386,6 +400,7 @@ impl Refusal {
             | Refusal::FetchWithoutLandDrop { file, .. }
             | Refusal::FetchWithoutCasting { file, .. }
             | Refusal::ActivationUnmodelled { file, .. }
+            | Refusal::AddsWithoutMana { file, .. }
             | Refusal::DiscardWithoutPriority { file, .. }
             | Refusal::DiscardWithoutLandDrop { file, .. }
             | Refusal::DelayedFetchFindsLand { file, .. }
@@ -427,7 +442,8 @@ impl Refusal {
             | Refusal::CastFetchFindsLand { effect, .. }
             | Refusal::FetchNonPermanentToBattlefield { effect, .. }
             | Refusal::FetchNonLandToBattlefield { effect, .. }
-            | Refusal::ActivationUnmodelled { effect, .. } => Some(format!("effect {effect:?}")),
+            | Refusal::ActivationUnmodelled { effect, .. }
+            | Refusal::AddsWithoutMana { effect, .. } => Some(format!("effect {effect:?}")),
             Refusal::ObjectiveTooWide { .. } | Refusal::ObjectiveOverBudget { .. } => {
                 Some("[mulligan]".to_string())
             }
@@ -536,6 +552,27 @@ impl Refusal {
                     "A land's ability is paid out of the land drop the line reads, and \
                      Inventors' Fair, the one this deck plays, also counts the artifacts in \
                      play, which nothing reads: it is refused at 0.22 points."
+                }
+            ),
+            Refusal::AddsWithoutMana {
+                cards, stale_index, ..
+            } => write!(
+                f,
+                "declares `adds`, and {} no mana according to its card data: {}.\n      \
+                 `adds` is how much a mana source taps for, in the colours the card produces, \
+                 so here it\n      would count nothing while reading as counted. {}",
+                if cards.len() == 1 {
+                    "this card makes"
+                } else {
+                    "these cards make"
+                },
+                cards.join(", "),
+                if *stale_index {
+                    "This index predates the `produces` field, so every card reads as making \
+                     none.\n      Rebuild it with: gauntlet sync"
+                } else {
+                    "A card that searches for a land is a tutor, written with\n      `fetch` \
+                     and `to`, not a source."
                 }
             ),
             Refusal::FetchWithoutCasting { effect, .. } => write!(

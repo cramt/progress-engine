@@ -1,0 +1,4 @@
+// Trinket Mage among lands: a creature whose card data produces no mana.
+1x Trinket Mage [Filler]
+6x Island [Land]
+6x Opt [Filler]

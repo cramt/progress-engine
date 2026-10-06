@@ -351,6 +351,7 @@ fn prepare_noting(
         land_drop.is_some(),
         !discard_bits.is_empty(),
     )?;
+    refuse_sourceless_adds(library, origin, &resolved)?;
 
     // A declared casting priority is a mana question whether or not any clause
     // asks one, because the budget spends the pool: what was cast decides what
@@ -558,6 +559,42 @@ fn refuse_undeclared_discards(
             return Err(Refusal::DiscardWithoutLandDrop {
                 file: origin.to_string(),
                 effect: applied.matches.clone(),
+            }
+            .into());
+        }
+    }
+    Ok(())
+}
+
+/// `adds` on a card that makes no mana, refused by name rather than dropped.
+///
+/// A card with a palette and nothing that taps it is already named, as cast
+/// and counted as making none (ADR-0018); one with no palette at all was
+/// neither a source nor named, so the declaration was a silent no-op.
+fn refuse_sourceless_adds(
+    library: &Library,
+    origin: &str,
+    resolved: &effects::Resolved,
+) -> Result<(), Unprepared> {
+    for applied in resolved.applied.iter().filter(|a| a.adds.is_some()) {
+        let cards: Vec<String> = applied
+            .cards
+            .iter()
+            .filter(|name| {
+                library
+                    .entries
+                    .iter()
+                    .chain(&library.commanders)
+                    .any(|e| &e.card.name == *name && e.card.produces.is_empty())
+            })
+            .cloned()
+            .collect();
+        if !cards.is_empty() {
+            return Err(Refusal::AddsWithoutMana {
+                file: origin.to_string(),
+                effect: applied.matches.clone(),
+                cards,
+                stale_index: library.index_is_stale,
             }
             .into());
         }
