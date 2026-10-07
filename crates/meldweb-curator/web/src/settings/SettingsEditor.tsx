@@ -593,9 +593,9 @@ function draftOf(read: SettingsRules): Draft {
 
 function loadedOf(text: string, read: SettingsRules): Loaded {
   return read.kind === "read"
-    ? { text, pins: read.pins, rules: read.rules }
+    ? { text, pins: read.pins, rules: read.rules, decks: read.decks }
     : // Nothing matches a file that does not read, so any start replaces it.
-      { text, pins: [], rules: [] };
+      { text, pins: [], rules: [], decks: [] };
 }
 
 function samePin(a: Pin, b: Pick<Pin, "name" | "set" | "num">): boolean {

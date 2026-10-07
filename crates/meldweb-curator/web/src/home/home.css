@@ -327,3 +327,53 @@ dialog.cover-sheet {
   width: 12px;
   height: 12px;
 }
+
+/* Ordering by drag: the tile in hand dims, and a bar marks where it lands. */
+.deck-grid > li {
+  position: relative;
+}
+
+.deck-grid > li.dragging {
+  opacity: 0.4;
+}
+
+.deck-grid > li.drop-before::before,
+.deck-grid > li.drop-after::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+  content: "";
+  pointer-events: none;
+}
+
+/* Half the 18px gap, less half the bar: centred between two tiles. */
+.deck-grid > li.drop-before::before {
+  left: -11px;
+}
+
+.deck-grid > li.drop-after::before {
+  right: -11px;
+}
+
+@media (max-width: 560px) {
+  .deck-grid > li.drop-before::before,
+  .deck-grid > li.drop-after::before {
+    right: 0;
+    left: 0;
+    width: auto;
+    height: 4px;
+  }
+
+  .deck-grid > li.drop-before::before {
+    top: -11px;
+    bottom: auto;
+  }
+
+  .deck-grid > li.drop-after::before {
+    top: auto;
+    bottom: -11px;
+  }
+}

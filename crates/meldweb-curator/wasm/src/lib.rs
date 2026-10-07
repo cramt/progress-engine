@@ -878,6 +878,8 @@ pub enum SettingsRules {
         pins: Vec<Pin>,
         /// Every other rule, in order.
         rules: Vec<RuleText>,
+        /// The deck list's order, by path; a deck not in it goes after, by name.
+        decks: Vec<String>,
         /// Whether the rules came from the repo's `meldweb.toml`.
         declared: bool,
         defaults: Vec<RuleText>,
@@ -892,9 +894,10 @@ pub enum SettingsRules {
 pub fn read_settings_text(text: Option<&str>) -> SettingsRules {
     let defaults = preference::read_rules(None).expect("the default rules read");
     match preference::read(text) {
-        Ok(preference::Settings { pins, rules }) => SettingsRules::Read {
+        Ok(preference::Settings { pins, rules, decks }) => SettingsRules::Read {
             pins,
             rules,
+            decks,
             declared: text.is_some(),
             defaults,
         },
@@ -914,13 +917,24 @@ pub fn check_rule(query: &str) -> Option<String> {
     preference::check(query)
 }
 
-/// `pins` and `rules`, JSON arrays of `Pin` and `RuleText`, as a
-/// `meldweb.toml`, the pins first; refused when a rule does not parse.
+/// `pins`, `rules` and `decks`, JSON arrays of `Pin`, `RuleText` and paths,
+/// as a `meldweb.toml`, the pins first; refused when a rule does not parse.
 #[wasm_bindgen]
-pub fn write_settings(pins: &str, rules: &str) -> Result<String, JsError> {
-    let pins: Vec<Pin> = facet_json::from_str(pins).map_err(refused)?;
-    let rules: Vec<RuleText> = facet_json::from_str(rules).map_err(refused)?;
-    preference::write(&pins, &rules).map_err(refused)
+pub fn write_settings(pins: &str, rules: &str, decks: &str) -> Result<String, JsError> {
+    let settings = preference::Settings {
+        pins: facet_json::from_str(pins).map_err(refused)?,
+        rules: facet_json::from_str(rules).map_err(refused)?,
+        decks: facet_json::from_str(decks).map_err(refused)?,
+    };
+    preference::write(&settings).map_err(refused)
+}
+
+/// `settings`, the repo's `meldweb.toml` or none, with the deck list in
+/// `order`, a JSON array of deck paths.
+#[wasm_bindgen]
+pub fn order_decks(settings: Option<String>, order: &str) -> Result<String, JsError> {
+    let order: Vec<String> = facet_json::from_str(order).map_err(refused)?;
+    preference::order_decks(settings.as_deref(), order).map_err(refused)
 }
 
 /// `settings`, the repo's `meldweb.toml` or none, with `set/num` as the

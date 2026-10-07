@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadDeckSync } from "../deck";
+import { order_decks } from "../wasm/pkg/meldweb_wasm.js";
 import {
   draftRule,
   fileFor,
@@ -53,6 +54,7 @@ describe("the settings page's rules", () => {
     const loaded = {
       text,
       pins: [],
+      decks: [],
       rules: [{ verb: "avoid" as const, query: "is:ub" }],
     };
     expect(
@@ -69,7 +71,7 @@ describe("the settings page's rules", () => {
   });
 
   it("holds the save back while a rule does not parse", () => {
-    const loaded = { text: "", pins: [], rules: defaults() };
+    const loaded = { text: "", pins: [], rules: defaults(), decks: [] };
     expect(
       fileFor({ pins: [], rules: [{ verb: "avoid", query: "lang:" }] }, loaded),
     ).toBeNull();
@@ -123,5 +125,28 @@ describe("the settings page's rules", () => {
   it("writes queries with quotes in them so they read back", () => {
     const rules = [{ verb: "prefer" as const, query: 'name:"Lim-Dûl"' }];
     expect(readSettings(writeSettings([], rules))).toMatchObject({ rules });
+  });
+
+  it("keeps the deck list's order through a rule edited", () => {
+    const text = order_decks(
+      undefined,
+      JSON.stringify(["decks/loam.deck.toml"]),
+    );
+    const read = readSettings(text);
+    if (read.kind !== "read") throw new Error(read.message);
+    const loaded = {
+      text,
+      pins: read.pins,
+      rules: read.rules,
+      decks: read.decks,
+    };
+    const edited = fileFor(
+      { pins: [], rules: [{ verb: "avoid", query: "is:ub" }] },
+      loaded,
+    );
+    expect(readSettings(edited)).toMatchObject({
+      decks: ["decks/loam.deck.toml"],
+      rules: [{ verb: "avoid", query: "is:ub" }],
+    });
   });
 });

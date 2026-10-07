@@ -49,27 +49,31 @@ export function PinsProvider({
   return <PinsContext.Provider value={pins}>{children}</PinsContext.Provider>;
 }
 
+/** The repo's `meldweb.toml` as a page holds it, and how it saves an edit. */
+export interface SettingsFile {
+  /** The file's text, null while the repo has none. */
+  text: string | null;
+  /**
+   * Commits `edit` of the file at once. When the file moved on GitHub since,
+   * `edit` is made again on what is there now.
+   */
+  apply: (edit: (text: string | null) => string) => Promise<void>;
+  /** Why the last edit was not saved, if it was not. */
+  error: string | null;
+}
+
 /**
- * The settings for a page that reads them (a deck, the collection), and a
- * heart on every printing that pins it. A pin is committed at once rather
- * than after the idle wait a deck has: it is one click, and the next card
- * added should already get it. When the file moved on GitHub, the pin is
- * made again on what is there now.
+ * `meldweb.toml` for a page that edits it a click at a time (a heart, a deck
+ * dragged). An edit is committed at once rather than after the idle wait a
+ * deck has: it is one gesture, and what comes next should already see it.
  */
-export function SettingsProvider({
-  file,
-  api,
-  repo,
-  children,
-}: {
-  /** The repo's `meldweb.toml`, null when it has none. */
-  file: FileAt | null;
-  api: GitHubApi;
-  repo: RepoRef;
-  children: ReactNode;
-}) {
+export function useSettingsFile(
+  file: FileAt | null,
+  api: GitHubApi,
+  repo: RepoRef,
+): SettingsFile {
   const [text, setTextState] = useState(file?.text ?? null);
-  // Two hearts clicked before a render must each build on the other.
+  // Two clicks before a render must each build on the other.
   const latest = useRef(text);
   const setText = (next: string) => {
     latest.current = next;
@@ -87,11 +91,6 @@ export function SettingsProvider({
     }),
   );
   useEffect(() => () => void flushOnLeave(store), [store]);
-
-  const pins = useMemo(() => {
-    const read = readSettings(text);
-    return read.kind === "read" ? read.pins : [];
-  }, [text]);
 
   const apply = async (edit: (text: string | null) => string) => {
     try {
@@ -111,6 +110,33 @@ export function SettingsProvider({
       setError(e instanceof Error ? e.message : String(e));
     }
   };
+  return { text, apply, error };
+}
+
+/**
+ * The settings for a page that reads them (a deck, the collection), and a
+ * heart on every printing that pins it, committed at once so the next card
+ * added already gets it.
+ */
+export function SettingsProvider({
+  file,
+  api,
+  repo,
+  children,
+}: {
+  /** The repo's `meldweb.toml`, null when it has none. */
+  file: FileAt | null;
+  api: GitHubApi;
+  repo: RepoRef;
+  children: ReactNode;
+}) {
+  const { text, apply, error } = useSettingsFile(file, api, repo);
+
+  const pins = useMemo(() => {
+    const read = readSettings(text);
+    return read.kind === "read" ? read.pins : [];
+  }, [text]);
+
   const value: Pins = {
     pins,
     error,

@@ -31,8 +31,12 @@ A place that names a deck's path, so the copies in it are the ones in that deck.
 Owned copies in no place yet.
 
 **Settings**:
-The Magic repo's `meldweb.toml`: Curator's own choices, so far the printing preference ([ADR-0026](../../docs/adr/0026-which-printing-comes-first-is-a-ranked-list-of-printing-queries.md)), edited at `/settings` beside a preview that ranks one card's printings by the rules as they are typed. A repo without it gets the defaults, and the first change commits the file; a rule that does not read as a query holds the save back.
+The Magic repo's `meldweb.toml`: Curator's own choices, which are the printing preference ([ADR-0026](../../docs/adr/0026-which-printing-comes-first-is-a-ranked-list-of-printing-queries.md)), and the deck order; the preference is edited at `/settings` beside a preview that ranks one card's printings by the rules as they are typed. A repo without it gets the defaults, and the first change commits the file; a rule that does not read as a query holds the save back.
 _Avoid_: config, preferences file
+
+**Deck order**:
+The order of the deck list, a list of deck paths in the settings, set by dragging a tile ([ADR-0028](../../docs/adr/0028-the-deck-lists-order-is-meldweb-toml-and-a-deck-moves-with-its-variants.md)). A deck not in it goes after those that are, by name; a deck moves with its variants, and a variant only among its siblings.
+_Avoid_: sort order, pinned decks
 
 **Printing preference**:
 The ordered `prefer`/`avoid` rules in the settings that decide which printing of a card is offered first, and which one a card added to a deck by name gets ([ADR-0027](../../docs/adr/0027-a-cards-own-printing-is-a-pin-rule-and-an-added-card-takes-the-best.md)). Each rule is a Scryfall query over one printing; the first rule that tells two printings apart decides, and the newest wins what none of them decides. A pick is always the user's.

@@ -1,26 +1,38 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useSettingsFile } from "../card/preference";
 import { Toolbar } from "../deck/Toolbar";
-import type { RepoRef } from "../github/api";
+import type { FileAt, GitHubApi, RepoRef } from "../github/api";
 import { connect } from "../github/connect";
 import { type DeckEntry, listDecks } from "../github/decks";
 import { deckText } from "../github/deckText";
 import { openSession } from "../github/session";
+import { loadSettingsFile } from "../github/settings";
 import { useDeckActions } from "../home/DeckActions";
-import { DeckTile } from "../home/DeckTile";
+import { DeckGrid } from "../home/DeckGrid";
 import { NewDeckDialog } from "../home/NewDeckDialog";
 import { SessionGate } from "../home/SessionGate";
-import { familyOrder } from "../home/variants";
 import { fetchPrintings, type Printings } from "../scryfall";
+import { readSettings } from "../settings/rules";
+import { order_decks } from "../wasm/pkg/meldweb_wasm.js";
 
 // Login, onboarding, or the Magic repo's decks (#119).
 export const Route = createFileRoute("/")({
   loader: async () => {
     const session = await openSession();
-    if (session.kind !== "open")
-      return { session, decks: [], printings: new Map() as Printings };
+    if (session.kind !== "open") return { kind: "gate" as const, session };
     const { api } = await connect();
-    const decks = await listDecks(api, session.repo, deckText);
-    return { session, decks, printings: await commanderArt(decks) };
+    const [decks, settings] = await Promise.all([
+      listDecks(api, session.repo, deckText),
+      loadSettingsFile(api, session.repo),
+    ]);
+    return {
+      kind: "decks" as const,
+      repo: session.repo,
+      decks,
+      printings: await commanderArt(decks),
+      settings,
+      api,
+    };
   },
   // A deck made or renamed elsewhere shows up on coming back.
   gcTime: 0,
@@ -38,23 +50,31 @@ function commanderArt(decks: readonly DeckEntry[]): Promise<Printings> {
 }
 
 function Home() {
-  const { session, decks, printings } = Route.useLoaderData();
-  if (session.kind !== "open") {
-    return <SessionGate session={session} returnPath="/" />;
+  const data = Route.useLoaderData();
+  if (data.kind === "gate") {
+    return <SessionGate session={data.session} returnPath="/" />;
   }
-  return <Decks repo={session.repo} decks={decks} printings={printings} />;
+  return <Decks {...data} />;
 }
 
 function Decks({
+  api,
   repo,
   decks,
   printings,
+  settings,
 }: {
+  api: GitHubApi;
   repo: RepoRef;
   decks: DeckEntry[];
   printings: Printings;
+  settings: FileAt | null;
 }) {
   const { menuFor, dialogs } = useDeckActions(repo);
+  // The order is meldweb.toml's (ADR-0028), so it follows the repo to any device.
+  const file = useSettingsFile(settings, api, repo);
+  const read = readSettings(file.text);
+  const order = read.kind === "read" ? read.decks : [];
   return (
     <main>
       <Toolbar
@@ -92,21 +112,25 @@ function Decks({
             </p>
           </div>
         ) : (
-          <ul className="deck-grid">
-            {familyOrder(decks).map((d) => (
-              <li key={d.path}>
-                <DeckTile
-                  deck={d}
-                  printings={printings}
-                  menu={menuFor(d)}
-                  parent={decks.find((p) => p.path === d.variantOf)?.name}
-                />
-              </li>
-            ))}
-          </ul>
+          <DeckGrid
+            decks={decks}
+            order={order}
+            printings={printings}
+            menuFor={menuFor}
+            onOrder={(paths) =>
+              void file.apply((t) =>
+                order_decks(t ?? undefined, JSON.stringify(paths)),
+              )
+            }
+          />
         )}
       </div>
       {dialogs}
+      {file.error && (
+        <div className="home-notice refusal" role="alert">
+          <span>The deck order was not saved: {file.error}</span>
+        </div>
+      )}
     </main>
   );
 }

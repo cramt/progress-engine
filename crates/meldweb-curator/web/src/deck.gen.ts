@@ -6,7 +6,7 @@
  * so a bad one can be fixed in place, and the default rules beside them.
  */
 export type SettingsRules =
-  | { kind: "read"; pins: Pin[]; rules: RuleText[]; declared: boolean; defaults: RuleText[] }
+  | { kind: "read"; pins: Pin[]; rules: RuleText[]; decks: string[]; declared: boolean; defaults: RuleText[] }
   | { kind: "refused"; message: string; defaults: RuleText[] };
 
 /**

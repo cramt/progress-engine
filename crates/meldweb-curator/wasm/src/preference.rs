@@ -69,6 +69,15 @@ pub struct Preference {
 struct RawFile {
     #[facet(default)]
     printings: Option<RawPrintings>,
+    #[facet(default)]
+    decks: Option<RawDecks>,
+}
+
+#[derive(Facet)]
+#[facet(deny_unknown_fields)]
+struct RawDecks {
+    #[facet(default)]
+    order: Vec<String>,
 }
 
 #[derive(Facet)]
@@ -105,9 +114,7 @@ impl RuleText {
 /// rather than refusing the whole file. [`DEFAULT`]'s rules when there is no
 /// file.
 pub fn read_rules(text: Option<&str>) -> Result<Vec<RuleText>, String> {
-    let raw: RawFile = facet_toml::from_str(text.unwrap_or(DEFAULT))
-        .map_err(|e| format!("meldweb.toml is not a settings file: {e}"))?;
-    let raw = raw.printings.map_or(Vec::new(), |p| p.rank);
+    let raw = raw_file(text)?.printings.map_or(Vec::new(), |p| p.rank);
     raw.into_iter()
         .enumerate()
         .map(|(i, r)| match (r.prefer, r.avoid) {
@@ -126,6 +133,11 @@ pub fn read_rules(text: Option<&str>) -> Result<Vec<RuleText>, String> {
             )),
         })
         .collect()
+}
+
+fn raw_file(text: Option<&str>) -> Result<RawFile, String> {
+    facet_toml::from_str(text.unwrap_or(DEFAULT))
+        .map_err(|e| format!("meldweb.toml is not a settings file: {e}"))
 }
 
 /// Why `query` is not a rule, or `None` when it is one.
@@ -205,11 +217,17 @@ impl Pin {
 pub struct Settings {
     pub pins: Vec<Pin>,
     pub rules: Vec<RuleText>,
+    /// The deck list's order, by path: `[decks] order`. A deck not in it goes
+    /// after those that are, by name.
+    pub decks: Vec<String>,
 }
 
 /// [`read_rules`], with the pins taken out wherever the file put them.
 pub fn read(text: Option<&str>) -> Result<Settings, String> {
-    let mut settings = Settings::default();
+    let mut settings = Settings {
+        decks: raw_file(text)?.decks.map_or(Vec::new(), |d| d.order),
+        ..Settings::default()
+    };
     for rule in read_rules(text)? {
         match Pin::of(&rule) {
             Some(pin) => settings.pins.push(pin),
@@ -228,19 +246,43 @@ pub fn pin(text: Option<&str>, pin: Pin) -> Result<String, String> {
         .pins
         .retain(|p| !p.name.eq_ignore_ascii_case(&pin.name));
     settings.pins.insert(0, pin);
-    write(&settings.pins, &settings.rules)
+    write(&settings)
 }
 
 /// `text` without a pin for the card called `name`.
 pub fn unpin(text: Option<&str>, name: &str) -> Result<String, String> {
     let mut settings = read(text)?;
     settings.pins.retain(|p| !p.name.eq_ignore_ascii_case(name));
-    write(&settings.pins, &settings.rules)
+    write(&settings)
 }
 
-/// `pins` and `rules` as a `meldweb.toml`, the pins first. Every rule must
-/// parse, so the file written reads back as the same pins and rules.
-pub fn write(pins: &[Pin], rules: &[RuleText]) -> Result<String, String> {
+/// `text` with the deck list in `order`, the paths of its decks.
+pub fn order_decks(text: Option<&str>, order: Vec<String>) -> Result<String, String> {
+    let mut settings = read(text)?;
+    settings.decks = order;
+    write(&settings)
+}
+
+/// `settings` as a `meldweb.toml`, the pins first. Every rule must parse, so
+/// the file written reads back as the same settings.
+pub fn write(settings: &Settings) -> Result<String, String> {
+    let mut out = write_printings(&settings.pins, &settings.rules)?;
+    if !settings.decks.is_empty() {
+        out.push_str(
+            "\n[decks]\n\
+             # The deck list's order, by file. A deck not here goes after these,\n\
+             # by name.\n\
+             order = [\n",
+        );
+        for path in &settings.decks {
+            out.push_str(&format!("  {},\n", toml_string(path)));
+        }
+        out.push_str("]\n");
+    }
+    Ok(out)
+}
+
+fn write_printings(pins: &[Pin], rules: &[RuleText]) -> Result<String, String> {
     let rules = pins
         .iter()
         .map(Pin::rule)
@@ -294,89 +336,164 @@ fn toml_string(s: &str) -> String {
 }
 
 /// The commit for one save of `meldweb.toml`: a subject naming the rules
-/// added, dropped, turned around and moved, and the whole ranking as the
-/// body. `before` is `""` when the save creates the file.
+/// added, dropped, turned around and moved and the deck moved, and the whole
+/// ranking or deck order as the body. `before` is `""` when the save creates the file.
 pub fn commit_message(before: &str, after: &str) -> String {
-    let Settings {
-        pins: new_pins,
-        rules: new,
-    } = read(Some(after)).unwrap_or_default();
-    let ranking = if new.is_empty() {
+    let new = read(Some(after)).unwrap_or_default();
+    let created = before.trim().is_empty();
+    let old = if created {
+        Settings::default()
+    } else {
+        read(Some(before)).unwrap_or_default()
+    };
+    let mut parts = if created {
+        let n = new.rules.len();
+        let mut parts = vec![format!(
+            "rank printings by {n} rule{}",
+            if n == 1 { "" } else { "s" }
+        )];
+        parts.extend(new.pins.iter().map(|p| format!("pin {}", p.label())));
+        parts
+    } else {
+        printing_changes(&old, &new)
+    };
+    let printings_moved = !parts.is_empty();
+    let decks_moved = old.decks != new.decks;
+    if decks_moved {
+        parts.push(deck_move(&old.decks, &new.decks));
+    }
+    let subject = if parts.is_empty() {
+        "meldweb.toml: rewrite, same rules".to_string()
+    } else {
+        format!("meldweb.toml: {}", parts.join(", "))
+    };
+    // The body is the whole of what moved: a deck dragged does not list the
+    // printing rules it left alone.
+    let mut body = Vec::new();
+    if printings_moved || !decks_moved {
+        body.push(printings_body(&new));
+    }
+    if decks_moved {
+        body.push(if new.decks.is_empty() {
+            "Decks: by name.".to_string()
+        } else {
+            let decks = new
+                .decks
+                .iter()
+                .enumerate()
+                .map(|(i, d)| format!("{}. {}", i + 1, deck_stem(d)))
+                .collect::<Vec<_>>()
+                .join("\n");
+            format!("Decks:\n{decks}")
+        });
+    }
+    format!("{subject}\n\n{}\n", body.join("\n\n"))
+}
+
+fn printings_body(new: &Settings) -> String {
+    let ranking = if new.rules.is_empty() {
         "No rules: printings are offered newest first.".to_string()
     } else {
-        new.iter()
+        new.rules
+            .iter()
             .enumerate()
             .map(|(i, r)| format!("{}. {}", i + 1, r.label()))
             .collect::<Vec<_>>()
             .join("\n")
     };
-    let body = if new_pins.is_empty() {
+    if new.pins.is_empty() {
         ranking
     } else {
-        let pinned = new_pins
+        let pinned = new
+            .pins
             .iter()
             .map(|p| format!("- {}", p.label()))
             .collect::<Vec<_>>()
             .join("\n");
         format!("Pinned:\n{pinned}\n\nRanked by:\n{ranking}")
+    }
+}
+
+/// The pins and rules added, dropped, turned around and moved.
+fn printing_changes(old: &Settings, new: &Settings) -> Vec<String> {
+    let (old_pins, new_pins) = (&old.pins, &new.pins);
+    let (old, new) = (&old.rules, &new.rules);
+    let mut parts = Vec::new();
+    let same_card = |a: &Pin, b: &Pin| a.name.eq_ignore_ascii_case(&b.name);
+    for p in new_pins.iter().filter(|p| !old_pins.contains(p)) {
+        parts.push(match old_pins.iter().find(|o| same_card(o, p)) {
+            Some(o) => format!("pin {}: {}/{} → {}/{}", p.name, o.set, o.num, p.set, p.num),
+            None => format!("pin {}", p.label()),
+        });
+    }
+    for p in old_pins
+        .iter()
+        .filter(|p| !new_pins.iter().any(|n| same_card(n, p)))
+    {
+        parts.push(format!("unpin {}", p.name));
+    }
+    for r in new.iter().filter(|r| !old.contains(r)) {
+        let turned = old.iter().any(|o| o.query == r.query);
+        parts.push(format!(
+            "{}{}",
+            if turned { "now " } else { "+" },
+            r.label()
+        ));
+    }
+    for r in old
+        .iter()
+        .filter(|r| !new.iter().any(|n| n.query == r.query))
+    {
+        parts.push(format!("-{}", r.label()));
+    }
+    // The rules both sides have, in each side's order.
+    let kept = |list: &[RuleText], other: &[RuleText]| -> Vec<RuleText> {
+        list.iter().filter(|r| other.contains(r)).cloned().collect()
     };
-    let subject = if before.trim().is_empty() {
+    if kept(old, new) != kept(new, old) {
+        parts.push("reorder".to_string());
+    }
+    parts
+}
+
+/// One deck dragged names where it went; anything else is a reorder.
+fn deck_move(old: &[String], new: &[String]) -> String {
+    if old.is_empty() {
         let n = new.len();
-        let mut subject = format!(
-            "meldweb.toml: rank printings by {n} rule{}",
-            if n == 1 { "" } else { "s" }
-        );
-        for p in &new_pins {
-            subject.push_str(&format!(", pin {}", p.label()));
-        }
-        subject
-    } else {
-        let Settings {
-            pins: old_pins,
-            rules: old,
-        } = read(Some(before)).unwrap_or_default();
-        let mut parts = Vec::new();
-        let same_card = |a: &Pin, b: &Pin| a.name.eq_ignore_ascii_case(&b.name);
-        for p in new_pins.iter().filter(|p| !old_pins.contains(p)) {
-            parts.push(match old_pins.iter().find(|o| same_card(o, p)) {
-                Some(o) => format!("pin {}: {}/{} → {}/{}", p.name, o.set, o.num, p.set, p.num),
-                None => format!("pin {}", p.label()),
-            });
-        }
-        for p in old_pins
-            .iter()
-            .filter(|p| !new_pins.iter().any(|n| same_card(n, p)))
-        {
-            parts.push(format!("unpin {}", p.name));
-        }
-        for r in new.iter().filter(|r| !old.contains(r)) {
-            let turned = old.iter().any(|o| o.query == r.query);
-            parts.push(format!(
-                "{}{}",
-                if turned { "now " } else { "+" },
-                r.label()
-            ));
-        }
-        for r in old
-            .iter()
-            .filter(|r| !new.iter().any(|n| n.query == r.query))
-        {
-            parts.push(format!("-{}", r.label()));
-        }
-        // The rules both sides have, in each side's order.
-        let kept = |list: &[RuleText], other: &[RuleText]| -> Vec<RuleText> {
-            list.iter().filter(|r| other.contains(r)).cloned().collect()
+        return format!("order {n} deck{}", if n == 1 { "" } else { "s" });
+    }
+    if new.is_empty() {
+        return "decks by name".to_string();
+    }
+    // A deck moves with its variants behind it, so what moved is a run of
+    // decks that stand together on both sides.
+    let moved = new.iter().enumerate().find(|&(i, path)| {
+        let Some(j) = old.iter().position(|p| p == path) else {
+            return false;
         };
-        if kept(&old, &new) != kept(&new, &old) {
-            parts.push("reorder".to_string());
+        if i == j {
+            return false;
         }
-        if parts.is_empty() {
-            "meldweb.toml: rewrite, same rules".to_string()
-        } else {
-            format!("meldweb.toml: {}", parts.join(", "))
-        }
-    };
-    format!("{subject}\n\n{body}\n")
+        let run = new[i..]
+            .iter()
+            .zip(&old[j..])
+            .take_while(|(a, b)| a == b)
+            .count();
+        let without = |list: &[String], at: usize| -> Vec<String> {
+            [&list[..at], &list[at + run..]].concat()
+        };
+        without(old, j) == without(new, i)
+    });
+    match moved {
+        Some((i, path)) => format!("move {} to {} of {}", deck_stem(path), i + 1, new.len()),
+        None => "reorder decks".to_string(),
+    }
+}
+
+/// `decks/lantern.deck.toml` → `lantern`.
+fn deck_stem(path: &str) -> &str {
+    let file = path.rsplit('/').next().unwrap_or(path);
+    file.strip_suffix(".deck.toml").unwrap_or(file)
 }
 
 impl Preference {
@@ -565,6 +682,59 @@ rank = [{ avoid = "lang:jp" }]
         }
     }
 
+    fn rules_file(rules: &[RuleText]) -> Result<String, String> {
+        write(&Settings {
+            rules: rules.to_vec(),
+            ..Settings::default()
+        })
+    }
+
+    fn decks(stems: &[&str]) -> Vec<String> {
+        stems
+            .iter()
+            .map(|s| format!("decks/{s}.deck.toml"))
+            .collect()
+    }
+
+    #[test]
+    fn the_deck_order_survives_a_pin_and_a_pin_survives_the_order() {
+        let text = order_decks(None, decks(&["loam", "lantern"])).unwrap();
+        let text = pin(Some(&text), sol_ring("c21", "263")).unwrap();
+        let back = read(Some(&text)).unwrap();
+        assert_eq!(back.decks, decks(&["loam", "lantern"]), "{text}");
+        let text = order_decks(Some(&text), decks(&["lantern", "loam"])).unwrap();
+        let back = read(Some(&text)).unwrap();
+        assert_eq!(back.pins, vec![sol_ring("c21", "263")]);
+        assert_eq!(back.rules, read_rules(None).unwrap());
+        assert_eq!(back.decks, decks(&["lantern", "loam"]));
+        // No order is no section, as before there was one.
+        let text = order_decks(Some(&text), vec![]).unwrap();
+        assert!(!text.contains("[decks]"), "{text}");
+    }
+
+    #[test]
+    fn a_deck_commit_names_the_deck_moved_and_lists_the_decks_alone() {
+        let before = order_decks(None, decks(&["a", "b", "c", "d"])).unwrap();
+        assert!(commit_message("", &before)
+            .starts_with("meldweb.toml: rank printings by 10 rules, order 4 decks\n"));
+        let after = order_decks(Some(&before), decks(&["a", "d", "b", "c"])).unwrap();
+        assert_eq!(
+            commit_message(&before, &after),
+            "meldweb.toml: move d to 2 of 4\n\nDecks:\n1. a\n2. d\n3. b\n4. c\n"
+        );
+        // A deck and the variant behind it are one move.
+        let family = order_decks(Some(&before), decks(&["c", "d", "a", "b"])).unwrap();
+        assert!(
+            commit_message(&before, &family).starts_with("meldweb.toml: move c to 1 of 4\n"),
+            "{}",
+            commit_message(&before, &family)
+        );
+        let swapped = order_decks(Some(&before), decks(&["b", "a", "d", "c"])).unwrap();
+        assert!(commit_message(&before, &swapped).starts_with("meldweb.toml: reorder decks\n"));
+        let pinned = pin(Some(&before), sol_ring("c21", "263")).unwrap();
+        assert!(!commit_message(&before, &pinned).contains("Decks:"));
+    }
+
     #[test]
     fn what_is_written_reads_back_as_the_same_rules_quotes_and_all() {
         let rules = vec![
@@ -575,20 +745,17 @@ rank = [{ avoid = "lang:jp" }]
             ),
             rule(Verb::Avoid, r#"name:"a\b""#),
         ];
-        let text = write(&[], &rules).unwrap();
+        let text = rules_file(&rules).unwrap();
         assert_eq!(read_rules(Some(&text)).unwrap(), rules, "{text}");
         assert_eq!(Preference::parse(Some(&text)).unwrap().rules.len(), 3);
-        let none = write(&[], &[]).unwrap();
+        let none = rules_file(&[]).unwrap();
         assert_eq!(read_rules(Some(&none)).unwrap(), vec![]);
     }
 
     #[test]
     fn a_rule_that_does_not_parse_is_not_written() {
-        let err = write(
-            &[],
-            &[rule(Verb::Avoid, "is:ub"), rule(Verb::Avoid, "lang:jp")],
-        )
-        .unwrap_err();
+        let err =
+            rules_file(&[rule(Verb::Avoid, "is:ub"), rule(Verb::Avoid, "lang:jp")]).unwrap_err();
         assert!(err.starts_with("rule 2:"), "{err}");
         assert!(check("lang:jp").is_some());
         assert_eq!(check("lang:ja"), None);
@@ -607,25 +774,19 @@ rank = [{ avoid = "lang:jp" }]
 
     #[test]
     fn a_commit_names_what_changed_and_lists_the_ranking() {
-        let before = write(
-            &[],
-            &[
-                rule(Verb::Avoid, "is:digital"),
-                rule(Verb::Avoid, "is:fullart"),
-                rule(Verb::Avoid, "is:ub"),
-                rule(Verb::Avoid, "frame:old"),
-            ],
-        )
+        let before = rules_file(&[
+            rule(Verb::Avoid, "is:digital"),
+            rule(Verb::Avoid, "is:fullart"),
+            rule(Verb::Avoid, "is:ub"),
+            rule(Verb::Avoid, "frame:old"),
+        ])
         .unwrap();
-        let after = write(
-            &[],
-            &[
-                rule(Verb::Avoid, "is:ub"),
-                rule(Verb::Prefer, "is:fullart"),
-                rule(Verb::Avoid, "is:digital"),
-                rule(Verb::Avoid, "is:textless"),
-            ],
-        )
+        let after = rules_file(&[
+            rule(Verb::Avoid, "is:ub"),
+            rule(Verb::Prefer, "is:fullart"),
+            rule(Verb::Avoid, "is:digital"),
+            rule(Verb::Avoid, "is:textless"),
+        ])
         .unwrap();
         assert_eq!(
             commit_message(&before, &after),
@@ -637,7 +798,7 @@ rank = [{ avoid = "lang:jp" }]
              4. avoid is:textless\n"
         );
         assert!(commit_message("", &after).starts_with("meldweb.toml: rank printings by 4 rules\n"));
-        assert!(commit_message(&before, &write(&[], &[]).unwrap()).contains("newest first"));
+        assert!(commit_message(&before, &rules_file(&[]).unwrap()).contains("newest first"));
     }
 
     fn sol_ring(set: &str, num: &str) -> Pin {
@@ -679,7 +840,8 @@ rank = [{ avoid = "lang:jp" }]
             read(Some(&text)).unwrap(),
             Settings {
                 pins: vec![],
-                rules: read_rules(None).unwrap()
+                rules: read_rules(None).unwrap(),
+                decks: vec![],
             }
         );
     }
