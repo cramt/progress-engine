@@ -373,6 +373,9 @@ pub enum Query {
     FullOracle(String),
     /// `name:"Rogue's Passage"`, or a bare word.
     Name(String),
+    /// `!"Sol Ring"`: the whole name, or one face of a multi-faced card,
+    /// whatever the case. What names one card, where `name:` is a substring.
+    ExactName(String),
     /// `kw:flying`, `kw:"double strike"` — one whole keyword the card has.
     Keyword(String),
     /// `otag:surveil-land`, `otag:tapland` — one Scryfall oracle tag the card
@@ -436,6 +439,13 @@ impl Query {
             Query::Oracle(s) => contains_ci(card.oracle, s),
             Query::FullOracle(s) => contains_ci(card.full_oracle, s),
             Query::Name(s) => contains_ci(card.name, s),
+            Query::ExactName(s) => {
+                card.name.eq_ignore_ascii_case(s)
+                    || card
+                        .name
+                        .split(" // ")
+                        .any(|face| face.eq_ignore_ascii_case(s))
+            }
             // Whole value, not substring: a keyword is a discrete entry in a
             // list, so `kw:trample` must not be satisfied by a hypothetical
             // "Trampleover", nor by the word appearing in oracle text.

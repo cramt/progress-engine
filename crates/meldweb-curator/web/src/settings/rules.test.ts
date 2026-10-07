@@ -20,6 +20,7 @@ beforeAll(() => {
 });
 
 const defaults = () => readSettings(null).defaults;
+const SOL_RING = { name: "Sol Ring", set: "c21", num: "263" };
 
 describe("the settings page's rules", () => {
   it("reads a repo without meldweb.toml as the default rules", () => {
@@ -51,10 +52,16 @@ describe("the settings page's rules", () => {
     const text = '# mine\n[printings]\nrank = [{ avoid = "is:ub" }]\n';
     const loaded = {
       text,
+      pins: [],
       rules: [{ verb: "avoid" as const, query: "is:ub" }],
     };
-    expect(fileFor(loaded.rules.map(draftRule), loaded)).toBe(text);
-    const flipped = fileFor([{ verb: "prefer", query: "is:ub" }], loaded);
+    expect(
+      fileFor({ pins: [], rules: loaded.rules.map(draftRule) }, loaded),
+    ).toBe(text);
+    const flipped = fileFor(
+      { pins: [], rules: [{ verb: "prefer", query: "is:ub" }] },
+      loaded,
+    );
     expect(flipped).toContain('{ prefer = "is:ub" }');
     expect(readSettings(flipped)).toMatchObject({
       rules: [{ verb: "prefer", query: "is:ub" }],
@@ -62,20 +69,33 @@ describe("the settings page's rules", () => {
   });
 
   it("holds the save back while a rule does not parse", () => {
-    const loaded = { text: "", rules: defaults() };
-    expect(fileFor([{ verb: "avoid", query: "lang:" }], loaded)).toBeNull();
+    const loaded = { text: "", pins: [], rules: defaults() };
+    expect(
+      fileFor({ pins: [], rules: [{ verb: "avoid", query: "lang:" }] }, loaded),
+    ).toBeNull();
     // A repo without the file, at the default rules, writes nothing.
-    expect(fileFor(defaults(), loaded)).toBe("");
+    expect(fileFor({ pins: [], rules: defaults() }, loaded)).toBe("");
+    // A pin is a change like any other.
+    const pinned = fileFor({ pins: [SOL_RING], rules: defaults() }, loaded);
+    expect(readSettings(pinned)).toMatchObject({
+      pins: [SOL_RING],
+      rules: defaults(),
+    });
   });
 
   it("previews only the rules that parse, and says where each one is", () => {
-    const { text, at } = previewOf([
-      { verb: "avoid", query: "is:ub" },
-      { verb: "avoid", query: "lang:jp" },
-      { verb: "prefer", query: "is:fullart" },
-    ]);
-    expect(at).toEqual([0, 2]);
+    const { text, at } = previewOf({
+      pins: [SOL_RING],
+      rules: [
+        { verb: "avoid", query: "is:ub" },
+        { verb: "avoid", query: "lang:jp" },
+        { verb: "prefer", query: "is:fullart" },
+      ],
+    });
+    // The pin is rule 0 of the file the preview ranks by.
+    expect(at).toEqual([1, -1, 2]);
     expect(readSettings(text)).toMatchObject({
+      pins: [SOL_RING],
       rules: [
         { verb: "avoid", query: "is:ub" },
         { verb: "prefer", query: "is:fullart" },
@@ -102,6 +122,6 @@ describe("the settings page's rules", () => {
 
   it("writes queries with quotes in them so they read back", () => {
     const rules = [{ verb: "prefer" as const, query: 'name:"Lim-Dûl"' }];
-    expect(readSettings(writeSettings(rules))).toMatchObject({ rules });
+    expect(readSettings(writeSettings([], rules))).toMatchObject({ rules });
   });
 });

@@ -26,6 +26,8 @@
   --warning-soft: #fcf2d4;
   --warning-fg: #6a4b00;
   --success: #2e7d4a;
+  /* A card's own printing, pinned with a heart. */
+  --heart: #e0245e;
   --scrim: rgb(20 20 18 / 0.5);
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
   --shadow: 0 2px 6px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04);
@@ -71,6 +73,7 @@
     --warning-soft: #3a3016;
     --warning-fg: #f4d88a;
     --success: #5cc084;
+    --heart: #f0507f;
     --scrim: rgb(0 0 0 / 0.62);
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
     --shadow: 0 2px 6px rgb(0 0 0 / 0.3);

@@ -7,24 +7,33 @@ import {
   useRef,
   useState,
 } from "react";
-import { rankPrintings } from "../card/preference";
+import {
+  type Pins,
+  PinsProvider,
+  pinnedAs,
+  rankPrintings,
+} from "../card/preference";
 import { printsByName } from "../card/prints";
 import { usePrintingOptions } from "../card/usePrintingOptions";
 import { Banners, SaveStatus, Toolbar, UndoRedo } from "../deck/Toolbar";
+import type { SettingsRules } from "../deck.gen";
 import type { GitHubApi, RepoRef } from "../github/api";
 import { createSaveStore } from "../github/save";
 import { SETTINGS_PATH } from "../github/settings";
 import { useSave } from "../github/useSave";
 import { useHistory, useUndoKeys } from "../history";
 import { CloseIcon, PlusIcon } from "../ui/icons";
+import { Pinned } from "./Pinned";
 import { Preview, SAMPLES } from "./Preview";
 import {
+  type Draft,
   type DraftRule,
   draftRule,
   fileFor,
   type Loaded,
   missingDefaults,
   moveRule,
+  type Pin,
   previewOf,
   problemOf,
   type RuleText,
@@ -57,16 +66,14 @@ export function SettingsEditor({
 }) {
   const [read, setRead] = useState(() => readSettings(text));
   const defaults = read.defaults;
-  const [loaded, setLoaded] = useState<Loaded>(() => ({
-    text: text ?? "",
-    rules: read.kind === "read" ? read.rules : [],
-  }));
+  const [loaded, setLoaded] = useState<Loaded>(() =>
+    loadedOf(text ?? "", read),
+  );
   // A file this Curator cannot read is only replaced when asked to.
   const [replacing, setReplacing] = useState(false);
-  const history = useHistory<readonly DraftRule[]>(
-    (read.kind === "read" ? read.rules : defaults).map(draftRule),
-  );
-  const rules = history.present;
+  const history = useHistory<Draft>(draftOf(read));
+  const draft = history.present;
+  const { rules, pins } = draft;
   const { undo, redo } = history;
   useUndoKeys(undo, redo);
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -84,8 +91,8 @@ export function SettingsEditor({
   const save = useSave(store);
   const editable = read.kind === "read" || replacing;
   const file = useMemo(
-    () => (editable ? fileFor(rules, loaded) : null),
-    [editable, rules, loaded],
+    () => (editable ? fileFor(draft, loaded) : null),
+    [editable, draft, loaded],
   );
   useEffect(() => {
     if (file !== null) store.edit(file);
@@ -100,7 +107,10 @@ export function SettingsEditor({
     next: readonly DraftRule[],
     typedIn: number | null = null,
   ) => {
-    history.edit(next, typedIn !== null && lastTyped.current === typedIn);
+    history.edit(
+      { pins, rules: next },
+      typedIn !== null && lastTyped.current === typedIn,
+    );
     lastTyped.current = typedIn;
   };
   const setRule = (id: number, patch: Partial<RuleText>) =>
@@ -133,7 +143,7 @@ export function SettingsEditor({
   // The preview ranks one card's printings by the rules that read so far.
   const [card, setCard] = useState<string>(SAMPLES[0]);
   const options = usePrintingOptions(printsByName(card));
-  const preview = useMemo(() => previewOf(rules), [rules]);
+  const preview = useMemo(() => previewOf(draft), [draft]);
   const ranked = useMemo(
     () =>
       options.status === "done"
@@ -142,9 +152,28 @@ export function SettingsEditor({
     [options, preview.text],
   );
   const hits = rules.map((_, i) => {
-    const k = preview.at.indexOf(i);
+    const k = preview.at[i] ?? -1;
     return ranked?.kind === "ranked" && k >= 0 ? (ranked.hits[k] ?? 0) : null;
   });
+  const setPins = (next: readonly Pin[]) => {
+    history.edit({ pins: next, rules });
+    lastTyped.current = null;
+  };
+  const pinsHere: Pins = {
+    pins,
+    error: null,
+    toggle: (p) =>
+      setPins(
+        pinnedAs(pins, p)
+          ? pins.filter((x) => !samePin(x, p))
+          : [
+              { name: p.name, set: p.set, num: p.num },
+              ...pins.filter(
+                (x) => x.name.toLowerCase() !== p.name.toLowerCase(),
+              ),
+            ],
+      ),
+  };
   const total = ranked?.ranked.length ?? 0;
   const [lit, setLit] = useState<number | null>(null);
 
@@ -153,13 +182,8 @@ export function SettingsEditor({
       const fresh = await store.reload();
       const next = readSettings(fresh);
       setRead(next);
-      setLoaded({
-        text: fresh,
-        rules: next.kind === "read" ? next.rules : [],
-      });
-      history.reset(
-        (next.kind === "read" ? next.rules : defaults).map(draftRule),
-      );
+      setLoaded(loadedOf(fresh, next));
+      history.reset(draftOf(next));
       setRefusal(null);
     } catch (e) {
       setRefusal(e instanceof Error ? e.message : String(e));
@@ -190,127 +214,139 @@ export function SettingsEditor({
         onDismiss={() => setRefusal(null)}
       />
       <div className="settings">
-        <section className="settings-rules" aria-labelledby="printing-rules">
-          <h2 id="printing-rules">Which printing comes first</h2>
-          <p className="settings-lede">
-            When you pick a printing, Curator lists them best first. Each rule
-            is a Scryfall query about one printing. Rules apply top to bottom:
-            the first one that tells two printings apart decides, and each one
-            below only breaks ties. Printings no rule tells apart go newest
-            first.
-          </p>
-          {read.kind === "refused" && !replacing ? (
-            <div className="settings-unreadable">
-              <p className="refusal" role="alert">
-                {read.message}
-              </p>
-              <details className="source" open>
-                <summary>{SETTINGS_PATH} as it is</summary>
-                <pre>{text}</pre>
-              </details>
-              <button
-                type="button"
-                className="primary"
-                onClick={() => setReplacing(true)}
-              >
-                Replace it with the default rules
-              </button>
-            </div>
-          ) : (
-            <>
-              <p className="settings-source">
-                {read.kind === "read" && read.declared ? (
-                  <>
-                    Saved in <code>{SETTINGS_PATH}</code> at the root of{" "}
-                    <code>
-                      {repo.owner}/{repo.name}
-                    </code>
-                    , as a commit, like your decks.
-                  </>
-                ) : (
-                  <>
-                    <code>
-                      {repo.owner}/{repo.name}
-                    </code>{" "}
-                    has no <code>{SETTINGS_PATH}</code> yet, so these are the
-                    default rules. Your first change commits the file.
-                  </>
-                )}
-              </p>
-              <RuleList
-                rules={rules}
-                problems={problems}
-                listRef={list}
-                hits={hits}
-                total={total}
-                card={card}
-                onVerb={(id, verb) => setRule(id, { verb })}
-                onQuery={(id, query) => setRule(id, { query })}
-                onRemove={remove}
-                onMove={move}
-                onAddAfter={(i) => add({ verb: "avoid", query: "" }, i + 1)}
-                onLight={setLit}
-              />
-              {rules.length === 0 && (
-                <p className="settings-empty">
-                  No rules: every card's printings are listed newest first.
-                </p>
-              )}
-              <div className="rule-actions">
-                <button
-                  type="button"
-                  onClick={() => add({ verb: "avoid", query: "" })}
-                >
-                  <PlusIcon />
-                  Add rule
-                </button>
-                <button
-                  type="button"
-                  className="ghost"
-                  disabled={sameRules(rules, defaults)}
-                  onClick={() => change(defaults.map(draftRule))}
-                  title="Undo takes this back"
-                >
-                  Reset to the default rules
-                </button>
-                {broken.length > 0 && (
-                  <span className="rule-held" role="status">
-                    Not saved until rule{broken.length === 1 ? "" : "s"}{" "}
-                    {broken.join(", ")} {broken.length === 1 ? "reads" : "read"}{" "}
-                    as a query.
-                  </span>
-                )}
-              </div>
-              {missing.length > 0 && (
-                <div className="rule-suggestions">
-                  <span>Default rules you don't have:</span>
-                  {missing.map((r) => (
-                    <button
-                      key={`${r.verb}:${r.query}`}
-                      type="button"
-                      className={`rule-chip ${r.verb}`}
-                      title="Add it at the bottom"
-                      onClick={() => add(r)}
-                    >
-                      <PlusIcon />
-                      {r.verb} <code>{r.query}</code>
-                    </button>
-                  ))}
-                </div>
-              )}
-              <CheatSheet />
-            </>
+        <div className="settings-main">
+          {editable && (
+            <Pinned
+              pins={pins}
+              onUnpin={(p) => setPins(pins.filter((x) => !samePin(x, p)))}
+              onPreview={setCard}
+            />
           )}
-        </section>
-        <Preview
-          card={card}
-          onCard={setCard}
-          options={options}
-          ranked={ranked}
-          skipped={rules.length - preview.at.length}
-          // A rule that stopped reading while pointed at lights nothing.
-          lit={lit === null || problems[lit] ? null : (rules[lit] ?? null)}
-        />
+          <section className="settings-rules" aria-labelledby="printing-rules">
+            <h2 id="printing-rules">Every other card</h2>
+            <p className="settings-lede">
+              For a card with no favourite, these rules decide which printing
+              adding it gives you, and the order you pick from. Each rule is a
+              Scryfall query about one printing. Rules apply top to bottom: the
+              first one that tells two printings apart decides, and each one
+              below only breaks ties. Printings no rule tells apart go newest
+              first.
+            </p>
+            {read.kind === "refused" && !replacing ? (
+              <div className="settings-unreadable">
+                <p className="refusal" role="alert">
+                  {read.message}
+                </p>
+                <details className="source" open>
+                  <summary>{SETTINGS_PATH} as it is</summary>
+                  <pre>{text}</pre>
+                </details>
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => setReplacing(true)}
+                >
+                  Replace it with the default rules
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="settings-source">
+                  {read.kind === "read" && read.declared ? (
+                    <>
+                      Saved in <code>{SETTINGS_PATH}</code> at the root of{" "}
+                      <code>
+                        {repo.owner}/{repo.name}
+                      </code>
+                      , as a commit, like your decks.
+                    </>
+                  ) : (
+                    <>
+                      <code>
+                        {repo.owner}/{repo.name}
+                      </code>{" "}
+                      has no <code>{SETTINGS_PATH}</code> yet, so these are the
+                      default rules. Your first change commits the file.
+                    </>
+                  )}
+                </p>
+                <RuleList
+                  rules={rules}
+                  problems={problems}
+                  listRef={list}
+                  hits={hits}
+                  total={total}
+                  card={card}
+                  onVerb={(id, verb) => setRule(id, { verb })}
+                  onQuery={(id, query) => setRule(id, { query })}
+                  onRemove={remove}
+                  onMove={move}
+                  onAddAfter={(i) => add({ verb: "avoid", query: "" }, i + 1)}
+                  onLight={setLit}
+                />
+                {rules.length === 0 && (
+                  <p className="settings-empty">
+                    No rules: every card's printings are listed newest first.
+                  </p>
+                )}
+                <div className="rule-actions">
+                  <button
+                    type="button"
+                    onClick={() => add({ verb: "avoid", query: "" })}
+                  >
+                    <PlusIcon />
+                    Add rule
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost"
+                    disabled={sameRules(rules, defaults)}
+                    onClick={() => change(defaults.map(draftRule))}
+                    title="Undo takes this back"
+                  >
+                    Reset to the default rules
+                  </button>
+                  {broken.length > 0 && (
+                    <span className="rule-held" role="status">
+                      Not saved until rule{broken.length === 1 ? "" : "s"}{" "}
+                      {broken.join(", ")}{" "}
+                      {broken.length === 1 ? "reads" : "read"} as a query.
+                    </span>
+                  )}
+                </div>
+                {missing.length > 0 && (
+                  <div className="rule-suggestions">
+                    <span>Default rules you don't have:</span>
+                    {missing.map((r) => (
+                      <button
+                        key={`${r.verb}:${r.query}`}
+                        type="button"
+                        className={`rule-chip ${r.verb}`}
+                        title="Add it at the bottom"
+                        onClick={() => add(r)}
+                      >
+                        <PlusIcon />
+                        {r.verb} <code>{r.query}</code>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <CheatSheet />
+              </>
+            )}
+          </section>
+        </div>
+        <PinsProvider pins={editable ? pinsHere : null}>
+          <Preview
+            card={card}
+            onCard={setCard}
+            options={options}
+            ranked={ranked}
+            skipped={preview.at.filter((k) => k < 0).length}
+            // A rule that stopped reading while pointed at lights nothing.
+            lit={lit === null || problems[lit] ? null : (rules[lit] ?? null)}
+          />
+        </PinsProvider>
       </div>
     </main>
   );
@@ -546,4 +582,22 @@ function CheatSheet() {
       </dl>
     </details>
   );
+}
+
+/** The draft a read file starts the page at: its own, or the defaults. */
+function draftOf(read: SettingsRules): Draft {
+  return read.kind === "read"
+    ? { pins: read.pins, rules: read.rules.map(draftRule) }
+    : { pins: [], rules: read.defaults.map(draftRule) };
+}
+
+function loadedOf(text: string, read: SettingsRules): Loaded {
+  return read.kind === "read"
+    ? { text, pins: read.pins, rules: read.rules }
+    : // Nothing matches a file that does not read, so any start replaces it.
+      { text, pins: [], rules: [] };
+}
+
+function samePin(a: Pin, b: Pick<Pin, "name" | "set" | "num">): boolean {
+  return pinnedAs([a], b);
 }

@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useState } from "react";
+import { PinHeart } from "../card/PinHeart";
 import type { PreferredOrder } from "../card/preference";
 import type { PrintingOptions } from "../card/usePrintingOptions";
 import {
@@ -98,7 +99,7 @@ export function Preview({
             className={lit ? "preview-list lighting" : "preview-list"}
             aria-label={`${card}, best first`}
           >
-            {shown.map(({ option: p, matched }, i) => (
+            {shown.map(({ option: p, matched, pinned }, i) => (
               <li
                 key={printingId(p)}
                 className={matches(matched) ? "printing lit" : "printing"}
@@ -119,6 +120,9 @@ export function Preview({
                 <span className="printing-meta">
                   {p.set.toUpperCase()} #{p.num} · {p.released}
                 </span>
+                {pinned && (
+                  <span className="printing-pinned">♥ Your {p.name}</span>
+                )}
                 {matched.length > 0 && (
                   <span className="printing-rules">
                     {matched.map((r) => (
@@ -131,6 +135,7 @@ export function Preview({
                     ))}
                   </span>
                 )}
+                <PinHeart printing={p} />
               </li>
             ))}
           </ol>

@@ -2692,6 +2692,7 @@ matches nothing.
 | `o:` `oracle:` | Oracle text, **without** reminder text |
 | `fo:` `fulloracle:` | Oracle text, reminder text included |
 | `name:` | Substring of the name; a bare word means this |
+| `!"name"` | The whole name, or one face of a multi-faced card; `!"Sol Ring"` is that card and no other |
 | `kw:` `keyword:` | One whole keyword ability the card has |
 | `mv:` `cmc:` | Mana value, including `mv:even` and `mv:odd` |
 | `c:` `color:` | The card's own colours |
@@ -2752,7 +2753,7 @@ Writing a derivation and reading it back is not the same as checking it. All
 three of those looked right.
 
 **A term about a printing is refused here, by name.** `is:fullart`, `lang:ja`,
-`frame:showcase`, `border:gold`, `st:masterpiece`, `game:paper` and the
+`frame:showcase`, `border:gold`, `st:masterpiece`, `game:paper`, `cn:263` and the
 promo-type words (`is:ub`, `is:sourcematerial`, `is:poster`) describe one
 printing, and the index holds one record per card, so a criteria file asking
 one is told it cannot be answered instead of counting nothing. They exist for

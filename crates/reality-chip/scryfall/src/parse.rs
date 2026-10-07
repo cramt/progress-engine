@@ -389,6 +389,10 @@ fn stat_named(word: &str) -> Option<Stat> {
 }
 
 fn parse_term(term: &str, subject: Subject) -> Result<Query, ParseError> {
+    // Scryfall.s exact name: `!"Sol Ring"`, or `!Forest` unquoted.
+    if let Some(name) = term.strip_prefix('!').filter(|n| !n.is_empty()) {
+        return Ok(Query::ExactName(name.to_string()));
+    }
     let Some((key, cmp, value)) = split_term(term) else {
         // No operator: a bare word is a name substring.
         return Ok(Query::Name(term.to_string()));
@@ -448,6 +452,7 @@ fn parse_term(term: &str, subject: Subject) -> Result<Query, ParseError> {
             },
             "border" => PrintingTerm::Border(one_of("border colour", BORDERS)?),
             "game" => PrintingTerm::Game(one_of("game", GAMES)?),
+            "cn" | "number" => PrintingTerm::CollectorNumber(value.to_string()),
             other => unreachable!("printing key {other:?} is in PRINTING_KEYS and has no arm"),
         };
         return require_equality(Query::Printing(printing_term));

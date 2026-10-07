@@ -52,6 +52,8 @@ pub enum PrintingTerm {
     Border(&'static str),
     /// `game:paper`.
     Game(&'static str),
+    /// `cn:263`: the collector number, as the set prints it.
+    CollectorNumber(String),
     /// `is:fullart`, `is:ub`.
     Is(PrintingProperty),
 }
@@ -197,6 +199,7 @@ pub const PRINTING_KEYS: &[&[&str]] = &[
     &["frame"],
     &["border"],
     &["game"],
+    &["cn", "number"],
 ];
 
 impl PrintingTerm {
@@ -210,6 +213,7 @@ impl PrintingTerm {
             PrintingTerm::Frame(Frame::Effect(e)) => has(&p.frame_effects, e),
             PrintingTerm::Border(b) => p.border_color.eq_ignore_ascii_case(b),
             PrintingTerm::Game(g) => has(&p.games, g),
+            PrintingTerm::CollectorNumber(n) => p.collector_number.eq_ignore_ascii_case(n),
             PrintingTerm::Is(property) => property.matches(p),
         }
     }

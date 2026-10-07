@@ -162,6 +162,7 @@ fn every_printing_key_parses() {
         "frame" => "2015",
         "border" => "black",
         "game" => "paper",
+        "cn" => "263",
         other => panic!("no sample value for {other}"),
     };
     for row in chip_scryfall::printing::PRINTING_KEYS {
@@ -170,4 +171,38 @@ fn every_printing_key_parses() {
             assert!(parse_printing(&term).is_ok(), "{term}");
         }
     }
+}
+
+#[test]
+fn an_exact_name_a_set_and_a_collector_number_name_one_printing() {
+    // What a pinned printing is in meldweb.toml: one card, one printing.
+    let pin = r#"!"Counterspell" set:mp2 cn:10"#;
+    assert_eq!(hits("Counterspell", pin), ["mp2/10"]);
+    assert!(hits("Heroic Intervention", r#"!"Counterspell" set:mp2 cn:10"#).is_empty());
+    // A collector number with letters is compared whole, whatever the case.
+    assert_eq!(hits("Counterspell", "set:pmei cn:2021-1"), ["pmei/2021-1"]);
+    assert!(hits("Counterspell", "cn:2021").is_empty());
+}
+
+#[test]
+fn an_exact_name_is_not_a_substring() {
+    assert_eq!(
+        parse(r#"!"Sol Ring""#).unwrap(),
+        chip_scryfall::Query::ExactName("Sol Ring".into())
+    );
+    assert!(parse("!counterspell").is_ok());
+    assert!(hits("Counterspell", "!counter").is_empty());
+    assert_eq!(
+        hits("Counterspell", "!counterspell").len(),
+        printings_of("Counterspell").len()
+    );
+}
+
+#[test]
+fn a_collector_number_is_about_a_printing_and_refused_for_a_card() {
+    assert!(matches!(
+        parse("cn:10"),
+        Err(ParseError::AboutAPrinting { .. })
+    ));
+    assert!(parse_printing("cn>10").is_err());
 }

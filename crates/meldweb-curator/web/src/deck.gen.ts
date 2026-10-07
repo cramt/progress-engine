@@ -6,7 +6,7 @@
  * so a bad one can be fixed in place, and the default rules beside them.
  */
 export type SettingsRules =
-  | { kind: "read"; rules: RuleText[]; declared: boolean; defaults: RuleText[] }
+  | { kind: "read"; pins: Pin[]; rules: RuleText[]; declared: boolean; defaults: RuleText[] }
   | { kind: "refused"; message: string; defaults: RuleText[] };
 
 /**
@@ -19,8 +19,20 @@ export interface RuleText {
 
 export type Verb = "prefer" | "avoid";
 
+/**
+ * One card's own printing: a `prefer` rule naming exactly that card and
+ * printing, `!"Sol Ring" set:c21 cn:263`. It is a rule like any other to the
+ * ranking, written above the rest so it beats them all for its card; the
+ * settings page shows it as the card it is, not as a query.
+ */
+export interface Pin {
+  name: string;
+  set: string;
+  num: string;
+}
+
 export type Ranked =
-  | { kind: "ranked"; rules: RuleText[]; declared: boolean; order: RankedPrinting[] }
+  | { kind: "ranked"; rules: RuleText[]; declared: boolean; pins: number[]; order: RankedPrinting[] }
   | { kind: "refused"; message: string };
 
 /**

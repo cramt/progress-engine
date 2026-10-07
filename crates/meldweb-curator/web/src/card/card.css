@@ -604,3 +604,64 @@
   height: auto;
   aspect-ratio: 63 / 88;
 }
+
+/* A printing's heart sits on the art's top-right corner, over the tile. */
+.printings-grid-list > li,
+.preview-list > li {
+  position: relative;
+}
+
+.pin-heart {
+  --control-h: 30px;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  width: var(--control-h);
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  box-shadow: var(--card-shadow);
+  opacity: 0;
+  transition:
+    opacity 100ms,
+    transform 100ms;
+}
+
+li:hover > .pin-heart,
+.pin-heart:focus-visible,
+.pin-heart.pinned {
+  opacity: 1;
+}
+
+.pin-heart:hover:not(:disabled) {
+  background: rgb(0 0 0 / 0.75);
+  transform: scale(1.08);
+}
+
+.pin-heart.pinned,
+.pin-heart.pinned:hover:not(:disabled) {
+  background: var(--heart);
+  color: #fff;
+}
+
+/* Touch has no hover: the heart is always there. */
+@media (hover: none) {
+  .pin-heart {
+    opacity: 1;
+  }
+}
+
+.printing-pinned {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--heart);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.6;
+}

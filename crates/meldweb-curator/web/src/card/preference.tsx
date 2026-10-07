@@ -1,6 +1,22 @@
-import { createContext, type ReactNode, useContext, useMemo } from "react";
-import type { Ranked, RuleText } from "../deck.gen";
-import { rank_printings } from "../wasm/pkg/meldweb_wasm.js";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { Pin, Ranked, RuleText } from "../deck.gen";
+import type { FileAt, GitHubApi, RepoRef } from "../github/api";
+import { createSaveStore, flushOnLeave } from "../github/save";
+import { SETTINGS_PATH } from "../github/settings";
+import { readSettings, settingsCommitMessage } from "../settings/rules";
+import {
+  pin_printing,
+  rank_printings,
+  unpin_printing,
+} from "../wasm/pkg/meldweb_wasm.js";
 import { byRelease, type PrintingOption } from "./prints";
 
 /**
@@ -9,24 +25,137 @@ import { byRelease, type PrintingOption } from "./prints";
  */
 const SettingsContext = createContext<string | null>(null);
 
-export function SettingsProvider({
-  settings,
+/**
+ * The cards given a printing of their own, and the heart that sets one.
+ * Null where nothing can be pinned, which hides the hearts.
+ */
+export interface Pins {
+  pins: readonly Pin[];
+  /** Makes `printing` its card's own, or stops it being, if it already is. */
+  toggle: (printing: PrintingOption) => void;
+  /** Why the last pin was not saved, if it was not. */
+  error: string | null;
+}
+
+const PinsContext = createContext<Pins | null>(null);
+
+export function PinsProvider({
+  pins,
   children,
 }: {
-  settings: string | null;
+  pins: Pins | null;
   children: ReactNode;
 }) {
+  return <PinsContext.Provider value={pins}>{children}</PinsContext.Provider>;
+}
+
+/**
+ * The settings for a page that reads them (a deck, the collection), and a
+ * heart on every printing that pins it. A pin is committed at once rather
+ * than after the idle wait a deck has: it is one click, and the next card
+ * added should already get it. When the file moved on GitHub, the pin is
+ * made again on what is there now.
+ */
+export function SettingsProvider({
+  file,
+  api,
+  repo,
+  children,
+}: {
+  /** The repo's `meldweb.toml`, null when it has none. */
+  file: FileAt | null;
+  api: GitHubApi;
+  repo: RepoRef;
+  children: ReactNode;
+}) {
+  const [text, setTextState] = useState(file?.text ?? null);
+  // Two hearts clicked before a render must each build on the other.
+  const latest = useRef(text);
+  const setText = (next: string) => {
+    latest.current = next;
+    setTextState(next);
+  };
+  const [error, setError] = useState<string | null>(null);
+  const [store] = useState(() =>
+    createSaveStore({
+      api,
+      repo,
+      path: SETTINGS_PATH,
+      text: file?.text ?? "",
+      sha: file?.sha ?? null,
+      deckText: { commitMessage: settingsCommitMessage },
+    }),
+  );
+  useEffect(() => () => void flushOnLeave(store), [store]);
+
+  const pins = useMemo(() => {
+    const read = readSettings(text);
+    return read.kind === "read" ? read.pins : [];
+  }, [text]);
+
+  const apply = async (edit: (text: string | null) => string) => {
+    try {
+      const next = edit(latest.current);
+      setText(next);
+      store.edit(next);
+      await flushOnLeave(store);
+      if (store.getState().status === "conflict") {
+        const fresh = edit(await store.reload());
+        setText(fresh);
+        store.edit(fresh);
+        await flushOnLeave(store);
+      }
+      const state = store.getState();
+      setError(state.status === "error" ? state.message : null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const value: Pins = {
+    pins,
+    error,
+    toggle: (p) => {
+      const name = p.name;
+      void apply(
+        pinnedAs(pins, p)
+          ? (t) => unpin_printing(t ?? undefined, name)
+          : (t) => pin_printing(t ?? undefined, name, p.set, p.num),
+      );
+    },
+  };
+
   return (
-    <SettingsContext.Provider value={settings}>
-      {children}
+    <SettingsContext.Provider value={text}>
+      <PinsContext.Provider value={value}>{children}</PinsContext.Provider>
     </SettingsContext.Provider>
   );
+}
+
+/** Whether `printing` is the one pinned for its card. */
+export function pinnedAs(
+  pins: readonly Pin[],
+  printing: Pick<PrintingOption, "name" | "set" | "num">,
+): boolean {
+  return pins.some(
+    (p) =>
+      p.name.toLowerCase() === printing.name.toLowerCase() &&
+      p.set.toLowerCase() === printing.set.toLowerCase() &&
+      p.num === printing.num,
+  );
+}
+
+/** The cards pinned, and the heart's toggle; null where there are none. */
+export function usePins(): Pins | null {
+  return useContext(PinsContext);
 }
 
 /** A printing in the preferred order, with the rules that put it there. */
 export interface RankedOption {
   option: PrintingOption;
+  /** The rules it matched, its pin not among them. */
   matched: readonly RuleText[];
+  /** Whether a pin put it first. */
+  pinned: boolean;
 }
 
 export type PreferredOrder =
@@ -59,8 +188,13 @@ export function rankPrintings(
     return {
       kind: "refused",
       message: result.message,
-      ranked: byRelease(printings).map((option) => ({ option, matched: [] })),
+      ranked: byRelease(printings).map((option) => ({
+        option,
+        matched: [],
+        pinned: false,
+      })),
     };
+  const pins = new Set(result.pins);
   return {
     kind: "ranked",
     declared: result.declared,
@@ -73,7 +207,10 @@ export function rankPrintings(
       return [
         {
           option,
-          matched: matched.flatMap((i) => result.rules[i] ?? []),
+          matched: matched.flatMap((i) =>
+            pins.has(i) ? [] : (result.rules[i] ?? []),
+          ),
+          pinned: matched.some((i) => pins.has(i)),
         },
       ];
     }),

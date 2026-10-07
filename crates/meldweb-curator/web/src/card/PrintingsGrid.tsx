@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { printingId } from "../scryfall";
-import { type RankedOption, usePreferredOrder } from "./preference";
+import { PinHeart } from "./PinHeart";
+import { type RankedOption, usePins, usePreferredOrder } from "./preference";
 import { byRelease, filterBySet, type PrintingOption } from "./prints";
 
 type Order = "preference" | "newest" | "oldest";
@@ -33,6 +34,7 @@ export function PrintingsGrid({
       : byRelease(printings, order === "oldest").map((option) => ({
           option,
           matched: [],
+          pinned: false,
         }));
   const kept = new Set(filterBySet(printings, filter));
   const shown = sorted.filter((r) => kept.has(r.option));
@@ -78,7 +80,7 @@ export function PrintingsGrid({
         ref={list}
         onKeyDown={(e) => moveCursor(e, list.current)}
       >
-        {shown.map(({ option: p, matched }) => {
+        {shown.map(({ option: p, matched, pinned }) => {
           const id = printingId(p);
           const selected = id === current;
           return (
@@ -110,6 +112,9 @@ export function PrintingsGrid({
                 <span className="printing-meta">
                   {p.set.toUpperCase()} #{p.num} · {p.released}
                 </span>
+                {pinned && (
+                  <span className="printing-pinned">♥ Your {p.name}</span>
+                )}
                 {matched.length > 0 && (
                   <span className="printing-rules">
                     {matched.map((r) => (
@@ -123,6 +128,7 @@ export function PrintingsGrid({
                   </span>
                 )}
               </button>
+              <PinHeart printing={p} />
             </li>
           );
         })}
@@ -138,6 +144,13 @@ function RankedBy({
   preferred: ReturnType<typeof usePreferredOrder>;
 }) {
   const edit = <Link to="/settings">Edit the rules</Link>;
+  const pinError = usePins()?.error;
+  if (pinError)
+    return (
+      <p className="printings-grid-note refusal" role="alert">
+        Your favourite was not saved: {pinError}
+      </p>
+    );
   if (preferred.kind === "refused")
     return (
       <p className="printings-grid-note refusal" role="alert">
@@ -155,7 +168,9 @@ function RankedBy({
 }
 
 function tiles(list: HTMLUListElement | null): HTMLButtonElement[] {
-  return list ? [...list.querySelectorAll<HTMLButtonElement>("button")] : [];
+  return list
+    ? [...list.querySelectorAll<HTMLButtonElement>("button.printing")]
+    : [];
 }
 
 /**

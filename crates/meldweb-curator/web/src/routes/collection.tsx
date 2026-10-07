@@ -8,7 +8,7 @@ import { listDecks } from "../github/decks";
 import { deckText } from "../github/deckText";
 import { settled } from "../github/save";
 import { openSession } from "../github/session";
-import { loadSettings } from "../github/settings";
+import { loadSettingsFile } from "../github/settings";
 import { SessionGate } from "../home/SessionGate";
 import { fetchPrintings } from "../scryfall";
 
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/collection")({
     const [file, decks, settings] = await Promise.all([
       loadCollection(api, session.repo),
       listDecks(api, session.repo, deckText),
-      loadSettings(api, session.repo),
+      loadSettingsFile(api, session.repo),
     ]);
     const parsed = parseCollection(file.text);
     return {
@@ -51,7 +51,7 @@ function CollectionPage() {
     return <SessionGate session={data.session} returnPath="/collection" />;
   }
   return (
-    <SettingsProvider settings={data.settings}>
+    <SettingsProvider file={data.settings} api={data.api} repo={data.repo}>
       <CollectionEditor
         key={COLLECTION_PATH}
         path={COLLECTION_PATH}

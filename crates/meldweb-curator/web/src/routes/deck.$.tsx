@@ -6,7 +6,7 @@ import { parseSearch, searchFor, viewingOf } from "../deck/versions";
 import { connect } from "../github/connect";
 import { settled } from "../github/save";
 import { openSession } from "../github/session";
-import { loadSettings } from "../github/settings";
+import { loadSettingsFile } from "../github/settings";
 import { SessionGate } from "../home/SessionGate";
 import { fetchPrintings } from "../scryfall";
 
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/deck/$")({
     const { api } = await connect();
     const [file, settings] = await Promise.all([
       api.getFile(session.repo, path),
-      loadSettings(api, session.repo),
+      loadSettingsFile(api, session.repo),
     ]);
     if (!file) return { kind: "missing" as const, path };
     const parsed = parseDeck(file.text);
@@ -73,7 +73,7 @@ function DeckPage() {
     );
   }
   return (
-    <SettingsProvider settings={data.settings}>
+    <SettingsProvider file={data.settings} api={data.api} repo={data.repo}>
       <DeckEditor
         key={data.path}
         path={data.path}

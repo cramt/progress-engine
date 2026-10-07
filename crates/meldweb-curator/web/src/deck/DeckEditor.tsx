@@ -1,6 +1,8 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { withBoard } from "../card/apply";
+import { addedLine, bestPrinting } from "../card/bestPrinting";
+import { usePins, useSettings } from "../card/preference";
 import { renderCardResult } from "../card/searchResult";
 import { useCardEditor } from "../card/useCardEditor";
 import {
@@ -8,6 +10,7 @@ import {
   declareCategory,
   parseDeck,
   setCardCategories,
+  setCardPrinting,
   setDeckDescription,
 } from "../deck";
 import type { GitHubApi, RepoRef } from "../github/api";
@@ -78,6 +81,11 @@ export function DeckEditor({
   onNavigate,
 }: DeckEditorProps) {
   const history = useHistory(loaded);
+  // What an add that finishes later builds on: the text as of then.
+  const present = useRef(history.present);
+  present.current = history.present;
+  const settings = useSettings();
+  const pins = usePins()?.pins ?? [];
   const [refusal, setRefusal] = useState<string | null>(null);
   const parsed = useMemo(() => parseDeck(history.present), [history.present]);
   const { undo, redo } = history;
@@ -286,13 +294,39 @@ export function DeckEditor({
     }
   };
 
-  // Quick add and the search overlay add one copy of a card, undoably.
+  // Quick add and the search overlay add one copy of a card, undoably. A new
+  // line goes in by name at once, then takes the user's printing of the card:
+  // its pin, or the one the rules rank first.
   const onAdd: AddByName = (name, category) => {
     try {
-      history.edit(
-        addByName(history.present, parsed.cards, printings, name, category),
+      const after = addByName(
+        history.present,
+        parsed.cards,
+        printings,
+        name,
+        category,
       );
+      history.edit(after);
       setRefusal(null);
+      const added = parseDeck(after);
+      const line =
+        added.kind === "deck"
+          ? addedLine(parsed.cards, added.cards, name)
+          : null;
+      if (line === null) return;
+      bestPrinting(name, settings, pins)
+        .then((p) => {
+          if (!p) return;
+          const now = present.current;
+          const still = parseDeck(now);
+          const card = still.kind === "deck" ? still.cards[line] : undefined;
+          // An edit since may have moved or named the line; then leave it.
+          if (card?.card.kind !== "name" || card.card.name !== name) return;
+          // Untouched since, the printing is part of the add, one undo.
+          history.edit(setCardPrinting(now, line, p.set, p.num), now === after);
+        })
+        // Scryfall out: the line stays by name, as it always could be.
+        .catch(() => {});
     } catch (e) {
       setRefusal(e instanceof Error ? e.message : String(e));
     }

@@ -35,8 +35,12 @@ The Magic repo's `meldweb.toml`: Curator's own choices, so far the printing pref
 _Avoid_: config, preferences file
 
 **Printing preference**:
-The ordered `prefer`/`avoid` rules in the settings that decide which printing of a card is offered first. Each rule is a Scryfall query over one printing; the first rule that tells two printings apart decides, and the newest wins what none of them decides. It only orders what is offered: a pick is always the user's.
+The ordered `prefer`/`avoid` rules in the settings that decide which printing of a card is offered first, and which one a card added to a deck by name gets ([ADR-0027](../../docs/adr/0027-a-cards-own-printing-is-a-pin-rule-and-an-added-card-takes-the-best.md)). Each rule is a Scryfall query over one printing; the first rule that tells two printings apart decides, and the newest wins what none of them decides. A pick is always the user's.
 _Avoid_: printing filter, default printing
+
+**Pin**:
+A card's own printing, its *favourite* on the page: a `prefer` rule shaped `!"Sol Ring" set:sld cn:2417`, written above every other rule, set and cleared with the heart on a printing. The settings page shows pins as cards under *Your printings*, never as queries.
+_Avoid_: default printing
 
 ## Changing a deck
 

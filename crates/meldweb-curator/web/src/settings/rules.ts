@@ -3,7 +3,7 @@
  * Reading, checking and writing the file are `meldweb-wasm`'s, so a rule is
  * judged by the same query reader that ranks with it; this keeps the draft.
  */
-import type { RuleText, SettingsRules, Verb } from "../deck.gen";
+import type { Pin, RuleText, SettingsRules, Verb } from "../deck.gen";
 import {
   check_rule,
   read_settings,
@@ -11,7 +11,7 @@ import {
   write_settings,
 } from "../wasm/pkg/meldweb_wasm.js";
 
-export type { RuleText, Verb };
+export type { Pin, RuleText, Verb };
 
 /**
  * A rule being edited. Its query may not parse yet, and its id outlives a
@@ -37,11 +37,34 @@ export function problemOf(query: string): string | null {
   return check_rule(query) ?? null;
 }
 
-/** The text of a `meldweb.toml` holding `rules`; throws when one does not parse. */
-export function writeSettings(rules: readonly RuleText[]): string {
+/**
+ * The text of a `meldweb.toml` holding `pins`, then `rules`; throws when a
+ * rule does not parse.
+ */
+export function writeSettings(
+  pins: readonly Pin[],
+  rules: readonly RuleText[],
+): string {
   return write_settings(
+    JSON.stringify(pins.map(({ name, set, num }) => ({ name, set, num }))),
     JSON.stringify(rules.map(({ verb, query }) => ({ verb, query }))),
   );
+}
+
+export function samePins(a: readonly Pin[], b: readonly Pin[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (p, i) =>
+        p.name === b[i]?.name && p.set === b[i]?.set && p.num === b[i]?.num,
+    )
+  );
+}
+
+/** What the page edits: the cards pinned, and the rules for everything else. */
+export interface Draft<R extends RuleText = DraftRule> {
+  pins: readonly Pin[];
+  rules: readonly R[];
 }
 
 export function settingsCommitMessage(before: string, after: string): string {
@@ -72,41 +95,38 @@ export function moveRule<T>(
 }
 
 /** What the file was when the page loaded, to tell an edit from none. */
-export interface Loaded {
+export interface Loaded extends Draft<RuleText> {
   /** The file's text, `""` when the repo has none. */
   text: string;
-  /** Its rules; the default ones for a repo without the file. */
-  rules: readonly RuleText[];
 }
 
 /**
- * The `meldweb.toml` to save for `draft`: the file as loaded when the rules
- * are the loaded ones, so opening the page and undoing back commits nothing
- * and a hand-written file keeps its comments; else the rules written out.
+ * The `meldweb.toml` to save for `draft`: the file as loaded when the pins
+ * and rules are the loaded ones, so opening the page and undoing back commits
+ * nothing and a hand-written file keeps its comments; else them written out.
  * Null while a rule does not parse, which holds the save back.
  */
-export function fileFor(
-  draft: readonly RuleText[],
-  loaded: Loaded,
-): string | null {
-  if (sameRules(draft, loaded.rules)) return loaded.text;
-  if (draft.some((r) => problemOf(r.query) !== null)) return null;
-  return writeSettings(draft);
+export function fileFor(draft: Draft<RuleText>, loaded: Loaded): string | null {
+  if (samePins(draft.pins, loaded.pins) && sameRules(draft.rules, loaded.rules))
+    return loaded.text;
+  if (draft.rules.some((r) => problemOf(r.query) !== null)) return null;
+  return writeSettings(draft.pins, draft.rules);
 }
 
 /**
- * The rules of `draft` that parse, as a `meldweb.toml` for the preview, and
- * where each of them is in the draft, since the ranking numbers rules by
- * their place in the file.
+ * The pins and the rules of `draft` that parse, as a `meldweb.toml` for the
+ * preview, and where each rule is in the file it ranks by, since the ranking
+ * numbers rules by their place there: -1 for one left out.
  */
-export function previewOf(draft: readonly RuleText[]): {
+export function previewOf(draft: Draft<RuleText>): {
   text: string;
   at: number[];
 } {
-  const at = draft.flatMap((r, i) => (problemOf(r.query) === null ? [i] : []));
+  const kept = draft.rules.filter((r) => problemOf(r.query) === null);
+  let next = draft.pins.length;
   return {
-    text: writeSettings(at.flatMap((i) => draft[i] ?? [])),
-    at,
+    text: writeSettings(draft.pins, kept),
+    at: draft.rules.map((r) => (problemOf(r.query) === null ? next++ : -1)),
   };
 }
 

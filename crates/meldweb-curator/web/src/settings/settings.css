@@ -389,3 +389,46 @@
     width: 100%;
   }
 }
+
+/* Your printings: the pinned cards, above the rules for every other card. */
+.settings-main {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  min-width: 0;
+}
+
+.pinned > h2 {
+  margin-bottom: 8px;
+}
+
+.pinned-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pinned-list > li {
+  position: relative;
+}
+
+.pinned-list .pin-heart {
+  top: 10px;
+  right: 10px;
+}
+
+.pinned-empty {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.pinned-empty svg {
+  width: 16px;
+  height: 16px;
+  color: var(--heart);
+}

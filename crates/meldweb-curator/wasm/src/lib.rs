@@ -23,7 +23,7 @@ use chip_decklist::diff::{self, Change, Diff};
 use chip_decklist::{changelog, edit};
 use chip_scryfall::bulk::BulkCard;
 use facet::Facet;
-use preference::{Preference, RuleText};
+use preference::{Pin, Preference, RuleText};
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
 
 #[derive(Debug, Facet)]
@@ -807,6 +807,9 @@ pub enum Ranked {
         /// Whether the rules came from the repo's `meldweb.toml`; when not,
         /// they are [`preference::DEFAULT`]'s.
         declared: bool,
+        /// Which of `rules` are pins, by index: what ranked a pinned printing
+        /// first is shown as the pin, not as its query.
+        pins: Vec<u32>,
         order: Vec<RankedPrinting>,
     },
     /// `meldweb.toml` is not one the format allows, or a printing is not a
@@ -836,6 +839,13 @@ pub fn rank_printings_text(settings: Option<&str>, printings: &str) -> Ranked {
         })
         .collect();
     Ranked::Ranked {
+        pins: preference
+            .rules
+            .iter()
+            .enumerate()
+            .filter(|(_, r)| Pin::of(&r.text).is_some())
+            .map(|(i, _)| index(i))
+            .collect(),
         rules: preference.rules.into_iter().map(|r| r.text).collect(),
         declared: settings.is_some(),
         order,
@@ -864,6 +874,9 @@ pub fn default_settings() -> String {
 #[facet(tag = "kind", rename_all = "camelCase")]
 pub enum SettingsRules {
     Read {
+        /// The cards given a printing of their own, wherever the file has them.
+        pins: Vec<Pin>,
+        /// Every other rule, in order.
         rules: Vec<RuleText>,
         /// Whether the rules came from the repo's `meldweb.toml`.
         declared: bool,
@@ -878,8 +891,9 @@ pub enum SettingsRules {
 
 pub fn read_settings_text(text: Option<&str>) -> SettingsRules {
     let defaults = preference::read_rules(None).expect("the default rules read");
-    match preference::read_rules(text) {
-        Ok(rules) => SettingsRules::Read {
+    match preference::read(text) {
+        Ok(preference::Settings { pins, rules }) => SettingsRules::Read {
+            pins,
             rules,
             declared: text.is_some(),
             defaults,
@@ -900,12 +914,36 @@ pub fn check_rule(query: &str) -> Option<String> {
     preference::check(query)
 }
 
-/// `rules`, a JSON array of `RuleText`, as a `meldweb.toml`; refused when a
-/// rule does not parse.
+/// `pins` and `rules`, JSON arrays of `Pin` and `RuleText`, as a
+/// `meldweb.toml`, the pins first; refused when a rule does not parse.
 #[wasm_bindgen]
-pub fn write_settings(rules: &str) -> Result<String, JsError> {
+pub fn write_settings(pins: &str, rules: &str) -> Result<String, JsError> {
+    let pins: Vec<Pin> = facet_json::from_str(pins).map_err(refused)?;
     let rules: Vec<RuleText> = facet_json::from_str(rules).map_err(refused)?;
-    preference::write(&rules).map_err(refused)
+    preference::write(&pins, &rules).map_err(refused)
+}
+
+/// `settings`, the repo's `meldweb.toml` or none, with `set/num` as the
+/// printing of the card called `name`, in place of any it had.
+#[wasm_bindgen]
+pub fn pin_printing(
+    settings: Option<String>,
+    name: &str,
+    set: &str,
+    num: &str,
+) -> Result<String, JsError> {
+    let pin = Pin {
+        name: name.to_string(),
+        set: set.to_string(),
+        num: num.to_string(),
+    };
+    preference::pin(settings.as_deref(), pin).map_err(refused)
+}
+
+/// `settings` without a printing of its own for the card called `name`.
+#[wasm_bindgen]
+pub fn unpin_printing(settings: Option<String>, name: &str) -> Result<String, JsError> {
+    preference::unpin(settings.as_deref(), name).map_err(refused)
 }
 
 /// The commit for one save of `meldweb.toml`; `before` is `""` for the first.
