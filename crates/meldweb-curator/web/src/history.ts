@@ -4,25 +4,31 @@ import { isTyping } from "./card/hotkeys";
 /**
  * A deck, or the collection, is its text. An edit is a new text, which makes
  * undo a stack of texts and every change a line diff against the file as
- * loaded.
+ * loaded. The settings page keeps its draft rules the same way.
  */
-interface History {
-  past: string[];
-  present: string;
-  future: string[];
+interface History<T> {
+  past: T[];
+  present: T;
+  future: T[];
 }
 
-export function useHistory(initial: string) {
-  const [h, setH] = useState<History>({
+export function useHistory<T>(initial: T) {
+  const [h, setH] = useState<History<T>>({
     past: [],
     present: initial,
     future: [],
   });
-  const edit = (next: string) =>
+  /**
+   * `merge` replaces the present rather than stacking on it, so a run of
+   * keystrokes in one field undoes as one edit.
+   */
+  const edit = (next: T, merge = false) =>
     setH((h) =>
       next === h.present
         ? h
-        : { past: [...h.past, h.present], present: next, future: [] },
+        : merge && h.past.length > 0
+          ? { ...h, present: next, future: [] }
+          : { past: [...h.past, h.present], present: next, future: [] },
     );
   const undo = () =>
     setH((h) => {
@@ -43,7 +49,7 @@ export function useHistory(initial: string) {
         : { past: [...h.past, h.present], present: next, future };
     });
   /** Starts over from `text` with nothing to undo, as after a reload. */
-  const reset = (text: string) => setH({ past: [], present: text, future: [] });
+  const reset = (text: T) => setH({ past: [], present: text, future: [] });
   return { ...h, edit, undo, redo, reset };
 }
 

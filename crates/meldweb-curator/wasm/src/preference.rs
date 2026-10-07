@@ -49,7 +49,7 @@ pub enum Verb {
 }
 
 /// One rule, as the file wrote it.
-#[derive(Debug, Clone, Facet)]
+#[derive(Debug, Clone, PartialEq, Eq, Facet)]
 pub struct RuleText {
     pub verb: Verb,
     pub query: String,
@@ -85,35 +85,171 @@ struct RawRule {
     avoid: Option<String>,
 }
 
+impl Verb {
+    fn word(self) -> &'static str {
+        match self {
+            Verb::Prefer => "prefer",
+            Verb::Avoid => "avoid",
+        }
+    }
+}
+
+impl RuleText {
+    fn label(&self) -> String {
+        format!("{} {}", self.verb.word(), self.query)
+    }
+}
+
+/// The rules `meldweb.toml` wrote, in order, with no query read yet: what the
+/// settings page loads, so a rule that does not parse can be shown and fixed
+/// rather than refusing the whole file. [`DEFAULT`]'s rules when there is no
+/// file.
+pub fn read_rules(text: Option<&str>) -> Result<Vec<RuleText>, String> {
+    let raw: RawFile = facet_toml::from_str(text.unwrap_or(DEFAULT))
+        .map_err(|e| format!("meldweb.toml is not a settings file: {e}"))?;
+    let raw = raw.printings.map_or(Vec::new(), |p| p.rank);
+    raw.into_iter()
+        .enumerate()
+        .map(|(i, r)| match (r.prefer, r.avoid) {
+            (Some(query), None) => Ok(RuleText {
+                verb: Verb::Prefer,
+                query,
+            }),
+            (None, Some(query)) => Ok(RuleText {
+                verb: Verb::Avoid,
+                query,
+            }),
+            _ => Err(format!(
+                "meldweb.toml: rule {} of [printings] rank must be \
+                 {{ prefer = \"...\" }} or {{ avoid = \"...\" }}, one of them",
+                i + 1
+            )),
+        })
+        .collect()
+}
+
+/// Why `query` is not a rule, or `None` when it is one.
+pub fn check(query: &str) -> Option<String> {
+    if query.trim().is_empty() {
+        return Some("a rule needs a query".to_string());
+    }
+    chip_scryfall::parse_printing(query)
+        .err()
+        .map(|e| e.to_string())
+}
+
+/// `rules` as a `meldweb.toml`. Every rule must parse, so the file written
+/// reads back as the same rules.
+pub fn write(rules: &[RuleText]) -> Result<String, String> {
+    let mut out = String::from(
+        "# Meldweb Curator's settings.\n\
+         \n\
+         [printings]\n\
+         # Which printing of a card to offer first. Each rule is a Scryfall query\n\
+         # over one printing. The first rule that tells two printings apart\n\
+         # decides, and later ones only break ties; untold apart, newest first.\n",
+    );
+    if rules.is_empty() {
+        out.push_str("rank = []\n");
+        return Ok(out);
+    }
+    out.push_str("rank = [\n");
+    for (i, rule) in rules.iter().enumerate() {
+        if let Some(e) = check(&rule.query) {
+            return Err(format!("rule {}: {e}", i + 1));
+        }
+        out.push_str(&format!(
+            "  {{ {} = {} }},\n",
+            rule.verb.word(),
+            toml_string(&rule.query)
+        ));
+    }
+    out.push_str("]\n");
+    Ok(out)
+}
+
+/// A TOML basic string, so a query's own quotes (`name:"Lim-Dûl"`) survive.
+fn toml_string(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            c if c.is_control() => out.push_str(&format!("\\u{:04X}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// The commit for one save of `meldweb.toml`: a subject naming the rules
+/// added, dropped, turned around and moved, and the whole ranking as the
+/// body. `before` is `""` when the save creates the file.
+pub fn commit_message(before: &str, after: &str) -> String {
+    let new = read_rules(Some(after)).unwrap_or_default();
+    let body = if new.is_empty() {
+        "No rules: printings are offered newest first.".to_string()
+    } else {
+        new.iter()
+            .enumerate()
+            .map(|(i, r)| format!("{}. {}", i + 1, r.label()))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    let subject = if before.trim().is_empty() {
+        let n = new.len();
+        format!(
+            "meldweb.toml: rank printings by {n} rule{}",
+            if n == 1 { "" } else { "s" }
+        )
+    } else {
+        let old = read_rules(Some(before)).unwrap_or_default();
+        let mut parts = Vec::new();
+        for r in new.iter().filter(|r| !old.contains(r)) {
+            let turned = old.iter().any(|o| o.query == r.query);
+            parts.push(format!(
+                "{}{}",
+                if turned { "now " } else { "+" },
+                r.label()
+            ));
+        }
+        for r in old
+            .iter()
+            .filter(|r| !new.iter().any(|n| n.query == r.query))
+        {
+            parts.push(format!("-{}", r.label()));
+        }
+        // The rules both sides have, in each side's order.
+        let kept = |list: &[RuleText], other: &[RuleText]| -> Vec<RuleText> {
+            list.iter().filter(|r| other.contains(r)).cloned().collect()
+        };
+        if kept(&old, &new) != kept(&new, &old) {
+            parts.push("reorder".to_string());
+        }
+        if parts.is_empty() {
+            "meldweb.toml: rewrite, same rules".to_string()
+        } else {
+            format!("meldweb.toml: {}", parts.join(", "))
+        }
+    };
+    format!("{subject}\n\n{body}\n")
+}
+
 impl Preference {
     /// `meldweb.toml`'s text, or [`DEFAULT`]'s rules when there is no file.
     pub fn parse(text: Option<&str>) -> Result<Self, String> {
-        let raw: RawFile = facet_toml::from_str(text.unwrap_or(DEFAULT))
-            .map_err(|e| format!("meldweb.toml is not a settings file: {e}"))?;
-        let raw = raw.printings.map_or(Vec::new(), |p| p.rank);
-        let rules = raw
+        let rules = read_rules(text)?
             .into_iter()
             .enumerate()
-            .map(|(i, r)| {
-                let n = i + 1;
-                let (verb, query) = match (r.prefer, r.avoid) {
-                    (Some(q), None) => (Verb::Prefer, q),
-                    (None, Some(q)) => (Verb::Avoid, q),
-                    _ => {
-                        return Err(format!(
-                            "meldweb.toml: rule {n} of [printings] rank must be \
-                             {{ prefer = \"...\" }} or {{ avoid = \"...\" }}, one of them"
-                        ))
-                    }
-                };
-                let parsed = chip_scryfall::parse_printing(&query)
-                    .map_err(|e| format!("meldweb.toml: rule {n} of [printings] rank: {e}"))?;
-                Ok(Rule {
-                    text: RuleText { verb, query },
-                    query: parsed,
-                })
+            .map(|(i, text)| {
+                let query = chip_scryfall::parse_printing(&text.query).map_err(|e| {
+                    format!("meldweb.toml: rule {} of [printings] rank: {e}", i + 1)
+                })?;
+                Ok(Rule { text, query })
             })
-            .collect::<Result<_, _>>()?;
+            .collect::<Result<_, String>>()?;
         Ok(Preference { rules })
     }
 
@@ -278,6 +414,78 @@ rank = [{ avoid = "lang:jp" }]
         assert!(err.contains("rule 1") && err.contains("language"), "{err}");
         let unknown = "[printings]\nrank = []\nsort = \"newest\"\n";
         assert!(Preference::parse(Some(unknown)).is_err());
+    }
+
+    fn rule(verb: Verb, query: &str) -> RuleText {
+        RuleText {
+            verb,
+            query: query.to_string(),
+        }
+    }
+
+    #[test]
+    fn what_is_written_reads_back_as_the_same_rules_quotes_and_all() {
+        let rules = vec![
+            rule(Verb::Avoid, "is:digital"),
+            rule(
+                Verb::Prefer,
+                r#"t:basic is:fullart -name:"Snow-Covered Forest""#,
+            ),
+            rule(Verb::Avoid, r#"name:"a\b""#),
+        ];
+        let text = write(&rules).unwrap();
+        assert_eq!(read_rules(Some(&text)).unwrap(), rules, "{text}");
+        assert_eq!(Preference::parse(Some(&text)).unwrap().rules.len(), 3);
+        let none = write(&[]).unwrap();
+        assert_eq!(read_rules(Some(&none)).unwrap(), vec![]);
+    }
+
+    #[test]
+    fn a_rule_that_does_not_parse_is_not_written() {
+        let err = write(&[rule(Verb::Avoid, "is:ub"), rule(Verb::Avoid, "lang:jp")]).unwrap_err();
+        assert!(err.starts_with("rule 2:"), "{err}");
+        assert!(check("lang:jp").is_some());
+        assert_eq!(check("lang:ja"), None);
+        assert!(check("  ").is_some());
+    }
+
+    #[test]
+    fn a_file_with_a_bad_query_still_reads_so_it_can_be_fixed() {
+        let text = "[printings]\nrank = [{ avoid = \"lang:jp\" }]\n";
+        assert!(Preference::parse(Some(text)).is_err());
+        assert_eq!(
+            read_rules(Some(text)).unwrap(),
+            vec![rule(Verb::Avoid, "lang:jp")]
+        );
+    }
+
+    #[test]
+    fn a_commit_names_what_changed_and_lists_the_ranking() {
+        let before = write(&[
+            rule(Verb::Avoid, "is:digital"),
+            rule(Verb::Avoid, "is:fullart"),
+            rule(Verb::Avoid, "is:ub"),
+            rule(Verb::Avoid, "frame:old"),
+        ])
+        .unwrap();
+        let after = write(&[
+            rule(Verb::Avoid, "is:ub"),
+            rule(Verb::Prefer, "is:fullart"),
+            rule(Verb::Avoid, "is:digital"),
+            rule(Verb::Avoid, "is:textless"),
+        ])
+        .unwrap();
+        assert_eq!(
+            commit_message(&before, &after),
+            "meldweb.toml: now prefer is:fullart, +avoid is:textless, -avoid frame:old, reorder\n\
+             \n\
+             1. avoid is:ub\n\
+             2. prefer is:fullart\n\
+             3. avoid is:digital\n\
+             4. avoid is:textless\n"
+        );
+        assert!(commit_message("", &after).starts_with("meldweb.toml: rank printings by 4 rules\n"));
+        assert!(commit_message(&before, &write(&[]).unwrap()).contains("newest first"));
     }
 
     #[test]

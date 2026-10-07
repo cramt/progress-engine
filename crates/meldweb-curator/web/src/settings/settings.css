@@ -1,0 +1,391 @@
+/* The settings page: the rules on the left, a live preview beside them. */
+.settings {
+  display: grid;
+  grid-template-columns: minmax(0, 640px) minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.settings h2 {
+  font-size: 18px;
+}
+
+.settings-rules > h2 {
+  margin-bottom: 8px;
+}
+
+.settings-lede {
+  max-width: 62ch;
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.settings-source {
+  margin: 0 0 16px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.settings-source code {
+  color: var(--fg);
+}
+
+.settings-unreadable {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.settings-unreadable .source {
+  align-self: stretch;
+}
+
+.settings-empty {
+  margin: 0 0 12px;
+  padding: 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r);
+  color: var(--muted);
+  text-align: center;
+}
+
+/* One rule per row, in rank order. */
+.rule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.rule-row {
+  display: grid;
+  grid-template-columns: 14px 20px auto minmax(0, 1fr) 52px auto;
+  grid-template-areas:
+    "grip rank verb query hits tools"
+    ". . . problem problem problem";
+  gap: 4px 8px;
+  align-items: center;
+  padding: 6px 6px 6px 8px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition:
+    opacity 80ms,
+    box-shadow 80ms;
+}
+
+.rule-row.prefer {
+  border-left-color: var(--accent);
+}
+
+.rule-row.dragging {
+  opacity: 0.4;
+}
+
+.rule-row.drop-target {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.rule-grip {
+  grid-area: grip;
+  color: var(--faint);
+  font-size: 14px;
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+}
+
+.rule-grip:hover {
+  color: var(--fg);
+}
+
+.rule-rank {
+  grid-area: rank;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.verb-toggle {
+  grid-area: verb;
+  display: inline-flex;
+}
+
+.verb-toggle .verb {
+  --control-h: 28px;
+  padding: 0 9px;
+  font-size: 12px;
+  box-shadow: none;
+}
+
+.verb-toggle .verb:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.verb-toggle .verb:last-child {
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.verb-toggle .verb[aria-pressed="false"] {
+  color: var(--faint);
+}
+
+.verb-toggle .verb.avoid[aria-pressed="true"] {
+  position: relative;
+  border-color: var(--fg);
+  background: var(--surface-3);
+  color: var(--fg);
+}
+
+.verb-toggle .verb.prefer[aria-pressed="true"] {
+  position: relative;
+  color: var(--fg);
+}
+
+.rule-row input.rule-query {
+  grid-area: query;
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.rule-row input.rule-query[aria-invalid="true"] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 1px var(--danger);
+}
+
+.rule-hits {
+  grid-area: hits;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rule-hits.none {
+  color: var(--faint);
+}
+
+.rule-tools {
+  grid-area: tools;
+  display: inline-flex;
+}
+
+.rule-tools button {
+  font-size: 13px;
+}
+
+.rule-problem {
+  grid-area: problem;
+  margin: 0;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.rule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.rule-held {
+  color: var(--warning-fg);
+  font-size: 12.5px;
+}
+
+.rule-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 16px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.rule-chip {
+  --control-h: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 400;
+  box-shadow: none;
+}
+
+.rule-chip svg {
+  width: 12px;
+  height: 12px;
+}
+
+.rule-chip code {
+  font-size: 11.5px;
+}
+
+.rule-help {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.rule-help summary {
+  color: var(--fg);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.rule-help p {
+  max-width: 62ch;
+}
+
+.rule-help dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 4px 16px;
+  margin: 0;
+}
+
+.rule-help dl > div {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.rule-help dt code {
+  color: var(--fg);
+}
+
+.rule-help dd {
+  margin: 0;
+}
+
+/* The preview stays in view while a long list of rules scrolls. */
+.settings-preview {
+  position: sticky;
+  top: calc(var(--bar-h) + 16px);
+  max-height: calc(100vh - var(--bar-h) - 32px);
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+
+.settings-preview-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.preview-picker input {
+  width: 220px;
+}
+
+.preview-samples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.preview-samples button {
+  box-shadow: none;
+}
+
+.preview-note {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.preview-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.preview-list .printing {
+  cursor: default;
+  transition:
+    opacity 120ms,
+    border-color 120ms;
+}
+
+.preview-list.lighting .printing:not(.lit) {
+  opacity: 0.3;
+}
+
+.preview-list .printing.lit {
+  border-color: var(--accent);
+}
+
+.preview-rank {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+  box-shadow: var(--card-shadow);
+}
+
+.preview-more {
+  width: 100%;
+}
+
+@media (max-width: 1000px) {
+  .settings {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-preview {
+    position: static;
+    max-height: none;
+  }
+}
+
+/* No drag on a phone: the arrows move a rule, and the query gets a line. */
+@media (max-width: 640px) {
+  .rule-row {
+    grid-template-columns: 20px auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "rank verb hits tools"
+      "query query query query"
+      "problem problem problem problem";
+  }
+
+  .rule-grip {
+    display: none;
+  }
+
+  .preview-picker,
+  .preview-picker input {
+    width: 100%;
+  }
+}

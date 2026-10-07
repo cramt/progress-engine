@@ -1,6 +1,24 @@
 // Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
+/**
+ * `meldweb.toml` as the settings page edits it: its rules, each query unread
+ * so a bad one can be fixed in place, and the default rules beside them.
+ */
+export type SettingsRules =
+  | { kind: "read"; rules: RuleText[]; declared: boolean; defaults: RuleText[] }
+  | { kind: "refused"; message: string; defaults: RuleText[] };
+
+/**
+ * One rule, as the file wrote it.
+ */
+export interface RuleText {
+  verb: Verb;
+  query: string;
+}
+
+export type Verb = "prefer" | "avoid";
+
 export type Ranked =
   | { kind: "ranked"; rules: RuleText[]; declared: boolean; order: RankedPrinting[] }
   | { kind: "refused"; message: string };
@@ -13,16 +31,6 @@ export interface RankedPrinting {
   index: number;
   matched: number[];
 }
-
-/**
- * One rule, as the file wrote it.
- */
-export interface RuleText {
-  verb: Verb;
-  query: string;
-}
-
-export type Verb = "prefer" | "avoid";
 
 export type Compared =
   | { kind: "diff"; changes: DeckChange[] }

@@ -3227,7 +3227,7 @@ See [NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md).
 | `gauntlet-toml` | Reading a criteria file and answering it, and shipping the standard effect library | The criteria format, and counts. No cards. |
 | `gauntlet-sim` | Sampling, validated against `chip-stats` | Shuffling. |
 | `gauntlet-cli` | The `gauntlet` binary, and the library behind it that prepares a run in-process | All of the above. |
-| `meldweb-wasm` | `chip-decklist` for Meldweb Curator's browser editor, with the TypeScript types generated from its wire types, and `meldweb.toml`'s printing preference over `chip-scryfall` | Decklist text, and the printings of one card it is handed to rank. No card index. |
+| `meldweb-wasm` | `chip-decklist` for Meldweb Curator's browser editor, with the TypeScript types generated from its wire types, and `meldweb.toml`'s printing preference over `chip-scryfall`, read, checked and written for the settings page | Decklist text, and the printings of one card it is handed to rank. No card index. |
 
 The seam worth knowing about is between `chip-scryfall` and `chip-decklist`: a query
 can filter on `cat:"Exile Outlet"`, which is decklist data, not card data. Rather

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CollectionRouteImport } from './routes/collection'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as DeckSplatRouteImport } from './routes/deck.$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const CollectionRoute = CollectionRouteImport.update({
   path: '/collection',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DeckSplatRoute = DeckSplatRouteImport.update({
   id: '/deck/$',
   path: '/deck/$',
@@ -32,30 +38,34 @@ const DeckSplatRoute = DeckSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/collection': typeof CollectionRoute
+  '/settings': typeof SettingsRoute
   '/deck/$': typeof DeckSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/collection': typeof CollectionRoute
+  '/settings': typeof SettingsRoute
   '/deck/$': typeof DeckSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/collection': typeof CollectionRoute
+  '/settings': typeof SettingsRoute
   '/deck/$': typeof DeckSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/collection' | '/deck/$'
+  fullPaths: '/' | '/collection' | '/settings' | '/deck/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/collection' | '/deck/$'
-  id: '__root__' | '/' | '/collection' | '/deck/$'
+  to: '/' | '/collection' | '/settings' | '/deck/$'
+  id: '__root__' | '/' | '/collection' | '/settings' | '/deck/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CollectionRoute: typeof CollectionRoute
+  SettingsRoute: typeof SettingsRoute
   DeckSplatRoute: typeof DeckSplatRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CollectionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/deck/$': {
       id: '/deck/$'
       path: '/deck/$'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CollectionRoute: CollectionRoute,
+  SettingsRoute: SettingsRoute,
   DeckSplatRoute: DeckSplatRoute,
 }
 export const routeTree = rootRouteImport

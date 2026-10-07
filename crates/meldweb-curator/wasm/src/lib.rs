@@ -857,6 +857,63 @@ pub fn default_settings() -> String {
     preference::DEFAULT.to_string()
 }
 
+/// `meldweb.toml` as the settings page edits it: its rules, each query unread
+/// so a bad one can be fixed in place, and the default rules beside them.
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum SettingsRules {
+    Read {
+        rules: Vec<RuleText>,
+        /// Whether the rules came from the repo's `meldweb.toml`.
+        declared: bool,
+        defaults: Vec<RuleText>,
+    },
+    /// The file is not one the format allows, and this says why.
+    Refused {
+        message: String,
+        defaults: Vec<RuleText>,
+    },
+}
+
+pub fn read_settings_text(text: Option<&str>) -> SettingsRules {
+    let defaults = preference::read_rules(None).expect("the default rules read");
+    match preference::read_rules(text) {
+        Ok(rules) => SettingsRules::Read {
+            rules,
+            declared: text.is_some(),
+            defaults,
+        },
+        Err(message) => SettingsRules::Refused { message, defaults },
+    }
+}
+
+/// JSON of [`SettingsRules`] for the repo's `meldweb.toml`, or for none.
+#[wasm_bindgen]
+pub fn read_settings(text: Option<String>) -> String {
+    facet_json::to_string(&read_settings_text(text.as_deref())).expect("SettingsRules serialises")
+}
+
+/// Why `query` is not a printing rule, or nothing when it is one.
+#[wasm_bindgen]
+pub fn check_rule(query: &str) -> Option<String> {
+    preference::check(query)
+}
+
+/// `rules`, a JSON array of `RuleText`, as a `meldweb.toml`; refused when a
+/// rule does not parse.
+#[wasm_bindgen]
+pub fn write_settings(rules: &str) -> Result<String, JsError> {
+    let rules: Vec<RuleText> = facet_json::from_str(rules).map_err(refused)?;
+    preference::write(&rules).map_err(refused)
+}
+
+/// The commit for one save of `meldweb.toml`; `before` is `""` for the first.
+#[wasm_bindgen]
+pub fn settings_commit_message(before: &str, after: &str) -> String {
+    preference::commit_message(before, after)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -871,6 +928,7 @@ mod tests {
         g.add_type::<ParsedCollection>();
         g.add_type::<Compared>();
         g.add_type::<Ranked>();
+        g.add_type::<SettingsRules>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",

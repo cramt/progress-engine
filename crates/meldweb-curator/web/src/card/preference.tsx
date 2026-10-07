@@ -35,6 +35,8 @@ export type PreferredOrder =
       ranked: readonly RankedOption[];
       /** Whether the rules are the repo's own rather than the default. */
       declared: boolean;
+      /** How many printings each rule matched, by its place in the file. */
+      hits: readonly number[];
     }
   /** The settings or a printing could not be read; newest first instead. */
   | { kind: "refused"; message: string; ranked: readonly RankedOption[] };
@@ -62,6 +64,9 @@ export function rankPrintings(
   return {
     kind: "ranked",
     declared: result.declared,
+    hits: result.rules.map(
+      (_, i) => result.order.filter((p) => p.matched.includes(i)).length,
+    ),
     ranked: result.order.flatMap(({ index, matched }) => {
       const option = printings[index];
       if (!option) return [];

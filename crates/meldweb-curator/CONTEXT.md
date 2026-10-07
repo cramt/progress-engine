@@ -31,7 +31,7 @@ A place that names a deck's path, so the copies in it are the ones in that deck.
 Owned copies in no place yet.
 
 **Settings**:
-The Magic repo's `meldweb.toml`: Curator's own choices, so far the printing preference ([ADR-0026](../../docs/adr/0026-which-printing-comes-first-is-a-ranked-list-of-printing-queries.md)). A repo without it gets the defaults.
+The Magic repo's `meldweb.toml`: Curator's own choices, so far the printing preference ([ADR-0026](../../docs/adr/0026-which-printing-comes-first-is-a-ranked-list-of-printing-queries.md)), edited at `/settings` beside a preview that ranks one card's printings by the rules as they are typed. A repo without it gets the defaults, and the first change commits the file; a rule that does not read as a query holds the save back.
 _Avoid_: config, preferences file
 
 **Printing preference**:

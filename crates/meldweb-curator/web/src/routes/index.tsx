@@ -71,6 +71,13 @@ function Decks({
             <Link to="/collection" className="button">
               Collection
             </Link>
+            <Link
+              to="/settings"
+              className="button"
+              title="Which printing of a card is offered first"
+            >
+              Settings
+            </Link>
             <NewDeckDialog repo={repo} />
           </>
         }

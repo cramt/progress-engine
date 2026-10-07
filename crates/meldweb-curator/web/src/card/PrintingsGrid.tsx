@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { printingId } from "../scryfall";
 import { type RankedOption, usePreferredOrder } from "./preference";
@@ -136,17 +137,19 @@ function RankedBy({
 }: {
   preferred: ReturnType<typeof usePreferredOrder>;
 }) {
+  const edit = <Link to="/settings">Edit the rules</Link>;
   if (preferred.kind === "refused")
     return (
       <p className="printings-grid-note refusal" role="alert">
-        {preferred.message}. Newest first instead.
+        {preferred.message}. Newest first instead. {edit}
       </p>
     );
   return (
     <p className="printings-grid-note">
       {preferred.declared
         ? "Ranked by the rules in meldweb.toml."
-        : "Ranked by the default rules; a meldweb.toml in the repo replaces them."}
+        : "Ranked by the default rules."}{" "}
+      {edit}
     </p>
   );
 }
