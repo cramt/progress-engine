@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { SettingsProvider } from "../card/preference";
 import { parseCollection } from "../collection";
 import { CollectionEditor } from "../collection/CollectionEditor";
 import { COLLECTION_PATH, loadCollection } from "../github/collection";
@@ -7,6 +8,7 @@ import { listDecks } from "../github/decks";
 import { deckText } from "../github/deckText";
 import { settled } from "../github/save";
 import { openSession } from "../github/session";
+import { loadSettings } from "../github/settings";
 import { SessionGate } from "../home/SessionGate";
 import { fetchPrintings } from "../scryfall";
 
@@ -18,15 +20,17 @@ export const Route = createFileRoute("/collection")({
     // Leaving the collection just now may still be saving; read after it lands.
     await settled(COLLECTION_PATH);
     const { api } = await connect();
-    const [file, decks] = await Promise.all([
+    const [file, decks, settings] = await Promise.all([
       loadCollection(api, session.repo),
       listDecks(api, session.repo, deckText),
+      loadSettings(api, session.repo),
     ]);
     const parsed = parseCollection(file.text);
     return {
       kind: "collection" as const,
       file,
       decks,
+      settings,
       repo: session.repo,
       api,
       // As for a deck: an outage costs the names of printings, not the page.
@@ -47,15 +51,17 @@ function CollectionPage() {
     return <SessionGate session={data.session} returnPath="/collection" />;
   }
   return (
-    <CollectionEditor
-      key={COLLECTION_PATH}
-      path={COLLECTION_PATH}
-      text={data.file.text}
-      sha={data.file.sha}
-      repo={data.repo}
-      api={data.api}
-      printings={data.printings}
-      decks={data.decks}
-    />
+    <SettingsProvider settings={data.settings}>
+      <CollectionEditor
+        key={COLLECTION_PATH}
+        path={COLLECTION_PATH}
+        text={data.file.text}
+        sha={data.file.sha}
+        repo={data.repo}
+        api={data.api}
+        printings={data.printings}
+        decks={data.decks}
+      />
+    </SettingsProvider>
   );
 }

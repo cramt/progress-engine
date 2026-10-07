@@ -11,8 +11,10 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 chip-decklist.workspace = true
+chip-scryfall.workspace = true
 facet.workspace = true
 facet-json.workspace = true
+facet-toml.workspace = true
 # Exact, because the generated JS glue must come from the same wasm-bindgen
 # version as the crate. flake.nix provides the matching wasm-bindgen-cli_0_2_126
 # from nixpkgs; bump both together, to a version nixpkgs has an attr for.

@@ -14,7 +14,13 @@ import { type Face, type Printing, printingId } from "../scryfall";
 import { ChevronLeft, ChevronRight, CloseIcon, FlipIcon } from "../ui/icons";
 import { afterRemoval, neighbours } from "./order";
 import { PrintingsGrid } from "./PrintingsGrid";
-import { FINISHES, type PrintingOption, printsByName } from "./prints";
+import { rankPrintings, usePreferredOrder, useSettings } from "./preference";
+import {
+  FINISHES,
+  fetchAllPrintings,
+  type PrintingOption,
+  printsByName,
+} from "./prints";
 import { usePrintingOptions } from "./usePrintingOptions";
 
 const NEW_CATEGORY = "\u0000new";
@@ -27,6 +33,8 @@ export interface DetailsModalProps {
   categories: readonly Category[];
   /** Every card's index in display order: what prev and next walk. */
   order: readonly number[];
+  /** The next card's printings search, asked ahead while this one is looked at. */
+  upcoming: string | undefined;
   /** Opens with the printing dropdown focused, as the `P` hotkey asks. */
   focusPrinting: boolean;
   grid: boolean;
@@ -75,9 +83,16 @@ export function DetailsModal(props: DetailsModalProps) {
     : undefined;
   const back = printing?.back ?? currentOption?.back;
   const { prev, next, position } = neighbours(order, card.index);
+  useAhead(grid && options.status === "done" ? props.upcoming : undefined);
 
-  const pick = (p: PrintingOption) => {
-    if (printingId(p) === current) return;
+  /**
+   * `advance` is the grid's walk: a pick there is the answer for this card,
+   * so it moves on to the next, the same printing included, which is how a
+   * printing already right is confirmed.
+   */
+  const pick = (p: PrintingOption, advance: boolean) => {
+    const step = () => advance && next !== null && onStep(next);
+    if (printingId(p) === current) return step();
     onRemember(printingId(p), {
       id: p.id,
       name: p.name,
@@ -91,7 +106,7 @@ export function DetailsModal(props: DetailsModalProps) {
       ...(p.turn ? { turn: p.turn } : {}),
       ...(p.back ? { back: p.back } : {}),
     });
-    onEdit((t) => setCardPrinting(t, card.index, p.set, p.num));
+    if (onEdit((t) => setCardPrinting(t, card.index, p.set, p.num))) step();
   };
   const setQty = (qty: number) => {
     if (qty >= 1) {
@@ -113,6 +128,8 @@ export function DetailsModal(props: DetailsModalProps) {
       if (t && (t.closest("input, textarea") || t.isContentEditable)) return;
       if (e.key === "Escape") onClose();
       else if (t?.closest("select")) return;
+      // Plain arrows in the grid move between pictures; Shift steps the deck.
+      else if (grid && !e.shiftKey && t?.closest(".printings-grid")) return;
       else if (e.key === "ArrowLeft" && prev !== null) onStep(prev);
       else if (e.key === "ArrowRight" && next !== null) onStep(next);
       else return;
@@ -120,7 +137,7 @@ export function DetailsModal(props: DetailsModalProps) {
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [prev, next, onStep, onClose]);
+  }, [prev, next, grid, onStep, onClose]);
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the backdrop closes on a click, Escape does it by key
@@ -169,7 +186,7 @@ export function DetailsModal(props: DetailsModalProps) {
               <PrintingsGrid
                 printings={options.printings}
                 current={current}
-                onPick={pick}
+                onPick={(p) => pick(p, true)}
               />
             ) : (
               <OptionsStatus options={options} />
@@ -183,7 +200,7 @@ export function DetailsModal(props: DetailsModalProps) {
                   options={options}
                   current={current}
                   focus={props.focusPrinting}
-                  onPick={pick}
+                  onPick={(p) => pick(p, false)}
                   onAll={() => onGrid(true)}
                 />
                 <FinishToggle
@@ -207,19 +224,30 @@ export function DetailsModal(props: DetailsModalProps) {
             type="button"
             disabled={prev === null}
             onClick={() => prev !== null && onStep(prev)}
-            title="Previous card (←)"
+            title={grid ? "Previous card (Shift+←)" : "Previous card (←)"}
           >
             <ChevronLeft />
             Previous
           </button>
           <span className="details-position">
             {position + 1} of {order.length}
+            {grid && (
+              <span className="details-hint">
+                {next === null
+                  ? " · the last card"
+                  : " · a pick moves to the next card"}
+              </span>
+            )}
           </span>
           <button
             type="button"
             disabled={next === null}
             onClick={() => next !== null && onStep(next)}
-            title="Next card (→)"
+            title={
+              grid
+                ? "Next card, keeping this printing (Shift+→)"
+                : "Next card (→)"
+            }
           >
             Next
             <ChevronRight />
@@ -228,6 +256,39 @@ export function DetailsModal(props: DetailsModalProps) {
       </div>
     </div>
   );
+}
+
+/** How many of the next card's best printings to fetch the pictures of. */
+const AHEAD_PICTURES = 8;
+
+/**
+ * The next card's printings, and the pictures it will show first, asked for
+ * while this card is looked at, so a pick lands on a grid already drawn.
+ */
+function useAhead(uri: string | undefined) {
+  const settings = useSettings();
+  useEffect(() => {
+    if (!uri) return;
+    let gone = false;
+    fetchAllPrintings(uri)
+      .then((printings) => {
+        if (gone) return;
+        for (const { option } of rankPrintings(
+          settings,
+          printings,
+        ).ranked.slice(0, AHEAD_PICTURES)) {
+          if (!option.image) continue;
+          const preload = new Image();
+          preload.crossOrigin = "anonymous";
+          preload.src = option.image;
+        }
+      })
+      // Only ahead of time: the card itself asks again when it is shown.
+      .catch(() => {});
+    return () => {
+      gone = true;
+    };
+  }, [uri, settings]);
 }
 
 /**
@@ -349,6 +410,8 @@ function Quantity({
   );
 }
 
+const NONE: readonly PrintingOption[] = [];
+
 function PrintingPicker({
   options,
   current,
@@ -367,7 +430,8 @@ function PrintingPicker({
   useEffect(() => {
     if (focus && loaded) select.current?.focus();
   }, [focus, loaded]);
-  const printings = loaded ? options.printings : [];
+  const printings = loaded ? options.printings : NONE;
+  const preferred = usePreferredOrder(printings).ranked;
   const known = printings.some((p) => printingId(p) === current);
   return (
     <fieldset className={focus ? "details-field focused" : "details-field"}>
@@ -390,7 +454,7 @@ function PrintingPicker({
           {current !== null && !known && (
             <option value={current}>{current}</option>
           )}
-          {printings.map((p) => (
+          {preferred.map(({ option: p }) => (
             <option key={printingId(p)} value={printingId(p)}>
               {p.setName} ({p.set.toUpperCase()}) #{p.num} · {p.released}
             </option>

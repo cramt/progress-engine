@@ -30,6 +30,14 @@ A place that names a deck's path, so the copies in it are the ones in that deck.
 **Unsorted**:
 Owned copies in no place yet.
 
+**Settings**:
+The Magic repo's `meldweb.toml`: Curator's own choices, so far the printing preference ([ADR-0026](../../docs/adr/0026-which-printing-comes-first-is-a-ranked-list-of-printing-queries.md)). A repo without it gets the defaults.
+_Avoid_: config, preferences file
+
+**Printing preference**:
+The ordered `prefer`/`avoid` rules in the settings that decide which printing of a card is offered first. Each rule is a Scryfall query over one printing; the first rule that tells two printings apart decides, and the newest wins what none of them decides. It only orders what is offered: a pick is always the user's.
+_Avoid_: printing filter, default printing
+
 ## Changing a deck
 
 **Edit**:

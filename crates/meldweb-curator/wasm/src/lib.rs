@@ -5,17 +5,25 @@
 //! The deck is its `.deck.toml` text (ADR-0020): JavaScript holds the text, and
 //! every edit here takes a text and returns the next one.
 //!
+//! It also ranks the printings of one card by the repo's `meldweb.toml`
+//! (ADR-0026), through `chip-scryfall`, so the order a grid shows is decided by
+//! the same query reader Gauntlet uses.
+//!
 //! What crosses into JavaScript is a set of wire types of its own.
 //! `web/src/deck.gen.ts` is generated from them; the test at the bottom fails
 //! when it is stale and rewrites it under `UPDATE_TS=1`.
 
 use std::collections::HashMap;
 
+mod preference;
+
 use chip_decklist::collection::{self, Collection};
 use chip_decklist::deck::{self, CategoryType, Deck};
 use chip_decklist::diff::{self, Change, Diff};
 use chip_decklist::{changelog, edit};
+use chip_scryfall::bulk::BulkCard;
 use facet::Facet;
+use preference::{Preference, RuleText};
 use wasm_bindgen::prelude::{wasm_bindgen, JsError};
 
 #[derive(Debug, Facet)]
@@ -782,6 +790,73 @@ pub fn collection_commit_message(before: &str, after: &str, path: &str) -> Resul
     collection::commit_message_for_text(before, after, path).map_err(refused)
 }
 
+/// One printing in [`Ranked`]'s order: its index in what was ranked, and
+/// which rules it matched.
+#[derive(Debug, Facet)]
+pub struct RankedPrinting {
+    pub index: u32,
+    pub matched: Vec<u32>,
+}
+
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum Ranked {
+    Ranked {
+        rules: Vec<RuleText>,
+        /// Whether the rules came from the repo's `meldweb.toml`; when not,
+        /// they are [`preference::DEFAULT`]'s.
+        declared: bool,
+        order: Vec<RankedPrinting>,
+    },
+    /// `meldweb.toml` is not one the format allows, or a printing is not a
+    /// Scryfall card, and this says why.
+    Refused { message: String },
+}
+
+pub fn rank_printings_text(settings: Option<&str>, printings: &str) -> Ranked {
+    let preference = match Preference::parse(settings) {
+        Ok(p) => p,
+        Err(message) => return Ranked::Refused { message },
+    };
+    let cards: Vec<BulkCard> = match facet_json::from_str(printings) {
+        Ok(c) => c,
+        Err(e) => {
+            return Ranked::Refused {
+                message: format!("a printing is not a Scryfall card: {e}"),
+            }
+        }
+    };
+    let order = preference
+        .rank(&cards)
+        .into_iter()
+        .map(|(i, matched)| RankedPrinting {
+            index: index(i),
+            matched,
+        })
+        .collect();
+    Ranked::Ranked {
+        rules: preference.rules.into_iter().map(|r| r.text).collect(),
+        declared: settings.is_some(),
+        order,
+    }
+}
+
+/// JSON of [`Ranked`]: `printings`, a JSON array of Scryfall card objects,
+/// ranked by `settings`, the repo's `meldweb.toml`, or by the default rules
+/// when it has none.
+#[wasm_bindgen]
+pub fn rank_printings(settings: Option<String>, printings: &str) -> String {
+    facet_json::to_string(&rank_printings_text(settings.as_deref(), printings))
+        .expect("Ranked serialises")
+}
+
+/// The `meldweb.toml` a repo without one ranks printings by.
+#[wasm_bindgen]
+pub fn default_settings() -> String {
+    preference::DEFAULT.to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -795,6 +870,7 @@ mod tests {
         g.add_type::<Imported>();
         g.add_type::<ParsedCollection>();
         g.add_type::<Compared>();
+        g.add_type::<Ranked>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",

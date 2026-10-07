@@ -2751,6 +2751,18 @@ was found the same way.
 Writing a derivation and reading it back is not the same as checking it. All
 three of those looked right.
 
+**A term about a printing is refused here, by name.** `is:fullart`, `lang:ja`,
+`frame:showcase`, `border:gold`, `st:masterpiece`, `game:paper` and the
+promo-type words (`is:ub`, `is:sourcematerial`, `is:poster`) describe one
+printing, and the index holds one record per card, so a criteria file asking
+one is told it cannot be answered instead of counting nothing. They exist for
+Meldweb Curator, which ranks the printings of a card by them
+([ADR-0026](docs/adr/0026-which-printing-comes-first-is-a-ranked-list-of-printing-queries.md)).
+Each reads the field Scryfall reads (`is:sourcematerial` is the
+`sourcematerial` entry in `promo_types`), and they are checked against every
+printing Scryfall has of three cards, not against the whole pool:
+`chip-scryfall/tests/fixtures/printings.sh` rebuilds that sample.
+
 **`otag:` is how the curated lists get here.** Scryfall's oracle tags — what a
 card *does*, as opposed to what it says — are not in the bulk data. They are not
 derivable from it either: a naive `/enters.*tapped/` calls a Temple and a
@@ -3210,12 +3222,12 @@ See [NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md).
 |---|---|---|
 | `chip-stats` | Exact hypergeometric draw probabilities | Nothing. No Magic concepts at all. |
 | `chip-decklist` | Parsing Archidekt decklists | Decklist text. No card data. |
-| `chip-scryfall` | Card data, Scryfall bulk data and search syntax | Cards. No decklists. |
+| `chip-scryfall` | Card data, Scryfall bulk data and search syntax, and the printing terms Curator ranks by | Cards and their printings. No decklists. |
 | `gauntlet-criteria` | Grouping cards by query, applying effects, evaluating exactly | Counts, the zones they are counted in, and where a looked-at card goes. Not cards, and not where the questions came from. |
 | `gauntlet-toml` | Reading a criteria file and answering it, and shipping the standard effect library | The criteria format, and counts. No cards. |
 | `gauntlet-sim` | Sampling, validated against `chip-stats` | Shuffling. |
 | `gauntlet-cli` | The `gauntlet` binary, and the library behind it that prepares a run in-process | All of the above. |
-| `meldweb-wasm` | `chip-decklist` for Meldweb Curator's browser editor, with the TypeScript types generated from its wire types | Decklist text. No card data. |
+| `meldweb-wasm` | `chip-decklist` for Meldweb Curator's browser editor, with the TypeScript types generated from its wire types, and `meldweb.toml`'s printing preference over `chip-scryfall` | Decklist text, and the printings of one card it is handed to rank. No card index. |
 
 The seam worth knowing about is between `chip-scryfall` and `chip-decklist`: a query
 can filter on `cat:"Exile Outlet"`, which is decklist data, not card data. Rather

@@ -25,7 +25,8 @@ import {
 import type { CardViewProps, MenuEntry } from "./CardView";
 import { DetailsModal } from "./DetailsModal";
 import { actionForKey, type CardAction, isTyping } from "./hotkeys";
-import { displayOrder } from "./order";
+import { displayOrder, neighbours } from "./order";
+import { printsByName } from "./prints";
 
 /** Scryfall's page for the card, the one card extra Curator keeps. */
 function scryfallPage(card: Card, name: string): string {
@@ -329,6 +330,20 @@ export function useCardEditor({
   };
 
   const shown = details && cards.find((c) => c.index === details.index);
+  const walk =
+    details && shown && details.order.includes(shown.index)
+      ? details.order
+      : order;
+  const upcoming = (() => {
+    if (!shown) return undefined;
+    const { next } = neighbours(walk, shown.index);
+    const card = cards.find((c) => c.index === next);
+    if (!card) return undefined;
+    return (
+      printings.get(printingKey(card.card))?.prints ??
+      (card.card.kind === "name" ? printsByName(card.card.name) : undefined)
+    );
+  })();
   const overlay = (
     <>
       {details && shown && (
@@ -337,7 +352,8 @@ export function useCardEditor({
           name={nameOf(shown)}
           printing={printings.get(printingKey(shown.card))}
           categories={categories}
-          order={details.order.includes(shown.index) ? details.order : order}
+          order={walk}
+          upcoming={upcoming}
           focusPrinting={details.focusPrinting}
           grid={details.grid}
           refusal={modalRefusal}

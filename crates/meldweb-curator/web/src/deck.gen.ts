@@ -1,6 +1,29 @@
 // Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
+export type Ranked =
+  | { kind: "ranked"; rules: RuleText[]; declared: boolean; order: RankedPrinting[] }
+  | { kind: "refused"; message: string };
+
+/**
+ * One printing in [`Ranked`]'s order: its index in what was ranked, and
+ * which rules it matched.
+ */
+export interface RankedPrinting {
+  index: number;
+  matched: number[];
+}
+
+/**
+ * One rule, as the file wrote it.
+ */
+export interface RuleText {
+  verb: Verb;
+  query: string;
+}
+
+export type Verb = "prefer" | "avoid";
+
 export type Compared =
   | { kind: "diff"; changes: DeckChange[] }
   | { kind: "refused"; message: string };

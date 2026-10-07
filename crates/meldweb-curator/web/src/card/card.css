@@ -535,6 +535,47 @@
   font-size: 12px;
 }
 
+/* The cursor the arrow keys move, plain enough to find in a wall of art. */
+.printing:focus-visible {
+  outline: 3px solid var(--fg);
+  outline-offset: 2px;
+}
+
+.printing-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  margin-top: 2px;
+}
+
+.printing-rule {
+  padding: 0 5px;
+  border-radius: 4px;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.printing-rule.prefer {
+  background: var(--accent-soft);
+  color: var(--fg);
+}
+
+.printing-rule.avoid {
+  background: var(--surface-3);
+  color: var(--muted);
+}
+
+.printings-grid-note {
+  margin: -4px 0 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.details-hint {
+  color: var(--faint);
+}
+
 @media (max-width: 640px) {
   .details-body {
     flex-direction: column;

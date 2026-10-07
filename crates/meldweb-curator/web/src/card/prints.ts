@@ -18,6 +18,59 @@ export interface PrintingOption {
   finishes: Finish[];
   turn?: Turn;
   back?: Face;
+  /**
+   * The printing's Scryfall object, cut to what meldweb.toml's rules read
+   * (`FACT_KEYS`): ranking hands it to `chip-scryfall` as Scryfall wrote it.
+   */
+  facts: Record<string, unknown>;
+}
+
+/** Every field `chip-scryfall` reads off a card object, for a card or a printing. */
+export const FACT_KEYS = [
+  "name",
+  "lang",
+  "layout",
+  "type_line",
+  "oracle_text",
+  "mana_cost",
+  "cmc",
+  "colors",
+  "color_indicator",
+  "color_identity",
+  "produced_mana",
+  "keywords",
+  "power",
+  "toughness",
+  "loyalty",
+  "defense",
+  "rarity",
+  "legalities",
+  "game_changer",
+  "reserved",
+  "card_faces",
+  "set",
+  "set_type",
+  "collector_number",
+  "released_at",
+  "frame",
+  "frame_effects",
+  "border_color",
+  "full_art",
+  "textless",
+  "digital",
+  "promo",
+  "reprint",
+  "oversized",
+  "promo_types",
+  "games",
+  "flavor_name",
+] as const;
+
+function factsOf(card: Record<string, unknown>): Record<string, unknown> {
+  const facts: Record<string, unknown> = {};
+  for (const key of FACT_KEYS)
+    if (card[key] !== undefined && card[key] !== null) facts[key] = card[key];
+  return facts;
 }
 
 /** Every finish a deck line can have, in the order the details modal offers them. */
@@ -64,6 +117,7 @@ export function parsePrintsPage(json: unknown): {
         ...(typeof uris?.small === "string" ? { small: uris.small } : {}),
         finishes,
         ...faces(c),
+        facts: factsOf(c),
       },
     ];
   });
@@ -156,9 +210,10 @@ export function fetchAllPrintings(
 ): Promise<PrintingOption[]> {
   if (signal?.aborted) return Promise.reject(signal.reason);
   const search = cachedOne(
-    // `v3` drops what was cached before a printing carried its faces, and what
-    // was cached while a battle was looked for by layout, which left it upright.
-    ["scryfall", "prints", "v3", uri],
+    // `v3` dropped what was cached before a printing carried its faces, and
+    // what was cached while a battle was looked for by layout, which left it
+    // upright; `v4`, what was cached before a printing carried its facts.
+    ["scryfall", "prints", "v4", uri],
     (s) => loadAll(uri, s),
   );
   if (!signal) return search;

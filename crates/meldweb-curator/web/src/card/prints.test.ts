@@ -54,6 +54,12 @@ describe("scryfall's printings", () => {
         image: "n/CMR",
         small: "s/CMR",
         finishes: ["nonfoil", "foil"],
+        facts: {
+          name: "Sol Ring",
+          set: "CMR",
+          collector_number: "472",
+          released_at: "2020-11-20",
+        },
       },
       {
         id: "znr/180",
@@ -64,8 +70,34 @@ describe("scryfall's printings", () => {
         released: "2020-09-25",
         image: "front",
         finishes: ["nonfoil"],
+        facts: {
+          name: "Sol Ring",
+          set: "znr",
+          collector_number: "180",
+          released_at: "2020-09-25",
+          card_faces: [{ image_uris: { normal: "front" } }, {}],
+        },
       },
     ]);
+  });
+
+  it("keep what ranking reads and nothing it does not", () => {
+    const [p] = parsePrintsPage({
+      data: [
+        raw("mar", "80", "2026-06-26", {
+          promo_types: ["sourcematerial", "universesbeyond"],
+          full_art: true,
+          flavor_name: null,
+          prices: { usd: "3.00" },
+        }),
+      ],
+    }).printings;
+    expect(p?.facts).toMatchObject({
+      promo_types: ["sourcematerial", "universesbeyond"],
+      full_art: true,
+    });
+    expect(p?.facts).not.toHaveProperty("prices");
+    expect(p?.facts).not.toHaveProperty("flavor_name");
   });
 
   it("read which way each face is turned, and the back where there is one", () => {

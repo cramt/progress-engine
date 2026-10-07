@@ -739,8 +739,10 @@ name = "meldweb-wasm"
 version = "0.1.0"
 dependencies = [
  "chip-decklist",
+ "chip-scryfall",
  "facet",
  "facet-json",
+ "facet-toml",
  "facet-typescript",
  "wasm-bindgen",
 ]

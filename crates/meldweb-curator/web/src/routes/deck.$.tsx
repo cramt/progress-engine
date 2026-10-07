@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { SettingsProvider } from "../card/preference";
 import { parseDeck } from "../deck";
 import { DeckEditor } from "../deck/DeckEditor";
 import { parseSearch, searchFor, viewingOf } from "../deck/versions";
 import { connect } from "../github/connect";
 import { settled } from "../github/save";
 import { openSession } from "../github/session";
+import { loadSettings } from "../github/settings";
 import { SessionGate } from "../home/SessionGate";
 import { fetchPrintings } from "../scryfall";
 
@@ -21,13 +23,17 @@ export const Route = createFileRoute("/deck/$")({
     // Leaving this deck just now may still be saving; read after it lands.
     await settled(path);
     const { api } = await connect();
-    const file = await api.getFile(session.repo, path);
+    const [file, settings] = await Promise.all([
+      api.getFile(session.repo, path),
+      loadSettings(api, session.repo),
+    ]);
     if (!file) return { kind: "missing" as const, path };
     const parsed = parseDeck(file.text);
     return {
       kind: "deck" as const,
       path,
       file,
+      settings,
       repo: session.repo,
       api,
       // A Scryfall outage costs the pictures, not the deck: each card shows
@@ -67,19 +73,21 @@ function DeckPage() {
     );
   }
   return (
-    <DeckEditor
-      key={data.path}
-      path={data.path}
-      text={data.file.text}
-      sha={data.file.sha}
-      repo={data.repo}
-      api={data.api}
-      printings={data.printings}
-      viewing={viewingOf(search)}
-      drawer={search.history === true}
-      onNavigate={(viewing, drawer) =>
-        void navigate({ search: searchFor(viewing, drawer) })
-      }
-    />
+    <SettingsProvider settings={data.settings}>
+      <DeckEditor
+        key={data.path}
+        path={data.path}
+        text={data.file.text}
+        sha={data.file.sha}
+        repo={data.repo}
+        api={data.api}
+        printings={data.printings}
+        viewing={viewingOf(search)}
+        drawer={search.history === true}
+        onNavigate={(viewing, drawer) =>
+          void navigate({ search: searchFor(viewing, drawer) })
+        }
+      />
+    </SettingsProvider>
   );
 }
