@@ -13,6 +13,7 @@ import init, {
   compare_decks,
   declare_category,
   export_archidekt,
+  export_deck,
   import_archidekt,
   initSync,
   new_deck,
@@ -82,6 +83,23 @@ export function exportArchidekt(
   names: Readonly<Record<string, string>> = {},
 ): string {
   return export_archidekt(text, JSON.stringify(names));
+}
+
+/** A tool the deck can be copied out to, each its own button. */
+export type ExportTarget = "archidekt" | "cockatrice" | "cardmarket";
+
+/**
+ * The deck as `target` imports it, with `names` as {@link exportArchidekt}
+ * takes them. Throws, listing them, when a printing has no name.
+ */
+export function exportDeck(
+  text: string,
+  target: ExportTarget,
+  names: Readonly<Record<string, string>> = {},
+): string {
+  return target === "archidekt"
+    ? exportArchidekt(text, names)
+    : export_deck(text, target, JSON.stringify(names));
 }
 
 /*

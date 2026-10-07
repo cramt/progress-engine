@@ -5,6 +5,7 @@ import {
   commitMessage,
   declareCategory,
   exportArchidekt,
+  exportDeck,
   importArchidekt,
   loadDeckSync,
   newDeck,
@@ -233,5 +234,45 @@ describe("copying as Archidekt", () => {
 
   it("throws, naming the printing, when a printing has no name", () => {
     expect(() => exportArchidekt(lantern())).toThrow(/moc\/346/);
+  });
+});
+
+describe("copying for another tool", () => {
+  const named = () => {
+    const text = lantern();
+    const names: Record<string, string> = {};
+    for (const [, printing, name] of text.matchAll(
+      /printing = "([^"]+)".*\},\s+# (.+)$/gm,
+    )) {
+      if (printing && name) names[printing] = name;
+    }
+    return { text, names };
+  };
+
+  it("gives Cockatrice all 100 cards, the commander as a sideboard line", () => {
+    const { text, names } = named();
+    const out = exportDeck(text, "cockatrice", names);
+    expect(out).toMatch(/^SB: 1 Rashmi and Ragavan \(MOC\) 94$/m);
+    const count = (lines: string[]) =>
+      lines.reduce(
+        (n, l) => n + Number(l.replace(/^SB: /, "").split(" ")[0]),
+        0,
+      );
+    expect(count(out.split("\n").filter((l) => l !== ""))).toBe(100);
+  });
+
+  it("gives Cardmarket one line a card, names only", () => {
+    const { text, names } = named();
+    const out = exportDeck(text, "cardmarket", names);
+    const lines = out.trimEnd().split("\n");
+    expect(lines.every((l) => /^\d+ [^()]+$/.test(l))).toBe(true);
+    expect(new Set(lines.map((l) => l.replace(/^\d+ /, ""))).size).toBe(
+      lines.length,
+    );
+  });
+
+  it("throws, naming the printing, for every tool", () => {
+    for (const to of ["cockatrice", "cardmarket"] as const)
+      expect(() => exportDeck(lantern(), to)).toThrow(/moc\/346/);
   });
 });

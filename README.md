@@ -3222,7 +3222,7 @@ See [NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md).
 | Crate | Responsibility | Knows about |
 |---|---|---|
 | `chip-stats` | Exact hypergeometric draw probabilities | Nothing. No Magic concepts at all. |
-| `chip-decklist` | Parsing Archidekt decklists | Decklist text. No card data. |
+| `chip-decklist` | Parsing Archidekt decklists, and writing a deck as Archidekt, Cockatrice and Cardmarket import it | Decklist text. No card data. |
 | `chip-scryfall` | Card data, Scryfall bulk data and search syntax, and the printing terms Curator ranks by | Cards and their printings. No decklists. |
 | `gauntlet-criteria` | Grouping cards by query, applying effects, evaluating exactly | Counts, the zones they are counted in, and where a looked-at card goes. Not cards, and not where the questions came from. |
 | `gauntlet-toml` | Reading a criteria file and answering it, and shipping the standard effect library | The criteria format, and counts. No cards. |

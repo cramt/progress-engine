@@ -29,7 +29,7 @@ import type { Printings } from "../scryfall";
 import { SearchButton, SearchOverlay } from "../search/SearchOverlay";
 import { BranchIcon, HistoryIcon, ScanIcon } from "../ui/icons";
 import { messageOf } from "../ui/Sheet";
-import { CopyArchidekt } from "./CopyArchidekt";
+import { CopyDeck } from "./CopyDeck";
 import { Description } from "./Description";
 import { HistoryDrawer } from "./HistoryDrawer";
 import "./history.css";
@@ -389,7 +389,7 @@ export function DeckEditor({
               printings={printings}
               onRefusal={setRefusal}
             />
-            <CopyArchidekt
+            <CopyDeck
               text={history.present}
               cards={parsed.cards}
               printings={printings}

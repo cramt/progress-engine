@@ -58,8 +58,8 @@ _Avoid_: sync, push
 **Conflict**:
 A save refused because the deck changed on GitHub since Curator loaded it. Saving stops until the user chooses to reload or overwrite; nothing is merged or lost silently.
 
-**Import** / **Copy as Archidekt**:
-Archidekt text into a deck, and a deck out as Archidekt text. The Archidekt text is read and written the way Archidekt itself reads it ([archidekt-import-shapes.md](../../docs/research/archidekt-import-shapes.md)).
+**Import** / **Copy for**:
+Archidekt text into a deck, and a deck out as the text one tool imports: Archidekt, Cockatrice or Cardmarket, an entry each however alike their formats are. The Archidekt text is read and written the way Archidekt itself reads it ([archidekt-import-shapes.md](../../docs/research/archidekt-import-shapes.md)). Cockatrice gets each printing it can read back and the commander, companion and sideboard as `SB:` lines, having no commander zone; Cardmarket, for a wants list, one line a card by name with the copies summed. The maybeboard and cards set aside go to neither.
 _Avoid_: export (unqualified)
 
 **Playtest**:

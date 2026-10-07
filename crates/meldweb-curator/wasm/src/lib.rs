@@ -20,7 +20,7 @@ mod preference;
 use chip_decklist::collection::{self, Collection};
 use chip_decklist::deck::{self, CategoryType, Deck};
 use chip_decklist::diff::{self, Change, Diff};
-use chip_decklist::{changelog, edit};
+use chip_decklist::{changelog, edit, export};
 use chip_scryfall::bulk::BulkCard;
 use facet::Facet;
 use preference::{Pin, Preference, RuleText};
@@ -302,12 +302,28 @@ pub fn import_archidekt(text: &str) -> String {
 /// listing them, when a printing has no name.
 #[wasm_bindgen]
 pub fn export_archidekt(text: &str, names: Option<String>) -> Result<String, JsError> {
-    let names: HashMap<String, String> = match names.as_deref() {
-        None | Some("") => HashMap::new(),
+    deck::export_archidekt(text, &read_names(names)?).map_err(|e| JsError::new(&e.to_string()))
+}
+
+/// The deck as `target` imports it, `cockatrice` or `cardmarket`, with the
+/// printing names [`export_archidekt`] takes.
+#[wasm_bindgen]
+pub fn export_deck(text: &str, target: &str, names: Option<String>) -> Result<String, JsError> {
+    let names = read_names(names)?;
+    match target {
+        "cockatrice" => export::export_cockatrice(text, &names),
+        "cardmarket" => export::export_cardmarket(text, &names),
+        _ => return Err(JsError::new(&format!("no export to {target}"))),
+    }
+    .map_err(|e| JsError::new(&e.to_string()))
+}
+
+fn read_names(names: Option<String>) -> Result<HashMap<String, String>, JsError> {
+    match names.as_deref() {
+        None | Some("") => Ok(HashMap::new()),
         Some(json) => facet_json::from_str(json)
-            .map_err(|e| JsError::new(&format!("names are not {{\"set/num\": name}}: {e}")))?,
-    };
-    deck::export_archidekt(text, &names).map_err(|e| JsError::new(&e.to_string()))
+            .map_err(|e| JsError::new(&format!("names are not {{\"set/num\": name}}: {e}"))),
+    }
 }
 
 /// `text` with card `index`'s categories replaced by `categories` (JSON of

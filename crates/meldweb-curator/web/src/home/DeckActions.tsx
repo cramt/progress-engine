@@ -3,12 +3,13 @@ import { type ReactNode, use, useEffect, useState } from "react";
 import type { MenuEntry } from "../card/CardView";
 import {
   type Card,
-  exportArchidekt,
+  exportDeck,
   parseDeck,
   setDeckCover,
   setDeckMeta,
 } from "../deck";
 import { printingNames } from "../deck/archidektNames";
+import { EXPORT_TARGETS } from "../deck/exportTargets";
 import type { RepoRef } from "../github/api";
 import { connect } from "../github/connect";
 import { type DeckEntry, deleteDeck, editDeckFile } from "../github/decks";
@@ -49,21 +50,24 @@ export function useDeckActions(repo: RepoRef): {
   const reload = () => void router.invalidate();
   const close = () => setOpen(null);
 
-  const copyArchidekt = async (deck: DeckEntry) => {
-    const archidekt = (async () => {
+  const copyAs = async (
+    deck: DeckEntry,
+    to: (typeof EXPORT_TARGETS)[number],
+  ) => {
+    const exported = (async () => {
       const { text, cards } = await readDeck(deck);
       const printings = await fetchPrintings(cards).catch(() => new Map());
-      return exportArchidekt(text, printingNames(cards, printings));
+      return exportDeck(text, to.target, printingNames(cards, printings));
     })();
     try {
       // The text is fetched after the click, and Safari and Firefox let the
       // clipboard be written only within it, so it is handed a promise.
       if (typeof ClipboardItem === "undefined") {
-        await navigator.clipboard.writeText(await archidekt);
+        await navigator.clipboard.writeText(await exported);
       } else {
         await navigator.clipboard.write([
           new ClipboardItem({
-            "text/plain": archidekt.then(
+            "text/plain": exported.then(
               (t) => new Blob([t], { type: "text/plain" }),
             ),
           }),
@@ -71,7 +75,7 @@ export function useDeckActions(repo: RepoRef): {
       }
       setNotice({
         kind: "done",
-        text: `Copied ${deck.name} as Archidekt text`,
+        text: `Copied ${deck.name} for ${to.label}`,
       });
     } catch (e) {
       setNotice({ kind: "refusal", text: messageOf(e) });
@@ -102,11 +106,11 @@ export function useDeckActions(repo: RepoRef): {
     // A file the format refuses can only be looked at or thrown away.
     const readable = !deck.refused;
     return [
-      {
-        label: "Copy as Archidekt",
+      ...EXPORT_TARGETS.map((to) => ({
+        label: `Copy for ${to.label}`,
         disabled: !readable,
-        run: () => void copyArchidekt(deck),
-      },
+        run: () => void copyAs(deck, to),
+      })),
       "separator",
       {
         label: "Rename…",
