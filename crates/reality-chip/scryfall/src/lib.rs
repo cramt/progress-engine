@@ -16,11 +16,12 @@ pub mod legality;
 pub mod mana;
 mod outside;
 mod parse;
+pub mod printing;
 
 pub mod tags;
 
 pub use outside::{outside_library, OutsideLibrary};
-pub use parse::{parse, ParseError, KEYS};
+pub use parse::{parse, parse_printing, ParseError, KEYS};
 
 use index::Face;
 use legality::Legalities;
@@ -410,6 +411,9 @@ pub enum Query {
     Layout(String),
     /// `is:permanent`.
     Is(IsProperty),
+    /// `is:fullart`, `lang:ja` — a term about one printing, which only
+    /// [`parse_printing`] makes and only [`Query::matches_printing`] answers.
+    Printing(printing::PrintingTerm),
     Not(Box<Query>),
     And(Vec<Query>),
     Or(Vec<Query>),
@@ -417,6 +421,16 @@ pub enum Query {
 
 impl Query {
     pub fn matches(&self, card: &CardView<'_>) -> bool {
+        self.eval(card, None)
+    }
+
+    /// Whether this printing of `card` matches: the card's terms read the
+    /// card, and the printing terms [`parse_printing`] accepts read `printing`.
+    pub fn matches_printing(&self, card: &CardView<'_>, printing: &printing::Printing) -> bool {
+        self.eval(card, Some(printing))
+    }
+
+    fn eval(&self, card: &CardView<'_>, printing: Option<&printing::Printing>) -> bool {
         match self {
             Query::Type(s) => contains_ci(card.type_line, s),
             Query::Oracle(s) => contains_ci(card.oracle, s),
@@ -514,9 +528,13 @@ impl Query {
             }
             Query::Layout(s) => card.layout.eq_ignore_ascii_case(s),
             Query::Is(p) => p.matches(card),
-            Query::Not(inner) => !inner.matches(card),
-            Query::And(parts) => parts.iter().all(|p| p.matches(card)),
-            Query::Or(parts) => parts.iter().any(|p| p.matches(card)),
+            // `parse` refuses every printing term, so a query asked without a
+            // printing never holds one: this `false` is unreachable, not an
+            // answer.
+            Query::Printing(term) => printing.is_some_and(|p| term.matches(p)),
+            Query::Not(inner) => !inner.eval(card, printing),
+            Query::And(parts) => parts.iter().all(|q| q.eval(card, printing)),
+            Query::Or(parts) => parts.iter().any(|q| q.eval(card, printing)),
         }
     }
 

@@ -7,21 +7,48 @@
 use thiserror::Error;
 
 use crate::legality::FORMATS;
+use crate::printing::{
+    self, Frame, Lang, PrintingTerm, BORDERS, FRAME_EFFECTS, FRAME_YEARS, GAMES, LANGS,
+    PRINTING_IS, PRINTING_KEYS, SET_TYPES,
+};
 use crate::{
     Cmp, ColorField, ColorSpec, Colors, FormatStatus, IsProperty, Query, Rarity, Stat, StatOperand,
 };
+
+/// What a query is asked of, which decides whether a printing term is one it
+/// can answer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Subject {
+    /// One record per card, as the index holds: no printing to ask about.
+    Card,
+    /// One printing of a card, among the others.
+    Printing,
+}
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ParseError {
     #[error("empty query")]
     Empty,
+    #[error("unknown search key {key:?} in term {term:?} (supported: {supported})")]
+    UnknownKey {
+        key: String,
+        term: String,
+        supported: String,
+    },
+    #[error("unknown is: property {value:?} (supported: {supported})")]
+    UnknownIsProperty { value: String, supported: String },
     #[error(
-        "unknown search key {key:?} in term {term:?} (supported: {})",
-        supported_keys()
+        "{term:?} asks about one printing of a card, and this search is over \
+         cards, one record each, with no printing to ask"
     )]
-    UnknownKey { key: String, term: String },
-    #[error("unknown is: property {value:?} (supported: {})", is_properties())]
-    UnknownIsProperty { value: String },
+    AboutAPrinting { term: String },
+    #[error("{term:?}: {value:?} is not a {what} (supported: {})", supported.join(", "))]
+    NotOneOf {
+        term: String,
+        value: String,
+        what: &'static str,
+        supported: &'static [&'static str],
+    },
     #[error(
         "{term:?}: {key}: asks whether a card has a value, not how it compares. \
          Write {key}:value, or -{key}:value for the cards without it"
@@ -97,8 +124,16 @@ pub const KEYS: &[&[&str]] = &[
     &["is", "not"],
 ];
 
-fn supported_keys() -> String {
-    KEYS.iter()
+fn keys_of(subject: Subject) -> impl Iterator<Item = &'static &'static [&'static str]> {
+    let printing: &[&[&str]] = match subject {
+        Subject::Card => &[],
+        Subject::Printing => PRINTING_KEYS,
+    };
+    KEYS.iter().chain(printing)
+}
+
+fn supported_keys(subject: Subject) -> String {
+    keys_of(subject)
         .map(|row| match row {
             [key] => key.to_string(),
             [key, rest @ ..] => format!("{key} ({})", rest.join(", ")),
@@ -108,10 +143,15 @@ fn supported_keys() -> String {
         .join(", ")
 }
 
-fn is_properties() -> String {
+fn is_properties(subject: Subject) -> String {
+    let printing: &[(&str, printing::PrintingProperty)] = match subject {
+        Subject::Card => &[],
+        Subject::Printing => PRINTING_IS,
+    };
     IS_PROPERTIES
         .iter()
         .map(|(name, _)| *name)
+        .chain(printing.iter().map(|(name, _)| *name))
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -348,7 +388,7 @@ fn stat_named(word: &str) -> Option<Stat> {
         .map(|&(_, s)| s)
 }
 
-fn parse_term(term: &str) -> Result<Query, ParseError> {
+fn parse_term(term: &str, subject: Subject) -> Result<Query, ParseError> {
     let Some((key, cmp, value)) = split_term(term) else {
         // No operator: a bare word is a name substring.
         return Ok(Query::Name(term.to_string()));
@@ -360,10 +400,17 @@ fn parse_term(term: &str) -> Result<Query, ParseError> {
     }
     let colon = term[key.len()..].starts_with(':');
     let key = key.to_ascii_lowercase();
-    if !KEYS.iter().any(|row| row.contains(&key.as_str())) {
+    let about_a_printing = PRINTING_KEYS.iter().any(|row| row.contains(&key.as_str()));
+    if about_a_printing && subject == Subject::Card {
+        return Err(ParseError::AboutAPrinting {
+            term: term.to_string(),
+        });
+    }
+    if !keys_of(subject).any(|row| row.contains(&key.as_str())) {
         return Err(ParseError::UnknownKey {
             key,
             term: term.to_string(),
+            supported: supported_keys(subject),
         });
     }
 
@@ -380,6 +427,31 @@ fn parse_term(term: &str) -> Result<Query, ParseError> {
         }
         Ok(q)
     };
+
+    if about_a_printing {
+        let one_of = |what: &'static str, table: &'static [&'static str]| {
+            printing::closed(table, value).ok_or_else(|| ParseError::NotOneOf {
+                term: term.to_string(),
+                value: value.to_string(),
+                what,
+                supported: table,
+            })
+        };
+        let printing_term = match key.as_str() {
+            "lang" | "language" if value.eq_ignore_ascii_case("any") => Lang::Any.into(),
+            "lang" | "language" => Lang::Code(one_of("language", LANGS)?).into(),
+            "st" | "settype" => PrintingTerm::SetType(one_of("set type", SET_TYPES)?),
+            "frame" if value.eq_ignore_ascii_case("old") => Frame::Old.into(),
+            "frame" => match printing::closed(FRAME_YEARS, value) {
+                Some(year) => Frame::Year(year).into(),
+                None => Frame::Effect(one_of("frame or frame effect", FRAME_EFFECTS)?).into(),
+            },
+            "border" => PrintingTerm::Border(one_of("border colour", BORDERS)?),
+            "game" => PrintingTerm::Game(one_of("game", GAMES)?),
+            other => unreachable!("printing key {other:?} is in PRINTING_KEYS and has no arm"),
+        };
+        return require_equality(Query::Printing(printing_term));
+    }
 
     if let Some(stat) = stat_named(&key) {
         let operand = match stat_named(&value.to_ascii_lowercase()) {
@@ -488,14 +560,29 @@ fn parse_term(term: &str) -> Result<Query, ParseError> {
         // the docs.
         "is" | "not" => {
             let want = value.to_ascii_lowercase();
-            let property = IS_PROPERTIES
+            let card = IS_PROPERTIES
                 .iter()
                 .find(|(name, _)| *name == want)
-                .map(|&(_, p)| p)
-                .ok_or_else(|| ParseError::UnknownIsProperty {
-                    value: want.clone(),
-                })?;
-            let q = require_equality(Query::Is(property))?;
+                .map(|&(_, p)| Query::Is(p));
+            let printing = PRINTING_IS
+                .iter()
+                .find(|(name, _)| *name == want)
+                .map(|&(_, p)| Query::Printing(PrintingTerm::Is(p)));
+            let q = match (card, printing, subject) {
+                (Some(q), _, _) | (None, Some(q), Subject::Printing) => q,
+                (None, Some(_), Subject::Card) => {
+                    return Err(ParseError::AboutAPrinting {
+                        term: term.to_string(),
+                    })
+                }
+                (None, None, _) => {
+                    return Err(ParseError::UnknownIsProperty {
+                        value: want,
+                        supported: is_properties(subject),
+                    })
+                }
+            };
+            let q = require_equality(q)?;
             Ok(if key == "not" {
                 Query::Not(Box::new(q))
             } else {
@@ -538,6 +625,7 @@ fn format_term(
 struct Parser {
     tokens: Vec<Token>,
     pos: usize,
+    subject: Subject,
 }
 
 impl Parser {
@@ -592,7 +680,7 @@ impl Parser {
             }
             Some(Token::Term(t)) => {
                 self.pos += 1;
-                parse_term(&t)
+                parse_term(&t, self.subject)
             }
             Some(Token::RParen) => Err(ParseError::UnbalancedParen),
             Some(Token::Or) => Err(ParseError::Unexpected("or".into())),
@@ -602,13 +690,29 @@ impl Parser {
     }
 }
 
-/// Parse a Scryfall-syntax query.
+/// Parse a Scryfall-syntax query about cards. A term about a printing is
+/// refused, because a card has none to ask about.
 pub fn parse(input: &str) -> Result<Query, ParseError> {
+    parse_as(input, Subject::Card)
+}
+
+/// Parse a Scryfall-syntax query about one printing of a card, which may also
+/// use the printing terms in [`crate::printing`]. Answer it with
+/// [`Query::matches_printing`].
+pub fn parse_printing(input: &str) -> Result<Query, ParseError> {
+    parse_as(input, Subject::Printing)
+}
+
+fn parse_as(input: &str, subject: Subject) -> Result<Query, ParseError> {
     let tokens = lex(input)?;
     if tokens.is_empty() {
         return Err(ParseError::Empty);
     }
-    let mut p = Parser { tokens, pos: 0 };
+    let mut p = Parser {
+        tokens,
+        pos: 0,
+        subject,
+    };
     let q = p.or_expr()?;
     match p.peek() {
         None => Ok(q),

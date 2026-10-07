@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 use facet::Facet;
 
 use crate::index::{Card, Face};
+use crate::printing::Printing;
 
 /// One card object as Scryfall's bulk data writes it.
 ///
@@ -69,6 +70,38 @@ pub struct BulkCard {
     pub reserved: Option<bool>,
     #[facet(default)]
     pub card_faces: Option<Vec<BulkFace>>,
+    // What follows tells one printing from another, and the index, which keeps
+    // one record per card, reads none of it; see `crate::printing`.
+    #[facet(default)]
+    pub set_type: Option<String>,
+    #[facet(default)]
+    pub collector_number: Option<String>,
+    #[facet(default)]
+    pub released_at: Option<String>,
+    #[facet(default)]
+    pub frame: Option<String>,
+    #[facet(default)]
+    pub frame_effects: Option<Vec<String>>,
+    #[facet(default)]
+    pub border_color: Option<String>,
+    #[facet(default)]
+    pub full_art: Option<bool>,
+    #[facet(default)]
+    pub textless: Option<bool>,
+    #[facet(default)]
+    pub digital: Option<bool>,
+    #[facet(default)]
+    pub promo: Option<bool>,
+    #[facet(default)]
+    pub reprint: Option<bool>,
+    #[facet(default)]
+    pub oversized: Option<bool>,
+    #[facet(default)]
+    pub promo_types: Option<Vec<String>>,
+    #[facet(default)]
+    pub games: Option<Vec<String>>,
+    #[facet(default)]
+    pub flavor_name: Option<String>,
 }
 
 /// One face of a multi-faced card, as Scryfall writes it.
@@ -218,7 +251,43 @@ impl BulkCard {
         if let Some(reason) = self.skipped() {
             return Err(reason);
         }
+        Ok(self.card_of_any_printing(anomalies))
+    }
 
+    /// This printing's own facts, which the index does not keep.
+    pub fn printing(&self) -> Printing {
+        let list = |l: &Option<Vec<String>>| l.clone().unwrap_or_default();
+        let flag = |b: Option<bool>| b.unwrap_or(false);
+        Printing {
+            set: self.set.clone().unwrap_or_default(),
+            set_type: self.set_type.clone().unwrap_or_default(),
+            collector_number: self.collector_number.clone().unwrap_or_default(),
+            released_at: self.released_at.clone().unwrap_or_default(),
+            // Absent reads as English, as it does for the index.
+            lang: self.lang.clone().unwrap_or_else(|| "en".into()),
+            frame: self.frame.clone().unwrap_or_default(),
+            frame_effects: list(&self.frame_effects),
+            border_color: self.border_color.clone().unwrap_or_default(),
+            full_art: flag(self.full_art),
+            textless: flag(self.textless),
+            digital: flag(self.digital),
+            promo: flag(self.promo),
+            reprint: flag(self.reprint),
+            oversized: flag(self.oversized),
+            promo_types: list(&self.promo_types),
+            games: list(&self.games),
+            flavor_name: self.flavor_name.clone(),
+        }
+    }
+
+    /// The card this record is a printing of, whatever its language.
+    ///
+    /// Scryfall writes the English oracle text and type line on a Japanese
+    /// printing too, so the card read from one is the card read from any. The
+    /// index refuses foreign records only because it is keyed by name and
+    /// would hold the same card twice; a caller weighing the printings of one
+    /// card needs each of them, the Japanese ones included.
+    pub fn card_of_any_printing(&self, anomalies: &mut Vec<Anomaly>) -> Card {
         let has_text = self.oracle_text.is_some();
         let has_faces = self.card_faces.as_ref().is_some_and(|f| !f.is_empty());
         match (has_text, has_faces) {
@@ -249,7 +318,7 @@ impl BulkCard {
         let oracle = strip_reminder_text(&full_oracle);
         let any_number = says_a_deck_can_have_any_number(&full_oracle);
 
-        Ok(Card {
+        Card {
             name: self.name.clone(),
             oracle_id: self.oracle_id.clone(),
             layout: self.layout.clone().unwrap_or_default(),
@@ -277,7 +346,7 @@ impl BulkCard {
             // Bulk data carries no tags. Membership is Scryfall's answer to a
             // search, so it is attached after this, by whoever did the asking.
             tags: Vec::new(),
-        })
+        }
     }
 
     /// This card's faces, as one uniform list.
