@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Card, Category } from "../deck";
-import { afterRemoval, displayOrder, neighbours } from "./order";
+import { displayOrder, neighbours } from "./order";
 
 const card = (index: number, name: string, categories: string[]): Card => ({
   index,
@@ -40,16 +40,5 @@ describe("display order", () => {
     expect(neighbours(order, 1)).toEqual({ prev: null, next: 2, position: 0 });
     expect(neighbours(order, 0)).toEqual({ prev: 3, next: 5, position: 3 });
     expect(neighbours(order, 4)).toEqual({ prev: 5, next: null, position: 5 });
-  });
-
-  it("after a removal shows the next card, by its index in the next text", () => {
-    const order = [1, 2, 3, 0, 5, 4];
-    // Removing 0 (Sol Ring): next is 5, which becomes 4 once line 0 is gone.
-    expect(afterRemoval(order, 0)).toBe(4);
-    // Removing 3: next is 0, before it, so it keeps its index.
-    expect(afterRemoval(order, 3)).toBe(0);
-    // Removing the last in order steps back instead.
-    expect(afterRemoval(order, 4)).toBe(5 - 1);
-    expect(afterRemoval([7], 7)).toBeNull();
   });
 });

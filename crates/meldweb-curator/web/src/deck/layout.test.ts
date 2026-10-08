@@ -3,12 +3,11 @@ import { beforeAll, describe, expect, it } from "vitest";
 import {
   type Card,
   type Category,
+  editDeckCards,
   loadDeckSync,
   parseDeck,
-  setCardCategories,
 } from "../deck";
 import { groupByCategory, packColumns } from "./layout";
-import { dropOnto } from "./move";
 
 let index = 0;
 const card = (name: string, ...categories: string[]): Card => ({
@@ -131,11 +130,15 @@ Zenith = { type = "commander" }
   it("both change when a drag moves a card", () => {
     const signet = deck(text).cards.find((c) => nameOf(c) === "Arcane Signet");
     if (!signet) throw new Error("no signet");
-    const moved = setCardCategories(
+    const moved = editDeckCards(
       text,
-      signet.index,
-      dropOnto(signet.categories, "Ramp", "Artifacts", false),
-    );
+      {
+        kind: "move",
+        to: { kind: "category", name: "Artifacts" },
+        secondary: false,
+      },
+      [{ index: signet.index, from: "Ramp" }],
+    ).text;
     expect(headers(moved)).toEqual([
       ["Zenith", 1],
       ["Artifacts", 2],

@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { Card, Parsed } from "../deck";
+import { type Card, editDeckCards, type Parsed } from "../deck";
 import {
   cardName,
   fetchPrintings,
@@ -15,11 +15,11 @@ import {
   printingKey,
 } from "../scryfall";
 import {
-  applyEdit,
   isEdit,
   type Selection,
   type Target,
   targetsFor,
+  toDeckEdit,
   toggleSelected,
 } from "./apply";
 import type { CardViewProps, MenuEntry } from "./CardView";
@@ -182,7 +182,7 @@ export function useCardEditor({
       return;
     }
     if (isEdit(action))
-      tryEdit((t) => applyEdit(t, { categories, cards }, action, targets));
+      tryEdit((t) => editDeckCards(t, toDeckEdit(action), targets).text);
   };
 
   // The hotkeys read the latest render through this, so the listener is

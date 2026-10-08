@@ -2,6 +2,8 @@ import type {
   Added,
   AddTo,
   Compared,
+  DeckEdit,
+  Edited,
   Finish,
   Imported,
   Kind,
@@ -14,6 +16,7 @@ import init, {
   compare_decks,
   deck_add,
   declare_category,
+  edit_deck_cards,
   export_archidekt,
   export_deck,
   import_archidekt,
@@ -40,9 +43,13 @@ export type {
   Category,
   Compared,
   DeckChange,
+  DeckEdit,
+  Dest,
+  Edited,
   Finish,
   Imported,
   Kind,
+  Line,
   NewCard,
   Parsed,
   SetOnly,
@@ -191,6 +198,25 @@ export function deckAdd(
       JSON.stringify(names),
     ),
   ) as Added;
+}
+
+/**
+ * `edit` on every one of `targets` (each a card's index, and the category of
+ * the stack it was reached in, null for none), as one edit, and where each
+ * card went: `lines[i]` is old card `i` in the next text, gone once removed.
+ * Throws, changing nothing, when any card refuses it.
+ */
+export function editDeckCards(
+  text: string,
+  edit: DeckEdit,
+  targets: readonly { index: number; from: string | null }[],
+): Edited {
+  const wire = targets.map(({ index, from }) =>
+    from === null ? { index } : { index, from },
+  );
+  return JSON.parse(
+    edit_deck_cards(text, JSON.stringify(edit), JSON.stringify(wire)),
+  ) as Edited;
 }
 
 /**

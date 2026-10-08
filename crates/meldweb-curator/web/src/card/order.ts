@@ -29,18 +29,3 @@ export function neighbours(
     position: at,
   };
 }
-
-/**
- * The card to show once `removed` has left the deck: the one after it in
- * `order`, else the one before, else none. Its index is as it will be in the
- * next text, where every card after the removed line moves up by one.
- */
-export function afterRemoval(
-  order: readonly number[],
-  removed: number,
-): number | null {
-  const { prev, next } = neighbours(order, removed);
-  const stay = next ?? prev;
-  if (stay === null) return null;
-  return stay > removed ? stay - 1 : stay;
-}

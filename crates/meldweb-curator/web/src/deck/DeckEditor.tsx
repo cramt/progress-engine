@@ -1,16 +1,15 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { withBoard } from "../card/apply";
 import { bestPrinting } from "../card/bestPrinting";
 import { useSettings } from "../card/preference";
 import { renderCardResult } from "../card/searchResult";
 import { useCardEditor } from "../card/useCardEditor";
 import {
   applyChanges,
+  type Dest,
   deckAdd,
-  declareCategory,
+  editDeckCards,
   parseDeck,
-  setCardCategories,
   setCardPrinting,
   setDeckDescription,
 } from "../deck";
@@ -33,7 +32,6 @@ import { CopyDeck } from "./CopyDeck";
 import { Description } from "./Description";
 import { HistoryDrawer } from "./HistoryDrawer";
 import "./history.css";
-import { dropOnto } from "./move";
 import { PlaytestArchidekt } from "./PlaytestArchidekt";
 import { ReplaceArchidekt } from "./ReplaceArchidekt";
 import { type OnDrop, StacksView } from "./StacksView";
@@ -265,27 +263,17 @@ export function DeckEditor({
   const looking = version !== null;
 
   const onDrop: OnDrop = (card, from, to, secondary) => {
-    const declared = (name: string) =>
-      parsed.categories.some((c) => c.name === name);
     try {
-      let text = history.present;
-      let name: string;
-      if (to.kind === "category") {
-        name = to.name;
-      } else if (to.kind === "new") {
-        name = to.name;
-        if (!declared(name)) text = declareCategory(text, name);
-      } else {
-        // The strip's Sideboard is the deck's sideboard-typed category, made
-        // if the deck has none yet.
-        ({ text, name } = withBoard(text, parsed.categories, to.type));
-      }
+      // The strip's Sideboard is the deck's sideboard-typed category, and a
+      // new category is declared untyped, either made if the deck lacks it.
+      const dest: Dest =
+        to.kind === "type"
+          ? { kind: "board", board: to.type }
+          : { kind: "category", name: to.name };
       history.edit(
-        setCardCategories(
-          text,
-          card.index,
-          dropOnto(card.categories, from, name, secondary),
-        ),
+        editDeckCards(history.present, { kind: "move", to: dest, secondary }, [
+          { index: card.index, from },
+        ]).text,
       );
       setRefusal(null);
     } catch (e) {

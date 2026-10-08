@@ -3,8 +3,8 @@ import {
   type Card,
   type Category,
   declareCategory,
+  editDeckCards,
   type Finish,
-  removeCard,
   setCardCategories,
   setCardFinish,
   setCardPrinting,
@@ -12,7 +12,7 @@ import {
 } from "../deck";
 import { type Face, type Printing, printingId } from "../scryfall";
 import { ChevronLeft, ChevronRight, CloseIcon, FlipIcon } from "../ui/icons";
-import { afterRemoval, neighbours } from "./order";
+import { neighbours } from "./order";
 import { PrintingsGrid } from "./PrintingsGrid";
 import { rankPrintings, usePreferredOrder, useSettings } from "./preference";
 import {
@@ -113,10 +113,21 @@ export function DetailsModal(props: DetailsModalProps) {
       onEdit((t) => setCardQty(t, card.index, qty));
       return;
     }
-    const stay = afterRemoval(order, card.index);
-    if (onEdit((t) => removeCard(t, card.index))) {
-      if (stay === null) onClose();
-      else onStep(stay);
+    // Then the card after it in the stacks, else the one before, at its line
+    // in the next text.
+    const stay = next ?? prev;
+    let now: number | null = null;
+    const removed = onEdit((t) => {
+      const edited = editDeckCards(t, { kind: "remove" }, [
+        { index: card.index, from: null },
+      ]);
+      const line = stay === null ? undefined : edited.lines[stay];
+      now = line?.kind === "at" ? line.index : null;
+      return edited.text;
+    });
+    if (removed) {
+      if (now === null) onClose();
+      else onStep(now);
     }
   };
 
