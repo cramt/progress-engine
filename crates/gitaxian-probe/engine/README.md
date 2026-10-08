@@ -218,6 +218,15 @@ the page with the same LZMA2 reader the native host uses, then checks it against
 sidecar. That keeps the served files byte for byte the archive's, so a proxy needs no
 file of its own. It costs a decode of 34 MB on every boot.
 
+The web host also has `watch(&Image, first)`, for a live camera feed: it pushes one
+frame with the engine's tracking carried over from the last, rather than pushing one
+still until it settles, and returns the engine's report for that frame. `first`
+starts a new feed. The engine keeps reporting a card for about a second after it
+leaves, with `Detection::keep_time` counting the milliseconds since it was seen, so a
+caller that wants the cards in *this* frame keeps those at 0. In headless Chromium a
+frame costs 0.1-0.35 s against `recognize`'s 1.3-2 s with a card in it and 3 s without
+(FINDINGS §12, *A live feed*). Natively it is not carried.
+
 `open` works on the page or inside a dedicated worker, classic or module; in a worker
 there is no `window`, so the glue gives the hook the `global.fileEvents` it falls back
 to, exactly as the native sandbox does. The pool's workers cannot be stopped from

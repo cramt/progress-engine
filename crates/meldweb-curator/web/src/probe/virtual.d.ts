@@ -8,6 +8,13 @@ declare module "virtual:gitaxian-probe" {
     readonly version: string;
     /** JSON: `Found[]`, see ../probe/scanner.ts. */
     scan(rgba: Uint8Array, width: number, height: number): Promise<string>;
+    /** JSON: `Seen[]`, see ../probe/scanner.ts. */
+    watch(
+      rgba: Uint8Array,
+      width: number,
+      height: number,
+      first: boolean,
+    ): Promise<string>;
     close(): void;
   }
   const probe: {

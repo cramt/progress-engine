@@ -24,8 +24,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: crates/gitaxian-probe
-      - name: ImageMagick, for the fixture frames
-        run: sudo apt-get update && sudo apt-get install -y imagemagick
+      # The frames come from the flake's ImageMagick, the one the pinned
+      # ceilings were measured with. Ubuntu's ImageMagick 6 resamples
+      # differently, and gamma's Shock is a same-art tie between M21 and M12
+      # that the resampler decides: on its frames gamma scored 3/6, not 4/6.
+      - uses: DeterminateSystems/nix-installer-action@main
       - name: The wasm-bindgen CLI the probe's Cargo.lock names
         run: |
           v=$(grep -A1 '^name = "wasm-bindgen"$' crates/gitaxian-probe/Cargo.lock | sed -n 's/^version = "\(.*\)"/\1/p')
@@ -33,6 +36,6 @@ jobs:
       - name: Playwright and its Chromium
         run: npm install -g playwright && npx playwright install --with-deps chromium
       - name: Fixture frames
-        run: crates/gitaxian-probe/engine/.fixtures/fetch-cards.sh
+        run: nix shell --inputs-from . nixpkgs#imagemagick --command crates/gitaxian-probe/engine/.fixtures/fetch-cards.sh
       - name: Web check
         run: NODE_PATH="$(npm root -g)" crates/gitaxian-probe/web-check/run.sh

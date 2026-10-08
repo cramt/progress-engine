@@ -485,6 +485,41 @@ A tight, edge-to-edge card crop detects **nothing** — the detector needs to se
 the card boundary against a background. Compositing the same scan onto a plain
 backdrop with margin makes it work immediately.
 
+### A live feed
+
+Observed 2026-10-08 on 1.90.beta, in headless Chromium, pushing successive frames
+with `firstFrame` set only on the first and no `_rec_clear_tracking` between them -
+the feed the engine was built for. Each card in `recognition.json` is a track, and
+its fields are the engine's own tracker:
+
+| field | what it did |
+|---|---|
+| `trackId` | one per card placed, kept across frames |
+| `hits` | frames the track has been seen in. It counted to 33 for a card held 13 s; over the six fixtures pushed back to back it stopped at 2-5 |
+| `saved` | 0 on a track's first frame, 1 from its second: the engine confirms over two frames by itself |
+| `savedOnFrame` | 1 on the frame `saved` flipped, 0 otherwise |
+| `keepTime` | ms since the track was last seen. 0 while the card is in view; after it leaves, the track is still reported for about a second, counting up, then dropped |
+| `cardId` | -1 until saved, then a per-feed counter of saved cards |
+
+`status` is `1` for as long as any track is reported, the stale ones included, so
+"is a card in view" is `keepTime == 0`, not the status.
+
+A frame of a feed costs one detector pass. `recognize`'s still loop (12 pushes, the
+app's own number, until a card is reported) costs at least two passes on a frame with
+a card in it, since `saved` needs a second hit, and all twelve on an empty one. Six
+fixtures, two empty frames before each card and five with it, 1280 px wide:
+
+| | empty frame | frame with a card |
+|---|---|---|
+| `recognize`, framed with a 15% border | 2.8-3.3 s | 1.3-2.0 s |
+| one push of a feed, framed | 0.12-0.25 s | 0.13-0.34 s |
+| one push of a feed, no border | 0.10-0.21 s | 0.13-0.31 s |
+
+Every name was right on every path. The frame size moved the printing, as it does
+elsewhere: no border at 1280 px gave 5/6 exact printings, at 960 px Black Lotus went to
+Beta (4/6), and at 640 px it flipped between two printings across frames, while
+640 px saved only 10-20% of a frame's time.
+
 ### Measured accuracy
 
 Six Scryfall scans, composited onto a plain background, alpha tier:

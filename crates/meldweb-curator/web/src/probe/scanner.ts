@@ -25,6 +25,9 @@ export interface Found {
   alternatives: ProbeCard[];
 }
 
+/** One card in a frame of a live feed: no runners-up, which `watch` skips. */
+export type Seen = Omit<Found, "alternatives">;
+
 export type Progress = (stage: string, percent: number) => void;
 
 interface Opening {
@@ -84,17 +87,36 @@ export function openScanner(
   return boot.scanner;
 }
 
+const rgbaOf = (frame: ImageData) =>
+  new Uint8Array(
+    frame.data.buffer,
+    frame.data.byteOffset,
+    frame.data.byteLength,
+  );
+
 /** The cards in one RGBA frame. */
 export async function scan(
   scanner: ScannerHandle,
   frame: ImageData,
 ): Promise<Found[]> {
-  const rgba = new Uint8Array(
-    frame.data.buffer,
-    frame.data.byteOffset,
-    frame.data.byteLength,
+  return JSON.parse(
+    await scanner.scan(rgbaOf(frame), frame.width, frame.height),
   );
-  return JSON.parse(await scanner.scan(rgba, frame.width, frame.height));
+}
+
+/**
+ * The cards in one frame of a live feed, `first` starting it. The engine's
+ * tracker carries over from frame to frame, so each frame is read once rather
+ * than until it settles: a fraction of what `scan` costs a frame.
+ */
+export async function watch(
+  scanner: ScannerHandle,
+  frame: ImageData,
+  first: boolean,
+): Promise<Seen[]> {
+  return JSON.parse(
+    await scanner.watch(rgbaOf(frame), frame.width, frame.height, first),
+  );
 }
 
 /** The longest side a frame is scanned at: a phone photo is ~4000 px. */
@@ -102,20 +124,22 @@ const MAX_SIDE = 1280;
 
 /**
  * `source` as a frame the engine can read: scaled down to at most
- * `MAX_SIDE`, and set on a dark border. The detector finds a card by its
- * edge against the background, so a tight crop - a Scryfall image, a
- * screenshot - finds nothing without one, and a camera frame loses nothing
- * by having one.
+ * `MAX_SIDE`, and set on a dark border unless `border` is false. The detector
+ * finds a card by its edge against the background, so a tight crop - a
+ * Scryfall image, a screenshot - finds nothing without one. A camera frame of
+ * a card on the table already has that edge, and the border would only add
+ * pixels to read.
  */
 export function frameOf(
   source: CanvasImageSource,
   width: number,
   height: number,
+  border = true,
 ): ImageData {
   const scale = Math.min(1, MAX_SIDE / Math.max(width, height));
   const w = Math.round(width * scale);
   const h = Math.round(height * scale);
-  const margin = Math.round(Math.max(w, h) * 0.15);
+  const margin = border ? Math.round(Math.max(w, h) * 0.15) : 0;
   const canvas = document.createElement("canvas");
   canvas.width = w + 2 * margin;
   canvas.height = h + 2 * margin;

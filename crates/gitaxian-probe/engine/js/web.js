@@ -479,6 +479,45 @@ class Probe {
     return this.#bounded(run(), "recognize");
   }
 
+  /**
+   * Push one frame of a live feed, and return what the engine reports for it.
+   * Unlike `recognize`, tracking carries over from the previous frame, so the
+   * engine's own tracker sees successive camera frames rather than one still
+   * over and over. `first` starts a new feed.
+   */
+  watch(rgba, width, height, first, settleTimeoutMs) {
+    this.#alive();
+    const mod = this.#mod;
+    const abi = this.#abi;
+    const run = async () => {
+      if (first) mod._rec_clear_tracking();
+      const ptr = this.#malloc(rgba, "the frame");
+      try {
+        mod._rec_det_rec(ptr, height, width, first ? 1 : 0, this.#maskPtr);
+      } finally {
+        mod._free(ptr);
+      }
+      const deadline = performance.now() + settleTimeoutMs;
+      let status = abi.recRunning;
+      while (performance.now() < deadline) {
+        await sleep(5);
+        status = mod._rec_status();
+        if (status !== abi.recRunning) break;
+      }
+      const cards =
+        status === abi.recFinishedWithDetections ? (this.#takeDetections()?.cards ?? []) : [];
+      // A feed runs for as long as the user scans, and the engine writes a crop
+      // of every card it saves into its in-memory FS (FINDINGS.md S12).
+      for (const card of cards) {
+        if (card.imageFilename && mod.FS.analyzePath(card.imageFilename).exists) {
+          mod.FS.unlink(card.imageFilename);
+        }
+      }
+      return JSON.stringify(cards);
+    };
+    return this.#bounded(run(), "watch");
+  }
+
   #takeDetections() {
     const mod = this.#mod;
     try {

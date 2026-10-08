@@ -37,6 +37,14 @@ struct Found {
     alternatives: Vec<Card>,
 }
 
+/// One card in a frame of a live feed.
+#[derive(Facet)]
+struct Seen {
+    card: Card,
+    rec_conf: i64,
+    set_conf: i64,
+}
+
 /// A booted engine. Calls are serialised: one runs at a time, and a call made
 /// while another is running is refused rather than queued.
 #[wasm_bindgen]
@@ -128,6 +136,49 @@ impl Scanner {
             };
             let found = scan(engine, &image).await.map_err(to_js)?;
             let json = facet_json::to_string(&found)
+                .map_err(|e| JsError::new(&format!("encoding the result: {e}")))?;
+            Ok(json.into())
+        })
+    }
+
+    /// One frame of a live camera feed. Resolves to a JSON array of
+    /// `{ card, rec_conf, set_conf }`, the cards in this frame. `first` starts
+    /// a new feed. Each frame is pushed once with the engine's tracking
+    /// carried over, rather than pushed until it settles as `scan` does, and
+    /// the runners-up are not looked up: a frame costs a fraction of a `scan`.
+    /// A card the engine still tracks but did not see in this frame is left
+    /// out, so a card taken away is gone from the next frame.
+    #[allow(clippy::await_holding_refcell_ref)]
+    pub fn watch(&self, rgba: Uint8Array, width: u32, height: u32, first: bool) -> Promise {
+        let engine = self.engine.clone();
+        let rgba = rgba.to_vec();
+        future_to_promise(async move {
+            let mut slot = engine
+                .try_borrow_mut()
+                .map_err(|_| JsError::new("the scanner is busy with another frame"))?;
+            let engine = slot
+                .as_mut()
+                .ok_or_else(|| JsError::new("the scanner is closed"))?;
+            let image = Image {
+                data: &rgba,
+                width,
+                height,
+            };
+            let mut out = Vec::new();
+            for detection in engine.watch(&image, first).await.map_err(to_js)? {
+                if detection.keep_time != 0 {
+                    continue;
+                }
+                let Some(card) = engine.card_by_id(detection.data_id).await.map_err(to_js)? else {
+                    continue;
+                };
+                out.push(Seen {
+                    card,
+                    rec_conf: detection.rec_conf,
+                    set_conf: detection.set_conf,
+                });
+            }
+            let json = facet_json::to_string(&out)
                 .map_err(|e| JsError::new(&format!("encoding the result: {e}")))?;
             Ok(json.into())
         })

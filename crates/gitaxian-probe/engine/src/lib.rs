@@ -168,6 +168,11 @@ pub struct Detection {
     pub centroid: Vec<f64>,
     #[facet(rename = "imageFilename", default)]
     pub image_filename: Option<String>,
+    /// Milliseconds since the engine's tracker last saw this card: 0 when it
+    /// is in this frame. A live feed keeps reporting a card for about a second
+    /// after it leaves (FINDINGS.md §12).
+    #[facet(rename = "keepTime", default)]
+    pub keep_time: i64,
 }
 
 /// A catalogue row resolved from a [`Detection::data_id`].
