@@ -3,17 +3,13 @@
  * path, which is slugged from the name when the deck is made and never follows
  * a rename (ADR-0021).
  */
-import {
-  collectionCommitMessage,
-  parseCollection,
-  undeclarePlace,
-} from "../collection";
+import { parseCollection, undeclarePlace } from "../collection";
 import type { CardRef, SetOnly } from "../deck";
 import { fetchPrintings, fetchPrintingsInSets, printingKey } from "../scryfall";
 import { ConflictError, type GitHubApi, type RepoRef } from "./api";
-import { COLLECTION_PATH, loadCollection } from "./collection";
+import { COLLECTION_PATH } from "./collection";
 import type { DeckText } from "./deckText";
-import { settled } from "./repoFile";
+import { commitEdit, settled, track } from "./repoFile";
 
 export const DECKS_DIR = "decks";
 export const DECK_SUFFIX = ".deck.toml";
@@ -330,55 +326,55 @@ export type DeletedDeck =
   | { kind: "deleted" }
   | { kind: "refused"; message: string };
 
+/** Why a deck cannot be deleted, thrown from inside the collection's edit. */
+class Kept extends Error {}
+
 /**
  * Deletes the deck as the list last read it, so a deck changed since is
  * refused as a conflict rather than lost. A deck the collection keeps copies
  * in is refused, as a place that holds anything cannot be dropped (ADR-0023);
- * an empty place for it is dropped first, in its own commit.
+ * an empty place for it is dropped first, in its own commit, and copies put
+ * there meanwhile refuse it then too.
  */
 export async function deleteDeck(
   api: GitHubApi,
   repo: RepoRef,
   deck: Pick<DeckEntry, "path" | "sha">,
 ): Promise<DeletedDeck> {
-  await Promise.all([settled(deck.path), settled(COLLECTION_PATH)]);
-  const collection = await loadCollection(api, repo);
-  if (collection.sha !== null) {
-    const parsed = parseCollection(collection.text);
-    if (parsed.kind === "refused") {
-      return {
-        kind: "refused",
-        message: `collection.toml must be read to see whether copies are in this deck, and it is refused: ${parsed.message}`,
-      };
-    }
-    const place = parsed.places.find((p) => p.deck === deck.path);
-    if (place) {
+  try {
+    await commitEdit(api, repo, COLLECTION_PATH, (text) => {
+      if (text === null) return null;
+      const parsed = parseCollection(text);
+      if (parsed.kind === "refused") {
+        throw new Kept(
+          `collection.toml must be read to see whether copies are in this deck, and it is refused: ${parsed.message}`,
+        );
+      }
+      const place = parsed.places.find((p) => p.deck === deck.path);
+      if (!place) return null;
       const copies = parsed.cards
         .filter((c) => c.at === place.name)
         .reduce((n, c) => n + c.qty, 0);
       if (copies > 0) {
-        return {
-          kind: "refused",
-          message: `The collection has ${copies} cop${copies === 1 ? "y" : "ies"} in ${place.name}, this deck's place. Move them out in the collection first.`,
-        };
+        throw new Kept(
+          `The collection has ${copies} cop${copies === 1 ? "y" : "ies"} in ${place.name}, this deck's place. Move them out in the collection first.`,
+        );
       }
-      const text = undeclarePlace(collection.text, place.name);
-      await api.putFile(repo, COLLECTION_PATH, {
-        text,
-        message: collectionCommitMessage(
-          collection.text,
-          text,
-          COLLECTION_PATH,
-        ),
-        sha: collection.sha,
-      });
-    }
-  }
-  try {
-    await api.deleteFile(repo, deck.path, {
-      message: `${deckStem(deck.path)}: delete`,
-      sha: deck.sha,
+      return undeclarePlace(text, place.name);
     });
+  } catch (e) {
+    if (e instanceof Kept) return { kind: "refused", message: e.message };
+    throw e;
+  }
+  await settled(deck.path);
+  try {
+    await track(
+      deck.path,
+      api.deleteFile(repo, deck.path, {
+        message: `${deckStem(deck.path)}: delete`,
+        sha: deck.sha,
+      }),
+    );
   } catch (e) {
     if (e instanceof ConflictError) {
       return {

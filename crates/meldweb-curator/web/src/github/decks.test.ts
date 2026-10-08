@@ -1,5 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { addOwned } from "../collection";
 import { parseDeck, setDeckCover, setDeckMeta } from "../deck";
+import { COLLECTION_PATH } from "./collection";
 import {
   createDeck,
   deckFromArchidekt,
@@ -10,6 +12,7 @@ import {
 } from "./decks";
 import { type DeckText, deckText, type Imported } from "./deckText";
 import { commitEdit } from "./repoFile";
+import { createSaveStore, leave } from "./save";
 import { loadWasm, mockConnection, seedDecks } from "./testkit";
 
 beforeAll(loadWasm);
@@ -143,6 +146,65 @@ describe("a deck from the list", () => {
       "collection.toml",
       LANTERN,
     ]);
+  });
+
+  const places = `cards = []\n\n[places]\nBulk = {}\nLantern = { deck = "${LANTERN}" }\n`;
+
+  it("is refused when copies are put in its place while it is being deleted", async () => {
+    const { api, mock, repo } = mockConnection({
+      files: { ...seedDecks(), [COLLECTION_PATH]: places },
+    });
+    const [lantern] = await listDecks(api, repo, { parseDeck });
+    if (!lantern) throw new Error("seeded");
+    let first = true;
+    const racing = {
+      ...api,
+      getFile: async (...args: Parameters<typeof api.getFile>) => {
+        const file = await api.getFile(...args);
+        if (args[1] === COLLECTION_PATH && first) {
+          first = false;
+          mock.editOnGitHub(
+            COLLECTION_PATH,
+            addOwned(places, { kind: "name", name: "Sol Ring" }, "Lantern"),
+          );
+        }
+        return file;
+      },
+    };
+    expect(await deleteDeck(racing, repo, lantern)).toEqual({
+      kind: "refused",
+      message:
+        "The collection has 1 copy in Lantern, this deck's place. Move them out in the collection first.",
+    });
+    expect(mock.file(LANTERN)).toBeDefined();
+    expect(mock.file(COLLECTION_PATH)?.text).toContain("Lantern = ");
+  });
+
+  it("drops its place after the collection's own save lands, without a conflict", async () => {
+    const { api, mock, repo } = mockConnection({
+      files: { ...seedDecks(), [COLLECTION_PATH]: places },
+    });
+    const [lantern] = await listDecks(api, repo, { parseDeck });
+    const loaded = mock.file(COLLECTION_PATH);
+    if (!lantern || !loaded) throw new Error("seeded");
+    const store = createSaveStore({
+      api,
+      repo,
+      path: COLLECTION_PATH,
+      ...loaded,
+    });
+    store.edit(addOwned(places, { kind: "name", name: "Sol Ring" }, "Bulk"));
+    // The collection is left with its edit pending, as on going home.
+    void leave(store);
+    expect(await deleteDeck(api, repo, lantern)).toEqual({ kind: "deleted" });
+    store.dispose();
+    const collection = mock.file(COLLECTION_PATH)?.text ?? "";
+    expect(collection).toContain("Sol Ring");
+    expect(collection).not.toContain("Lantern");
+    const puts = mock
+      .requests()
+      .filter((r) => r.method === "PUT" && r.url.includes(COLLECTION_PATH));
+    expect(puts).toHaveLength(2);
   });
 });
 
