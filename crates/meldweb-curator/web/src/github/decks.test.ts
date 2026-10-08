@@ -5,11 +5,11 @@ import {
   deckFromArchidekt,
   deckPath,
   deleteDeck,
-  editDeckFile,
   listDecks,
   slugify,
 } from "./decks";
 import { type DeckText, deckText, type Imported } from "./deckText";
+import { commitEdit } from "./repoFile";
 import { loadWasm, mockConnection, seedDecks } from "./testkit";
 
 beforeAll(loadWasm);
@@ -77,19 +77,11 @@ describe("a deck from the list", () => {
 
   it("is renamed and given a cover in a commit each, its path staying put", async () => {
     const { api, mock, repo } = mockConnection({ files: seedDecks() });
-    await editDeckFile(
-      api,
-      repo,
-      LANTERN,
-      (t) => setDeckMeta(t, "Lantern Control"),
-      deckText,
+    await commitEdit(api, repo, LANTERN, (t) =>
+      setDeckMeta(t ?? "", "Lantern Control"),
     );
-    await editDeckFile(
-      api,
-      repo,
-      LANTERN,
-      (t) => setDeckCover(t, { set: "cmr", num: "304" }),
-      deckText,
+    await commitEdit(api, repo, LANTERN, (t) =>
+      setDeckCover(t ?? "", { set: "cmr", num: "304" }),
     );
     expect(mock.commits().map((c) => c.message)).toEqual([
       'lantern: name: none → "Lantern Control"',
@@ -111,13 +103,7 @@ describe("a deck from the list", () => {
     expect(mock.file(LANTERN)).toBeUndefined();
     expect(mock.commits().at(-1)?.message).toBe("lantern: delete");
 
-    await editDeckFile(
-      api,
-      repo,
-      loam.path,
-      (t) => setDeckMeta(t, "Loam"),
-      deckText,
-    );
+    await commitEdit(api, repo, loam.path, (t) => setDeckMeta(t ?? "", "Loam"));
     expect(await deleteDeck(api, repo, loam)).toMatchObject({
       kind: "refused",
     });

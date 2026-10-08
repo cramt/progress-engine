@@ -12,8 +12,8 @@ import { printingNames } from "../deck/archidektNames";
 import { EXPORT_TARGETS } from "../deck/exportTargets";
 import type { RepoRef } from "../github/api";
 import { connect } from "../github/connect";
-import { type DeckEntry, deleteDeck, editDeckFile } from "../github/decks";
-import { deckText } from "../github/deckText";
+import { type DeckEntry, deleteDeck } from "../github/decks";
+import { commitEdit, openFile } from "../github/repoFile";
 import {
   artCrop,
   fetchPrintings,
@@ -83,7 +83,7 @@ export function useDeckActions(repo: RepoRef): {
   };
 
   const readDeck = async (deck: DeckEntry) => {
-    const file = await api.getFile(repo, deck.path);
+    const file = await openFile(api, repo, deck.path);
     if (!file) throw new Error(`${deck.path} is no longer in the repo`);
     const parsed = parseDeck(file.text);
     if (parsed.kind === "refused") throw new Error(parsed.message);
@@ -91,7 +91,11 @@ export function useDeckActions(repo: RepoRef): {
   };
 
   const edit = async (deck: DeckEntry, change: (text: string) => string) => {
-    await editDeckFile(api, repo, deck.path, change, deckText);
+    await commitEdit(api, repo, deck.path, (text) => {
+      if (text === null)
+        throw new Error(`${deck.path} is no longer in the repo`);
+      return change(text);
+    });
     reload();
   };
 

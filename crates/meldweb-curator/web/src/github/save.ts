@@ -17,24 +17,6 @@ export type SaveState =
 
 export type SaveStatus = SaveState["status"];
 
-/**
- * The one way a deck file reaches GitHub, for an ordinary save, an overwrite
- * and a new deck alike. `sha: null` creates, and refuses an existing file.
- */
-export function commitDeck(
-  api: GitHubApi,
-  repo: RepoRef,
-  path: string,
-  put: {
-    text: string;
-    message: string;
-    sha: string | null;
-    keepalive?: boolean;
-  },
-): Promise<{ sha: string }> {
-  return api.putFile(repo, path, put);
-}
-
 export interface SaveStore {
   /** The deck file this store saves. */
   readonly path: string;
@@ -122,7 +104,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
       try {
         const from = await guard();
         const message = commitMessageFor(path, from.before, after);
-        const r = await commitDeck(api, repo, path, {
+        const r = await api.putFile(repo, path, {
           text: after,
           message,
           sha: from.sha,

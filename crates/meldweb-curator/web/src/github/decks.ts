@@ -14,7 +14,6 @@ import { ConflictError, type GitHubApi, type RepoRef } from "./api";
 import { COLLECTION_PATH, loadCollection } from "./collection";
 import type { DeckText } from "./deckText";
 import { settled } from "./repoFile";
-import { commitDeck } from "./save";
 
 export const DECKS_DIR = "decks";
 export const DECK_SUFFIX = ".deck.toml";
@@ -124,8 +123,8 @@ export type CreatedDeck =
   | { kind: "refused"; message: string };
 
 /**
- * Writes `decks/<slug>.deck.toml` as its first commit, through the same
- * `commitDeck` as every save, and refuses a slug that is already taken.
+ * Writes `decks/<slug>.deck.toml` as its first commit, and refuses a slug
+ * that is already taken.
  */
 export async function createDeck(
   api: GitHubApi,
@@ -169,7 +168,7 @@ export async function createDeck(
   }
 
   try {
-    const { sha } = await commitDeck(api, repo, path, {
+    const { sha } = await api.putFile(repo, path, {
       text,
       message: deck.commitMessage("", text, path),
       sha: null,
@@ -325,30 +324,6 @@ async function fileByType(
     text = deck.setCardCategories(text, card.index, [type]);
   }
   return text;
-}
-
-/**
- * One commit of `edit` applied to the deck as it is on GitHub now, after any
- * save still landing from its editor: what the deck list's Rename and Set
- * cover do without opening the deck.
- */
-export async function editDeckFile(
-  api: GitHubApi,
-  repo: RepoRef,
-  path: string,
-  edit: (text: string) => string,
-  deck: Pick<DeckText, "commitMessage">,
-): Promise<void> {
-  await settled(path);
-  const file = await api.getFile(repo, path);
-  if (!file) throw new Error(`${path} is no longer in the repo`);
-  const text = edit(file.text);
-  if (text === file.text) return;
-  await commitDeck(api, repo, path, {
-    text,
-    message: deck.commitMessage(file.text, text, path),
-    sha: file.sha,
-  });
 }
 
 export type DeletedDeck =
