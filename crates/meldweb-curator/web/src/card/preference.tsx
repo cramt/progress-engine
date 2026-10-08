@@ -2,14 +2,13 @@ import {
   createContext,
   type ReactNode,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import type { Pin, Ranked, RuleText } from "../deck.gen";
 import type { FileAt, GitHubApi, RepoRef } from "../github/api";
-import { createSaveStore, leave } from "../github/save";
+import { commitEdit } from "../github/repoFile";
 import { SETTINGS_PATH } from "../github/settings";
 import { readSettings } from "../settings/rules";
 import {
@@ -55,9 +54,9 @@ export interface SettingsFile {
   text: string | null;
   /**
    * Commits `edit` of the file at once. When the file moved on GitHub since,
-   * `edit` is made again on what is there now.
+   * `edit` is made again on what is there now; null from it writes nothing.
    */
-  apply: (edit: (text: string | null) => string) => Promise<void>;
+  apply: (edit: (text: string | null) => string | null) => Promise<void>;
   /** Why the last edit was not saved, if it was not. */
   error: string | null;
 }
@@ -73,40 +72,30 @@ export function useSettingsFile(
   repo: RepoRef,
 ): SettingsFile {
   const [text, setTextState] = useState(file?.text ?? null);
-  // Two clicks before a render must each build on the other.
+  // What the page shows ahead of GitHub, so two clicks before a render each
+  // build on the other.
   const latest = useRef(text);
-  const setText = (next: string) => {
+  const setText = (next: string | null) => {
     latest.current = next;
     setTextState(next);
   };
+  // Edits not yet landed; only the last to land says what GitHub has, since
+  // each is made on what the one before it left.
+  const landing = useRef(0);
   const [error, setError] = useState<string | null>(null);
-  const [store] = useState(() =>
-    createSaveStore({
-      api,
-      repo,
-      path: SETTINGS_PATH,
-      text: file?.text ?? "",
-      sha: file?.sha ?? null,
-    }),
-  );
-  useEffect(() => () => void leave(store), [store]);
 
-  const apply = async (edit: (text: string | null) => string) => {
+  const apply = async (edit: (text: string | null) => string | null) => {
+    const shown = edit(latest.current);
+    if (shown !== null) setText(shown);
+    landing.current++;
     try {
-      const next = edit(latest.current);
-      setText(next);
-      store.edit(next);
-      await leave(store);
-      if (store.getState().status === "conflict") {
-        const fresh = edit(await store.reload());
-        setText(fresh);
-        store.edit(fresh);
-        await leave(store);
-      }
-      const state = store.getState();
-      setError(state.status === "error" ? state.message : null);
+      const made = await commitEdit(api, repo, SETTINGS_PATH, edit);
+      if (landing.current === 1) setText(made.text);
+      setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      landing.current--;
     }
   };
   return { text, apply, error };

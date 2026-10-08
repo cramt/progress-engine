@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { newDeck, setDeckCover, setDeckMeta } from "../deck";
 import { ConflictError } from "./api";
 import { COLLECTION_PATH } from "./collection";
-import { commitEdit, commitMessageFor, openFile } from "./repoFile";
+import { commitEdit, commitMessageFor, openFile, settled } from "./repoFile";
 import { createSaveStore } from "./save";
 import { SETTINGS_PATH } from "./settings";
 import { loadWasm, mockConnection, seedDecks } from "./testkit";
@@ -88,11 +88,15 @@ describe("a one-shot edit", () => {
     const seeded = mock.file(LANTERN)?.text ?? "";
     const covered = setDeckCover(seeded, { set: "cmr", num: "304" });
     const seen: (string | null)[] = [];
-    await commitEdit(api, repo, LANTERN, (t) => {
+    const editing = commitEdit(api, repo, LANTERN, (t) => {
       seen.push(t);
       if (seen.length === 1) mock.editOnGitHub(LANTERN, covered);
       return rename(t);
     });
+    // Whatever reads the file next waits out the retry, not just the first try.
+    await settled(LANTERN);
+    expect(mock.file(LANTERN)?.text).toBe(rename(covered));
+    await editing;
     expect(seen).toEqual([seeded, covered]);
     expect(mock.file(LANTERN)?.text).toBe(rename(covered));
     expect(ours(mock)).toHaveLength(1);
