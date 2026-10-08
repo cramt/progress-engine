@@ -2,9 +2,10 @@ import type { CardRef } from "../deck";
 import { type Printings, printingKey } from "../scryfall";
 
 /**
- * `{ "set/num": name }` for every card the file names by printing and the
- * page knows the name of: what the Archidekt export needs, since the file
- * does not name those cards itself. Keyed as the file writes the printing.
+ * `{ "set/num": name }` for every card a deck or the collection names by
+ * printing and the page knows the name of: what the exports name those cards
+ * by, and what an add finds a card's line by, since the file does not name
+ * them itself. Keyed as the file writes the printing.
  */
 export function printingNames(
   cards: readonly { card: CardRef }[],

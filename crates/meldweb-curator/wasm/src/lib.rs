@@ -5,6 +5,12 @@
 //! The deck is its `.deck.toml` text (ADR-0020): JavaScript holds the text, and
 //! every edit here takes a text and returns the next one.
 //!
+//! Which line holds a card is decided here too. An add is handed the names of
+//! the printings the file holds, `{ "set/num": name }` from Scryfall, and says
+//! which line it put the card on; an edit over a selection is one call that
+//! says where every line went. So the page never matches names itself or
+//! works out how removing a line moves the ones after it.
+//!
 //! It also ranks the printings of one card by the repo's `meldweb.toml`
 //! (ADR-0026), through `chip-scryfall`, so the order a grid shows is decided by
 //! the same query reader Gauntlet uses.

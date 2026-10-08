@@ -49,7 +49,7 @@ _Avoid_: default printing
 ## Changing a deck
 
 **Edit**:
-One change to a deck's or the collection's text through `chip-decklist`, such as a move, a quantity or a printing. Undo steps back one edit.
+One change to a deck's or the collection's text through `chip-decklist`, such as a move, a quantity or a printing, made to one card or to every card selected at once. Undo steps back one edit. A card added by name or by a scan joins the line that already holds it, which Rust finds from the names the browser has for the printings in the file: a name finds a line of its printing, a double-faced card is found by its front face, a scanned printing joins only a line of that printing, and a foil line is another card.
 
 **Save**:
 The commit that carries a deck's (or the collection's) pending edits to the Magic repo. Curator makes it by itself once the deck has been idle ten seconds, or at once when the page is being closed or hidden. The user never saves by hand.
