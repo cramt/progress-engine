@@ -103,7 +103,7 @@ export function DeckEditor({
   const { printings } = cards;
 
   const [store] = useState(() =>
-    createSaveStore({ api, repo, path, text: loaded, sha, deckText }),
+    createSaveStore({ api, repo, path, text: loaded, sha }),
   );
   const save = useSave(store);
   // Every change to the text, edit, undo or redo alike, is what gets saved.

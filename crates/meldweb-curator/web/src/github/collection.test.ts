@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { addOwned, collectionCommitMessage, declarePlace } from "../collection";
+import { addOwned, declarePlace } from "../collection";
 import { COLLECTION_PATH, loadCollection } from "./collection";
 import { createSaveStore } from "./save";
 import { loadWasm, mockConnection, seedDecks } from "./testkit";
@@ -17,7 +17,6 @@ describe("the collection file", () => {
       repo,
       path: COLLECTION_PATH,
       ...loaded,
-      deckText: { commitMessage: collectionCommitMessage },
     });
     const text = addOwned(
       declarePlace(loaded.text, "Lantern", "decks/lantern.deck.toml"),

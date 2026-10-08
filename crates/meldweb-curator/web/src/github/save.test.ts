@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { deckText } from "./deckText";
 import {
   createSaveStore,
   flushOnLeave,
@@ -57,7 +56,6 @@ async function setup() {
     path: PATH,
     text: ORIGINAL,
     sha: file?.sha ?? null,
-    deckText,
   });
   vi.useFakeTimers();
 }

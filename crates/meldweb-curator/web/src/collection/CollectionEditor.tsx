@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  collectionCommitMessage,
   declarePlace,
   moveOwned,
   moveOwnedLines,
@@ -190,7 +189,6 @@ export function CollectionEditor({
       path,
       text: loaded,
       sha,
-      deckText: { commitMessage: collectionCommitMessage },
     }),
   );
   const save = useSave(store);

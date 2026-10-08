@@ -6,7 +6,7 @@
  * saving stops until the user reloads or overwrites; nothing is merged.
  */
 import { ConflictError, type GitHubApi, type RepoRef } from "./api";
-import type { DeckText } from "./deckText";
+import { commitMessageFor } from "./repoFile";
 
 export const IDLE_MS = 10_000;
 
@@ -75,12 +75,11 @@ export interface SaveOptions {
   /** The text as loaded from GitHub, and its blob sha. */
   text: string;
   sha: string | null;
-  deckText: Pick<DeckText, "commitMessage">;
   idleMs?: number;
 }
 
 export function createSaveStore(options: SaveOptions): SaveStore {
-  const { api, repo, path, deckText } = options;
+  const { api, repo, path } = options;
   const idleMs = options.idleMs ?? IDLE_MS;
 
   let base = options.text;
@@ -122,7 +121,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
     const committing = (async () => {
       try {
         const from = await guard();
-        const message = deckText.commitMessage(from.before, after, path);
+        const message = commitMessageFor(path, from.before, after);
         const r = await commitDeck(api, repo, path, {
           text: after,
           message,

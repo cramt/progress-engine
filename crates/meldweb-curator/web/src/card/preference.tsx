@@ -11,7 +11,7 @@ import type { Pin, Ranked, RuleText } from "../deck.gen";
 import type { FileAt, GitHubApi, RepoRef } from "../github/api";
 import { createSaveStore, flushOnLeave } from "../github/save";
 import { SETTINGS_PATH } from "../github/settings";
-import { readSettings, settingsCommitMessage } from "../settings/rules";
+import { readSettings } from "../settings/rules";
 import {
   pin_printing,
   rank_printings,
@@ -87,7 +87,6 @@ export function useSettingsFile(
       path: SETTINGS_PATH,
       text: file?.text ?? "",
       sha: file?.sha ?? null,
-      deckText: { commitMessage: settingsCommitMessage },
     }),
   );
   useEffect(() => () => void flushOnLeave(store), [store]);

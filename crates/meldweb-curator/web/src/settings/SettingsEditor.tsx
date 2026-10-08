@@ -39,7 +39,6 @@ import {
   type RuleText,
   readSettings,
   sameRules,
-  settingsCommitMessage,
   TERMS,
   type Verb,
 } from "./rules";
@@ -85,7 +84,6 @@ export function SettingsEditor({
       path: SETTINGS_PATH,
       text: text ?? "",
       sha,
-      deckText: { commitMessage: settingsCommitMessage },
     }),
   );
   const save = useSave(store);
