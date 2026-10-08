@@ -87,6 +87,37 @@ describe("opening a deck in archidekt's playtester", () => {
     });
   });
 
+  it("escapes only the quotes, so a 120-card deck fits archidekt's 16KB", () => {
+    const playtest = playtestUrl(
+      [card(0, { kind: "name", name: "Forest" }, "in-deck")],
+      printings,
+    );
+    if (playtest.kind !== "url") throw new Error(playtest.message);
+    expect(playtest.url).toBe(
+      "https://archidekt.com/playtester-v2/sandbox?deck=[{%22u%22:%22forest%22,%22q%22:1,%22f%22:0,%22c%22:%22m%22}]",
+    );
+  });
+
+  it("refuses a deck no url archidekt accepts could carry", () => {
+    const many = new Map(
+      Array.from({ length: 200 }, (_, i) => [
+        `name:card ${i}`,
+        printing(crypto.randomUUID(), `Card ${i}`),
+      ]),
+    );
+    const playtest = playtestUrl(
+      Array.from({ length: 200 }, (_, i) =>
+        card(i, { kind: "name", name: `Card ${i}` }, "in-deck"),
+      ),
+      many,
+    );
+    expect(playtest).toEqual({
+      kind: "refused",
+      message:
+        "Archidekt's playtester can't take 200 different cards in one link",
+    });
+  });
+
   it("does not wait on a card that never enters the game", () => {
     const playtest = playtestUrl(
       [card(0, { kind: "name", name: "Unknown" }, "maybeboard")],

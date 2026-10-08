@@ -9,6 +9,28 @@ import { cardName, type Printings, printingKey } from "../scryfall";
  */
 const PLAYTESTER = "https://archidekt.com/playtester-v2/sandbox";
 
+/**
+ * Archidekt answers 431 once a request's line and headers pass about 16KB
+ * (measured: a 16,116-byte URL loads, 16,129 does not). Its own cookies count
+ * against that too, so a URL under this can still be turned away; one over it
+ * never loads.
+ */
+const MAX_URL = 16_116;
+
+/**
+ * JSON that keeps its brackets, colons and commas literal, which a query
+ * allows, and escapes only what it must. Every card is `{"u":…}` in that
+ * alphabet, so this is 89 bytes a card instead of encodeURIComponent's 109,
+ * the difference between a 120-card deck fitting beside Archidekt's cookies
+ * and a 431.
+ */
+function queryJson(value: unknown): string {
+  return encodeURIComponent(JSON.stringify(value)).replace(
+    /%(7B|7D|5B|5D|3A|2C)/g,
+    (escaped) => decodeURIComponent(escaped),
+  );
+}
+
 /** Archidekt's zones: main deck, command zone, sideboard, attraction deck. */
 type Zone = "m" | "c" | "s" | "a";
 
@@ -43,7 +65,8 @@ export type Playtest =
 /**
  * The URL that opens the deck in Archidekt's playtester. A card Scryfall has
  * not resolved has no id to send, and playtesting a deck missing it would
- * answer for a different deck, so it is refused by name instead.
+ * answer for a different deck, so it is refused by name instead; so is a deck
+ * too long for Archidekt to accept in a URL.
  */
 export function playtestUrl(
   cards: readonly Card[],
@@ -71,8 +94,11 @@ export function playtestUrl(
       kind: "refused",
       message: `Can't playtest until Scryfall knows ${unresolved.join(", ")}`,
     };
-  return {
-    kind: "url",
-    url: `${PLAYTESTER}?deck=${encodeURIComponent(JSON.stringify(deck))}`,
-  };
+  const url = `${PLAYTESTER}?deck=${queryJson(deck)}`;
+  if (url.length > MAX_URL)
+    return {
+      kind: "refused",
+      message: `Archidekt's playtester can't take ${deck.length} different cards in one link`,
+    };
+  return { kind: "url", url };
 }
