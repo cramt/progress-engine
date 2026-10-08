@@ -13,7 +13,8 @@ import { fetchPrintings, fetchPrintingsInSets, printingKey } from "../scryfall";
 import { ConflictError, type GitHubApi, type RepoRef } from "./api";
 import { COLLECTION_PATH, loadCollection } from "./collection";
 import type { DeckText } from "./deckText";
-import { commitDeck, settled } from "./save";
+import { settled } from "./repoFile";
+import { commitDeck } from "./save";
 
 export const DECKS_DIR = "decks";
 export const DECK_SUFFIX = ".deck.toml";

@@ -7,7 +7,7 @@
  */
 import type { FileAt, GitHubApi, RepoRef, Revision, Snapshot } from "./api";
 import { DECK_SUFFIX, slugify } from "./decks";
-import { settled } from "./save";
+import { settled } from "./repoFile";
 
 export type { Revision, Snapshot };
 

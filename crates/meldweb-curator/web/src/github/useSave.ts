@@ -1,6 +1,6 @@
 import { useBlocker } from "@tanstack/react-router";
 import { useEffect, useSyncExternalStore } from "react";
-import { flushOnLeave, type SaveState, type SaveStore } from "./save";
+import { leave, type SaveState, type SaveStore } from "./save";
 
 const idle: SaveState = { status: "saved" };
 const none = () => () => {};
@@ -24,7 +24,7 @@ export function useSave(store: SaveStore | null): SaveState {
       detach();
       // Not `dispose`: under StrictMode the store is attached again before
       // this save lands, and disposing would detach that too.
-      void flushOnLeave(store);
+      void leave(store);
     };
   }, [store]);
   useBlocker({

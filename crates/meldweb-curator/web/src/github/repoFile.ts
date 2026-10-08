@@ -27,3 +27,25 @@ export function commitMessageFor(
   if (DECK.test(path)) return commitMessage(before, after, path);
   throw new Error(`${path} is not a file Curator edits`);
 }
+
+/** What is still being written to each path, as one promise per path. */
+const writing = new Map<string, Promise<void>>();
+
+/**
+ * Keeps `settled(path)` pending until `work` has finished, landed or not, and
+ * after every write tracked before it.
+ */
+export function track<T>(path: string, work: Promise<T>): Promise<T> {
+  const done: Promise<void> = Promise.allSettled([settled(path), work]).then(
+    () => {
+      if (writing.get(path) === done) writing.delete(path);
+    },
+  );
+  writing.set(path, done);
+  return work;
+}
+
+/** Resolves once every write to `path` asked for so far has finished. */
+export function settled(path: string): Promise<void> {
+  return writing.get(path) ?? Promise.resolve();
+}

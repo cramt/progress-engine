@@ -4,7 +4,7 @@
  * repo without it gets the default rules, so the file is never required.
  */
 import type { FileAt, GitHubApi, RepoRef } from "./api";
-import { settled } from "./save";
+import { settled } from "./repoFile";
 
 export const SETTINGS_PATH = "meldweb.toml";
 

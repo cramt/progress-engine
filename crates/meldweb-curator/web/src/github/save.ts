@@ -6,7 +6,7 @@
  * saving stops until the user reloads or overwrites; nothing is merged.
  */
 import { ConflictError, type GitHubApi, type RepoRef } from "./api";
-import { commitMessageFor } from "./repoFile";
+import { commitMessageFor, track } from "./repoFile";
 
 export const IDLE_MS = 10_000;
 
@@ -149,6 +149,7 @@ export function createSaveStore(options: SaveOptions): SaveStore {
       }
     });
     inflight = committing;
+    void track(path, committing);
     return committing;
   }
 
@@ -250,22 +251,11 @@ export function createSaveStore(options: SaveOptions): SaveStore {
   return store;
 }
 
-const leaving = new Map<string, Promise<void>>();
-
 /**
- * Saves `store`'s pending edits as its editor goes away, remembered so that
- * opening the same deck again reads it only after that save has landed and
- * so starts from the new sha.
+ * Saves every edit `store` still holds as its editor goes away, those made
+ * while a save was landing too, tracked so that opening the same file again
+ * reads it only after they have landed and so starts from the new sha.
  */
-export function flushOnLeave(store: SaveStore): Promise<void> {
-  const done = store.flush().finally(() => {
-    if (leaving.get(store.path) === done) leaving.delete(store.path);
-  });
-  leaving.set(store.path, done);
-  return done;
-}
-
-/** Resolves once any save made while leaving `path` has finished. */
-export function settled(path: string): Promise<void> {
-  return leaving.get(path) ?? Promise.resolve();
+export function leave(store: SaveStore): Promise<boolean> {
+  return track(store.path, store.settle());
 }

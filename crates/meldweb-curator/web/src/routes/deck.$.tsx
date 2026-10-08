@@ -4,7 +4,7 @@ import { parseDeck } from "../deck";
 import { DeckEditor } from "../deck/DeckEditor";
 import { parseSearch, searchFor, viewingOf } from "../deck/versions";
 import { connect } from "../github/connect";
-import { settled } from "../github/save";
+import { settled } from "../github/repoFile";
 import { openSession } from "../github/session";
 import { loadSettingsFile } from "../github/settings";
 import { SessionGate } from "../home/SessionGate";

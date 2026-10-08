@@ -9,7 +9,7 @@ import {
 } from "react";
 import type { Pin, Ranked, RuleText } from "../deck.gen";
 import type { FileAt, GitHubApi, RepoRef } from "../github/api";
-import { createSaveStore, flushOnLeave } from "../github/save";
+import { createSaveStore, leave } from "../github/save";
 import { SETTINGS_PATH } from "../github/settings";
 import { readSettings } from "../settings/rules";
 import {
@@ -89,19 +89,19 @@ export function useSettingsFile(
       sha: file?.sha ?? null,
     }),
   );
-  useEffect(() => () => void flushOnLeave(store), [store]);
+  useEffect(() => () => void leave(store), [store]);
 
   const apply = async (edit: (text: string | null) => string) => {
     try {
       const next = edit(latest.current);
       setText(next);
       store.edit(next);
-      await flushOnLeave(store);
+      await leave(store);
       if (store.getState().status === "conflict") {
         const fresh = edit(await store.reload());
         setText(fresh);
         store.edit(fresh);
-        await flushOnLeave(store);
+        await leave(store);
       }
       const state = store.getState();
       setError(state.status === "error" ? state.message : null);

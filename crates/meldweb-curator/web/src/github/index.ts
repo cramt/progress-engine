@@ -36,14 +36,14 @@ export {
   type OpenedRepo,
   openMagicRepo,
 } from "./repo";
+export { commitMessageFor, settled, track } from "./repoFile";
 export {
   createSaveStore,
-  flushOnLeave,
   IDLE_MS,
+  leave,
   type SaveState,
   type SaveStatus,
   type SaveStore,
-  settled,
 } from "./save";
 export { forgetSession, openSession, type Session } from "./session";
 export { useSave } from "./useSave";

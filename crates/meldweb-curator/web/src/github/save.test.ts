@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { settled } from "./repoFile";
 import {
   createSaveStore,
-  flushOnLeave,
   IDLE_MS,
+  leave,
   type PageEvents,
   type SaveStore,
-  settled,
 } from "./save";
 import { mockConnection } from "./testkit";
 
@@ -152,7 +152,7 @@ describe("saving by itself", () => {
     const first = store.attach(p.events);
     store.attach(p.events);
     first();
-    await flushOnLeave(store);
+    await leave(store);
     store.edit(v(1));
     p.pagehide();
     await vi.advanceTimersByTimeAsync(0);
@@ -161,7 +161,7 @@ describe("saving by itself", () => {
 
   it("reopening a deck waits for the save made while leaving it", async () => {
     store.edit(v(1));
-    const leaving = flushOnLeave(store);
+    const leaving = leave(store);
     let landed = false;
     const reopen = settled(PATH).then(() => {
       landed = conn.mock.file(PATH)?.text === v(1);
@@ -169,6 +169,21 @@ describe("saving by itself", () => {
     await leaving;
     await reopen;
     expect(landed).toBe(true);
+  });
+
+  it("leaving while a save is landing waits for the edits made since, too", async () => {
+    store.edit(v(1));
+    const first = store.flush();
+    store.edit(v(2));
+    const leaving = leave(store);
+    let reopened: string | undefined;
+    const reopen = settled(PATH).then(() => {
+      reopened = conn.mock.file(PATH)?.text;
+    });
+    await first;
+    await leaving;
+    await reopen;
+    expect(reopened).toBe(v(2));
   });
 
   it("a detached store no longer listens to the page", async () => {

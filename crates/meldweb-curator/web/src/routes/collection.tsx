@@ -6,7 +6,7 @@ import { COLLECTION_PATH, loadCollection } from "../github/collection";
 import { connect } from "../github/connect";
 import { listDecks } from "../github/decks";
 import { deckText } from "../github/deckText";
-import { settled } from "../github/save";
+import { settled } from "../github/repoFile";
 import { openSession } from "../github/session";
 import { loadSettingsFile } from "../github/settings";
 import { SessionGate } from "../home/SessionGate";
