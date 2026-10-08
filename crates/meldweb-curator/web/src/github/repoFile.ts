@@ -7,7 +7,12 @@
 import { collectionCommitMessage } from "../collection";
 import { commitMessage } from "../deck";
 import { settingsCommitMessage } from "../settings/rules";
-import type { FileAt, GitHubApi, RepoRef } from "./api";
+import {
+  ConflictError,
+  type FileAt,
+  type GitHubApi,
+  type RepoRef,
+} from "./api";
 import { COLLECTION_PATH } from "./collection";
 import { SETTINGS_PATH } from "./settings";
 
@@ -63,4 +68,52 @@ export async function openFile(
 ): Promise<FileAt | null> {
   await settled(path);
   return api.getFile(repo, path);
+}
+
+export type Committed =
+  | { kind: "committed"; text: string; sha: string }
+  /** `edit` left the file as it was, so nothing was written. */
+  | { kind: "unchanged"; text: string | null; sha: string | null };
+
+/** How many times a one-shot edit is made before a conflict is given up on. */
+const ATTEMPTS = 3;
+
+/**
+ * One commit of `edit`, made on `path` as GitHub has it once every earlier
+ * write to it has landed: a heart, a deck dragged, a rename. `edit` gets the
+ * file's text, null while there is none, and returns the new text, or null to
+ * write nothing. When the file moved on GitHub before the commit landed,
+ * `edit` is made again on what is there now, so it has to say what to do
+ * rather than carry a result worked out from an older text. After the last
+ * attempt the `ConflictError` is thrown; an `edit` that throws writes nothing.
+ */
+export function commitEdit(
+  api: GitHubApi,
+  repo: RepoRef,
+  path: string,
+  edit: (text: string | null) => string | null,
+): Promise<Committed> {
+  const earlier = settled(path);
+  const work = (async (): Promise<Committed> => {
+    await earlier;
+    for (let attempt = 1; ; attempt++) {
+      const file = await api.getFile(repo, path);
+      const was = file?.text ?? null;
+      const text = edit(was);
+      if (text === null || text === was) {
+        return { kind: "unchanged", text: was, sha: file?.sha ?? null };
+      }
+      try {
+        const { sha } = await api.putFile(repo, path, {
+          text,
+          message: commitMessageFor(path, was ?? "", text),
+          sha: file?.sha ?? null,
+        });
+        return { kind: "committed", text, sha };
+      } catch (e) {
+        if (!(e instanceof ConflictError) || attempt >= ATTEMPTS) throw e;
+      }
+    }
+  })();
+  return track(path, work);
 }
