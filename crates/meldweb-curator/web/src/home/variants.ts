@@ -1,4 +1,6 @@
 import type { DeckEntry } from "../github/decks";
+import { readSettings } from "../settings/rules";
+import { order_decks } from "../wasm/pkg/meldweb_wasm.js";
 
 /**
  * Decks in the order `meldweb.toml` declares, by path, and those it does not
@@ -97,6 +99,44 @@ export function nudgeDeck(
   const next = siblings[at + by];
   if (at < 0 || !next) return null;
   return moveDeck(shown, path, next.path, by < 0 ? "before" : "after");
+}
+
+/** One deck moved in the list: dragged onto another, or nudged a place. */
+export type DeckMove =
+  | { kind: "drop"; from: string; to: string; side: "before" | "after" }
+  | { kind: "nudge"; path: string; by: -1 | 1 };
+
+/**
+ * The deck list's paths after `move`, made on `decks` as `order` lays them
+ * out. Null for a move that moves nothing there.
+ */
+export function orderAfter(
+  decks: readonly DeckEntry[],
+  order: readonly string[],
+  move: DeckMove,
+): string[] | null {
+  const shown = familyOrder(decks, order);
+  return move.kind === "drop"
+    ? moveDeck(shown, move.from, move.to, move.side)
+    : nudgeDeck(shown, move.path, move.by);
+}
+
+/**
+ * `move` as an edit of `meldweb.toml`: made on the order the file has when
+ * it is committed, not the one the page showed, so a move that meets a
+ * change from another device is made again on that device's order rather
+ * than writing over it (ADR-0028).
+ */
+export function moveInSettings(
+  decks: readonly DeckEntry[],
+  move: DeckMove,
+): (settings: string | null) => string | null {
+  return (settings) => {
+    const read = readSettings(settings);
+    if (read.kind === "refused") throw new Error(read.message);
+    const next = orderAfter(decks, read.decks, move);
+    return next && order_decks(settings ?? undefined, JSON.stringify(next));
+  };
 }
 
 /** Each shown variant's parent, as `familyOrder` nests them. */

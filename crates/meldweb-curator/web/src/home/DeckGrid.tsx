@@ -3,7 +3,7 @@ import type { MenuEntry } from "../card/CardView";
 import type { DeckEntry } from "../github/decks";
 import type { Printings } from "../scryfall";
 import { DeckTile } from "./DeckTile";
-import { familyOrder, moveDeck, nudgeDeck } from "./variants";
+import { type DeckMove, familyOrder, moveDeck, nudgeDeck } from "./variants";
 
 type Drop = { path: string; side: "before" | "after" };
 
@@ -16,15 +16,15 @@ export function DeckGrid({
   order,
   printings,
   menuFor,
-  onOrder,
+  onMove,
 }: {
   decks: readonly DeckEntry[];
   /** `meldweb.toml`'s deck order, by path. */
   order: readonly string[];
   printings: Printings;
   menuFor: (deck: DeckEntry) => MenuEntry[];
-  /** Saves the list as these paths, in this order. */
-  onOrder: (paths: string[]) => void;
+  /** Saves the list with `move` made, a move that moves something here. */
+  onMove: (move: DeckMove) => void;
 }) {
   const shown = familyOrder(decks, order);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -42,9 +42,8 @@ export function DeckGrid({
   });
 
   const nudge = (path: string, by: -1 | 1) => {
-    const next = nudgeDeck(shown, path, by);
-    if (!next) return;
-    onOrder(next);
+    if (!nudgeDeck(shown, path, by)) return;
+    onMove({ kind: "nudge", path, by });
     setRefocus(path);
   };
   const sideOf = (e: DragEvent<HTMLElement>): Drop["side"] => {
@@ -93,8 +92,9 @@ export function DeckGrid({
             onDrop={(e) => {
               e.preventDefault();
               if (dragging !== null) {
-                const next = moveDeck(shown, dragging, d.path, sideOf(e));
-                if (next) onOrder(next);
+                const side = sideOf(e);
+                if (moveDeck(shown, dragging, d.path, side))
+                  onMove({ kind: "drop", from: dragging, to: d.path, side });
               }
               end();
             }}

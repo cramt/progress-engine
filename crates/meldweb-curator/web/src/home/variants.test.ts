@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import type { DeckEntry } from "../github/decks";
-import { familyOrder, moveDeck, nudgeDeck } from "./variants";
+import { commitEdit } from "../github/repoFile";
+import { SETTINGS_PATH } from "../github/settings";
+import { loadWasm, mockConnection } from "../github/testkit";
+import { readSettings } from "../settings/rules";
+import { order_decks } from "../wasm/pkg/meldweb_wasm.js";
+import { familyOrder, moveDeck, moveInSettings, nudgeDeck } from "./variants";
 
 const deck = (name: string, variantOf?: string): DeckEntry => ({
   path: `decks/${name.toLowerCase()}.deck.toml`,
@@ -112,5 +117,48 @@ describe("nudging a deck", () => {
     expect(nudgeDeck(shown, p("Lantern cEDH"), -1)).toEqual(
       ["Atraxa", "Lantern", "Lantern cEDH", "Lantern budget", "Loam"].map(p),
     );
+  });
+});
+
+describe("a move saved to meldweb.toml", () => {
+  beforeAll(loadWasm);
+  const decks = ["A", "B", "C", "D"].map((n) => deck(n));
+  const p = (name: string) => `decks/${name.toLowerCase()}.deck.toml`;
+  const settings = (...names: string[]) =>
+    order_decks(undefined, JSON.stringify(names.map(p)));
+  const orderOf = (text: string | undefined) => {
+    const read = readSettings(text ?? null);
+    return read.kind === "read" ? read.decks : null;
+  };
+
+  it("is made again on the order another device saved meanwhile, keeping it", async () => {
+    const { api, repo, mock } = mockConnection({
+      files: { [SETTINGS_PATH]: settings("A", "B", "C", "D") },
+    });
+    const move = moveInSettings(decks, {
+      kind: "drop",
+      from: p("D"),
+      to: p("A"),
+      side: "before",
+    });
+    let first = true;
+    await commitEdit(api, repo, SETTINGS_PATH, (t) => {
+      if (first) mock.editOnGitHub(SETTINGS_PATH, settings("C", "A", "B", "D"));
+      first = false;
+      return move(t);
+    });
+    expect(orderOf(mock.file(SETTINGS_PATH)?.text)).toEqual(
+      ["C", "D", "A", "B"].map(p),
+    );
+  });
+
+  it("writes nothing for a move that moves nothing on the order there, and refuses a file it cannot read", () => {
+    const nudge = moveInSettings(decks, {
+      kind: "nudge",
+      path: p("A"),
+      by: -1,
+    });
+    expect(nudge(settings("A", "B", "C", "D"))).toBeNull();
+    expect(() => nudge("decks = 3\n")).toThrow();
   });
 });

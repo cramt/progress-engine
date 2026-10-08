@@ -11,9 +11,9 @@ import { useDeckActions } from "../home/DeckActions";
 import { DeckGrid } from "../home/DeckGrid";
 import { NewDeckDialog } from "../home/NewDeckDialog";
 import { SessionGate } from "../home/SessionGate";
+import { moveInSettings } from "../home/variants";
 import { fetchPrintings, type Printings } from "../scryfall";
 import { readSettings } from "../settings/rules";
-import { order_decks } from "../wasm/pkg/meldweb_wasm.js";
 
 // Login, onboarding, or the Magic repo's decks (#119).
 export const Route = createFileRoute("/")({
@@ -117,11 +117,7 @@ function Decks({
             order={order}
             printings={printings}
             menuFor={menuFor}
-            onOrder={(paths) =>
-              void file.apply((t) =>
-                order_decks(t ?? undefined, JSON.stringify(paths)),
-              )
-            }
+            onMove={(move) => void file.apply(moveInSettings(decks, move))}
           />
         )}
       </div>
