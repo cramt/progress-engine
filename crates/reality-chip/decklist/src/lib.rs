@@ -13,6 +13,7 @@ pub mod deck;
 pub mod diff;
 pub mod edit;
 pub mod export;
+pub mod identity;
 
 use std::num::NonZeroU32;
 use std::sync::OnceLock;
