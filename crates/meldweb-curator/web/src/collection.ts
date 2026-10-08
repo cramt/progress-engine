@@ -3,7 +3,15 @@
  * which place, parsed and edited in Rust as a deck is. Load `deck.ts` first;
  * this module shares its wasm.
  */
-import type { Added, Finish, NewCard, ParsedCollection } from "./deck.gen";
+import type {
+  Added,
+  CollectionExport,
+  CollectionImported,
+  Finish,
+  NewCard,
+  ParsedCollection,
+  ScryfallCard,
+} from "./deck.gen";
 import {
   collection_add,
   collection_commit_message,
@@ -13,12 +21,22 @@ import {
   collection_set_qty,
   collection_take,
   declare_place,
+  import_collection,
   parse_collection,
+  read_collection_export,
   rename_place,
   undeclare_place,
 } from "./wasm/pkg/meldweb_wasm.js";
 
-export type { OwnedCard, ParsedCollection, Place } from "./deck.gen";
+export type {
+  Ask,
+  CollectionExport,
+  CollectionImported,
+  OwnedCard,
+  ParsedCollection,
+  Place,
+  ScryfallCard,
+} from "./deck.gen";
 
 /** As `parseDeck`: the one cast, trusted because the Rust tests pin it. */
 export function parseCollection(text: string): ParsedCollection {
@@ -161,4 +179,36 @@ export function collectionCommitMessage(
   path: string,
 ): string {
   return collection_commit_message(before, after, path);
+}
+
+/**
+ * Another app's collection export, or a text list, read by its header: whose
+ * it is, what it holds, and what Scryfall must be asked before it goes in.
+ */
+export function readCollectionExport(text: string): CollectionExport {
+  return JSON.parse(read_collection_export(text)) as CollectionExport;
+}
+
+/**
+ * `text` with every copy in `exported` added, or with `replace`, each place
+ * the export fills holding what it brings and nothing else. `cards` are
+ * Scryfall's answers to the export's asks; a printing is pinned only where
+ * Scryfall's card has the row's name. Rows with no place go to `place`.
+ */
+export function importCollection(
+  text: string,
+  exported: string,
+  cards: readonly ScryfallCard[],
+  replace: boolean,
+  place: string | null,
+): CollectionImported {
+  return JSON.parse(
+    import_collection(
+      text,
+      exported,
+      JSON.stringify(cards),
+      replace,
+      place ?? "",
+    ),
+  ) as CollectionImported;
 }

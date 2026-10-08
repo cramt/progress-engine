@@ -143,7 +143,7 @@ impl fmt::Display for CardRef {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Facet)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Facet)]
 #[repr(u8)]
 #[facet(rename_all = "lowercase")]
 pub enum Finish {

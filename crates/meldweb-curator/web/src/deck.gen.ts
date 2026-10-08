@@ -69,6 +69,77 @@ export type DeckChange =
   | { kind: "cover"; text: string }
   | { kind: "description"; text: string };
 
+export interface CollectionImported {
+  text: string;
+  /**
+   * Rows kept by name where the file named a printing, and why.
+   */
+  notes: ImportNote[];
+  /**
+   * Rows that did not go in: the file's, and those Scryfall named nothing.
+   */
+  unreadable: Unreadable[];
+}
+
+/**
+ * A line of pasted text or an exported file that an import could not carry
+ * over whole.
+ */
+export interface Unreadable {
+  /**
+   * 1-based, counting every line of the text.
+   */
+  line: number;
+  text: string;
+  reason: string;
+}
+
+/**
+ * A row that went in, but not as its file named it.
+ */
+export interface ImportNote {
+  line: number;
+  reason: string;
+}
+
+/**
+ * A card Scryfall answered an [`Ask`] with.
+ */
+export interface ScryfallCard {
+  id: string;
+  set: string;
+  num: string;
+  name: string;
+}
+
+/**
+ * Another app's export, read but not yet resolved against Scryfall.
+ */
+export type CollectionExport =
+  | { kind: "export"; source: string; rows: number; copies: number; places: string[]; unplaced: boolean; asks: Ask[]; unreadable: Unreadable[]; dropped: Dropped[]; skipped: Skipped[] }
+  | { kind: "refused"; message: string };
+
+export interface Skipped {
+  rows: number;
+  reason: string;
+}
+
+/**
+ * A column an import leaves behind, and how many rows gave it a value.
+ */
+export interface Dropped {
+  column: string;
+  rows: number;
+}
+
+/**
+ * What Scryfall is asked about an export's rows: a printing by its id, or
+ * by set and collector number.
+ */
+export type Ask =
+  | { kind: "id"; id: string }
+  | { kind: "printing"; set: string; num: string };
+
 export type ParsedCollection =
   | { kind: "collection"; places: Place[]; cards: OwnedCard[]; total: number }
   | { kind: "refused"; message: string };
@@ -120,18 +191,6 @@ export interface SetOnly {
   text: string;
   name: string;
   set: string;
-}
-
-/**
- * A line of pasted Archidekt text the import could not carry over whole.
- */
-export interface Unreadable {
-  /**
-   * 1-based, counting every line of the pasted text.
-   */
-  line: number;
-  text: string;
-  reason: string;
 }
 
 /**

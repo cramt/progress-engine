@@ -275,7 +275,14 @@ pub fn remove_card(text: &str, index: usize) -> Result<String, EditError> {
 
 pub(crate) fn remove_line(text: &str, index: usize, check: Check) -> Result<String, EditError> {
     let mut doc = document(text)?;
-    let cards = cards_mut(&mut doc, index)?;
+    drop_line(&mut doc, index)?;
+    finish_with(doc, check)
+}
+
+/// Drops card `index`'s line from `doc`, its comment with it, leaving the
+/// check to whoever finishes the document.
+pub(crate) fn drop_line(doc: &mut DocumentMut, index: usize) -> Result<(), EditError> {
+    let cards = cards_mut(doc, index)?;
     let own = raw(cards.get(index).and_then(|c| c.decor().prefix()));
     let after = follower(cards, index);
     let last = index + 1 == cards.len();
@@ -294,7 +301,7 @@ pub(crate) fn remove_line(text: &str, index: usize, check: Check) -> Result<Stri
             None => cards.set_trailing(joined),
         }
     }
-    finish_with(doc, check)
+    Ok(())
 }
 
 /// Sets card `index`'s quantity. Zero removes the card, and one drops the
@@ -843,8 +850,7 @@ pub(crate) fn push_line(
     match split {
         Some((head, rest)) => {
             let indent = cards
-                .iter()
-                .last()
+                .get(cards.len().wrapping_sub(1))
                 .map(|c| raw(c.decor().prefix()))
                 .and_then(|p| p.rsplit_once('\n').map(|(_, i)| i.to_string()))
                 .unwrap_or_else(|| "  ".to_string());

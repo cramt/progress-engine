@@ -9,6 +9,7 @@
 pub mod archidekt;
 pub mod changelog;
 pub mod collection;
+pub mod collection_import;
 pub mod deck;
 pub mod diff;
 pub mod edit;

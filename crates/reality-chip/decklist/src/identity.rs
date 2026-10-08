@@ -52,3 +52,9 @@ pub fn holds(line: &CardRef, wanted: &CardRef, names: &Names) -> bool {
 fn same_printing(a: &Printing, b: &Printing) -> bool {
     a.set.eq_ignore_ascii_case(&b.set) && a.num == b.num
 }
+
+/// What every name [`same_name`] takes for `name` has in common, to look its
+/// lines up by: the front face, in lower case.
+pub(crate) fn name_key(name: &str) -> String {
+    front(name).to_lowercase()
+}

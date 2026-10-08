@@ -1,4 +1,5 @@
 import type { CardRef, Finish } from "./deck";
+import type { Ask, ScryfallCard } from "./deck.gen";
 import { cachedMany, scryfallClient } from "./scryfallCache";
 import { API, SEARCH_GATE, scryfallFetch } from "./scryfallQueue";
 
@@ -380,4 +381,31 @@ export async function fetchPrintingsInSets(
     );
   });
   return wanted.map((w) => found.get(key(w)) ?? null);
+}
+
+/**
+ * Scryfall's card for each of an import's asks it knows, by id or by set and
+ * collector number, in as few requests as it allows. What it finds is cached
+ * as a printing too, so the collection opens on it with pictures known. An
+ * ask it has no card for is absent; which row that leaves by name is Rust's
+ * to say.
+ */
+export async function fetchAsked(
+  asks: readonly Ask[],
+  signal?: AbortSignal,
+): Promise<ScryfallCard[]> {
+  const cards = await collection(
+    asks.map((a) =>
+      a.kind === "id" ? { id: a.id } : { set: a.set, collector_number: a.num },
+    ),
+    signal,
+  );
+  for (const [k, printing] of remember(cards))
+    scryfallClient.setQueryData([...PRINTING, k], printing);
+  return cards.map((c) => ({
+    id: c.id,
+    set: c.set,
+    num: c.collector_number,
+    name: c.name,
+  }));
 }

@@ -9,6 +9,7 @@ repository.workspace = true
 [dependencies]
 facet.workspace = true
 regex.workspace = true
+csv.workspace = true
 thiserror.workspace = true
 facet-toml.workspace = true
 toml_edit.workspace = true

@@ -30,6 +30,10 @@ A place that names a deck's path, so the copies in it are the ones in that deck.
 **Unsorted**:
 Owned copies in no place yet.
 
+**Collection import**:
+Another app's collection export (ManaBox, Moxfield, Dragon Shield…) or a text list, put into the collection as one edit ([ADR-0029](../../docs/adr/0029-a-collection-import-is-read-by-header-and-a-printing-is-pinned-only-where-scryfall-agrees.md)). Its binders become places. It adds to what is there, or replaces what the places it fills held, so importing the same export again changes nothing. A printing is pinned only where Scryfall agrees on the name; otherwise the card goes in by name, and the import says so.
+_Avoid_: sync (nothing is kept in step with the other app)
+
 **Settings**:
 The Magic repo's `meldweb.toml`: Curator's own choices, which are the printing preference ([ADR-0026](../../docs/adr/0026-which-printing-comes-first-is-a-ranked-list-of-printing-queries.md)), and the deck order; the preference is edited at `/settings` beside a preview that ranks one card's printings by the rules as they are typed. A repo without it gets the defaults, and the first change commits the file; a rule that does not read as a query holds the save back.
 _Avoid_: config, preferences file

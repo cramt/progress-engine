@@ -31,6 +31,7 @@ import {
   type Printings,
   printingKey,
 } from "../scryfall";
+import { ImportCollection } from "./ImportCollection";
 import { LiveScan } from "./LiveScan";
 import {
   CURRENCIES,
@@ -327,6 +328,11 @@ export function CollectionEditor({
               places={parsed.places}
               decks={decks}
               onAdd={(name, deck) => change((t) => declarePlace(t, name, deck))}
+            />
+            <ImportCollection
+              text={history.present}
+              places={parsed.places}
+              onImport={(next) => change(() => next)}
             />
           </>
         }

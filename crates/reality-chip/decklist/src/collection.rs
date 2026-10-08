@@ -34,7 +34,7 @@ use toml_edit::{InlineTable, Item, Table, Value};
 use crate::changelog::{finish_name, message, reference};
 use crate::deck::{line, CardRef, DeckError, Finish, Printing};
 use crate::edit::{self, card_comments, card_mut, document, finish_with, put, Added, EditError};
-use crate::identity::{holds, Names};
+use crate::identity::{holds, name_key, name_of, Names};
 
 /// Where cards can be. `deck` is the path in the Magic repo of the deck the
 /// place is, for the cards sleeved in it.
@@ -484,6 +484,167 @@ pub fn reprint(
         comment.as_deref(),
     )?;
     finish_with(doc, check)
+}
+
+/// Copies an import brings in, the card named as the file will name it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Incoming {
+    pub card: CardRef,
+    /// For a printing, its name, commented beside a new line.
+    pub name: Option<String>,
+    pub qty: NonZeroU32,
+    pub finish: Finish,
+    /// The place, declared by the import when the file has no such place.
+    pub at: Option<String>,
+}
+
+/// What an import does to the places it fills.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Merge {
+    /// Its copies join what is there.
+    Add,
+    /// Each place it fills holds what it brings and nothing else: importing
+    /// the same export again changes nothing, and the changelog says what
+    /// changed since the last one.
+    Replace,
+}
+
+/// Every copy in `incoming` added as one edit: a line already holding the
+/// card alike in its place takes them, by [`holds`] as [`add`] does, and
+/// otherwise a new last line. Places the copies name and the file lacks are
+/// declared. Built on one document, since an export holds thousands of rows
+/// and an edit per row re-reads the file each time.
+pub fn import(
+    text: &str,
+    incoming: &[Incoming],
+    merge: Merge,
+    names: &Names,
+) -> Result<String, EditError> {
+    let c = parse(text)?;
+    let mut names = edit::names_with_comments(text, c.cards.iter().map(|o| &o.card), names);
+    for i in incoming {
+        if let (CardRef::Printing(p), Some(name)) = (&i.card, &i.name) {
+            names.entry(p.to_string()).or_insert_with(|| name.clone());
+        }
+    }
+    let mut doc = document(text)?;
+
+    let mut declared: Vec<&str> = c.places.iter().map(|p| p.name.as_str()).collect();
+    for at in incoming.iter().filter_map(|i| i.at.as_deref()) {
+        if !declared.contains(&at) {
+            declared.push(at);
+            if !doc.contains_key("places") {
+                doc.insert("places", Item::Table(Table::new()));
+            }
+            doc["places"]
+                .as_table_like_mut()
+                .ok_or_else(|| EditError::Toml("places is not a table".into()))?
+                .insert(at, Item::Value(Value::InlineTable(InlineTable::new())));
+        }
+    }
+
+    // Each line's copies before and after, the file's own first and then the
+    // ones the import starts. A line of a place being replaced starts at none,
+    // and still takes the copies that are the same card, so an unchanged
+    // export leaves every line where it was.
+    let filled: Vec<Option<&str>> = incoming.iter().map(|i| i.at.as_deref()).collect();
+    let mut lines: Vec<(Owned, u32)> = c
+        .cards
+        .iter()
+        .map(|o| {
+            let replaced = merge == Merge::Replace && filled.contains(&o.at.as_deref());
+            (o.clone(), if replaced { 0 } else { o.qty.get() })
+        })
+        .collect();
+    // Lines by what an incoming card can find them by, in file order: a
+    // printing's line by its printing and its name, a name's by its name.
+    // [`holds`] still decides; this only spares asking it of every line.
+    type Bucket = (Finish, Option<String>, String);
+    let buckets = |card: &CardRef| -> Vec<String> {
+        let name = name_of(card, &names).map(|n| format!("name:{}", name_key(n)));
+        let printing = match card {
+            CardRef::Printing(p) => Some(format!("printing:{p}")),
+            CardRef::Name(_) => None,
+        };
+        printing.into_iter().chain(name).collect()
+    };
+    let mut index: HashMap<Bucket, Vec<usize>> = HashMap::new();
+    for (i, (o, _)) in lines.iter().enumerate() {
+        for b in buckets(&o.card) {
+            index
+                .entry((o.finish, o.at.clone(), b))
+                .or_default()
+                .push(i);
+        }
+    }
+    for i in incoming {
+        let wanted = match &i.card {
+            CardRef::Printing(p) => format!("printing:{p}"),
+            CardRef::Name(n) => format!("name:{}", name_key(n)),
+        };
+        let held = index
+            .get(&(i.finish, i.at.clone(), wanted))
+            .and_then(|found| {
+                found
+                    .iter()
+                    .copied()
+                    .find(|&l| holds(&lines[l].0.card, &i.card, &names))
+            });
+        match held {
+            Some(index) => lines[index].1 = lines[index].1.saturating_add(i.qty.get()),
+            None => {
+                for b in buckets(&i.card) {
+                    index
+                        .entry((i.finish, i.at.clone(), b))
+                        .or_default()
+                        .push(lines.len());
+                }
+                lines.push((
+                    Owned {
+                        card: i.card.clone(),
+                        qty: i.qty,
+                        finish: i.finish,
+                        at: i.at.clone(),
+                    },
+                    i.qty.get(),
+                ));
+            }
+        }
+    }
+
+    let had = c.cards.len();
+    for (index, (o, now)) in lines.iter().enumerate().take(had) {
+        if *now != o.qty.get() && *now > 0 {
+            set_qty_in(card_mut(&mut doc, index)?, *now);
+        }
+    }
+    for index in (0..had).rev() {
+        if lines[index].1 == 0 {
+            edit::drop_line(&mut doc, index)?;
+        }
+    }
+    for (o, now) in &lines[had..] {
+        let comment = match &o.card {
+            CardRef::Printing(p) => names.get(&p.to_string()).map(String::as_str),
+            CardRef::Name(_) => None,
+        };
+        edit::push_line(
+            &mut doc,
+            new_line(&o.card, *now, o.finish, o.at.as_deref()),
+            comment,
+        )?;
+    }
+    finish_with(doc, check)
+}
+
+/// A line at `qty` copies, written as the format writes it: one is no key.
+fn set_qty_in(card: &mut InlineTable, qty: u32) {
+    if qty == 1 {
+        card.remove("qty");
+        card.fmt();
+    } else {
+        put(card, "qty", i64::from(qty));
+    }
 }
 
 /// Declares the place `name` under `[places]`, standing for the deck at

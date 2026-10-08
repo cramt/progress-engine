@@ -24,6 +24,7 @@ use std::collections::HashMap;
 mod preference;
 
 use chip_decklist::collection::{self, Collection};
+use chip_decklist::collection_import;
 use chip_decklist::deck::{self, CategoryType, Deck};
 use chip_decklist::diff::{self, Change, Diff};
 use chip_decklist::{changelog, edit, export};
@@ -221,10 +222,11 @@ pub fn parse_deck(text: &str) -> String {
     facet_json::to_string(&parse_deck_text(text)).expect("Parsed serialises")
 }
 
-/// A line of pasted Archidekt text the import could not carry over whole.
+/// A line of pasted text or an exported file that an import could not carry
+/// over whole.
 #[derive(Debug, Facet)]
 pub struct Unreadable {
-    /// 1-based, counting every line of the pasted text.
+    /// 1-based, counting every line of the text.
     pub line: u32,
     pub text: String,
     pub reason: String,
@@ -1193,6 +1195,231 @@ pub fn settings_commit_message(before: &str, after: &str) -> String {
     preference::commit_message(before, after)
 }
 
+/// What Scryfall is asked about an export's rows: a printing by its id, or
+/// by set and collector number.
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum Ask {
+    Id { id: String },
+    Printing { set: String, num: String },
+}
+
+/// A column an import leaves behind, and how many rows gave it a value.
+#[derive(Debug, Facet)]
+pub struct Dropped {
+    pub column: String,
+    pub rows: u32,
+}
+
+#[derive(Debug, Facet)]
+pub struct Skipped {
+    pub rows: u32,
+    pub reason: String,
+}
+
+/// Another app's export, read but not yet resolved against Scryfall.
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum CollectionExport {
+    Export {
+        /// Whose export the header says it is: `ManaBox`, `text list`.
+        source: String,
+        rows: u32,
+        copies: u32,
+        /// The binders or folders its rows name, in the order they come.
+        places: Vec<String>,
+        /// Whether any row has no place, and goes where the import says.
+        unplaced: bool,
+        /// Each question for Scryfall once.
+        asks: Vec<Ask>,
+        unreadable: Vec<Unreadable>,
+        dropped: Vec<Dropped>,
+        skipped: Vec<Skipped>,
+    },
+    /// No row was a card.
+    Refused { message: String },
+}
+
+fn count(n: usize) -> u32 {
+    u32::try_from(n).unwrap_or(u32::MAX)
+}
+
+fn unreadable_wire(u: &chip_decklist::archidekt::Unreadable) -> Unreadable {
+    Unreadable {
+        line: count(u.line),
+        text: u.text.clone(),
+        reason: u.reason.clone(),
+    }
+}
+
+pub fn read_collection_export_text(text: &str) -> CollectionExport {
+    let read = collection_import::read(text);
+    if read.rows.is_empty() {
+        return CollectionExport::Refused {
+            message: match read.unreadable.first() {
+                None => "there are no cards in it".into(),
+                Some(u) => format!("no row was a card, starting with {u}"),
+            },
+        };
+    }
+    let mut places: Vec<String> = Vec::new();
+    let mut asks: Vec<collection_import::Ask> = Vec::new();
+    for row in &read.rows {
+        if let Some(p) = &row.place {
+            if !places.contains(p) {
+                places.push(p.clone());
+            }
+        }
+        if let Some(a) = row.ask() {
+            asks.push(a);
+        }
+    }
+    let mut seen = std::collections::HashSet::new();
+    asks.retain(|a| seen.insert(a.clone()));
+    CollectionExport::Export {
+        source: read.source.label().into(),
+        rows: count(read.rows.len()),
+        copies: read.rows.iter().map(|r| r.qty.get()).sum(),
+        places,
+        unplaced: read.rows.iter().any(|r| r.place.is_none()),
+        asks: asks
+            .into_iter()
+            .map(|a| match a {
+                collection_import::Ask::Id(id) => Ask::Id { id },
+                collection_import::Ask::Printing(p) => Ask::Printing {
+                    set: p.set,
+                    num: p.num,
+                },
+            })
+            .collect(),
+        unreadable: read.unreadable.iter().map(unreadable_wire).collect(),
+        dropped: read
+            .dropped
+            .into_iter()
+            .map(|d| Dropped {
+                column: d.column,
+                rows: count(d.rows),
+            })
+            .collect(),
+        skipped: read
+            .skipped
+            .into_iter()
+            .map(|s| Skipped {
+                rows: count(s.rows),
+                reason: s.reason,
+            })
+            .collect(),
+    }
+}
+
+/// JSON of [`CollectionExport`]: what an export holds and what Scryfall must
+/// be asked before it can go in.
+#[wasm_bindgen]
+pub fn read_collection_export(text: &str) -> String {
+    facet_json::to_string(&read_collection_export_text(text)).expect("CollectionExport serialises")
+}
+
+/// A card Scryfall answered an [`Ask`] with.
+#[derive(Debug, Facet)]
+pub struct ScryfallCard {
+    pub id: String,
+    pub set: String,
+    pub num: String,
+    pub name: String,
+}
+
+/// A row that went in, but not as its file named it.
+#[derive(Debug, Facet)]
+pub struct ImportNote {
+    pub line: u32,
+    pub reason: String,
+}
+
+#[derive(Debug, Facet)]
+pub struct CollectionImported {
+    pub text: String,
+    /// Rows kept by name where the file named a printing, and why.
+    pub notes: Vec<ImportNote>,
+    /// Rows that did not go in: the file's, and those Scryfall named nothing.
+    pub unreadable: Vec<Unreadable>,
+}
+
+pub fn import_collection_text(
+    text: &str,
+    export: &str,
+    cards: &str,
+    replace: bool,
+    default_place: &str,
+) -> Result<CollectionImported, String> {
+    let cards: Vec<ScryfallCard> = facet_json::from_str(cards)
+        .map_err(|e| format!("cards are not Scryfall's answers: {e}"))?;
+    let mut found = HashMap::new();
+    for c in cards {
+        let answer = collection_import::Found {
+            printing: deck::Printing {
+                set: c.set.to_ascii_lowercase(),
+                num: c.num.clone(),
+            },
+            name: c.name,
+        };
+        found.insert(
+            collection_import::Ask::Id(c.id.to_lowercase()),
+            answer.clone(),
+        );
+        found.insert(
+            collection_import::Ask::Printing(answer.printing.clone()),
+            answer,
+        );
+    }
+    let read = collection_import::read(export);
+    let (incoming, notes, unresolved) =
+        collection_import::resolve(&read, &found, place_arg(default_place));
+    let merge = if replace {
+        collection::Merge::Replace
+    } else {
+        collection::Merge::Add
+    };
+    let text =
+        collection::import(text, &incoming, merge, &HashMap::new()).map_err(|e| e.to_string())?;
+    let mut unreadable: Vec<Unreadable> = read
+        .unreadable
+        .iter()
+        .chain(&unresolved)
+        .map(unreadable_wire)
+        .collect();
+    unreadable.sort_by_key(|u| u.line);
+    Ok(CollectionImported {
+        text,
+        notes: notes
+            .into_iter()
+            .map(|n| ImportNote {
+                line: count(n.line),
+                reason: n.reason,
+            })
+            .collect(),
+        unreadable,
+    })
+}
+
+/// JSON of [`CollectionImported`]: `text` with every copy in `export` added,
+/// or, with `replace`, each place it fills holding what it brings. `cards`
+/// is JSON of [`ScryfallCard`]`[]`, Scryfall's answers to the export's asks.
+/// Rows with no place go to `default_place`, unsorted when it is empty.
+#[wasm_bindgen]
+pub fn import_collection(
+    text: &str,
+    export: &str,
+    cards: &str,
+    replace: bool,
+    default_place: &str,
+) -> Result<String, JsError> {
+    let imported =
+        import_collection_text(text, export, cards, replace, default_place).map_err(refused)?;
+    Ok(facet_json::to_string(&imported).expect("CollectionImported serialises"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1210,6 +1437,9 @@ mod tests {
         g.add_type::<Edited>();
         g.add_type::<Imported>();
         g.add_type::<ParsedCollection>();
+        g.add_type::<CollectionExport>();
+        g.add_type::<ScryfallCard>();
+        g.add_type::<CollectionImported>();
         g.add_type::<Compared>();
         g.add_type::<Ranked>();
         g.add_type::<SettingsRules>();
@@ -1423,5 +1653,47 @@ mod tests {
                 .unwrap_err()
                 .contains("no card 9")
         );
+    }
+
+    const MANABOX: &str = "Binder Name,Binder Type,Name,Set code,Set name,Collector number,Foil,Rarity,Quantity,ManaBox ID,Scryfall ID,Purchase price,Misprint,Altered,Condition,Language,Purchase price currency\n\
+Trade binder,binder,Sol Ring,CMM,Commander Masters,400,foil,uncommon,2,1,AAA-1,0.0,false,false,near_mint,en,USD\n\
+Trade binder,binder,Sol Ring,CMM,Commander Masters,400,foil,uncommon,1,1,AAA-1,0.0,false,false,near_mint,en,USD\n\
+,binder,Island,UNF,Unfinity,235,normal,common,4,2,BBB-2,0.0,false,false,near_mint,en,USD\n";
+
+    #[test]
+    fn an_export_asks_scryfall_each_thing_once_and_goes_in_as_one_edit() {
+        let CollectionExport::Export {
+            source,
+            copies,
+            places,
+            unplaced,
+            asks,
+            ..
+        } = read_collection_export_text(MANABOX)
+        else {
+            panic!("refused");
+        };
+        assert_eq!(source, "ManaBox");
+        assert_eq!(copies, 7);
+        assert_eq!(places, ["Trade binder"]);
+        assert!(unplaced);
+        assert_eq!(asks.len(), 2, "{asks:?}");
+
+        let cards = r#"[{"id":"aaa-1","set":"cmm","num":"400","name":"Sol Ring"}]"#;
+        let imported = import_collection_text("", MANABOX, cards, false, "Bulk").unwrap();
+        assert_eq!(
+            imported.text,
+            "cards = [\n  { printing = \"cmm/400\", qty = 3, finish = \"foil\", at = \"Trade binder\" },  # Sol Ring\n  { name = \"Island\", qty = 4, at = \"Bulk\" },\n]\n\n[places]\n\"Trade binder\" = {}\nBulk = {}\n"
+        );
+        assert_eq!(imported.notes.len(), 1);
+        assert_eq!(imported.notes[0].line, 4);
+    }
+
+    #[test]
+    fn an_export_with_no_card_in_it_is_refused() {
+        assert!(matches!(
+            read_collection_export_text("Name,Quantity\n,3\n"),
+            CollectionExport::Refused { .. }
+        ));
     }
 }
