@@ -33,7 +33,8 @@ use toml_edit::{InlineTable, Item, Table, Value};
 
 use crate::changelog::{finish_name, message, reference};
 use crate::deck::{line, CardRef, DeckError, Finish, Printing};
-use crate::edit::{self, card_comments, card_mut, document, finish_with, put, EditError};
+use crate::edit::{self, card_comments, card_mut, document, finish_with, put, Added, EditError};
+use crate::identity::{holds, Names};
 
 /// Where cards can be. `deck` is the path in the Magic repo of the deck the
 /// place is, for the cards sleeved in it.
@@ -91,6 +92,11 @@ pub enum CollectionError {
     Taken(String),
     #[error("card {index} has {have}, so {qty} of it cannot move")]
     TooMany { index: usize, have: u32, qty: u32 },
+    #[error("no line holds {card} {}, so nothing was taken", place.as_ref().map_or_else(|| "unsorted".to_string(), |p| format!("at {p:?}")))]
+    NoLine {
+        card: CardRef,
+        place: Option<String>,
+    },
 }
 
 #[derive(Facet)]
@@ -263,32 +269,91 @@ fn line_for(
     })
 }
 
+/// The line holding `card` in `finish` at `at` by [`holds`]: the one an add
+/// joins and a take takes from. A name finds a line of its printing too, by
+/// `names` or else the line's comment, and a double-faced card its front face.
+fn holding(
+    text: &str,
+    c: &Collection,
+    card: &CardRef,
+    finish: Finish,
+    at: Option<&str>,
+    names: &Names,
+) -> Option<usize> {
+    let names = edit::names_with_comments(text, c.cards.iter().map(|o| &o.card), names);
+    c.cards
+        .iter()
+        .position(|o| o.finish == finish && o.at.as_deref() == at && holds(&o.card, card, &names))
+}
+
+fn declared(c: &Collection, at: Option<&str>) -> Result<(), EditError> {
+    match at {
+        Some(at) if c.place(at).is_none() => Err(CollectionError::NoPlace(at.to_string()).into()),
+        _ => Ok(()),
+    }
+}
+
 /// `qty` more of `card` in `finish`, at the place `at` or unsorted: more on
 /// the line that already holds it so, or else a new last line with `comment`
 /// (for a printing, its name) beside it.
 pub fn add(
     text: &str,
     card: &CardRef,
-    qty: u32,
+    qty: NonZeroU32,
     finish: Finish,
     at: Option<&str>,
     comment: Option<&str>,
-) -> Result<String, EditError> {
+    names: &Names,
+) -> Result<Added, EditError> {
     let c = parse(text)?;
-    if qty == 0 {
-        return Ok(text.to_string());
-    }
-    if let Some(at) = at {
-        if c.place(at).is_none() {
-            return Err(CollectionError::NoPlace(at.to_string()).into());
-        }
-    }
-    if let Some(i) = line_for(&c, card, finish, at, None) {
-        return set_qty(text, i, c.cards[i].qty.get() + qty);
+    declared(&c, at)?;
+    if let Some(i) = holding(text, &c, card, finish, at, names) {
+        return Ok(Added {
+            text: set_qty(text, i, c.cards[i].qty.get() + qty.get())?,
+            line: i,
+            made: false,
+        });
     }
     let mut doc = document(text)?;
-    edit::push_line(&mut doc, new_line(card, qty, finish, at), comment)?;
-    finish_with(doc, check)
+    edit::push_line(&mut doc, new_line(card, qty.get(), finish, at), comment)?;
+    Ok(Added {
+        text: finish_with(doc, check)?,
+        line: c.cards.len(),
+        made: true,
+    })
+}
+
+/// `qty` fewer of `card` in `finish` at `at`, from the line [`add`] would
+/// have put them on: taking back a scan that misread. Refused when no line
+/// holds the card so any more, or holds fewer than `qty`, since which copies
+/// to take is then the user's call.
+pub fn take(
+    text: &str,
+    card: &CardRef,
+    qty: NonZeroU32,
+    finish: Finish,
+    at: Option<&str>,
+    names: &Names,
+) -> Result<String, EditError> {
+    let c = parse(text)?;
+    declared(&c, at)?;
+    let Some(i) = holding(text, &c, card, finish, at, names) else {
+        return Err(CollectionError::NoLine {
+            card: card.clone(),
+            place: at.map(str::to_string),
+        }
+        .into());
+    };
+    let have = c.cards[i].qty.get();
+    if qty.get() > have {
+        return Err(CollectionError::TooMany {
+            index: i,
+            have,
+            qty: qty.get(),
+        }
+        .into());
+    }
+    set_qty(text, i, have - qty.get())
 }
 
 /// Moves `qty` of card `index` to the place `to`, or to unsorted. All of a

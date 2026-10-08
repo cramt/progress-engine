@@ -1,6 +1,5 @@
-import { addOwned, parseCollection, setOwnedQty } from "../collection";
+import { addOwned, takeOwned } from "../collection";
 import type { Finish, NewCard } from "../deck";
-import { printingKey } from "../scryfall";
 
 /**
  * A copy a scan put in the collection: the card, by the printing the scanner
@@ -14,7 +13,7 @@ export interface ScannedCopy {
 
 /** The collection with the scanned copy in it, on a line alike if there is one. */
 export function addScanned(text: string, copy: ScannedCopy): string {
-  return addOwned(text, copy.card, copy.at, 1, copy.finish);
+  return addOwned(text, copy.card, copy.at, 1, copy.finish).text;
 }
 
 /**
@@ -23,21 +22,7 @@ export function addScanned(text: string, copy: ScannedCopy): string {
  * removed since, and which copy to take is then the user's call.
  */
 export function removeScanned(text: string, copy: ScannedCopy): string {
-  const parsed = parseCollection(text);
-  if (parsed.kind !== "collection") throw new Error(parsed.message);
-  const key = printingKey(copy.card);
-  const line = parsed.cards.find(
-    (c) =>
-      (c.at ?? null) === copy.at &&
-      c.finish === copy.finish &&
-      printingKey(c.card) === key,
-  );
-  if (!line) {
-    throw new Error(
-      "that copy is no longer where the scan put it, so it was left as it is",
-    );
-  }
-  return setOwnedQty(text, line.index, line.qty - 1);
+  return takeOwned(text, copy.card, copy.at, 1, copy.finish);
 }
 
 /**

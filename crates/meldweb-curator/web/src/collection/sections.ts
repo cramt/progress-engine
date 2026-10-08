@@ -1,6 +1,4 @@
 import type { OwnedCard, Place } from "../collection";
-import { addOwned, setOwnedQty } from "../collection";
-import { type Printings, printingKey } from "../scryfall";
 
 /** Owned cards not put in any place yet. */
 export const UNSORTED = "Unsorted";
@@ -37,33 +35,4 @@ export function sections(
   return all.filter((s) =>
     wanted || s.place === null ? s.cards.length > 0 : true,
   );
-}
-
-/** The card's name: the file's, or Scryfall's for its printing. */
-function resolvedName(card: OwnedCard, printings: Printings): string | null {
-  return card.card.kind === "name"
-    ? card.card.name
-    : (printings.get(printingKey(card.card))?.name ?? null);
-}
-
-/**
- * The collection with one more nonfoil copy of the card called `name` at
- * `at`: on a nonfoil line of it already there, whether the file names it or
- * one of its printings, or else a new line by name.
- */
-export function addOwnedByName(
-  text: string,
-  cards: readonly OwnedCard[],
-  printings: Printings,
-  name: string,
-  at: string | null,
-): string {
-  const line = cards.find(
-    (c) =>
-      (c.at ?? null) === at &&
-      c.finish === "nonfoil" &&
-      resolvedName(c, printings)?.toLowerCase() === name.toLowerCase(),
-  );
-  if (line) return setOwnedQty(text, line.index, line.qty + 1);
-  return addOwned(text, { kind: "name", name }, at);
 }

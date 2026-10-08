@@ -3,7 +3,7 @@
  * which place, parsed and edited in Rust as a deck is. Load `deck.ts` first;
  * this module shares its wasm.
  */
-import type { Finish, NewCard, ParsedCollection } from "./deck.gen";
+import type { Added, Finish, NewCard, ParsedCollection } from "./deck.gen";
 import {
   collection_add,
   collection_commit_message,
@@ -11,6 +11,7 @@ import {
   collection_move_lines,
   collection_reprint,
   collection_set_qty,
+  collection_take,
   declare_place,
   parse_collection,
   rename_place,
@@ -32,9 +33,11 @@ export function parseCollection(text: string): ParsedCollection {
  */
 
 /**
- * `qty` more of `card`: more on the line already holding it alike in that
- * place, or else a new last line. A printing may carry its `name`, written
- * beside the line as a comment.
+ * `qty` more of `card`, and the line holding them: more on the line already
+ * holding it alike in that place, or else a new last line (`made`). Which
+ * line holds a card is Rust's to say, as for a deck, with `names`
+ * (`printingNames`) naming the printings the file holds. A printing may
+ * carry its `name`, written beside a new line as a comment.
  */
 export function addOwned(
   text: string,
@@ -42,8 +45,41 @@ export function addOwned(
   at: string | null,
   qty = 1,
   finish: Finish = "nonfoil",
+  names: Readonly<Record<string, string>> = {},
+): Added {
+  return JSON.parse(
+    collection_add(
+      text,
+      JSON.stringify(card),
+      qty,
+      finish,
+      at ?? "",
+      JSON.stringify(names),
+    ),
+  ) as Added;
+}
+
+/**
+ * `qty` fewer of `card`, off the line `addOwned` would put them on: taking
+ * back a copy added by mistake. Throws when no line holds it there any more,
+ * since which copy to take is then the user's call.
+ */
+export function takeOwned(
+  text: string,
+  card: NewCard,
+  at: string | null,
+  qty = 1,
+  finish: Finish = "nonfoil",
+  names: Readonly<Record<string, string>> = {},
 ): string {
-  return collection_add(text, JSON.stringify(card), qty, finish, at ?? "");
+  return collection_take(
+    text,
+    JSON.stringify(card),
+    qty,
+    finish,
+    at ?? "",
+    JSON.stringify(names),
+  );
 }
 
 /**

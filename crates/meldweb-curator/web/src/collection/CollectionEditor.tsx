@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  addOwned,
   declarePlace,
   moveOwned,
   moveOwnedLines,
@@ -13,6 +14,7 @@ import {
   undeclarePlace,
 } from "../collection";
 import type { Finish } from "../deck";
+import { printingNames } from "../deck/archidektNames";
 import { Banners, SaveStatus, Toolbar, UndoRedo } from "../deck/Toolbar";
 import type { GitHubApi, RepoRef } from "../github/api";
 import type { DeckEntry } from "../github/decks";
@@ -41,7 +43,7 @@ import {
 } from "./prices";
 import { ReprintDialog } from "./ReprintDialog";
 import { addScanned, moveScanned, removeScanned } from "./scanned";
-import { addOwnedByName, type Section, sections, UNSORTED } from "./sections";
+import { type Section, sections, UNSORTED } from "./sections";
 import {
   type CollectionView,
   clickSort,
@@ -299,8 +301,16 @@ export function CollectionEditor({
             categories={parsed.places}
             anywhere={UNSORTED}
             onAdd={(name, at) =>
-              change((t) =>
-                addOwnedByName(t, parsed.cards, printings, name, at),
+              change(
+                (t) =>
+                  addOwned(
+                    t,
+                    { kind: "name", name },
+                    at,
+                    1,
+                    "nonfoil",
+                    printingNames(parsed.cards, printings),
+                  ).text,
               )
             }
           />

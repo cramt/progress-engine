@@ -165,7 +165,8 @@ describe("a deck from the list", () => {
           first = false;
           mock.editOnGitHub(
             COLLECTION_PATH,
-            addOwned(places, { kind: "name", name: "Sol Ring" }, "Lantern"),
+            addOwned(places, { kind: "name", name: "Sol Ring" }, "Lantern")
+              .text,
           );
         }
         return file;
@@ -193,7 +194,9 @@ describe("a deck from the list", () => {
       path: COLLECTION_PATH,
       ...loaded,
     });
-    store.edit(addOwned(places, { kind: "name", name: "Sol Ring" }, "Bulk"));
+    store.edit(
+      addOwned(places, { kind: "name", name: "Sol Ring" }, "Bulk").text,
+    );
     // The collection is left with its edit pending, as on going home.
     void leave(store);
     expect(await deleteDeck(api, repo, lantern)).toEqual({ kind: "deleted" });

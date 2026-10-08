@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { type OwnedCard, parseCollection } from "../collection";
 import { loadWasm } from "../github/testkit";
 import type { Printings } from "../scryfall";
-import { addOwnedByName, sections } from "./sections";
+import { sections } from "./sections";
 
 beforeAll(loadWasm);
 
@@ -72,31 +72,5 @@ describe("the collection's sections", () => {
       ["Bulk", ["Arcane Signet"]],
       ["Lantern", ["Rashmi and Ragavan"]],
     ]);
-  });
-});
-
-describe("adding by name", () => {
-  it("raises the line already holding the card there, printing or name", () => {
-    const { cards } = parsed();
-    const more = addOwnedByName(TEXT, cards, printings, "sol ring", "Bulk");
-    expect(more).toContain(`{ name = "Sol Ring", qty = 4, at = "Bulk" },`);
-    const again = addOwnedByName(
-      TEXT,
-      cards,
-      printings,
-      "Rashmi and Ragavan",
-      "Lantern",
-    );
-    expect(again).toContain(
-      `{ printing = "moc/94", qty = 2, at = "Lantern" },`,
-    );
-  });
-
-  it("starts a line by name anywhere else", () => {
-    const { cards } = parsed();
-    const text = addOwnedByName(TEXT, cards, printings, "Sol Ring", null);
-    const after = parseCollection(text);
-    expect(after.kind === "collection" && after.total).toBe(46);
-    expect(text).toContain(`  { name = "Sol Ring" },\n]`);
   });
 });

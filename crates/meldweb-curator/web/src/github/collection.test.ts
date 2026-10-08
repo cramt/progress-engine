@@ -22,7 +22,7 @@ describe("the collection file", () => {
       declarePlace(loaded.text, "Lantern", "decks/lantern.deck.toml"),
       { kind: "name", name: "Sol Ring" },
       "Lantern",
-    );
+    ).text;
     store.edit(text);
     await store.flush();
 

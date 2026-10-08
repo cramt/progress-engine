@@ -1,12 +1,31 @@
 //! The collection: what is owned, where each copy is, and edits that change
 //! what they say and nothing else in the file.
 
+use std::num::NonZeroU32;
+
 use chip_decklist::collection::{
-    add, commit_message_for_text, declare_place, move_cards, move_lines, remove, rename_place,
+    self, commit_message_for_text, declare_place, move_cards, move_lines, remove, rename_place,
     reprint, set_finish, set_printing, set_qty, undeclare_place, Collection, CollectionError,
 };
 use chip_decklist::deck::{CardRef, DeckError, Finish, Printing};
 use chip_decklist::edit::EditError;
+use chip_decklist::identity::Names;
+
+fn n(qty: u32) -> NonZeroU32 {
+    NonZeroU32::new(qty).unwrap()
+}
+
+/// `qty` more of `card`, no printing named but by its comment.
+fn add(
+    text: &str,
+    card: &CardRef,
+    qty: u32,
+    finish: Finish,
+    at: Option<&str>,
+    comment: Option<&str>,
+) -> Result<String, EditError> {
+    collection::add(text, card, n(qty), finish, at, comment, &Names::new()).map(|a| a.text)
+}
 
 const COLLECTION: &str = r#"# What I own.
 cards = [

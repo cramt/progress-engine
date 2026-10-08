@@ -763,8 +763,13 @@ fn place_arg(place: &str) -> Option<&str> {
     (!place.is_empty()).then_some(place)
 }
 
-/// `text` with `qty` more of `card` (JSON of [`NewCard`]) in `finish`, at the
-/// place `at` or unsorted when it is empty.
+fn qty_arg(qty: u32) -> Result<std::num::NonZeroU32, JsError> {
+    std::num::NonZeroU32::new(qty).ok_or_else(|| refused("a quantity must be at least one"))
+}
+
+/// JSON of [`Added`]: `text` with `qty` more of `card` (JSON of [`NewCard`])
+/// in `finish`, at the place `at` or unsorted when it is empty, on the line
+/// holding it there as [`deck_add`] finds one, `names` naming printings.
 #[wasm_bindgen]
 pub fn collection_add(
     text: &str,
@@ -772,15 +777,42 @@ pub fn collection_add(
     qty: u32,
     finish: &str,
     at: &str,
+    names: Option<String>,
 ) -> Result<String, JsError> {
     let (card, comment) = new_card(card)?;
     collection::add(
         text,
         &card,
-        qty,
+        qty_arg(qty)?,
         finish_arg(finish)?,
         place_arg(at),
         comment.as_deref(),
+        &read_names(names)?,
+    )
+    .map(added_wire)
+    .map_err(refused)
+}
+
+/// `text` with `qty` fewer of `card` (JSON of [`NewCard`]) in `finish` at
+/// `at`, off the line [`collection_add`] would put them on. Refused when no
+/// line holds them there any more.
+#[wasm_bindgen]
+pub fn collection_take(
+    text: &str,
+    card: &str,
+    qty: u32,
+    finish: &str,
+    at: &str,
+    names: Option<String>,
+) -> Result<String, JsError> {
+    let (card, _) = new_card(card)?;
+    collection::take(
+        text,
+        &card,
+        qty_arg(qty)?,
+        finish_arg(finish)?,
+        place_arg(at),
+        &read_names(names)?,
     )
     .map_err(refused)
 }
@@ -1178,23 +1210,38 @@ mod tests {
 
     #[test]
     fn a_collection_names_each_card_once_and_its_place_when_it_has_one() {
+        let add = |text: &str, card: &str, qty, finish, at| -> Added {
+            let json = collection_add(text, card, qty, finish, at, None).unwrap();
+            facet_json::from_str(&json).unwrap()
+        };
         let text = declare_place("", "Bulk", "").unwrap();
-        let text = collection_add(
+        let sol = add(
             &text,
             r#"{"kind":"name","name":"Sol Ring"}"#,
             2,
             "foil",
             "Bulk",
-        )
-        .unwrap();
-        let text = collection_add(
-            &text,
+        );
+        assert_eq!((sol.line, sol.made), (0, true));
+        let rashmi = add(
+            &sol.text,
             r#"{"kind":"printing","set":"MOC","num":"94","name":"Rashmi and Ragavan"}"#,
             1,
             "nonfoil",
             "",
+        );
+        assert_eq!((rashmi.line, rashmi.made), (1, true));
+        let text = rashmi.text;
+        let taken = collection_take(
+            &text,
+            r#"{"kind":"name","name":"Rashmi and Ragavan"}"#,
+            1,
+            "nonfoil",
+            "",
+            None,
         )
         .unwrap();
+        assert_eq!(taken, sol.text, "the comment names the printing");
         let json = parse_collection(&text);
         assert!(!json.contains("null"), "{json}");
         assert_eq!(
