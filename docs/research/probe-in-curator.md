@@ -115,7 +115,12 @@ Black Border).
 The collection page has its own Scan, for putting a stack of cards away one
 after another rather than one card into a deck. Press Start, and the camera is
 read continuously: a frame is scanned, and the next is taken 150 ms after that
-scan ends, so the rate is set by the engine. Each card that goes in beeps, and
+scan ends, so the rate is set by the engine. The frames are a live feed to the
+engine (`Scanner.watch`, FINDINGS §12 *A live feed*): each is pushed once, with
+the engine's tracking carried over from the frame before, and without the
+dark border a still gets, since a camera frame of a card on the table already
+shows its edge. A card the engine still tracks but did not see in the frame
+does not count as in it. Each card that goes in beeps, and
 lands in a log with a Take back, since its printing is a guess. The panel
 chooses the place the cards go to (Unsorted by default, as quick add does),
 the finish, which the engine cannot see, whether to keep the printing it
@@ -169,6 +174,23 @@ in *Accuracy* below. The same video on Fast, into Bulk, with one Space after
 the first Lotus, gave three Lotuses and a Counterspell, as `3ed/54`. Fast
 counted each card on the first frame that read it. A real camera and a phone
 remain unchecked (*Not checked*).
+
+That was each frame scanned as a still (`Scanner.scan`), which pushes it
+through the engine until a card is reported: twice at least with a card in
+view, and twelve times on an empty table. Measured again on 2026-10-08 against
+the live feed, with the same video, in the same headless Chromium, one run
+each way:
+
+| | still per frame (main) | live feed |
+|---|---|---|
+| A frame of empty table | 3.0–3.3 s | 0.12–0.25 s, median 0.15 s |
+| Card placed to card counted, Careful | 3.4–3.6 s | 0.7–1.0 s |
+| Counted | Black Lotus, Black Lotus, Counterspell | the same |
+
+Boot was ~24 s on this machine both ways, against 3.5 s on 09-30. That is the
+machine and not the change: the engine boots the same way on either path. The empty frame
+matters as much as the card frame: a card put down while an empty frame is
+being scanned waited for that frame to finish before it could be read.
 
 ## Joining a scan to the deck
 

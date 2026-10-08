@@ -7,10 +7,10 @@ import { ModelPicker, useModel } from "../probe/ModelPicker";
 import { printingsById } from "../probe/printings";
 import {
   type Boot,
-  type Found,
   frameOf,
-  scan,
+  type Seen,
   useScanner,
+  watch,
 } from "../probe/scanner";
 import { createTracker, type Speed, TRACKING } from "../probe/tracker";
 import type { Currency } from "../scryfall";
@@ -140,7 +140,7 @@ export function LiveScan({
      * Logs and beeps for a card the tracker took as soon as it is taken, then
      * puts it into the collection once its printing is known.
      */
-    const take = async (found: Found) => {
+    const take = async (found: Seen) => {
       const s = settings.current;
       if (s.sound && s.audio) beep(s.audio);
       const name = found.card.name;
@@ -181,6 +181,9 @@ export function LiveScan({
     };
 
     void (async () => {
+      // A new feed each time scanning starts, so a card the engine tracked
+      // before a pause is not carried into it.
+      let first = true;
       while (!stopped) {
         const v = video.current;
         if (document.hidden || !v?.videoWidth) {
@@ -188,9 +191,14 @@ export function LiveScan({
           continue;
         }
         const t0 = performance.now();
-        let found: Found[];
+        let found: Seen[];
         try {
-          found = await scan(scanner, frameOf(v, v.videoWidth, v.videoHeight));
+          found = await watch(
+            scanner,
+            frameOf(v, v.videoWidth, v.videoHeight, false),
+            first,
+          );
+          first = false;
         } catch (e) {
           if (stopped) return;
           setRefusal(`The scanner failed on a frame: ${message(e)}`);

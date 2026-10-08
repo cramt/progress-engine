@@ -89,6 +89,16 @@ extern "C" {
         settle_timeout_ms: f64,
     ) -> Result<Promise, JsValue>;
 
+    #[wasm_bindgen(method, catch)]
+    fn watch(
+        this: &Probe,
+        rgba: Uint8Array,
+        width: u32,
+        height: u32,
+        first: bool,
+        settle_timeout_ms: f64,
+    ) -> Result<Promise, JsValue>;
+
     #[wasm_bindgen(method)]
     fn close(this: &Probe);
 }
@@ -311,6 +321,24 @@ impl Engine {
             SETTLE_TIMEOUT_MS,
         );
         self.call_json("recognize", call).await
+    }
+
+    /// One frame of a live camera feed: what the engine reports for it, with
+    /// its tracking carried over from the frame before. [`Engine::recognize`]
+    /// pushes one still until it settles, so its tracker sees the same image
+    /// several times over; here it sees each frame once, as in Delver's own
+    /// app. `first` starts a new feed, forgetting every track.
+    pub async fn watch(&mut self, image: &Image<'_>, first: bool) -> Result<Vec<Detection>> {
+        self.alive()?;
+        image.check()?;
+        let call = self.probe.watch(
+            Uint8Array::from(image.data),
+            image.width,
+            image.height,
+            first,
+            SETTLE_TIMEOUT_MS,
+        );
+        self.call_json("watch", call).await
     }
 
     /// Find the card quad without identifying it - the crop detector.
