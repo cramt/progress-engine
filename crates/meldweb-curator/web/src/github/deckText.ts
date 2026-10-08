@@ -3,7 +3,6 @@
  * replace.
  */
 import {
-  commitMessage,
   declareCategory,
   type Imported,
   importArchidekt,
@@ -20,8 +19,6 @@ export type { Imported };
 
 export interface DeckText {
   parseDeck(text: string): Parsed;
-  /** The deterministic changelog subject and body for one save (#124). */
-  commitMessage(before: string, after: string, path: string): string;
   /** The text of an empty deck with `name` and `format` set. */
   newDeck(name: string, format: string): string;
   /** The text with `name` set, and `format` when given. */
@@ -48,7 +45,6 @@ export interface DeckText {
 
 export const deckText: DeckText = {
   parseDeck,
-  commitMessage,
   newDeck,
   setDeckMeta,
   setVariantOf,

@@ -261,6 +261,34 @@ describe("a new deck", () => {
     expect(mock.commits()).toHaveLength(0);
   });
 
+  it("refuses a slug taken while it was being made, leaving that deck be", async () => {
+    const { api, mock, repo } = mockConnection({ files: seedDecks() });
+    const path = "decks/burn.deck.toml";
+    const theirs = deckText.newDeck("Burn", "modern");
+    let checked = false;
+    const racing = {
+      ...api,
+      getFile: async (...args: Parameters<typeof api.getFile>) => {
+        const file = await api.getFile(...args);
+        if (args[1] === path && !checked) {
+          checked = true;
+          mock.editOnGitHub(path, theirs);
+        }
+        return file;
+      },
+    };
+    const made = await createDeck(
+      racing,
+      repo,
+      "Burn",
+      { kind: "empty", format: "legacy" },
+      fakeDeck(),
+    );
+    expect(made).toMatchObject({ kind: "refused" });
+    expect(mock.file(path)?.text).toBe(theirs);
+    expect(mock.commits().filter((c) => !c.outOfBand)).toEqual([]);
+  });
+
   it("refuses a name with nothing to slug", async () => {
     const { api, repo } = mockConnection();
     const made = await createDeck(

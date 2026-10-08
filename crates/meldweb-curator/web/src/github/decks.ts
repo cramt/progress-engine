@@ -127,8 +127,7 @@ export async function createDeck(
   repo: RepoRef,
   name: string,
   source: NewDeckSource,
-  deck: ImportText &
-    Pick<DeckText, "newDeck" | "commitMessage" | "setVariantOf">,
+  deck: ImportText & Pick<DeckText, "newDeck" | "setVariantOf">,
   lookups: Lookups = scryfallLookups,
 ): Promise<CreatedDeck> {
   const slug = slugify(name);
@@ -163,17 +162,12 @@ export async function createDeck(
     ({ text, unreadable } = made);
   }
 
-  try {
-    const { sha } = await api.putFile(repo, path, {
-      text,
-      message: deck.commitMessage("", text, path),
-      sha: null,
-    });
-    return { kind: "created", path, sha, text, unreadable };
-  } catch (e) {
-    if (e instanceof ConflictError) return taken();
-    throw e;
-  }
+  // A deck made at the same path meanwhile is left as it is.
+  const made = await commitEdit(api, repo, path, (t) =>
+    t === null ? text : null,
+  );
+  if (made.kind === "unchanged") return taken();
+  return { kind: "created", path, sha: made.sha, text, unreadable };
 }
 
 type ImportText = Pick<
