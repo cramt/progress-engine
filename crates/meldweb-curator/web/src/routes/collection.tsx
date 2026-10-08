@@ -6,7 +6,6 @@ import { COLLECTION_PATH, loadCollection } from "../github/collection";
 import { connect } from "../github/connect";
 import { listDecks } from "../github/decks";
 import { deckText } from "../github/deckText";
-import { settled } from "../github/repoFile";
 import { openSession } from "../github/session";
 import { loadSettingsFile } from "../github/settings";
 import { SessionGate } from "../home/SessionGate";
@@ -17,8 +16,6 @@ export const Route = createFileRoute("/collection")({
   loader: async () => {
     const session = await openSession();
     if (session.kind !== "open") return { kind: "session" as const, session };
-    // Leaving the collection just now may still be saving; read after it lands.
-    await settled(COLLECTION_PATH);
     const { api } = await connect();
     const [file, decks, settings] = await Promise.all([
       loadCollection(api, session.repo),

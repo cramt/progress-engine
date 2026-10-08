@@ -7,6 +7,7 @@
 import { collectionCommitMessage } from "../collection";
 import { commitMessage } from "../deck";
 import { settingsCommitMessage } from "../settings/rules";
+import type { FileAt, GitHubApi, RepoRef } from "./api";
 import { COLLECTION_PATH } from "./collection";
 import { SETTINGS_PATH } from "./settings";
 
@@ -48,4 +49,18 @@ export function track<T>(path: string, work: Promise<T>): Promise<T> {
 /** Resolves once every write to `path` asked for so far has finished. */
 export function settled(path: string): Promise<void> {
   return writing.get(path) ?? Promise.resolve();
+}
+
+/**
+ * The file as GitHub has it once every write to it so far has landed, so an
+ * editor opened right after leaving one starts from the new sha. Null when
+ * the repo has no such file.
+ */
+export async function openFile(
+  api: GitHubApi,
+  repo: RepoRef,
+  path: string,
+): Promise<FileAt | null> {
+  await settled(path);
+  return api.getFile(repo, path);
 }

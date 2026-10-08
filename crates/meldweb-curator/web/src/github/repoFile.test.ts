@@ -1,11 +1,14 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { newDeck, setDeckMeta } from "../deck";
 import { COLLECTION_PATH } from "./collection";
-import { commitMessageFor } from "./repoFile";
+import { commitMessageFor, openFile } from "./repoFile";
+import { createSaveStore } from "./save";
 import { SETTINGS_PATH } from "./settings";
-import { loadWasm } from "./testkit";
+import { loadWasm, mockConnection, seedDecks } from "./testkit";
 
 beforeAll(loadWasm);
+
+const LANTERN = "decks/lantern.deck.toml";
 
 describe("a commit message", () => {
   it("is the diff of the file kind the path is", () => {
@@ -38,5 +41,27 @@ describe("a commit message", () => {
       "VERSION is not a file Curator edits",
     );
     expect(() => commitMessageFor("decks/notes.md", "", "x")).toThrow();
+  });
+});
+
+describe("opening a file", () => {
+  it("reads it only once the save in flight to it has landed", async () => {
+    const { api, repo, mock } = mockConnection({ files: seedDecks() });
+    const loaded = mock.file(LANTERN);
+    if (!loaded) throw new Error("seeded");
+    const store = createSaveStore({ api, repo, path: LANTERN, ...loaded });
+    const renamed = setDeckMeta(loaded.text, "Lantern Control");
+    store.edit(renamed);
+    const saving = store.flush();
+    const opened = await openFile(api, repo, LANTERN);
+    await saving;
+    store.dispose();
+    expect(opened).toEqual(mock.file(LANTERN));
+    expect(opened?.text).toBe(renamed);
+  });
+
+  it("is null for a file the repo does not have", async () => {
+    const { api, repo } = mockConnection({ files: seedDecks() });
+    expect(await openFile(api, repo, SETTINGS_PATH)).toBeNull();
   });
 });

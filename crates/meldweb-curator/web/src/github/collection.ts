@@ -4,6 +4,7 @@
  * save creates it.
  */
 import type { GitHubApi, RepoRef } from "./api";
+import { openFile } from "./repoFile";
 
 export const COLLECTION_PATH = "collection.toml";
 
@@ -12,6 +13,6 @@ export async function loadCollection(
   api: GitHubApi,
   repo: RepoRef,
 ): Promise<{ text: string; sha: string | null }> {
-  const file = await api.getFile(repo, COLLECTION_PATH);
+  const file = await openFile(api, repo, COLLECTION_PATH);
   return file ? { text: file.text, sha: file.sha } : { text: "", sha: null };
 }

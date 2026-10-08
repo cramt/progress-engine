@@ -4,7 +4,7 @@ import { parseDeck } from "../deck";
 import { DeckEditor } from "../deck/DeckEditor";
 import { parseSearch, searchFor, viewingOf } from "../deck/versions";
 import { connect } from "../github/connect";
-import { settled } from "../github/repoFile";
+import { openFile } from "../github/repoFile";
 import { openSession } from "../github/session";
 import { loadSettingsFile } from "../github/settings";
 import { SessionGate } from "../home/SessionGate";
@@ -20,11 +20,10 @@ export const Route = createFileRoute("/deck/$")({
     const session = await openSession();
     if (session.kind !== "open")
       return { kind: "session" as const, session, path };
-    // Leaving this deck just now may still be saving; read after it lands.
-    await settled(path);
     const { api } = await connect();
     const [file, settings] = await Promise.all([
-      api.getFile(session.repo, path),
+      // Leaving this deck just now may still be saving; read after it lands.
+      openFile(api, session.repo, path),
       loadSettingsFile(api, session.repo),
     ]);
     if (!file) return { kind: "missing" as const, path };
