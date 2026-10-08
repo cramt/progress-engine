@@ -131,4 +131,38 @@ describe("scryfallFetch", () => {
       BACKOFF_MS,
     );
   });
+
+  it("takes a fetch that failed outright as a 429 without CORS, and tries once more after the pause", async () => {
+    vi.useFakeTimers();
+    const gate = new RateGate(100);
+    const started: number[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        started.push(Date.now());
+        if (started.length === 1) throw new TypeError("Failed to fetch");
+        return new Response("{}", { status: 200 });
+      }),
+    );
+    const answer = scryfallFetch(gate, "https://x/");
+    await vi.runAllTimersAsync();
+    expect((await answer).status).toBe(200);
+    expect((started[1] ?? 0) - (started[0] ?? 0)).toBeGreaterThanOrEqual(
+      BACKOFF_MS,
+    );
+  });
+
+  it("does not try again a fetch its caller aborted", async () => {
+    const calls = vi.fn(async () => {
+      throw new DOMException("aborted", "AbortError");
+    });
+    vi.stubGlobal("fetch", calls);
+    const abort = new AbortController();
+    const answer = scryfallFetch(new RateGate(100), "https://x/", {
+      signal: abort.signal,
+    });
+    abort.abort();
+    await expect(answer).rejects.toThrow();
+    expect(calls.mock.calls.length).toBeLessThanOrEqual(1);
+  });
 });

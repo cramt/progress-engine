@@ -7,7 +7,10 @@
  */
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { QueryClient } from "@tanstack/react-query";
-import { persistQueryClient } from "@tanstack/react-query-persist-client";
+import {
+  persistQueryClientRestore,
+  persistQueryClientSave,
+} from "@tanstack/react-query-persist-client";
 
 const DAY_MS = 86_400_000;
 export const CACHE_MS = 90 * DAY_MS;
@@ -100,24 +103,44 @@ function idbStorage() {
   };
 }
 
+/** How long the cache waits, once it has changed, before writing itself out. */
+export const SAVE_MS = 1000;
+
 /**
  * Restores the last session's answers and keeps saving new ones. The page
  * calls it once at start; where there is no IndexedDB (tests, a locked-down
  * browser) the cache simply lasts as long as the tab.
+ *
+ * TanStack's own `persistQueryClient` dehydrates the whole cache on every
+ * change and throttles only the write, so caching the thousands of printings
+ * an import looks up dehydrated an ever larger cache once per card: minutes,
+ * growing with every import. Here a change only schedules a save, and the
+ * cache is dehydrated once per `SAVE_MS` however much changed.
  */
-export function persistScryfallCache(): Promise<void> {
-  if (typeof indexedDB === "undefined") return Promise.resolve();
-  const [, restored] = persistQueryClient({
+export async function persistScryfallCache(): Promise<void> {
+  if (typeof indexedDB === "undefined") return;
+  const options = {
     queryClient: scryfallClient,
     persister: createAsyncStoragePersister({
       storage: idbStorage(),
       key: "scryfall",
+      // The save below is already one per SAVE_MS.
+      throttleTime: 0,
     }),
     maxAge: CACHE_MS,
     // Bump when a cached shape changes, so old answers are dropped rather
     // than read as the new shape.
     buster: "3",
-  });
+  };
   // A cache that cannot be read is an empty cache, not a page that fails.
-  return restored.catch(() => undefined);
+  await persistQueryClientRestore(options).catch(() => undefined);
+  let scheduled = false;
+  scryfallClient.getQueryCache().subscribe(() => {
+    if (scheduled) return;
+    scheduled = true;
+    setTimeout(() => {
+      scheduled = false;
+      void persistQueryClientSave(options).catch(() => undefined);
+    }, SAVE_MS);
+  });
 }

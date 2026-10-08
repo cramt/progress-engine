@@ -83,6 +83,13 @@ export const API = "https://api.scryfall.com";
 /**
  * `fetch`, started when `gate` allows. A 429 closes the gate for thirty
  * seconds and throws, since "it is not acceptable to ignore HTTP 429".
+ *
+ * A 429 can also arrive as no response at all: Scryfall sends it without
+ * CORS headers, so the browser reports only that the fetch failed. That is
+ * taken as a 429 too, closing the gate, and the request is made once more
+ * after it, since an import of thousands of printings sends enough requests
+ * that one landing too close to the last is a matter of time, and losing the
+ * other batches to it would lose the import.
  */
 export async function scryfallFetch(
   gate: RateGate,
@@ -90,7 +97,15 @@ export async function scryfallFetch(
   init: RequestInit = {},
 ): Promise<Response> {
   await gate.wait(init.signal ?? undefined);
-  const response = await fetch(url, init);
+  let response: Response;
+  try {
+    response = await fetch(url, init);
+  } catch (e) {
+    if (init.signal?.aborted) throw e;
+    gate.pause(BACKOFF_MS);
+    await gate.wait(init.signal ?? undefined);
+    response = await fetch(url, init);
+  }
   if (response.status === 429) {
     gate.pause(BACKOFF_MS);
     throw new Error("Scryfall asked us to slow down; trying again in 30 s");

@@ -41,11 +41,20 @@ export function worth(
 
 export const CURRENCIES: readonly Currency[] = ["eur", "usd"];
 
+// A formatter is slow to make and every price row asks for one, so each
+// currency's is made once.
+const formats = new Map<Currency, Intl.NumberFormat>();
+
 export function formatPrice(amount: number, currency: Currency): string {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: currency.toUpperCase(),
-  }).format(amount);
+  let format = formats.get(currency);
+  if (!format) {
+    format = new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: currency.toUpperCase(),
+    });
+    formats.set(currency, format);
+  }
+  return format.format(amount);
 }
 
 const KEY = "meldweb.currency";
