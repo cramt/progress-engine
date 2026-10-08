@@ -1046,6 +1046,14 @@ pub fn pin_printing(
     preference::pin(settings.as_deref(), pin).map_err(refused)
 }
 
+/// JSON of the [`Pin`] of the card called `name` in `settings`, matched
+/// whole or by its front face, or nothing when it has none.
+#[wasm_bindgen]
+pub fn pinned_printing(settings: Option<String>, name: &str) -> Option<String> {
+    preference::pinned(settings.as_deref(), name)
+        .map(|pin| facet_json::to_string(&pin).expect("Pin serialises"))
+}
+
 /// `settings` without a printing of its own for the card called `name`.
 #[wasm_bindgen]
 pub fn unpin_printing(settings: Option<String>, name: &str) -> Result<String, JsError> {

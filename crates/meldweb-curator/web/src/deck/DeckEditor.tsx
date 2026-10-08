@@ -2,7 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { withBoard } from "../card/apply";
 import { bestPrinting } from "../card/bestPrinting";
-import { usePins, useSettings } from "../card/preference";
+import { useSettings } from "../card/preference";
 import { renderCardResult } from "../card/searchResult";
 import { useCardEditor } from "../card/useCardEditor";
 import {
@@ -85,7 +85,6 @@ export function DeckEditor({
   const present = useRef(history.present);
   present.current = history.present;
   const settings = useSettings();
-  const pins = usePins()?.pins ?? [];
   const [refusal, setRefusal] = useState<string | null>(null);
   const parsed = useMemo(() => parseDeck(history.present), [history.present]);
   const { undo, redo } = history;
@@ -314,7 +313,7 @@ export function DeckEditor({
       history.edit(after);
       setRefusal(null);
       if (!made) return;
-      bestPrinting(name, settings, pins)
+      bestPrinting(name, settings)
         .then((p) => {
           if (!p) return;
           const now = present.current;

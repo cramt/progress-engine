@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadDeckSync } from "../deck";
+import { pin_printing } from "../wasm/pkg/meldweb_wasm.js";
 import { bestPrinting } from "./bestPrinting";
 import { parsePrintsPage } from "./prints";
 
@@ -45,9 +46,9 @@ const solRings = () =>
 
 describe("the printing an added card gets", () => {
   it("is its pin, without asking Scryfall", async () => {
-    const pins = [{ name: "Sol Ring", set: "2xm", num: "270" }];
+    const settings = pin_printing(undefined, "Sol Ring", "2xm", "270");
     const never = () => Promise.reject(new Error("asked"));
-    expect(await bestPrinting("sol ring", null, pins, never)).toEqual({
+    expect(await bestPrinting("sol ring", settings, never)).toEqual({
       set: "2xm",
       num: "270",
     });
@@ -55,7 +56,7 @@ describe("the printing an added card gets", () => {
 
   it("is the first the rules rank, when it has no pin", async () => {
     // The default rules sink Universes Beyond and digital printings.
-    expect(await bestPrinting("Sol Ring", null, [], solRings)).toEqual({
+    expect(await bestPrinting("Sol Ring", null, solRings)).toEqual({
       set: "c21",
       num: "263",
     });

@@ -19,6 +19,7 @@
 
 use std::cmp::Ordering;
 
+use chip_decklist::identity::same_name;
 use chip_scryfall::bulk::BulkCard;
 use chip_scryfall::printing::Printing;
 use chip_scryfall::Query;
@@ -247,6 +248,18 @@ pub fn pin(text: Option<&str>, pin: Pin) -> Result<String, String> {
         .retain(|p| !p.name.eq_ignore_ascii_case(&pin.name));
     settings.pins.insert(0, pin);
     write(&settings)
+}
+
+/// The pin of the card called `name`, whole or by its front face as
+/// [`same_name`] reads names: the printing a card added by name gets without
+/// asking Scryfall. A file that does not read pins nothing; the settings page
+/// is where it says why.
+pub fn pinned(text: Option<&str>, name: &str) -> Option<Pin> {
+    read(text)
+        .ok()?
+        .pins
+        .into_iter()
+        .find(|p| same_name(&p.name, name))
 }
 
 /// `text` without a pin for the card called `name`.
@@ -890,6 +903,22 @@ rank = [{ avoid = "lang:jp" }]
         assert!(commit_message(&after, &gone).starts_with("meldweb.toml: unpin Sol Ring\n"));
         assert!(commit_message("", &before)
             .starts_with("meldweb.toml: rank printings by 10 rules, pin Sol Ring c21/263\n"));
+    }
+
+    #[test]
+    fn a_pin_is_found_by_its_card_s_name_whole_or_by_front_face() {
+        let sol = pin(None, sol_ring("c21", "263")).unwrap();
+        assert_eq!(pinned(Some(&sol), "sol ring"), Some(sol_ring("c21", "263")));
+        let delver = Pin {
+            name: "Delver of Secrets // Insectile Aberration".into(),
+            set: "isd".into(),
+            num: "51".into(),
+        };
+        let text = pin(Some(&sol), delver.clone()).unwrap();
+        assert_eq!(pinned(Some(&text), "Delver of Secrets"), Some(delver));
+        assert_eq!(pinned(Some(&text), "Insectile Aberration"), None);
+        assert_eq!(pinned(None, "Sol Ring"), None);
+        assert_eq!(pinned(Some("[printings]\nrank = 3\n"), "Sol Ring"), None);
     }
 
     #[test]
