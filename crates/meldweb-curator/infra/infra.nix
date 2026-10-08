@@ -53,4 +53,27 @@ in {
     service = workerName;
     depends_on = ["terraform_data.worker"];
   };
+
+  # The worker builds redirect_uri from the request's origin, so a page opened
+  # over http sends GitHub a callback it doesn't know. Scoped to this host
+  # rather than the zone's Always Use HTTPS, which would reach every cramt.dk
+  # subdomain. 308 so a POST stays a POST
+  resource.cloudflare_ruleset.curator_https = {
+    zone_id = "\${data.cloudflare_zone.curator.zone_id}";
+    name = "meldweb-curator https";
+    kind = "zone";
+    phase = "http_request_dynamic_redirect";
+    rules = [
+      {
+        description = "http://${hostname} to https";
+        expression = ''(http.host eq "${hostname}" and not ssl)'';
+        action = "redirect";
+        action_parameters.from_value = {
+          status_code = 308;
+          target_url.expression = ''concat("https://", http.host, http.request.uri)'';
+          preserve_query_string = false;
+        };
+      }
+    ];
+  };
 }
