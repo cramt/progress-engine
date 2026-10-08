@@ -135,6 +135,23 @@ export interface Unreadable {
 }
 
 /**
+ * What an add did: the next text, the line holding the card now, and
+ * whether that line is new.
+ */
+export interface Added {
+  text: string;
+  line: number;
+  made: boolean;
+}
+
+/**
+ * Where a card added to a deck goes.
+ */
+export type AddTo =
+  | { kind: "automatic" }
+  | { kind: "categories"; categories: string[] };
+
+/**
  * A card to add: a [`CardRef`], and for a printing optionally the card's
  * name, written beside the new line as its comment the way an import does.
  */

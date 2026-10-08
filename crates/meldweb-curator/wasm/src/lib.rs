@@ -397,15 +397,59 @@ pub fn set_card_finish(text: &str, index: usize, finish: &str) -> Result<String,
     edit::set_card_finish(text, index, finish).map_err(refused)
 }
 
-/// `text` with one more `card` (JSON of [`NewCard`]) in `categories` (JSON
-/// of `string[]`): a new last line, or one more of a card already in exactly
-/// those categories.
+/// Where a card added to a deck goes.
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum AddTo {
+    /// Archidekt's *Automatic*: the line holding the card, in the deck first,
+    /// else a new line in no category.
+    Automatic,
+    /// The line holding the card in exactly these categories, else a new one.
+    Categories { categories: Vec<String> },
+}
+
+/// What an add did: the next text, the line holding the card now, and
+/// whether that line is new.
+#[derive(Debug, Facet)]
+pub struct Added {
+    pub text: String,
+    pub line: u32,
+    pub made: bool,
+}
+
+fn added_wire(a: edit::Added) -> String {
+    facet_json::to_string(&Added {
+        text: a.text,
+        line: index(a.line),
+        made: a.made,
+    })
+    .expect("Added serialises")
+}
+
+/// JSON of [`Added`]: `text` with one more nonfoil `card` (JSON of
+/// [`NewCard`]) where `to` (JSON of [`AddTo`]) says, on the line already
+/// holding it or a new last line. Which line holds a card is decided here:
+/// `names`, `{ "set/num": name }` as [`export_archidekt`] takes, names the
+/// printings the file holds, so a name finds the line of its printing and a
+/// double-faced card is found by its front face.
 #[wasm_bindgen]
-pub fn add_card(text: &str, card: &str, categories: &str) -> Result<String, JsError> {
+pub fn deck_add(
+    text: &str,
+    card: &str,
+    to: &str,
+    names: Option<String>,
+) -> Result<String, JsError> {
     let (card, comment) = new_card(card)?;
-    let categories: Vec<String> = facet_json::from_str(categories)
-        .map_err(|e| refused(format!("categories are not string[]: {e}")))?;
-    edit::add_card(text, &card, &categories, comment.as_deref()).map_err(refused)
+    let to: AddTo =
+        facet_json::from_str(to).map_err(|e| refused(format!("to is not an AddTo: {e}")))?;
+    let to = match &to {
+        AddTo::Automatic => edit::AddTo::Automatic,
+        AddTo::Categories { categories } => edit::AddTo::Categories(categories),
+    };
+    edit::add_card(text, &card, to, comment.as_deref(), &read_names(names)?)
+        .map(added_wire)
+        .map_err(refused)
 }
 
 /// A card to add, from JSON of [`NewCard`], and the name to comment it with.
@@ -992,6 +1036,8 @@ mod tests {
         let mut g = facet_typescript::TypeScriptGenerator::new();
         g.add_type::<Parsed>();
         g.add_type::<NewCard>();
+        g.add_type::<AddTo>();
+        g.add_type::<Added>();
         g.add_type::<Imported>();
         g.add_type::<ParsedCollection>();
         g.add_type::<Compared>();
@@ -1103,15 +1149,23 @@ mod tests {
 
     #[test]
     fn a_card_to_add_is_a_card_ref_with_an_optional_name() {
-        let text = "cards = [\n]\n";
-        let text = add_card(text, r#"{"kind":"name","name":"Sol Ring"}"#, "[]").unwrap();
-        let text = add_card(
-            &text,
+        let add = |text: &str, card: &str| -> Added {
+            let json = deck_add(text, card, r#"{"kind":"automatic"}"#, None).unwrap();
+            facet_json::from_str(&json).unwrap()
+        };
+        let sol = add("cards = [\n]\n", r#"{"kind":"name","name":"Sol Ring"}"#);
+        assert_eq!((sol.line, sol.made), (0, true));
+        let rashmi = add(
+            &sol.text,
             r#"{"kind":"printing","set":"MOC","num":"94","name":"Rashmi and Ragavan"}"#,
-            "[]",
-        )
-        .unwrap();
-        let text = add_card(&text, r#"{"kind":"printing","set":"moc","num":"94"}"#, "[]").unwrap();
+        );
+        assert_eq!((rashmi.line, rashmi.made), (1, true));
+        let again = add(
+            &rashmi.text,
+            r#"{"kind":"printing","set":"moc","num":"94"}"#,
+        );
+        assert_eq!((again.line, again.made), (1, false));
+        let text = again.text;
         assert_eq!(
             text,
             "cards = [\n  { name = \"Sol Ring\" },\n  { printing = \"moc/94\", qty = 2 },  # Rashmi and Ragavan\n]\n"

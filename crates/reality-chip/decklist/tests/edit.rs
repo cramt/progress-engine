@@ -2,10 +2,28 @@
 
 use chip_decklist::deck::{CardRef, CategoryType, Deck, DeckError, Finish, Printing};
 use chip_decklist::edit::{
-    add_card, card_comments, declare_category, new_deck, remove_card, set_card_finish,
-    set_card_printing, set_card_qty, set_categories, set_commander, set_deck_cover,
-    set_deck_description, set_deck_meta, EditError,
+    card_comments, declare_category, new_deck, remove_card, set_card_finish, set_card_printing,
+    set_card_qty, set_categories, set_commander, set_deck_cover, set_deck_description,
+    set_deck_meta, AddTo, EditError,
 };
+use chip_decklist::identity::Names;
+
+/// One more of `card` in exactly `categories`.
+fn add_card(
+    text: &str,
+    card: &CardRef,
+    categories: &[String],
+    comment: Option<&str>,
+) -> Result<String, EditError> {
+    chip_decklist::edit::add_card(
+        text,
+        card,
+        AddTo::Categories(categories),
+        comment,
+        &Names::new(),
+    )
+    .map(|added| added.text)
+}
 
 const DECK: &str = r#"name = "Izzet Lessons"
 

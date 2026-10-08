@@ -4,9 +4,28 @@
 use chip_decklist::deck::{CardRef, CategoryType, Deck, Finish};
 use chip_decklist::diff::{apply, parse_pair, Diff};
 use chip_decklist::edit::{
-    add_card, declare_category, remove_card, set_card_finish, set_card_printing, set_card_qty,
-    set_categories, set_deck_cover, set_deck_description, set_deck_meta, set_variant_of, EditError,
+    declare_category, remove_card, set_card_finish, set_card_printing, set_card_qty,
+    set_categories, set_deck_cover, set_deck_description, set_deck_meta, set_variant_of, AddTo,
+    EditError,
 };
+use chip_decklist::identity::Names;
+
+/// One more of `card` in exactly `categories`.
+fn add_card(
+    text: &str,
+    card: &CardRef,
+    categories: &[String],
+    comment: Option<&str>,
+) -> Result<String, EditError> {
+    chip_decklist::edit::add_card(
+        text,
+        card,
+        AddTo::Categories(categories),
+        comment,
+        &Names::new(),
+    )
+    .map(|added| added.text)
+}
 
 const DECK: &str = r#"name = "Lantern"
 format = "commander"

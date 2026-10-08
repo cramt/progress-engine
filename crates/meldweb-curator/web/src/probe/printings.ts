@@ -1,5 +1,4 @@
-import { addCard, type Card, setCardQty } from "../deck";
-import { imageUris, printingId } from "../scryfall";
+import { imageUris } from "../scryfall";
 import { cachedMany } from "../scryfallCache";
 import { API, SEARCH_GATE, scryfallFetch } from "../scryfallQueue";
 
@@ -62,28 +61,4 @@ async function lookUp(
     }
   }
   return found;
-}
-
-/**
- * The deck text with one more copy of this printing: a copy more on the line
- * that already names it, in the deck rather than a side category if there is
- * one, else a new line with no category - Archidekt's *Automatic*.
- */
-export function addPrinting(
-  text: string,
-  cards: readonly Card[],
-  printing: { set: string; num: string; name: string },
-): string {
-  const id = printingId(printing);
-  const held = cards.filter(
-    (c) => c.card.kind === "printing" && printingId(c.card) === id,
-  );
-  const line = held.find((c) => c.inDeck) ?? held[0];
-  if (line) return setCardQty(text, line.index, line.qty + 1);
-  return addCard(text, {
-    kind: "printing",
-    set: printing.set,
-    num: printing.num,
-    name: printing.name,
-  });
 }

@@ -16,6 +16,7 @@ use toml_edit::{Array, DocumentMut, InlineTable, Item, Key, Table, Value};
 
 use crate::collection::CollectionError;
 use crate::deck::{quote_multiline, CardRef, CategoryType, Deck, DeckError, Finish};
+use crate::identity::{holds, Names};
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum EditError {
@@ -533,22 +534,74 @@ fn same_categories(a: &[String], b: &[String]) -> bool {
     a.len() == b.len() && a.iter().all(|x| b.contains(x))
 }
 
-/// Adds one of `card` in `categories`, as a new line at the end of `cards`
-/// in the file's style, with `comment` beside it (the card's name, for a
-/// printing). The card is nonfoil, so when the deck already has it nonfoil in
-/// those categories its quantity goes up by one instead; a foil one of it is
-/// another card.
+/// Where a card added to a deck goes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AddTo<'a> {
+    /// Archidekt's *Automatic*: a copy more on a line already holding the
+    /// card, one in the deck before one outside it, else a new line in no
+    /// category.
+    Automatic,
+    /// A copy more on the line holding the card in exactly these categories,
+    /// else a new line in them.
+    Categories(&'a [String]),
+}
+
+/// What an add did: the next text, the line holding the card now, and
+/// whether that line is new rather than one the file had.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Added {
+    pub text: String,
+    pub line: usize,
+    pub made: bool,
+}
+
+/// Every printing's name: `names` first, and for a printing they leave out,
+/// the comment the file writes beside its line.
+pub(crate) fn names_with_comments<'a>(
+    text: &str,
+    cards: impl Iterator<Item = &'a CardRef>,
+    names: &Names,
+) -> Names {
+    let mut all = names.clone();
+    for (card, comment) in cards.zip(card_comments(text)) {
+        if let (CardRef::Printing(p), Some(comment)) = (card, comment) {
+            all.entry(p.to_string()).or_insert(comment);
+        }
+    }
+    all
+}
+
+/// Adds one nonfoil `card` where `to` says: a copy more on a line already
+/// holding it, by [`holds`] with `names` naming the file's printings, or else
+/// a new last line in the file's style with `comment` beside it (the card's
+/// name, for a printing). A foil or etched line of the card is another card.
 pub fn add_card(
     text: &str,
     card: &CardRef,
-    categories: &[String],
+    to: AddTo<'_>,
     comment: Option<&str>,
-) -> Result<String, EditError> {
+    names: &Names,
+) -> Result<Added, EditError> {
     let deck = Deck::parse(text)?;
-    if let Some((i, c)) = deck.cards.iter().enumerate().find(|(_, c)| {
-        &c.card == card && c.finish == Finish::Nonfoil && same_categories(&c.categories, categories)
-    }) {
-        return set_card_qty(text, i, c.qty.get() + 1);
+    let names = names_with_comments(text, deck.cards.iter().map(|c| &c.card), names);
+    let held = || {
+        deck.cards
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.finish == Finish::Nonfoil && holds(&c.card, card, &names))
+    };
+    let line = match to {
+        AddTo::Automatic => held().find(|(_, c)| c.in_deck()).or_else(|| held().next()),
+        AddTo::Categories(categories) => {
+            held().find(|(_, c)| same_categories(&c.categories, categories))
+        }
+    };
+    if let Some((i, c)) = line {
+        return Ok(Added {
+            text: set_card_qty(text, i, c.qty.get() + 1)?,
+            line: i,
+            made: false,
+        });
     }
 
     let mut line = InlineTable::new();
@@ -556,15 +609,21 @@ pub fn add_card(
         CardRef::Name(name) => line.insert("name", name.as_str().into()),
         CardRef::Printing(p) => line.insert("printing", p.to_string().into()),
     };
-    if !categories.is_empty() {
-        let list: Array = categories.iter().map(String::as_str).collect();
-        line.insert("in", Value::Array(list));
+    if let AddTo::Categories(categories) = to {
+        if !categories.is_empty() {
+            let list: Array = categories.iter().map(String::as_str).collect();
+            line.insert("in", Value::Array(list));
+        }
     }
     line.fmt();
 
     let mut doc = document(text)?;
     push_line(&mut doc, line, comment)?;
-    finish(doc)
+    Ok(Added {
+        text: finish(doc)?,
+        line: deck.cards.len(),
+        made: true,
+    })
 }
 
 /// Appends `line` as the last of `cards`, in the file's style, with `comment`

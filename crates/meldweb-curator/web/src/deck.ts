@@ -1,4 +1,6 @@
 import type {
+  Added,
+  AddTo,
   Compared,
   Finish,
   Imported,
@@ -7,10 +9,10 @@ import type {
   Parsed,
 } from "./deck.gen";
 import init, {
-  add_card,
   apply_changes,
   commit_message,
   compare_decks,
+  deck_add,
   declare_category,
   export_archidekt,
   export_deck,
@@ -31,6 +33,8 @@ import init, {
 } from "./wasm/pkg/meldweb_wasm.js";
 
 export type {
+  Added,
+  AddTo,
   Card,
   CardRef,
   Category,
@@ -166,17 +170,27 @@ export function setCardFinish(
 }
 
 /**
- * The deck text with one more `card` in `categories`: a new last line, or
- * one more of the card already there in exactly those categories. A printing
- * may carry its `name`, written beside the line as a comment so the commit
+ * The deck text with one more nonfoil `card` where `to` says, and the line
+ * holding it: a copy more on a line that already holds it, or a new last
+ * line (`made`). Rust decides which line holds a card; `names` (`printingNames`)
+ * tells it what the printings the file names are called. A printing may
+ * carry its `name`, written beside a new line as a comment so the commit
  * message can say it.
  */
-export function addCard(
+export function deckAdd(
   text: string,
   card: NewCard,
-  categories: readonly string[] = [],
-): string {
-  return add_card(text, JSON.stringify(card), JSON.stringify(categories));
+  to: AddTo = { kind: "automatic" },
+  names: Readonly<Record<string, string>> = {},
+): Added {
+  return JSON.parse(
+    deck_add(
+      text,
+      JSON.stringify(card),
+      JSON.stringify(to),
+      JSON.stringify(names),
+    ),
+  ) as Added;
 }
 
 /**

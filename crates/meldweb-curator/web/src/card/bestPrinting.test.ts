@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
-import { addCard, loadDeckSync, newDeck, parseDeck, setCardQty } from "../deck";
-import { addedLine, bestPrinting } from "./bestPrinting";
+import { loadDeckSync } from "../deck";
+import { bestPrinting } from "./bestPrinting";
 import { parsePrintsPage } from "./prints";
 
 beforeAll(() => {
@@ -43,12 +43,6 @@ const solRings = () =>
     }).printings,
   );
 
-const cards = (text: string) => {
-  const parsed = parseDeck(text);
-  if (parsed.kind !== "deck") throw new Error(parsed.message);
-  return parsed.cards;
-};
-
 describe("the printing an added card gets", () => {
   it("is its pin, without asking Scryfall", async () => {
     const pins = [{ name: "Sol Ring", set: "2xm", num: "270" }];
@@ -65,14 +59,5 @@ describe("the printing an added card gets", () => {
       set: "c21",
       num: "263",
     });
-  });
-
-  it("is asked for only when the add made a line", () => {
-    const empty = newDeck("Test", "commander");
-    const one = addCard(empty, { kind: "name", name: "Sol Ring" });
-    expect(addedLine(cards(empty), cards(one), "Sol Ring")).toBe(0);
-    // A second copy is a copy on the line, not a line.
-    const two = setCardQty(one, 0, 2);
-    expect(addedLine(cards(one), cards(two), "Sol Ring")).toBeNull();
   });
 });

@@ -1,12 +1,13 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { withBoard } from "../card/apply";
-import { addedLine, bestPrinting } from "../card/bestPrinting";
+import { bestPrinting } from "../card/bestPrinting";
 import { usePins, useSettings } from "../card/preference";
 import { renderCardResult } from "../card/searchResult";
 import { useCardEditor } from "../card/useCardEditor";
 import {
   applyChanges,
+  deckAdd,
   declareCategory,
   parseDeck,
   setCardCategories,
@@ -20,15 +21,14 @@ import { head, takeSnapshot } from "../github/history";
 import { createSaveStore } from "../github/save";
 import { useSave } from "../github/useSave";
 import { useHistory, useUndoKeys } from "../history";
-import { addPrinting } from "../probe/printings";
 import { ScanDialog } from "../probe/ScanDialog";
 import { scannerAvailable } from "../probe/scanner";
-import { addByName } from "../quickadd/addByName";
 import { type AddByName, QuickAdd } from "../quickadd/QuickAdd";
 import type { Printings } from "../scryfall";
 import { SearchButton, SearchOverlay } from "../search/SearchOverlay";
 import { BranchIcon, HistoryIcon, ScanIcon } from "../ui/icons";
 import { messageOf } from "../ui/Sheet";
+import { printingNames } from "./archidektNames";
 import { CopyDeck } from "./CopyDeck";
 import { Description } from "./Description";
 import { HistoryDrawer } from "./HistoryDrawer";
@@ -299,21 +299,21 @@ export function DeckEditor({
   // its pin, or the one the rules rank first.
   const onAdd: AddByName = (name, category) => {
     try {
-      const after = addByName(
+      const {
+        text: after,
+        line,
+        made,
+      } = deckAdd(
         history.present,
-        parsed.cards,
-        printings,
-        name,
-        category,
+        { kind: "name", name },
+        category === null
+          ? { kind: "automatic" }
+          : { kind: "categories", categories: [category] },
+        printingNames(parsed.cards, printings),
       );
       history.edit(after);
       setRefusal(null);
-      const added = parseDeck(after);
-      const line =
-        added.kind === "deck"
-          ? addedLine(parsed.cards, added.cards, name)
-          : null;
-      if (line === null) return;
+      if (!made) return;
       bestPrinting(name, settings, pins)
         .then((p) => {
           if (!p) return;
@@ -468,10 +468,15 @@ export function DeckEditor({
           )}
           {scanning && (
             <ScanDialog
-              onAdd={(printing) => {
+              onAdd={({ set, num, name }) => {
                 try {
                   history.edit(
-                    addPrinting(history.present, parsed.cards, printing),
+                    deckAdd(history.present, {
+                      kind: "printing",
+                      set,
+                      num,
+                      name,
+                    }).text,
                   );
                   setRefusal(null);
                 } catch (e) {

@@ -1,4 +1,3 @@
-import type { Card } from "../deck";
 import type { Pin } from "../deck.gen";
 import { rankPrintings } from "./preference";
 import { fetchAllPrintings, type PrintingOption, printsByName } from "./prints";
@@ -25,22 +24,4 @@ export async function bestPrinting(
   if (pin) return { set: pin.set, num: pin.num };
   const best = rankPrintings(settings, await load(name)).ranked[0];
   return best ? { set: best.option.set, num: best.option.num } : null;
-}
-
-/**
- * The line an add made by name, when it made one rather than adding a copy
- * to a line the deck had: the name-only line for `name` that `before` lacks.
- */
-export function addedLine(
-  before: readonly Card[],
-  after: readonly Card[],
-  name: string,
-): number | null {
-  if (after.length <= before.length) return null;
-  const line = after.findLast(
-    (c) =>
-      c.card.kind === "name" &&
-      c.card.name.toLowerCase() === name.toLowerCase(),
-  );
-  return line ? line.index : null;
 }

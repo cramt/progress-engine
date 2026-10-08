@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
-  addCard,
   commitMessage,
+  deckAdd,
   declareCategory,
   exportArchidekt,
   exportDeck,
@@ -113,34 +113,55 @@ describe("editing a card, through wasm", () => {
 
   it("makes a card a commander and refuses what the format refuses", () => {
     const text = newDeck("Test", "commander");
-    const withCard = addCard(text, { kind: "name", name: "Sol Ring" });
+    const withCard = deckAdd(text, { kind: "name", name: "Sol Ring" }).text;
     const commanded = setCommander(withCard, 0);
     expect(deck(commanded).cards[0]?.place).toBe("commander");
     expect(deck(commanded).categories).toContainEqual({
       name: "Commander",
       kind: "commander",
     });
-    expect(() => addCard(text, { kind: "name", name: "X" }, ["Nope"])).toThrow(
-      /not declared/,
-    );
+    expect(() =>
+      deckAdd(
+        text,
+        { kind: "name", name: "X" },
+        { kind: "categories", categories: ["Nope"] },
+      ),
+    ).toThrow(/not declared/);
     expect(() => setCardQty(text, 5, 2)).toThrow(/no card 5/);
   });
 
-  it("adds a card as a new last line, or one more of it", () => {
+  it("adds a card as a new last line, or one more of it, saying which", () => {
     const text = newDeck("Test", "");
     expect(text).toBe('name = "Test"\n\ncards = [\n]\n');
-    const once = addCard(text, {
+    const once = deckAdd(text, {
       kind: "printing",
       set: "cmm",
       num: "410",
       name: "Sol Ring",
     });
-    expect(once).toBe(
-      'name = "Test"\n\ncards = [\n  { printing = "cmm/410" },  # Sol Ring\n]\n',
-    );
-    const twice = addCard(once, { kind: "printing", set: "cmm", num: "410" });
-    expect(deck(twice).cards).toHaveLength(1);
-    expect(deck(twice).cards[0]?.qty).toBe(2);
+    expect(once).toEqual({
+      text: 'name = "Test"\n\ncards = [\n  { printing = "cmm/410" },  # Sol Ring\n]\n',
+      line: 0,
+      made: true,
+    });
+    const twice = deckAdd(once.text, {
+      kind: "printing",
+      set: "cmm",
+      num: "410",
+    });
+    expect(twice).toMatchObject({ line: 0, made: false });
+    expect(deck(twice.text).cards[0]?.qty).toBe(2);
+  });
+
+  it("finds a card's line by the names it is handed for printings", () => {
+    const text = `cards = [\n  { printing = "isd/51" },\n]\n`;
+    const names = { "isd/51": "Delver of Secrets // Insectile Aberration" };
+    const card = { kind: "name", name: "Delver of Secrets" } as const;
+    expect(deckAdd(text, card, { kind: "automatic" }, names)).toMatchObject({
+      line: 0,
+      made: false,
+    });
+    expect(deckAdd(text, card).made).toBe(true);
   });
 });
 
@@ -168,10 +189,12 @@ describe("the commit message", () => {
   it("reads as the deck's changelog", () => {
     const text = lantern();
     const { index } = deck(text).cards[0] ?? { index: -1 };
-    const after = addCard(removeCard(text, index), {
-      kind: "name",
-      name: "Sol Ring",
-    });
+    // In no category: lantern's own Sol Ring is in one, so this is a line.
+    const after = deckAdd(
+      removeCard(text, index),
+      { kind: "name", name: "Sol Ring" },
+      { kind: "categories", categories: [] },
+    ).text;
     expect(commitMessage(text, after, "decks/lantern.deck.toml")).toBe(
       "lantern: +1 Sol Ring, -1 Academy Manufactor",
     );

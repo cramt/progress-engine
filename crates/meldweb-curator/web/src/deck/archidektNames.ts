@@ -1,4 +1,4 @@
-import type { Card } from "../deck";
+import type { CardRef } from "../deck";
 import { type Printings, printingKey } from "../scryfall";
 
 /**
@@ -7,7 +7,7 @@ import { type Printings, printingKey } from "../scryfall";
  * does not name those cards itself. Keyed as the file writes the printing.
  */
 export function printingNames(
-  cards: readonly Card[],
+  cards: readonly { card: CardRef }[],
   printings: Printings,
 ): Record<string, string> {
   const names: Record<string, string> = {};

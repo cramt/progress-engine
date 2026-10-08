@@ -4,8 +4,8 @@
 import lantern from "../../../../../decks/lantern.deck.toml?raw";
 import loam from "../../../../../decks/loam.deck.toml?raw";
 import {
-  addCard,
   commitMessage,
+  deckAdd,
   parseDeck,
   removeCard,
   setCardCategories,
@@ -46,7 +46,11 @@ function at(text: string, id: string): number {
 
 const without = (text: string, id: string) => removeCard(text, at(text, id));
 const rock = (text: string, name: string) =>
-  addCard(text, { kind: "name", name }, ["Artifact Count"]);
+  deckAdd(
+    text,
+    { kind: "name", name },
+    { kind: "categories", categories: ["Artifact Count"] },
+  ).text;
 
 /**
  * Lantern's last six weeks, so a fresh dev session has a past to look
