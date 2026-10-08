@@ -534,6 +534,199 @@ fn same_categories(a: &[String], b: &[String]) -> bool {
     a.len() == b.len() && a.iter().all(|x| b.contains(x))
 }
 
+/// A card's categories once dropped on `to`, dragged out of `from` (`None`
+/// when it was in no category). A plain drop moves it: `to` takes `from`'s
+/// place in the list. A secondary drop (Ctrl, as in Archidekt) keeps every
+/// category and adds `to` behind them.
+pub fn drop_onto(
+    categories: &[String],
+    from: Option<&str>,
+    to: &str,
+    secondary: bool,
+) -> Vec<String> {
+    if categories.iter().any(|c| c == to) {
+        return if secondary || from.is_none() || from == Some(to) {
+            categories.to_vec()
+        } else {
+            categories
+                .iter()
+                .filter(|c| Some(c.as_str()) != from)
+                .cloned()
+                .collect()
+        };
+    }
+    match from {
+        Some(from) if !secondary => categories
+            .iter()
+            .map(|c| if c == from { to.to_string() } else { c.clone() })
+            .collect(),
+        _ => categories
+            .iter()
+            .cloned()
+            .chain(std::iter::once(to.to_string()))
+            .collect(),
+    }
+}
+
+/// A board a card can be put on at a keystroke or by the drag strip.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Board {
+    Maybeboard,
+    Sideboard,
+}
+
+impl Board {
+    fn kind(self) -> CategoryType {
+        match self {
+            Board::Maybeboard => CategoryType::Maybeboard,
+            Board::Sideboard => CategoryType::Sideboard,
+        }
+    }
+
+    /// What a deck without one gets its board declared as.
+    fn name(self) -> &'static str {
+        match self {
+            Board::Maybeboard => "Maybeboard",
+            Board::Sideboard => "Sideboard",
+        }
+    }
+}
+
+/// Where a moved card goes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Dest {
+    /// The category of that name, declared untyped first when the deck has
+    /// none by it.
+    Category(String),
+    /// The deck's category of the board's type, declared as [`Board::name`]
+    /// when it has none.
+    Board(Board),
+}
+
+/// What one keystroke, menu pick or drop does to every card it is applied to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CardEdit {
+    Increase,
+    /// One fewer; the last one removes the line.
+    Decrease,
+    Remove,
+    /// Archidekt's *Automatic*: in no category.
+    Automatic,
+    Commander,
+    /// To `to`, out of the category the card was reached from; with
+    /// `secondary`, into `to` as well (see [`drop_onto`]).
+    Move {
+        to: Dest,
+        secondary: bool,
+    },
+}
+
+/// A card as the user reached it: its line, and the category of the stack it
+/// was reached in, `None` for no category. A move replaces `from`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Target {
+    pub index: usize,
+    pub from: Option<String>,
+}
+
+/// An edit's next text, and where each line of the old text is in it:
+/// `lines[i]` is old card `i`'s index now, `None` once its line is gone.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Edited {
+    pub text: String,
+    pub lines: Vec<Option<usize>>,
+}
+
+/// `edit` on every one of `targets`, as one edit. Either every card takes it
+/// or, refused on any, none does and the error says why. A target named
+/// twice is edited once.
+pub fn edit_cards(text: &str, edit: &CardEdit, targets: &[Target]) -> Result<Edited, EditError> {
+    let deck = Deck::parse(text)?;
+    let mut text = text.to_string();
+    let to = match edit {
+        CardEdit::Move { to, .. } => Some(match to {
+            Dest::Category(name) => {
+                if deck.category(name).is_none() {
+                    text = declare_category(&text, name, None)?;
+                }
+                name.clone()
+            }
+            Dest::Board(board) => {
+                match deck
+                    .categories
+                    .iter()
+                    .find(|c| c.kind == Some(board.kind()))
+                {
+                    Some(c) => c.name.clone(),
+                    None => {
+                        text = declare_category(&text, board.name(), Some(board.kind()))?;
+                        board.name().to_string()
+                    }
+                }
+            }
+        }),
+        _ => None,
+    };
+
+    let targets = targets_by_index(targets);
+    let mut removed = vec![false; deck.cards.len()];
+    // Last line first: dropping a line moves only the lines after it, and
+    // those are done.
+    for target in targets.iter().rev() {
+        let card = deck
+            .cards
+            .get(target.index)
+            .ok_or(EditError::NoCard(target.index))?;
+        let i = target.index;
+        text = match edit {
+            CardEdit::Increase => set_card_qty(&text, i, card.qty.get() + 1)?,
+            CardEdit::Decrease => {
+                removed[i] = card.qty.get() == 1;
+                set_card_qty(&text, i, card.qty.get() - 1)?
+            }
+            CardEdit::Remove => {
+                removed[i] = true;
+                remove_card(&text, i)?
+            }
+            CardEdit::Automatic => set_categories(&text, i, &[])?,
+            CardEdit::Commander => set_commander(&text, i)?,
+            CardEdit::Move { secondary, .. } => {
+                let to = to.as_deref().expect("a move has somewhere to go");
+                let categories =
+                    drop_onto(&card.categories, target.from.as_deref(), to, *secondary);
+                set_categories(&text, i, &categories)?
+            }
+        };
+    }
+
+    let mut gone = 0;
+    let lines = removed
+        .iter()
+        .enumerate()
+        .map(|(i, &r)| {
+            if r {
+                gone += 1;
+                None
+            } else {
+                Some(i - gone)
+            }
+        })
+        .collect();
+    Ok(Edited { text, lines })
+}
+
+/// `targets` in line order, each line once: the first that names it.
+fn targets_by_index(targets: &[Target]) -> Vec<&Target> {
+    let mut sorted: Vec<&Target> = Vec::with_capacity(targets.len());
+    for t in targets {
+        if !sorted.iter().any(|s| s.index == t.index) {
+            sorted.push(t);
+        }
+    }
+    sorted.sort_by_key(|t| t.index);
+    sorted
+}
+
 /// Where a card added to a deck goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AddTo<'a> {

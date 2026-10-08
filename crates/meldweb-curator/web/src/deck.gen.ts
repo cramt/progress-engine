@@ -135,6 +135,54 @@ export interface Unreadable {
 }
 
 /**
+ * An edit's next text, and where each card of the old text is in it:
+ * `lines[i]` is where old card `i` went.
+ */
+export interface Edited {
+  text: string;
+  lines: Line[];
+}
+
+/**
+ * Where one card of the text an edit started from is in the text it made.
+ */
+export type Line =
+  | { kind: "at"; index: number }
+  | { kind: "gone" };
+
+/**
+ * A card as the user reached it: its line, and the category of the stack it
+ * was reached in, absent for no category.
+ */
+export interface Target {
+  index: number;
+  from?: string;
+}
+
+/**
+ * One action on every card it is applied to.
+ */
+export type DeckEdit =
+  | { kind: "increase" }
+  | { kind: "decrease" }
+  | { kind: "remove" }
+  | { kind: "automatic" }
+  | { kind: "commander" }
+  | { kind: "move"; to: Dest; secondary: boolean };
+
+/**
+ * Where a moved card goes.
+ */
+export type Dest =
+  | { kind: "category"; name: string }
+  | { kind: "board"; board: Board };
+
+/**
+ * A board a card can be put on at a keystroke or by the drag strip.
+ */
+export type Board = "maybeboard" | "sideboard";
+
+/**
  * What an add did: the next text, the line holding the card now, and
  * whether that line is new.
  */

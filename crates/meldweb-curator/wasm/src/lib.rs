@@ -452,6 +452,127 @@ pub fn deck_add(
         .map_err(refused)
 }
 
+/// A board a card can be put on at a keystroke or by the drag strip.
+#[derive(Debug, Clone, Copy, Facet)]
+#[repr(u8)]
+#[facet(rename_all = "kebab-case")]
+pub enum Board {
+    Maybeboard,
+    Sideboard,
+}
+
+/// Where a moved card goes.
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum Dest {
+    /// That category, declared untyped first when the deck has none by it.
+    Category { name: String },
+    /// The deck's category of that type, declared when it has none.
+    Board { board: Board },
+}
+
+/// One action on every card it is applied to.
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum DeckEdit {
+    Increase,
+    /// One fewer; the last one removes the line.
+    Decrease,
+    Remove,
+    /// Archidekt's *Automatic*: in no category.
+    Automatic,
+    Commander,
+    /// To `to`, out of the category the card was reached from; with
+    /// `secondary`, into `to` as well.
+    Move {
+        to: Dest,
+        secondary: bool,
+    },
+}
+
+/// A card as the user reached it: its line, and the category of the stack it
+/// was reached in, absent for no category.
+#[derive(Debug, Facet)]
+pub struct Target {
+    pub index: u32,
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub from: Option<String>,
+}
+
+/// Where one card of the text an edit started from is in the text it made.
+//
+// An enum where `Option<u32>` would do: facet-typescript 0.46 writes
+// `Vec<Option<u32>>` as `number | null[]`, an unparenthesised union
+// (`type_for_shape`, facet-rs/facet-format; no upstream issue filed yet).
+// Once it writes `(number | null)[]` this can be `Option<u32>`.
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum Line {
+    At { index: u32 },
+    Gone,
+}
+
+/// An edit's next text, and where each card of the old text is in it:
+/// `lines[i]` is where old card `i` went.
+#[derive(Debug, Facet)]
+pub struct Edited {
+    pub text: String,
+    pub lines: Vec<Line>,
+}
+
+pub fn edit_deck_cards_text(text: &str, edit: &str, targets: &str) -> Result<Edited, String> {
+    let edit: DeckEdit =
+        facet_json::from_str(edit).map_err(|e| format!("edit is not a DeckEdit: {e}"))?;
+    let targets: Vec<Target> =
+        facet_json::from_str(targets).map_err(|e| format!("targets are not Target[]: {e}"))?;
+    let edit = match edit {
+        DeckEdit::Increase => edit::CardEdit::Increase,
+        DeckEdit::Decrease => edit::CardEdit::Decrease,
+        DeckEdit::Remove => edit::CardEdit::Remove,
+        DeckEdit::Automatic => edit::CardEdit::Automatic,
+        DeckEdit::Commander => edit::CardEdit::Commander,
+        DeckEdit::Move { to, secondary } => edit::CardEdit::Move {
+            to: match to {
+                Dest::Category { name } => edit::Dest::Category(name),
+                Dest::Board { board } => edit::Dest::Board(match board {
+                    Board::Maybeboard => edit::Board::Maybeboard,
+                    Board::Sideboard => edit::Board::Sideboard,
+                }),
+            },
+            secondary,
+        },
+    };
+    let targets: Vec<edit::Target> = targets
+        .into_iter()
+        .map(|t| edit::Target {
+            index: t.index as usize,
+            from: t.from,
+        })
+        .collect();
+    let edited = edit::edit_cards(text, &edit, &targets).map_err(|e| e.to_string())?;
+    Ok(Edited {
+        text: edited.text,
+        lines: edited
+            .lines
+            .into_iter()
+            .map(|l| l.map_or(Line::Gone, |i| Line::At { index: index(i) }))
+            .collect(),
+    })
+}
+
+/// JSON of [`Edited`]: `edit` (JSON of [`DeckEdit`]) on every one of
+/// `targets` (JSON of [`Target`]`[]`) as one edit, refused whole when any
+/// card refuses it. The line remap says where each card went, so the page
+/// never works out how a removal shifts the lines after it.
+#[wasm_bindgen]
+pub fn edit_deck_cards(text: &str, edit: &str, targets: &str) -> Result<String, JsError> {
+    let edited = edit_deck_cards_text(text, edit, targets).map_err(refused)?;
+    Ok(facet_json::to_string(&edited).expect("Edited serialises"))
+}
+
 /// A card to add, from JSON of [`NewCard`], and the name to comment it with.
 fn new_card(json: &str) -> Result<(deck::CardRef, Option<String>), JsError> {
     let card: NewCard =
@@ -1078,6 +1199,9 @@ mod tests {
         g.add_type::<NewCard>();
         g.add_type::<AddTo>();
         g.add_type::<Added>();
+        g.add_type::<DeckEdit>();
+        g.add_type::<Target>();
+        g.add_type::<Edited>();
         g.add_type::<Imported>();
         g.add_type::<ParsedCollection>();
         g.add_type::<Compared>();
@@ -1266,5 +1390,32 @@ mod tests {
     fn absent_fields_are_omitted_not_null() {
         let json = parse_deck(r#"cards = [{ name = "Sol Ring" }]"#);
         assert!(!json.contains("null"), "{json}");
+    }
+
+    #[test]
+    fn a_card_edit_says_where_every_line_went_and_a_gone_one_is_null() {
+        let text = "cards = [\n  { name = \"A\" },\n  { name = \"B\" },\n]\n";
+        let edited =
+            edit_deck_cards_text(text, r#"{"kind":"remove"}"#, r#"[{"index":0}]"#).unwrap();
+        assert_eq!(
+            facet_json::to_string(&edited).unwrap(),
+            r#"{"text":"cards = [\n  { name = \"B\" },\n]\n","lines":[{"kind":"gone"},{"kind":"at","index":0}]}"#
+        );
+        let moved = edit_deck_cards_text(
+            "cards = [\n  { name = \"A\" },\n]\n",
+            r#"{"kind":"move","to":{"kind":"board","board":"sideboard"},"secondary":false}"#,
+            r#"[{"index":0,"from":"Nope"}]"#,
+        )
+        .unwrap();
+        assert!(
+            moved.text.contains(r#"Sideboard = { type = "sideboard" }"#),
+            "{}",
+            moved.text
+        );
+        assert!(
+            edit_deck_cards_text(text, r#"{"kind":"remove"}"#, r#"[{"index":9}]"#)
+                .unwrap_err()
+                .contains("no card 9")
+        );
     }
 }
