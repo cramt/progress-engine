@@ -25,6 +25,8 @@ attack and landfall triggers ADR-0017 named (built, and tests), hand 63
 the upkeep trigger after them (built, and a test), and hand 64 the
 reanimation of
 [ADR-0030](docs/adr/0030-a-reanimation-is-the-one-move-from-the-graveyard-to-the-battlefield.md)
+(built, and tests), and hand 65 the cycling of
+[ADR-0031](docs/adr/0031-a-cycle-is-the-line-paying-to-discard-and-draw.md)
 (built, and tests). That is the point: they pin the semantics before the
 code exists, so that building
 the feature cannot quietly redefine the question — and hands 1, 2 and 3 are the
@@ -1510,6 +1512,58 @@ Through the binary, `animate_dead_returns_a_cid_buried_alive_put_in_the_graveyar
 and `immortal_servitude_returns_every_cid_at_the_x_the_line_pays`.
 `checker/test_reanimation.py` holds the wait and the priority against the
 checker's line.
+
+### 65. Cid cycles into the graveyard, and the entry naming it casts none
+
+```
+(a thirteen-card library, on the play, turn 2)
+Plains ×5
+Island ×5
+Cid, Timeless Artificer ×3
+
+[[effect]]
+match = 'name:"Cid, Timeless Artificer"'
+on = "cycle"
+cost = "{W}{U}"
+draw = 1
+
+[casting]
+prefer = ['name:"Cid, Timeless Artificer"']
+```
+
+[#136](https://github.com/cramt/progress-engine/issues/136). Cid's text is
+*Cycling {W}{U}*: pay it, discard Cid from hand, draw a card (CR 702.29a).
+The `[casting]` entry naming a card whose effect is `on = "cycle"` cycles it
+rather than casting it ([ADR-0031](docs/adr/0031-a-cycle-is-the-line-paying-to-discard-and-draw.md)).
+By turn 2 on the play the pilot has seen eight cards and made two land drops,
+and one Plains and one Island pay one cycle. A Cid is cycled by then unless
+the eight hold none, C(10,8)/C(13,8) = 45/1287, or hold lands of one colour
+only, which takes all three Cids and one colour's five lands, 2/1287.
+
+**Naive models:** read Cid as the creature it is and cast it, which four
+mana by turn 2 never pays, so nothing reaches the graveyard; or count the
+cycled Cid as cast; or leave the card it draws in the library.
+
+| By turn 2 | cast Cid | cycle Cid |
+|---|---|---|
+| a Cid in the graveyard | 0 | **1240/1287, 96.35%** |
+| a Cid cast | 0 | **0** |
+| a Cid cycled on turn 1 | — | **0**: one land pays no {W}{U} |
+
+A card a cycle draws is in hand at once, and the line is read again from its
+top, so a Cid drawn off a cycle is cycled the same turn when the pool still
+pays: two free cyclers among five cards dealt one and then one are both
+cycled by turn 1 exactly when both sit in the top three, 3/10, as two free
+cantrips are both cast.
+
+*Answerable, and a test:*
+`hand_65_a_cid_is_cycled_by_turn_two_unless_the_eight_cards_hold_none_or_one_colour`,
+`a_cycle_draws_as_a_cantrip_does_and_is_never_cast` and
+`a_card_a_cycle_draws_is_cycled_the_same_turn` in
+`crates/ichormoon-gauntlet/criteria/tests/engine.rs`. Through the binary,
+`cid_is_cycled_into_the_graveyard_and_never_cast` on `cycling.txt`, which
+also asks for every Cid by turn 4. `checker/test_cycling.py` holds the cycle,
+the same-turn cycle and the cast count against the checker's line.
 
 ## Rocks and dorks are mana the line cast
 

@@ -217,6 +217,26 @@ pub enum Refusal {
     /// never fetched either, and a run that fired the tutor anyway would be
     /// putting a card in your hand off a spell nobody paid for.
     FetchWithoutCasting { file: String, effect: String },
+    /// A `cast` clause counting a card the `[casting]` line cycles (#136).
+    ///
+    /// The entry naming a card whose effect is `on = "cycle"` cycles every
+    /// copy it reaches and casts none, so the count would be zero by
+    /// construction and read as a measured one. Casting some copies and
+    /// cycling others in one line is not modelled.
+    CastOfACycledCard {
+        file: String,
+        asked_by: String,
+        query: String,
+        cards: Vec<String>,
+    },
+    /// A cycling effect on a commander the line names (#136). A commander is
+    /// cast from the command zone and cycling is paid from hand, so the entry
+    /// naming it has no reading.
+    CycledCommander {
+        file: String,
+        effect: String,
+        card: String,
+    },
     /// An activation on a creature or on a land (ADR-0019).
     ///
     /// A creature's tap ability waits out summoning sickness, which only a
@@ -409,6 +429,8 @@ impl Refusal {
             | Refusal::CastingWithoutPriority { file, .. }
             | Refusal::FetchWithoutLandDrop { file, .. }
             | Refusal::FetchWithoutCasting { file, .. }
+            | Refusal::CastOfACycledCard { file, .. }
+            | Refusal::CycledCommander { file, .. }
             | Refusal::ActivationUnmodelled { file, .. }
             | Refusal::AddsWithoutMana { file, .. }
             | Refusal::UntappedAlwaysTapped { file, .. }
@@ -449,6 +471,7 @@ impl Refusal {
                 Some(format!("[assume]: in `untapped` entry {query:?}"))
             }
             Refusal::CastingWithoutPriority { asked_by, .. }
+            | Refusal::CastOfACycledCard { asked_by, .. }
             | Refusal::BattlefieldNonLand { asked_by, .. }
             | Refusal::ManaBesideLandDropEffect { asked_by, .. }
             | Refusal::IndexCannotPriceMana { asked_by, .. }
@@ -458,6 +481,7 @@ impl Refusal {
             | Refusal::FetchNonPermanentToBattlefield { effect, .. }
             | Refusal::FetchNonLandToBattlefield { effect, .. }
             | Refusal::ActivationUnmodelled { effect, .. }
+            | Refusal::CycledCommander { effect, .. }
             | Refusal::AddsWithoutMana { effect, .. } => Some(format!("effect {effect:?}")),
             Refusal::ObjectiveTooWide { .. } | Refusal::ObjectiveOverBudget { .. } => {
                 Some("[mulligan]".to_string())
@@ -613,6 +637,27 @@ impl Refusal {
                  Insight\"']\n\n      \
                  The list is read in order and the first entry the pool can still pay for is \
                  cast. A spell\n      the list does not name is not cast at all."
+            ),
+            Refusal::CastOfACycledCard { query, cards, .. } => write!(
+                f,
+                "counts castings of {query:?}, which matches {}, and the [casting] entry naming \
+                 {} cycles it:\n      its effect is `on = \"cycle\"`, so the line puts every \
+                 copy it reaches in the graveyard and casts none,\n      and this count would \
+                 be zero by construction.\n      \
+                 A cycled card is counted where it goes, with `zone = \"graveyard\"`. Casting \
+                 some copies and\n      cycling others in one line is not modelled \
+                 (https://github.com/cramt/progress-engine/issues/136):\n      to ask how often \
+                 it is cast, leave the cycle effect out of this file, or narrow the query.",
+                cards.join(", "),
+                if cards.len() == 1 { "it" } else { "each" },
+            ),
+            Refusal::CycledCommander { card, .. } => write!(
+                f,
+                "cycles {card}, which is a commander the [casting] line names.\n      A \
+                 commander is cast from the command zone and cycling is paid from hand, so the \
+                 entry\n      naming it has no reading, and it is not modelled \
+                 (https://github.com/cramt/progress-engine/issues/136).\n      Narrow the \
+                 effect's `match` to leave the commander out, or drop it from [casting]."
             ),
             Refusal::DiscardWithoutPriority {
                 effect, activation, ..

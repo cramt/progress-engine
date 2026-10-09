@@ -649,7 +649,7 @@ pub fn feasible<E>(grouping: &Grouping, schedule: &Schedule) -> Result<(), RunEr
 }
 
 /// The most cards this run's spells can draw or mill: what each copy of a
-/// spell that draws or mills turns over, the commander's copy included,
+/// spell that draws or mills turns over, cast or cycled, the commander's copy included,
 /// because each is cast once. Beside it, how many times a mill of half the
 /// library can fire, which has no count of its own to add.
 ///
@@ -711,7 +711,8 @@ fn drawable(grouping: &Grouping, schedule: &Schedule) -> (u32, u32) {
     let (mut halves, mut halves_per_land) = (0, 0);
     for &(copies, e) in &carried {
         match e.trigger {
-            Trigger::Cast => {
+            // A cycle draws as a cast does, and never mills.
+            Trigger::Cast | Trigger::Cycle => {
                 cast += copies * (e.draw + milled(e));
                 halves += copies * halved(e);
             }

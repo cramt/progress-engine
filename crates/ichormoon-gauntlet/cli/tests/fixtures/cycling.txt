@@ -1,0 +1,8 @@
+// Issue #136: Cid, Timeless Artificer cycles for {W}{U} and draws a card.
+//
+// Thirteen cards on the play: five Plains, five Islands and three Cids. The
+// line names Cid, and its effect is a cycle, so every Cid in hand is cycled
+// whenever the turn's lands pay {W}{U} for it, and none is ever cast.
+5x Plains [Land]
+5x Island [Land]
+3x Cid, Timeless Artificer [Cid]

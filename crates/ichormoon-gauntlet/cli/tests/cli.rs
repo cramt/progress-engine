@@ -6225,3 +6225,152 @@ fn a_cid_on_the_battlefield_is_refused_where_the_line_casts_no_reanimation() {
     );
     std::fs::remove_dir_all(&dir).ok();
 }
+
+// --- Cycling (#136) ------------------------------------------------------------
+
+fn cycling_run(criteria: &std::path::Path, extra: &[&str]) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture("cycling.txt"))
+        .arg(criteria)
+        .arg("--index")
+        .arg(fixture("cycling-index.jsonl"))
+        .args(extra)
+        .output()
+        .expect("binary should run")
+}
+
+#[test]
+fn cid_is_cycled_into_the_graveyard_and_never_cast() {
+    // Issue #136, on cycling.txt: five Plains, five Islands, three Cids,
+    // cycled for {W}{U} by the line that names them (HANDS.md hand 65). On
+    // the play, eight cards and two drops by turn 2, and a Cid is cycled by
+    // then unless the eight hold none, 45/1287, or one colour of land only,
+    // which takes every Cid and five lands, 2/1287: 1240/1287, 96.35%.
+    let out = cycling_run(&fixture("cycling.criteria.toml"), &[]);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "{stderr}");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["method"], "exact", "{json}");
+    assert_eq!(percent(&json, "a Cid in the graveyard by turn 2"), 96.35);
+    assert_eq!(
+        percent(&json, "every Cid in the graveyard by turn 4"),
+        76.57
+    );
+    // Every Cid is in the graveyard or the library unless one is in hand
+    // waiting for {W}{U}, and the line casts none.
+    let yard = expectation(&json, "Cids in the graveyard on turn 4")["mean"]
+        .as_f64()
+        .unwrap();
+    let library = expectation(&json, "Cids in the library on turn 4")["mean"]
+        .as_f64()
+        .unwrap();
+    assert!(yard + library <= 3.0 && yard > 2.5, "{yard} {library}");
+    // The graveyard is a zone something reaches, and the run says the line
+    // cycles Cid rather than casting it.
+    let zone = json["zones"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|z| z["zone"] == "graveyard")
+        .unwrap();
+    assert_eq!(zone["reachable"], true, "{json}");
+    assert_eq!(json["casting"]["cycled"][0]["billed"], "{W}{U}", "{json}");
+    assert_eq!(json["casting"]["cycled"][0]["printed"], "{2}{W}{U}");
+    assert!(
+        stderr.contains("Cycled, never cast")
+            && stderr.contains("cycles it from hand for {W}{U}, instead of casting it"),
+        "{stderr}"
+    );
+    assert!(
+        !stderr.contains("nothing routes a card to the graveyard"),
+        "{stderr}"
+    );
+    let sampled = cycling_run(
+        &fixture("cycling.criteria.toml"),
+        &["--simulate", "--trials", "40000"],
+    );
+    let sampled: serde_json::Value = serde_json::from_slice(&sampled.stdout).unwrap();
+    let s = percent(&sampled, "every Cid in the graveyard by turn 4");
+    assert!((s - 76.57).abs() < 1.0, "the sampler agrees: {s}");
+}
+
+#[test]
+fn counting_casts_of_a_card_the_line_cycles_is_refused() {
+    // The entry naming Cid cycles every copy and casts none, so a cast count
+    // is zero by construction. Casting some and cycling others is not
+    // modelled, and the refusal says so rather than answering 0%.
+    let source = std::fs::read_to_string(fixture("cycling.criteria.toml"))
+        .unwrap()
+        .replace(
+            "require = [{ turn = 2, query = 'name:\"Cid, Timeless Artificer\"', zone = \"graveyard\", min = 1 }]",
+            "require = [{ turn = 2, cast = 't:creature', min = 1 }]",
+        );
+    assert!(source.contains("cast = 't:creature'"));
+    let dir = std::env::temp_dir().join(format!("pe-cycling-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let criteria = dir.join("cast-cid.criteria.toml");
+    std::fs::write(&criteria, source).unwrap();
+    let out = cycling_run(&criteria, &[]);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("a Cid in the graveyard by turn 2: counts castings of \"t:creature\"")
+            && stderr.contains("Cid, Timeless Artificer")
+            && stderr.contains("issues/136"),
+        "{stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn landcycling_is_refused_by_name() {
+    let source = std::fs::read_to_string(fixture("cycling.criteria.toml"))
+        .unwrap()
+        .replace("draw = 1", "fetch = ['t:plains']\nto = \"hand\"");
+    let dir = std::env::temp_dir().join(format!("pe-landcycling-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let criteria = dir.join("landcycling.criteria.toml");
+    std::fs::write(&criteria, source).unwrap();
+    let out = cycling_run(&criteria, &[]);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("is landcycling, and it is not modelled") && stderr.contains("issues/136"),
+        "{stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn a_cycle_on_a_commander_the_line_names_is_refused() {
+    // Cid is a legendary creature and can lead the deck. A commander is cast
+    // from the command zone and cycled from nowhere, so an entry naming one
+    // whose effect is a cycle has no reading.
+    let dir = std::env::temp_dir().join(format!("pe-cycled-commander-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let deck = dir.join("cid-commander.txt");
+    std::fs::write(
+        &deck,
+        std::fs::read_to_string(fixture("cycling.txt")).unwrap()
+            + "1x Cid, Timeless Artificer [Commander{top}]\n",
+    )
+    .unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(&deck)
+        .arg(fixture("cycling.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("cycling-index.jsonl"))
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success(), "{stderr}");
+    assert!(
+        stderr.contains(
+            "cycles Cid, Timeless Artificer, which is a commander the [casting] line names"
+        ) && stderr.contains("issues/136"),
+        "{stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}

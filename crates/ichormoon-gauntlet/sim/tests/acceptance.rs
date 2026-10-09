@@ -3006,3 +3006,72 @@ fn reanimation_agrees_with_the_exact_engine() {
         );
     }
 }
+
+// --- Cycling (#136) ------------------------------------------------------------
+//
+// The [casting] entry cycles a card whose effect is a cycle: from hand to the
+// graveyard, and a draw dealt where it was paid, off the same Board in both
+// engines.
+
+#[test]
+fn cycling_agrees_with_the_exact_engine() {
+    // drawing_deck's five drawers, cycled for {U} rather than cast: a card a
+    // cycle draws is cycled the same turn when the pool still pays, and
+    // neither engine ever counts one as cast.
+    let (grouping, cast) = drawing_deck("{U}", 1, false);
+    let effects = cast
+        .effects()
+        .iter()
+        .map(|e| Effect {
+            trigger: Trigger::Cycle,
+            ..e.clone()
+        })
+        .collect();
+    let schedule = Schedule::build(
+        3,
+        false,
+        effects,
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let question = || {
+        Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(3, 1, Counted::In(Zone::Hand)) >= 1) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 0, Counted::In(Zone::Graveyard)) == 0)
+                as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 0, Counted::In(Zone::Graveyard)) >= 2)
+                as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 1, Counted::In(Zone::Library)) <= 1) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 0, Counted::Cast) > 0) as Check,
+        ])
+    };
+    let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(5), &mut question())
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    assert!(
+        exact[1] > 0.05 && exact[2] > 0.05,
+        "the gap fires on some paths and not on others: {exact:?}"
+    );
+    assert_eq!(exact[4], 0.0, "a cycled card is never cast: {exact:?}");
+    let trials = TRIALS;
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        trials,
+        137,
+        only_criteria(5),
+        &mut question(),
+    )
+    .unwrap()
+    .proportions;
+    for (i, (e, s)) in exact.iter().zip(&sampled).enumerate() {
+        let se = standard_error(*s, trials).max(1e-4);
+        assert!(
+            (s - e).abs() < 4.0 * se,
+            "question {i}: sampled {s} vs exact {e} ({}x SE)",
+            (s - e).abs() / se
+        );
+    }
+}

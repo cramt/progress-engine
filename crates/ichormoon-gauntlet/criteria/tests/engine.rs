@@ -5827,3 +5827,140 @@ fn a_reanimation_takes_the_first_card_its_priority_reaches_and_nothing_it_does_n
         "held: nothing it names"
     );
 }
+
+// --- Cycling (#136) ------------------------------------------------------------
+//
+// HANDS.md hand 65: the [casting] entry naming a card whose effect is a cycle
+// pays its cycling cost from hand, puts it in the graveyard and draws. The
+// draw is a cast's draw; the card is never cast.
+
+/// A card the line cycles, drawing one, matched by query 0.
+fn cycling(draw: u32) -> Effect {
+    Effect {
+        trigger: Trigger::Cycle,
+        ..drawing(draw)
+    }
+}
+
+#[test]
+fn a_cycle_draws_as_a_cantrip_does_and_is_never_cast() {
+    // cantrip_and_target, with the {U} spell cycled instead of cast: the
+    // same five cards, the same gap. The target is in hand by turn 1 on
+    // 6/10 + 1/10 = 7/10, as with the cantrip; the cycler is in the
+    // graveyard on exactly the 3/10 holding the Island and it, and it is
+    // never cast. Where it was cycled it is out of the library too.
+    let (grouping, cast) = cantrip_and_target(1);
+    let cycled = Schedule::plain_with_fetches(
+        &[2, 1],
+        vec![cycling(1)],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let answer = |schedule: &Schedule| {
+        let mut ev = Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(1, 1, Counted::In(Zone::Hand)) == 1),
+            Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::Cast) == 1),
+            Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::In(Zone::Graveyard)) == 1),
+            Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::In(Zone::Library)) == 0),
+        ]);
+        gauntlet_criteria::run(&grouping, schedule, only_criteria(4), &mut ev)
+            .unwrap()
+            .probabilities
+            .iter()
+            .map(|p| p.get())
+            .collect::<Vec<_>>()
+    };
+    let c = answer(&cycled);
+    assert!((c[0] - 0.7).abs() < 1e-12, "{c:?}");
+    assert!(c[1].abs() < 1e-12, "a cycled card is never cast: {c:?}");
+    assert!((c[2] - 0.3).abs() < 1e-12, "{c:?}");
+    // Seen by turn 1 (3/5) and not left in the library: 6/10.
+    assert!((c[3] - 0.6).abs() < 1e-12, "{c:?}");
+    // The cast reads the same target and the same graveyard, by casting.
+    let s = answer(&cast);
+    assert!(
+        (s[0] - c[0]).abs() < 1e-12 && (s[2] - c[2]).abs() < 1e-12,
+        "{s:?}"
+    );
+    assert!((s[1] - 0.3).abs() < 1e-12, "{s:?}");
+}
+
+/// cycling.txt: five Plains, five Islands, three Cids that cycle for {W}{U}.
+/// Queries: 0 Cid.
+fn cid_cycling_deck() -> Grouping {
+    let land = |c: &str| ManaSource::Land {
+        enters_tapped: false,
+        produces: Palette::from_letters([c]),
+        lasts: None,
+    };
+    Grouping::with_mana(
+        q(&["cid"]),
+        vec![
+            (
+                0b1,
+                ManaSource::Castable {
+                    cost: Cost::parse("{W}{U}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                3,
+            ),
+            (0b0, land("W"), 5),
+            (0b0, land("U"), 5),
+        ],
+    )
+    .unwrap()
+}
+
+#[test]
+fn hand_65_a_cid_is_cycled_by_turn_two_unless_the_eight_cards_hold_none_or_one_colour() {
+    // On the play, eight cards by turn 2 and two land drops. A Cid is cycled
+    // by then unless the eight hold no Cid, C(10,8)/C(13,8) = 45/1287, or
+    // hold lands of one colour only, which takes all three Cids and one
+    // colour's five lands, 2/1287. So 1240/1287.
+    let grouping = cid_cycling_deck();
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0, 1],
+        vec![cycling(1)],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let mut ev = Closures(vec![
+        Box::new(|v: &PathView<'_>| v.count_at(2, 0, Counted::In(Zone::Graveyard)) >= 1),
+        Box::new(|v: &PathView<'_>| v.count_at(2, 0, Counted::Cast) >= 1),
+        Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::In(Zone::Graveyard)) >= 1),
+    ]);
+    let p = gauntlet_criteria::run(&grouping, &schedule, only_criteria(3), &mut ev)
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    assert!((p[0] - 1240.0 / 1287.0).abs() < 1e-12, "{p:?}");
+    assert!(p[1].abs() < 1e-12, "{p:?}");
+    // One land on turn 1 pays no {W}{U}.
+    assert!(p[2].abs() < 1e-12, "{p:?}");
+}
+
+#[test]
+fn a_card_a_cycle_draws_is_cycled_the_same_turn() {
+    // free_cantrips, cycled: two free cyclers and three blanks, dealt one and
+    // then one. The line is read again from its top after each draw, so both
+    // are cycled by turn 1 exactly when both sit in the top three:
+    // C(3,2)/C(5,2) = 3/10, as both cantrips are cast. Neither is cast.
+    let (grouping, _) = free_cantrips();
+    let schedule = Schedule::plain_with_fetches(
+        &[1, 1],
+        vec![cycling(1)],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let mut ev = Closures(vec![
+        Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::In(Zone::Graveyard)) == 2),
+        Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::Cast) > 0),
+    ]);
+    let p = gauntlet_criteria::run(&grouping, &schedule, only_criteria(2), &mut ev)
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    assert!((p[0] - 0.3).abs() < 1e-12, "{p:?}");
+    assert!(p[1].abs() < 1e-12, "{p:?}");
+}

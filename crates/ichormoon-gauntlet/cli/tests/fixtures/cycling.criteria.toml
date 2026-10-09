@@ -1,0 +1,34 @@
+# Issue #136, on cycling.txt. Cid's cycling is paid from hand out of the same
+# pool the line spends: two lands, a Plains and an Island, pay one cycle a
+# turn, and four pay two. The cycled Cid is in the graveyard and was never
+# cast, and the card it draws may be another Cid, cycled the same turn when
+# the pool still pays.
+
+[[effect]]
+match = 'name:"Cid, Timeless Artificer"'
+on = "cycle"
+cost = "{W}{U}"
+draw = 1
+
+[casting]
+prefer = ['name:"Cid, Timeless Artificer"']
+
+[[criterion]]
+name = "a Cid in the graveyard by turn 2"
+require = [{ turn = 2, query = 'name:"Cid, Timeless Artificer"', zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "every Cid in the graveyard by turn 4"
+require = [{ turn = 4, query = 'name:"Cid, Timeless Artificer"', zone = "graveyard", min = 3 }]
+
+[[expect]]
+name = "Cids in the graveyard on turn 4"
+turn = 4
+query = 'name:"Cid, Timeless Artificer"'
+zone = "graveyard"
+
+[[expect]]
+name = "Cids in the library on turn 4"
+turn = 4
+query = 'name:"Cid, Timeless Artificer"'
+zone = "library"

@@ -1139,6 +1139,17 @@ class Rummage:
 
 
 @dataclass(frozen=True)
+class Cycle:
+    """What cycling one card costs and draws (README "Cycling", CR 702.29a):
+    the entry naming it pays `cost` from hand, the card goes to the
+    graveyard as part of that cost, and then the pilot draws `draw`. It is
+    never cast."""
+
+    cost: str
+    draw: int = 1
+
+
+@dataclass(frozen=True)
 class Reanimation:
     """What casting one card returns from your graveyard to the battlefield
     (README "Reanimation"): every card `returns` matches, or with `count` up
@@ -1195,6 +1206,7 @@ def declared_line_path(
     attacks: dict[str, Mill] | None = None,
     landfalls: dict[str, Mill] | None = None,
     returns: dict[str, Reanimation] | None = None,
+    cycles: dict[str, Cycle] | None = None,
 ) -> DeclaredPath:
     """Play `line` out through `last_turn` under a declared land drop and a
     declared discard list. `attacks` and `landfalls` are what a permanent the
@@ -1202,15 +1214,18 @@ def declared_line_path(
     `returns` maps a card to what it returns from the graveyard to the
     battlefield once its mill is done (Lumra's lands, Animate Dead's one
     creature); one that mills nothing is cast only while the graveyard holds
-    a card it would return. A rock or a
+    a card it would return. `cycles` maps a card the line cycles rather than
+    casts to its cycling cost and draw. A rock or a
     dork the line casts is a mana source (ADR 0018). Cached on the game."""
     attacks = attacks or {}
     landfalls = landfalls or {}
     returns = returns or {}
+    cycles = cycles or {}
     key = ("declared", line, last_turn, land_drop, discard,
            tuple(sorted(fetches.items())), tuple(sorted(mills.items())),
            tuple(sorted(rummages.items())), tuple(sorted(attacks.items())),
-           tuple(sorted(landfalls.items())), tuple(sorted(returns.items())))  # fmt: skip
+           tuple(sorted(landfalls.items())), tuple(sorted(returns.items())),
+           tuple(sorted(cycles.items())))  # fmt: skip
     if key in game._line_cache:
         return game._line_cache[key]
     # The card picked at random is a function of the deal, and the same one
@@ -1358,9 +1373,20 @@ def declared_line_path(
                     for c in options
                     if c.name not in returns or c.name in mills or returnable(returns[c.name])
                 ]
-                options.sort(key=lambda c: (_mana_value(c), order[c.name]))
+                # A card the line cycles is paid for at its cycling cost, from
+                # hand only: the command zone is not somewhere it cycles from.
+                options = [c for c in options if c.name not in cycles or c in hand]
+
+                def billed(c: Card) -> str:
+                    return cycles[c.name].cost if c.name in cycles else c.mana_cost
+
+                def value(c: Card) -> int:
+                    generic, pips = _parse_cost_cached(billed(c))
+                    return generic + len(pips)
+
+                options.sort(key=lambda c: (value(c), order[c.name]))
                 for c in options:
-                    cost = _parse_cost_cached(c.mana_cost)
+                    cost = _parse_cost_cached(billed(c))
                     if _settles(pool, bill + [cost]):
                         chosen = (c, cost)
                         break
@@ -1369,6 +1395,16 @@ def declared_line_path(
             if not chosen:
                 break
             card, cost = chosen
+            cycle = cycles.get(card.name)
+            if cycle is not None:
+                # Discarded as the cost is paid, then the draw: in the
+                # graveyard, never cast, and what it drew is in hand for the
+                # line read again from its top.
+                hand.remove(card)
+                bill.append(cost)
+                to_graveyard.append(card)
+                hand += draw(cycle.draw)
+                continue
             (command if card in command else hand).remove(card)
             cast.append(card)
             if card.name in attacks or card.name in landfalls:

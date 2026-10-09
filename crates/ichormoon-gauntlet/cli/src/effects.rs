@@ -507,13 +507,17 @@ fn owners(library: &EffectLibrary, deck: &Library, matchers: &[Query]) -> Vec<Op
 
 /// A cost an effect declares for a card the `[casting]` line plays, in place
 /// of the printed one: Dizzy Spell's transmute, Whir of Invention's X
-/// (ADR-0019).
+/// (ADR-0019), or Cid, Timeless Artificer's cycling `{W}{U}` (#136).
 #[derive(Debug, Clone)]
 pub struct Declared {
     pub cost: Cost,
     /// The `match` of the effect that declared it, so the run can say whose
     /// declaration the bill came from.
     pub effect: String,
+    /// Whether the line pays it to cycle the card rather than to cast it:
+    /// the entry naming the card then puts each copy it reaches in the
+    /// graveyard and draws, and casts none.
+    pub cycles: bool,
 }
 
 /// One per library entry: the cost the effect owning it declares, where it
@@ -537,7 +541,24 @@ pub fn declared_costs(library: &EffectLibrary, deck: &Library) -> Result<Vec<Opt
             Some(Declared {
                 cost: entry.cost.clone()?,
                 effect: entry.matches.clone(),
+                cycles: entry.trigger == Trigger::Cycle,
             })
+        })
+        .collect())
+}
+
+/// One per commander: the `match` of its effect where that effect is a cycle
+/// (#136). A commander is
+/// cast from the command zone, and cycling is paid from hand, so the line has
+/// no reading of an entry that names one.
+pub fn cycling_commanders(library: &EffectLibrary, deck: &Library) -> Result<Vec<Option<String>>> {
+    let matchers = matchers(library)?;
+    Ok(owners(library, deck, &matchers)
+        .into_iter()
+        .skip(deck.entries.len())
+        .map(|o| {
+            let entry = &library.entries()[o?];
+            (entry.trigger == Trigger::Cycle).then(|| entry.matches.clone())
         })
         .collect())
 }

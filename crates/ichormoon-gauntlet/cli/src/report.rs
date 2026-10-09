@@ -840,6 +840,11 @@ pub struct CastingUse {
     /// Absent where it bills every card at its printed cost.
     #[facet(skip_serializing_if = Vec::is_empty)]
     pub declared_costs: Vec<DeclaredCostUse>,
+    /// Cards the list cycles rather than casts, at the cycling cost their
+    /// effect declares: each copy it reaches goes from hand to the graveyard
+    /// and draws, and none is cast (#136). Absent where it cycles nothing.
+    #[facet(skip_serializing_if = Vec::is_empty)]
+    pub cycled: Vec<DeclaredCostUse>,
 }
 
 /// One card a line bills at a declared cost, beside the one it prints.
@@ -1363,6 +1368,10 @@ impl Report {
                      it fetches is a land [land_drop] ranks above every land in hand\n",
                     if sacrifice { ", sacrificing it" } else { "" }
                 )),
+                (Some(cost), None) if e.on == "cycle" => out.push_str(&format!(
+                    "      and the [casting] entry naming it cycles it from hand for {cost}, \
+                     instead of casting it: the card goes to the graveyard and is never cast\n"
+                )),
                 (Some(cost), None) => out.push_str(&format!(
                     "      and the [casting] line pays {cost} to play it, not its printed cost\n"
                 )),
@@ -1394,7 +1403,12 @@ impl Report {
                     )),
                     _ => {}
                 }
-                if !e.live {
+                if !e.live && e.on == "cycle" {
+                    out.push_str(
+                        "      and the [casting] line does not name it, so here it is never \
+                         cycled\n",
+                    );
+                } else if !e.live {
                     out.push_str(
                         "      and the [casting] line does not cast it, so here it draws and \
                          discards nothing\n",
@@ -1628,6 +1642,19 @@ impl Report {
                 for d in &policy.declared_costs {
                     out.push_str(&format!(
                         "      {}: billed {}, printed {} (effect {:?})\n",
+                        d.card, d.billed, d.printed, d.effect
+                    ));
+                }
+            }
+            if !policy.cycled.is_empty() {
+                out.push_str(
+                    "      Cycled, never cast: the entry naming it pays the cycling cost from \
+                     hand, puts the card in the graveyard and draws,\n      and a `cast` clause \
+                     never counts it:\n",
+                );
+                for d in &policy.cycled {
+                    out.push_str(&format!(
+                        "      {}: cycled for {}, printed {} (effect {:?})\n",
                         d.card, d.billed, d.printed, d.effect
                     ));
                 }

@@ -2143,6 +2143,9 @@ fn the_standard_library_is_a_criteria_file_like_any_other() {
             // Nothing ships an activation: which one a line pays for, and
             // what it fetches, is the pilot's (ADR-0019).
             Trigger::Activate => panic!("the library ships no activation: {entry:?}"),
+            // Nor a cycle (#136): whether the line cycles a card or casts it
+            // is the pilot's, and the cost is printed per card.
+            Trigger::Cycle => panic!("the library ships no cycle: {entry:?}"),
             // An attack, a landfall (#89) or an upkeep (#139) mills, and
             // does nothing else.
             Trigger::Attack | Trigger::Landfall | Trigger::Upkeep => assert!(
@@ -3647,4 +3650,89 @@ fn half_a_reanimation_is_refused_by_what_is_missing() {
     .expect_err("refused")
     .to_string();
     assert!(old.contains("returns"), "{old}");
+}
+
+// --- Cycling (#136) ------------------------------------------------------------
+
+/// Cid, Timeless Artificer cycling, with `extra` keys added to the entry.
+fn cycling(extra: &str) -> Result<Criteria, ErrorKind> {
+    Criteria::parse(
+        &format!(
+            r#"
+            [[effect]]
+            match = 'name:"Cid, Timeless Artificer"'
+            on = "cycle"
+            {extra}
+
+            [casting]
+            prefer = ['name:"Cid, Timeless Artificer"']
+
+            [[criterion]]
+            name = "anything"
+            require = [{{ turn = 0, query = 'cat:"arm"', min = 1 }}]
+            "#
+        ),
+        "test.criteria.toml",
+    )
+    .map_err(|e| e.kind)
+}
+
+#[test]
+fn a_cycle_declares_its_cost_and_what_it_draws() {
+    // Cid's own text: Cycling {W}{U}, discard it, draw a card. The cost is
+    // the line's bill for the card in place of {2}{W}{U}, and the draw is a
+    // cast's draw, dealt where the line paid it.
+    let criteria = cycling("cost = \"{W}{U}\"\ndraw = 1").expect("a cycle should parse");
+    let effect = &criteria.effects().entries()[0];
+    assert_eq!(effect.trigger, Trigger::Cycle);
+    assert_eq!(effect.cost, Some(Cost::parse("{W}{U}").unwrap()));
+    assert_eq!(effect.draw, 1);
+    assert_eq!(effect.look, 0);
+    assert_eq!(effect.discard, None);
+    assert_eq!(effect.fetch, None);
+}
+
+#[test]
+fn a_cycle_is_refused_what_it_cannot_do() {
+    // No cost: nothing for the line to pay.
+    let bad = cycling("draw = 1").expect_err("no cost");
+    assert!(
+        matches!(bad, ErrorKind::Missing { key: "cost", .. }),
+        "{bad}"
+    );
+    // No draw: a cycle here draws.
+    let bad = cycling("cost = \"{W}{U}\"").expect_err("no draw");
+    assert!(
+        matches!(bad, ErrorKind::CycleOnlyDraws { key: None, .. }),
+        "{bad}"
+    );
+    assert!(bad.to_string().contains("has no `draw`"), "{bad}");
+    // Landcycling is a search, and is refused by name with the issue.
+    let bad = cycling("cost = \"{1}\"\nfetch = ['t:plains']\nto = \"hand\"").expect_err("fetch");
+    assert!(matches!(bad, ErrorKind::Landcycling { .. }), "{bad}");
+    assert!(bad.to_string().contains("issues/136"), "{bad}");
+    // Anything else a cast may do, a cycle does not.
+    for (extra, key) in [
+        ("look = 1", "look"),
+        ("mill = 2", "mill"),
+        ("discard = 1", "discard"),
+        ("untap = 1", "untap"),
+        ("adds = 1", "adds"),
+        ("after = 1", "after"),
+        ("sacrifice = true", "sacrifice"),
+        (
+            "reanimate = 't:creature'\nreanimate_count = \"all\"",
+            "reanimate",
+        ),
+        ("to_graveyard = \"*\"", "to_graveyard"),
+    ] {
+        let bad = cycling(&format!("cost = \"{{W}}{{U}}\"\ndraw = 1\n{extra}")).expect_err(extra);
+        assert!(
+            matches!(bad, ErrorKind::CycleOnlyDraws { key: Some(k), .. } if k == key),
+            "{extra}: {bad}"
+        );
+    }
+    // A cost holding {X} is refused as anywhere else.
+    let bad = cycling("cost = \"{X}{U}\"\ndraw = 1").expect_err("X");
+    assert!(matches!(bad, ErrorKind::BadCost { .. }), "{bad}");
 }

@@ -210,7 +210,8 @@ struct EffectDef {
     /// What the line bills for playing a matching card, where that is not its
     /// printed mana cost: Dizzy Spell's transmute, `{1}{U}{U}`, or Whir of
     /// Invention with the pilot's X, `{1}{U}{U}{U}` (ADR-0019). A value, not a
-    /// priority: which card the line plays is still `[casting]`'s.
+    /// priority: which card the line plays is still `[casting]`'s. On
+    /// `on = "cycle"` it is the cycling cost, and required (#136).
     cost: Option<String>,
     on: Option<String>,
     /// Absent means nothing leaves the top of the library. See
@@ -265,7 +266,8 @@ struct EffectDef {
     /// `to_graveyard` is. Absent keeps nothing.
     to_hand: Option<Vec<String>>,
     /// Cards a cast draws, dealt as one block the turn the line casts it
-    /// (ADR-0017 §1): Frantic Search's `draw = 2`.
+    /// (ADR-0017 §1): Frantic Search's `draw = 2`. Or a cycle: Cid's
+    /// `draw = 1`, required beside `on = "cycle"`.
     draw: Option<i64>,
     /// Cards a cast then makes you discard: Frantic Search's `discard = 2`.
     /// Which ones is the file's `[discard] prefer`.
@@ -634,7 +636,8 @@ pub struct EffectEntry {
     pub adds: Option<u32>,
     /// What the `[casting]` line bills for a matching card in place of its
     /// printed cost, or `None` to bill what is printed: a transmute, or an X
-    /// the pilot chose (ADR-0019). Already a whole amount: `{X}` and hybrid
+    /// the pilot chose (ADR-0019), or the cycling cost where the trigger is
+    /// [`Trigger::Cycle`] (#136). Already a whole amount: `{X}` and hybrid
     /// are refused here as `can_cast` refuses them.
     pub cost: Option<Cost>,
     pub trigger: Trigger,
@@ -989,6 +992,36 @@ impl Criteria {
                 && !found.iter().any(|(q, _)| *q == query)
             {
                 found.push((query, expectation.name.as_str()));
+            }
+        }
+        found
+    }
+
+    /// Every query this file counts castings of, with the question that
+    /// asked, in first-mention order: a caller holding the card data refuses
+    /// one that names a card the line cycles rather than casts (#136).
+    pub fn cast_queries(&self) -> Vec<(&str, &str)> {
+        let mut found: Vec<(&str, &str)> = Vec::new();
+        let counted = self
+            .predicates
+            .iter()
+            .zip(&self.criteria)
+            .flat_map(|(p, c)| {
+                p.counts()
+                    .filter(|t| t.counted == Counted::Cast)
+                    .map(|t| (t.query, c.name.as_str()))
+                    .collect::<Vec<_>>()
+            });
+        let probed = self
+            .probes
+            .iter()
+            .zip(&self.expectations)
+            .filter(|(p, _)| p.counted == Counted::Cast)
+            .map(|(p, e)| (p.query, e.name.as_str()));
+        for (query, asked_by) in counted.chain(probed) {
+            let query = self.queries[query].as_str();
+            if !found.iter().any(|(q, _)| *q == query) {
+                found.push((query, asked_by));
             }
         }
         found
@@ -1643,6 +1676,24 @@ pub enum ErrorKind {
         on: &'static str,
         key: Option<&'static str>,
     },
+    /// A cycle pays its cost and draws, and nothing else (#136).
+    #[error(
+        "{at}: `on = \"cycle\"` pays its `cost` and draws `draw` cards, and nothing else{}.\n\
+         Cid, Timeless Artificer is `on = \"cycle\"`, `cost = \"{{W}}{{U}}\"`, `draw = 1`",
+        key.map_or(", and this has no `draw`".to_string(), |k| format!(", and this has `{k}`"))
+    )]
+    CycleOnlyDraws {
+        at: String,
+        key: Option<&'static str>,
+    },
+    /// Landcycling: a cycle that searches instead of drawing (#136).
+    #[error(
+        "{at}: `fetch` on `on = \"cycle\"` is landcycling, and it is not modelled: a cycle \
+         here draws.\n\
+         Searching for the land is a cast fetch's shape, paid from hand, and is left for \
+         https://github.com/cramt/progress-engine/issues/136"
+    )]
+    Landcycling { at: String },
 }
 
 /// A count with nowhere to go in a histogram, named against the expectation
@@ -1819,6 +1870,53 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
                     at: at.clone(),
                     on: trigger.as_str(),
                     key: other,
+                });
+            }
+        }
+        // A cycle is paid from hand for its cost and draws (#136): the card
+        // goes to the graveyard as part of that cost, and any other key
+        // would be something cycling does not do here.
+        if trigger == Trigger::Cycle {
+            if def.fetch.is_some() {
+                return Err(ErrorKind::Landcycling { at: at.clone() });
+            }
+            let other = [
+                (def.look.is_some(), "look"),
+                (def.adds.is_some(), "adds"),
+                (def.after.is_some(), "after"),
+                (def.sacrifice.is_some(), "sacrifice"),
+                (def.to_graveyard.is_some(), "to_graveyard"),
+                (def.to.is_some(), "to"),
+                (def.up_to.is_some(), "up_to"),
+                (def.mill.is_some(), "mill"),
+                (def.grows.is_some(), "grows"),
+                (def.keep.is_some(), "keep"),
+                (def.keep_only.is_some(), "keep_only"),
+                (def.keep_every.is_some(), "keep_every"),
+                (def.to_hand.is_some(), "to_hand"),
+                (def.discard.is_some(), "discard"),
+                (def.discard_any.is_some(), "discard_any"),
+                (def.at_random.is_some(), "at_random"),
+                (def.discard_only.is_some(), "discard_only"),
+                (def.untap.is_some(), "untap"),
+                (def.reanimate.is_some(), "reanimate"),
+                (def.reanimate_count.is_some(), "reanimate_count"),
+                (def.reanimate_prefer.is_some(), "reanimate_prefer"),
+            ]
+            .into_iter()
+            .find_map(|(set, key)| set.then_some(key));
+            if def.draw.is_none() || other.is_some() {
+                return Err(ErrorKind::CycleOnlyDraws {
+                    at: at.clone(),
+                    key: other,
+                });
+            }
+            if def.cost.is_none() {
+                return Err(ErrorKind::Missing {
+                    at: at.clone(),
+                    key: "cost",
+                    why: "so the line has nothing to pay to cycle it. Cid, Timeless Artificer's \
+                          is `cost = \"{W}{U}\"`",
                 });
             }
         }
@@ -2154,7 +2252,7 @@ fn reanimate_of(
 /// `discard_only` and `untap` keys of one `[[effect]]` table.
 ///
 /// All of it is what a cast does to the hand (ADR-0017 §3), so it fires on a
-/// cast. What the card fixes is written here — how many, "any number",
+/// cast, and a cycle draws (#136). What the card fixes is written here — how many, "any number",
 /// whether at random, which cards may go — and which cards go is the file's
 /// `[discard] prefer`, so a key saying which is not one this table has.
 fn hand_of(
@@ -2221,7 +2319,9 @@ fn hand_of(
                  what it may do to the hand is discard as part of its cost",
             ));
         }
-    } else if (draw > 0 || discards.is_some() || untap > 0) && trigger != Trigger::Cast {
+    } else if (draw > 0 || discards.is_some() || untap > 0)
+        && !matches!(trigger, Trigger::Cast | Trigger::Cycle)
+    {
         return Err(misdeclared(
             "draws, discards or untaps on a landdrop. What a card does to the hand is what a \
              cast does, written with `on = \"cast\"`",

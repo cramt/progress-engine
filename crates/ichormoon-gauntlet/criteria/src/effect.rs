@@ -36,12 +36,10 @@ use thiserror::Error;
 
 /// When an effect gets to happen.
 ///
-/// Six variants, and the list is short for the same reason it has always
+/// Seven variants, and the list is short for the same reason it has always
 /// been: a variant here is a promise that the engine knows when the effect
-/// fires. The
-/// free-non-land tier — cycling for zero — is still missing, and it is rare
-/// enough that guessing at it would cost more in wrong numbers than it pays in
-/// coverage.
+/// fires. Each is a land drop, something the `[casting]` line pays for, or
+/// something that fires off a permanent the line cast.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Trigger {
     /// The turn a matching land is played. Free, and one per turn.
@@ -65,6 +63,18 @@ pub enum Trigger {
     /// are in play and unactivated is a function of the path. What it costs
     /// and whether it sacrifices its source is the effect's [`Activation`].
     Activate,
+    /// The line pays a matching card's cycling cost from hand
+    /// ([#136](https://github.com/cramt/progress-engine/issues/136)): Cid,
+    /// Timeless Artificer's `{W}{U}`, discard it, draw a card.
+    ///
+    /// Knowable for the reason a cast is: the `[casting]` entry naming the
+    /// card is what pays for it, out of the same bill, and **that entry
+    /// cycles every copy it reaches and never casts one**. The card goes from
+    /// hand to the graveyard as part of the cost (CR 702.29a), so it is
+    /// counted there and never as cast. What it may do is draw, dealt as one
+    /// sized gap (ADR-0017), and what it costs is the effect's declared
+    /// `cost`, billed to the turn's pool in place of the printed one.
+    Cycle,
     /// Each turn a matching creature the line cast attacks: every turn after
     /// the one it was cast on, because it is summoning-sick on that one (CR
     /// 302.6), and after that turn's line, because combat follows the main
@@ -101,13 +111,14 @@ pub enum Trigger {
 
 impl Trigger {
     /// Every trigger an effect may name, for the message that lists them.
-    pub const ACCEPTED: &'static str = "landdrop, cast, activate, attack, landfall, upkeep";
+    pub const ACCEPTED: &'static str = "landdrop, cast, activate, cycle, attack, landfall, upkeep";
 
     pub fn as_str(self) -> &'static str {
         match self {
             Trigger::LandDrop => "landdrop",
             Trigger::Cast => "cast",
             Trigger::Activate => "activate",
+            Trigger::Cycle => "cycle",
             Trigger::Attack => "attack",
             Trigger::Landfall => "landfall",
             Trigger::Upkeep => "upkeep",
@@ -126,6 +137,7 @@ impl Trigger {
             "landdrop" => Ok(Trigger::LandDrop),
             "cast" => Ok(Trigger::Cast),
             "activate" => Ok(Trigger::Activate),
+            "cycle" => Ok(Trigger::Cycle),
             "attack" => Ok(Trigger::Attack),
             "landfall" => Ok(Trigger::Landfall),
             "upkeep" => Ok(Trigger::Upkeep),
@@ -360,8 +372,9 @@ pub struct Effect {
     /// replacement draw, dealt as one **sized gap** ([ADR-0017]) — so a path
     /// that never casts it deals nothing for it.
     ///
-    /// `draw = n` in an `[[effect]]` table: Frantic Search's two. Only
-    /// [`Trigger::Cast`] reads it.
+    /// `draw = n` in an `[[effect]]` table: Frantic Search's two. Read by
+    /// [`Trigger::Cast`], and by [`Trigger::Cycle`], whose draw is the same
+    /// gap dealt when the line cycles the card instead.
     ///
     /// [ADR-0017]: https://github.com/cramt/progress-engine/blob/main/docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md
     pub draw: u32,
@@ -1264,6 +1277,7 @@ impl<'a> Board<'a> {
             sizes: effects.iter().any(|e| {
                 e.discard.is_some()
                     || (e.trigger == Trigger::Cast && (e.draw > 0 || e.mill.is_some()))
+                    || (e.trigger == Trigger::Cycle && e.draw > 0)
                     || (e.trigger.repeats() && e.mill.is_some())
             }),
             next_gap: 0,
@@ -1864,8 +1878,8 @@ impl<'a> Board<'a> {
             // activation and every cast of a card that has one, because the
             // entry naming it pays for both (ADR-0019). It ends, because every
             // pass after the first follows a cast, which takes a card out of
-            // the hand or the command zone, or an activation, which taps or
-            // sacrifices a copy in play.
+            // the hand or the command zone, a cycle, which takes one out of the
+            // hand, or an activation, which taps or sacrifices a copy in play.
             'line: loop {
                 if !finished {
                     break;
@@ -1894,13 +1908,19 @@ impl<'a> Board<'a> {
                             Activated::No => {}
                         }
                         let activates = self.activation_of(group).is_some();
+                        // A card the entry cycles is paid for from hand
+                        // only: the command zone is somewhere it is cast
+                        // from, never cycled from.
+                        let cycles = self.cycles(group);
                         // The command zone is always there: a commander is
                         // cast from it as a card in hand would be, and once —
                         // casting it takes it out, and nothing here puts it
                         // back. It is spent before a copy in hand, which only
                         // matters where a group holds both, and there the copy
                         // in hand stays a card you are holding.
-                        while casting.live_command[group] + self.live_hand[group] > 0 {
+                        while self.live_hand[group] > 0
+                            || (!cycles && casting.live_command[group] > 0)
+                        {
                             if self.waits_for_the_graveyard(group) {
                                 break;
                             }
@@ -1920,12 +1940,19 @@ impl<'a> Board<'a> {
                                 *bill.last() = before;
                                 break;
                             }
-                            if casting.live_command[group] > 0 {
+                            if cycles {
+                                // Discarded as part of the cost, so it is in
+                                // the graveyard before the draw, and it was
+                                // never cast.
+                                self.live_hand[group] -= 1;
+                                self.live_yard[group] += 1;
+                            } else if casting.live_command[group] > 0 {
                                 casting.live_command[group] -= 1;
+                                casting.live_cast[group] += 1;
                             } else {
                                 self.live_hand[group] -= 1;
+                                casting.live_cast[group] += 1;
                             }
-                            casting.live_cast[group] += 1;
                             // A rock taps at once, for what the line casts
                             // after it: a new stage starts, and its mana is
                             // there from it on. The pool grew, so the line
@@ -1933,7 +1960,7 @@ impl<'a> Board<'a> {
                             // could not pay for a moment ago may now be paid.
                             // A dork is summoning-sick and adds nothing yet.
                             let grew = match self.grouping.group_mana()[group].made() {
-                                Some((adds, makes, 0)) => {
+                                Some((adds, makes, 0)) if !cycles => {
                                     bill.stages.push(Demand::FREE);
                                     bill.made.push(Made {
                                         stage: bill.stages.len() - 1,
@@ -2035,6 +2062,13 @@ impl<'a> Board<'a> {
             (Trigger::Activate, Some(activation)) => Some((effect, activation)),
             _ => None,
         }
+    }
+
+    /// Whether the `[casting]` entry naming `group` cycles it rather than
+    /// casting it (#136).
+    fn cycles(&self, group: usize) -> bool {
+        self.group_effect[group]
+            .is_some_and(|e| self.schedule.effects()[e].trigger == Trigger::Cycle)
     }
 
     /// Activate one copy of `group` the line put into play and has not
@@ -2281,7 +2315,9 @@ impl<'a> Board<'a> {
         };
         let e = &self.schedule.effects()[effect];
         let touches_hand = e.draw > 0 || e.mill.is_some() || e.discard.is_some();
-        if e.trigger != Trigger::Cast || !(touches_hand || e.reanimate.is_some()) {
+        // A cycle's draw is a cast's draw: the same gap, where it was paid.
+        let paid_for = matches!(e.trigger, Trigger::Cast | Trigger::Cycle);
+        if !paid_for || !(touches_hand || e.reanimate.is_some()) {
             return Drew::Nothing;
         }
         let (draw, mills) = (e.draw, e.mill.is_some());

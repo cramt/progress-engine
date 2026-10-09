@@ -556,6 +556,8 @@ otherwise produces a percentage that looks exactly like a real one:
 | `adds` on a card whose card data produces no mana, such as Wood Elves | a source taps for the colours its card produces, so this one would count nothing while the run said it applied. A card that searches for a land is a `fetch` |
 | `sacrifice = true` with no `after` | a land that sacrifices itself the moment it is played is a fetchland, and is already written `to = "battlefield"` |
 | a delayed `fetch ... to = "battlefield"` whose priority matches a land | a land arriving off an ability is not a land drop, and whether it enters tapped is a fact no tag carries |
+| `on = "cycle"` with no `cost` or no `draw`, or with any other key; `fetch` on one (landcycling) | a cycle here pays its cost from hand and draws, and nothing else; landcycling is a search, not modelled ([#136](https://github.com/cramt/progress-engine/issues/136)) |
+| a `cast` clause whose query matches a card the `[casting]` line cycles, or a cycle on a commander the line names | the entry naming a cycled card never casts it, so the count is zero by construction; casting some copies and cycling others is not modelled. Count it with `zone = "graveyard"` |
 
 Every one of those messages names the file, the question, and what was wrong
 with it.
@@ -1178,8 +1180,8 @@ to_graveyard = 'name:"Life from the Loam"'
 |---|---|
 | `match` | which cards this is about, in Scryfall syntax |
 | `look` | how many cards off the top it examines |
-| `on` | when it fires: `landdrop`, `cast`, `activate`, `attack`, `landfall` or `upkeep`, see below, [An activation the line pays for](#an-activation-the-line-pays-for-expedition-map), [Attack and landfall](#attack-and-landfall-a-mill-that-fires-again) and [Upkeep](#upkeep-a-mill-before-the-draw) |
-| `cost` | what the line pays: on a cast, in place of the printed cost; on an activation, to activate a copy in play. See [A cost the line pays](#a-cost-the-line-pays-that-is-not-printed-dizzy-spell-and-whir-of-invention) |
+| `on` | when it fires: `landdrop`, `cast`, `activate`, `cycle`, `attack`, `landfall` or `upkeep`, see below, [An activation the line pays for](#an-activation-the-line-pays-for-expedition-map), [Cycling](#cycling-the-line-pays-to-discard-a-card-and-draw), [Attack and landfall](#attack-and-landfall-a-mill-that-fires-again) and [Upkeep](#upkeep-a-mill-before-the-draw) |
+| `cost` | what the line pays: on a cast, in place of the printed cost; on an activation, to activate a copy in play; on a cycle, its cycling cost, required. See [A cost the line pays](#a-cost-the-line-pays-that-is-not-printed-dizzy-spell-and-whir-of-invention) |
 | `sacrifice` | beside `after`, the card that waited leaves play when the effect resolves (a Saga); on an activation, paying it sacrifices the card (Expedition Map) |
 | `to_graveyard` | the routing policy: which examined cards go to the yard. `"*"` is all of them, which is mill. Absent means none of them |
 | `fetch` | the cards it goes and gets out of the library, highest priority first. See [Tutors](#tutors-and-a-library-that-shrinks) |
@@ -1949,6 +1951,74 @@ is why Animate Dead arrives on turn 4 more often than a card at position ten
 would. Servitude costs seven and is never cast before turn 7.
 `checker/test_reanimation.py` holds the wait and the priority against the
 checker's line, which fills the graveyard with a mill.
+
+### Cycling: the line pays to discard a card and draw
+
+The Cid deck's main way into the graveyard is cycling its Cids
+([#136](https://github.com/cramt/progress-engine/issues/136)). Cid, Timeless
+Artificer reads *Cycling {W}{U} ({W}{U}, Discard this card: Draw a card.)*, and
+**`on = "cycle"`** says it:
+
+```toml
+[[effect]]
+match = 'name:"Cid, Timeless Artificer"'
+on = "cycle"
+cost = "{W}{U}"
+draw = 1
+
+[casting]
+prefer = ['name:"Animate Dead"', 'name:"Cid, Timeless Artificer"']
+```
+
+- **The `[casting]` entry naming the card cycles it, and casts none of it**
+  ([ADR-0031](docs/adr/0031-a-cycle-is-the-line-paying-to-discard-and-draw.md)).
+  Its effect says what the entry means, as an activation's does: there is no
+  second list and no new entry syntax, and ordering cycling against casting is
+  where the entry sits in `prefer`. Above, Animate Dead is cast whenever the
+  graveyard holds a creature its own effect returns and the pool pays, and
+  the rest of the turn's mana cycles Cids.
+- **Paid from the same pool.** `cost` is required and is billed to the turn's
+  pool in place of the printed cost, stage by stage like any other entry
+  ([ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md)),
+  and the pips it names are the class's to tell apart. `{X}` and hybrid are
+  refused, as everywhere.
+- **Hand to graveyard, then the draw.** The card is discarded as the cost is
+  paid (CR 702.29a), so `zone = "graveyard"` counts it from then on. The draw
+  is a cast's draw: one sized gap, dealt where the line paid it
+  ([ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md)). The
+  line is read again from its top after it, so a Cid it draws is cycled the
+  same turn where the pool still pays; a land it draws waits for the next drop.
+- **Never cast.** A `cast` clause does not count a cycled card, and one whose
+  query matches a card the line cycles is **refused by name** rather than
+  answered 0%: casting some copies and cycling others in one line is not
+  modelled. Ask `zone = "graveyard"` instead, or leave the cycle effect out to
+  ask about casting it. A commander is cast from the command zone and cycled
+  from nowhere, so a cycle effect on a commander the line names is refused too.
+- **It draws, and does nothing else.** `draw` is required, and any other key
+  on `on = "cycle"` is refused naming it. Landcycling is a search rather than a
+  draw, and `fetch` on a cycle is refused with a pointer to #136.
+- **Yours, not the library's.** Whether a line cycles a card or casts it is the
+  pilot's, so the standard library ships no cycle.
+
+**What it does, measured.** On the fixture `cycling.txt` (five Plains, five
+Islands, three Cids, on the play), a Cid is in the graveyard by turn 2 on
+96.35%: the eight cards hold none on 45/1287 and one colour of land only on
+2/1287 (HANDS.md hand 65). Every Cid is there by turn 4 on 76.57%, 972
+compositions, and the sampler agrees. On a 99-card list shaped like the Cid
+deck, 18 Plains, 18 Islands, 18 Cids and 45 blanks, *three Cids in the
+graveyard*:
+
+| By turn, on the play | Answer | Width | Wall time |
+|---|---|---|---|
+| 3 | 0%, exact: two cycles at most | 1,920 compositions | 0.4 s |
+| 4 | 21.16%, exact | 7,680 compositions, 4 groups | 9.6 s |
+| 5 | 28.11% ± 0.06, ESTIMATE | past the 5,000,000-leaf ceiling | 90 s, 76 s of it counting leaves |
+
+Every cycle is one more one-card gap, and a turn with four lands can pay two,
+so by turn 5 the path count passes the ceiling and the class is sampled and
+labelled as one. With 10 Cids instead of 18 the turn-5 answer is 7.52% ± 0.06,
+also sampled. `checker/test_cycling.py` holds the cycle, the same-turn cycle
+off a drawn Cid and the cast count against the checker's line.
 
 ### Discard: a spell that draws, and then bins
 
@@ -3304,7 +3374,10 @@ plays hand 42 from Expedition Map's text over every deal, the payment before
 the land drop included. A discard in a cost is its reading of the same rules.
 With no artifact card in hand the cost cannot be paid, so there is no
 activation. `checker/test_intuition.py` plays hand 61 from Artificer's
-Intuition's text over every order of the library. It is still a check:
+Intuition's text over every order of the library. Cycling is its reading of
+CR 702.29a — the cost paid from hand, the card discarded as part of it, then
+the draw — and `checker/test_cycling.py` plays hand 65's Cid through it,
+a Cid drawn off a cycle and cycled the same turn included. It is still a check:
 it is how the Spellseeker line found the engine holding a fetched Loam it could
 have cast:
 

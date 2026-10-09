@@ -451,6 +451,7 @@ impl Schedule {
             e.route.is_live()
                 || e.mill.is_some()
                 || e.discard.is_some()
+                || e.trigger == Trigger::Cycle
                 || e.fetch
                     .as_ref()
                     .is_some_and(|f| matches!(f.to, Fetched::Graveyard(_)))

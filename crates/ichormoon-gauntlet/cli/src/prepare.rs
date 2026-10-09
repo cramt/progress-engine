@@ -290,6 +290,9 @@ fn prepare_noting(
             .into());
         }
     }
+    if let Some(policy) = &casting {
+        refuse_cast_cycled_cards(library, criteria, origin, &effect_library, policy)?;
+    }
     if let Some(policy) = &land_drop {
         for query in &policy.unmatched {
             notes.push(format!(
@@ -521,6 +524,56 @@ fn prepare_noting(
         chose,
         mana_modelled,
     })
+}
+
+/// What a line that cycles cannot answer, refused by name (#136): a `cast`
+/// clause counting a card the line cycles, which is zero by construction, and
+/// a cycling commander the line names, which is cast from where it cannot be
+/// cycled.
+fn refuse_cast_cycled_cards(
+    library: &Library,
+    criteria: &Criteria,
+    origin: &str,
+    effect_library: &gauntlet_toml::EffectLibrary,
+    casting: &casting::Resolved,
+) -> Result<(), Unprepared> {
+    let cycling = effects::cycling_commanders(effect_library, library)?;
+    for ((entry, named), cycles) in library
+        .commanders
+        .iter()
+        .zip(&casting.commanders)
+        .zip(cycling)
+    {
+        if let (Some(effect), Some(_)) = (cycles, named) {
+            return Err(Refusal::CycledCommander {
+                file: origin.to_string(),
+                effect,
+                card: entry.card.name.clone(),
+            }
+            .into());
+        }
+    }
+    for (query, asked_by) in criteria.cast_queries() {
+        let mut cards: Vec<String> = library
+            .positions_matching(query)?
+            .into_iter()
+            .map(|p| &library.entries[p].card.name)
+            .filter(|name| casting.cycled.iter().any(|c| &&c.card == name))
+            .cloned()
+            .collect();
+        cards.sort_unstable();
+        cards.dedup();
+        if !cards.is_empty() {
+            return Err(Refusal::CastOfACycledCard {
+                file: origin.to_string(),
+                asked_by: asked_by.to_string(),
+                query: query.to_string(),
+                cards,
+            }
+            .into());
+        }
+    }
+    Ok(())
 }
 
 /// What a discard needs of the run that declares it, refused by name before
@@ -1048,6 +1101,17 @@ impl PreparedRun {
                 printed_cost: line_mana.printed_cost.clone(),
                 declared_costs: self.casting.as_ref().map_or_else(Vec::new, |p| {
                     p.declared
+                        .iter()
+                        .map(|d| report::DeclaredCostUse {
+                            card: d.card.clone(),
+                            billed: d.billed.clone(),
+                            printed: d.printed.clone(),
+                            effect: d.effect.clone(),
+                        })
+                        .collect()
+                }),
+                cycled: self.casting.as_ref().map_or_else(Vec::new, |p| {
+                    p.cycled
                         .iter()
                         .map(|d| report::DeclaredCostUse {
                             card: d.card.clone(),
