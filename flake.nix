@@ -50,7 +50,8 @@
       # filterCargoSources keeps every .toml file.
       #
       # The probe is left out of the source altogether, so its manifests
-      # cannot reach a build that does not include them.
+      # cannot reach a build that does not include them. So is the GPU spike
+      # (#65), a workspace of its own for the same reason.
       #
       # Meldweb Curator's web app and worker are left out too, so a TypeScript
       # edit does not rebuild the Rust, except for the one file meldweb-wasm's
@@ -59,6 +60,7 @@
         src = ./.;
         filter = path: type:
           (builtins.match ".*/crates/gitaxian-probe(/.*)?$" path == null)
+          && (builtins.match ".*/crates/ichormoon-gauntlet/gpu-spike(/.*)?$" path == null)
           && (builtins.match ".*/crates/meldweb-curator/worker(/.*)?$" path == null)
           && (
             (builtins.match ".*/crates/meldweb-curator/web(/.*)?$" path == null)
@@ -377,6 +379,34 @@
             touch $out
           '';
       };
+
+      devShells.gpu-spike = let
+        # CUDA is unfree, so only this shell's nixpkgs allows it and nothing
+        # CI builds ever sees it.
+        cuda = (import nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+        }).cudaPackages;
+        # What cubecl-cuda compiles kernels with at run time: NVRTC, and the
+        # headers its generated source includes, found through CUDA_PATH.
+        cudaForCubecl = pkgs.symlinkJoin {
+          name = "cuda-for-cubecl";
+          paths = builtins.concatMap (p: map (o: p.${o}) p.outputs) [
+            cuda.cuda_nvrtc
+            cuda.cuda_cudart
+            cuda.cuda_cccl
+          ];
+        };
+      in
+        craneLib.devShell {
+          # Issue #65's spike (crates/ichormoon-gauntlet/gpu-spike), a workspace of
+          # its own. libcuda comes from the host's driver, not from here: on
+          # NixOS that is /run/opengl-driver/lib.
+          CUDA_PATH = cudaForCubecl;
+          # cubecl-cpu links the prebuilt LLVM its build downloads, which needs a
+          # libstdc++ at run time.
+          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [cudaForCubecl pkgs.stdenv.cc.cc.lib] + ":/run/opengl-driver/lib";
+        };
 
       devShells.default = craneLib.devShell {
         packages = with pkgs; [

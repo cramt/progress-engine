@@ -25,6 +25,8 @@ mod optimise;
 pub mod prepare;
 pub mod refusal;
 mod report;
+#[cfg(feature = "gpu-spike")]
+pub mod spike;
 pub mod sync;
 
 use std::path::Path;

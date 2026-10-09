@@ -26,6 +26,11 @@ chip-stats.workspace = true
 gauntlet-sim.workspace = true
 sha2.workspace = true
 
+[features]
+# Issue #65's GPU spike: the per-class walks a run would answer, exposed so
+# crates/ichormoon-gauntlet/gpu-spike can walk the same ones on a GPU.
+gpu-spike = ["gauntlet-toml/gpu-spike", "gauntlet-criteria/gpu-spike"]
+
 [dev-dependencies]
 # The end-to-end tests read the binary's stdout with a JSON parser that is not
 # the one under test. Checking facet-json's output with facet-json would only
