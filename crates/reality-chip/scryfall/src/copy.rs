@@ -844,7 +844,7 @@ pub enum SearchAnswer {
 /// the first time something asks for that card, and [`Self::warm`] reads the
 /// rest a slice at a time once the caller has its answers. A search reads
 /// every card it has not yet, which before warming is done takes seconds, so
-/// Curator's worker sends searches to the API until then.
+/// a caller in a hurry sends searches elsewhere until then.
 pub struct ScryfallCopy {
     updated_at: String,
     kept: Vec<KeptCard>,
@@ -1223,7 +1223,7 @@ impl ScryfallCopy {
     }
 
     /// Every printing behind a search for a card's printings: Scryfall's
-    /// `prints_search_uri`, by oracle id, or Meldweb Curator's own by exact name.
+    /// `prints_search_uri`, by oracle id, or a caller's own by exact name.
     /// Newest first, as Scryfall lists them.
     pub fn prints(&self, uri: &str) -> Vec<PrintingFacts> {
         let q = query_param(uri).unwrap_or_default();

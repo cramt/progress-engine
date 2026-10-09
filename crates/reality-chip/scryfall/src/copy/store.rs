@@ -103,8 +103,8 @@ pub enum MetaRefused {
     Slot(String),
 }
 
-/// The meta file as written. The field names are what Curator's worker wrote
-/// before the policy was Rust's, so a copy kept then is read without
+/// The meta file as written. The field names are what the browser's worker
+/// wrote before the policy was Rust's, so a copy kept then is read without
 /// downloading it again.
 #[derive(Facet)]
 #[facet(rename_all = "camelCase")]
