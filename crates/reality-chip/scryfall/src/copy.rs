@@ -29,6 +29,8 @@ use crate::printing::Printing;
 use crate::{parse_printing, CardView, Query};
 use facet::Facet;
 
+pub mod store;
+
 /// Which printing of a card is offered first, when a lookup has several to
 /// pick from: the least [`Self::Key`] wins, and of printings with equal keys,
 /// the one the copy holds first.
