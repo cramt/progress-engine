@@ -211,7 +211,7 @@
 .details-modal {
   display: flex;
   flex-direction: column;
-  width: min(880px, 100%);
+  width: min(1000px, 100%);
   max-height: calc(100vh - 32px);
   overflow: hidden;
   border: 1px solid var(--border);
@@ -256,9 +256,12 @@
   display: block;
 }
 
+/* As big as the screen's height lets it be without the body scrolling: the
+   header, footer and padding take about 210px of it. */
 .details-image {
   flex: none;
-  width: min(320px, 45%);
+  width: min(420px, 45%, calc((100vh - 210px) * 63 / 88));
+  min-width: 220px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -320,6 +323,89 @@
   min-width: 0;
 }
 
+/* The card's text, for reading it without squinting at the picture. */
+.details-text {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.details-face + .details-face {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.details-face-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-bottom: 6px;
+}
+
+.details-face-head strong {
+  width: 100%;
+}
+
+.details-type {
+  flex: 1;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.details-cost {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.details-face p {
+  margin: 0 0 6px;
+}
+
+.details-face p:last-of-type {
+  margin-bottom: 0;
+}
+
+.details-corner {
+  display: block;
+  margin-top: 6px;
+  font-weight: 600;
+  text-align: right;
+}
+
+img.mana {
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0 1px;
+  vertical-align: -0.15em;
+}
+
+.details-cost img.mana {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+}
+
+/* Quantity and finish share a line; neither needs a whole one. */
+.details-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px 32px;
+}
+
+.details-price {
+  color: var(--faint);
+  font-size: 11.5px;
+  font-weight: 400;
+  text-transform: none;
+}
+
 .details-field {
   display: flex;
   flex-wrap: wrap;
@@ -341,6 +427,12 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+/* Floated, a legend's text widens its field by its own width, which wraps the
+   pair; a fieldset's own legend already sits above what it labels. */
+.details-row .details-field legend {
+  float: none;
 }
 
 .details-field select {
@@ -440,8 +532,20 @@
 
 .details-position {
   color: var(--muted);
+  white-space: nowrap;
   font-size: 12.5px;
   font-variant-numeric: tabular-nums;
+}
+
+/* Prev and next say which card they go to, cut short where a name is long. */
+.details-footer button {
+  min-width: 0;
+  max-width: 38%;
+}
+
+.details-step {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* All printings. */
@@ -583,8 +687,14 @@
 
   .details-image {
     width: 100%;
-    max-width: 320px;
+    max-width: 260px;
     margin: 0 auto;
+  }
+
+  /* On a phone the card is already above, so its text goes after the controls
+     rather than pushing them off the screen. */
+  .details-text {
+    order: 1;
   }
 
   .details-modal.wide .details-image {

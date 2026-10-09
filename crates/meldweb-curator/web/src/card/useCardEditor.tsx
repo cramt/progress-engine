@@ -350,6 +350,11 @@ export function useCardEditor({
         <DetailsModal
           card={shown}
           name={nameOf(shown)}
+          scryfall={scryfallPage(shown, nameOf(shown))}
+          nameAt={(index) => {
+            const c = cards.find((c) => c.index === index);
+            return c && nameOf(c);
+          }}
           printing={printings.get(printingKey(shown.card))}
           categories={categories}
           order={walk}

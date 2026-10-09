@@ -162,6 +162,45 @@ export function byRelease(
   return oldest ? sorted.reverse() : sorted;
 }
 
+/** One face of a card as its text box reads, `{G}`-style symbols left in. */
+export interface FaceText {
+  name: string;
+  mana: string;
+  type: string;
+  text: string;
+  /** Power/toughness, loyalty or defense: the box in the corner. */
+  corner?: string;
+}
+
+/**
+ * A printing's faces as the details modal reads them: one for most cards,
+ * each half for a split, flip or double-faced card, where Scryfall keeps the
+ * text on `card_faces` rather than on the card.
+ */
+export function cardText(facts: Record<string, unknown>): FaceText[] {
+  const faces = Array.isArray(facts.card_faces)
+    ? (facts.card_faces as Record<string, unknown>[])
+    : [];
+  return (faces.length > 0 ? faces : [facts]).flatMap((f) =>
+    typeof f.name === "string" ? [faceText(f, f.name)] : [],
+  );
+}
+
+function faceText(f: Record<string, unknown>, name: string): FaceText {
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  const corner =
+    typeof f.power === "string" && typeof f.toughness === "string"
+      ? `${f.power}/${f.toughness}`
+      : str(f.loyalty) || str(f.defense);
+  return {
+    name,
+    mana: str(f.mana_cost),
+    type: str(f.type_line),
+    text: str(f.oracle_text),
+    ...(corner ? { corner } : {}),
+  };
+}
+
 /** The printings whose set name or code contains `filter`, ignoring case. */
 export function filterBySet(
   printings: readonly PrintingOption[],
