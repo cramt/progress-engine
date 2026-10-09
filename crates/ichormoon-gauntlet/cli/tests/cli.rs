@@ -3492,6 +3492,51 @@ fn dizzy_spells_transmute_is_billed_at_what_the_transmute_costs() {
 }
 
 #[test]
+fn buried_alive_puts_up_to_three_cids_into_the_graveyard() {
+    // Issue #137, on buried-alive.txt: twelve cards on the play, and Buried
+    // Alive cast on turn 3 whenever it is among the first nine, 9/12. The
+    // library is then the three cards left, a random three of the eleven
+    // others, and the search takes every Cid among them.
+    // * A Cid in the graveyard: 9/12 × (1 - C(8,3)/C(11,3)) = 9/12 × 109/165,
+    //   49.55%.
+    // * All three: 9/12 × 1/165, 0.45%.
+    // * The mean there: 9/12 × 3 × 3/11 = 0.6136, and out of the library's
+    //   3 × 3/12 = 0.75 drawn alone, which leaves 0.1364.
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture("buried-alive.txt"))
+        .arg(fixture("buried-alive.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("buried-alive-index.jsonl"))
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    let json: serde_json::Value =
+        serde_json::from_slice(&out.stdout).unwrap_or_else(|_| panic!("should answer: {stderr}"));
+    assert_eq!(percent(&json, "a Cid in the graveyard by turn 3"), 49.55);
+    assert_eq!(
+        percent(&json, "all three Cids in the graveyard by turn 3"),
+        0.45
+    );
+    assert_eq!(
+        expectation(&json, "Cids in the graveyard on turn 3")["mean"],
+        0.6136
+    );
+    assert_eq!(
+        expectation(&json, "Cids in the library on turn 3")["mean"],
+        0.1364
+    );
+    // And the run says where it put them and how many a search takes.
+    let effect = &json["effects"][0];
+    assert_eq!(effect["to"], "graveyard", "{json}");
+    assert_eq!(effect["up_to"], 3, "{json}");
+    assert!(
+        stderr.contains("and fetches up to 3, to your graveyard, each the first of these"),
+        "{stderr}"
+    );
+}
+
+#[test]
 fn a_run_prints_the_declared_cost_beside_the_printed_one() {
     // The bill is a declaration, so the run says what it billed, what the
     // card prints, whose effect said so, and that a `cast` clause counts the

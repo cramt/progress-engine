@@ -641,7 +641,8 @@ both what ends up in hand and what is left behind.
 **Whoever declares a tutor says what it fetches, and the run names it.** Same
 discipline as `[land_drop]` and `[casting]`, and it is a declared priority over
 queries rather than a fifth policy language. What it is allowed to do is
-restricted rather than open: `to = "hand"` is a tutor, `to = "battlefield"` on a
+restricted rather than open: `to = "hand"` is a tutor, `to = "graveyard"` is
+Entomb, `up_to` is how many one search takes, `to = "battlefield"` on a
 land drop is a fetchland replacing itself, and a land arriving off a *spell* is
 read as entering tapped and paying from the next turn, because whether it enters
 tapped is a fact about the spell that fetched it and no tag separates Rampant

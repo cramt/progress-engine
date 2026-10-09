@@ -1536,7 +1536,7 @@ fn a_tutor_declares_what_it_fetches_and_where_it_puts_it() {
     assert_eq!(entry.look, 0);
     let fetch = entry.fetch.as_ref().expect("declared");
     assert_eq!(fetch.prefer.len(), 2, "a priority, read in order");
-    assert_eq!(fetch.to, gauntlet_criteria::Fetched::Hand);
+    assert_eq!(fetch.to, gauntlet_criteria::Fetched::Hand(1));
 }
 
 #[test]
@@ -1684,13 +1684,15 @@ fn half_a_tutor_is_refused_either_way_round() {
 
 #[test]
 fn a_fetch_destination_this_engine_cannot_model_is_refused_by_name() {
+    // Mystical Tutor puts its card on top of the library, where it is drawn
+    // next turn: a place in the order, which no removal can say.
     let bad = refuse(
         r#"
         [[effect]]
-        match = 'name:"Entomb"'
+        match = 'name:"Mystical Tutor"'
         on = "cast"
         fetch = ['name:"Life from the Loam"']
-        to = "graveyard"
+        to = "library"
 
         [[criterion]]
         name = "anything"
@@ -1702,8 +1704,100 @@ fn a_fetch_destination_this_engine_cannot_model_is_refused_by_name() {
         "{bad:?}"
     );
     assert!(
-        bad.to_string().contains("hand, battlefield"),
+        bad.to_string().contains("hand, graveyard, battlefield"),
         "should list what it takes: {bad}"
+    );
+}
+
+#[test]
+fn a_tutor_can_put_what_it_finds_into_the_graveyard() {
+    // #137. Entomb takes one card, so it needs no count; Buried Alive takes
+    // "up to three creature cards", each by the same priority.
+    let criteria = parse(
+        r#"
+        [[effect]]
+        match = 'name:"Entomb"'
+        on = "cast"
+        fetch = ['name:"Life from the Loam"']
+        to = "graveyard"
+
+        [[effect]]
+        match = 'name:"Buried Alive"'
+        on = "cast"
+        fetch = ['name:"Cid, Timeless Artificer"', 't:creature']
+        up_to = 3
+        to = "graveyard"
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    let to = |i: usize| criteria.effects().entries()[i].fetch.as_ref().map(|f| f.to);
+    assert_eq!(to(0), Some(Fetched::Graveyard(1)));
+    assert_eq!(to(1), Some(Fetched::Graveyard(3)));
+    assert_eq!(criteria.effects().entries()[1].look, 0);
+}
+
+#[test]
+fn a_tutor_takes_more_than_one_card_only_where_they_have_somewhere_to_go() {
+    let declaring = |keys: &str| {
+        refuse(&format!(
+            r#"
+            [[effect]]
+            match = 'name:"Buried Alive"'
+            on = "cast"
+            {keys}
+
+            [[criterion]]
+            name = "anything"
+            require = [{{ turn = 0, query = 'cat:"arm"', min = 1 }}]
+            "#
+        ))
+    };
+    // A count with no search is a number about nothing.
+    let alone = declaring("up_to = 3\ndraw = 1");
+    assert!(
+        matches!(&alone, ErrorKind::UpToMisdeclared { .. }),
+        "{alone:?}"
+    );
+    assert!(alone.to_string().contains("no `fetch`"), "{alone}");
+    // Zero is no search at all, and eleven is a typo.
+    for value in [0, -1, 11] {
+        let bad = declaring(&format!(
+            "fetch = ['t:creature']\nto = \"graveyard\"\nup_to = {value}"
+        ));
+        assert!(
+            matches!(&bad, ErrorKind::BadUpTo { value: v, .. } if *v == value),
+            "{bad:?}"
+        );
+    }
+    // A fetchland's land arrives in its place: one card, and a second has
+    // nowhere the walk could put it.
+    let field = declaring("fetch = ['t:artifact']\nto = \"battlefield\"\nup_to = 2");
+    assert!(
+        matches!(&field, ErrorKind::UpToMisdeclared { .. }),
+        "{field:?}"
+    );
+    assert!(field.to_string().contains("battlefield"), "{field}");
+    // To hand, more than one is the same search taken again.
+    let hand = parse(
+        r#"
+        [[effect]]
+        match = 'name:"Buried Alive"'
+        on = "cast"
+        fetch = ['t:creature']
+        to = "hand"
+        up_to = 2
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    assert_eq!(
+        hand.effects().entries()[0].fetch.as_ref().map(|f| f.to),
+        Some(Fetched::Hand(2))
     );
 }
 

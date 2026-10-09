@@ -303,9 +303,13 @@ pub struct EffectUse {
     /// not say what it fetched is the bug this project exists to prevent.
     #[facet(skip_serializing_if = Option::is_none)]
     pub fetch: Option<Vec<String>>,
-    /// Where the fetched card is put: `hand` or `battlefield`.
+    /// Where the fetched card is put: `hand`, `graveyard` or `battlefield`.
     #[facet(skip_serializing_if = Option::is_none)]
     pub to: Option<&'static str>,
+    /// How many cards one search takes, where that is more than one:
+    /// Buried Alive's 3.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub up_to: Option<u32>,
     /// Whole turns between the trigger and the effect, or absent where it
     /// happens when it is triggered. Urza's Saga's third chapter is 2.
     #[facet(skip_serializing_if = Option::is_none)]
@@ -1380,9 +1384,13 @@ impl Report {
             // reports is one card smaller because of this list, so the list is
             // an input to every number under it.
             if let (Some(prefer), Some(to)) = (&e.fetch, e.to) {
+                let (what, each) = match e.up_to {
+                    Some(n) => (format!(" up to {n}"), "each "),
+                    None => (String::new(), ""),
+                };
                 out.push_str(&format!(
-                    "      and fetches, to your {to}, the first of these the library still \
-                     holds:\n"
+                    "      and fetches{what}, to your {to}, {each}the first of these the library \
+                     still holds:\n"
                 ));
                 for (i, query) in prefer.iter().enumerate() {
                     out.push_str(&format!("      {}. {query:?}\n", i + 1));
@@ -2018,7 +2026,15 @@ pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
             on: a.on,
             to_graveyard: a.to_graveyard.clone(),
             fetch: a.fetch.as_ref().map(|(prefer, _)| prefer.clone()),
-            to: a.fetch.as_ref().map(|(_, to)| *to),
+            to: a
+                .fetch
+                .as_ref()
+                .map(|(_, to)| gauntlet_toml::fetched_name(*to)),
+            up_to: a
+                .fetch
+                .as_ref()
+                .map(|(_, to)| to.cards())
+                .filter(|&n| n > 1),
             after: a.delay.map(|d| d.turns),
             sacrifice: a.delay.map(|d| d.sacrifice).or(a.sacrifice),
             mill: a.mill.as_ref().map(|m| m.cards),

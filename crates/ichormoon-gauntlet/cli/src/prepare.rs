@@ -762,9 +762,7 @@ fn refuse_unmodelled_mana(
         .iter()
         .filter(|a| a.live)
         .filter_map(|a| a.fetch.as_ref())
-        .filter(|(_, to)| {
-            *to == gauntlet_toml::fetched_name(gauntlet_criteria::Fetched::Battlefield)
-        })
+        .filter(|(_, to)| *to == gauntlet_criteria::Fetched::Battlefield)
         .flat_map(|(prefer, _)| prefer.iter().map(String::as_str))
         .collect();
     for (query, asked_by) in criteria.battlefield_queries() {

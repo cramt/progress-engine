@@ -146,11 +146,23 @@ pub struct Fetch {
 /// — the library is a zone and is not a destination, and a variant here is a
 /// promise that the walk really moves the card there rather than counting it
 /// somewhere plausible.
+///
+/// How many cards one resolution takes lives on the destinations that can
+/// take more than one, so a fetchland finding two lands is not a value. Each
+/// card after the first is the same search again: the first group the
+/// declared priority reaches that the library still holds, so a search for
+/// "up to three" takes three where the priority still finds three and fewer
+/// where it does not.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Fetched {
     /// Trinket Mage: the card goes to your hand, where the budget can then
-    /// cast it out of the same turn's mana if the line named it.
-    Hand,
+    /// cast it out of the same turn's mana if the line named it. Up to this
+    /// many cards.
+    Hand(u32),
+    /// Entomb, and Buried Alive's three: the cards go to your graveyard,
+    /// counted there by `zone = "graveyard"` from the moment the spell
+    /// resolves. Up to this many cards.
+    Graveyard(u32),
     /// Onto the battlefield, and two cards arrive there this way.
     ///
     /// A fetchland: the land arrives **in place of** the land whose drop
@@ -165,6 +177,16 @@ pub enum Fetched {
     /// the same reason: a land arriving off a chapter ability would put mana in
     /// the pool on a turn nothing says whether it entered tapped.
     Battlefield,
+}
+
+impl Fetched {
+    /// How many cards one resolution goes and gets.
+    pub fn cards(self) -> u32 {
+        match self {
+            Fetched::Hand(n) | Fetched::Graveyard(n) => n,
+            Fetched::Battlefield => 1,
+        }
+    }
 }
 
 /// An effect that waits: it is set up by its trigger and resolves some whole
@@ -448,6 +470,19 @@ enum Drew {
     /// It made you discard, and which cards go is a choice the path has not
     /// made yet: a tie the list leaves, or a card picked at random.
     Undecided,
+}
+
+/// What [`Board::search`] left for its caller to do.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Found {
+    /// Nothing: it found nothing, or put everything it found into the
+    /// graveyard.
+    Settled,
+    /// It put cards into the hand, which the line may now cast.
+    InHand,
+    /// The one card it found for the battlefield, which the caller puts
+    /// down.
+    OntoBattlefield(usize),
 }
 
 /// Whether [`Board::activate`] paid for an activation.
@@ -1534,17 +1569,12 @@ impl<'a> Board<'a> {
                                     .push((turn + delay.turns as usize, effect, group));
                             } else if effects[effect].trigger == Trigger::LandDrop {
                                 self.look(effect, effects[effect].look);
-                                if let Some((got, to)) = self.fetch(effect) {
-                                    match to {
-                                        Fetched::Hand => self.live_hand[got] += 1,
-                                        Fetched::Battlefield => {
-                                            landed = Some(got);
-                                            self.live_landed[got] += 1;
-                                            // The fetchland entered, and
-                                            // then the land it found did.
-                                            self.entered += 1;
-                                        }
-                                    }
+                                if let Found::OntoBattlefield(got) = self.search(effect) {
+                                    landed = Some(got);
+                                    self.live_landed[got] += 1;
+                                    // The fetchland entered, and then the
+                                    // land it found did.
+                                    self.entered += 1;
                                 }
                             }
                         }
@@ -1987,13 +2017,9 @@ impl<'a> Board<'a> {
                 return Activated::Undecided;
             }
         }
-        match self.fetch(effect) {
-            Some((got, Fetched::Hand)) => self.live_hand[got] += 1,
-            Some((got, Fetched::Battlefield)) => {
-                self.live_field[got] += 1;
-                self.live_landed[got] += 1;
-            }
-            None => {}
+        if let Found::OntoBattlefield(got) = self.search(effect) {
+            self.live_field[got] += 1;
+            self.live_landed[got] += 1;
         }
         Activated::Paid
     }
@@ -2009,7 +2035,7 @@ impl<'a> Board<'a> {
         if self.schedule.effects()[effect]
             .fetch
             .as_ref()
-            .is_none_or(|f| f.to != Fetched::Hand)
+            .is_none_or(|f| !matches!(f.to, Fetched::Hand(_)))
         {
             return false;
         }
@@ -2494,14 +2520,9 @@ impl<'a> Board<'a> {
                 continue;
             }
             self.pending.remove(i);
-            if let Some((got, to)) = self.fetch(effect) {
-                match to {
-                    Fetched::Hand => self.live_hand[got] += 1,
-                    Fetched::Battlefield => {
-                        self.live_field[got] += 1;
-                        self.live_landed[got] += 1;
-                    }
-                }
+            if let Found::OntoBattlefield(got) = self.search(effect) {
+                self.live_field[got] += 1;
+                self.live_landed[got] += 1;
             }
             if self.schedule.effects()[effect]
                 .delay
@@ -2528,21 +2549,45 @@ impl<'a> Board<'a> {
         if self.schedule.effects()[effect].trigger != Trigger::Cast {
             return false;
         }
-        match self.fetch(effect) {
-            Some((got, Fetched::Hand)) => {
-                self.live_hand[got] += 1;
-                true
-            }
-            Some((got, Fetched::Battlefield)) => {
+        match self.search(effect) {
+            Found::InHand => true,
+            Found::OntoBattlefield(got) => {
                 self.live_field[got] += 1;
                 self.live_landed[got] += 1;
                 false
             }
-            None => false,
+            Found::Settled => false,
         }
     }
 
-    /// Go and get a card, by the priority this effect declared.
+    /// Resolve `effect`'s search: as many cards as its destination takes,
+    /// each the next one its declared priority reaches.
+    ///
+    /// A card bound for the hand or the graveyard is put there; one bound for
+    /// the battlefield is handed back, because where it lands is the
+    /// caller's — in place of a fetchland, or beside a Saga.
+    fn search(&mut self, effect: usize) -> Found {
+        let Some(to) = self.schedule.effects()[effect].fetch.as_ref().map(|f| f.to) else {
+            return Found::Settled;
+        };
+        let mut found = Found::Settled;
+        for _ in 0..to.cards() {
+            let Some(got) = self.fetch(effect) else {
+                break;
+            };
+            match to {
+                Fetched::Hand(_) => {
+                    self.live_hand[got] += 1;
+                    found = Found::InHand;
+                }
+                Fetched::Graveyard(_) => self.live_yard[got] += 1,
+                Fetched::Battlefield => return Found::OntoBattlefield(got),
+            }
+        }
+        found
+    }
+
+    /// Go and get one card, by the priority this effect declared.
     ///
     /// The first tier holding a card this path has not already taken, and
     /// inside a tier the group the decklist named first — the same shape of
@@ -2556,15 +2601,14 @@ impl<'a> Board<'a> {
     /// line and this takes it only when it is the only one left — the same
     /// reading of a decision the pilot gets to make that the gate already
     /// takes of the land drop.
-    fn fetch(&mut self, effect: usize) -> Option<(usize, Fetched)> {
-        let to = self.schedule.effects()[effect].fetch.as_ref()?.to;
+    fn fetch(&mut self, effect: usize) -> Option<usize> {
         for tier in 0..self.fetch_tiers[effect].len() {
             let deep = self.fetch_tiers[effect]
                 .get(tier)
                 .and_then(|groups| groups.iter().copied().find(|&g| self.unrevealed(g) > 0));
             if let Some(group) = deep {
                 self.removed[group] += 1;
-                return Some((group, to));
+                return Some(group);
             }
             let on_top = self.kept.iter().position(|kept| {
                 self.fetch_tiers[effect]
@@ -2572,7 +2616,7 @@ impl<'a> Board<'a> {
                     .is_some_and(|groups| groups.contains(kept))
             });
             if let Some(i) = on_top {
-                return Some((self.kept.remove(i), to));
+                return Some(self.kept.remove(i));
             }
             // And a card the mulligan put on the bottom is still in the
             // library, so a search still finds it — last, because it is the one
@@ -2582,7 +2626,7 @@ impl<'a> Board<'a> {
                 .and_then(|groups| groups.iter().copied().find(|&g| self.live_bottomed[g] > 0));
             if let Some(group) = underneath {
                 self.live_bottomed[group] -= 1;
-                return Some((group, to));
+                return Some(group);
             }
         }
         None

@@ -1183,7 +1183,8 @@ to_graveyard = 'name:"Life from the Loam"'
 | `sacrifice` | beside `after`, the card that waited leaves play when the effect resolves (a Saga); on an activation, paying it sacrifices the card (Expedition Map) |
 | `to_graveyard` | the routing policy: which examined cards go to the yard. `"*"` is all of them, which is mill. Absent means none of them |
 | `fetch` | the cards it goes and gets out of the library, highest priority first. See [Tutors](#tutors-and-a-library-that-shrinks) |
-| `to` | where a fetched card is put: `hand` or `battlefield` |
+| `to` | where a fetched card is put: `hand`, `graveyard` or `battlefield` |
+| `up_to` | how many cards one search takes, each the next its `fetch` priority reaches: Buried Alive's `up_to = 3`. Absent is one. Not with `to = "battlefield"`, which puts down one card |
 | `adds` | how much mana a card adds a turn once the `[casting]` line has cast it, `on = "cast"` only, of the colours its card makes. With `after = n` it adds nothing for `n` turns, which is a rock that enters tapped. See [Mana, as a budget](#mana-as-a-budget) and [ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) |
 | `mill` | how many cards a cast, an attack or a landfall puts off the top of the library into the graveyard. Not on a `landdrop`, whose way to do that is a `look`. See [Mills](#mills-a-spell-that-turns-cards-over) |
 | `keep`, `keep_only` | how many of a mill's cards the card lets go to hand instead, and which cards it allows |
@@ -1361,6 +1362,29 @@ find, and five lands cast Spellseeker and then the Loam it fetched:
 With the fetch deleted and Spellseeker still in the line it reads 9.95% ± 0.07
 and 11.22% ± 0.07, so casting Spellseeker moves nothing and the whole
 difference is the card it went and got (HANDS.md hand 36).
+
+**A tutor can put what it finds into the graveyard**, and take more than one.
+Entomb is `to = "graveyard"`; Buried Alive, "up to three creature cards", adds
+`up_to = 3`, and each card after the first is the same search again — the first
+entry the library still holds — so it takes three where the priority still finds
+three and fewer where it does not. What it puts there is counted by `zone =
+"graveyard"` from the turn it resolves, and gone from the library like any
+fetch:
+
+```toml
+[[effect]]
+match = 'name:"Buried Alive"'
+on = "cast"
+fetch = ['name:"Cid, Timeless Artificer"']
+up_to = 3
+to = "graveyard"
+```
+
+On twelve cards — eight Swamps, Buried Alive and three Cids, on the play —
+the line casts it on turn 3 whenever it is among the first nine cards, and it
+takes every Cid among the three left: a Cid in the graveyard by turn 3 is
+49.55%, and the mean 0.6136, where without the search it is 0
+(`crates/ichormoon-gauntlet/cli/tests/fixtures/buried-alive.criteria.toml`).
 
 **A fetchland is not a filter, and the distinction matters.** Scry and surveil
 examine N cards off the top; a fetchland removes a card from the library and

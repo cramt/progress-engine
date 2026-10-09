@@ -689,23 +689,22 @@ fn drawable(grouping: &Grouping, schedule: &Schedule) -> u32 {
 }
 
 /// The most cards this run can take out of the library without drawing them:
-/// one per copy of a card whose effect fetches. A land is played once, a spell
-/// cast once, a chapter resolves once.
+/// what one search takes, per copy of a card whose effect fetches. A land is
+/// played once, a spell cast once, a chapter resolves once.
 fn fetchable(grouping: &Grouping, schedule: &Schedule) -> u32 {
     let effects = schedule.effects();
     grouping
         .group_masks()
         .iter()
         .zip(grouping.group_sizes())
-        .filter(|(mask, _)| {
+        .filter_map(|(mask, &size)| {
             // Last-wins, as the board reads it: the bits are disjoint, so the
             // effect a group carries is the one whose bit it has.
-            effects
+            let e = effects
                 .iter()
-                .rposition(|e| *mask & (1u64 << e.matched_by) != 0)
-                .is_some_and(|e| effects[e].fetch.is_some())
+                .rposition(|e| *mask & (1u64 << e.matched_by) != 0)?;
+            Some(size * effects[e].fetch.as_ref()?.to.cards())
         })
-        .map(|(_, &size)| size)
         .sum()
 }
 

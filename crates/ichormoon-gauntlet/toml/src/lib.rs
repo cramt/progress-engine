@@ -229,6 +229,10 @@ struct EffectDef {
     /// without it: a card that left the library has to be somewhere, and a
     /// default would be this tool choosing a zone on your behalf.
     to: Option<String>,
+    /// How many cards one search goes and gets, each the next its `fetch`
+    /// priority reaches: Buried Alive's "up to three" is `up_to = 3`. Absent
+    /// is one. Only beside a `fetch` to the hand or the graveyard.
+    up_to: Option<i64>,
     /// Whole turns between the trigger and the effect. Urza's Saga's third
     /// chapter is `after = 2`: the lore counters it gains after your next two
     /// draw steps. Absent is an effect that happens when it is triggered.
@@ -680,8 +684,8 @@ pub struct DiscardDecl {
     pub only: Option<String>,
 }
 
-/// The most cards one `draw`, `discard` or `untap` may name: a bound on a
-/// typo, not on the game.
+/// The most cards one `draw`, `discard`, `untap` or `up_to` may name: a bound
+/// on a typo, not on the game.
 pub const MAX_HAND: u32 = 10;
 
 /// The most cards one `mill` may turn over. Seven is the deepest a card in
@@ -689,7 +693,8 @@ pub const MAX_HAND: u32 = 10;
 pub const MAX_MILL: u32 = 20;
 
 /// A declared tutor, as written: what it would go and get, in the order it
-/// would take them, and where it puts what it finds.
+/// would take them, and where it puts what it finds — which carries how many
+/// it finds, where a destination can take more than one.
 ///
 /// The queries are still text for the same reason an effect's `match` is:
 /// which cards they pick out is a question about a decklist and an index, and
@@ -701,12 +706,15 @@ pub struct FetchDecl {
 }
 
 /// Every destination a fetch may name, for the message that lists them.
-pub const FETCH_DESTINATIONS: &str = "hand, battlefield";
+pub const FETCH_DESTINATIONS: &str = "hand, graveyard, battlefield";
 
-/// Read a fetch destination from what a criteria file wrote.
-fn fetched_of(name: &str) -> Option<Fetched> {
+/// Read a fetch destination from what a criteria file wrote, taking `cards`
+/// a search. `None` for a name that is not a destination; whether the
+/// battlefield can take more than one is the caller's to refuse.
+fn fetched_of(name: &str, cards: u32) -> Option<Fetched> {
     match name {
-        "hand" => Some(Fetched::Hand),
+        "hand" => Some(Fetched::Hand(cards)),
+        "graveyard" => Some(Fetched::Graveyard(cards)),
         "battlefield" => Some(Fetched::Battlefield),
         _ => None,
     }
@@ -715,7 +723,8 @@ fn fetched_of(name: &str) -> Option<Fetched> {
 /// What a fetch destination is called in a file and in a report.
 pub fn fetched_name(to: Fetched) -> &'static str {
     match to {
-        Fetched::Hand => "hand",
+        Fetched::Hand(_) => "hand",
+        Fetched::Graveyard(_) => "graveyard",
         Fetched::Battlefield => "battlefield",
     }
 }
@@ -1510,6 +1519,15 @@ pub enum ErrorKind {
         value: i64,
         max: u32,
     },
+    #[error(
+        "{at}: `up_to = {value}` is not a number of cards: it must be a whole number from 1 to \
+         {MAX_HAND}. A search for one card is written with no `up_to`"
+    )]
+    BadUpTo { at: String, value: i64 },
+    /// `up_to` with nothing to count, or more than one card where only one
+    /// can go.
+    #[error("{at}: {why}")]
+    UpToMisdeclared { at: String, why: &'static str },
     /// Half a mill, refused by what is missing (ADR-0017 §2).
     #[error("{at}: {why}")]
     MillMisdeclared { at: String, why: &'static str },
@@ -2120,6 +2138,13 @@ fn delay_of(
 /// and half a declaration is where a default nobody stated gets invented.
 fn fetch_of(def: &EffectDef, at: &str) -> Result<Option<FetchDecl>, ErrorKind> {
     let table = "an `[[effect]]` `fetch`";
+    if def.fetch.is_none() && def.up_to.is_some() {
+        return Err(ErrorKind::UpToMisdeclared {
+            at: at.to_string(),
+            why: "has `up_to` and no `fetch`, so there is no search for it to count. `up_to` is \
+                  how many cards a `fetch` takes, as Buried Alive's `up_to = 3`",
+        });
+    }
     match (&def.fetch, &def.to) {
         (None, None) => Ok(None),
         (None, Some(to)) => Err(ErrorKind::ToWithoutFetch {
@@ -2148,12 +2173,34 @@ fn fetch_of(def: &EffectDef, at: &str) -> Result<Option<FetchDecl>, ErrorKind> {
                 at: at.to_string(),
                 key: "to",
                 why: "so a card it found would have left the library with nowhere to be. \
-                      Write `to = \"hand\"` for a tutor, `to = \"battlefield\"` for a fetchland",
+                      Write `to = \"hand\"` for a tutor, `to = \"graveyard\"` for Entomb, \
+                      `to = \"battlefield\"` for a fetchland",
             })?;
-            let to = fetched_of(to).ok_or_else(|| ErrorKind::BadFetchDestination {
+            let cards = match def.up_to {
+                None => 1,
+                Some(value) => u32::try_from(value)
+                    .ok()
+                    .filter(|n| (1..=MAX_HAND).contains(n))
+                    .ok_or(ErrorKind::BadUpTo {
+                        at: at.to_string(),
+                        value,
+                    })?,
+            };
+            let to = fetched_of(to, cards).ok_or_else(|| ErrorKind::BadFetchDestination {
                 at: at.to_string(),
                 to: to.clone(),
             })?;
+            // A fetchland's land arrives in place of the fetchland, and a
+            // Saga's card beside the Saga: one card, put down by whatever
+            // fetched it. A second has no place the walk could put it.
+            if to == Fetched::Battlefield && cards > 1 {
+                return Err(ErrorKind::UpToMisdeclared {
+                    at: at.to_string(),
+                    why: "has `up_to` above 1 with `to = \"battlefield\"`, and a search puts \
+                          one card onto the battlefield: a fetchland's land in its place, a \
+                          Saga's beside it. More than one is not modelled",
+                });
+            }
             Ok(Some(FetchDecl {
                 prefer: prefer.clone(),
                 to,

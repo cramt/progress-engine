@@ -823,7 +823,7 @@ fn a_tutor_agrees_with_the_exact_engine() {
         route: Route::Nowhere,
         fetch: Some(Fetch {
             prefer: vec![1],
-            to: Fetched::Hand,
+            to: Fetched::Hand(1),
         }),
         delay: None,
         draw: 0,
@@ -867,6 +867,97 @@ fn a_tutor_agrees_with_the_exact_engine() {
         "sampled {sampled} vs exact {exact} ({}x SE)",
         (sampled - exact).abs() / se
     );
+}
+
+#[test]
+fn a_tutor_to_the_graveyard_agrees_with_the_exact_engine() {
+    // #137: Buried Alive takes up to three creatures out of the library and
+    // puts them in the graveyard. Three cards a search means the two engines
+    // take the same three by the same priority, one after another, out of
+    // their different libraries; asked of the graveyard it filled, of the
+    // library it emptied, and of the hand that then draws from what is left.
+    let grouping = Grouping::with_mana(
+        q(&["buried alive", "cid"]),
+        vec![
+            (
+                0b01,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}{U}").unwrap().demand(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                6,
+            ),
+            (0b10, ManaSource::Spell, 8),
+            (
+                0b00,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                    lasts: None,
+                },
+                24,
+            ),
+            (0b00, ManaSource::Spell, 61),
+        ],
+    )
+    .unwrap();
+    let buried_alive = Effect {
+        matched_by: 0,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to: Fetched::Graveyard(3),
+        }),
+        delay: None,
+        draw: 0,
+        mill: None,
+        activation: None,
+        discard: None,
+        untap: 0,
+    };
+    let schedule = Schedule::build(
+        5,
+        true,
+        vec![buried_alive],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let questions = || {
+        Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(3, 1, Counted::In(Zone::Graveyard)) >= 3)
+                as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(5, 1, Counted::In(Zone::Graveyard)) >= 4),
+            Box::new(|v: &PathView<'_>| v.count_at(5, 1, Counted::In(Zone::Library)) <= 2),
+            Box::new(|v: &PathView<'_>| v.count_at(5, 1, Counted::In(Zone::Hand)) >= 2),
+        ])
+    };
+    let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(4), &mut questions())
+        .unwrap()
+        .probabilities;
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        TRIALS,
+        11,
+        only_criteria(4),
+        &mut questions(),
+    )
+    .unwrap()
+    .proportions;
+    for (i, (exact, sampled)) in exact.iter().zip(&sampled).enumerate() {
+        let exact = exact.get();
+        assert!(
+            exact > 0.05 && exact < 0.95,
+            "question {i} is worth asking: {exact}"
+        );
+        let se = standard_error(*sampled, TRIALS);
+        assert!(
+            (sampled - exact).abs() < 4.0 * se,
+            "question {i}: sampled {sampled} vs exact {exact} ({}x SE)",
+            (sampled - exact).abs() / se
+        );
+    }
 }
 
 #[test]
@@ -1140,7 +1231,7 @@ fn an_activation_paid_before_the_drop_agrees_in_both_engines() {
         route: Route::Nowhere,
         fetch: Some(Fetch {
             prefer: vec![2],
-            to: Fetched::Hand,
+            to: Fetched::Hand(1),
         }),
         delay: None,
         draw: 0,
@@ -1274,7 +1365,7 @@ fn an_activation_whose_cost_discards_agrees_in_both_engines() {
         route: Route::Nowhere,
         fetch: Some(Fetch {
             prefer: vec![1],
-            to: Fetched::Hand,
+            to: Fetched::Hand(1),
         }),
         delay: None,
         draw: 0,
@@ -1395,7 +1486,7 @@ fn a_tutor_billed_at_a_declared_cost_agrees_in_both_engines() {
         route: Route::Nowhere,
         fetch: Some(Fetch {
             prefer: vec![1],
-            to: Fetched::Hand,
+            to: Fetched::Hand(1),
         }),
         delay: None,
         draw: 0,
@@ -1492,7 +1583,7 @@ fn a_tutor_thins_the_library_in_both_engines() {
                 route: Route::Nowhere,
                 fetch: Some(Fetch {
                     prefer: vec![1],
-                    to: Fetched::Hand,
+                    to: Fetched::Hand(1),
                 }),
                 delay: None,
                 draw: 0,
@@ -1774,7 +1865,7 @@ fn a_mulligan_agrees_with_the_exact_engine() {
         route: Route::Nowhere,
         fetch: Some(Fetch {
             prefer: vec![2],
-            to: Fetched::Hand,
+            to: Fetched::Hand(1),
         }),
         delay: None,
         draw: 0,
@@ -2034,7 +2125,7 @@ fn drawing_deck(cost: &str, draw: u32, fetch: bool) -> (Grouping, Schedule) {
         route: Route::Nowhere,
         fetch: fetch.then(|| Fetch {
             prefer: vec![1],
-            to: Fetched::Hand,
+            to: Fetched::Hand(1),
         }),
         delay: None,
         draw,

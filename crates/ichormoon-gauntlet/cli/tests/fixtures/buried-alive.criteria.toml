@@ -1,0 +1,32 @@
+# Issue #137, on buried-alive.txt. The line casts Buried Alive and nothing
+# else, so a Cid is in the graveyard only where the search put it there.
+
+[[effect]]
+match = 'name:"Buried Alive"'
+on = "cast"
+fetch = ['name:"Cid, Timeless Artificer"']
+up_to = 3
+to = "graveyard"
+
+[casting]
+prefer = ['name:"Buried Alive"']
+
+[[criterion]]
+name = "a Cid in the graveyard by turn 3"
+require = [{ turn = 3, query = 'name:"Cid, Timeless Artificer"', zone = "graveyard", min = 1 }]
+
+[[criterion]]
+name = "all three Cids in the graveyard by turn 3"
+require = [{ turn = 3, query = 'name:"Cid, Timeless Artificer"', zone = "graveyard", min = 3 }]
+
+[[expect]]
+name = "Cids in the graveyard on turn 3"
+turn = 3
+query = 'name:"Cid, Timeless Artificer"'
+zone = "graveyard"
+
+[[expect]]
+name = "Cids in the library on turn 3"
+turn = 3
+query = 'name:"Cid, Timeless Artificer"'
+zone = "library"

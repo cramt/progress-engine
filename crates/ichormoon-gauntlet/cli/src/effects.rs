@@ -14,7 +14,9 @@
 use anyhow::{Context, Result};
 use chip_scryfall::index::TagGap;
 use chip_scryfall::Query;
-use gauntlet_criteria::{Activation, Cost, Discard, Effect, Fetch, Mill, Route, ToHand, Trigger};
+use gauntlet_criteria::{
+    Activation, Cost, Discard, Effect, Fetch, Fetched, Mill, Route, ToHand, Trigger,
+};
 use gauntlet_toml::{
     Destination, DiscardDecl, EffectEntry, EffectLibrary, HandDecl, MillDecl,
     STANDARD_LIBRARY_ORIGIN,
@@ -42,10 +44,10 @@ pub struct Applied {
     pub on: &'static str,
     pub to_graveyard: Option<String>,
     /// The declared tutor priority, as written, and where it puts what it
-    /// finds. A run that fetched has to say what it fetched: a number that
-    /// hinged on a declared policy and did not name it is the bug this project
-    /// exists to prevent.
-    pub fetch: Option<(Vec<String>, &'static str)>,
+    /// finds and how many. A run that fetched has to say what it fetched: a
+    /// number that hinged on a declared policy and did not name it is the bug
+    /// this project exists to prevent.
+    pub fetch: Option<(Vec<String>, Fetched)>,
     /// Which of the fetch's preferences pick out no card in this deck, so a
     /// tier that decides nothing is a fact about the deck rather than silence.
     pub fetch_misses: Vec<String>,
@@ -234,10 +236,7 @@ pub fn resolve(
                 Destination::Everything => gauntlet_toml::EVERYTHING.to_string(),
                 Destination::Matching(q) => q.clone(),
             }),
-            fetch: entry
-                .fetch
-                .as_ref()
-                .map(|f| (f.prefer.clone(), gauntlet_toml::fetched_name(f.to))),
+            fetch: entry.fetch.as_ref().map(|f| (f.prefer.clone(), f.to)),
             fetch_misses,
             delay: entry.delay,
             mill: entry.mill.clone(),

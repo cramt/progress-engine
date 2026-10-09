@@ -1589,7 +1589,7 @@ fn a_tutor_puts_the_card_it_names_in_your_hand() {
         .get();
     let with = gauntlet_criteria::run(
         &g,
-        &Schedule::plain_with_fetches(&gaps, vec![tutor(Fetched::Hand)], line()),
+        &Schedule::plain_with_fetches(&gaps, vec![tutor(Fetched::Hand(1))], line()),
         only_criteria(1),
         &mut held(),
     )
@@ -1632,7 +1632,7 @@ fn a_tutor_takes_its_card_out_of_the_library() {
         .mean();
     let with = gauntlet_criteria::run(
         &g,
-        &Schedule::plain_with_fetches(&gaps, vec![tutor(Fetched::Hand)], line()),
+        &Schedule::plain_with_fetches(&gaps, vec![tutor(Fetched::Hand(1))], line()),
         only_expectations(1),
         &mut left(),
     )
@@ -1687,7 +1687,7 @@ fn a_tutor_that_finds_nothing_fetches_nothing() {
         &g,
         &Schedule::plain_with_fetches(
             &[7, 0, 0],
-            vec![tutor(Fetched::Hand)],
+            vec![tutor(Fetched::Hand(1))],
             Policies::casting(CastingPolicy::new(vec![0])),
         ),
         only_expectations(2),
@@ -1698,6 +1698,91 @@ fn a_tutor_that_finds_nothing_fetches_nothing() {
     // nothing left for either tutor to find.
     assert!((out.distributions[0].mean() - 1.0).abs() < 1e-12);
     assert!(out.distributions[1].mean().abs() < 1e-12);
+}
+
+/// Buried Alive in an eight-card library: the sorcery at `{U}`, an Island,
+/// `cids` creatures it searches for, and blanks to make up eight.
+fn buried_alive_library(cids: u32) -> Grouping {
+    Grouping::with_mana(
+        q(&["buried alive", "cid"]),
+        vec![
+            (
+                0b01,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                1,
+            ),
+            (0b10, ManaSource::Spell, cids),
+            (
+                0b00,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                    lasts: None,
+                },
+                1,
+            ),
+            (0b00, ManaSource::Spell, 6 - cids),
+        ],
+    )
+    .unwrap()
+}
+
+/// Cids in the graveyard and in the library on turn 1, with a three-card
+/// opener and Buried Alive taking `up_to` of them.
+fn buried_alive(cids: u32, up_to: u32) -> (f64, f64) {
+    let effect = Effect {
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to: Fetched::Graveyard(up_to),
+        }),
+        ..tutor(Fetched::Hand(1))
+    };
+    let out = gauntlet_criteria::run(
+        &buried_alive_library(cids),
+        &Schedule::plain_with_fetches(
+            &[3, 0],
+            vec![effect],
+            Policies::casting(CastingPolicy::new(vec![0])),
+        ),
+        only_expectations(2),
+        &mut Counters(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(1, 1, Counted::In(Zone::Graveyard))) as Tally,
+            Box::new(|v: &PathView<'_>| v.count_at(1, 1, Counted::In(Zone::Library))),
+        ]),
+    )
+    .unwrap();
+    (out.distributions[0].mean(), out.distributions[1].mean())
+}
+
+#[test]
+fn buried_alive_puts_up_to_three_cards_into_the_graveyard() {
+    // Issue #137. Three cards of eight in the opener, and the spell is cast
+    // on turn 1 only when it and the Island are two of them: 6 of the 56
+    // openers, 3/28. The third card is the only other one in hand, so the
+    // library holds three or four of the four Cids, and the search takes
+    // three either way.
+    let (yard, library) = buried_alive(4, 3);
+    assert!((yard - 3.0 * 3.0 / 28.0).abs() < 1e-12, "yard was {yard}");
+    // Without it, the three-card opener holds 3 × 4/8 of them on average and
+    // the library the other 2.5; the search moves the yard's 9/28 out of it.
+    assert!(
+        (library - (2.5 - 9.0 / 28.0)).abs() < 1e-12,
+        "library was {library}"
+    );
+
+    // Entomb is the same search for one card.
+    let (yard, library) = buried_alive(4, 1);
+    assert!((yard - 3.0 / 28.0).abs() < 1e-12, "yard was {yard}");
+    assert!((library - (2.5 - 3.0 / 28.0)).abs() < 1e-12);
+
+    // "Up to": with two Cids, a cast finds one where the third card in hand
+    // is the other Cid (2 of the 6 openers that cast it) and two otherwise,
+    // so 5/3 a cast and 6/56 × 5/3 = 5/28 overall. Never a third.
+    let (yard, _) = buried_alive(2, 3);
+    assert!((yard - 5.0 / 28.0).abs() < 1e-12, "yard was {yard}");
 }
 
 // --- delayed effects --------------------------------------------------------
@@ -2134,7 +2219,7 @@ fn a_tutor_still_finds_a_card_the_mulligan_put_on_the_bottom() {
         route: Route::Nowhere,
         fetch: Some(Fetch {
             prefer: vec![1],
-            to: Fetched::Hand,
+            to: Fetched::Hand(1),
         }),
         delay: None,
         draw: 0,
@@ -2795,7 +2880,7 @@ fn two_tutors_do_not_find_one_card_twice() {
     .unwrap();
     let schedule = Schedule::plain_with_fetches(
         &[7, 0, 0],
-        vec![tutor(Fetched::Hand)],
+        vec![tutor(Fetched::Hand(1))],
         Policies::casting(CastingPolicy::new(vec![0])),
     );
     let once = holds(
@@ -3162,7 +3247,7 @@ fn a_tutor_billed_at_its_transmute_finds_nothing_before_three_lands() {
         let schedule = Schedule::build(
             4,
             false,
-            vec![tutor(Fetched::Hand)],
+            vec![tutor(Fetched::Hand(1))],
             Policies::casting(CastingPolicy::new(vec![1, 0])),
         );
         let share = |check: Check| holds(&grouping, &schedule, check);
@@ -3215,7 +3300,7 @@ fn a_delayed_fetch_to_hand_arrives_in_hand_when_it_fires() {
     let to_hand = Effect {
         fetch: Some(Fetch {
             prefer: vec![1],
-            to: Fetched::Hand,
+            to: Fetched::Hand(1),
         }),
         ..saga()
     };
@@ -3273,7 +3358,7 @@ fn a_card_the_mulligan_bottomed_is_found_once_not_twice() {
     );
     let schedule = Schedule::plain_with_fetches(
         &[7, 0],
-        vec![tutor(Fetched::Hand)],
+        vec![tutor(Fetched::Hand(1))],
         Policies {
             casting: Some(CastingPolicy::new(vec![0])),
             mulligan: Some(policy),
@@ -4123,7 +4208,7 @@ fn a_mill_beside_a_tutor_is_dealt_where_it_fired() {
     // library to it: it could find the card the mill had already binned.
     let fetch = Fetch {
         prefer: vec![1],
-        to: Fetched::Hand,
+        to: Fetched::Hand(1),
     };
     let (grouping, in_place) = a_milling_deck(Mill::all(3), Some(fetch));
     let last = in_place.clone().deferring(0b110);
@@ -4174,7 +4259,7 @@ fn expedition_map() -> Effect {
         route: Route::Nowhere,
         fetch: Some(Fetch {
             prefer: vec![2],
-            to: Fetched::Hand,
+            to: Fetched::Hand(1),
         }),
         delay: None,
         draw: 0,
@@ -4327,7 +4412,7 @@ fn an_activation_is_paid_once_per_permanent_per_turn() {
         matched_by: 3,
         fetch: Some(Fetch {
             prefer: vec![1],
-            to: Fetched::Hand,
+            to: Fetched::Hand(1),
         }),
         activation: Some(Activation {
             cost: Cost::parse("{1}").unwrap().demand(),
