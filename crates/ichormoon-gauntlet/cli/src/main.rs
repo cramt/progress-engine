@@ -101,18 +101,33 @@ enum Command {
         #[facet(args::named, default)]
         index: Option<PathBuf>,
     },
-    /// Build the card index from Scryfall's bulk data.
+    /// Build the card index and the copy of Scryfall from Scryfall's bulk data.
     ///
     /// `test` needs to know what a card is, and this is where that comes from.
-    /// Run it once, and again when you want newer cards.
+    /// Run it once, and again when you want newer cards; nothing else
+    /// downloads.
     Sync {
         /// Where to write the index. Defaults to the path `test` reads.
         #[facet(args::named, default)]
         index: Option<PathBuf>,
-        /// Build from a bulk file already on disk instead of downloading one.
+        /// Build the index from an Oracle Cards file on disk, offline.
+        ///
+        /// Makes no copy unless `--cards-from` and `--tags-from` come too.
         #[facet(args::named, default)]
         from: Option<PathBuf>,
-        /// Rebuild even when the index already has Scryfall's latest data.
+        /// Directory for the copy (default: `scryfall-copy/` by the index).
+        #[facet(args::named, default)]
+        copy: Option<PathBuf>,
+        /// Make the copy from a Default Cards file already on disk.
+        #[facet(args::named, default)]
+        cards_from: Option<PathBuf>,
+        /// Make the copy from an Oracle Tags file already on disk.
+        #[facet(args::named, default)]
+        tags_from: Option<PathBuf>,
+        /// Also write the copy's text here, uncompressed, as `decks/` keeps it.
+        #[facet(args::named, default)]
+        snapshot: Option<PathBuf>,
+        /// Rebuild even when Scryfall has nothing newer than what is kept.
         #[facet(args::named, default)]
         force: bool,
     },
@@ -276,6 +291,22 @@ fn main() -> Result<()> {
             }
             Ok(())
         }
-        Command::Sync { index, from, force } => sync::run(index.as_deref(), from.as_deref(), force),
+        Command::Sync {
+            index,
+            from,
+            copy,
+            cards_from,
+            tags_from,
+            snapshot,
+            force,
+        } => sync::run(&sync::Args {
+            index: index.as_deref(),
+            from: from.as_deref(),
+            copy: copy.as_deref(),
+            cards_from: cards_from.as_deref(),
+            tags_from: tags_from.as_deref(),
+            snapshot: snapshot.as_deref(),
+            force,
+        }),
     }
 }

@@ -1,4 +1,5 @@
-//! `gauntlet sync`: build the card index from Scryfall's bulk data.
+//! `gauntlet sync`: build the card index from Scryfall's bulk data, and keep
+//! the copy of Scryfall beside it.
 //!
 //! This used to be somebody else's job. The index was written by a separate
 //! `scryfall sync` shell tool, which meant a clone of this repository could
@@ -20,6 +21,8 @@ use chip_scryfall::bulk::BulkCard;
 use chip_scryfall::index::{BuildReport, Index, IndexFile};
 use facet::Facet;
 
+use crate::copy;
+
 /// Scryfall's index of what bulk files exist.
 const BULK_DATA_API: &str = "https://api.scryfall.com/bulk-data";
 
@@ -37,7 +40,7 @@ const WANTED: &str = "oracle_cards";
 const PRINTINGS: &str = "default_cards";
 
 /// Scryfall asks for a descriptive user agent and a good citizen gives one.
-const USER_AGENT: &str = concat!("ichormoon-gauntlet/", env!("CARGO_PKG_VERSION"));
+pub(crate) const USER_AGENT: &str = concat!("ichormoon-gauntlet/", env!("CARGO_PKG_VERSION"));
 
 /// One entry in Scryfall's bulk-data listing.
 #[derive(Facet, Debug)]
@@ -46,17 +49,17 @@ struct BulkListing {
 }
 
 #[derive(Facet, Debug)]
-struct BulkFile {
+pub(crate) struct BulkFile {
     #[facet(rename = "type")]
-    kind: String,
+    pub(crate) kind: String,
     #[facet(default)]
-    updated_at: Option<String>,
+    pub(crate) updated_at: Option<String>,
     /// Scryfall serves gzipped JSONL, which is why this streams rather than
     /// reading a 500MB array into memory to parse it.
     #[facet(default)]
-    jsonl_download_uri: Option<String>,
+    pub(crate) jsonl_download_uri: Option<String>,
     #[facet(default)]
-    compressed_size: Option<u64>,
+    pub(crate) compressed_size: Option<u64>,
 }
 
 /// How many structural surprises are tolerated before the result is refused.
@@ -74,7 +77,89 @@ const ANOMALY_CEILING: usize = 25;
 /// index would answer every question about a library that does not exist.
 const MINIMUM_PLAUSIBLE_CARDS: usize = 20_000;
 
-pub fn run(index_path: Option<&Path>, from: Option<&Path>, force: bool) -> Result<()> {
+/// What `gauntlet sync` was asked.
+pub struct Args<'a> {
+    pub index: Option<&'a Path>,
+    /// An Oracle Cards file for the index, which makes the sync offline.
+    pub from: Option<&'a Path>,
+    pub copy: Option<&'a Path>,
+    /// A Default Cards file and an Oracle Tags file for the copy, which make
+    /// the sync offline too.
+    pub cards_from: Option<&'a Path>,
+    pub tags_from: Option<&'a Path>,
+    /// Where to write the copy's text, uncompressed, as `decks/` commits it.
+    pub snapshot: Option<&'a Path>,
+    pub force: bool,
+}
+
+/// Builds the index and keeps the copy of Scryfall beside it (ADR-0031).
+///
+/// The two are built apart, from different bulk files, and one failing does
+/// not cost the other. Gauntlet still reads the index; the copy is what it
+/// will read once the index is gone (#142).
+///
+/// Any local file makes the whole sync offline: an index from `--from`, a
+/// copy from `--cards-from` and `--tags-from`, and nothing downloaded.
+pub fn run(args: &Args) -> Result<()> {
+    let copy_source = match (args.cards_from, args.tags_from) {
+        (Some(cards), Some(tags)) => Some(copy::Source::Local { cards, tags }),
+        (None, None) if args.from.is_none() => Some(copy::Source::Scryfall),
+        (None, None) => None,
+        _ => bail!(
+            "--cards-from and --tags-from go together: the copy is made from a Default Cards \
+             file and an Oracle Tags file, and from one alone it would be a copy that does not \
+             know what it lacks"
+        ),
+    };
+    if args.snapshot.is_some() && copy_source.is_none() {
+        bail!(
+            "--snapshot writes the copy, and a sync from --from alone makes no copy: pass \
+             --cards-from and --tags-from too"
+        );
+    }
+    let dir = args.copy.map_or_else(copy::default_dir, Path::to_path_buf);
+    // For the whole sync, not just the copy: a second sync waiting here then
+    // finds both the index and the copy current, and downloads neither.
+    let _lock = copy_source.as_ref().map(|_| copy::lock(&dir)).transpose()?;
+
+    let index = if args.from.is_some() || matches!(copy_source, Some(copy::Source::Scryfall)) {
+        index(args.index, args.from, args.force)
+    } else {
+        eprintln!("skipping the index: --cards-from builds the copy alone, and offline");
+        Ok(())
+    };
+    let copy = match &copy_source {
+        None => {
+            eprintln!(
+                "skipping the copy of Scryfall: --from reads an Oracle Cards file, and the copy \
+                 is made from Default Cards and Oracle Tags (--cards-from, --tags-from)"
+            );
+            Ok(())
+        }
+        Some(source) => copy::keep(&dir, source, args.force).and_then(|kept| {
+            let Some(path) = args.snapshot else {
+                return Ok(());
+            };
+            copy::write_atomically(path, kept.text.as_bytes())?;
+            eprintln!(
+                "wrote the copy of {} to {}, uncompressed",
+                kept.updated_at,
+                path.display()
+            );
+            Ok(())
+        }),
+    };
+    match (index, copy) {
+        (Ok(()), Ok(())) => Ok(()),
+        (Err(e), Ok(())) => Err(e),
+        (Ok(()), Err(e)) => Err(e.context("the index was built, and the copy of Scryfall was not")),
+        (Err(index), Err(copy)) => Err(index.context(format!(
+            "and the copy of Scryfall was not kept either: {copy:#}"
+        ))),
+    }
+}
+
+fn index(index_path: Option<&Path>, from: Option<&Path>, force: bool) -> Result<()> {
     let path = index_path
         .map(Path::to_path_buf)
         .unwrap_or_else(Index::default_path);
@@ -239,7 +324,8 @@ fn already_current(path: &Path, updated_at: Option<&str>, wanted_tags: &[String]
     }
 }
 
-fn find_bulk_file(kind: &str) -> Result<BulkFile> {
+/// Every bulk file Scryfall lists today.
+pub(crate) fn bulk_listing() -> Result<Vec<BulkFile>> {
     let body = ureq::get(BULK_DATA_API)
         .header("User-Agent", USER_AGENT)
         .header("Accept", "application/json")
@@ -251,9 +337,11 @@ fn find_bulk_file(kind: &str) -> Result<BulkFile> {
 
     let listing: BulkListing =
         facet_json::from_str(&body).context("parsing Scryfall's bulk-data listing")?;
+    Ok(listing.data)
+}
 
-    listing
-        .data
+fn find_bulk_file(kind: &str) -> Result<BulkFile> {
+    bulk_listing()?
         .into_iter()
         .find(|f| f.kind == kind)
         .with_context(|| format!("Scryfall's bulk-data listing has no {kind} file"))
@@ -525,8 +613,29 @@ fn now_utc() -> Option<String> {
         .duration_since(std::time::UNIX_EPOCH)
         .ok()?
         .as_secs();
-    let days = (secs / 86_400) as i64;
+    let (y, m, d) = civil((secs / 86_400) as i64);
+    Some(format!("{y:04}-{m:02}-{d:02}"))
+}
 
+/// `time` as Scryfall writes an `updated_at`, `2026-10-09T09:05:44.334+00:00`,
+/// so a local file's sorts among Scryfall's as text, which is how the copy's
+/// store compares them; `None` before 1970.
+pub(crate) fn iso8601(time: std::time::SystemTime) -> Option<String> {
+    let since = time.duration_since(std::time::UNIX_EPOCH).ok()?;
+    let secs = since.as_secs();
+    let (y, m, d) = civil((secs / 86_400) as i64);
+    let day = secs % 86_400;
+    Some(format!(
+        "{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}.{:03}+00:00",
+        day / 3600,
+        day / 60 % 60,
+        day % 60,
+        since.subsec_millis()
+    ))
+}
+
+/// Days since 1970-01-01 as a civil `(year, month, day)`.
+fn civil(days: i64) -> (i64, i64, i64) {
     let z = days + 719_468;
     let era = z.div_euclid(146_097);
     let doe = z.rem_euclid(146_097);
@@ -537,8 +646,7 @@ fn now_utc() -> Option<String> {
     let d = doy - (153 * mp + 2) / 5 + 1;
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = if m <= 2 { y + 1 } else { y };
-
-    Some(format!("{y:04}-{m:02}-{d:02}"))
+    (y, m, d)
 }
 
 /// Percent-encode the handful of characters a tag name can contain.
@@ -672,7 +780,7 @@ fn check(report: &BuildReport, index: &Index, downloaded: bool) -> Result<()> {
     Ok(())
 }
 
-fn megabytes(bytes: u64) -> String {
+pub(crate) fn megabytes(bytes: u64) -> String {
     format!("{:.1} MB", bytes as f64 / 1_000_000.0)
 }
 
