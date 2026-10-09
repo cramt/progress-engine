@@ -2978,7 +2978,7 @@ a guess dressed as a fact, but somebody else's answer with a date attached.
 | `mana-rock` | 384 | how much mana a rock the line cast adds: the standard library's `adds` entries |
 | `mana-dork` | 441 | the same, for creatures |
 
-They cost nothing to carry: 5,301 of 35,004 cards are tagged, the file is the
+They cost nothing to carry: 5,302 of 35,020 cards are tagged, the file is the
 same 24MB, and a run parses only the cards your deck names either way.
 
 **An index carries the tags it was told to fetch, and says which.** The header
