@@ -179,7 +179,7 @@ async function stream(
   let received = 0;
   const text = response.body
     .pipeThrough(
-      new TransformStream<Uint8Array, Uint8Array>({
+      new TransformStream<Uint8Array<ArrayBuffer>, Uint8Array<ArrayBuffer>>({
         transform(chunk, out) {
           received += chunk.byteLength;
           progress(received);

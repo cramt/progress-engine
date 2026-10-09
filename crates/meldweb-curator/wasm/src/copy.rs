@@ -1668,7 +1668,7 @@ mod tests {
         let tags = format!(
             "{}\n{}\n",
             r#"{"id":"p","slug":"ramp","aliases":["mana-ramp"],"parent_ids":[],"taggings":[]}"#,
-            format!(
+            format_args!(
                 r#"{{"id":"c","slug":"mana-rock","parent_ids":["p"],"taggings":[{{"oracle_id":"{oracle}"}}]}}"#
             ),
         );
