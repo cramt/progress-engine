@@ -1,4 +1,6 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { startCopy } from "../copy";
+import { CopyStatus } from "../copy/CopyStatus";
 import { loadDeck } from "../deck";
 import { persistScryfallCache } from "../scryfallCache";
 
@@ -12,6 +14,8 @@ let booted: Promise<void> | null = null;
  */
 function boot(): Promise<void> {
   if (!booted) {
+    // Not waited for: until the copy is ready, Scryfall's API answers.
+    startCopy();
     booted = Promise.all([loadDeck(), persistScryfallCache()]).then(
       () => undefined,
       (e) => {
@@ -26,5 +30,10 @@ function boot(): Promise<void> {
 export const Route = createRootRoute({
   // Before every child loader: they parse decks and read the cache.
   beforeLoad: boot,
-  component: () => <Outlet />,
+  component: () => (
+    <>
+      <Outlet />
+      <CopyStatus />
+    </>
+  ),
 });

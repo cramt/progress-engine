@@ -21,8 +21,9 @@ use std::cmp::Ordering;
 
 use chip_decklist::identity::same_name;
 use chip_scryfall::bulk::BulkCard;
+use chip_scryfall::index::Card;
 use chip_scryfall::printing::Printing;
-use chip_scryfall::Query;
+use chip_scryfall::{CardView, Query};
 use facet::Facet;
 
 /// The rules a repo without `meldweb.toml` ranks by, and what one may copy.
@@ -525,28 +526,38 @@ impl Preference {
         Ok(Preference { rules })
     }
 
-    /// Which rules `card` matches, by index.
-    fn matched(&self, card: &BulkCard, printing: &Printing) -> Vec<u32> {
-        let oracle = card.card_of_any_printing(&mut Vec::new());
-        let view = oracle.view(&[]);
+    /// Which rules this printing of a card matches, by index.
+    fn matched(&self, view: &CardView<'_>, printing: &Printing) -> Vec<u32> {
         self.rules
             .iter()
             .enumerate()
-            .filter(|(_, r)| r.query.matches_printing(&view, printing))
+            .filter(|(_, r)| r.query.matches_printing(view, printing))
             .map(|(i, _)| i as u32)
             .collect()
     }
 
     /// `cards`' indices, best first, each with the rules it matched.
     pub fn rank(&self, cards: &[BulkCard]) -> Vec<(usize, Vec<u32>)> {
-        let mut ranked: Vec<(usize, Printing, Vec<u32>)> = cards
+        let oracles: Vec<Card> = cards
+            .iter()
+            .map(|c| c.card_of_any_printing(&mut Vec::new()))
+            .collect();
+        let printings: Vec<Printing> = cards.iter().map(BulkCard::printing).collect();
+        let views: Vec<_> = oracles
+            .iter()
+            .zip(&printings)
+            .map(|(o, p)| (o.view(&[]), p))
+            .collect();
+        self.rank_views(&views)
+    }
+
+    /// The same order over printings already read, each beside its card as
+    /// that printing has it.
+    pub fn rank_views(&self, printings: &[(CardView<'_>, &Printing)]) -> Vec<(usize, Vec<u32>)> {
+        let mut ranked: Vec<(usize, &Printing, Vec<u32>)> = printings
             .iter()
             .enumerate()
-            .map(|(i, c)| {
-                let p = c.printing();
-                let matched = self.matched(c, &p);
-                (i, p, matched)
-            })
+            .map(|(i, (view, p))| (i, *p, self.matched(view, p)))
             .collect();
         ranked.sort_by(|(_, pa, ma), (_, pb, mb)| {
             self.by_rules(ma, mb)

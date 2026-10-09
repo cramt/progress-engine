@@ -23,110 +23,126 @@ use crate::printing::Printing;
 /// over one absent key is worse than one that reports what it could not find.
 /// `name` is the exception: a record with no name cannot be keyed, so it is not
 /// a card as far as this crate is concerned.
-#[derive(Facet, Debug, Clone)]
+#[derive(Facet, Debug, Clone, Default, PartialEq)]
 pub struct BulkCard {
     pub name: String,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub oracle_id: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub lang: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub layout: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub type_line: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub oracle_text: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub mana_cost: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub cmc: Option<f64>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub colors: Option<Vec<String>>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub color_indicator: Option<Vec<String>>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub color_identity: Option<Vec<String>>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub produced_mana: Option<Vec<String>>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub keywords: Option<Vec<String>>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub power: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub toughness: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub loyalty: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub defense: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub rarity: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub set: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = BTreeMap::is_empty)]
     pub legalities: BTreeMap<String, String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub game_changer: Option<bool>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub reserved: Option<bool>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub card_faces: Option<Vec<BulkFace>>,
     // What follows tells one printing from another, and the index, which keeps
     // one record per card, reads none of it; see `crate::printing`.
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub set_type: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub collector_number: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub released_at: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub frame: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub frame_effects: Option<Vec<String>>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub border_color: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub full_art: Option<bool>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub textless: Option<bool>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub digital: Option<bool>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub promo: Option<bool>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub reprint: Option<bool>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub oversized: Option<bool>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub promo_types: Option<Vec<String>>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub games: Option<Vec<String>>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub flavor_name: Option<String>,
 }
 
 /// One face of a multi-faced card, as Scryfall writes it.
-#[derive(Facet, Debug, Clone)]
+#[derive(Facet, Debug, Clone, Default, PartialEq)]
 pub struct BulkFace {
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub name: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub type_line: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub oracle_text: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub mana_cost: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub colors: Option<Vec<String>>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub color_indicator: Option<Vec<String>>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub power: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub toughness: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub loyalty: Option<String>,
-    #[facet(default)]
+    #[facet(default, skip_serializing_if = Option::is_none)]
     pub defense: Option<String>,
+    // The index reads neither of these. A reversible card states its oracle
+    // id per face only, and a double-faced card its pictures; Meldweb's copy
+    // of Scryfall needs both.
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub oracle_id: Option<String>,
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub image_uris: Option<ImageUris>,
+}
+
+/// A face's pictures, of which only the sizes Meldweb shows are read.
+#[derive(Facet, Debug, Clone, PartialEq)]
+pub struct ImageUris {
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub normal: Option<String>,
+    #[facet(default, skip_serializing_if = Option::is_none)]
+    pub small: Option<String>,
 }
 
 /// Why a bulk record did not become a card in the index.

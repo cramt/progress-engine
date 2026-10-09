@@ -11,7 +11,7 @@ progress-engine is a workspace of products that share a name family and, for now
 
 ## Relationships
 
-- **Meldweb Curator → Reality Chip**: the editor runs `chip-decklist` compiled to wasm, so the browser and Gauntlet agree on what a decklist is, and the collection's format lives beside the deck's. It is the second consumer of `chip-decklist` only; it uses nothing from `chip-scryfall` yet.
+- **Meldweb Curator → Reality Chip**: the editor runs `chip-decklist` compiled to wasm, so the browser and Gauntlet agree on what a decklist is, and the collection's format lives beside the deck's. It also runs `chip-scryfall`'s card objects and printing-query parser over its copy of Scryfall's bulk data ([ADR-0030](docs/adr/0030-curator-answers-card-facts-from-its-own-copy-of-scryfalls-bulk-data.md)), and over the `[printings]` rules.
 - **Ichormoon Gauntlet → Reality Chip**: Gauntlet was Reality Chip's first consumer. It reads the card index and query parser from `chip-scryfall`, decklists from `chip-decklist`, and walks compositions with `chip-stats`.
 - **Reality Chip stats ↔ Magic**: `chip-stats` knows populations, groups, draws and removals, and nothing about Magic. Keep it that way ([ADR-0012](docs/adr/0012-tutors-are-deterministic-removals.md)).
 - **Meldweb Curator → Gitaxian Probe**: a dev-only spike. `MELDWEB_PROBE=1 pnpm dev` puts a Scan button in the editor that runs the probe's web host on the page and joins what it finds to the deck through `scryfall_id` ([probe-in-curator.md](docs/research/probe-in-curator.md)). No build or deploy carries it.

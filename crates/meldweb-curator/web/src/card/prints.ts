@@ -1,4 +1,6 @@
+import { viaCopy } from "../copy";
 import type { Finish } from "../deck";
+import type { PrintingFacts } from "../deck.gen";
 import { type Face, faces, imageUris, type Turn } from "../scryfall";
 import { cachedOne } from "../scryfallCache";
 import { API, SEARCH_GATE, scryfallFetch } from "../scryfallQueue";
@@ -128,6 +130,24 @@ export function parsePrintsPage(json: unknown): {
   return { printings, next };
 }
 
+/** A printing the page's copy of Scryfall found, as the API's would read. */
+function fromCopy({ printing: p, facts }: PrintingFacts): PrintingOption {
+  return {
+    id: p.id,
+    name: p.name,
+    set: p.set,
+    num: p.num,
+    setName: p.setName,
+    released: p.released,
+    ...(p.image ? { image: p.image } : {}),
+    ...(p.small ? { small: p.small } : {}),
+    finishes: p.finishes.filter(isFinish),
+    ...(p.turn ? { turn: p.turn } : {}),
+    ...(p.back ? { back: p.back } : {}),
+    facts: factsOf({ ...facts }),
+  };
+}
+
 /** Newest first, the way Scryfall and Archidekt list them; `oldest` reverses it. */
 export function byRelease(
   printings: readonly PrintingOption[],
@@ -209,12 +229,18 @@ export function fetchAllPrintings(
   signal?: AbortSignal,
 ): Promise<PrintingOption[]> {
   if (signal?.aborted) return Promise.reject(signal.reason);
-  const search = cachedOne(
-    // `v3` dropped what was cached before a printing carried its faces, and
-    // what was cached while a battle was looked for by layout, which left it
-    // upright; `v4`, what was cached before a printing carried its facts.
-    ["scryfall", "prints", "v4", uri],
-    (s) => loadAll(uri, s),
+  const search = viaCopy(
+    async (copy) => (await copy.prints(uri)).map(fromCopy),
+    () =>
+      cachedOne(
+        // `v3` dropped what was cached before a printing carried its faces,
+        // and what was cached while a battle was looked for by layout, which
+        // left it upright; `v4`, what was cached before a printing carried
+        // its facts.
+        ["scryfall", "prints", "v4", uri],
+        (s) => loadAll(uri, s),
+      ),
+    (prints) => prints.length > 0,
   );
   if (!signal) return search;
   return new Promise((resolve, reject) => {

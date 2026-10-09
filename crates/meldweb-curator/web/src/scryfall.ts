@@ -1,5 +1,6 @@
+import { type Copy, viaCopyEach } from "./copy";
 import type { CardRef, Finish } from "./deck";
-import type { Ask, ScryfallCard } from "./deck.gen";
+import type { Ask, Found, ScryfallCard } from "./deck.gen";
 import { cachedMany, scryfallClient } from "./scryfallCache";
 import { API, SEARCH_GATE, scryfallFetch } from "./scryfallQueue";
 
@@ -227,23 +228,65 @@ function remember(cards: readonly CollectionCard[]): Map<string, Printing> {
   return found;
 }
 
+/** A printing the copy found, as the editor shows it. */
+function fromCopy(f: Found): Printing {
+  return {
+    id: f.id,
+    name: f.name,
+    set: f.set,
+    num: f.num,
+    // A printing with no picture is dropped by `fromCopyAll`, as
+    // `parseCollection` drops one off the API.
+    image: f.image ?? "",
+    colorIdentity: f.colorIdentity,
+    typeLine: f.frontTypeLine,
+    ...(f.prints ? { prints: f.prints } : {}),
+    ...(f.turn ? { turn: f.turn } : {}),
+    ...(f.back ? { back: f.back } : {}),
+  };
+}
+
 /**
- * Looks up every card's printing, from the cache where any lookup has found
- * it before and otherwise in as few requests as Scryfall allows. Cards
- * Scryfall cannot find are absent from the map rather than an error: the deck
- * is still the deck, and the view shows what the file names instead. A batch
- * still queued when `signal` aborts is never sent.
+ * Each distinct card of `refs` looked up in the copy, keyed as
+ * `fetchPrintings` keys them, with what `pick` makes of it; a card the copy
+ * has no picture of is absent.
+ */
+async function fromCopyAll<T>(
+  copy: Copy,
+  refs: readonly CardRef[],
+  pick: (found: Found) => T,
+): Promise<Map<string, T>> {
+  const wanted = [...new Map(refs.map((r) => [printingKey(r), r])).entries()];
+  const found = await copy.lookup(wanted.map(([, r]) => r));
+  const out = new Map<string, T>();
+  wanted.forEach(([key], i) => {
+    const f = found[i];
+    if (f?.image) out.set(key, pick(f));
+  });
+  return out;
+}
+
+/**
+ * Looks up every card's printing: in the page's copy of Scryfall, or before
+ * there is one from the cache where any lookup has found it before and
+ * otherwise in as few requests as Scryfall allows. Cards Scryfall cannot find
+ * are absent from the map rather than an error: the deck is still the deck,
+ * and the view shows what the file names instead. A batch still queued when
+ * `signal` aborts is never sent.
  */
 export async function fetchPrintings(
   cards: readonly { card: CardRef }[],
   signal?: AbortSignal,
 ): Promise<Printings> {
-  return cachedMany(
-    PRINTING,
-    cards.map((c) => c.card),
+  const refs = cards.map((c) => c.card);
+  return viaCopyEach(
+    refs,
     printingKey,
-    async (misses) =>
-      remember(await collection(misses.map(identifier), signal)),
+    (copy, refs) => fromCopyAll(copy, refs, fromCopy),
+    (refs) =>
+      cachedMany(PRINTING, refs, printingKey, async (misses) =>
+        remember(await collection(misses.map(identifier), signal)),
+      ),
   );
 }
 
@@ -261,16 +304,22 @@ export async function fetchPrices(
     queryKey: PRICE,
     predicate: (q) => q.queryKey[2] !== day,
   });
-  return cachedMany(
-    [...PRICE, day],
-    cards.map((c) => c.card),
+  const refs = cards.map((c) => c.card);
+  return viaCopyEach(
+    refs,
     printingKey,
-    async (misses) => {
-      const found = new Map<string, CardPrices>();
-      for (const card of await collection(misses.map(identifier), signal))
-        for (const key of printingKeys(card)) found.set(key, card.prices);
-      return found;
-    },
+    (copy, refs) =>
+      fromCopyAll(copy, refs, (f) => ({
+        eur: f.prices.eur ?? {},
+        usd: f.prices.usd ?? {},
+      })),
+    (refs) =>
+      cachedMany([...PRICE, day], refs, printingKey, async (misses) => {
+        const found = new Map<string, CardPrices>();
+        for (const card of await collection(misses.map(identifier), signal))
+          for (const key of printingKeys(card)) found.set(key, card.prices);
+        return found;
+      }),
   );
 }
 
@@ -366,20 +415,37 @@ export async function fetchPrintingsInSets(
 ): Promise<({ set: string; num: string } | null)[]> {
   const key = (w: { name: string; set: string }) =>
     `${w.set.toLowerCase()}:${frontFace(w.name).toLowerCase()}`;
-  const found = await cachedMany(IN_SET, wanted, key, async (misses) => {
-    const cards = await collection(
-      misses.map((w) => ({ name: frontFace(w.name), set: w.set })),
-      signal,
-    );
-    for (const [k, printing] of remember(cards))
-      scryfallClient.setQueryData([...PRINTING, k], printing);
-    return new Map(
-      cards.map((card) => [
-        key(card),
-        { set: card.set, num: card.collector_number },
-      ]),
-    );
-  });
+  const fromApi = (wanted: readonly { name: string; set: string }[]) =>
+    cachedMany(IN_SET, wanted, key, async (misses) => {
+      const cards = await collection(
+        misses.map((w) => ({ name: frontFace(w.name), set: w.set })),
+        signal,
+      );
+      for (const [k, printing] of remember(cards))
+        scryfallClient.setQueryData([...PRINTING, k], printing);
+      return new Map(
+        cards.map((card) => [
+          key(card),
+          { set: card.set, num: card.collector_number },
+        ]),
+      );
+    });
+  const found = await viaCopyEach(
+    wanted,
+    key,
+    async (copy, wanted) => {
+      const found = await copy.lookup(
+        wanted.map((w) => ({ kind: "inSet", name: w.name, set: w.set })),
+      );
+      return new Map(
+        wanted.flatMap((w, i) => {
+          const f = found[i];
+          return f ? [[key(w), { set: f.set, num: f.num }] as const] : [];
+        }),
+      );
+    },
+    fromApi,
+  );
   return wanted.map((w) => found.get(key(w)) ?? null);
 }
 
@@ -394,18 +460,63 @@ export async function fetchAsked(
   asks: readonly Ask[],
   signal?: AbortSignal,
 ): Promise<ScryfallCard[]> {
-  const cards = await collection(
-    asks.map((a) =>
-      a.kind === "id" ? { id: a.id } : { set: a.set, collector_number: a.num },
-    ),
-    signal,
+  const fromApi = async (asks: readonly Ask[]) => {
+    const cards = await collection(
+      asks.map((a) =>
+        a.kind === "id"
+          ? { id: a.id }
+          : { set: a.set, collector_number: a.num },
+      ),
+      signal,
+    );
+    for (const [k, printing] of remember(cards))
+      scryfallClient.setQueryData([...PRINTING, k], printing);
+    // Scryfall answers cards, not asks, so each is keyed both ways an ask
+    // could have named it.
+    return new Map(
+      cards.flatMap((c) => {
+        const card = {
+          id: c.id,
+          set: c.set,
+          num: c.collector_number,
+          name: c.name,
+        };
+        return [
+          [askKey({ kind: "id", id: c.id }), card],
+          [
+            askKey({ kind: "printing", set: c.set, num: c.collector_number }),
+            card,
+          ],
+        ] as const;
+      }),
+    );
+  };
+  const found = await viaCopyEach(
+    asks,
+    askKey,
+    async (copy, asks) => {
+      const found = await copy.lookup(asks);
+      return new Map(
+        asks.flatMap((a, i) => {
+          const f = found[i];
+          return f
+            ? [
+                [
+                  askKey(a),
+                  { id: f.id, set: f.set, num: f.num, name: f.name },
+                ] as const,
+              ]
+            : [];
+        }),
+      );
+    },
+    fromApi,
   );
-  for (const [k, printing] of remember(cards))
-    scryfallClient.setQueryData([...PRINTING, k], printing);
-  return cards.map((c) => ({
-    id: c.id,
-    set: c.set,
-    num: c.collector_number,
-    name: c.name,
-  }));
+  return [...new Map([...found.values()].map((c) => [c.id, c])).values()];
+}
+
+function askKey(ask: Ask): string {
+  return ask.kind === "id"
+    ? `id:${ask.id}`
+    : `${ask.set.toLowerCase()}/${ask.num.toLowerCase()}`;
 }
