@@ -3,7 +3,7 @@
 use chip_scryfall::index::TagGap;
 use chip_stats::Distribution;
 use facet::Facet;
-use gauntlet_criteria::{Bound, Criterion, Expectation};
+use gauntlet_criteria::{Bound, Criterion, Expectation, MillDepth};
 use gauntlet_toml::HandDecl;
 use sha2::{Digest, Sha256};
 
@@ -263,6 +263,24 @@ pub struct ZoneUse {
     pub asked_by: String,
 }
 
+/// How many cards a mill takes, as the file wrote it: `3`, or `"half"`.
+#[derive(Facet, Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+#[facet(untagged)]
+pub enum MillUse {
+    Cards(u32),
+    Word(&'static str),
+}
+
+impl MillUse {
+    fn of(depth: MillDepth) -> MillUse {
+        match depth {
+            MillDepth::Exactly(n) => MillUse::Cards(n),
+            MillDepth::HalfLibrary => MillUse::Word(gauntlet_toml::HALF_LIBRARY),
+        }
+    }
+}
+
 /// An effect the library brought to bear on this deck, and what it applied to.
 ///
 /// Reported because an autoloading library changes answers without anybody
@@ -323,7 +341,7 @@ pub struct EffectUse {
     /// Cards a cast of it puts into the graveyard off the top, or absent
     /// where it mills nothing (ADR-0017 §2).
     #[facet(skip_serializing_if = Option::is_none)]
-    pub mill: Option<u32>,
+    pub mill: Option<MillUse>,
     /// How many of those the card lets go to hand instead, and which cards it
     /// lets them be.
     #[facet(skip_serializing_if = Option::is_none)]
@@ -1213,7 +1231,8 @@ impl Report {
             let look = match (e.look, e.adds, e.mill, e.draw) {
                 (0, None, None, None) => String::new(),
                 (0, None, None, Some(n)) => format!("draw {n}, "),
-                (0, None, Some(n), _) => format!("mill {n}, "),
+                (0, None, Some(MillUse::Cards(n)), _) => format!("mill {n}, "),
+                (0, None, Some(MillUse::Word(_)), _) => "mill half the library, ".to_string(),
                 (0, Some(n), _, _) => format!("adds {n}, "),
                 (n, _, _, _) => format!("look {n}, "),
             };
@@ -2037,7 +2056,7 @@ pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
                 .filter(|&n| n > 1),
             after: a.delay.map(|d| d.turns),
             sacrifice: a.delay.map(|d| d.sacrifice).or(a.sacrifice),
-            mill: a.mill.as_ref().map(|m| m.cards),
+            mill: a.mill.as_ref().map(|m| MillUse::of(m.cards)),
             keep: match a.mill.as_ref().map(|m| &m.to_hand) {
                 Some(HandDecl::Chosen { up_to, .. }) if *up_to > 0 => Some(*up_to),
                 _ => None,

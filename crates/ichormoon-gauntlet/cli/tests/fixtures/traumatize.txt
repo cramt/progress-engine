@@ -1,0 +1,9 @@
+// Issue #138: Traumatize mills half the library, rounded down.
+//
+// Sixteen cards on the play. The four nonlands cannot crowd five lands out
+// of any eleven, so the drop is made every turn and Traumatize's {3}{U}{U}
+// is paid on turn 5 whenever it is in hand by then: among the first eleven
+// cards, 11/16. The library is then five cards, and it mills two of them.
+12x Island [Land]
+1x Traumatize [Mill]
+3x Cid, Timeless Artificer [Cid]

@@ -1186,7 +1186,7 @@ to_graveyard = 'name:"Life from the Loam"'
 | `to` | where a fetched card is put: `hand`, `graveyard` or `battlefield` |
 | `up_to` | how many cards one search takes, each the next its `fetch` priority reaches: Buried Alive's `up_to = 3`. Absent is one. Not with `to = "battlefield"`, which puts down one card |
 | `adds` | how much mana a card adds a turn once the `[casting]` line has cast it, `on = "cast"` only, of the colours its card makes. With `after = n` it adds nothing for `n` turns, which is a rock that enters tapped. See [Mana, as a budget](#mana-as-a-budget) and [ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) |
-| `mill` | how many cards a cast, an attack or a landfall puts off the top of the library into the graveyard. Not on a `landdrop`, whose way to do that is a `look`. See [Mills](#mills-a-spell-that-turns-cards-over) |
+| `mill` | how many cards a cast, an attack or a landfall puts off the top of the library into the graveyard, 1 to 49; or, on a cast, `"half"`: half the library as the spell resolves, rounded down (Traumatize). Not on a `landdrop`, whose way to do that is a `look`. See [Mills](#mills-a-spell-that-turns-cards-over) |
 | `keep`, `keep_only` | how many of a mill's cards the card lets go to hand instead, and which cards it allows |
 | `keep_every` | the cards of a mill the card puts in hand whatever you want: Wrenn and Seven's lands |
 | `to_hand` | your choice among what `keep` allows, highest priority first. Absent keeps nothing |
@@ -1686,6 +1686,48 @@ Spellseeker:
 Both seats are sampled, as they were before: a class with a sized gap has no
 closed-form width, so it is counted against the ceiling, and this one passes
 it. `checker/` replays each mill from the card's text and agrees.
+
+**Half the library is `mill = "half"`.** Traumatize, "target player mills half
+their library, rounded down", aimed at yourself, is not a number the file can
+know: it is whatever the path left in the library when the spell resolved,
+after the draws, the searches and the other mills before it. So it is sized
+there, as every sized gap is, and two of them in one game each halve what the
+first left. Cut Your Losses is the same card; its casualty copy is a second
+cast, which the line does not make, so it mills half once. Half fires on a
+cast only: the cards that mill half a library when they attack, Fleet Swallower
+among them, round up. A number is any whole number from 1 to 49, which is half
+of a 99-card library; Glimpse the Unthinkable is `mill = 10`.
+
+```toml
+[[effect]]
+match = 'name:"Traumatize"'
+on = "cast"
+mill = "half"
+```
+
+On sixteen cards — twelve Islands, Traumatize and three Cids, on the play —
+the line casts it on turn 5 whenever it is among the first eleven cards, and
+it mills two of the five left: a Cid in the graveyard by turn 5 is 25.54%, and
+the mean 0.275
+(`crates/ichormoon-gauntlet/cli/tests/fixtures/traumatize.criteria.toml`).
+
+A deep mill is cheap where nothing reads it and dear where something does. On
+a scratch 99-card list (36 Islands, Traumatize, Cut Your Losses, Life from the
+Loam, three Cids, 57 blanks), both cast by turn 6 on the play:
+
+| Loam in the graveyard by turn 6, and the Cids there | wall time | Loam |
+|---|---|---|
+| `mill = 20`, dealt last | 2.6 s | 1.37%, exact |
+| `mill = "half"`, dealt last | 2.9 s | **2.96%, exact** |
+| `mill = "half"`, `keep = 1` a land, so dealt where it fired | 102 s | 2.98%, exact, a different line: the kept land pays; the Cid count sampled |
+
+Kept from, a block of some forty cards is dealt over every group the class
+splits the deck into, and the Cid question passed the 5,000,000-path ceiling
+and was sampled, labelled as such. The run also refuses, as `LibraryRunsOut`,
+a question whose halves could leave too little for its draws: each copy the
+line casts is assumed to resolve before anything else takes a card, so a line
+with two halves has a quarter of the library after the opener for every other
+draw, search and mill it casts.
 
 **A mill nothing reads is dealt last, and only as finely as the question reads
 it** (ADR-0017 §4). A shuffled library does not care where in the order a

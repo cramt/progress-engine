@@ -593,13 +593,20 @@ def _parse_cost(cost: str) -> tuple[int, list[str]]:
 #   the line may cast it this turn; a land kept this way is played no earlier
 #   than the next turn, because this turn's land drop came before the line
 #   (ADR 0017: "a land drawn mid-line waits for the next turn's drop").
+# * "Mills half their library, rounded down" (Traumatize, aimed at yourself)
+#   halves the library as it is when the spell resolves: every card not yet
+#   drawn, milled or searched for, rounded down.
+
+
+HALF = "half"
 
 
 @dataclass(frozen=True)
 class Mill:
     """What casting one card does to the top of the library."""
 
-    cards: int
+    # How many cards, or HALF: half the library left, rounded down.
+    cards: int | str
     # Every card this matches goes to your hand whatever the pilot wants.
     keep_every: Callable[[Card], bool] | None = None
     # Up to this many of the cards `keep_only` allows go to your hand, the
@@ -623,6 +630,10 @@ class Mill:
             options.sort(key=lambda i: decklist.index(top[i]))
             kept += options[: self.keep_up_to - len(kept)]
         return kept
+
+    def size(self, library_left: int) -> int:
+        """How many cards it takes off a library of `library_left`."""
+        return library_left // 2 if self.cards == HALF else self.cards
 
 _NOT_A_PLAIN_TAP = (
     "enters tapped",
@@ -943,10 +954,13 @@ def line_path(
     path = LinePath()
 
     def mill_top(t: int, mill: Mill, milled: list[Card]) -> None:
-        """The next `mill.cards` off the top: the kept ones to hand (a land
+        """The next `mill.size` cards off the top: the kept ones to hand (a land
         waits for the next turn's drop), the rest into `milled`."""
         nonlocal g, taken
-        top = g.cards[seen_so_far : seen_so_far + mill.cards]
+        n = mill.size(g.library_size - seen_so_far)
+        if seen_so_far + n > len(g.cards) and len(g.cards) < g.library_size:
+            raise ValueError("the deal is shallower than this mill reads: raise its depth")
+        top = g.cards[seen_so_far : seen_so_far + n]
         kept = mill.kept(top, g.library)
         taken += [c.name for c in top]
         lands: list[tuple[int, Card]] = []
@@ -1218,7 +1232,7 @@ def declared_line_path(
         returned_now: list[Card] = []  # of this turn's, the lands a card returned
 
         def mill_off(mill: Mill) -> None:
-            milled = draw(mill.cards)
+            milled = draw(mill.size(game.library_size - len(taken)))
             kept = mill.kept(milled, game.library)
             for i, c in enumerate(milled):
                 (hand if i in kept else to_graveyard).append(c)
@@ -1294,7 +1308,7 @@ def declared_line_path(
                     del library[below]
             mill = mills.get(card.name)
             if mill is not None:
-                milled = draw(mill.cards)
+                milled = draw(mill.size(game.library_size - len(taken)))
                 kept = mill.kept(milled, game.library)
                 for i, c in enumerate(milled):
                     (hand if i in kept else to_graveyard).append(c)

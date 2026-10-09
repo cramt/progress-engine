@@ -8,7 +8,7 @@ use std::convert::Infallible;
 
 use gauntlet_criteria::{
     Activation, Answering, Board, Chosen, Conditionals, Discard, DiscardPolicy, Discards, Mill,
-    Objective, Resolves, Table, ToHand,
+    MillDepth, Objective, Resolves, Table, ToHand,
 };
 use gauntlet_criteria::{
     Bound, CastingPolicy, Cost, Count, Counted, Criterion, Delay, Effect, Evaluator, Expectation,
@@ -2678,11 +2678,41 @@ fn a_question_whose_spells_can_draw_the_library_out_is_refused() {
                 population: 5,
                 draws: 4,
                 fetched: 0,
-                drawn: 2
+                drawn: 2,
+                halves: 0
             }
         ),
         "{err}"
     );
+}
+
+#[test]
+fn a_question_whose_halves_could_leave_too_little_for_its_draws_is_refused() {
+    // Two spells that each mill half the library, on the play to turn 3: an
+    // opening seven and two draws. Eleven cards leave four after the opener,
+    // and two halves that resolve before either draw leave one, so the
+    // second draw could find nothing. Twelve leave five, then two: enough.
+    let refused = |blanks| {
+        let (grouping, schedule) =
+            a_milling_deck_of(Mill::all(MillDepth::HalfLibrary), None, 2, 4, blanks);
+        let mut ev = Closures(vec![Box::new(|_: &PathView<'_>| true)]);
+        gauntlet_criteria::run(&grouping, &schedule, only_criteria(1), &mut ev).err()
+    };
+    let err = refused(3).expect("eleven cards are refused");
+    assert!(
+        matches!(
+            err,
+            RunError::LibraryRunsOut {
+                population: 11,
+                draws: 9,
+                halves: 2,
+                ..
+            }
+        ),
+        "{err}"
+    );
+    assert!(err.to_string().contains("2 spells each mill half"), "{err}");
+    assert!(refused(4).is_none(), "twelve cards are enough");
 }
 
 // --- Found by the mutation audit (docs/research/mutation-audit.md) -----------
@@ -3952,6 +3982,70 @@ fn hand_19_on_paper_the_mill_takes_the_loam_one_time_in_three() {
 }
 
 #[test]
+fn traumatize_mills_half_the_library_it_finds_which_the_path_decides() {
+    // Hand 19's deck and deal, with the spell milling half its library,
+    // rounded down. Cast on turn 2 after that turn's draw, it finds four cards
+    // and mills two; the Island and the Forest under them are turns 3 and 4.
+    let grouping = mill_groups(two_mana(Resolves::IntoGraveyard), 0, 5);
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0, 1, 1, 1],
+        vec![milling(Some(Mill::all(MillDepth::HalfLibrary)))],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let island = [0, 0, 0, 0, 1, 0, 0];
+    let two = [0, 0, 1, 1, 0, 0, 0];
+    let mut board = Board::new(&grouping, &schedule);
+    board.walk(&dealt(6, &[[2, 1, 0, 0, 0, 4, 0], NOTHING, BEAST]));
+    assert_eq!(board.next_gap(), 2, "half of the four it finds");
+    board.walk(&dealt(
+        6,
+        &[[2, 1, 0, 0, 0, 4, 0], NOTHING, BEAST, two, island, FOREST],
+    ));
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(board.count_at(2, 0, Counted::Cast), 1);
+    assert_eq!(board.count_at(2, 1, Counted::In(Zone::Graveyard)), 1);
+    assert_eq!(
+        board.count_at(2, 3, Counted::In(Zone::Graveyard)),
+        1,
+        "the Mountain"
+    );
+    assert_eq!(board.count_at(4, 3, Counted::In(Zone::Library)), 0);
+
+    // One Forest short, it waits for turn 3's draw to find the second, and
+    // by then the library is three cards: it mills one.
+    let mut board = Board::new(&grouping, &schedule);
+    board.walk(&dealt(6, &[[1, 1, 1, 0, 0, 4, 0], NOTHING, BEAST, FOREST]));
+    assert_eq!(board.count_at(2, 0, Counted::Cast), 0);
+    assert_eq!(board.next_gap(), 1, "half of three, rounded down");
+}
+
+#[test]
+fn traumatize_on_paper_mills_two_of_the_four_it_finds() {
+    // Hand 19's number with half the library milled: cast on turn 2, the
+    // spell finds the four cards under the top eight and mills two. The other
+    // nine cards fill five seen slots, two milled and two left, and the Loam
+    // is in any of them alike: in hand 5/9, milled 2/9, in the library 2/9
+    // of the 126 deals in 495 that cast it.
+    let (grouping, schedule) = analyst_twelve(Some(Mill::all(MillDepth::HalfLibrary)));
+    let cast = |v: &PathView<'_>| v.count_at(2, 0, Counted::Cast) == 1;
+    let mut ev = Closures(vec![
+        Box::new(move |v: &PathView<'_>| cast(v)),
+        Box::new(move |v: &PathView<'_>| cast(v) && v.count_at(2, 1, Counted::In(Zone::Hand)) == 1),
+        Box::new(move |v: &PathView<'_>| {
+            cast(v) && v.count_at(2, 1, Counted::In(Zone::Graveyard)) == 1
+        }),
+        Box::new(move |v: &PathView<'_>| {
+            cast(v) && v.count_at(2, 1, Counted::In(Zone::Library)) == 1
+        }),
+    ]);
+    let out = gauntlet_criteria::run(&grouping, &schedule, only_criteria(4), &mut ev).unwrap();
+    let got: Vec<f64> = out.probabilities.iter().map(|p| p.get() * 495.0).collect();
+    for (got, want) in got.iter().zip([126.0, 70.0, 28.0, 28.0]) {
+        assert!((got - want).abs() < 1e-9, "{got} of 495, want {want}");
+    }
+}
+
+#[test]
 fn hand_20_malevolent_rumble_keeps_a_permanent_and_the_loam_is_not_one() {
     // Forest x2, Malevolent Rumble and Beast Within x4 in hand; the library,
     // top first, Beast Within, Life from the Loam, Mountain, Beast Within,
@@ -3965,7 +4059,7 @@ fn hand_20_malevolent_rumble_keeps_a_permanent_and_the_loam_is_not_one() {
         Schedule::plain_with_fetches(
             &[7, 0, 1, 1],
             vec![milling(Some(Mill {
-                cards: 4,
+                cards: MillDepth::Exactly(4),
                 to_hand: ToHand::Chosen {
                     up_to: 1,
                     of: Some(permanent),
@@ -4018,7 +4112,7 @@ fn a_land_kept_mid_line_waits_for_the_next_turns_drop_even_when_this_turns_was_n
     let schedule = Schedule::plain_with_fetches(
         &[7, 0, 1, 1, 1],
         vec![milling(Some(Mill {
-            cards: 4,
+            cards: MillDepth::Exactly(4),
             to_hand: ToHand::Chosen {
                 up_to: 1,
                 of: Some(4),
@@ -4048,7 +4142,7 @@ fn wrenn_and_sevens_lands_go_to_hand_whatever_the_file_asks() {
     let schedule = Schedule::plain_with_fetches(
         &[7, 0, 1, 1],
         vec![milling(Some(Mill {
-            cards: 4,
+            cards: MillDepth::Exactly(4),
             to_hand: ToHand::Every(3),
             returns: None,
         }))],
@@ -4076,13 +4170,25 @@ fn wrenn_and_sevens_lands_go_to_hand_whatever_the_file_asks() {
 /// Green spells matched by query 0 at `{1}{G}`, whose cast mills `mill`; a
 /// target, query 1; Forests, query 2; blanks.
 fn a_milling_deck(mill: Mill, fetch: Option<Fetch>) -> (Grouping, Schedule) {
+    a_milling_deck_of(mill, fetch, 4, 16, 38)
+}
+
+/// [`a_milling_deck`] with `millers` spells, `forests` Forests and `blanks`
+/// blanks.
+fn a_milling_deck_of(
+    mill: Mill,
+    fetch: Option<Fetch>,
+    millers: u32,
+    forests: u32,
+    blanks: u32,
+) -> (Grouping, Schedule) {
     let grouping = Grouping::with_mana(
         q(&["miller", "target", "land"]),
         vec![
-            (0b001, two_mana(Resolves::IntoGraveyard), 4),
+            (0b001, two_mana(Resolves::IntoGraveyard), millers),
             (0b010, ManaSource::Spell, 2),
-            (0b100, untapped("G"), 16),
-            (0b000, ManaSource::Spell, 38),
+            (0b100, untapped("G"), forests),
+            (0b000, ManaSource::Spell, blanks),
         ],
     )
     .unwrap();
@@ -4169,12 +4275,40 @@ fn a_mill_nothing_reads_is_dealt_last_and_moves_no_number() {
 }
 
 #[test]
+fn half_a_library_nothing_reads_is_dealt_last_and_moves_no_number() {
+    // Two Traumatizes in twenty cards: half of what is left, some six cards,
+    // is one block over every group in place, and dealt last it is the same
+    // block over three bins, sized where it fired.
+    let (grouping, in_place) = a_milling_deck_of(Mill::all(MillDepth::HalfLibrary), None, 2, 7, 9);
+    let last = in_place.clone().deferring(0b110);
+    let (a, b) = (
+        every_zone_answered(&grouping, &in_place),
+        every_zone_answered(&grouping, &last),
+    );
+    assert!(
+        a[0] > 0.01 && a[0] < 0.99,
+        "the mill reaches the target: {a:?}"
+    );
+    for (i, (x, y)) in a.iter().zip(&b).enumerate() {
+        assert!(
+            (x - y).abs() < 1e-12,
+            "question {i}: {x} in place, {y} last"
+        );
+    }
+    let (wide, narrow) = (
+        gauntlet_criteria::width(&grouping, &in_place),
+        gauntlet_criteria::width(&grouping, &last),
+    );
+    assert!(narrow < wide, "{narrow} vs {wide}");
+}
+
+#[test]
 fn a_mill_that_chooses_from_its_cards_is_dealt_where_it_fired() {
     // Rumble's shape reads its own block to choose the card it keeps, so the
     // block is not one nothing reads, and a class that would defer a mill
     // leaves this one where it is.
     let rumble = Mill {
-        cards: 4,
+        cards: MillDepth::Exactly(4),
         to_hand: ToHand::Chosen {
             up_to: 1,
             of: Some(2),
@@ -4190,7 +4324,7 @@ fn a_mill_that_chooses_from_its_cards_is_dealt_where_it_fired() {
     );
     // Nor Wrenn and Seven's, which sends every land among them to hand.
     let wrenn = Mill {
-        cards: 4,
+        cards: MillDepth::Exactly(4),
         to_hand: ToHand::Every(2),
         returns: None,
     };
@@ -5005,7 +5139,7 @@ fn six(trigger: Trigger) -> Effect {
     Effect {
         trigger,
         ..milling(Some(Mill {
-            cards: 3,
+            cards: MillDepth::Exactly(3),
             to_hand: ToHand::Chosen {
                 up_to: 1,
                 of: Some(3),

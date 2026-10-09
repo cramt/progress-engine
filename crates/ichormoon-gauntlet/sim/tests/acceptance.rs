@@ -10,7 +10,7 @@ use std::convert::Infallible;
 
 use gauntlet_criteria::{
     Activation, Answering, Chosen, Conditionals, Discard, DiscardPolicy, Discards, LandDetail,
-    Mill, Objective, Resolves, Table, ToHand,
+    Mill, MillDepth, Objective, Resolves, Table, ToHand,
 };
 use gauntlet_criteria::{
     CastingPolicy, Cost, Count, Counted, Delay, Effect, Evaluator, Fetch, Fetched, Grouping, Keep,
@@ -2339,6 +2339,12 @@ fn rocks_and_dorks_in_the_line_agree_with_the_exact_engine() {
 /// block of four over every group it could split into is what makes a mill
 /// wide.
 fn milling_deck(mill: Mill) -> (Grouping, Schedule) {
+    milling_deck_of(mill, 4, 16, 38)
+}
+
+/// [`milling_deck`] with `millers` spells, `forests` Forests and `blanks`
+/// blanks.
+fn milling_deck_of(mill: Mill, millers: u32, forests: u32, blanks: u32) -> (Grouping, Schedule) {
     let grouping = Grouping::with_mana(
         q(&["miller", "target", "land"]),
         vec![
@@ -2348,7 +2354,7 @@ fn milling_deck(mill: Mill) -> (Grouping, Schedule) {
                     cost: Cost::parse("{1}{G}").unwrap().demand(),
                     resolves: Resolves::IntoGraveyard,
                 },
-                4,
+                millers,
             ),
             (0b010, ManaSource::Spell, 2),
             (
@@ -2358,9 +2364,9 @@ fn milling_deck(mill: Mill) -> (Grouping, Schedule) {
                     produces: Palette::from_letters(["G"]),
                     lasts: None,
                 },
-                16,
+                forests,
             ),
-            (0b000, ManaSource::Spell, 38),
+            (0b000, ManaSource::Spell, blanks),
         ],
     )
     .unwrap();
@@ -2451,7 +2457,7 @@ fn a_mill_that_keeps_a_chosen_permanent_agrees_with_the_exact_engine() {
     // lands. The target heads the list and is not one, so it never goes to hand.
     mills_agree(
         Mill {
-            cards: 4,
+            cards: MillDepth::Exactly(4),
             to_hand: ToHand::Chosen {
                 up_to: 1,
                 of: Some(2),
@@ -2468,7 +2474,7 @@ fn a_mill_that_keeps_every_land_agrees_with_the_exact_engine() {
     // Wrenn and Seven's shape: four, every land to hand, the rest binned.
     mills_agree(
         Mill {
-            cards: 4,
+            cards: MillDepth::Exactly(4),
             to_hand: ToHand::Every(2),
             returns: None,
         },
@@ -2490,6 +2496,28 @@ fn a_mill_dealt_last_agrees_with_the_sampler_dealing_it_where_it_fell() {
         "the mill is dealt last"
     );
     mills_agree_on(&grouping, &last, 59);
+}
+
+#[test]
+fn a_mill_of_half_the_library_agrees_with_the_exact_engine() {
+    // Traumatize, three of them in twenty cards: each mills half of what the
+    // library holds when it resolves, which the sampler reads off the deck it
+    // shuffled and the exact engine off the path it walked.
+    let (grouping, schedule) = milling_deck_of(Mill::all(MillDepth::HalfLibrary), 3, 7, 8);
+    mills_agree_on(&grouping, &schedule, 61);
+}
+
+#[test]
+fn a_mill_of_half_the_library_dealt_last_agrees_with_the_sampler() {
+    // The same, dealt last by the exact engine and where it fell by the
+    // sampler: the tail is sized where the mill fired.
+    let (grouping, schedule) = milling_deck_of(Mill::all(MillDepth::HalfLibrary), 3, 7, 8);
+    let last = schedule.clone().deferring(0b110);
+    assert!(
+        gauntlet_criteria::width(&grouping, &last) < gauntlet_criteria::width(&grouping, &schedule),
+        "the mill is dealt last"
+    );
+    mills_agree_on(&grouping, &last, 67);
 }
 
 // --- discard (ADR-0017 §3) ---------------------------------------------------
@@ -2771,7 +2799,7 @@ fn triggers_agree(effect: Effect, turns: u32, seed: u64) {
 
 fn mill_of(cards: u32, to_hand: ToHand, returns: Option<usize>) -> Mill {
     Mill {
-        cards,
+        cards: MillDepth::Exactly(cards),
         to_hand,
         returns,
     }

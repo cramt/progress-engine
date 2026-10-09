@@ -3537,6 +3537,46 @@ fn buried_alive_puts_up_to_three_cids_into_the_graveyard() {
 }
 
 #[test]
+fn traumatize_mills_half_the_library_it_finds() {
+    // Issue #138, on traumatize.txt: sixteen cards on the play, and
+    // Traumatize cast on turn 5 whenever it is among the first eleven, 11/16.
+    // The library is then five cards, a random five of the fifteen others,
+    // and it mills two of them.
+    // * A Cid in the graveyard: 11/16 × (1 - C(12,2)/C(15,2)) = 11/16 ×
+    //   39/105, 25.54%.
+    // * The mean there: 11/16 × 2 × 3/15 = 0.275.
+    // * In the library: 5/16 × 3 × 4/15 uncast, and 11/16 × 3 × 3/15 after
+    //   the two, 0.6625.
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture("traumatize.txt"))
+        .arg(fixture("traumatize.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("traumatize-index.jsonl"))
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    let json: serde_json::Value =
+        serde_json::from_slice(&out.stdout).unwrap_or_else(|_| panic!("should answer: {stderr}"));
+    assert_eq!(percent(&json, "a Cid in the graveyard by turn 5"), 25.54);
+    assert_eq!(
+        expectation(&json, "Cids in the graveyard on turn 5")["mean"],
+        0.275
+    );
+    assert_eq!(
+        expectation(&json, "Cids in the library on turn 5")["mean"],
+        0.6625
+    );
+    assert_eq!(json["method"], "exact", "{json}");
+    // And the run says it milled half, in the words the file used.
+    assert_eq!(json["effects"][0]["mill"], "half", "{json}");
+    assert!(
+        stderr.contains("(mill half the library, on cast)"),
+        "{stderr}"
+    );
+}
+
+#[test]
 fn a_run_prints_the_declared_cost_beside_the_printed_one() {
     // The bill is a declaration, so the run says what it billed, what the
     // card prints, whose effect said so, and that a `cast` clause counts the

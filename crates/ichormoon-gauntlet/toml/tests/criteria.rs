@@ -14,7 +14,7 @@ use gauntlet_criteria::{
 };
 use gauntlet_toml::{
     Criteria, Destination, DiscardDecl, EffectEntry, EffectLibrary, ErrorKind, HandDecl, MillDecl,
-    MAX_TURN, STANDARD_LIBRARY, STANDARD_LIBRARY_ORIGIN,
+    MillDepth, MAX_TURN, STANDARD_LIBRARY, STANDARD_LIBRARY_ORIGIN,
 };
 
 /// A synthetic library where every query the file names has cards of its own
@@ -3001,6 +3001,73 @@ fn refused_effect(source: &str) -> ErrorKind {
 }
 
 #[test]
+fn a_mill_of_half_the_library_is_written_half_and_a_number_fits_commander() {
+    // Traumatize: "Target player mills half their library, rounded down."
+    let traumatize = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Traumatize"'
+        on = "cast"
+        mill = "half"
+        "#,
+    );
+    assert_eq!(
+        traumatize.mill.map(|m| m.cards),
+        Some(MillDepth::HalfLibrary)
+    );
+    // Jace Beleren's twenty and anything up to half a Commander library.
+    for n in [20, 49] {
+        let deep = effect_of(&format!(
+            "[[effect]]\nmatch = 'name:\"Glimpse the Unthinkable\"'\non = \"cast\"\nmill = {n}\n"
+        ));
+        assert_eq!(deep.mill.map(|m| m.cards), Some(MillDepth::Exactly(n)));
+    }
+    // What half may keep has no size to be held to but the hand's.
+    let kept = effect_of(
+        "[[effect]]\nmatch = 'name:\"Traumatize\"'\non = \"cast\"\nmill = \"half\"\nkeep = 1\nto_hand = ['t:land']\n",
+    );
+    assert!(matches!(
+        kept.mill.map(|m| m.to_hand),
+        Some(HandDecl::Chosen { up_to: 1, .. })
+    ));
+}
+
+#[test]
+fn a_mill_that_is_neither_a_number_nor_half_is_refused_naming_both() {
+    let with = |body: &str| {
+        refused_effect(&format!(
+            "[[effect]]\nmatch = 'name:\"Traumatize\"'\n{body}\n"
+        ))
+    };
+    for (body, says) in [
+        ("on = \"cast\"\nmill = 50", "mill = 50"),
+        ("on = \"cast\"\nmill = 0", "mill = 0"),
+        ("on = \"cast\"\nmill = -3", "mill = -3"),
+        ("on = \"cast\"\nmill = \"halF\"", "mill = \"halF\""),
+        ("on = \"cast\"\nmill = \"all\"", "mill = \"all\""),
+    ] {
+        let bad = with(body);
+        assert!(matches!(bad, ErrorKind::BadMill { .. }), "{body:?}: {bad}");
+        let says_both = bad.to_string();
+        for needle in [says, "from 1 to 49", "\"half\""] {
+            assert!(
+                says_both.contains(needle),
+                "{body:?} should name {needle:?}: {says_both}"
+            );
+        }
+    }
+    // Half off a trigger that repeats: those cards round up.
+    for on in ["attack", "landfall"] {
+        let bad = with(&format!("on = \"{on}\"\nmill = \"half\""));
+        assert!(matches!(bad, ErrorKind::MillMisdeclared { .. }), "{bad}");
+        assert!(bad.to_string().contains("round up"), "{bad}");
+    }
+    // And a keep past the hand's bound.
+    let bad = with("on = \"cast\"\nmill = \"half\"\nkeep = 11\nto_hand = ['t:land']");
+    assert!(matches!(bad, ErrorKind::BadKeep { max: 10, .. }), "{bad}");
+}
+
+#[test]
 fn a_mill_says_how_many_cards_and_what_the_card_lets_go_to_hand() {
     // Aftermath Analyst: three to the graveyard, nothing kept.
     let analyst = effect_of(
@@ -3014,7 +3081,7 @@ fn a_mill_says_how_many_cards_and_what_the_card_lets_go_to_hand() {
     assert_eq!(
         analyst.mill,
         Some(MillDecl {
-            cards: 3,
+            cards: MillDepth::Exactly(3),
             to_hand: HandDecl::Chosen {
                 up_to: 0,
                 of: None,
@@ -3039,7 +3106,7 @@ fn a_mill_says_how_many_cards_and_what_the_card_lets_go_to_hand() {
     assert_eq!(
         rumble.mill,
         Some(MillDecl {
-            cards: 4,
+            cards: MillDepth::Exactly(4),
             to_hand: HandDecl::Chosen {
                 up_to: 1,
                 of: Some("is:permanent".into()),
@@ -3061,7 +3128,7 @@ fn a_mill_says_how_many_cards_and_what_the_card_lets_go_to_hand() {
     assert_eq!(
         wrenn.mill,
         Some(MillDecl {
-            cards: 4,
+            cards: MillDepth::Exactly(4),
             to_hand: HandDecl::Every("t:land".into()),
             returns: None,
         })
@@ -3086,7 +3153,7 @@ fn an_attack_and_a_landfall_fire_a_mill() {
     assert_eq!(
         six.mill,
         Some(MillDecl {
-            cards: 3,
+            cards: MillDepth::Exactly(3),
             to_hand: HandDecl::Chosen {
                 up_to: 1,
                 of: Some("t:land".into()),
@@ -3105,7 +3172,7 @@ fn an_attack_and_a_landfall_fire_a_mill() {
         "#,
     );
     assert_eq!(explorer.trigger, Trigger::Landfall);
-    assert_eq!(explorer.mill.map(|m| m.cards), Some(1));
+    assert_eq!(explorer.mill.map(|m| m.cards), Some(MillDepth::Exactly(1)));
     // Lumra: four when it enters, then every land in the graveyard returns.
     let lumra = effect_of(
         r#"

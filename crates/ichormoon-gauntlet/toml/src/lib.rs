@@ -37,11 +37,11 @@
 //! than once per simulated hand.
 
 use facet::Facet;
-pub use gauntlet_criteria::Discards;
 use gauntlet_criteria::{
     Cost, CostError, Count, Counted, Criterion, Delay, Evaluator, Expectation, Fetched, NotACount,
     Palette, PathOutcomes, PathView, Plan, Trigger, TriggerError, Zone, ZoneError,
 };
+pub use gauntlet_criteria::{Discards, MillDepth};
 use thiserror::Error;
 
 /// The effect library that ships with the tool.
@@ -245,8 +245,9 @@ struct EffectDef {
     /// Cards a cast puts off the top of the library into the graveyard, as
     /// one block (ADR-0017 §2): Aftermath Analyst's `mill = 3`, and Malevolent
     /// Rumble's `mill = 4`, because the four it reveals that it does not keep
-    /// go to the graveyard whatever anyone asks.
-    mill: Option<i64>,
+    /// go to the graveyard whatever anyone asks. Or `mill = "half"`:
+    /// Traumatize's half of the library, rounded down.
+    mill: Option<MillDef>,
     /// How many of a mill's cards the card lets go to hand instead: Rumble's
     /// one permanent. Which one is `to_hand`.
     keep: Option<i64>,
@@ -280,6 +281,17 @@ struct EffectDef {
     /// the battlefield tapped, whatever anyone asks: Lumra, Bellow of the
     /// Woods' `returns = "t:land"`.
     returns: Option<String>,
+}
+
+/// `mill` as written: a number, or a word. Which words mean something is
+/// [`mill_of`]'s to say, so a misspelt one is refused by this crate with the
+/// forms it accepts rather than by the deserializer.
+#[derive(Facet)]
+#[repr(u8)]
+#[facet(untagged)]
+enum MillDef {
+    Cards(i64),
+    Word(String),
 }
 
 #[derive(Facet)]
@@ -652,7 +664,7 @@ pub const EVERYTHING: &str = "*";
 /// because the card compels it (ADR-0017 §2).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MillDecl {
-    pub cards: u32,
+    pub cards: MillDepth,
     pub to_hand: HandDecl,
     /// `returns = query`: then every land card of the graveyard matching it
     /// goes onto the battlefield tapped, which the card compels.
@@ -688,9 +700,16 @@ pub struct DiscardDecl {
 /// on a typo, not on the game.
 pub const MAX_HAND: u32 = 10;
 
-/// The most cards one `mill` may turn over. Seven is the deepest a card in
-/// either deck mills; this is a bound on a typo, not on the game.
-pub const MAX_MILL: u32 = 20;
+/// The most cards one numbered `mill` may turn over: a bound on a typo, not
+/// on the game. A Commander library is at most 99 cards, so half of it is at
+/// most 49, which is the deepest `mill = "half"` ever goes; the deepest a
+/// card mills you by number is Jace Beleren's twenty, and Glimpse the
+/// Unthinkable's ten is the common case. A number past 49 is deeper than any
+/// card mills a Commander library, so it is a typo.
+pub const MAX_MILL: u32 = 49;
+
+/// What a criteria file spells a mill of half the library, rounded down.
+pub const HALF_LIBRARY: &str = "half";
 
 /// A declared tutor, as written: what it would go and get, in the order it
 /// would take them, and where it puts what it finds — which carries how many
@@ -1509,16 +1528,19 @@ pub enum ErrorKind {
          land itself"
     )]
     AddsOnLandDrop { at: String },
+    /// `value` as written, a number or a quoted word, so the refusal quotes
+    /// back what the file said.
     #[error(
-        "{at}: `{key} = {value}` is not a number of cards: it must be a whole number from 1 to \
+        "{at}: `mill = {value}` is not how many cards a mill takes: it must be a whole number \
+         from 1 to {MAX_MILL}, or \"{HALF_LIBRARY}\" for half the library, rounded down, as \
+         Traumatize mills"
+    )]
+    BadMill { at: String, value: String },
+    #[error(
+        "{at}: `keep = {value}` is not a number of cards: it must be a whole number from 1 to \
          {max}. A mill that keeps nothing is written with no `keep`"
     )]
-    BadMill {
-        at: String,
-        key: &'static str,
-        value: i64,
-        max: u32,
-    },
+    BadKeep { at: String, value: i64, max: u32 },
     #[error(
         "{at}: `up_to = {value}` is not a number of cards: it must be a whole number from 1 to \
          {MAX_HAND}. A search for one card is written with no `up_to`"
@@ -1842,7 +1864,7 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
         at: at.to_string(),
         why,
     };
-    let Some(mill) = def.mill else {
+    let Some(mill) = &def.mill else {
         if def.keep.is_some()
             || def.keep_only.is_some()
             || def.keep_every.is_some()
@@ -1861,15 +1883,27 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
         }
         return Ok(None);
     };
-    let cards = u32::try_from(mill)
-        .ok()
-        .filter(|n| (1..=MAX_MILL).contains(n))
-        .ok_or(ErrorKind::BadMill {
-            at: at.to_string(),
-            key: "mill",
-            value: mill,
-            max: MAX_MILL,
-        })?;
+    let cards = match mill {
+        MillDef::Cards(n) => u32::try_from(*n)
+            .ok()
+            .filter(|n| (1..=MAX_MILL).contains(n))
+            .map(MillDepth::Exactly),
+        MillDef::Word(word) => (word == HALF_LIBRARY).then_some(MillDepth::HalfLibrary),
+    }
+    .ok_or_else(|| ErrorKind::BadMill {
+        at: at.to_string(),
+        value: match mill {
+            MillDef::Cards(n) => n.to_string(),
+            MillDef::Word(word) => format!("{word:?}"),
+        },
+    })?;
+    if cards == MillDepth::HalfLibrary && matches!(trigger, Trigger::Attack | Trigger::Landfall) {
+        return Err(misdeclared(
+            "has `mill = \"half\"` on an attack or a landfall. Half the library, rounded down, \
+             is what a cast of Traumatize mills; the cards that mill half a library each time \
+             they attack, Fleet Swallower among them, round up, and \"half\" does not",
+        ));
+    }
     if matches!(trigger, Trigger::LandDrop | Trigger::Activate) {
         return Err(misdeclared(
             "has `mill` on a landdrop or an activation. A mill here is something a cast, an attack or a landfall does to the top of the \
@@ -1913,14 +1947,19 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
             returns: def.returns.clone(),
         }));
     };
+    // Half a library has no size until it resolves, so what it may keep is
+    // held to the bound every other count of cards to hand is.
+    let max = match cards {
+        MillDepth::Exactly(n) => n,
+        MillDepth::HalfLibrary => MAX_HAND,
+    };
     let up_to = u32::try_from(keep)
         .ok()
-        .filter(|n| (1..=cards).contains(n))
-        .ok_or(ErrorKind::BadMill {
+        .filter(|n| (1..=max).contains(n))
+        .ok_or(ErrorKind::BadKeep {
             at: at.to_string(),
-            key: "keep",
             value: keep,
-            max: cards,
+            max,
         })?;
     let prefer = preference_of(
         def.to_hand.as_ref().map(|p| Some(p.clone())).as_ref(),

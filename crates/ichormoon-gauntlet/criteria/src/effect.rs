@@ -412,7 +412,7 @@ pub enum Discards {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Mill {
     /// How many cards come off the top.
-    pub cards: u32,
+    pub cards: MillDepth,
     pub to_hand: ToHand,
     /// Then every card of the graveyard matching this query goes onto the
     /// battlefield tapped, whatever anyone asks: Lumra, Bellow of the Woods'
@@ -423,6 +423,28 @@ pub struct Mill {
     /// stays where it is, because nothing else a card returns this way has
     /// been asked for.
     pub returns: Option<usize>,
+}
+
+/// How many cards a mill takes off the top.
+///
+/// Two variants rather than a number with a sentinel, because half of the
+/// library is not a number the file can know: it is whatever the path left
+/// there when the spell resolved, after the draws, the fetches and the other
+/// mills before it, so it is sized where the mill fires, as every sized gap
+/// is (ADR-0017 §1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MillDepth {
+    /// That many: Aftermath Analyst's three.
+    Exactly(u32),
+    /// Half the cards in the library as the mill resolves, rounded down:
+    /// Traumatize, aimed at yourself.
+    HalfLibrary,
+}
+
+impl From<u32> for MillDepth {
+    fn from(cards: u32) -> MillDepth {
+        MillDepth::Exactly(cards)
+    }
 }
 
 /// Which of a mill's cards go to hand rather than to the graveyard.
@@ -444,10 +466,10 @@ pub enum ToHand {
 }
 
 impl Mill {
-    /// A mill that keeps nothing: Aftermath Analyst.
-    pub fn all(cards: u32) -> Mill {
+    /// A mill that keeps nothing: Aftermath Analyst, or Traumatize.
+    pub fn all(cards: impl Into<MillDepth>) -> Mill {
         Mill {
-            cards,
+            cards: cards.into(),
             to_hand: ToHand::Chosen {
                 up_to: 0,
                 of: None,
@@ -2192,9 +2214,16 @@ impl<'a> Board<'a> {
         let Some(mill) = self.schedule.effects()[effect].mill.as_ref() else {
             return Ok(0);
         };
-        let (cards, up_to) = match &mill.to_hand {
-            ToHand::Chosen { up_to, .. } => (mill.cards, *up_to),
-            ToHand::Every(_) => (mill.cards, 0),
+        // Half is read off this path's library before anything leaves it,
+        // and every replay of the prefix reads the same library, so the gap
+        // it asks for is the gap it is dealt.
+        let cards = match mill.cards {
+            MillDepth::Exactly(cards) => cards,
+            MillDepth::HalfLibrary => self.in_library() / 2,
+        };
+        let up_to = match &mill.to_hand {
+            ToHand::Chosen { up_to, .. } => *up_to,
+            ToHand::Every(_) => 0,
         };
         if self.last[effect] {
             // Whatever is already turned over on top goes now, as it would;
@@ -2494,6 +2523,15 @@ impl<'a> Board<'a> {
             left -= 1;
         }
         left
+    }
+
+    /// Every card in the library on this path now: what an earlier look left
+    /// on top, what this turn's checkpoints revealed and nothing has taken
+    /// yet, the unrevealed rest, and what the mulligan put on the bottom.
+    /// What "half their library" halves.
+    fn in_library(&self) -> u32 {
+        let top = self.kept.len() + (self.fresh.len() - self.fresh_head);
+        top as u32 + self.library() + self.live_bottomed.iter().sum::<u32>()
     }
 
     /// Cards still in the unrevealed library: never turned over, never
