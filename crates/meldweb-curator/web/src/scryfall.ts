@@ -1,5 +1,6 @@
+import { type Copy, viaCopy } from "./copy";
 import type { CardRef, Finish } from "./deck";
-import type { Ask, ScryfallCard } from "./deck.gen";
+import type { Ask, Found, ScryfallCard } from "./deck.gen";
 import { cachedMany, scryfallClient } from "./scryfallCache";
 import { API, SEARCH_GATE, scryfallFetch } from "./scryfallQueue";
 
@@ -227,23 +228,63 @@ function remember(cards: readonly CollectionCard[]): Map<string, Printing> {
   return found;
 }
 
+/** A printing the copy found, as the editor shows it. */
+function fromCopy(f: Found): Printing {
+  return {
+    id: f.id,
+    name: f.name,
+    set: f.set,
+    num: f.num,
+    // A printing with no picture is dropped by `fromCopyAll`, as
+    // `parseCollection` drops one off the API.
+    image: f.image ?? "",
+    colorIdentity: f.colorIdentity,
+    typeLine: f.frontTypeLine,
+    ...(f.prints ? { prints: f.prints } : {}),
+    ...(f.turn ? { turn: f.turn } : {}),
+    ...(f.back ? { back: f.back } : {}),
+  };
+}
+
 /**
- * Looks up every card's printing, from the cache where any lookup has found
- * it before and otherwise in as few requests as Scryfall allows. Cards
- * Scryfall cannot find are absent from the map rather than an error: the deck
- * is still the deck, and the view shows what the file names instead. A batch
- * still queued when `signal` aborts is never sent.
+ * Each distinct card of `refs` looked up in the copy, keyed as
+ * `fetchPrintings` keys them, with what `pick` makes of it; a card the copy
+ * has no picture of is absent.
+ */
+async function fromCopyAll<T>(
+  copy: Copy,
+  refs: readonly CardRef[],
+  pick: (found: Found) => T,
+): Promise<Map<string, T>> {
+  const wanted = [...new Map(refs.map((r) => [printingKey(r), r])).entries()];
+  const found = await copy.lookup(wanted.map(([, r]) => r));
+  const out = new Map<string, T>();
+  wanted.forEach(([key], i) => {
+    const f = found[i];
+    if (f?.image) out.set(key, pick(f));
+  });
+  return out;
+}
+
+/**
+ * Looks up every card's printing: in the page's copy of Scryfall, or before
+ * there is one from the cache where any lookup has found it before and
+ * otherwise in as few requests as Scryfall allows. Cards Scryfall cannot find
+ * are absent from the map rather than an error: the deck is still the deck,
+ * and the view shows what the file names instead. A batch still queued when
+ * `signal` aborts is never sent.
  */
 export async function fetchPrintings(
   cards: readonly { card: CardRef }[],
   signal?: AbortSignal,
 ): Promise<Printings> {
-  return cachedMany(
-    PRINTING,
-    cards.map((c) => c.card),
-    printingKey,
-    async (misses) =>
-      remember(await collection(misses.map(identifier), signal)),
+  const refs = cards.map((c) => c.card);
+  return viaCopy(
+    (copy) => fromCopyAll(copy, refs, fromCopy),
+    () =>
+      cachedMany(PRINTING, refs, printingKey, async (misses) =>
+        remember(await collection(misses.map(identifier), signal)),
+      ),
   );
 }
 
