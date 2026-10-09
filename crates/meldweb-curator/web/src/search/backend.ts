@@ -59,7 +59,11 @@ export const scryfallSearch: SearchBackend = {
   search: (query, signal) => {
     const api = () =>
       fetchPage(`${API}/cards/search?q=${encodeURIComponent(query)}`, signal);
-    return viaCopy((copy) => copyPage(copy, query, 0, api), api);
+    return viaCopy(
+      (copy) => copyPage(copy, query, 0, api),
+      api,
+      (page) => page.total > 0,
+    );
   },
 };
 

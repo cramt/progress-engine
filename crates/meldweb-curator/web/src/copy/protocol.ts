@@ -22,6 +22,11 @@ export type CopyState =
       kind: "ready";
       updatedAt: string;
       refresh?: { received: number; total: number };
+      /**
+       * The worker is reading or making a whole copy, seconds in which it
+       * answers nothing, so the API answers meanwhile.
+       */
+      busy?: true;
     }
   /** No copy, and making one failed for this reason. */
   | { kind: "failed"; message: string };

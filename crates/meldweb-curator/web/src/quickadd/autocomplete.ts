@@ -16,6 +16,7 @@ export const scryfallAutocomplete: Lookup = (query, signal) =>
   viaCopy(
     (copy) => copy.autocomplete(query),
     () => apiAutocomplete(query, signal),
+    (names) => names.length > 0,
   );
 
 const apiAutocomplete: Lookup = (query, signal) =>

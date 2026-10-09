@@ -240,6 +240,7 @@ export function fetchAllPrintings(
         ["scryfall", "prints", "v4", uri],
         (s) => loadAll(uri, s),
       ),
+    (prints) => prints.length > 0,
   );
   if (!signal) return search;
   return new Promise((resolve, reject) => {

@@ -317,6 +317,9 @@ impl Stored {
             .expect("a string takes any write");
         }
         fn opt<'a>(o: &'a Option<String>, what: &str) -> Result<&'a str, String> {
+            // An empty field reads back as `None`; no printing in the bulk
+            // file has an empty one, and the full round trip would say so.
+            debug_assert!(o.as_deref() != Some(""), "{what} is empty, not absent");
             plain(o.as_deref().unwrap_or_default(), what)
         }
         let price = |p: Option<f64>| p.map(|p| p.to_string()).unwrap_or_default();
@@ -820,8 +823,9 @@ pub enum SearchAnswer {
 ///
 /// Loading reads every printing but no card's facts: a card's JSON is read
 /// the first time something asks for that card, and [`Self::warm`] reads the
-/// rest a slice at a time once the page has its answers, so a search does not
-/// wait for all of them.
+/// rest a slice at a time once the page has its answers. A search reads every
+/// card it has not yet, which before warming is done takes seconds, so the
+/// worker sends searches to the API until then.
 pub struct ScryfallCopy {
     updated_at: String,
     kept: Vec<KeptCard>,

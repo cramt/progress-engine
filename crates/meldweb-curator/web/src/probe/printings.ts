@@ -1,4 +1,4 @@
-import { viaCopy } from "../copy";
+import { viaCopyEach } from "../copy";
 import { imageUris } from "../scryfall";
 import { cachedMany } from "../scryfallCache";
 import { API, SEARCH_GATE, scryfallFetch } from "../scryfallQueue";
@@ -20,9 +20,11 @@ export interface ScannedPrinting {
  */
 export function printingsById(
   ids: readonly string[],
-): Promise<Map<string, ScannedPrinting>> {
-  return viaCopy(
-    async (copy) => {
+): Promise<ReadonlyMap<string, ScannedPrinting>> {
+  return viaCopyEach(
+    ids,
+    (id) => id,
+    async (copy, ids) => {
       const found = await copy.lookup(ids.map((id) => ({ kind: "id", id })));
       const out = new Map<string, ScannedPrinting>();
       ids.forEach((id, i) => {
@@ -37,7 +39,7 @@ export function printingsById(
       });
       return out;
     },
-    () => cachedMany(["scryfall", "by-id"], ids, (id) => id, lookUp),
+    (ids) => cachedMany(["scryfall", "by-id"], ids, (id) => id, lookUp),
   );
 }
 
