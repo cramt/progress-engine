@@ -1,6 +1,14 @@
 // Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
+/**
+ * What [`store_plan`] decided, for the worker to carry out.
+ */
+export type StoreStep =
+  | { kind: "current"; meta?: string }
+  | { kind: "refused"; message: string }
+  | { kind: "build"; file: string };
+
 export type SearchAnswer =
   | { kind: "page"; cards: Found[]; total: number }
   | { kind: "refused"; message: string };

@@ -1448,6 +1448,7 @@ mod tests {
         g.add_type::<chip_scryfall::copy::Found>();
         g.add_type::<chip_scryfall::copy::PrintingFacts>();
         g.add_type::<chip_scryfall::copy::SearchAnswer>();
+        g.add_type::<copy::StoreStep>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",
