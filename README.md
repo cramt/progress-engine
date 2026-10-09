@@ -1,13 +1,31 @@
+# progress-engine
+
+Magic: The Gathering tooling, named for Jin-Gitaxias's faction of New Phyrexia
+on the grounds that obsessively recalculating whether your deck is perfect yet
+is blue-aligned behaviour. [NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md) carries
+the rest of the family and the rule for naming the next one. Three products
+live here:
+
+- **Ichormoon Gauntlet** (`crates/ichormoon-gauntlet/`, binary `gauntlet`):
+  draw-probability tests for decklists, answered by exact enumeration. The rest
+  of this README is about it.
+- **Meldweb Curator** (`crates/meldweb-curator/`, at
+  [meldweb.cramt.dk](https://meldweb.cramt.dk)): a deck and collection editor
+  in the browser where a `.deck.toml` in your own git repo is the deck and
+  saving is a commit.
+- **Gitaxian Probe** (`crates/gitaxian-probe/`): card scanning, hosting
+  [Delver X](https://mtg.delver.app)'s recognition engine natively and in the
+  browser, where Curator's Scan button uses it. Its
+  [engine README](crates/gitaxian-probe/engine/README.md) is the authority on it.
+
+Gauntlet and Curator stand on **Reality Chip** (`crates/reality-chip/`), the shared core:
+card data and Scryfall's query syntax, decklist parsing, and the
+hypergeometric walk. See [Crate layout](#crate-layout).
+
 # Ichormoon Gauntlet
 
-Draw-probability tests for Magic: The Gathering decklists.
-
-Part of **progress-engine**, a family of Magic tooling named for Jin-Gitaxias's
-faction of New Phyrexia, on the grounds that obsessively recalculating whether
-your deck is perfect yet is blue-aligned behaviour. A gauntlet is a set of
-trials you put something through, which is what a criteria file is.
-[NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md) carries the rest of the family and
-the rule for naming the next one.
+Draw-probability tests for Magic: The Gathering decklists. A gauntlet is a set
+of trials you put something through, which is what a criteria file is.
 
 This README is what the tool does today. [VISION.md](VISION.md) is what it is
 for, what it refuses to become, and which of those two lists a given decision
@@ -3061,9 +3079,14 @@ Notes:
 ```bash
 cargo test --all   # plain cargo; rust-toolchain.toml picks the toolchain
 cargo clippy --all-targets -- -D warnings
-nix develop        # optional devshell with the toolchain, jq and cargo-nextest
-nix flake check    # what CI runs: fmt, clippy -D warnings, tests, build, checker
+nix develop        # optional devshell with the toolchain, jq, cargo-nextest, node and pnpm
+nix flake check    # what CI runs: fmt, clippy -D warnings, tests, build, checker, meldweb-web
 python3 checker/compare.py   # the independent checker, against target/release/gauntlet
+
+# Meldweb Curator, inside `nix develop`
+pnpm install
+pnpm dev           # the editor on localhost:5173; VITE_MOCK_GITHUB=1 runs it against a fake GitHub
+pnpm check         # biome + tsc; `pnpm test` is vitest, `pnpm build` the site
 ```
 
 ### An independent checker
@@ -3174,10 +3197,11 @@ A question the engine cannot answer yet is marked `pending="#NN"` in
 games, and fails nothing on it. When the criterion exists and the engine
 answers it, `compare.py` compares it and says to delete the marker.
 
-The workspace is Ichormoon Gauntlet and Reality Chip. Gitaxian Probe, under
-`crates/gitaxian-probe/`, is a workspace of its own outside this one and
-outside the flake, because it needs the network to build; its engine README
-says how.
+The cargo workspace is Ichormoon Gauntlet, Reality Chip and `meldweb-wasm`.
+Gitaxian Probe, under `crates/gitaxian-probe/`, is a workspace of its own
+outside this one, because its native host links a prebuilt V8 and needs the
+network to build; the flake builds only its web half. Its engine README says
+how.
 
 Reflection comes from [facet](https://github.com/facet-rs/facet): `facet-json`
 writes the JSON contract above, reads Scryfall's bulk data and reads and writes
@@ -3212,7 +3236,8 @@ owns them:
 ```
 crates/ichormoon-gauntlet/{cli,criteria,toml,sim}    this tool
 crates/reality-chip/{scryfall,decklist,stats}        the shared family core
-crates/meldweb-curator/{wasm,web,worker}             the deck editor: chip-decklist in wasm, a TypeScript app, and its login worker
+crates/meldweb-curator/{wasm,web,worker,infra}       the deck editor: chip-decklist in wasm, a TypeScript app, its worker, and the OpenTofu for its domain
+crates/gitaxian-probe/                               card scanning; a cargo workspace of its own
 ```
 
 `reality-chip` is the part a sibling tool depends on, kept in its own directory
