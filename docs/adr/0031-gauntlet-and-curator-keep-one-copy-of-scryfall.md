@@ -1,0 +1,21 @@
+# Gauntlet and Curator keep one copy of Scryfall
+
+Supersedes the parts of [ADR-0030](0030-curator-answers-card-facts-from-its-own-copy-of-scryfalls-bulk-data.md) that make the copy Curator's alone, and [ADR-0006](0006-oracle-tags-are-fetched-and-dated.md)'s fixed list of oracle tags fetched one search at a time; its rule that a tag the data does not carry is refused by name still holds. Settled in [#142](https://github.com/cramt/progress-engine/issues/142); the format, builder and lookups moved in [#143](https://github.com/cramt/progress-engine/issues/143), and the rest lands with #142's later children.
+
+Gauntlet and Meldweb Curator each kept their own local Scryfall data, in two formats built two ways. Gauntlet's `gauntlet sync` reduced Oracle Cards, Default Cards and ten oracle tags, each fetched as a search, into `index.jsonl`, read by `IndexFile`. Curator's browser kept its copy of Default Cards and Oracle Tags (ADR-0030), its format and lookups in `meldweb-wasm` and its storage policy in the worker's TypeScript. The copy is printing-level and carries every tag; the index is oracle-level and carries ten. So the copy becomes the one local Scryfall data for both, in one format with one storage policy, and each platform keeps only its own I/O.
+
+1. **The copy replaces `index.jsonl`.** Gauntlet reads only the copy. `gauntlet sync` builds it, and `decks/` commits a copy snapshot in place of `decks/index.jsonl`. The index format, `IndexFile` and the per-tag search fetch go: tags come from the Oracle Tags bulk file, which carries every tag rather than ten.
+2. **The copy's format, builder and lookups are `chip_scryfall::copy`**, with no `wasm_bindgen`. `meldweb-wasm` keeps only the wasm glue and `meldweb.toml`'s printing preference (ADR-0026). Which printing a card named by name gets is a product's preference, so the copy does not know one: every lookup that picks a printing takes a `Ranking` from its caller, a key per printing whose least wins. A key rather than an index into the candidates, so a ranking cannot name a printing it was not offered. Curator's `Preference` is one.
+3. **The storage policy is sans-IO Rust in `chip-scryfall`**: which slot a new copy goes in, whether a meta file is usable, whether a copy is old enough to ask `/bulk-data`, and remembering an `updated_at` that could not be read. Each platform drives its own I/O. The browser's worker keeps origin-private storage, `fetch` with `DecompressionStream`, and Web Locks. Natively, a `std::fs` and HTTP driver serves `gauntlet sync`, with a file lock in place of the Web Lock. No `web-sys` unstable APIs.
+4. **Native never refreshes on its own.** `gauntlet test` reads whatever copy is there and prints its `updated_at`; only `gauntlet sync` downloads. A number must not move because a run happened to land after a bulk update. The browser keeps refreshing daily as ADR-0030 says, because an editor's prices and new printings should be the day's.
+5. **The committed snapshot is the copy's text, uncompressed**, as `index.jsonl` was, so git can delta one snapshot against the next.
+
+Measured on 2026-10-09's Default Cards, natively in release: building the copy takes 10.1 s for 118,602 printings of 39,553 cards, its text is 34 MB (9.5 MB gzipped, against the committed `index.jsonl`'s 28.5 MB), and loading it back takes 0.19-0.21 s.
+
+## Considered Options
+
+- **Keep both.** Rejected: two formats, two builders and two refresh stories for the same Scryfall data, and Gauntlet unable to answer a printing-level question or any oracle tag beyond its ten.
+- **Gauntlet's index for both.** Rejected: it is one printing per card, which cannot answer Curator's printing picker, a deck's `set/num`, prices or a scan's Scryfall id (ADR-0030's reason for Default Cards over Oracle Cards).
+- **Hand the copy `meldweb.toml`'s rules as queries.** Rejected for now: the prefer/avoid tie-breaking and the newest-then-set-then-number fallback are Curator's (ADR-0026), and moving them would make `chip-scryfall` own a product's preference. A `Ranking` lets Gauntlet bring its own, or none.
+- **Native refreshing as the browser does.** Rejected by decision 4: a test's numbers would depend on when it ran.
+- **A compressed snapshot in git.** Rejected by decision 5: a gzipped file deltas as a new blob every sync.
