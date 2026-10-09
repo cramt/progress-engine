@@ -3248,12 +3248,12 @@ See [NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md).
 |---|---|---|
 | `chip-stats` | Exact hypergeometric draw probabilities | Nothing. No Magic concepts at all. |
 | `chip-decklist` | Parsing Archidekt decklists, editing a deck and a collection and saying which line holds a card, writing a deck as Archidekt, Cockatrice and Cardmarket import it, and reading other apps' collection exports | Decklist and export text, and the names of its printings, or Scryfall's answers about an export's rows, when handed them. No card data. |
-| `chip-scryfall` | Card data, Scryfall bulk data and search syntax, and the printing terms Curator ranks by | Cards and their printings. No decklists. |
+| `chip-scryfall` | Card data, Scryfall bulk data and search syntax, the printing terms Curator ranks by, and the copy of Scryfall (`chip_scryfall::copy`, ADR-0031): its kept format, building it from the bulk files and answering lookups, search and quick add from it, with where it is kept, how it is downloaded and which printing comes first left to the caller | Cards and their printings. No decklists, and no product's printing preference. |
 | `gauntlet-criteria` | Grouping cards by query, applying effects, evaluating exactly | Counts, the zones they are counted in, and where a looked-at card goes. Not cards, and not where the questions came from. |
 | `gauntlet-toml` | Reading a criteria file and answering it, and shipping the standard effect library | The criteria format, and counts. No cards. |
 | `gauntlet-sim` | Sampling, validated against `chip-stats` | Shuffling. |
 | `gauntlet-cli` | The `gauntlet` binary, and the library behind it that prepares a run in-process | All of the above. |
-| `meldweb-wasm` | `chip-decklist` for Meldweb Curator's browser editor, with the TypeScript types generated from its wire types, and `meldweb.toml`'s printing preference over `chip-scryfall` and its deck order, read, checked and written | Decklist text, and the printings of one card it is handed to rank. No card index. |
+| `meldweb-wasm` | `chip-decklist` and `chip_scryfall::copy` for Meldweb Curator's browser editor, with the TypeScript types generated from its wire types, and `meldweb.toml`'s printing preference over `chip-scryfall` and its deck order, read, checked and written. The copy's wasm functions hold the worker's copy and hand it the default printing preference | Decklist text, the printings of one card it is handed to rank, and the one copy of Scryfall the worker holds. |
 
 The seam worth knowing about is between `chip-scryfall` and `chip-decklist`: a query
 can filter on `cat:"Exile Outlet"`, which is decklist data, not card data. Rather

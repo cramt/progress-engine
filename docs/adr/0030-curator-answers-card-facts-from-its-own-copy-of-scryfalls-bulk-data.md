@@ -1,6 +1,6 @@
 # Curator answers card facts from its own copy of Scryfall's bulk data
 
-Supersedes the recommendation of [docs/research/scryfall-in-the-browser.md](../research/scryfall-in-the-browser.md) (#107), which was to call Scryfall's API for every card fact and keep no card data in the browser. Settled in [#141](https://github.com/cramt/progress-engine/pull/141).
+Supersedes the recommendation of [docs/research/scryfall-in-the-browser.md](../research/scryfall-in-the-browser.md) (#107), which was to call Scryfall's API for every card fact and keep no card data in the browser. Settled in [#141](https://github.com/cramt/progress-engine/pull/141). [ADR-0031](0031-gauntlet-and-curator-keep-one-copy-of-scryfall.md) makes the copy Gauntlet's too: its format, builder and lookups are `chip_scryfall::copy`, and where this record says the copy is Curator's alone, that one wins.
 
 Every view of a deck or the collection asks Scryfall something: the deck view's printings and prices, the printing picker and the all-printings grid, search, quick add, a collection import, a scan. Through the API each is a request on a queue that allows two a second, so opening a large deck, stepping through printings or importing a collection waits on Scryfall's rate limit, and works only online. Each browser now keeps its own copy of Scryfall's bulk data and answers all of these from it, in a worker.
 
