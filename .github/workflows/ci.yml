@@ -6,6 +6,13 @@ on:
   # Probe pin starts it on the PRs it opens, which start no workflows themselves.
   workflow_dispatch:
 
+# One run per ref at a time. Two main pushes that overlap both build from
+# cold, since neither has pushed to the cache when the other looks: queued, the
+# second substitutes what the first built. A PR's older run is only in the way.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
   # hestia lists the cache to find what earlier jobs pushed; without it the

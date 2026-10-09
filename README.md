@@ -3080,7 +3080,7 @@ Notes:
 cargo test --all   # plain cargo; rust-toolchain.toml picks the toolchain
 cargo clippy --all-targets -- -D warnings
 nix develop        # optional devshell with the toolchain, jq, cargo-nextest, node and pnpm
-nix flake check    # what CI runs: fmt, clippy -D warnings, tests, build, checker, meldweb-web
+nix flake check    # what CI runs: fmt, clippy -D warnings, tests, build, checker, meldweb-web, the probe
 python3 checker/compare.py   # the independent checker, against target/release/gauntlet
 
 # Meldweb Curator, inside `nix develop`
@@ -3199,9 +3199,9 @@ answers it, `compare.py` compares it and says to delete the marker.
 
 The cargo workspace is Ichormoon Gauntlet, Reality Chip and `meldweb-wasm`.
 Gitaxian Probe, under `crates/gitaxian-probe/`, is a workspace of its own
-outside this one, because its native host links a prebuilt V8 and needs the
-network to build; the flake builds only its web half. Its engine README says
-how.
+outside this one, because its native host links a prebuilt V8 and plain cargo
+needs the network to build it. The flake builds and checks all of it, with V8
+and Delver's files fetched by hash. Its engine README says how.
 
 Reflection comes from [facet](https://github.com/facet-rs/facet): `facet-json`
 writes the JSON contract above, reads Scryfall's bulk data and reads and writes

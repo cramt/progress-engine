@@ -1,26 +1,10 @@
 #!/usr/bin/env bash
-# Pull a handful of reference scans from Scryfall and frame each one the way a
-# camera would see it: whole card, contrasting background, room around the edges.
+# The reference frames the engine's accuracy tests read: the scans cards.nix
+# pins, each framed the way a camera would see it. The flake builds them, the
+# same frames its checks test against, and this copies them here for a plain
+# `cargo test`.
 set -euo pipefail
 cd "$(dirname "$0")"
-UA='gitaxian-probe/0.1'
-# ImageMagick 7's `magick`, or 6's `convert`, which is what Ubuntu packages.
-im=$(command -v magick || command -v convert) || { echo "ImageMagick not found - run this inside \`nix develop\`" >&2; exit 1; }
-while IFS='|' read -r slug name set; do
-  [ -z "$slug" ] && continue
-  url=$(curl -fsSL -H "User-Agent: $UA" \
-    "https://api.scryfall.com/cards/named?exact=$(printf %s "$name" | sed 's/ /+/g')&set=$set" \
-    | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).image_uris.large))')
-  curl -fsSL -H "User-Agent: $UA" "$url" -o "$slug.jpg"
-  "$im" "$slug.jpg" -resize 55% -background '#2b2b30' \
-    -gravity center -extent 1280x960 "$slug-frame.jpg"
-  sleep 0.1
-done <<'CARDS'
-lotus|Black Lotus|lea
-counterspell|Counterspell|lea
-shock|Shock|m21
-llanowar|Llanowar Elves|m19
-swords|Swords to Plowshares|lea
-thoughtseize|Thoughtseize|ths
-CARDS
+frames=$(nix build --no-link --print-out-paths "$(git rev-parse --show-toplevel)#gitaxian-probe-frames")
+cp --no-preserve=mode "$frames"/*-frame.jpg .
 ls -1 *-frame.jpg
