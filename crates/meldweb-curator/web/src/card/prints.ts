@@ -1,7 +1,14 @@
 import { viaCopy } from "../copy";
 import type { Finish } from "../deck";
 import type { PrintingFacts } from "../deck.gen";
-import { type Face, faces, imageUris, type Turn } from "../scryfall";
+import {
+  type CardPrices,
+  type Face,
+  faces,
+  imageUris,
+  parsePrices,
+  type Turn,
+} from "../scryfall";
 import { cachedOne } from "../scryfallCache";
 import { API, SEARCH_GATE, scryfallFetch } from "../scryfallQueue";
 
@@ -20,6 +27,7 @@ export interface PrintingOption {
   finishes: Finish[];
   turn?: Turn;
   back?: Face;
+  prices: CardPrices;
   /**
    * The printing's Scryfall object, cut to what meldweb.toml's rules read
    * (`FACT_KEYS`): ranking hands it to `chip-scryfall` as Scryfall wrote it.
@@ -119,6 +127,7 @@ export function parsePrintsPage(json: unknown): {
         ...(typeof uris?.small === "string" ? { small: uris.small } : {}),
         finishes,
         ...faces(c),
+        prices: parsePrices(c.prices),
         facts: factsOf(c),
       },
     ];
@@ -144,6 +153,7 @@ function fromCopy({ printing: p, facts }: PrintingFacts): PrintingOption {
     finishes: p.finishes.filter(isFinish),
     ...(p.turn ? { turn: p.turn } : {}),
     ...(p.back ? { back: p.back } : {}),
+    prices: { eur: p.prices.eur ?? {}, usd: p.prices.usd ?? {} },
     facts: factsOf({ ...facts }),
   };
 }
@@ -275,8 +285,9 @@ export function fetchAllPrintings(
         // `v3` dropped what was cached before a printing carried its faces,
         // and what was cached while a battle was looked for by layout, which
         // left it upright; `v4`, what was cached before a printing carried
-        // its facts.
-        ["scryfall", "prints", "v4", uri],
+        // its facts; `v5`, what was cached before a printing carried its
+        // prices.
+        ["scryfall", "prints", "v5", uri],
         (s) => loadAll(uri, s),
       ),
     (prints) => prints.length > 0,

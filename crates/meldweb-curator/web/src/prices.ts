@@ -1,9 +1,41 @@
-import type { OwnedCard } from "../collection";
-import type { CardRef, Finish } from "../deck";
-import { type CardPrices, type Currency, printingKey } from "../scryfall";
+import { useEffect, useRef, useState } from "react";
+import type { CardRef, Finish } from "./deck";
+import {
+  type CardPrices,
+  type Currency,
+  fetchPrices,
+  printingKey,
+} from "./scryfall";
 
 /** Today's prices, keyed as printings are; see `fetchPrices`. */
 export type PriceBook = ReadonlyMap<string, CardPrices>;
+
+/** Some copies of one printing in one finish: a deck's line or a collection's. */
+export interface Copies {
+  card: CardRef;
+  qty: number;
+  finish: Finish;
+}
+
+/**
+ * Today's price of every card, looked up after the page has opened, so a slow
+ * or failed lookup costs the prices and nothing else.
+ */
+export function usePrices(cards: readonly { card: CardRef }[]): PriceBook {
+  const [prices, setPrices] = useState<PriceBook>(new Map());
+  const asked = useRef(new Set<string>());
+  useEffect(() => {
+    const missing = cards.filter(
+      (c) => !asked.current.has(printingKey(c.card)),
+    );
+    if (missing.length === 0) return;
+    for (const c of missing) asked.current.add(printingKey(c.card));
+    fetchPrices(missing)
+      .then((found) => setPrices((p) => new Map([...p, ...found])))
+      .catch(() => {});
+  }, [cards]);
+  return prices;
+}
 
 /**
  * What one copy of a line sells for in `currency`, in its own finish: a foil
@@ -25,7 +57,7 @@ export interface Worth {
 }
 
 export function worth(
-  cards: readonly OwnedCard[],
+  cards: readonly Copies[],
   prices: PriceBook,
   currency: Currency,
 ): Worth {

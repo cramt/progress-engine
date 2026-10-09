@@ -2,7 +2,8 @@
  * What the deck page shows beside the deck as it is now, and how the URL
  * says it, so a past version is a link: `?at=<commit>` is the deck as that
  * commit left it, `?vs=<path>` is another deck (a variant or its parent) to
- * compare with, and `?history` keeps the timeline open.
+ * compare with, `?history` keeps the timeline open, and `?view=cost` lays
+ * the deck out by what it costs instead of as stacks.
  */
 import type { DeckChange } from "../deck";
 import type { Revision } from "../github/history";
@@ -14,10 +15,23 @@ export type Viewing =
   /** Another deck in the repo, as it is now. */
   | { kind: "deck"; path: string };
 
+/** How the deck as it is now is laid out; the first is the default. */
+export const DECK_VIEWS = ["stacks", "cost"] as const;
+export type DeckView = (typeof DECK_VIEWS)[number];
+
+/** Everything about the deck page the URL holds. */
+export interface DeckPage {
+  viewing: Viewing;
+  /** Whether the history drawer is open. */
+  drawer: boolean;
+  view: DeckView;
+}
+
 export interface DeckSearch {
   history?: true;
   at?: string;
   vs?: string;
+  view?: Exclude<DeckView, "stacks">;
 }
 
 const COMMIT = /^[0-9a-f]{7,40}$/;
@@ -26,6 +40,9 @@ const COMMIT = /^[0-9a-f]{7,40}$/;
 export function parseSearch(raw: Record<string, unknown>): DeckSearch {
   const at = typeof raw.at === "string" && COMMIT.test(raw.at) ? raw.at : null;
   const vs = typeof raw.vs === "string" && raw.vs !== "" ? raw.vs : null;
+  const view = DECK_VIEWS.find(
+    (v): v is Exclude<DeckView, "stacks"> => v !== "stacks" && v === raw.view,
+  );
   return {
     // The router reads `?history=1` as the number and `?history` as "".
     ...([true, 1, "", "1"].includes(raw.history as never)
@@ -33,20 +50,28 @@ export function parseSearch(raw: Record<string, unknown>): DeckSearch {
       : {}),
     // Both at once is no state the page has; the past version wins.
     ...(at ? { at } : vs ? { vs } : {}),
+    ...(view ? { view } : {}),
   };
 }
 
-export function viewingOf(search: DeckSearch): Viewing {
-  if (search.at) return { kind: "revision", commit: search.at };
-  if (search.vs) return { kind: "deck", path: search.vs };
-  return { kind: "now" };
+export function pageOf(search: DeckSearch): DeckPage {
+  return {
+    viewing: search.at
+      ? { kind: "revision", commit: search.at }
+      : search.vs
+        ? { kind: "deck", path: search.vs }
+        : { kind: "now" },
+    drawer: search.history === true,
+    view: search.view ?? "stacks",
+  };
 }
 
-export function searchFor(viewing: Viewing, drawer: boolean): DeckSearch {
+export function searchFor({ viewing, drawer, view }: DeckPage): DeckSearch {
   return {
     ...(drawer ? { history: true as const } : {}),
     ...(viewing.kind === "revision" ? { at: viewing.commit } : {}),
     ...(viewing.kind === "deck" ? { vs: viewing.path } : {}),
+    ...(view !== "stacks" ? { view } : {}),
   };
 }
 

@@ -21,18 +21,6 @@ import type { DeckEntry } from "../github/decks";
 import { createSaveStore } from "../github/save";
 import { useSave } from "../github/useSave";
 import { useHistory, useUndoKeys } from "../history";
-import { scannerAvailable } from "../probe/scanner";
-import { QuickAdd } from "../quickadd/QuickAdd";
-import {
-  type Currency,
-  cardName,
-  fetchPrices,
-  fetchPrintings,
-  type Printings,
-  printingKey,
-} from "../scryfall";
-import { ImportCollection } from "./ImportCollection";
-import { LiveScan } from "./LiveScan";
 import {
   CURRENCIES,
   formatPrice,
@@ -40,8 +28,20 @@ import {
   type PriceBook,
   saveCurrency,
   unitPrice,
+  usePrices,
   worth,
-} from "./prices";
+} from "../prices";
+import { scannerAvailable } from "../probe/scanner";
+import { QuickAdd } from "../quickadd/QuickAdd";
+import {
+  type Currency,
+  cardName,
+  fetchPrintings,
+  type Printings,
+  printingKey,
+} from "../scryfall";
+import { ImportCollection } from "./ImportCollection";
+import { LiveScan } from "./LiveScan";
 import { ReprintDialog } from "./ReprintDialog";
 import { addScanned, moveScanned, removeScanned } from "./scanned";
 import { type Section, sections, UNSORTED } from "./sections";
@@ -106,26 +106,6 @@ function useGrowingPrintings(
       .catch(() => {});
   }, [cards]);
   return printings;
-}
-
-/**
- * Today's price of every card owned, looked up after the page has opened, so
- * a slow or failed lookup costs the prices and nothing else.
- */
-function usePrices(cards: readonly OwnedCard[]): PriceBook {
-  const [prices, setPrices] = useState<PriceBook>(new Map());
-  const asked = useRef(new Set<string>());
-  useEffect(() => {
-    const missing = cards.filter(
-      (c) => !asked.current.has(printingKey(c.card)),
-    );
-    if (missing.length === 0) return;
-    for (const c of missing) asked.current.add(printingKey(c.card));
-    fetchPrices(missing)
-      .then((found) => setPrices((p) => new Map([...p, ...found])))
-      .catch(() => {});
-  }, [cards]);
-  return prices;
 }
 
 /**

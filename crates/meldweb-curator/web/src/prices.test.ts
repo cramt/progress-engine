@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { OwnedCard } from "../collection";
+import type { OwnedCard } from "./collection";
 import { loadCurrency, type PriceBook, unitPrice, worth } from "./prices";
 
 const owned = (

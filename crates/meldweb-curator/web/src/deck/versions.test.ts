@@ -3,27 +3,30 @@ import type { Revision } from "../github/history";
 import {
   body,
   byDay,
+  DECK_VIEWS,
   grouped,
+  pageOf,
   parseSearch,
   searchFor,
   subject,
   takeable,
-  viewingOf,
 } from "./versions";
 
 const SHA = "a".repeat(40);
+const viewingOf = (raw: Record<string, unknown>) =>
+  pageOf(parseSearch(raw)).viewing;
 
 describe("the deck page's URL", () => {
   it("names a past version by its commit, or another deck by its path", () => {
-    expect(viewingOf(parseSearch({ at: SHA }))).toEqual({
+    expect(viewingOf({ at: SHA })).toEqual({
       kind: "revision",
       commit: SHA,
     });
-    expect(viewingOf(parseSearch({ vs: "decks/loam.deck.toml" }))).toEqual({
+    expect(viewingOf({ vs: "decks/loam.deck.toml" })).toEqual({
       kind: "deck",
       path: "decks/loam.deck.toml",
     });
-    expect(viewingOf(parseSearch({}))).toEqual({ kind: "now" });
+    expect(viewingOf({})).toEqual({ kind: "now" });
   });
 
   it("drops what is not a commit, and prefers the past to another deck", () => {
@@ -35,16 +38,27 @@ describe("the deck page's URL", () => {
     });
   });
 
-  it("round-trips, with the timeline open or shut", () => {
-    for (const v of [
+  it("lays the deck out as stacks unless it names another view", () => {
+    expect(pageOf(parseSearch({})).view).toBe("stacks");
+    expect(pageOf(parseSearch({ view: "cost" })).view).toBe("cost");
+    // The default is no parameter at all, so a link to it stays short.
+    expect(parseSearch({ view: "stacks" })).toEqual({});
+    expect(parseSearch({ view: "grid" })).toEqual({});
+  });
+
+  it("round-trips, with the timeline open or shut, in every view", () => {
+    for (const viewing of [
       { kind: "now" as const },
       { kind: "revision" as const, commit: SHA },
       { kind: "deck" as const, path: "decks/loam.deck.toml" },
     ]) {
-      for (const open of [true, false]) {
-        const s = parseSearch(searchFor(v, open) as Record<string, unknown>);
-        expect(viewingOf(s)).toEqual(v);
-        expect(s.history === true).toBe(open);
+      for (const drawer of [true, false]) {
+        for (const view of DECK_VIEWS) {
+          const page = { viewing, drawer, view };
+          expect(
+            pageOf(parseSearch(searchFor(page) as Record<string, unknown>)),
+          ).toEqual(page);
+        }
       }
     }
   });

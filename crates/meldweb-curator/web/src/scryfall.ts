@@ -346,7 +346,7 @@ function frontTypeLine(c: Record<string, unknown>): string {
 }
 
 /** Scryfall's prices are decimal strings, or null where it has none. */
-function parsePrices(raw: unknown): CardPrices {
+export function parsePrices(raw: unknown): CardPrices {
   const p = (raw ?? {}) as Record<string, unknown>;
   const byFinish = (
     fields: Record<Finish, unknown>,
