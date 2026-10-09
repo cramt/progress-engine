@@ -12,8 +12,8 @@ a sampling engine alongside as a cross-checking oracle.
 Delver X's downloaded recognition engine, with two execution models: natively
 inside a deno_core sandbox, and on the web as a sidecar the browser runs
 itself. It is a **cargo workspace of its own**, outside Gauntlet's, so `cargo`
-at the root does not build it; the flake builds its web half
-(`gitaxian-probe-web`) but not its native host, which links a prebuilt V8. Its engine README
+at the root does not build it; the flake builds and checks all of it, the
+prebuilt V8 its native host links fetched by hash. Its engine README
 and FINDINGS.md are the authority on it, and the notes below about decks,
 criteria and the two engines do not apply to it.
 
@@ -100,9 +100,10 @@ pnpm check    # biome + tsc;  pnpm test: vitest;  pnpm build: the site
 and the rules, never from `crates/`, or it checks nothing.
 
 **Run `cargo fmt --all` before every commit**, and `pnpm fmt` when the web app
-changed. CI is `nix flake check`, whose six checks are fmt, clippy, test, build,
-the Python checker and `meldweb-web` (biome, tsc, vitest and the site build,
-against the crane-built wasm); a fmt failure aborts the others, so an
+changed. CI is `nix flake check`, whose checks are fmt, clippy, test, build,
+the Python checker, `meldweb-web` (biome, tsc, vitest and the site build,
+against the crane-built wasm) and the probe's own fmt, clippy, test, web build
+and web check; a fmt failure aborts the others, so an
 unformatted commit reports red without ever having run the tests. This has
 hidden broken clippy and tests across four commits before.
 
@@ -112,15 +113,16 @@ no hash in flake.nix.
 
 The probe builds from its own manifest - `cargo test --manifest-path
 crates/gitaxian-probe/Cargo.toml --workspace` natively, and
-`crates/gitaxian-probe/web-check/run.sh` for the web host in headless Chromium.
-Both need the network: V8 is a prebuilt download, and `gitaxian-probe-assets`
-fetches Delver's engine at build time against a hash pin, `assets/pin.json`,
-from the public archive on ghcr.io and then from Delver, which serves only its
-current build (the engine README, *The archive*).
-Its native engine
+`crates/gitaxian-probe/web-check/run.sh` (the flake's web check) for the web
+host in headless Chromium. Plain cargo needs the network: V8 is a prebuilt
+download, and `gitaxian-probe-assets` fetches Delver's engine at build time
+against a hash pin, `assets/pin.json`, from the public archive on ghcr.io and
+then from Delver, which serves only its current build (the engine README, *The
+archive*). The flake fetches both by hash instead. Its native engine
 tests skip when the upstream blobs or the card fixtures are missing: run them
 with `PROBE_REQUIRE_ENGINE=1` before claiming its accuracy numbers, or a green
-suite has checked nothing. The web check has no skip; it fails instead.
+suite has checked nothing. The flake's `gitaxian-probe-test` sets it, and the
+web check has no skip; it fails instead.
 
 ## Verifying a change
 

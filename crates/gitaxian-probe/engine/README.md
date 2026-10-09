@@ -15,17 +15,17 @@ to put all of it behind a V8 isolate with no host access.
 
 ## Quick start
 
-The probe is its own cargo workspace, outside the repo root's and outside the flake,
-so run cargo from `crates/gitaxian-probe/`:
+The probe is its own cargo workspace, outside the repo root's, so run cargo from
+`crates/gitaxian-probe/`. The flake builds and checks it too (*The archive*).
 
 ```sh
 cd crates/gitaxian-probe
-./engine/.fixtures/fetch-cards.sh   # a few reference scans from Scryfall; needs `magick`
+./engine/.fixtures/fetch-cards.sh   # the reference frames, built by the flake from cards.nix
 
 cargo run -p gitaxian-probe-engine --example query      # boot and query the catalogue
 cargo run -p gitaxian-probe-engine --example recognize  # identify a card in an image
 PROBE_REQUIRE_ENGINE=1 cargo test --workspace           # the accuracy numbers, below
-./web-check/run.sh                                      # the same numbers, in a browser
+./web-check/run.sh                                      # the same numbers, in a browser (nix)
 ```
 
 Natively there is nothing to download first: `Engine::open` pulls the engine, the catalogue
@@ -257,23 +257,27 @@ also the list of blobs to fetch. This repo uses it in four places:
 - **Building, in Nix.** The flake reads the same `pin.json`, fetches each blob as a
   fixed-output derivation whose hash is the pin, and hands the directory to the
   build script as `GITAXIAN_PROBE_ASSETS_FROM`. Its `gitaxian-probe-web` package is
-  the JavaScript API (`pkg/`) beside the served files (`gitaxian-probe/`), and
-  `nix flake check` builds it.
+  the JavaScript API (`pkg/`) beside the served files (`gitaxian-probe/`). The
+  native host links rusty_v8's prebuilt library, fetched the same way at the
+  version `Cargo.lock` names and handed over as `RUSTY_V8_ARCHIVE`. `nix flake
+  check` builds both, and runs the probe's fmt, clippy, tests and web check.
 - **Pinning a new build.** `.github/workflows/probe-pin.yml` runs daily. It reads
   each tier's `latest-<tier>` manifest, rewrites `pin.json` from them with
   `assets/repin.py`, and opens one PR per build. It never merges.
-- **Reviewing that PR.** `.github/workflows/probe-web-check.yml` runs
-  `web-check/run.sh` on every PR that touches the probe, with ImageMagick-made
-  frames. It shows whether `KNOWN_FINGERPRINT` still holds and whether 6/6 and 4/6
+- **Reviewing that PR.** CI's `nix flake check` runs two checks against the pin:
+  `gitaxian-probe-test`, the native suite with `PROBE_REQUIRE_ENGINE=1` and its
+  cache seeded from the pinned files, and `gitaxian-probe-web-check`, the web
+  check in the sandbox's headless Chromium. Both use the frames `.fixtures/cards.nix`
+  pins. They show whether `KNOWN_FINGERPRINT` still holds and whether 6/6 and 4/6
   moved. A moved fingerprint or number needs someone to read FINDINGS before the PR
-  merges. CI does not run the native accuracy test.
+  merges.
 
 None of this needs a secret. probe-pin pushes its branch and opens its PR with its
 own `GITHUB_TOKEN`, which needs *Allow GitHub Actions to create and approve pull
 requests* (Settings → Actions → General). A PR opened that way starts no workflows,
-so probe-pin starts CI and the web check on the branch itself with a dispatch, the
-one event `GITHUB_TOKEN` may start runs with; their results land on the PR's head
-commit. A later push to that branch is not checked without dispatching them again.
+so probe-pin starts CI on the branch itself with a dispatch, the
+one event `GITHUB_TOKEN` may start runs with; its result lands on the PR's head
+commit. A later push to that branch is not checked without dispatching it again.
 
 ## What the sandbox actually allows
 
@@ -304,7 +308,7 @@ views).
 
 ## Accuracy and cost, measured
 
-Six Scryfall scans composited onto a plain background (`.fixtures/fetch-cards.sh`),
+Six Scryfall scans composited onto a plain background (`.fixtures/cards.nix`),
 alpha tier. Both harnesses produce the same `dataId`, the same confidences and the
 same `similar` ranking:
 

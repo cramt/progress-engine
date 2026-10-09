@@ -19,10 +19,10 @@
     };
   };
 
-  # Gitaxian Probe is a cargo workspace of its own (crates/gitaxian-probe/).
-  # Its web build is here: the assets its pin names, fetched from the public
-  # archive by hash, and the JavaScript API compiled for the browser. Its native
-  # host is not, because it links a prebuilt V8 the sandbox cannot download.
+  # Gitaxian Probe is a cargo workspace of its own (crates/gitaxian-probe/),
+  # built here in full: the assets its pin names and the prebuilt V8 its native
+  # host links, each a fixed-output fetch, so nothing it builds or tests reaches
+  # the network on its own.
 
   outputs = {
     nixpkgs,
@@ -55,10 +55,16 @@
       # Meldweb Curator's web app and worker are left out too, so a TypeScript
       # edit does not rebuild the Rust, except for the one file meldweb-wasm's
       # test compares against the types it generates.
+      #
+      # docs/ (the baselines are JSON) and the pnpm workspace's package.json
+      # match the extensions but no Rust reads them, so they are left out too:
+      # a baseline refresh or a pnpm bump would otherwise rebuild every crate.
       src = pkgs.lib.cleanSourceWith {
         src = ./.;
         filter = path: type:
-          (builtins.match ".*/crates/gitaxian-probe(/.*)?$" path == null)
+          !(pkgs.lib.hasPrefix (toString ./docs) path)
+          && path != toString ./package.json
+          && (builtins.match ".*/crates/gitaxian-probe(/.*)?$" path == null)
           && (builtins.match ".*/crates/meldweb-curator/worker(/.*)?$" path == null)
           && (
             (builtins.match ".*/crates/meldweb-curator/web(/.*)?$" path == null)
@@ -261,6 +267,123 @@
         ln -s ${probeBindgen} $out/pkg
         ln -s ${probeAssets} $out/gitaxian-probe
       '';
+
+      # The native host links rusty_v8's prebuilt static library, which the v8
+      # crate's build script downloads unless RUSTY_V8_ARCHIVE names a copy.
+      # The version is Cargo.lock's, so a v8 bump fails here on the hash rather
+      # than linking a library built for another one. deno_core turns on
+      # simdutf, which is the archive's name suffix.
+      probeLock = builtins.fromTOML (builtins.readFile ./crates/gitaxian-probe/Cargo.lock);
+      v8Version = (pkgs.lib.findFirst (p: p.name == "v8") (throw "the probe's Cargo.lock has no v8") probeLock.package).version;
+      rustyV8 = pkgs.fetchurl {
+        url = "https://github.com/denoland/rusty_v8/releases/download/v${v8Version}/librusty_v8_simdutf_release_${pkgs.stdenv.hostPlatform.rust.rustcTarget}.a.gz";
+        hash =
+          {
+            x86_64-linux = "sha256-9IdiyhDR8fxgWkQcWuQw7Izh6egPFNePvELLh4wwtHY=";
+          }.${
+            system
+          } or (throw "no rusty_v8 ${v8Version} hash for ${system}");
+      };
+      probeNativeArgs =
+        probeArgs
+        // {
+          pname = "gitaxian-probe";
+          RUSTY_V8_ARCHIVE = rustyV8;
+        };
+      probeCargoArtifacts = craneLib.buildDepsOnly probeNativeArgs;
+
+      # The six scans the accuracy numbers are measured on, framed the way a
+      # camera sees a card. The scans are Scryfall's, pinned by hash: a rescan
+      # upstream breaks only a machine that has not fetched them yet, and the
+      # fix is the new hash, since the frames are what FINDINGS.md's numbers
+      # were measured on.
+      probeFrames = pkgs.runCommand "gitaxian-probe-frames" {nativeBuildInputs = [pkgs.imagemagick];} ''
+        mkdir $out
+        ${pkgs.lib.concatMapStrings (card: ''
+            magick ${pkgs.fetchurl {inherit (card) url hash;}} -resize 55% -background '#2b2b30' \
+              -gravity center -extent 1280x960 $out/${card.slug}-frame.jpg
+          '')
+          (import ./crates/gitaxian-probe/engine/.fixtures/cards.nix)}
+      '';
+
+      # The engine's tests fetch it from Delver and fall back to the cache in
+      # /tmp/gitaxian-probe when that fails, which in the sandbox it always
+      # does. Seeding the cache from the pin makes them test the pinned build,
+      # and PROBE_REQUIRE_ENGINE turns any skip into a failure, so a green run
+      # is the accuracy numbers holding. The cache keeps the models unpacked.
+      probeTest = craneLib.cargoTest (probeNativeArgs
+        // {
+          cargoArtifacts = probeCargoArtifacts;
+          nativeBuildInputs = [pkgs.imagemagick pkgs.p7zip];
+          PROBE_REQUIRE_ENGINE = "1";
+          preCheck = ''
+            mkdir -p engine/.fixtures
+            cp ${probeFrames}/*-frame.jpg engine/.fixtures/
+            cache=/tmp/gitaxian-probe/${probePin.version}
+            mkdir -p $cache
+            for f in ${probeFiles}/*; do
+              name=$(basename $f)
+              case $name in
+                model-*.7z) 7z e -so $f ''${name%.7z}.dat > $cache/''${name%.7z}.dat ;;
+                *) cp $f $cache/$name ;;
+              esac
+            done
+          '';
+        });
+
+      # The web host's acceptance check: the native accuracy numbers, in
+      # headless Chromium, on the page and inside a module worker, per tier.
+      probeWebCheckArgs =
+        probeBindgenArgs
+        // {
+          pname = "gitaxian-probe-web-check";
+          cargoExtraArgs = "-p gitaxian-probe-web-check";
+        };
+      probeWebCheckWasm = craneLib.buildPackage (probeWebCheckArgs
+        // {
+          cargoArtifacts = craneLib.buildDepsOnly probeWebCheckArgs;
+          nativeBuildInputs = [wasmBindgen];
+          installPhaseCommand = ''
+            wasm-bindgen --target web --out-dir $out \
+              target/wasm32-unknown-unknown/release/gitaxian_probe_web_check.wasm
+          '';
+        });
+      probeWebCheckPage = pkgs.lib.fileset.toSource {
+        root = ./crates/gitaxian-probe/web-check;
+        fileset = pkgs.lib.fileset.unions (map (f: ./crates/gitaxian-probe/web-check + "/${f}") [
+          "index.html"
+          "frames.js"
+          "worker.js"
+          "serve.py"
+          "drive.mjs"
+        ]);
+      };
+      probeWebCheck =
+        pkgs.runCommand "gitaxian-probe-web-check" {
+          nativeBuildInputs = [pkgs.python3 pkgs.nodejs];
+          # playwright from nixpkgs, with the browsers built for that version
+          NODE_PATH = "${pkgs.playwright-test}/lib/node_modules";
+          PLAYWRIGHT_BROWSERS_PATH = pkgs.playwright-driver.browsers;
+        } ''
+          export HOME=$TMPDIR
+          site=$TMPDIR/site
+          mkdir -p $site/fixtures
+          ln -s ${probeWebCheckWasm} $site/pkg
+          ln -s ${probeAssets} $site/gitaxian-probe
+          cp ${probeFrames}/*-frame.jpg $site/fixtures/
+          cp ${probeWebCheckPage}/{index.html,frames.js,worker.js} $site/
+
+          python3 ${probeWebCheckPage}/serve.py $site 8791 &
+          server=$!
+          trap 'kill $server 2>/dev/null' EXIT
+          until python3 -c 'import socket; socket.create_connection(("127.0.0.1", 8791))' 2>/dev/null; do
+            sleep 0.1
+          done
+          for tier in alpha lambda gamma; do
+            node ${probeWebCheckPage}/drive.mjs "http://127.0.0.1:8791/?tier=$tier"
+            node ${probeWebCheckPage}/drive.mjs "http://127.0.0.1:8791/?tier=$tier&worker"
+          done | tee $out
+        '';
       # Meldweb Curator's deploy: the worker's own source (not its node_modules
       # or the dev symlink to a site) with this flake's built site as its assets.
       curatorWorker = pkgs.lib.fileset.toSource {
@@ -331,6 +454,7 @@
         meldweb-web = meldwebWeb;
         gitaxian-probe-assets = probeAssets;
         gitaxian-probe-web = probeWeb;
+        gitaxian-probe-frames = probeFrames;
         infra-config = infraConfig;
       };
 
@@ -353,6 +477,18 @@
         inherit gauntlet;
         meldweb-web = meldwebWeb;
         gitaxian-probe-web = probeWeb;
+        gitaxian-probe-test = probeTest;
+        gitaxian-probe-web-check = probeWebCheck;
+        gitaxian-probe-clippy = craneLib.cargoClippy (probeNativeArgs
+          // {
+            cargoArtifacts = probeCargoArtifacts;
+            cargoClippyExtraArgs = "--all-targets -- --deny warnings";
+          });
+        gitaxian-probe-fmt = craneLib.cargoFmt {
+          src = probeSrc;
+          pname = "gitaxian-probe";
+          version = "0.1.0";
+        };
         clippy = craneLib.cargoClippy (commonArgs
           // {
             inherit cargoArtifacts;
