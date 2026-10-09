@@ -654,7 +654,8 @@ pub fn feasible<E>(grouping: &Grouping, schedule: &Schedule) -> Result<(), RunEr
 /// library can fire, which has no count of its own to add.
 ///
 /// A creature that attacks mills once a turn at most, from the turn after it
-/// was cast, and a landfall once for each land that enters after it: at most
+/// was cast, and so does an upkeep, by as much more each turn as a growing
+/// one grows; a landfall once for each land that enters after it: at most
 /// two a turn from the drop, where a fetchland puts a second one down, and
 /// every land a mill returns from the graveyard. One such return brings back
 /// no more lands than the deck has, nor more than every other mill could
@@ -683,12 +684,16 @@ fn drawable(grouping: &Grouping, schedule: &Schedule) -> (u32, u32) {
         })
         .collect();
     let (milled, halved) = (
-        |e: &Effect| match e.mill.as_ref().map(|m| m.cards) {
-            Some(MillDepth::Exactly(n)) => n,
-            Some(MillDepth::HalfLibrary) | None => 0,
-        },
+        |e: &Effect| e.mill.as_ref().and_then(|m| m.cards.nth(1)).unwrap_or(0),
         |e: &Effect| u32::from(e.mill.as_ref().map(|m| m.cards) == Some(MillDepth::HalfLibrary)),
     );
+    // What one copy mills over `turns` firings, the first on the earliest
+    // turn it can fire: a growing mill's largest firings are its last.
+    let repeated = |e: &Effect| -> u32 {
+        (1..=turns)
+            .map(|nth| e.mill.as_ref().and_then(|m| m.cards.nth(nth)).unwrap_or(0))
+            .sum()
+    };
     let (mut cast, mut per_land, mut returners) = (0, 0, 0);
     let (mut halves, mut halves_per_land) = (0, 0);
     for &(copies, e) in &carried {
@@ -697,8 +702,8 @@ fn drawable(grouping: &Grouping, schedule: &Schedule) -> (u32, u32) {
                 cast += copies * (e.draw + milled(e));
                 halves += copies * halved(e);
             }
-            Trigger::Attack => {
-                cast += copies * milled(e) * turns;
+            Trigger::Attack | Trigger::Upkeep => {
+                cast += copies * repeated(e);
                 halves += copies * halved(e) * turns;
             }
             Trigger::Landfall => {

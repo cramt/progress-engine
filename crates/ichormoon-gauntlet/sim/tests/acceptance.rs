@@ -2852,3 +2852,28 @@ fn a_mill_that_returns_the_lands_agrees_with_the_exact_engine() {
     };
     triggers_agree(trigger(Trigger::Cast, returning), 4, 71);
 }
+
+#[test]
+fn an_upkeep_that_mills_agrees_with_the_exact_engine() {
+    // Stillness in Motion's shape: three each upkeep from the turn after,
+    // before the draw, once for each copy the line cast. The block is dealt
+    // ahead of the turn's draw by both engines, off the one Board.
+    triggers_agree(trigger(Trigger::Upkeep, Mill::all(3)), 4, 73);
+}
+
+#[test]
+fn an_upkeep_mill_that_grows_and_keeps_a_land_agrees_with_the_exact_engine() {
+    // Out of the Tombs' shape, 2 then 4, each copy counting its own upkeeps,
+    // with a land kept so that what the upkeep turned over reaches the drop.
+    let keep_a_land = ToHand::Chosen {
+        up_to: 1,
+        of: Some(2),
+        prefer: vec![2],
+    };
+    let growing = Mill {
+        cards: MillDepth::Growing { first: 2, by: 2 },
+        to_hand: keep_a_land,
+        returns: None,
+    };
+    triggers_agree(trigger(Trigger::Upkeep, growing), 4, 79);
+}

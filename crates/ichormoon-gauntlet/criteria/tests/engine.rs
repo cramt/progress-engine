@@ -5518,3 +5518,119 @@ fn a_mill_that_returns_lands_is_dealt_where_it_fired() {
         gauntlet_criteria::width(&grouping, &in_place)
     );
 }
+
+// --- Upkeep triggers mill (#139) ---------------------------------------------
+//
+// HANDS.md hand 63: a permanent the line cast mills at the beginning of each
+// later upkeep, before that turn's draw. The block is dealt ahead of the
+// turn's own checkpoint, so the history is in the library's order.
+
+/// Stillness in Motion: "At the beginning of your upkeep, mill three cards."
+/// Out of the Tombs is the same with `MillDepth::Growing`.
+fn upkeep_mill(cards: MillDepth) -> Effect {
+    Effect {
+        trigger: Trigger::Upkeep,
+        ..milling(Some(Mill::all(cards)))
+    }
+}
+
+#[test]
+fn hand_63_stillness_in_motion_mills_what_the_turn_would_have_drawn() {
+    // Forest x2, Island, Stillness in Motion and Beast Within x3 in hand; the
+    // library, top first, Beast Within, then Life from the Loam, Beast Within,
+    // Beast Within, Mountain, then Beast Within x4. On the play. Stillness is
+    // cast on turn 2 off the Island and a Forest. Turn 3's upkeep mills the
+    // Loam and two Beasts, and the draw is the Mountain under them; turn 4's
+    // mills three Beasts and draws the fourth.
+    let grouping = trigger_groups(creature("{1}{U}"), 2, 10);
+    let (stillness_q, loam, land, beast) = (0, 1, 3, 4);
+    let schedule = |effects| {
+        Schedule::plain_with_fetches(
+            &[7, 0, 1, 1, 1],
+            effects,
+            Policies::casting(CastingPolicy::new(vec![stillness_q])),
+        )
+    };
+    let opener = [2, 1, 0, 0, 1, 3];
+    let upkeep_block = [0, 0, 1, 0, 0, 2];
+    let three_beasts = [0, 0, 0, 0, 0, 3];
+
+    // Nothing fires: turn 3 draws the Loam, and no fourth land comes.
+    let today = schedule(vec![]);
+    let mut board = Board::new(&grouping, &today);
+    board.walk(&dealt6(&[opener, NONE6, BEAST6, LOAM6, BEAST6]));
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(board.count_at(2, stillness_q, Counted::Cast), 1);
+    assert_eq!(board.count_at(3, loam, Counted::In(Zone::Hand)), 1);
+    assert_eq!(board.count_at(4, land, Counted::In(Zone::Battlefield)), 3);
+
+    let upkeep = schedule(vec![upkeep_mill(MillDepth::Exactly(3))]);
+    let mut board = Board::new(&grouping, &upkeep);
+    // The turn it is cast asks for nothing; turn 3 asks for its three before
+    // its own draw is dealt.
+    board.walk(&dealt6(&[opener, NONE6]));
+    assert_eq!(board.next_gap(), 0, "nothing is cast by turn 1");
+    board.walk(&dealt6(&[opener, NONE6, BEAST6]));
+    assert_eq!(
+        board.next_gap(),
+        3,
+        "turn 3's upkeep mills three ahead of turn 3's draw"
+    );
+    board.walk(&dealt6(&[opener, NONE6, BEAST6, upkeep_block]));
+    assert_eq!(board.next_gap(), 0, "then the draw is dealt, from under it");
+    let path = dealt6(&[
+        opener,
+        NONE6,
+        BEAST6,
+        upkeep_block,
+        MOUNTAIN6,
+        three_beasts,
+        BEAST6,
+    ]);
+    board.walk(&path);
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(board.count_at(2, loam, Counted::In(Zone::Graveyard)), 0);
+    assert_eq!(
+        board.count_at(3, loam, Counted::In(Zone::Graveyard)),
+        1,
+        "the upkeep milled the card turn 3 would have drawn"
+    );
+    assert_eq!(board.count_at(3, loam, Counted::In(Zone::Hand)), 0);
+    assert_eq!(board.count_at(3, beast, Counted::In(Zone::Graveyard)), 2);
+    assert_eq!(board.count_at(4, beast, Counted::In(Zone::Graveyard)), 5);
+    // The Mountain drawn under the mill is turn 4's drop.
+    assert_eq!(board.count_at(3, land, Counted::In(Zone::Battlefield)), 3);
+    assert_eq!(board.count_at(4, land, Counted::In(Zone::Battlefield)), 4);
+}
+
+#[test]
+fn out_of_the_tombs_mills_two_more_each_upkeep() {
+    // A {1}{U} enchantment with Out of the Tombs' trigger, cast on turn 2:
+    // two eon counters on turn 3 and it mills two, four on turn 4, six on
+    // turn 5. Every card under it is a Beast Within, so each block is one row.
+    let grouping = trigger_groups(creature("{1}{U}"), 2, 20);
+    let (tombs_q, beast) = (0, 4);
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0, 1, 1, 1, 1],
+        vec![upkeep_mill(MillDepth::Growing { first: 2, by: 2 })],
+        Policies::casting(CastingPolicy::new(vec![tombs_q])),
+    );
+    let mut board = Board::new(&grouping, &schedule);
+    let opener = [2, 1, 0, 0, 1, 3];
+    let beasts = |n: u32| [0, 0, 0, 0, 0, n];
+    let mut rows = vec![opener, NONE6, BEAST6];
+    let mut asked = Vec::new();
+    for _ in 3..=5 {
+        board.walk(&dealt6(&rows));
+        let gap = board.next_gap();
+        asked.push(gap);
+        rows.push(beasts(gap));
+        rows.push(BEAST6);
+    }
+    assert_eq!(asked, [2, 4, 6], "its counters, two more each upkeep");
+    board.walk(&dealt6(&rows));
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(board.count_at(2, tombs_q, Counted::Cast), 1);
+    assert_eq!(board.count_at(3, beast, Counted::In(Zone::Graveyard)), 2);
+    assert_eq!(board.count_at(5, beast, Counted::In(Zone::Graveyard)), 12);
+}

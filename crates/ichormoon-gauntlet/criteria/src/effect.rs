@@ -36,7 +36,7 @@ use thiserror::Error;
 
 /// When an effect gets to happen.
 ///
-/// Five variants, and the list is short for the same reason it has always
+/// Six variants, and the list is short for the same reason it has always
 /// been: a variant here is a promise that the engine knows when the effect
 /// fires. The
 /// free-non-land tier — cycling for zero — is still missing, and it is rare
@@ -83,11 +83,25 @@ pub enum Trigger {
     /// The drop comes before the line, so a permanent cast this turn sees the
     /// next turn's drop and not this one's.
     Landfall,
+    /// At the beginning of your upkeep, once for each matching permanent the
+    /// line cast on an earlier turn: Stillness in Motion, Out of the Tombs.
+    /// What it may do is a [`Mill`], and only here may that mill grow
+    /// ([`MillDepth::Growing`]).
+    ///
+    /// **The upkeep comes before the draw step**, so the cards it mills are
+    /// the ones that turn would otherwise have drawn, and the draw comes from
+    /// under them. The walk deals the block ahead of the turn's own
+    /// checkpoints for that reason, so the history is in the library's
+    /// order, and a card a look left on top is milled rather than drawn.
+    ///
+    /// Knowable under a smaller assumption than an attack's, which every run
+    /// that fires one names: nobody removes the permanent.
+    Upkeep,
 }
 
 impl Trigger {
     /// Every trigger an effect may name, for the message that lists them.
-    pub const ACCEPTED: &'static str = "landdrop, cast, activate, attack, landfall";
+    pub const ACCEPTED: &'static str = "landdrop, cast, activate, attack, landfall, upkeep";
 
     pub fn as_str(self) -> &'static str {
         match self {
@@ -96,13 +110,15 @@ impl Trigger {
             Trigger::Activate => "activate",
             Trigger::Attack => "attack",
             Trigger::Landfall => "landfall",
+            Trigger::Upkeep => "upkeep",
         }
     }
 
     /// Whether this fires off a permanent the line cast, again and again,
-    /// rather than once when something is played: an attack or a landfall.
+    /// rather than once when something is played: an attack, a landfall or
+    /// an upkeep.
     pub fn repeats(self) -> bool {
-        matches!(self, Trigger::Attack | Trigger::Landfall)
+        matches!(self, Trigger::Attack | Trigger::Landfall | Trigger::Upkeep)
     }
 
     pub fn parse(name: &str) -> Result<Trigger, TriggerError> {
@@ -112,6 +128,7 @@ impl Trigger {
             "activate" => Ok(Trigger::Activate),
             "attack" => Ok(Trigger::Attack),
             "landfall" => Ok(Trigger::Landfall),
+            "upkeep" => Ok(Trigger::Upkeep),
             _ => Err(TriggerError::Unknown {
                 name: name.to_string(),
             }),
@@ -348,7 +365,7 @@ pub struct Effect {
     ///
     /// [ADR-0017]: https://github.com/cramt/progress-engine/blob/main/docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md
     pub draw: u32,
-    /// Cards a cast, an attack or a landfall of this puts into the graveyard
+    /// Cards a cast, an attack, a landfall or an upkeep of this puts into the graveyard
     /// off the top of the library, less the ones it lets go to hand: also
     /// one sized gap each time it fires, dealt as one unordered block because
     /// every card it turns over is consumed at once. On a cast, resolved
@@ -439,6 +456,26 @@ pub enum MillDepth {
     /// Half the cards in the library as the mill resolves, rounded down:
     /// Traumatize, aimed at yourself.
     HalfLibrary,
+    /// `first` the first time its permanent's upkeep fires, and `by` more
+    /// each time after: Out of the Tombs gains two eon counters each upkeep
+    /// and mills as many as it has, so 2, 4, 6. Each copy counts its own
+    /// upkeeps from the turn after the line cast it. Only
+    /// [`Trigger::Upkeep`] grows: nothing else fires off a permanent that
+    /// keeps a count between firings.
+    Growing { first: u32, by: u32 },
+}
+
+impl MillDepth {
+    /// The cards the `nth` firing takes, counting from 1, where that is a
+    /// number the file fixed: `None` for half the library, which only the
+    /// path can size.
+    pub fn nth(self, nth: u32) -> Option<u32> {
+        match self {
+            MillDepth::Exactly(cards) => Some(cards),
+            MillDepth::HalfLibrary => None,
+            MillDepth::Growing { first, by } => Some(first + by * nth.saturating_sub(1)),
+        }
+    }
 }
 
 impl From<u32> for MillDepth {
@@ -675,6 +712,9 @@ pub struct Board<'a> {
     /// The groups whose card mills when a land enters while it is on the
     /// battlefield, and the effect it fires, in group order.
     landfallers: Vec<(usize, usize)>,
+    /// The groups whose card mills at the beginning of each upkeep once the
+    /// line has cast it, and the effect it fires, in group order.
+    upkeepers: Vec<(usize, usize)>,
     /// Lands that entered the battlefield with this turn's drop: the land
     /// played, and the land a fetchland put down in its place. Scratch,
     /// written by the drop and read by the line's landfalls.
@@ -1063,8 +1103,8 @@ impl<'a> Board<'a> {
                 },
             )
             .collect();
-        // Which groups fire an attack or a landfall, read off last-wins as
-        // everything else is. Only a mill fires on either.
+        // Which groups fire an attack, a landfall or an upkeep, read off
+        // last-wins as everything else is. Only a mill fires on any of them.
         let firing = |trigger: Trigger| -> Vec<(usize, usize)> {
             group_effect
                 .iter()
@@ -1077,6 +1117,7 @@ impl<'a> Board<'a> {
         };
         let attackers = firing(Trigger::Attack);
         let landfallers = firing(Trigger::Landfall);
+        let upkeepers = firing(Trigger::Upkeep);
         // The mulligan's bottoming list, resolved by the same rule as the other
         // three: a group belongs to the first tier that names it. What no entry
         // names is one more tier at the end, because a hand that has to put
@@ -1188,6 +1229,7 @@ impl<'a> Board<'a> {
             returning,
             attackers,
             landfallers,
+            upkeepers,
             entered: 0,
             drops: vec![0; turns],
             ramped: vec![0; turns],
@@ -1494,6 +1536,15 @@ impl<'a> Board<'a> {
 
         let effects = self.schedule.effects();
         for turn in 0usize..self.schedule.turns() {
+            // The upkeep, before the draw step and so before this turn's
+            // checkpoints: what it mills is dealt off the top first, and the
+            // draw comes from under it. The previous turn played to its end,
+            // so the history either holds this block next or ends where it
+            // is to be dealt.
+            if let Some(size) = self.upkeep(turn, history) {
+                self.next_gap = size;
+                return;
+            }
             let (first, last) = self.schedule.checkpoints_of(turn);
             let (first, last) = (first + self.sized_dealt, last + self.sized_dealt);
             if last >= history.len() {
@@ -2191,7 +2242,7 @@ impl<'a> Board<'a> {
             }
         }
         if mills {
-            let returned = match self.mill(turn, effect, history) {
+            let returned = match self.mill(turn, effect, 1, history) {
                 Ok(returned) => returned,
                 Err(size) => return Drew::Undealt(size),
             };
@@ -2208,19 +2259,25 @@ impl<'a> Board<'a> {
     /// returns lands, every such land in the graveyard goes onto the
     /// battlefield tapped.
     ///
+    /// `nth` is which firing of its permanent this is, from 1, which only a
+    /// growing mill reads.
+    ///
     /// `Ok` with how many lands it returned, which is how many landfalls it
     /// fires; `Err` with the size of the gap the path has not dealt.
-    fn mill(&mut self, turn: usize, effect: usize, history: Path<'_>) -> Result<u32, u32> {
+    fn mill(
+        &mut self,
+        turn: usize,
+        effect: usize,
+        nth: u32,
+        history: Path<'_>,
+    ) -> Result<u32, u32> {
         let Some(mill) = self.schedule.effects()[effect].mill.as_ref() else {
             return Ok(0);
         };
         // Half is read off this path's library before anything leaves it,
         // and every replay of the prefix reads the same library, so the gap
         // it asks for is the gap it is dealt.
-        let cards = match mill.cards {
-            MillDepth::Exactly(cards) => cards,
-            MillDepth::HalfLibrary => self.in_library() / 2,
-        };
+        let cards = mill.cards.nth(nth).unwrap_or_else(|| self.in_library() / 2);
         let up_to = match &mill.to_hand {
             ToHand::Chosen { up_to, .. } => *up_to,
             ToHand::Every(_) => 0,
@@ -2398,7 +2455,7 @@ impl<'a> Board<'a> {
             for i in 0..self.landfallers.len() {
                 let (group, effect) = self.landfallers[i];
                 for _ in 0..on_field[group] {
-                    match self.mill(turn, effect, history) {
+                    match self.mill(turn, effect, 1, history) {
                         Ok(returned) => left += returned,
                         Err(size) => return Some(size),
                     }
@@ -2417,8 +2474,32 @@ impl<'a> Board<'a> {
         for i in 0..self.attackers.len() {
             let (group, effect) = self.attackers[i];
             for _ in 0..cast_before[group] {
-                if let Err(size) = self.mill(turn, effect, history) {
+                if let Err(size) = self.mill(turn, effect, 1, history) {
                     return Some(size);
+                }
+            }
+        }
+        None
+    }
+
+    /// The upkeep of `turn`: every upkeeper the line cast on an earlier turn
+    /// mills, each copy its own count, and a growing mill by as many upkeeps
+    /// as that copy has seen. Nothing is cast on turn 0, so nothing fires
+    /// before turn 2.
+    ///
+    /// `Some` of the size of the first gap the path has not dealt.
+    fn upkeep(&mut self, turn: usize, history: Path<'_>) -> Option<u32> {
+        for i in 0..self.upkeepers.len() {
+            let (group, effect) = self.upkeepers[i];
+            for cast_on in 1..turn {
+                let copies = self.casting.as_ref().map_or(0, |c| {
+                    c.cast_at[cast_on][group] - c.cast_at[cast_on - 1][group]
+                });
+                for _ in 0..copies {
+                    let nth = (turn - cast_on) as u32;
+                    if let Err(size) = self.mill(turn, effect, nth, history) {
+                        return Some(size);
+                    }
                 }
             }
         }

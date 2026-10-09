@@ -614,6 +614,9 @@ class Mill:
     keep_up_to: int = 0
     keep_only: Callable[[Card], bool] | None = None
     prefer: tuple[Callable[[Card], bool], ...] = ()
+    # How many more each firing takes than the one before: Out of the Tombs'
+    # eon counters, two more each upkeep.
+    grows: int = 0
 
     def kept(self, top: list[Card], decklist: list[Card]) -> list[int]:
         """Which of `top` (by position) go to your hand."""
@@ -631,9 +634,12 @@ class Mill:
             kept += options[: self.keep_up_to - len(kept)]
         return kept
 
-    def size(self, library_left: int) -> int:
-        """How many cards it takes off a library of `library_left`."""
-        return library_left // 2 if self.cards == HALF else self.cards
+    def size(self, library_left: int, nth: int = 1) -> int:
+        """How many cards its `nth` firing takes off a library of
+        `library_left`."""
+        if self.cards == HALF:
+            return library_left // 2
+        return self.cards + self.grows * (nth - 1)
 
 _NOT_A_PLAIN_TAP = (
     "enters tapped",
@@ -910,6 +916,7 @@ def line_path(
     modes: dict[str, Mode] | None = None,
     attacks: dict[str, Mill] | None = None,
     landfalls: dict[str, Mill] | None = None,
+    upkeeps: dict[str, Mill] | None = None,
 ) -> LinePath:
     """Play `line` out through `last_turn`. `fetches` maps a card to the cards
     it puts into your hand from the library when cast, `puts` to the cards
@@ -921,13 +928,17 @@ def line_path(
     X chosen. `attacks` maps a creature to what it mills each time it attacks,
     and `landfalls` a permanent to what it mills each time a land enters
     while it is on the battlefield, each from the turn after the line cast
-    it (see "Attack and landfall" among the questions). Cached on the game."""
+    it (see "Attack and landfall" among the questions). `upkeeps` maps a
+    permanent to what it mills at the beginning of each upkeep after the turn
+    the line cast it, before that turn's draw ("Upkeep" among the questions).
+    Cached on the game."""
     fetches = fetches or {}
     puts = puts or {}
     mills = mills or {}
     modes = modes or {}
     attacks = attacks or {}
     landfalls = landfalls or {}
+    upkeeps = upkeeps or {}
     key = (
         "path",
         line,
@@ -938,6 +949,7 @@ def line_path(
         tuple(sorted(modes.items(), key=lambda kv: kv[0])),
         tuple(sorted(attacks.items())),
         tuple(sorted(landfalls.items())),
+        tuple(sorted(upkeeps.items())),
     )
     if key in game._line_cache:
         return game._line_cache[key]
@@ -953,11 +965,12 @@ def line_path(
     in_play: list[tuple[int, Card]] = []
     path = LinePath()
 
-    def mill_top(t: int, mill: Mill, milled: list[Card]) -> None:
+    def mill_top(t: int, mill: Mill, milled: list[Card], nth: int = 1, drop: int = 1) -> None:
         """The next `mill.size` cards off the top: the kept ones to hand (a land
-        waits for the next turn's drop), the rest into `milled`."""
+        waits for the drop `drop` turns on: the next turn's, unless the mill
+        came before this turn's), the rest into `milled`."""
         nonlocal g, taken
-        n = mill.size(g.library_size - seen_so_far)
+        n = mill.size(g.library_size - seen_so_far, nth)
         if seen_so_far + n > len(g.cards) and len(g.cards) < g.library_size:
             raise ValueError("the deal is shallower than this mill reads: raise its depth")
         top = g.cards[seen_so_far : seen_so_far + n]
@@ -968,7 +981,7 @@ def line_path(
             if i not in kept:
                 milled.append(c)
             elif c.playable_land:
-                lands.append((t + 1, c))
+                lands.append((t + drop, c))
             elif c.name in named:
                 hand.append(c)
         g = Game(
@@ -981,6 +994,14 @@ def line_path(
         )
 
     for t in range(1, last_turn + 1):
+        milled: list[Card] = []
+        # The upkeep, before the draw step (CR 503, 504): each permanent the
+        # line cast on an earlier turn mills off the top, so this turn's draw
+        # comes from under what it milled, and a land it kept is in hand for
+        # this turn's drop.
+        for when, permanent in in_play:
+            if when < t and permanent.name in upkeeps:
+                mill_top(t, upkeeps[permanent.name], milled, nth=t - when, drop=0)
         new = g.seen(t)[seen_so_far:]
         seen_so_far = g.seen_count(t)
         taken += [c.name for c in new]
@@ -989,7 +1010,6 @@ def line_path(
         bill: list[Cost] = []
         cast: list[Card] = []
         put: list[Card] = []
-        milled: list[Card] = []
         # This turn's land drop, before the line: one land entered if the
         # gate's schedule played one. Each fires every landfall permanent the
         # line cast on an earlier turn.
@@ -1017,7 +1037,7 @@ def line_path(
             bill.append(cost)
             cast.append(card)
             hand.remove(card)
-            if card.name in attacks or card.name in landfalls:
+            if card.name in attacks or card.name in landfalls or card.name in upkeeps:
                 in_play.append((t, card))
             src = mana_source(card, identity)
             if src is not None:
@@ -1911,6 +1931,19 @@ SIX, EXPLORER, LUMRA = "Six", "Icetill Explorer", "Lumra, Bellow of the Woods"
 #   land drop comes before the line, so the drop of the turn it is cast does
 #   not trigger it; every drop after that does. ASSUMPTION (README): its
 #   additional land a turn, and playing lands from the graveyard, are not used.
+#
+# Upkeep (#139), read off each card and the rules:
+#
+# * Stillness in Motion: "At the beginning of your upkeep, mill three cards.
+#   Then if your library has no cards in it, exile this enchantment and put
+#   five cards from your graveyard on top of your library in any order." The
+#   upkeep step comes before the draw step (CR 501.1), so what it mills is
+#   what that turn would have drawn. It entered on the turn it was cast, after
+#   that turn's upkeep, so it first mills the turn after. The second sentence
+#   needs an empty library, which no question here reaches.
+# * Out of the Tombs: "At the beginning of your upkeep, put two eon counters
+#   on this enchantment, then mill cards equal to the number of eon counters on
+#   it." Two, then four, then six. ASSUMPTION (README): nobody removes either.
 # * Lumra: "When Lumra enters, mill four cards. Then return all land cards
 #   from your graveyard to the battlefield tapped." The file declares the mill
 #   and not the return (its header says why), so the lands stay where they are.

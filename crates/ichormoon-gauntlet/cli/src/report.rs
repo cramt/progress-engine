@@ -275,7 +275,7 @@ pub enum MillUse {
 impl MillUse {
     fn of(depth: MillDepth) -> MillUse {
         match depth {
-            MillDepth::Exactly(n) => MillUse::Cards(n),
+            MillDepth::Exactly(n) | MillDepth::Growing { first: n, .. } => MillUse::Cards(n),
             MillDepth::HalfLibrary => MillUse::Word(gauntlet_toml::HALF_LIBRARY),
         }
     }
@@ -342,6 +342,10 @@ pub struct EffectUse {
     /// where it mills nothing (ADR-0017 §2).
     #[facet(skip_serializing_if = Option::is_none)]
     pub mill: Option<MillUse>,
+    /// How many more cards each upkeep mills than the one before, where
+    /// `mill` is only the first: Out of the Tombs' 2.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub grows: Option<u32>,
     /// How many of those the card lets go to hand instead, and which cards it
     /// lets them be.
     #[facet(skip_serializing_if = Option::is_none)]
@@ -360,9 +364,10 @@ pub struct EffectUse {
     /// afterwards, which the card compels: Lumra's lands.
     #[facet(skip_serializing_if = Option::is_none)]
     pub returns: Option<String>,
-    /// The assumption about the table an attack trigger's number rests on,
-    /// where the run fired one: it attacks every turn it can, and nobody
-    /// blocks it or removes it. Absent for every other trigger.
+    /// The assumption about the table an attack or an upkeep trigger's number
+    /// rests on, where the run fired one: it attacks every turn it can and
+    /// nobody blocks it, and nobody removes it. Absent for every other
+    /// trigger.
     #[facet(skip_serializing_if = Option::is_none)]
     pub assumes: Option<&'static str>,
     /// The cards of a mill that make mana in passing, which is not counted:
@@ -1312,6 +1317,18 @@ impl Report {
                          battlefield, from the turn after the [casting] line casts it: the drop, \
                          a fetched land, a returned one\n",
                     ),
+                    "upkeep" => out.push_str(&format!(
+                        "      mills at the beginning of each upkeep, every turn after the one the \
+                         [casting] line casts it on, before that turn's draw{}\n",
+                        match (e.mill, e.grows) {
+                            (Some(MillUse::Cards(n)), Some(by)) => format!(
+                                ", {by} more each time: {n}, {}, {}, ...",
+                                n + by,
+                                n + 2 * by
+                            ),
+                            _ => String::new(),
+                        }
+                    )),
                     _ => {}
                 }
                 if let Some(assumes) = e.assumes {
@@ -2032,6 +2049,10 @@ pub fn tag_blind_notes(resolved: &crate::effects::Resolved, library: &Library) -
 pub const UNBLOCKED: &str = "it attacks every turn it can, and no opponent blocks it or removes \
                              it; nobody else is at this table (ADR-0018)";
 
+/// What every run that fires an upkeep trigger assumes of the table.
+pub const UNREMOVED: &str = "it stays on the battlefield from the turn it is cast, and no \
+                             opponent removes it; nobody else is at this table (ADR-0018)";
+
 /// The resolved effect library, in the shape the report prints.
 pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
     resolved
@@ -2074,7 +2095,15 @@ pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
                 _ => None,
             },
             returns: a.mill.as_ref().and_then(|m| m.returns.clone()),
-            assumes: (a.live && a.on == "attack").then_some(UNBLOCKED),
+            grows: match a.mill.as_ref().map(|m| m.cards) {
+                Some(MillDepth::Growing { by, .. }) => Some(by),
+                _ => None,
+            },
+            assumes: match (a.live, a.on) {
+                (true, "attack") => Some(UNBLOCKED),
+                (true, "upkeep") => Some(UNREMOVED),
+                _ => None,
+            },
             unspent: a.unspent.clone(),
             draw: (a.draw > 0).then_some(a.draw),
             discard: match a.discard.as_ref().map(|d| d.cards) {

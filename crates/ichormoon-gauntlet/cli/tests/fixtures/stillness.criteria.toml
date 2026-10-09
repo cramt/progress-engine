@@ -1,0 +1,16 @@
+# Issue #139, on stillness.txt. The line casts Stillness in Motion and nothing
+# else, so a Cid is in the graveyard only where an upkeep milled it there. The
+# effect is the standard library's.
+
+[casting]
+prefer = ['name:"Stillness in Motion"']
+
+[[criterion]]
+name = "a Cid in the graveyard by turn 4"
+require = [{ turn = 4, query = 'name:"Cid, Timeless Artificer"', zone = "graveyard", min = 1 }]
+
+[[expect]]
+name = "Cids in the graveyard on turn 4"
+turn = 4
+query = 'name:"Cid, Timeless Artificer"'
+zone = "graveyard"

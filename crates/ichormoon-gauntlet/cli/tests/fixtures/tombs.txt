@@ -1,0 +1,11 @@
+// Issue #139: Out of the Tombs mills two at its first upkeep, four at its
+// second, two more each time.
+//
+// Thirty-one cards on the play: a growing mill is bounded by what it could
+// take over every turn, so the library has to hold 2 + 4 + 6 + 8 besides the
+// draws before the question is answered. Four nonlands cannot keep three lands
+// out of the first nine cards, so its {2}{B} is paid on turn 3 whenever it is
+// among them, and on turn 4 when it is the tenth.
+27x Swamp [Land]
+1x Out of the Tombs [Mill]
+3x Cid, Timeless Artificer [Cid]

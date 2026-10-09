@@ -285,3 +285,33 @@ match = 'name:"Lumra, Bellow of the Woods"'
 on = "cast"
 mill = 4
 returns = "t:land"
+
+# --- Upkeep (#139) -----------------------------------------------------------
+#
+# A mill at the beginning of your upkeep, once for each copy the `[casting]`
+# line cast on an earlier turn, before that turn's draw: what it mills is what
+# the turn would have drawn, and the draw comes from under it. ASSUMED, and
+# printed by every run that fires one: nobody removes the permanent. Because,
+# for both: #139 found them in a Cid mill deck, which wants its own Cids in its
+# graveyard and mills itself every turn to get them there.
+
+# Stillness in Motion: "At the beginning of your upkeep, mill three cards. Then
+# if your library has no cards in it, exile this enchantment and put five
+# cards from your graveyard on top of your library in any order." The second
+# sentence needs an empty library, and a question whose library can run out
+# before its last draw is refused before it is asked, so no answered game
+# reaches it.
+[[effect]]
+match = 'name:"Stillness in Motion"'
+on = "upkeep"
+mill = 3
+
+# Out of the Tombs: "At the beginning of your upkeep, put two eon counters on
+# this enchantment, then mill cards equal to the number of eon counters on
+# it." So 2, then 4, then 6: two more each upkeep. Its replacement of a draw
+# from an empty library needs an empty library, which no answered game has.
+[[effect]]
+match = 'name:"Out of the Tombs"'
+on = "upkeep"
+mill = 2
+grows = 2

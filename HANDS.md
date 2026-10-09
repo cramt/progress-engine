@@ -20,8 +20,9 @@ hands 26 to 33 what
 (now built, and tests),
 hands 40 to 42 what
 [ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md) decided,
-before any of it was built (now built, and tests), and hands 58 to 60 the
-attack and landfall triggers ADR-0017 named (built, and tests). That is the point: they pin the semantics before the
+before any of it was built (now built, and tests), hands 58 to 60 the
+attack and landfall triggers ADR-0017 named (built, and tests), and hand 63
+the upkeep trigger after them (built, and a test). That is the point: they pin the semantics before the
 code exists, so that building
 the feature cannot quietly redefine the question — and hands 1, 2 and 3 are the
 worked case, written down as one Opt on turn 1 long before anything could say
@@ -1262,7 +1263,7 @@ tool never dredges, which is a line the pilot could play, and it says so: a
 run whose line can reach the graveyard names every card with dredge in the
 library as never dredged, in the report and as `never_dredged` in the JSON.*
 
-## Attack and landfall
+## Attack, landfall and upkeep
 
 Hands 58 to 60 are the mills that fire off a permanent the line cast rather
 than off the cast itself, which ADR-0017 §1 named and
@@ -1391,6 +1392,59 @@ each land Lumra returns is a landfall:
 `crates/ichormoon-gauntlet/criteria/tests/engine.rs`, the first and last
 columns. Through the binary, `every_trigger_route_agrees_with_the_sampler_through_the_binary`
 answers one file per card exactly, and the sampler agrees.
+
+### 63. Stillness in Motion mills what the turn would have drawn
+
+```
+Forest ×2
+Island
+Stillness in Motion
+Beast Within ×3
+(library, top first: Beast Within, then Life from the Loam, Beast Within,
+ Beast Within, Mountain, then Beast Within ×4)
+
+[[effect]]
+match = 'name:"Stillness in Motion"'
+on = "upkeep"
+mill = 3
+```
+
+"At the beginning of your upkeep, mill three cards." [#139](https://github.com/cramt/progress-engine/issues/139)
+added the upkeep as a third trigger that fires again and again. **Turn 2:** draw
+a Beast Within, play a land, and cast Stillness off the Island and a Forest. It
+entered after this turn's upkeep, so nothing fires. **Turn 3:** the upkeep comes
+before the draw step (CR 501.1), so it mills Life from the Loam, Beast Within,
+Beast Within, and the draw is the Mountain under them. **Turn 4:** it mills
+three Beasts, draws the fourth, and the Mountain is the drop.
+
+**Naive models:** nothing fires, so turn 3 draws the Loam; or the mill comes
+after the draw, as an attack's does, so turn 3 draws the Loam and mills the
+Mountain.
+
+| | nothing fires | mills after the draw | Stillness |
+|---|---|---|---|
+| Loam in the graveyard on turn 2 | no | no | **no**, it entered after the upkeep |
+| Loam in the graveyard on turn 3 | no | no | **yes** |
+| Loam in hand on turn 3 | yes | yes | **no** |
+| Beast Within in the graveyard on turn 4 | 0 | 5 | **5** |
+| lands on the battlefield on turn 4 | 3 | 3 | **4** |
+
+In the engine the order is in the deal: the upkeep's block is dealt ahead of
+the turn's own checkpoint, so a path is written in the library's order, and a
+card a look left on top is milled rather than drawn. Its second sentence, "Then
+if your library has no cards in it", needs an empty library, and a question
+whose library can run out before its last draw is refused before it is asked.
+**The run assumes nobody removes it**, and prints that it did.
+
+Out of the Tombs is the same trigger with `grows = 2`: two eon counters each
+upkeep, and it mills as many as it has, so 2, then 4, then 6:
+`out_of_the_tombs_mills_two_more_each_upkeep`.
+
+*Answerable, and a test:*
+`hand_63_stillness_in_motion_mills_what_the_turn_would_have_drawn` in
+`crates/ichormoon-gauntlet/criteria/tests/engine.rs`, the first and last
+columns. `checker/test_triggers.py` holds the same deal against the checker's
+line, and Out of the Tombs' 2, 4, 6.
 
 ## Rocks and dorks are mana the line cast
 

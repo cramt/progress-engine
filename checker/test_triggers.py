@@ -1,5 +1,5 @@
-"""HANDS.md hands 58 and 59, held against the checker's line with its attack
-and landfall mills.
+"""HANDS.md hands 58, 59 and 63, held against the checker's line with its
+attack, landfall and upkeep mills.
 
 Each hand is dealt in the order the hand writes its library down, on the play,
 so every answer is a yes or a no.
@@ -85,6 +85,56 @@ class Hand59(unittest.TestCase):
         self.assertEqual(names(path[4].milled), [checker.LOAM], "turn 5's Mountain")
         self.assertEqual(path[5].milled, [], "no land on turn 6")
         self.assertNotIn(checker.LOAM, names(path[-1].game.seen(6)))
+
+
+STILLNESS = "Stillness in Motion"
+TOMBS = "Out of the Tombs"
+
+
+class Hand63(unittest.TestCase):
+    """Stillness in Motion mills what the turn would have drawn."""
+
+    def setUp(self):
+        self.game = deal(
+            "Forest", "Forest", "Island", STILLNESS, BEAST, BEAST, BEAST,
+            BEAST, checker.LOAM, BEAST, BEAST, "Mountain", BEAST, BEAST,
+            BEAST, BEAST,
+        )  # fmt: skip
+
+    def path(self, upkeeps):
+        return checker.line_path(self.game, ((STILLNESS,),), 4, upkeeps=upkeeps)
+
+    def test_the_upkeep_mills_before_the_draw(self):
+        path = self.path({STILLNESS: checker.Mill(3)})
+        self.assertTrue(path[1].casts(STILLNESS), "cast on turn 2")
+        self.assertEqual(path[1].milled, [], "it entered after turn 2's upkeep")
+        self.assertEqual(names(path[2].milled), [checker.LOAM, BEAST, BEAST])
+        self.assertEqual(names(path[3].milled), [BEAST, BEAST, BEAST])
+        self.assertTrue(path.in_graveyard_by(checker.LOAM, 3))
+        after = path[-1].game
+        self.assertIn("Mountain", names(after.seen(3)), "drawn from under the mill")
+        self.assertNotIn(checker.LOAM, names(after.seen(4)))
+        self.assertEqual(after.lands_played(3), 3)
+        self.assertEqual(after.lands_played(4), 4, "the Mountain is turn 4's drop")
+
+    def test_without_it_turn_3_draws_the_loam(self):
+        path = self.path({})
+        self.assertFalse(path.in_graveyard_by(checker.LOAM, 4))
+        self.assertIn(checker.LOAM, names(path[-1].game.seen(3)))
+        self.assertEqual(path[-1].game.lands_played(4), 3)
+
+
+class OutOfTheTombs(unittest.TestCase):
+    def test_it_mills_two_more_each_upkeep(self):
+        """Two eon counters each upkeep, and it mills as many as it has."""
+        game = deal(
+            "Swamp", "Swamp", "Swamp", TOMBS, BEAST, BEAST, BEAST,
+            *[BEAST] * 16,
+        )  # fmt: skip
+        tombs = checker.Mill(2, grows=2)
+        path = checker.line_path(game, ((TOMBS,),), 6, upkeeps={TOMBS: tombs})
+        self.assertTrue(path[2].casts(TOMBS), "cast on turn 3 off three Swamps")
+        self.assertEqual([len(t.milled) for t in path], [0, 0, 0, 2, 4, 6])
 
 
 class NorthStarLine(unittest.TestCase):

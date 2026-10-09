@@ -3576,6 +3576,98 @@ fn traumatize_mills_half_the_library_it_finds() {
     );
 }
 
+/// The JSON and the stderr of `gauntlet test` on a fixture deck and criteria
+/// file, against the upkeep fixtures' index.
+fn upkeep_run(name: &str, extra: &[&str]) -> (serde_json::Value, String) {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture(&format!("{name}.txt")))
+        .arg(fixture(&format!("{name}.criteria.toml")))
+        .arg("--index")
+        .arg(fixture("upkeep-index.jsonl"))
+        .args(extra)
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    let json: serde_json::Value =
+        serde_json::from_slice(&out.stdout).unwrap_or_else(|_| panic!("should answer: {stderr}"));
+    (json, stderr)
+}
+
+#[test]
+fn stillness_in_motion_mills_three_each_upkeep_after_it_is_cast() {
+    // Issue #139, on stillness.txt: twenty cards on the play, and the
+    // standard library's Stillness in Motion. Cast on turn 2 when it is among
+    // the first eight, 8/20, it mills three on turn 3 and three on turn 4:
+    // six of the other nineteen cards. Cast on turn 3 when it is the ninth,
+    // 1/20, it mills three on turn 4. Which six or three does not depend on
+    // the mill coming before the draw, the library being shuffled; HANDS.md
+    // hand 63 is where the order shows.
+    // * A Cid in the graveyard: 8/20 × (1 - C(16,6)/C(19,6)) + 1/20 × (1 -
+    //   C(16,3)/C(19,3)), 30.30%.
+    // * The mean there: 8/20 × 6 × 3/19 + 1/20 × 3 × 3/19 = 0.4026.
+    let (json, stderr) = upkeep_run("stillness", &[]);
+    assert_eq!(percent(&json, "a Cid in the graveyard by turn 4"), 30.30);
+    let (sampled, _) = upkeep_run("stillness", &["--simulate", "--trials", "40000"]);
+    let s = percent(&sampled, "a Cid in the graveyard by turn 4");
+    assert!((s - 30.30).abs() < 1.0, "the sampler agrees: {s}");
+    assert_eq!(
+        expectation(&json, "Cids in the graveyard on turn 4")["mean"],
+        0.4026
+    );
+    assert_eq!(json["method"], "exact", "{json}");
+    let effect = &json["effects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["on"] == "upkeep")
+        .unwrap_or_else(|| panic!("{json}"));
+    assert_eq!(effect["mill"], 3, "{json}");
+    assert!(effect.get("grows").is_none(), "{json}");
+    // The run says when it fired, and what it assumed of the table.
+    assert!(stderr.contains("(mill 3, on upkeep)"), "{stderr}");
+    assert!(stderr.contains("before that turn's draw"), "{stderr}");
+    assert!(
+        stderr.contains("ASSUMED: it stays on the battlefield"),
+        "{stderr}"
+    );
+    assert!(effect["assumes"]
+        .as_str()
+        .is_some_and(|a| a.contains("no opponent removes it")));
+}
+
+#[test]
+fn out_of_the_tombs_mills_two_more_at_each_upkeep() {
+    // Issue #139, on tombs.txt: thirty-one cards on the play. Cast on turn 3
+    // when it is among the first nine, 9/31, it mills two on turn 4 and four
+    // on turn 5: six of the other thirty. Cast on turn 4 when it is the tenth,
+    // 1/31, it mills two on turn 5.
+    // * A Cid in the graveyard: 9/31 × (1 - C(27,6)/C(30,6)) + 1/31 × (1 -
+    //   C(27,2)/C(30,2)), 15.18%.
+    // * The mean there: 9/31 × 6 × 3/30 + 1/31 × 2 × 3/30 = 0.1806.
+    let (json, stderr) = upkeep_run("tombs", &[]);
+    assert_eq!(percent(&json, "a Cid in the graveyard by turn 5"), 15.18);
+    let (sampled, _) = upkeep_run("tombs", &["--simulate", "--trials", "40000"]);
+    let s = percent(&sampled, "a Cid in the graveyard by turn 5");
+    assert!((s - 15.18).abs() < 1.0, "the sampler agrees: {s}");
+    assert_eq!(
+        expectation(&json, "Cids in the graveyard on turn 5")["mean"],
+        0.1806
+    );
+    assert_eq!(json["method"], "exact", "{json}");
+    let effect = &json["effects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["on"] == "upkeep")
+        .unwrap_or_else(|| panic!("{json}"));
+    assert_eq!((&effect["mill"], &effect["grows"]), (&2.into(), &2.into()));
+    assert!(
+        stderr.contains("2 more each time: 2, 4, 6, ..."),
+        "{stderr}"
+    );
+}
+
 #[test]
 fn a_run_prints_the_declared_cost_beside_the_printed_one() {
     // The bill is a declaration, so the run says what it billed, what the

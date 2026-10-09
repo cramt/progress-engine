@@ -1178,7 +1178,7 @@ to_graveyard = 'name:"Life from the Loam"'
 |---|---|
 | `match` | which cards this is about, in Scryfall syntax |
 | `look` | how many cards off the top it examines |
-| `on` | when it fires: `landdrop`, `cast`, `activate`, `attack` or `landfall`, see below, [An activation the line pays for](#an-activation-the-line-pays-for-expedition-map) and [Attack and landfall](#attack-and-landfall-a-mill-that-fires-again) |
+| `on` | when it fires: `landdrop`, `cast`, `activate`, `attack`, `landfall` or `upkeep`, see below, [An activation the line pays for](#an-activation-the-line-pays-for-expedition-map), [Attack and landfall](#attack-and-landfall-a-mill-that-fires-again) and [Upkeep](#upkeep-a-mill-before-the-draw) |
 | `cost` | what the line pays: on a cast, in place of the printed cost; on an activation, to activate a copy in play. See [A cost the line pays](#a-cost-the-line-pays-that-is-not-printed-dizzy-spell-and-whir-of-invention) |
 | `sacrifice` | beside `after`, the card that waited leaves play when the effect resolves (a Saga); on an activation, paying it sacrifices the card (Expedition Map) |
 | `to_graveyard` | the routing policy: which examined cards go to the yard. `"*"` is all of them, which is mill. Absent means none of them |
@@ -1186,7 +1186,8 @@ to_graveyard = 'name:"Life from the Loam"'
 | `to` | where a fetched card is put: `hand`, `graveyard` or `battlefield` |
 | `up_to` | how many cards one search takes, each the next its `fetch` priority reaches: Buried Alive's `up_to = 3`. Absent is one. Not with `to = "battlefield"`, which puts down one card |
 | `adds` | how much mana a card adds a turn once the `[casting]` line has cast it, `on = "cast"` only, of the colours its card makes. With `after = n` it adds nothing for `n` turns, which is a rock that enters tapped. See [Mana, as a budget](#mana-as-a-budget) and [ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) |
-| `mill` | how many cards a cast, an attack or a landfall puts off the top of the library into the graveyard, 1 to 49; or, on a cast, `"half"`: half the library as the spell resolves, rounded down (Traumatize). Not on a `landdrop`, whose way to do that is a `look`. See [Mills](#mills-a-spell-that-turns-cards-over) |
+| `mill` | how many cards a cast, an attack, a landfall or an upkeep puts off the top of the library into the graveyard, 1 to 49; or, on a cast, `"half"`: half the library as the spell resolves, rounded down (Traumatize). Not on a `landdrop`, whose way to do that is a `look`. See [Mills](#mills-a-spell-that-turns-cards-over) |
+| `grows` | beside `mill`, on an upkeep only: how many more each upkeep mills than the one before, 1 to 49. Out of the Tombs is `mill = 2`, `grows = 2`, for 2, 4, 6. See [Upkeep](#upkeep-a-mill-before-the-draw) |
 | `keep`, `keep_only` | how many of a mill's cards the card lets go to hand instead, and which cards it allows |
 | `keep_every` | the cards of a mill the card puts in hand whatever you want: Wrenn and Seven's lands |
 | `to_hand` | your choice among what `keep` allows, highest priority first. Absent keeps nothing |
@@ -1271,7 +1272,9 @@ Rumble and Midnight Tilling (`mill = 4`, `keep = 1`, `keep_only =
 "is:permanent"`) and Wrenn and Seven's +1 (`mill = 4`, `keep_every = "t:land"`).
 And three whose mills are triggers: Six (`on = "attack"`, `mill = 3`, `keep =
 1`, `keep_only = "t:land"`), Icetill Explorer (`on = "landfall"`, `mill = 1`)
-and Lumra, Bellow of the Woods (`mill = 4`, `returns = "t:land"`).
+and Lumra, Bellow of the Woods (`mill = 4`, `returns = "t:land"`). And two
+whose mills are upkeep triggers: Stillness in Motion (`on = "upkeep"`, `mill =
+3`) and Out of the Tombs (`on = "upkeep"`, `mill = 2`, `grows = 2`).
 Each fires only where the `[casting]` line names its card, so every other file
 is answered exactly as it was.
 
@@ -1694,8 +1697,8 @@ after the draws, the searches and the other mills before it. So it is sized
 there, as every sized gap is, and two of them in one game each halve what the
 first left. Cut Your Losses is the same card; its casualty copy is a second
 cast, which the line does not make, so it mills half once. Half fires on a
-cast only: the cards that mill half a library when they attack, Fleet Swallower
-among them, round up. A number is any whole number from 1 to 49, which is half
+cast only, and refused on an attack, a landfall or an upkeep: the cards that
+mill half a library when they attack, Fleet Swallower among them, round up. A number is any whole number from 1 to 49, which is half
 of a 99-card library; Glimpse the Unthinkable is `mill = 10`.
 
 ```toml
@@ -1807,6 +1810,56 @@ never cast by turn 5 and moves nothing here. The file's other two questions,
 which count castings, move by less than two standard errors of the
 difference, which is noise between two samples. `checker/` plays Six's attacks and the Explorer's landfalls from the cards'
 text and the rules, and agrees.
+
+### Upkeep: a mill before the draw
+
+Stillness in Motion mills three at the beginning of your upkeep, and Out of the
+Tombs puts two eon counters on itself and then mills as many as it has
+([#139](https://github.com/cramt/progress-engine/issues/139)). **`on =
+"upkeep"`** fires once a turn for each copy the line cast on an earlier turn:
+it entered after the upkeep of the turn it was cast, so cast on turn 2 it mills
+on turns 3 and 4. What it may do is a `mill`, as an attack's, and anything
+else on it is refused by name.
+
+- **The upkeep comes before the draw step** (CR 501.1), so what it mills is
+  what that turn would have drawn, and the draw comes from under it. A land it
+  kept is in hand for that turn's drop. The engine deals its block ahead of the
+  turn's own checkpoint, and so does the sampler, so a card a look left on top
+  is milled rather than drawn. A shuffled library makes which cards the two
+  take the same in distribution either way; a card known to be on top is where
+  the order shows, and HANDS.md hand 63 pins it.
+- **`grows = n`** is a mill that takes `n` more each upkeep than the one
+  before, counted per copy from the upkeep after it was cast: Out of the Tombs
+  is `mill = 2`, `grows = 2`, so 2, 4, 6. Only an upkeep grows, because only a
+  permanent keeps a count between firings; `grows` on anything else, beside
+  `mill = "half"`, or with no `mill` is refused. So is `returns` on an upkeep,
+  since lands returned before the drop would pay that same turn, which nothing
+  here models.
+- **The run assumes nobody removes it**, because nobody else is at this table,
+  and every run that fires one says so, as `ASSUMED:` in the report and
+  `assumes` in the JSON.
+
+Stillness in Motion's second sentence, "Then if your library has no cards in
+it", and Out of the Tombs' replacement of a draw from an empty library, both
+need an empty library. A question whose library can run out before its last
+draw is refused before it is asked, and that bound counts every upkeep a copy
+could fire, at its largest, so no game an answer covers reaches either.
+
+**What it does, measured.** The fixtures `stillness.txt` and `tombs.txt` in
+`crates/ichormoon-gauntlet/cli/tests/fixtures/` are small enough to check by
+hand, on the play, and answer exactly in 0.02 s:
+
+| Deck | Question | Exact | By hand | Sampled, 200,000 hands |
+|---|---|---|---|---|
+| 16 Islands, Stillness, 3 Cids | a Cid in the graveyard by turn 4 | 30.30%, 972 compositions | 8/20 × (1 − C(16,6)/C(19,6)) + 1/20 × (1 − C(16,3)/C(19,3)) | 30.29% ± 0.10 |
+| 27 Swamps, Out of the Tombs, 3 Cids | a Cid in the graveyard by turn 5 | 15.18%, 2,916 compositions | 9/31 × (1 − C(27,6)/C(30,6)) + 1/31 × (1 − C(27,2)/C(30,2)) | 15.25% ± 0.08 |
+
+The Tombs' deck is 31 cards because the bound on what the library can lose
+takes its largest firings for every turn, 2 + 4 + 6 + 8 by turn 5, beside the
+draws. `checker/` plays both from the cards' text and the rules, with the
+library in order (`checker/test_triggers.py`), and 40,000 of its hands on
+these decks, Beast Within standing in for the Cids, read 30.19% ± 0.23 and
+15.43% ± 0.18.
 
 ### Discard: a spell that draws, and then bins
 

@@ -248,6 +248,10 @@ struct EffectDef {
     /// go to the graveyard whatever anyone asks. Or `mill = "half"`:
     /// Traumatize's half of the library, rounded down.
     mill: Option<MillDef>,
+    /// How many more cards each upkeep mills than the one before, beside
+    /// `mill`, which is what the first takes: Out of the Tombs is `mill = 2`,
+    /// `grows = 2`, for 2, 4, 6. Upkeep only.
+    grows: Option<i64>,
     /// How many of a mill's cards the card lets go to hand instead: Rumble's
     /// one permanent. Which one is `to_hand`.
     keep: Option<i64>,
@@ -1542,6 +1546,11 @@ pub enum ErrorKind {
     )]
     BadKeep { at: String, value: i64, max: u32 },
     #[error(
+        "{at}: `grows = {value}` is not a number of cards: it must be a whole number from 1 to \
+         {MAX_MILL}. A mill that takes the same each upkeep is written with no `grows`"
+    )]
+    BadGrows { at: String, value: i64 },
+    #[error(
         "{at}: `up_to = {value}` is not a number of cards: it must be a whole number from 1 to \
          {MAX_HAND}. A search for one card is written with no `up_to`"
     )]
@@ -1573,11 +1582,13 @@ pub enum ErrorKind {
     /// Half a draw or a discard, refused by what is missing (ADR-0017 §3).
     #[error("{at}: {why}")]
     HandMisdeclared { at: String, why: &'static str },
-    /// An attack or a landfall fires a mill, and nothing else (ADR-0017 §1).
+    /// An attack, a landfall or an upkeep fires a mill, and nothing else
+    /// (ADR-0017 §1).
     #[error(
         "{at}: `on = \"{on}\"` fires a `mill` and nothing else{}.\n\
          Six is `on = \"attack\"`, `mill = 3`, `keep = 1`, `keep_only = \"t:land\"`; Icetill \
-         Explorer is `on = \"landfall\"`, `mill = 1`",
+         Explorer is `on = \"landfall\"`, `mill = 1`; Stillness in Motion is \
+         `on = \"upkeep\"`, `mill = 3`",
         key.map_or(", and this has no `mill`".to_string(), |k| format!(", and this has `{k}`"))
     )]
     RepeatsOnlyMills {
@@ -1875,6 +1886,12 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
                  `keep`, `keep_only`, `keep_every` and `to_hand` choose among a mill's cards",
             ));
         }
+        if def.grows.is_some() {
+            return Err(misdeclared(
+                "has `grows` and no `mill`. `grows` is how much more each upkeep mills than \
+                 the last: Out of the Tombs is `mill = 2`, `grows = 2`",
+            ));
+        }
         if def.returns.is_some() {
             return Err(misdeclared(
                 "has `returns` and no `mill`. `returns` is what a mill does next: Lumra mills \
@@ -1897,16 +1914,51 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
             MillDef::Word(word) => format!("{word:?}"),
         },
     })?;
-    if cards == MillDepth::HalfLibrary && matches!(trigger, Trigger::Attack | Trigger::Landfall) {
+    if cards == MillDepth::HalfLibrary && trigger.repeats() {
         return Err(misdeclared(
-            "has `mill = \"half\"` on an attack or a landfall. Half the library, rounded down, \
-             is what a cast of Traumatize mills; the cards that mill half a library each time \
-             they attack, Fleet Swallower among them, round up, and \"half\" does not",
+            "has `mill = \"half\"` on an attack, a landfall or an upkeep. Half the library, \
+             rounded down, is what a cast of Traumatize mills; the cards that mill half a \
+             library each time they attack, Fleet Swallower among them, round up, and \"half\" \
+             does not",
+        ));
+    }
+    let cards = match (cards, def.grows) {
+        (_, None) => cards,
+        (MillDepth::Exactly(first), Some(by)) if trigger == Trigger::Upkeep => {
+            let by = u32::try_from(by)
+                .ok()
+                .filter(|n| (1..=MAX_MILL).contains(n))
+                .ok_or(ErrorKind::BadGrows {
+                    at: at.to_string(),
+                    value: by,
+                })?;
+            MillDepth::Growing { first, by }
+        }
+        (MillDepth::Exactly(_), Some(_)) => {
+            return Err(misdeclared(
+                "has `grows` on something other than an upkeep. A mill grows because its \
+                 permanent keeps a count from one upkeep to the next, as Out of the Tombs' eon \
+                 counters do; a cast fires once, and nothing that attacks or has landfall here \
+                 counts up",
+            ));
+        }
+        (_, Some(_)) => {
+            return Err(misdeclared(
+                "has `grows` beside `mill = \"half\"`. Half the library has no size to grow \
+                 from; `grows` is how much more than a numbered `mill` each upkeep takes",
+            ));
+        }
+    };
+    if trigger == Trigger::Upkeep && def.returns.is_some() {
+        return Err(misdeclared(
+            "has `returns` on an upkeep. Lands returned in the upkeep arrive before the turn's \
+             land drop, and nothing here says what they pay that turn; `returns` is \
+             what a cast does, as Lumra's does",
         ));
     }
     if matches!(trigger, Trigger::LandDrop | Trigger::Activate) {
         return Err(misdeclared(
-            "has `mill` on a landdrop or an activation. A mill here is something a cast, an attack or a landfall does to the top of the \
+            "has `mill` on a landdrop or an activation. A mill here is something a cast, an attack, a landfall or an upkeep does to the top of the \
              library; what a land drop does to it is a `look`, with `to_graveyard` saying \
              where the cards go",
         ));
@@ -1950,7 +2002,7 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
     // Half a library has no size until it resolves, so what it may keep is
     // held to the bound every other count of cards to hand is.
     let max = match cards {
-        MillDepth::Exactly(n) => n,
+        MillDepth::Exactly(n) | MillDepth::Growing { first: n, .. } => n,
         MillDepth::HalfLibrary => MAX_HAND,
     };
     let up_to = u32::try_from(keep)

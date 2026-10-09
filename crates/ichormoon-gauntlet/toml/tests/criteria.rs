@@ -1504,7 +1504,7 @@ fn a_look_on_a_cast_is_refused_and_a_trigger_nobody_fires_is_refused_by_name() {
         mana.to_string().contains("issues/57"),
         "should say what it waits on: {mana}"
     );
-    let unknown = with("upkeep");
+    let unknown = with("endstep");
     assert!(
         unknown.to_string().contains("landdrop"),
         "should list what it takes: {unknown}"
@@ -2142,8 +2142,9 @@ fn the_standard_library_is_a_criteria_file_like_any_other() {
             // Nothing ships an activation: which one a line pays for, and
             // what it fetches, is the pilot's (ADR-0019).
             Trigger::Activate => panic!("the library ships no activation: {entry:?}"),
-            // An attack or a landfall mills (#89), and does nothing else.
-            Trigger::Attack | Trigger::Landfall => assert!(
+            // An attack, a landfall (#89) or an upkeep (#139) mills, and
+            // does nothing else.
+            Trigger::Attack | Trigger::Landfall | Trigger::Upkeep => assert!(
                 entry.mill.is_some() && entry.look == 0 && entry.adds.is_none(),
                 "{entry:?}"
             ),
@@ -3184,6 +3185,111 @@ fn an_attack_and_a_landfall_fire_a_mill() {
         "#,
     );
     assert_eq!(lumra.mill.and_then(|m| m.returns), Some("t:land".into()));
+}
+
+#[test]
+fn an_upkeep_fires_a_mill_and_out_of_the_tombs_grows_by_two() {
+    // Stillness in Motion: "At the beginning of your upkeep, mill three
+    // cards."
+    let stillness = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Stillness in Motion"'
+        on = "upkeep"
+        mill = 3
+        "#,
+    );
+    assert_eq!(stillness.trigger, Trigger::Upkeep);
+    assert!(stillness.trigger.repeats());
+    assert_eq!(
+        stillness.mill.as_ref().map(|m| m.cards),
+        Some(MillDepth::Exactly(3))
+    );
+    // Out of the Tombs: two eon counters each upkeep, then mill as many as
+    // it has. The first upkeep mills 2, and each after it 2 more.
+    let tombs = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Out of the Tombs"'
+        on = "upkeep"
+        mill = 2
+        grows = 2
+        "#,
+    );
+    let grows = tombs.mill.as_ref().map(|m| m.cards);
+    assert_eq!(grows, Some(MillDepth::Growing { first: 2, by: 2 }));
+    let firings: Vec<_> = (1..=4).map(|n| grows.unwrap().nth(n)).collect();
+    assert_eq!(firings, [Some(2), Some(4), Some(6), Some(8)]);
+    // The standard library ships both as the cards print them.
+    let std = EffectLibrary::parse(STANDARD_LIBRARY, STANDARD_LIBRARY_ORIGIN).unwrap();
+    let shipped = |name: &str| {
+        std.entries()
+            .iter()
+            .find(|e| e.matches.contains(name))
+            .unwrap_or_else(|| panic!("{name} ships"))
+            .clone()
+    };
+    assert_eq!(shipped("Stillness in Motion").mill, stillness.mill);
+    assert_eq!(shipped("Out of the Tombs").mill, tombs.mill);
+}
+
+#[test]
+fn a_growing_mill_off_anything_but_an_upkeep_is_refused() {
+    let with = |body: &str| {
+        refused_effect(&format!(
+            "[[effect]]\nmatch = 'name:\"Out of the Tombs\"'\n{body}\n"
+        ))
+    };
+    for (body, says) in [
+        // A cast fires once; nothing counts up between attacks or landfalls.
+        ("on = \"cast\"\nmill = 2\ngrows = 2", "other than an upkeep"),
+        (
+            "on = \"attack\"\nmill = 2\ngrows = 2",
+            "other than an upkeep",
+        ),
+        (
+            "on = \"landfall\"\nmill = 2\ngrows = 2",
+            "other than an upkeep",
+        ),
+        // Half has no size to grow from.
+        (
+            "on = \"cast\"\nmill = \"half\"\ngrows = 2",
+            "no size to grow from",
+        ),
+        ("on = \"upkeep\"\nmill = \"half\"", "round up"),
+        // Growth with nothing to grow.
+        ("on = \"upkeep\"\ngrows = 2", "no `mill`"),
+        // Lands returned before the drop.
+        (
+            "on = \"upkeep\"\nmill = 2\nreturns = 't:land'",
+            "`returns` on an upkeep",
+        ),
+    ] {
+        let bad = with(body);
+        assert!(
+            matches!(
+                bad,
+                ErrorKind::MillMisdeclared { .. } | ErrorKind::RepeatsOnlyMills { .. }
+            ) && bad.to_string().contains(says),
+            "{body:?} should be refused naming {says:?}: {bad}"
+        );
+    }
+    let bad = with("on = \"upkeep\"\nmill = \"half\"\ngrows = 2");
+    assert!(matches!(bad, ErrorKind::MillMisdeclared { .. }), "{bad}");
+    for grows in [0, -2, 50] {
+        let bad = with(&format!("on = \"upkeep\"\nmill = 2\ngrows = {grows}"));
+        assert!(
+            matches!(bad, ErrorKind::BadGrows { .. })
+                && bad.to_string().contains(&format!("grows = {grows}")),
+            "{bad}"
+        );
+    }
+    // An upkeep fires a mill and nothing else, as an attack does.
+    let bad = with("on = \"upkeep\"\nmill = 3\nlook = 1");
+    assert!(
+        matches!(bad, ErrorKind::RepeatsOnlyMills { .. }) && bad.to_string().contains("upkeep"),
+        "{bad}"
+    );
 }
 
 #[test]
