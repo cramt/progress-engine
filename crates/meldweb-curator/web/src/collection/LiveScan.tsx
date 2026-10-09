@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { isTyping } from "../card/hotkeys";
 import type { Place } from "../collection";
 import type { Finish, NewCard } from "../deck";
+import { formatPrice, type PriceBook, unitPrice } from "../prices";
 import { beep } from "../probe/beep";
 import { ModelPicker, useModel } from "../probe/ModelPicker";
 import { printingsById } from "../probe/printings";
@@ -14,7 +15,6 @@ import {
 } from "../probe/scanner";
 import { createTracker, type Speed, TRACKING } from "../probe/tracker";
 import type { Currency } from "../scryfall";
-import { formatPrice, type PriceBook, unitPrice } from "./prices";
 import type { ScannedCopy } from "./scanned";
 import {
   loadScanSettings,

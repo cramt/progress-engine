@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { SettingsProvider } from "../card/preference";
 import { parseDeck } from "../deck";
 import { DeckEditor } from "../deck/DeckEditor";
-import { parseSearch, searchFor, viewingOf } from "../deck/versions";
+import { pageOf, parseSearch, searchFor } from "../deck/versions";
 import { connect } from "../github/connect";
 import { openFile } from "../github/repoFile";
 import { openSession } from "../github/session";
@@ -81,10 +81,11 @@ function DeckPage() {
         repo={data.repo}
         api={data.api}
         printings={data.printings}
-        viewing={viewingOf(search)}
-        drawer={search.history === true}
-        onNavigate={(viewing, drawer) =>
-          void navigate({ search: searchFor(viewing, drawer) })
+        page={pageOf(search)}
+        onNavigate={(change) =>
+          void navigate({
+            search: searchFor({ ...pageOf(search), ...change }),
+          })
         }
       />
     </SettingsProvider>

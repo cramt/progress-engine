@@ -39,7 +39,8 @@ per-line brackets.
    - *View as*: Stacks, Grid, Text list, Table (with a gear for per-view
      options). *Group by*: Categories, Type, and others. *Sort by*: Alphabet,
      and others.
-   - Price sources (not wanted).
+   - Price sources (not wanted: Curator prices from Scryfall, in its own
+     Cost view, `?view=cost`).
    - *Local filter*: filters the deck in place.
 3. **Layout presets**: four thumbnails that set View as and Group by together.
    They dismiss once chosen.
@@ -164,6 +165,7 @@ In order. Each item is usable without the ones after it.
 
 ## What not to copy
 
-Prices and price sources, salt, "Sell this stack", views, likes, the Patreon
+Price sources (Curator has its own Cost view, priced from Scryfall), salt,
+"Sell this stack", views, likes, the Patreon
 banners, the TCGPlayer and Card Kingdom links, and collection records. The
 sandbox's save model goes too: saving is a commit.

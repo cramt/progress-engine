@@ -10,6 +10,7 @@ import {
   deckAdd,
   editDeckCards,
   parseDeck,
+  setCardFinish,
   setCardPrinting,
   setDeckDescription,
 } from "../deck";
@@ -29,6 +30,7 @@ import { BranchIcon, HistoryIcon, ScanIcon } from "../ui/icons";
 import { messageOf } from "../ui/Sheet";
 import { printingNames } from "./archidektNames";
 import { CopyDeck } from "./CopyDeck";
+import { CostView } from "./CostView";
 import { Description } from "./Description";
 import { HistoryDrawer } from "./HistoryDrawer";
 import "./history.css";
@@ -39,7 +41,8 @@ import { Banners, SaveStatus, Toolbar, UndoRedo } from "./Toolbar";
 import { useOther } from "./useOther";
 import { SnapshotDialog, VariantDialog } from "./VersionDialogs";
 import { VersionView, when } from "./VersionView";
-import type { Viewing } from "./versions";
+import { ViewTabs } from "./ViewTabs";
+import type { DeckPage, Viewing } from "./versions";
 
 export interface DeckEditorProps {
   /** The deck's path in the Magic repo, e.g. `decks/lantern.deck.toml`. */
@@ -50,12 +53,10 @@ export interface DeckEditorProps {
   repo: RepoRef;
   api: GitHubApi;
   printings: Printings;
-  /** The deck now, or another version of it shown in place of its stacks. */
-  viewing: Viewing;
-  /** Whether the history drawer is open. */
-  drawer: boolean;
-  /** Goes to another version, or opens or shuts the drawer, through the URL. */
-  onNavigate: (viewing: Viewing, drawer: boolean) => void;
+  /** The deck now or another version of it, the drawer, and the view, as the URL says. */
+  page: DeckPage;
+  /** Goes to another version, view or drawer state, through the URL. */
+  onNavigate: (change: Partial<DeckPage>) => void;
 }
 
 type Dialog =
@@ -74,10 +75,10 @@ export function DeckEditor({
   repo,
   api,
   printings: loadedPrintings,
-  viewing,
-  drawer,
+  page,
   onNavigate,
 }: DeckEditorProps) {
+  const { viewing, drawer, view } = page;
   const history = useHistory(loaded);
   // What an add that finishes later builds on: the text as of then.
   const present = useRef(history.present);
@@ -119,7 +120,7 @@ export function DeckEditor({
     const t = setTimeout(() => setNotice(null), 5000);
     return () => clearTimeout(t);
   }, [notice]);
-  const go = (v: Viewing) => onNavigate(v, drawer);
+  const go = (v: Viewing) => onNavigate({ viewing: v });
   const stem = deckStem(path);
   const otherOf =
     other?.kind === "loaded" && other.revision
@@ -164,7 +165,7 @@ export function DeckEditor({
     <button
       type="button"
       aria-pressed={drawer}
-      onClick={() => onNavigate(viewing, !drawer)}
+      onClick={() => onNavigate({ drawer: !drawer })}
       title="Every save of this deck, its snapshots and its variants"
     >
       <HistoryIcon />
@@ -182,7 +183,7 @@ export function DeckEditor({
       saveStatus={save.status}
       refresh={snapshots}
       onView={go}
-      onClose={() => onNavigate(viewing, false)}
+      onClose={() => onNavigate({ drawer: false })}
       onSnapshot={(commit) =>
         setDialog({
           kind: "snapshot",
@@ -338,10 +339,9 @@ export function DeckEditor({
                 type="button"
                 className="variant-chip"
                 onClick={() =>
-                  onNavigate(
-                    { kind: "deck", path: parsed.variantOf ?? "" },
-                    drawer,
-                  )
+                  onNavigate({
+                    viewing: { kind: "deck", path: parsed.variantOf ?? "" },
+                  })
                 }
                 title="Compare with the deck this is a variant of"
               >
@@ -431,6 +431,7 @@ export function DeckEditor({
       )}
       {!looking && (
         <>
+          <ViewTabs view={view} onView={(v) => onNavigate({ view: v })} />
           <Description
             text={parsed.description}
             onSave={(description) => {
@@ -482,13 +483,40 @@ export function DeckEditor({
               </p>
             </div>
           )}
-          <StacksView
-            categories={parsed.categories}
-            cards={parsed.cards}
-            printings={cards.printings}
-            onDrop={onDrop}
-            cardProps={cards.cardProps}
-          />
+          {view === "stacks" ? (
+            <StacksView
+              categories={parsed.categories}
+              cards={parsed.cards}
+              printings={cards.printings}
+              onDrop={onDrop}
+              cardProps={cards.cardProps}
+            />
+          ) : (
+            <CostView
+              cards={parsed.cards}
+              printings={cards.printings}
+              onUse={(card, { printing, finish }) => {
+                try {
+                  const now = history.present;
+                  const moved = setCardPrinting(
+                    now,
+                    card.index,
+                    printing.set,
+                    printing.num,
+                  );
+                  // One edit, so one undo puts the line back as it was.
+                  history.edit(
+                    finish === card.finish
+                      ? moved
+                      : setCardFinish(moved, card.index, finish),
+                  );
+                  setRefusal(null);
+                } catch (e) {
+                  setRefusal(messageOf(e));
+                }
+              }}
+            />
+          )}
           <details className="source">
             <summary>The file</summary>
             <pre>{history.present}</pre>

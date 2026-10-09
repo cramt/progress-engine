@@ -28,10 +28,12 @@ afterEach(() => {
 });
 
 describe("scryfall's printings", () => {
-  it("read a page into set, number, set name, date, pictures and finishes", () => {
+  it("read a page into set, number, set name, date, pictures, finishes and prices", () => {
     const page = parsePrintsPage({
       data: [
-        raw("CMR", "472", "2020-11-20"),
+        raw("CMR", "472", "2020-11-20", {
+          prices: { eur: "0.80", usd_foil: "2.50", usd: null },
+        }),
         raw("znr", "180", "2020-09-25", {
           image_uris: undefined,
           card_faces: [{ image_uris: { normal: "front" } }, {}],
@@ -54,6 +56,7 @@ describe("scryfall's printings", () => {
         image: "n/CMR",
         small: "s/CMR",
         finishes: ["nonfoil", "foil"],
+        prices: { eur: { nonfoil: 0.8 }, usd: { foil: 2.5 } },
         facts: {
           name: "Sol Ring",
           set: "CMR",
@@ -70,6 +73,7 @@ describe("scryfall's printings", () => {
         released: "2020-09-25",
         image: "front",
         finishes: ["nonfoil"],
+        prices: { eur: {}, usd: {} },
         facts: {
           name: "Sol Ring",
           set: "znr",
