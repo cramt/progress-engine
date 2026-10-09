@@ -13,7 +13,7 @@
 //! of itself. Joining the two gives back the object Scryfall wrote, every
 //! field read here; the tests hold it to that against real records.
 
-use std::cell::RefCell;
+use std::cell::{Cell, OnceCell, RefCell};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use chip_scryfall::bulk::{BulkCard, ImageUris, NOT_CARD_LAYOUTS};
@@ -27,7 +27,7 @@ use crate::preference::Preference;
 
 /// Bumped whenever what [`Stored`] holds changes, so a copy an older page
 /// wrote is downloaded again rather than misread.
-pub const FORMAT: u32 = 3;
+pub const FORMAT: u32 = 4;
 
 /// Layouts Scryfall's search and autocomplete leave out unless asked for
 /// extras: the ones that are not cards, and the oversized cards of casual
@@ -125,8 +125,7 @@ impl RawPrices {
     }
 }
 
-/// The copy as the browser keeps it.
-#[derive(Facet)]
+/// The copy as the browser keeps it, written by [`Stored::to_text`].
 pub struct Stored {
     pub format: u32,
     /// When Scryfall wrote the Default Cards file this was made from.
@@ -161,14 +160,10 @@ pub struct StoredCard {
     pub tags: Vec<u32>,
 }
 
-/// What one printing says of itself, beside what it shares with others.
-///
-/// A printing is read back on every page load, and the time that takes is
-/// the number of values it holds, whatever they are written as: so what a
-/// thousand printings say alike is said once, in [`Stored::sets`] and
-/// [`Stored::looks`], and a printing names it. That took reading Default
-/// Cards' printings back from 2 s to (see `tests`) a third of it.
-#[derive(Facet, Debug, Clone)]
+/// What one printing says of itself, beside what it shares with others:
+/// what a thousand printings say alike is said once, in [`Stored::sets`] and
+/// [`Stored::looks`], and a printing names it.
+#[derive(Debug, Clone)]
 pub struct StoredPrinting {
     pub id: String,
     /// Which of [`Stored::cards`] it is a printing of.
@@ -177,22 +172,16 @@ pub struct StoredPrinting {
     pub set: u32,
     /// Which of [`Stored::looks`] it has.
     pub look: u32,
-    /// Its collector number, release date and flavour name, the fields of
-    /// its card object no other printing shares; the others absent.
-    pub own: BulkCard,
-    #[facet(default)]
+    /// The fields of its card object no other printing shares.
+    pub collector_number: Option<String>,
+    pub released_at: Option<String>,
+    pub flavor_name: Option<String>,
     pub prices: StoredPrices,
     /// The version its pictures' URLs end in; absent for a printing Scryfall
     /// has no picture of.
-    #[facet(default, skip_serializing_if = Option::is_none)]
     pub image: Option<String>,
     /// Whether its other face has a picture of its own.
-    #[facet(default, skip_serializing_if = is_false)]
     pub back_image: bool,
-}
-
-fn is_false(b: &bool) -> bool {
-    !b
 }
 
 /// A set, as its printings' card objects state it.
@@ -257,6 +246,193 @@ pub struct Alias {
     pub tag: u32,
 }
 
+/// What [`Stored::to_text`] writes on its first line: everything but the
+/// cards and printings, which follow it a line each.
+#[derive(Facet)]
+struct Head {
+    format: u32,
+    updated_at: String,
+    sets: Vec<StoredSet>,
+    looks: Vec<Look>,
+    tags: Vec<String>,
+    aliases: Vec<Alias>,
+    formats: Vec<String>,
+    cards: u32,
+    printings: u32,
+}
+
+/// A field of a card's or a printing's line, which a tab or a line break
+/// would cut in two. Scryfall writes neither in any field kept this way.
+fn plain<'a>(field: &'a str, what: &str) -> Result<&'a str, String> {
+    if field.contains(['\t', '\n', '\r']) {
+        return Err(format!("{what} holds a tab or a line break: {field:?}"));
+    }
+    Ok(field)
+}
+
+impl Stored {
+    /// The copy as the text the browser keeps: [`Head`] as JSON, then a line
+    /// per card and a line per printing, their fields between tabs.
+    ///
+    /// A page reads this back on every load, and reading JSON costs a few
+    /// microseconds a value through facet in wasm, a minute for the whole
+    /// copy; a line of tab-separated fields is split by hand instead, and a
+    /// card's own JSON is left unread until something asks for that card.
+    pub fn to_text(&self) -> Result<String, String> {
+        use std::fmt::Write;
+        let head = Head {
+            format: self.format,
+            updated_at: self.updated_at.clone(),
+            sets: self.sets.clone(),
+            looks: self.looks.clone(),
+            tags: self.tags.clone(),
+            aliases: self
+                .aliases
+                .iter()
+                .map(|a| Alias {
+                    alias: a.alias.clone(),
+                    tag: a.tag,
+                })
+                .collect(),
+            formats: self.formats.clone(),
+            cards: self.cards.len() as u32,
+            printings: self.printings.len() as u32,
+        };
+        let mut out = facet_json::to_string(&head).map_err(|e| e.to_string())?;
+        out.push('\n');
+        for card in &self.cards {
+            let facts = facet_json::to_string(&card.facts).map_err(|e| e.to_string())?;
+            let tags: Vec<String> = card.tags.iter().map(u32::to_string).collect();
+            writeln!(
+                out,
+                "{}\t{}\t{}\t{}\t{}\t{}",
+                plain(&card.facts.name, "a card's name")?,
+                plain(oracle_id(&card.facts).unwrap_or_default(), "an oracle id")?,
+                plain(card.facts.layout.as_deref().unwrap_or_default(), "a layout")?,
+                card.legal,
+                tags.join(","),
+                // JSON escapes every control character inside a string.
+                facts,
+            )
+            .expect("a string takes any write");
+        }
+        fn opt<'a>(o: &'a Option<String>, what: &str) -> Result<&'a str, String> {
+            plain(o.as_deref().unwrap_or_default(), what)
+        }
+        let price = |p: Option<f64>| p.map(|p| p.to_string()).unwrap_or_default();
+        for p in &self.printings {
+            let StoredPrices {
+                usd,
+                usd_foil,
+                usd_etched,
+                eur,
+                eur_foil,
+                eur_etched,
+            } = &p.prices;
+            writeln!(
+                out,
+                "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                plain(&p.id, "a printing's id")?,
+                p.card,
+                p.set,
+                p.look,
+                opt(&p.collector_number, "a collector number")?,
+                opt(&p.released_at, "a release date")?,
+                opt(&p.flavor_name, "a flavour name")?,
+                opt(&p.image, "a picture's version")?,
+                if p.back_image { "1" } else { "" },
+                price(*usd),
+                price(*usd_foil),
+                price(*usd_etched),
+                price(*eur),
+                price(*eur_foil),
+                price(*eur_etched),
+            )
+            .expect("a string takes any write");
+        }
+        Ok(out)
+    }
+}
+
+/// A card as [`Stored::to_text`] wrote it, its facts not yet read.
+struct KeptCard {
+    name: String,
+    oracle_id: Option<String>,
+    /// Whether search and quick add leave it out unless asked for extras.
+    extra: bool,
+    legal: Box<str>,
+    tags: Vec<u32>,
+    facts: Box<str>,
+}
+
+fn read_card(line: &str) -> Option<KeptCard> {
+    let mut f = line.splitn(6, '\t');
+    let name = f.next()?.to_string();
+    let oracle = f.next()?;
+    let layout = f.next()?;
+    let legal = f.next()?.into();
+    let tags = f.next()?;
+    let tags = if tags.is_empty() {
+        Vec::new()
+    } else {
+        tags.split(',')
+            .map(str::parse)
+            .collect::<Result<_, _>>()
+            .ok()?
+    };
+    Some(KeptCard {
+        name,
+        oracle_id: (!oracle.is_empty()).then(|| oracle.to_string()),
+        extra: is_extra(layout),
+        legal,
+        tags,
+        facts: f.next()?.into(),
+    })
+}
+
+fn read_printing(line: &str) -> Option<StoredPrinting> {
+    let mut f = line.split('\t');
+    let mut next = || f.next();
+    let text = |s: &str| (!s.is_empty()).then(|| s.to_string());
+    let id = next()?.to_string();
+    let card = next()?.parse().ok()?;
+    let set = next()?.parse().ok()?;
+    let look = next()?.parse().ok()?;
+    let collector_number = text(next()?);
+    let released_at = text(next()?);
+    let flavor_name = text(next()?);
+    let image = text(next()?);
+    let back_image = next()? == "1";
+    let mut price = || -> Option<Option<f64>> {
+        let p = next()?;
+        if p.is_empty() {
+            Some(None)
+        } else {
+            p.parse().ok().map(Some)
+        }
+    };
+    let prices = StoredPrices {
+        usd: price()?,
+        usd_foil: price()?,
+        usd_etched: price()?,
+        eur: price()?,
+        eur_foil: price()?,
+        eur_etched: price()?,
+    };
+    Some(StoredPrinting {
+        id,
+        card,
+        set,
+        look,
+        collector_number,
+        released_at,
+        flavor_name,
+        prices,
+        image,
+        back_image,
+    })
+}
+
 /// Moves each named field from one card object to another.
 macro_rules! move_fields {
     ($from:expr => $to:expr; $($field:ident),*) => {
@@ -294,7 +470,7 @@ fn split(mut card: BulkCard) -> (BulkCard, BulkCard) {
 }
 
 /// The card object [`split`] and [`Builder`] took apart, pictures aside.
-pub fn join(card: &BulkCard, set: &StoredSet, look: &Look, own: &BulkCard) -> BulkCard {
+pub fn join(card: &BulkCard, set: &StoredSet, look: &Look, own: &StoredPrinting) -> BulkCard {
     let mut out = card.clone();
     printing_fields!(copy_fields, look.own => out);
     out.set = set.code.clone();
@@ -384,12 +560,15 @@ impl Builder {
             name: set_name,
             set_type: look.set_type.take(),
         };
-        let mut own = BulkCard::default();
-        move_fields!(look => own; collector_number, released_at, flavor_name);
         let set = *self.set_at.entry(set).or_insert_with_key(|set| {
             self.sets.push(set.clone());
             self.sets.len() as u32 - 1
         });
+        let (collector_number, released_at, flavor_name) = (
+            look.collector_number.take(),
+            look.released_at.take(),
+            look.flavor_name.take(),
+        );
         let look = Look {
             own: look,
             finishes,
@@ -417,7 +596,9 @@ impl Builder {
             card,
             set,
             look,
-            own,
+            collector_number,
+            released_at,
+            flavor_name,
             prices: prices.read(),
             image,
             back_image,
@@ -636,14 +817,22 @@ pub enum SearchAnswer {
 }
 
 /// The copy, read and ready to answer.
+///
+/// Loading reads every printing but no card's facts: a card's JSON is read
+/// the first time something asks for that card, and [`Self::warm`] reads the
+/// rest a slice at a time once the page has its answers, so a search does not
+/// wait for all of them.
 pub struct ScryfallCopy {
     updated_at: String,
-    facts: Vec<BulkCard>,
-    cards: Vec<Card>,
+    kept: Vec<KeptCard>,
+    facts: Vec<OnceCell<BulkCard>>,
+    cards: Vec<OnceCell<Card>>,
     printings: Vec<StoredPrinting>,
+    own: Vec<OnceCell<Printing>>,
     sets: Vec<StoredSet>,
     looks: Vec<Look>,
-    own: Vec<Printing>,
+    formats: Vec<String>,
+    tag_names: Vec<String>,
     by_id: HashMap<String, u32>,
     by_number: HashMap<String, u32>,
     /// Real cards' printings by every name that names them, lowercased.
@@ -653,82 +842,83 @@ pub struct ScryfallCopy {
     by_oracle: HashMap<String, Vec<u32>>,
     /// Every name search and quick add can answer, lowercased beside the name.
     names: Vec<(String, String)>,
-    keywords: KeywordVocabulary,
+    keywords: OnceCell<KeywordVocabulary>,
     tags: TagVocabulary,
     aliases: HashMap<String, String>,
     preference: Preference,
+    /// How many cards [`Self::warm`] has read.
+    warmed: Cell<usize>,
     /// The last search, by query, its cards' printings grouped and sorted,
     /// so a later page costs nothing.
     last: RefCell<Option<(String, Vec<Vec<u32>>)>>,
 }
 
 impl ScryfallCopy {
-    pub fn new(stored: Stored) -> Result<Self, String> {
-        if stored.format != FORMAT {
+    /// Reads back what [`Stored::to_text`] wrote.
+    pub fn load(text: &str) -> Result<Self, String> {
+        let mut lines = text.split('\n');
+        let head = lines.next().unwrap_or_default();
+        // The format is checked before the rest is read, since a copy an
+        // older page wrote need not parse as this one's head.
+        #[derive(Facet)]
+        struct Format {
+            format: u32,
+        }
+        let Format { format } = facet_json::from_str::<Format>(head)
+            .map_err(|e| format!("the stored copy is unreadable: {e}"))?;
+        if format != FORMAT {
             return Err(format!(
-                "the stored copy is format {}, this page reads {FORMAT}",
-                stored.format
+                "the stored copy is format {format}, this page reads {FORMAT}"
             ));
         }
-        let Stored {
+        let Head {
             updated_at,
-            cards,
-            printings,
             sets,
             looks,
             tags,
             aliases,
             formats,
+            cards,
+            printings,
             ..
-        } = stored;
-        let mut facts = Vec::with_capacity(cards.len());
-        let mut read = Vec::with_capacity(cards.len());
-        for StoredCard {
-            facts: mut f,
-            legal,
-            tags: t,
-        } in cards
-        {
-            if !legal.is_empty() {
-                f.legalities = read_legalities(&legal, &formats)
-                    .ok_or("the stored copy spells a legality it has no word for")?;
-            }
-            let mut card = f.card_of_any_printing(&mut Vec::new());
-            card.tags = t
-                .iter()
-                .filter_map(|&i| tags.get(i as usize).cloned())
-                .collect();
-            read.push(card);
-            facts.push(f);
-        }
-        let blank = BulkCard::default();
-        let own: Vec<Printing> = printings
-            .iter()
-            .map(|p| {
-                join(
-                    &blank,
-                    &sets[p.set as usize],
-                    &looks[p.look as usize],
-                    &p.own,
-                )
-                .printing()
+        } = facet_json::from_str(head)
+            .map_err(|e| format!("the stored copy is unreadable: {e}"))?;
+        let unreadable =
+            |what: &str, i: usize| format!("the stored copy's {what} {i} is unreadable");
+        let kept = (0..cards as usize)
+            .map(|i| {
+                lines
+                    .next()
+                    .and_then(read_card)
+                    .ok_or_else(|| unreadable("card", i))
             })
-            .collect();
+            .collect::<Result<Vec<_>, _>>()?;
+        let printings = (0..printings as usize)
+            .map(|i| {
+                lines
+                    .next()
+                    .and_then(read_printing)
+                    .filter(|p| {
+                        (p.card as usize) < kept.len()
+                            && (p.set as usize) < sets.len()
+                            && (p.look as usize) < looks.len()
+                    })
+                    .ok_or_else(|| unreadable("printing", i))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         let mut by_id = HashMap::with_capacity(printings.len());
         let mut by_number = HashMap::with_capacity(printings.len());
         let mut by_name: HashMap<String, Vec<u32>> = HashMap::new();
         let mut extras_by_name: HashMap<String, Vec<u32>> = HashMap::new();
         let mut by_oracle: HashMap<String, Vec<u32>> = HashMap::new();
-        let mut names = HashMap::new();
         for (i, p) in printings.iter().enumerate() {
             let i = i as u32;
-            let card = &facts[p.card as usize];
+            let card = &kept[p.card as usize];
             by_id.insert(p.id.to_lowercase(), i);
             let set = sets[p.set as usize].code.as_deref().unwrap_or_default();
-            let num = p.own.collector_number.as_deref().unwrap_or_default();
+            let num = p.collector_number.as_deref().unwrap_or_default();
             by_number.insert(number_key(set, num), i);
-            let extra = is_extra(card);
-            let into = if extra {
+            let into = if card.extra {
                 &mut extras_by_name
             } else {
                 &mut by_name
@@ -739,42 +929,121 @@ impl ScryfallCopy {
                     list.push(i);
                 }
             }
-            if let Some(o) = oracle_id(card) {
-                by_oracle.entry(o.to_string()).or_default().push(i);
-            }
-            if !extra {
-                names
-                    .entry(card.name.to_lowercase())
-                    .or_insert_with(|| card.name.clone());
+            if let Some(o) = &card.oracle_id {
+                by_oracle.entry(o.clone()).or_default().push(i);
             }
         }
-        let mut names: Vec<(String, String)> = names.into_iter().collect();
+        let mut names: Vec<(String, String)> = kept
+            .iter()
+            .filter(|c| !c.extra)
+            .map(|c| {
+                let name = typed_name(&c.name);
+                (name.to_lowercase(), name.to_string())
+            })
+            .collect::<HashMap<_, _>>()
+            .into_iter()
+            .collect();
         names.sort();
-        let keywords = KeywordVocabulary::new(read.iter().flat_map(|c| c.keywords.clone()));
         let aliases = aliases
             .into_iter()
             .filter_map(|a| Some((a.alias.to_lowercase(), tags.get(a.tag as usize)?.clone())))
             .collect();
         Ok(ScryfallCopy {
             updated_at,
-            facts,
-            cards: read,
+            facts: (0..kept.len()).map(|_| OnceCell::new()).collect(),
+            cards: (0..kept.len()).map(|_| OnceCell::new()).collect(),
+            own: (0..printings.len()).map(|_| OnceCell::new()).collect(),
+            kept,
             printings,
             sets,
             looks,
-            own,
+            formats,
+            tags: TagVocabulary::new(tags.clone()),
+            tag_names: tags,
             by_id,
             by_number,
             by_name,
             extras_by_name,
             by_oracle,
             names,
-            keywords,
-            tags: TagVocabulary::new(tags),
+            keywords: OnceCell::new(),
             aliases,
             preference: Preference::parse(None).expect("the default rules parse"),
+            warmed: Cell::new(0),
             last: RefCell::new(None),
         })
+    }
+
+    /// Card `c`'s card object, read from its JSON the first time asked. The
+    /// JSON is what this page's [`Stored::to_text`] wrote, its format checked
+    /// at load, so failing to read it is a bug rather than a bad copy.
+    fn card_facts(&self, c: u32) -> &BulkCard {
+        self.facts[c as usize].get_or_init(|| {
+            let kept = &self.kept[c as usize];
+            let mut facts: BulkCard =
+                facet_json::from_str(&kept.facts).expect("the copy reads the cards it wrote");
+            if !kept.legal.is_empty() {
+                facts.legalities = read_legalities(&kept.legal, &self.formats)
+                    .expect("the copy reads the legalities it wrote");
+            }
+            facts
+        })
+    }
+
+    /// Card `c` as search reads it.
+    fn card(&self, c: u32) -> &Card {
+        self.cards[c as usize].get_or_init(|| {
+            let mut card = self.card_facts(c).card_of_any_printing(&mut Vec::new());
+            card.tags = self.kept[c as usize]
+                .tags
+                .iter()
+                .filter_map(|&i| self.tag_names.get(i as usize).cloned())
+                .collect();
+            card
+        })
+    }
+
+    /// Printing `i`'s own facts, as search and ranking read them.
+    fn own(&self, i: u32) -> &Printing {
+        self.own[i as usize].get_or_init(|| {
+            let p = &self.printings[i as usize];
+            join(
+                &BulkCard::default(),
+                &self.sets[p.set as usize],
+                &self.looks[p.look as usize],
+                p,
+            )
+            .printing()
+        })
+    }
+
+    fn keywords(&self) -> &KeywordVocabulary {
+        self.keywords.get_or_init(|| {
+            KeywordVocabulary::new(
+                (0..self.kept.len() as u32).flat_map(|c| self.card(c).keywords.clone()),
+            )
+        })
+    }
+
+    /// Reads up to `n` more cards or printings as search reads them, cards
+    /// first; whether all are read.
+    pub fn warm(&self, n: usize) -> bool {
+        let (cards, all) = (self.kept.len(), self.kept.len() + self.printings.len());
+        let from = self.warmed.get();
+        let to = (from + n).min(all);
+        for k in from..to {
+            if k < cards {
+                self.card(k as u32);
+            } else {
+                self.own((k - cards) as u32);
+            }
+        }
+        self.warmed.set(to);
+        if to < all {
+            return false;
+        }
+        self.keywords();
+        true
     }
 
     pub fn updated_at(&self) -> &str {
@@ -784,7 +1053,7 @@ impl ScryfallCopy {
     /// Printing `i`'s card, read as that printing has it.
     fn view(&self, i: u32) -> CardView<'_> {
         let p = &self.printings[i as usize];
-        let mut view = self.cards[p.card as usize].view(&[]);
+        let mut view = self.card(p.card).view(&[]);
         view.set = self.sets[p.set as usize]
             .code
             .as_deref()
@@ -802,10 +1071,7 @@ impl ScryfallCopy {
         if among.len() < 2 {
             return among.first().copied();
         }
-        let views: Vec<_> = among
-            .iter()
-            .map(|&i| (self.view(i), &self.own[i as usize]))
-            .collect();
+        let views: Vec<_> = among.iter().map(|&i| (self.view(i), self.own(i))).collect();
         let (first, _) = *self.preference.rank_views(&views).first()?;
         Some(among[first])
     }
@@ -844,7 +1110,7 @@ impl ScryfallCopy {
     /// Printing `i`, as the page shows it.
     pub fn found(&self, i: u32) -> Found {
         let p = &self.printings[i as usize];
-        let card = &self.facts[p.card as usize];
+        let card = self.card_facts(p.card);
         let id = &p.id;
         let picture = |size: &str, side: &str| {
             p.image.as_ref().map(|v| {
@@ -885,16 +1151,16 @@ impl ScryfallCopy {
             .unwrap_or_default();
         Found {
             id: id.clone(),
-            oracle_id: oracle_id(card).map(str::to_string),
+            oracle_id: self.kept[p.card as usize].oracle_id.clone(),
             name: card.name.clone(),
             set: self.sets[p.set as usize]
                 .code
                 .as_deref()
                 .unwrap_or_default()
                 .to_lowercase(),
-            num: p.own.collector_number.clone().unwrap_or_default(),
+            num: p.collector_number.clone().unwrap_or_default(),
             set_name: self.sets[p.set as usize].name.clone().unwrap_or_default(),
-            released: p.own.released_at.clone().unwrap_or_default(),
+            released: p.released_at.clone().unwrap_or_default(),
             small: picture("small", "front"),
             image,
             color_identity: card.color_identity.clone().unwrap_or_default(),
@@ -910,7 +1176,10 @@ impl ScryfallCopy {
                 .or_else(|| front.and_then(|f| f.mana_cost.as_deref()))
                 .unwrap_or_default()
                 .to_string(),
-            prints: oracle_id(card).map(prints_uri),
+            prints: self.kept[p.card as usize]
+                .oracle_id
+                .as_deref()
+                .map(prints_uri),
             turn: sideways.then_some(Turn::Sideways),
             back,
             finishes: self.looks[p.look as usize].finishes.clone(),
@@ -922,10 +1191,10 @@ impl ScryfallCopy {
     pub fn facts(&self, i: u32) -> BulkCard {
         let p = &self.printings[i as usize];
         join(
-            &self.facts[p.card as usize],
+            self.card_facts(p.card),
             &self.sets[p.set as usize],
             &self.looks[p.look as usize],
-            &p.own,
+            p,
         )
     }
 
@@ -943,7 +1212,11 @@ impl ScryfallCopy {
             // which states the card under its own oracle id.
             let oracles: HashSet<&str> = all
                 .iter()
-                .filter_map(|&i| oracle_id(&self.facts[self.printings[i as usize].card as usize]))
+                .filter_map(|&i| {
+                    self.kept[self.printings[i as usize].card as usize]
+                        .oracle_id
+                        .as_deref()
+                })
                 .collect();
             for o in oracles {
                 all.extend(self.by_oracle.get(o).into_iter().flatten());
@@ -954,11 +1227,8 @@ impl ScryfallCopy {
         } else {
             Vec::new()
         };
-        found.sort_by(|&a, &b| {
-            self.own[b as usize]
-                .released_at
-                .cmp(&self.own[a as usize].released_at)
-        });
+        let released = |i: u32| &self.printings[i as usize].released_at;
+        found.sort_by(|&a, &b| released(b).cmp(released(a)));
         found
             .into_iter()
             .map(|i| PrintingFacts {
@@ -1002,7 +1272,7 @@ impl ScryfallCopy {
     fn matching(&self, query: &str) -> Result<Vec<Vec<u32>>, String> {
         let mut q = parse_printing(query).map_err(|e| e.to_string())?;
         self.resolve_aliases(&mut q);
-        if let Some(k) = q.unknown_keywords(&self.keywords).first() {
+        if let Some(k) = q.unknown_keywords(self.keywords()).first() {
             return Err(format!("Unknown keyword \u{201c}{k}\u{201d}"));
         }
         if let Some(gap) = q.tag_gap(&self.tags) {
@@ -1016,23 +1286,23 @@ impl ScryfallCopy {
         let mut card_matches: Vec<Option<bool>> = vec![None; self.cards.len()];
         for (i, p) in self.printings.iter().enumerate() {
             let i = i as u32;
-            let facts = &self.facts[p.card as usize];
-            if is_extra(facts) {
+            let card = &self.kept[p.card as usize];
+            if card.extra {
                 continue;
             }
             let hit = if per_printing {
-                q.matches_printing(&self.view(i), &self.own[i as usize])
+                q.matches_printing(&self.view(i), self.own(i))
             } else {
                 *card_matches[p.card as usize]
-                    .get_or_insert_with(|| q.matches_printing(&self.view(i), &self.own[i as usize]))
+                    .get_or_insert_with(|| q.matches_printing(&self.view(i), self.own(i)))
             };
             if hit {
-                let key = oracle_id(facts).unwrap_or(&p.id);
+                let key = card.oracle_id.as_deref().unwrap_or(&p.id);
                 groups.entry(key).or_default().push(i);
             }
         }
         let mut groups: Vec<Vec<u32>> = groups.into_values().collect();
-        let name = |g: &Vec<u32>| &self.facts[self.printings[g[0] as usize].card as usize].name;
+        let name = |g: &Vec<u32>| &self.kept[self.printings[g[0] as usize].card as usize].name;
         groups.sort_by_cached_key(|g| name(g).to_lowercase());
         Ok(groups)
     }
@@ -1129,8 +1399,7 @@ fn reads_printing(q: &Query) -> bool {
     }
 }
 
-fn is_extra(card: &BulkCard) -> bool {
-    let layout = card.layout.as_deref().unwrap_or_default();
+fn is_extra(layout: &str) -> bool {
     NOT_CARD_LAYOUTS.contains(&layout) || EXTRA_LAYOUTS.contains(&layout)
 }
 
@@ -1138,6 +1407,15 @@ fn is_extra(card: &BulkCard) -> bool {
 /// The List's `RIX-1` and a set's `1` are different printings.
 fn number_key(set: &str, num: &str) -> String {
     format!("{}/{}", set.trim().to_lowercase(), num.trim())
+}
+
+/// A card's name as someone types it: a reversible printing names its card
+/// `Sol Ring // Sol Ring`, which Scryfall's autocomplete offers as `Sol Ring`.
+fn typed_name(name: &str) -> &str {
+    match name.split_once(" // ") {
+        Some((front, back)) if front == back => front,
+        _ => name,
+    }
 }
 
 /// Every name that names a card: its own and, for a card of two faces, its
@@ -1242,9 +1520,8 @@ pub fn copy_finish() -> Result<String, JsError> {
             builder.unreadable().len()
         )));
     }
-    let stored = builder.finish();
-    let text = facet_json::to_string(&stored).expect("the copy serialises");
-    let copy = ScryfallCopy::new(stored).map_err(|e| JsError::new(&e))?;
+    let text = builder.finish().to_text().map_err(|e| JsError::new(&e))?;
+    let copy = ScryfallCopy::load(&text).map_err(|e| JsError::new(&e))?;
     COPY.set(Some(copy));
     Ok(text)
 }
@@ -1253,9 +1530,7 @@ pub fn copy_finish() -> Result<String, JsError> {
 /// and says when Scryfall wrote it.
 #[wasm_bindgen]
 pub fn copy_load(stored: &str) -> Result<String, JsError> {
-    let stored: Stored = facet_json::from_str(stored)
-        .map_err(|e| JsError::new(&format!("the stored copy is unreadable: {e}")))?;
-    let copy = ScryfallCopy::new(stored).map_err(|e| JsError::new(&e))?;
+    let copy = ScryfallCopy::load(stored).map_err(|e| JsError::new(&e))?;
     let at = copy.updated_at().to_string();
     COPY.set(Some(copy));
     Ok(at)
@@ -1270,6 +1545,13 @@ pub fn copy_lookup(wanted: &str) -> Result<String, JsError> {
         let found: Vec<Option<Found>> = wanted.iter().map(|w| c.find(w)).collect();
         facet_json::to_string(&found).expect("printings serialise")
     })
+}
+
+/// Reads up to `n` more of the copy for search ([`ScryfallCopy::warm`]);
+/// whether all of it is read.
+#[wasm_bindgen]
+pub fn copy_warm(n: usize) -> Result<bool, JsError> {
+    with_copy(|c| c.warm(n))
 }
 
 /// [`ScryfallCopy::prints`], as JSON.
@@ -1320,8 +1602,7 @@ mod tests {
         b.cards(cards);
         b.tags(tags);
         assert_eq!(b.unreadable(), &[] as &[String]);
-        let text = facet_json::to_string(&b.finish()).unwrap();
-        ScryfallCopy::new(facet_json::from_str(&text).unwrap()).unwrap()
+        ScryfallCopy::load(&b.finish().to_text().unwrap()).unwrap()
     }
 
     /// Every way printing `copy`'s answer for `original` differs from it.
@@ -1443,7 +1724,7 @@ mod tests {
     fn every_printing_comes_back_as_scryfall_wrote_it() {
         let copy = assert_round_trip(FIXTURE);
         // Printings saying the same of their card share it.
-        assert!(copy.facts.len() < copy.printings.len());
+        assert!(copy.kept.len() < copy.printings.len());
     }
 
     /// The same over all of Default Cards:
@@ -1459,20 +1740,56 @@ mod tests {
         let mut b = Builder::new("now");
         b.cards(&lines);
         let built = start.elapsed();
-        let text = facet_json::to_string(&b.finish()).unwrap();
+        let text = b.finish().to_text().unwrap();
         let written = start.elapsed();
         let load = std::time::Instant::now();
-        let copy = ScryfallCopy::new(facet_json::from_str(&text).unwrap()).unwrap();
+        let copy = ScryfallCopy::load(&text).unwrap();
         println!(
             "{} printings of {} cards: built in {built:?}, written {} MB in {:?}, loaded in {:?}",
             copy.printings.len(),
-            copy.facts.len(),
+            copy.kept.len(),
             text.len() / 1_000_000,
             written - built,
             load.elapsed()
         );
         drop(copy);
         assert_round_trip(&lines);
+    }
+
+    /// How long a page takes to read its kept copy back, by step, five times
+    /// over: `MELDWEB_SCRYFALL_BULK=default-cards.jsonl cargo test -p
+    /// meldweb-wasm --release load_speed -- --nocapture`. The copy is built
+    /// once and kept beside the bulk file, so a second run only loads.
+    #[test]
+    fn load_speed() {
+        let Some(path) = std::env::var_os("MELDWEB_SCRYFALL_BULK") else {
+            return;
+        };
+        let kept = std::path::PathBuf::from(&path).with_extension(format!("copy-{FORMAT}.txt"));
+        let text = std::fs::read_to_string(&kept).unwrap_or_else(|_| {
+            let mut b = Builder::new("now");
+            b.cards(&std::fs::read_to_string(&path).unwrap());
+            let text = b.finish().to_text().unwrap();
+            std::fs::write(&kept, &text).unwrap();
+            text
+        });
+        for _ in 0..5 {
+            let start = std::time::Instant::now();
+            let copy = ScryfallCopy::load(&text).unwrap();
+            let read = start.elapsed();
+            let warm = std::time::Instant::now();
+            while !copy.warm(2000) {}
+            let indexed = warm.elapsed();
+            let ask = std::time::Instant::now();
+            let n = ["Sol Ring", "Island", "Lightning Bolt"]
+                .into_iter()
+                .filter_map(|name| copy.find(&Wanted::Name { name: name.into() }))
+                .count();
+            println!(
+                "loaded {read:?}, warmed {indexed:?}, {n} names found in {:?}",
+                ask.elapsed()
+            );
+        }
     }
 
     fn found(copy: &ScryfallCopy, wanted: Wanted) -> Found {
@@ -1520,7 +1837,7 @@ mod tests {
             },
         );
         let i = copy.by_id[&bolt.id];
-        assert!(!copy.own[i as usize].digital, "{bolt:?}");
+        assert!(!copy.own(i).digital, "{bolt:?}");
         let island = found(
             &copy,
             Wanted::Name {
@@ -1653,6 +1970,16 @@ mod tests {
             SearchAnswer::Refused { message } => assert!(message.contains("flyign"), "{message}"),
             other => panic!("{other:?}"),
         }
+    }
+
+    #[test]
+    fn quick_add_offers_a_reversible_card_by_its_own_name() {
+        let copy = stored_and_loaded(FIXTURE, "");
+        assert_eq!(copy.autocomplete("sol r"), ["Sol Ring"]);
+        assert_eq!(
+            copy.autocomplete("delver of"),
+            ["Delver of Secrets // Insectile Aberration"]
+        );
     }
 
     #[test]
