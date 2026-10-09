@@ -43,7 +43,7 @@ The order of the deck list, a list of deck paths in the settings, set by draggin
 _Avoid_: sort order, pinned decks
 
 **Copy of Scryfall**:
-The browser's own copy of Scryfall's Default Cards and Oracle Tags bulk files, made on the first visit, kept in origin-private storage and refreshed once a day ([ADR-0030](../../docs/adr/0030-curator-answers-card-facts-from-its-own-copy-of-scryfalls-bulk-data.md)). It answers every card fact the editor asks (printings, prices, all printings of a card, search, quick add) in a worker; until it is ready, or when it cannot answer, Scryfall's API does. Pictures always come from Scryfall's CDN. A card a deck names only by name shows the printing the default printing preference ranks first, not the one the user's own rules would pick.
+Reality Chip's [copy of Scryfall](../reality-chip/CONTEXT.md) as the browser keeps it ([ADR-0031](../../docs/adr/0031-gauntlet-and-curator-keep-one-copy-of-scryfall.md)): made on the first visit, kept in origin-private storage and refreshed once a day ([ADR-0030](../../docs/adr/0030-curator-answers-card-facts-from-its-own-copy-of-scryfalls-bulk-data.md)). It answers every card fact the editor asks (printings, prices, all printings of a card, search, quick add) in a worker; until it is ready, or when it cannot answer, Scryfall's API does. Pictures always come from Scryfall's CDN. A card a deck names only by name shows the printing the default printing preference ranks first, not the one the user's own rules would pick.
 _Avoid_: index, cache, mirror
 
 **Printing preference**:

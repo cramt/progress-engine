@@ -11,6 +11,7 @@
 //! missing one says so.
 
 pub mod bulk;
+pub mod copy;
 pub mod index;
 pub mod legality;
 pub mod mana;

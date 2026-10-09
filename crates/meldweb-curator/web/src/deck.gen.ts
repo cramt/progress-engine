@@ -82,7 +82,7 @@ export interface Face {
 export type Turn = "upright" | "sideways" | "upside-down";
 
 /**
- * A printing beside the card object meldweb.toml's rules read.
+ * A printing beside its card object, which a printing preference reads.
  */
 export interface PrintingFacts {
   printing: Found;
