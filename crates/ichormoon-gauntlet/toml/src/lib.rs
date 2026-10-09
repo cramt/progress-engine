@@ -281,10 +281,27 @@ struct EffectDef {
     /// Lands the cast untaps once it resolves: Frantic Search's `untap = 3`,
     /// taken as the lands that paid for it.
     untap: Option<i64>,
-    /// After a mill, every land card in the graveyard matching this goes onto
-    /// the battlefield tapped, whatever anyone asks: Lumra, Bellow of the
-    /// Woods' `returns = "t:land"`.
-    returns: Option<String>,
+    /// Which cards a cast returns from your graveyard to the battlefield, as
+    /// a query: the card's half, Animate Dead's `"t:creature"` (#140).
+    reanimate: Option<String>,
+    /// How many of them: `"all"`, as Immortal Servitude and Lumra return, or
+    /// a number, as Animate Dead's 1. Required beside `reanimate`.
+    reanimate_count: Option<CountDef>,
+    /// Which of them come back where the card returns a number, highest
+    /// first: the pilot's half, written in your own file for the reason
+    /// `to_hand` is.
+    reanimate_prefer: Option<Vec<String>>,
+}
+
+/// `reanimate_count` as written: a number, or a word. Which words mean
+/// something is [`reanimate_of`]'s to say, as [`MillDef`]'s are
+/// [`mill_of`]'s.
+#[derive(Facet)]
+#[repr(u8)]
+#[facet(untagged)]
+enum CountDef {
+    Cards(i64),
+    Word(String),
 }
 
 /// `mill` as written: a number, or a word. Which words mean something is
@@ -640,6 +657,9 @@ pub struct EffectEntry {
     pub discard: Option<DiscardDecl>,
     /// Lands it untaps once it resolves, taken as the ones that paid for it.
     pub untap: u32,
+    /// What a cast of it returns from the graveyard to the battlefield, if
+    /// anything.
+    pub reanimate: Option<ReanimateDecl>,
     /// Which file declared it. Carried so a report can say where a surprising
     /// effect came from, and so the standard library can stay quiet about
     /// matching nothing while a hand-written entry does not.
@@ -670,10 +690,28 @@ pub const EVERYTHING: &str = "*";
 pub struct MillDecl {
     pub cards: MillDepth,
     pub to_hand: HandDecl,
-    /// `returns = query`: then every land card of the graveyard matching it
-    /// goes onto the battlefield tapped, which the card compels.
-    pub returns: Option<String>,
 }
+
+/// A declared reanimation, as written (#140): which cards of the graveyard a
+/// cast returns to the battlefield, how many, and which of them by whose
+/// choice. The queries are still text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReanimateDecl {
+    /// `reanimate = query`, `reanimate_count = "all"`: every such card,
+    /// which nobody chooses.
+    Every(String),
+    /// `reanimate = of`, `reanimate_count = up_to`, `reanimate_prefer =
+    /// prefer`: at most `up_to` of the cards `of` allows, by the file's
+    /// priority.
+    Chosen {
+        up_to: u32,
+        of: String,
+        prefer: Vec<String>,
+    },
+}
+
+/// What a criteria file spells a reanimation of every card it may return.
+pub const ALL: &str = "all";
 
 /// Which of a mill's cards go to hand, as written.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1250,7 +1288,8 @@ const SCHEMA: &str = "A criteria file holds [[criterion]] tables (name, at_least
                       [[expect]] tables (name, turn, query, zone) or (name, turn, cast), [[effect]] \
                       tables (match, on, look, adds, to_graveyard, fetch, to, after, sacrifice, \
                       mill, keep, keep_only, keep_every, to_hand, draw, discard, discard_any, \
-                      at_random, discard_only, untap, returns), one \
+                      at_random, discard_only, untap, reanimate, reanimate_count, \
+                      reanimate_prefer), one \
                       [land_drop] table (prefer), \
                       one [casting] table (prefer), \
                       one [discard] table (prefer), \
@@ -1582,6 +1621,14 @@ pub enum ErrorKind {
     /// Half a draw or a discard, refused by what is missing (ADR-0017 §3).
     #[error("{at}: {why}")]
     HandMisdeclared { at: String, why: &'static str },
+    /// Half a reanimation, or one off something other than a cast (#140).
+    #[error("{at}: {why}")]
+    ReanimateMisdeclared { at: String, why: &'static str },
+    #[error(
+        "{at}: `reanimate_count = {value}` is not how many cards come back: it must be \
+         \"{ALL}\", for every card `reanimate` matches, or a whole number from 1 to {MAX_HAND}"
+    )]
+    BadReanimateCount { at: String, value: String },
     /// An attack, a landfall or an upkeep fires a mill, and nothing else
     /// (ADR-0017 §1).
     #[error(
@@ -1763,6 +1810,7 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
                 (def.draw.is_some(), "draw"),
                 (def.discard.is_some(), "discard"),
                 (def.untap.is_some(), "untap"),
+                (def.reanimate.is_some(), "reanimate"),
             ]
             .into_iter()
             .find_map(|(set, key)| set.then_some(key));
@@ -1779,6 +1827,7 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
         let mill = mill_of(def, &at, trigger)?;
         let cost = cost_of(def, &at, trigger)?;
         let (draw, discard, untap) = hand_of(def, &at, trigger)?;
+        let reanimate = reanimate_of(def, &at, trigger)?;
         // `look` is required unless this effect fetches, adds mana, mills,
         // draws or discards, or declares a cost instead, and those are
         // different things: a look turns over a card
@@ -1803,7 +1852,8 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
                 || cost.is_some()
                 || draw > 0
                 || discard.is_some()
-                || untap > 0,
+                || untap > 0
+                || reanimate.is_some(),
         ) {
             (Some(look), _) => u32::try_from(look)
                 .ok()
@@ -1856,6 +1906,7 @@ fn effects_of(file: &FileDef, origin: &str) -> Result<EffectLibrary, ErrorKind> 
             draw,
             discard,
             untap,
+            reanimate,
             origin: origin.to_string(),
         });
     }
@@ -1890,12 +1941,6 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
             return Err(misdeclared(
                 "has `grows` and no `mill`. `grows` is how much more each upkeep mills than \
                  the last: Out of the Tombs is `mill = 2`, `grows = 2`",
-            ));
-        }
-        if def.returns.is_some() {
-            return Err(misdeclared(
-                "has `returns` and no `mill`. `returns` is what a mill does next: Lumra mills \
-                 four, then returns every land card in the graveyard",
             ));
         }
         return Ok(None);
@@ -1949,13 +1994,6 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
             ));
         }
     };
-    if trigger == Trigger::Upkeep && def.returns.is_some() {
-        return Err(misdeclared(
-            "has `returns` on an upkeep. Lands returned in the upkeep arrive before the turn's \
-             land drop, and nothing here says what they pay that turn; `returns` is \
-             what a cast does, as Lumra's does",
-        ));
-    }
     if matches!(trigger, Trigger::LandDrop | Trigger::Activate) {
         return Err(misdeclared(
             "has `mill` on a landdrop or an activation. A mill here is something a cast, an attack, a landfall or an upkeep does to the top of the \
@@ -1979,7 +2017,6 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
         return Ok(Some(MillDecl {
             cards,
             to_hand: HandDecl::Every(every.clone()),
-            returns: def.returns.clone(),
         }));
     }
     let Some(keep) = def.keep else {
@@ -1996,7 +2033,6 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
                 of: None,
                 prefer: Vec::new(),
             },
-            returns: def.returns.clone(),
         }));
     };
     // Half a library has no size until it resolves, so what it may keep is
@@ -2025,8 +2061,93 @@ fn mill_of(def: &EffectDef, at: &str, trigger: Trigger) -> Result<Option<MillDec
             of: def.keep_only.clone(),
             prefer,
         },
-        returns: def.returns.clone(),
     }))
+}
+
+/// Validate the `reanimate`, `reanimate_count` and `reanimate_prefer` keys of
+/// one `[[effect]]` table (#140).
+///
+/// A reanimation is what a cast does: the card the line paid for resolves,
+/// or enters, and returns cards from the graveyard. Which cards may come back
+/// and how many is printed on the card, so both are required rather than
+/// defaulted; which ones come back, where the card returns a number, is the
+/// pilot's, and a number with no priority is refused as a forced discard
+/// with no `[discard]` list is.
+fn reanimate_of(
+    def: &EffectDef,
+    at: &str,
+    trigger: Trigger,
+) -> Result<Option<ReanimateDecl>, ErrorKind> {
+    let misdeclared = |why: &'static str| ErrorKind::ReanimateMisdeclared {
+        at: at.to_string(),
+        why,
+    };
+    let Some(of) = &def.reanimate else {
+        if def.reanimate_count.is_some() || def.reanimate_prefer.is_some() {
+            return Err(misdeclared(
+                "says how many cards come back from the graveyard, or which, and has no \
+                 `reanimate` saying which cards the card may return. Animate Dead is \
+                 `reanimate = \"t:creature\"`, `reanimate_count = 1`",
+            ));
+        }
+        return Ok(None);
+    };
+    if trigger != Trigger::Cast {
+        return Err(misdeclared(
+            "has `reanimate` on something other than a cast. A reanimation here is what a spell \
+             the `[casting]` line paid for does as it resolves or enters: write `on = \"cast\"`",
+        ));
+    }
+    let Some(count) = &def.reanimate_count else {
+        return Err(ErrorKind::Missing {
+            at: at.to_string(),
+            key: "reanimate_count",
+            why: "so nothing says how many cards come back. Immortal Servitude returns \
+                  `\"all\"` of them, Animate Dead `1`",
+        });
+    };
+    let up_to = match count {
+        CountDef::Word(word) if word == ALL => None,
+        CountDef::Cards(n) => Some(
+            u32::try_from(*n)
+                .ok()
+                .filter(|n| (1..=MAX_HAND).contains(n)),
+        ),
+        CountDef::Word(_) => Some(None),
+    };
+    let bad = || ErrorKind::BadReanimateCount {
+        at: at.to_string(),
+        value: match count {
+            CountDef::Cards(n) => n.to_string(),
+            CountDef::Word(word) => format!("{word:?}"),
+        },
+    };
+    let prefer = preference_of(
+        def.reanimate_prefer
+            .as_ref()
+            .map(|p| Some(p.clone()))
+            .as_ref(),
+        "an `[[effect]]` `reanimate_prefer`",
+        "reanimate_prefer",
+    )?;
+    match up_to {
+        None if !prefer.is_empty() => Err(misdeclared(
+            "has `reanimate_count = \"all\"` beside `reanimate_prefer`. Every such card comes \
+             back, and there is nothing left to choose",
+        )),
+        None => Ok(Some(ReanimateDecl::Every(of.clone()))),
+        Some(None) => Err(bad()),
+        Some(Some(_)) if prefer.is_empty() => Err(misdeclared(
+            "returns a number of cards and has no `reanimate_prefer` saying which. Which \
+             creature Animate Dead brings back is yours: \
+             `reanimate_prefer = ['name:\"Cid, Timeless Artificer\"']`",
+        )),
+        Some(Some(up_to)) => Ok(Some(ReanimateDecl::Chosen {
+            up_to,
+            of: of.clone(),
+            prefer,
+        })),
+    }
 }
 
 /// Validate the `draw`, `discard`, `discard_any`, `at_random`,

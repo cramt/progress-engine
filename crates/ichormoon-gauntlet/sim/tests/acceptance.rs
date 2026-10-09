@@ -10,7 +10,7 @@ use std::convert::Infallible;
 
 use gauntlet_criteria::{
     Activation, Answering, Chosen, Conditionals, Discard, DiscardPolicy, Discards, LandDetail,
-    Mill, MillDepth, Objective, Resolves, Table, ToHand,
+    Mill, MillDepth, Objective, Reanimate, Resolves, Table, ToHand,
 };
 use gauntlet_criteria::{
     CastingPolicy, Cost, Count, Counted, Delay, Effect, Evaluator, Fetch, Fetched, Grouping, Keep,
@@ -831,6 +831,7 @@ fn a_tutor_agrees_with_the_exact_engine() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let schedule = Schedule::build(
         4,
@@ -916,6 +917,7 @@ fn a_tutor_to_the_graveyard_agrees_with_the_exact_engine() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let schedule = Schedule::build(
         5,
@@ -1008,6 +1010,7 @@ fn a_card_a_cast_puts_onto_the_battlefield_arrives_that_turn_in_both_engines() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let field = Counted::In(Zone::Battlefield);
     let library = Counted::In(Zone::Library);
@@ -1128,6 +1131,7 @@ fn a_permanent_the_line_casts_or_a_cast_puts_down_is_in_play_in_both_engines() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let schedule = Schedule::build(
         5,
@@ -1242,6 +1246,7 @@ fn an_activation_paid_before_the_drop_agrees_in_both_engines() {
         }),
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let saga = Effect {
         matched_by: 5,
@@ -1380,6 +1385,7 @@ fn an_activation_whose_cost_discards_agrees_in_both_engines() {
             only: Some(2),
         }),
         untap: 0,
+        reanimate: None,
     };
     let schedule = Schedule::build(
         4,
@@ -1494,6 +1500,7 @@ fn a_tutor_billed_at_a_declared_cost_agrees_in_both_engines() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let schedule = Schedule::build(
         4,
@@ -1591,6 +1598,7 @@ fn a_tutor_thins_the_library_in_both_engines() {
                 activation: None,
                 discard: None,
                 untap: 0,
+                reanimate: None,
             }],
         };
         let schedule = Schedule::build(
@@ -1702,6 +1710,7 @@ fn a_delayed_fetch_agrees_with_the_exact_engine() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let schedule = Schedule::build(
         5,
@@ -1873,6 +1882,7 @@ fn a_mulligan_agrees_with_the_exact_engine() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let mulligan = MulliganPolicy::new(
         vec![Keep {
@@ -2133,6 +2143,7 @@ fn drawing_deck(cost: &str, draw: u32, fetch: bool) -> (Grouping, Schedule) {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     // Three turns on the play: every cast draws, so how wide this is grows
     // with how many spells the pool pays for, and a fourth turn goes over
@@ -2382,6 +2393,7 @@ fn milling_deck_of(mill: Mill, millers: u32, forests: u32, blanks: u32) -> (Grou
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let schedule = Schedule::build(
         3,
@@ -2463,7 +2475,6 @@ fn a_mill_that_keeps_a_chosen_permanent_agrees_with_the_exact_engine() {
                 of: Some(2),
                 prefer: vec![1, 2],
             },
-            returns: None,
         },
         47,
     );
@@ -2476,7 +2487,6 @@ fn a_mill_that_keeps_every_land_agrees_with_the_exact_engine() {
         Mill {
             cards: MillDepth::Exactly(4),
             to_hand: ToHand::Every(2),
-            returns: None,
         },
         53,
     );
@@ -2575,6 +2585,7 @@ fn discarding_deck(
         activation: None,
         discard: Some(discard),
         untap: 0,
+        reanimate: None,
     };
     let schedule = Schedule::build(
         horizon,
@@ -2797,11 +2808,10 @@ fn triggers_agree(effect: Effect, turns: u32, seed: u64) {
     }
 }
 
-fn mill_of(cards: u32, to_hand: ToHand, returns: Option<usize>) -> Mill {
+fn mill_of(cards: u32, to_hand: ToHand) -> Mill {
     Mill {
         cards: MillDepth::Exactly(cards),
         to_hand,
-        returns,
     }
 }
 
@@ -2818,6 +2828,7 @@ fn trigger(trigger: Trigger, mill: Mill) -> Effect {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     }
 }
 
@@ -2829,11 +2840,7 @@ fn an_attack_that_mills_and_keeps_a_land_agrees_with_the_exact_engine() {
         of: Some(2),
         prefer: vec![2],
     };
-    triggers_agree(
-        trigger(Trigger::Attack, mill_of(3, keep_a_land, None)),
-        4,
-        61,
-    );
+    triggers_agree(trigger(Trigger::Attack, mill_of(3, keep_a_land)), 4, 61);
 }
 
 #[test]
@@ -2846,11 +2853,11 @@ fn a_landfall_that_mills_agrees_with_the_exact_engine() {
 fn a_mill_that_returns_the_lands_agrees_with_the_exact_engine() {
     // Lumra's shape: four when it is cast, then every land in the graveyard
     // onto the battlefield.
-    let returning = Mill {
-        returns: Some(2),
-        ..Mill::all(4)
+    let returning = Effect {
+        reanimate: Some(Reanimate::Every(2)),
+        ..trigger(Trigger::Cast, Mill::all(4))
     };
-    triggers_agree(trigger(Trigger::Cast, returning), 4, 71);
+    triggers_agree(returning, 4, 71);
 }
 
 #[test]
@@ -2873,7 +2880,129 @@ fn an_upkeep_mill_that_grows_and_keeps_a_land_agrees_with_the_exact_engine() {
     let growing = Mill {
         cards: MillDepth::Growing { first: 2, by: 2 },
         to_hand: keep_a_land,
-        returns: None,
     };
     triggers_agree(trigger(Trigger::Upkeep, growing), 4, 79);
+}
+
+// --- Reanimation (#140) ------------------------------------------------------
+//
+// A cast returns cards from the graveyard to the battlefield, off the same
+// Board, so the sampler holds the graveyard the exact engine does when the
+// spell resolves, and a reanimation the line held back waits as long there.
+
+#[test]
+fn reanimation_agrees_with_the_exact_engine() {
+    // Queries: 0 Entomb, 1 a mill of three, 2 Animate Dead, 3 Immortal
+    // Servitude at X = 4, 4 Cid, 5 any creature. Small enough to enumerate:
+    // the priority among creatures is the engine's to pin (HANDS.md hand 64).
+    let castable = |cost: &str, resolves| ManaSource::Castable {
+        cost: Cost::parse(cost).unwrap().demand(),
+        resolves,
+    };
+    let grouping = Grouping::with_mana(
+        q(&["entomb", "mill", "animate", "servitude", "cid", "creature"]),
+        vec![
+            (0b000001, castable("{U}", Resolves::IntoGraveyard), 1),
+            (0b000010, castable("{U}", Resolves::IntoGraveyard), 2),
+            (0b000100, castable("{1}{U}", Resolves::OntoBattlefield), 1),
+            (0b001000, castable("{2}{U}", Resolves::IntoGraveyard), 1),
+            (0b110000, ManaSource::Spell, 4),
+            (
+                0,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                    lasts: None,
+                },
+                14,
+            ),
+            (0, ManaSource::Spell, 17),
+        ],
+    )
+    .unwrap();
+    let cast = |matched_by| Effect {
+        matched_by,
+        look: 0,
+        trigger: Trigger::Cast,
+        route: Route::Nowhere,
+        fetch: None,
+        delay: None,
+        draw: 0,
+        mill: None,
+        activation: None,
+        discard: None,
+        untap: 0,
+        reanimate: None,
+    };
+    let effects = vec![
+        Effect {
+            fetch: Some(Fetch {
+                prefer: vec![4],
+                to: Fetched::Graveyard(1),
+            }),
+            ..cast(0)
+        },
+        Effect {
+            mill: Some(Mill::all(3)),
+            ..cast(1)
+        },
+        Effect {
+            reanimate: Some(Reanimate::Chosen {
+                up_to: 1,
+                of: 5,
+                prefer: vec![4],
+            }),
+            ..cast(2)
+        },
+        Effect {
+            reanimate: Some(Reanimate::Every(4)),
+            ..cast(3)
+        },
+    ];
+    let schedule = Schedule::build(
+        3,
+        false,
+        effects,
+        Policies::casting(CastingPolicy::new(vec![3, 2, 0, 1])),
+    );
+    let question = || {
+        Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(3, 4, Counted::In(Zone::Battlefield)) >= 1)
+                as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 4, Counted::In(Zone::Battlefield)) >= 2)
+                as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 4, Counted::In(Zone::Graveyard)) >= 1)
+                as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(2, 4, Counted::In(Zone::Library)) <= 2) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 2, Counted::Cast) >= 1) as Check,
+            Box::new(|v: &PathView<'_>| v.count_at(3, 3, Counted::Cast) >= 1) as Check,
+        ])
+    };
+    let exact = gauntlet_criteria::run(&grouping, &schedule, only_criteria(6), &mut question())
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    assert!(exact[0] > 0.01, "a Cid comes back: {exact:?}");
+    assert!(exact[1] > 0.001, "Servitude returns two: {exact:?}");
+    let trials = TRIALS / 2;
+    let sampled = simulate(
+        &grouping,
+        &schedule,
+        trials,
+        83,
+        only_criteria(6),
+        &mut question(),
+    )
+    .unwrap()
+    .proportions;
+    for (i, (e, s)) in exact.iter().zip(&sampled).enumerate() {
+        let se = standard_error(*s, trials).max(1e-4);
+        assert!(
+            (s - e).abs() < 4.0 * se,
+            "question {i}: sampled {s} vs exact {e} ({}x SE)",
+            (s - e).abs() / se
+        );
+    }
 }

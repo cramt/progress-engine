@@ -15,10 +15,10 @@ use anyhow::{Context, Result};
 use chip_scryfall::index::TagGap;
 use chip_scryfall::Query;
 use gauntlet_criteria::{
-    Activation, Cost, Discard, Effect, Fetch, Fetched, Mill, Route, ToHand, Trigger,
+    Activation, Cost, Discard, Effect, Fetch, Fetched, Mill, Reanimate, Route, ToHand, Trigger,
 };
 use gauntlet_toml::{
-    Destination, DiscardDecl, EffectEntry, EffectLibrary, HandDecl, MillDecl,
+    Destination, DiscardDecl, EffectEntry, EffectLibrary, HandDecl, MillDecl, ReanimateDecl,
     STANDARD_LIBRARY_ORIGIN,
 };
 
@@ -69,6 +69,10 @@ pub struct Applied {
     pub draw: u32,
     pub discard: Option<DiscardDecl>,
     pub untap: u32,
+    /// What it returns from the graveyard to the battlefield when the line
+    /// casts it: which cards and how many, as the card says, and which of
+    /// them, as the file chose (#140).
+    pub reanimate: Option<ReanimateDecl>,
     pub origin: String,
     /// The cards this effect actually got, after the overlap was resolved. A
     /// card matched by a later entry is not here — it is under that entry.
@@ -211,8 +215,13 @@ pub fn resolve(
         // that plays them, and one the line never casts would be a group split
         // for a spell nobody pays for.
         for q in entry.mill.iter().flat_map(mill_queries) {
-            parse(q, entry, "to_hand or returns")?;
+            parse(q, entry, "to_hand")?;
         }
+        for q in entry.reanimate.iter().flat_map(reanimate_queries) {
+            parse(q, entry, "reanimate or reanimate_prefer")?;
+        }
+        // So does a reanimation: its card has to be cast to return anything.
+        let reanimates = entry.reanimate.is_some() && mine.iter().any(|&c| line[c]);
         let mills = entry.mill.is_some() && mine.iter().any(|&c| line[c]);
         // A draw, a discard and an untap are the same: they happen when the
         // line casts the card, and only then.
@@ -221,7 +230,7 @@ pub fn resolve(
         }
         let hands = (entry.draw > 0 || entry.discard.is_some() || entry.untap > 0)
             && mine.iter().any(|&c| line[c]);
-        let reachable = routes || fetches || mills || hands;
+        let reachable = routes || fetches || mills || hands || reanimates;
         if reachable {
             live.push(i);
         }
@@ -254,6 +263,7 @@ pub fn resolve(
             draw: entry.draw,
             discard: entry.discard.clone(),
             untap: entry.untap,
+            reanimate: entry.reanimate.clone(),
             origin: entry.origin.clone(),
             cards: mine.iter().map(|&c| all[c].card.name.clone()).collect(),
             copies: mine.iter().map(|&c| all[c].qty).sum(),
@@ -302,10 +312,45 @@ pub fn resolve(
                 queries.push(q.clone());
             }
         }
+        // And the file's choice among what a reanimation may return. What it
+        // may return is a mark of its own, below.
+        if let Some(ReanimateDecl::Chosen { prefer, .. }) = &library.entries()[i].reanimate {
+            for q in prefer {
+                if bit_of(q, &queries).is_none() {
+                    queries.push(q.clone());
+                }
+            }
+        }
     }
     let first_mark = asked.len() + queries.len();
 
-    let mut marked = Vec::with_capacity(live.len());
+    // What each reanimation may return is its query held to the cards that
+    // can be put onto the battlefield out of a graveyard, which a query
+    // cannot say, so it is a set of cards rather than a query: one mark per
+    // live effect that reanimates, after the effects' own.
+    let mut returnable: Vec<Marked> = Vec::new();
+    let mut returnable_bit = vec![None; live.len()];
+    for (slot, &i) in live.iter().enumerate() {
+        let entry = &library.entries()[i];
+        let of = match &entry.reanimate {
+            None => continue,
+            Some(ReanimateDecl::Every(of) | ReanimateDecl::Chosen { of, .. }) => of,
+        };
+        let query = parse(of, entry, "reanimate")?;
+        returnable_bit[slot] = Some(first_mark + live.len() + returnable.len());
+        returnable.push(Marked {
+            label: format!("<returned by {}>", entry.matches),
+            members: all
+                .iter()
+                .map(|e| {
+                    query.matches(&e.card.view(&e.categories))
+                        && crate::library::returnable(&e.card)
+                })
+                .collect(),
+        });
+    }
+
+    let mut marked = Vec::with_capacity(live.len() + returnable.len());
     let mut effects = Vec::with_capacity(live.len());
     for (slot, &i) in live.iter().enumerate() {
         let entry = &library.entries()[i];
@@ -352,10 +397,20 @@ pub fn resolve(
                             .collect(),
                     },
                 },
-                returns: m
-                    .returns
-                    .as_ref()
-                    .map(|q| bit_of(q, &queries).expect("just collected")),
+            }),
+            reanimate: entry.reanimate.as_ref().map(|r| {
+                let of = returnable_bit[slot].expect("just marked");
+                match r {
+                    ReanimateDecl::Every(_) => Reanimate::Every(of),
+                    ReanimateDecl::Chosen { up_to, prefer, .. } => Reanimate::Chosen {
+                        up_to: *up_to,
+                        of,
+                        prefer: prefer
+                            .iter()
+                            .map(|q| bit_of(q, &queries).expect("just collected"))
+                            .collect(),
+                    },
+                }
             }),
             discard: entry.discard.as_ref().map(|d| Discard {
                 cards: d.cards,
@@ -368,6 +423,8 @@ pub fn resolve(
             untap: entry.untap,
         });
     }
+
+    marked.extend(returnable);
 
     // Per library entry: a commander's mana is not a source this reads.
     let adds = owner[..deck.entries.len()]
@@ -393,15 +450,21 @@ pub fn resolve(
 }
 
 /// Every query a mill reads to decide where its cards go: what the card
-/// allows to hand, the file's priority among it, and what it returns from the
-/// graveyard afterwards.
+/// allows to hand, and the file's priority among it.
 fn mill_queries(mill: &MillDecl) -> Vec<&String> {
-    let mut queries: Vec<&String> = match &mill.to_hand {
+    match &mill.to_hand {
         HandDecl::Every(q) => vec![q],
         HandDecl::Chosen { of, prefer, .. } => of.iter().chain(prefer).collect(),
-    };
-    queries.extend(&mill.returns);
-    queries
+    }
+}
+
+/// Every query a reanimation reads: what the card may return, and the file's
+/// priority among it.
+fn reanimate_queries(reanimate: &ReanimateDecl) -> Vec<&String> {
+    match reanimate {
+        ReanimateDecl::Every(q) => vec![q],
+        ReanimateDecl::Chosen { of, prefer, .. } => std::iter::once(of).chain(prefer).collect(),
+    }
 }
 
 /// Every entry's `match`, parsed.

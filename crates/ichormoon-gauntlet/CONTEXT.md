@@ -222,6 +222,10 @@ Cards moved from the top of the library to the graveyard because the card says s
 **Compelled destination**:
 Where a card's own text sends the cards it moves, such as the graveyard for a mill or for what Malevolent Rumble does not keep, or the battlefield for the lands Lumra returns. Stated by the effect library. Set against a **chosen destination**, which is the pilot's and is declared by the file.
 
+**Reanimation**:
+Cards moved from your graveyard to the battlefield by a cast: Animate Dead, Immortal Servitude, Lumra's lands. Which cards and how many is the card's, so the effect library or the file states it with `reanimate` and `reanimate_count`; which of them, where the card returns a number, is the pilot's, with `reanimate_prefer`. What comes back was not cast. The line casts one that mills nothing only while the graveyard holds a card it would return ([ADR-0030](../../docs/adr/0030-a-reanimation-is-the-one-move-from-the-graveyard-to-the-battlefield.md)).
+_Avoid_: return, recursion (recursion is to hand), returns (the old key)
+
 **Discard**:
 A card moved from hand to the graveyard. The card fixes how many, whether it is at random, and which cards are eligible. The pilot chooses which, with `[discard] prefer`, and a forced discard with no list is refused. A discard that is part of an activation's cost takes only what the list names. A land in play is not in hand, so a discard that could take a land also needs `[land_drop]`: only a declared drop says which lands are still held.
 _Avoid_: bin, pitch, loot (for the zone move)

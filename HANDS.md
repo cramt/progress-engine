@@ -21,8 +21,11 @@ hands 26 to 33 what
 hands 40 to 42 what
 [ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md) decided,
 before any of it was built (now built, and tests), hands 58 to 60 the
-attack and landfall triggers ADR-0017 named (built, and tests), and hand 63
-the upkeep trigger after them (built, and a test). That is the point: they pin the semantics before the
+attack and landfall triggers ADR-0017 named (built, and tests), hand 63
+the upkeep trigger after them (built, and a test), and hand 64 the
+reanimation of
+[ADR-0030](docs/adr/0030-a-reanimation-is-the-one-move-from-the-graveyard-to-the-battlefield.md)
+(built, and tests). That is the point: they pin the semantics before the
 code exists, so that building
 the feature cannot quietly redefine the question — and hands 1, 2 and 3 are the
 worked case, written down as one Opt on turn 1 long before anything could say
@@ -1379,7 +1382,8 @@ land in the graveyard comes back, the Analyst's Mountain with its own two.
 | Beast Within in the graveyard | 3 | 3 | 3 |
 | lands on the battlefield | 6 | 8 | **9** |
 
-Nobody chooses, so the standard library states it, as `returns = "t:land"`.
+Nobody chooses, so the standard library states it, as a reanimation of every
+land card, `reanimate = "t:land"`, `reanimate_count = "all"` (hand 64).
 The lands took no drop. With `[land_drop]` declared they pay from the next
 turn, as any land a spell puts down does (ADR-0025, hand 62); without one a
 turn's bill is held to its drops, and the mana they could make is a floor. A mill that returns lands reads the
@@ -1445,6 +1449,67 @@ upkeep, and it mills as many as it has, so 2, then 4, then 6:
 `crates/ichormoon-gauntlet/criteria/tests/engine.rs`, the first and last
 columns. `checker/test_triggers.py` holds the same deal against the checker's
 line, and Out of the Tombs' 2, 4, 6.
+
+### 64. Animate Dead waits for Entomb, and the Cid it returns leaves the graveyard
+
+```
+(an eight-card library, three-card opener, on the play, turn 1;
+ Animate Dead and Entomb cost nothing here, so the mana never binds)
+Animate Dead
+Entomb
+Cid, Timeless Artificer ×2
+blank ×4
+
+[[effect]]
+match = 'name:"Entomb"'
+on = "cast"
+fetch = ['name:"Cid, Timeless Artificer"']
+to = "graveyard"
+
+[[effect]]
+match = 'name:"Animate Dead"'
+on = "cast"
+reanimate = "t:creature"
+reanimate_count = 1
+reanimate_prefer = ['name:"Cid, Timeless Artificer"']
+
+[casting]
+prefer = ['name:"Animate Dead"', 'name:"Entomb"']
+```
+
+[#140](https://github.com/cramt/progress-engine/issues/140). Animate Dead is
+first in the line, and on turn 1 the graveyard is empty: it has nothing to
+target (CR 601.2c), so it waits. Entomb puts a Cid there, the line is read
+again, and Animate Dead returns it. Where the opener holds both, 6 of the 56,
+the third card is a Cid in 2 and a blank in 4, and Entomb finds a Cid every
+time.
+
+**Naive models:** cast whatever the pool pays for, so Animate Dead resolves
+into an empty graveyard; or count what came back as cast; or leave it counted
+in the graveyard too.
+
+| On turn 1, mean | cast what is affordable | Animate Dead |
+|---|---|---|
+| Cids on the battlefield | 0 | **6/56** |
+| Cids in the graveyard | 20/56 | **14/56** |
+| Cids in the library | 2 − 0.75 − 20/56 | **2 − 0.75 − 20/56**, unmoved |
+| Cids cast | 0 | **0** |
+| Animate Dead cast | 21/56 | **6/56** |
+
+Immortal Servitude returns every Cid rather than one: with Buried Alive for
+two in Entomb's place, 4 of those 6 openers return two and 2 return one,
+10/56. Which creature Animate Dead returns is the list's, and one it does not
+name never comes back.
+
+*Answerable, and a test:*
+`hand_64_animate_dead_waits_for_entomb_and_returns_the_cid_it_put_there`,
+`a_mass_reanimation_returns_every_card_it_may` and
+`a_reanimation_takes_the_first_card_its_priority_reaches_and_nothing_it_does_not_name`
+in `crates/ichormoon-gauntlet/criteria/tests/engine.rs`, the last column.
+Through the binary, `animate_dead_returns_a_cid_buried_alive_put_in_the_graveyard`
+and `immortal_servitude_returns_every_cid_at_the_x_the_line_pays`.
+`checker/test_reanimation.py` holds the wait and the priority against the
+checker's line.
 
 ## Rocks and dorks are mana the line cast
 

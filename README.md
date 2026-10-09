@@ -1191,7 +1191,9 @@ to_graveyard = 'name:"Life from the Loam"'
 | `keep`, `keep_only` | how many of a mill's cards the card lets go to hand instead, and which cards it allows |
 | `keep_every` | the cards of a mill the card puts in hand whatever you want: Wrenn and Seven's lands |
 | `to_hand` | your choice among what `keep` allows, highest priority first. Absent keeps nothing |
-| `returns` | after a mill, every land card in the graveyard matching this goes onto the battlefield tapped, whatever you want: Lumra's lands |
+| `reanimate` | on a cast, which cards it returns from your graveyard to the battlefield, as the card says: Animate Dead's `"t:creature"`, Lumra's `"t:land"`. See [Reanimation](#reanimation-a-cast-returns-cards-from-the-graveyard) |
+| `reanimate_count` | beside `reanimate`, required: `"all"`, as Immortal Servitude and Lumra return, or how many, 1 to 10 |
+| `reanimate_prefer` | beside a numbered `reanimate_count`, required: which of them come back, highest priority first. A card it does not name never does |
 
 **Looking is a land drop, fetching can be a cast.** Playing a land is free and
 hard-capped at one a turn, so by turn *T* at most *T* of those have happened
@@ -1272,7 +1274,8 @@ Rumble and Midnight Tilling (`mill = 4`, `keep = 1`, `keep_only =
 "is:permanent"`) and Wrenn and Seven's +1 (`mill = 4`, `keep_every = "t:land"`).
 And three whose mills are triggers: Six (`on = "attack"`, `mill = 3`, `keep =
 1`, `keep_only = "t:land"`), Icetill Explorer (`on = "landfall"`, `mill = 1`)
-and Lumra, Bellow of the Woods (`mill = 4`, `returns = "t:land"`). And two
+and Lumra, Bellow of the Woods (`mill = 4`, `reanimate = "t:land"`,
+`reanimate_count = "all"`). And two
 whose mills are upkeep triggers: Stillness in Motion (`on = "upkeep"`, `mill =
 3`) and Out of the Tombs (`on = "upkeep"`, `mill = 2`, `grows = 2`).
 Each fires only where the `[casting]` line names its card, so every other file
@@ -1781,12 +1784,12 @@ is refused by name.
   permanent is on the battlefield: the drop, the land a fetchland puts down in
   its place, and every land a spell returns. The drop comes before the line,
   so the Explorer cast on turn 4 sees turn 5's drop and not turn 4's.
-- **`returns = "t:land"`**, beside a `mill`, puts every land in the graveyard
-  onto the battlefield tapped once the mill is done: Lumra's four and whatever
-  an earlier mill left there. Nobody chooses, so the library states it. A mill
-  that returns lands is never dealt last, because what it returns is read off
-  the graveyard. The lands took no drop, and a turn's bill is still held to its
-  drops, so what they could pay for is a floor.
+- **Lumra** mills four on a cast and then returns every land in the graveyard
+  onto the battlefield tapped, Lumra's four and whatever an earlier mill left
+  there: a [reanimation](#reanimation-a-cast-returns-cards-from-the-graveyard)
+  of `"all"` of `"t:land"`. Nobody chooses, so the library states it. A mill
+  beside a reanimation is never dealt last, because what it returns is read off
+  the graveyard. Each land it returns is a landfall.
 
 Icetill Explorer's other two lines, an additional land a turn and lands played
 from the graveyard, are not modelled; its landfalls, and every number beside
@@ -1832,9 +1835,8 @@ else on it is refused by name.
   before, counted per copy from the upkeep after it was cast: Out of the Tombs
   is `mill = 2`, `grows = 2`, so 2, 4, 6. Only an upkeep grows, because only a
   permanent keeps a count between firings; `grows` on anything else, beside
-  `mill = "half"`, or with no `mill` is refused. So is `returns` on an upkeep,
-  since lands returned before the drop would pay that same turn, which nothing
-  here models.
+  `mill = "half"`, or with no `mill` is refused. So is `reanimate` on an
+  upkeep, an attack or a landfall: a reanimation is a cast's.
 - **The run assumes nobody removes it**, because nobody else is at this table,
   and every run that fires one says so, as `ASSUMED:` in the report and
   `assumes` in the JSON.
@@ -1860,6 +1862,93 @@ draws. `checker/` plays both from the cards' text and the rules, with the
 library in order (`checker/test_triggers.py`), and 40,000 of its hands on
 these decks, Beast Within standing in for the Cids, read 30.19% ± 0.23 and
 15.43% ± 0.18.
+
+### Reanimation: a cast returns cards from the graveyard
+
+The Cid deck in [#140](https://github.com/cramt/progress-engine/issues/140)
+bins its Cids and then brings them back. **`reanimate`** on a cast moves cards
+from your graveyard to the battlefield, so `zone = "battlefield"` counts what
+came back and `zone = "graveyard"` no longer does
+([ADR-0030](docs/adr/0030-a-reanimation-is-the-one-move-from-the-graveyard-to-the-battlefield.md)).
+Which cards and how many is printed on the card, so both are required; which
+of them, where the card returns a number, is yours:
+
+```toml
+# Animate Dead: "Return enchanted creature card to the battlefield."
+[[effect]]
+match = 'name:"Animate Dead"'
+on = "cast"
+reanimate = "t:creature"
+reanimate_count = 1
+reanimate_prefer = ['name:"Cid, Timeless Artificer"', "t:creature"]
+
+# Immortal Servitude: "Return each creature card with mana value X from your
+# graveyard to the battlefield." X is yours, so it is declared twice: what the
+# line pays, and the mana value it returns.
+[[effect]]
+match = 'name:"Immortal Servitude"'
+on = "cast"
+cost = "{4}{W}{B}{B}"
+reanimate = "t:creature mv=4"
+reanimate_count = "all"
+```
+
+Fix What's Broken returns "each artifact and creature card with mana value X",
+and its X is life, which nothing here counts: its printed `{2}{W}{B}` and
+`reanimate = "(t:artifact or t:creature) mv=4"`. Angel of Glory's Rise enters
+and returns "all Human creature cards", which takes in every Cid, a Human
+Artificer: `reanimate = "t:human t:creature"`, `"all"`.
+
+- **The card's half and yours.** `"all"` returns every card the query matches.
+  A number takes the first entry of `reanimate_prefer` the graveyard holds,
+  inside an entry the card the decklist names first, up to that many; a card
+  no entry names never comes back, so name `"t:creature"` last to take any.
+  A number with no list is refused, as a forced discard with no `[discard]`
+  list is.
+- **Your graveyard, and permanent cards.** Only what a mill, a discard, a
+  surveil or a fetch put there: Animate Dead and Reanimate reach every
+  graveyard, and no opponent's is modelled, a floor. An instant or a sorcery
+  never comes back, and nor does a card with a land on a face it is not
+  played as: `t:land` matches Search for Azcanta by its back, and in the
+  graveyard it is an enchantment card.
+- **It resolves after the cast's fetch, draw and mill, before its discard**,
+  so Lumra returns the lands it has just milled.
+- **What comes back was not cast.** A `cast` clause does not count it; it makes
+  no mana, attacks for nothing and fires nothing of its own, so a reanimated
+  dork or attacker is a floor. A land comes back tapped, pays from the next
+  turn as a land a spell put down does
+  ([ADR-0025](docs/adr/0025-a-land-a-spell-puts-down-is-tapped-and-pays-from-the-next-turn.md)),
+  and is a landfall.
+- **The line waits for something to return.** A reanimation that mills nothing
+  is cast only while the graveyard holds a card it would return: the rules for
+  Animate Dead, which targets (CR 601.2c), and the pilot's line for Immortal
+  Servitude, which does not. The line is read again after a spell fills the
+  graveyard, so Animate Dead listed before Buried Alive is cast after it the
+  same turn where the pool pays for both. Every run that casts one says so.
+- **Only on a cast.** On a land drop, an activation, an attack, a landfall or an
+  upkeep it is refused by name. Angel of Glory's Rise's "exile all Zombies" is
+  not modelled, so a Zombie the line put on the battlefield is still counted
+  there.
+
+Nothing in the standard library reanimates but Lumra: Animate Dead needs your
+list, and Immortal Servitude your X.
+
+**What it does, measured.** The fixtures `animate-dead.txt` and `servitude.txt`
+in `crates/ichormoon-gauntlet/cli/tests/fixtures/` put the Cids in the
+graveyard with Buried Alive, which takes every one the library holds, and are
+small enough to check by hand, on the play:
+
+| Deck | Question | Exact | By hand | Sampled, 200,000 hands |
+|---|---|---|---|---|
+| 8 Swamps, Buried Alive, Animate Dead, 3 Cids | a Cid on the battlefield by turn 4 | 42.10%, 7,680 compositions, 0.04 s | 9/13 × (260 + 1 + 24/2 + 84/3)/495 = 301/715 | 42.09% |
+| 16 Swamps, Buried Alive, Immortal Servitude at X = 4, 3 Cids | a Cid on the battlefield by turn 7 | 34.12%, 491,520 compositions, 0.08 s | 15,429/45,220, by a tree over the shuffled library | 34.15% |
+| the same | all three by turn 7 | 6.93% | | 6.90% |
+
+Buried Alive shuffles, so the turn after it is drawn from what it left, which
+is why Animate Dead arrives on turn 4 more often than a card at position ten
+would. Servitude costs seven and is never cast before turn 7.
+`checker/test_reanimation.py` holds the wait and the priority against the
+checker's line, which fills the graveyard with a mill.
 
 ### Discard: a spell that draws, and then bins
 

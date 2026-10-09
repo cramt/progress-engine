@@ -1138,12 +1138,27 @@ class Rummage:
     untaps_its_cost: bool = False
 
 
+@dataclass(frozen=True)
+class Reanimation:
+    """What casting one card returns from your graveyard to the battlefield
+    (README "Reanimation"): every card `returns` matches, or with `count` up
+    to that many, the first entry of `prefer` that holds one first, and inside
+    an entry the card the decklist names first. A card no entry names never
+    comes back."""
+
+    returns: Callable[[Card], bool]
+    count: int | None = None
+    prefer: tuple[Callable[[Card], bool], ...] = ()
+
+
 @dataclass
 class DeclaredTurn:
     number: int
     cast: list[Card]
     to_graveyard: list[Card]
     lands_in_play: int
+    # Cards other than lands a reanimation put onto the battlefield this turn.
+    reanimated: list[Card] = field(default_factory=list)
 
 
 class DeclaredPath(list):
@@ -1157,6 +1172,11 @@ class DeclaredPath(list):
         (CR 608.2n), a milled card, or a discarded one. Nothing takes a card
         back out."""
         return any(c.name == name for t in self[:turn] for c in t.to_graveyard)
+
+    def reanimated_by(self, name: str, turn: int) -> int:
+        """Copies of `name` a reanimation put onto the battlefield by `turn`:
+        out of the graveyard, never cast, and nothing here takes one away."""
+        return sum(c.name == name for t in self[:turn] for c in t.reanimated)
 
 
 # (library, land drop, discard list) -> land name -> where its kind is first named.
@@ -1174,13 +1194,15 @@ def declared_line_path(
     rummages: dict[str, Rummage],
     attacks: dict[str, Mill] | None = None,
     landfalls: dict[str, Mill] | None = None,
-    returns: dict[str, Callable[[Card], bool]] | None = None,
+    returns: dict[str, Reanimation] | None = None,
 ) -> DeclaredPath:
     """Play `line` out through `last_turn` under a declared land drop and a
     declared discard list. `attacks` and `landfalls` are what a permanent the
     line cast mills each time it attacks or a land enters (see `line_path`).
-    `returns` maps a card to the land cards that, once its mill is done, go
-    from the whole graveyard onto the battlefield tapped (Lumra). A rock or a
+    `returns` maps a card to what it returns from the graveyard to the
+    battlefield once its mill is done (Lumra's lands, Animate Dead's one
+    creature); one that mills nothing is cast only while the graveyard holds
+    a card it would return. A rock or a
     dork the line casts is a mana source (ADR 0018). Cached on the game."""
     attacks = attacks or {}
     landfalls = landfalls or {}
@@ -1249,7 +1271,47 @@ def declared_line_path(
             hand.remove(land)
             in_play.append((land, t))
         to_graveyard: list[Card] = []
-        returned_now: list[Card] = []  # of this turn's, the lands a card returned
+        returned_now: list[Card] = []  # of this turn's, the cards a card returned
+        reanimated: list[Card] = []
+
+        def returnable(r: Reanimation) -> list[Card]:
+            """What `r` could return now, from the whole graveyard: a
+            permanent card it matches, by its front face, and not one with a
+            land on another face; and where it returns a number, one its list
+            names (README "Reanimation")."""
+            this_turn = list(to_graveyard)
+            for c in returned_now:
+                this_turn.remove(c)
+            return [
+                c
+                for c in graveyard + this_turn
+                if r.returns(c)
+                and (_is_land(c) or (_is_permanent_card(c) and "Land" not in c.type_line))
+                and (r.count is None or any(wants(c) for wants in r.prefer))
+            ]
+
+        def reanimate(r: Reanimation) -> int:
+            """Return what `r` returns; how many lands, each a landfall."""
+            nonlocal graveyard
+            pool = returnable(r)
+            if r.count is None:
+                back = pool
+            else:
+                back = []
+                for wants in r.prefer:
+                    these = [c for c in pool if wants(c) and c not in back]
+                    these.sort(key=lambda c: game.library.index(c))
+                    back += these[: r.count - len(back)]
+            for c in back:
+                if c in graveyard:
+                    graveyard.remove(c)
+                else:
+                    returned_now.append(c)
+                if _is_land(c):
+                    in_play.append((c, 0))  # on the battlefield, by no drop
+                else:
+                    reanimated.append(c)
+            return sum(_is_land(c) for c in back)
 
         def mill_off(mill: Mill) -> None:
             milled = draw(mill.size(game.library_size - len(taken)))
@@ -1272,7 +1334,7 @@ def declared_line_path(
             for permanent, when in list(triggers):
                 if when < t and permanent.name in landfalls:
                     mill_off(landfalls[permanent.name])
-        # Only lands that took a drop pay (README "returns": a returned land
+        # Only lands that took a drop pay (README "Reanimation": a returned land
         # took none, and a turn's bill is held to its drops).
         pool = [
             (0, c.produces)
@@ -1288,6 +1350,14 @@ def declared_line_path(
             chosen = None
             for entry in line:
                 options = [c for c in hand + command if c.name in entry]
+                # A reanimation that mills nothing waits for a card to return:
+                # the rules for one that targets (CR 601.2c), the pilot's line
+                # for one that does not.
+                options = [
+                    c
+                    for c in options
+                    if c.name not in returns or c.name in mills or returnable(returns[c.name])
+                ]
                 options.sort(key=lambda c: (_mana_value(c), order[c.name]))
                 for c in options:
                     cost = _parse_cost_cached(c.mana_cost)
@@ -1336,15 +1406,7 @@ def declared_line_path(
             if back is not None:
                 # "Then return all land cards from your graveyard to the
                 # battlefield tapped": this turn's and every earlier one's.
-                gone = [c for c in graveyard if back(c)]
-                graveyard = [c for c in graveyard if not back(c)]
-                this_turn = list(to_graveyard)
-                for c in returned_now:
-                    this_turn.remove(c)
-                gone += [c for c in this_turn if back(c)]
-                returned_now += [c for c in this_turn if back(c)]
-                in_play += [(c, 0) for c in gone]  # on the battlefield, by no drop
-                landfall(len(gone))
+                landfall(reanimate(back))
             if rummage is not None:
                 hand += draw(rummage.draw)
                 allowed = [c for c in hand if rummage.only is None or rummage.only(c)]
@@ -1370,7 +1432,7 @@ def declared_line_path(
             if when < t and creature.name in attacks:
                 mill_off(attacks[creature.name])
         # Put into the graveyard this turn, whatever left it again since.
-        path.append(DeclaredTurn(t, cast, to_graveyard, len(in_play)))
+        path.append(DeclaredTurn(t, cast, to_graveyard, len(in_play), reanimated))
         rest = list(to_graveyard)
         for c in returned_now:
             rest.remove(c)

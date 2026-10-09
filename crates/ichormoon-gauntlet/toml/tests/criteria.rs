@@ -14,7 +14,7 @@ use gauntlet_criteria::{
 };
 use gauntlet_toml::{
     Criteria, Destination, DiscardDecl, EffectEntry, EffectLibrary, ErrorKind, HandDecl, MillDecl,
-    MillDepth, MAX_TURN, STANDARD_LIBRARY, STANDARD_LIBRARY_ORIGIN,
+    MillDepth, ReanimateDecl, MAX_TURN, STANDARD_LIBRARY, STANDARD_LIBRARY_ORIGIN,
 };
 
 /// A synthetic library where every query the file names has cards of its own
@@ -483,6 +483,7 @@ fn a_file_run_against_a_spell_that_draws_agrees_in_both_engines() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let schedule = Schedule::build(
         criteria.horizon(),
@@ -3088,7 +3089,6 @@ fn a_mill_says_how_many_cards_and_what_the_card_lets_go_to_hand() {
                 of: None,
                 prefer: vec![],
             },
-            returns: None,
         })
     );
     assert_eq!(analyst.look, 0, "a mill is not a look");
@@ -3113,7 +3113,6 @@ fn a_mill_says_how_many_cards_and_what_the_card_lets_go_to_hand() {
                 of: Some("is:permanent".into()),
                 prefer: vec!["t:land".into()],
             },
-            returns: None,
         })
     );
     // Wrenn and Seven: the card puts every land in hand, and nobody chooses.
@@ -3131,7 +3130,6 @@ fn a_mill_says_how_many_cards_and_what_the_card_lets_go_to_hand() {
         Some(MillDecl {
             cards: MillDepth::Exactly(4),
             to_hand: HandDecl::Every("t:land".into()),
-            returns: None,
         })
     );
 }
@@ -3160,7 +3158,6 @@ fn an_attack_and_a_landfall_fire_a_mill() {
                 of: Some("t:land".into()),
                 prefer: vec!["t:land".into()],
             },
-            returns: None,
         })
     );
     // Icetill Explorer: one for each land that enters.
@@ -3181,10 +3178,11 @@ fn an_attack_and_a_landfall_fire_a_mill() {
         match = 'name:"Lumra, Bellow of the Woods"'
         on = "cast"
         mill = 4
-        returns = "t:land"
+        reanimate = "t:land"
+        reanimate_count = "all"
         "#,
     );
-    assert_eq!(lumra.mill.and_then(|m| m.returns), Some("t:land".into()));
+    assert_eq!(lumra.reanimate, Some(ReanimateDecl::Every("t:land".into())));
 }
 
 #[test]
@@ -3259,10 +3257,10 @@ fn a_growing_mill_off_anything_but_an_upkeep_is_refused() {
         ("on = \"upkeep\"\nmill = \"half\"", "round up"),
         // Growth with nothing to grow.
         ("on = \"upkeep\"\ngrows = 2", "no `mill`"),
-        // Lands returned before the drop.
+        // Lands returned before the drop: a reanimation is a cast's.
         (
-            "on = \"upkeep\"\nmill = 2\nreturns = 't:land'",
-            "`returns` on an upkeep",
+            "on = \"upkeep\"\nmill = 2\nreanimate = 't:land'\nreanimate_count = \"all\"",
+            "this has `reanimate`",
         ),
     ] {
         let bad = with(body);
@@ -3498,4 +3496,155 @@ fn a_file_says_which_cards_it_discards_in_the_order_it_would() {
         matches!(empty.kind, ErrorKind::NoPreference { .. }),
         "{empty}"
     );
+}
+
+// --- Reanimation (#140) -----------------------------------------------------
+//
+// A cast returns cards from your graveyard to the battlefield: which cards
+// and how many is the card's, which of them is the pilot's.
+
+#[test]
+fn a_cast_returns_every_card_it_may_or_one_by_the_files_priority() {
+    // Immortal Servitude: "Return each creature card with mana value X from
+    // your graveyard to the battlefield." {X}{W/B}{W/B}{W/B}: X is the
+    // pilot's, so it is the declared cost and the query both, at X = 4.
+    let servitude = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Immortal Servitude"'
+        on = "cast"
+        cost = "{4}{W}{B}{B}"
+        reanimate = "t:creature mv=4"
+        reanimate_count = "all"
+        "#,
+    );
+    assert_eq!(
+        servitude.reanimate,
+        Some(ReanimateDecl::Every("t:creature mv=4".into()))
+    );
+    assert_eq!(servitude.look, 0, "a reanimation looks at nothing");
+    assert_eq!(
+        servitude.cost.map(|c| c.as_str().to_string()),
+        Some("{4}{W}{B}{B}".into())
+    );
+    // Animate Dead: "Enchant creature card in a graveyard ... Return
+    // enchanted creature card to the battlefield." One, and which is yours.
+    let animate = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Animate Dead"'
+        on = "cast"
+        reanimate = "t:creature"
+        reanimate_count = 1
+        reanimate_prefer = ['name:"Cid, Timeless Artificer"', "t:creature"]
+        "#,
+    );
+    assert_eq!(
+        animate.reanimate,
+        Some(ReanimateDecl::Chosen {
+            up_to: 1,
+            of: "t:creature".into(),
+            prefer: vec![
+                "name:\"Cid, Timeless Artificer\"".into(),
+                "t:creature".into()
+            ],
+        })
+    );
+    assert!(animate.mill.is_none());
+}
+
+#[test]
+fn the_standard_lumra_returns_its_lands_as_a_reanimation() {
+    // The one move from the graveyard to the battlefield there is: Lumra's
+    // lands are a reanimation of every land card, not a key of the mill's.
+    let library = EffectLibrary::parse(STANDARD_LIBRARY, STANDARD_LIBRARY_ORIGIN).unwrap();
+    let lumra = library
+        .entries()
+        .iter()
+        .find(|e| e.matches.contains("Lumra"))
+        .expect("Lumra ships");
+    assert_eq!(lumra.reanimate, Some(ReanimateDecl::Every("t:land".into())));
+    assert!(lumra.mill.is_some());
+}
+
+#[test]
+fn half_a_reanimation_is_refused_by_what_is_missing() {
+    let with = |body: &str| {
+        refused_effect(&format!(
+            "[[effect]]\nmatch = 'name:\"Animate Dead\"'\n{body}\n"
+        ))
+    };
+    for (body, says) in [
+        // How many is printed on the card, so it is never defaulted.
+        (
+            "on = \"cast\"\nreanimate = 't:creature'",
+            "reanimate_count",
+        ),
+        // A count or a choice with nothing to count.
+        ("on = \"cast\"\nreanimate_count = 1", "has no `reanimate`"),
+        (
+            "on = \"cast\"\nreanimate_prefer = ['t:creature']",
+            "has no `reanimate`",
+        ),
+        // Which one comes back is the pilot's, and nobody said.
+        (
+            "on = \"cast\"\nreanimate = 't:creature'\nreanimate_count = 1",
+            "no `reanimate_prefer`",
+        ),
+        // Every one comes back: nothing to choose.
+        (
+            "on = \"cast\"\nreanimate = 't:creature'\nreanimate_count = \"all\"\n\
+             reanimate_prefer = ['t:creature']",
+            "nothing left to choose",
+        ),
+        // Not a count.
+        (
+            "on = \"cast\"\nreanimate = 't:creature'\nreanimate_count = \"some\"",
+            "\"some\"",
+        ),
+        (
+            "on = \"cast\"\nreanimate = 't:creature'\nreanimate_count = 0\n\
+             reanimate_prefer = ['t:creature']",
+            "reanimate_count = 0",
+        ),
+        (
+            "on = \"cast\"\nreanimate = 't:creature'\nreanimate_count = 11\n\
+             reanimate_prefer = ['t:creature']",
+            "reanimate_count = 11",
+        ),
+        // Off something other than a cast.
+        (
+            "on = \"landdrop\"\nreanimate = 't:land'\nreanimate_count = \"all\"",
+            "other than a cast",
+        ),
+        (
+            "on = \"activate\"\ncost = \"{2}\"\nreanimate = 't:creature'\nreanimate_count = \"all\"",
+            "other than a cast",
+        ),
+        (
+            "on = \"attack\"\nmill = 3\nreanimate = 't:land'\nreanimate_count = \"all\"",
+            "this has `reanimate`",
+        ),
+    ] {
+        let bad = with(body);
+        assert!(
+            matches!(
+                bad,
+                ErrorKind::ReanimateMisdeclared { .. }
+                    | ErrorKind::BadReanimateCount { .. }
+                    | ErrorKind::Missing { .. }
+                    | ErrorKind::RepeatsOnlyMills { .. }
+            ) && bad.to_string().contains(says),
+            "{body:?} should be refused naming {says:?}: {bad}"
+        );
+    }
+    // And the key Lumra had before is gone, not quietly ignored.
+    let old = EffectLibrary::parse(
+        "[[effect]]\nmatch = 'name:\"Lumra, Bellow of the Woods\"'\non = \"cast\"\nmill = 4\n\
+         returns = 't:land'\n",
+        "effects.toml",
+    )
+    .expect_err("refused")
+    .to_string();
+    assert!(old.contains("returns"), "{old}");
 }

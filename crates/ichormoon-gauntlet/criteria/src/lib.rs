@@ -26,8 +26,8 @@ mod strategy;
 mod zone;
 
 pub use effect::{
-    Activation, Board, Delay, Discard, Discards, Effect, Fetch, Fetched, Mill, MillDepth, Route,
-    ToHand, Trigger, TriggerError,
+    Activation, Board, Delay, Discard, Discards, Effect, Fetch, Fetched, Mill, MillDepth,
+    Reanimate, Route, ToHand, Trigger, TriggerError,
 };
 pub use grouping::{Grouping, GroupingError};
 pub use mana::{Cost, CostError, Demand, LandDetail, ManaSource, Palette, Resolves};
@@ -657,12 +657,25 @@ pub fn feasible<E>(grouping: &Grouping, schedule: &Schedule) -> Result<(), RunEr
 /// was cast, and so does an upkeep, by as much more each turn as a growing
 /// one grows; a landfall once for each land that enters after it: at most
 /// two a turn from the drop, where a fetchland puts a second one down, and
-/// every land a mill returns from the graveyard. One such return brings back
+/// every land a cast returns from the graveyard. One such return brings back
 /// no more lands than the deck has, nor more than every other mill could
 /// have put there; two or more are bounded by the deck alone, and so is one
-/// beside a mill of half the library.
+/// beside a mill of half the library. A reanimation that can return no land
+/// fires no landfall, and is not counted.
 fn drawable(grouping: &Grouping, schedule: &Schedule) -> (u32, u32) {
     let effects = schedule.effects();
+    let land_has = |query: usize| {
+        grouping
+            .group_masks()
+            .iter()
+            .zip(grouping.group_mana())
+            .any(|(mask, mana)| mana.is_land() && mask & (1u64 << query) != 0)
+    };
+    let returns_lands = |e: &Effect| match &e.reanimate {
+        None => false,
+        Some(Reanimate::Every(query)) => land_has(*query),
+        Some(Reanimate::Chosen { of, .. }) => land_has(*of),
+    };
     // Turns on which something cast on an earlier one can fire: none before
     // turn 2, since nothing is cast before turn 1.
     let turns = (schedule.turns() as u32).saturating_sub(2);
@@ -712,7 +725,7 @@ fn drawable(grouping: &Grouping, schedule: &Schedule) -> (u32, u32) {
             }
             Trigger::LandDrop | Trigger::Activate => {}
         }
-        if e.mill.as_ref().is_some_and(|m| m.returns.is_some()) {
+        if returns_lands(e) {
             returners += copies;
         }
     }

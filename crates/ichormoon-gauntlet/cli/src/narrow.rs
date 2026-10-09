@@ -827,6 +827,7 @@ mod tests {
             activation: None,
             discard: None,
             untap: 0,
+            reanimate: None,
         };
         let full = Schedule::plain_with_fetches(
             &[7, 0, 1, 1, 1, 1],

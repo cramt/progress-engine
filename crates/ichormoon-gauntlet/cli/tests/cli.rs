@@ -5921,7 +5921,8 @@ fn a_run_that_attacks_names_what_it_assumed_of_the_table() {
     assert_eq!(explorer["live"], false);
     assert!(explorer.get("assumes").is_none(), "{explorer}");
     let lumra = effect("Lumra, Bellow of the Woods");
-    assert_eq!(lumra["returns"], "t:land");
+    assert_eq!(lumra["reanimate"], "t:land");
+    assert_eq!(lumra["reanimate_count"], "all");
     // And the human report says it too, above the numbers.
     let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
         .arg("test")
@@ -6071,4 +6072,156 @@ fn natures_lore_puts_a_forest_onto_the_battlefield_that_pays_from_the_next_turn(
     assert!(!out.status.success());
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("[land_drop]"), "{stderr}");
+}
+
+// --- Reanimation (#140) ----------------------------------------------------
+
+/// The JSON and the stderr of `gauntlet test` on a fixture deck and criteria
+/// file of the same name, against the reanimation fixtures' index.
+fn reanimate_run(deck: &str, criteria: &str, extra: &[&str]) -> (serde_json::Value, String) {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture(deck))
+        .arg(criteria)
+        .arg("--index")
+        .arg(fixture("reanimate-index.jsonl"))
+        .args(extra)
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    let json: serde_json::Value =
+        serde_json::from_slice(&out.stdout).unwrap_or_else(|_| panic!("should answer: {stderr}"));
+    (json, stderr)
+}
+
+#[test]
+fn animate_dead_returns_a_cid_buried_alive_put_in_the_graveyard() {
+    // Issue #140, on animate-dead.txt: thirteen cards on the play, the line
+    // Animate Dead, then Buried Alive. Animate Dead waits for the graveyard,
+    // so the Cid comes back on turn 4 where Buried Alive was among the first
+    // nine cards and found one. Buried Alive shuffles, so the turn-4 draw is
+    // from what it left: of the C(12, 8) = 495 sets of the other eight first
+    // cards, 260 hold Animate Dead and at most two Cids, and 1 + 24 + 84 hold
+    // neither it nor all three Cids, with 0, 1 or 2 Cids, leaving it one of
+    // 1, 2 or 3 cards: 1 + 24/2 + 84/3 = 41.
+    // * A Cid on the battlefield by turn 4: 9/13 × (260 + 41)/495 = 301/715,
+    //   42.10%. Animate Dead is cast exactly then.
+    // * Cids Buried Alive puts in, by turn 4: 1 a cast from the first nine,
+    //   0.75 from the tenth, so (9 + 0.75)/13 = 0.75; less the one that came
+    //   back, 0.3290 in the graveyard.
+    let criteria = fixture("animate-dead.criteria.toml");
+    let (json, stderr) = reanimate_run("animate-dead.txt", criteria.to_str().unwrap(), &[]);
+    assert_eq!(json["method"], "exact", "{json}");
+    assert_eq!(percent(&json, "a Cid on the battlefield by turn 4"), 42.10);
+    assert_eq!(percent(&json, "Animate Dead cast by turn 4"), 42.10);
+    assert_eq!(
+        expectation(&json, "Cids in the graveyard on turn 4")["mean"],
+        0.329
+    );
+    let (sampled, _) = reanimate_run(
+        "animate-dead.txt",
+        criteria.to_str().unwrap(),
+        &["--simulate", "--trials", "40000"],
+    );
+    let s = percent(&sampled, "a Cid on the battlefield by turn 4");
+    assert!((s - 42.10).abs() < 1.0, "the sampler agrees: {s}");
+    let effect = json["effects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["match"] == "name:\"Animate Dead\"")
+        .unwrap_or_else(|| panic!("{json}"));
+    assert_eq!(effect["reanimate"], "t:creature");
+    assert_eq!(effect["reanimate_count"], 1);
+    assert_eq!(
+        effect["reanimate_prefer"][0],
+        "name:\"Cid, Timeless Artificer\""
+    );
+    // The run prints the choice, and the wait.
+    assert!(
+        stderr.contains("returns up to 1 card matching \"t:creature\""),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("only while your graveyard holds a card it returns"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn immortal_servitude_returns_every_cid_at_the_x_the_line_pays() {
+    // Issue #140, on servitude.txt: twenty-one cards on the play. X is the
+    // pilot's, so the line pays {4}{B}{B}{B} and the query asks for mana value
+    // 4: never cast before turn 7, and on turn 7 where Buried Alive was cast
+    // by turn 6 and found a Cid, and Servitude was among the thirteen cards
+    // left after the search shuffled. Every Cid the search put there comes
+    // back. 34.12%, all three 6.93%, by an exact tree over the shuffled
+    // library written from the cards' text; the sampler agrees.
+    let criteria = fixture("servitude.criteria.toml");
+    let (json, stderr) = reanimate_run("servitude.txt", criteria.to_str().unwrap(), &[]);
+    assert_eq!(json["method"], "exact", "{json}");
+    assert_eq!(percent(&json, "a Cid on the battlefield by turn 7"), 34.12);
+    assert_eq!(
+        percent(&json, "all three Cids on the battlefield by turn 7"),
+        6.93
+    );
+    assert_eq!(percent(&json, "Immortal Servitude cast by turn 6"), 0.0);
+    assert_eq!(
+        expectation(&json, "Cids on the battlefield on turn 7")["mean"],
+        0.6444
+    );
+    let (sampled, _) = reanimate_run(
+        "servitude.txt",
+        criteria.to_str().unwrap(),
+        &["--simulate", "--trials", "40000"],
+    );
+    let s = percent(&sampled, "a Cid on the battlefield by turn 7");
+    assert!((s - 34.12).abs() < 1.0, "the sampler agrees: {s}");
+    let effect = json["effects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["match"] == "name:\"Immortal Servitude\"")
+        .unwrap_or_else(|| panic!("{json}"));
+    assert_eq!(effect["reanimate"], "t:creature mv=4");
+    assert_eq!(effect["reanimate_count"], "all");
+    assert!(effect.get("reanimate_prefer").is_none(), "{effect}");
+    assert!(
+        stderr.contains("returns every card matching \"t:creature mv=4\""),
+        "{stderr}"
+    );
+    assert!(stderr.contains("billed {4}{B}{B}{B}"), "{stderr}");
+}
+
+#[test]
+fn a_cid_on_the_battlefield_is_refused_where_the_line_casts_no_reanimation() {
+    // The same deck and question with Animate Dead out of the line: nothing
+    // puts a Cid onto the battlefield, so the question is refused as it was
+    // before #140 rather than answered zero.
+    let source = std::fs::read_to_string(fixture("animate-dead.criteria.toml"))
+        .unwrap()
+        .replace(
+            "prefer = ['name:\"Animate Dead\"', 'name:\"Buried Alive\"']",
+            "prefer = ['name:\"Buried Alive\"']",
+        );
+    let dir = std::env::temp_dir().join(format!("pe-reanimate-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let criteria = dir.join("no-animate.criteria.toml");
+    std::fs::write(&criteria, source).unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture("animate-dead.txt"))
+        .arg(&criteria)
+        .arg("--index")
+        .arg(fixture("reanimate-index.jsonl"))
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("is only answerable for lands")
+            && stderr.contains("Cid, Timeless Artificer"),
+        "{stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
 }

@@ -4,7 +4,7 @@ use chip_scryfall::index::TagGap;
 use chip_stats::Distribution;
 use facet::Facet;
 use gauntlet_criteria::{Bound, Criterion, Expectation, MillDepth};
-use gauntlet_toml::HandDecl;
+use gauntlet_toml::{HandDecl, ReanimateDecl};
 use sha2::{Digest, Sha256};
 
 use crate::library::Library;
@@ -360,10 +360,19 @@ pub struct EffectUse {
     /// which card stayed out of the graveyard.
     #[facet(skip_serializing_if = Option::is_none)]
     pub to_hand: Option<Vec<String>>,
-    /// What the mill returns from the graveyard to the battlefield
-    /// afterwards, which the card compels: Lumra's lands.
+    /// Which cards a cast of it returns from the graveyard to the
+    /// battlefield, as the card says: Lumra's lands, Animate Dead's creature
+    /// (#140).
     #[facet(skip_serializing_if = Option::is_none)]
-    pub returns: Option<String>,
+    pub reanimate: Option<String>,
+    /// How many of them: `"all"`, or a number.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub reanimate_count: Option<MillUse>,
+    /// The file's choice among them, highest first, where the card returns a
+    /// number. Reported for the reason `fetch` is: every number under it
+    /// depends on which card came back.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub reanimate_prefer: Option<Vec<String>>,
     /// The assumption about the table an attack or an upkeep trigger's number
     /// rests on, where the run fired one: it attacks every turn it can and
     /// nobody blocks it, and nobody removes it. Absent for every other
@@ -1225,7 +1234,8 @@ impl Report {
                         || e.mill.is_some()
                         || e.draw.is_some()
                         || e.discard.is_some()
-                        || e.discard_any.is_some() =>
+                        || e.discard_any.is_some()
+                        || e.reanimate.is_some() =>
                 {
                     String::new()
                 }
@@ -1298,14 +1308,6 @@ impl Report {
                          and this file declares no `to_hand` choosing one\n"
                     )),
                     (None, None, _) => out.push_str("      puts all it mills in the graveyard\n"),
-                }
-                if let Some(q) = &e.returns {
-                    out.push_str(&format!(
-                        "      then returns every card matching {q:?} in the graveyard to the \
-                         battlefield tapped. With [land_drop] declared they pay from the next turn \
-                         (ADR-0025); without one a turn's bill is held to its drops, so the mana \
-                         they could make is a floor\n"
-                    ));
                 }
                 match e.on {
                     "attack" => out.push_str(
@@ -1412,6 +1414,55 @@ impl Report {
                              turn's land drop, even where this turn's was not made: a floor\n",
                         );
                     }
+                }
+            }
+            // A reanimation says what the card returns, and where it returns a
+            // number, the file's list that chose which: printed as every
+            // declared policy is.
+            if let (Some(of), Some(count)) = (&e.reanimate, e.reanimate_count) {
+                let after = if e.mill.is_some() {
+                    "then returns"
+                } else {
+                    "and returns"
+                };
+                match (count, &e.reanimate_prefer) {
+                    (MillUse::Cards(n), Some(prefer)) => {
+                        out.push_str(&format!(
+                            "      {after} up to {n} card{} matching {of:?} from your graveyard to \
+                             the battlefield, each the first of these the graveyard holds:\n",
+                            if n == 1 { "" } else { "s" }
+                        ));
+                        for (i, query) in prefer.iter().enumerate() {
+                            out.push_str(&format!("      {}. {query:?}\n", i + 1));
+                        }
+                        out.push_str(
+                            "      Ties: the card this decklist names first. A card none of them \
+                             names never comes back.\n",
+                        );
+                    }
+                    _ => out.push_str(&format!(
+                        "      {after} every card matching {of:?} from your graveyard to the \
+                         battlefield\n"
+                    )),
+                }
+                out.push_str(
+                    "      What comes back was not cast: it makes no mana and fires nothing a \
+                     cast would, a floor. A land comes back tapped and pays from the next turn \
+                     with [land_drop] declared (ADR-0025); without one a turn's bill is held to \
+                     its drops\n",
+                );
+                if e.mill.is_none() {
+                    out.push_str(
+                        "      The [casting] line casts it only while your graveyard holds a card \
+                         it returns: the rules, for a spell that targets, and the line a pilot \
+                         plays, for one that does not\n",
+                    );
+                }
+                if !e.live {
+                    out.push_str(
+                        "      and the [casting] line does not cast it, so here it returns \
+                         nothing\n",
+                    );
                 }
             }
             // A tutor names what it went and got, in the order it would take
@@ -2094,7 +2145,17 @@ pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
                 Some(HandDecl::Chosen { prefer, .. }) if !prefer.is_empty() => Some(prefer.clone()),
                 _ => None,
             },
-            returns: a.mill.as_ref().and_then(|m| m.returns.clone()),
+            reanimate: a.reanimate.as_ref().map(|r| match r {
+                ReanimateDecl::Every(of) | ReanimateDecl::Chosen { of, .. } => of.clone(),
+            }),
+            reanimate_count: a.reanimate.as_ref().map(|r| match r {
+                ReanimateDecl::Every(_) => MillUse::Word(gauntlet_toml::ALL),
+                ReanimateDecl::Chosen { up_to, .. } => MillUse::Cards(*up_to),
+            }),
+            reanimate_prefer: match &a.reanimate {
+                Some(ReanimateDecl::Chosen { prefer, .. }) => Some(prefer.clone()),
+                _ => None,
+            },
             grows: match a.mill.as_ref().map(|m| m.cards) {
                 Some(MillDepth::Growing { by, .. }) => Some(by),
                 _ => None,

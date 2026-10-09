@@ -8,7 +8,7 @@ use std::convert::Infallible;
 
 use gauntlet_criteria::{
     Activation, Answering, Board, Chosen, Conditionals, Discard, DiscardPolicy, Discards, Mill,
-    MillDepth, Objective, Resolves, Table, ToHand,
+    MillDepth, Objective, Reanimate, Resolves, Table, ToHand,
 };
 use gauntlet_criteria::{
     Bound, CastingPolicy, Cost, Count, Counted, Criterion, Delay, Effect, Evaluator, Expectation,
@@ -547,6 +547,7 @@ fn surveil(route: Route) -> Effect {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     }
 }
 
@@ -1036,6 +1037,7 @@ fn a_live_effect_keeps_every_checkpoint_whatever_it_is_asked() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     }];
     let schedule = Schedule::build(2, false, effects, Policies::default());
     assert_eq!(schedule.gaps(), &[7, 0, 1, 1, 1]);
@@ -1453,6 +1455,7 @@ fn the_budget_and_the_gate_answer_hand_twelve_the_same_way() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let land_drop = LandDropPolicy::new(vec![0], 2);
     let gate = Schedule::build(
@@ -1555,6 +1558,7 @@ fn tutor(to: Fetched) -> Effect {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     }
 }
 
@@ -1808,6 +1812,7 @@ fn saga() -> Effect {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     }
 }
 
@@ -2227,6 +2232,7 @@ fn a_tutor_still_finds_a_card_the_mulligan_put_on_the_bottom() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let policy = MulliganPolicy::new(
         vec![Keep {
@@ -2520,6 +2526,7 @@ fn drawing(draw: u32) -> Effect {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     }
 }
 
@@ -3848,6 +3855,7 @@ fn milling(mill: Option<Mill>) -> Effect {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     }
 }
 
@@ -4065,7 +4073,6 @@ fn hand_20_malevolent_rumble_keeps_a_permanent_and_the_loam_is_not_one() {
                     of: Some(permanent),
                     prefer,
                 },
-                returns: None,
             }))],
             Policies::casting(CastingPolicy::new(vec![spell])),
         )
@@ -4118,7 +4125,6 @@ fn a_land_kept_mid_line_waits_for_the_next_turns_drop_even_when_this_turns_was_n
                 of: Some(4),
                 prefer: vec![3],
             },
-            returns: None,
         }))],
         Policies::casting(CastingPolicy::new(vec![0])),
     );
@@ -4144,7 +4150,6 @@ fn wrenn_and_sevens_lands_go_to_hand_whatever_the_file_asks() {
         vec![milling(Some(Mill {
             cards: MillDepth::Exactly(4),
             to_hand: ToHand::Every(3),
-            returns: None,
         }))],
         Policies::casting(CastingPolicy::new(vec![0])),
     );
@@ -4314,7 +4319,6 @@ fn a_mill_that_chooses_from_its_cards_is_dealt_where_it_fired() {
             of: Some(2),
             prefer: vec![2],
         },
-        returns: None,
     };
     let (grouping, in_place) = a_milling_deck(rumble, None);
     let last = in_place.clone().deferring(0b110);
@@ -4326,7 +4330,6 @@ fn a_mill_that_chooses_from_its_cards_is_dealt_where_it_fired() {
     let wrenn = Mill {
         cards: MillDepth::Exactly(4),
         to_hand: ToHand::Every(2),
-        returns: None,
     };
     let (grouping, in_place) = a_milling_deck(wrenn, None);
     let last = in_place.clone().deferring(0b110);
@@ -4404,6 +4407,7 @@ fn expedition_map() -> Effect {
         }),
         discard: None,
         untap: 0,
+        reanimate: None,
     }
 }
 
@@ -4554,6 +4558,7 @@ fn an_activation_is_paid_once_per_permanent_per_turn() {
         }),
         discard: None,
         untap: 0,
+        reanimate: None,
         ..expedition_map()
     };
     let schedule = Schedule::plain_with_fetches(
@@ -4799,6 +4804,7 @@ fn discarding(matched_by: usize, draw: u32, discard: Discard, untap: u32) -> Eff
         activation: None,
         discard: Some(discard),
         untap,
+        reanimate: None,
     }
 }
 
@@ -5145,7 +5151,6 @@ fn six(trigger: Trigger) -> Effect {
                 of: Some(3),
                 prefer: vec![3],
             },
-            returns: None,
         }))
     }
 }
@@ -5297,10 +5302,10 @@ fn lumra_groups(second: ManaSource, forests: u32, beasts: u32) -> Grouping {
 /// Lumra, Bellow of the Woods: "When Lumra enters, mill four cards. Then
 /// return all land cards from your graveyard to the battlefield tapped."
 fn lumra(returns: Option<usize>) -> Effect {
-    milling(Some(Mill {
-        returns,
-        ..Mill::all(4)
-    }))
+    Effect {
+        reanimate: returns.map(Reanimate::Every),
+        ..milling(Some(Mill::all(4)))
+    }
 }
 
 /// `(Forest, Mountain, Island, Loam, Beast Within)` as a row over
@@ -5466,6 +5471,7 @@ fn a_fetchland_is_two_lands_entering_and_fires_a_landfall_for_each() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let schedule = Schedule::plain_with_fetches(
         &[7, 0, 1, 1, 1, 1],
@@ -5507,11 +5513,17 @@ fn a_fetchland_is_two_lands_entering_and_fires_a_landfall_for_each() {
 fn a_mill_that_returns_lands_is_dealt_where_it_fired() {
     // Lumra's shape reads the graveyard it filled: a land dealt last would
     // not be there for it to return.
-    let lumra = Mill {
-        returns: Some(2),
-        ..Mill::all(3)
+    let (grouping, _) = a_milling_deck(Mill::all(3), None);
+    let lumra = Effect {
+        reanimate: Some(Reanimate::Every(2)),
+        ..milling(Some(Mill::all(3)))
     };
-    let (grouping, in_place) = a_milling_deck(lumra, None);
+    let in_place = Schedule::build(
+        3,
+        false,
+        vec![lumra],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
     let last = in_place.clone().deferring(0b110);
     assert_eq!(
         gauntlet_criteria::width(&grouping, &last),
@@ -5633,4 +5645,185 @@ fn out_of_the_tombs_mills_two_more_each_upkeep() {
     assert_eq!(board.count_at(2, tombs_q, Counted::Cast), 1);
     assert_eq!(board.count_at(3, beast, Counted::In(Zone::Graveyard)), 2);
     assert_eq!(board.count_at(5, beast, Counted::In(Zone::Graveyard)), 12);
+}
+
+// --- Reanimation (#140) ------------------------------------------------------
+//
+// HANDS.md hand 64: a cast returns cards from the graveyard to the
+// battlefield. They leave the graveyard's count and join the battlefield's,
+// the library's is untouched, and nothing counts them as cast.
+
+/// Eight cards: Animate Dead and Entomb, both free so the mana never binds,
+/// two Cids, `others` other creatures and blanks to make up eight.
+/// Queries: 0 Animate Dead, 1 Entomb, 2 Cid, 3 the other creature, 4 any
+/// creature.
+fn reanimation_library(others: u32) -> Grouping {
+    let free = |resolves| ManaSource::Castable {
+        cost: Cost::parse("{0}").unwrap().demand(),
+        resolves,
+    };
+    Grouping::with_mana(
+        q(&["animate", "entomb", "cid", "other", "creature"]),
+        vec![
+            (0b00001, free(Resolves::OntoBattlefield), 1),
+            (0b00010, free(Resolves::IntoGraveyard), 1),
+            (0b10100, ManaSource::Spell, 2),
+            (0b11000, ManaSource::Spell, others),
+            (0b00000, ManaSource::Spell, 4 - others),
+        ],
+    )
+    .unwrap()
+}
+
+/// Entomb, taking `up_to` cards by `fetch`, into the graveyard; Animate
+/// Dead returning `reanimate`. The line lists Animate Dead first, so the
+/// only way it returns anything on turn 1 is to wait for the graveyard.
+fn reanimation_schedule(up_to: u32, fetch: Vec<usize>, reanimate: Reanimate) -> Schedule {
+    let entomb = Effect {
+        matched_by: 1,
+        fetch: Some(Fetch {
+            prefer: fetch,
+            to: Fetched::Graveyard(up_to),
+        }),
+        ..tutor(Fetched::Hand(1))
+    };
+    let animate = Effect {
+        matched_by: 0,
+        fetch: None,
+        reanimate: Some(reanimate),
+        ..tutor(Fetched::Hand(1))
+    };
+    Schedule::plain_with_fetches(
+        &[3, 0],
+        vec![animate, entomb],
+        Policies::casting(CastingPolicy::new(vec![0, 1])),
+    )
+}
+
+/// Mean Cids on turn 1 on the battlefield, in the graveyard, in the library
+/// and cast, and mean castings of Animate Dead.
+fn reanimated(grouping: &Grouping, schedule: &Schedule) -> [f64; 5] {
+    let at =
+        |zone| -> Tally { Box::new(move |v: &PathView<'_>| v.count_at(1, 2, Counted::In(zone))) };
+    let out = gauntlet_criteria::run(
+        grouping,
+        schedule,
+        only_expectations(5),
+        &mut Counters(vec![
+            at(Zone::Battlefield),
+            at(Zone::Graveyard),
+            at(Zone::Library),
+            Box::new(|v: &PathView<'_>| v.count_at(1, 2, Counted::Cast)),
+            Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::Cast)),
+        ]),
+    )
+    .unwrap();
+    std::array::from_fn(|i| out.distributions[i].mean())
+}
+
+#[test]
+fn hand_64_animate_dead_waits_for_entomb_and_returns_the_cid_it_put_there() {
+    // Three cards of eight in the opener, on the play, so turn 1 casts what
+    // the opener holds. Animate Dead is listed first and the graveyard is
+    // empty, so it waits; Entomb puts a Cid there, and the line, read again,
+    // casts Animate Dead to return it.
+    // * Both in the opener: 6 of the 56 openers. The third card is a Cid in
+    //   2 of them, which leaves one in the library, and a blank in 4: Entomb
+    //   finds a Cid every time, and Animate Dead returns it. 6/56 = 3/28.
+    // * Entomb without Animate Dead: C(6, 2) = 15 openers, less the one whose
+    //   other two cards are both Cids, so Entomb finds nothing: 14/56 leave a
+    //   Cid in the graveyard.
+    // * The hand holds 3 × 2/8 = 0.75 Cids whatever is cast, and the library
+    //   the rest: 2 - 0.75 - 14/56 - 6/56.
+    // * Animate Dead is cast only where it returns something: 6/56, not the
+    //   21/56 of openers that hold it.
+    let one_cid = Reanimate::Chosen {
+        up_to: 1,
+        of: 2,
+        prefer: vec![2],
+    };
+    let [field, yard, library, cast, animated] = reanimated(
+        &reanimation_library(0),
+        &reanimation_schedule(1, vec![2], one_cid),
+    );
+    let close = |got: f64, want: f64| (got - want).abs() < 1e-12;
+    assert!(close(field, 6.0 / 56.0), "battlefield was {field}");
+    assert!(close(yard, 14.0 / 56.0), "graveyard was {yard}");
+    assert!(
+        close(library, 2.0 - 0.75 - 20.0 / 56.0),
+        "library was {library}"
+    );
+    assert!(close(cast, 0.0), "a returned Cid was not cast: {cast}");
+    assert!(
+        close(animated, 6.0 / 56.0),
+        "Animate Dead was cast {animated}"
+    );
+}
+
+#[test]
+fn a_mass_reanimation_returns_every_card_it_may() {
+    // Buried Alive for two, and Immortal Servitude's shape: every Cid in the
+    // graveyard. Of the 6 openers holding both, the third card is a blank in
+    // 4, so two Cids go in and two come back, and a Cid in 2, so one: 10/56.
+    // Without the reanimation, of the 15 openers holding Buried Alive alone,
+    // 6 put two Cids in the graveyard, 8 one and 1 none: 20/56.
+    let [field, yard, library, cast, _] = reanimated(
+        &reanimation_library(0),
+        &reanimation_schedule(2, vec![2], Reanimate::Every(2)),
+    );
+    let close = |got: f64, want: f64| (got - want).abs() < 1e-12;
+    assert!(close(field, 10.0 / 56.0), "battlefield was {field}");
+    assert!(close(yard, 20.0 / 56.0), "graveyard was {yard}");
+    assert!(
+        close(library, 2.0 - 0.75 - 30.0 / 56.0),
+        "library was {library}"
+    );
+    assert!(close(cast, 0.0));
+}
+
+#[test]
+fn a_reanimation_takes_the_first_card_its_priority_reaches_and_nothing_it_does_not_name() {
+    // One opener: Animate Dead, Buried Alive for three, a blank. Buried Alive
+    // bins both Cids and the other creature. What Animate Dead returns is the
+    // file's list, and a creature the list does not name never comes back.
+    let grouping = reanimation_library(1);
+    let opener = [vec![1, 1, 0, 0, 1], vec![1, 1, 0, 0, 1]];
+    let walk = |fetch: Vec<usize>, prefer: Vec<usize>| {
+        let schedule = reanimation_schedule(
+            3,
+            fetch,
+            Reanimate::Chosen {
+                up_to: 1,
+                of: 4,
+                prefer,
+            },
+        );
+        let mut board = Board::new(&grouping, &schedule);
+        board.walk(&opener);
+        let at = |query, zone| board.count_at(1, query, Counted::In(zone));
+        (
+            at(2, Zone::Battlefield),
+            at(3, Zone::Battlefield),
+            at(2, Zone::Graveyard),
+            at(3, Zone::Graveyard),
+            board.count_at(1, 0, Counted::Cast),
+        )
+    };
+    assert_eq!(
+        walk(vec![2, 3], vec![3, 2]),
+        (0, 1, 2, 0, 1),
+        "the other creature first"
+    );
+    assert_eq!(
+        walk(vec![2, 3], vec![2, 3]),
+        (1, 0, 1, 1, 1),
+        "a Cid first, and only one"
+    );
+    // Buried Alive bins only the Cids, and the list names only the other
+    // creature: nothing it would return is there, so it is never cast.
+    assert_eq!(
+        walk(vec![2], vec![3]),
+        (0, 0, 2, 0, 0),
+        "held: nothing it names"
+    );
 }

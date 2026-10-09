@@ -434,7 +434,7 @@ fn prepare_noting(
                     .iter()
                     .flat_map(|f| &f.prefer)
                     .fold(0u64, |b, &q| b | 1u64 << q);
-                // And what a mill lets go to hand, or returns from the
+                // And what a mill lets go to hand, or a cast returns from the
                 // graveyard, for the same reason.
                 let kept = match effect.mill.as_ref().map(|m| &m.to_hand) {
                     None => 0,
@@ -442,11 +442,13 @@ fn prepare_noting(
                     Some(gauntlet_criteria::ToHand::Chosen { of, prefer, .. }) => {
                         of.iter().chain(prefer).fold(0u64, |b, &q| b | 1u64 << q)
                     }
-                } | effect
-                    .mill
-                    .as_ref()
-                    .and_then(|m| m.returns)
-                    .map_or(0, |q| 1u64 << q);
+                } | match &effect.reanimate {
+                    None => 0,
+                    Some(gauntlet_criteria::Reanimate::Every(q)) => 1u64 << q,
+                    Some(gauntlet_criteria::Reanimate::Chosen { of, prefer, .. }) => {
+                        prefer.iter().fold(1u64 << of, |b, &q| b | 1u64 << q)
+                    }
+                };
                 // And what a discard takes: which cards the card lets go, and
                 // the file's list over the hand, which decides the rest.
                 let binned = match &effect.discard {
@@ -757,6 +759,7 @@ fn refuse_unmodelled_mana(
     // counted there: a Lantern off Urza's Saga's third chapter or off
     // Tezzeret the Seeker's −X arrives without being cast. A land-drop fetch
     // is in this list too, and adds nothing to it: it may only find lands.
+    // And so is what a cast returns from the graveyard (#140).
     let delivered: Vec<&str> = resolved
         .applied
         .iter()
@@ -764,6 +767,12 @@ fn refuse_unmodelled_mana(
         .filter_map(|a| a.fetch.as_ref())
         .filter(|(_, to)| *to == gauntlet_criteria::Fetched::Battlefield)
         .flat_map(|(prefer, _)| prefer.iter().map(String::as_str))
+        .chain(resolved.applied.iter().filter(|a| a.live).filter_map(|a| {
+            match a.reanimate.as_ref()? {
+                gauntlet_toml::ReanimateDecl::Every(of)
+                | gauntlet_toml::ReanimateDecl::Chosen { of, .. } => Some(of.as_str()),
+            }
+        }))
         .collect();
     for (query, asked_by) in criteria.battlefield_queries() {
         let spells = library.stranded_matching(query, &delivered, criteria.casting())?;

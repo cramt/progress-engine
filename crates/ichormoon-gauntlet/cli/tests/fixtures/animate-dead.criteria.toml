@@ -1,0 +1,41 @@
+# Issue #140, on animate-dead.txt. Animate Dead is first in the line and waits
+# for the graveyard: on turn 3 Buried Alive takes the mana, so it comes back on
+# turn 4 when Buried Alive was among the first nine cards, Animate Dead among
+# the first ten, and some Cid was still in the library for the search.
+
+[[effect]]
+match = 'name:"Buried Alive"'
+on = "cast"
+fetch = ['name:"Cid, Timeless Artificer"']
+up_to = 3
+to = "graveyard"
+
+[[effect]]
+match = 'name:"Animate Dead"'
+on = "cast"
+reanimate = "t:creature"
+reanimate_count = 1
+reanimate_prefer = ['name:"Cid, Timeless Artificer"']
+
+[casting]
+prefer = ['name:"Animate Dead"', 'name:"Buried Alive"']
+
+[[criterion]]
+name = "a Cid on the battlefield by turn 4"
+require = [{ turn = 4, query = 'name:"Cid, Timeless Artificer"', zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "Animate Dead cast by turn 4"
+require = [{ turn = 4, cast = 'name:"Animate Dead"', min = 1 }]
+
+[[expect]]
+name = "Cids in the graveyard on turn 4"
+turn = 4
+query = 'name:"Cid, Timeless Artificer"'
+zone = "graveyard"
+
+[[expect]]
+name = "Cids in the library on turn 4"
+turn = 4
+query = 'name:"Cid, Timeless Artificer"'
+zone = "library"

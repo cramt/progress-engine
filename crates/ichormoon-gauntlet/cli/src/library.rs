@@ -954,3 +954,17 @@ pub fn is_permanent(card: &Card) -> bool {
     .iter()
     .any(|kind| names(front(card), kind))
 }
+
+/// Whether a reanimation may put this card onto the battlefield out of the
+/// graveyard (#140): a land, as the land drop reads one, or a permanent card
+/// with no land on a face it is not played as.
+///
+/// A query matches any face, so `t:land` takes in Search for Azcanta by its
+/// back, and in the graveyard it is an enchantment card (CR 712.8a). Nothing
+/// here can tell which face a query matched, so such a card never comes back:
+/// a floor, and it keeps Lumra to the land cards it says. An instant or a
+/// sorcery never comes back either, because nothing returns one to the
+/// battlefield.
+pub fn returnable(card: &Card) -> bool {
+    is_land(card) || (is_permanent(card) && !names(&card.type_line, "land"))
+}
