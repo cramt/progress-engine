@@ -1,5 +1,10 @@
 # Scryfall in the browser: what Curator can ask it directly
 
+> **Superseded by [ADR-0030](../adr/0030-curator-answers-card-facts-from-its-own-copy-of-scryfalls-bulk-data.md):** Curator now keeps its own
+> copy of Scryfall's bulk data in each browser and answers card facts from it,
+> falling back to the API below until the copy is ready. The measurements here
+> still hold; the recommendation does not.
+
 Question ([#107](https://github.com/cramt/progress-engine/issues/107)): quick
 add, the search overlay, the printing picker and the all-printings grid need
 card data. Can a static Meldweb Curator call Scryfall's API from the browser

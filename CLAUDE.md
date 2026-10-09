@@ -28,7 +28,10 @@ without storing anything (CI deploys its code on every push to `main`; the domai
 `pnpm dev` logs in through the real GitHub App on localhost:5173, running the
 worker's auth routes inside Vite with the client secret from 1Password
 (`web/scripts/dev-auth.ts`); `VITE_MOCK_GITHUB=1 pnpm dev` runs the app against an in-page fake GitHub
-(`=no-repo` or `=no-install` start at onboarding), so no worker or app is needed. A deck
+(`=no-repo` or `=no-install` start at onboarding), so no worker or app is needed. Card facts come
+from the browser's own copy of Scryfall's bulk data, built and searched by
+`meldweb-wasm` in a worker (`web/src/copy/`), with the API answering until it
+is ready (ADR-0030). A deck
 and the collection have a Scan button backed by Gitaxian Probe, the collection's
 scanning continuously. Every site build carries it, and the whole site is
 cross-origin isolated for it; the worker proxies Delver's engine files from the

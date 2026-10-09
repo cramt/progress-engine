@@ -128,6 +128,8 @@ function gitaxianProbe(): Plugin {
 }
 
 export default defineConfig({
+  // The copy of Scryfall's worker imports the wasm as a module.
+  worker: { format: "es" },
   plugins: [
     devAuth(),
     gitaxianProbe(),

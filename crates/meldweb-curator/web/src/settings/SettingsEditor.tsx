@@ -15,6 +15,7 @@ import {
 } from "../card/preference";
 import { printsByName } from "../card/prints";
 import { usePrintingOptions } from "../card/usePrintingOptions";
+import { CopySource } from "../copy/CopySource";
 import { Banners, SaveStatus, Toolbar, UndoRedo } from "../deck/Toolbar";
 import type { SettingsRules } from "../deck.gen";
 import type { GitHubApi, RepoRef } from "../github/api";
@@ -333,6 +334,7 @@ export function SettingsEditor({
               </>
             )}
           </section>
+          <CopySource />
         </div>
         <PinsProvider pins={editable ? pinsHere : null}>
           <Preview

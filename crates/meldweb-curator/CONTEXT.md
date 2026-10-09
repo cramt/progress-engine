@@ -42,6 +42,10 @@ _Avoid_: config, preferences file
 The order of the deck list, a list of deck paths in the settings, set by dragging a tile ([ADR-0028](../../docs/adr/0028-the-deck-lists-order-is-meldweb-toml-and-a-deck-moves-with-its-variants.md)). A deck not in it goes after those that are, by name; a deck moves with its variants, and a variant only among its siblings.
 _Avoid_: sort order, pinned decks
 
+**Copy of Scryfall**:
+The browser's own copy of Scryfall's Default Cards and Oracle Tags bulk files, made on the first visit, kept in origin-private storage and refreshed once a day ([ADR-0030](../../docs/adr/0030-curator-answers-card-facts-from-its-own-copy-of-scryfalls-bulk-data.md)). It answers every card fact the editor asks (printings, prices, all printings of a card, search, quick add) in a worker; until it is ready, or when it cannot answer, Scryfall's API does. Pictures always come from Scryfall's CDN.
+_Avoid_: index, cache, mirror
+
 **Printing preference**:
 The ordered `prefer`/`avoid` rules in the settings that decide which printing of a card is offered first, and which one a card added to a deck by name gets ([ADR-0027](../../docs/adr/0027-a-cards-own-printing-is-a-pin-rule-and-an-added-card-takes-the-best.md)). Each rule is a Scryfall query over one printing; the first rule that tells two printings apart decides, and the newest wins what none of them decides. A pick is always the user's.
 _Avoid_: printing filter, default printing

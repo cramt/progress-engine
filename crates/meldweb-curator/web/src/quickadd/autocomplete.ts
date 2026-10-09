@@ -1,3 +1,4 @@
+import { viaCopy } from "../copy";
 import { cachedOne } from "../scryfallCache";
 import { API, AUTOCOMPLETE_GATE, scryfallFetch } from "../scryfallQueue";
 
@@ -5,12 +6,19 @@ import { API, AUTOCOMPLETE_GATE, scryfallFetch } from "../scryfallQueue";
 export type Lookup = (query: string, signal: AbortSignal) => Promise<string[]>;
 
 /**
- * Scryfall's `/cards/autocomplete`: up to 20 names, nearest first, paced by
- * the 10-a-second queue and cached per prefix, so typing back over a prefix
- * asks nothing. Below two characters Scryfall answers an empty catalog, so we
- * do not ask.
+ * Up to 20 names, nearest first: from the page's copy of Scryfall, or before
+ * there is one from Scryfall's `/cards/autocomplete`, paced by the
+ * 10-a-second queue and cached per prefix, so typing back over a prefix asks
+ * nothing. Below two characters Scryfall answers an empty catalog, so we do
+ * not ask.
  */
 export const scryfallAutocomplete: Lookup = (query, signal) =>
+  viaCopy(
+    (copy) => copy.autocomplete(query),
+    () => apiAutocomplete(query, signal),
+  );
+
+const apiAutocomplete: Lookup = (query, signal) =>
   cachedOne(["scryfall", "autocomplete", query], async () => {
     const response = await scryfallFetch(
       AUTOCOMPLETE_GATE,

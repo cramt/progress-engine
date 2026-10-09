@@ -21,6 +21,7 @@ import init, {
   copy_lookup,
   copy_prints,
   copy_search,
+  copy_warm,
 } from "../wasm/pkg/meldweb_wasm.js";
 import type { Asked, CopyState, Request, Told } from "./protocol";
 
@@ -35,6 +36,12 @@ const REFRESH_MS = 24 * 60 * 60 * 1000;
 const CHUNK = 4_000_000;
 /** How often progress is told, at most. */
 const PROGRESS_MS = 250;
+/**
+ * How many cards or printings the copy reads for search between two of the
+ * page's questions. 500 took up to 214 ms in wasm under Node; 200 keeps a
+ * lookup asked meanwhile waiting under a tenth of a second.
+ */
+const WARM_SLICE = 200;
 
 interface Meta {
   format: number;
@@ -240,6 +247,24 @@ async function make(
   return files.cards.updated_at;
 }
 
+/**
+ * Reads the rest of the copy for search a slice at a time, yielding between
+ * slices so lookups are answered meanwhile; a search before it is done reads
+ * what is left itself.
+ */
+function warm(): void {
+  try {
+    if (!copy_warm(WARM_SLICE)) setTimeout(warm, 0);
+  } catch (e) {
+    console.warn("the copy of Scryfall could not read itself for search", e);
+  }
+}
+
+function ready(updatedAt: string): void {
+  tell({ kind: "ready", updatedAt });
+  setTimeout(warm, 0);
+}
+
 async function main(): Promise<void> {
   if (!navigator.storage?.getDirectory) {
     tell({ kind: "unavailable", reason: "no origin-private storage" });
@@ -250,7 +275,7 @@ async function main(): Promise<void> {
   let meta = await readMeta(dir);
   if (meta) {
     try {
-      tell({ kind: "ready", updatedAt: await open(dir) });
+      ready(await open(dir));
     } catch {
       meta = null;
     }
@@ -275,7 +300,7 @@ async function main(): Promise<void> {
         : { kind: "downloading", received, total },
     ),
   );
-  tell({ kind: "ready", updatedAt });
+  ready(updatedAt);
 }
 
 main().catch((e: unknown) => {

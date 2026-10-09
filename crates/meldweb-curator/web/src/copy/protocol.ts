@@ -8,7 +8,7 @@ import type { Wanted } from "../deck.gen";
 export type CopyState =
   /** This browser cannot keep one: no worker, or no origin-private storage. */
   | { kind: "unavailable"; reason: string }
-  /** Reading the copy kept from an earlier visit, which takes a second or two. */
+  /** Reading the copy kept from an earlier visit, which takes a second or so. */
   | { kind: "opening" }
   /** Making one: Default Cards so far, in compressed bytes. */
   | { kind: "downloading"; received: number; total: number }
@@ -27,7 +27,7 @@ export type CopyState =
   | { kind: "failed"; message: string };
 
 export type Request =
-  | { kind: "lookup"; wanted: Wanted[] }
+  | { kind: "lookup"; wanted: readonly Wanted[] }
   | { kind: "prints"; uri: string }
   | { kind: "search"; query: string; offset: number; limit: number }
   | { kind: "autocomplete"; query: string };

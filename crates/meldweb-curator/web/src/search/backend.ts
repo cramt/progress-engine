@@ -1,3 +1,5 @@
+import { type Copy, viaCopy } from "../copy";
+import type { Found } from "../deck.gen";
 import { imageUris } from "../scryfall";
 import { cachedOne } from "../scryfallCache";
 import { API, SEARCH_GATE, scryfallFetch } from "../scryfallQueue";
@@ -47,11 +49,53 @@ export interface SearchBackend {
   search(query: string, signal?: AbortSignal): Promise<SearchPage>;
 }
 
-/** Scryfall's `/cards/search`, on the 2-a-second queue. */
+/**
+ * The page's copy of Scryfall, or before there is one Scryfall's
+ * `/cards/search` on the 2-a-second queue. A query the copy cannot read goes
+ * to Scryfall too: the copy refuses what it does not know rather than
+ * guessing, and Scryfall may know it.
+ */
 export const scryfallSearch: SearchBackend = {
-  search: (query, signal) =>
-    fetchPage(`${API}/cards/search?q=${encodeURIComponent(query)}`, signal),
+  search: (query, signal) => {
+    const api = () =>
+      fetchPage(`${API}/cards/search?q=${encodeURIComponent(query)}`, signal);
+    return viaCopy((copy) => copyPage(copy, query, 0, api), api);
+  },
 };
+
+/** Scryfall's page size, which the copy pages by too. */
+const PAGE = 175;
+
+async function copyPage(
+  copy: Copy,
+  query: string,
+  offset: number,
+  api: () => Promise<SearchPage>,
+): Promise<SearchPage> {
+  const answer = await copy.search(query, offset, PAGE);
+  if (answer.kind === "refused") return api();
+  const next = offset + PAGE;
+  return {
+    cards: answer.cards.map(fromCopy),
+    total: answer.total,
+    warnings: [],
+    ...(next < answer.total
+      ? { more: () => copyPage(copy, query, next, api) }
+      : {}),
+  };
+}
+
+function fromCopy(f: Found): ResultCard {
+  return {
+    id: f.id,
+    name: f.name,
+    typeLine: f.typeLine,
+    manaCost: f.manaCost,
+    ...(f.image ? { image: f.image } : {}),
+    set: f.set,
+    num: f.num,
+  };
+}
 
 /** A page as the cache keeps it: plain data, with the next page by its URL. */
 type KeptPage =

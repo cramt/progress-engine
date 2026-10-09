@@ -3,6 +3,7 @@
  * and `viaCopy`, which every card lookup goes through so it is answered from
  * the copy when there is one and from Scryfall's API when there is not yet.
  */
+import { useSyncExternalStore } from "react";
 import type { Found, PrintingFacts, SearchAnswer, Wanted } from "../deck.gen";
 import type { Asked, CopyState, Request, Told } from "./protocol";
 
@@ -10,7 +11,7 @@ export type { CopyState } from "./protocol";
 
 /** What the copy answers, once it is ready. */
 export interface Copy {
-  lookup(wanted: Wanted[]): Promise<(Found | null)[]>;
+  lookup(wanted: readonly Wanted[]): Promise<(Found | null)[]>;
   /** Every printing behind a search for a card's printings, newest first. */
   prints(uri: string): Promise<PrintingFacts[]>;
   search(query: string, offset: number, limit: number): Promise<SearchAnswer>;
@@ -62,6 +63,14 @@ export function watchCopy(listener: (state: CopyState) => void): () => void {
   return () => listeners.delete(listener);
 }
 
+/** The copy's state, rendered again whenever it changes. */
+export function useCopyState(): CopyState {
+  return useSyncExternalStore((changed) => {
+    const stop = watchCopy(changed);
+    return () => void stop();
+  }, copyState);
+}
+
 function ask<T>(request: Request): Promise<T> {
   const w = worker;
   if (!w) return Promise.reject(new Error("the copy is not running"));
@@ -83,34 +92,18 @@ const copy: Copy = {
 };
 
 /**
- * The copy, once it can answer: at once when ready, after it is read back
- * when it is being opened, which is a second or two, and `null` when there
- * is none to wait for.
- */
-function ready(): Promise<Copy | null> {
-  if (state.kind === "ready") return Promise.resolve(copy);
-  if (state.kind !== "opening") return Promise.resolve(null);
-  return new Promise((resolve) => {
-    const stop = watchCopy((s) => {
-      if (s.kind === "opening") return;
-      stop();
-      resolve(s.kind === "ready" ? copy : null);
-    });
-  });
-}
-
-/**
- * `local` against the copy, or `api` when there is no copy to ask or the
- * copy fails, so no lookup is lost to it.
+ * `local` against the copy, or `api` when the copy cannot answer yet or
+ * fails, so no lookup is lost to it. A copy still being read back is not
+ * waited for: the API and its cache answer a page load as they did before
+ * there was a copy, and the copy takes over once it is ready.
  */
 export async function viaCopy<T>(
   local: (copy: Copy) => Promise<T>,
   api: () => Promise<T>,
 ): Promise<T> {
-  const c = await ready();
-  if (!c) return api();
+  if (state.kind !== "ready") return api();
   try {
-    return await local(c);
+    return await local(copy);
   } catch (e) {
     console.warn("the copy of Scryfall could not answer; asking Scryfall", e);
     return api();

@@ -302,16 +302,20 @@ export async function fetchPrices(
     queryKey: PRICE,
     predicate: (q) => q.queryKey[2] !== day,
   });
-  return cachedMany(
-    [...PRICE, day],
-    cards.map((c) => c.card),
-    printingKey,
-    async (misses) => {
-      const found = new Map<string, CardPrices>();
-      for (const card of await collection(misses.map(identifier), signal))
-        for (const key of printingKeys(card)) found.set(key, card.prices);
-      return found;
-    },
+  const refs = cards.map((c) => c.card);
+  return viaCopy(
+    (copy) =>
+      fromCopyAll(copy, refs, (f) => ({
+        eur: f.prices.eur ?? {},
+        usd: f.prices.usd ?? {},
+      })),
+    () =>
+      cachedMany([...PRICE, day], refs, printingKey, async (misses) => {
+        const found = new Map<string, CardPrices>();
+        for (const card of await collection(misses.map(identifier), signal))
+          for (const key of printingKeys(card)) found.set(key, card.prices);
+        return found;
+      }),
   );
 }
 
@@ -407,21 +411,29 @@ export async function fetchPrintingsInSets(
 ): Promise<({ set: string; num: string } | null)[]> {
   const key = (w: { name: string; set: string }) =>
     `${w.set.toLowerCase()}:${frontFace(w.name).toLowerCase()}`;
-  const found = await cachedMany(IN_SET, wanted, key, async (misses) => {
-    const cards = await collection(
-      misses.map((w) => ({ name: frontFace(w.name), set: w.set })),
-      signal,
+  const fromApi = async () => {
+    const found = await cachedMany(IN_SET, wanted, key, async (misses) => {
+      const cards = await collection(
+        misses.map((w) => ({ name: frontFace(w.name), set: w.set })),
+        signal,
+      );
+      for (const [k, printing] of remember(cards))
+        scryfallClient.setQueryData([...PRINTING, k], printing);
+      return new Map(
+        cards.map((card) => [
+          key(card),
+          { set: card.set, num: card.collector_number },
+        ]),
+      );
+    });
+    return wanted.map((w) => found.get(key(w)) ?? null);
+  };
+  return viaCopy(async (copy) => {
+    const found = await copy.lookup(
+      wanted.map((w) => ({ kind: "inSet", name: w.name, set: w.set })),
     );
-    for (const [k, printing] of remember(cards))
-      scryfallClient.setQueryData([...PRINTING, k], printing);
-    return new Map(
-      cards.map((card) => [
-        key(card),
-        { set: card.set, num: card.collector_number },
-      ]),
-    );
-  });
-  return wanted.map((w) => found.get(key(w)) ?? null);
+    return found.map((f) => (f ? { set: f.set, num: f.num } : null));
+  }, fromApi);
 }
 
 /**
@@ -435,18 +447,28 @@ export async function fetchAsked(
   asks: readonly Ask[],
   signal?: AbortSignal,
 ): Promise<ScryfallCard[]> {
-  const cards = await collection(
-    asks.map((a) =>
-      a.kind === "id" ? { id: a.id } : { set: a.set, collector_number: a.num },
-    ),
-    signal,
-  );
-  for (const [k, printing] of remember(cards))
-    scryfallClient.setQueryData([...PRINTING, k], printing);
-  return cards.map((c) => ({
-    id: c.id,
-    set: c.set,
-    num: c.collector_number,
-    name: c.name,
-  }));
+  const fromApi = async () => {
+    const cards = await collection(
+      asks.map((a) =>
+        a.kind === "id"
+          ? { id: a.id }
+          : { set: a.set, collector_number: a.num },
+      ),
+      signal,
+    );
+    for (const [k, printing] of remember(cards))
+      scryfallClient.setQueryData([...PRINTING, k], printing);
+    return cards.map((c) => ({
+      id: c.id,
+      set: c.set,
+      num: c.collector_number,
+      name: c.name,
+    }));
+  };
+  return viaCopy(async (copy) => {
+    const found = await copy.lookup(asks);
+    return found.flatMap((f) =>
+      f ? [{ id: f.id, set: f.set, num: f.num, name: f.name }] : [],
+    );
+  }, fromApi);
 }
