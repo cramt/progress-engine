@@ -899,6 +899,13 @@ pub struct KeywordVocabulary {
 }
 
 impl KeywordVocabulary {
+    /// A vocabulary of exactly `keywords`, for a caller holding cards rather
+    /// than an index.
+    pub fn new(keywords: impl IntoIterator<Item = String>) -> Self {
+        let known = keywords.into_iter().map(|k| k.to_lowercase()).collect();
+        KeywordVocabulary { known }
+    }
+
     pub fn contains(&self, keyword: &str) -> bool {
         self.known.contains(&keyword.to_lowercase())
     }
@@ -923,6 +930,13 @@ pub struct TagVocabulary {
 }
 
 impl TagVocabulary {
+    /// A vocabulary of exactly `tags`, for a caller holding cards rather than
+    /// an index.
+    pub fn new(tags: impl IntoIterator<Item = String>) -> Self {
+        let known = tags.into_iter().map(|t| t.to_lowercase()).collect();
+        TagVocabulary { known }
+    }
+
     pub fn contains(&self, tag: &str) -> bool {
         self.known.contains(&tag.to_lowercase())
     }

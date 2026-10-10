@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { formatPrice, loadCurrency } from "../collection/prices";
 import {
   type Card,
+  type CardRef,
   type Category,
   declareCategory,
   editDeckCards,
@@ -10,12 +12,23 @@ import {
   setCardPrinting,
   setCardQty,
 } from "../deck";
-import { type Face, type Printing, printingId } from "../scryfall";
+import {
+  type CardPrices,
+  type Currency,
+  type Face,
+  fetchPrices,
+  type Printing,
+  printingId,
+  printingKey,
+} from "../scryfall";
 import { ChevronLeft, ChevronRight, CloseIcon, FlipIcon } from "../ui/icons";
+import { ManaText } from "./ManaText";
 import { neighbours } from "./order";
 import { PrintingsGrid } from "./PrintingsGrid";
 import { rankPrintings, usePreferredOrder, useSettings } from "./preference";
 import {
+  cardText,
+  type FaceText,
   FINISHES,
   fetchAllPrintings,
   type PrintingOption,
@@ -28,6 +41,10 @@ const NEW_CATEGORY = "\u0000new";
 export interface DetailsModalProps {
   card: Card;
   name: string;
+  /** The card's page on Scryfall, its printing's when it names one. */
+  scryfall: string;
+  /** Another card's name by its index, for the prev and next buttons. */
+  nameAt: (index: number) => string | undefined;
   /** The card's printing as the deck view knows it, when Scryfall answered. */
   printing: Printing | undefined;
   categories: readonly Category[];
@@ -73,10 +90,16 @@ export function DetailsModal(props: DetailsModalProps) {
     (card.card.kind === "name" ? printsByName(card.card.name) : undefined);
   const options = usePrintingOptions(uri);
   const current = card.card.kind === "printing" ? printingId(card.card) : null;
+  // A card named by name shows the printing Scryfall picked for it.
   const currentOption =
     options.status === "done"
-      ? options.printings.find((p) => printingId(p) === current)
+      ? options.printings.find((p) =>
+          current === null ? p.id === printing?.id : printingId(p) === current,
+        )
       : undefined;
+  const [currency] = useState(loadCurrency);
+  const prices = useTodaysPrices(card.card);
+  const faces = currentOption ? cardText(currentOption.facts) : [];
   const image = printing?.image ?? currentOption?.image;
   const front: Face | undefined = image
     ? { image, turn: printing?.turn ?? currentOption?.turn ?? "upright" }
@@ -171,10 +194,19 @@ export function DetailsModal(props: DetailsModalProps) {
       >
         <header className="details-header">
           <h2>{name}</h2>
-          {grid && (
+          {grid ? (
             <button type="button" onClick={() => onGrid(false)}>
               Back to card options
             </button>
+          ) : (
+            <a
+              className="button"
+              href={props.scryfall}
+              target="_blank"
+              rel="noopener"
+            >
+              Scryfall
+            </a>
           )}
           <button
             type="button"
@@ -206,20 +238,25 @@ export function DetailsModal(props: DetailsModalProps) {
             <>
               <Picture key={card.index} name={name} front={front} back={back} />
               <div className="details-options">
-                <Quantity qty={card.qty} onChange={setQty} />
+                {faces.length > 0 && <TextBox faces={faces} />}
+                <div className="details-row">
+                  <Quantity qty={card.qty} onChange={setQty} />
+                  <FinishToggle
+                    finish={card.finish}
+                    available={currentOption?.finishes}
+                    prices={prices?.[currency]}
+                    currency={currency}
+                    onChange={(f) =>
+                      onEdit((t) => setCardFinish(t, card.index, f))
+                    }
+                  />
+                </div>
                 <PrintingPicker
                   options={options}
                   current={current}
                   focus={props.focusPrinting}
                   onPick={(p) => pick(p, false)}
                   onAll={() => onGrid(true)}
-                />
-                <FinishToggle
-                  finish={card.finish}
-                  available={currentOption?.finishes}
-                  onChange={(f) =>
-                    onEdit((t) => setCardFinish(t, card.index, f))
-                  }
                 />
                 <Categories
                   card={card}
@@ -238,7 +275,9 @@ export function DetailsModal(props: DetailsModalProps) {
             title={grid ? "Previous card (Shift+←)" : "Previous card (←)"}
           >
             <ChevronLeft />
-            Previous
+            <span className="details-step">
+              {prev === null ? "Previous" : (props.nameAt(prev) ?? "Previous")}
+            </span>
           </button>
           <span className="details-position">
             {position + 1} of {order.length}
@@ -260,13 +299,41 @@ export function DetailsModal(props: DetailsModalProps) {
                 : "Next card (→)"
             }
           >
-            Next
+            <span className="details-step">
+              {next === null ? "Next" : (props.nameAt(next) ?? "Next")}
+            </span>
             <ChevronRight />
           </button>
         </footer>
       </div>
     </div>
   );
+}
+
+/**
+ * Today's price of the card shown. The deck's own lookup cached it for today
+ * already, so this asks Scryfall only for a card added since.
+ */
+function useTodaysPrices(ref: CardRef): CardPrices | undefined {
+  const key = printingKey(ref);
+  const [found, setFound] = useState<{ key: string; prices?: CardPrices }>();
+  // The key alone says which card: a new ref for the same card is not a new
+  // question.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: see above
+  useEffect(() => {
+    let gone = false;
+    fetchPrices([{ card: ref }])
+      .then((book) => {
+        const prices = book.get(key);
+        if (!gone) setFound(prices ? { key, prices } : { key });
+      })
+      // A price is extra: without one the finishes show none.
+      .catch(() => {});
+    return () => {
+      gone = true;
+    };
+  }, [key]);
+  return found?.key === key ? found.prices : undefined;
 }
 
 /** How many of the next card's best printings to fetch the pictures of. */
@@ -467,7 +534,8 @@ function PrintingPicker({
           )}
           {preferred.map(({ option: p }) => (
             <option key={printingId(p)} value={printingId(p)}>
-              {p.setName} ({p.set.toUpperCase()}) #{p.num} · {p.released}
+              {p.set.toUpperCase()} #{p.num} · {p.setName} ·{" "}
+              {p.released.slice(0, 4)}
             </option>
           ))}
         </select>
@@ -484,32 +552,75 @@ function PrintingPicker({
 function FinishToggle({
   finish,
   available,
+  prices,
+  currency,
   onChange,
 }: {
   finish: Finish;
   /** The finishes the printing comes in, once Scryfall has said. */
   available: readonly Finish[] | undefined;
+  prices: Readonly<Partial<Record<Finish, number>>> | undefined;
+  currency: Currency;
   onChange: (finish: Finish) => void;
 }) {
   return (
     <fieldset className="details-field details-finish">
       <legend>Finish</legend>
       <div className="segmented">
-        {FINISHES.map((f) => (
-          <button
-            key={f}
-            type="button"
-            aria-pressed={f === finish}
-            disabled={
-              f !== finish && available !== undefined && !available.includes(f)
-            }
-            onClick={() => f !== finish && onChange(f)}
-          >
-            {f}
-          </button>
-        ))}
+        {FINISHES.map((f) => {
+          const price = prices?.[f];
+          return (
+            <button
+              key={f}
+              type="button"
+              aria-pressed={f === finish}
+              disabled={
+                f !== finish &&
+                available !== undefined &&
+                !available.includes(f)
+              }
+              onClick={() => f !== finish && onChange(f)}
+            >
+              {f}
+              {price !== undefined && (
+                <span className="details-price">
+                  {formatPrice(price, currency)}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
     </fieldset>
+  );
+}
+
+/** The card's text as its text box reads, each face of a two-faced card. */
+function TextBox({ faces }: { faces: readonly FaceText[] }) {
+  return (
+    <section className="details-text" aria-label="Card text">
+      {faces.map((f) => (
+        <div key={f.name} className="details-face">
+          <div className="details-face-head">
+            {faces.length > 1 && <strong>{f.name}</strong>}
+            <span className="details-type">{f.type}</span>
+            {f.mana && (
+              <span className="details-cost">
+                <ManaText text={f.mana} />
+              </span>
+            )}
+          </div>
+          {f.text.split("\n").map((para, i) => (
+            // Paragraphs of one fixed text, in its order.
+            // biome-ignore lint/suspicious/noArrayIndexKey: see above
+            <p key={i}>
+              <ManaText text={para} />
+            </p>
+          ))}
+          {f.corner && <span className="details-corner">{f.corner}</span>}
+        </div>
+      ))}
+    </section>
   );
 }
 

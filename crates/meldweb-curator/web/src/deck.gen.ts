@@ -2,6 +2,187 @@
 // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.
 
 /**
+ * What [`store_plan`] decided, for the worker to carry out.
+ */
+export type StoreStep =
+  | { kind: "current"; meta?: string }
+  | { kind: "refused"; message: string }
+  | { kind: "build"; file: string };
+
+export type SearchAnswer =
+  | { kind: "page"; cards: Found[]; total: number }
+  | { kind: "refused"; message: string };
+
+/**
+ * One printing, with what any view of it asks.
+ */
+export interface Found {
+  /**
+   * Scryfall's id for the printing.
+   */
+  id: string;
+  oracleId?: string;
+  name: string;
+  /**
+   * Lowercased, as the deck names it.
+   */
+  set: string;
+  num: string;
+  setName: string;
+  /**
+   * `YYYY-MM-DD`.
+   */
+  released: string;
+  /**
+   * The front's `normal` picture.
+   */
+  image?: string;
+  small?: string;
+  colorIdentity: string[];
+  /**
+   * The whole card's type line, both faces' where it has two.
+   */
+  typeLine: string;
+  /**
+   * The front face's alone: `Battle — Siege` for an Invasion.
+   */
+  frontTypeLine: string;
+  manaCost: string;
+  /**
+   * Scryfall's search for every printing of the card, which
+   * [`ScryfallCopy::prints`] also answers.
+   */
+  prints?: string;
+  turn?: Turn;
+  back?: Face;
+  finishes: string[];
+  prices: CardPrices;
+}
+
+/**
+ * A printing's prices, by currency and finish, where Scryfall knows them.
+ */
+export interface CardPrices {
+  eur?: FinishPrices;
+  usd?: FinishPrices;
+}
+
+/**
+ * What one copy of one card sells for, by finish.
+ */
+export interface FinishPrices {
+  nonfoil?: number;
+  foil?: number;
+  etched?: number;
+}
+
+/**
+ * A printing's other face, as it is shown.
+ */
+export interface Face {
+  image: string;
+  turn: Turn;
+}
+
+/**
+ * How a card's picture is turned to be read.
+ */
+export type Turn = "upright" | "sideways" | "upside-down";
+
+/**
+ * A printing beside its card object, which a printing preference reads.
+ */
+export interface PrintingFacts {
+  printing: Found;
+  facts: BulkCard;
+}
+
+/**
+ * One card object as Scryfall's bulk data writes it.
+ *
+ * Every field is optional, because a field this crate reads is a field
+ * Scryfall may one day stop printing, and a sync that dies on the whole file
+ * over one absent key is worse than one that reports what it could not find.
+ * `name` is the exception: a record with no name cannot be keyed, so it is not
+ * a card as far as this crate is concerned.
+ */
+export interface BulkCard {
+  name: string;
+  oracle_id?: string;
+  lang?: string;
+  layout?: string;
+  type_line?: string;
+  oracle_text?: string;
+  mana_cost?: string;
+  cmc?: number;
+  colors?: string[];
+  color_indicator?: string[];
+  color_identity?: string[];
+  produced_mana?: string[];
+  keywords?: string[];
+  power?: string;
+  toughness?: string;
+  loyalty?: string;
+  defense?: string;
+  rarity?: string;
+  set?: string;
+  legalities?: Record<string, string>;
+  game_changer?: boolean;
+  reserved?: boolean;
+  card_faces?: BulkFace[];
+  set_type?: string;
+  collector_number?: string;
+  released_at?: string;
+  frame?: string;
+  frame_effects?: string[];
+  border_color?: string;
+  full_art?: boolean;
+  textless?: boolean;
+  digital?: boolean;
+  promo?: boolean;
+  reprint?: boolean;
+  oversized?: boolean;
+  promo_types?: string[];
+  games?: string[];
+  flavor_name?: string;
+}
+
+/**
+ * One face of a multi-faced card, as Scryfall writes it.
+ */
+export interface BulkFace {
+  name?: string;
+  type_line?: string;
+  oracle_text?: string;
+  mana_cost?: string;
+  colors?: string[];
+  color_indicator?: string[];
+  power?: string;
+  toughness?: string;
+  loyalty?: string;
+  defense?: string;
+  oracle_id?: string;
+  image_uris?: ImageUris;
+}
+
+/**
+ * A face's pictures, of which only the sizes Meldweb shows are read.
+ */
+export interface ImageUris {
+  normal?: string;
+  small?: string;
+}
+
+/**
+ * A card asked for.
+ */
+export type Wanted =
+  | { kind: "printing"; set: string; num: string }
+  | { kind: "name"; name: string }
+  | { kind: "id"; id: string }
+  | { kind: "inSet"; name: string; set: string };
+
+/**
  * `meldweb.toml` as the settings page edits it: its rules, each query unread
  * so a bad one can be fixed in place, and the default rules beside them.
  */

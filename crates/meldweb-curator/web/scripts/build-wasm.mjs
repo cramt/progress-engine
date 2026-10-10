@@ -12,6 +12,7 @@ const repo = fileURLToPath(new URL("../../../..", import.meta.url));
 export const watched = [
   `${repo}crates/meldweb-curator/wasm/src`,
   `${repo}crates/reality-chip/decklist/src`,
+  `${repo}crates/reality-chip/scryfall/src`,
 ];
 
 /**

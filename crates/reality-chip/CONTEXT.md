@@ -5,8 +5,13 @@ The shared core under Ichormoon Gauntlet: what a card is, what a decklist is, wh
 ## Card data
 
 **Card index**:
-The dated, line-per-card record of every oracle card, with a header stating its schema, when it was built, and which keywords and oracle tags it carries.
+The dated, line-per-card record of every oracle card, with a header stating its schema, when it was built, and which keywords and oracle tags it carries. ADR-0031 settles that the copy of Scryfall replaces it; Gauntlet reads it until that lands.
 _Avoid_: bulk file, card database
+
+**Copy of Scryfall**:
+Scryfall's Default Cards and Oracle Tags bulk files, kept as one dated text: what each card says once, what each printing says of itself beside it, and every oracle tag ([ADR-0031](../../docs/adr/0031-gauntlet-and-curator-keep-one-copy-of-scryfall.md)). `chip_scryfall::copy` builds it and answers from it: a printing by number, id or name, every printing of a card, prices, search and quick add. Which printing a card named by name gets is the caller's ranking, never the copy's own. Where it is kept and when it is refreshed are each platform's.
+"The copy" for short wherever an owned card cannot be meant.
+_Avoid_: cache, mirror
 
 **Card pool**:
 Every card in the card index, as opposed to the cards in a deck.

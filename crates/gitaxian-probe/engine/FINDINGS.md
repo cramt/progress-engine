@@ -416,7 +416,7 @@ data.7z data.db              card catalogue
 model-alpha.dat              the alpha model
 data.md5 data.size version.txt model-alpha.md5 model-alpha.size
 
-.fixtures/fetch-cards.sh     reference scans from Scryfall
+.fixtures/cards.nix          reference scans from Scryfall, pinned by hash
 
 src/lib.rs                   the Rust API: Engine, config, result types
 src/sandbox.rs               the isolate: every op the blob can reach, and the log sink

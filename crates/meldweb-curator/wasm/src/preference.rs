@@ -17,12 +17,14 @@
 //! with text and beats a plain one. Printings no rule tells apart go newest
 //! first, the closest wording to current oracle text.
 
-use std::cmp::Ordering;
+use std::cmp::Reverse;
 
 use chip_decklist::identity::same_name;
 use chip_scryfall::bulk::BulkCard;
+use chip_scryfall::copy::Ranking;
+use chip_scryfall::index::Card;
 use chip_scryfall::printing::Printing;
-use chip_scryfall::Query;
+use chip_scryfall::{CardView, Query};
 use facet::Facet;
 
 /// The rules a repo without `meldweb.toml` ranks by, and what one may copy.
@@ -525,63 +527,105 @@ impl Preference {
         Ok(Preference { rules })
     }
 
-    /// Which rules `card` matches, by index.
-    fn matched(&self, card: &BulkCard, printing: &Printing) -> Vec<u32> {
-        let oracle = card.card_of_any_printing(&mut Vec::new());
-        let view = oracle.view(&[]);
+    /// Which rules this printing of a card matches, by index.
+    fn matched(&self, view: &CardView<'_>, printing: &Printing) -> Vec<u32> {
         self.rules
             .iter()
             .enumerate()
-            .filter(|(_, r)| r.query.matches_printing(&view, printing))
+            .filter(|(_, r)| r.query.matches_printing(view, printing))
             .map(|(i, _)| i as u32)
             .collect()
     }
 
     /// `cards`' indices, best first, each with the rules it matched.
     pub fn rank(&self, cards: &[BulkCard]) -> Vec<(usize, Vec<u32>)> {
-        let mut ranked: Vec<(usize, Printing, Vec<u32>)> = cards
+        let oracles: Vec<Card> = cards
+            .iter()
+            .map(|c| c.card_of_any_printing(&mut Vec::new()))
+            .collect();
+        let printings: Vec<Printing> = cards.iter().map(BulkCard::printing).collect();
+        let views: Vec<_> = oracles
+            .iter()
+            .zip(&printings)
+            .map(|(o, p)| (o.view(&[]), p))
+            .collect();
+        self.rank_views(&views)
+    }
+
+    /// The same order over printings already read, each beside its card as
+    /// that printing has it.
+    pub fn rank_views(&self, printings: &[(CardView<'_>, &Printing)]) -> Vec<(usize, Vec<u32>)> {
+        let mut ranked: Vec<(usize, Place, Vec<u32>)> = printings
             .iter()
             .enumerate()
-            .map(|(i, c)| {
-                let p = c.printing();
-                let matched = self.matched(c, &p);
-                (i, p, matched)
+            .map(|(i, (view, p))| {
+                let matched = self.matched(view, p);
+                (i, self.place(&matched, p), matched)
             })
             .collect();
-        ranked.sort_by(|(_, pa, ma), (_, pb, mb)| {
-            self.by_rules(ma, mb)
-                .then_with(|| pb.released_at.cmp(&pa.released_at))
-                .then_with(|| pa.set.cmp(&pb.set))
-                .then_with(|| by_collector_number(&pa.collector_number, &pb.collector_number))
-        });
+        ranked.sort_by(|(_, a, _), (_, b, _)| a.cmp(b));
         ranked.into_iter().map(|(i, _, m)| (i, m)).collect()
     }
 
-    /// The first rule that tells two printings apart decides between them.
-    fn by_rules(&self, a: &[u32], b: &[u32]) -> Ordering {
-        for (i, rule) in self.rules.iter().enumerate() {
-            let i = i as u32;
-            let (in_a, in_b) = (a.contains(&i), b.contains(&i));
-            if in_a != in_b {
-                let a_first = in_a == (rule.text.verb == Verb::Prefer);
-                return if a_first {
-                    Ordering::Less
-                } else {
-                    Ordering::Greater
-                };
-            }
+    /// Where a printing that matched `matched` goes in the order: the first
+    /// rule that tells two printings apart decides between them, then the
+    /// newest, then by set, then by collector number.
+    fn place(&self, matched: &[u32], printing: &Printing) -> Place {
+        let by_rules = self
+            .rules
+            .iter()
+            .enumerate()
+            // `false` sorts first: a printing a `prefer` matched, or one an
+            // `avoid` did not.
+            .map(|(i, rule)| matched.contains(&(i as u32)) != (rule.text.verb == Verb::Prefer))
+            .collect();
+        Place {
+            by_rules,
+            newest: Reverse(printing.released_at.clone()),
+            set: printing.set.clone(),
+            number: CollectorNumber::of(&printing.collector_number),
         }
-        Ordering::Equal
     }
 }
 
-/// `9` before `10`, and `10` before `10a`, as a set's numbering reads.
-fn by_collector_number(a: &str, b: &str) -> Ordering {
-    let split = |s: &str| {
+/// [`Preference`]'s order as a key, so the copy of Scryfall can pick a
+/// card's printing by it without knowing what a rule is.
+impl Ranking for Preference {
+    type Key = Place;
+
+    fn key(&self, card: &CardView<'_>, printing: &Printing) -> Place {
+        self.place(&self.matched(card, printing), printing)
+    }
+}
+
+/// A printing's place in a [`Preference`]'s order; the least goes first.
+/// The fields compare in the order they are declared.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Place {
+    by_rules: Vec<bool>,
+    newest: Reverse<String>,
+    set: String,
+    number: CollectorNumber,
+}
+
+/// `9` before `10`, and `10` before `10a`, as a set's numbering reads; the
+/// whole number as written breaks what is left.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct CollectorNumber {
+    digits: Option<u64>,
+    rest: String,
+    whole: String,
+}
+
+impl CollectorNumber {
+    fn of(s: &str) -> Self {
         let digits = s.chars().take_while(char::is_ascii_digit).count();
-        (s[..digits].parse::<u64>().ok(), s[digits..].to_string())
-    };
-    split(a).cmp(&split(b)).then_with(|| a.cmp(b))
+        CollectorNumber {
+            digits: s[..digits].parse().ok(),
+            rest: s[digits..].to_string(),
+            whole: s.to_string(),
+        }
+    }
 }
 
 #[cfg(test)]

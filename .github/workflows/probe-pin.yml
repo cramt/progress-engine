@@ -6,9 +6,9 @@
 # The archive is public and read anonymously, and GITHUB_TOKEN pushes the
 # branch and opens the PR. Events GITHUB_TOKEN causes start no workflows, so
 # the PR alone would never be checked; a dispatch is the exception, so this
-# starts CI and the probe web check on the branch itself, and their results
-# land on the PR's head commit. Opening the PR needs Settings > Actions >
-# General > "Allow GitHub Actions to create and approve pull requests".
+# starts CI on the branch itself, and its result lands on the PR's head
+# commit. Opening the PR needs Settings > Actions > General > "Allow GitHub
+# Actions to create and approve pull requests".
 name: Probe pin
 
 on:
@@ -57,6 +57,5 @@ jobs:
             --title "probe: pin delver x $version" \
             --body "The archive holds Delver X $version in \`ghcr.io/cramt/delver-x\` as $tags, and this PR pins it.
 
-          CI and the probe web check were started on this branch by the pin workflow, since a PR it opens starts none. The web check says whether \`KNOWN_FINGERPRINT\` still holds and whether card name (6/6) and exact printing (4/6) moved. A moved fingerprint or number needs a person's reading of FINDINGS.md before this merges. CI does not run the native accuracy test (\`PROBE_REQUIRE_ENGINE=1\`)."
+          CI was started on this branch by the pin workflow, since a PR it opens starts none. Its probe checks, the native tests (\`gitaxian-probe-test\`, with \`PROBE_REQUIRE_ENGINE=1\`) and the web check (\`gitaxian-probe-web-check\`), say whether \`KNOWN_FINGERPRINT\` still holds and whether card name (6/6) and exact printing (4/6) moved. A moved fingerprint or number needs a person's reading of FINDINGS.md before this merges."
           gh workflow run ci.yml --ref "$branch"
-          gh workflow run probe-web-check.yml --ref "$branch"

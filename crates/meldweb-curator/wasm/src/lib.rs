@@ -21,6 +21,7 @@
 
 use std::collections::HashMap;
 
+pub mod copy;
 mod preference;
 
 use chip_decklist::collection::{self, Collection};
@@ -1443,6 +1444,11 @@ mod tests {
         g.add_type::<Compared>();
         g.add_type::<Ranked>();
         g.add_type::<SettingsRules>();
+        g.add_type::<chip_scryfall::copy::Wanted>();
+        g.add_type::<chip_scryfall::copy::Found>();
+        g.add_type::<chip_scryfall::copy::PrintingFacts>();
+        g.add_type::<chip_scryfall::copy::SearchAnswer>();
+        g.add_type::<copy::StoreStep>();
         format!(
             "// Generated from crates/meldweb-curator/wasm/src/lib.rs. Do not edit:\n\
              // UPDATE_TS=1 cargo test -p meldweb-wasm rewrites it.\n\n{}",

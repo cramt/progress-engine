@@ -3,6 +3,7 @@ import { printingId } from "../scryfall";
 import { SEARCH_GATE } from "../scryfallQueue";
 import {
   byRelease,
+  cardText,
   fetchAllPrintings,
   filterBySet,
   type PrintingOption,
@@ -236,5 +237,53 @@ describe("scryfall's printings", () => {
     expect(await left).toBe("aborted");
     expect((await staying).map(printingId)).toEqual(["m21/1"]);
     expect(requests).toBe(1);
+  });
+});
+
+describe("a printing's text", () => {
+  it("reads one face off the card, with power and toughness in the corner", () => {
+    expect(
+      cardText({
+        name: "Rashmi and Ragavan",
+        mana_cost: "{1}{G}{U}{R}",
+        type_line: "Legendary Creature — Elf Monkey",
+        oracle_text: "Whenever you cast your first spell…",
+        power: "2",
+        toughness: "4",
+      }),
+    ).toEqual([
+      {
+        name: "Rashmi and Ragavan",
+        mana: "{1}{G}{U}{R}",
+        type: "Legendary Creature — Elf Monkey",
+        text: "Whenever you cast your first spell…",
+        corner: "2/4",
+      },
+    ]);
+  });
+
+  it("reads each face off card_faces, a land with no cost and a walker's loyalty", () => {
+    const faces = cardText({
+      name: "Front // Back",
+      card_faces: [
+        {
+          name: "Front",
+          mana_cost: "{1}{B}",
+          type_line: "Legendary Creature",
+          oracle_text: "a",
+        },
+        {
+          name: "Back",
+          mana_cost: "",
+          type_line: "Legendary Planeswalker",
+          oracle_text: "b",
+          loyalty: "3",
+        },
+      ],
+    });
+    expect(faces.map((f) => [f.name, f.mana, f.corner])).toEqual([
+      ["Front", "{1}{B}", undefined],
+      ["Back", "", "3"],
+    ]);
   });
 });

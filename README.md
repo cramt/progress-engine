@@ -1,13 +1,31 @@
+# progress-engine
+
+Magic: The Gathering tooling, named for Jin-Gitaxias's faction of New Phyrexia
+on the grounds that obsessively recalculating whether your deck is perfect yet
+is blue-aligned behaviour. [NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md) carries
+the rest of the family and the rule for naming the next one. Three products
+live here:
+
+- **Ichormoon Gauntlet** (`crates/ichormoon-gauntlet/`, binary `gauntlet`):
+  draw-probability tests for decklists, answered by exact enumeration. The rest
+  of this README is about it.
+- **Meldweb Curator** (`crates/meldweb-curator/`, at
+  [meldweb.cramt.dk](https://meldweb.cramt.dk)): a deck and collection editor
+  in the browser where a `.deck.toml` in your own git repo is the deck and
+  saving is a commit.
+- **Gitaxian Probe** (`crates/gitaxian-probe/`): card scanning, hosting
+  [Delver X](https://mtg.delver.app)'s recognition engine natively and in the
+  browser, where Curator's Scan button uses it. Its
+  [engine README](crates/gitaxian-probe/engine/README.md) is the authority on it.
+
+Gauntlet and Curator stand on **Reality Chip** (`crates/reality-chip/`), the shared core:
+card data and Scryfall's query syntax, decklist parsing, and the
+hypergeometric walk. See [Crate layout](#crate-layout).
+
 # Ichormoon Gauntlet
 
-Draw-probability tests for Magic: The Gathering decklists.
-
-Part of **progress-engine**, a family of Magic tooling named for Jin-Gitaxias's
-faction of New Phyrexia, on the grounds that obsessively recalculating whether
-your deck is perfect yet is blue-aligned behaviour. A gauntlet is a set of
-trials you put something through, which is what a criteria file is.
-[NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md) carries the rest of the family and
-the rule for naming the next one.
+Draw-probability tests for Magic: The Gathering decklists. A gauntlet is a set
+of trials you put something through, which is what a criteria file is.
 
 This README is what the tool does today. [VISION.md](VISION.md) is what it is
 for, what it refuses to become, and which of those two lists a given decision
@@ -250,7 +268,7 @@ Working today:
 
 | Command | What it does |
 |---|---|
-| `gauntlet sync` | Build the card index from Scryfall bulk data |
+| `gauntlet sync` | Build the card index, and keep the copy of Scryfall beside it, from Scryfall bulk data |
 | `gauntlet parse <deck>` | The canonical decklist parser, as JSON; a `.deck.toml` is named from the index |
 | `gauntlet import <deck.txt>` | An Archidekt export as a `.deck.toml`, on stdout |
 | `gauntlet test <deck> <criteria.toml>` | Evaluate criteria and report PASS/FAIL |
@@ -2954,8 +2972,178 @@ some reminder text is a far smaller error than `o:` losing a card's actual rules
 
 Oracle tags — `otag:ramp`, `otag:sacrifice-outlet` — are now published as bulk
 data too, which removes the objection that blocked
-[issue #15](https://github.com/cramt/progress-engine/issues/15). They are not
-synced yet.
+[issue #15](https://github.com/cramt/progress-engine/issues/15). The index still
+fetches its ten through the search API; the copy of Scryfall below reads every
+tag off the Oracle Tags bulk file.
+
+### The copy of Scryfall it keeps beside the index
+
+`sync` also keeps **the copy of Scryfall**
+([ADR-0031](docs/adr/0031-gauntlet-and-curator-keep-one-copy-of-scryfall.md)):
+Scryfall's Default Cards and Oracle Tags bulk files, every printing and every
+tag, in the format Meldweb Curator keeps in the browser. `test` does not read it
+yet; it reads the index, and the index goes away once it does
+([#142](https://github.com/cramt/progress-engine/issues/142)).
+
+```
+$ gauntlet sync
+downloading oracle_cards, updated 2026-10-09T09:01:54.966+00:00 (24.6 MB)
+...
+wrote 35020 cards to /home/you/.cache/scryfall/index.jsonl
+making the copy of Scryfall's Default Cards of 2026-10-09T09:05:44.334+00:00 in /home/you/.cache/scryfall/scryfall-copy/scryfall-copy.a.txt.gz
+  reading default_cards of 2026-10-09T09:05:44.334+00:00 (78.8 MB)
+  read 633.9 MB in 66.4s
+  reading oracle_tags of 2026-10-09T09:00:33.955+00:00 (6.0 MB)
+  read 18.7 MB in 1.5s
+  118602 printings of 39553 cards, 4570 oracle tags, built in 73.5s
+  wrote /home/you/.cache/scryfall/scryfall-copy/scryfall-copy.a.txt.gz (36.3 MB of text, 10.7 MB gzipped) in 6.1s
+```
+
+The bulk files stream through gzip into the builder 4 MB at a time, so the
+634 MB Default Cards file is never held whole: that sync, index and copy on a
+clean cache, took 3 minutes 21 seconds and peaked at 394 MB resident, a minute
+of it waiting out an HTTP 429 from the index's tag searches.
+
+It lives in `scryfall-copy/` beside the default index (`$SCRYFALL_CACHE`, failing
+that `$XDG_CACHE_HOME/scryfall`, failing that `~/.cache/scryfall`), and
+`--copy <dir>` puts it somewhere else. The directory holds what the browser
+holds in its origin's storage, file for file:
+
+| File | What it is |
+|---|---|
+| `scryfall-copy.a.txt.gz`, `scryfall-copy.b.txt.gz` | Two slots, each the copy's text, gzipped |
+| `scryfall-copy.meta.json` | Which slot holds a whole copy, and the Default Cards `updated_at` it was made from |
+| `scryfall-copy.unreadable.txt` | The `updated_at` of a Default Cards file this build could not read |
+| `scryfall-copy.lock` | Held by the sync that is running |
+
+**A sync cut short costs nothing.** A new copy goes in the slot the meta file
+does not name, and the meta file is written last, beside its old self and
+renamed over it. Kill a sync halfway through and the meta file still names the
+copy before, which is whole. Which slot, and when, is decided by
+`chip_scryfall::copy::store`, the same code the browser runs; `sync` does the
+reading, writing and downloading.
+
+**Two syncs at once download once.** The first holds `scryfall-copy.lock` for
+the whole sync, index and copy both. The second says it is waiting, and when the
+lock comes free it finds both current and downloads neither.
+
+**Nothing refreshes on its own.** Only `sync` asks Scryfall for anything, and it
+makes a new copy only when Default Cards has a newer `updated_at` than the copy
+kept, or `--force` asks. A number must not move because a run happened to land
+after Scryfall's daily update. A copy reported current has been read back first,
+and one that does not read back is made again.
+
+**A file the builder refuses is remembered.** If a line of either bulk file is
+not a card or a tag, nothing kept is replaced, and the file's `updated_at` goes
+in `scryfall-copy.unreadable.txt`, so the next `sync` refuses it by name rather
+than downloading 85 MB to fail the same way. `--force` tries it again.
+
+**Offline.** `--cards-from <default-cards.jsonl> --tags-from <oracle-tags.jsonl>`
+makes the copy from files on disk, plain or gzipped, and downloads nothing: the
+index is skipped unless `--from` names an Oracle Cards file for it too. A local
+file has no `updated_at`, so the Default Cards file's modification time stands
+in for it, written the way Scryfall writes one.
+
+**`decks/scryfall-copy.txt` is a snapshot of it.** `--snapshot <file>` writes
+the copy's text there uncompressed, so git can delta one sync's against the
+next, as it does `decks/index.jsonl`. Both were written by one sync:
+
+```
+SCRYFALL_CACHE=$(mktemp -d) gauntlet sync --snapshot decks/scryfall-copy.txt
+cp "$SCRYFALL_CACHE/index.jsonl" decks/index.jsonl
+```
+
+#### The copy's text format
+
+This is everything needed to read `decks/scryfall-copy.txt`, or a slot once
+gunzipped, without this repository's code. The text is UTF-8, every line ends
+in `\n`, and it has three parts in this order:
+
+1. one **head** line, a JSON object;
+2. exactly `head.cards` **card lines**;
+3. exactly `head.printings` **printing lines**.
+
+Nothing follows the last printing line. A file with fewer lines than the head
+promises is cut short and is not a copy.
+
+Card and printing lines are tab-separated fields. No field holds a tab, a
+carriage return or a line break: the plain fields are checked when the copy is
+written, and the one JSON field escapes them. An empty field is an absent value.
+Card, printing, set, look and tag numbers are all 0-based positions in their
+list.
+
+##### The head
+
+| Key | Value |
+|---|---|
+| `format` | `4`. A reader of this format refuses any other number. |
+| `updated_at` | Scryfall's `updated_at` for the Default Cards file the copy was made from, e.g. `2026-10-09T09:05:44.334+00:00`. |
+| `sets` | Every set a printing is in: objects of `code` (lowercase, `"cmr"`), `name` and `set_type`, each left out when Scryfall gave none. |
+| `looks` | What thousands of printings share: objects of `own` and `finishes`. `own` is a Scryfall card object holding only these of its fields: `lang`, `rarity`, `frame`, `frame_effects`, `border_color`, `full_art`, `textless`, `digital`, `promo`, `reprint`, `oversized`, `promo_types`, `games`, each left out when Scryfall gave none, and `"name": ""`, which is always there and means nothing. `finishes` is Scryfall's list, left out when empty. |
+| `tags` | Every oracle tag's slug, `"mana-rock"`. A card names its tags by their positions here. |
+| `aliases` | `{"alias": "…", "tag": n}`: another name tag `n` goes by, as Scryfall's `otag:` accepts it. |
+| `formats` | Every format a legality names, sorted: `["alchemy", "brawl", "commander", …]`. A card's legality letters are in this order. |
+| `cards`, `printings` | How many card lines and printing lines follow. |
+
+##### Card lines
+
+A card line is one card object as its printings state it, less what differs
+between printings. Six fields:
+
+| # | Field | Value |
+|---|---|---|
+| 1 | name | Scryfall's `name`, both faces' for a card of two: `Delver of Secrets // Insectile Aberration`. |
+| 2 | oracle id | Scryfall's `oracle_id`, or for a reversible card, which states it only on its faces, the first face's. Empty if neither has one. |
+| 3 | layout | Scryfall's `layout`. |
+| 4 | legalities | One letter per entry of `head.formats`, in order: `l` legal, `n` not_legal, `b` banned, `r` restricted, `-` a format this card's legalities do not name. **Empty** when the card's legalities hold a word with no letter; then they are in field 6's `legalities` instead. |
+| 5 | tags | Comma-separated positions in `head.tags`, ascending, of every tag the card is in, **its tags' ancestors included**: a card tagged `mana-rock`, whose parent is `mana-producer`, whose parent is `ramp`, lists all three, as Scryfall's `otag:ramp` finds it. Tags attach by oracle id, so every card line with the same oracle id has the same tags. |
+| 6 | facts | The rest, as JSON: Scryfall's card object holding only the fields below, each left out when Scryfall gave none. |
+
+Field 6 can hold `name`, `oracle_id`, `layout`, `type_line`, `oracle_text`,
+`mana_cost`, `cmc`, `colors`, `color_indicator`, `color_identity`,
+`produced_mana`, `keywords`, `power`, `toughness`, `loyalty`, `defense`,
+`legalities` (only when field 4 is empty), `game_changer`, `reserved` and
+`card_faces`. A face can hold `name`, `type_line`, `oracle_text`, `mana_cost`,
+`colors`, `color_indicator`, `power`, `toughness`, `loyalty`, `defense` and
+`oracle_id`. Faces' pictures are not kept.
+
+Two things a reader must not assume:
+
+- **A name is not one card line.** Card lines are distinct card objects, so two
+  printings of a card whose objects differ get a line each: today Sol Ring has
+  two, which differ in one format's legality letter. Group by oracle id, or by
+  name, to get the card.
+- **Not every card line is a card you can play.** The copy keeps everything
+  Default Cards has: tokens, emblems, art cards, and printings in languages
+  other than English. The index left out the layouts `token`,
+  `double_faced_token`, `emblem`, `art_series` and `front_card`, and every
+  printing whose `lang` was not `en`; a reader wanting that pool filters the
+  same way, `lang` being on each printing's look.
+
+Card lines are in the order Default Cards first states each.
+
+##### Printing lines
+
+One per printing in Default Cards, in its order. Fifteen fields:
+
+| # | Field | Value |
+|---|---|---|
+| 1 | id | Scryfall's id for the printing. |
+| 2 | card | Its card line's position. |
+| 3 | set | Its set's position in `head.sets`. |
+| 4 | look | Its look's position in `head.looks`. |
+| 5 | collector number | As printed: `472`, `RIX-1`. |
+| 6 | released | `released_at`, `YYYY-MM-DD`. |
+| 7 | flavour name | `flavor_name`. |
+| 8 | picture | The version its pictures' URLs end in; empty if Scryfall has no picture of it. The front's is `https://cards.scryfall.io/{size}/front/{a}/{b}/{id}.jpg?{version}`, with `{a}` and `{b}` the id's first and second characters and `{size}` `normal` or `small`. |
+| 9 | back picture | `1` if its other face has a picture of its own, at `…/back/…`; empty if not. |
+| 10–15 | prices | `usd`, `usd_foil`, `usd_etched`, `eur`, `eur_foil`, `eur_etched`, each a decimal number (`0.49`, `12`, never an exponent), or empty where Scryfall has none. |
+
+A printing's whole card object, as Scryfall wrote it less what is not kept, is
+its card line's field 6, with field 4's legalities spelled back into
+`legalities`, plus its look's `own` (less `name`), plus its set's `code` as `set`
+and `set_type`, plus fields 5, 6 and 7 as `collector_number`, `released_at`
+and `flavor_name`.
 
 ### The query language
 
@@ -3068,7 +3256,7 @@ a guess dressed as a fact, but somebody else's answer with a date attached.
 | `mana-rock` | 384 | how much mana a rock the line cast adds: the standard library's `adds` entries |
 | `mana-dork` | 441 | the same, for creatures |
 
-They cost nothing to carry: 5,301 of 35,004 cards are tagged, the file is the
+They cost nothing to carry: 5,302 of 35,020 cards are tagged, the file is the
 same 24MB, and a run parses only the cards your deck names either way.
 
 **An index carries the tags it was told to fetch, and says which.** The header
@@ -3339,9 +3527,14 @@ Notes:
 ```bash
 cargo test --all   # plain cargo; rust-toolchain.toml picks the toolchain
 cargo clippy --all-targets -- -D warnings
-nix develop        # optional devshell with the toolchain, jq and cargo-nextest
-nix flake check    # what CI runs: fmt, clippy -D warnings, tests, build, checker
+nix develop        # optional devshell with the toolchain, jq, cargo-nextest, node and pnpm
+nix flake check    # what CI runs: fmt, clippy -D warnings, tests, build, checker, meldweb-web, the probe
 python3 checker/compare.py   # the independent checker, against target/release/gauntlet
+
+# Meldweb Curator, inside `nix develop`
+pnpm install
+pnpm dev           # the editor on localhost:5173; VITE_MOCK_GITHUB=1 runs it against a fake GitHub
+pnpm check         # biome + tsc; `pnpm test` is vitest, `pnpm build` the site
 ```
 
 ### An independent checker
@@ -3455,10 +3648,11 @@ A question the engine cannot answer yet is marked `pending="#NN"` in
 games, and fails nothing on it. When the criterion exists and the engine
 answers it, `compare.py` compares it and says to delete the marker.
 
-The workspace is Ichormoon Gauntlet and Reality Chip. Gitaxian Probe, under
-`crates/gitaxian-probe/`, is a workspace of its own outside this one and
-outside the flake, because it needs the network to build; its engine README
-says how.
+The cargo workspace is Ichormoon Gauntlet, Reality Chip and `meldweb-wasm`.
+Gitaxian Probe, under `crates/gitaxian-probe/`, is a workspace of its own
+outside this one, because its native host links a prebuilt V8 and plain cargo
+needs the network to build it. The flake builds and checks all of it, with V8
+and Delver's files fetched by hash. Its engine README says how.
 
 Reflection comes from [facet](https://github.com/facet-rs/facet): `facet-json`
 writes the JSON contract above, reads Scryfall's bulk data and reads and writes
@@ -3493,7 +3687,8 @@ owns them:
 ```
 crates/ichormoon-gauntlet/{cli,criteria,toml,sim}    this tool
 crates/reality-chip/{scryfall,decklist,stats}        the shared family core
-crates/meldweb-curator/{wasm,web,worker}             the deck editor: chip-decklist in wasm, a TypeScript app, and its login worker
+crates/meldweb-curator/{wasm,web,worker,infra}       the deck editor: chip-decklist in wasm, a TypeScript app, its worker, and the OpenTofu for its domain
+crates/gitaxian-probe/                               card scanning; a cargo workspace of its own
 ```
 
 `reality-chip` is the part a sibling tool depends on, kept in its own directory
@@ -3504,12 +3699,12 @@ See [NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md).
 |---|---|---|
 | `chip-stats` | Exact hypergeometric draw probabilities | Nothing. No Magic concepts at all. |
 | `chip-decklist` | Parsing Archidekt decklists, editing a deck and a collection and saying which line holds a card, writing a deck as Archidekt, Cockatrice and Cardmarket import it, and reading other apps' collection exports | Decklist and export text, and the names of its printings, or Scryfall's answers about an export's rows, when handed them. No card data. |
-| `chip-scryfall` | Card data, Scryfall bulk data and search syntax, and the printing terms Curator ranks by | Cards and their printings. No decklists. |
+| `chip-scryfall` | Card data, Scryfall bulk data and search syntax, the printing terms Curator ranks by, and the copy of Scryfall (`chip_scryfall::copy`, ADR-0031): its kept format, building it from the bulk files and answering lookups, search and quick add from it, and its storage policy (`copy::store`: two slots and a meta file written last, when a copy is due a look, a file the builder refused), with the reading, writing and downloading, and which printing comes first, left to the caller | Cards and their printings. No decklists, and no product's printing preference. |
 | `gauntlet-criteria` | Grouping cards by query, applying effects, evaluating exactly | Counts, the zones they are counted in, and where a looked-at card goes. Not cards, and not where the questions came from. |
 | `gauntlet-toml` | Reading a criteria file and answering it, and shipping the standard effect library | The criteria format, and counts. No cards. |
 | `gauntlet-sim` | Sampling, validated against `chip-stats` | Shuffling. |
 | `gauntlet-cli` | The `gauntlet` binary, and the library behind it that prepares a run in-process | All of the above. |
-| `meldweb-wasm` | `chip-decklist` for Meldweb Curator's browser editor, with the TypeScript types generated from its wire types, and `meldweb.toml`'s printing preference over `chip-scryfall` and its deck order, read, checked and written | Decklist text, and the printings of one card it is handed to rank. No card index. |
+| `meldweb-wasm` | `chip-decklist` and `chip_scryfall::copy` for Meldweb Curator's browser editor, with the TypeScript types generated from its wire types, and `meldweb.toml`'s printing preference over `chip-scryfall` and its deck order, read, checked and written. The copy's wasm functions hold the worker's copy and hand it the default printing preference | Decklist text, the printings of one card it is handed to rank, and the one copy of Scryfall the worker holds. |
 
 The seam worth knowing about is between `chip-scryfall` and `chip-decklist`: a query
 can filter on `cat:"Exile Outlet"`, which is decklist data, not card data. Rather

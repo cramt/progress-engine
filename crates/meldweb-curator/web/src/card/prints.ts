@@ -1,4 +1,6 @@
+import { viaCopy } from "../copy";
 import type { Finish } from "../deck";
+import type { PrintingFacts } from "../deck.gen";
 import { type Face, faces, imageUris, type Turn } from "../scryfall";
 import { cachedOne } from "../scryfallCache";
 import { API, SEARCH_GATE, scryfallFetch } from "../scryfallQueue";
@@ -128,6 +130,24 @@ export function parsePrintsPage(json: unknown): {
   return { printings, next };
 }
 
+/** A printing the page's copy of Scryfall found, as the API's would read. */
+function fromCopy({ printing: p, facts }: PrintingFacts): PrintingOption {
+  return {
+    id: p.id,
+    name: p.name,
+    set: p.set,
+    num: p.num,
+    setName: p.setName,
+    released: p.released,
+    ...(p.image ? { image: p.image } : {}),
+    ...(p.small ? { small: p.small } : {}),
+    finishes: p.finishes.filter(isFinish),
+    ...(p.turn ? { turn: p.turn } : {}),
+    ...(p.back ? { back: p.back } : {}),
+    facts: factsOf({ ...facts }),
+  };
+}
+
 /** Newest first, the way Scryfall and Archidekt list them; `oldest` reverses it. */
 export function byRelease(
   printings: readonly PrintingOption[],
@@ -140,6 +160,45 @@ export function byRelease(
       a.num.localeCompare(b.num, undefined, { numeric: true }),
   );
   return oldest ? sorted.reverse() : sorted;
+}
+
+/** One face of a card as its text box reads, `{G}`-style symbols left in. */
+export interface FaceText {
+  name: string;
+  mana: string;
+  type: string;
+  text: string;
+  /** Power/toughness, loyalty or defense: the box in the corner. */
+  corner?: string;
+}
+
+/**
+ * A printing's faces as the details modal reads them: one for most cards,
+ * each half for a split, flip or double-faced card, where Scryfall keeps the
+ * text on `card_faces` rather than on the card.
+ */
+export function cardText(facts: Record<string, unknown>): FaceText[] {
+  const faces = Array.isArray(facts.card_faces)
+    ? (facts.card_faces as Record<string, unknown>[])
+    : [];
+  return (faces.length > 0 ? faces : [facts]).flatMap((f) =>
+    typeof f.name === "string" ? [faceText(f, f.name)] : [],
+  );
+}
+
+function faceText(f: Record<string, unknown>, name: string): FaceText {
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  const corner =
+    typeof f.power === "string" && typeof f.toughness === "string"
+      ? `${f.power}/${f.toughness}`
+      : str(f.loyalty) || str(f.defense);
+  return {
+    name,
+    mana: str(f.mana_cost),
+    type: str(f.type_line),
+    text: str(f.oracle_text),
+    ...(corner ? { corner } : {}),
+  };
 }
 
 /** The printings whose set name or code contains `filter`, ignoring case. */
@@ -209,12 +268,18 @@ export function fetchAllPrintings(
   signal?: AbortSignal,
 ): Promise<PrintingOption[]> {
   if (signal?.aborted) return Promise.reject(signal.reason);
-  const search = cachedOne(
-    // `v3` dropped what was cached before a printing carried its faces, and
-    // what was cached while a battle was looked for by layout, which left it
-    // upright; `v4`, what was cached before a printing carried its facts.
-    ["scryfall", "prints", "v4", uri],
-    (s) => loadAll(uri, s),
+  const search = viaCopy(
+    async (copy) => (await copy.prints(uri)).map(fromCopy),
+    () =>
+      cachedOne(
+        // `v3` dropped what was cached before a printing carried its faces,
+        // and what was cached while a battle was looked for by layout, which
+        // left it upright; `v4`, what was cached before a printing carried
+        // its facts.
+        ["scryfall", "prints", "v4", uri],
+        (s) => loadAll(uri, s),
+      ),
+    (prints) => prints.length > 0,
   );
   if (!signal) return search;
   return new Promise((resolve, reject) => {
