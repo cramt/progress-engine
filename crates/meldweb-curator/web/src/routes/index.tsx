@@ -92,6 +92,13 @@ function Decks({
               Collection
             </Link>
             <Link
+              to="/wanted"
+              className="button"
+              title="Cards you want, and the ones your decks hold that you don't own"
+            >
+              Wanted
+            </Link>
+            <Link
               to="/settings"
               className="button"
               title="Which printing of a card is offered first"

@@ -17,6 +17,7 @@ use toml_edit::{Array, DocumentMut, InlineTable, Item, Key, Table, Value};
 use crate::collection::CollectionError;
 use crate::deck::{quote_multiline, CardRef, CategoryType, Deck, DeckError, Finish};
 use crate::identity::{holds, Names};
+use crate::wanted::WantedError;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum EditError {
@@ -34,6 +35,8 @@ pub enum EditError {
     Invalid(#[from] DeckError),
     #[error(transparent)]
     Collection(#[from] CollectionError),
+    #[error(transparent)]
+    Wanted(#[from] WantedError),
 }
 
 /// What an edited file must still be once edited: [`check_deck`] for a deck,

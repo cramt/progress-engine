@@ -30,6 +30,10 @@ A place that names a deck's path, so the copies in it are the ones in that deck.
 **Unsorted**:
 Owned copies in no place yet.
 
+**Wanted list**:
+The Magic repo's `wanted.toml` and the page `/wanted` ([ADR-0034](../../docs/adr/0034-the-wanted-list-is-wanted-toml-and-what-the-decks-lack-is-derived.md)). It has two halves. The file holds cards wanted *by hand*, written like collection lines with no place. *Missing from decks* is worked out, never saved: what the decks hold more copies of than the collection, counted by name, with basics, maybeboard and set-aside cards left out. A deck and its variants count as one build. `deck_copies` in the file says whether each deck needs its own copies or one set moves between them.
+_Avoid_: wishlist, shopping list, buy list
+
 **Collection import**:
 Another app's collection export (ManaBox, Moxfield, Dragon Shield…) or a text list, put into the collection as one edit ([ADR-0029](../../docs/adr/0029-a-collection-import-is-read-by-header-and-a-printing-is-pinned-only-where-scryfall-agrees.md)). Its binders become places. It adds to what is there, or replaces what the places it fills held, so importing the same export again changes nothing. A printing is pinned only where Scryfall agrees on the name; otherwise the card goes in by name, and the import says so.
 _Avoid_: sync (nothing is kept in step with the other app)

@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useGrowingPrintings } from "../card/useGrowingPrintings";
 import {
   addOwned,
   declarePlace,
@@ -36,7 +37,6 @@ import { QuickAdd } from "../quickadd/QuickAdd";
 import {
   type Currency,
   cardName,
-  fetchPrintings,
   type Printings,
   printingKey,
 } from "../scryfall";
@@ -82,31 +82,6 @@ const FINISHES: readonly Finish[] = ["nonfoil", "foil", "etched"];
 const TO_UNSORTED = "\u0000unsorted";
 
 const NOTHING: ReadonlySet<number> = new Set();
-
-/**
- * The printings of cards added since the page loaded, looked up as they
- * appear; a card Scryfall cannot find is asked about once.
- */
-function useGrowingPrintings(
-  loaded: Printings,
-  cards: readonly OwnedCard[],
-): Printings {
-  const [printings, setPrintings] = useState(loaded);
-  const asked = useRef(new Set(loaded.keys()));
-  useEffect(() => {
-    const missing = cards.filter(
-      (c) => !asked.current.has(printingKey(c.card)),
-    );
-    if (missing.length === 0) return;
-    for (const c of missing) asked.current.add(printingKey(c.card));
-    // Not aborted on cleanup: the keys are already marked asked, so an
-    // aborted lookup would never be made again.
-    fetchPrintings(missing)
-      .then((found) => setPrintings((p) => new Map([...p, ...found])))
-      .catch(() => {});
-  }, [cards]);
-  return printings;
-}
 
 /**
  * The collection: every card owned, by the place it is in, saved by itself
@@ -314,6 +289,9 @@ export function CollectionEditor({
               places={parsed.places}
               onImport={(next) => change(() => next)}
             />
+            <Link to="/wanted" className="button">
+              Wanted
+            </Link>
           </>
         }
         status={<SaveStatus save={save} path={path} />}

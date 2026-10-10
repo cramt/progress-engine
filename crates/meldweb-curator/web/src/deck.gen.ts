@@ -250,6 +250,76 @@ export type DeckChange =
   | { kind: "cover"; text: string }
   | { kind: "description"; text: string };
 
+/**
+ * A deck file as the page loaded it.
+ */
+export interface DeckFile {
+  path: string;
+  text: string;
+}
+
+export type ParsedWanted =
+  | { kind: "wanted"; deckCopies: DeckCopies; cards: WantedCard[]; missing: MissingCard[]; collection?: string; unread: Unread[] }
+  | { kind: "refused"; message: string };
+
+/**
+ * A deck file the derived list could not read, and why.
+ */
+export interface Unread {
+  path: string;
+  message: string;
+}
+
+/**
+ * A card the decks hold more copies of than the collection does.
+ */
+export interface MissingCard {
+  name: string;
+  missing: number;
+  owned: number;
+  decks: DeckNeed[];
+}
+
+/**
+ * A deck holding a card the collection is short of.
+ */
+export interface DeckNeed {
+  path: string;
+  /**
+   * The deck's `name`, or its file's stem when it has none.
+   */
+  name: string;
+  qty: number;
+}
+
+/**
+ * One line of the wanted list, and how many of it the collection holds.
+ */
+export interface WantedCard {
+  /**
+   * Position in the file's `cards` list, 0-based: how an edit finds it.
+   */
+  index: number;
+  card: CardRef;
+  qty: number;
+  finish: Finish;
+  /**
+   * Copies owned of any printing of the card.
+   */
+  owned: number;
+}
+
+export type Finish = "nonfoil" | "foil" | "etched";
+
+export type CardRef =
+  | { kind: "printing"; set: string; num: string }
+  | { kind: "name"; name: string };
+
+/**
+ * How the decks count toward the wanted list (ADR-0034).
+ */
+export type DeckCopies = "each" | "shared";
+
 export interface CollectionImported {
   text: string;
   /**
@@ -341,12 +411,6 @@ export interface OwnedCard {
    */
   at?: string;
 }
-
-export type Finish = "nonfoil" | "foil" | "etched";
-
-export type CardRef =
-  | { kind: "printing"; set: string; num: string }
-  | { kind: "name"; name: string };
 
 export interface Place {
   name: string;

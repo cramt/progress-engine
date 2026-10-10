@@ -28,7 +28,7 @@ use chip_decklist::collection::{self, Collection};
 use chip_decklist::collection_import;
 use chip_decklist::deck::{self, CategoryType, Deck};
 use chip_decklist::diff::{self, Change, Diff};
-use chip_decklist::{changelog, edit, export};
+use chip_decklist::{changelog, edit, export, wanted};
 use chip_scryfall::bulk::BulkCard;
 use facet::Facet;
 use preference::{Pin, Preference, RuleText};
@@ -1421,6 +1421,237 @@ pub fn import_collection(
     Ok(facet_json::to_string(&imported).expect("CollectionImported serialises"))
 }
 
+/// How the decks count toward the wanted list (ADR-0034).
+#[derive(Debug, Clone, Copy, Facet)]
+#[repr(u8)]
+#[facet(rename_all = "lowercase")]
+pub enum DeckCopies {
+    Each,
+    Shared,
+}
+
+/// One line of the wanted list, and how many of it the collection holds.
+#[derive(Debug, Facet)]
+pub struct WantedCard {
+    /// Position in the file's `cards` list, 0-based: how an edit finds it.
+    pub index: usize,
+    pub card: CardRef,
+    pub qty: u32,
+    pub finish: Finish,
+    /// Copies owned of any printing of the card.
+    pub owned: u32,
+}
+
+/// A deck holding a card the collection is short of.
+#[derive(Debug, Facet)]
+pub struct DeckNeed {
+    pub path: String,
+    /// The deck's `name`, or its file's stem when it has none.
+    pub name: String,
+    pub qty: u32,
+}
+
+/// A card the decks hold more copies of than the collection does.
+#[derive(Debug, Facet)]
+pub struct MissingCard {
+    pub name: String,
+    pub missing: u32,
+    pub owned: u32,
+    pub decks: Vec<DeckNeed>,
+}
+
+/// A deck file the derived list could not read, and why.
+#[derive(Debug, Facet)]
+pub struct Unread {
+    pub path: String,
+    pub message: String,
+}
+
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum ParsedWanted {
+    Wanted {
+        #[facet(rename = "deckCopies")]
+        deck_copies: DeckCopies,
+        cards: Vec<WantedCard>,
+        /// Empty while the collection cannot be read, which `collection`
+        /// then says.
+        missing: Vec<MissingCard>,
+        #[facet(skip_serializing_if = Option::is_none)]
+        collection: Option<String>,
+        /// Decks left out of `missing`.
+        unread: Vec<Unread>,
+    },
+    Refused {
+        message: String,
+    },
+}
+
+/// A deck file as the page loaded it.
+#[derive(Debug, Facet)]
+pub struct DeckFile {
+    pub path: String,
+    pub text: String,
+}
+
+pub fn read_wanted_text(
+    text: &str,
+    collection_text: &str,
+    decks: &[DeckFile],
+    names: &HashMap<String, String>,
+) -> ParsedWanted {
+    let w = match wanted::Wanted::parse(text) {
+        Ok(w) => w,
+        Err(e) => {
+            return ParsedWanted::Refused {
+                message: e.to_string(),
+            }
+        }
+    };
+    let deck_copies = match w.deck_copies {
+        wanted::DeckCopies::Each => DeckCopies::Each,
+        wanted::DeckCopies::Shared => DeckCopies::Shared,
+    };
+    let mut unread = Vec::new();
+    let read: Vec<(String, Deck, String)> = decks
+        .iter()
+        .filter_map(|d| match Deck::parse(&d.text) {
+            Ok(deck) => Some((d.path.clone(), deck, d.text.clone())),
+            Err(e) => {
+                unread.push(Unread {
+                    path: d.path.clone(),
+                    message: e.to_string(),
+                });
+                None
+            }
+        })
+        .collect();
+    let (collection, refusal) = match Collection::parse(collection_text) {
+        Ok(c) => (c, None),
+        Err(e) => (Collection::default(), Some(e.to_string())),
+    };
+    let deck_name = |path: &str| {
+        read.iter()
+            .find(|(p, _, _)| p == path)
+            .and_then(|(_, d, _)| d.name.clone())
+            .unwrap_or_else(|| {
+                // As the deck list names it: the file's stem.
+                let file = path.rsplit('/').next().unwrap_or(path);
+                file.strip_suffix(".deck.toml").unwrap_or(file).to_string()
+            })
+    };
+    let missing = if refusal.is_some() {
+        Vec::new()
+    } else {
+        wanted::missing(&collection, collection_text, &read, names, w.deck_copies)
+            .into_iter()
+            .map(|m| MissingCard {
+                name: m.name,
+                missing: m.missing,
+                owned: m.owned,
+                decks: m
+                    .decks
+                    .into_iter()
+                    .map(|(path, qty)| DeckNeed {
+                        name: deck_name(&path),
+                        path,
+                        qty,
+                    })
+                    .collect(),
+            })
+            .collect()
+    };
+    let cards = w
+        .cards
+        .into_iter()
+        .enumerate()
+        .map(|(index, c)| WantedCard {
+            index,
+            owned: wanted::owned(&collection, collection_text, &c.card, names),
+            card: card_wire(c.card),
+            qty: c.qty.get(),
+            finish: finish_wire(c.finish),
+        })
+        .collect();
+    ParsedWanted::Wanted {
+        deck_copies,
+        cards,
+        missing,
+        collection: refusal,
+        unread,
+    }
+}
+
+/// JSON of [`ParsedWanted`]: the wanted list `text`, each want with what
+/// `collection` holds of it, and the cards the decks (JSON of `DeckFile[]`)
+/// hold that it is short of, `names` naming printings as for an add.
+#[wasm_bindgen]
+pub fn read_wanted(
+    text: &str,
+    collection: &str,
+    decks: &str,
+    names: Option<String>,
+) -> Result<String, JsError> {
+    let decks: Vec<DeckFile> = facet_json::from_str(decks)
+        .map_err(|e| refused(format!("decks are not DeckFile[]: {e}")))?;
+    let parsed = read_wanted_text(text, collection, &decks, &read_names(names)?);
+    Ok(facet_json::to_string(&parsed).expect("ParsedWanted serialises"))
+}
+
+/// JSON of [`Added`]: `text` with `qty` more of `card` (JSON of [`NewCard`])
+/// in `finish`, on the line already wanting it so or a new last one.
+#[wasm_bindgen]
+pub fn wanted_add(
+    text: &str,
+    card: &str,
+    qty: u32,
+    finish: &str,
+    names: Option<String>,
+) -> Result<String, JsError> {
+    let (card, comment) = new_card(card)?;
+    wanted::add(
+        text,
+        &card,
+        qty_arg(qty)?,
+        finish_arg(finish)?,
+        comment.as_deref(),
+        &read_names(names)?,
+    )
+    .map(added_wire)
+    .map_err(refused)
+}
+
+/// `text` with want `index` at `qty` copies; zero removes it.
+#[wasm_bindgen]
+pub fn wanted_set_qty(text: &str, index: usize, qty: u32) -> Result<String, JsError> {
+    wanted::set_qty(text, index, qty).map_err(refused)
+}
+
+/// `text` with want `index` in `finish`.
+#[wasm_bindgen]
+pub fn wanted_set_finish(text: &str, index: usize, finish: &str) -> Result<String, JsError> {
+    wanted::set_finish(text, index, finish_arg(finish)?).map_err(refused)
+}
+
+/// `text` counting the decks by `copies`, `"each"` or `"shared"`.
+#[wasm_bindgen]
+pub fn wanted_set_deck_copies(text: &str, copies: &str) -> Result<String, JsError> {
+    let copies = match copies {
+        "each" => wanted::DeckCopies::Each,
+        "shared" => wanted::DeckCopies::Shared,
+        other => return Err(refused(format!("{other:?} is not each or shared"))),
+    };
+    wanted::set_deck_copies(text, copies).map_err(refused)
+}
+
+/// The commit message that saves the wanted list `before` as `after` at
+/// `path`. An empty `before` is the file's first save.
+#[wasm_bindgen]
+pub fn wanted_commit_message(before: &str, after: &str, path: &str) -> Result<String, JsError> {
+    wanted::commit_message_for_text(before, after, path).map_err(refused)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1441,6 +1672,8 @@ mod tests {
         g.add_type::<CollectionExport>();
         g.add_type::<ScryfallCard>();
         g.add_type::<CollectionImported>();
+        g.add_type::<ParsedWanted>();
+        g.add_type::<DeckFile>();
         g.add_type::<Compared>();
         g.add_type::<Ranked>();
         g.add_type::<SettingsRules>();

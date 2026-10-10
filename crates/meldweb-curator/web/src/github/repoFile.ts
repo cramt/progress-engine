@@ -7,6 +7,7 @@
 import { collectionCommitMessage } from "../collection";
 import { commitMessage } from "../deck";
 import { settingsCommitMessage } from "../settings/rules";
+import { wantedCommitMessage } from "../wanted";
 import {
   ConflictError,
   type FileAt,
@@ -15,6 +16,7 @@ import {
 } from "./api";
 import { COLLECTION_PATH } from "./collection";
 import { SETTINGS_PATH } from "./settings";
+import { WANTED_PATH } from "./wanted";
 
 const DECK = /^decks\/[^/]+\.deck\.toml$/;
 
@@ -30,6 +32,7 @@ export function commitMessageFor(
   if (path === COLLECTION_PATH)
     return collectionCommitMessage(before, after, path);
   if (path === SETTINGS_PATH) return settingsCommitMessage(before, after);
+  if (path === WANTED_PATH) return wantedCommitMessage(before, after, path);
   if (DECK.test(path)) return commitMessage(before, after, path);
   throw new Error(`${path} is not a file Curator edits`);
 }

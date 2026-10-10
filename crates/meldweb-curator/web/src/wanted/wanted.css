@@ -1,0 +1,101 @@
+/* The wanted list (ADR-0034): by hand, then what the decks are missing. */
+.wanted-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.wanted-table th {
+  padding: 8px 12px;
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.wanted-table th:first-child,
+.wanted-table td:first-child {
+  padding-left: 18px;
+}
+
+.wanted-table td {
+  height: 48px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.wanted-table tbody tr:hover td {
+  background: var(--surface-2);
+}
+
+.wanted-table .stepper,
+.wanted-table select {
+  --control-h: 28px;
+  font-size: 12.5px;
+}
+
+.wanted-qty {
+  width: 112px;
+}
+
+.wanted-printing {
+  width: 120px;
+}
+
+.wanted-finish {
+  width: 116px;
+}
+
+.wanted-finish select {
+  text-transform: capitalize;
+}
+
+.wanted-owned {
+  width: 80px;
+}
+
+.wanted-price {
+  width: 96px;
+  text-align: right;
+}
+
+th.wanted-price {
+  text-align: right;
+}
+
+.wanted-remove {
+  width: 48px;
+}
+
+.wanted-name {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wanted-deck {
+  display: inline-block;
+  margin-right: 10px;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.wanted-deck:hover {
+  text-decoration: underline;
+}
+
+.wanted-copies {
+  margin-left: auto;
+}
+
+.wanted-empty,
+.wanted-note {
+  margin: 0;
+  padding: 14px 18px;
+}

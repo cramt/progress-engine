@@ -20,7 +20,9 @@ criteria and the two engines do not apply to it.
 **Meldweb Curator** (`crates/meldweb-curator/`) is the deck editor: a
 `.deck.toml` in a git repo is the deck, and saving is a commit. The same repo's
 `collection.toml` is what the user owns, each copy in one place (a binder, a
-box, a deck), edited at `/collection` and saved the same way (ADR-0023). It is three
+box, a deck), edited at `/collection` and saved the same way (ADR-0023); `/wanted` is
+`wanted.toml`, the cards wanted by hand, above what the decks hold that the
+collection lacks, worked out in Rust (ADR-0034). It is three
 parts: `meldweb-wasm`, which is `chip-decklist` compiled for the browser; `web/`, a
 Vite + React + TanStack Router app in the root pnpm workspace; and `worker/`, the
 one Cloudflare Worker that serves the site and trades a GitHub login for tokens
