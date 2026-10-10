@@ -97,7 +97,11 @@ export function exportArchidekt(
 }
 
 /** A tool the deck can be copied out to, each its own button. */
-export type ExportTarget = "archidekt" | "cockatrice" | "cardmarket";
+export type ExportTarget =
+  | "archidekt"
+  | "cockatrice"
+  | "cardmarket"
+  | "tabletop-simulator";
 
 /**
  * The deck as `target` imports it, with `names` as {@link exportArchidekt}

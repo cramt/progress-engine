@@ -10,6 +10,13 @@
 //! - **Cardmarket**'s *Add Deck List* on a wants list: `1 Sol Ring`, with no
 //!   expansion, since buying a deck means the cheapest copy and Cardmarket
 //!   names expansions its own way. One line per card, copies summed.
+//! - **Tabletop Simulator**'s *MTG Deck/Draft/Cube Importer* (workshop
+//!   2265064081), which hands the text to its server: Arena's
+//!   `1 Sol Ring (C21) 263` under `Commander`, `Deck` and `Sideboard`, each its
+//!   own pile on the table. It resolves every printing Scryfall numbers,
+//!   `BLC-129` and `1494★` too, and a printing it cannot find keeps the name.
+//!   Its `Companion` heading piles the companion with the commander, so the
+//!   companion goes to the sideboard, where it starts the game.
 
 use std::collections::HashMap;
 
@@ -28,11 +35,12 @@ pub enum ExportError {
     Unnamed(Vec<Printing>),
 }
 
-/// Where a card goes in a deck another tool holds: played, beside the deck
-/// (commander, companion, sideboard), or not exported at all (the
+/// Where a card goes in a deck another tool holds: played, the commander,
+/// beside the deck (companion, sideboard), or not exported at all (the
 /// maybeboard, cards set aside, attractions and stickers).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Zone {
+    Commander,
     Main,
     Side,
 }
@@ -40,7 +48,8 @@ enum Zone {
 fn zone(card: &Card) -> Option<Zone> {
     use CategoryType::*;
     match card.place {
-        Commander | Sideboard | Companion => Some(Zone::Side),
+        Commander => Some(Zone::Commander),
+        Sideboard | Companion => Some(Zone::Side),
         p if p.is_within(InDeck) => Some(Zone::Main),
         _ => None,
     }
@@ -106,7 +115,7 @@ pub fn export_cockatrice(
     for (card, name, _) in cards.iter().filter(|(_, _, z)| *z == Zone::Main) {
         out += &line(card, name);
     }
-    let side: Vec<_> = cards.iter().filter(|(_, _, z)| *z == Zone::Side).collect();
+    let side: Vec<_> = cards.iter().filter(|(_, _, z)| *z != Zone::Main).collect();
     if !side.is_empty() {
         out.push('\n');
         for (card, name, _) in side {
@@ -114,6 +123,38 @@ pub fn export_cockatrice(
         }
     }
     Ok(out)
+}
+
+/// The deck as Tabletop Simulator's importer reads it: a `Commander`, `Deck`
+/// and `Sideboard` section, each left out when empty, every card in file order
+/// with its printing when the file names one.
+pub fn export_tabletop_simulator(
+    text: &str,
+    names: &HashMap<String, String>,
+) -> Result<String, ExportError> {
+    let deck = Deck::parse(text)?;
+    let cards = named(&deck, names)?;
+    let mut sections = Vec::new();
+    for (heading, zone) in [
+        ("Commander", Zone::Commander),
+        ("Deck", Zone::Main),
+        ("Sideboard", Zone::Side),
+    ] {
+        let lines: String = cards
+            .iter()
+            .filter(|(_, _, z)| *z == zone)
+            .map(|(card, name, _)| match &card.card {
+                CardRef::Printing(p) => {
+                    format!("{} {name} ({}) {}\n", card.qty, p.set.to_uppercase(), p.num)
+                }
+                CardRef::Name(_) => format!("{} {name}\n", card.qty),
+            })
+            .collect();
+        if !lines.is_empty() {
+            sections.push(format!("{heading}\n{lines}"));
+        }
+    }
+    Ok(sections.join("\n"))
 }
 
 /// The deck as Cardmarket's wants-list text: every card it takes to play the

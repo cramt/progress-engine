@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use chip_decklist::export::{export_cardmarket, export_cockatrice, ExportError};
+use chip_decklist::export::{
+    export_cardmarket, export_cockatrice, export_tabletop_simulator, ExportError,
+};
 
 const DECK: &str = r#"cards = [
   { printing = "moc/94", in = ["Commander"] },
@@ -63,8 +65,42 @@ fn cardmarket_gets_one_line_a_card_with_the_copies_summed() {
 }
 
 #[test]
+fn tabletop_simulator_gets_every_printing_and_a_pile_for_the_commander() {
+    // The companion sits with the sideboard: the importer's own `Companion`
+    // heading would pile it with the commander.
+    assert_eq!(
+        export_tabletop_simulator(DECK, &names()).unwrap(),
+        "Commander\n\
+         1 Rashmi and Ragavan (MOC) 94\n\
+         \n\
+         Deck\n\
+         1 Sol Ring (C21) 263\n\
+         5 Forest\n\
+         1 Delver of Secrets // Insectile Aberration (PLST) LTR-123\n\
+         1 Sol Ring (SLD) 263a\n\
+         \n\
+         Sideboard\n\
+         2 Forest\n\
+         1 Lurrus of the Dream-Den\n"
+    );
+}
+
+#[test]
+fn tabletop_simulator_leaves_out_an_empty_section() {
+    let deck = "cards = [{ name = \"Sol Ring\", in = [\"Ramp\"] }]\n[categories]\nRamp = {}\n";
+    assert_eq!(
+        export_tabletop_simulator(deck, &HashMap::new()).unwrap(),
+        "Deck\n1 Sol Ring\n"
+    );
+}
+
+#[test]
 fn a_printing_with_no_name_is_refused_by_every_writer() {
-    for export in [export_cockatrice, export_cardmarket] {
+    for export in [
+        export_cockatrice,
+        export_cardmarket,
+        export_tabletop_simulator,
+    ] {
         let err = export(DECK, &HashMap::new()).unwrap_err();
         assert!(
             matches!(err, ExportError::Unnamed(ref p) if p.len() == 4),

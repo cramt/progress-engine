@@ -294,8 +294,25 @@ describe("copying for another tool", () => {
     );
   });
 
+  it("gives Tabletop Simulator all 100 cards, the commander under its own heading", () => {
+    const { text, names } = named();
+    const out = exportDeck(text, "tabletop-simulator", names);
+    expect(out).toMatch(
+      /^Commander\n1 Rashmi and Ragavan \(MOC\) 94\n\nDeck\n/,
+    );
+    const count = out
+      .split("\n")
+      .filter((l) => /^\d/.test(l))
+      .reduce((n, l) => n + Number(l.split(" ")[0]), 0);
+    expect(count).toBe(100);
+  });
+
   it("throws, naming the printing, for every tool", () => {
-    for (const to of ["cockatrice", "cardmarket"] as const)
+    for (const to of [
+      "cockatrice",
+      "cardmarket",
+      "tabletop-simulator",
+    ] as const)
       expect(() => exportDeck(lantern(), to)).toThrow(/moc\/346/);
   });
 });

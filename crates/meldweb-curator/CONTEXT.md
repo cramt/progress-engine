@@ -75,7 +75,7 @@ _Avoid_: sync, push
 A save refused because the deck changed on GitHub since Curator loaded it. Saving stops until the user chooses to reload or overwrite; nothing is merged or lost silently.
 
 **Import** / **Copy for**:
-Archidekt text into a deck, and a deck out as the text one tool imports: Archidekt, Cockatrice or Cardmarket, an entry each however alike their formats are. The Archidekt text is read and written the way Archidekt itself reads it ([archidekt-import-shapes.md](../../docs/research/archidekt-import-shapes.md)). Cockatrice gets each printing it can read back and the commander, companion and sideboard as `SB:` lines, having no commander zone; Cardmarket, for a wants list, one line a card by name with the copies summed. The maybeboard and cards set aside go to neither.
+Archidekt text into a deck, and a deck out as the text one tool imports: Archidekt, Cockatrice, Cardmarket or Tabletop Simulator, an entry each however alike their formats are. The Archidekt text is read and written the way Archidekt itself reads it ([archidekt-import-shapes.md](../../docs/research/archidekt-import-shapes.md)). Cockatrice gets each printing it can read back and the commander, companion and sideboard as `SB:` lines, having no commander zone; Cardmarket, for a wants list, one line a card by name with the copies summed; Tabletop Simulator's importer, every printing under `Commander`, `Deck` and `Sideboard` headings, the companion in the sideboard. The maybeboard and cards set aside go to none of them.
 _Avoid_: export (unqualified)
 
 **Playtest**:

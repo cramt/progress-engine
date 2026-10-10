@@ -314,7 +314,8 @@ pub fn export_archidekt(text: &str, names: Option<String>) -> Result<String, JsE
     deck::export_archidekt(text, &read_names(names)?).map_err(|e| JsError::new(&e.to_string()))
 }
 
-/// The deck as `target` imports it, `cockatrice` or `cardmarket`, with the
+/// The deck as `target` imports it, `cockatrice`, `cardmarket` or
+/// `tabletop-simulator`, with the
 /// printing names [`export_archidekt`] takes.
 #[wasm_bindgen]
 pub fn export_deck(text: &str, target: &str, names: Option<String>) -> Result<String, JsError> {
@@ -322,6 +323,7 @@ pub fn export_deck(text: &str, target: &str, names: Option<String>) -> Result<St
     match target {
         "cockatrice" => export::export_cockatrice(text, &names),
         "cardmarket" => export::export_cardmarket(text, &names),
+        "tabletop-simulator" => export::export_tabletop_simulator(text, &names),
         _ => return Err(JsError::new(&format!("no export to {target}"))),
     }
     .map_err(|e| JsError::new(&e.to_string()))
@@ -1694,10 +1696,24 @@ pub fn read_trade_text(
     collection: &str,
     decks: &[DeckFile],
     theirs: &str,
+    deck: Option<&str>,
     names: &HashMap<String, String>,
 ) -> ParsedTrade {
     let refuse = |whose: &str, e: &dyn std::fmt::Display| ParsedTrade::Refused {
         message: format!("{whose}: {e}"),
+    };
+    // One deck is wanted for itself: what it lacks against the whole
+    // collection, as if no other deck or hand want asked for a copy. A deck
+    // not built yet is the deck it would be.
+    let (wanted_text, decks) = match deck {
+        None => (wanted_text, decks),
+        Some(path) => match decks.iter().find(|d| d.path == path) {
+            Some(d) => match Deck::parse(&d.text) {
+                Ok(_) => ("", std::slice::from_ref(d)),
+                Err(e) => return refuse(path, &e),
+            },
+            None => return refuse(path, &"there is no such deck"),
+        },
     };
     let w = match wanted::Wanted::parse(wanted_text) {
         Ok(w) => w,
@@ -1754,18 +1770,27 @@ pub fn read_trade_text(
 
 /// JSON of [`ParsedTrade`]: what the collection `theirs` holds of the wanted
 /// list `wanted`, read with `collection` and the decks (JSON of `DeckFile[]`)
-/// as [`read_wanted`] reads them.
+/// as [`read_wanted`] reads them. With `deck`, a path among `decks`, only
+/// what that deck lacks is wanted.
 #[wasm_bindgen]
 pub fn read_trade(
     wanted: &str,
     collection: &str,
     decks: &str,
     theirs: &str,
+    deck: Option<String>,
     names: Option<String>,
 ) -> Result<String, JsError> {
     let decks: Vec<DeckFile> = facet_json::from_str(decks)
         .map_err(|e| refused(format!("decks are not DeckFile[]: {e}")))?;
-    let parsed = read_trade_text(wanted, collection, &decks, theirs, &read_names(names)?);
+    let parsed = read_trade_text(
+        wanted,
+        collection,
+        &decks,
+        theirs,
+        deck.as_deref(),
+        &read_names(names)?,
+    );
     Ok(facet_json::to_string(&parsed).expect("ParsedTrade serialises"))
 }
 
@@ -1817,6 +1842,37 @@ mod tests {
         assert!(
             have == want,
             "{GENERATED} is stale; run UPDATE_TS=1 cargo test -p meldweb-wasm"
+        );
+    }
+
+    #[test]
+    fn a_trade_for_one_deck_wants_only_what_that_deck_lacks() {
+        let decks = [
+            DeckFile {
+                path: "decks/a.deck.toml".into(),
+                text: "cards = [{ name = \"Sol Ring\" }, { name = \"Mind Stone\" }]\n".into(),
+            },
+            DeckFile {
+                path: "decks/b.deck.toml".into(),
+                text: "cards = [{ name = \"Arcane Signet\" }]\n".into(),
+            },
+        ];
+        let wanted = "cards = [{ name = \"The One Ring\" }]\n";
+        let mine = "cards = [{ name = \"Mind Stone\" }]\n";
+        let theirs = "cards = [\n  { name = \"Sol Ring\" },\n  { name = \"Mind Stone\" },\n  \
+                      { name = \"Arcane Signet\" },\n  { name = \"The One Ring\" },\n]\n";
+        let names =
+            |deck| match read_trade_text(wanted, mine, &decks, theirs, deck, &HashMap::new()) {
+                ParsedTrade::Trade { offers, .. } => {
+                    offers.into_iter().map(|o| o.name).collect::<Vec<_>>()
+                }
+                ParsedTrade::Refused { message } => vec![message],
+            };
+        assert_eq!(names(None), ["Arcane Signet", "Sol Ring", "The One Ring"]);
+        assert_eq!(names(Some("decks/a.deck.toml")), ["Sol Ring"]);
+        assert_eq!(
+            names(Some("decks/c.deck.toml")),
+            ["decks/c.deck.toml: there is no such deck"]
         );
     }
 

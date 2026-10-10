@@ -23,4 +23,10 @@ export const EXPORT_TARGETS: readonly {
     title:
       "For Add Deck List on a Cardmarket wants list: every card to buy, by name",
   },
+  {
+    target: "tabletop-simulator",
+    label: "Tabletop Simulator",
+    title:
+      "For the MTG Deck Importer's Deck tab, with printings; the commander gets a pile of its own",
+  },
 ];
