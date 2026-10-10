@@ -25,7 +25,12 @@ import { UNSORTED } from "./sections";
 import "../card/card.css";
 import "../probe/probe.css";
 
-/** The pause between one frame's scan ending and the next frame's being taken. */
+/**
+ * The least pause between one frame's scan ending and the next frame's being
+ * taken. The pause is never shorter than the scan took, so the engine runs at
+ * most half the time: a fixed pause had a phone, whose frames are slower,
+ * scanning nearly flat out and lagging.
+ */
 const GAP_MS = 150;
 
 /** A card the session counted, newest first in the log. */
@@ -220,7 +225,7 @@ export function LiveScan({
           })),
           took,
         });
-        await sleep(GAP_MS);
+        await sleep(Math.max(GAP_MS, took));
       }
     })();
     return () => {

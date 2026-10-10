@@ -114,8 +114,10 @@ Black Border).
 
 The collection page has its own Scan, for putting a stack of cards away one
 after another rather than one card into a deck. Press Start, and the camera is
-read continuously: a frame is scanned, and the next is taken 150 ms after that
-scan ends, so the rate is set by the engine. The frames are a live feed to the
+read continuously: a frame is scanned, and the next is taken after a pause as
+long as that scan took, and never under 150 ms. So the rate is set by the
+engine, which runs at most half the time: a phone, whose frames are slower,
+pauses longer rather than scanning flat out and lagging. The frames are a live feed to the
 engine (`Scanner.watch`, FINDINGS §12 *A live feed*): each is pushed once, with
 the engine's tracking carried over from the frame before, and without the
 dark border a still gets, since a camera frame of a card on the table already

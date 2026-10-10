@@ -1,6 +1,7 @@
-/target
-# Gitaxian Probe is its own workspace, with its own target dir.
-crates/gitaxian-probe/target/
+# Every cargo target dir, not just the root's: Gitaxian Probe is its own
+# workspace with its own, and a spike built in place leaves gigabytes that
+# untracked-file scans then walk.
+target/
 result
 result-*
 
