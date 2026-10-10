@@ -1,0 +1,11 @@
+// Issue #140: Immortal Servitude at X = 4 returns every Cid Buried Alive put
+// into the graveyard.
+//
+// Twenty-one cards on the play. Five nonlands cannot keep a land out of any
+// turn's hand, so the drop is made every turn: Buried Alive is cast on turn 3
+// or the turn it is drawn, and Immortal Servitude, billed {4}{B}{B}{B}, only
+// on turn 7.
+16x Swamp [Land]
+1x Buried Alive [Tutor]
+1x Immortal Servitude [Reanimation]
+3x Cid, Timeless Artificer [Cid]

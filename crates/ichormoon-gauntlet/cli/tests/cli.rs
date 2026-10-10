@@ -3492,6 +3492,183 @@ fn dizzy_spells_transmute_is_billed_at_what_the_transmute_costs() {
 }
 
 #[test]
+fn buried_alive_puts_up_to_three_cids_into_the_graveyard() {
+    // Issue #137, on buried-alive.txt: twelve cards on the play, and Buried
+    // Alive cast on turn 3 whenever it is among the first nine, 9/12. The
+    // library is then the three cards left, a random three of the eleven
+    // others, and the search takes every Cid among them.
+    // * A Cid in the graveyard: 9/12 × (1 - C(8,3)/C(11,3)) = 9/12 × 109/165,
+    //   49.55%.
+    // * All three: 9/12 × 1/165, 0.45%.
+    // * The mean there: 9/12 × 3 × 3/11 = 0.6136, and out of the library's
+    //   3 × 3/12 = 0.75 drawn alone, which leaves 0.1364.
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture("buried-alive.txt"))
+        .arg(fixture("buried-alive.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("buried-alive-index.jsonl"))
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    let json: serde_json::Value =
+        serde_json::from_slice(&out.stdout).unwrap_or_else(|_| panic!("should answer: {stderr}"));
+    assert_eq!(percent(&json, "a Cid in the graveyard by turn 3"), 49.55);
+    assert_eq!(
+        percent(&json, "all three Cids in the graveyard by turn 3"),
+        0.45
+    );
+    assert_eq!(
+        expectation(&json, "Cids in the graveyard on turn 3")["mean"],
+        0.6136
+    );
+    assert_eq!(
+        expectation(&json, "Cids in the library on turn 3")["mean"],
+        0.1364
+    );
+    // And the run says where it put them and how many a search takes.
+    let effect = &json["effects"][0];
+    assert_eq!(effect["to"], "graveyard", "{json}");
+    assert_eq!(effect["up_to"], 3, "{json}");
+    assert!(
+        stderr.contains("and fetches up to 3, to your graveyard, each the first of these"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn traumatize_mills_half_the_library_it_finds() {
+    // Issue #138, on traumatize.txt: sixteen cards on the play, and
+    // Traumatize cast on turn 5 whenever it is among the first eleven, 11/16.
+    // The library is then five cards, a random five of the fifteen others,
+    // and it mills two of them.
+    // * A Cid in the graveyard: 11/16 × (1 - C(12,2)/C(15,2)) = 11/16 ×
+    //   39/105, 25.54%.
+    // * The mean there: 11/16 × 2 × 3/15 = 0.275.
+    // * In the library: 5/16 × 3 × 4/15 uncast, and 11/16 × 3 × 3/15 after
+    //   the two, 0.6625.
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture("traumatize.txt"))
+        .arg(fixture("traumatize.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("traumatize-index.jsonl"))
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    let json: serde_json::Value =
+        serde_json::from_slice(&out.stdout).unwrap_or_else(|_| panic!("should answer: {stderr}"));
+    assert_eq!(percent(&json, "a Cid in the graveyard by turn 5"), 25.54);
+    assert_eq!(
+        expectation(&json, "Cids in the graveyard on turn 5")["mean"],
+        0.275
+    );
+    assert_eq!(
+        expectation(&json, "Cids in the library on turn 5")["mean"],
+        0.6625
+    );
+    assert_eq!(json["method"], "exact", "{json}");
+    // And the run says it milled half, in the words the file used.
+    assert_eq!(json["effects"][0]["mill"], "half", "{json}");
+    assert!(
+        stderr.contains("(mill half the library, on cast)"),
+        "{stderr}"
+    );
+}
+
+/// The JSON and the stderr of `gauntlet test` on a fixture deck and criteria
+/// file, against the upkeep fixtures' index.
+fn upkeep_run(name: &str, extra: &[&str]) -> (serde_json::Value, String) {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture(&format!("{name}.txt")))
+        .arg(fixture(&format!("{name}.criteria.toml")))
+        .arg("--index")
+        .arg(fixture("upkeep-index.jsonl"))
+        .args(extra)
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    let json: serde_json::Value =
+        serde_json::from_slice(&out.stdout).unwrap_or_else(|_| panic!("should answer: {stderr}"));
+    (json, stderr)
+}
+
+#[test]
+fn stillness_in_motion_mills_three_each_upkeep_after_it_is_cast() {
+    // Issue #139, on stillness.txt: twenty cards on the play, and the
+    // standard library's Stillness in Motion. Cast on turn 2 when it is among
+    // the first eight, 8/20, it mills three on turn 3 and three on turn 4:
+    // six of the other nineteen cards. Cast on turn 3 when it is the ninth,
+    // 1/20, it mills three on turn 4. Which six or three does not depend on
+    // the mill coming before the draw, the library being shuffled; HANDS.md
+    // hand 63 is where the order shows.
+    // * A Cid in the graveyard: 8/20 × (1 - C(16,6)/C(19,6)) + 1/20 × (1 -
+    //   C(16,3)/C(19,3)), 30.30%.
+    // * The mean there: 8/20 × 6 × 3/19 + 1/20 × 3 × 3/19 = 0.4026.
+    let (json, stderr) = upkeep_run("stillness", &[]);
+    assert_eq!(percent(&json, "a Cid in the graveyard by turn 4"), 30.30);
+    let (sampled, _) = upkeep_run("stillness", &["--simulate", "--trials", "40000"]);
+    let s = percent(&sampled, "a Cid in the graveyard by turn 4");
+    assert!((s - 30.30).abs() < 1.0, "the sampler agrees: {s}");
+    assert_eq!(
+        expectation(&json, "Cids in the graveyard on turn 4")["mean"],
+        0.4026
+    );
+    assert_eq!(json["method"], "exact", "{json}");
+    let effect = &json["effects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["on"] == "upkeep")
+        .unwrap_or_else(|| panic!("{json}"));
+    assert_eq!(effect["mill"], 3, "{json}");
+    assert!(effect.get("grows").is_none(), "{json}");
+    // The run says when it fired, and what it assumed of the table.
+    assert!(stderr.contains("(mill 3, on upkeep)"), "{stderr}");
+    assert!(stderr.contains("before that turn's draw"), "{stderr}");
+    assert!(
+        stderr.contains("ASSUMED: it stays on the battlefield"),
+        "{stderr}"
+    );
+    assert!(effect["assumes"]
+        .as_str()
+        .is_some_and(|a| a.contains("no opponent removes it")));
+}
+
+#[test]
+fn out_of_the_tombs_mills_two_more_at_each_upkeep() {
+    // Issue #139, on tombs.txt: thirty-one cards on the play. Cast on turn 3
+    // when it is among the first nine, 9/31, it mills two on turn 4 and four
+    // on turn 5: six of the other thirty. Cast on turn 4 when it is the tenth,
+    // 1/31, it mills two on turn 5.
+    // * A Cid in the graveyard: 9/31 × (1 - C(27,6)/C(30,6)) + 1/31 × (1 -
+    //   C(27,2)/C(30,2)), 15.18%.
+    // * The mean there: 9/31 × 6 × 3/30 + 1/31 × 2 × 3/30 = 0.1806.
+    let (json, stderr) = upkeep_run("tombs", &[]);
+    assert_eq!(percent(&json, "a Cid in the graveyard by turn 5"), 15.18);
+    let (sampled, _) = upkeep_run("tombs", &["--simulate", "--trials", "40000"]);
+    let s = percent(&sampled, "a Cid in the graveyard by turn 5");
+    assert!((s - 15.18).abs() < 1.0, "the sampler agrees: {s}");
+    assert_eq!(
+        expectation(&json, "Cids in the graveyard on turn 5")["mean"],
+        0.1806
+    );
+    assert_eq!(json["method"], "exact", "{json}");
+    let effect = &json["effects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["on"] == "upkeep")
+        .unwrap_or_else(|| panic!("{json}"));
+    assert_eq!((&effect["mill"], &effect["grows"]), (&2.into(), &2.into()));
+    assert!(
+        stderr.contains("2 more each time: 2, 4, 6, ..."),
+        "{stderr}"
+    );
+}
+
+#[test]
 fn a_run_prints_the_declared_cost_beside_the_printed_one() {
     // The bill is a declaration, so the run says what it billed, what the
     // card prints, whose effect said so, and that a `cast` clause counts the
@@ -5744,7 +5921,8 @@ fn a_run_that_attacks_names_what_it_assumed_of_the_table() {
     assert_eq!(explorer["live"], false);
     assert!(explorer.get("assumes").is_none(), "{explorer}");
     let lumra = effect("Lumra, Bellow of the Woods");
-    assert_eq!(lumra["returns"], "t:land");
+    assert_eq!(lumra["reanimate"], "t:land");
+    assert_eq!(lumra["reanimate_count"], "all");
     // And the human report says it too, above the numbers.
     let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
         .arg("test")
@@ -5894,4 +6072,305 @@ fn natures_lore_puts_a_forest_onto_the_battlefield_that_pays_from_the_next_turn(
     assert!(!out.status.success());
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("[land_drop]"), "{stderr}");
+}
+
+// --- Reanimation (#140) ----------------------------------------------------
+
+/// The JSON and the stderr of `gauntlet test` on a fixture deck and criteria
+/// file of the same name, against the reanimation fixtures' index.
+fn reanimate_run(deck: &str, criteria: &str, extra: &[&str]) -> (serde_json::Value, String) {
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture(deck))
+        .arg(criteria)
+        .arg("--index")
+        .arg(fixture("reanimate-index.jsonl"))
+        .args(extra)
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    let json: serde_json::Value =
+        serde_json::from_slice(&out.stdout).unwrap_or_else(|_| panic!("should answer: {stderr}"));
+    (json, stderr)
+}
+
+#[test]
+fn animate_dead_returns_a_cid_buried_alive_put_in_the_graveyard() {
+    // Issue #140, on animate-dead.txt: thirteen cards on the play, the line
+    // Animate Dead, then Buried Alive. Animate Dead waits for the graveyard,
+    // so the Cid comes back on turn 4 where Buried Alive was among the first
+    // nine cards and found one. Buried Alive shuffles, so the turn-4 draw is
+    // from what it left: of the C(12, 8) = 495 sets of the other eight first
+    // cards, 260 hold Animate Dead and at most two Cids, and 1 + 24 + 84 hold
+    // neither it nor all three Cids, with 0, 1 or 2 Cids, leaving it one of
+    // 1, 2 or 3 cards: 1 + 24/2 + 84/3 = 41.
+    // * A Cid on the battlefield by turn 4: 9/13 × (260 + 41)/495 = 301/715,
+    //   42.10%. Animate Dead is cast exactly then.
+    // * Cids Buried Alive puts in, by turn 4: 1 a cast from the first nine,
+    //   0.75 from the tenth, so (9 + 0.75)/13 = 0.75; less the one that came
+    //   back, 0.3290 in the graveyard.
+    let criteria = fixture("animate-dead.criteria.toml");
+    let (json, stderr) = reanimate_run("animate-dead.txt", criteria.to_str().unwrap(), &[]);
+    assert_eq!(json["method"], "exact", "{json}");
+    assert_eq!(percent(&json, "a Cid on the battlefield by turn 4"), 42.10);
+    assert_eq!(percent(&json, "Animate Dead cast by turn 4"), 42.10);
+    assert_eq!(
+        expectation(&json, "Cids in the graveyard on turn 4")["mean"],
+        0.329
+    );
+    let (sampled, _) = reanimate_run(
+        "animate-dead.txt",
+        criteria.to_str().unwrap(),
+        &["--simulate", "--trials", "40000"],
+    );
+    let s = percent(&sampled, "a Cid on the battlefield by turn 4");
+    assert!((s - 42.10).abs() < 1.0, "the sampler agrees: {s}");
+    let effect = json["effects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["match"] == "name:\"Animate Dead\"")
+        .unwrap_or_else(|| panic!("{json}"));
+    assert_eq!(effect["reanimate"], "t:creature");
+    assert_eq!(effect["reanimate_count"], 1);
+    assert_eq!(
+        effect["reanimate_prefer"][0],
+        "name:\"Cid, Timeless Artificer\""
+    );
+    // The run prints the choice, and the wait.
+    assert!(
+        stderr.contains("returns up to 1 card matching \"t:creature\""),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("only while your graveyard holds a card it returns"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn immortal_servitude_returns_every_cid_at_the_x_the_line_pays() {
+    // Issue #140, on servitude.txt: twenty-one cards on the play. X is the
+    // pilot's, so the line pays {4}{B}{B}{B} and the query asks for mana value
+    // 4: never cast before turn 7, and on turn 7 where Buried Alive was cast
+    // by turn 6 and found a Cid, and Servitude was among the thirteen cards
+    // left after the search shuffled. Every Cid the search put there comes
+    // back. 34.12%, all three 6.93%, by an exact tree over the shuffled
+    // library written from the cards' text; the sampler agrees.
+    let criteria = fixture("servitude.criteria.toml");
+    let (json, stderr) = reanimate_run("servitude.txt", criteria.to_str().unwrap(), &[]);
+    assert_eq!(json["method"], "exact", "{json}");
+    assert_eq!(percent(&json, "a Cid on the battlefield by turn 7"), 34.12);
+    assert_eq!(
+        percent(&json, "all three Cids on the battlefield by turn 7"),
+        6.93
+    );
+    assert_eq!(percent(&json, "Immortal Servitude cast by turn 6"), 0.0);
+    assert_eq!(
+        expectation(&json, "Cids on the battlefield on turn 7")["mean"],
+        0.6444
+    );
+    let (sampled, _) = reanimate_run(
+        "servitude.txt",
+        criteria.to_str().unwrap(),
+        &["--simulate", "--trials", "40000"],
+    );
+    let s = percent(&sampled, "a Cid on the battlefield by turn 7");
+    assert!((s - 34.12).abs() < 1.0, "the sampler agrees: {s}");
+    let effect = json["effects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["match"] == "name:\"Immortal Servitude\"")
+        .unwrap_or_else(|| panic!("{json}"));
+    assert_eq!(effect["reanimate"], "t:creature mv=4");
+    assert_eq!(effect["reanimate_count"], "all");
+    assert!(effect.get("reanimate_prefer").is_none(), "{effect}");
+    assert!(
+        stderr.contains("returns every card matching \"t:creature mv=4\""),
+        "{stderr}"
+    );
+    assert!(stderr.contains("billed {4}{B}{B}{B}"), "{stderr}");
+}
+
+#[test]
+fn a_cid_on_the_battlefield_is_refused_where_the_line_casts_no_reanimation() {
+    // The same deck and question with Animate Dead out of the line: nothing
+    // puts a Cid onto the battlefield, so the question is refused as it was
+    // before #140 rather than answered zero.
+    let source = std::fs::read_to_string(fixture("animate-dead.criteria.toml"))
+        .unwrap()
+        .replace(
+            "prefer = ['name:\"Animate Dead\"', 'name:\"Buried Alive\"']",
+            "prefer = ['name:\"Buried Alive\"']",
+        );
+    let dir = std::env::temp_dir().join(format!("pe-reanimate-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let criteria = dir.join("no-animate.criteria.toml");
+    std::fs::write(&criteria, source).unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture("animate-dead.txt"))
+        .arg(&criteria)
+        .arg("--index")
+        .arg(fixture("reanimate-index.jsonl"))
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("is only answerable for lands")
+            && stderr.contains("Cid, Timeless Artificer"),
+        "{stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+// --- Cycling (#136) ------------------------------------------------------------
+
+fn cycling_run(criteria: &std::path::Path, extra: &[&str]) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(fixture("cycling.txt"))
+        .arg(criteria)
+        .arg("--index")
+        .arg(fixture("cycling-index.jsonl"))
+        .args(extra)
+        .output()
+        .expect("binary should run")
+}
+
+#[test]
+fn cid_is_cycled_into_the_graveyard_and_never_cast() {
+    // Issue #136, on cycling.txt: five Plains, five Islands, three Cids,
+    // cycled for {W}{U} by the line that names them (HANDS.md hand 65). On
+    // the play, eight cards and two drops by turn 2, and a Cid is cycled by
+    // then unless the eight hold none, 45/1287, or one colour of land only,
+    // which takes every Cid and five lands, 2/1287: 1240/1287, 96.35%.
+    let out = cycling_run(&fixture("cycling.criteria.toml"), &[]);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "{stderr}");
+    let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(json["method"], "exact", "{json}");
+    assert_eq!(percent(&json, "a Cid in the graveyard by turn 2"), 96.35);
+    assert_eq!(
+        percent(&json, "every Cid in the graveyard by turn 4"),
+        76.57
+    );
+    // Every Cid is in the graveyard or the library unless one is in hand
+    // waiting for {W}{U}, and the line casts none.
+    let yard = expectation(&json, "Cids in the graveyard on turn 4")["mean"]
+        .as_f64()
+        .unwrap();
+    let library = expectation(&json, "Cids in the library on turn 4")["mean"]
+        .as_f64()
+        .unwrap();
+    assert!(yard + library <= 3.0 && yard > 2.5, "{yard} {library}");
+    // The graveyard is a zone something reaches, and the run says the line
+    // cycles Cid rather than casting it.
+    let zone = json["zones"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|z| z["zone"] == "graveyard")
+        .unwrap();
+    assert_eq!(zone["reachable"], true, "{json}");
+    assert_eq!(json["casting"]["cycled"][0]["billed"], "{W}{U}", "{json}");
+    assert_eq!(json["casting"]["cycled"][0]["printed"], "{2}{W}{U}");
+    assert!(
+        stderr.contains("Cycled, never cast")
+            && stderr.contains("cycles it from hand for {W}{U}, instead of casting it"),
+        "{stderr}"
+    );
+    assert!(
+        !stderr.contains("nothing routes a card to the graveyard"),
+        "{stderr}"
+    );
+    let sampled = cycling_run(
+        &fixture("cycling.criteria.toml"),
+        &["--simulate", "--trials", "40000"],
+    );
+    let sampled: serde_json::Value = serde_json::from_slice(&sampled.stdout).unwrap();
+    let s = percent(&sampled, "every Cid in the graveyard by turn 4");
+    assert!((s - 76.57).abs() < 1.0, "the sampler agrees: {s}");
+}
+
+#[test]
+fn counting_casts_of_a_card_the_line_cycles_is_refused() {
+    // The entry naming Cid cycles every copy and casts none, so a cast count
+    // is zero by construction. Casting some and cycling others is not
+    // modelled, and the refusal says so rather than answering 0%.
+    let source = std::fs::read_to_string(fixture("cycling.criteria.toml"))
+        .unwrap()
+        .replace(
+            "require = [{ turn = 2, query = 'name:\"Cid, Timeless Artificer\"', zone = \"graveyard\", min = 1 }]",
+            "require = [{ turn = 2, cast = 't:creature', min = 1 }]",
+        );
+    assert!(source.contains("cast = 't:creature'"));
+    let dir = std::env::temp_dir().join(format!("pe-cycling-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let criteria = dir.join("cast-cid.criteria.toml");
+    std::fs::write(&criteria, source).unwrap();
+    let out = cycling_run(&criteria, &[]);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("a Cid in the graveyard by turn 2: counts castings of \"t:creature\"")
+            && stderr.contains("Cid, Timeless Artificer")
+            && stderr.contains("issues/136"),
+        "{stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn landcycling_is_refused_by_name() {
+    let source = std::fs::read_to_string(fixture("cycling.criteria.toml"))
+        .unwrap()
+        .replace("draw = 1", "fetch = ['t:plains']\nto = \"hand\"");
+    let dir = std::env::temp_dir().join(format!("pe-landcycling-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let criteria = dir.join("landcycling.criteria.toml");
+    std::fs::write(&criteria, source).unwrap();
+    let out = cycling_run(&criteria, &[]);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("is landcycling, and it is not modelled") && stderr.contains("issues/136"),
+        "{stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn a_cycle_on_a_commander_the_line_names_is_refused() {
+    // Cid is a legendary creature and can lead the deck. A commander is cast
+    // from the command zone and cycled from nowhere, so an entry naming one
+    // whose effect is a cycle has no reading.
+    let dir = std::env::temp_dir().join(format!("pe-cycled-commander-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let deck = dir.join("cid-commander.txt");
+    std::fs::write(
+        &deck,
+        std::fs::read_to_string(fixture("cycling.txt")).unwrap()
+            + "1x Cid, Timeless Artificer [Commander{top}]\n",
+    )
+    .unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_gauntlet"))
+        .arg("test")
+        .arg(&deck)
+        .arg(fixture("cycling.criteria.toml"))
+        .arg("--index")
+        .arg(fixture("cycling-index.jsonl"))
+        .output()
+        .expect("binary should run");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(!out.status.success(), "{stderr}");
+    assert!(
+        stderr.contains(
+            "cycles Cid, Timeless Artificer, which is a commander the [casting] line names"
+        ) && stderr.contains("issues/136"),
+        "{stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
 }

@@ -20,8 +20,14 @@ hands 26 to 33 what
 (now built, and tests),
 hands 40 to 42 what
 [ADR-0019](docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md) decided,
-before any of it was built (now built, and tests), and hands 58 to 60 the
-attack and landfall triggers ADR-0017 named (built, and tests). That is the point: they pin the semantics before the
+before any of it was built (now built, and tests), hands 58 to 60 the
+attack and landfall triggers ADR-0017 named (built, and tests), hand 63
+the upkeep trigger after them (built, and a test), and hand 64 the
+reanimation of
+[ADR-0032](docs/adr/0032-a-reanimation-is-the-one-move-from-the-graveyard-to-the-battlefield.md)
+(built, and tests), and hand 65 the cycling of
+[ADR-0033](docs/adr/0033-a-cycle-is-the-line-paying-to-discard-and-draw.md)
+(built, and tests). That is the point: they pin the semantics before the
 code exists, so that building
 the feature cannot quietly redefine the question — and hands 1, 2 and 3 are the
 worked case, written down as one Opt on turn 1 long before anything could say
@@ -1262,7 +1268,7 @@ tool never dredges, which is a line the pilot could play, and it says so: a
 run whose line can reach the graveyard names every card with dredge in the
 library as never dredged, in the report and as `never_dredged` in the JSON.*
 
-## Attack and landfall
+## Attack, landfall and upkeep
 
 Hands 58 to 60 are the mills that fire off a permanent the line cast rather
 than off the cast itself, which ADR-0017 §1 named and
@@ -1378,7 +1384,8 @@ land in the graveyard comes back, the Analyst's Mountain with its own two.
 | Beast Within in the graveyard | 3 | 3 | 3 |
 | lands on the battlefield | 6 | 8 | **9** |
 
-Nobody chooses, so the standard library states it, as `returns = "t:land"`.
+Nobody chooses, so the standard library states it, as a reanimation of every
+land card, `reanimate = "t:land"`, `reanimate_count = "all"` (hand 64).
 The lands took no drop. With `[land_drop]` declared they pay from the next
 turn, as any land a spell puts down does (ADR-0025, hand 62); without one a
 turn's bill is held to its drops, and the mana they could make is a floor. A mill that returns lands reads the
@@ -1391,6 +1398,172 @@ each land Lumra returns is a landfall:
 `crates/ichormoon-gauntlet/criteria/tests/engine.rs`, the first and last
 columns. Through the binary, `every_trigger_route_agrees_with_the_sampler_through_the_binary`
 answers one file per card exactly, and the sampler agrees.
+
+### 63. Stillness in Motion mills what the turn would have drawn
+
+```
+Forest ×2
+Island
+Stillness in Motion
+Beast Within ×3
+(library, top first: Beast Within, then Life from the Loam, Beast Within,
+ Beast Within, Mountain, then Beast Within ×4)
+
+[[effect]]
+match = 'name:"Stillness in Motion"'
+on = "upkeep"
+mill = 3
+```
+
+"At the beginning of your upkeep, mill three cards." [#139](https://github.com/cramt/progress-engine/issues/139)
+added the upkeep as a third trigger that fires again and again. **Turn 2:** draw
+a Beast Within, play a land, and cast Stillness off the Island and a Forest. It
+entered after this turn's upkeep, so nothing fires. **Turn 3:** the upkeep comes
+before the draw step (CR 501.1), so it mills Life from the Loam, Beast Within,
+Beast Within, and the draw is the Mountain under them. **Turn 4:** it mills
+three Beasts, draws the fourth, and the Mountain is the drop.
+
+**Naive models:** nothing fires, so turn 3 draws the Loam; or the mill comes
+after the draw, as an attack's does, so turn 3 draws the Loam and mills the
+Mountain.
+
+| | nothing fires | mills after the draw | Stillness |
+|---|---|---|---|
+| Loam in the graveyard on turn 2 | no | no | **no**, it entered after the upkeep |
+| Loam in the graveyard on turn 3 | no | no | **yes** |
+| Loam in hand on turn 3 | yes | yes | **no** |
+| Beast Within in the graveyard on turn 4 | 0 | 5 | **5** |
+| lands on the battlefield on turn 4 | 3 | 3 | **4** |
+
+In the engine the order is in the deal: the upkeep's block is dealt ahead of
+the turn's own checkpoint, so a path is written in the library's order, and a
+card a look left on top is milled rather than drawn. Its second sentence, "Then
+if your library has no cards in it", needs an empty library, and a question
+whose library can run out before its last draw is refused before it is asked.
+**The run assumes nobody removes it**, and prints that it did.
+
+Out of the Tombs is the same trigger with `grows = 2`: two eon counters each
+upkeep, and it mills as many as it has, so 2, then 4, then 6:
+`out_of_the_tombs_mills_two_more_each_upkeep`.
+
+*Answerable, and a test:*
+`hand_63_stillness_in_motion_mills_what_the_turn_would_have_drawn` in
+`crates/ichormoon-gauntlet/criteria/tests/engine.rs`, the first and last
+columns. `checker/test_triggers.py` holds the same deal against the checker's
+line, and Out of the Tombs' 2, 4, 6.
+
+### 64. Animate Dead waits for Entomb, and the Cid it returns leaves the graveyard
+
+```
+(an eight-card library, three-card opener, on the play, turn 1;
+ Animate Dead and Entomb cost nothing here, so the mana never binds)
+Animate Dead
+Entomb
+Cid, Timeless Artificer ×2
+blank ×4
+
+[[effect]]
+match = 'name:"Entomb"'
+on = "cast"
+fetch = ['name:"Cid, Timeless Artificer"']
+to = "graveyard"
+
+[[effect]]
+match = 'name:"Animate Dead"'
+on = "cast"
+reanimate = "t:creature"
+reanimate_count = 1
+reanimate_prefer = ['name:"Cid, Timeless Artificer"']
+
+[casting]
+prefer = ['name:"Animate Dead"', 'name:"Entomb"']
+```
+
+[#140](https://github.com/cramt/progress-engine/issues/140). Animate Dead is
+first in the line, and on turn 1 the graveyard is empty: it has nothing to
+target (CR 601.2c), so it waits. Entomb puts a Cid there, the line is read
+again, and Animate Dead returns it. Where the opener holds both, 6 of the 56,
+the third card is a Cid in 2 and a blank in 4, and Entomb finds a Cid every
+time.
+
+**Naive models:** cast whatever the pool pays for, so Animate Dead resolves
+into an empty graveyard; or count what came back as cast; or leave it counted
+in the graveyard too.
+
+| On turn 1, mean | cast what is affordable | Animate Dead |
+|---|---|---|
+| Cids on the battlefield | 0 | **6/56** |
+| Cids in the graveyard | 20/56 | **14/56** |
+| Cids in the library | 2 − 0.75 − 20/56 | **2 − 0.75 − 20/56**, unmoved |
+| Cids cast | 0 | **0** |
+| Animate Dead cast | 21/56 | **6/56** |
+
+Immortal Servitude returns every Cid rather than one: with Buried Alive for
+two in Entomb's place, 4 of those 6 openers return two and 2 return one,
+10/56. Which creature Animate Dead returns is the list's, and one it does not
+name never comes back.
+
+*Answerable, and a test:*
+`hand_64_animate_dead_waits_for_entomb_and_returns_the_cid_it_put_there`,
+`a_mass_reanimation_returns_every_card_it_may` and
+`a_reanimation_takes_the_first_card_its_priority_reaches_and_nothing_it_does_not_name`
+in `crates/ichormoon-gauntlet/criteria/tests/engine.rs`, the last column.
+Through the binary, `animate_dead_returns_a_cid_buried_alive_put_in_the_graveyard`
+and `immortal_servitude_returns_every_cid_at_the_x_the_line_pays`.
+`checker/test_reanimation.py` holds the wait and the priority against the
+checker's line.
+
+### 65. Cid cycles into the graveyard, and the entry naming it casts none
+
+```
+(a thirteen-card library, on the play, turn 2)
+Plains ×5
+Island ×5
+Cid, Timeless Artificer ×3
+
+[[effect]]
+match = 'name:"Cid, Timeless Artificer"'
+on = "cycle"
+cost = "{W}{U}"
+draw = 1
+
+[casting]
+prefer = ['name:"Cid, Timeless Artificer"']
+```
+
+[#136](https://github.com/cramt/progress-engine/issues/136). Cid's text is
+*Cycling {W}{U}*: pay it, discard Cid from hand, draw a card (CR 702.29a).
+The `[casting]` entry naming a card whose effect is `on = "cycle"` cycles it
+rather than casting it ([ADR-0033](docs/adr/0033-a-cycle-is-the-line-paying-to-discard-and-draw.md)).
+By turn 2 on the play the pilot has seen eight cards and made two land drops,
+and one Plains and one Island pay one cycle. A Cid is cycled by then unless
+the eight hold none, C(10,8)/C(13,8) = 45/1287, or hold lands of one colour
+only, which takes all three Cids and one colour's five lands, 2/1287.
+
+**Naive models:** read Cid as the creature it is and cast it, which four
+mana by turn 2 never pays, so nothing reaches the graveyard; or count the
+cycled Cid as cast; or leave the card it draws in the library.
+
+| By turn 2 | cast Cid | cycle Cid |
+|---|---|---|
+| a Cid in the graveyard | 0 | **1240/1287, 96.35%** |
+| a Cid cast | 0 | **0** |
+| a Cid cycled on turn 1 | — | **0**: one land pays no {W}{U} |
+
+A card a cycle draws is in hand at once, and the line is read again from its
+top, so a Cid drawn off a cycle is cycled the same turn when the pool still
+pays: two free cyclers among five cards dealt one and then one are both
+cycled by turn 1 exactly when both sit in the top three, 3/10, as two free
+cantrips are both cast.
+
+*Answerable, and a test:*
+`hand_65_a_cid_is_cycled_by_turn_two_unless_the_eight_cards_hold_none_or_one_colour`,
+`a_cycle_draws_as_a_cantrip_does_and_is_never_cast` and
+`a_card_a_cycle_draws_is_cycled_the_same_turn` in
+`crates/ichormoon-gauntlet/criteria/tests/engine.rs`. Through the binary,
+`cid_is_cycled_into_the_graveyard_and_never_cast` on `cycling.txt`, which
+also asks for every Cid by turn 4. `checker/test_cycling.py` holds the cycle,
+the same-turn cycle and the cast count against the checker's line.
 
 ## Rocks and dorks are mana the line cast
 

@@ -574,6 +574,8 @@ otherwise produces a percentage that looks exactly like a real one:
 | `adds` on a card whose card data produces no mana, such as Wood Elves | a source taps for the colours its card produces, so this one would count nothing while the run said it applied. A card that searches for a land is a `fetch` |
 | `sacrifice = true` with no `after` | a land that sacrifices itself the moment it is played is a fetchland, and is already written `to = "battlefield"` |
 | a delayed `fetch ... to = "battlefield"` whose priority matches a land | a land arriving off an ability is not a land drop, and whether it enters tapped is a fact no tag carries |
+| `on = "cycle"` with no `cost` or no `draw`, or with any other key; `fetch` on one (landcycling) | a cycle here pays its cost from hand and draws, and nothing else; landcycling is a search, not modelled ([#136](https://github.com/cramt/progress-engine/issues/136)) |
+| a `cast` clause whose query matches a card the `[casting]` line cycles, or a cycle on a commander the line names | the entry naming a cycled card never casts it, so the count is zero by construction; casting some copies and cycling others is not modelled. Count it with `zone = "graveyard"` |
 
 Every one of those messages names the file, the question, and what was wrong
 with it.
@@ -1196,18 +1198,22 @@ to_graveyard = 'name:"Life from the Loam"'
 |---|---|
 | `match` | which cards this is about, in Scryfall syntax |
 | `look` | how many cards off the top it examines |
-| `on` | when it fires: `landdrop`, `cast`, `activate`, `attack` or `landfall`, see below, [An activation the line pays for](#an-activation-the-line-pays-for-expedition-map) and [Attack and landfall](#attack-and-landfall-a-mill-that-fires-again) |
-| `cost` | what the line pays: on a cast, in place of the printed cost; on an activation, to activate a copy in play. See [A cost the line pays](#a-cost-the-line-pays-that-is-not-printed-dizzy-spell-and-whir-of-invention) |
+| `on` | when it fires: `landdrop`, `cast`, `activate`, `cycle`, `attack`, `landfall` or `upkeep`, see below, [An activation the line pays for](#an-activation-the-line-pays-for-expedition-map), [Cycling](#cycling-the-line-pays-to-discard-a-card-and-draw), [Attack and landfall](#attack-and-landfall-a-mill-that-fires-again) and [Upkeep](#upkeep-a-mill-before-the-draw) |
+| `cost` | what the line pays: on a cast, in place of the printed cost; on an activation, to activate a copy in play; on a cycle, its cycling cost, required. See [A cost the line pays](#a-cost-the-line-pays-that-is-not-printed-dizzy-spell-and-whir-of-invention) |
 | `sacrifice` | beside `after`, the card that waited leaves play when the effect resolves (a Saga); on an activation, paying it sacrifices the card (Expedition Map) |
 | `to_graveyard` | the routing policy: which examined cards go to the yard. `"*"` is all of them, which is mill. Absent means none of them |
 | `fetch` | the cards it goes and gets out of the library, highest priority first. See [Tutors](#tutors-and-a-library-that-shrinks) |
-| `to` | where a fetched card is put: `hand` or `battlefield` |
+| `to` | where a fetched card is put: `hand`, `graveyard` or `battlefield` |
+| `up_to` | how many cards one search takes, each the next its `fetch` priority reaches: Buried Alive's `up_to = 3`. Absent is one. Not with `to = "battlefield"`, which puts down one card |
 | `adds` | how much mana a card adds a turn once the `[casting]` line has cast it, `on = "cast"` only, of the colours its card makes. With `after = n` it adds nothing for `n` turns, which is a rock that enters tapped. See [Mana, as a budget](#mana-as-a-budget) and [ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md) |
-| `mill` | how many cards a cast, an attack or a landfall puts off the top of the library into the graveyard. Not on a `landdrop`, whose way to do that is a `look`. See [Mills](#mills-a-spell-that-turns-cards-over) |
+| `mill` | how many cards a cast, an attack, a landfall or an upkeep puts off the top of the library into the graveyard, 1 to 49; or, on a cast, `"half"`: half the library as the spell resolves, rounded down (Traumatize). Not on a `landdrop`, whose way to do that is a `look`. See [Mills](#mills-a-spell-that-turns-cards-over) |
+| `grows` | beside `mill`, on an upkeep only: how many more each upkeep mills than the one before, 1 to 49. Out of the Tombs is `mill = 2`, `grows = 2`, for 2, 4, 6. See [Upkeep](#upkeep-a-mill-before-the-draw) |
 | `keep`, `keep_only` | how many of a mill's cards the card lets go to hand instead, and which cards it allows |
 | `keep_every` | the cards of a mill the card puts in hand whatever you want: Wrenn and Seven's lands |
 | `to_hand` | your choice among what `keep` allows, highest priority first. Absent keeps nothing |
-| `returns` | after a mill, every land card in the graveyard matching this goes onto the battlefield tapped, whatever you want: Lumra's lands |
+| `reanimate` | on a cast, which cards it returns from your graveyard to the battlefield, as the card says: Animate Dead's `"t:creature"`, Lumra's `"t:land"`. See [Reanimation](#reanimation-a-cast-returns-cards-from-the-graveyard) |
+| `reanimate_count` | beside `reanimate`, required: `"all"`, as Immortal Servitude and Lumra return, or how many, 1 to 10 |
+| `reanimate_prefer` | beside a numbered `reanimate_count`, required: which of them come back, highest priority first. A card it does not name never does |
 
 **Looking is a land drop, fetching can be a cast.** Playing a land is free and
 hard-capped at one a turn, so by turn *T* at most *T* of those have happened
@@ -1288,7 +1294,10 @@ Rumble and Midnight Tilling (`mill = 4`, `keep = 1`, `keep_only =
 "is:permanent"`) and Wrenn and Seven's +1 (`mill = 4`, `keep_every = "t:land"`).
 And three whose mills are triggers: Six (`on = "attack"`, `mill = 3`, `keep =
 1`, `keep_only = "t:land"`), Icetill Explorer (`on = "landfall"`, `mill = 1`)
-and Lumra, Bellow of the Woods (`mill = 4`, `returns = "t:land"`).
+and Lumra, Bellow of the Woods (`mill = 4`, `reanimate = "t:land"`,
+`reanimate_count = "all"`). And two
+whose mills are upkeep triggers: Stillness in Motion (`on = "upkeep"`, `mill =
+3`) and Out of the Tombs (`on = "upkeep"`, `mill = 2`, `grows = 2`).
 Each fires only where the `[casting]` line names its card, so every other file
 is answered exactly as it was.
 
@@ -1379,6 +1388,29 @@ find, and five lands cast Spellseeker and then the Loam it fetched:
 With the fetch deleted and Spellseeker still in the line it reads 9.95% ± 0.07
 and 11.22% ± 0.07, so casting Spellseeker moves nothing and the whole
 difference is the card it went and got (HANDS.md hand 36).
+
+**A tutor can put what it finds into the graveyard**, and take more than one.
+Entomb is `to = "graveyard"`; Buried Alive, "up to three creature cards", adds
+`up_to = 3`, and each card after the first is the same search again — the first
+entry the library still holds — so it takes three where the priority still finds
+three and fewer where it does not. What it puts there is counted by `zone =
+"graveyard"` from the turn it resolves, and gone from the library like any
+fetch:
+
+```toml
+[[effect]]
+match = 'name:"Buried Alive"'
+on = "cast"
+fetch = ['name:"Cid, Timeless Artificer"']
+up_to = 3
+to = "graveyard"
+```
+
+On twelve cards — eight Swamps, Buried Alive and three Cids, on the play —
+the line casts it on turn 3 whenever it is among the first nine cards, and it
+takes every Cid among the three left: a Cid in the graveyard by turn 3 is
+49.55%, and the mean 0.6136, where without the search it is 0
+(`crates/ichormoon-gauntlet/cli/tests/fixtures/buried-alive.criteria.toml`).
 
 **A fetchland is not a filter, and the distinction matters.** Scry and surveil
 examine N cards off the top; a fetchland removes a card from the library and
@@ -1681,6 +1713,48 @@ Both seats are sampled, as they were before: a class with a sized gap has no
 closed-form width, so it is counted against the ceiling, and this one passes
 it. `checker/` replays each mill from the card's text and agrees.
 
+**Half the library is `mill = "half"`.** Traumatize, "target player mills half
+their library, rounded down", aimed at yourself, is not a number the file can
+know: it is whatever the path left in the library when the spell resolved,
+after the draws, the searches and the other mills before it. So it is sized
+there, as every sized gap is, and two of them in one game each halve what the
+first left. Cut Your Losses is the same card; its casualty copy is a second
+cast, which the line does not make, so it mills half once. Half fires on a
+cast only, and refused on an attack, a landfall or an upkeep: the cards that
+mill half a library when they attack, Fleet Swallower among them, round up. A number is any whole number from 1 to 49, which is half
+of a 99-card library; Glimpse the Unthinkable is `mill = 10`.
+
+```toml
+[[effect]]
+match = 'name:"Traumatize"'
+on = "cast"
+mill = "half"
+```
+
+On sixteen cards — twelve Islands, Traumatize and three Cids, on the play —
+the line casts it on turn 5 whenever it is among the first eleven cards, and
+it mills two of the five left: a Cid in the graveyard by turn 5 is 25.54%, and
+the mean 0.275
+(`crates/ichormoon-gauntlet/cli/tests/fixtures/traumatize.criteria.toml`).
+
+A deep mill is cheap where nothing reads it and dear where something does. On
+a scratch 99-card list (36 Islands, Traumatize, Cut Your Losses, Life from the
+Loam, three Cids, 57 blanks), both cast by turn 6 on the play:
+
+| Loam in the graveyard by turn 6, and the Cids there | wall time | Loam |
+|---|---|---|
+| `mill = 20`, dealt last | 2.6 s | 1.37%, exact |
+| `mill = "half"`, dealt last | 2.9 s | **2.96%, exact** |
+| `mill = "half"`, `keep = 1` a land, so dealt where it fired | 102 s | 2.98%, exact, a different line: the kept land pays; the Cid count sampled |
+
+Kept from, a block of some forty cards is dealt over every group the class
+splits the deck into, and the Cid question passed the 5,000,000-path ceiling
+and was sampled, labelled as such. The run also refuses, as `LibraryRunsOut`,
+a question whose halves could leave too little for its draws: each copy the
+line casts is assumed to resolve before anything else takes a card, so a line
+with two halves has a quarter of the library after the opener for every other
+draw, search and mill it casts.
+
 **A mill nothing reads is dealt last, and only as finely as the question reads
 it** (ADR-0017 §4). A shuffled library does not care where in the order a
 block of cards sits, so a mill that keeps none of its cards, in a run where no
@@ -1730,12 +1804,12 @@ is refused by name.
   permanent is on the battlefield: the drop, the land a fetchland puts down in
   its place, and every land a spell returns. The drop comes before the line,
   so the Explorer cast on turn 4 sees turn 5's drop and not turn 4's.
-- **`returns = "t:land"`**, beside a `mill`, puts every land in the graveyard
-  onto the battlefield tapped once the mill is done: Lumra's four and whatever
-  an earlier mill left there. Nobody chooses, so the library states it. A mill
-  that returns lands is never dealt last, because what it returns is read off
-  the graveyard. The lands took no drop, and a turn's bill is still held to its
-  drops, so what they could pay for is a floor.
+- **Lumra** mills four on a cast and then returns every land in the graveyard
+  onto the battlefield tapped, Lumra's four and whatever an earlier mill left
+  there: a [reanimation](#reanimation-a-cast-returns-cards-from-the-graveyard)
+  of `"all"` of `"t:land"`. Nobody chooses, so the library states it. A mill
+  beside a reanimation is never dealt last, because what it returns is read off
+  the graveyard. Each land it returns is a landfall.
 
 Icetill Explorer's other two lines, an additional land a turn and lands played
 from the graveyard, are not modelled; its landfalls, and every number beside
@@ -1759,6 +1833,212 @@ never cast by turn 5 and moves nothing here. The file's other two questions,
 which count castings, move by less than two standard errors of the
 difference, which is noise between two samples. `checker/` plays Six's attacks and the Explorer's landfalls from the cards'
 text and the rules, and agrees.
+
+### Upkeep: a mill before the draw
+
+Stillness in Motion mills three at the beginning of your upkeep, and Out of the
+Tombs puts two eon counters on itself and then mills as many as it has
+([#139](https://github.com/cramt/progress-engine/issues/139)). **`on =
+"upkeep"`** fires once a turn for each copy the line cast on an earlier turn:
+it entered after the upkeep of the turn it was cast, so cast on turn 2 it mills
+on turns 3 and 4. What it may do is a `mill`, as an attack's, and anything
+else on it is refused by name.
+
+- **The upkeep comes before the draw step** (CR 501.1), so what it mills is
+  what that turn would have drawn, and the draw comes from under it. A land it
+  kept is in hand for that turn's drop. The engine deals its block ahead of the
+  turn's own checkpoint, and so does the sampler, so a card a look left on top
+  is milled rather than drawn. A shuffled library makes which cards the two
+  take the same in distribution either way; a card known to be on top is where
+  the order shows, and HANDS.md hand 63 pins it.
+- **`grows = n`** is a mill that takes `n` more each upkeep than the one
+  before, counted per copy from the upkeep after it was cast: Out of the Tombs
+  is `mill = 2`, `grows = 2`, so 2, 4, 6. Only an upkeep grows, because only a
+  permanent keeps a count between firings; `grows` on anything else, beside
+  `mill = "half"`, or with no `mill` is refused. So is `reanimate` on an
+  upkeep, an attack or a landfall: a reanimation is a cast's.
+- **The run assumes nobody removes it**, because nobody else is at this table,
+  and every run that fires one says so, as `ASSUMED:` in the report and
+  `assumes` in the JSON.
+
+Stillness in Motion's second sentence, "Then if your library has no cards in
+it", and Out of the Tombs' replacement of a draw from an empty library, both
+need an empty library. A question whose library can run out before its last
+draw is refused before it is asked, and that bound counts every upkeep a copy
+could fire, at its largest, so no game an answer covers reaches either.
+
+**What it does, measured.** The fixtures `stillness.txt` and `tombs.txt` in
+`crates/ichormoon-gauntlet/cli/tests/fixtures/` are small enough to check by
+hand, on the play, and answer exactly in 0.02 s:
+
+| Deck | Question | Exact | By hand | Sampled, 200,000 hands |
+|---|---|---|---|---|
+| 16 Islands, Stillness, 3 Cids | a Cid in the graveyard by turn 4 | 30.30%, 972 compositions | 8/20 × (1 − C(16,6)/C(19,6)) + 1/20 × (1 − C(16,3)/C(19,3)) | 30.29% ± 0.10 |
+| 27 Swamps, Out of the Tombs, 3 Cids | a Cid in the graveyard by turn 5 | 15.18%, 2,916 compositions | 9/31 × (1 − C(27,6)/C(30,6)) + 1/31 × (1 − C(27,2)/C(30,2)) | 15.25% ± 0.08 |
+
+The Tombs' deck is 31 cards because the bound on what the library can lose
+takes its largest firings for every turn, 2 + 4 + 6 + 8 by turn 5, beside the
+draws. `checker/` plays both from the cards' text and the rules, with the
+library in order (`checker/test_triggers.py`), and 40,000 of its hands on
+these decks, Beast Within standing in for the Cids, read 30.19% ± 0.23 and
+15.43% ± 0.18.
+
+### Reanimation: a cast returns cards from the graveyard
+
+The Cid deck in [#140](https://github.com/cramt/progress-engine/issues/140)
+bins its Cids and then brings them back. **`reanimate`** on a cast moves cards
+from your graveyard to the battlefield, so `zone = "battlefield"` counts what
+came back and `zone = "graveyard"` no longer does
+([ADR-0032](docs/adr/0032-a-reanimation-is-the-one-move-from-the-graveyard-to-the-battlefield.md)).
+Which cards and how many is printed on the card, so both are required; which
+of them, where the card returns a number, is yours:
+
+```toml
+# Animate Dead: "Return enchanted creature card to the battlefield."
+[[effect]]
+match = 'name:"Animate Dead"'
+on = "cast"
+reanimate = "t:creature"
+reanimate_count = 1
+reanimate_prefer = ['name:"Cid, Timeless Artificer"', "t:creature"]
+
+# Immortal Servitude: "Return each creature card with mana value X from your
+# graveyard to the battlefield." X is yours, so it is declared twice: what the
+# line pays, and the mana value it returns.
+[[effect]]
+match = 'name:"Immortal Servitude"'
+on = "cast"
+cost = "{4}{W}{B}{B}"
+reanimate = "t:creature mv=4"
+reanimate_count = "all"
+```
+
+Fix What's Broken returns "each artifact and creature card with mana value X",
+and its X is life, which nothing here counts: its printed `{2}{W}{B}` and
+`reanimate = "(t:artifact or t:creature) mv=4"`. Angel of Glory's Rise enters
+and returns "all Human creature cards", which takes in every Cid, a Human
+Artificer: `reanimate = "t:human t:creature"`, `"all"`.
+
+- **The card's half and yours.** `"all"` returns every card the query matches.
+  A number takes the first entry of `reanimate_prefer` the graveyard holds,
+  inside an entry the card the decklist names first, up to that many; a card
+  no entry names never comes back, so name `"t:creature"` last to take any.
+  A number with no list is refused, as a forced discard with no `[discard]`
+  list is.
+- **Your graveyard, and permanent cards.** Only what a mill, a discard, a
+  surveil or a fetch put there: Animate Dead and Reanimate reach every
+  graveyard, and no opponent's is modelled, a floor. An instant or a sorcery
+  never comes back, and nor does a card with a land on a face it would not
+  return as. In the graveyard a double-faced card is its front face: `t:land`
+  matches Search for Azcanta by its back, an enchantment card there, and
+  Bala Ged Recovery by its modal land back, a sorcery card there. A card
+  returns as a land only when its front face is one.
+- **It resolves after the cast's fetch, draw and mill, before its discard**,
+  so Lumra returns the lands it has just milled.
+- **What comes back was not cast.** A `cast` clause does not count it; it makes
+  no mana, attacks for nothing and fires nothing of its own, so a reanimated
+  dork or attacker is a floor. A land comes back tapped, pays from the next
+  turn as a land a spell put down does
+  ([ADR-0025](docs/adr/0025-a-land-a-spell-puts-down-is-tapped-and-pays-from-the-next-turn.md)),
+  and is a landfall.
+- **The line waits for something to return.** A reanimation that mills nothing
+  is cast only while the graveyard holds a card it would return: the rules for
+  Animate Dead, which targets (CR 601.2c), and the pilot's line for Immortal
+  Servitude, which does not. The line is read again after a spell fills the
+  graveyard, so Animate Dead listed before Buried Alive is cast after it the
+  same turn where the pool pays for both. Every run that casts one says so.
+- **Only on a cast.** On a land drop, an activation, an attack, a landfall or an
+  upkeep it is refused by name. Angel of Glory's Rise's "exile all Zombies" is
+  not modelled, so a Zombie the line put on the battlefield is still counted
+  there.
+
+Nothing in the standard library reanimates but Lumra: Animate Dead needs your
+list, and Immortal Servitude your X.
+
+**What it does, measured.** The fixtures `animate-dead.txt` and `servitude.txt`
+in `crates/ichormoon-gauntlet/cli/tests/fixtures/` put the Cids in the
+graveyard with Buried Alive, which takes every one the library holds, and are
+small enough to check by hand, on the play:
+
+| Deck | Question | Exact | By hand | Sampled, 200,000 hands |
+|---|---|---|---|---|
+| 8 Swamps, Buried Alive, Animate Dead, 3 Cids | a Cid on the battlefield by turn 4 | 42.10%, 7,680 compositions, 0.04 s | 9/13 × (260 + 1 + 24/2 + 84/3)/495 = 301/715 | 42.09% |
+| 16 Swamps, Buried Alive, Immortal Servitude at X = 4, 3 Cids | a Cid on the battlefield by turn 7 | 34.12%, 491,520 compositions, 0.08 s | 15,429/45,220, by a tree over the shuffled library | 34.15% |
+| the same | all three by turn 7 | 6.93% | | 6.90% |
+
+Buried Alive shuffles, so the turn after it is drawn from what it left, which
+is why Animate Dead arrives on turn 4 more often than a card at position ten
+would. Servitude costs seven and is never cast before turn 7.
+`checker/test_reanimation.py` holds the wait and the priority against the
+checker's line, which fills the graveyard with a mill.
+
+### Cycling: the line pays to discard a card and draw
+
+The Cid deck's main way into the graveyard is cycling its Cids
+([#136](https://github.com/cramt/progress-engine/issues/136)). Cid, Timeless
+Artificer reads *Cycling {W}{U} ({W}{U}, Discard this card: Draw a card.)*, and
+**`on = "cycle"`** says it:
+
+```toml
+[[effect]]
+match = 'name:"Cid, Timeless Artificer"'
+on = "cycle"
+cost = "{W}{U}"
+draw = 1
+
+[casting]
+prefer = ['name:"Animate Dead"', 'name:"Cid, Timeless Artificer"']
+```
+
+- **The `[casting]` entry naming the card cycles it, and casts none of it**
+  ([ADR-0033](docs/adr/0033-a-cycle-is-the-line-paying-to-discard-and-draw.md)).
+  Its effect says what the entry means, as an activation's does: there is no
+  second list and no new entry syntax, and ordering cycling against casting is
+  where the entry sits in `prefer`. Above, Animate Dead is cast whenever the
+  graveyard holds a creature its own effect returns and the pool pays, and
+  the rest of the turn's mana cycles Cids.
+- **Paid from the same pool.** `cost` is required and is billed to the turn's
+  pool in place of the printed cost, stage by stage like any other entry
+  ([ADR-0018](docs/adr/0018-rocks-and-dorks-are-sources-the-line-casts.md)),
+  and the pips it names are the class's to tell apart. `{X}` and hybrid are
+  refused, as everywhere.
+- **Hand to graveyard, then the draw.** The card is discarded as the cost is
+  paid (CR 702.29a), so `zone = "graveyard"` counts it from then on. The draw
+  is a cast's draw: one sized gap, dealt where the line paid it
+  ([ADR-0017](docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md)). The
+  line is read again from its top after it, so a Cid it draws is cycled the
+  same turn where the pool still pays; a land it draws waits for the next drop.
+- **Never cast.** A `cast` clause does not count a cycled card, and one whose
+  query matches a card the line cycles is **refused by name** rather than
+  answered 0%: casting some copies and cycling others in one line is not
+  modelled. Ask `zone = "graveyard"` instead, or leave the cycle effect out to
+  ask about casting it. A commander is cast from the command zone and cycled
+  from nowhere, so a cycle effect on a commander the line names is refused too.
+- **It draws, and does nothing else.** `draw` is required, and any other key
+  on `on = "cycle"` is refused naming it. Landcycling is a search rather than a
+  draw, and `fetch` on a cycle is refused with a pointer to #136.
+- **Yours, not the library's.** Whether a line cycles a card or casts it is the
+  pilot's, so the standard library ships no cycle.
+
+**What it does, measured.** On the fixture `cycling.txt` (five Plains, five
+Islands, three Cids, on the play), a Cid is in the graveyard by turn 2 on
+96.35%: the eight cards hold none on 45/1287 and one colour of land only on
+2/1287 (HANDS.md hand 65). Every Cid is there by turn 4 on 76.57%, 972
+compositions, and the sampler agrees. On a 99-card list shaped like the Cid
+deck, 18 Plains, 18 Islands, 18 Cids and 45 blanks, *three Cids in the
+graveyard*:
+
+| By turn, on the play | Answer | Width | Wall time |
+|---|---|---|---|
+| 3 | 0%, exact: two cycles at most | 1,920 compositions | 0.4 s |
+| 4 | 21.16%, exact | 7,680 compositions, 4 groups | 9.6 s |
+| 5 | 28.11% ± 0.06, ESTIMATE | past the 5,000,000-leaf ceiling | 90 s, 76 s of it counting leaves |
+
+Every cycle is one more one-card gap, and a turn with four lands can pay two,
+so by turn 5 the path count passes the ceiling and the class is sampled and
+labelled as one. With 10 Cids instead of 18 the turn-5 answer is 7.52% ± 0.06,
+also sampled. `checker/test_cycling.py` holds the cycle, the same-turn cycle
+off a drawn Cid and the cast count against the checker's line.
 
 ### Discard: a spell that draws, and then bins
 
@@ -3289,7 +3569,10 @@ plays hand 42 from Expedition Map's text over every deal, the payment before
 the land drop included. A discard in a cost is its reading of the same rules.
 With no artifact card in hand the cost cannot be paid, so there is no
 activation. `checker/test_intuition.py` plays hand 61 from Artificer's
-Intuition's text over every order of the library. It is still a check:
+Intuition's text over every order of the library. Cycling is its reading of
+CR 702.29a — the cost paid from hand, the card discarded as part of it, then
+the draw — and `checker/test_cycling.py` plays hand 65's Cid through it,
+a Cid drawn off a cycle and cycled the same turn included. It is still a check:
 it is how the Spellseeker line found the engine holding a fetched Loam it could
 have cast:
 

@@ -1,0 +1,45 @@
+# Issue #140, on servitude.txt. The X is the pilot's, so it is declared twice:
+# once as what the line pays, and once in what comes back, every creature card
+# of mana value 4. Servitude waits for the graveyard, so it is cast on turn 7
+# when Buried Alive was cast by turn 6 and found a Cid.
+
+[[effect]]
+match = 'name:"Buried Alive"'
+on = "cast"
+fetch = ['name:"Cid, Timeless Artificer"']
+up_to = 3
+to = "graveyard"
+
+[[effect]]
+match = 'name:"Immortal Servitude"'
+on = "cast"
+cost = "{4}{B}{B}{B}"
+reanimate = "t:creature mv=4"
+reanimate_count = "all"
+
+[casting]
+prefer = ['name:"Immortal Servitude"', 'name:"Buried Alive"']
+
+[[criterion]]
+name = "a Cid on the battlefield by turn 7"
+require = [{ turn = 7, query = 'name:"Cid, Timeless Artificer"', zone = "battlefield", min = 1 }]
+
+[[criterion]]
+name = "all three Cids on the battlefield by turn 7"
+require = [{ turn = 7, query = 'name:"Cid, Timeless Artificer"', zone = "battlefield", min = 3 }]
+
+[[criterion]]
+name = "Immortal Servitude cast by turn 6"
+require = [{ turn = 6, cast = 'name:"Immortal Servitude"', min = 1 }]
+
+[[expect]]
+name = "Cids on the battlefield on turn 7"
+turn = 7
+query = 'name:"Cid, Timeless Artificer"'
+zone = "battlefield"
+
+[[expect]]
+name = "Cids in the graveyard on turn 7"
+turn = 7
+query = 'name:"Cid, Timeless Artificer"'
+zone = "graveyard"

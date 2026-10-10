@@ -52,6 +52,15 @@ class Hand19(unittest.TestCase):
         self.assertEqual(after.lands_played(3), 3)
         self.assertNotIn(checker.LOAM, [c.name for c in after.seen(4)])
 
+    def test_half_the_library_takes_two_of_the_four_under_the_turn_two_draw(self):
+        # Traumatize's mill on the Analyst: after turn 2's draw the library is
+        # four cards, so it mills two, and turn 3 draws the Island under them.
+        half = {checker.ANALYST: checker.Mill(checker.HALF)}
+        path = checker.line_path(self.game, self.line, 4, mills=half)
+        self.assertTrue(path[1].casts(checker.ANALYST), "cast on turn 2")
+        self.assertEqual([c.name for c in path[1].milled], ["Mountain", checker.LOAM])
+        self.assertIn("Island", [c.name for c in path[-1].game.seen(3)])
+
     def test_without_the_mill_the_loam_is_drawn_on_turn_4(self):
         path = checker.line_path(self.game, self.line, 4)
         self.assertTrue(path[1].casts(checker.ANALYST), "casting it does not depend on the mill")

@@ -593,13 +593,20 @@ def _parse_cost(cost: str) -> tuple[int, list[str]]:
 #   the line may cast it this turn; a land kept this way is played no earlier
 #   than the next turn, because this turn's land drop came before the line
 #   (ADR 0017: "a land drawn mid-line waits for the next turn's drop").
+# * "Mills half their library, rounded down" (Traumatize, aimed at yourself)
+#   halves the library as it is when the spell resolves: every card not yet
+#   drawn, milled or searched for, rounded down.
+
+
+HALF = "half"
 
 
 @dataclass(frozen=True)
 class Mill:
     """What casting one card does to the top of the library."""
 
-    cards: int
+    # How many cards, or HALF: half the library left, rounded down.
+    cards: int | str
     # Every card this matches goes to your hand whatever the pilot wants.
     keep_every: Callable[[Card], bool] | None = None
     # Up to this many of the cards `keep_only` allows go to your hand, the
@@ -607,6 +614,9 @@ class Mill:
     keep_up_to: int = 0
     keep_only: Callable[[Card], bool] | None = None
     prefer: tuple[Callable[[Card], bool], ...] = ()
+    # How many more each firing takes than the one before: Out of the Tombs'
+    # eon counters, two more each upkeep.
+    grows: int = 0
 
     def kept(self, top: list[Card], decklist: list[Card]) -> list[int]:
         """Which of `top` (by position) go to your hand."""
@@ -623,6 +633,13 @@ class Mill:
             options.sort(key=lambda i: decklist.index(top[i]))
             kept += options[: self.keep_up_to - len(kept)]
         return kept
+
+    def size(self, library_left: int, nth: int = 1) -> int:
+        """How many cards its `nth` firing takes off a library of
+        `library_left`."""
+        if self.cards == HALF:
+            return library_left // 2
+        return self.cards + self.grows * (nth - 1)
 
 _NOT_A_PLAIN_TAP = (
     "enters tapped",
@@ -899,6 +916,7 @@ def line_path(
     modes: dict[str, Mode] | None = None,
     attacks: dict[str, Mill] | None = None,
     landfalls: dict[str, Mill] | None = None,
+    upkeeps: dict[str, Mill] | None = None,
 ) -> LinePath:
     """Play `line` out through `last_turn`. `fetches` maps a card to the cards
     it puts into your hand from the library when cast, `puts` to the cards
@@ -910,13 +928,17 @@ def line_path(
     X chosen. `attacks` maps a creature to what it mills each time it attacks,
     and `landfalls` a permanent to what it mills each time a land enters
     while it is on the battlefield, each from the turn after the line cast
-    it (see "Attack and landfall" among the questions). Cached on the game."""
+    it (see "Attack and landfall" among the questions). `upkeeps` maps a
+    permanent to what it mills at the beginning of each upkeep after the turn
+    the line cast it, before that turn's draw ("Upkeep" among the questions).
+    Cached on the game."""
     fetches = fetches or {}
     puts = puts or {}
     mills = mills or {}
     modes = modes or {}
     attacks = attacks or {}
     landfalls = landfalls or {}
+    upkeeps = upkeeps or {}
     key = (
         "path",
         line,
@@ -927,6 +949,7 @@ def line_path(
         tuple(sorted(modes.items(), key=lambda kv: kv[0])),
         tuple(sorted(attacks.items())),
         tuple(sorted(landfalls.items())),
+        tuple(sorted(upkeeps.items())),
     )
     if key in game._line_cache:
         return game._line_cache[key]
@@ -942,11 +965,15 @@ def line_path(
     in_play: list[tuple[int, Card]] = []
     path = LinePath()
 
-    def mill_top(t: int, mill: Mill, milled: list[Card]) -> None:
-        """The next `mill.cards` off the top: the kept ones to hand (a land
-        waits for the next turn's drop), the rest into `milled`."""
+    def mill_top(t: int, mill: Mill, milled: list[Card], nth: int = 1, drop: int = 1) -> None:
+        """The next `mill.size` cards off the top: the kept ones to hand (a land
+        waits for the drop `drop` turns on: the next turn's, unless the mill
+        came before this turn's), the rest into `milled`."""
         nonlocal g, taken
-        top = g.cards[seen_so_far : seen_so_far + mill.cards]
+        n = mill.size(g.library_size - seen_so_far, nth)
+        if seen_so_far + n > len(g.cards) and len(g.cards) < g.library_size:
+            raise ValueError("the deal is shallower than this mill reads: raise its depth")
+        top = g.cards[seen_so_far : seen_so_far + n]
         kept = mill.kept(top, g.library)
         taken += [c.name for c in top]
         lands: list[tuple[int, Card]] = []
@@ -954,7 +981,7 @@ def line_path(
             if i not in kept:
                 milled.append(c)
             elif c.playable_land:
-                lands.append((t + 1, c))
+                lands.append((t + drop, c))
             elif c.name in named:
                 hand.append(c)
         g = Game(
@@ -967,6 +994,14 @@ def line_path(
         )
 
     for t in range(1, last_turn + 1):
+        milled: list[Card] = []
+        # The upkeep, before the draw step (CR 503, 504): each permanent the
+        # line cast on an earlier turn mills off the top, so this turn's draw
+        # comes from under what it milled, and a land it kept is in hand for
+        # this turn's drop.
+        for when, permanent in in_play:
+            if when < t and permanent.name in upkeeps:
+                mill_top(t, upkeeps[permanent.name], milled, nth=t - when, drop=0)
         new = g.seen(t)[seen_so_far:]
         seen_so_far = g.seen_count(t)
         taken += [c.name for c in new]
@@ -975,7 +1010,6 @@ def line_path(
         bill: list[Cost] = []
         cast: list[Card] = []
         put: list[Card] = []
-        milled: list[Card] = []
         # This turn's land drop, before the line: one land entered if the
         # gate's schedule played one. Each fires every landfall permanent the
         # line cast on an earlier turn.
@@ -1003,7 +1037,7 @@ def line_path(
             bill.append(cost)
             cast.append(card)
             hand.remove(card)
-            if card.name in attacks or card.name in landfalls:
+            if card.name in attacks or card.name in landfalls or card.name in upkeeps:
                 in_play.append((t, card))
             src = mana_source(card, identity)
             if src is not None:
@@ -1104,12 +1138,38 @@ class Rummage:
     untaps_its_cost: bool = False
 
 
+@dataclass(frozen=True)
+class Cycle:
+    """What cycling one card costs and draws (README "Cycling", CR 702.29a):
+    the entry naming it pays `cost` from hand, the card goes to the
+    graveyard as part of that cost, and then the pilot draws `draw`. It is
+    never cast."""
+
+    cost: str
+    draw: int = 1
+
+
+@dataclass(frozen=True)
+class Reanimation:
+    """What casting one card returns from your graveyard to the battlefield
+    (README "Reanimation"): every card `returns` matches, or with `count` up
+    to that many, the first entry of `prefer` that holds one first, and inside
+    an entry the card the decklist names first. A card no entry names never
+    comes back."""
+
+    returns: Callable[[Card], bool]
+    count: int | None = None
+    prefer: tuple[Callable[[Card], bool], ...] = ()
+
+
 @dataclass
 class DeclaredTurn:
     number: int
     cast: list[Card]
     to_graveyard: list[Card]
     lands_in_play: int
+    # Cards other than lands a reanimation put onto the battlefield this turn.
+    reanimated: list[Card] = field(default_factory=list)
 
 
 class DeclaredPath(list):
@@ -1123,6 +1183,11 @@ class DeclaredPath(list):
         (CR 608.2n), a milled card, or a discarded one. Nothing takes a card
         back out."""
         return any(c.name == name for t in self[:turn] for c in t.to_graveyard)
+
+    def reanimated_by(self, name: str, turn: int) -> int:
+        """Copies of `name` a reanimation put onto the battlefield by `turn`:
+        out of the graveyard, never cast, and nothing here takes one away."""
+        return sum(c.name == name for t in self[:turn] for c in t.reanimated)
 
 
 # (library, land drop, discard list) -> land name -> where its kind is first named.
@@ -1140,21 +1205,27 @@ def declared_line_path(
     rummages: dict[str, Rummage],
     attacks: dict[str, Mill] | None = None,
     landfalls: dict[str, Mill] | None = None,
-    returns: dict[str, Callable[[Card], bool]] | None = None,
+    returns: dict[str, Reanimation] | None = None,
+    cycles: dict[str, Cycle] | None = None,
 ) -> DeclaredPath:
     """Play `line` out through `last_turn` under a declared land drop and a
     declared discard list. `attacks` and `landfalls` are what a permanent the
     line cast mills each time it attacks or a land enters (see `line_path`).
-    `returns` maps a card to the land cards that, once its mill is done, go
-    from the whole graveyard onto the battlefield tapped (Lumra). A rock or a
+    `returns` maps a card to what it returns from the graveyard to the
+    battlefield once its mill is done (Lumra's lands, Animate Dead's one
+    creature); one that mills nothing is cast only while the graveyard holds
+    a card it would return. `cycles` maps a card the line cycles rather than
+    casts to its cycling cost and draw. A rock or a
     dork the line casts is a mana source (ADR 0018). Cached on the game."""
     attacks = attacks or {}
     landfalls = landfalls or {}
     returns = returns or {}
+    cycles = cycles or {}
     key = ("declared", line, last_turn, land_drop, discard,
            tuple(sorted(fetches.items())), tuple(sorted(mills.items())),
            tuple(sorted(rummages.items())), tuple(sorted(attacks.items())),
-           tuple(sorted(landfalls.items())), tuple(sorted(returns.items())))  # fmt: skip
+           tuple(sorted(landfalls.items())), tuple(sorted(returns.items())),
+           tuple(sorted(cycles.items())))  # fmt: skip
     if key in game._line_cache:
         return game._line_cache[key]
     # The card picked at random is a function of the deal, and the same one
@@ -1215,10 +1286,50 @@ def declared_line_path(
             hand.remove(land)
             in_play.append((land, t))
         to_graveyard: list[Card] = []
-        returned_now: list[Card] = []  # of this turn's, the lands a card returned
+        returned_now: list[Card] = []  # of this turn's, the cards a card returned
+        reanimated: list[Card] = []
+
+        def returnable(r: Reanimation) -> list[Card]:
+            """What `r` could return now, from the whole graveyard: a
+            permanent card it matches, by its front face, and not one with a
+            land on another face; and where it returns a number, one its list
+            names (README "Reanimation")."""
+            this_turn = list(to_graveyard)
+            for c in returned_now:
+                this_turn.remove(c)
+            return [
+                c
+                for c in graveyard + this_turn
+                if r.returns(c)
+                and (_is_land(c) or (_is_permanent_card(c) and "Land" not in c.type_line))
+                and (r.count is None or any(wants(c) for wants in r.prefer))
+            ]
+
+        def reanimate(r: Reanimation) -> int:
+            """Return what `r` returns; how many lands, each a landfall."""
+            nonlocal graveyard
+            pool = returnable(r)
+            if r.count is None:
+                back = pool
+            else:
+                back = []
+                for wants in r.prefer:
+                    these = [c for c in pool if wants(c) and c not in back]
+                    these.sort(key=lambda c: game.library.index(c))
+                    back += these[: r.count - len(back)]
+            for c in back:
+                if c in graveyard:
+                    graveyard.remove(c)
+                else:
+                    returned_now.append(c)
+                if _is_land(c):
+                    in_play.append((c, 0))  # on the battlefield, by no drop
+                else:
+                    reanimated.append(c)
+            return sum(_is_land(c) for c in back)
 
         def mill_off(mill: Mill) -> None:
-            milled = draw(mill.cards)
+            milled = draw(mill.size(game.library_size - len(taken)))
             kept = mill.kept(milled, game.library)
             for i, c in enumerate(milled):
                 (hand if i in kept else to_graveyard).append(c)
@@ -1238,7 +1349,7 @@ def declared_line_path(
             for permanent, when in list(triggers):
                 if when < t and permanent.name in landfalls:
                     mill_off(landfalls[permanent.name])
-        # Only lands that took a drop pay (README "returns": a returned land
+        # Only lands that took a drop pay (README "Reanimation": a returned land
         # took none, and a turn's bill is held to its drops).
         pool = [
             (0, c.produces)
@@ -1254,9 +1365,28 @@ def declared_line_path(
             chosen = None
             for entry in line:
                 options = [c for c in hand + command if c.name in entry]
-                options.sort(key=lambda c: (_mana_value(c), order[c.name]))
+                # A reanimation that mills nothing waits for a card to return:
+                # the rules for one that targets (CR 601.2c), the pilot's line
+                # for one that does not.
+                options = [
+                    c
+                    for c in options
+                    if c.name not in returns or c.name in mills or returnable(returns[c.name])
+                ]
+                # A card the line cycles is paid for at its cycling cost, from
+                # hand only: the command zone is not somewhere it cycles from.
+                options = [c for c in options if c.name not in cycles or c in hand]
+
+                def billed(c: Card) -> str:
+                    return cycles[c.name].cost if c.name in cycles else c.mana_cost
+
+                def value(c: Card) -> int:
+                    generic, pips = _parse_cost_cached(billed(c))
+                    return generic + len(pips)
+
+                options.sort(key=lambda c: (value(c), order[c.name]))
                 for c in options:
-                    cost = _parse_cost_cached(c.mana_cost)
+                    cost = _parse_cost_cached(billed(c))
                     if _settles(pool, bill + [cost]):
                         chosen = (c, cost)
                         break
@@ -1265,6 +1395,16 @@ def declared_line_path(
             if not chosen:
                 break
             card, cost = chosen
+            cycle = cycles.get(card.name)
+            if cycle is not None:
+                # Discarded as the cost is paid, then the draw: in the
+                # graveyard, never cast, and what it drew is in hand for the
+                # line read again from its top.
+                hand.remove(card)
+                bill.append(cost)
+                to_graveyard.append(card)
+                hand += draw(cycle.draw)
+                continue
             (command if card in command else hand).remove(card)
             cast.append(card)
             if card.name in attacks or card.name in landfalls:
@@ -1294,7 +1434,7 @@ def declared_line_path(
                     del library[below]
             mill = mills.get(card.name)
             if mill is not None:
-                milled = draw(mill.cards)
+                milled = draw(mill.size(game.library_size - len(taken)))
                 kept = mill.kept(milled, game.library)
                 for i, c in enumerate(milled):
                     (hand if i in kept else to_graveyard).append(c)
@@ -1302,15 +1442,7 @@ def declared_line_path(
             if back is not None:
                 # "Then return all land cards from your graveyard to the
                 # battlefield tapped": this turn's and every earlier one's.
-                gone = [c for c in graveyard if back(c)]
-                graveyard = [c for c in graveyard if not back(c)]
-                this_turn = list(to_graveyard)
-                for c in returned_now:
-                    this_turn.remove(c)
-                gone += [c for c in this_turn if back(c)]
-                returned_now += [c for c in this_turn if back(c)]
-                in_play += [(c, 0) for c in gone]  # on the battlefield, by no drop
-                landfall(len(gone))
+                landfall(reanimate(back))
             if rummage is not None:
                 hand += draw(rummage.draw)
                 allowed = [c for c in hand if rummage.only is None or rummage.only(c)]
@@ -1336,7 +1468,7 @@ def declared_line_path(
             if when < t and creature.name in attacks:
                 mill_off(attacks[creature.name])
         # Put into the graveyard this turn, whatever left it again since.
-        path.append(DeclaredTurn(t, cast, to_graveyard, len(in_play)))
+        path.append(DeclaredTurn(t, cast, to_graveyard, len(in_play), reanimated))
         rest = list(to_graveyard)
         for c in returned_now:
             rest.remove(c)
@@ -1897,6 +2029,19 @@ SIX, EXPLORER, LUMRA = "Six", "Icetill Explorer", "Lumra, Bellow of the Woods"
 #   land drop comes before the line, so the drop of the turn it is cast does
 #   not trigger it; every drop after that does. ASSUMPTION (README): its
 #   additional land a turn, and playing lands from the graveyard, are not used.
+#
+# Upkeep (#139), read off each card and the rules:
+#
+# * Stillness in Motion: "At the beginning of your upkeep, mill three cards.
+#   Then if your library has no cards in it, exile this enchantment and put
+#   five cards from your graveyard on top of your library in any order." The
+#   upkeep step comes before the draw step (CR 501.1), so what it mills is
+#   what that turn would have drawn. It entered on the turn it was cast, after
+#   that turn's upkeep, so it first mills the turn after. The second sentence
+#   needs an empty library, which no question here reaches.
+# * Out of the Tombs: "At the beginning of your upkeep, put two eon counters
+#   on this enchantment, then mill cards equal to the number of eon counters on
+#   it." Two, then four, then six. ASSUMPTION (README): nobody removes either.
 # * Lumra: "When Lumra enters, mill four cards. Then return all land cards
 #   from your graveyard to the battlefield tapped." The file declares the mill
 #   and not the return (its header says why), so the lands stay where they are.

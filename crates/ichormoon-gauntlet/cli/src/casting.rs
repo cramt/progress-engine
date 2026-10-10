@@ -26,6 +26,11 @@
 //! `{1}{U}{U}`, not its printed `{U}`, and Whir of Invention's `{X}` is the
 //! pilot's, stated. The printed cost is then never read, so an `{X}` in it is
 //! refused only where nothing declared one.
+//!
+//! **And a card whose effect is a cycle is cycled, never cast** (#136): the
+//! declared `cost` is then its cycling cost, and the entry naming it puts each
+//! copy it reaches in the graveyard and draws. Those are reported apart, as
+//! [`Resolved::cycled`], because a `cast` clause never counts one.
 
 use gauntlet_criteria::{CastingPolicy, Cost, Demand, Palette};
 
@@ -61,6 +66,10 @@ pub struct Resolved {
     /// The cards this line bills at a declared cost rather than a printed one,
     /// in decklist order. Every run prints them (ADR-0019).
     pub declared: Vec<DeclaredUse>,
+    /// The cards this line cycles rather than casts, at the cycling cost
+    /// their effect declares, in decklist order (#136). Every run prints
+    /// them, because a `cast` clause never counts one.
+    pub cycled: Vec<DeclaredUse>,
     /// Preferences picking out no castable card in this deck. They decide
     /// nothing here, which is a fact about the deck rather than an error in
     /// the file — the same treatment a criteria query matching nothing gets.
@@ -169,19 +178,27 @@ pub fn resolve(
     }
 
     billed.sort_by_key(|(position, _)| *position);
-    let declared = billed
+    let (cycled, declared): (Vec<_>, Vec<_>) = billed
         .into_iter()
-        .map(|(position, declared)| DeclaredUse {
-            card: deck.entries[position].card.name.clone(),
-            billed: declared.cost.as_str().to_string(),
-            printed: deck.entries[position].card.mana_cost.clone(),
-            effect: declared.effect.clone(),
+        .map(|(position, declared)| {
+            (
+                declared.cycles,
+                DeclaredUse {
+                    card: deck.entries[position].card.name.clone(),
+                    billed: declared.cost.as_str().to_string(),
+                    printed: deck.entries[position].card.mana_cost.clone(),
+                    effect: declared.effect.clone(),
+                },
+            )
         })
-        .collect();
+        .partition(|(cycles, _)| *cycles);
+    let strip = |uses: Vec<(bool, DeclaredUse)>| uses.into_iter().map(|(_, u)| u).collect();
+    let (cycled, declared) = (strip(cycled), strip(declared));
 
     Ok(Resolved {
         policy: CastingPolicy::new(tiers),
         declared,
+        cycled,
         queries,
         prefer: prefer.to_vec(),
         costs,

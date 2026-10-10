@@ -1,0 +1,12 @@
+// Issue #140: Animate Dead returns a Cid that Buried Alive put into the
+// graveyard.
+//
+// Thirteen cards on the play. Five nonlands cannot keep a land out of any
+// turn's hand, so the drop is made every turn: Buried Alive's {2}{B} is paid
+// on turn 3 whenever it is among the first nine cards, and Animate Dead's
+// {1}{B} on turn 4 beside it. Every Cid in the library goes in, and Animate
+// Dead brings one back.
+8x Swamp [Land]
+1x Buried Alive [Tutor]
+1x Animate Dead [Reanimation]
+3x Cid, Timeless Artificer [Cid]

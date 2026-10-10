@@ -19,7 +19,7 @@
 //! to sample the look, and a sampled surveil inside an exact engine is a
 //! percentage nobody can attribute.
 
-use crate::effect::{Effect, Trigger};
+use crate::effect::{Effect, Fetched, Trigger};
 use crate::grouping::Grouping;
 use crate::policy::{CastingPolicy, DiscardPolicy, LandDropPolicy, MulliganPolicy};
 use crate::strategy::Chosen;
@@ -447,9 +447,15 @@ impl Schedule {
     /// Read by the report, because a graveyard count of zero means two
     /// different things and only this tells them apart.
     pub fn routes_to_graveyard(&self) -> bool {
-        self.effects
-            .iter()
-            .any(|e| e.route.is_live() || e.mill.is_some() || e.discard.is_some())
+        self.effects.iter().any(|e| {
+            e.route.is_live()
+                || e.mill.is_some()
+                || e.discard.is_some()
+                || e.trigger == Trigger::Cycle
+                || e.fetch
+                    .as_ref()
+                    .is_some_and(|f| matches!(f.to, Fetched::Graveyard(_)))
+        })
     }
 }
 

@@ -14,7 +14,7 @@ use gauntlet_criteria::{
 };
 use gauntlet_toml::{
     Criteria, Destination, DiscardDecl, EffectEntry, EffectLibrary, ErrorKind, HandDecl, MillDecl,
-    MAX_TURN, STANDARD_LIBRARY, STANDARD_LIBRARY_ORIGIN,
+    MillDepth, ReanimateDecl, MAX_TURN, STANDARD_LIBRARY, STANDARD_LIBRARY_ORIGIN,
 };
 
 /// A synthetic library where every query the file names has cards of its own
@@ -483,6 +483,7 @@ fn a_file_run_against_a_spell_that_draws_agrees_in_both_engines() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let schedule = Schedule::build(
         criteria.horizon(),
@@ -1504,7 +1505,7 @@ fn a_look_on_a_cast_is_refused_and_a_trigger_nobody_fires_is_refused_by_name() {
         mana.to_string().contains("issues/57"),
         "should say what it waits on: {mana}"
     );
-    let unknown = with("upkeep");
+    let unknown = with("endstep");
     assert!(
         unknown.to_string().contains("landdrop"),
         "should list what it takes: {unknown}"
@@ -1536,7 +1537,7 @@ fn a_tutor_declares_what_it_fetches_and_where_it_puts_it() {
     assert_eq!(entry.look, 0);
     let fetch = entry.fetch.as_ref().expect("declared");
     assert_eq!(fetch.prefer.len(), 2, "a priority, read in order");
-    assert_eq!(fetch.to, gauntlet_criteria::Fetched::Hand);
+    assert_eq!(fetch.to, gauntlet_criteria::Fetched::Hand(1));
 }
 
 #[test]
@@ -1684,13 +1685,15 @@ fn half_a_tutor_is_refused_either_way_round() {
 
 #[test]
 fn a_fetch_destination_this_engine_cannot_model_is_refused_by_name() {
+    // Mystical Tutor puts its card on top of the library, where it is drawn
+    // next turn: a place in the order, which no removal can say.
     let bad = refuse(
         r#"
         [[effect]]
-        match = 'name:"Entomb"'
+        match = 'name:"Mystical Tutor"'
         on = "cast"
         fetch = ['name:"Life from the Loam"']
-        to = "graveyard"
+        to = "library"
 
         [[criterion]]
         name = "anything"
@@ -1702,8 +1705,100 @@ fn a_fetch_destination_this_engine_cannot_model_is_refused_by_name() {
         "{bad:?}"
     );
     assert!(
-        bad.to_string().contains("hand, battlefield"),
+        bad.to_string().contains("hand, graveyard, battlefield"),
         "should list what it takes: {bad}"
+    );
+}
+
+#[test]
+fn a_tutor_can_put_what_it_finds_into_the_graveyard() {
+    // #137. Entomb takes one card, so it needs no count; Buried Alive takes
+    // "up to three creature cards", each by the same priority.
+    let criteria = parse(
+        r#"
+        [[effect]]
+        match = 'name:"Entomb"'
+        on = "cast"
+        fetch = ['name:"Life from the Loam"']
+        to = "graveyard"
+
+        [[effect]]
+        match = 'name:"Buried Alive"'
+        on = "cast"
+        fetch = ['name:"Cid, Timeless Artificer"', 't:creature']
+        up_to = 3
+        to = "graveyard"
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    let to = |i: usize| criteria.effects().entries()[i].fetch.as_ref().map(|f| f.to);
+    assert_eq!(to(0), Some(Fetched::Graveyard(1)));
+    assert_eq!(to(1), Some(Fetched::Graveyard(3)));
+    assert_eq!(criteria.effects().entries()[1].look, 0);
+}
+
+#[test]
+fn a_tutor_takes_more_than_one_card_only_where_they_have_somewhere_to_go() {
+    let declaring = |keys: &str| {
+        refuse(&format!(
+            r#"
+            [[effect]]
+            match = 'name:"Buried Alive"'
+            on = "cast"
+            {keys}
+
+            [[criterion]]
+            name = "anything"
+            require = [{{ turn = 0, query = 'cat:"arm"', min = 1 }}]
+            "#
+        ))
+    };
+    // A count with no search is a number about nothing.
+    let alone = declaring("up_to = 3\ndraw = 1");
+    assert!(
+        matches!(&alone, ErrorKind::UpToMisdeclared { .. }),
+        "{alone:?}"
+    );
+    assert!(alone.to_string().contains("no `fetch`"), "{alone}");
+    // Zero is no search at all, and eleven is a typo.
+    for value in [0, -1, 11] {
+        let bad = declaring(&format!(
+            "fetch = ['t:creature']\nto = \"graveyard\"\nup_to = {value}"
+        ));
+        assert!(
+            matches!(&bad, ErrorKind::BadUpTo { value: v, .. } if *v == value),
+            "{bad:?}"
+        );
+    }
+    // A fetchland's land arrives in its place: one card, and a second has
+    // nowhere the walk could put it.
+    let field = declaring("fetch = ['t:artifact']\nto = \"battlefield\"\nup_to = 2");
+    assert!(
+        matches!(&field, ErrorKind::UpToMisdeclared { .. }),
+        "{field:?}"
+    );
+    assert!(field.to_string().contains("battlefield"), "{field}");
+    // To hand, more than one is the same search taken again.
+    let hand = parse(
+        r#"
+        [[effect]]
+        match = 'name:"Buried Alive"'
+        on = "cast"
+        fetch = ['t:creature']
+        to = "hand"
+        up_to = 2
+
+        [[criterion]]
+        name = "anything"
+        require = [{ turn = 0, query = 'cat:"arm"', min = 1 }]
+        "#,
+    );
+    assert_eq!(
+        hand.effects().entries()[0].fetch.as_ref().map(|f| f.to),
+        Some(Fetched::Hand(2))
     );
 }
 
@@ -2048,8 +2143,12 @@ fn the_standard_library_is_a_criteria_file_like_any_other() {
             // Nothing ships an activation: which one a line pays for, and
             // what it fetches, is the pilot's (ADR-0019).
             Trigger::Activate => panic!("the library ships no activation: {entry:?}"),
-            // An attack or a landfall mills (#89), and does nothing else.
-            Trigger::Attack | Trigger::Landfall => assert!(
+            // Nor a cycle (#136): whether the line cycles a card or casts it
+            // is the pilot's, and the cost is printed per card.
+            Trigger::Cycle => panic!("the library ships no cycle: {entry:?}"),
+            // An attack, a landfall (#89) or an upkeep (#139) mills, and
+            // does nothing else.
+            Trigger::Attack | Trigger::Landfall | Trigger::Upkeep => assert!(
                 entry.mill.is_some() && entry.look == 0 && entry.adds.is_none(),
                 "{entry:?}"
             ),
@@ -2907,6 +3006,73 @@ fn refused_effect(source: &str) -> ErrorKind {
 }
 
 #[test]
+fn a_mill_of_half_the_library_is_written_half_and_a_number_fits_commander() {
+    // Traumatize: "Target player mills half their library, rounded down."
+    let traumatize = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Traumatize"'
+        on = "cast"
+        mill = "half"
+        "#,
+    );
+    assert_eq!(
+        traumatize.mill.map(|m| m.cards),
+        Some(MillDepth::HalfLibrary)
+    );
+    // Jace Beleren's twenty and anything up to half a Commander library.
+    for n in [20, 49] {
+        let deep = effect_of(&format!(
+            "[[effect]]\nmatch = 'name:\"Glimpse the Unthinkable\"'\non = \"cast\"\nmill = {n}\n"
+        ));
+        assert_eq!(deep.mill.map(|m| m.cards), Some(MillDepth::Exactly(n)));
+    }
+    // What half may keep has no size to be held to but the hand's.
+    let kept = effect_of(
+        "[[effect]]\nmatch = 'name:\"Traumatize\"'\non = \"cast\"\nmill = \"half\"\nkeep = 1\nto_hand = ['t:land']\n",
+    );
+    assert!(matches!(
+        kept.mill.map(|m| m.to_hand),
+        Some(HandDecl::Chosen { up_to: 1, .. })
+    ));
+}
+
+#[test]
+fn a_mill_that_is_neither_a_number_nor_half_is_refused_naming_both() {
+    let with = |body: &str| {
+        refused_effect(&format!(
+            "[[effect]]\nmatch = 'name:\"Traumatize\"'\n{body}\n"
+        ))
+    };
+    for (body, says) in [
+        ("on = \"cast\"\nmill = 50", "mill = 50"),
+        ("on = \"cast\"\nmill = 0", "mill = 0"),
+        ("on = \"cast\"\nmill = -3", "mill = -3"),
+        ("on = \"cast\"\nmill = \"halF\"", "mill = \"halF\""),
+        ("on = \"cast\"\nmill = \"all\"", "mill = \"all\""),
+    ] {
+        let bad = with(body);
+        assert!(matches!(bad, ErrorKind::BadMill { .. }), "{body:?}: {bad}");
+        let says_both = bad.to_string();
+        for needle in [says, "from 1 to 49", "\"half\""] {
+            assert!(
+                says_both.contains(needle),
+                "{body:?} should name {needle:?}: {says_both}"
+            );
+        }
+    }
+    // Half off a trigger that repeats: those cards round up.
+    for on in ["attack", "landfall"] {
+        let bad = with(&format!("on = \"{on}\"\nmill = \"half\""));
+        assert!(matches!(bad, ErrorKind::MillMisdeclared { .. }), "{bad}");
+        assert!(bad.to_string().contains("round up"), "{bad}");
+    }
+    // And a keep past the hand's bound.
+    let bad = with("on = \"cast\"\nmill = \"half\"\nkeep = 11\nto_hand = ['t:land']");
+    assert!(matches!(bad, ErrorKind::BadKeep { max: 10, .. }), "{bad}");
+}
+
+#[test]
 fn a_mill_says_how_many_cards_and_what_the_card_lets_go_to_hand() {
     // Aftermath Analyst: three to the graveyard, nothing kept.
     let analyst = effect_of(
@@ -2920,13 +3086,12 @@ fn a_mill_says_how_many_cards_and_what_the_card_lets_go_to_hand() {
     assert_eq!(
         analyst.mill,
         Some(MillDecl {
-            cards: 3,
+            cards: MillDepth::Exactly(3),
             to_hand: HandDecl::Chosen {
                 up_to: 0,
                 of: None,
                 prefer: vec![],
             },
-            returns: None,
         })
     );
     assert_eq!(analyst.look, 0, "a mill is not a look");
@@ -2945,13 +3110,12 @@ fn a_mill_says_how_many_cards_and_what_the_card_lets_go_to_hand() {
     assert_eq!(
         rumble.mill,
         Some(MillDecl {
-            cards: 4,
+            cards: MillDepth::Exactly(4),
             to_hand: HandDecl::Chosen {
                 up_to: 1,
                 of: Some("is:permanent".into()),
                 prefer: vec!["t:land".into()],
             },
-            returns: None,
         })
     );
     // Wrenn and Seven: the card puts every land in hand, and nobody chooses.
@@ -2967,9 +3131,8 @@ fn a_mill_says_how_many_cards_and_what_the_card_lets_go_to_hand() {
     assert_eq!(
         wrenn.mill,
         Some(MillDecl {
-            cards: 4,
+            cards: MillDepth::Exactly(4),
             to_hand: HandDecl::Every("t:land".into()),
-            returns: None,
         })
     );
 }
@@ -2992,13 +3155,12 @@ fn an_attack_and_a_landfall_fire_a_mill() {
     assert_eq!(
         six.mill,
         Some(MillDecl {
-            cards: 3,
+            cards: MillDepth::Exactly(3),
             to_hand: HandDecl::Chosen {
                 up_to: 1,
                 of: Some("t:land".into()),
                 prefer: vec!["t:land".into()],
             },
-            returns: None,
         })
     );
     // Icetill Explorer: one for each land that enters.
@@ -3011,7 +3173,7 @@ fn an_attack_and_a_landfall_fire_a_mill() {
         "#,
     );
     assert_eq!(explorer.trigger, Trigger::Landfall);
-    assert_eq!(explorer.mill.map(|m| m.cards), Some(1));
+    assert_eq!(explorer.mill.map(|m| m.cards), Some(MillDepth::Exactly(1)));
     // Lumra: four when it enters, then every land in the graveyard returns.
     let lumra = effect_of(
         r#"
@@ -3019,10 +3181,116 @@ fn an_attack_and_a_landfall_fire_a_mill() {
         match = 'name:"Lumra, Bellow of the Woods"'
         on = "cast"
         mill = 4
-        returns = "t:land"
+        reanimate = "t:land"
+        reanimate_count = "all"
         "#,
     );
-    assert_eq!(lumra.mill.and_then(|m| m.returns), Some("t:land".into()));
+    assert_eq!(lumra.reanimate, Some(ReanimateDecl::Every("t:land".into())));
+}
+
+#[test]
+fn an_upkeep_fires_a_mill_and_out_of_the_tombs_grows_by_two() {
+    // Stillness in Motion: "At the beginning of your upkeep, mill three
+    // cards."
+    let stillness = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Stillness in Motion"'
+        on = "upkeep"
+        mill = 3
+        "#,
+    );
+    assert_eq!(stillness.trigger, Trigger::Upkeep);
+    assert!(stillness.trigger.repeats());
+    assert_eq!(
+        stillness.mill.as_ref().map(|m| m.cards),
+        Some(MillDepth::Exactly(3))
+    );
+    // Out of the Tombs: two eon counters each upkeep, then mill as many as
+    // it has. The first upkeep mills 2, and each after it 2 more.
+    let tombs = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Out of the Tombs"'
+        on = "upkeep"
+        mill = 2
+        grows = 2
+        "#,
+    );
+    let grows = tombs.mill.as_ref().map(|m| m.cards);
+    assert_eq!(grows, Some(MillDepth::Growing { first: 2, by: 2 }));
+    let firings: Vec<_> = (1..=4).map(|n| grows.unwrap().nth(n)).collect();
+    assert_eq!(firings, [Some(2), Some(4), Some(6), Some(8)]);
+    // The standard library ships both as the cards print them.
+    let std = EffectLibrary::parse(STANDARD_LIBRARY, STANDARD_LIBRARY_ORIGIN).unwrap();
+    let shipped = |name: &str| {
+        std.entries()
+            .iter()
+            .find(|e| e.matches.contains(name))
+            .unwrap_or_else(|| panic!("{name} ships"))
+            .clone()
+    };
+    assert_eq!(shipped("Stillness in Motion").mill, stillness.mill);
+    assert_eq!(shipped("Out of the Tombs").mill, tombs.mill);
+}
+
+#[test]
+fn a_growing_mill_off_anything_but_an_upkeep_is_refused() {
+    let with = |body: &str| {
+        refused_effect(&format!(
+            "[[effect]]\nmatch = 'name:\"Out of the Tombs\"'\n{body}\n"
+        ))
+    };
+    for (body, says) in [
+        // A cast fires once; nothing counts up between attacks or landfalls.
+        ("on = \"cast\"\nmill = 2\ngrows = 2", "other than an upkeep"),
+        (
+            "on = \"attack\"\nmill = 2\ngrows = 2",
+            "other than an upkeep",
+        ),
+        (
+            "on = \"landfall\"\nmill = 2\ngrows = 2",
+            "other than an upkeep",
+        ),
+        // Half has no size to grow from.
+        (
+            "on = \"cast\"\nmill = \"half\"\ngrows = 2",
+            "no size to grow from",
+        ),
+        ("on = \"upkeep\"\nmill = \"half\"", "round up"),
+        // Growth with nothing to grow.
+        ("on = \"upkeep\"\ngrows = 2", "no `mill`"),
+        // Lands returned before the drop: a reanimation is a cast's.
+        (
+            "on = \"upkeep\"\nmill = 2\nreanimate = 't:land'\nreanimate_count = \"all\"",
+            "this has `reanimate`",
+        ),
+    ] {
+        let bad = with(body);
+        assert!(
+            matches!(
+                bad,
+                ErrorKind::MillMisdeclared { .. } | ErrorKind::RepeatsOnlyMills { .. }
+            ) && bad.to_string().contains(says),
+            "{body:?} should be refused naming {says:?}: {bad}"
+        );
+    }
+    let bad = with("on = \"upkeep\"\nmill = \"half\"\ngrows = 2");
+    assert!(matches!(bad, ErrorKind::MillMisdeclared { .. }), "{bad}");
+    for grows in [0, -2, 50] {
+        let bad = with(&format!("on = \"upkeep\"\nmill = 2\ngrows = {grows}"));
+        assert!(
+            matches!(bad, ErrorKind::BadGrows { .. })
+                && bad.to_string().contains(&format!("grows = {grows}")),
+            "{bad}"
+        );
+    }
+    // An upkeep fires a mill and nothing else, as an attack does.
+    let bad = with("on = \"upkeep\"\nmill = 3\nlook = 1");
+    assert!(
+        matches!(bad, ErrorKind::RepeatsOnlyMills { .. }) && bad.to_string().contains("upkeep"),
+        "{bad}"
+    );
 }
 
 #[test]
@@ -3231,4 +3499,240 @@ fn a_file_says_which_cards_it_discards_in_the_order_it_would() {
         matches!(empty.kind, ErrorKind::NoPreference { .. }),
         "{empty}"
     );
+}
+
+// --- Reanimation (#140) -----------------------------------------------------
+//
+// A cast returns cards from your graveyard to the battlefield: which cards
+// and how many is the card's, which of them is the pilot's.
+
+#[test]
+fn a_cast_returns_every_card_it_may_or_one_by_the_files_priority() {
+    // Immortal Servitude: "Return each creature card with mana value X from
+    // your graveyard to the battlefield." {X}{W/B}{W/B}{W/B}: X is the
+    // pilot's, so it is the declared cost and the query both, at X = 4.
+    let servitude = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Immortal Servitude"'
+        on = "cast"
+        cost = "{4}{W}{B}{B}"
+        reanimate = "t:creature mv=4"
+        reanimate_count = "all"
+        "#,
+    );
+    assert_eq!(
+        servitude.reanimate,
+        Some(ReanimateDecl::Every("t:creature mv=4".into()))
+    );
+    assert_eq!(servitude.look, 0, "a reanimation looks at nothing");
+    assert_eq!(
+        servitude.cost.map(|c| c.as_str().to_string()),
+        Some("{4}{W}{B}{B}".into())
+    );
+    // Animate Dead: "Enchant creature card in a graveyard ... Return
+    // enchanted creature card to the battlefield." One, and which is yours.
+    let animate = effect_of(
+        r#"
+        [[effect]]
+        match = 'name:"Animate Dead"'
+        on = "cast"
+        reanimate = "t:creature"
+        reanimate_count = 1
+        reanimate_prefer = ['name:"Cid, Timeless Artificer"', "t:creature"]
+        "#,
+    );
+    assert_eq!(
+        animate.reanimate,
+        Some(ReanimateDecl::Chosen {
+            up_to: 1,
+            of: "t:creature".into(),
+            prefer: vec![
+                "name:\"Cid, Timeless Artificer\"".into(),
+                "t:creature".into()
+            ],
+        })
+    );
+    assert!(animate.mill.is_none());
+}
+
+#[test]
+fn the_standard_lumra_returns_its_lands_as_a_reanimation() {
+    // The one move from the graveyard to the battlefield there is: Lumra's
+    // lands are a reanimation of every land card, not a key of the mill's.
+    let library = EffectLibrary::parse(STANDARD_LIBRARY, STANDARD_LIBRARY_ORIGIN).unwrap();
+    let lumra = library
+        .entries()
+        .iter()
+        .find(|e| e.matches.contains("Lumra"))
+        .expect("Lumra ships");
+    assert_eq!(lumra.reanimate, Some(ReanimateDecl::Every("t:land".into())));
+    assert!(lumra.mill.is_some());
+}
+
+#[test]
+fn half_a_reanimation_is_refused_by_what_is_missing() {
+    let with = |body: &str| {
+        refused_effect(&format!(
+            "[[effect]]\nmatch = 'name:\"Animate Dead\"'\n{body}\n"
+        ))
+    };
+    for (body, says) in [
+        // How many is printed on the card, so it is never defaulted.
+        (
+            "on = \"cast\"\nreanimate = 't:creature'",
+            "reanimate_count",
+        ),
+        // A count or a choice with nothing to count.
+        ("on = \"cast\"\nreanimate_count = 1", "has no `reanimate`"),
+        (
+            "on = \"cast\"\nreanimate_prefer = ['t:creature']",
+            "has no `reanimate`",
+        ),
+        // Which one comes back is the pilot's, and nobody said.
+        (
+            "on = \"cast\"\nreanimate = 't:creature'\nreanimate_count = 1",
+            "no `reanimate_prefer`",
+        ),
+        // Every one comes back: nothing to choose.
+        (
+            "on = \"cast\"\nreanimate = 't:creature'\nreanimate_count = \"all\"\n\
+             reanimate_prefer = ['t:creature']",
+            "nothing left to choose",
+        ),
+        // Not a count.
+        (
+            "on = \"cast\"\nreanimate = 't:creature'\nreanimate_count = \"some\"",
+            "\"some\"",
+        ),
+        (
+            "on = \"cast\"\nreanimate = 't:creature'\nreanimate_count = 0\n\
+             reanimate_prefer = ['t:creature']",
+            "reanimate_count = 0",
+        ),
+        (
+            "on = \"cast\"\nreanimate = 't:creature'\nreanimate_count = 11\n\
+             reanimate_prefer = ['t:creature']",
+            "reanimate_count = 11",
+        ),
+        // Off something other than a cast.
+        (
+            "on = \"landdrop\"\nreanimate = 't:land'\nreanimate_count = \"all\"",
+            "other than a cast",
+        ),
+        (
+            "on = \"activate\"\ncost = \"{2}\"\nreanimate = 't:creature'\nreanimate_count = \"all\"",
+            "other than a cast",
+        ),
+        (
+            "on = \"attack\"\nmill = 3\nreanimate = 't:land'\nreanimate_count = \"all\"",
+            "this has `reanimate`",
+        ),
+    ] {
+        let bad = with(body);
+        assert!(
+            matches!(
+                bad,
+                ErrorKind::ReanimateMisdeclared { .. }
+                    | ErrorKind::BadReanimateCount { .. }
+                    | ErrorKind::Missing { .. }
+                    | ErrorKind::RepeatsOnlyMills { .. }
+            ) && bad.to_string().contains(says),
+            "{body:?} should be refused naming {says:?}: {bad}"
+        );
+    }
+    // And the key Lumra had before is gone, not quietly ignored.
+    let old = EffectLibrary::parse(
+        "[[effect]]\nmatch = 'name:\"Lumra, Bellow of the Woods\"'\non = \"cast\"\nmill = 4\n\
+         returns = 't:land'\n",
+        "effects.toml",
+    )
+    .expect_err("refused")
+    .to_string();
+    assert!(old.contains("returns"), "{old}");
+}
+
+// --- Cycling (#136) ------------------------------------------------------------
+
+/// Cid, Timeless Artificer cycling, with `extra` keys added to the entry.
+fn cycling(extra: &str) -> Result<Criteria, ErrorKind> {
+    Criteria::parse(
+        &format!(
+            r#"
+            [[effect]]
+            match = 'name:"Cid, Timeless Artificer"'
+            on = "cycle"
+            {extra}
+
+            [casting]
+            prefer = ['name:"Cid, Timeless Artificer"']
+
+            [[criterion]]
+            name = "anything"
+            require = [{{ turn = 0, query = 'cat:"arm"', min = 1 }}]
+            "#
+        ),
+        "test.criteria.toml",
+    )
+    .map_err(|e| e.kind)
+}
+
+#[test]
+fn a_cycle_declares_its_cost_and_what_it_draws() {
+    // Cid's own text: Cycling {W}{U}, discard it, draw a card. The cost is
+    // the line's bill for the card in place of {2}{W}{U}, and the draw is a
+    // cast's draw, dealt where the line paid it.
+    let criteria = cycling("cost = \"{W}{U}\"\ndraw = 1").expect("a cycle should parse");
+    let effect = &criteria.effects().entries()[0];
+    assert_eq!(effect.trigger, Trigger::Cycle);
+    assert_eq!(effect.cost, Some(Cost::parse("{W}{U}").unwrap()));
+    assert_eq!(effect.draw, 1);
+    assert_eq!(effect.look, 0);
+    assert_eq!(effect.discard, None);
+    assert_eq!(effect.fetch, None);
+}
+
+#[test]
+fn a_cycle_is_refused_what_it_cannot_do() {
+    // No cost: nothing for the line to pay.
+    let bad = cycling("draw = 1").expect_err("no cost");
+    assert!(
+        matches!(bad, ErrorKind::Missing { key: "cost", .. }),
+        "{bad}"
+    );
+    // No draw: a cycle here draws.
+    let bad = cycling("cost = \"{W}{U}\"").expect_err("no draw");
+    assert!(
+        matches!(bad, ErrorKind::CycleOnlyDraws { key: None, .. }),
+        "{bad}"
+    );
+    assert!(bad.to_string().contains("has no `draw`"), "{bad}");
+    // Landcycling is a search, and is refused by name with the issue.
+    let bad = cycling("cost = \"{1}\"\nfetch = ['t:plains']\nto = \"hand\"").expect_err("fetch");
+    assert!(matches!(bad, ErrorKind::Landcycling { .. }), "{bad}");
+    assert!(bad.to_string().contains("issues/136"), "{bad}");
+    // Anything else a cast may do, a cycle does not.
+    for (extra, key) in [
+        ("look = 1", "look"),
+        ("mill = 2", "mill"),
+        ("discard = 1", "discard"),
+        ("untap = 1", "untap"),
+        ("adds = 1", "adds"),
+        ("after = 1", "after"),
+        ("sacrifice = true", "sacrifice"),
+        (
+            "reanimate = 't:creature'\nreanimate_count = \"all\"",
+            "reanimate",
+        ),
+        ("to_graveyard = \"*\"", "to_graveyard"),
+    ] {
+        let bad = cycling(&format!("cost = \"{{W}}{{U}}\"\ndraw = 1\n{extra}")).expect_err(extra);
+        assert!(
+            matches!(bad, ErrorKind::CycleOnlyDraws { key: Some(k), .. } if k == key),
+            "{extra}: {bad}"
+        );
+    }
+    // A cost holding {X} is refused as anywhere else.
+    let bad = cycling("cost = \"{X}{U}\"\ndraw = 1").expect_err("X");
+    assert!(matches!(bad, ErrorKind::BadCost { .. }), "{bad}");
 }

@@ -3,8 +3,8 @@
 use chip_scryfall::index::TagGap;
 use chip_stats::Distribution;
 use facet::Facet;
-use gauntlet_criteria::{Bound, Criterion, Expectation};
-use gauntlet_toml::HandDecl;
+use gauntlet_criteria::{Bound, Criterion, Expectation, MillDepth};
+use gauntlet_toml::{HandDecl, ReanimateDecl};
 use sha2::{Digest, Sha256};
 
 use crate::library::Library;
@@ -263,6 +263,24 @@ pub struct ZoneUse {
     pub asked_by: String,
 }
 
+/// How many cards a mill takes, as the file wrote it: `3`, or `"half"`.
+#[derive(Facet, Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+#[facet(untagged)]
+pub enum MillUse {
+    Cards(u32),
+    Word(&'static str),
+}
+
+impl MillUse {
+    fn of(depth: MillDepth) -> MillUse {
+        match depth {
+            MillDepth::Exactly(n) | MillDepth::Growing { first: n, .. } => MillUse::Cards(n),
+            MillDepth::HalfLibrary => MillUse::Word(gauntlet_toml::HALF_LIBRARY),
+        }
+    }
+}
+
 /// An effect the library brought to bear on this deck, and what it applied to.
 ///
 /// Reported because an autoloading library changes answers without anybody
@@ -303,9 +321,13 @@ pub struct EffectUse {
     /// not say what it fetched is the bug this project exists to prevent.
     #[facet(skip_serializing_if = Option::is_none)]
     pub fetch: Option<Vec<String>>,
-    /// Where the fetched card is put: `hand` or `battlefield`.
+    /// Where the fetched card is put: `hand`, `graveyard` or `battlefield`.
     #[facet(skip_serializing_if = Option::is_none)]
     pub to: Option<&'static str>,
+    /// How many cards one search takes, where that is more than one:
+    /// Buried Alive's 3.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub up_to: Option<u32>,
     /// Whole turns between the trigger and the effect, or absent where it
     /// happens when it is triggered. Urza's Saga's third chapter is 2.
     #[facet(skip_serializing_if = Option::is_none)]
@@ -319,7 +341,11 @@ pub struct EffectUse {
     /// Cards a cast of it puts into the graveyard off the top, or absent
     /// where it mills nothing (ADR-0017 §2).
     #[facet(skip_serializing_if = Option::is_none)]
-    pub mill: Option<u32>,
+    pub mill: Option<MillUse>,
+    /// How many more cards each upkeep mills than the one before, where
+    /// `mill` is only the first: Out of the Tombs' 2.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub grows: Option<u32>,
     /// How many of those the card lets go to hand instead, and which cards it
     /// lets them be.
     #[facet(skip_serializing_if = Option::is_none)]
@@ -334,13 +360,23 @@ pub struct EffectUse {
     /// which card stayed out of the graveyard.
     #[facet(skip_serializing_if = Option::is_none)]
     pub to_hand: Option<Vec<String>>,
-    /// What the mill returns from the graveyard to the battlefield
-    /// afterwards, which the card compels: Lumra's lands.
+    /// Which cards a cast of it returns from the graveyard to the
+    /// battlefield, as the card says: Lumra's lands, Animate Dead's creature
+    /// (#140).
     #[facet(skip_serializing_if = Option::is_none)]
-    pub returns: Option<String>,
-    /// The assumption about the table an attack trigger's number rests on,
-    /// where the run fired one: it attacks every turn it can, and nobody
-    /// blocks it or removes it. Absent for every other trigger.
+    pub reanimate: Option<String>,
+    /// How many of them: `"all"`, or a number.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub reanimate_count: Option<MillUse>,
+    /// The file's choice among them, highest first, where the card returns a
+    /// number. Reported for the reason `fetch` is: every number under it
+    /// depends on which card came back.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub reanimate_prefer: Option<Vec<String>>,
+    /// The assumption about the table an attack or an upkeep trigger's number
+    /// rests on, where the run fired one: it attacks every turn it can and
+    /// nobody blocks it, and nobody removes it. Absent for every other
+    /// trigger.
     #[facet(skip_serializing_if = Option::is_none)]
     pub assumes: Option<&'static str>,
     /// The cards of a mill that make mana in passing, which is not counted:
@@ -804,6 +840,11 @@ pub struct CastingUse {
     /// Absent where it bills every card at its printed cost.
     #[facet(skip_serializing_if = Vec::is_empty)]
     pub declared_costs: Vec<DeclaredCostUse>,
+    /// Cards the list cycles rather than casts, at the cycling cost their
+    /// effect declares: each copy it reaches goes from hand to the graveyard
+    /// and draws, and none is cast (#136). Absent where it cycles nothing.
+    #[facet(skip_serializing_if = Vec::is_empty)]
+    pub cycled: Vec<DeclaredCostUse>,
 }
 
 /// One card a line bills at a declared cost, beside the one it prints.
@@ -1198,7 +1239,8 @@ impl Report {
                         || e.mill.is_some()
                         || e.draw.is_some()
                         || e.discard.is_some()
-                        || e.discard_any.is_some() =>
+                        || e.discard_any.is_some()
+                        || e.reanimate.is_some() =>
                 {
                     String::new()
                 }
@@ -1209,7 +1251,8 @@ impl Report {
             let look = match (e.look, e.adds, e.mill, e.draw) {
                 (0, None, None, None) => String::new(),
                 (0, None, None, Some(n)) => format!("draw {n}, "),
-                (0, None, Some(n), _) => format!("mill {n}, "),
+                (0, None, Some(MillUse::Cards(n)), _) => format!("mill {n}, "),
+                (0, None, Some(MillUse::Word(_)), _) => "mill half the library, ".to_string(),
                 (0, Some(n), _, _) => format!("adds {n}, "),
                 (n, _, _, _) => format!("look {n}, "),
             };
@@ -1271,14 +1314,6 @@ impl Report {
                     )),
                     (None, None, _) => out.push_str("      puts all it mills in the graveyard\n"),
                 }
-                if let Some(q) = &e.returns {
-                    out.push_str(&format!(
-                        "      then returns every card matching {q:?} in the graveyard to the \
-                         battlefield tapped. With [land_drop] declared they pay from the next turn \
-                         (ADR-0025); without one a turn's bill is held to its drops, so the mana \
-                         they could make is a floor\n"
-                    ));
-                }
                 match e.on {
                     "attack" => out.push_str(
                         "      mills each time it attacks, every turn after the one the [casting] \
@@ -1289,6 +1324,18 @@ impl Report {
                          battlefield, from the turn after the [casting] line casts it: the drop, \
                          a fetched land, a returned one\n",
                     ),
+                    "upkeep" => out.push_str(&format!(
+                        "      mills at the beginning of each upkeep, every turn after the one the \
+                         [casting] line casts it on, before that turn's draw{}\n",
+                        match (e.mill, e.grows) {
+                            (Some(MillUse::Cards(n)), Some(by)) => format!(
+                                ", {by} more each time: {n}, {}, {}, ...",
+                                n + by,
+                                n + 2 * by
+                            ),
+                            _ => String::new(),
+                        }
+                    )),
                     _ => {}
                 }
                 if let Some(assumes) = e.assumes {
@@ -1321,6 +1368,10 @@ impl Report {
                      it fetches is a land [land_drop] ranks above every land in hand\n",
                     if sacrifice { ", sacrificing it" } else { "" }
                 )),
+                (Some(cost), None) if e.on == "cycle" => out.push_str(&format!(
+                    "      and the [casting] entry naming it cycles it from hand for {cost}, \
+                     instead of casting it: the card goes to the graveyard and is never cast\n"
+                )),
                 (Some(cost), None) => out.push_str(&format!(
                     "      and the [casting] line pays {cost} to play it, not its printed cost\n"
                 )),
@@ -1352,7 +1403,12 @@ impl Report {
                     )),
                     _ => {}
                 }
-                if !e.live {
+                if !e.live && e.on == "cycle" {
+                    out.push_str(
+                        "      and the [casting] line does not name it, so here it is never \
+                         cycled\n",
+                    );
+                } else if !e.live {
                     out.push_str(
                         "      and the [casting] line does not cast it, so here it draws and \
                          discards nothing\n",
@@ -1374,15 +1430,68 @@ impl Report {
                     }
                 }
             }
+            // A reanimation says what the card returns, and where it returns a
+            // number, the file's list that chose which: printed as every
+            // declared policy is.
+            if let (Some(of), Some(count)) = (&e.reanimate, e.reanimate_count) {
+                let after = if e.mill.is_some() {
+                    "then returns"
+                } else {
+                    "and returns"
+                };
+                match (count, &e.reanimate_prefer) {
+                    (MillUse::Cards(n), Some(prefer)) => {
+                        out.push_str(&format!(
+                            "      {after} up to {n} card{} matching {of:?} from your graveyard to \
+                             the battlefield, each the first of these the graveyard holds:\n",
+                            if n == 1 { "" } else { "s" }
+                        ));
+                        for (i, query) in prefer.iter().enumerate() {
+                            out.push_str(&format!("      {}. {query:?}\n", i + 1));
+                        }
+                        out.push_str(
+                            "      Ties: the card this decklist names first. A card none of them \
+                             names never comes back.\n",
+                        );
+                    }
+                    _ => out.push_str(&format!(
+                        "      {after} every card matching {of:?} from your graveyard to the \
+                         battlefield\n"
+                    )),
+                }
+                out.push_str(
+                    "      What comes back was not cast: it makes no mana and fires nothing a \
+                     cast would, a floor. A land comes back tapped and pays from the next turn \
+                     with [land_drop] declared (ADR-0025); without one a turn's bill is held to \
+                     its drops\n",
+                );
+                if e.mill.is_none() {
+                    out.push_str(
+                        "      The [casting] line casts it only while your graveyard holds a card \
+                         it returns: the rules, for a spell that targets, and the line a pilot \
+                         plays, for one that does not\n",
+                    );
+                }
+                if !e.live {
+                    out.push_str(
+                        "      and the [casting] line does not cast it, so here it returns \
+                         nothing\n",
+                    );
+                }
+            }
             // A tutor names what it went and got, in the order it would take
             // them. Same discipline as the land drop and the casting line
             // below, over the fourth contested resource: the library this run
             // reports is one card smaller because of this list, so the list is
             // an input to every number under it.
             if let (Some(prefer), Some(to)) = (&e.fetch, e.to) {
+                let (what, each) = match e.up_to {
+                    Some(n) => (format!(" up to {n}"), "each "),
+                    None => (String::new(), ""),
+                };
                 out.push_str(&format!(
-                    "      and fetches, to your {to}, the first of these the library still \
-                     holds:\n"
+                    "      and fetches{what}, to your {to}, {each}the first of these the library \
+                     still holds:\n"
                 ));
                 for (i, query) in prefer.iter().enumerate() {
                     out.push_str(&format!("      {}. {query:?}\n", i + 1));
@@ -1533,6 +1642,19 @@ impl Report {
                 for d in &policy.declared_costs {
                     out.push_str(&format!(
                         "      {}: billed {}, printed {} (effect {:?})\n",
+                        d.card, d.billed, d.printed, d.effect
+                    ));
+                }
+            }
+            if !policy.cycled.is_empty() {
+                out.push_str(
+                    "      Cycled, never cast: the entry naming it pays the cycling cost from \
+                     hand, puts the card in the graveyard and draws,\n      and a `cast` clause \
+                     never counts it:\n",
+                );
+                for d in &policy.cycled {
+                    out.push_str(&format!(
+                        "      {}: cycled for {}, printed {} (effect {:?})\n",
                         d.card, d.billed, d.printed, d.effect
                     ));
                 }
@@ -2005,6 +2127,10 @@ pub fn tag_blind_notes(resolved: &crate::effects::Resolved, library: &Library) -
 pub const UNBLOCKED: &str = "it attacks every turn it can, and no opponent blocks it or removes \
                              it; nobody else is at this table (ADR-0018)";
 
+/// What every run that fires an upkeep trigger assumes of the table.
+pub const UNREMOVED: &str = "it stays on the battlefield from the turn it is cast, and no \
+                             opponent removes it; nobody else is at this table (ADR-0018)";
+
 /// The resolved effect library, in the shape the report prints.
 pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
     resolved
@@ -2018,10 +2144,18 @@ pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
             on: a.on,
             to_graveyard: a.to_graveyard.clone(),
             fetch: a.fetch.as_ref().map(|(prefer, _)| prefer.clone()),
-            to: a.fetch.as_ref().map(|(_, to)| *to),
+            to: a
+                .fetch
+                .as_ref()
+                .map(|(_, to)| gauntlet_toml::fetched_name(*to)),
+            up_to: a
+                .fetch
+                .as_ref()
+                .map(|(_, to)| to.cards())
+                .filter(|&n| n > 1),
             after: a.delay.map(|d| d.turns),
             sacrifice: a.delay.map(|d| d.sacrifice).or(a.sacrifice),
-            mill: a.mill.as_ref().map(|m| m.cards),
+            mill: a.mill.as_ref().map(|m| MillUse::of(m.cards)),
             keep: match a.mill.as_ref().map(|m| &m.to_hand) {
                 Some(HandDecl::Chosen { up_to, .. }) if *up_to > 0 => Some(*up_to),
                 _ => None,
@@ -2038,8 +2172,26 @@ pub fn effects_applied(resolved: &crate::effects::Resolved) -> Vec<EffectUse> {
                 Some(HandDecl::Chosen { prefer, .. }) if !prefer.is_empty() => Some(prefer.clone()),
                 _ => None,
             },
-            returns: a.mill.as_ref().and_then(|m| m.returns.clone()),
-            assumes: (a.live && a.on == "attack").then_some(UNBLOCKED),
+            reanimate: a.reanimate.as_ref().map(|r| match r {
+                ReanimateDecl::Every(of) | ReanimateDecl::Chosen { of, .. } => of.clone(),
+            }),
+            reanimate_count: a.reanimate.as_ref().map(|r| match r {
+                ReanimateDecl::Every(_) => MillUse::Word(gauntlet_toml::ALL),
+                ReanimateDecl::Chosen { up_to, .. } => MillUse::Cards(*up_to),
+            }),
+            reanimate_prefer: match &a.reanimate {
+                Some(ReanimateDecl::Chosen { prefer, .. }) => Some(prefer.clone()),
+                _ => None,
+            },
+            grows: match a.mill.as_ref().map(|m| m.cards) {
+                Some(MillDepth::Growing { by, .. }) => Some(by),
+                _ => None,
+            },
+            assumes: match (a.live, a.on) {
+                (true, "attack") => Some(UNBLOCKED),
+                (true, "upkeep") => Some(UNREMOVED),
+                _ => None,
+            },
             unspent: a.unspent.clone(),
             draw: (a.draw > 0).then_some(a.draw),
             discard: match a.discard.as_ref().map(|d| d.cards) {

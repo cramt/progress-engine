@@ -36,12 +36,10 @@ use thiserror::Error;
 
 /// When an effect gets to happen.
 ///
-/// Five variants, and the list is short for the same reason it has always
+/// Seven variants, and the list is short for the same reason it has always
 /// been: a variant here is a promise that the engine knows when the effect
-/// fires. The
-/// free-non-land tier — cycling for zero — is still missing, and it is rare
-/// enough that guessing at it would cost more in wrong numbers than it pays in
-/// coverage.
+/// fires. Each is a land drop, something the `[casting]` line pays for, or
+/// something that fires off a permanent the line cast.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Trigger {
     /// The turn a matching land is played. Free, and one per turn.
@@ -65,6 +63,18 @@ pub enum Trigger {
     /// are in play and unactivated is a function of the path. What it costs
     /// and whether it sacrifices its source is the effect's [`Activation`].
     Activate,
+    /// The line pays a matching card's cycling cost from hand
+    /// ([#136](https://github.com/cramt/progress-engine/issues/136)): Cid,
+    /// Timeless Artificer's `{W}{U}`, discard it, draw a card.
+    ///
+    /// Knowable for the reason a cast is: the `[casting]` entry naming the
+    /// card is what pays for it, out of the same bill, and **that entry
+    /// cycles every copy it reaches and never casts one**. The card goes from
+    /// hand to the graveyard as part of the cost (CR 702.29a), so it is
+    /// counted there and never as cast. What it may do is draw, dealt as one
+    /// sized gap (ADR-0017), and what it costs is the effect's declared
+    /// `cost`, billed to the turn's pool in place of the printed one.
+    Cycle,
     /// Each turn a matching creature the line cast attacks: every turn after
     /// the one it was cast on, because it is summoning-sick on that one (CR
     /// 302.6), and after that turn's line, because combat follows the main
@@ -83,26 +93,43 @@ pub enum Trigger {
     /// The drop comes before the line, so a permanent cast this turn sees the
     /// next turn's drop and not this one's.
     Landfall,
+    /// At the beginning of your upkeep, once for each matching permanent the
+    /// line cast on an earlier turn: Stillness in Motion, Out of the Tombs.
+    /// What it may do is a [`Mill`], and only here may that mill grow
+    /// ([`MillDepth::Growing`]).
+    ///
+    /// **The upkeep comes before the draw step**, so the cards it mills are
+    /// the ones that turn would otherwise have drawn, and the draw comes from
+    /// under them. The walk deals the block ahead of the turn's own
+    /// checkpoints for that reason, so the history is in the library's
+    /// order, and a card a look left on top is milled rather than drawn.
+    ///
+    /// Knowable under a smaller assumption than an attack's, which every run
+    /// that fires one names: nobody removes the permanent.
+    Upkeep,
 }
 
 impl Trigger {
     /// Every trigger an effect may name, for the message that lists them.
-    pub const ACCEPTED: &'static str = "landdrop, cast, activate, attack, landfall";
+    pub const ACCEPTED: &'static str = "landdrop, cast, activate, cycle, attack, landfall, upkeep";
 
     pub fn as_str(self) -> &'static str {
         match self {
             Trigger::LandDrop => "landdrop",
             Trigger::Cast => "cast",
             Trigger::Activate => "activate",
+            Trigger::Cycle => "cycle",
             Trigger::Attack => "attack",
             Trigger::Landfall => "landfall",
+            Trigger::Upkeep => "upkeep",
         }
     }
 
     /// Whether this fires off a permanent the line cast, again and again,
-    /// rather than once when something is played: an attack or a landfall.
+    /// rather than once when something is played: an attack, a landfall or
+    /// an upkeep.
     pub fn repeats(self) -> bool {
-        matches!(self, Trigger::Attack | Trigger::Landfall)
+        matches!(self, Trigger::Attack | Trigger::Landfall | Trigger::Upkeep)
     }
 
     pub fn parse(name: &str) -> Result<Trigger, TriggerError> {
@@ -110,8 +137,10 @@ impl Trigger {
             "landdrop" => Ok(Trigger::LandDrop),
             "cast" => Ok(Trigger::Cast),
             "activate" => Ok(Trigger::Activate),
+            "cycle" => Ok(Trigger::Cycle),
             "attack" => Ok(Trigger::Attack),
             "landfall" => Ok(Trigger::Landfall),
+            "upkeep" => Ok(Trigger::Upkeep),
             _ => Err(TriggerError::Unknown {
                 name: name.to_string(),
             }),
@@ -146,11 +175,23 @@ pub struct Fetch {
 /// — the library is a zone and is not a destination, and a variant here is a
 /// promise that the walk really moves the card there rather than counting it
 /// somewhere plausible.
+///
+/// How many cards one resolution takes lives on the destinations that can
+/// take more than one, so a fetchland finding two lands is not a value. Each
+/// card after the first is the same search again: the first group the
+/// declared priority reaches that the library still holds, so a search for
+/// "up to three" takes three where the priority still finds three and fewer
+/// where it does not.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Fetched {
     /// Trinket Mage: the card goes to your hand, where the budget can then
-    /// cast it out of the same turn's mana if the line named it.
-    Hand,
+    /// cast it out of the same turn's mana if the line named it. Up to this
+    /// many cards.
+    Hand(u32),
+    /// Entomb, and Buried Alive's three: the cards go to your graveyard,
+    /// counted there by `zone = "graveyard"` from the moment the spell
+    /// resolves. Up to this many cards.
+    Graveyard(u32),
     /// Onto the battlefield, and two cards arrive there this way.
     ///
     /// A fetchland: the land arrives **in place of** the land whose drop
@@ -165,6 +206,16 @@ pub enum Fetched {
     /// the same reason: a land arriving off a chapter ability would put mana in
     /// the pool on a turn nothing says whether it entered tapped.
     Battlefield,
+}
+
+impl Fetched {
+    /// How many cards one resolution goes and gets.
+    pub fn cards(self) -> u32 {
+        match self {
+            Fetched::Hand(n) | Fetched::Graveyard(n) => n,
+            Fetched::Battlefield => 1,
+        }
+    }
 }
 
 /// An effect that waits: it is set up by its trigger and resolves some whole
@@ -321,12 +372,13 @@ pub struct Effect {
     /// replacement draw, dealt as one **sized gap** ([ADR-0017]) — so a path
     /// that never casts it deals nothing for it.
     ///
-    /// `draw = n` in an `[[effect]]` table: Frantic Search's two. Only
-    /// [`Trigger::Cast`] reads it.
+    /// `draw = n` in an `[[effect]]` table: Frantic Search's two. Read by
+    /// [`Trigger::Cast`], and by [`Trigger::Cycle`], whose draw is the same
+    /// gap dealt when the line cycles the card instead.
     ///
     /// [ADR-0017]: https://github.com/cramt/progress-engine/blob/main/docs/adr/0017-a-spells-draw-is-a-deal-the-path-sizes.md
     pub draw: u32,
-    /// Cards a cast, an attack or a landfall of this puts into the graveyard
+    /// Cards a cast, an attack, a landfall or an upkeep of this puts into the graveyard
     /// off the top of the library, less the ones it lets go to hand: also
     /// one sized gap each time it fires, dealt as one unordered block because
     /// every card it turns over is consumed at once. On a cast, resolved
@@ -340,6 +392,9 @@ pub struct Effect {
     /// how many, whether at random, which cards may go — and which cards do
     /// go is the file's `[discard] prefer`. Only [`Trigger::Cast`] reads it.
     pub discard: Option<Discard>,
+    /// What a cast of this returns from the graveyard to the battlefield, if
+    /// anything. Only [`Trigger::Cast`] reads it.
+    pub reanimate: Option<Reanimate>,
     /// Lands a cast of this untaps once it resolves: Frantic Search's three.
     ///
     /// Taken as untapping the lands that paid for it, so where it untaps at
@@ -390,17 +445,50 @@ pub enum Discards {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Mill {
     /// How many cards come off the top.
-    pub cards: u32,
+    pub cards: MillDepth,
     pub to_hand: ToHand,
-    /// Then every card of the graveyard matching this query goes onto the
-    /// battlefield tapped, whatever anyone asks: Lumra, Bellow of the Woods'
-    /// lands, the ones it milled and the ones already there. `None` for a
-    /// mill that returns nothing, which is every other.
-    ///
-    /// Only lands are returned: a group this matches that is not a land
-    /// stays where it is, because nothing else a card returns this way has
-    /// been asked for.
-    pub returns: Option<usize>,
+}
+
+/// How many cards a mill takes off the top.
+///
+/// Two variants rather than a number with a sentinel, because half of the
+/// library is not a number the file can know: it is whatever the path left
+/// there when the spell resolved, after the draws, the fetches and the other
+/// mills before it, so it is sized where the mill fires, as every sized gap
+/// is (ADR-0017 §1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MillDepth {
+    /// That many: Aftermath Analyst's three.
+    Exactly(u32),
+    /// Half the cards in the library as the mill resolves, rounded down:
+    /// Traumatize, aimed at yourself.
+    HalfLibrary,
+    /// `first` the first time its permanent's upkeep fires, and `by` more
+    /// each time after: Out of the Tombs gains two eon counters each upkeep
+    /// and mills as many as it has, so 2, 4, 6. Each copy counts its own
+    /// upkeeps from the turn after the line cast it. Only
+    /// [`Trigger::Upkeep`] grows: nothing else fires off a permanent that
+    /// keeps a count between firings.
+    Growing { first: u32, by: u32 },
+}
+
+impl MillDepth {
+    /// The cards the `nth` firing takes, counting from 1, where that is a
+    /// number the file fixed: `None` for half the library, which only the
+    /// path can size.
+    pub fn nth(self, nth: u32) -> Option<u32> {
+        match self {
+            MillDepth::Exactly(cards) => Some(cards),
+            MillDepth::HalfLibrary => None,
+            MillDepth::Growing { first, by } => Some(first + by * nth.saturating_sub(1)),
+        }
+    }
+}
+
+impl From<u32> for MillDepth {
+    fn from(cards: u32) -> MillDepth {
+        MillDepth::Exactly(cards)
+    }
 }
 
 /// Which of a mill's cards go to hand rather than to the graveyard.
@@ -422,18 +510,50 @@ pub enum ToHand {
 }
 
 impl Mill {
-    /// A mill that keeps nothing: Aftermath Analyst.
-    pub fn all(cards: u32) -> Mill {
+    /// A mill that keeps nothing: Aftermath Analyst, or Traumatize.
+    pub fn all(cards: impl Into<MillDepth>) -> Mill {
         Mill {
-            cards,
+            cards: cards.into(),
             to_hand: ToHand::Chosen {
                 up_to: 0,
                 of: None,
                 prefer: Vec::new(),
             },
-            returns: None,
         }
     }
+}
+
+/// What a cast puts onto the battlefield out of your graveyard
+/// ([#140](https://github.com/cramt/progress-engine/issues/140)): Animate
+/// Dead's one creature card, Immortal Servitude's every creature card of
+/// mana value X, Lumra's every land card.
+///
+/// The same shape as [`ToHand`], because it is the same split: which cards may
+/// come back and how many is the card's, which of them is the pilot's. Only
+/// your own graveyard, and only what an effect put there — a mill, a discard,
+/// a surveil, a fetch — because what the line cast and is in the graveyard is
+/// an instant or a sorcery, which nothing returns to the battlefield.
+///
+/// It resolves after the spell's fetch, draw and mill, and before its
+/// discard: Lumra returns the lands it has just milled. What comes back is on
+/// the battlefield and out of the graveyard from then on, and was not cast:
+/// it makes no mana and fires nothing a cast would have, so every number that
+/// could have read either is a floor.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Reanimate {
+    /// Every card of the graveyard matching this query, whatever anyone asks:
+    /// Immortal Servitude, Fix What's Broken, Angel of Glory's Rise, Lumra.
+    Every(usize),
+    /// At most `up_to` cards matching `of`, chosen by the declared priority
+    /// `prefer`: the first tier holding such a card, and inside a tier the
+    /// group the decklist named first — the tutor's rule. A card no tier
+    /// names is never chosen, so the list decides every choice and nothing
+    /// branches.
+    Chosen {
+        up_to: u32,
+        of: usize,
+        prefer: Vec<usize>,
+    },
 }
 
 /// What a cast spell's draw did, as [`Board::cast`] needs to know it.
@@ -448,6 +568,21 @@ enum Drew {
     /// It made you discard, and which cards go is a choice the path has not
     /// made yet: a tie the list leaves, or a card picked at random.
     Undecided,
+}
+
+/// What [`Board::search`] left for its caller to do.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Found {
+    /// Nothing: it found nothing.
+    Settled,
+    /// It put cards into the graveyard, which a reanimation the line held
+    /// back for want of a card to return may now find.
+    Binned,
+    /// It put cards into the hand, which the line may now cast.
+    InHand,
+    /// The one card it found for the battlefield, which the caller puts
+    /// down.
+    OntoBattlefield(usize),
 }
 
 /// Whether [`Board::activate`] paid for an activation.
@@ -608,16 +743,21 @@ pub struct Board<'a> {
     /// `hand_every[effect][group]`: a mill's card of this group goes to hand
     /// whatever anyone asks, as Wrenn and Seven's lands do.
     hand_every: Vec<Vec<bool>>,
-    /// `returning[effect]`: the land groups a mill returns from the graveyard
-    /// to the battlefield once it has milled, as Lumra's does. Empty for
-    /// every other effect.
-    returning: Vec<Vec<usize>>,
+    /// `reanimating[effect]`: how many cards a cast of it returns from the
+    /// graveyard to the battlefield, and the groups it takes them from as
+    /// tiers, highest first, each in decklist order. `Every` is one tier of
+    /// every group it may return and no limit. Empty tiers for an effect that
+    /// returns nothing.
+    reanimating: Vec<(u32, Vec<Vec<usize>>)>,
     /// The groups whose card attacks once the line has cast it, and the
     /// effect each attack fires, in group order.
     attackers: Vec<(usize, usize)>,
     /// The groups whose card mills when a land enters while it is on the
     /// battlefield, and the effect it fires, in group order.
     landfallers: Vec<(usize, usize)>,
+    /// The groups whose card mills at the beginning of each upkeep once the
+    /// line has cast it, and the effect it fires, in group order.
+    upkeepers: Vec<(usize, usize)>,
     /// Lands that entered the battlefield with this turn's drop: the land
     /// played, and the land a fetchland put down in its place. Scratch,
     /// written by the drop and read by the line's landfalls.
@@ -993,21 +1133,37 @@ impl<'a> Board<'a> {
                 _ => vec![false; groups],
             })
             .collect();
-        let returning: Vec<Vec<usize>> = effects
+        // A reanimation's choice, by the tutor's rule a fourth time, held to
+        // what the card may return as a mill's keep is held to what it lets
+        // go to hand.
+        let reanimating: Vec<(u32, Vec<Vec<usize>>)> = effects
             .iter()
-            .map(
-                |effect| match effect.mill.as_ref().and_then(|m| m.returns) {
-                    Some(query) => land_groups
+            .map(|effect| match &effect.reanimate {
+                None => (0, Vec::new()),
+                Some(Reanimate::Every(query)) => (
+                    u32::MAX,
+                    vec![(0..groups).filter(|&g| has(g, *query)).collect()],
+                ),
+                Some(Reanimate::Chosen { up_to, of, prefer }) => {
+                    let mut claimed = vec![false; groups];
+                    let tiers = prefer
                         .iter()
-                        .copied()
-                        .filter(|&g| has(g, query))
-                        .collect(),
-                    None => Vec::new(),
-                },
-            )
+                        .map(|&query| {
+                            let tier: Vec<usize> = (0..groups)
+                                .filter(|&g| !claimed[g] && has(g, query) && has(g, *of))
+                                .collect();
+                            for &g in &tier {
+                                claimed[g] = true;
+                            }
+                            tier
+                        })
+                        .collect();
+                    (*up_to, tiers)
+                }
+            })
             .collect();
-        // Which groups fire an attack or a landfall, read off last-wins as
-        // everything else is. Only a mill fires on either.
+        // Which groups fire an attack, a landfall or an upkeep, read off
+        // last-wins as everything else is. Only a mill fires on any of them.
         let firing = |trigger: Trigger| -> Vec<(usize, usize)> {
             group_effect
                 .iter()
@@ -1020,6 +1176,7 @@ impl<'a> Board<'a> {
         };
         let attackers = firing(Trigger::Attack);
         let landfallers = firing(Trigger::Landfall);
+        let upkeepers = firing(Trigger::Upkeep);
         // The mulligan's bottoming list, resolved by the same rule as the other
         // three: a group belongs to the first tier that names it. What no entry
         // names is one more tier at the end, because a hand that has to put
@@ -1048,8 +1205,9 @@ impl<'a> Board<'a> {
         // question: it keeps none of them, nothing in the run searches the
         // library they would still be in (see `Schedule::deferring`), and
         // nothing returns what is in the graveyard, where they would be.
-        let searched =
-            effects.iter().any(|e| e.fetch.is_some()) || returning.iter().any(|r| !r.is_empty());
+        let searched = effects
+            .iter()
+            .any(|e| e.fetch.is_some() || e.reanimate.is_some());
         let last: Vec<bool> = effects
             .iter()
             .map(|e| {
@@ -1060,7 +1218,6 @@ impl<'a> Board<'a> {
                         e.mill,
                         Some(Mill {
                             to_hand: ToHand::Chosen { up_to: 0, .. },
-                            returns: None,
                             ..
                         })
                     )
@@ -1120,6 +1277,7 @@ impl<'a> Board<'a> {
             sizes: effects.iter().any(|e| {
                 e.discard.is_some()
                     || (e.trigger == Trigger::Cast && (e.draw > 0 || e.mill.is_some()))
+                    || (e.trigger == Trigger::Cycle && e.draw > 0)
                     || (e.trigger.repeats() && e.mill.is_some())
             }),
             next_gap: 0,
@@ -1128,9 +1286,10 @@ impl<'a> Board<'a> {
             fetch_tiers,
             hand_tiers,
             hand_every,
-            returning,
+            reanimating,
             attackers,
             landfallers,
+            upkeepers,
             entered: 0,
             drops: vec![0; turns],
             ramped: vec![0; turns],
@@ -1437,6 +1596,15 @@ impl<'a> Board<'a> {
 
         let effects = self.schedule.effects();
         for turn in 0usize..self.schedule.turns() {
+            // The upkeep, before the draw step and so before this turn's
+            // checkpoints: what it mills is dealt off the top first, and the
+            // draw comes from under it. The previous turn played to its end,
+            // so the history either holds this block next or ends where it
+            // is to be dealt.
+            if let Some(size) = self.upkeep(turn, history) {
+                self.next_gap = size;
+                return;
+            }
             let (first, last) = self.schedule.checkpoints_of(turn);
             let (first, last) = (first + self.sized_dealt, last + self.sized_dealt);
             if last >= history.len() {
@@ -1534,17 +1702,12 @@ impl<'a> Board<'a> {
                                     .push((turn + delay.turns as usize, effect, group));
                             } else if effects[effect].trigger == Trigger::LandDrop {
                                 self.look(effect, effects[effect].look);
-                                if let Some((got, to)) = self.fetch(effect) {
-                                    match to {
-                                        Fetched::Hand => self.live_hand[got] += 1,
-                                        Fetched::Battlefield => {
-                                            landed = Some(got);
-                                            self.live_landed[got] += 1;
-                                            // The fetchland entered, and
-                                            // then the land it found did.
-                                            self.entered += 1;
-                                        }
-                                    }
+                                if let Found::OntoBattlefield(got) = self.search(effect) {
+                                    landed = Some(got);
+                                    self.live_landed[got] += 1;
+                                    // The fetchland entered, and then the
+                                    // land it found did.
+                                    self.entered += 1;
                                 }
                             }
                         }
@@ -1715,8 +1878,8 @@ impl<'a> Board<'a> {
             // activation and every cast of a card that has one, because the
             // entry naming it pays for both (ADR-0019). It ends, because every
             // pass after the first follows a cast, which takes a card out of
-            // the hand or the command zone, or an activation, which taps or
-            // sacrifices a copy in play.
+            // the hand or the command zone, a cycle, which takes one out of the
+            // hand, or an activation, which taps or sacrifices a copy in play.
             'line: loop {
                 if !finished {
                     break;
@@ -1745,13 +1908,22 @@ impl<'a> Board<'a> {
                             Activated::No => {}
                         }
                         let activates = self.activation_of(group).is_some();
+                        // A card the entry cycles is paid for from hand
+                        // only: the command zone is somewhere it is cast
+                        // from, never cycled from.
+                        let cycles = self.cycles(group);
                         // The command zone is always there: a commander is
                         // cast from it as a card in hand would be, and once —
                         // casting it takes it out, and nothing here puts it
                         // back. It is spent before a copy in hand, which only
                         // matters where a group holds both, and there the copy
                         // in hand stays a card you are holding.
-                        while casting.live_command[group] + self.live_hand[group] > 0 {
+                        while self.live_hand[group] > 0
+                            || (!cycles && casting.live_command[group] > 0)
+                        {
+                            if self.waits_for_the_graveyard(group) {
+                                break;
+                            }
                             // The count first, because it settles most turns
                             // without a matching: a bill for more sources than
                             // you have land drops and rock mana cannot be paid
@@ -1768,12 +1940,19 @@ impl<'a> Board<'a> {
                                 *bill.last() = before;
                                 break;
                             }
-                            if casting.live_command[group] > 0 {
+                            if cycles {
+                                // Discarded as part of the cost, so it is in
+                                // the graveyard before the draw, and it was
+                                // never cast.
+                                self.live_hand[group] -= 1;
+                                self.live_yard[group] += 1;
+                            } else if casting.live_command[group] > 0 {
                                 casting.live_command[group] -= 1;
+                                casting.live_cast[group] += 1;
                             } else {
                                 self.live_hand[group] -= 1;
+                                casting.live_cast[group] += 1;
                             }
-                            casting.live_cast[group] += 1;
                             // A rock taps at once, for what the line casts
                             // after it: a new stage starts, and its mana is
                             // there from it on. The pool grew, so the line
@@ -1781,7 +1960,7 @@ impl<'a> Board<'a> {
                             // could not pay for a moment ago may now be paid.
                             // A dork is summoning-sick and adds nothing yet.
                             let grew = match self.grouping.group_mana()[group].made() {
-                                Some((adds, makes, 0)) => {
+                                Some((adds, makes, 0)) if !cycles => {
                                     bill.stages.push(Demand::FREE);
                                     bill.made.push(Made {
                                         stage: bill.stages.len() - 1,
@@ -1883,6 +2062,13 @@ impl<'a> Board<'a> {
             (Trigger::Activate, Some(activation)) => Some((effect, activation)),
             _ => None,
         }
+    }
+
+    /// Whether the `[casting]` entry naming `group` cycles it rather than
+    /// casting it (#136).
+    fn cycles(&self, group: usize) -> bool {
+        self.group_effect[group]
+            .is_some_and(|e| self.schedule.effects()[e].trigger == Trigger::Cycle)
     }
 
     /// Activate one copy of `group` the line put into play and has not
@@ -1987,13 +2173,9 @@ impl<'a> Board<'a> {
                 return Activated::Undecided;
             }
         }
-        match self.fetch(effect) {
-            Some((got, Fetched::Hand)) => self.live_hand[got] += 1,
-            Some((got, Fetched::Battlefield)) => {
-                self.live_field[got] += 1;
-                self.live_landed[got] += 1;
-            }
-            None => {}
+        if let Found::OntoBattlefield(got) = self.search(effect) {
+            self.live_field[got] += 1;
+            self.live_landed[got] += 1;
         }
         Activated::Paid
     }
@@ -2009,7 +2191,7 @@ impl<'a> Board<'a> {
         if self.schedule.effects()[effect]
             .fetch
             .as_ref()
-            .is_none_or(|f| f.to != Fetched::Hand)
+            .is_none_or(|f| !matches!(f.to, Fetched::Hand(_)))
         {
             return false;
         }
@@ -2113,12 +2295,14 @@ impl<'a> Board<'a> {
         self.late_drop[turn] = Some(slot);
     }
 
-    /// Draw what a spell that has just been cast draws, and then mill what it
-    /// mills, if it does either.
+    /// Draw what a spell that has just been cast draws, mill what it mills,
+    /// return what it returns from the graveyard and discard what it
+    /// discards, in that order, where it does any of them.
     ///
-    /// Each is one block off the top of the library ([`Board::deal`]). A draw
-    /// puts its block in hand. A mill is [`Board::mill`], and a land it
-    /// returns to the battlefield fires every landfall in `on_field`.
+    /// A draw and a mill are each one block off the top of the library
+    /// ([`Board::deal`]). A draw puts its block in hand. A mill is
+    /// [`Board::mill`], and then [`Board::reanimate`]; a land it returns to
+    /// the battlefield fires every landfall in `on_field`.
     fn draw_on_cast(
         &mut self,
         turn: usize,
@@ -2130,7 +2314,10 @@ impl<'a> Board<'a> {
             return Drew::Nothing;
         };
         let e = &self.schedule.effects()[effect];
-        if e.trigger != Trigger::Cast || (e.draw == 0 && e.mill.is_none() && e.discard.is_none()) {
+        let touches_hand = e.draw > 0 || e.mill.is_some() || e.discard.is_some();
+        // A cycle's draw is a cast's draw: the same gap, where it was paid.
+        let paid_for = matches!(e.trigger, Trigger::Cast | Trigger::Cycle);
+        if !paid_for || !(touches_hand || e.reanimate.is_some()) {
             return Drew::Nothing;
         }
         let (draw, mills) = (e.draw, e.mill.is_some());
@@ -2143,32 +2330,96 @@ impl<'a> Board<'a> {
             }
         }
         if mills {
-            let returned = match self.mill(turn, effect, history) {
-                Ok(returned) => returned,
-                Err(size) => return Drew::Undealt(size),
-            };
-            if let Some(size) = self.landfall(turn, returned, on_field, history) {
+            if let Err(size) = self.mill(turn, effect, 1, history) {
                 return Drew::Undealt(size);
             }
         }
-        self.discard_on_cast(effect)
+        let returned = self.reanimate(effect);
+        if let Some(size) = self.landfall(turn, returned, on_field, history) {
+            return Drew::Undealt(size);
+        }
+        match (touches_hand, returned) {
+            // Nothing new in hand and nothing new in the graveyard: the line
+            // goes on where it was.
+            (false, 0) => Drew::Nothing,
+            // A landfall it fired may have milled a card a reanimation the
+            // line held back can now return, so the line is read again.
+            (false, _) => Drew::Cards,
+            (true, _) => self.discard_on_cast(effect),
+        }
+    }
+
+    /// Return what `effect` puts onto the battlefield out of the graveyard:
+    /// every card its tiers hold, or up to as many as it says, the first
+    /// tier first and inside one the group the decklist named first. Off the
+    /// graveyard and onto the battlefield, where the zones count it from now
+    /// on, and out of the library's count as a fetched card is, because it
+    /// was never in hand and never cast.
+    ///
+    /// A land comes back tapped, and pays from the next turn as a land a
+    /// spell put down does (ADR-0025): it took no drop. Anything else makes
+    /// no mana, because the line never cast it.
+    ///
+    /// How many lands it returned, which is how many landfalls it fires.
+    fn reanimate(&mut self, effect: usize) -> u32 {
+        let (mut left, ref tiers) = self.reanimating[effect];
+        let mut lands = 0;
+        for &g in tiers.iter().flatten() {
+            let back = self.live_yard[g].min(left);
+            self.live_yard[g] -= back;
+            self.live_field[g] += back;
+            self.live_landed[g] += back;
+            left -= back;
+            if self.is_land[g] {
+                lands += back;
+            }
+        }
+        lands
+    }
+
+    /// Whether the line holds back a cast of `group` because there is
+    /// nothing in the graveyard for it to return.
+    ///
+    /// Animate Dead and Reanimate target the card they return, and a spell
+    /// with no legal target cannot be cast (CR 601.2c). Immortal Servitude
+    /// targets nothing and could be cast into an empty graveyard, which no
+    /// pilot does: read the same way, as the line waiting for the graveyard,
+    /// and every run that holds one back says so. A spell that also mills
+    /// is cast for the mill, as Lumra is, and is never held.
+    fn waits_for_the_graveyard(&self, group: usize) -> bool {
+        let Some(effect) = self.group_effect[group] else {
+            return false;
+        };
+        let e = &self.schedule.effects()[effect];
+        if e.trigger != Trigger::Cast || e.reanimate.is_none() || e.mill.is_some() {
+            return false;
+        }
+        !self.reanimating[effect]
+            .1
+            .iter()
+            .flatten()
+            .any(|&g| self.live_yard[g] > 0)
     }
 
     /// Resolve `effect`'s mill: its cards go to the graveyard, less what the
     /// card lets go to hand — the cards it compels there, and up to as many
-    /// as it allows of the ones the declared priority reaches. Then, where it
-    /// returns lands, every such land in the graveyard goes onto the
-    /// battlefield tapped.
+    /// as it allows of the ones the declared priority reaches.
     ///
-    /// `Ok` with how many lands it returned, which is how many landfalls it
-    /// fires; `Err` with the size of the gap the path has not dealt.
-    fn mill(&mut self, turn: usize, effect: usize, history: Path<'_>) -> Result<u32, u32> {
+    /// `nth` is which firing of its permanent this is, from 1, which only a
+    /// growing mill reads.
+    ///
+    /// `Err` with the size of the gap the path has not dealt.
+    fn mill(&mut self, turn: usize, effect: usize, nth: u32, history: Path<'_>) -> Result<(), u32> {
         let Some(mill) = self.schedule.effects()[effect].mill.as_ref() else {
-            return Ok(0);
+            return Ok(());
         };
-        let (cards, up_to) = match &mill.to_hand {
-            ToHand::Chosen { up_to, .. } => (mill.cards, *up_to),
-            ToHand::Every(_) => (mill.cards, 0),
+        // Half is read off this path's library before anything leaves it,
+        // and every replay of the prefix reads the same library, so the gap
+        // it asks for is the gap it is dealt.
+        let cards = mill.cards.nth(nth).unwrap_or_else(|| self.in_library() / 2);
+        let up_to = match &mill.to_hand {
+            ToHand::Chosen { up_to, .. } => *up_to,
+            ToHand::Every(_) => 0,
         };
         if self.last[effect] {
             // Whatever is already turned over on top goes now, as it would;
@@ -2181,7 +2432,7 @@ impl<'a> Board<'a> {
             for (yard, &milled) in self.live_yard.iter_mut().zip(&self.block) {
                 *yard += milled;
             }
-            return Ok(0);
+            return Ok(());
         }
         if let Some(size) = self.deal(cards, history) {
             return Err(size);
@@ -2204,18 +2455,7 @@ impl<'a> Board<'a> {
         for (yard, &milled) in self.live_yard.iter_mut().zip(&self.block) {
             *yard += milled;
         }
-        // Lumra's lands: out of the graveyard and onto the battlefield,
-        // where they are counted from now on and, tapped, pay nothing this
-        // turn. They took no land drop, and the turn's bill is still held to
-        // the drops.
-        let mut returned = 0;
-        for &g in &self.returning[effect] {
-            let back = std::mem::take(&mut self.live_yard[g]);
-            self.live_field[g] += back;
-            self.live_landed[g] += back;
-            returned += back;
-        }
-        Ok(returned)
+        Ok(())
     }
 
     /// Discard what a spell that has just drawn makes you discard, if it
@@ -2337,15 +2577,12 @@ impl<'a> Board<'a> {
         on_field: &[u32],
         history: Path<'_>,
     ) -> Option<u32> {
-        let mut left = entered;
-        while left > 0 {
-            left -= 1;
+        for _ in 0..entered {
             for i in 0..self.landfallers.len() {
                 let (group, effect) = self.landfallers[i];
                 for _ in 0..on_field[group] {
-                    match self.mill(turn, effect, history) {
-                        Ok(returned) => left += returned,
-                        Err(size) => return Some(size),
+                    if let Err(size) = self.mill(turn, effect, 1, history) {
+                        return Some(size);
                     }
                 }
             }
@@ -2362,8 +2599,32 @@ impl<'a> Board<'a> {
         for i in 0..self.attackers.len() {
             let (group, effect) = self.attackers[i];
             for _ in 0..cast_before[group] {
-                if let Err(size) = self.mill(turn, effect, history) {
+                if let Err(size) = self.mill(turn, effect, 1, history) {
                     return Some(size);
+                }
+            }
+        }
+        None
+    }
+
+    /// The upkeep of `turn`: every upkeeper the line cast on an earlier turn
+    /// mills, each copy its own count, and a growing mill by as many upkeeps
+    /// as that copy has seen. Nothing is cast on turn 0, so nothing fires
+    /// before turn 2.
+    ///
+    /// `Some` of the size of the first gap the path has not dealt.
+    fn upkeep(&mut self, turn: usize, history: Path<'_>) -> Option<u32> {
+        for i in 0..self.upkeepers.len() {
+            let (group, effect) = self.upkeepers[i];
+            for cast_on in 1..turn {
+                let copies = self.casting.as_ref().map_or(0, |c| {
+                    c.cast_at[cast_on][group] - c.cast_at[cast_on - 1][group]
+                });
+                for _ in 0..copies {
+                    let nth = (turn - cast_on) as u32;
+                    if let Err(size) = self.mill(turn, effect, nth, history) {
+                        return Some(size);
+                    }
                 }
             }
         }
@@ -2470,6 +2731,15 @@ impl<'a> Board<'a> {
         left
     }
 
+    /// Every card in the library on this path now: what an earlier look left
+    /// on top, what this turn's checkpoints revealed and nothing has taken
+    /// yet, the unrevealed rest, and what the mulligan put on the bottom.
+    /// What "half their library" halves.
+    fn in_library(&self) -> u32 {
+        let top = self.kept.len() + (self.fresh.len() - self.fresh_head);
+        top as u32 + self.library() + self.live_bottomed.iter().sum::<u32>()
+    }
+
     /// Cards still in the unrevealed library: never turned over, never
     /// fetched, and not owed to a mill dealt last.
     fn library(&self) -> u32 {
@@ -2494,14 +2764,9 @@ impl<'a> Board<'a> {
                 continue;
             }
             self.pending.remove(i);
-            if let Some((got, to)) = self.fetch(effect) {
-                match to {
-                    Fetched::Hand => self.live_hand[got] += 1,
-                    Fetched::Battlefield => {
-                        self.live_field[got] += 1;
-                        self.live_landed[got] += 1;
-                    }
-                }
+            if let Found::OntoBattlefield(got) = self.search(effect) {
+                self.live_field[got] += 1;
+                self.live_landed[got] += 1;
             }
             if self.schedule.effects()[effect]
                 .delay
@@ -2520,7 +2785,8 @@ impl<'a> Board<'a> {
     /// would be a card appearing from nowhere.
     ///
     /// True when it put a card into the hand, which is a card the line may
-    /// now cast.
+    /// now cast, or into the graveyard, where a reanimation the line held
+    /// back may now find one to return.
     fn fetch_on_cast(&mut self, group: usize) -> bool {
         let Some(effect) = self.group_effect[group] else {
             return false;
@@ -2528,21 +2794,48 @@ impl<'a> Board<'a> {
         if self.schedule.effects()[effect].trigger != Trigger::Cast {
             return false;
         }
-        match self.fetch(effect) {
-            Some((got, Fetched::Hand)) => {
-                self.live_hand[got] += 1;
-                true
-            }
-            Some((got, Fetched::Battlefield)) => {
+        match self.search(effect) {
+            Found::InHand | Found::Binned => true,
+            Found::OntoBattlefield(got) => {
                 self.live_field[got] += 1;
                 self.live_landed[got] += 1;
                 false
             }
-            None => false,
+            Found::Settled => false,
         }
     }
 
-    /// Go and get a card, by the priority this effect declared.
+    /// Resolve `effect`'s search: as many cards as its destination takes,
+    /// each the next one its declared priority reaches.
+    ///
+    /// A card bound for the hand or the graveyard is put there; one bound for
+    /// the battlefield is handed back, because where it lands is the
+    /// caller's — in place of a fetchland, or beside a Saga.
+    fn search(&mut self, effect: usize) -> Found {
+        let Some(to) = self.schedule.effects()[effect].fetch.as_ref().map(|f| f.to) else {
+            return Found::Settled;
+        };
+        let mut found = Found::Settled;
+        for _ in 0..to.cards() {
+            let Some(got) = self.fetch(effect) else {
+                break;
+            };
+            match to {
+                Fetched::Hand(_) => {
+                    self.live_hand[got] += 1;
+                    found = Found::InHand;
+                }
+                Fetched::Graveyard(_) => {
+                    self.live_yard[got] += 1;
+                    found = Found::Binned;
+                }
+                Fetched::Battlefield => return Found::OntoBattlefield(got),
+            }
+        }
+        found
+    }
+
+    /// Go and get one card, by the priority this effect declared.
     ///
     /// The first tier holding a card this path has not already taken, and
     /// inside a tier the group the decklist named first — the same shape of
@@ -2556,15 +2849,14 @@ impl<'a> Board<'a> {
     /// line and this takes it only when it is the only one left — the same
     /// reading of a decision the pilot gets to make that the gate already
     /// takes of the land drop.
-    fn fetch(&mut self, effect: usize) -> Option<(usize, Fetched)> {
-        let to = self.schedule.effects()[effect].fetch.as_ref()?.to;
+    fn fetch(&mut self, effect: usize) -> Option<usize> {
         for tier in 0..self.fetch_tiers[effect].len() {
             let deep = self.fetch_tiers[effect]
                 .get(tier)
                 .and_then(|groups| groups.iter().copied().find(|&g| self.unrevealed(g) > 0));
             if let Some(group) = deep {
                 self.removed[group] += 1;
-                return Some((group, to));
+                return Some(group);
             }
             let on_top = self.kept.iter().position(|kept| {
                 self.fetch_tiers[effect]
@@ -2572,7 +2864,7 @@ impl<'a> Board<'a> {
                     .is_some_and(|groups| groups.contains(kept))
             });
             if let Some(i) = on_top {
-                return Some((self.kept.remove(i), to));
+                return Some(self.kept.remove(i));
             }
             // And a card the mulligan put on the bottom is still in the
             // library, so a search still finds it — last, because it is the one
@@ -2582,7 +2874,7 @@ impl<'a> Board<'a> {
                 .and_then(|groups| groups.iter().copied().find(|&g| self.live_bottomed[g] > 0));
             if let Some(group) = underneath {
                 self.live_bottomed[group] -= 1;
-                return Some((group, to));
+                return Some(group);
             }
         }
         None

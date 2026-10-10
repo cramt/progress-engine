@@ -124,7 +124,7 @@ _Avoid_: tier, rank
 The one land a turn puts onto the battlefield without casting it, chosen by `[land_drop] prefer` when more than one could be played.
 
 **Line**:
-The spells a turn casts and the activations it pays for, in the order the pilot declared them with `[casting] prefer`. One entry covers both payments for a card: activating the copy already in play, then casting a copy from hand. A card the line does not name is neither cast nor activated.
+The spells a turn casts and the activations and cycles it pays for, in the order the pilot declared them with `[casting] prefer`. One entry covers both payments for a card: activating the copy already in play, then casting a copy from hand. An entry naming a card whose effect is a **cycle** cycles it and never casts it. A card the line does not name is neither cast, activated nor cycled.
 _Avoid_: line (for anything but casting), sequence, play pattern
 
 **Command zone**:
@@ -137,6 +137,10 @@ _Avoid_: alternative cost (the rules term, which is narrower), price
 **Activation**:
 Paying for an ability of a permanent the line already put onto the battlefield, out of the same turn's pool or a later one's: an effect with `on = "activate"`, whose `cost` is the activation's and whose `sacrifice` takes the permanent out of play, counted nowhere. Ranked by the `[casting]` entry that names the card, at most once per permanent per turn, and after the land drop unless it fetches a land the `[land_drop]` list ranks above every land in hand ([ADR-0019](../../docs/adr/0019-a-tutor-route-is-something-the-line-pays-for.md)). Expedition Map's `{2}` is one, and Artificer's Intuition's `{U}` and a discarded artifact card another: a **discard in a cost**, paid before the ability resolves, only with a card `[discard] prefer` names, and without one the permanent is not activated. Tezzeret's loyalty abilities are read as part of his cast. Refused by name on a creature, which would wait out summoning sickness, and on a land.
 _Avoid_: ability (for the payment), activated effect
+
+**Cycle**:
+Paying a card's cycling cost from hand, out of the turn's pool: the card goes to the graveyard as part of the cost and the pilot draws. An effect with `on = "cycle"`, a required `cost` and a required `draw`, and nothing else. The `[casting]` entry naming the card cycles every copy it reaches and casts none, so a `cast` clause counting one is refused ([ADR-0033](../../docs/adr/0033-a-cycle-is-the-line-paying-to-discard-and-draw.md)). Landcycling is refused.
+_Avoid_: discard (for the cost half), cantrip (a cast that draws)
 
 **Route**:
 One way a deck reaches an outcome, differing in turn, zone or what it needs. Written as a branch.
@@ -175,7 +179,7 @@ The effects that ship with the tool and load before a file's own. They declare w
 _Avoid_: stdlib, prelude, standard library
 
 **Trigger**:
-What fires an effect: a land drop, a cast, an activation the line pays for (ADR-0019), an attack, or a landfall. An **attack** fires each turn after the one the line cast its creature on, after that turn's line, on the stated assumption that nobody blocks or removes it. A **landfall** fires once for each land that enters while its permanent is on the battlefield. Either may only mill (ADR-0017 §1).
+What fires an effect: a land drop, a cast, an activation or a cycle the line pays for (ADR-0019, ADR-0033), an attack, a landfall, or an upkeep. An **attack** fires each turn after the one the line cast its creature on, after that turn's line, on the stated assumption that nobody blocks or removes it. A **landfall** fires once for each land that enters while its permanent is on the battlefield. Either may only mill (ADR-0017 §1).
 
 **Look**:
 Examining cards off the top of the library. A look that routes nothing changes nothing.
@@ -221,6 +225,10 @@ Cards moved from the top of the library to the graveyard because the card says s
 
 **Compelled destination**:
 Where a card's own text sends the cards it moves, such as the graveyard for a mill or for what Malevolent Rumble does not keep, or the battlefield for the lands Lumra returns. Stated by the effect library. Set against a **chosen destination**, which is the pilot's and is declared by the file.
+
+**Reanimation**:
+Cards moved from your graveyard to the battlefield by a cast: Animate Dead, Immortal Servitude, Lumra's lands. Which cards and how many is the card's, so the effect library or the file states it with `reanimate` and `reanimate_count`; which of them, where the card returns a number, is the pilot's, with `reanimate_prefer`. What comes back was not cast. The line casts one that mills nothing only while the graveyard holds a card it would return ([ADR-0032](../../docs/adr/0032-a-reanimation-is-the-one-move-from-the-graveyard-to-the-battlefield.md)).
+_Avoid_: return, recursion (recursion is to hand), returns (the old key)
 
 **Discard**:
 A card moved from hand to the graveyard. The card fixes how many, whether it is at random, and which cards are eligible. The pilot chooses which, with `[discard] prefer`, and a forced discard with no list is refused. A discard that is part of an activation's cost takes only what the list names. A land in play is not in hand, so a discard that could take a land also needs `[land_drop]`: only a declared drop says which lands are still held.

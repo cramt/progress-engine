@@ -1,0 +1,11 @@
+// Issue #137: Buried Alive puts up to three creature cards into the
+// graveyard.
+//
+// Twelve cards on the play. The four nonlands cannot crowd three lands out
+// of any seven, so the drop is made every turn and Buried Alive's {2}{B} is
+// paid on turn 3 whenever it is in hand by then: among the first nine cards,
+// 9/12. The library is then the other three cards, and it takes every Cid
+// among them.
+8x Swamp [Land]
+1x Buried Alive [Tutor]
+3x Cid, Timeless Artificer [Cid]

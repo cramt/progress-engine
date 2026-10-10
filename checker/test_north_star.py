@@ -1,7 +1,7 @@
 """The pieces the Loam north star adds to the checker's declared line: a dork
 the line casts pays from the turn after (ADR 0018, CR 302.6), the commander is
 cast from the command zone out of the same pool, and Lumra's lands come back
-from the graveyard, fire a landfall and pay for nothing (README "returns").
+from the graveyard, fire a landfall and pay for nothing (README "Reanimation").
 
 Each hand is dealt in the order it is written down, on the play, so every
 answer is a yes or a no.
@@ -85,7 +85,7 @@ class LumraReturnsTheLands(unittest.TestCase):
         self.kw = dict(
             mills={checker.LUMRA: checker.Mill(4)},
             landfalls=checker.LOAM_LANDFALLS,
-            returns={checker.LUMRA: checker._is_land},
+            returns={checker.LUMRA: checker.Reanimation(checker._is_land)},
         )
 
     def test_the_lands_come_back_and_fire_the_explorer(self):

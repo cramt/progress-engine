@@ -8,7 +8,7 @@ use std::convert::Infallible;
 
 use gauntlet_criteria::{
     Activation, Answering, Board, Chosen, Conditionals, Discard, DiscardPolicy, Discards, Mill,
-    Objective, Resolves, Table, ToHand,
+    MillDepth, Objective, Reanimate, Resolves, Table, ToHand,
 };
 use gauntlet_criteria::{
     Bound, CastingPolicy, Cost, Count, Counted, Criterion, Delay, Effect, Evaluator, Expectation,
@@ -547,6 +547,7 @@ fn surveil(route: Route) -> Effect {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     }
 }
 
@@ -1036,6 +1037,7 @@ fn a_live_effect_keeps_every_checkpoint_whatever_it_is_asked() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     }];
     let schedule = Schedule::build(2, false, effects, Policies::default());
     assert_eq!(schedule.gaps(), &[7, 0, 1, 1, 1]);
@@ -1453,6 +1455,7 @@ fn the_budget_and_the_gate_answer_hand_twelve_the_same_way() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let land_drop = LandDropPolicy::new(vec![0], 2);
     let gate = Schedule::build(
@@ -1555,6 +1558,7 @@ fn tutor(to: Fetched) -> Effect {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     }
 }
 
@@ -1589,7 +1593,7 @@ fn a_tutor_puts_the_card_it_names_in_your_hand() {
         .get();
     let with = gauntlet_criteria::run(
         &g,
-        &Schedule::plain_with_fetches(&gaps, vec![tutor(Fetched::Hand)], line()),
+        &Schedule::plain_with_fetches(&gaps, vec![tutor(Fetched::Hand(1))], line()),
         only_criteria(1),
         &mut held(),
     )
@@ -1632,7 +1636,7 @@ fn a_tutor_takes_its_card_out_of_the_library() {
         .mean();
     let with = gauntlet_criteria::run(
         &g,
-        &Schedule::plain_with_fetches(&gaps, vec![tutor(Fetched::Hand)], line()),
+        &Schedule::plain_with_fetches(&gaps, vec![tutor(Fetched::Hand(1))], line()),
         only_expectations(1),
         &mut left(),
     )
@@ -1687,7 +1691,7 @@ fn a_tutor_that_finds_nothing_fetches_nothing() {
         &g,
         &Schedule::plain_with_fetches(
             &[7, 0, 0],
-            vec![tutor(Fetched::Hand)],
+            vec![tutor(Fetched::Hand(1))],
             Policies::casting(CastingPolicy::new(vec![0])),
         ),
         only_expectations(2),
@@ -1698,6 +1702,91 @@ fn a_tutor_that_finds_nothing_fetches_nothing() {
     // nothing left for either tutor to find.
     assert!((out.distributions[0].mean() - 1.0).abs() < 1e-12);
     assert!(out.distributions[1].mean().abs() < 1e-12);
+}
+
+/// Buried Alive in an eight-card library: the sorcery at `{U}`, an Island,
+/// `cids` creatures it searches for, and blanks to make up eight.
+fn buried_alive_library(cids: u32) -> Grouping {
+    Grouping::with_mana(
+        q(&["buried alive", "cid"]),
+        vec![
+            (
+                0b01,
+                ManaSource::Castable {
+                    cost: Cost::parse("{U}").unwrap().demand(),
+                    resolves: Resolves::IntoGraveyard,
+                },
+                1,
+            ),
+            (0b10, ManaSource::Spell, cids),
+            (
+                0b00,
+                ManaSource::Land {
+                    enters_tapped: false,
+                    produces: Palette::from_letters(["U"]),
+                    lasts: None,
+                },
+                1,
+            ),
+            (0b00, ManaSource::Spell, 6 - cids),
+        ],
+    )
+    .unwrap()
+}
+
+/// Cids in the graveyard and in the library on turn 1, with a three-card
+/// opener and Buried Alive taking `up_to` of them.
+fn buried_alive(cids: u32, up_to: u32) -> (f64, f64) {
+    let effect = Effect {
+        fetch: Some(Fetch {
+            prefer: vec![1],
+            to: Fetched::Graveyard(up_to),
+        }),
+        ..tutor(Fetched::Hand(1))
+    };
+    let out = gauntlet_criteria::run(
+        &buried_alive_library(cids),
+        &Schedule::plain_with_fetches(
+            &[3, 0],
+            vec![effect],
+            Policies::casting(CastingPolicy::new(vec![0])),
+        ),
+        only_expectations(2),
+        &mut Counters(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(1, 1, Counted::In(Zone::Graveyard))) as Tally,
+            Box::new(|v: &PathView<'_>| v.count_at(1, 1, Counted::In(Zone::Library))),
+        ]),
+    )
+    .unwrap();
+    (out.distributions[0].mean(), out.distributions[1].mean())
+}
+
+#[test]
+fn buried_alive_puts_up_to_three_cards_into_the_graveyard() {
+    // Issue #137. Three cards of eight in the opener, and the spell is cast
+    // on turn 1 only when it and the Island are two of them: 6 of the 56
+    // openers, 3/28. The third card is the only other one in hand, so the
+    // library holds three or four of the four Cids, and the search takes
+    // three either way.
+    let (yard, library) = buried_alive(4, 3);
+    assert!((yard - 3.0 * 3.0 / 28.0).abs() < 1e-12, "yard was {yard}");
+    // Without it, the three-card opener holds 3 × 4/8 of them on average and
+    // the library the other 2.5; the search moves the yard's 9/28 out of it.
+    assert!(
+        (library - (2.5 - 9.0 / 28.0)).abs() < 1e-12,
+        "library was {library}"
+    );
+
+    // Entomb is the same search for one card.
+    let (yard, library) = buried_alive(4, 1);
+    assert!((yard - 3.0 / 28.0).abs() < 1e-12, "yard was {yard}");
+    assert!((library - (2.5 - 3.0 / 28.0)).abs() < 1e-12);
+
+    // "Up to": with two Cids, a cast finds one where the third card in hand
+    // is the other Cid (2 of the 6 openers that cast it) and two otherwise,
+    // so 5/3 a cast and 6/56 × 5/3 = 5/28 overall. Never a third.
+    let (yard, _) = buried_alive(2, 3);
+    assert!((yard - 5.0 / 28.0).abs() < 1e-12, "yard was {yard}");
 }
 
 // --- delayed effects --------------------------------------------------------
@@ -1723,6 +1812,7 @@ fn saga() -> Effect {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     }
 }
 
@@ -2134,7 +2224,7 @@ fn a_tutor_still_finds_a_card_the_mulligan_put_on_the_bottom() {
         route: Route::Nowhere,
         fetch: Some(Fetch {
             prefer: vec![1],
-            to: Fetched::Hand,
+            to: Fetched::Hand(1),
         }),
         delay: None,
         draw: 0,
@@ -2142,6 +2232,7 @@ fn a_tutor_still_finds_a_card_the_mulligan_put_on_the_bottom() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let policy = MulliganPolicy::new(
         vec![Keep {
@@ -2435,6 +2526,7 @@ fn drawing(draw: u32) -> Effect {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     }
 }
 
@@ -2593,11 +2685,41 @@ fn a_question_whose_spells_can_draw_the_library_out_is_refused() {
                 population: 5,
                 draws: 4,
                 fetched: 0,
-                drawn: 2
+                drawn: 2,
+                halves: 0
             }
         ),
         "{err}"
     );
+}
+
+#[test]
+fn a_question_whose_halves_could_leave_too_little_for_its_draws_is_refused() {
+    // Two spells that each mill half the library, on the play to turn 3: an
+    // opening seven and two draws. Eleven cards leave four after the opener,
+    // and two halves that resolve before either draw leave one, so the
+    // second draw could find nothing. Twelve leave five, then two: enough.
+    let refused = |blanks| {
+        let (grouping, schedule) =
+            a_milling_deck_of(Mill::all(MillDepth::HalfLibrary), None, 2, 4, blanks);
+        let mut ev = Closures(vec![Box::new(|_: &PathView<'_>| true)]);
+        gauntlet_criteria::run(&grouping, &schedule, only_criteria(1), &mut ev).err()
+    };
+    let err = refused(3).expect("eleven cards are refused");
+    assert!(
+        matches!(
+            err,
+            RunError::LibraryRunsOut {
+                population: 11,
+                draws: 9,
+                halves: 2,
+                ..
+            }
+        ),
+        "{err}"
+    );
+    assert!(err.to_string().contains("2 spells each mill half"), "{err}");
+    assert!(refused(4).is_none(), "twelve cards are enough");
 }
 
 // --- Found by the mutation audit (docs/research/mutation-audit.md) -----------
@@ -2795,7 +2917,7 @@ fn two_tutors_do_not_find_one_card_twice() {
     .unwrap();
     let schedule = Schedule::plain_with_fetches(
         &[7, 0, 0],
-        vec![tutor(Fetched::Hand)],
+        vec![tutor(Fetched::Hand(1))],
         Policies::casting(CastingPolicy::new(vec![0])),
     );
     let once = holds(
@@ -3162,7 +3284,7 @@ fn a_tutor_billed_at_its_transmute_finds_nothing_before_three_lands() {
         let schedule = Schedule::build(
             4,
             false,
-            vec![tutor(Fetched::Hand)],
+            vec![tutor(Fetched::Hand(1))],
             Policies::casting(CastingPolicy::new(vec![1, 0])),
         );
         let share = |check: Check| holds(&grouping, &schedule, check);
@@ -3215,7 +3337,7 @@ fn a_delayed_fetch_to_hand_arrives_in_hand_when_it_fires() {
     let to_hand = Effect {
         fetch: Some(Fetch {
             prefer: vec![1],
-            to: Fetched::Hand,
+            to: Fetched::Hand(1),
         }),
         ..saga()
     };
@@ -3273,7 +3395,7 @@ fn a_card_the_mulligan_bottomed_is_found_once_not_twice() {
     );
     let schedule = Schedule::plain_with_fetches(
         &[7, 0],
-        vec![tutor(Fetched::Hand)],
+        vec![tutor(Fetched::Hand(1))],
         Policies {
             casting: Some(CastingPolicy::new(vec![0])),
             mulligan: Some(policy),
@@ -3733,6 +3855,7 @@ fn milling(mill: Option<Mill>) -> Effect {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     }
 }
 
@@ -3867,6 +3990,70 @@ fn hand_19_on_paper_the_mill_takes_the_loam_one_time_in_three() {
 }
 
 #[test]
+fn traumatize_mills_half_the_library_it_finds_which_the_path_decides() {
+    // Hand 19's deck and deal, with the spell milling half its library,
+    // rounded down. Cast on turn 2 after that turn's draw, it finds four cards
+    // and mills two; the Island and the Forest under them are turns 3 and 4.
+    let grouping = mill_groups(two_mana(Resolves::IntoGraveyard), 0, 5);
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0, 1, 1, 1],
+        vec![milling(Some(Mill::all(MillDepth::HalfLibrary)))],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let island = [0, 0, 0, 0, 1, 0, 0];
+    let two = [0, 0, 1, 1, 0, 0, 0];
+    let mut board = Board::new(&grouping, &schedule);
+    board.walk(&dealt(6, &[[2, 1, 0, 0, 0, 4, 0], NOTHING, BEAST]));
+    assert_eq!(board.next_gap(), 2, "half of the four it finds");
+    board.walk(&dealt(
+        6,
+        &[[2, 1, 0, 0, 0, 4, 0], NOTHING, BEAST, two, island, FOREST],
+    ));
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(board.count_at(2, 0, Counted::Cast), 1);
+    assert_eq!(board.count_at(2, 1, Counted::In(Zone::Graveyard)), 1);
+    assert_eq!(
+        board.count_at(2, 3, Counted::In(Zone::Graveyard)),
+        1,
+        "the Mountain"
+    );
+    assert_eq!(board.count_at(4, 3, Counted::In(Zone::Library)), 0);
+
+    // One Forest short, it waits for turn 3's draw to find the second, and
+    // by then the library is three cards: it mills one.
+    let mut board = Board::new(&grouping, &schedule);
+    board.walk(&dealt(6, &[[1, 1, 1, 0, 0, 4, 0], NOTHING, BEAST, FOREST]));
+    assert_eq!(board.count_at(2, 0, Counted::Cast), 0);
+    assert_eq!(board.next_gap(), 1, "half of three, rounded down");
+}
+
+#[test]
+fn traumatize_on_paper_mills_two_of_the_four_it_finds() {
+    // Hand 19's number with half the library milled: cast on turn 2, the
+    // spell finds the four cards under the top eight and mills two. The other
+    // nine cards fill five seen slots, two milled and two left, and the Loam
+    // is in any of them alike: in hand 5/9, milled 2/9, in the library 2/9
+    // of the 126 deals in 495 that cast it.
+    let (grouping, schedule) = analyst_twelve(Some(Mill::all(MillDepth::HalfLibrary)));
+    let cast = |v: &PathView<'_>| v.count_at(2, 0, Counted::Cast) == 1;
+    let mut ev = Closures(vec![
+        Box::new(move |v: &PathView<'_>| cast(v)),
+        Box::new(move |v: &PathView<'_>| cast(v) && v.count_at(2, 1, Counted::In(Zone::Hand)) == 1),
+        Box::new(move |v: &PathView<'_>| {
+            cast(v) && v.count_at(2, 1, Counted::In(Zone::Graveyard)) == 1
+        }),
+        Box::new(move |v: &PathView<'_>| {
+            cast(v) && v.count_at(2, 1, Counted::In(Zone::Library)) == 1
+        }),
+    ]);
+    let out = gauntlet_criteria::run(&grouping, &schedule, only_criteria(4), &mut ev).unwrap();
+    let got: Vec<f64> = out.probabilities.iter().map(|p| p.get() * 495.0).collect();
+    for (got, want) in got.iter().zip([126.0, 70.0, 28.0, 28.0]) {
+        assert!((got - want).abs() < 1e-9, "{got} of 495, want {want}");
+    }
+}
+
+#[test]
 fn hand_20_malevolent_rumble_keeps_a_permanent_and_the_loam_is_not_one() {
     // Forest x2, Malevolent Rumble and Beast Within x4 in hand; the library,
     // top first, Beast Within, Life from the Loam, Mountain, Beast Within,
@@ -3880,13 +4067,12 @@ fn hand_20_malevolent_rumble_keeps_a_permanent_and_the_loam_is_not_one() {
         Schedule::plain_with_fetches(
             &[7, 0, 1, 1],
             vec![milling(Some(Mill {
-                cards: 4,
+                cards: MillDepth::Exactly(4),
                 to_hand: ToHand::Chosen {
                     up_to: 1,
                     of: Some(permanent),
                     prefer,
                 },
-                returns: None,
             }))],
             Policies::casting(CastingPolicy::new(vec![spell])),
         )
@@ -3933,13 +4119,12 @@ fn a_land_kept_mid_line_waits_for_the_next_turns_drop_even_when_this_turns_was_n
     let schedule = Schedule::plain_with_fetches(
         &[7, 0, 1, 1, 1],
         vec![milling(Some(Mill {
-            cards: 4,
+            cards: MillDepth::Exactly(4),
             to_hand: ToHand::Chosen {
                 up_to: 1,
                 of: Some(4),
                 prefer: vec![3],
             },
-            returns: None,
         }))],
         Policies::casting(CastingPolicy::new(vec![0])),
     );
@@ -3963,9 +4148,8 @@ fn wrenn_and_sevens_lands_go_to_hand_whatever_the_file_asks() {
     let schedule = Schedule::plain_with_fetches(
         &[7, 0, 1, 1],
         vec![milling(Some(Mill {
-            cards: 4,
+            cards: MillDepth::Exactly(4),
             to_hand: ToHand::Every(3),
-            returns: None,
         }))],
         Policies::casting(CastingPolicy::new(vec![0])),
     );
@@ -3991,13 +4175,25 @@ fn wrenn_and_sevens_lands_go_to_hand_whatever_the_file_asks() {
 /// Green spells matched by query 0 at `{1}{G}`, whose cast mills `mill`; a
 /// target, query 1; Forests, query 2; blanks.
 fn a_milling_deck(mill: Mill, fetch: Option<Fetch>) -> (Grouping, Schedule) {
+    a_milling_deck_of(mill, fetch, 4, 16, 38)
+}
+
+/// [`a_milling_deck`] with `millers` spells, `forests` Forests and `blanks`
+/// blanks.
+fn a_milling_deck_of(
+    mill: Mill,
+    fetch: Option<Fetch>,
+    millers: u32,
+    forests: u32,
+    blanks: u32,
+) -> (Grouping, Schedule) {
     let grouping = Grouping::with_mana(
         q(&["miller", "target", "land"]),
         vec![
-            (0b001, two_mana(Resolves::IntoGraveyard), 4),
+            (0b001, two_mana(Resolves::IntoGraveyard), millers),
             (0b010, ManaSource::Spell, 2),
-            (0b100, untapped("G"), 16),
-            (0b000, ManaSource::Spell, 38),
+            (0b100, untapped("G"), forests),
+            (0b000, ManaSource::Spell, blanks),
         ],
     )
     .unwrap();
@@ -4084,18 +4280,45 @@ fn a_mill_nothing_reads_is_dealt_last_and_moves_no_number() {
 }
 
 #[test]
+fn half_a_library_nothing_reads_is_dealt_last_and_moves_no_number() {
+    // Two Traumatizes in twenty cards: half of what is left, some six cards,
+    // is one block over every group in place, and dealt last it is the same
+    // block over three bins, sized where it fired.
+    let (grouping, in_place) = a_milling_deck_of(Mill::all(MillDepth::HalfLibrary), None, 2, 7, 9);
+    let last = in_place.clone().deferring(0b110);
+    let (a, b) = (
+        every_zone_answered(&grouping, &in_place),
+        every_zone_answered(&grouping, &last),
+    );
+    assert!(
+        a[0] > 0.01 && a[0] < 0.99,
+        "the mill reaches the target: {a:?}"
+    );
+    for (i, (x, y)) in a.iter().zip(&b).enumerate() {
+        assert!(
+            (x - y).abs() < 1e-12,
+            "question {i}: {x} in place, {y} last"
+        );
+    }
+    let (wide, narrow) = (
+        gauntlet_criteria::width(&grouping, &in_place),
+        gauntlet_criteria::width(&grouping, &last),
+    );
+    assert!(narrow < wide, "{narrow} vs {wide}");
+}
+
+#[test]
 fn a_mill_that_chooses_from_its_cards_is_dealt_where_it_fired() {
     // Rumble's shape reads its own block to choose the card it keeps, so the
     // block is not one nothing reads, and a class that would defer a mill
     // leaves this one where it is.
     let rumble = Mill {
-        cards: 4,
+        cards: MillDepth::Exactly(4),
         to_hand: ToHand::Chosen {
             up_to: 1,
             of: Some(2),
             prefer: vec![2],
         },
-        returns: None,
     };
     let (grouping, in_place) = a_milling_deck(rumble, None);
     let last = in_place.clone().deferring(0b110);
@@ -4105,9 +4328,8 @@ fn a_mill_that_chooses_from_its_cards_is_dealt_where_it_fired() {
     );
     // Nor Wrenn and Seven's, which sends every land among them to hand.
     let wrenn = Mill {
-        cards: 4,
+        cards: MillDepth::Exactly(4),
         to_hand: ToHand::Every(2),
-        returns: None,
     };
     let (grouping, in_place) = a_milling_deck(wrenn, None);
     let last = in_place.clone().deferring(0b110);
@@ -4123,7 +4345,7 @@ fn a_mill_beside_a_tutor_is_dealt_where_it_fired() {
     // library to it: it could find the card the mill had already binned.
     let fetch = Fetch {
         prefer: vec![1],
-        to: Fetched::Hand,
+        to: Fetched::Hand(1),
     };
     let (grouping, in_place) = a_milling_deck(Mill::all(3), Some(fetch));
     let last = in_place.clone().deferring(0b110);
@@ -4174,7 +4396,7 @@ fn expedition_map() -> Effect {
         route: Route::Nowhere,
         fetch: Some(Fetch {
             prefer: vec![2],
-            to: Fetched::Hand,
+            to: Fetched::Hand(1),
         }),
         delay: None,
         draw: 0,
@@ -4185,6 +4407,7 @@ fn expedition_map() -> Effect {
         }),
         discard: None,
         untap: 0,
+        reanimate: None,
     }
 }
 
@@ -4327,7 +4550,7 @@ fn an_activation_is_paid_once_per_permanent_per_turn() {
         matched_by: 3,
         fetch: Some(Fetch {
             prefer: vec![1],
-            to: Fetched::Hand,
+            to: Fetched::Hand(1),
         }),
         activation: Some(Activation {
             cost: Cost::parse("{1}").unwrap().demand(),
@@ -4335,6 +4558,7 @@ fn an_activation_is_paid_once_per_permanent_per_turn() {
         }),
         discard: None,
         untap: 0,
+        reanimate: None,
         ..expedition_map()
     };
     let schedule = Schedule::plain_with_fetches(
@@ -4580,6 +4804,7 @@ fn discarding(matched_by: usize, draw: u32, discard: Discard, untap: u32) -> Eff
         activation: None,
         discard: Some(discard),
         untap,
+        reanimate: None,
     }
 }
 
@@ -4920,13 +5145,12 @@ fn six(trigger: Trigger) -> Effect {
     Effect {
         trigger,
         ..milling(Some(Mill {
-            cards: 3,
+            cards: MillDepth::Exactly(3),
             to_hand: ToHand::Chosen {
                 up_to: 1,
                 of: Some(3),
                 prefer: vec![3],
             },
-            returns: None,
         }))
     }
 }
@@ -5078,10 +5302,10 @@ fn lumra_groups(second: ManaSource, forests: u32, beasts: u32) -> Grouping {
 /// Lumra, Bellow of the Woods: "When Lumra enters, mill four cards. Then
 /// return all land cards from your graveyard to the battlefield tapped."
 fn lumra(returns: Option<usize>) -> Effect {
-    milling(Some(Mill {
-        returns,
-        ..Mill::all(4)
-    }))
+    Effect {
+        reanimate: returns.map(Reanimate::Every),
+        ..milling(Some(Mill::all(4)))
+    }
 }
 
 /// `(Forest, Mountain, Island, Loam, Beast Within)` as a row over
@@ -5247,6 +5471,7 @@ fn a_fetchland_is_two_lands_entering_and_fires_a_landfall_for_each() {
         activation: None,
         discard: None,
         untap: 0,
+        reanimate: None,
     };
     let schedule = Schedule::plain_with_fetches(
         &[7, 0, 1, 1, 1, 1],
@@ -5288,14 +5513,454 @@ fn a_fetchland_is_two_lands_entering_and_fires_a_landfall_for_each() {
 fn a_mill_that_returns_lands_is_dealt_where_it_fired() {
     // Lumra's shape reads the graveyard it filled: a land dealt last would
     // not be there for it to return.
-    let lumra = Mill {
-        returns: Some(2),
-        ..Mill::all(3)
+    let (grouping, _) = a_milling_deck(Mill::all(3), None);
+    let lumra = Effect {
+        reanimate: Some(Reanimate::Every(2)),
+        ..milling(Some(Mill::all(3)))
     };
-    let (grouping, in_place) = a_milling_deck(lumra, None);
+    let in_place = Schedule::build(
+        3,
+        false,
+        vec![lumra],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
     let last = in_place.clone().deferring(0b110);
     assert_eq!(
         gauntlet_criteria::width(&grouping, &last),
         gauntlet_criteria::width(&grouping, &in_place)
     );
+}
+
+// --- Upkeep triggers mill (#139) ---------------------------------------------
+//
+// HANDS.md hand 63: a permanent the line cast mills at the beginning of each
+// later upkeep, before that turn's draw. The block is dealt ahead of the
+// turn's own checkpoint, so the history is in the library's order.
+
+/// Stillness in Motion: "At the beginning of your upkeep, mill three cards."
+/// Out of the Tombs is the same with `MillDepth::Growing`.
+fn upkeep_mill(cards: MillDepth) -> Effect {
+    Effect {
+        trigger: Trigger::Upkeep,
+        ..milling(Some(Mill::all(cards)))
+    }
+}
+
+#[test]
+fn hand_63_stillness_in_motion_mills_what_the_turn_would_have_drawn() {
+    // Forest x2, Island, Stillness in Motion and Beast Within x3 in hand; the
+    // library, top first, Beast Within, then Life from the Loam, Beast Within,
+    // Beast Within, Mountain, then Beast Within x4. On the play. Stillness is
+    // cast on turn 2 off the Island and a Forest. Turn 3's upkeep mills the
+    // Loam and two Beasts, and the draw is the Mountain under them; turn 4's
+    // mills three Beasts and draws the fourth.
+    let grouping = trigger_groups(creature("{1}{U}"), 2, 10);
+    let (stillness_q, loam, land, beast) = (0, 1, 3, 4);
+    let schedule = |effects| {
+        Schedule::plain_with_fetches(
+            &[7, 0, 1, 1, 1],
+            effects,
+            Policies::casting(CastingPolicy::new(vec![stillness_q])),
+        )
+    };
+    let opener = [2, 1, 0, 0, 1, 3];
+    let upkeep_block = [0, 0, 1, 0, 0, 2];
+    let three_beasts = [0, 0, 0, 0, 0, 3];
+
+    // Nothing fires: turn 3 draws the Loam, and no fourth land comes.
+    let today = schedule(vec![]);
+    let mut board = Board::new(&grouping, &today);
+    board.walk(&dealt6(&[opener, NONE6, BEAST6, LOAM6, BEAST6]));
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(board.count_at(2, stillness_q, Counted::Cast), 1);
+    assert_eq!(board.count_at(3, loam, Counted::In(Zone::Hand)), 1);
+    assert_eq!(board.count_at(4, land, Counted::In(Zone::Battlefield)), 3);
+
+    let upkeep = schedule(vec![upkeep_mill(MillDepth::Exactly(3))]);
+    let mut board = Board::new(&grouping, &upkeep);
+    // The turn it is cast asks for nothing; turn 3 asks for its three before
+    // its own draw is dealt.
+    board.walk(&dealt6(&[opener, NONE6]));
+    assert_eq!(board.next_gap(), 0, "nothing is cast by turn 1");
+    board.walk(&dealt6(&[opener, NONE6, BEAST6]));
+    assert_eq!(
+        board.next_gap(),
+        3,
+        "turn 3's upkeep mills three ahead of turn 3's draw"
+    );
+    board.walk(&dealt6(&[opener, NONE6, BEAST6, upkeep_block]));
+    assert_eq!(board.next_gap(), 0, "then the draw is dealt, from under it");
+    let path = dealt6(&[
+        opener,
+        NONE6,
+        BEAST6,
+        upkeep_block,
+        MOUNTAIN6,
+        three_beasts,
+        BEAST6,
+    ]);
+    board.walk(&path);
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(board.count_at(2, loam, Counted::In(Zone::Graveyard)), 0);
+    assert_eq!(
+        board.count_at(3, loam, Counted::In(Zone::Graveyard)),
+        1,
+        "the upkeep milled the card turn 3 would have drawn"
+    );
+    assert_eq!(board.count_at(3, loam, Counted::In(Zone::Hand)), 0);
+    assert_eq!(board.count_at(3, beast, Counted::In(Zone::Graveyard)), 2);
+    assert_eq!(board.count_at(4, beast, Counted::In(Zone::Graveyard)), 5);
+    // The Mountain drawn under the mill is turn 4's drop.
+    assert_eq!(board.count_at(3, land, Counted::In(Zone::Battlefield)), 3);
+    assert_eq!(board.count_at(4, land, Counted::In(Zone::Battlefield)), 4);
+}
+
+#[test]
+fn out_of_the_tombs_mills_two_more_each_upkeep() {
+    // A {1}{U} enchantment with Out of the Tombs' trigger, cast on turn 2:
+    // two eon counters on turn 3 and it mills two, four on turn 4, six on
+    // turn 5. Every card under it is a Beast Within, so each block is one row.
+    let grouping = trigger_groups(creature("{1}{U}"), 2, 20);
+    let (tombs_q, beast) = (0, 4);
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0, 1, 1, 1, 1],
+        vec![upkeep_mill(MillDepth::Growing { first: 2, by: 2 })],
+        Policies::casting(CastingPolicy::new(vec![tombs_q])),
+    );
+    let mut board = Board::new(&grouping, &schedule);
+    let opener = [2, 1, 0, 0, 1, 3];
+    let beasts = |n: u32| [0, 0, 0, 0, 0, n];
+    let mut rows = vec![opener, NONE6, BEAST6];
+    let mut asked = Vec::new();
+    for _ in 3..=5 {
+        board.walk(&dealt6(&rows));
+        let gap = board.next_gap();
+        asked.push(gap);
+        rows.push(beasts(gap));
+        rows.push(BEAST6);
+    }
+    assert_eq!(asked, [2, 4, 6], "its counters, two more each upkeep");
+    board.walk(&dealt6(&rows));
+    assert_eq!(board.next_gap(), 0);
+    assert_eq!(board.count_at(2, tombs_q, Counted::Cast), 1);
+    assert_eq!(board.count_at(3, beast, Counted::In(Zone::Graveyard)), 2);
+    assert_eq!(board.count_at(5, beast, Counted::In(Zone::Graveyard)), 12);
+}
+
+// --- Reanimation (#140) ------------------------------------------------------
+//
+// HANDS.md hand 64: a cast returns cards from the graveyard to the
+// battlefield. They leave the graveyard's count and join the battlefield's,
+// the library's is untouched, and nothing counts them as cast.
+
+/// Eight cards: Animate Dead and Entomb, both free so the mana never binds,
+/// two Cids, `others` other creatures and blanks to make up eight.
+/// Queries: 0 Animate Dead, 1 Entomb, 2 Cid, 3 the other creature, 4 any
+/// creature.
+fn reanimation_library(others: u32) -> Grouping {
+    let free = |resolves| ManaSource::Castable {
+        cost: Cost::parse("{0}").unwrap().demand(),
+        resolves,
+    };
+    Grouping::with_mana(
+        q(&["animate", "entomb", "cid", "other", "creature"]),
+        vec![
+            (0b00001, free(Resolves::OntoBattlefield), 1),
+            (0b00010, free(Resolves::IntoGraveyard), 1),
+            (0b10100, ManaSource::Spell, 2),
+            (0b11000, ManaSource::Spell, others),
+            (0b00000, ManaSource::Spell, 4 - others),
+        ],
+    )
+    .unwrap()
+}
+
+/// Entomb, taking `up_to` cards by `fetch`, into the graveyard; Animate
+/// Dead returning `reanimate`. The line lists Animate Dead first, so the
+/// only way it returns anything on turn 1 is to wait for the graveyard.
+fn reanimation_schedule(up_to: u32, fetch: Vec<usize>, reanimate: Reanimate) -> Schedule {
+    let entomb = Effect {
+        matched_by: 1,
+        fetch: Some(Fetch {
+            prefer: fetch,
+            to: Fetched::Graveyard(up_to),
+        }),
+        ..tutor(Fetched::Hand(1))
+    };
+    let animate = Effect {
+        matched_by: 0,
+        fetch: None,
+        reanimate: Some(reanimate),
+        ..tutor(Fetched::Hand(1))
+    };
+    Schedule::plain_with_fetches(
+        &[3, 0],
+        vec![animate, entomb],
+        Policies::casting(CastingPolicy::new(vec![0, 1])),
+    )
+}
+
+/// Mean Cids on turn 1 on the battlefield, in the graveyard, in the library
+/// and cast, and mean castings of Animate Dead.
+fn reanimated(grouping: &Grouping, schedule: &Schedule) -> [f64; 5] {
+    let at =
+        |zone| -> Tally { Box::new(move |v: &PathView<'_>| v.count_at(1, 2, Counted::In(zone))) };
+    let out = gauntlet_criteria::run(
+        grouping,
+        schedule,
+        only_expectations(5),
+        &mut Counters(vec![
+            at(Zone::Battlefield),
+            at(Zone::Graveyard),
+            at(Zone::Library),
+            Box::new(|v: &PathView<'_>| v.count_at(1, 2, Counted::Cast)),
+            Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::Cast)),
+        ]),
+    )
+    .unwrap();
+    std::array::from_fn(|i| out.distributions[i].mean())
+}
+
+#[test]
+fn hand_64_animate_dead_waits_for_entomb_and_returns_the_cid_it_put_there() {
+    // Three cards of eight in the opener, on the play, so turn 1 casts what
+    // the opener holds. Animate Dead is listed first and the graveyard is
+    // empty, so it waits; Entomb puts a Cid there, and the line, read again,
+    // casts Animate Dead to return it.
+    // * Both in the opener: 6 of the 56 openers. The third card is a Cid in
+    //   2 of them, which leaves one in the library, and a blank in 4: Entomb
+    //   finds a Cid every time, and Animate Dead returns it. 6/56 = 3/28.
+    // * Entomb without Animate Dead: C(6, 2) = 15 openers, less the one whose
+    //   other two cards are both Cids, so Entomb finds nothing: 14/56 leave a
+    //   Cid in the graveyard.
+    // * The hand holds 3 × 2/8 = 0.75 Cids whatever is cast, and the library
+    //   the rest: 2 - 0.75 - 14/56 - 6/56.
+    // * Animate Dead is cast only where it returns something: 6/56, not the
+    //   21/56 of openers that hold it.
+    let one_cid = Reanimate::Chosen {
+        up_to: 1,
+        of: 2,
+        prefer: vec![2],
+    };
+    let [field, yard, library, cast, animated] = reanimated(
+        &reanimation_library(0),
+        &reanimation_schedule(1, vec![2], one_cid),
+    );
+    let close = |got: f64, want: f64| (got - want).abs() < 1e-12;
+    assert!(close(field, 6.0 / 56.0), "battlefield was {field}");
+    assert!(close(yard, 14.0 / 56.0), "graveyard was {yard}");
+    assert!(
+        close(library, 2.0 - 0.75 - 20.0 / 56.0),
+        "library was {library}"
+    );
+    assert!(close(cast, 0.0), "a returned Cid was not cast: {cast}");
+    assert!(
+        close(animated, 6.0 / 56.0),
+        "Animate Dead was cast {animated}"
+    );
+}
+
+#[test]
+fn a_mass_reanimation_returns_every_card_it_may() {
+    // Buried Alive for two, and Immortal Servitude's shape: every Cid in the
+    // graveyard. Of the 6 openers holding both, the third card is a blank in
+    // 4, so two Cids go in and two come back, and a Cid in 2, so one: 10/56.
+    // Without the reanimation, of the 15 openers holding Buried Alive alone,
+    // 6 put two Cids in the graveyard, 8 one and 1 none: 20/56.
+    let [field, yard, library, cast, _] = reanimated(
+        &reanimation_library(0),
+        &reanimation_schedule(2, vec![2], Reanimate::Every(2)),
+    );
+    let close = |got: f64, want: f64| (got - want).abs() < 1e-12;
+    assert!(close(field, 10.0 / 56.0), "battlefield was {field}");
+    assert!(close(yard, 20.0 / 56.0), "graveyard was {yard}");
+    assert!(
+        close(library, 2.0 - 0.75 - 30.0 / 56.0),
+        "library was {library}"
+    );
+    assert!(close(cast, 0.0));
+}
+
+#[test]
+fn a_reanimation_takes_the_first_card_its_priority_reaches_and_nothing_it_does_not_name() {
+    // One opener: Animate Dead, Buried Alive for three, a blank. Buried Alive
+    // bins both Cids and the other creature. What Animate Dead returns is the
+    // file's list, and a creature the list does not name never comes back.
+    let grouping = reanimation_library(1);
+    let opener = [vec![1, 1, 0, 0, 1], vec![1, 1, 0, 0, 1]];
+    let walk = |fetch: Vec<usize>, prefer: Vec<usize>| {
+        let schedule = reanimation_schedule(
+            3,
+            fetch,
+            Reanimate::Chosen {
+                up_to: 1,
+                of: 4,
+                prefer,
+            },
+        );
+        let mut board = Board::new(&grouping, &schedule);
+        board.walk(&opener);
+        let at = |query, zone| board.count_at(1, query, Counted::In(zone));
+        (
+            at(2, Zone::Battlefield),
+            at(3, Zone::Battlefield),
+            at(2, Zone::Graveyard),
+            at(3, Zone::Graveyard),
+            board.count_at(1, 0, Counted::Cast),
+        )
+    };
+    assert_eq!(
+        walk(vec![2, 3], vec![3, 2]),
+        (0, 1, 2, 0, 1),
+        "the other creature first"
+    );
+    assert_eq!(
+        walk(vec![2, 3], vec![2, 3]),
+        (1, 0, 1, 1, 1),
+        "a Cid first, and only one"
+    );
+    // Buried Alive bins only the Cids, and the list names only the other
+    // creature: nothing it would return is there, so it is never cast.
+    assert_eq!(
+        walk(vec![2], vec![3]),
+        (0, 0, 2, 0, 0),
+        "held: nothing it names"
+    );
+}
+
+// --- Cycling (#136) ------------------------------------------------------------
+//
+// HANDS.md hand 65: the [casting] entry naming a card whose effect is a cycle
+// pays its cycling cost from hand, puts it in the graveyard and draws. The
+// draw is a cast's draw; the card is never cast.
+
+/// A card the line cycles, drawing one, matched by query 0.
+fn cycling(draw: u32) -> Effect {
+    Effect {
+        trigger: Trigger::Cycle,
+        ..drawing(draw)
+    }
+}
+
+#[test]
+fn a_cycle_draws_as_a_cantrip_does_and_is_never_cast() {
+    // cantrip_and_target, with the {U} spell cycled instead of cast: the
+    // same five cards, the same gap. The target is in hand by turn 1 on
+    // 6/10 + 1/10 = 7/10, as with the cantrip; the cycler is in the
+    // graveyard on exactly the 3/10 holding the Island and it, and it is
+    // never cast. Where it was cycled it is out of the library too.
+    let (grouping, cast) = cantrip_and_target(1);
+    let cycled = Schedule::plain_with_fetches(
+        &[2, 1],
+        vec![cycling(1)],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let answer = |schedule: &Schedule| {
+        let mut ev = Closures(vec![
+            Box::new(|v: &PathView<'_>| v.count_at(1, 1, Counted::In(Zone::Hand)) == 1),
+            Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::Cast) == 1),
+            Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::In(Zone::Graveyard)) == 1),
+            Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::In(Zone::Library)) == 0),
+        ]);
+        gauntlet_criteria::run(&grouping, schedule, only_criteria(4), &mut ev)
+            .unwrap()
+            .probabilities
+            .iter()
+            .map(|p| p.get())
+            .collect::<Vec<_>>()
+    };
+    let c = answer(&cycled);
+    assert!((c[0] - 0.7).abs() < 1e-12, "{c:?}");
+    assert!(c[1].abs() < 1e-12, "a cycled card is never cast: {c:?}");
+    assert!((c[2] - 0.3).abs() < 1e-12, "{c:?}");
+    // Seen by turn 1 (3/5) and not left in the library: 6/10.
+    assert!((c[3] - 0.6).abs() < 1e-12, "{c:?}");
+    // The cast reads the same target and the same graveyard, by casting.
+    let s = answer(&cast);
+    assert!(
+        (s[0] - c[0]).abs() < 1e-12 && (s[2] - c[2]).abs() < 1e-12,
+        "{s:?}"
+    );
+    assert!((s[1] - 0.3).abs() < 1e-12, "{s:?}");
+}
+
+/// cycling.txt: five Plains, five Islands, three Cids that cycle for {W}{U}.
+/// Queries: 0 Cid.
+fn cid_cycling_deck() -> Grouping {
+    let land = |c: &str| ManaSource::Land {
+        enters_tapped: false,
+        produces: Palette::from_letters([c]),
+        lasts: None,
+    };
+    Grouping::with_mana(
+        q(&["cid"]),
+        vec![
+            (
+                0b1,
+                ManaSource::Castable {
+                    cost: Cost::parse("{W}{U}").unwrap().demand(),
+                    resolves: Resolves::OntoBattlefield,
+                },
+                3,
+            ),
+            (0b0, land("W"), 5),
+            (0b0, land("U"), 5),
+        ],
+    )
+    .unwrap()
+}
+
+#[test]
+fn hand_65_a_cid_is_cycled_by_turn_two_unless_the_eight_cards_hold_none_or_one_colour() {
+    // On the play, eight cards by turn 2 and two land drops. A Cid is cycled
+    // by then unless the eight hold no Cid, C(10,8)/C(13,8) = 45/1287, or
+    // hold lands of one colour only, which takes all three Cids and one
+    // colour's five lands, 2/1287. So 1240/1287.
+    let grouping = cid_cycling_deck();
+    let schedule = Schedule::plain_with_fetches(
+        &[7, 0, 1],
+        vec![cycling(1)],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let mut ev = Closures(vec![
+        Box::new(|v: &PathView<'_>| v.count_at(2, 0, Counted::In(Zone::Graveyard)) >= 1),
+        Box::new(|v: &PathView<'_>| v.count_at(2, 0, Counted::Cast) >= 1),
+        Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::In(Zone::Graveyard)) >= 1),
+    ]);
+    let p = gauntlet_criteria::run(&grouping, &schedule, only_criteria(3), &mut ev)
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    assert!((p[0] - 1240.0 / 1287.0).abs() < 1e-12, "{p:?}");
+    assert!(p[1].abs() < 1e-12, "{p:?}");
+    // One land on turn 1 pays no {W}{U}.
+    assert!(p[2].abs() < 1e-12, "{p:?}");
+}
+
+#[test]
+fn a_card_a_cycle_draws_is_cycled_the_same_turn() {
+    // free_cantrips, cycled: two free cyclers and three blanks, dealt one and
+    // then one. The line is read again from its top after each draw, so both
+    // are cycled by turn 1 exactly when both sit in the top three:
+    // C(3,2)/C(5,2) = 3/10, as both cantrips are cast. Neither is cast.
+    let (grouping, _) = free_cantrips();
+    let schedule = Schedule::plain_with_fetches(
+        &[1, 1],
+        vec![cycling(1)],
+        Policies::casting(CastingPolicy::new(vec![0])),
+    );
+    let mut ev = Closures(vec![
+        Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::In(Zone::Graveyard)) == 2),
+        Box::new(|v: &PathView<'_>| v.count_at(1, 0, Counted::Cast) > 0),
+    ]);
+    let p = gauntlet_criteria::run(&grouping, &schedule, only_criteria(2), &mut ev)
+        .unwrap()
+        .probabilities
+        .iter()
+        .map(|p| p.get())
+        .collect::<Vec<_>>();
+    assert!((p[0] - 0.3).abs() < 1e-12, "{p:?}");
+    assert!(p[1].abs() < 1e-12, "{p:?}");
 }

@@ -26,8 +26,8 @@ mod strategy;
 mod zone;
 
 pub use effect::{
-    Activation, Board, Delay, Discard, Discards, Effect, Fetch, Fetched, Mill, Route, ToHand,
-    Trigger, TriggerError,
+    Activation, Board, Delay, Discard, Discards, Effect, Fetch, Fetched, Mill, MillDepth,
+    Reanimate, Route, ToHand, Trigger, TriggerError,
 };
 pub use grouping::{Grouping, GroupingError};
 pub use mana::{Cost, CostError, Demand, LandDetail, ManaSource, Palette, Resolves};
@@ -437,17 +437,28 @@ pub enum RunError<E> {
     /// cast at most once and draws what it says, so `drawn` counts what the
     /// sized gaps could deal, after which a turn's draw can find the library
     /// empty.
+    ///
+    /// A mill of half the library takes no fixed count, so it is bounded by
+    /// what it can leave: `halves` of them, each taking half of what is left,
+    /// leave the library after the opening hand halved that many times, and
+    /// at their worst they all resolve before anything else takes a card.
     #[error(
         "this question draws {draws} cards from a library of {population}, and {} more \
-         can be fetched or drawn by spells out of it, so on some games the library runs out \
+         can be fetched or drawn by spells out of it{}, so on some games the library runs out \
          before the last draw",
-        .fetched + .drawn
+        .fetched + .drawn,
+        match .halves {
+            0 => String::new(),
+            1 => ", after a spell mills half of it".to_string(),
+            n => format!(", after {n} spells each mill half of what is left"),
+        }
     )]
     LibraryRunsOut {
         population: u32,
         draws: u32,
         fetched: u32,
         drawn: u32,
+        halves: u32,
     },
     /// The enumeration is supposed to partition every possible draw, so its
     /// path probabilities sum to 1. If they do not, some region of the sample
@@ -616,30 +627,55 @@ pub fn feasible<E>(grouping: &Grouping, schedule: &Schedule) -> Result<(), RunEr
     // cannot run out however much is fetched afterwards.
     let later: u32 = schedule.gaps().iter().skip(1).sum();
     let fetched = fetchable(grouping, schedule);
-    let drawn = drawable(grouping, schedule);
-    if later > 0 && draws + fetched + drawn > population {
+    let (drawn, halves) = drawable(grouping, schedule);
+    // What the halves can leave after the opening hand: each leaves at least
+    // half of what it found, rounded up, and they leave least by going first.
+    let after_opener = u64::from(population - (draws - later));
+    let left = match halves {
+        0 => after_opener,
+        h if h >= 64 => after_opener.min(1),
+        h => (after_opener + (1u64 << h) - 1) >> h,
+    };
+    if later > 0 && u64::from(later + fetched + drawn) > left {
         return Err(RunError::LibraryRunsOut {
             population,
             draws,
             fetched,
             drawn,
+            halves,
         });
     }
     Ok(())
 }
 
 /// The most cards this run's spells can draw or mill: what each copy of a
-/// spell that draws or mills turns over, the commander's copy included,
-/// because each is cast once.
+/// spell that draws or mills turns over, cast or cycled, the commander's copy included,
+/// because each is cast once. Beside it, how many times a mill of half the
+/// library can fire, which has no count of its own to add.
 ///
 /// A creature that attacks mills once a turn at most, from the turn after it
-/// was cast, and a landfall once for each land that enters after it: at most
+/// was cast, and so does an upkeep, by as much more each turn as a growing
+/// one grows; a landfall once for each land that enters after it: at most
 /// two a turn from the drop, where a fetchland puts a second one down, and
-/// every land a mill returns from the graveyard. One such return brings back
+/// every land a cast returns from the graveyard. One such return brings back
 /// no more lands than the deck has, nor more than every other mill could
-/// have put there; two or more are bounded by the deck alone.
-fn drawable(grouping: &Grouping, schedule: &Schedule) -> u32 {
+/// have put there; two or more are bounded by the deck alone, and so is one
+/// beside a mill of half the library. A reanimation that can return no land
+/// fires no landfall, and is not counted.
+fn drawable(grouping: &Grouping, schedule: &Schedule) -> (u32, u32) {
     let effects = schedule.effects();
+    let land_has = |query: usize| {
+        grouping
+            .group_masks()
+            .iter()
+            .zip(grouping.group_mana())
+            .any(|(mask, mana)| mana.is_land() && mask & (1u64 << query) != 0)
+    };
+    let returns_lands = |e: &Effect| match &e.reanimate {
+        None => false,
+        Some(Reanimate::Every(query)) => land_has(*query),
+        Some(Reanimate::Chosen { of, .. }) => land_has(*of),
+    };
     // Turns on which something cast on an earlier one can fire: none before
     // turn 2, since nothing is cast before turn 1.
     let turns = (schedule.turns() as u32).saturating_sub(2);
@@ -660,16 +696,37 @@ fn drawable(grouping: &Grouping, schedule: &Schedule) -> u32 {
             Some((size + command, &effects[e]))
         })
         .collect();
-    let milled = |e: &Effect| e.mill.as_ref().map_or(0, |m| m.cards);
+    let (milled, halved) = (
+        |e: &Effect| e.mill.as_ref().and_then(|m| m.cards.nth(1)).unwrap_or(0),
+        |e: &Effect| u32::from(e.mill.as_ref().map(|m| m.cards) == Some(MillDepth::HalfLibrary)),
+    );
+    // What one copy mills over `turns` firings, the first on the earliest
+    // turn it can fire: a growing mill's largest firings are its last.
+    let repeated = |e: &Effect| -> u32 {
+        (1..=turns)
+            .map(|nth| e.mill.as_ref().and_then(|m| m.cards.nth(nth)).unwrap_or(0))
+            .sum()
+    };
     let (mut cast, mut per_land, mut returners) = (0, 0, 0);
+    let (mut halves, mut halves_per_land) = (0, 0);
     for &(copies, e) in &carried {
         match e.trigger {
-            Trigger::Cast => cast += copies * (e.draw + milled(e)),
-            Trigger::Attack => cast += copies * milled(e) * turns,
-            Trigger::Landfall => per_land += copies * milled(e),
+            // A cycle draws as a cast does, and never mills.
+            Trigger::Cast | Trigger::Cycle => {
+                cast += copies * (e.draw + milled(e));
+                halves += copies * halved(e);
+            }
+            Trigger::Attack | Trigger::Upkeep => {
+                cast += copies * repeated(e);
+                halves += copies * halved(e) * turns;
+            }
+            Trigger::Landfall => {
+                per_land += copies * milled(e);
+                halves_per_land += copies * halved(e);
+            }
             Trigger::LandDrop | Trigger::Activate => {}
         }
-        if e.mill.as_ref().is_some_and(|m| m.returns.is_some()) {
+        if returns_lands(e) {
             returners += copies;
         }
     }
@@ -682,30 +739,32 @@ fn drawable(grouping: &Grouping, schedule: &Schedule) -> u32 {
         .sum();
     let returned = match returners {
         0 => 0,
-        1 => lands.min(cast + dropped * per_land),
+        1 if halves + halves_per_land == 0 => lands.min(cast + dropped * per_land),
         _ => lands,
     };
-    cast + (dropped + returned) * per_land
+    (
+        cast + (dropped + returned) * per_land,
+        halves + (dropped + returned) * halves_per_land,
+    )
 }
 
 /// The most cards this run can take out of the library without drawing them:
-/// one per copy of a card whose effect fetches. A land is played once, a spell
-/// cast once, a chapter resolves once.
+/// what one search takes, per copy of a card whose effect fetches. A land is
+/// played once, a spell cast once, a chapter resolves once.
 fn fetchable(grouping: &Grouping, schedule: &Schedule) -> u32 {
     let effects = schedule.effects();
     grouping
         .group_masks()
         .iter()
         .zip(grouping.group_sizes())
-        .filter(|(mask, _)| {
+        .filter_map(|(mask, &size)| {
             // Last-wins, as the board reads it: the bits are disjoint, so the
             // effect a group carries is the one whose bit it has.
-            effects
+            let e = effects
                 .iter()
-                .rposition(|e| *mask & (1u64 << e.matched_by) != 0)
-                .is_some_and(|e| effects[e].fetch.is_some())
+                .rposition(|e| *mask & (1u64 << e.matched_by) != 0)?;
+            Some(size * effects[e].fetch.as_ref()?.to.cards())
         })
-        .map(|(_, &size)| size)
         .sum()
 }
 

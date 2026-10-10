@@ -1,0 +1,10 @@
+// Issue #139: Stillness in Motion mills three at the beginning of each upkeep
+// after the turn it is cast, before the draw.
+//
+// Twenty cards on the play. Four nonlands cannot keep two lands out of the
+// first eight cards, or three out of the first nine, so Stillness' {1}{U} is
+// paid on turn 2 whenever it is among the first eight, and on turn 3 when it
+// is the ninth.
+16x Island [Land]
+1x Stillness in Motion [Mill]
+3x Cid, Timeless Artificer [Cid]

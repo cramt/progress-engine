@@ -1624,6 +1624,7 @@ fn drawn_question() -> impl Strategy<Value = DrawnQuestion> {
                     activation: None,
                     discard: Some(discard),
                     untap: 0,
+                    reanimate: None,
                 };
                 let population = grouping.population();
                 let mut gaps = vec![opening.min(population)];
