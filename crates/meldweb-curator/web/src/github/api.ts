@@ -29,6 +29,11 @@ export interface FileAt {
   sha: string;
 }
 
+export type PublicFile =
+  | ({ kind: "file" } & FileAt)
+  | { kind: "no-file" }
+  | { kind: "no-repo" };
+
 export interface DirEntry {
   name: string;
   path: string;
@@ -81,6 +86,11 @@ export interface GitHubApi {
    * when there is none there (or the repo is empty).
    */
   getFile(repo: RepoRef, path: string, ref?: string): Promise<FileAt | null>;
+  /**
+   * A file of someone else's repo, read without the login, so only a public
+   * repo answers: a private one reads as `no-repo`.
+   */
+  publicFile(repo: RepoRef, path: string): Promise<PublicFile>;
   /**
    * The commits on the default branch that touched `path`, newest first, a
    * page of up to `perPage` (100 at most) at a time, none after `until`.
@@ -273,6 +283,40 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
   const contents = (repo: RepoRef, path: string) =>
     `${repoPath(repo)}/contents/${encodePath(path)}`;
 
+  // The app's token reaches only the repo it is installed on (ADR-0021), and
+  // GitHub's docs make no exception for public repos, so someone else's is
+  // read as anyone may read it.
+  const anonymous = (path: string) =>
+    fetchImpl(`${base}${path}`, {
+      cache: "no-store",
+      headers: {
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
+
+  /** A Contents API answer for `path` as the file's text and sha. */
+  async function fileOf(r: Response, path: string): Promise<FileAt> {
+    const body = (await r.json()) as {
+      type?: string;
+      encoding?: string;
+      content?: string;
+      sha: string;
+    };
+    if (Array.isArray(body) || body.type !== "file") {
+      throw new GitHubError(422, `${path} is not a file`);
+    }
+    // Anything but base64 is GitHub withholding the content, and reading
+    // it as "" would open, and then save, an empty deck over the file.
+    if (body.encoding !== "base64" || typeof body.content !== "string") {
+      throw new GitHubError(
+        413,
+        `${path} is over 1 MB, which GitHub will not hand to Curator`,
+      );
+    }
+    return { text: decodeBase64(body.content), sha: body.sha };
+  }
+
   async function sendJson<T>(method: string, path: string, body: unknown) {
     const r = await request(method, path, body);
     if (!r.ok) return fail(r);
@@ -346,24 +390,17 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       const r = await request("GET", `${contents(repo, path)}${at}`);
       if (r.status === 404) return null;
       if (!r.ok) return fail(r);
-      const body = (await r.json()) as {
-        type?: string;
-        encoding?: string;
-        content?: string;
-        sha: string;
-      };
-      if (Array.isArray(body) || body.type !== "file") {
-        throw new GitHubError(422, `${path} is not a file`);
-      }
-      // Anything but base64 is GitHub withholding the content, and reading
-      // it as "" would open, and then save, an empty deck over the file.
-      if (body.encoding !== "base64" || typeof body.content !== "string") {
-        throw new GitHubError(
-          413,
-          `${path} is over 1 MB, which GitHub will not hand to Curator`,
-        );
-      }
-      return { text: decodeBase64(body.content), sha: body.sha };
+      return fileOf(r, path);
+    },
+
+    async publicFile(repo, path) {
+      const r = await anonymous(contents(repo, path));
+      if (r.ok) return { kind: "file", ...(await fileOf(r, path)) };
+      if (r.status !== 404) return fail(r);
+      const there = await anonymous(repoPath(repo));
+      if (there.ok) return { kind: "no-file" };
+      if (there.status === 404) return { kind: "no-repo" };
+      return fail(there);
     },
 
     async history(repo, path, page = {}) {

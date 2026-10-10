@@ -9,9 +9,11 @@ import type {
   DeckFile,
   Finish,
   NewCard,
+  ParsedTrade,
   ParsedWanted,
 } from "./deck.gen";
 import {
+  read_trade,
   read_wanted,
   wanted_add,
   wanted_commit_message,
@@ -24,7 +26,10 @@ export type {
   DeckCopies,
   DeckFile,
   MissingCard,
+  ParsedTrade,
   ParsedWanted,
+  TradeOffer,
+  TradePull,
   WantedCard,
 } from "./deck.gen";
 
@@ -42,6 +47,29 @@ export function readWanted(
   return JSON.parse(
     read_wanted(text, collection, JSON.stringify(decks), JSON.stringify(names)),
   ) as ParsedWanted;
+}
+
+/**
+ * What another player's collection `theirs` holds of the wanted list `text`,
+ * read with `collection` and `decks` as `readWanted` reads them, and the
+ * place each copy to bring is in.
+ */
+export function readTrade(
+  text: string,
+  collection: string,
+  decks: readonly DeckFile[],
+  theirs: string,
+  names: Readonly<Record<string, string>> = {},
+): ParsedTrade {
+  return JSON.parse(
+    read_trade(
+      text,
+      collection,
+      JSON.stringify(decks),
+      theirs,
+      JSON.stringify(names),
+    ),
+  ) as ParsedTrade;
 }
 
 /** `qty` more of `card`, on the line already wanting it so or a new one. */

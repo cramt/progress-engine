@@ -15,6 +15,7 @@ pub mod diff;
 pub mod edit;
 pub mod export;
 pub mod identity;
+pub mod trade;
 pub mod wanted;
 
 use std::num::NonZeroU32;

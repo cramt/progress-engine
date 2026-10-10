@@ -30,6 +30,33 @@ Bulk = {}
 Lantern = { deck = "decks/lantern.deck.toml" }
 "Trade binder" = {}
 `,
+  "wanted.toml": `cards = [
+  { name = "The One Ring" },
+  { name = "Mana Crypt", qty = 2 },
+]
+`,
+};
+
+/** A friend's public Magic repo, to trade against at `/trade?with=rival`. */
+export const others: Record<string, Record<string, string>> = {
+  rival: {
+    VERSION: "1\n",
+    "collection.toml": `cards = [
+  { printing = "ltr/451", finish = "foil", at = "Trade binder" },  # The One Ring
+  { name = "Birds of Paradise", qty = 2, at = "Trade binder" },
+  { name = "Beast Within", qty = 3, at = "Bulk" },
+  { name = "Frantic Search", at = "Bulk" },
+  { name = "Boseiju, Who Endures", at = "Gitrog" },
+  { name = "Breeding Pool" },
+  { name = "Smothering Tithe", at = "Trade binder" },
+]
+
+[places]
+Bulk = {}
+"Trade binder" = {}
+Gitrog = { deck = "decks/gitrog.deck.toml" }
+`,
+  },
 };
 
 /** The index of the card named by printing `id` (`set/num`) in `text`. */

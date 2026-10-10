@@ -28,7 +28,7 @@ use chip_decklist::collection::{self, Collection};
 use chip_decklist::collection_import;
 use chip_decklist::deck::{self, CategoryType, Deck};
 use chip_decklist::diff::{self, Change, Diff};
-use chip_decklist::{changelog, edit, export, wanted};
+use chip_decklist::{changelog, edit, export, trade, wanted};
 use chip_scryfall::bulk::BulkCard;
 use facet::Facet;
 use preference::{Pin, Preference, RuleText};
@@ -1652,6 +1652,123 @@ pub fn wanted_commit_message(before: &str, after: &str, path: &str) -> Result<St
     wanted::commit_message_for_text(before, after, path).map_err(refused)
 }
 
+/// Copies of one of their collection's lines to bring to a trade.
+#[derive(Debug, Facet)]
+pub struct TradePull {
+    /// Their place the copies are in; absent for unsorted.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub at: Option<String>,
+    /// The place is one of their decks.
+    #[facet(rename = "inDeck")]
+    pub in_deck: bool,
+    pub card: CardRef,
+    pub finish: Finish,
+    pub qty: u32,
+}
+
+/// A card the wanted list is short of that their collection holds.
+#[derive(Debug, Facet)]
+pub struct TradeOffer {
+    pub name: String,
+    /// Copies still wanted, by hand and by the decks.
+    pub short: u32,
+    pub pulls: Vec<TradePull>,
+}
+
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum ParsedTrade {
+    Trade {
+        offers: Vec<TradeOffer>,
+        /// Decks left out of what the decks lack.
+        unread: Vec<Unread>,
+    },
+    Refused {
+        message: String,
+    },
+}
+
+pub fn read_trade_text(
+    wanted_text: &str,
+    collection: &str,
+    decks: &[DeckFile],
+    theirs: &str,
+    names: &HashMap<String, String>,
+) -> ParsedTrade {
+    let refuse = |whose: &str, e: &dyn std::fmt::Display| ParsedTrade::Refused {
+        message: format!("{whose}: {e}"),
+    };
+    let w = match wanted::Wanted::parse(wanted_text) {
+        Ok(w) => w,
+        Err(e) => return refuse("your wanted list", &e),
+    };
+    let mine = match Collection::parse(collection) {
+        Ok(c) => c,
+        Err(e) => return refuse("your collection", &e),
+    };
+    let their = match Collection::parse(theirs) {
+        Ok(c) => c,
+        Err(e) => return refuse("their collection", &e),
+    };
+    let mut unread = Vec::new();
+    let read: Vec<(String, Deck, String)> = decks
+        .iter()
+        .filter_map(|d| match Deck::parse(&d.text) {
+            Ok(deck) => Some((d.path.clone(), deck, d.text.clone())),
+            Err(e) => {
+                unread.push(Unread {
+                    path: d.path.clone(),
+                    message: e.to_string(),
+                });
+                None
+            }
+        })
+        .collect();
+    let offers = trade::offers(
+        (&w, wanted_text),
+        (&mine, collection),
+        &read,
+        (&their, theirs),
+        names,
+    )
+    .into_iter()
+    .map(|o| TradeOffer {
+        name: o.name,
+        short: o.short,
+        pulls: o
+            .pulls
+            .into_iter()
+            .map(|p| TradePull {
+                at: p.place,
+                in_deck: p.in_deck,
+                card: card_wire(p.card),
+                finish: finish_wire(p.finish),
+                qty: p.qty,
+            })
+            .collect(),
+    })
+    .collect();
+    ParsedTrade::Trade { offers, unread }
+}
+
+/// JSON of [`ParsedTrade`]: what the collection `theirs` holds of the wanted
+/// list `wanted`, read with `collection` and the decks (JSON of `DeckFile[]`)
+/// as [`read_wanted`] reads them.
+#[wasm_bindgen]
+pub fn read_trade(
+    wanted: &str,
+    collection: &str,
+    decks: &str,
+    theirs: &str,
+    names: Option<String>,
+) -> Result<String, JsError> {
+    let decks: Vec<DeckFile> = facet_json::from_str(decks)
+        .map_err(|e| refused(format!("decks are not DeckFile[]: {e}")))?;
+    let parsed = read_trade_text(wanted, collection, &decks, theirs, &read_names(names)?);
+    Ok(facet_json::to_string(&parsed).expect("ParsedTrade serialises"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1674,6 +1791,7 @@ mod tests {
         g.add_type::<CollectionImported>();
         g.add_type::<ParsedWanted>();
         g.add_type::<DeckFile>();
+        g.add_type::<ParsedTrade>();
         g.add_type::<Compared>();
         g.add_type::<Ranked>();
         g.add_type::<SettingsRules>();

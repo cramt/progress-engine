@@ -79,6 +79,8 @@ export interface MockOptions {
   files?: Record<string, string>;
   /** Commits before `files`, oldest first; a file's last one is its text. */
   history?: SeedCommit[];
+  /** Other players' public `mtg` repos, by login: each its files by path. */
+  others?: Record<string, Record<string, string>>;
   loggedIn?: boolean;
   /** Keeps the fake across reloads, e.g. `sessionStorage`. */
   storage?: Pick<Storage, "getItem" | "setItem"> | null;
@@ -216,6 +218,53 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
     return files;
   }
 
+  function fileGet(path: string, file: { text: string; sha: string }) {
+    const size = new TextEncoder().encode(file.text).length;
+    return json(200, {
+      type: "file",
+      name: path.slice(path.lastIndexOf("/") + 1),
+      path,
+      sha: file.sha,
+      size,
+      // Past 1 MB GitHub sends no content and says so in `encoding`.
+      ...(size > CONTENTS_LIMIT
+        ? { encoding: "none", content: "" }
+        : {
+            encoding: "base64",
+            // GitHub wraps its base64 at 60 columns.
+            content: encodeBase64(file.text).replace(/(.{60})/g, "$1\n"),
+          }),
+    });
+  }
+
+  const others = new Map(
+    Object.entries(options.others ?? {}).map(([login, files]) => [
+      login.toLowerCase(),
+      { login, files },
+    ]),
+  );
+
+  /**
+   * Another player's public repo, which answers a read with or without a
+   * token; `null` for anything else.
+   */
+  function publicGet(method: string, path: string): Response | null {
+    const m = path.match(/^\/repos\/([^/]+)\/([^/]+)(?:\/contents\/(.*))?$/);
+    if (method !== "GET" || !m || m[2]?.toLowerCase() !== MAGIC_REPO) {
+      return null;
+    }
+    const other = others.get((m[1] ?? "").toLowerCase());
+    if (!other) return null;
+    if (m[3] === undefined) {
+      return json(200, { name: MAGIC_REPO, owner: { login: other.login } });
+    }
+    const file = m[3].split("/").map(decodeURIComponent).join("/");
+    const text = other.files[file];
+    return text === undefined
+      ? notFound()
+      : fileGet(file, { text, sha: `${other.login}:${file}` });
+  }
+
   function contentsGet(path: string, ref: string | null): Response {
     const tree = ref === null ? (state.repo?.files ?? {}) : treeAt(ref);
     if (!tree) {
@@ -223,24 +272,7 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
     }
     const files = tree;
     const file = files[path];
-    if (file) {
-      const size = new TextEncoder().encode(file.text).length;
-      return json(200, {
-        type: "file",
-        name: path.slice(path.lastIndexOf("/") + 1),
-        path,
-        sha: file.sha,
-        size,
-        // Past 1 MB GitHub sends no content and says so in `encoding`.
-        ...(size > CONTENTS_LIMIT
-          ? { encoding: "none", content: "" }
-          : {
-              encoding: "base64",
-              // GitHub wraps its base64 at 60 columns.
-              content: encodeBase64(file.text).replace(/(.{60})/g, "$1\n"),
-            }),
-      });
-    }
+    if (file) return fileGet(path, file);
     const prefix = path === "" ? "" : `${path}/`;
     const entries = Object.entries(files)
       .filter(
@@ -428,6 +460,10 @@ export function createMockGitHub(options: MockOptions = {}): MockGitHub {
     auth: string | null,
     body: string | null,
   ) {
+    const open = publicGet(method, url.pathname);
+    if (open) return open;
+    // Asked without a token, a repo that is missing or private is not found.
+    if (auth === null && url.pathname.startsWith("/repos/")) return notFound();
     if (!state.token || auth !== `Bearer ${state.token}`) {
       return json(401, { message: "Bad credentials" });
     }

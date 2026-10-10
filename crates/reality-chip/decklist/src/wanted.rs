@@ -302,7 +302,7 @@ fn is_basic(key: &str) -> bool {
 
 /// A card's key across files: its front face in lower case, or `set/num`
 /// for a printing nobody has named.
-fn key_of(card: &CardRef, names: &Names) -> (String, String) {
+pub(crate) fn key_of(card: &CardRef, names: &Names) -> (String, String) {
     match name_of(card, names) {
         Some(name) => (name_key(name), name.to_string()),
         None => (card.to_string(), card.to_string()),
@@ -348,6 +348,20 @@ pub fn missing(
     names: &Names,
     copies: DeckCopies,
 ) -> Vec<Missing> {
+    missing_by_key(collection, collection_text, decks, names, copies)
+        .into_iter()
+        .map(|(_, m)| m)
+        .collect()
+}
+
+/// [`missing`], each card beside the key [`key_of`] gave it.
+pub(crate) fn missing_by_key(
+    collection: &Collection,
+    collection_text: &str,
+    decks: &[(String, Deck, String)],
+    names: &Names,
+    copies: DeckCopies,
+) -> Vec<(String, Missing)> {
     let mut all = edit::names_with_comments(
         collection_text,
         collection.cards.iter().map(|o| &o.card),
@@ -394,7 +408,7 @@ pub fn missing(
         *owned.entry(key_of(&o.card, &all).0).or_default() += o.qty.get();
     }
 
-    let mut out: Vec<Missing> = needs
+    let mut out: Vec<(String, Missing)> = needs
         .into_iter()
         .filter_map(|(key, need)| {
             let mut builds: Vec<(&str, u32)> = Vec::new();
@@ -410,15 +424,18 @@ pub fn missing(
                 DeckCopies::Shared => builds.iter().map(|(_, n)| *n).max().unwrap_or(0),
             };
             let have = owned.get(&key).copied().unwrap_or(0);
-            (wanted > have).then(|| Missing {
-                name: need.name,
-                missing: wanted - have,
-                owned: have,
-                decks: need.decks,
+            (wanted > have).then(|| {
+                let m = Missing {
+                    name: need.name,
+                    missing: wanted - have,
+                    owned: have,
+                    decks: need.decks,
+                };
+                (key, m)
             })
         })
         .collect();
-    out.sort_by(|a, b| {
+    out.sort_by(|(_, a), (_, b)| {
         a.name
             .to_lowercase()
             .cmp(&b.name.to_lowercase())

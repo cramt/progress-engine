@@ -190,17 +190,26 @@ export function WantedEditor({
           />
         }
         actions={
-          <select
-            aria-label="Currency"
-            value={currency}
-            onChange={(e) => onCurrency(e.target.value as Currency)}
-          >
-            {CURRENCIES.map((c) => (
-              <option key={c} value={c}>
-                {c.toUpperCase()}
-              </option>
-            ))}
-          </select>
+          <>
+            <Link
+              to="/trade"
+              className="button"
+              title="What another player's collection holds of this list"
+            >
+              Trade with…
+            </Link>
+            <select
+              aria-label="Currency"
+              value={currency}
+              onChange={(e) => onCurrency(e.target.value as Currency)}
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {c.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </>
         }
         status={<SaveStatus save={save} path={path} />}
         history={

@@ -250,6 +250,53 @@ export type DeckChange =
   | { kind: "cover"; text: string }
   | { kind: "description"; text: string };
 
+export type ParsedTrade =
+  | { kind: "trade"; offers: TradeOffer[]; unread: Unread[] }
+  | { kind: "refused"; message: string };
+
+/**
+ * A deck file the derived list could not read, and why.
+ */
+export interface Unread {
+  path: string;
+  message: string;
+}
+
+/**
+ * A card the wanted list is short of that their collection holds.
+ */
+export interface TradeOffer {
+  name: string;
+  /**
+   * Copies still wanted, by hand and by the decks.
+   */
+  short: number;
+  pulls: TradePull[];
+}
+
+/**
+ * Copies of one of their collection's lines to bring to a trade.
+ */
+export interface TradePull {
+  /**
+   * Their place the copies are in; absent for unsorted.
+   */
+  at?: string;
+  /**
+   * The place is one of their decks.
+   */
+  inDeck: boolean;
+  card: CardRef;
+  finish: Finish;
+  qty: number;
+}
+
+export type Finish = "nonfoil" | "foil" | "etched";
+
+export type CardRef =
+  | { kind: "printing"; set: string; num: string }
+  | { kind: "name"; name: string };
+
 /**
  * A deck file as the page loaded it.
  */
@@ -261,14 +308,6 @@ export interface DeckFile {
 export type ParsedWanted =
   | { kind: "wanted"; deckCopies: DeckCopies; cards: WantedCard[]; missing: MissingCard[]; collection?: string; unread: Unread[] }
   | { kind: "refused"; message: string };
-
-/**
- * A deck file the derived list could not read, and why.
- */
-export interface Unread {
-  path: string;
-  message: string;
-}
 
 /**
  * A card the decks hold more copies of than the collection does.
@@ -308,12 +347,6 @@ export interface WantedCard {
    */
   owned: number;
 }
-
-export type Finish = "nonfoil" | "foil" | "etched";
-
-export type CardRef =
-  | { kind: "printing"; set: string; num: string }
-  | { kind: "name"; name: string };
 
 /**
  * How the decks count toward the wanted list (ADR-0034).
