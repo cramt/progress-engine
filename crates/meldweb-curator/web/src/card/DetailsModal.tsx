@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { formatPrice, loadCurrency } from "../collection/prices";
 import {
   type Card,
   type CardRef,
@@ -12,6 +11,7 @@ import {
   setCardPrinting,
   setCardQty,
 } from "../deck";
+import { formatPrice, loadCurrency } from "../prices";
 import {
   type CardPrices,
   type Currency,
