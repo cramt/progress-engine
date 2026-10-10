@@ -23,7 +23,8 @@ criteria and the two engines do not apply to it.
 box, a deck), edited at `/collection` and saved the same way (ADR-0023); `/wanted` is
 `wanted.toml`, the cards wanted by hand, above what the decks hold that the
 collection lacks, worked out in Rust (ADR-0034); `/trade?with=<login>` is what
-another player's public `mtg` repo holds of that list, by their places
+another player's public `mtg` repo holds of that list or of one deck
+(`&deck=`), by their places
 (ADR-0035). It is three
 parts: `meldweb-wasm`, which is `chip-decklist` compiled for the browser; `web/`, a
 Vite + React + TanStack Router app in the root pnpm workspace; and `worker/`, the

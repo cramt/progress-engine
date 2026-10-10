@@ -52,13 +52,15 @@ export function readWanted(
 /**
  * What another player's collection `theirs` holds of the wanted list `text`,
  * read with `collection` and `decks` as `readWanted` reads them, and the
- * place each copy to bring is in.
+ * place each copy to bring is in. With `deck`, the path of one of `decks`,
+ * only what that deck lacks is wanted, built or not.
  */
 export function readTrade(
   text: string,
   collection: string,
   decks: readonly DeckFile[],
   theirs: string,
+  deck?: string,
   names: Readonly<Record<string, string>> = {},
 ): ParsedTrade {
   return JSON.parse(
@@ -67,6 +69,7 @@ export function readTrade(
       collection,
       JSON.stringify(decks),
       theirs,
+      deck,
       JSON.stringify(names),
     ),
   ) as ParsedTrade;

@@ -35,7 +35,7 @@ The Magic repo's `wanted.toml` and the page `/wanted` ([ADR-0034](../../docs/adr
 _Avoid_: wishlist, shopping list, buy list
 
 **Trade**:
-The page `/trade?with=<login>` ([ADR-0035](../../docs/adr/0035-a-trade-reads-another-players-public-collection-against-the-wanted-list.md)): the copies another player's collection holds of what the wanted list is short of, by their place, read from their public Magic repo without the login. Copies sleeved in their decks come last. It goes one way, their collection against the user's wants.
+The page `/trade?with=<login>` ([ADR-0035](../../docs/adr/0035-a-trade-reads-another-players-public-collection-against-the-wanted-list.md)): the copies another player's collection holds of what the wanted list is short of, by their place, read from their public Magic repo without the login. Copies sleeved in their decks come last. It goes one way, their collection against the user's wants. With `&deck=<path>` it is for one deck alone: what that deck lacks against the whole collection, built or not.
 _Avoid_: match, swap
 
 **Collection import**:

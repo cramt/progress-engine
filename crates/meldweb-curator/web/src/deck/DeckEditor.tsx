@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { bestPrinting } from "../card/bestPrinting";
 import { useSettings } from "../card/preference";
@@ -382,6 +382,14 @@ export function DeckEditor({
               printings={printings}
               onRefusal={setRefusal}
             />
+            <Link
+              to="/trade"
+              search={{ deck: path }}
+              className="button"
+              title="What another player's collection holds of what this deck lacks"
+            >
+              Trade for…
+            </Link>
             <ReplaceArchidekt
               name={parsed.name ?? deckStem(path)}
               format={parsed.format}

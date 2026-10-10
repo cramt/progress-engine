@@ -8,13 +8,30 @@ import "../collection/collection.css";
 import "../wanted/wanted.css";
 import "./trade.css";
 
-export type TradeData =
-  | { kind: "ask"; me: string }
-  | { kind: "not-a-login"; me: string; text: string }
+export interface TradeData {
+  me: string;
+  /** Every deck, to trade for one of them alone. */
+  decks: readonly DeckChoice[];
+  /** The deck traded for, by path; absent for the whole wanted list. */
+  deck: string | undefined;
+  result: TradeResult;
+}
+
+export interface DeckChoice {
+  path: string;
+  name: string;
+}
+
+export type TradeResult =
+  | { kind: "ask" }
+  | { kind: "not-a-login"; text: string }
   /** GitHub shows no public `mtg` for them, which a private one also reads as. */
-  | { kind: "no-repo"; me: string; who: Login }
-  | { kind: "no-file"; me: string; who: Login }
-  | { kind: "trade"; me: string; who: Login; trade: ParsedTrade };
+  | { kind: "no-repo"; who: Login }
+  | { kind: "no-file"; who: Login }
+  | { kind: "trade"; who: Login; trade: ParsedTrade };
+
+/** The last player traded with, offered again on the next visit. */
+const LAST_WITH = "meldweb-trade-with";
 
 /** One of their places and the copies to take out of it. */
 interface Pile {
@@ -61,7 +78,12 @@ function copyOf(pull: TradePull): string {
 }
 
 /** The list as text to send them, a heading a place. */
-export function tradeText(me: string, who: string, offers: TradeOffer[]) {
+export function tradeText(
+  me: string,
+  who: string,
+  offers: TradeOffer[],
+  forDeck?: string,
+) {
   const blocks = piles(offers).map((p) =>
     [
       pileName(p),
@@ -71,32 +93,43 @@ export function tradeText(me: string, who: string, offers: TradeOffer[]) {
       }),
     ].join("\n"),
   );
-  return `Cards of ${who}'s that ${me} wants:\n\n${blocks.join("\n\n")}\n`;
+  const wants = forDeck ? `wants for ${forDeck}` : "wants";
+  return `Cards of ${who}'s that ${me} ${wants}:\n\n${blocks.join("\n\n")}\n`;
 }
 
 export function TradeView({ data }: { data: TradeData }) {
   const navigate = useNavigate();
-  const [login, setLogin] = useState(
-    data.kind === "ask"
-      ? ""
-      : data.kind === "not-a-login"
-        ? data.text
-        : data.who,
+  const { result } = data;
+  const [login, setLogin] = useState(() =>
+    result.kind === "ask"
+      ? (localStorage.getItem(LAST_WITH) ?? "")
+      : result.kind === "not-a-login"
+        ? result.text
+        : result.who,
   );
   const offers =
-    data.kind === "trade" && data.trade.kind === "trade"
-      ? data.trade.offers
+    result.kind === "trade" && result.trade.kind === "trade"
+      ? result.trade.offers
       : [];
+  const deckName = data.decks.find((d) => d.path === data.deck)?.name;
+  const go = (deck: string | undefined) => {
+    const who = login.trim();
+    if (who) localStorage.setItem(LAST_WITH, who);
+    void navigate({
+      to: "/trade",
+      search: { ...(who ? { with: who } : {}), ...(deck ? { deck } : {}) },
+    });
+  };
   return (
     <main>
       <Toolbar
         name="Trade"
         actions={
-          data.kind === "trade" &&
+          result.kind === "trade" &&
           offers.length > 0 && (
             <CopyText
-              text={tradeText(data.me, data.who, offers)}
-              who={data.who}
+              text={tradeText(data.me, result.who, offers, deckName)}
+              who={result.who}
             />
           )
         }
@@ -105,7 +138,7 @@ export function TradeView({ data }: { data: TradeData }) {
         className="trade-ask"
         onSubmit={(e) => {
           e.preventDefault();
-          void navigate({ to: "/trade", search: { with: login.trim() } });
+          go(data.deck);
         }}
       >
         <label>
@@ -120,20 +153,43 @@ export function TradeView({ data }: { data: TradeData }) {
             spellCheck={false}
           />
         </label>
+        <label>
+          For
+          <select
+            aria-label="What to trade for"
+            value={data.deck ?? ""}
+            onChange={(e) => go(e.target.value || undefined)}
+          >
+            <option value="">The whole wanted list</option>
+            {data.decks.map((d) => (
+              <option key={d.path} value={d.path}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <button type="submit" className="button primary">
           Compare
         </button>
         <span className="muted">
-          Their Curator repo has to be public. Your wanted list is checked
-          against their collection.
+          {deckName
+            ? `What ${deckName} lacks of your collection is checked against theirs.`
+            : "Your wanted list is checked against their collection."}{" "}
+          Their Curator repo has to be public.
         </span>
       </form>
-      <Result data={data} offers={offers} />
+      <Result result={result} offers={offers} />
     </main>
   );
 }
 
-function Result({ data, offers }: { data: TradeData; offers: TradeOffer[] }) {
+function Result({
+  result: data,
+  offers,
+}: {
+  result: TradeResult;
+  offers: TradeOffer[];
+}) {
   switch (data.kind) {
     case "ask":
       return null;

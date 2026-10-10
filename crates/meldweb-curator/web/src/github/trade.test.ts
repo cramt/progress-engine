@@ -75,6 +75,24 @@ describe("a trade", () => {
     );
   });
 
+  it("for one deck wants only what it lacks, and says so when copied", () => {
+    const decks = [
+      { path: "decks/a.deck.toml", text: `cards = [{ name = "Sol Ring" }]\n` },
+      { path: "decks/b.deck.toml", text: `cards = [{ name = "Lotus" }]\n` },
+    ];
+    const trade = readTrade(
+      `cards = [{ name = "The One Ring" }]`,
+      "",
+      decks,
+      THEIRS,
+      "decks/a.deck.toml",
+    );
+    if (trade.kind !== "trade") throw new Error(JSON.stringify(trade));
+    expect(tradeText("me", "rival", trade.offers, "Brew")).toBe(
+      "Cards of rival's that me wants for Brew:\n\nTrade binder\n1 Sol Ring\n",
+    );
+  });
+
   it("refuses their collection when it cannot be read, and says whose", () => {
     expect(readTrade("", "", [], "cards = 3")).toMatchObject({
       kind: "refused",
