@@ -15,6 +15,7 @@
 
 mod answer;
 mod casting;
+mod copy;
 mod effects;
 mod landdrop;
 mod lands;

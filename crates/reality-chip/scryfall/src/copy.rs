@@ -1067,6 +1067,16 @@ impl ScryfallCopy {
         true
     }
 
+    /// How many cards it holds: a card object less its printings, so a card
+    /// whose printings disagree on its legality is more than one.
+    pub fn card_count(&self) -> usize {
+        self.kept.len()
+    }
+
+    pub fn printing_count(&self) -> usize {
+        self.printings.len()
+    }
+
     pub fn updated_at(&self) -> &str {
         &self.updated_at
     }
