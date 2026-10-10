@@ -956,15 +956,82 @@ pub fn is_permanent(card: &Card) -> bool {
 }
 
 /// Whether a reanimation may put this card onto the battlefield out of the
-/// graveyard (#140): a land, as the land drop reads one, or a permanent card
-/// with no land on a face it is not played as.
+/// graveyard (#140): a card whose front face is a land, or a permanent card
+/// with no land on any face.
 ///
-/// A query matches any face, so `t:land` takes in Search for Azcanta by its
-/// back, and in the graveyard it is an enchantment card (CR 712.8a). Nothing
-/// here can tell which face a query matched, so such a card never comes back:
-/// a floor, and it keeps Lumra to the land cards it says. An instant or a
-/// sorcery never comes back either, because nothing returns one to the
-/// battlefield.
+/// Not [`is_land`]: a modal card's land back is a choice made when it is
+/// played from hand, and in the graveyard a double-faced card has only its
+/// front face (CR 712.8a). Bala Ged Recovery there is a sorcery card, so Lumra
+/// leaves it, and Kazandu Mammoth is a creature card, which Animate Dead would
+/// return as a creature that makes no mana and fires no landfall. A query
+/// matches any face, so `t:land` takes in Search for Azcanta by its back too.
+/// Nothing here can tell which face a query matched, so a card with a land on
+/// a face it would not return as never comes back: a floor, and it keeps Lumra
+/// to the land cards it says. An instant or a sorcery never comes back either,
+/// because nothing returns one to the battlefield.
 pub fn returnable(card: &Card) -> bool {
-    is_land(card) || (is_permanent(card) && !names(&card.type_line, "land"))
+    names(front(card), "land") || (is_permanent(card) && !names(&card.type_line, "land"))
+}
+
+#[cfg(test)]
+mod tests {
+    use chip_scryfall::index::Face;
+
+    use super::*;
+
+    fn card(layout: &str, faces: &[&str]) -> Card {
+        Card {
+            layout: layout.into(),
+            type_line: faces.join(" // "),
+            faces: if faces.len() > 1 {
+                faces
+                    .iter()
+                    .map(|t| Face {
+                        type_line: (*t).into(),
+                        ..Face::default()
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            },
+            ..Card::default()
+        }
+    }
+
+    #[test]
+    fn a_reanimation_reads_a_double_faced_card_by_its_front_face() {
+        // A modal card's land back is the land drop's choice, not the
+        // graveyard's (CR 712.8a): it returns neither as a land nor, with a
+        // land on a face, as anything else.
+        for (what, layout, faces, returns) in [
+            ("a basic", "normal", &["Basic Land — Forest"][..], true),
+            ("a pathway", "modal_dfc", &["Land", "Land"][..], true),
+            ("a creature", "normal", &["Creature — Human"][..], true),
+            (
+                "Bala Ged Recovery",
+                "modal_dfc",
+                &["Sorcery", "Land"][..],
+                false,
+            ),
+            (
+                "Kazandu Mammoth",
+                "modal_dfc",
+                &["Creature — Elephant", "Land"][..],
+                false,
+            ),
+            (
+                "Search for Azcanta",
+                "transform",
+                &["Legendary Enchantment", "Legendary Land"][..],
+                false,
+            ),
+            ("an instant", "normal", &["Instant"][..], false),
+        ] {
+            assert_eq!(returnable(&card(layout, faces)), returns, "{what}");
+        }
+        assert!(
+            is_land(&card("modal_dfc", &["Sorcery", "Land"])),
+            "the land drop still plays the modal back"
+        );
+    }
 }

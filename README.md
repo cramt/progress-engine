@@ -1928,9 +1928,11 @@ Artificer: `reanimate = "t:human t:creature"`, `"all"`.
 - **Your graveyard, and permanent cards.** Only what a mill, a discard, a
   surveil or a fetch put there: Animate Dead and Reanimate reach every
   graveyard, and no opponent's is modelled, a floor. An instant or a sorcery
-  never comes back, and nor does a card with a land on a face it is not
-  played as: `t:land` matches Search for Azcanta by its back, and in the
-  graveyard it is an enchantment card.
+  never comes back, and nor does a card with a land on a face it would not
+  return as. In the graveyard a double-faced card is its front face: `t:land`
+  matches Search for Azcanta by its back, an enchantment card there, and
+  Bala Ged Recovery by its modal land back, a sorcery card there. A card
+  returns as a land only when its front face is one.
 - **It resolves after the cast's fetch, draw and mill, before its discard**,
   so Lumra returns the lands it has just milled.
 - **What comes back was not cast.** A `cast` clause does not count it; it makes
