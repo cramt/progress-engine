@@ -49,6 +49,11 @@ reimplements what a decklist is: parsing, `commander` and `outside` come from
 Rust, and `web/src/deck.gen.ts` is generated from the wire types
 (`UPDATE_TS=1 cargo test -p meldweb-wasm`), with a test that fails when it is stale.
 
+**Vivisurgeon's Insight** (`crates/vivisurgeons-insight/`, binary `insight`) is a
+spike, not a product: a grammar that reads Oracle text into a typed ability
+tree, and counts how much of Magic it covers. Its README holds the numbers and
+the verdict. Nothing else in the workspace depends on it.
+
 Gauntlet stands on **Reality Chip** (`crates/reality-chip/`), the shared core:
 `chip-scryfall` (card index, query syntax), `chip-decklist` (Archidekt parsing)
 and `chip-stats` (the hypergeometric walk, which knows nothing about Magic and

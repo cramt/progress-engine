@@ -6,6 +6,7 @@ members = [
     "crates/ichormoon-gauntlet/*",
     "crates/reality-chip/*",
     "crates/meldweb-curator/wasm",
+    "crates/vivisurgeons-insight",
 ]
 # Gitaxian Probe is a workspace of its own (crates/gitaxian-probe/Cargo.toml), so
 # a plain `cargo` here resolves neither V8 nor the build-time download of

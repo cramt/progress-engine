@@ -1,0 +1,15 @@
+[package]
+name = "vivisurgeons-insight"
+description = "Oracle text in, a typed ability tree out, and a count of how much of Magic that covers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "insight"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+serde_json.workspace = true

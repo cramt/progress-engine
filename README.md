@@ -3691,6 +3691,7 @@ crates/ichormoon-gauntlet/{cli,criteria,toml,sim}    this tool
 crates/reality-chip/{scryfall,decklist,stats}        the shared family core
 crates/meldweb-curator/{wasm,web,worker,infra}       the deck editor: chip-decklist in wasm, a TypeScript app, its worker, and the OpenTofu for its domain
 crates/gitaxian-probe/                               card scanning; a cargo workspace of its own
+crates/vivisurgeons-insight/                         a spike: Oracle text into a typed ability tree, and how much of Magic it covers
 ```
 
 `reality-chip` is the part a sibling tool depends on, kept in its own directory
@@ -3707,6 +3708,7 @@ See [NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md).
 | `gauntlet-sim` | Sampling, validated against `chip-stats` | Shuffling. |
 | `gauntlet-cli` | The `gauntlet` binary, and the library behind it that prepares a run in-process | All of the above. |
 | `meldweb-wasm` | `chip-decklist` and `chip_scryfall::copy` for Meldweb Curator's browser editor, with the TypeScript types generated from its wire types, and `meldweb.toml`'s printing preference over `chip-scryfall` and its deck order, read, checked and written. The copy's wasm functions hold the worker's copy and hand it the default printing preference | Decklist text, the printings of one card it is handed to rank, and the one copy of Scryfall the worker holds. |
+| `vivisurgeons-insight` | A spike. Oracle text read into a typed ability tree, and `insight coverage`, which counts how much of Magic parses with no hole. See [its README](crates/vivisurgeons-insight/README.md). | Oracle text and Scryfall's keyword and type catalogs. Nothing in the workspace, and nothing depends on it. |
 
 The seam worth knowing about is between `chip-scryfall` and `chip-decklist`: a query
 can filter on `cat:"Exile Outlet"`, which is decklist data, not card data. Rather

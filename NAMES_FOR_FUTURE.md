@@ -33,6 +33,7 @@ the narrow tag has come up empty, which it has not yet.
 | **Gitaxian Probe** | Card scanning. Point a camera at cards, learn what they are. `crates/gitaxian-probe/`. | yes |
 | **Experimental Augury** | The Monte Carlo cross-checking oracle, if `gauntlet-sim` is ever extracted. | yes |
 | **Meldweb Curator** | The git-backed deck editor: a decklist in a repo is the deck, and saving is a commit. `crates/meldweb-curator/`. | yes |
+| **Vivisurgeon's Insight** | A spike: Oracle text read into a typed ability tree, and a count of how much of Magic that covers. `crates/vivisurgeons-insight/`, binary `insight`. | yes |
 
 A gauntlet is a set of trials you put something through, which is what a
 criteria file is. The card's own text is about planeswalkers and proliferate and
@@ -47,6 +48,12 @@ Meldweb Curator was banked for collection tracking and went to the deck editor
 instead, because it rests on both. A curator arranges a collection, and the
 card puts a card from your graveyard back on top of your library: restoring a
 cut card from history, which is what keeping the deck in git is for.
+
+Vivisurgeon's Insight was banked with no role and went to the Oracle text
+parser. Like Ichormoon Gauntlet, it rests on the word. A vivisurgeon cuts
+something living open to see how it works, which is what a parser does to
+card text. The card's own text, *Draw three cards. Proliferate.*, maps to
+nothing, but it was a fine first test case.
 
 ### Why Reality Chip is in here without the tag
 
@@ -87,7 +94,6 @@ From the tag, with the role each would fit. None of these are commitments.
 | **Serum Visions** | Anything whose pitch is seeing ahead rather than passing trials |
 | **Mindsplice Apparatus** | — |
 | **Glistener Seer** | — |
-| **Vivisurgeon's Insight** | — |
 | **Transplant Theorist** | — |
 | **Font of Progress** | Held back deliberately: too close to the family name to spend on one tool |
 
@@ -96,6 +102,7 @@ From the tag, with the role each would fit. None of these are commitments.
 Checked 2026-09-21. Free: `ichormoon-gauntlet`, `reality-chip`, `gitaxian-probe`,
 `experimental-augury`, `serum-visions`, `meldweb`, `malcator`, `unctus`,
 `tekuthal`, `glistener`, `phyrexia`, `metatect`, `ichormoon`.
+`vivisurgeons-insight` was checked free on 2026-10-11 and is now spent.
 
 Taken as bare words, so those need the full card name: `gauntlet`, `ingester`,
 `curator`, `seer`, `augury`, `chip`, `praetor`, `quicksilver`, `toxic`.
@@ -115,6 +122,7 @@ crates/ichormoon-gauntlet/{cli,criteria,toml,sim}    packages gauntlet-*
 crates/reality-chip/{scryfall,decklist,stats}        packages chip-*
 crates/meldweb-curator/{wasm}                        packages meldweb-*, beside web/, a pnpm package
 crates/gitaxian-probe/{engine,assets,web-check,bindgen}  packages gitaxian-probe-*
+crates/vivisurgeons-insight                         package vivisurgeons-insight, one crate while it is a spike
 ```
 
 The first two shorten the directory to its distinctive word. Gitaxian Probe does
