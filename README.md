@@ -1889,7 +1889,7 @@ The Cid deck in [#140](https://github.com/cramt/progress-engine/issues/140)
 bins its Cids and then brings them back. **`reanimate`** on a cast moves cards
 from your graveyard to the battlefield, so `zone = "battlefield"` counts what
 came back and `zone = "graveyard"` no longer does
-([ADR-0030](docs/adr/0030-a-reanimation-is-the-one-move-from-the-graveyard-to-the-battlefield.md)).
+([ADR-0032](docs/adr/0032-a-reanimation-is-the-one-move-from-the-graveyard-to-the-battlefield.md)).
 Which cards and how many is printed on the card, so both are required; which
 of them, where the card returns a number, is yours:
 
@@ -1989,7 +1989,7 @@ prefer = ['name:"Animate Dead"', 'name:"Cid, Timeless Artificer"']
 ```
 
 - **The `[casting]` entry naming the card cycles it, and casts none of it**
-  ([ADR-0031](docs/adr/0031-a-cycle-is-the-line-paying-to-discard-and-draw.md)).
+  ([ADR-0033](docs/adr/0033-a-cycle-is-the-line-paying-to-discard-and-draw.md)).
   Its effect says what the entry means, as an activation's does: there is no
   second list and no new entry syntax, and ordering cycling against casting is
   where the entry sits in `prefer`. Above, Animate Dead is cast whenever the

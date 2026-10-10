@@ -278,7 +278,7 @@ mill = 1
 # Lumra, Bellow of the Woods: "When Lumra enters, mill four cards. Then return
 # all land cards from your graveyard to the battlefield tapped." Nobody
 # chooses: every land in the graveyard comes back, the four's and any an
-# earlier mill put there: a reanimation of every land card (ADR-0030), the one
+# earlier mill put there: a reanimation of every land card (ADR-0032), the one
 # way onto the battlefield from the graveyard. They took no land drop, come
 # back tapped and pay from the next turn where the drop is declared (ADR-0025).
 #

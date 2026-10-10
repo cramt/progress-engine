@@ -139,7 +139,7 @@ Paying for an ability of a permanent the line already put onto the battlefield, 
 _Avoid_: ability (for the payment), activated effect
 
 **Cycle**:
-Paying a card's cycling cost from hand, out of the turn's pool: the card goes to the graveyard as part of the cost and the pilot draws. An effect with `on = "cycle"`, a required `cost` and a required `draw`, and nothing else. The `[casting]` entry naming the card cycles every copy it reaches and casts none, so a `cast` clause counting one is refused ([ADR-0031](../../docs/adr/0031-a-cycle-is-the-line-paying-to-discard-and-draw.md)). Landcycling is refused.
+Paying a card's cycling cost from hand, out of the turn's pool: the card goes to the graveyard as part of the cost and the pilot draws. An effect with `on = "cycle"`, a required `cost` and a required `draw`, and nothing else. The `[casting]` entry naming the card cycles every copy it reaches and casts none, so a `cast` clause counting one is refused ([ADR-0033](../../docs/adr/0033-a-cycle-is-the-line-paying-to-discard-and-draw.md)). Landcycling is refused.
 _Avoid_: discard (for the cost half), cantrip (a cast that draws)
 
 **Route**:
@@ -179,7 +179,7 @@ The effects that ship with the tool and load before a file's own. They declare w
 _Avoid_: stdlib, prelude, standard library
 
 **Trigger**:
-What fires an effect: a land drop, a cast, an activation or a cycle the line pays for (ADR-0019, ADR-0031), an attack, a landfall, or an upkeep. An **attack** fires each turn after the one the line cast its creature on, after that turn's line, on the stated assumption that nobody blocks or removes it. A **landfall** fires once for each land that enters while its permanent is on the battlefield. Either may only mill (ADR-0017 §1).
+What fires an effect: a land drop, a cast, an activation or a cycle the line pays for (ADR-0019, ADR-0033), an attack, a landfall, or an upkeep. An **attack** fires each turn after the one the line cast its creature on, after that turn's line, on the stated assumption that nobody blocks or removes it. A **landfall** fires once for each land that enters while its permanent is on the battlefield. Either may only mill (ADR-0017 §1).
 
 **Look**:
 Examining cards off the top of the library. A look that routes nothing changes nothing.
@@ -227,7 +227,7 @@ Cards moved from the top of the library to the graveyard because the card says s
 Where a card's own text sends the cards it moves, such as the graveyard for a mill or for what Malevolent Rumble does not keep, or the battlefield for the lands Lumra returns. Stated by the effect library. Set against a **chosen destination**, which is the pilot's and is declared by the file.
 
 **Reanimation**:
-Cards moved from your graveyard to the battlefield by a cast: Animate Dead, Immortal Servitude, Lumra's lands. Which cards and how many is the card's, so the effect library or the file states it with `reanimate` and `reanimate_count`; which of them, where the card returns a number, is the pilot's, with `reanimate_prefer`. What comes back was not cast. The line casts one that mills nothing only while the graveyard holds a card it would return ([ADR-0030](../../docs/adr/0030-a-reanimation-is-the-one-move-from-the-graveyard-to-the-battlefield.md)).
+Cards moved from your graveyard to the battlefield by a cast: Animate Dead, Immortal Servitude, Lumra's lands. Which cards and how many is the card's, so the effect library or the file states it with `reanimate` and `reanimate_count`; which of them, where the card returns a number, is the pilot's, with `reanimate_prefer`. What comes back was not cast. The line casts one that mills nothing only while the graveyard holds a card it would return ([ADR-0032](../../docs/adr/0032-a-reanimation-is-the-one-move-from-the-graveyard-to-the-battlefield.md)).
 _Avoid_: return, recursion (recursion is to hand), returns (the old key)
 
 **Discard**:

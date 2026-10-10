@@ -24,9 +24,9 @@ before any of it was built (now built, and tests), hands 58 to 60 the
 attack and landfall triggers ADR-0017 named (built, and tests), hand 63
 the upkeep trigger after them (built, and a test), and hand 64 the
 reanimation of
-[ADR-0030](docs/adr/0030-a-reanimation-is-the-one-move-from-the-graveyard-to-the-battlefield.md)
+[ADR-0032](docs/adr/0032-a-reanimation-is-the-one-move-from-the-graveyard-to-the-battlefield.md)
 (built, and tests), and hand 65 the cycling of
-[ADR-0031](docs/adr/0031-a-cycle-is-the-line-paying-to-discard-and-draw.md)
+[ADR-0033](docs/adr/0033-a-cycle-is-the-line-paying-to-discard-and-draw.md)
 (built, and tests). That is the point: they pin the semantics before the
 code exists, so that building
 the feature cannot quietly redefine the question — and hands 1, 2 and 3 are the
@@ -1534,7 +1534,7 @@ prefer = ['name:"Cid, Timeless Artificer"']
 [#136](https://github.com/cramt/progress-engine/issues/136). Cid's text is
 *Cycling {W}{U}*: pay it, discard Cid from hand, draw a card (CR 702.29a).
 The `[casting]` entry naming a card whose effect is `on = "cycle"` cycles it
-rather than casting it ([ADR-0031](docs/adr/0031-a-cycle-is-the-line-paying-to-discard-and-draw.md)).
+rather than casting it ([ADR-0033](docs/adr/0033-a-cycle-is-the-line-paying-to-discard-and-draw.md)).
 By turn 2 on the play the pilot has seen eight cards and made two land drops,
 and one Plains and one Island pay one cycle. A Cid is cycled by then unless
 the eight hold none, C(10,8)/C(13,8) = 45/1287, or hold lands of one colour
