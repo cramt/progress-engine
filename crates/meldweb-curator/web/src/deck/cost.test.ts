@@ -2,15 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { PrintingOption } from "../card/prints";
 import type { Card } from "../deck";
 import type { PriceBook } from "../prices";
-import {
-  atCheapest,
-  bands,
-  breakdown,
-  cheapest,
-  DEFAULT_BANDS,
-  loadBands,
-  tierOf,
-} from "./cost";
+import { atCheapest, breakdown, cheapest } from "./cost";
 
 let index = 0;
 const card = (name: string, extra: Partial<Card> = {}): Card => ({
@@ -35,36 +27,10 @@ const prices: PriceBook = new Map([
 ]);
 
 describe("a deck's cost", () => {
-  it("splits on one copy's price, the proxy line inclusive", () => {
-    expect(tierOf(10, DEFAULT_BANDS)).toBe("proxy");
-    expect(tierOf(9.99, DEFAULT_BANDS)).toBe("buy");
-    expect(tierOf(1, DEFAULT_BANDS)).toBe("buy");
-    expect(tierOf(0.99, DEFAULT_BANDS)).toBe("ask");
-  });
-
-  it("refuses bands where asking around would start above proxying", () => {
-    expect(bands(5, 2)).toBeNull();
-    expect(bands(-1, 2)).toBeNull();
-    expect(bands(Number.NaN, 2)).toBeNull();
-    expect(bands(2, 2)).toEqual({ ask: 2, proxy: 2 });
-  });
-
-  it("remembers the bands, and falls back to the defaults on nonsense", () => {
-    const stored = (v: string | null) => ({ getItem: () => v });
-    expect(loadBands(stored('{"ask":0.5,"proxy":20}'))).toEqual({
-      ask: 0.5,
-      proxy: 20,
-    });
-    expect(loadBands(stored('{"ask":20,"proxy":0.5}'))).toEqual(DEFAULT_BANDS);
-    expect(loadBands(stored("{"))).toEqual(DEFAULT_BANDS);
-    expect(loadBands(stored(null))).toEqual(DEFAULT_BANDS);
-  });
-
-  it("tiers each line by a copy, dearest first, and totals every copy", () => {
+  it("lists each line dearest first by one copy, and totals every copy", () => {
     const b = breakdown(
       [
         card("Sol Ring"),
-        // Four cheap copies are still cheap copies to ask around for.
         card("Lightning Bolt", { qty: 4 }),
         card("The One Ring", { finish: "foil" }),
         card("Jeweled Lotus"),
@@ -72,21 +38,17 @@ describe("a deck's cost", () => {
       ],
       prices,
       "eur",
-      DEFAULT_BANDS,
       nameOf,
     );
-    expect(b.tiers.proxy.lines.map((l) => nameOf(l.card))).toEqual([
-      "The One Ring",
-      "Jeweled Lotus",
-    ]);
-    // A foil is priced as one.
-    expect(b.tiers.proxy.total).toBe(100);
-    expect(b.tiers.buy.lines.map((l) => nameOf(l.card))).toEqual(["Sol Ring"]);
-    expect(b.tiers.ask.lines.map((l) => [nameOf(l.card), l.total])).toEqual([
-      ["Lightning Bolt", 2],
+    expect(b.lines.map((l) => [nameOf(l.card), l.each])).toEqual([
+      // A foil is priced as one.
+      ["The One Ring", 90],
+      ["Jeweled Lotus", 10],
+      ["Sol Ring", 1.5],
+      // Four copies still sort by what one costs.
+      ["Lightning Bolt", 0.5],
       ["Arcane Signet", 0.4],
     ]);
-    expect(b.tiers.ask.qty).toBe(5);
     expect(b.total).toBeCloseTo(103.9);
   });
 
@@ -99,7 +61,6 @@ describe("a deck's cost", () => {
       ],
       prices,
       "eur",
-      DEFAULT_BANDS,
       nameOf,
     );
     expect(b.outside).toBe(2);
@@ -129,13 +90,7 @@ describe("a card's cheapest printing", () => {
     const ring = card("The One Ring");
     const signet = card("Arcane Signet");
     const lotus = card("Jeweled Lotus", { finish: "etched" });
-    const b = breakdown(
-      [ring, signet, lotus],
-      prices,
-      "eur",
-      DEFAULT_BANDS,
-      nameOf,
-    );
+    const b = breakdown([ring, signet, lotus], prices, "eur", nameOf);
     const cheap = printing("ltr", { eur: { nonfoil: 45 }, usd: {} });
     const dear = printing("sld", { eur: { nonfoil: 80 }, usd: {} });
     const lotusPrint = printing("cmr", { eur: { nonfoil: 9 }, usd: {} });

@@ -1,4 +1,4 @@
-/* The cost view: the deck in price tiers, each line beside its cheapest printing. */
+/* The cost view: the deck dearest first, each line beside its cheapest printing. */
 .deck-views {
   margin-bottom: 16px;
 }
@@ -28,31 +28,8 @@
   font-weight: 650;
 }
 
-.cost-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
+.cost-currency {
   margin-left: auto;
-}
-
-.cost-bands {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 12px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.cost-bands label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.cost-bands input {
-  width: 72px;
 }
 
 .cost-note {
@@ -61,51 +38,15 @@
   font-size: 12.5px;
 }
 
-.cost-tier {
-  margin-bottom: 20px;
-  overflow: hidden;
+/* No overflow clip, so a hovered card's picture can hang outside it. */
+.cost-table {
+  width: 100%;
   border: 1px solid var(--border);
-  border-left-width: 4px;
   border-radius: var(--r-lg);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
-}
-
-/* The tier says what to do, so its edge says how much it matters. */
-.cost-proxy {
-  border-left-color: var(--danger);
-}
-
-.cost-buy {
-  border-left-color: var(--accent);
-}
-
-.cost-ask {
-  border-left-color: var(--success);
-}
-
-.cost-tier-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.cost-tier-header h2 {
-  font-size: 15px;
-  font-weight: 650;
-}
-
-.cost-tier-total {
-  margin-left: auto;
-  font-weight: 600;
-}
-
-.cost-table {
-  width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 13.5px;
 }
 
@@ -191,4 +132,32 @@
 
 .cost-cheapest-here {
   font-size: 12.5px;
+}
+
+.cost-hover {
+  position: relative;
+}
+
+.cost-preview {
+  display: none;
+  position: absolute;
+  top: -40px;
+  left: 45%;
+  z-index: 5;
+  width: 220px;
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+}
+
+/* The cheapest printing is the last column, so its picture opens leftward. */
+td:last-child > .cost-preview {
+  right: 100%;
+  left: auto;
+}
+
+@media (hover: hover) and (min-width: 641px) {
+  .cost-hover:hover .cost-preview {
+    display: block;
+  }
 }
