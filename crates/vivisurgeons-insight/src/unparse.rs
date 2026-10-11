@@ -702,13 +702,6 @@ mod syn {
         alt(o, vec![of("their"), of("that player's")]);
     }
 
-    /// "its graveyard", "its controller's graveyard": the grammar reads a
-    /// bare "its" before a zone as its controller's (SEMANTICS.md, open),
-    /// so the long form names the same tree.
-    pub fn its_controllers(o: &mut Out) {
-        any_of(o, &["its", "its controller's"]);
-    }
-
     /// "if that player does", "if the player does": the player an earlier
     /// clause offered a choice, by its name or by anaphor.
     pub fn anaphor_player(o: &mut Out, said: Out, pronoun: Out) {
@@ -934,6 +927,14 @@ mod syn {
 
     pub fn of_library(o: &mut Out, said: Out) {
         alt(o, vec![said, Out::default()]);
+    }
+
+    /// "its graveyard", "its owner's graveyard": an object's hand, library
+    /// or graveyard is only ever its owner's (CR 400.3), so a bare "its"
+    /// before one names the owner's. "Its controller's graveyard" is
+    /// another player's for a stolen permanent, and its own tree.
+    pub fn its_owners(o: &mut Out) {
+        any_of(o, &["its owner's", "their owner's", "its"]);
     }
 
     /// "in addition to its other types" and "… its other land types" after
@@ -1815,11 +1816,7 @@ fn whose(o: &mut Out, p: &Player) {
     match p {
         Player::You => o.w("your"),
         Player::That => syn::their(o),
-        Player::ControllerOf(x) if is_bare_antecedent(x) => syn::its_controllers(o),
-        Player::OwnerOf(x) if is_bare_antecedent(x) => {
-            syn::its(o);
-            o.w("owner's");
-        }
+        Player::OwnerOf(x) if is_bare_antecedent(x) => syn::its_owners(o),
         p => {
             player(o, p);
             o.tok(Tok::Possessive);

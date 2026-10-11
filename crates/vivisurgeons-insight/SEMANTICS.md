@@ -30,7 +30,8 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "up to one target player or planeswalker" | an object whose kind is Player, not a separate player alternative | open |
 | "up to one other target creature or spell" | `Quant::OtherTarget`: "other" holds of every kind the filter lists | settled: said once before "target", it qualifies the whole noun phrase |
 | "players can't …", "each player can't …" | `Player::Each` | settled: a rule said of every player, one at a time or together |
-| "its controller's graveyard" | `ControllerOf(it)`, the tree a bare "its" before a zone already reads | open: a bare "its graveyard" may mean its owner's (CR 400.3) |
+| "its graveyard", "its library", "its hand" | `OwnerOf(it)`, the same tree as "its owner's graveyard" | settled: CR 400.3, an object's hand, library or graveyard is only ever its owner's |
+| "its controller's graveyard" | `ControllerOf(it)`, apart from "its graveyard" | settled: the player controlling it, who for a stolen permanent or a spell another player controls is not its owner |
 | "a creature with the greatest power" | `Quant::One`, the same as "the creature with the greatest power" | settled: one object with that value; where several tie, the chooser picks |
 | "a graveyard has twenty or more cards in it" | `ZoneHasCards { AGraveyard, … }`: some one graveyard | settled: "a" is any one, not all graveyards counted together |
 | "it's the second creature spell you cast this turn" | `NthSpellThisTurn`, counting this spell among them | settled |

@@ -71,10 +71,13 @@ pub(super) fn whose(p: &mut P) -> Option<Player> {
     alt!(p;
         |p| p.word("your").map(|_| Player::You),
         |p| p.word("their").map(|_| Player::That),
-        // "its controller's graveyard", which a bare "its" is read as too.
+        // "its controller's graveyard": the player controlling it, who for a
+        // stolen permanent or a spell is not its owner.
         |p| { p.words("its controller")?; p.tok(&Tok::Possessive)?; Some(Player::ControllerOf(Box::new(antecedent()))) },
-        |p| p.word("its").map(|_| Player::ControllerOf(Box::new(antecedent()))),
         |p| { p.words("its owner")?; p.tok(&Tok::Possessive)?; Some(Player::OwnerOf(Box::new(antecedent()))) },
+        // A bare "its graveyard", "its library": an object's hand, library
+        // or graveyard is only ever its owner's (CR 400.3).
+        |p| p.word("its").map(|_| Player::OwnerOf(Box::new(antecedent()))),
         |p| { p.words("their owner")?; p.tok(&Tok::Possessive)?; Some(Player::OwnerOf(Box::new(antecedent()))) },
         |p| { let pl = player(p)?; p.tok(&Tok::Possessive)?; Some(pl) },
     )

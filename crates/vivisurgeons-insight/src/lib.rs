@@ -743,6 +743,42 @@ mod tests {
     }
 
     #[test]
+    fn its_graveyard_is_its_owners_and_its_controllers_is_another_zone() {
+        let zone_of = |text: &str| {
+            let a = read("Some Loch", "Instant", text);
+            let Ability::Spell(e) = &a[0] else {
+                panic!("{a:?}")
+            };
+            let Effect::Counter { what, .. } = &e[0] else {
+                panic!("{e:?}")
+            };
+            let [Post::With(Compare {
+                value: Amount::CountOf(cards),
+                ..
+            })] = &what.filter.posts[..]
+            else {
+                panic!("{what:?}")
+            };
+            cards.filter.posts.clone()
+        };
+        let it = Box::new(Objects {
+            quant: Quant::Antecedent,
+            filter: Filter::default(),
+        });
+        // CR 400.3: an object's graveyard is only ever its owner's.
+        assert_eq!(
+            zone_of("Counter target spell with mana value less than or equal to the number of cards in its graveyard."),
+            vec![Post::In(Zone::Graveyard(Player::OwnerOf(it.clone())))]
+        );
+        // A spell or a stolen permanent may be controlled by a player who
+        // does not own it, so its controller's graveyard is another zone.
+        assert_eq!(
+            zone_of("Counter target spell with mana value less than or equal to the number of cards in its controller's graveyard."),
+            vec![Post::In(Zone::Graveyard(Player::ControllerOf(it)))]
+        );
+    }
+
+    #[test]
     fn a_passive_token_doubler_names_no_creator() {
         let a = read(
             "Some Dominus",
