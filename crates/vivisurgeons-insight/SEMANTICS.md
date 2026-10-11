@@ -150,6 +150,14 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "Activate only if this land entered this turn or if you control a basic land" | `Or([…, …])` | settled: "if" said again before the second changes nothing |
 | "if there's a Lesson card in your graveyard" | `ThereAre([a Lesson card in your graveyard])` | settled: one object, as "there is an instant card and a sorcery card" is two |
 | "as long as you have an enduring story" | `EnduringStory(You)` | settled: CR 702.195b, a designation storied gives |
+| "As an additional cost to cast this spell, behold a Goblin and exile it", "… behold a Merfolk or pay {2}" | `Cost::ActionOn { "behold", a Goblin }`, then `Exile(it)`; `OneOf` for "or" | settled: CR 701.4a, reveal one from hand or choose one you control; "it" is the beheld object |
+| "If a Dragon was beheld" | `Beheld(a Dragon)` | settled: CR 701.4b, the quality as it was beheld |
+| "{1}{U}, Remove a counter from this creature:", "remove up to three counters from target creature" | `Cost::RemoveAnyCounters`, `Effect::RemoveAnyCounters`, apart from a named kind | settled: any kinds, as the payer or player picks |
+| "When this creature dies, put its counters on target creature you control" | `PutThoseCounters { All counters on it, … }` | settled: every counter it had, kind by kind; "it" is the dying creature, as elsewhere in a trigger's effect |
+| "If its mana value was 2 or less", "if its power was 3 or greater" | `Past(AmountIs { … })` | settled: as it was when the event happened, as "if it was a creature" is (CR 603.10a for one that left) |
+| "Two target creatures each get +2/+2", "They each get +2/+2" | `Modify`, the "each" dropped | settled: "each" after a plural subject restates what a bonus gives each of them, as "each of" before it does |
+| "This creature must be blocked if able" | `Restrict { MustBeBlocked }` | settled: a requirement on the declaration of blockers, obeyed as far as the restrictions allow (CR 509.1c, which names the kind "must block") |
+| "Spend this mana only to activate abilities" | `SpendUse::ActivateAny` | settled: abilities of any object, apart from "abilities of creatures" |
 | "your speed" | `Amount::Speed(You)`, 0 for a player with none | settled: CR 702.179f |
 ## Durations
 

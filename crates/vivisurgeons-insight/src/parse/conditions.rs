@@ -314,9 +314,12 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         // "X is 10 or more", "its power is greater than each other creature's power".
         |p| {
             let n = measure(p)?;
-            p.word("is")?;
+            let past = p.one_of(&["is", "was"])? == "was";
             let (op, value) = comparison(p)?;
-            Some(Condition::AmountIs { n, op, value })
+            let c = Condition::AmountIs { n, op, value };
+            // "if its mana value was 2 or less": as it was when the event
+            // happened, as "if it was a creature" is.
+            Some(if past { Condition::Past(Box::new(c)) } else { c })
         },
         |p| p.words("you're not the starting player").map(|_| Condition::Not(Box::new(Condition::YouAreStartingPlayer))),
         |p| {
@@ -496,6 +499,8 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                     p.words("left the battlefield this turn")?;
                     Some(Condition::DidThisTurn(Box::new(Event::Leaves { what: what.clone(), from: Zone::Battlefield })))
                 },
+                // "if a Dragon was beheld": by this spell's cost (CR 701.4b).
+                |p| p.words("was beheld").map(|_| Condition::Beheld(what.clone())),
                 // "a spell was warped this turn": cast for its warp cost (CR
                 // 702.185c).
                 |p| {

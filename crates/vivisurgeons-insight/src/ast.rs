@@ -214,6 +214,17 @@ pub enum Cost {
         who: Player,
         n: Amount,
     },
+    /// "Remove a counter from this creature": of any kind, as the payer
+    /// picks.
+    RemoveAnyCounters {
+        n: Amount,
+        from: Objects,
+    },
+    /// "behold a Goblin": a keyword action done to objects, as a cost.
+    ActionOn {
+        name: String,
+        what: Objects,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -253,6 +264,8 @@ pub enum Limit {
 pub enum SpendUse {
     Cast(Objects),
     ActivateAbilityOf(Objects),
+    /// "to activate abilities": of any object.
+    ActivateAny,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1512,6 +1525,12 @@ pub enum Effect {
     /// "this creature becomes prepared": while it is, its controller may
     /// cast a copy of its inset spell (CR 722.3).
     BecomesPrepared(Objects),
+    /// "remove up to three counters from target creature": of any kinds,
+    /// as the player picks.
+    RemoveAnyCounters {
+        n: Amount,
+        from: Objects,
+    },
 }
 
 /// How much of the mana an ability made a spell must be paid with.
@@ -1831,6 +1850,9 @@ pub enum Restriction {
     CantBeTurnedFaceUp,
     /// "can't have counters put on it".
     CantHaveCountersPut,
+    /// "must be blocked if able": a requirement on the declaration of
+    /// blockers (CR 509.1c).
+    MustBeBlocked,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -2562,6 +2584,9 @@ pub enum Condition {
     /// "you have an enduring story": a designation storied gives (CR
     /// 702.195b).
     EnduringStory(Player),
+    /// "if a Dragon was beheld": the beheld object had the quality when it
+    /// was beheld (CR 701.4b).
+    Beheld(Objects),
     /// "this spell was cast using teamwork": its caster chose to pay that
     /// keyword's cost (CR 702.194b).
     CastUsing {

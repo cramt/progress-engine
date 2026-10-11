@@ -330,6 +330,7 @@ pub(super) fn restriction_bare(p: &mut P) -> Option<Restriction> {
         |p| p.words("can't enter the battlefield").map(|_| Restriction::CantEnterBattlefield),
         |p| p.words("can't be turned face up").map(|_| Restriction::CantBeTurnedFaceUp),
         |p| p.words("can't have counters put on it").map(|_| Restriction::CantHaveCountersPut),
+        |p| p.words("must be blocked if able").map(|_| Restriction::MustBeBlocked),
         |p| p.one_of(&["attacks each combat if able", "attack each combat if able"]).map(|_| Restriction::AttacksEachCombat),
         |p| p.one_of(&["attacks this turn if able", "attack this turn if able"]).map(|_| Restriction::AttacksThisTurn),
         |p| p.one_of(&["blocks each combat if able", "block each combat if able"]).map(|_| Restriction::BlocksEachCombat),
@@ -1255,6 +1256,9 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             // "permanents you control also gain indestructible": "also" adds
             // to what came before, as a later effect does anyway.
             p.attempt(|p| p.word("also"));
+            // "One or two target creatures each get +2/+2": "each" restates
+            // what a bonus to them gives each.
+            p.attempt(|p| p.word("each"));
             let (pt, gains) = alt!(p;
                 |p| {
                     p.verb("get")?;
@@ -1451,6 +1455,35 @@ fn effect_more(p: &mut P) -> Option<Effect> {
             Some(Effect::PutCountersEach { counters, on })
         },
         |p| { p.words("remove all counters from")?; objects(p).map(Effect::RemoveAllCounters) },
+        // "remove up to three counters from target creature", "remove a
+        // counter from her": of any kinds.
+        |p| {
+            p.word("remove")?;
+            let n = alt!(p;
+                |p| p.words("any number of").map(|_| Amount::AnyAmount),
+                |p| { p.words("up to")?; amount(p).map(|n| Amount::UpTo(Box::new(n))) },
+                amount_a,
+            )?;
+            p.one_of(&["counters", "counter"])?;
+            p.word("from")?;
+            let from = objects(p)?;
+            Some(Effect::RemoveAnyCounters { n, from })
+        },
+        // "put its counters on target creature you control": every counter
+        // the object had, kind by kind.
+        |p| {
+            p.word("put")?;
+            p.word("its")?;
+            let kind = p.attempt(|p| {
+                let k = counter_kind(p)?;
+                (p.peek_word() == Some("counters")).then_some(k)
+            });
+            p.word("counters")?;
+            p.word("on")?;
+            let on = objects(p)?;
+            let filter = Filter { kind: Some(Noun::Counter(kind)), posts: vec![Post::On(Box::new(antecedent()))], ..Filter::default() };
+            Some(Effect::PutThoseCounters { those: Objects { quant: Quant::All, filter }, on })
+        },
         |p| { let who = player(p)?; p.verb("lose")?; p.words("all counters")?; Some(Effect::LosesAllCounters(who)) },
         // "The next time a source of your choice would deal damage to you
         // this turn, prevent that damage."

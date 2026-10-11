@@ -345,6 +345,12 @@ fn spend_uses(p: &mut P) -> Option<Vec<SpendUse>> {
                 p.one_of(&["activate an ability of", "activate abilities of"])?;
                 objects(p).map(SpendUse::ActivateAbilityOf)
             },
+            // "Spend this mana only to activate abilities": of anything.
+            |p| {
+                p.attempt(|p| p.word("to"));
+                p.one_of(&["activate abilities", "activate an ability"])?;
+                Some(SpendUse::ActivateAny)
+            },
         )
     };
     let mut v = vec![one(p)?];

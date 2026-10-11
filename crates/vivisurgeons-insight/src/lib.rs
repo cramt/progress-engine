@@ -1498,3 +1498,55 @@ mod round_nine_c {
             .contains("DidThisTurn(Casts { who: You, what: Objects { quant: Another"));
     }
 }
+
+#[cfg(test)]
+mod round_nine_d {
+    use super::*;
+    use ast::*;
+
+    fn read(type_line: &str, text: &str) -> Vec<Ability> {
+        let face = Face {
+            name: "Some Card",
+            type_line,
+            text,
+        };
+        read_face(&face, "Some Card")
+            .into_iter()
+            .map(|l| match l.parsed {
+                Ok(a) => a,
+                Err(b) => panic!("{}: broke at {:?} after {:?}", l.text, b.at, b.read),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn behold_is_a_cost_and_beheld_a_condition_on_it() {
+        let a = read(
+            "Instant",
+            "As an additional cost to cast this spell, behold a Goblin or pay {2}.\nDraw a card. If a Goblin was beheld, draw two cards instead.",
+        );
+        assert!(matches!(&a[0], Ability::Static(s) if matches!(&s[0],
+            Static::AdditionalCost(c) if matches!(&c[..], [Cost::OneOf(v)] if matches!(&v[0], Cost::ActionOn { name, .. } if name == "behold")))));
+        assert!(format!("{:?}", a[1]).contains("Beheld("));
+    }
+
+    #[test]
+    fn a_mana_value_said_in_the_past_is_the_one_it_had() {
+        let a = read(
+            "Instant",
+            "Destroy target artifact. If its mana value was 2 or less, draw a card.",
+        );
+        assert!(format!("{a:?}").contains("If { cond: Past(AmountIs { n: ManaValueOf("));
+    }
+
+    #[test]
+    fn its_counters_are_every_counter_on_it_and_a_counter_is_of_any_kind() {
+        let a = read(
+            "Creature — Insect",
+            "When this creature dies, put its counters on target creature you control.\n{1}{U}, Remove a counter from this creature: Draw a card.",
+        );
+        let s = format!("{a:?}");
+        assert!(s.contains("PutThoseCounters { those: Objects { quant: All, filter: Filter { alts: [], kind: Some(Counter(None))"), "{s}");
+        assert!(s.contains("RemoveAnyCounters { n: N(1)"), "{s}");
+    }
+}

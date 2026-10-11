@@ -439,6 +439,11 @@ mod syn {
         any_of(o, &["abilities of", "an ability of"]);
     }
 
+    /// The same with nothing after it: "to activate abilities".
+    pub fn an_ability(o: &mut Out) {
+        any_of(o, &["abilities", "an ability"]);
+    }
+
     pub fn new_targets(o: &mut Out) {
         any_of(o, &["new targets", "a new target"]);
     }
@@ -802,6 +807,13 @@ mod syn {
     /// effect adds to the one before it, which a later effect does anyway.
     pub fn also(o: &mut Out) {
         alt(o, vec![Out::default(), of("also")]);
+    }
+
+    /// "One or two target creatures each get +2/+2": "each" after a plural
+    /// subject says distributively what a bonus to the objects gives each
+    /// of them anyway, as "each of" before it does.
+    pub fn each_after(o: &mut Out) {
+        alt(o, vec![Out::default(), of("each")]);
     }
 
     /// "with the same name as one another": the objects are compared with
@@ -1364,7 +1376,7 @@ fn spend_uses(o: &mut Out, uses: &[SpendUse]) {
         // "to" said once for both.
         let verb = match u {
             SpendUse::Cast(_) => "cast",
-            SpendUse::ActivateAbilityOf(_) => "activate",
+            SpendUse::ActivateAbilityOf(_) | SpendUse::ActivateAny => "activate",
         };
         let with_to = out(|o| o.w(&format!("to {verb}")));
         if i > 0 {
@@ -1378,6 +1390,7 @@ fn spend_uses(o: &mut Out, uses: &[SpendUse]) {
                 syn::an_ability_of(o);
                 objects(o, x);
             }
+            SpendUse::ActivateAny => syn::an_ability(o),
         }
     }
 }
@@ -1733,6 +1746,17 @@ fn cost(o: &mut Out, c: &Cost) {
         Cost::PlayerGainsLife { who, n } => {
             subj(o, who, "gain", &Cx::default());
             life(o, n);
+        }
+        Cost::RemoveAnyCounters { n, from } => {
+            o.w("remove");
+            amount_a(o, n);
+            o.noun("counter", amount_num(n));
+            o.w("from");
+            objects(o, from);
+        }
+        Cost::ActionOn { name, what } => {
+            o.w(name);
+            objects(o, what);
         }
     }
 }
@@ -4058,6 +4082,7 @@ fn restriction(o: &mut Out, r: &Restriction, n: Num) {
         Restriction::CantEnterBattlefield => o.w("can't enter the battlefield"),
         Restriction::CantBeTurnedFaceUp => o.w("can't be turned face up"),
         Restriction::CantHaveCountersPut => o.w("can't have counters put on it"),
+        Restriction::MustBeBlocked => o.w("must be blocked if able"),
     }
 }
 
@@ -4207,6 +4232,16 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w("on");
             objects(o, on);
         }
+        Effect::RemoveAnyCounters { n, from } => {
+            o.w("remove");
+            match n {
+                Amount::AnyAmount => o.w("any number of"),
+                n => amount_a(o, n),
+            }
+            o.noun("counter", amount_num(n));
+            o.w("from");
+            objects(o, from);
+        }
         Effect::RemoveCounters { n, kind, from } => {
             o.w("remove");
             amount_a(o, n);
@@ -4228,6 +4263,9 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             objects(o, what);
             let n = obj_num(what);
             syn::also(o);
+            if n != Num::Sg {
+                syn::each_after(o);
+            }
             let get = |o: &mut Out, pt: &Pt| {
                 o.verb("get", n);
                 syn::additional(o);
@@ -5076,6 +5114,28 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             objects(o, from);
             o.w("onto");
             objects(o, to);
+        }
+        // "put its counters on target creature you control".
+        Effect::PutThoseCounters {
+            those:
+                Objects {
+                    quant: Quant::All,
+                    filter:
+                        Filter {
+                            kind: Some(Noun::Counter(kind)),
+                            posts,
+                            ..
+                        },
+                },
+            on,
+        } if matches!(&posts[..], [Post::On(x)] if is_bare_antecedent(x)) => {
+            o.w("put");
+            syn::its(o);
+            if let Some(k) = kind {
+                counter_kind(o, k);
+            }
+            o.w("counters on");
+            objects(o, on);
         }
         Effect::PutThoseCounters { those, on } => {
             o.w("put");
@@ -7429,6 +7489,10 @@ fn condition(o: &mut Out, c: &Condition) {
             o.verb("have", player_num(p));
             o.w("the city's blessing");
         }
+        Condition::Beheld(x) => {
+            objects(o, x);
+            o.w("was beheld");
+        }
         Condition::EnduringStory(p) => {
             player(o, p);
             o.verb("have", player_num(p));
@@ -7675,6 +7739,12 @@ fn past(o: &mut Out, c: &Condition) {
         Condition::YouControl(x) => {
             o.w("you controlled");
             objects(o, x);
+        }
+        // "if its mana value was 2 or less".
+        Condition::AmountIs { n, op, value } => {
+            measure(o, n);
+            o.w("was");
+            comparison(o, *op, value);
         }
         c => condition(o, c),
     }

@@ -69,6 +69,18 @@ pub(super) fn cost(p: &mut P) -> Option<Cost> {
             (n > 0).then_some(Cost::Energy(n))
         },
         |p| { p.word("exile")?; objects(p).map(Cost::Exile) },
+        // "Remove a counter from this creature": of any kind, the payer's pick.
+        |p| {
+            p.word("remove")?;
+            let n = amount_a(p)?;
+            p.one_of(&["counters", "counter"])?;
+            p.word("from")?;
+            let from = objects(p)?;
+            Some(Cost::RemoveAnyCounters { n, from })
+        },
+        // "behold a Goblin": reveal one from hand or choose one you control
+        // (CR 701.4a).
+        |p| { p.word("behold")?; objects(p).map(|what| Cost::ActionOn { name: "behold".into(), what }) },
         |p| {
             p.word("remove")?;
             let n = amount_a(p)?;
