@@ -315,6 +315,12 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                 return Some(vec![Effect::Instead { cond, then: vec![e] }]);
             }
             let e = suffixed(p, e);
+            // "Destroy that creature if it has mana value 4 or less instead if
+            // a permanent left the battlefield …": the conditioned effect,
+            // replacing the one before it.
+            if let Some(cond) = p.attempt(|p| { p.words("instead if")?; condition(p) }) {
+                return Some(vec![Effect::Instead { cond, then: vec![e] }]);
+            }
             // "pay 4 life or put the card on top of your library": a choice of
             // two verbs, each said in full.
             let mut v = vec![e];

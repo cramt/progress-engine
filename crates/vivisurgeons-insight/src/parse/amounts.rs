@@ -118,7 +118,14 @@ fn measure_bare(p: &mut P) -> Option<Amount> {
             p.words("this game")?;
             Some(Amount::TimesCastFrom { what: Box::new(what), zone })
         },
+        |p| { p.words("the number of basic land types among")?; objects(p).map(|o| Amount::NumberOfBasicLandTypes(Box::new(o))) },
+        |p| { p.words("the number of colors of mana spent to cast")?; objects(p).map(|o| Amount::ColorsOfManaSpentToCast(Box::new(o))) },
         |p| { p.words("the number of")?; objects(p).map(|o| Amount::CountOf(Box::new(o))) },
+        // "twice the number of creatures you control".
+        |p| { p.word("twice")?; measure_bare(p).map(|m| Amount::Twice(Box::new(m))) },
+        // "the mana value of the exiled card".
+        |p| { p.word("the")?; let s = stat(p)?; p.word("of")?; let o = objects(p)?; Some(stat_of(s, o)) },
+        |p| { let who = whose(p)?; p.words("life total")?; Some(Amount::LifeTotal(who)) },
         |p| { p.one_of(&["its", "their"])?; p.words("base power")?; Some(Amount::BasePowerOf(Box::new(antecedent()))) },
         |p| { p.one_of(&["its", "their"])?; let s = stat(p)?; Some(stat_of(s, antecedent())) },
         |p| { let o = objects(p)?; p.tok(&Tok::Possessive)?; let s = stat(p)?; Some(stat_of(s, o)) },

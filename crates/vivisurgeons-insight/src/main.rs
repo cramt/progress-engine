@@ -310,7 +310,22 @@ fn card(args: &[String]) -> Result<()> {
     for l in &c.lines {
         println!("{}", l.text);
         match &l.parsed {
-            Ok(a) => println!("  {a:#?}"),
+            Ok(a) => {
+                println!("  {a:#?}");
+                // The round trip beside the tree, so a rule and its rendering
+                // are written against the same card.
+                let canon = vivisurgeons_insight::unparse::ability(a).text();
+                match l.round_trip() {
+                    Some(Ok(())) => println!("  round-trips: {canon}"),
+                    Some(Err(d)) => println!(
+                        "  DOES NOT round-trip at token {}: wanted {}, found {:?}\n  renders {canon}",
+                        d.at,
+                        d.want.join(" | "),
+                        d.found
+                    ),
+                    None => {}
+                }
+            }
             Err(b) => println!("  BROKE at {:?} after: {}", b.at, b.read),
         }
     }

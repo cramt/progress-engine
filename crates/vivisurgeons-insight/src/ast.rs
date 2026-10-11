@@ -239,6 +239,12 @@ pub enum Amount {
     /// "that damage": the damage an event the trigger or replacement names
     /// dealt, where "the damage dealt this way" is this ability's own.
     ThatDamage,
+    /// "your life total".
+    LifeTotal(Player),
+    /// "the number of basic land types among lands you control": domain.
+    NumberOfBasicLandTypes(Box<Objects>),
+    /// "the number of colors of mana spent to cast this spell": converge.
+    ColorsOfManaSpentToCast(Box<Objects>),
 }
 
 /// A set of colors a rule draws from, named by what decides it.
@@ -306,6 +312,10 @@ pub enum Player {
         who: Box<Player>,
         did: Box<Event>,
     },
+    /// "up to one target player": a target the controller may leave unchosen.
+    UpToOneTarget,
+    /// "any number of target players' graveyards".
+    AnyNumberOfTarget,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -339,6 +349,12 @@ pub enum Quant {
     /// choose the same object as the first (CR 115.3), where "another
     /// target" may not.
     SecondTarget,
+    /// "up to one other target creature": targets, none of them this object,
+    /// whatever kinds the filter lists.
+    OtherTarget {
+        n: Amount,
+        up_to: bool,
+    },
     /// The card itself.
     SelfRef,
     /// "it", "them", "that creature", "those cards": an earlier noun.
@@ -542,6 +558,15 @@ pub enum Post {
     NotIn(Zone),
     /// "lands with different names".
     DifferentNames,
+    /// "with power or toughness 1 or less": either one meets the bound.
+    PowerOrToughness {
+        op: Op,
+        value: Amount,
+    },
+    /// "creatures that died this turn".
+    DiedThisTurn,
+    /// "a nonland card from it": from the hand or pile an earlier verb named.
+    From(Box<Objects>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -617,6 +642,9 @@ pub enum Duration {
     /// "for as long as they remain exiled", "for as long as it has a vow
     /// counter on it".
     ForAsLongAs(Box<Condition>),
+    /// "until the end of your next turn": through your next turn, where
+    /// "until your next turn" ends as it begins.
+    UntilEndOfYourNextTurn,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1122,6 +1150,15 @@ pub enum Effect {
         types: Vec<Adj>,
         keeps: Keeps,
     },
+    /// "return it to the battlefield with a -1/-1 counter on it": the moved
+    /// permanent is given them as it enters (CR 122.6), not after.
+    EntersWith {
+        effect: Box<Effect>,
+        n: Amount,
+        kind: String,
+    },
+    /// "Damage can't be prevented this turn."
+    DamageCantBePrevented(Duration),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1221,6 +1258,13 @@ pub enum PlayerRule {
     CantActivateAbilitiesOf(Objects),
     /// "can't draw more than one card each turn".
     CantDrawMoreThanEachTurn(u32),
+    /// "can't cast more than one noncreature spell each turn".
+    CantCastMoreThanEachTurn {
+        n: u32,
+        what: Filter,
+    },
+    CantGainLife,
+    CantSearchLibraries,
 }
 
 /// Who does a thing a replacement effect watches for.
@@ -1243,6 +1287,9 @@ pub enum Recipient {
     Or(Vec<Recipient>),
     /// "the player or planeswalker it's attacking".
     AttackedBy(Objects),
+    /// "~ deals 4 damage instead": the recipient of the effect this one
+    /// replaces, named there and not again.
+    Same,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1349,6 +1396,9 @@ pub enum Restriction {
     CantAttackAnyOf(Vec<Recipient>),
     /// "attack a player other than you if able".
     AttacksPlayerOtherThan(Player),
+    /// "can't be activated unless they're mana abilities": the rule on a
+    /// set of activated abilities that spares mana abilities.
+    NoNonManaActivatedAbilities,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1525,6 +1575,12 @@ pub enum Event {
     },
     /// "it wasn't cast this way": cast, by whoever.
     WasCast(Objects),
+    /// "a permanent left the battlefield under your control": while that
+    /// player controlled it.
+    LeftUnderControlOf {
+        what: Objects,
+        who: Player,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1748,6 +1804,16 @@ pub enum Static {
     /// "You may activate abilities of creatures you control as though those
     /// creatures had haste."
     ActivateAsThoughHaste(Objects),
+    /// "Each nonland permanent you control is all colors."
+    IsAllColors(Objects),
+    /// "This spell costs {1} less to cast for each card type among cards in
+    /// your graveyard": a change per a count that is not of objects.
+    CostChangePer {
+        what: Objects,
+        by: Mana,
+        less: bool,
+        per: Amount,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1868,6 +1934,49 @@ pub enum Condition {
     /// "it was a creature", "it had counters on it": the condition as it
     /// held when the event happened, not as it holds now.
     Past(Box<Condition>),
+    /// "an opponent has 10 or less life".
+    PlayerHasAtMost {
+        who: Player,
+        at_most: u32,
+        what: Holding,
+    },
+    /// "it has mana value 2 or less".
+    Has {
+        what: Objects,
+        cmp: Compare,
+    },
+    /// "{G}{G} was spent to cast it".
+    ManaSpent {
+        mana: Mana,
+        what: Objects,
+    },
+    /// "you have the city's blessing".
+    CitysBlessing(Player),
+    /// "a graveyard has twenty or more cards in it": some one zone of that
+    /// kind, not all of them together.
+    ZoneHasCards {
+        zone: Zone,
+        op: Op,
+        n: u32,
+    },
+    /// "it's the second creature spell you cast this turn".
+    NthSpellThisTurn {
+        what: Objects,
+        n: u32,
+        spell: Filter,
+        who: Player,
+    },
+    /// "it targets a blue spell".
+    Targets {
+        what: Objects,
+        target: Objects,
+    },
+    /// "an opponent has more life than you".
+    HasMore {
+        who: Player,
+        what: Holding,
+        than: Player,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]

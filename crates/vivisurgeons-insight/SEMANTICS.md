@@ -28,6 +28,12 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "that player", "they", "the player" | `Player::That` | settled: one back-reference |
 | "each opponent", "your opponents" | `EachOpponent` | settled: CR 102.2–102.3, the same players |
 | "up to one target player or planeswalker" | an object whose kind is Player, not a separate player alternative | open |
+| "up to one other target creature or spell" | `Quant::OtherTarget`: "other" holds of every kind the filter lists | settled: said once before "target", it qualifies the whole noun phrase |
+| "players can't …", "each player can't …" | `Player::Each` | settled: a rule said of every player, one at a time or together |
+| "its controller's graveyard" | `ControllerOf(it)`, the tree a bare "its" before a zone already reads | open: a bare "its graveyard" may mean its owner's (CR 400.3) |
+| "a creature with the greatest power" | `Quant::One`, the same as "the creature with the greatest power" | settled: one object with that value; where several tie, the chooser picks |
+| "a graveyard has twenty or more cards in it" | `ZoneHasCards { AGraveyard, … }`: some one graveyard | settled: "a" is any one, not all graveyards counted together |
+| "it's the second creature spell you cast this turn" | `NthSpellThisTurn`, counting this spell among them | settled |
 | "each with power …" | the condition holds for every one; "each" is dropped | settled: "each" restates what a filter says of every object |
 | "with lesser mana value" | compared against the object the ability triggered on, which the text leaves unstated | open |
 
@@ -70,7 +76,11 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | ", whichever comes first" | consumed with no node, because "until A or B" already ends at the first | settled |
 | "Do this only once each turn" | a limit on the whole ability | open |
 | "if it had counters", "if it was a creature" | `Condition::Past`, as it was when the event happened | settled: last known information (CR 603.10a for leaving the battlefield), not as it is now |
-
+| "return it to the battlefield with a -1/-1 counter on it" | `EntersWith` around the move, not a `PutCounters` after it | settled: CR 122.6, it is given the counters as it enters |
+| "~ deals 4 damage instead if …" | `Recipient::Same`: the recipient of the damage it replaces | settled: the text names none, and the replaced effect named one |
+| "Destroy that creature if A instead if B" | `Instead { B, [If { A, destroy }] }` | open: as "… instead" above |
+| "you may have this land deal 3 damage" | `May` around the land's own `Damage` | settled: after "may", an object's verb is said with "have"; who deals the damage is the land |
+| "until the end of your next turn" | `UntilEndOfYourNextTurn`, apart from "until your next turn" | settled: the first lasts through that turn, the second ends as it begins |
 ## Durations
 
 | Text | Tree | Status |

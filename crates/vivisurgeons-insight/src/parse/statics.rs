@@ -322,9 +322,26 @@ pub(super) fn static_body(p: &mut P) -> Option<Vec<Static>> {
         |p| { p.words("you control")?; objects(p).map(|o| vec![Static::Control(o)]) },
         |p| {
             p.words("you may cast")?;
-            let what = objects(p)?;
+            let mut what = objects(p)?;
+            // "colorless spells and artifact spells": two kinds, one list.
+            if let Some(more) = p.attempt(|p| { p.word("and")?; objects(p) }) {
+                if what.quant != Quant::Plural || more.quant != Quant::Plural || what.filter.or.is_some() { return None; }
+                what.filter.or = Some(Box::new(more.filter));
+            }
             p.words("as though they had flash")?;
             Some(vec![Static::CastAsThoughFlash(what)])
+        },
+        // "Activated abilities of artifacts your opponents control can't be
+        // activated", perhaps "unless they're mana abilities".
+        |p| {
+            p.words("activated abilities of")?;
+            let what = objects(p)?;
+            p.words("can't be activated")?;
+            let rule = match p.attempt(|p| p.words("unless they're mana abilities")) {
+                Some(_) => Restriction::NoNonManaActivatedAbilities,
+                None => Restriction::NoActivatedAbilities,
+            };
+            Some(vec![Static::Restrict { what, rule }])
         },
         |p| {
             p.words("you may activate abilities of")?;
@@ -508,7 +525,12 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
                 )
             });
             let has = p.attempt(|p| { p.word("and")?; p.verb("have")?; keyword_list(p) }).unwrap_or_default();
-            let mut v = vec![Static::Modify { what: what.clone(), pt: Some(pt), has, per }];
+            let modify = Static::Modify { what: what.clone(), pt: Some(pt), has, per };
+            // "This creature gets -X/-X, where X is your life total."
+            if let Some(x) = p.attempt(|p| { p.words(", where x is")?; measure(p) }) {
+                return Some(vec![Static::Where { inner: Box::new(modify), x }]);
+            }
+            let mut v = vec![modify];
             // "gets +1/+1 and has trample and "Whenever …"", "gets +2/+2 and has "…"".
             if let Some(a) = p.attempt(|p| {
                 p.word("and")?;
@@ -519,7 +541,17 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             }
             Some(v)
         },
-        |p| { p.verb("have")?; let k = keyword_list(p)?; Some(vec![Static::Modify { what: what.clone(), pt: None, has: k, per: None }]) },
+        |p| {
+            p.verb("have")?;
+            let k = keyword_list(p)?;
+            let modify = Static::Modify { what: what.clone(), pt: None, has: k, per: None };
+            // "~ has annihilator X, where X is the number of +1/+1 counters on it."
+            Some(vec![match p.attempt(|p| { p.words(", where x is")?; measure(p) }) {
+                Some(x) => Static::Where { inner: Box::new(modify), x },
+                None => modify,
+            }])
+        },
+        |p| { p.one_of(&["is", "are"])?; p.words("all colors")?; Some(vec![Static::IsAllColors(what.clone())]) },
         |p| {
             p.verb("enter")?;
             p.attempt(|p| p.words("the battlefield"));
@@ -551,7 +583,9 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             p.verb("enter")?;
             p.attempt(|p| p.words("the battlefield"));
             p.word("with")?;
-            let n = amount_a(p)?;
+            // "with a number of +1/+1 counters on it equal to …".
+            let counted = p.attempt(|p| p.words("a number of")).is_some();
+            let n = if counted { Amount::X } else { amount_a(p)? };
             // "an additional +1/+1 counter": one more than it would have.
             let n = match p.attempt(|p| p.word("additional")) {
                 Some(_) => Amount::Additional(Box::new(n)),
@@ -560,6 +594,12 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             let kind = counter_kind(p)?;
             p.one_of(&["counters", "counter"])?;
             p.one_of(&["on it", "on them"])?;
+            if counted {
+                p.words("equal to")?;
+                let m = measure(p)?;
+                let n = match n { Amount::Additional(_) => Amount::Additional(Box::new(m)), _ => m };
+                return Some(vec![Static::EntersWithCounters { what: what.clone(), n, kind }]);
+            }
             // "a charge counter on it for each time it was kicked", "a
             // fellowship counter on it for each creature you control …".
             let each = p.attempt(|p| {
@@ -575,6 +615,19 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
                 None => n,
             };
             Some(vec![Static::EntersWithCounters { what: what.clone(), n, kind }])
+        },
+        // "costs {1} less to cast for each card type among cards in your
+        // graveyard": a count of types, not of objects.
+        |p| {
+            p.verb("cost")?;
+            let by = mana(p)?;
+            let less = p.one_of(&["less", "more"])? == "less";
+            p.words("to cast for each")?;
+            let per = alt!(p;
+                |p| { p.words("card type among")?; objects(p).map(|o| Amount::NumberOfCardTypes(Box::new(o))) },
+                |p| { p.words("basic land type among")?; objects(p).map(|o| Amount::NumberOfBasicLandTypes(Box::new(o))) },
+            )?;
+            Some(vec![Static::CostChangePer { what: what.clone(), by, less, per }])
         },
         |p| {
             p.verb("cost")?;
@@ -675,6 +728,15 @@ pub(super) fn player_rule(p: &mut P) -> Option<PlayerRule> {
 
 pub(super) fn player_rule_bare(p: &mut P) -> Option<PlayerRule> {
     alt!(p;
+        |p| {
+            p.words("cast more than")?;
+            let n = number(p)?;
+            let what = filter(p)?;
+            p.words("each turn")?;
+            Some(PlayerRule::CantCastMoreThanEachTurn { n, what })
+        },
+        |p| p.words("gain life").map(|_| PlayerRule::CantGainLife),
+        |p| p.words("search libraries").map(|_| PlayerRule::CantSearchLibraries),
         |p| { p.word("cast")?; objects(p).map(PlayerRule::CantCast) },
         |p| { p.words("activate abilities of")?; objects(p).map(PlayerRule::CantActivateAbilitiesOf) },
         |p| {

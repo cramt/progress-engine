@@ -7,6 +7,7 @@ pub(super) fn duration(p: &mut P) -> Option<Duration> {
         |p| p.words("until end of turn").map(|_| Duration::UntilEndOfTurn),
         |p| p.words("this turn").map(|_| Duration::ThisTurn),
         |p| p.words("until your next turn").map(|_| Duration::UntilYourNextTurn),
+        |p| p.words("until the end of your next turn").map(|_| Duration::UntilEndOfYourNextTurn),
         |p| p.words("for as long as you control ~").map(|_| Duration::WhileSelfOnBattlefield),
         |p| p.words("until ~ leaves the battlefield").map(|_| Duration::WhileSelfOnBattlefield),
         |p| p.words("for the rest of the game").map(|_| Duration::RestOfGame),
@@ -298,6 +299,9 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
             p.verb("deal")?;
             let (n, to) = alt!(p;
                 |p| { let n = amount(p)?; p.word("damage")?; p.word("to")?; Some((n, recipients(p)?)) },
+                // "~ deals 4 damage instead if …": to whatever the damage it
+                // replaces was dealt to.
+                |p| { let n = amount(p)?; p.word("damage")?; (p.peek_word() == Some("instead")).then(|| (n, vec![Recipient::Same])) },
                 |p| { p.words("damage equal to")?; let n = measure(p)?; p.word("to")?; Some((n, recipients(p)?)) },
                 |p| { p.words("damage to")?; let r = recipients(p)?; p.words("equal to")?; Some((measure(p)?, r)) },
             )?;
@@ -326,9 +330,17 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
         // subject, which is the "you" it implies anyway.
         |p| {
             p.word("you")?;
-            if !p.peek_word().is_some_and(|w| matches!(w, "untap" | "tap" | "exile" | "destroy" | "return" | "put" | "attach")) { return None; }
+            if !p.peek_word().is_some_and(|w| matches!(w, "untap" | "tap" | "exile" | "destroy" | "return" | "put" | "attach" | "choose")) { return None; }
             effect(p)
         },
+        // "you may have this land deal 3 damage to any target": after "may",
+        // an object's verb is said with "have".
+        |p| {
+            p.word("have")?;
+            let e = effect(p)?;
+            matches!(e, Effect::Damage { source: Some(_), .. } | Effect::Fight { .. }).then_some(e)
+        },
+        |p| { p.words("damage can't be prevented")?; duration(p).map(Effect::DamageCantBePrevented) },
         |p| { let who = subject_player(p); p.verb("lose")?; p.words("the game")?; Some(Effect::LoseGame(who)) },
         |p| {
             let what = objects(p)?;
@@ -566,7 +578,6 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
             while let Some(z) = p.attempt(|p| { p.one_of(&[", and", "and", ","])?; zone_word(p, &w) }) {
                 zones.push(z);
             }
-            if zones.len() < 2 { return None; }
             p.word("into")?;
             if whose(p)? != w { return None; }
             p.word("library")?;
@@ -737,7 +748,7 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
             let from = p.attempt(|p| { p.word("from")?; zone(p) });
             p.word("to")?;
             let to = destination(p)?;
-            Some(to.moving(what, from, None))
+            Some(entering_with(p, to.moving(what, from, None)))
         },
         // "Return to your hand target artifact card …": where first, then what.
         |p| {
@@ -995,6 +1006,8 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
                 },
                 |p| { p.verb("choose")?; objects(p).map(|o| Effect::Choose(Choice::Objects(o))) },
                 |p| { p.verb("add")?; mana_add(p).map(Effect::AddMana) },
+                |p| { p.verb("scry")?; amount(p).map(Effect::Scry) },
+                |p| { p.verb("surveil")?; amount(p).map(Effect::Surveil) },
                 |p| { p.verb("exile")?; objects(p).map(Effect::Exile) },
                 |p| {
                     p.verb("gain")?;
@@ -1231,7 +1244,40 @@ pub(super) fn put_rest(p: &mut P) -> Option<Effect> {
         }),
     };
     let order = p.attempt(order);
-    Some(to.moving(what, from, order))
+    Some(entering_with(p, to.moving(what, from, order)))
+}
+
+/// "… onto the battlefield with a stun counter on it": a move to the
+/// battlefield whose permanent enters with counters.
+fn entering_with(p: &mut P, e: Effect) -> Effect {
+    if !matches!(
+        e,
+        Effect::Move {
+            to: Zone::Battlefield,
+            ..
+        }
+    ) {
+        return e;
+    }
+    match p.attempt(|p| {
+        p.word("with")?;
+        let n = amount_a(p)?;
+        let n = match p.attempt(|p| p.word("additional")) {
+            Some(_) => Amount::Additional(Box::new(n)),
+            None => n,
+        };
+        let kind = counter_kind(p)?;
+        p.one_of(&["counters", "counter"])?;
+        p.one_of(&["on it", "on them"])?;
+        Some((n, kind))
+    }) {
+        Some((n, kind)) => Effect::EntersWith {
+            effect: Box::new(e),
+            n,
+            kind,
+        },
+        None => e,
+    }
 }
 
 /// Who does what a replacement effect watches for.

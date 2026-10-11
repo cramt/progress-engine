@@ -703,6 +703,46 @@ mod tests {
     }
 
     #[test]
+    fn counters_a_returned_permanent_enters_with_wrap_the_move() {
+        let a = read(
+            "Some Persist",
+            "Sorcery",
+            "Return target nonlegendary creature card from your graveyard to the battlefield with a -1/-1 counter on it.",
+        );
+        // Given as it enters (CR 122.6), so no `PutCounters` after the move.
+        assert!(matches!(
+            &a[0],
+            Ability::Spell(e) if matches!(&e[0], Effect::EntersWith { effect, n: Amount::N(1), .. }
+                if matches!(**effect, Effect::Move { to: Zone::Battlefield, .. }))
+        ));
+    }
+
+    #[test]
+    fn after_may_an_objects_verb_is_said_with_have() {
+        let a = read(
+            "Some Pinnacle",
+            "Land",
+            "Whenever a Mountain you control enters, if you control at least five other Mountains, you may have this land deal 3 damage to any target.",
+        );
+        let Ability::Triggered {
+            trigger: Trigger::InterveningIf(_, c),
+            effect,
+            ..
+        } = &a[0]
+        else {
+            panic!("{a:?}")
+        };
+        assert!(
+            matches!(&**c, Condition::YouControl(o) if o.quant == Quant::AtLeast(Amount::N(5)))
+        );
+        // The land deals the damage; "you" only chooses whether it does.
+        assert!(matches!(
+            &effect[0],
+            Effect::May { who: Player::You, then } if matches!(&then[0], Effect::Damage { source: Some(s), .. } if s.quant == Quant::SelfRef)
+        ));
+    }
+
+    #[test]
     fn a_passive_token_doubler_names_no_creator() {
         let a = read(
             "Some Dominus",

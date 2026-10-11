@@ -55,6 +55,76 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             Some(Condition::YourNthTurn(v))
         },
         |p| { p.word("it's")?; step(p).map(Condition::InStep) },
+        // "it's the second creature spell you cast this turn".
+        |p| {
+            p.words("it's the")?;
+            let n = ordinal(p)?;
+            let mut spell = filter(p)?;
+            let who = match spell.posts.pop()? {
+                Post::WillCastThisTurn(w) => w,
+                _ => return None,
+            };
+            Some(Condition::NthSpellThisTurn { what: antecedent(), n, spell, who })
+        },
+        |p| {
+            let mana = mana(p)?;
+            p.words("was spent to cast")?;
+            let what = objects(p)?;
+            Some(Condition::ManaSpent { mana, what })
+        },
+        |p| p.words("you have the city 's blessing").map(|_| Condition::CitysBlessing(Player::You)),
+        // "a graveyard has twenty or more cards in it": some one graveyard.
+        |p| {
+            let zone = alt!(p;
+                |p| p.words("a graveyard").map(|_| Zone::AGraveyard),
+                |p| p.words("a library").map(|_| Zone::ALibrary),
+            )?;
+            p.word("has")?;
+            let n = number(p)?;
+            let op = alt!(p;
+                |p| p.words("or more").map(|_| Op::Ge),
+                |p| p.words("or fewer").map(|_| Op::Le),
+            )?;
+            p.words("cards in it")?;
+            Some(Condition::ZoneHasCards { zone, op, n })
+        },
+        |p| { p.words("you controlled")?; objects(p).map(|o| Condition::Past(Box::new(Condition::YouControl(o)))) },
+        // "you gained life this turn", "an opponent searched their library
+        // this turn".
+        |p| {
+            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+            let e = alt!(p;
+                |p| p.words("gained life").map(|_| Event::GainsLife(who.clone())),
+                |p| {
+                    p.word("searched")?;
+                    let w = whose(p)?;
+                    p.word("library")?;
+                    Some(Event::Searches { who: who.clone(), zone: Zone::Library(w) })
+                },
+            )?;
+            p.words("this turn")?;
+            Some(Condition::DidThisTurn(Box::new(e)))
+        },
+        |p| { p.words("you have")?; let n = number(p)?; p.words("or fewer cards in hand")?; Some(Condition::CardsInHandAtMost(n)) },
+        // "an opponent has 10 or less life": "you have" reads as its own.
+        |p| {
+            let who = player_simple(p)?;
+            p.word("has")?;
+            let at_most = number(p)?;
+            p.one_of(&["or less", "or fewer"])?;
+            let what = holding(p)?;
+            Some(Condition::PlayerHasAtMost { who, at_most, what })
+        },
+        // "an opponent has more life than you".
+        |p| {
+            let who = player_simple(p)?;
+            p.word("has")?;
+            p.word("more")?;
+            let what = holding(p)?;
+            p.word("than")?;
+            let than = alt!(p; player_simple, |p| p.word("you").map(|_| Player::You))?;
+            Some(Condition::HasMore { who, what, than })
+        },
         |p| { p.words("no mana was spent to cast")?; objects(p).map(Condition::NoManaSpentToCast) },
         |p| p.words("this spell was bargained").map(|_| Condition::WasBargained),
         |p| { p.words("you spend this mana to cast")?; objects(p).map(Condition::ManaSpentOn) },
@@ -258,6 +328,17 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                     Some(if not { Condition::Not(Box::new(c)) } else { c })
                 },
                 |p| { p.words("was cast from")?; let zone = zone(p)?; Some(Condition::CastFrom { what: what.clone(), zone }) },
+                |p| { p.words("wasn't cast from")?; let zone = zone(p)?; Some(Condition::Not(Box::new(Condition::CastFrom { what: what.clone(), zone }))) },
+                // "it has mana value 2 or less".
+                |p| { p.one_of(&["has", "have"])?; let cmp = compare(p)?; Some(Condition::Has { what: what.clone(), cmp }) },
+                |p| { p.one_of(&["targets", "target"])?; let target = objects(p)?; Some(Condition::Targets { what: what.clone(), target }) },
+                // "a permanent left the battlefield under your control this turn".
+                |p| {
+                    p.words("left the battlefield under")?;
+                    let who = whose(p)?;
+                    p.words("control this turn")?;
+                    Some(Condition::DidThisTurn(Box::new(Event::LeftUnderControlOf { what: what.clone(), who })))
+                },
                 |p| {
                     p.one_of(&["has", "have"])?;
                     p.word("a")?;

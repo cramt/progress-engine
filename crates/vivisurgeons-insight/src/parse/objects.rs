@@ -13,6 +13,8 @@ pub(super) fn player(p: &mut P) -> Option<Player> {
         },
         |p| p.words("target player").map(|_| Player::Target),
         |p| p.words("target opponent").map(|_| Player::TargetOpponent),
+        |p| p.words("up to one target player").map(|_| Player::UpToOneTarget),
+        |p| p.words("any number of target players").map(|_| Player::AnyNumberOfTarget),
         |p| p.words("each other player").map(|_| Player::EachOtherPlayer),
         |p| p.words("each player who can't").map(|_| Player::WhoCant(Box::new(Player::Each))),
         |p| p.words("each opponent who can't").map(|_| Player::WhoCant(Box::new(Player::EachOpponent))),
@@ -35,6 +37,9 @@ pub(super) fn player(p: &mut P) -> Option<Player> {
         |p| p.words("each player").map(|_| Player::Each),
         |p| p.words("each opponent").map(|_| Player::EachOpponent),
         |p| p.words("your opponents").map(|_| Player::EachOpponent),
+        |p| p.words("all opponents").map(|_| Player::EachOpponent),
+        // "Players can't gain life this turn": a rule about each of them.
+        |p| p.word("players").map(|_| Player::Each),
         |p| p.words("an opponent").map(|_| Player::AnOpponent),
         |p| p.words("a player").map(|_| Player::APlayer),
         |p| p.words("that player").map(|_| Player::That),
@@ -66,6 +71,8 @@ pub(super) fn whose(p: &mut P) -> Option<Player> {
     alt!(p;
         |p| p.word("your").map(|_| Player::You),
         |p| p.word("their").map(|_| Player::That),
+        // "its controller's graveyard", which a bare "its" is read as too.
+        |p| { p.words("its controller")?; p.tok(&Tok::Possessive)?; Some(Player::ControllerOf(Box::new(antecedent()))) },
         |p| p.word("its").map(|_| Player::ControllerOf(Box::new(antecedent()))),
         |p| { p.words("its owner")?; p.tok(&Tok::Possessive)?; Some(Player::OwnerOf(Box::new(antecedent()))) },
         |p| { p.words("their owner")?; p.tok(&Tok::Possessive)?; Some(Player::OwnerOf(Box::new(antecedent()))) },
@@ -343,8 +350,10 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
             if !or && !comma {
                 return None;
             }
-            // "a token or a land": after a bare kind, the second may be types.
-            if bare_kind {
+            // "a token or a land": after a bare kind, the second may be types;
+            // "an instant card or a card with flash": after "or", a second
+            // kind may take its own article.
+            if bare_kind || or {
                 p.attempt(|p| p.one_of(&["a", "an"]));
             }
             let f = filter(p)?;
@@ -453,6 +462,22 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| p.words("with a single target").map(|_| Post::WithSingleTarget),
         |p| p.words("of their choice").map(|_| Post::ChosenBy(Player::That)),
         |p| p.words("of your choice").map(|_| Post::ChosenBy(Player::You)),
+        // "of an opponent's choice".
+        |p| {
+            p.word("of")?;
+            let who = player_simple(p)?;
+            p.tok(&Tok::Possessive)?;
+            p.word("choice")?;
+            Some(Post::ChosenBy(who))
+        },
+        |p| { p.words("with power or toughness")?; let (op, value) = comparison(p)?; Some(Post::PowerOrToughness { op, value }) },
+        |p| p.words("that died this turn").map(|_| Post::DiedThisTurn),
+        // "a nonland card from it": the hand just revealed, said by pronoun.
+        |p| {
+            p.word("from")?;
+            p.word("it")?;
+            Some(Post::From(Box::new(antecedent())))
+        },
         |p| p.words("you've cast this turn").map(|_| Post::CastThisTurn(Player::You)),
         |p| p.words("you cast this turn").map(|_| Post::WillCastThisTurn(Player::You)),
         |p| {
@@ -612,12 +637,14 @@ pub(super) fn quant(p: &mut P) -> Option<Quant> {
         |p| p.words("any number of target").map(|_| Quant::AnyNumberOfTarget),
         |p| { let n = amount(p)?; p.word("target")?; Some(Quant::Target { n, up_to: false }) },
         |p| { let n = amount(p)?; p.words("or more")?; Some(Quant::AtLeast(n)) },
+        |p| { p.words("at least")?; amount(p).map(Quant::AtLeast) },
         |p| { let n = amount(p)?; p.words("or fewer").map(|_| Quant::AtMost(n)) },
         |p| p.word("target").map(|_| Quant::Target { n: Amount::N(1), up_to: false }),
         |p| p.words("the next").map(|_| Quant::Next),
         |p| p.word("additional").map(|_| Quant::Additional),
         // "each other creature": the "other" is the filter's own word.
         |p| p.word("each").map(|_| Quant::Each),
+        |p| p.words("all the").map(|_| Quant::All),
         |p| p.word("all").map(|_| Quant::All),
         |p| p.word("another").map(|_| Quant::Another),
         |p| p.words("one or more").map(|_| Quant::OneOrMore),
@@ -819,6 +846,15 @@ fn objects_read(p: &mut P) -> Option<Objects> {
             Some(Objects { quant: Quant::One, filter: Filter { alts, posts: second.posts, ..Filter::default() } })
         },
         |p| { let n = amount(p)?; p.words("target")?; p.word("targets").map(|_| Objects { quant: Quant::AnyTarget { n }, filter: Filter::default() }) },
+        // "up to one other target creature or spell": "other" said before
+        // "target" holds of every kind the filter lists.
+        |p| {
+            let up_to = p.attempt(|p| p.words("up to")).is_some();
+            let n = amount(p)?;
+            p.words("other target")?;
+            let filter = filter(p)?;
+            Some(Objects { quant: Quant::OtherTarget { n, up_to }, filter })
+        },
         |p| {
             let quant = p.attempt(quant).unwrap_or(Quant::Plural);
             // "an exiled card": one in exile, where "the exiled card" is one
