@@ -1304,7 +1304,7 @@ mod round_nine {
             }])
         );
         assert!(
-            matches!(&a[1], Ability::MaxSpeed(inner) if matches!(**inner, Ability::Activated { .. }))
+            matches!(&a[1], Ability::KeywordOn { keyword: Prefix::MaxSpeed, ability } if matches!(**ability, Ability::Activated { .. }))
         );
     }
 
@@ -1335,5 +1335,79 @@ mod round_nine {
         );
         assert!(format!("{:?}", a[0]).contains("MaxSpeed(You)"));
         assert!(format!("{:?}", a[1]).contains("Speed(You)"));
+    }
+}
+
+#[cfg(test)]
+mod round_nine_b {
+    use super::*;
+    use ast::*;
+
+    fn read(type_line: &str, text: &str) -> Vec<Ability> {
+        let face = Face {
+            name: "Some Card",
+            type_line,
+            text,
+        };
+        read_face(&face, "Some Card")
+            .into_iter()
+            .map(|l| match l.parsed {
+                Ok(a) => a,
+                Err(b) => panic!("{}: broke at {:?} after {:?}", l.text, b.at, b.read),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn exhaust_and_power_up_are_keywords_on_their_activated_ability() {
+        let a = read(
+            "Creature — Robot",
+            "Exhaust — {2}{G}{G}: Put two +1/+1 counters on this creature.\nPower-up — {4}{W}: Draw a card.",
+        );
+        assert!(
+            matches!(&a[0], Ability::KeywordOn { keyword: Prefix::Exhaust, ability } if matches!(**ability, Ability::Activated { .. }))
+        );
+        assert!(matches!(
+            &a[1],
+            Ability::KeywordOn {
+                keyword: Prefix::PowerUp,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn a_prepared_creature_and_the_void_condition() {
+        let a = read(
+            "Creature — Human Wizard",
+            "At the beginning of your upkeep, if this creature isn't prepared, it becomes prepared.\nVoid — At the beginning of your end step, if a nonland permanent left the battlefield this turn or a spell was warped this turn, draw a card.",
+        );
+        let Ability::Triggered {
+            trigger: Trigger::InterveningIf(_, c),
+            effect,
+            ..
+        } = &a[0]
+        else {
+            panic!("{a:?}")
+        };
+        assert!(matches!(&**c, Condition::Not(_)));
+        assert!(matches!(&effect[0], Effect::BecomesPrepared(_)));
+        let s = format!("{:?}", a[1]);
+        assert!(s.contains("Or([DidThisTurn(Leaves"), "{s}");
+        assert!(s.contains("CastUsing { what"), "{s}");
+    }
+
+    #[test]
+    fn mana_spent_at_least_and_cast_using_teamwork() {
+        let a = read(
+            "Instant",
+            "Draw a card. If this spell was cast using teamwork, draw two cards instead.",
+        );
+        assert!(format!("{a:?}").contains("CastUsing { what: Objects { quant: SelfRef"));
+        let b = read(
+            "Creature — Human",
+            "Whenever you cast a noncreature spell, if at least four mana was spent to cast it, draw a card.",
+        );
+        assert!(format!("{b:?}").contains("AmountIs { n: ManaSpentToCast("));
     }
 }

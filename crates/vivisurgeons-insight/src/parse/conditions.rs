@@ -26,6 +26,20 @@ pub(super) fn condition(p: &mut P) -> Option<Condition> {
     } else {
         Condition::And(v)
     };
+    // "if a nonland permanent left the battlefield this turn or a spell was
+    // warped this turn": either one.
+    let mut alts = vec![c];
+    while let Some(c) = p.attempt(|p| {
+        p.word("or")?;
+        condition_one(p)
+    }) {
+        alts.push(c);
+    }
+    let c = if alts.len() == 1 {
+        alts.remove(0)
+    } else {
+        Condition::Or(alts)
+    };
     Some(match p.attempt(|p| p.words("as you cast this spell")) {
         Some(_) => Condition::AsYouCastIt(Box::new(c)),
         None => c,
@@ -65,6 +79,17 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 _ => return None,
             };
             Some(Condition::NthSpellThisTurn { what: antecedent(), n, spell, who })
+        },
+        // "five or more mana was spent to cast that spell", "at least four
+        // mana was spent to cast it": how much, of any kind.
+        |p| {
+            let value = alt!(p;
+                |p| { let n = amount(p)?; p.words("or more")?; Some(n) },
+                |p| { p.words("at least")?; amount(p) },
+            )?;
+            p.words("mana was spent to cast")?;
+            let what = objects(p)?;
+            Some(Condition::AmountIs { n: Amount::ManaSpentToCast(Box::new(what)), op: Op::Ge, value })
         },
         |p| {
             let mana = mana(p)?;
@@ -345,6 +370,22 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                     let c = Condition::Not(Box::new(Condition::Is { what: what.clone(), filter: Filter { posts: vec![q], ..Filter::default() } }));
                     Some(if past { Condition::Past(Box::new(c)) } else { c })
                 },
+                // "if this creature isn't prepared". Not an adjective
+                // elsewhere: Codie's "prepared spell" is no permanent's state.
+                |p| {
+                    let not = p.one_of(&["is", "isn't"])? == "isn't";
+                    p.word("prepared")?;
+                    let f = Filter { alts: vec![vec![Adj::State(State::Prepared)]], ..Filter::default() };
+                    let c = Condition::Is { what: what.clone(), filter: f };
+                    Some(if not { Condition::Not(Box::new(c)) } else { c })
+                },
+                // "if this land isn't a creature": the present test, negated.
+                |p| {
+                    p.one_of(&["isn't", "aren't"])?;
+                    p.attempt(|p| p.one_of(&["a", "an"]));
+                    let f = filter(p)?;
+                    Some(Condition::Not(Box::new(Condition::Is { what: what.clone(), filter: f })))
+                },
                 // "two or more of those creatures are attacking you and/or
                 // planeswalkers you control".
                 |p| {
@@ -424,6 +465,24 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 // "it has mana value 2 or less".
                 |p| { p.one_of(&["has", "have"])?; let cmp = compare(p)?; Some(Condition::Has { what: what.clone(), cmp }) },
                 |p| { p.one_of(&["targets", "target"])?; let target = objects(p)?; Some(Condition::Targets { what: what.clone(), target }) },
+                // "a nonland permanent left the battlefield this turn".
+                |p| {
+                    p.words("left the battlefield this turn")?;
+                    Some(Condition::DidThisTurn(Box::new(Event::Leaves { what: what.clone(), from: Zone::Battlefield })))
+                },
+                // "a spell was warped this turn": cast for its warp cost (CR
+                // 702.185c).
+                |p| {
+                    p.words("was warped this turn")?;
+                    Some(Condition::DidThisTurn(Box::new(Event::CastUsing { what: what.clone(), keyword: "warp".into() })))
+                },
+                // "this spell was cast using teamwork": its teamwork cost was
+                // declared as it was cast (CR 702.194b).
+                |p| {
+                    p.words("was cast using")?;
+                    let keyword = keyword_name(p)?;
+                    Some(Condition::CastUsing { what: what.clone(), keyword })
+                },
                 // "a permanent left the battlefield under your control this turn".
                 |p| {
                     p.words("left the battlefield under")?;

@@ -435,6 +435,14 @@ fn effect_first(p: &mut P) -> Option<Effect> {
             let to = objects(p)?;
             Some(Effect::CreateAttached { who, n, token, to })
         },
+        // "this creature becomes prepared", before "becomes" would read
+        // "prepared" as a type it takes on.
+        |p| {
+            let what = objects(p)?;
+            p.verb("become")?;
+            p.word("prepared")?;
+            Some(Effect::BecomesPrepared(what))
+        },
     )
 }
 

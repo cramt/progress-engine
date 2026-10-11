@@ -512,14 +512,25 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
             let inner = ability(p, spell)?;
             Some(Ability::Harnessed(Box::new(inner)))
         },
-        // "Max speed — …" is a keyword ability, not an ability word: the
-        // ability is the object's only while its controller's speed is 4
-        // (CR 702.178a).
+        // "Max speed — …", "Exhaust — {3}: …": a keyword before the dash,
+        // not an ability word, since it adds rules to the ability (CR
+        // 702.178a, 702.177a).
         |p| {
-            p.words("max speed")?;
+            let keyword = alt!(p;
+                |p| p.words("max speed").map(|_| Prefix::MaxSpeed),
+                |p| p.word("power-up").map(|_| Prefix::PowerUp),
+                |p| p.word("exhaust").map(|_| Prefix::Exhaust),
+                |p| p.word("boast").map(|_| Prefix::Boast),
+                |p| p.word("forecast").map(|_| Prefix::Forecast),
+                |p| p.word("solved").map(|_| Prefix::Solved),
+            )?;
             p.tok(&Tok::Dash)?;
             let inner = ability(p, spell)?;
-            Some(Ability::MaxSpeed(Box::new(inner)))
+            let activated_only = !matches!(keyword, Prefix::MaxSpeed | Prefix::Solved);
+            if activated_only && !matches!(inner, Ability::Activated { .. }) {
+                return None;
+            }
+            Some(Ability::KeywordOn { keyword, ability: Box::new(inner) })
         },
         |p| {
             // An ability word or flavour word: a label, then the ability.

@@ -1240,8 +1240,18 @@ fn ability_into(o: &mut Out, a: &Ability) {
             o.tok(Tok::Dash);
             ability_into(o, a);
         }
-        Ability::MaxSpeed(a) => {
-            o.w("max speed");
+        Ability::KeywordOn {
+            keyword,
+            ability: a,
+        } => {
+            o.w(match keyword {
+                Prefix::MaxSpeed => "max speed",
+                Prefix::PowerUp => "power-up",
+                Prefix::Exhaust => "exhaust",
+                Prefix::Boast => "boast",
+                Prefix::Forecast => "forecast",
+                Prefix::Solved => "solved",
+            });
             o.tok(Tok::Dash);
             ability_into(o, a);
         }
@@ -2694,6 +2704,7 @@ fn state_word(s: State) -> &'static str {
         State::Historic => "historic",
         State::Commander => "commander",
         State::FaceUp => "face-up",
+        State::Prepared => "prepared",
     }
 }
 
@@ -4636,6 +4647,10 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w(",");
             clauses(o, v, cx);
         }
+        Effect::BecomesPrepared(what) => {
+            obj_subj(o, what, "become");
+            o.w("prepared");
+        }
         Effect::OnSpend { of, on, then } => {
             o.w(match of {
                 SpentOf::Any => "if any of that mana is spent on",
@@ -6342,6 +6357,17 @@ fn event(o: &mut Out, e: &Event) {
             enters_rest(o, under, state);
         }
         Event::Dies(x) => obj_subj(o, x, "die"),
+        Event::CastUsing { what, keyword } if keyword == "warp" => {
+            objects(o, what);
+            o.verb("is", obj_num(what));
+            o.w("warped");
+        }
+        Event::CastUsing { what, keyword } => {
+            objects(o, what);
+            o.verb("is", obj_num(what));
+            o.w("cast using");
+            o.w(keyword);
+        }
         Event::Leaves { what, from } => {
             obj_subj(o, what, "leave");
             zone(o, from);
@@ -7148,6 +7174,17 @@ fn condition(o: &mut Out, c: &Condition) {
                 objects(o, x);
                 o.w("died this turn");
             }
+            Event::Leaves {
+                what,
+                from: Zone::Battlefield,
+            } => {
+                objects(o, what);
+                o.w("left the battlefield this turn");
+            }
+            Event::CastUsing { what, keyword } if keyword == "warp" => {
+                objects(o, what);
+                o.w("was warped this turn");
+            }
             Event::Creates { what, .. } => {
                 o.w("you created");
                 objects(o, what);
@@ -7316,6 +7353,11 @@ fn condition(o: &mut Out, c: &Condition) {
             player(o, p);
             o.verb("have", player_num(p));
             o.w("the city's blessing");
+        }
+        Condition::CastUsing { what, keyword } => {
+            objects(o, what);
+            o.w("was cast using");
+            o.w(keyword);
         }
         Condition::MaxSpeed(p) => {
             player(o, p);
@@ -7674,6 +7716,12 @@ fn amount_is(o: &mut Out, n: &Amount, op: Op, value: &Amount) {
                     filter(o, &x.filter, Num::Pl);
                 });
                 syn::counters_on(o, has, there_are);
+            } else {
+                // "there are twenty or more counters on it": of any kind.
+                o.w("there are");
+                amount(o, value);
+                o.w("or more");
+                filter(o, &x.filter, Num::Pl);
             }
         }
         Amount::CountOf(x) if op == Op::Ge => {
@@ -7686,6 +7734,21 @@ fn amount_is(o: &mut Out, n: &Amount, op: Op, value: &Amount) {
             o.w("there are");
             amount(o, value);
             o.w("or more card types among");
+            objects(o, x);
+        }
+        // "five or more mana was spent to cast that spell", "at least four
+        // mana was spent to cast it".
+        Amount::ManaSpentToCast(x) if op == Op::Ge => {
+            let or_more = out(|o| {
+                amount(o, value);
+                o.w("or more");
+            });
+            let at_least = out(|o| {
+                o.w("at least");
+                amount(o, value);
+            });
+            syn::at_least(o, or_more, at_least);
+            o.w("mana was spent to cast");
             objects(o, x);
         }
         n => {

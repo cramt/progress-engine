@@ -32,7 +32,8 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "This spell can't be countered." on an instant or sorcery | `Static`, as on a permanent, not a `Spell` effect | settled: CR 113.6g, it functions on the stack; CR 113.3a, an instant's text is a spell ability only when it is not a static. Also under a condition (Exquisite Firecraft's spell mastery) |
 | "At the beginning of your next upkeep, pay …. If you don't, you lose the game." on an instant or sorcery | `Spell([Delayed { … }])`, not a printed `Triggered` | settled: CR 603.7a, a delayed trigger created as the spell resolves; its line stays its own ability (CR 113.2c). Triggers that work from other zones ("When you cycle this card", "Whenever … , you may return this card from your graveyard") stay `Triggered` |
 | "Buyback—Pay 3 life, Discard a card at random.", "Replicate—Pay {E}{E}{E}.", "Kicker—Forage.", "Splice onto Arcane—An opponent gains 5 life." | `Keywords`, the cost in words | settled: CR 702, a keyword with its cost; they read as a labelled spell before. "Pay {E}{E}" is the cost `{E}{E}` (CR 107.14) |
-| "Max speed — {T}: Add {C}{C}." | `MaxSpeed(ability)`, not `Labelled` | settled: CR 702.178a, a keyword ability meaning "as long as your speed is 4, this object has [ability]"; it read as an ability word before, which has no rules meaning (39 corpus trees moved) |
+| "Max speed — {T}: Add {C}{C}.", "Exhaust — {3}: …", "Power-up — {4}{W}: …", "Boast — …", "Forecast — …", "Solved — …" | `KeywordOn { keyword, ability }`, not `Labelled` | settled: each is a keyword that adds rules to the ability after its dash (CR 702.178a, 702.177a, 702.193a, 702.142a, 702.57, 702.169), where an ability word adds none (CR 207.2c); they read as ability words before (143 corpus trees moved, none pinned). Exhaust, power-up, boast and forecast take only an activated ability. "Partner—Friends forever" and "Modular—Sunburst" are keywords too and still read as labels: open |
+| "if this creature isn't prepared" | `Not(Is { State::Prepared })` | settled: a creature with a prepare spell is prepared or not (Codie's rulings). "Prepared" is read only there and after "becomes", not as an adjective, so "a prepared spell" (Codie) does not parse: what it names is not settled |
 | "Start your engines!" | `Keywords`, the "!" part of the name | settled: CR 702.179a, a static keyword ability; Scryfall's catalog files it among the ability words |
 | "I — Crescent Fang — Search …" | `Chapter { [Labelled { "crescent fang", … }] }` | settled: CR 207.2d, a flavour word has no rules meaning. Tried after the plain chapter, so "I, II — Choose one — •…" stays a modal chapter |
 
@@ -137,6 +138,9 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "Destroy that creature if A instead if B" | `Instead { B, [If { A, destroy }] }` | open: as "… instead" above |
 | "you may have this land deal 3 damage" | `May` around the land's own `Damage` | settled: after "may", an object's verb is said with "have"; who deals the damage is the land |
 | "until the end of your next turn" | `UntilEndOfYourNextTurn`, apart from "until your next turn" | settled: the first lasts through that turn, the second ends as it begins |
+| "if a nonland permanent left the battlefield this turn or a spell was warped this turn" | `Or([DidThisTurn(Leaves), DidThisTurn(CastUsing { "warp" })])` | settled: "a spell was warped" is one cast for its warp cost (CR 702.185c); "or" between two whole conditions is either one |
+| "if this spell was cast using teamwork" | `CastUsing { SelfRef, "teamwork" }` | settled: CR 702.194b, whether its caster chose to pay that cost |
+| "if at least four mana was spent to cast it", "if five or more mana was spent to cast that spell" | `AmountIs { ManaSpentToCast(it), Ge, 4 }` | settled: the total of any kind, as "the amount of mana spent to cast" |
 | "your speed" | `Amount::Speed(You)`, 0 for a player with none | settled: CR 702.179f |
 ## Durations
 

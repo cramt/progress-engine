@@ -46,9 +46,12 @@ pub enum Ability {
     },
     /// "∞ — …": an ability on only once its permanent is harnessed.
     Harnessed(Box<Ability>),
-    /// "Max speed — …": the ability, as long as its controller's speed is 4
-    /// (CR 702.178a). A keyword ability, not an ability word.
-    MaxSpeed(Box<Ability>),
+    /// "Exhaust — {3}: …", "Max speed — …": a keyword that adds rules to
+    /// the ability after its dash, where an ability word adds none.
+    KeywordOn {
+        keyword: Prefix,
+        ability: Box<Ability>,
+    },
     /// An ability word or a flavour word: a label with no rules meaning.
     Labelled {
         label: String,
@@ -57,6 +60,28 @@ pub enum Ability {
     /// "Tiered", then its modes, each with the additional cost paid for
     /// choosing it (CR 702.183): one mode is chosen.
     Tiered(Vec<TieredMode>),
+}
+
+/// The keywords written before a dash and an ability, each adding rules to
+/// it. Exhaust, power-up, boast and forecast are said only of activated
+/// abilities.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Prefix {
+    /// The ability, as long as its controller's speed is 4 (CR 702.178a).
+    MaxSpeed,
+    /// Activate only once; it costs the permanent's mana cost less if the
+    /// permanent entered this turn (CR 702.193a).
+    PowerUp,
+    /// Activate only once (CR 702.177a).
+    Exhaust,
+    /// Activate only if this creature attacked this turn and only once each
+    /// turn (CR 702.142a).
+    Boast,
+    /// Activate only from its owner's hand, during their upkeep, once each
+    /// turn (CR 702.57a–b).
+    Forecast,
+    /// The ability, only while this Case is solved (CR 702.169).
+    Solved,
 }
 
 /// "• Fira — {2} — ~ deals 2 damage to each creature.": a flavour label,
@@ -548,6 +573,9 @@ pub enum State {
     Commander,
     /// "a face-up artifact card you own in exile".
     FaceUp,
+    /// "if this creature isn't prepared": a preparation card whose copy of
+    /// its inset spell may be cast (CR 722.3).
+    Prepared,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1477,6 +1505,9 @@ pub enum Effect {
         on: Objects,
         then: Vec<Effect>,
     },
+    /// "this creature becomes prepared": while it is, its controller may
+    /// cast a copy of its inset spell (CR 722.3).
+    BecomesPrepared(Objects),
 }
 
 /// How much of the mana an ability made a spell must be paid with.
@@ -2014,6 +2045,11 @@ pub enum Event {
         what: Objects,
         zone: Zone,
     },
+    /// "a spell was warped": cast for that keyword's cost (CR 702.185c).
+    CastUsing {
+        what: Objects,
+        keyword: String,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -2506,6 +2542,12 @@ pub enum Condition {
     DamagePreventedThisWay,
     /// "you have max speed": that player's speed is 4 (CR 702.179e).
     MaxSpeed(Player),
+    /// "this spell was cast using teamwork": its caster chose to pay that
+    /// keyword's cost (CR 702.194b).
+    CastUsing {
+        what: Objects,
+        keyword: String,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
