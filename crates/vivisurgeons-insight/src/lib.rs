@@ -1377,6 +1377,19 @@ mod tests {
     }
 
     #[test]
+    fn mana_of_any_type_is_not_mana_of_any_color() {
+        let text = |kind: &str| {
+            format!(
+                "Exile the top card of your library. You may cast that card this turn, and you may spend mana as though it were mana of any {kind} to cast that spell."
+            )
+        };
+        let ty = format!("{:?}", read("Some Robbery", "Sorcery", &text("type")));
+        let color = format!("{:?}", read("Some Robbery", "Sorcery", &text("color")));
+        assert!(ty.contains("SpendAsAnyType"), "{ty}");
+        assert!(color.contains("SpendAsAnyColor"), "{color}");
+    }
+
+    #[test]
     fn hero_is_a_creature_type() {
         let a = read(
             "Some Assembly",

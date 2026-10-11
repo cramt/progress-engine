@@ -1125,6 +1125,11 @@ impl Walk for Effect {
                     Walk::walk(x0, v);
                 }
             }
+            Effect::SpendAsAnyType(f0) => {
+                for x0 in (f0).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Effect::IsNow { what, types, keeps } => {
                 Walk::walk(what, v);
                 for x0 in (types).iter_mut() {

@@ -164,6 +164,7 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "If its mana value was 2 or less", "if its power was 3 or greater" | `Past(AmountIs { … })`, "its" the trigger's object (`Triggering`, or `SelfRef` for the card) | settled: as it was when the event happened, as "if it was a creature" is (CR 603.10a for one that left); whose value it is follows the referent rule above (Magnanimous Magistrate, Massacre Girl) |
 | "Two target creatures each get +2/+2", "They each get +2/+2" | `Modify`, the "each" dropped | settled: "each" after a plural subject restates what a bonus gives each of them, as "each of" before it does |
 | "This creature must be blocked if able" | `Restrict { MustBeBlocked }` | settled: a requirement on the declaration of blockers, obeyed as far as the restrictions allow (CR 509.1c, which names the kind "must block") |
+| "spend mana as though it were mana of any type", "… of any color" | `SpendAsAnyType` and `SpendAsAnyColor`, apart | settled: colorless is a type of mana and no color (CR 106.1b), so only the first lets colored mana pay a {C} symbol, which only colorless mana pays otherwise; CR 609.4b names both forms. They were one node; no parsed corpus tree says "any type" yet, so none moved |
 | "Spend this mana only to activate abilities" | `SpendUse::ActivateAny` | settled: abilities of any object, apart from "abilities of creatures" |
 | "your speed" | `Amount::Speed(You)`, 0 for a player with none | settled: CR 702.179f |
 ## Durations

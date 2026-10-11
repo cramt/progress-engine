@@ -5498,6 +5498,10 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w("spend mana as though it were mana of any color");
             spend_uses(o, uses);
         }
+        Effect::SpendAsAnyType(uses) => {
+            o.w("spend mana as though it were mana of any type");
+            spend_uses(o, uses);
+        }
         Effect::IsNow {
             what,
             types,

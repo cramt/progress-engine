@@ -1376,6 +1376,10 @@ pub enum Effect {
     },
     /// "you may spend mana as though it were mana of any color to cast them".
     SpendAsAnyColor(Vec<SpendUse>),
+    /// "… as though it were mana of any type": colorless too, one of the six
+    /// types (CR 106.1b), so colored mana pays a {C} symbol, which "any
+    /// color" does not allow.
+    SpendAsAnyType(Vec<SpendUse>),
     /// "It's an enchantment.": what a permanent an effect returns is as it
     /// enters, where "becomes" would apply only after (CR 611.2e).
     IsNow {

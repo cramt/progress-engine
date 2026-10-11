@@ -867,8 +867,12 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             Some(Effect::AlsoIs { what, types: TypeSet::EveryCreatureType, dur })
         },
         |p| {
-            p.one_of(&["spend mana as though it were mana of any color", "spend mana as though it were mana of any type"])?;
+            p.words("spend mana as though it were mana of any color")?;
             spend_uses(p).map(Effect::SpendAsAnyColor)
+        },
+        |p| {
+            p.words("spend mana as though it were mana of any type")?;
+            spend_uses(p).map(Effect::SpendAsAnyType)
         },
         // "you may have that player lose 2 life": a verb you make another do.
         |p| {
