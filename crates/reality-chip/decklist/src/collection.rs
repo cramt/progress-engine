@@ -417,11 +417,36 @@ pub fn move_lines(text: &str, indices: &[usize], to: Option<&str>) -> Result<Str
     let mut indices = indices.to_vec();
     indices.sort_unstable();
     indices.dedup();
+    let moves = indices
+        .iter()
+        .map(|&i| Ok((i, no_card(&c, i)?.qty.get())))
+        .collect::<Result<Vec<_>, EditError>>()?;
+    move_some(text, &moves, to)
+}
+
+/// Moves `qty` of each line `index` in `moves` to the place `to`, or to
+/// unsorted, as one edit: what building a deck from several binders takes.
+/// A line named twice moves the copies of both.
+pub fn move_some(
+    text: &str,
+    moves: &[(usize, u32)],
+    to: Option<&str>,
+) -> Result<String, EditError> {
+    let mut moves = moves.to_vec();
+    moves.sort_unstable();
+    moves.dedup_by(|b, a| {
+        let same = a.0 == b.0;
+        if same {
+            a.1 += b.1;
+        }
+        same
+    });
     // Last first: a move that joins another line drops its own, which shifts
-    // only the lines after it, and those have already moved.
+    // only the lines after it, and a part moved goes on a new last line,
+    // after every line still to move.
     let mut text = text.to_string();
-    for &index in indices.iter().rev() {
-        text = move_cards(&text, index, no_card(&c, index)?.qty.get(), to)?;
+    for &(index, qty) in moves.iter().rev() {
+        text = move_cards(&text, index, qty, to)?;
     }
     Ok(text)
 }

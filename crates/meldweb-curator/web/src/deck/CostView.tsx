@@ -176,7 +176,7 @@ export function CostView({
 }
 
 /** A card picture that shows while its cell is hovered. */
-function Preview({ image }: { image: string | undefined }) {
+export function Preview({ image }: { image: string | undefined }) {
   return image ? (
     <img
       crossOrigin="anonymous"

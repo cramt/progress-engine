@@ -55,6 +55,7 @@ describe("the settings page's rules", () => {
       text,
       pins: [],
       decks: [],
+      friends: [],
       rules: [{ verb: "avoid" as const, query: "is:ub" }],
     };
     expect(
@@ -71,7 +72,13 @@ describe("the settings page's rules", () => {
   });
 
   it("holds the save back while a rule does not parse", () => {
-    const loaded = { text: "", pins: [], rules: defaults(), decks: [] };
+    const loaded = {
+      text: "",
+      pins: [],
+      rules: defaults(),
+      decks: [],
+      friends: [],
+    };
     expect(
       fileFor({ pins: [], rules: [{ verb: "avoid", query: "lang:" }] }, loaded),
     ).toBeNull();
@@ -139,6 +146,7 @@ describe("the settings page's rules", () => {
       pins: read.pins,
       rules: read.rules,
       decks: read.decks,
+      friends: read.friends,
     };
     const edited = fileFor(
       { pins: [], rules: [{ verb: "avoid", query: "is:ub" }] },

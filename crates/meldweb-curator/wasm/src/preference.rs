@@ -74,6 +74,8 @@ struct RawFile {
     printings: Option<RawPrintings>,
     #[facet(default)]
     decks: Option<RawDecks>,
+    #[facet(default)]
+    friends: Option<RawFriends>,
 }
 
 #[derive(Facet)]
@@ -81,6 +83,13 @@ struct RawFile {
 struct RawDecks {
     #[facet(default)]
     order: Vec<String>,
+}
+
+#[derive(Facet)]
+#[facet(deny_unknown_fields)]
+struct RawFriends {
+    #[facet(default)]
+    logins: Vec<String>,
 }
 
 #[derive(Facet)]
@@ -223,12 +232,34 @@ pub struct Settings {
     /// The deck list's order, by path: `[decks] order`. A deck not in it goes
     /// after those that are, by name.
     pub decks: Vec<String>,
+    /// The GitHub logins whose public collections a deck's sourcing asks:
+    /// `[friends] logins`.
+    pub friends: Vec<String>,
+}
+
+/// `text` is a name GitHub would take for an account: letters, digits and
+/// single hyphens, 39 at most, with no hyphen at either end.
+pub fn is_login(text: &str) -> bool {
+    let b = text.as_bytes();
+    (1..=39).contains(&b.len())
+        && b.iter().all(|c| c.is_ascii_alphanumeric() || *c == b'-')
+        && b.first() != Some(&b'-')
+        && b.last() != Some(&b'-')
+        && !text.contains("--")
 }
 
 /// [`read_rules`], with the pins taken out wherever the file put them.
 pub fn read(text: Option<&str>) -> Result<Settings, String> {
+    let raw = raw_file(text)?;
+    let friends = raw.friends.map_or(Vec::new(), |f| f.logins);
+    if let Some(bad) = friends.iter().find(|f| !is_login(f)) {
+        return Err(format!(
+            "meldweb.toml: {bad:?} in [friends] logins is not a GitHub login"
+        ));
+    }
     let mut settings = Settings {
-        decks: raw_file(text)?.decks.map_or(Vec::new(), |d| d.order),
+        decks: raw.decks.map_or(Vec::new(), |d| d.order),
+        friends,
         ..Settings::default()
     };
     for rule in read_rules(text)? {
@@ -278,6 +309,23 @@ pub fn order_decks(text: Option<&str>, order: Vec<String>) -> Result<String, Str
     write(&settings)
 }
 
+/// `text` with `friends`, GitHub logins, as the friends a deck's sourcing
+/// asks, each once whatever its case, in the order given.
+pub fn set_friends(text: Option<&str>, friends: Vec<String>) -> Result<String, String> {
+    let mut settings = read(text)?;
+    settings.friends.clear();
+    for f in friends {
+        let f = f.trim().trim_start_matches('@').to_string();
+        if !is_login(&f) {
+            return Err(format!("{f:?} is not a GitHub login"));
+        }
+        if !settings.friends.iter().any(|g| g.eq_ignore_ascii_case(&f)) {
+            settings.friends.push(f);
+        }
+    }
+    write(&settings)
+}
+
 /// `settings` as a `meldweb.toml`, the pins first. Every rule must parse, so
 /// the file written reads back as the same settings.
 pub fn write(settings: &Settings) -> Result<String, String> {
@@ -292,6 +340,17 @@ pub fn write(settings: &Settings) -> Result<String, String> {
         for path in &settings.decks {
             out.push_str(&format!("  {},\n", toml_string(path)));
         }
+        out.push_str("]\n");
+    }
+    if !settings.friends.is_empty() {
+        out.push_str(
+            "\n[friends]\n\
+             # GitHub logins whose public Magic repo a deck's sourcing reads, to\n\
+             # say who has the cards the collection is short of.\n\
+             logins = [",
+        );
+        let logins: Vec<String> = settings.friends.iter().map(|f| toml_string(f)).collect();
+        out.push_str(&logins.join(", "));
         out.push_str("]\n");
     }
     Ok(out)
@@ -377,6 +436,16 @@ pub fn commit_message(before: &str, after: &str) -> String {
     if decks_moved {
         parts.push(deck_move(&old.decks, &new.decks));
     }
+    let has = |list: &[String], f: &String| list.iter().any(|g| g.eq_ignore_ascii_case(f));
+    let mut friends_moved = false;
+    for f in new.friends.iter().filter(|f| !has(&old.friends, f)) {
+        parts.push(format!("+friend {f}"));
+        friends_moved = true;
+    }
+    for f in old.friends.iter().filter(|f| !has(&new.friends, f)) {
+        parts.push(format!("-friend {f}"));
+        friends_moved = true;
+    }
     let subject = if parts.is_empty() {
         "meldweb.toml: rewrite, same rules".to_string()
     } else {
@@ -385,7 +454,7 @@ pub fn commit_message(before: &str, after: &str) -> String {
     // The body is the whole of what moved: a deck dragged does not list the
     // printing rules it left alone.
     let mut body = Vec::new();
-    if printings_moved || !decks_moved {
+    if printings_moved || !(decks_moved || friends_moved) {
         body.push(printings_body(&new));
     }
     if decks_moved {
@@ -400,6 +469,13 @@ pub fn commit_message(before: &str, after: &str) -> String {
                 .collect::<Vec<_>>()
                 .join("\n");
             format!("Decks:\n{decks}")
+        });
+    }
+    if friends_moved {
+        body.push(if new.friends.is_empty() {
+            "Friends: none.".to_string()
+        } else {
+            format!("Friends: {}.", new.friends.join(", "))
         });
     }
     format!("{subject}\n\n{}\n", body.join("\n\n"))
@@ -770,6 +846,38 @@ rank = [{ avoid = "lang:jp" }]
     }
 
     #[test]
+    fn friends_are_logins_kept_once_beside_the_rest() {
+        let ordered = order_decks(None, decks(&["loam"])).unwrap();
+        let text = set_friends(
+            Some(&ordered),
+            vec!["alice".into(), "@Bob-2".into(), "ALICE".into()],
+        )
+        .unwrap();
+        assert!(
+            text.ends_with("\n[friends]\n# GitHub logins whose public Magic repo a deck's sourcing reads, to\n# say who has the cards the collection is short of.\nlogins = [\"alice\", \"Bob-2\"]\n"),
+            "{text}"
+        );
+        let back = read(Some(&text)).unwrap();
+        assert_eq!(back.friends, ["alice", "Bob-2"]);
+        assert_eq!(back.decks, decks(&["loam"]));
+        assert_eq!(
+            commit_message(&ordered, &text),
+            "meldweb.toml: +friend alice, +friend Bob-2\n\nFriends: alice, Bob-2.\n"
+        );
+        let fewer = set_friends(Some(&text), vec!["alice".into()]).unwrap();
+        assert!(commit_message(&text, &fewer).starts_with("meldweb.toml: -friend Bob-2\n"));
+        // A pin keeps them.
+        let pinned = pin(Some(&fewer), sol_ring("c21", "263")).unwrap();
+        assert_eq!(read(Some(&pinned)).unwrap().friends, ["alice"]);
+        // Nothing but a login is one, here or in the file.
+        assert!(set_friends(None, vec!["a/b".into()]).is_err());
+        assert!(set_friends(None, vec!["-a".into()]).is_err());
+        assert!(read(Some("[friends]\nlogins = [\"a b\"]\n")).is_err());
+        let none = set_friends(Some(&fewer), vec![]).unwrap();
+        assert!(!none.contains("[friends]"), "{none}");
+    }
+
+    #[test]
     fn a_deck_commit_names_the_deck_moved_and_lists_the_decks_alone() {
         let before = order_decks(None, decks(&["a", "b", "c", "d"])).unwrap();
         assert!(commit_message("", &before)
@@ -899,6 +1007,7 @@ rank = [{ avoid = "lang:jp" }]
                 pins: vec![],
                 rules: read_rules(None).unwrap(),
                 decks: vec![],
+                friends: vec![],
             }
         );
     }

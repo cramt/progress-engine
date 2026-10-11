@@ -187,7 +187,7 @@ export type Wanted =
  * so a bad one can be fixed in place, and the default rules beside them.
  */
 export type SettingsRules =
-  | { kind: "read"; pins: Pin[]; rules: RuleText[]; decks: string[]; declared: boolean; defaults: RuleText[] }
+  | { kind: "read"; pins: Pin[]; rules: RuleText[]; decks: string[]; friends: string[]; declared: boolean; defaults: RuleText[] }
   | { kind: "refused"; message: string; defaults: RuleText[] };
 
 /**
@@ -250,6 +250,129 @@ export type DeckChange =
   | { kind: "cover"; text: string }
   | { kind: "description"; text: string };
 
+/**
+ * A friend's collection as the page loaded it.
+ */
+export interface FriendFile {
+  who: string;
+  text: string;
+}
+
+export type ParsedSupply =
+  | { kind: "supply"; place?: string; lines: SupplyLine[]; short: SupplyShort[]; extra: SupplyExtra[]; unread: FriendUnread[] }
+  | { kind: "refused"; message: string };
+
+/**
+ * A friend's collection that could not be read, and why.
+ */
+export interface FriendUnread {
+  who: string;
+  message: string;
+}
+
+/**
+ * Copies in the deck's place no line takes.
+ */
+export interface SupplyExtra {
+  line: number;
+  name: string;
+  card: CardRef;
+  finish: Finish;
+  qty: number;
+  /**
+   * The deck lists the card, in another printing or fewer copies.
+   */
+  listed: boolean;
+}
+
+export type Finish = "nonfoil" | "foil" | "etched";
+
+export type CardRef =
+  | { kind: "printing"; set: string; num: string }
+  | { kind: "name"; name: string };
+
+/**
+ * A card the collection has too few copies of for the deck.
+ */
+export interface SupplyShort {
+  name: string;
+  /**
+   * The first deck line holding the card, a `DeckCard.index`.
+   */
+  line: number;
+  short: number;
+  basic: boolean;
+  friends: FriendHas[];
+}
+
+/**
+ * A friend's copies of a card the deck is short of.
+ */
+export interface FriendHas {
+  who: string;
+  pulls: TradePull[];
+}
+
+/**
+ * Copies of one of their collection's lines to bring to a trade.
+ */
+export interface TradePull {
+  /**
+   * Their place the copies are in; absent for unsorted.
+   */
+  at?: string;
+  /**
+   * The place is one of their decks.
+   */
+  inDeck: boolean;
+  card: CardRef;
+  finish: Finish;
+  qty: number;
+}
+
+/**
+ * A deck line needing copies, and the collection's copies it gets.
+ */
+export interface SupplyLine {
+  /**
+   * The deck line, a `DeckCard.index`.
+   */
+  index: number;
+  name: string;
+  need: number;
+  /**
+   * Exact copies first, each half nearest first.
+   */
+  copies: SupplyCopies[];
+}
+
+/**
+ * Copies of one collection line that make up part of a deck line.
+ */
+export interface SupplyCopies {
+  /**
+   * The collection line, an `OwnedCard.index`.
+   */
+  line: number;
+  /**
+   * Its place; absent for unsorted.
+   */
+  at?: string;
+  whereabouts: Whereabouts;
+  card: CardRef;
+  finish: Finish;
+  qty: number;
+  /**
+   * The printing and finish the deck line names, rather than a stand-in.
+   */
+  exact: boolean;
+}
+
+/**
+ * Where an owned copy is, seen from the deck being built.
+ */
+export type Whereabouts = "thisDeck" | "loose" | "otherDeck";
+
 export type ParsedTrade =
   | { kind: "trade"; offers: TradeOffer[]; unread: Unread[] }
   | { kind: "refused"; message: string };
@@ -273,29 +396,6 @@ export interface TradeOffer {
   short: number;
   pulls: TradePull[];
 }
-
-/**
- * Copies of one of their collection's lines to bring to a trade.
- */
-export interface TradePull {
-  /**
-   * Their place the copies are in; absent for unsorted.
-   */
-  at?: string;
-  /**
-   * The place is one of their decks.
-   */
-  inDeck: boolean;
-  card: CardRef;
-  finish: Finish;
-  qty: number;
-}
-
-export type Finish = "nonfoil" | "foil" | "etched";
-
-export type CardRef =
-  | { kind: "printing"; set: string; num: string }
-  | { kind: "name"; name: string };
 
 /**
  * A deck file as the page loaded it.

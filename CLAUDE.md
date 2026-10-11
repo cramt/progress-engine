@@ -25,7 +25,10 @@ box, a deck), edited at `/collection` and saved the same way (ADR-0023); `/wante
 collection lacks, worked out in Rust (ADR-0034); `/trade?with=<login>` is what
 another player's public `mtg` repo holds of that list or of one deck
 (`&deck=`), by their places
-(ADR-0035). It is three
+(ADR-0035). A deck's Sourcing view says where each card comes from (owned,
+another printing, a friend in `meldweb.toml`, to get) and its Build view is
+the deck's place against its list, with the collection moves to fix it
+(ADR-0036). It is three
 parts: `meldweb-wasm`, which is `chip-decklist` compiled for the browser; `web/`, a
 Vite + React + TanStack Router app in the root pnpm workspace; and `worker/`, the
 one Cloudflare Worker that serves the site and trades a GitHub login for tokens

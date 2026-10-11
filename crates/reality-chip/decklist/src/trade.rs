@@ -51,6 +51,20 @@ pub fn offers(
     theirs: (&Collection, &str),
     names: &Names,
 ) -> Vec<Offer> {
+    offers_by_key(wanted, mine, decks, theirs, names)
+        .into_iter()
+        .map(|(_, o)| o)
+        .collect()
+}
+
+/// [`offers`], each card beside the key [`key_of`] gave it.
+pub(crate) fn offers_by_key(
+    wanted: (&Wanted, &str),
+    mine: (&Collection, &str),
+    decks: &[(String, Deck, String)],
+    theirs: (&Collection, &str),
+    names: &Names,
+) -> Vec<(String, Offer)> {
     let (wanted, wanted_text) = wanted;
     let (mine, mine_text) = mine;
     let (theirs, theirs_text) = theirs;
@@ -110,17 +124,19 @@ pub fn offers(
         });
     }
 
-    let mut out: Vec<Offer> = short
+    let mut out: Vec<(String, Offer)> = short
         .iter()
         .filter_map(|(key, name, qty)| {
-            by_key.remove(key.as_str()).map(|pulls| Offer {
+            let pulls = by_key.remove(key.as_str())?;
+            let offer = Offer {
                 name: name.clone(),
                 short: *qty,
                 pulls,
-            })
+            };
+            Some((key.clone(), offer))
         })
         .collect();
-    out.sort_by(|a, b| {
+    out.sort_by(|(_, a), (_, b)| {
         a.name
             .to_lowercase()
             .cmp(&b.name.to_lowercase())

@@ -38,6 +38,9 @@ export interface Pins {
 
 const PinsContext = createContext<Pins | null>(null);
 
+/** The settings file's one-shot edit, where a page provides one. */
+const SettingsEditContext = createContext<SettingsFile | null>(null);
+
 export function PinsProvider({
   pins,
   children,
@@ -118,7 +121,8 @@ export function SettingsProvider({
   repo: RepoRef;
   children: ReactNode;
 }) {
-  const { text, apply, error } = useSettingsFile(file, api, repo);
+  const settingsFile = useSettingsFile(file, api, repo);
+  const { text, apply, error } = settingsFile;
 
   const pins = useMemo(() => {
     const read = readSettings(text);
@@ -140,7 +144,9 @@ export function SettingsProvider({
 
   return (
     <SettingsContext.Provider value={text}>
-      <PinsContext.Provider value={value}>{children}</PinsContext.Provider>
+      <SettingsEditContext.Provider value={settingsFile}>
+        <PinsContext.Provider value={value}>{children}</PinsContext.Provider>
+      </SettingsEditContext.Provider>
     </SettingsContext.Provider>
   );
 }
@@ -245,4 +251,9 @@ export function usePreferredOrder(
 /** The repo's settings, for ranking outside a component. */
 export function useSettings(): string | null {
   return useContext(SettingsContext);
+}
+
+/** The settings file and its one-shot edit; null outside a `SettingsProvider`. */
+export function useSettingsEdit(): SettingsFile | null {
+  return useContext(SettingsEditContext);
 }

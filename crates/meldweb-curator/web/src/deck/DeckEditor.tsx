@@ -9,6 +9,7 @@ import {
   type Dest,
   deckAdd,
   editDeckCards,
+  type Finish,
   parseDeck,
   setCardFinish,
   setCardPrinting,
@@ -29,6 +30,7 @@ import { SearchButton, SearchOverlay } from "../search/SearchOverlay";
 import { BranchIcon, HistoryIcon, ScanIcon } from "../ui/icons";
 import { messageOf } from "../ui/Sheet";
 import { printingNames } from "./archidektNames";
+import { BuildView } from "./BuildView";
 import { CopyDeck } from "./CopyDeck";
 import { CostView } from "./CostView";
 import { Description } from "./Description";
@@ -36,9 +38,11 @@ import { HistoryDrawer } from "./HistoryDrawer";
 import "./history.css";
 import { PlaytestArchidekt } from "./PlaytestArchidekt";
 import { ReplaceArchidekt } from "./ReplaceArchidekt";
+import { SourcingView } from "./SourcingView";
 import { type OnDrop, StacksView } from "./StacksView";
 import { Banners, SaveStatus, Toolbar, UndoRedo } from "./Toolbar";
 import { useOther } from "./useOther";
+import { useSupply } from "./useSupply";
 import { SnapshotDialog, VariantDialog } from "./VersionDialogs";
 import { VersionView, when } from "./VersionView";
 import { ViewTabs } from "./ViewTabs";
@@ -119,6 +123,15 @@ export function DeckEditor({
 
   const navigate = useNavigate();
   const other = useOther(api, repo, path, viewing);
+  // The collection and friends, read once a view asks what the deck is made of.
+  const supply = useSupply({
+    active: viewing.kind === "now" && (view === "sourcing" || view === "build"),
+    api,
+    repo,
+    path,
+    text: history.present,
+    printings: cards.printings,
+  });
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   // Bumped when a snapshot is taken, so the drawer reads them again.
@@ -328,6 +341,26 @@ export function DeckEditor({
     }
   };
 
+  // A line put on another printing, in the finish given.
+  const reprint = (
+    index: number,
+    printing: { set: string; num: string },
+    finish: Finish,
+  ) => {
+    try {
+      const now = history.present;
+      const moved = setCardPrinting(now, index, printing.set, printing.num);
+      const card = parsed.cards[index];
+      // One edit, so one undo puts the line back as it was.
+      history.edit(
+        finish === card?.finish ? moved : setCardFinish(moved, index, finish),
+      );
+      setRefusal(null);
+    } catch (e) {
+      setRefusal(messageOf(e));
+    }
+  };
+
   const reload = async () => {
     try {
       history.reset(await store.reload());
@@ -507,30 +540,29 @@ export function DeckEditor({
               onDrop={onDrop}
               cardProps={cards.cardProps}
             />
-          ) : (
+          ) : view === "cost" ? (
             <CostView
               cards={parsed.cards}
               printings={cards.printings}
-              onUse={(card, { printing, finish }) => {
-                try {
-                  const now = history.present;
-                  const moved = setCardPrinting(
-                    now,
-                    card.index,
-                    printing.set,
-                    printing.num,
-                  );
-                  // One edit, so one undo puts the line back as it was.
-                  history.edit(
-                    finish === card.finish
-                      ? moved
-                      : setCardFinish(moved, card.index, finish),
-                  );
-                  setRefusal(null);
-                } catch (e) {
-                  setRefusal(messageOf(e));
-                }
-              }}
+              onUse={(card, { printing, finish }) =>
+                reprint(card.index, printing, finish)
+              }
+            />
+          ) : view === "sourcing" ? (
+            <SourcingView
+              state={supply.state}
+              cards={parsed.cards}
+              deckName={parsed.name ?? stem}
+              me={repo.owner}
+              onUse={reprint}
+            />
+          ) : (
+            <BuildView
+              supply={supply}
+              cards={parsed.cards}
+              path={path}
+              deckName={parsed.name ?? stem}
+              onSourcing={() => onNavigate({ view: "sourcing" })}
             />
           )}
           <details className="source">

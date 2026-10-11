@@ -3,6 +3,8 @@ import { DECK_VIEWS, type DeckView } from "./versions";
 const LABEL: Record<DeckView, string> = {
   stacks: "Stacks",
   cost: "Cost",
+  sourcing: "Sourcing",
+  build: "Build",
 };
 
 /** Which layout of the deck the page shows; a new view is a new entry in `DECK_VIEWS`. */

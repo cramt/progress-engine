@@ -1,0 +1,169 @@
+/* The sourcing and build views: one deck against the collection. */
+.supply {
+  max-width: 1080px;
+}
+
+.supply-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 0 0 14px;
+  font-size: 15px;
+}
+
+.supply-summary strong {
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.supply-progress {
+  width: 160px;
+  height: 8px;
+  accent-color: var(--accent);
+}
+
+.supply-status {
+  margin: 24px 0;
+}
+
+.supply-section {
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.supply-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  min-height: 52px;
+  padding: 10px 12px 10px 16px;
+}
+
+.supply-header h2 {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.supply-hint {
+  font-size: 12.5px;
+}
+
+.supply-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* The section draws the box; the table only its rows. */
+.supply-table.cost-table {
+  border: none;
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  box-shadow: none;
+}
+
+.supply-note {
+  margin-left: 8px;
+  font-size: 12px;
+}
+
+.supply-standin {
+  color: var(--warning-fg);
+  background: var(--warning-soft);
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
+}
+
+.supply-ticked td {
+  color: var(--muted);
+}
+
+.supply-ticked .cost-title {
+  text-decoration: line-through;
+}
+
+.supply-friends {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.supply-friends-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-bottom: 18px;
+}
+
+.supply-friends-edit input {
+  width: 200px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 4px 0 10px;
+  border-radius: 13px;
+  background: var(--surface-3);
+  font-size: 13px;
+}
+
+.chip-warn {
+  background: var(--warning-soft);
+  color: var(--warning-fg);
+}
+
+.chip-remove {
+  height: 20px;
+  min-width: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+}
+
+.supply-basics {
+  margin: 0 0 20px;
+  font-size: 13px;
+}
+
+.supply-moves {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 14px;
+}
+
+.supply-no-place {
+  max-width: 560px;
+  padding: 20px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-lg);
+}
+
+.supply-no-place p {
+  margin: 0 0 12px;
+}
+
+button.link {
+  height: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: var(--accent-strong);
+  font: inherit;
+  text-decoration: underline;
+}

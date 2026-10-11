@@ -28,7 +28,7 @@ use chip_decklist::collection::{self, Collection};
 use chip_decklist::collection_import;
 use chip_decklist::deck::{self, CategoryType, Deck};
 use chip_decklist::diff::{self, Change, Diff};
-use chip_decklist::{changelog, edit, export, trade, wanted};
+use chip_decklist::{changelog, edit, export, supply, trade, wanted};
 use chip_scryfall::bulk::BulkCard;
 use facet::Facet;
 use preference::{Pin, Preference, RuleText};
@@ -964,6 +964,26 @@ pub fn collection_move_lines(text: &str, indices: &[u32], to: &str) -> Result<St
     collection::move_lines(text, &indices, place_arg(to)).map_err(refused)
 }
 
+/// `text` with `qtys[i]` copies of each line `lines[i]` moved to the place
+/// `to`, or to unsorted when it is empty, as one edit.
+#[wasm_bindgen]
+pub fn collection_move_some(
+    text: &str,
+    lines: &[u32],
+    qtys: &[u32],
+    to: &str,
+) -> Result<String, JsError> {
+    if lines.len() != qtys.len() {
+        return Err(refused("a quantity for every line"));
+    }
+    let moves: Vec<(usize, u32)> = lines
+        .iter()
+        .zip(qtys)
+        .map(|(&i, &q)| (i as usize, q))
+        .collect();
+    collection::move_some(text, &moves, place_arg(to)).map_err(refused)
+}
+
 /// `text` with `qty` of card `index` made the printing `set/num`, or left the
 /// card it is when `set` is empty, in `finish`.
 #[wasm_bindgen]
@@ -1104,6 +1124,8 @@ pub enum SettingsRules {
         rules: Vec<RuleText>,
         /// The deck list's order, by path; a deck not in it goes after, by name.
         decks: Vec<String>,
+        /// GitHub logins whose public collections a deck's sourcing reads.
+        friends: Vec<String>,
         /// Whether the rules came from the repo's `meldweb.toml`.
         declared: bool,
         defaults: Vec<RuleText>,
@@ -1118,10 +1140,16 @@ pub enum SettingsRules {
 pub fn read_settings_text(text: Option<&str>) -> SettingsRules {
     let defaults = preference::read_rules(None).expect("the default rules read");
     match preference::read(text) {
-        Ok(preference::Settings { pins, rules, decks }) => SettingsRules::Read {
+        Ok(preference::Settings {
             pins,
             rules,
             decks,
+            friends,
+        }) => SettingsRules::Read {
+            pins,
+            rules,
+            decks,
+            friends,
             declared: text.is_some(),
             defaults,
         },
@@ -1141,16 +1169,34 @@ pub fn check_rule(query: &str) -> Option<String> {
     preference::check(query)
 }
 
-/// `pins`, `rules` and `decks`, JSON arrays of `Pin`, `RuleText` and paths,
-/// as a `meldweb.toml`, the pins first; refused when a rule does not parse.
+/// `pins`, `rules`, `decks` and `friends`, JSON arrays of `Pin`, `RuleText`,
+/// paths and logins, as a `meldweb.toml`, the pins first; refused when a rule
+/// does not parse or a friend is not a login.
 #[wasm_bindgen]
-pub fn write_settings(pins: &str, rules: &str, decks: &str) -> Result<String, JsError> {
+pub fn write_settings(
+    pins: &str,
+    rules: &str,
+    decks: &str,
+    friends: &str,
+) -> Result<String, JsError> {
     let settings = preference::Settings {
         pins: facet_json::from_str(pins).map_err(refused)?,
         rules: facet_json::from_str(rules).map_err(refused)?,
         decks: facet_json::from_str(decks).map_err(refused)?,
+        friends: facet_json::from_str(friends).map_err(refused)?,
     };
+    if let Some(bad) = settings.friends.iter().find(|f| !preference::is_login(f)) {
+        return Err(refused(format!("{bad:?} is not a GitHub login")));
+    }
     preference::write(&settings).map_err(refused)
+}
+
+/// `settings`, the repo's `meldweb.toml` or none, with `friends`, a JSON
+/// array of GitHub logins, as the friends a deck's sourcing asks.
+#[wasm_bindgen]
+pub fn set_friends(settings: Option<String>, friends: &str) -> Result<String, JsError> {
+    let friends: Vec<String> = facet_json::from_str(friends).map_err(refused)?;
+    preference::set_friends(settings.as_deref(), friends).map_err(refused)
 }
 
 /// `settings`, the repo's `meldweb.toml` or none, with the deck list in
@@ -1752,20 +1798,20 @@ pub fn read_trade_text(
     .map(|o| TradeOffer {
         name: o.name,
         short: o.short,
-        pulls: o
-            .pulls
-            .into_iter()
-            .map(|p| TradePull {
-                at: p.place,
-                in_deck: p.in_deck,
-                card: card_wire(p.card),
-                finish: finish_wire(p.finish),
-                qty: p.qty,
-            })
-            .collect(),
+        pulls: o.pulls.into_iter().map(pull_wire).collect(),
     })
     .collect();
     ParsedTrade::Trade { offers, unread }
+}
+
+fn pull_wire(p: trade::Pull) -> TradePull {
+    TradePull {
+        at: p.place,
+        in_deck: p.in_deck,
+        card: card_wire(p.card),
+        finish: finish_wire(p.finish),
+        qty: p.qty,
+    }
 }
 
 /// JSON of [`ParsedTrade`]: what the collection `theirs` holds of the wanted
@@ -1794,6 +1840,232 @@ pub fn read_trade(
     Ok(facet_json::to_string(&parsed).expect("ParsedTrade serialises"))
 }
 
+/// Where an owned copy is, seen from the deck being built.
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(rename_all = "camelCase")]
+pub enum Whereabouts {
+    /// Sleeved in this deck already.
+    ThisDeck,
+    /// In a binder, a box, or unsorted.
+    Loose,
+    /// Sleeved in another deck.
+    OtherDeck,
+}
+
+/// Copies of one collection line that make up part of a deck line.
+#[derive(Debug, Facet)]
+pub struct SupplyCopies {
+    /// The collection line, an `OwnedCard.index`.
+    pub line: usize,
+    /// Its place; absent for unsorted.
+    #[facet(skip_serializing_if = Option::is_none)]
+    pub at: Option<String>,
+    pub whereabouts: Whereabouts,
+    pub card: CardRef,
+    pub finish: Finish,
+    pub qty: u32,
+    /// The printing and finish the deck line names, rather than a stand-in.
+    pub exact: bool,
+}
+
+/// A deck line needing copies, and the collection's copies it gets.
+#[derive(Debug, Facet)]
+pub struct SupplyLine {
+    /// The deck line, a `DeckCard.index`.
+    pub index: usize,
+    pub name: String,
+    pub need: u32,
+    /// Exact copies first, each half nearest first.
+    pub copies: Vec<SupplyCopies>,
+}
+
+/// A friend's copies of a card the deck is short of.
+#[derive(Debug, Facet)]
+pub struct FriendHas {
+    pub who: String,
+    pub pulls: Vec<TradePull>,
+}
+
+/// A card the collection has too few copies of for the deck.
+#[derive(Debug, Facet)]
+pub struct SupplyShort {
+    pub name: String,
+    /// The first deck line holding the card, a `DeckCard.index`.
+    pub line: usize,
+    pub short: u32,
+    pub basic: bool,
+    pub friends: Vec<FriendHas>,
+}
+
+/// Copies in the deck's place no line takes.
+#[derive(Debug, Facet)]
+pub struct SupplyExtra {
+    pub line: usize,
+    pub name: String,
+    pub card: CardRef,
+    pub finish: Finish,
+    pub qty: u32,
+    /// The deck lists the card, in another printing or fewer copies.
+    pub listed: bool,
+}
+
+/// A friend's collection that could not be read, and why.
+#[derive(Debug, Facet)]
+pub struct FriendUnread {
+    pub who: String,
+    pub message: String,
+}
+
+#[derive(Debug, Facet)]
+#[repr(u8)]
+#[facet(tag = "kind", rename_all = "camelCase")]
+pub enum ParsedSupply {
+    Supply {
+        /// The deck's place in the collection; absent while it has none.
+        #[facet(skip_serializing_if = Option::is_none)]
+        place: Option<String>,
+        lines: Vec<SupplyLine>,
+        short: Vec<SupplyShort>,
+        extra: Vec<SupplyExtra>,
+        unread: Vec<FriendUnread>,
+    },
+    Refused {
+        message: String,
+    },
+}
+
+/// A friend's collection as the page loaded it.
+#[derive(Debug, Facet)]
+pub struct FriendFile {
+    pub who: String,
+    pub text: String,
+}
+
+pub fn read_supply_text(
+    path: &str,
+    deck_text: &str,
+    collection_text: &str,
+    friends: &[FriendFile],
+    names: &HashMap<String, String>,
+) -> ParsedSupply {
+    let deck = match Deck::parse(deck_text) {
+        Ok(d) => d,
+        Err(e) => {
+            return ParsedSupply::Refused {
+                message: format!("the deck: {e}"),
+            }
+        }
+    };
+    let mine = match Collection::parse(collection_text) {
+        Ok(c) => c,
+        Err(e) => {
+            return ParsedSupply::Refused {
+                message: format!("your collection: {e}"),
+            }
+        }
+    };
+    let mut unread = Vec::new();
+    let theirs: Vec<(String, Collection, String)> = friends
+        .iter()
+        .filter_map(|f| match Collection::parse(&f.text) {
+            Ok(c) => Some((f.who.clone(), c, f.text.clone())),
+            Err(e) => {
+                unread.push(FriendUnread {
+                    who: f.who.clone(),
+                    message: e.to_string(),
+                });
+                None
+            }
+        })
+        .collect();
+    let s = supply::supply(
+        path,
+        (&deck, deck_text),
+        (&mine, collection_text),
+        &theirs,
+        names,
+    );
+    let whereabouts = |w| match w {
+        supply::Whereabouts::ThisDeck => Whereabouts::ThisDeck,
+        supply::Whereabouts::Loose => Whereabouts::Loose,
+        supply::Whereabouts::OtherDeck => Whereabouts::OtherDeck,
+    };
+    ParsedSupply::Supply {
+        place: s.place,
+        lines: s
+            .lines
+            .into_iter()
+            .map(|l| SupplyLine {
+                index: l.index,
+                name: l.name,
+                need: l.need,
+                copies: l
+                    .copies
+                    .into_iter()
+                    .map(|c| SupplyCopies {
+                        line: c.line,
+                        at: c.place,
+                        whereabouts: whereabouts(c.whereabouts),
+                        card: card_wire(c.card),
+                        finish: finish_wire(c.finish),
+                        qty: c.qty,
+                        exact: c.exact,
+                    })
+                    .collect(),
+            })
+            .collect(),
+        short: s
+            .short
+            .into_iter()
+            .map(|s| SupplyShort {
+                line: s.line,
+                name: s.name,
+                short: s.short,
+                basic: s.basic,
+                friends: s
+                    .friends
+                    .into_iter()
+                    .map(|(who, pulls)| FriendHas {
+                        who,
+                        pulls: pulls.into_iter().map(pull_wire).collect(),
+                    })
+                    .collect(),
+            })
+            .collect(),
+        extra: s
+            .extra
+            .into_iter()
+            .map(|e| SupplyExtra {
+                line: e.line,
+                name: e.name,
+                card: card_wire(e.card),
+                finish: finish_wire(e.finish),
+                qty: e.qty,
+                listed: e.listed,
+            })
+            .collect(),
+        unread,
+    }
+}
+
+/// JSON of [`ParsedSupply`]: the deck at `path`, its `text`, made of the
+/// copies `collection` holds, and what each friend (JSON of `FriendFile[]`)
+/// holds of what is short, `names` naming printings as for an add.
+#[wasm_bindgen]
+pub fn read_supply(
+    path: &str,
+    text: &str,
+    collection: &str,
+    friends: &str,
+    names: Option<String>,
+) -> Result<String, JsError> {
+    let friends: Vec<FriendFile> = facet_json::from_str(friends)
+        .map_err(|e| refused(format!("friends are not FriendFile[]: {e}")))?;
+    let parsed = read_supply_text(path, text, collection, &friends, &read_names(names)?);
+    Ok(facet_json::to_string(&parsed).expect("ParsedSupply serialises"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1817,6 +2089,8 @@ mod tests {
         g.add_type::<ParsedWanted>();
         g.add_type::<DeckFile>();
         g.add_type::<ParsedTrade>();
+        g.add_type::<ParsedSupply>();
+        g.add_type::<FriendFile>();
         g.add_type::<Compared>();
         g.add_type::<Ranked>();
         g.add_type::<SettingsRules>();

@@ -38,18 +38,20 @@ export function problemOf(query: string): string | null {
 }
 
 /**
- * The text of a `meldweb.toml` holding `pins`, then `rules`, and the deck
- * list in `decks`' order; throws when a rule does not parse.
+ * The text of a `meldweb.toml` holding `pins`, then `rules`, the deck list
+ * in `decks`' order and `friends`; throws when a rule does not parse.
  */
 export function writeSettings(
   pins: readonly Pin[],
   rules: readonly RuleText[],
   decks: readonly string[] = [],
+  friends: readonly string[] = [],
 ): string {
   return write_settings(
     JSON.stringify(pins.map(({ name, set, num }) => ({ name, set, num }))),
     JSON.stringify(rules.map(({ verb, query }) => ({ verb, query }))),
     JSON.stringify(decks),
+    JSON.stringify(friends),
   );
 }
 
@@ -102,6 +104,8 @@ export interface Loaded extends Draft<RuleText> {
   text: string;
   /** The deck list's order, which the page leaves as it found it. */
   decks: readonly string[];
+  /** The friends a deck's sourcing asks, which the page leaves too. */
+  friends: readonly string[];
 }
 
 /**
@@ -114,7 +118,7 @@ export function fileFor(draft: Draft<RuleText>, loaded: Loaded): string | null {
   if (samePins(draft.pins, loaded.pins) && sameRules(draft.rules, loaded.rules))
     return loaded.text;
   if (draft.rules.some((r) => problemOf(r.query) !== null)) return null;
-  return writeSettings(draft.pins, draft.rules, loaded.decks);
+  return writeSettings(draft.pins, draft.rules, loaded.decks, loaded.friends);
 }
 
 /**

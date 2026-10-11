@@ -38,12 +38,24 @@ _Avoid_: wishlist, shopping list, buy list
 The page `/trade?with=<login>` ([ADR-0035](../../docs/adr/0035-a-trade-reads-another-players-public-collection-against-the-wanted-list.md)): the copies another player's collection holds of what the wanted list is short of, by their place, read from their public Magic repo without the login. Copies sleeved in their decks come last. It goes one way, their collection against the user's wants. With `&deck=<path>` it is for one deck alone: what that deck lacks against the whole collection, built or not.
 _Avoid_: match, swap
 
+**Sourcing**:
+A deck's view `?view=sourcing` ([ADR-0036](../../docs/adr/0036-a-decks-sourcing-and-build-are-the-deck-against-its-copies.md)): each card the deck needs a copy of, as owned as listed, owned in another printing (a **stand-in**), held by a friend, or still to get. The deck is taken alone, against the whole collection.
+_Avoid_: acquisition, shopping list
+
+**Build**:
+A deck's view `?view=build`: the deck's place against its list. It shows what to pull into the place from each binder, box or other deck, what to take out, what is missing, and a checklist of the copies already in it to tick while going through the physical deck. Each move is a commit of the collection.
+_Avoid_: physical view, checkout
+
+**Friends**:
+GitHub logins in the settings, `[friends] logins`, whose public collections Sourcing reads to say who has what the deck is short of.
+_Avoid_: contacts, trade partners
+
 **Collection import**:
 Another app's collection export (ManaBox, Moxfield, Dragon Shield…) or a text list, put into the collection as one edit ([ADR-0029](../../docs/adr/0029-a-collection-import-is-read-by-header-and-a-printing-is-pinned-only-where-scryfall-agrees.md)). Its binders become places. It adds to what is there, or replaces what the places it fills held, so importing the same export again changes nothing. A printing is pinned only where Scryfall agrees on the name; otherwise the card goes in by name, and the import says so.
 _Avoid_: sync (nothing is kept in step with the other app)
 
 **Settings**:
-The Magic repo's `meldweb.toml`: Curator's own choices, which are the printing preference ([ADR-0026](../../docs/adr/0026-which-printing-comes-first-is-a-ranked-list-of-printing-queries.md)), and the deck order; the preference is edited at `/settings` beside a preview that ranks one card's printings by the rules as they are typed. A repo without it gets the defaults, and the first change commits the file; a rule that does not read as a query holds the save back.
+The Magic repo's `meldweb.toml`: Curator's own choices, which are the printing preference ([ADR-0026](../../docs/adr/0026-which-printing-comes-first-is-a-ranked-list-of-printing-queries.md)), the deck order and the friends; the preference is edited at `/settings` beside a preview that ranks one card's printings by the rules as they are typed. A repo without it gets the defaults, and the first change commits the file; a rule that does not read as a query holds the save back.
 _Avoid_: config, preferences file
 
 **Deck order**:

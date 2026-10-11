@@ -295,7 +295,7 @@ pub struct Missing {
 /// people log in a collection, so missing them is not news.
 const BASICS: [&str; 6] = ["plains", "island", "swamp", "mountain", "forest", "wastes"];
 
-fn is_basic(key: &str) -> bool {
+pub(crate) fn is_basic(key: &str) -> bool {
     let key = key.strip_prefix("snow-covered ").unwrap_or(key);
     BASICS.contains(&key)
 }
@@ -311,7 +311,7 @@ pub(crate) fn key_of(card: &CardRef, names: &Names) -> (String, String) {
 
 /// Copies held in the deck as a physical card: everything but the maybeboard
 /// and what is set aside, which nobody needs to own to play it.
-fn needs_copy(place: CategoryType) -> bool {
+pub(crate) fn needs_copy(place: CategoryType) -> bool {
     !matches!(place, CategoryType::Maybeboard | CategoryType::NotInDeck)
 }
 

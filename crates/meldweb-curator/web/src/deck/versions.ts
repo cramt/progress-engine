@@ -2,8 +2,9 @@
  * What the deck page shows beside the deck as it is now, and how the URL
  * says it, so a past version is a link: `?at=<commit>` is the deck as that
  * commit left it, `?vs=<path>` is another deck (a variant or its parent) to
- * compare with, `?history` keeps the timeline open, and `?view=cost` lays
- * the deck out by what it costs instead of as stacks.
+ * compare with, `?history` keeps the timeline open, and `?view=` lays the
+ * deck out another way than as stacks: by what it costs (`cost`), by where
+ * each card comes from (`sourcing`), or as the physical deck (`build`).
  */
 import type { DeckChange } from "../deck";
 import type { Revision } from "../github/history";
@@ -16,7 +17,7 @@ export type Viewing =
   | { kind: "deck"; path: string };
 
 /** How the deck as it is now is laid out; the first is the default. */
-export const DECK_VIEWS = ["stacks", "cost"] as const;
+export const DECK_VIEWS = ["stacks", "cost", "sourcing", "build"] as const;
 export type DeckView = (typeof DECK_VIEWS)[number];
 
 /** Everything about the deck page the URL holds. */
