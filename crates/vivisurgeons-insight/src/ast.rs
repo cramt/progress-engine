@@ -1559,8 +1559,16 @@ impl Keeps {
     /// subtype, and "a Construct artifact creature" all but the creature
     /// types (CR 205.1b); any other card type replaces the card types.
     pub fn implied_by(types: &[Adj]) -> Keeps {
-        // "has base power and toughness 4/4": an effect that sets no type
-        // replaces none (CR 205.1a replaces only the types it sets).
+        // "becomes a blue Serpent": a color is no type (CR 205.1a replaces
+        // only the types an effect sets; CR 105.3 sets the color).
+        let types: Vec<Adj> = types
+            .iter()
+            .filter(|a| !matches!(a, Adj::Color(_)))
+            .cloned()
+            .collect();
+        let types = &types[..];
+        // "has base power and toughness 4/4", "becomes black": an effect
+        // that sets no type replaces none.
         if types.is_empty() {
             return Keeps::OtherTypes;
         }

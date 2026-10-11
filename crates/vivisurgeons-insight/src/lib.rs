@@ -1374,6 +1374,15 @@ mod tests {
         );
         assert!(format!("{a:?}").contains("keeps: OtherTypes"), "{a:?}");
         assert_eq!(Keeps::implied_by(&[]), Keeps::OtherTypes);
+        // A color is no type: "becomes black", "becomes a blue Serpent".
+        assert_eq!(
+            Keeps::implied_by(&[Adj::Color(Color::Black)]),
+            Keeps::OtherTypes
+        );
+        assert_eq!(
+            Keeps::implied_by(&[Adj::Color(Color::Blue), Adj::Subtype("serpent".into())]),
+            Keeps::AllButSubtypesOfSet
+        );
     }
 
     #[test]
