@@ -524,6 +524,11 @@ label {
   gap: 6px;
 }
 
+/* A page's buttons outgrow a phone's width, so they wrap like the bar does. */
+.toolbar-actions {
+  flex-wrap: wrap;
+}
+
 .toolbar-divider {
   width: 1px;
   height: 20px;

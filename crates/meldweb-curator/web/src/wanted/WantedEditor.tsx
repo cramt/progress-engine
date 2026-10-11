@@ -338,101 +338,111 @@ function ByHand({
           Nothing yet. Quick add puts a card here.
         </p>
       ) : (
-        <table className="wanted-table">
-          <thead>
-            <tr>
-              <th className="wanted-qty">Qty</th>
-              <th>Card</th>
-              <th className="wanted-printing">Printing</th>
-              <th className="wanted-finish">Finish</th>
-              <th className="wanted-owned">Owned</th>
-              <th className="wanted-price">Price</th>
-              <th className="wanted-remove">
-                <span className="visually-hidden">Remove</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {wants.map((c) => {
-              const name = cardName(c, printings);
-              return (
-                <tr key={c.index}>
-                  <td className="wanted-qty">
-                    <div className="stepper">
-                      <button
-                        type="button"
-                        aria-label={`One fewer ${name}`}
-                        onClick={() =>
-                          change((t) => setWantedQty(t, c.index, c.qty - 1))
+        <div className="wanted-scroll">
+          <table className="wanted-table">
+            <thead>
+              <tr>
+                <th className="wanted-qty">Qty</th>
+                <th>Card</th>
+                <th className="wanted-printing">Printing</th>
+                <th className="wanted-finish">Finish</th>
+                <th className="wanted-owned">Owned</th>
+                <th className="wanted-price">Price</th>
+                <th className="wanted-remove">
+                  <span className="visually-hidden">Remove</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {wants.map((c) => {
+                const name = cardName(c, printings);
+                return (
+                  <tr key={c.index}>
+                    <td className="wanted-qty">
+                      <div className="stepper">
+                        <button
+                          type="button"
+                          aria-label={`One fewer ${name}`}
+                          onClick={() =>
+                            change((t) => setWantedQty(t, c.index, c.qty - 1))
+                          }
+                        >
+                          −
+                        </button>
+                        <span>{c.qty}</span>
+                        <button
+                          type="button"
+                          aria-label={`One more ${name}`}
+                          onClick={() =>
+                            change((t) => setWantedQty(t, c.index, c.qty + 1))
+                          }
+                        >
+                          +
+                        </button>
+                      </div>
+                    </td>
+                    <td className="wanted-name">
+                      <Thumb
+                        image={printings.get(printingKey(c.card))?.image}
+                      />
+                      {name}
+                    </td>
+                    <td className="wanted-printing">
+                      {c.card.kind === "printing" ? (
+                        <span className="set-chip">
+                          {c.card.set.toUpperCase()} <span>#{c.card.num}</span>
+                        </span>
+                      ) : (
+                        <span className="muted">any</span>
+                      )}
+                    </td>
+                    <td className="wanted-finish">
+                      <select
+                        aria-label={`Finish of ${name}`}
+                        value={c.finish}
+                        onChange={(e) =>
+                          change((t) =>
+                            setWantedFinish(
+                              t,
+                              c.index,
+                              e.target.value as Finish,
+                            ),
+                          )
                         }
                       >
-                        −
-                      </button>
-                      <span>{c.qty}</span>
+                        {FINISHES.map((f) => (
+                          <option key={f} value={f}>
+                            {f}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td
+                      className="wanted-owned"
+                      title="Copies owned, any printing"
+                    >
+                      {c.owned > 0 ? c.owned : <span className="muted">0</span>}
+                    </td>
+                    <Price card={c} prices={prices} currency={currency} />
+                    <td className="wanted-remove">
                       <button
                         type="button"
-                        aria-label={`One more ${name}`}
+                        className="icon ghost"
+                        aria-label={`No longer want ${name}`}
+                        title="No longer wanted"
                         onClick={() =>
-                          change((t) => setWantedQty(t, c.index, c.qty + 1))
+                          change((t) => setWantedQty(t, c.index, 0))
                         }
                       >
-                        +
+                        <CloseIcon />
                       </button>
-                    </div>
-                  </td>
-                  <td className="wanted-name">
-                    <Thumb image={printings.get(printingKey(c.card))?.image} />
-                    {name}
-                  </td>
-                  <td className="wanted-printing">
-                    {c.card.kind === "printing" ? (
-                      <span className="set-chip">
-                        {c.card.set.toUpperCase()} <span>#{c.card.num}</span>
-                      </span>
-                    ) : (
-                      <span className="muted">any</span>
-                    )}
-                  </td>
-                  <td className="wanted-finish">
-                    <select
-                      aria-label={`Finish of ${name}`}
-                      value={c.finish}
-                      onChange={(e) =>
-                        change((t) =>
-                          setWantedFinish(t, c.index, e.target.value as Finish),
-                        )
-                      }
-                    >
-                      {FINISHES.map((f) => (
-                        <option key={f} value={f}>
-                          {f}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td
-                    className="wanted-owned"
-                    title="Copies owned, any printing"
-                  >
-                    {c.owned > 0 ? c.owned : <span className="muted">0</span>}
-                  </td>
-                  <Price card={c} prices={prices} currency={currency} />
-                  <td className="wanted-remove">
-                    <button
-                      type="button"
-                      className="icon ghost"
-                      aria-label={`No longer want ${name}`}
-                      title="No longer wanted"
-                      onClick={() => change((t) => setWantedQty(t, c.index, 0))}
-                    >
-                      <CloseIcon />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );
@@ -501,59 +511,64 @@ function FromDecks({
           </p>
         )
       ) : (
-        <table className="wanted-table">
-          <thead>
-            <tr>
-              <th className="wanted-qty">Missing</th>
-              <th>Card</th>
-              <th>In</th>
-              <th className="wanted-owned">Owned</th>
-              <th className="wanted-price">Price</th>
-            </tr>
-          </thead>
-          <tbody>
-            {missing.map((m) => (
-              <tr key={m.name}>
-                <td className="wanted-qty">{m.missing}</td>
-                <td className="wanted-name">
-                  <Thumb
-                    image={
-                      printings.get(
-                        printingKey({ kind: "name", name: m.name } as CardRef),
-                      )?.image
-                    }
-                  />
-                  {m.name}
-                </td>
-                <td className="wanted-decks">
-                  {m.decks.map((d) => (
-                    <Link
-                      key={d.path}
-                      to="/deck/$"
-                      params={{ _splat: d.path }}
-                      className="wanted-deck"
-                    >
-                      {d.name}
-                      {d.qty > 1 && <span className="muted"> ×{d.qty}</span>}
-                    </Link>
-                  ))}
-                </td>
-                <td className="wanted-owned">
-                  {m.owned > 0 ? m.owned : <span className="muted">0</span>}
-                </td>
-                <Price
-                  card={{
-                    card: { kind: "name", name: m.name },
-                    qty: m.missing,
-                    finish: "nonfoil",
-                  }}
-                  prices={prices}
-                  currency={currency}
-                />
+        <div className="wanted-scroll">
+          <table className="wanted-table">
+            <thead>
+              <tr>
+                <th className="wanted-qty">Missing</th>
+                <th>Card</th>
+                <th>In</th>
+                <th className="wanted-owned">Owned</th>
+                <th className="wanted-price">Price</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {missing.map((m) => (
+                <tr key={m.name}>
+                  <td className="wanted-qty">{m.missing}</td>
+                  <td className="wanted-name">
+                    <Thumb
+                      image={
+                        printings.get(
+                          printingKey({
+                            kind: "name",
+                            name: m.name,
+                          } as CardRef),
+                        )?.image
+                      }
+                    />
+                    {m.name}
+                  </td>
+                  <td className="wanted-decks">
+                    {m.decks.map((d) => (
+                      <Link
+                        key={d.path}
+                        to="/deck/$"
+                        params={{ _splat: d.path }}
+                        className="wanted-deck"
+                      >
+                        {d.name}
+                        {d.qty > 1 && <span className="muted"> ×{d.qty}</span>}
+                      </Link>
+                    ))}
+                  </td>
+                  <td className="wanted-owned">
+                    {m.owned > 0 ? m.owned : <span className="muted">0</span>}
+                  </td>
+                  <Price
+                    card={{
+                      card: { kind: "name", name: m.name },
+                      qty: m.missing,
+                      finish: "nonfoil",
+                    }}
+                    prices={prices}
+                    currency={currency}
+                  />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );

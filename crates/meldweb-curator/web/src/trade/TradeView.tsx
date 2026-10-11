@@ -258,32 +258,34 @@ function Result({
               {p.rows.reduce((n, r) => n + r.pull.qty, 0)}
             </span>
           </header>
-          <table className="wanted-table">
-            <thead>
-              <tr>
-                <th className="wanted-qty">Bring</th>
-                <th>Card</th>
-                <th className="trade-copy">Their copy</th>
-                <th className="trade-want" title="By hand and by your decks">
-                  You want
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {p.rows.map(({ offer, pull }, i) => (
-                // A place can hold a card on two lines, a foil and not.
-                // biome-ignore lint/suspicious/noArrayIndexKey: the rows are never reordered in place
-                <tr key={`${offer.name}:${i}`}>
-                  <td className="wanted-qty">{pull.qty}</td>
-                  <td className="wanted-name">{offer.name}</td>
-                  <td className="trade-copy">
-                    {copyOf(pull) || <span className="muted">—</span>}
-                  </td>
-                  <td className="trade-want">{offer.short}</td>
+          <div className="wanted-scroll">
+            <table className="wanted-table">
+              <thead>
+                <tr>
+                  <th className="wanted-qty">Bring</th>
+                  <th>Card</th>
+                  <th className="trade-copy">Their copy</th>
+                  <th className="trade-want" title="By hand and by your decks">
+                    You want
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {p.rows.map(({ offer, pull }, i) => (
+                  // A place can hold a card on two lines, a foil and not.
+                  // biome-ignore lint/suspicious/noArrayIndexKey: the rows are never reordered in place
+                  <tr key={`${offer.name}:${i}`}>
+                    <td className="wanted-qty">{pull.qty}</td>
+                    <td className="wanted-name">{offer.name}</td>
+                    <td className="trade-copy">
+                      {copyOf(pull) || <span className="muted">—</span>}
+                    </td>
+                    <td className="trade-want">{offer.short}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       ))}
     </>

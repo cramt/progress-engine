@@ -1,6 +1,16 @@
 /* The wanted list (ADR-0034): by hand, then what the decks are missing. */
+
+/* The fixed columns alone are wider than a phone, so the table scrolls inside
+ * its section rather than widening the page. Positioned, or the absolutely
+ * placed visually-hidden header escapes the clip and widens the page anyway. */
+.wanted-scroll {
+  position: relative;
+  overflow-x: auto;
+}
+
 .wanted-table {
   width: 100%;
+  min-width: 720px;
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 13.5px;
