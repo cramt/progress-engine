@@ -66,6 +66,12 @@ pub fn mark_self(text: &str, names: &[&str], legendary: bool) -> String {
             if let Some((short, _)) = n.split_once(',') {
                 all.push(short.to_string());
             }
+            // "Loran of the Third Path" is "Loran" in its own text.
+            if let Some((short, _)) = n.split_once(" of ") {
+                if !short.contains(' ') {
+                    all.push(short.to_string());
+                }
+            }
         }
     }
     // Longest first, so the full name is not eaten by its short form.
@@ -121,7 +127,10 @@ pub fn lex(text: &str) -> Vec<Tok> {
                 out.push(Tok::Possessive);
                 i += 2;
             }
-            '"' | '“' | '”' => {
+            // A quote inside a quote is a single one: Urza's Saga's token has
+            // 'This token gets +1/+1 …'. One inside a word or after an `s`
+            // never reaches here, since the word arm reads it as a possessive.
+            '"' | '“' | '”' | '\'' | '‘' | '’' => {
                 out.push(Tok::Quote);
                 i += 1;
             }
@@ -148,6 +157,11 @@ pub fn lex(text: &str) -> Vec<Tok> {
             '•' => {
                 out.push(Tok::Bullet);
                 i += 1;
+            }
+            // "and/or" is one conjunction; the slash would split it.
+            'a' if cs[i..].starts_with(&['a', 'n', 'd', '/', 'o', 'r']) => {
+                out.push(Tok::Word("and/or".into()));
+                i += 6;
             }
             _ => {
                 if let Some((tok, next)) = numeric(&cs, i) {

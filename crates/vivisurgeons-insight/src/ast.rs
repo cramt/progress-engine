@@ -19,6 +19,7 @@ pub enum Ability {
     Triggered {
         trigger: Trigger,
         effect: Vec<Effect>,
+        limits: Vec<Limit>,
     },
     Static(Vec<Static>),
     Spell(Vec<Effect>),
@@ -77,17 +78,39 @@ pub enum Cost {
     Energy(u32),
     Reveal(Objects),
     Mill(Amount),
+    /// "sacrifice an artifact or discard a card": the payer picks one.
+    OneOf(Vec<Cost>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Mana(pub Vec<String>);
 
+/// What an ability's own text says about using it, after the effect.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Limit {
     SorcerySpeed,
+    /// "Activate only once each turn", "This ability triggers only once each turn".
     OncePerTurn,
     OnlyDuringYourTurn,
     OnlyIf(Condition),
+    /// "Spend this mana only to cast …": a rule on the mana the ability made,
+    /// and perhaps one on what it paid for ("that spell can't be countered").
+    SpendOnly {
+        uses: Vec<SpendUse>,
+        then: Option<(Objects, Restriction)>,
+    },
+    /// "This ability costs {1} less to activate for each …".
+    CostChange {
+        by: Mana,
+        less: bool,
+        per: Option<Objects>,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum SpendUse {
+    Cast(Objects),
+    ActivateAbilityOf(Objects),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -101,6 +124,45 @@ pub enum Amount {
     ManaValueOf(Box<Objects>),
     LifeLost,
     Damage,
+    /// "up to two": the player picks any number to that bound.
+    UpTo(Box<Amount>),
+    Twice(Box<Amount>),
+    /// "that many plus one".
+    Plus(Box<Amount>, u32),
+    /// "the greatest power among creatures you control".
+    Greatest {
+        stat: Stat,
+        among: Box<Objects>,
+    },
+    /// "your devotion to black".
+    Devotion {
+        who: Player,
+        to: Palette,
+    },
+    /// "the number of colors in your commander's color identity".
+    NumberOfColors(Box<Palette>),
+    /// "the greatest number of cards a player discarded this way".
+    GreatestDiscardedThisWay,
+    /// "for each time it was kicked".
+    TimesKicked,
+    /// "the total power of creatures you control".
+    Total {
+        stat: Stat,
+        of: Box<Objects>,
+    },
+}
+
+/// A set of colors a rule draws from, named by what decides it.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Palette {
+    Listed(Vec<Color>),
+    /// "the chosen color", or "that color" after a choice.
+    Chosen,
+    CommanderIdentity,
+    /// "the exiled card's colors", "among legendary creatures you control".
+    ColorsOf(Box<Objects>),
+    /// "that a land an opponent controls could produce".
+    CouldProduce(Box<Objects>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -172,6 +234,16 @@ pub enum Quant {
     Rest,
     /// "this creature or another Ally you control": itself, or one the filter names.
     SelfOrAnother,
+    /// "this creature and other Vampire creatures you control": the one
+    /// object, and every other the filter names.
+    WithOthers(Box<Objects>),
+    /// "your commander": the one a player has, by a possessive.
+    Possessive(Player),
+    /// "their first noncreature spell each turn".
+    NthEachTurn {
+        n: u32,
+        of: Player,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -182,6 +254,9 @@ pub struct Filter {
     /// named by its type, as in "target creature".
     pub kind: Option<Noun>,
     pub posts: Vec<Post>,
+    /// "spell or nonland permanent an opponent controls": a second kind of
+    /// object the same slot may hold.
+    pub or: Option<Box<Filter>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -222,6 +297,11 @@ pub enum Noun {
     SpellOrAbility,
     Source,
     PermanentCard,
+    Commander,
+    /// A copy of a spell: "the copy".
+    Copy,
+    /// "burden counter", or any kind when `None`: "those counters".
+    Counter(Option<String>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -239,12 +319,41 @@ pub enum Post {
     Blocking,
     AttachedToIt,
     OfChosenType,
-    SharesType,
     /// "other than ~".
     OtherThanSelf,
     Cast(Player),
     FromAmongThem,
     ExiledWith(Box<Objects>),
+    /// "that shares a creature type with it"; with no object, with each other.
+    SharesType {
+        card_type: String,
+        with: Option<Box<Objects>>,
+    },
+    WithBasicLandType,
+    /// "with a single target".
+    WithSingleTarget,
+    /// "of their choice": who picks among the objects named.
+    ChosenBy(Player),
+    /// "spell you've cast this turn".
+    CastThisTurn(Player),
+    /// "with mana cost {0} or {1}".
+    ManaCost(Vec<Mana>),
+    AttackingPlayer(Player),
+    /// "counter on ~".
+    On(Box<Objects>),
+    /// "the exiled card": an object an earlier verb picked out.
+    Marked(Marked),
+    PutOntoBattlefieldWith(Box<Objects>),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Marked {
+    Exiled,
+    Chosen,
+    Revealed,
+    Sacrificed,
+    Copied,
+    Returned,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -325,7 +434,10 @@ pub enum Effect {
         from: Option<Zone>,
         to: Zone,
         tapped: bool,
-        under_your_control: bool,
+        transformed: bool,
+        /// "under your control", "under its owner's control".
+        under: Option<Player>,
+        order: Option<Order>,
     },
     Counter {
         what: Objects,
@@ -428,7 +540,7 @@ pub enum Effect {
         n: Amount,
         of: Objects,
     },
-    ChooseNewTargets,
+    ChooseNewTargets(Objects),
     ClassLevel(u32),
     May {
         who: Player,
@@ -476,8 +588,9 @@ pub enum Effect {
     Choose(Choice),
     GetEnergy(u32),
     Emblem(Vec<Ability>),
+    /// "…, where X is …": X is defined for the whole sentence before it.
     Where {
-        effect: Box<Effect>,
+        then: Vec<Effect>,
         x: Amount,
     },
     IfYouDo(Vec<Effect>),
@@ -505,12 +618,136 @@ pub enum Effect {
         ability: Box<Ability>,
         dur: Duration,
     },
+    LoseAbility {
+        what: Objects,
+        ability: Box<Ability>,
+        dur: Duration,
+    },
+    /// "The owner of target permanent shuffles it into their library".
+    ShuffleInto {
+        who: Player,
+        what: Objects,
+    },
+    /// An effect whose verb takes no player, done by one: "they put it onto
+    /// the battlefield", "its controller adds an additional {G}".
+    Performed {
+        by: Player,
+        effect: Box<Effect>,
+    },
+    /// "exile target player's graveyard", "exile all graveyards".
+    ExileZone(Zone),
+    /// "You may play that card this turn", "cast it without paying its mana cost".
+    Cast {
+        verb: CastVerb,
+        what: Objects,
+        payment: Payment,
+        dur: Duration,
+    },
+    /// "you gain protection from everything".
+    PlayerGains {
+        who: Player,
+        keywords: Vec<Keyword>,
+        dur: Duration,
+    },
+    PlayerRestrict {
+        who: Player,
+        rule: PlayerRule,
+        dur: Duration,
+    },
+    PhaseOut(Objects),
+    /// "If you control six or more lands, create … instead": the effect
+    /// before it, replaced when the condition holds.
+    Instead {
+        cond: Condition,
+        then: Vec<Effect>,
+    },
+    /// "create a Food token or a Treasure token": one of them, by choice.
+    Or(Vec<Effect>),
+    /// "it creates twice that many of those tokens": more of tokens an event
+    /// just described, not copies of permanents.
+    CreateThose {
+        by: Actor,
+        n: Amount,
+        those: Objects,
+    },
+    PutThose {
+        by: Actor,
+        n: Amount,
+        those: Objects,
+        on: Objects,
+    },
+    /// "When this Aura leaves the battlefield, …" inside an effect: a delayed
+    /// triggered ability (CR 603.7).
+    DelayedWhen {
+        event: Event,
+        then: Vec<Effect>,
+    },
+    /// "When you do, …": a reflexive triggered ability (CR 603.12), which goes
+    /// on the stack, unlike "If you do".
+    WhenYouDo(Vec<Effect>),
+    /// A modal spell's mode with a flavour label: "Sell Contraband — …".
+    Labelled {
+        label: String,
+        then: Vec<Effect>,
+    },
+    /// "Change the target of target spell or ability with a single target."
+    ChangeTarget(Objects),
+    /// "Permanents your opponents control lose hexproof and indestructible".
+    LoseKeywords {
+        what: Objects,
+        keywords: Vec<Keyword>,
+        dur: Duration,
+    },
+    LoseGame(Player),
+    /// "You may play an additional land this turn".
+    ExtraLandPlays {
+        n: Amount,
+        dur: Duration,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Order {
+    Any,
+    Random,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CastVerb {
+    Play,
+    Cast,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Payment {
+    ManaCost,
+    /// "without paying its mana cost".
+    Free,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum PlayerRule {
+    LifeTotalCantChange,
+    CantCast(Objects),
+    CantActivateAbilitiesOf(Objects),
+}
+
+/// Who does a thing a replacement effect watches for.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Actor {
+    Player(Player),
+    /// "If an effect would create …".
+    AnEffect,
+    /// "it creates …", the effect just named.
+    ThatEffect,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Recipient {
     Objects(Objects),
     Player(Player),
+    /// "target player or planeswalker": one recipient of either kind.
+    Or(Vec<Recipient>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -521,19 +758,43 @@ pub enum Choose {
     OneOrMore,
     AnyNumber,
     UpTo(u32),
+    /// "Choose one. If you control a commander as you cast this spell, you
+    /// may choose both instead."
+    Upgrade {
+        base: Box<Choose>,
+        cond: Box<Condition>,
+        to: Box<Choose>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ManaAdd {
     Symbols(Mana),
     Or(Vec<Mana>),
-    AnyColor(Amount),
-    AnyOneColor(Amount),
-    AnyCombination(Amount),
-    ChosenColor(Amount),
-    CommanderIdentity(Amount),
-    OpponentLandsCouldProduce(Amount),
-    AmountOf { mana: Mana, n: Amount },
+    /// "one mana of any color in your commander's color identity".
+    Of {
+        n: Amount,
+        pick: Pick,
+        within: Option<Palette>,
+    },
+    AmountOf {
+        mana: Mana,
+        n: Amount,
+    },
+    /// "adds an additional {G}": on top of the mana that triggered it.
+    Additional(Box<ManaAdd>),
+}
+
+/// How the colors of added mana are picked.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pick {
+    AnyColor,
+    AnyOneColor,
+    AnyCombination,
+    /// "any type": colorless too.
+    AnyType,
+    /// "mana of the chosen color": no pick, the color is given.
+    Stated,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -558,6 +819,7 @@ pub enum Restriction {
     CantBeCountered,
     DoesntUntap,
     AttacksEachCombat,
+    AttacksThisTurn,
     BlocksEachCombat,
     CantBeTheTargetOf(Filter),
     CantBeRegenerated,
@@ -566,6 +828,14 @@ pub enum Restriction {
     CantBeBlockedByMoreThanOne,
     CanBlockAdditional(Amount),
     Unless(Box<Restriction>, Condition),
+    /// "can't attack you unless their controller pays {2} for each …".
+    UnlessPays {
+        rule: Box<Restriction>,
+        who: Player,
+        cost: Vec<Cost>,
+        per: Option<Objects>,
+    },
+    CantAttackPlayer(Player),
     NoActivatedAbilities,
     MayNotUntap,
     DoesntUntapNext,
@@ -573,8 +843,11 @@ pub enum Restriction {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Trigger {
-    When(Event),
+    When(Box<Event>),
     At(Step),
+    /// "When ~ enters, if you cast it, …": checked as it triggers and again
+    /// as it resolves (CR 603.4).
+    InterveningIf(Box<Trigger>, Box<Condition>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -582,6 +855,8 @@ pub enum Event {
     Enters {
         what: Objects,
         under: Option<Player>,
+        /// "enters untapped".
+        state: Option<State>,
     },
     Dies(Objects),
     LeavesBattlefield(Objects),
@@ -625,6 +900,30 @@ pub enum Event {
     CounterPutOn(Objects),
     LandfallPlays(Player),
     Or(Vec<Event>),
+    Copies {
+        who: Player,
+        what: Objects,
+    },
+    Creates {
+        by: Actor,
+        what: Objects,
+        under: Option<Player>,
+    },
+    /// "one or more +1/+1 counters would be put on a creature you control".
+    CountersPut {
+        by: Option<Actor>,
+        n: Quant,
+        kind: Option<String>,
+        on: Objects,
+    },
+    TappedForMana(Objects),
+    /// "an opponent draws their second card each turn".
+    DrawsNth {
+        who: Player,
+        n: u32,
+    },
+    /// "When that mana is spent to cast a creature spell".
+    ManaSpentToCast(Objects),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -636,6 +935,9 @@ pub enum Step {
     EndStep(Whose),
     EndOfCombat(Whose),
     SecondMain(Whose),
+    /// "your next main phase": whichever main phase comes first.
+    Main(Whose),
+    Untap(Whose),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -645,6 +947,8 @@ pub enum Whose {
     EachOpponent,
     The,
     ThatPlayers,
+    YourNext,
+    EachOther,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -675,12 +979,22 @@ pub enum Static {
         less: bool,
         per: Option<Objects>,
     },
-    ExtraLand,
+    /// "You may play two additional lands on each of your turns."
+    ExtraLand(Amount),
+    /// "your opponents can't cast spells or activate abilities of artifacts".
+    PlayerRestrict {
+        who: Player,
+        rules: Vec<PlayerRule>,
+    },
+    /// "Untap all permanents you control during each other player's untap step."
+    UntapDuring {
+        what: Objects,
+        step: Step,
+    },
     AsLongAs {
         cond: Condition,
         then: Vec<Static>,
     },
-    SpendOnly(Objects),
     SetPt {
         what: Objects,
         each_equal_to: Amount,
@@ -717,6 +1031,39 @@ pub enum Static {
         event: Box<Event>,
         instead: Vec<Effect>,
     },
+    /// "Each land is a Swamp in addition to its other land types."
+    AlsoIs {
+        what: Objects,
+        types: TypeSet,
+    },
+    /// "you may cast this spell without paying its mana cost".
+    CastWithoutPaying,
+    /// "a triggered ability of … triggers an additional time", perhaps only
+    /// when an event causes it: "an artifact or creature entering".
+    AdditionalTrigger {
+        of: Objects,
+        cause: Option<Event>,
+    },
+    /// A static with an X defined after it: "costs {X} less …, where X is …".
+    Where {
+        inner: Box<Static>,
+        x: Amount,
+    },
+    /// "you may begin the game with ~ on the battlefield", the opening-hand
+    /// rule (CR 103.6), with what follows "If you do".
+    BeginOnBattlefield {
+        what: Objects,
+        counters: Option<(Amount, String)>,
+        then: Vec<Effect>,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum TypeSet {
+    Listed(Vec<Adj>),
+    /// "the chosen type".
+    Chosen,
+    EveryBasicLandType,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -748,6 +1095,33 @@ pub enum Condition {
     NoSpellsCastLastTurn,
     TwoSpellsCastByAPlayerLastTurn,
     Not(Box<Condition>),
+    And(Vec<Condition>),
+    HasCounter {
+        what: Objects,
+        kind: String,
+    },
+    /// "it's on the battlefield".
+    In {
+        what: Objects,
+        zone: Zone,
+    },
+    InOpeningHand(Objects),
+    YouAreStartingPlayer,
+    /// "you created a token this turn".
+    DidThisTurn(Box<Event>),
+    /// "creatures you control have total power 10 or greater".
+    Total {
+        what: Objects,
+        cmp: Compare,
+    },
+    /// "an opponent controls more lands than you".
+    ControlsMore {
+        who: Player,
+        what: Filter,
+        than: Player,
+    },
+    /// "you control a commander as you cast this spell".
+    AsYouCastIt(Box<Condition>),
 }
 
 #[derive(Clone, Debug, PartialEq)]

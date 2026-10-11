@@ -152,8 +152,137 @@ mod tests {
         );
         assert!(matches!(
             &a[0],
-            Ability::Triggered { trigger: Trigger::When(Event::Enters { what, .. }), .. }
-                if what.quant == Quant::SelfRef
+            Ability::Triggered { trigger: Trigger::When(e), .. }
+                if matches!(&**e, Event::Enters { what, .. } if what.quant == Quant::SelfRef)
+        ));
+    }
+
+    #[test]
+    fn command_towers_mana_is_any_color_constrained_by_the_commander() {
+        let a = read(
+            "Command Tower",
+            "Land",
+            "{T}: Add one mana of any color in your commander's color identity.",
+        );
+        assert!(matches!(
+            &a[0],
+            Ability::Activated { effect, .. } if effect == &vec![Effect::AddMana(ManaAdd::Of {
+                n: Amount::N(1),
+                pick: Pick::AnyColor,
+                within: Some(Palette::CommanderIdentity),
+            })]
+        ));
+    }
+
+    #[test]
+    fn when_you_do_is_a_reflexive_trigger_not_a_condition() {
+        let a = read(
+            "Some Witch",
+            "Creature — Human Warlock",
+            "Whenever this creature attacks, you may sacrifice a creature. When you do, draw a card.",
+        );
+        let Ability::Triggered { effect, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert!(matches!(&effect[1], Effect::WhenYouDo(_)), "{effect:?}");
+    }
+
+    #[test]
+    fn an_if_after_the_trigger_is_an_intervening_if() {
+        let a = read(
+            "Some Ring",
+            "Artifact",
+            "When this artifact enters, if you cast it, draw a card.",
+        );
+        assert!(matches!(
+            &a[0],
+            Ability::Triggered { trigger: Trigger::InterveningIf(_, c), .. }
+                if **c == Condition::YouCastIt
+        ));
+    }
+
+    #[test]
+    fn a_trailing_where_binds_x_in_every_clause_of_its_sentence() {
+        let a = read(
+            "Some Merchant",
+            "Creature — Zombie",
+            "When this creature enters, each opponent loses X life and you gain X life, where X is your devotion to black.",
+        );
+        let Ability::Triggered { effect, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        let [Effect::Where { then, x }] = &effect[..] else {
+            panic!("{effect:?}")
+        };
+        assert_eq!(then.len(), 2);
+        assert_eq!(
+            x,
+            &Amount::Devotion {
+                who: Player::You,
+                to: Palette::Listed(vec![Color::Black])
+            }
+        );
+    }
+
+    #[test]
+    fn the_verb_after_may_keeps_the_subject_before_it() {
+        let a = read(
+            "Some Denial",
+            "Instant",
+            "Counter target spell. Its controller may draw up to two cards.",
+        );
+        let Ability::Spell(effect) = &a[0] else {
+            panic!("{a:?}")
+        };
+        let Effect::May { who, then } = &effect[1] else {
+            panic!("{effect:?}")
+        };
+        assert!(matches!(who, Player::ControllerOf(_)));
+        assert!(matches!(
+            &then[0],
+            Effect::Draw {
+                who: Player::ControllerOf(_),
+                n: Amount::UpTo(_)
+            }
+        ));
+    }
+
+    #[test]
+    fn a_counter_replacement_reads_its_event_and_its_bigger_count() {
+        let a = read(
+            "Some Scales",
+            "Enchantment",
+            "If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on it instead.",
+        );
+        let Ability::Static(s) = &a[0] else {
+            panic!("{a:?}")
+        };
+        let Static::Replacement { event, instead } = &s[0] else {
+            panic!("{s:?}")
+        };
+        assert!(matches!(**event, Event::CountersPut { by: None, .. }));
+        assert!(matches!(
+            &instead[0],
+            Effect::PutCounters { n: Amount::Plus(n, 1), .. } if **n == Amount::ThatMany
+        ));
+    }
+
+    #[test]
+    fn a_tax_on_attacking_you_names_its_payer_and_its_count() {
+        let a = read(
+            "Some Prison",
+            "Enchantment",
+            "Creatures can't attack you unless their controller pays {2} for each creature they control that's attacking you.",
+        );
+        let Ability::Static(s) = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert!(matches!(
+            &s[0],
+            Static::Restrict {
+                rule: Restriction::UnlessPays { rule, per: Some(_), .. },
+                ..
+            } if **rule == Restriction::CantAttackPlayer(Player::You)
         ));
     }
 }
