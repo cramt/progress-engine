@@ -89,20 +89,51 @@ impl<'a> P<'a> {
     /// A space-separated phrase, all or nothing. `'s` is a possessive, `,`
     /// `.` and `:` are punctuation, and `~` is the card itself.
     fn words(&mut self, ws: &str) -> Option<()> {
+        // Most phrases fail on their first word, so that is checked against
+        // the phrase's prefix before anything is split: the grammar tries
+        // thousands of phrases per line.
+        let first = match self.peek() {
+            Some(Tok::Word(w)) => w.as_str(),
+            Some(Tok::Possessive) if ws.starts_with("'s") => "'s",
+            Some(Tok::Possessive) => "'",
+            Some(Tok::Comma) => ",",
+            Some(Tok::Period) => ".",
+            Some(Tok::Colon) => ":",
+            Some(Tok::Dash) => "—",
+            Some(Tok::SelfRef) => "~",
+            _ => return None,
+        };
+        let rest = ws.strip_prefix(first)?;
+        let rest = match rest.strip_prefix(' ') {
+            Some(r) => r,
+            None if rest.is_empty() => rest,
+            None => return None,
+        };
         self.attempt(|p| {
-            for w in ws.split(' ') {
-                match w {
-                    "'s" | "'" => p.tok(&Tok::Possessive)?,
-                    "," => p.tok(&Tok::Comma)?,
-                    "." => p.tok(&Tok::Period)?,
-                    ":" => p.tok(&Tok::Colon)?,
-                    "—" => p.tok(&Tok::Dash)?,
-                    "~" => p.tok(&Tok::SelfRef)?,
-                    _ => p.word(w)?,
+            p.bump();
+            for w in rest.split(' ').filter(|w| !w.is_empty()) {
+                if !p.at(w) {
+                    return None;
                 }
+                p.bump();
             }
             Some(())
         })
+    }
+
+    /// Whether the next token is the one `w` writes: a word, or `'s` `,` `.`
+    /// `:` `—` `~` for the punctuation and the card itself.
+    fn at(&self, w: &str) -> bool {
+        let t = match w {
+            "'s" | "'" => Tok::Possessive,
+            "," => Tok::Comma,
+            "." => Tok::Period,
+            ":" => Tok::Colon,
+            "—" => Tok::Dash,
+            "~" => Tok::SelfRef,
+            _ => return self.peek_word() == Some(w),
+        };
+        self.peek() == Some(&t)
     }
 
     /// The first of `options` that matches, longest written first by the caller.
@@ -110,34 +141,18 @@ impl<'a> P<'a> {
         options.iter().copied().find(|o| self.words(o).is_some())
     }
 
-    /// A verb in either number: `gain` or `gains`.
+    /// A verb in either number: `gain` or `gains`. Only its first word
+    /// takes the number: "phase out", "phases out".
     fn verb(&mut self, base: &str) -> Option<()> {
-        let third = match base {
-            "have" => "has".to_string(),
-            "do" => "does".to_string(),
-            b if b.ends_with('s') || b.ends_with("sh") || b.ends_with("ch") || b.ends_with('x') => {
-                format!("{b}es")
-            }
-            b if b.ends_with('y') && !b.ends_with("ay") => format!("{}ies", &b[..b.len() - 1]),
-            b => format!("{b}s"),
-        };
-        let first = base.split(' ').next().unwrap_or(base);
-        let rest: Vec<&str> = base.split(' ').skip(1).collect();
-        let third_first = if rest.is_empty() {
-            third
-        } else {
-            let f = first;
-            match f {
-                "have" => "has".into(),
-                f if f.ends_with('s') => format!("{f}es"),
-                f => format!("{f}s"),
-            }
-        };
+        let mut words = base.split(' ');
+        let first = words.next()?;
+        let w = self.peek_word()?;
+        if w != first && !third_person(first, w) {
+            return None;
+        }
         self.attempt(|p| {
-            if p.word(first).is_none() {
-                p.word(&third_first)?;
-            }
-            for w in &rest {
+            p.bump();
+            for w in words {
                 p.word(w)?;
             }
             Some(())
@@ -172,6 +187,25 @@ impl<'a> P<'a> {
         ) || self.peek_word() == Some("and")
             || self.peek_word() == Some("then")
     }
+}
+
+/// Whether `w` is `base` in the third person singular, without building it:
+/// the grammar asks this on most tokens of every line.
+fn third_person(base: &str, w: &str) -> bool {
+    match base {
+        "have" => return w == "has",
+        "do" => return w == "does",
+        _ => {}
+    }
+    let es =
+        base.ends_with('s') || base.ends_with("sh") || base.ends_with("ch") || base.ends_with('x');
+    if es {
+        return w.len() == base.len() + 2 && w.starts_with(base) && w.ends_with("es");
+    }
+    if let Some(stem) = base.strip_suffix('y').filter(|_| !base.ends_with("ay")) {
+        return w.len() == stem.len() + 3 && w.starts_with(stem) && w.ends_with("ies");
+    }
+    w.len() == base.len() + 1 && w.starts_with(base) && w.ends_with('s')
 }
 
 const NUMBERS: [&str; 21] = [
