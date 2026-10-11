@@ -262,9 +262,10 @@ mod tests {
             panic!("{s:?}")
         };
         assert!(matches!(**event, Event::CountersPut { by: None, .. }));
+        // Said in the passive: put by whoever was putting them, not by "you".
         assert!(matches!(
             &instead[0],
-            Effect::PutCounters { n: Amount::Plus(n, 1), .. } if **n == Amount::ThatMany
+            Effect::CountersArePut { n: Amount::Plus(n, 1), .. } if **n == Amount::ThatMany
         ));
     }
 
@@ -309,7 +310,7 @@ mod tests {
             &vec![Effect::AddMana(ManaAdd::Of {
                 n: Amount::N(1),
                 pick: Pick::Stated,
-                within: Some(Palette::Chosen),
+                within: Some(Palette::That),
             })]
         );
     }
@@ -551,7 +552,7 @@ mod tests {
         assert!(matches!(**event, Event::DealsDamageTo { .. }));
         assert!(matches!(
             &instead[0],
-            Effect::ThatDamage { n: Amount::Twice(n), to: None, .. } if **n == Amount::Damage
+            Effect::ThatDamage { n: Amount::Twice(n), to: None, .. } if **n == Amount::ThatDamage
         ));
     }
 

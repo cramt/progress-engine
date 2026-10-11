@@ -130,7 +130,7 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             Some(Condition::AmountIs { n: Amount::CountOf(Box::new(cards)), op: Op::Eq, value: Amount::N(0) })
         },
         |p| { let e = event(p)?; p.words("this way")?; Some(Condition::ThisWay(Box::new(e))) },
-        |p| { p.words("any of that mana is spent on")?; objects(p).map(Condition::ManaSpentOn) },
+        |p| { p.words("any of that mana is spent on")?; objects(p).map(Condition::AnyManaSpentOn) },
         |p| {
             p.words("you attacked with")?;
             let what = objects(p)?;
@@ -214,9 +214,10 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 },
                 // "it wasn't put onto the battlefield with this ability".
                 |p| {
-                    p.one_of(&["wasn't", "isn't", "weren't", "aren't"])?;
+                    let past = matches!(p.one_of(&["wasn't", "isn't", "weren't", "aren't"])?, "wasn't" | "weren't");
                     let q = post(p)?;
-                    Some(Condition::Not(Box::new(Condition::Is { what: what.clone(), filter: Filter { posts: vec![q], ..Filter::default() } })))
+                    let c = Condition::Not(Box::new(Condition::Is { what: what.clone(), filter: Filter { posts: vec![q], ..Filter::default() } }));
+                    Some(if past { Condition::Past(Box::new(c)) } else { c })
                 },
                 // "two or more of those creatures are attacking you and/or
                 // planeswalkers you control".
@@ -239,10 +240,12 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                     let counters = Objects { quant: Quant::Plural, filter: Filter { kind: Some(Noun::Counter(Some(kind))), posts: vec![Post::On(Box::new(what.clone()))], ..Filter::default() } };
                     Some(Condition::AmountIs { n: Amount::CountOf(Box::new(counters)), op: Op::Ge, value: Amount::N(value) })
                 },
+                // "if it had counters on it": as it was when it left.
                 |p| {
-                    p.one_of(&["has", "have", "had"])?;
+                    let past = p.one_of(&["has", "have", "had"])? == "had";
                     p.words("counters on it")?;
-                    Some(Condition::HasCounter { what: what.clone(), kind: None })
+                    let c = Condition::HasCounter { what: what.clone(), kind: None };
+                    Some(if past { Condition::Past(Box::new(c)) } else { c })
                 },
                 |p| {
                     let not = p.one_of(&["has", "doesn't have"])? != "has";
@@ -263,11 +266,13 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                     Some(Condition::HasCounter { what: what.clone(), kind: Some(kind) })
                 },
                 |p| { p.words("have total")?; let cmp = compare(p)?; Some(Condition::Total { what: what.clone(), cmp }) },
+                // "if it was a creature": as it was when the event happened.
                 |p| {
-                    p.one_of(&["is", "was", "are"])?;
+                    let past = p.one_of(&["is", "was", "are"])? == "was";
                     p.attempt(|p| p.one_of(&["a", "an"]));
                     let f = filter(p)?;
-                    Some(Condition::Is { what: what.clone(), filter: f })
+                    let c = Condition::Is { what: what.clone(), filter: f };
+                    Some(if past { Condition::Past(Box::new(c)) } else { c })
                 },
             )
         },

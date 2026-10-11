@@ -95,7 +95,7 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
                     if !matches!(name.as_str(), "enchant" | "equip") { return None; }
                     let o = objects(p)?;
                     if let Some(m) = p.attempt(mana) {
-                        return Some(KeywordParam::Cost(vec![Cost::Mana(m)]));
+                        return Some(KeywordParam::CostFor { what: Box::new(o), cost: vec![Cost::Mana(m)] });
                     }
                     Some(KeywordParam::Objects(Box::new(o)))
                 },

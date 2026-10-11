@@ -156,7 +156,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
         },
         // "creatures you control have base power and toughness X/X and gain
         // all creature types": one subject, two effects. A base size is what
-        // "becomes X/X" sets.
+        // "becomes X/X" sets (CR 613.4b), so it is a `Becomes`.
         |p| {
             let what = objects(p)?;
             p.verb("have")?;
@@ -200,9 +200,17 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             Some(vec![Effect::DelayedWhen { event, then: clauses(p)? }])
         },
         |p| {
-            p.one_of(&["if you don't", "if they don't", "if that player doesn't", "if the player doesn't", "if no one does", "otherwise"])?;
+            p.one_of(&["if you don't", "if they don't", "if that player doesn't", "if the player doesn't", "if no one does"])?;
             p.tok(&Tok::Comma)?;
             Some(vec![Effect::IfYouDont(clauses(p)?)])
+        },
+        // "Otherwise" is the other branch of the "if" before it: "Put it
+        // onto the battlefield if it's a land card. Otherwise, put it into
+        // your hand." No option was offered, so it is no "if you don't".
+        |p| {
+            p.word("otherwise")?;
+            p.tok(&Tok::Comma)?;
+            Some(vec![Effect::Otherwise(clauses(p)?)])
         },
         // "If you control six or more lands, create … instead" replaces the
         // effect before it; "instead" may lead or trail.
@@ -377,6 +385,7 @@ pub(super) fn subject_of(e: &Effect) -> Option<Player> {
         | Effect::Search { who, .. }
         | Effect::Shuffle(who)
         | Effect::ShuffleInto { who, .. }
+        | Effect::ShuffleZones { who, .. }
         | Effect::Mill { who, .. }
         | Effect::Reveal { who, .. }
         | Effect::RevealTop { who, .. }

@@ -272,7 +272,8 @@ pub(super) fn restriction_bare(p: &mut P) -> Option<Restriction> {
         |p| p.one_of(&["attacks each combat if able", "attack each combat if able"]).map(|_| Restriction::AttacksEachCombat),
         |p| p.one_of(&["attacks this turn if able", "attack this turn if able"]).map(|_| Restriction::AttacksThisTurn),
         |p| p.one_of(&["blocks each combat if able", "block each combat if able"]).map(|_| Restriction::BlocksEachCombat),
-        |p| p.one_of(&["doesn't untap during your untap step", "don't untap during your untap step", "doesn't untap during its controller 's untap step"]).map(|_| Restriction::DoesntUntap),
+        |p| p.one_of(&["doesn't untap during your untap step", "don't untap during your untap step"]).map(|_| Restriction::DoesntUntap(Player::You)),
+        |p| p.words("doesn't untap during its controller 's untap step").map(|_| Restriction::DoesntUntap(Player::ControllerOf(Box::new(antecedent())))),
         |p| p.one_of(&["doesn't untap during its controller 's next untap step", "don't untap during their controllers ' next untap steps", "don't untap during their controller 's next untap step"]).map(|_| Restriction::DoesntUntapNext),
     )
 }
@@ -482,21 +483,22 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
             p.words("of each")?;
             Some(Effect::CreateOfEach { who, n })
         },
-        // "It's an enchantment.": what it is now, as "becomes" would say.
+        // "It's an enchantment.": what it is as it enters, which "becomes"
+        // would make it only afterwards (CR 611.2e).
         |p| {
             p.word("it's")?;
             p.one_of(&["a", "an"])?;
             let types = group(p)?;
             let keeps = p.attempt(keeps).unwrap_or(Keeps::Nothing);
-            Some(Effect::Becomes { what: antecedent(), pt: None, types, gains: vec![], keeps, dur: Duration::Permanent })
+            Some(Effect::IsNow { what: antecedent(), types, keeps })
         },
         // "it deals double that damage instead": a replacement's new amount.
         |p| {
             let source = objects(p)?;
             p.verb("deal")?;
             let n = alt!(p;
-                |p| p.word("double").map(|_| Amount::Twice(Box::new(Amount::Damage))),
-                |p| p.word("triple").map(|_| Amount::Thrice(Box::new(Amount::Damage))),
+                |p| p.word("double").map(|_| Amount::Twice(Box::new(Amount::ThatDamage))),
+                |p| p.word("triple").map(|_| Amount::Thrice(Box::new(Amount::ThatDamage))),
             )?;
             p.words("that damage")?;
             let to = p.attempt(|p| { p.word("to")?; recipients(p) });
@@ -688,8 +690,17 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
                 |p| p.words("a color").map(|_| Choice::Color),
                 |p| p.words("a creature type").map(|_| Choice::CreatureType),
                 |p| p.words("a card type").map(|_| Choice::CardType),
-                |p| p.one_of(&["a card name", "a nonland card name"]).map(|_| Choice::CardName),
+                |p| p.words("a card name").map(|_| Choice::CardName),
+                |p| p.words("a nonland card name").map(|_| Choice::NonlandCardName),
                 |p| p.words("a number").map(|_| Choice::Number),
+                // "choose artifact, creature, enchantment, instant, or
+                // sorcery": a card type, from those listed.
+                |p| {
+                    let ty = |p: &mut P| { let w = p.peek_word().filter(|w| vocab().card_types.contains(*w))?.to_string(); p.bump(); Some(w) };
+                    let mut v = vec![ty(p)?];
+                    while let Some(t) = p.attempt(|p| { p.one_of(&[", or", ","])?; ty(p) }) { v.push(t); }
+                    (v.len() > 1).then_some(Choice::CardTypeAmong(v))
+                },
                 |p| p.one_of(&["an opponent", "target opponent"]).map(|_| Choice::Opponent),
                 |p| p.one_of(&["a player", "target player"]).map(|_| Choice::Player),
                 |p| objects(p).map(Choice::Objects),
@@ -960,7 +971,7 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
             p.one_of(&["counters", "counter"])?;
             p.one_of(&["are put on", "is put on"])?;
             let on = objects(p)?;
-            Some(Effect::PutCounters { n, kind, on })
+            Some(Effect::CountersArePut { n, kind, on })
         },
         // A verb that takes no player, with one doing it.
         |p| {

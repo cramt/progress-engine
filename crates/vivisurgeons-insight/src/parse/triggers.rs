@@ -12,8 +12,8 @@ pub(super) fn whose_step(p: &mut P) -> Option<Whose> {
         |p| p.word("each").map(|_| Whose::Each),
         |p| p.words("that player 's").map(|_| Whose::ThatPlayers),
         |p| p.word("that").map(|_| Whose::That),
-        |p| p.words("the next turn 's").map(|_| Whose::The),
-        |p| p.words("the next").map(|_| Whose::The),
+        |p| p.words("the next turn 's").map(|_| Whose::NextTurns),
+        |p| p.words("the next").map(|_| Whose::Next),
         |p| p.word("the").map(|_| Whose::The),
     )
 }
@@ -27,7 +27,8 @@ pub(super) fn step(p: &mut P) -> Option<Step> {
         |p| p.word("upkeep").map(|_| Step::Upkeep(w.clone())),
         |p| p.words("draw step").map(|_| Step::DrawStep(w.clone())),
         |p| p.one_of(&["precombat main phase", "first main phase"]).map(|_| Step::PrecombatMain(w.clone())),
-        |p| p.one_of(&["postcombat main phase", "second main phase"]).map(|_| Step::SecondMain(w.clone())),
+        |p| p.words("postcombat main phase").map(|_| Step::PostcombatMain(w.clone())),
+        |p| p.words("second main phase").map(|_| Step::SecondMain(w.clone())),
         |p| p.words("main phase").map(|_| Step::Main(w.clone())),
         |p| p.words("end step").map(|_| Step::EndStep(w.clone())),
         |p| p.words("end of combat").map(|_| Step::EndOfCombat(w.clone())),
@@ -49,6 +50,7 @@ pub(super) fn step_of(s: Step, w: Whose) -> Step {
         Step::EndStep(_) => Step::EndStep(w),
         Step::EndOfCombat(_) => Step::EndOfCombat(w),
         Step::SecondMain(_) => Step::SecondMain(w),
+        Step::PostcombatMain(_) => Step::PostcombatMain(w),
         Step::Main(_) => Step::Main(w),
         Step::Untap(_) => Step::Untap(w),
     }
@@ -250,7 +252,20 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
         |p| p.verb("attack").map(|_| Event::Attacks(what.clone())),
         |p| p.verb("block").map(|_| Event::Blocks(what.clone())),
         |p| p.one_of(&["becomes blocked", "become blocked"]).map(|_| Event::BecomesBlocked(what.clone())),
-        |p| { p.verb("deal")?; p.words("combat damage to")?; p.one_of(&["a player or planeswalker", "a player", "an opponent", "one or more players"])?; Some(Event::DealsCombatDamageToPlayer(what.clone())) },
+        |p| {
+            p.verb("deal")?;
+            p.words("combat damage to")?;
+            let to = match p.one_of(&["a player or planeswalker", "a player", "an opponent", "one or more players"])? {
+                "a player" => return Some(Event::DealsCombatDamageToPlayer(what.clone())),
+                "an opponent" => Recipient::Player(Player::AnOpponent),
+                "one or more players" => Recipient::Objects(Objects { quant: Quant::OneOrMore, filter: Filter { kind: Some(Noun::Player), ..Filter::default() } }),
+                _ => Recipient::Or(vec![
+                    Recipient::Player(Player::APlayer),
+                    Recipient::Objects(Objects { quant: Quant::One, filter: Filter { alts: vec![vec![Adj::Type("planeswalker".into())]], ..Filter::default() } }),
+                ]),
+            };
+            Some(Event::DealsCombatDamageTo { what: what.clone(), to })
+        },
         |p| { p.verb("deal")?; p.words("damage to")?; let to = recipients(p)?; Some(Event::DealsDamageTo { what: what.clone(), to }) },
         |p| { p.verb("deal")?; p.word("damage")?; Some(Event::DealsDamage(what.clone())) },
         |p| { p.one_of(&["becomes level", "become level"])?; let n = number(p)?; Some(Event::BecomesLevel { what: what.clone(), n }) },
@@ -291,7 +306,8 @@ pub(super) fn trigger(p: &mut P) -> Option<Trigger> {
             p.one_of(&["whenever", "when"])?;
             let e = event(p)?;
             // "When this creature enters and whenever an opponent draws …":
-            // two triggers for one effect, which is either event.
+            // two trigger conditions for one effect (CR 603.1b), which is
+            // one trigger on either event.
             Some(Trigger::When(Box::new(match p.attempt(|p| { p.word("and")?; p.one_of(&["whenever", "when"])?; event(p) }) {
                 Some(more) => Event::Or(vec![e, more]),
                 None => e,

@@ -72,9 +72,16 @@ pub enum KeywordParam {
     Color(Palette),
     /// "Gift a card": what the promised opponent gets.
     Gift(Gift),
+
     /// "Splice onto Arcane {1}{R}": the spells it splices onto, and its cost.
     Splice {
         onto: Filter,
+        cost: Vec<Cost>,
+    },
+    /// "Equip legendary creature {3}": what it may be attached to, and the
+    /// cost.
+    CostFor {
+        what: Box<Objects>,
         cost: Vec<Cost>,
     },
 }
@@ -229,15 +236,20 @@ pub enum Amount {
     NumberOfCardTypes(Box<Objects>),
     /// "the result" of a die rolled before.
     DieResult,
+    /// "that damage": the damage an event the trigger or replacement names
+    /// dealt, where "the damage dealt this way" is this ability's own.
+    ThatDamage,
 }
 
 /// A set of colors a rule draws from, named by what decides it.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Palette {
     Listed(Vec<Color>),
-    /// "the chosen color", or "that color" after a choice or inside a
-    /// "for each color".
+    /// "the chosen color": the one an "as ~ enters, choose a color" named.
     Chosen,
+    /// "that color": the color an earlier clause named, as the color of
+    /// each pass of a "for each color" or the one a trigger mentioned.
+    That,
     CommanderIdentity,
     /// "the exiled card's colors", "among legendary creatures you control".
     ColorsOf(Box<Objects>),
@@ -317,9 +329,16 @@ pub enum Quant {
     N(Amount),
     OneOrMore,
     AnyNumber,
+    /// "any number of target creatures": as many targets as the player
+    /// picks, with no bound, where "up to X target" has one.
+    AnyNumberOfTarget,
     UpTo(Amount),
     Another,
     AnotherTarget,
+    /// "a second target permanent": another use of "target", which may
+    /// choose the same object as the first (CR 115.3), where "another
+    /// target" may not.
+    SecondTarget,
     /// The card itself.
     SelfRef,
     /// "it", "them", "that creature", "those cards": an earlier noun.
@@ -331,15 +350,17 @@ pub enum Quant {
     Other,
     AtLeast(Amount),
     AtMost(Amount),
-    /// "the rest": what an earlier choice left.
+    /// "the rest", "the other": what an earlier choice left.
     Rest,
-    /// "this creature or another Ally you control": itself, or one the filter names.
-    SelfOrAnother,
+    /// "this creature or another Ally you control": itself, as the first
+    /// object says it, or one the filter names.
+    SelfOrAnother(Box<Objects>),
     /// "this creature and other Vampire creatures you control": the one
     /// object, and every other the filter names.
     WithOthers(Box<Objects>),
     /// "your commander": the one a player has, by a possessive.
     Possessive(Player),
+
     /// "their first noncreature spell each turn".
     NthEachTurn {
         n: u32,
@@ -451,6 +472,9 @@ pub enum Post {
     OfChosenType,
     /// "of the chosen color", "of that color".
     OfChosenColor,
+    /// "of that type", "of that color": the one an earlier clause named.
+    OfThatType,
+    OfThatColor,
     /// "that aren't of the chosen type".
     Not(Box<Post>),
     /// "that entered this turn".
@@ -491,8 +515,10 @@ pub enum Post {
     WithSingleTarget,
     /// "of their choice": who picks among the objects named.
     ChosenBy(Player),
-    /// "spell you've cast this turn".
+    /// "spell you've cast this turn": one already cast.
     CastThisTurn(Player),
+    /// "the next spell you cast this turn": one not cast yet.
+    WillCastThisTurn(Player),
     /// "with mana cost {0} or {1}".
     ManaCost(Vec<Mana>),
     AttackingPlayer(Player),
@@ -734,6 +760,17 @@ pub enum Effect {
         then: Vec<Effect>,
     },
     IfYouDont(Vec<Effect>),
+    /// "Otherwise, …": the effects when the "if" before it did not hold,
+    /// which "If you don't" (an option not taken) is not.
+    Otherwise(Vec<Effect>),
+    /// "that many plus one +1/+1 counters are put on it instead": said in
+    /// the passive, so put by whoever was putting the counters a
+    /// replacement watches for, not by "you".
+    CountersArePut {
+        n: Amount,
+        kind: String,
+        on: Objects,
+    },
     Pay {
         who: Player,
         cost: Vec<Cost>,
@@ -1078,6 +1115,13 @@ pub enum Effect {
     },
     /// "you may spend mana as though it were mana of any color to cast them".
     SpendAsAnyColor(Vec<SpendUse>),
+    /// "It's an enchantment.": what a permanent an effect returns is as it
+    /// enters, where "becomes" would apply only after (CR 611.2e).
+    IsNow {
+        what: Objects,
+        types: Vec<Adj>,
+        keeps: Keeps,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1274,7 +1318,10 @@ pub enum Restriction {
     CantBeBlocked,
     CantBeBlockedExceptBy(Filter),
     CantBeCountered,
-    DoesntUntap,
+    /// "doesn't untap during your untap step", "… its controller's untap
+    /// step": whose untap step, which for an Aura on another player's
+    /// creature are not the same player.
+    DoesntUntap(Player),
     AttacksEachCombat,
     AttacksThisTurn,
     BlocksEachCombat,
@@ -1330,7 +1377,15 @@ pub enum Event {
     Blocks(Objects),
     AttacksOrBlocks(Objects),
     BecomesBlocked(Objects),
+    /// "deals combat damage to a player".
     DealsCombatDamageToPlayer(Objects),
+    /// "deals combat damage to a player or planeswalker", "… to an
+    /// opponent", "… to one or more players": a recipient other than "a
+    /// player", which says who may be hit and how often it triggers.
+    DealsCombatDamageTo {
+        what: Objects,
+        to: Recipient,
+    },
     DealsDamage(Objects),
     IsDealtDamage(Objects),
     Casts {
@@ -1480,7 +1535,10 @@ pub enum Step {
     Combat(Whose),
     EndStep(Whose),
     EndOfCombat(Whose),
+    /// "second main phase": the second of the turn, counted (CR 505.1b).
     SecondMain(Whose),
+    /// "postcombat main phase": any main phase after combat (CR 505.1a).
+    PostcombatMain(Whose),
     /// "your next main phase": whichever main phase comes first.
     Main(Whose),
     Untap(Whose),
@@ -1491,10 +1549,16 @@ pub enum Whose {
     Yours,
     Each,
     EachOpponent,
+    /// "the end step": this turn's.
     The,
+    /// "the next end step": the first one to come, perhaps this turn's.
+    Next,
+    /// "the next turn's upkeep": a step of the turn after this one.
+    NextTurns,
     ThatPlayers,
     YourNext,
     EachOther,
+
     /// "at the beginning of that combat": the one an earlier effect made.
     That,
 }
@@ -1773,6 +1837,9 @@ pub enum Condition {
     },
     /// "any of that mana is spent on a creature spell".
     ManaSpentOn(Objects),
+    /// "any of that mana is spent on a creature spell": some of it, where
+    /// "you spend this mana to cast" is all of it.
+    AnyManaSpentOn(Objects),
     /// "you attacked with two or more creatures this turn".
     AttackedWithThisTurn(Objects),
     /// "the gift was promised".
@@ -1798,6 +1865,9 @@ pub enum Condition {
     WasBargained,
     /// "you've cast another spell named ~ this game".
     DidThisGame(Box<Event>),
+    /// "it was a creature", "it had counters on it": the condition as it
+    /// held when the event happened, not as it holds now.
+    Past(Box<Condition>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1806,11 +1876,16 @@ pub enum Choice {
     CreatureType,
     CardType,
     CardName,
+    /// "choose a nonland card name".
+    NonlandCardName,
     Number,
     Player,
     Opponent,
     /// "choose target artifact card in your graveyard".
     Objects(Objects),
+    /// "choose artifact, creature, enchantment, instant, or sorcery": one
+    /// of these card types.
+    CardTypeAmong(Vec<String>),
 }
 
 #[derive(Clone, Debug, PartialEq)]

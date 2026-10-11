@@ -105,7 +105,7 @@ pub(super) fn measure(p: &mut P) -> Option<Amount> {
 
 fn measure_bare(p: &mut P) -> Option<Amount> {
     alt!(p;
-        |p| p.words("that damage").map(|_| Amount::Damage),
+        |p| p.words("that damage").map(|_| Amount::ThatDamage),
         |p| { p.words("the amount of mana spent to cast")?; objects(p).map(|o| Amount::ManaSpentToCast(Box::new(o))) },
         |p| {
             p.words("the number of times")?;
@@ -161,7 +161,8 @@ fn measure_bare(p: &mut P) -> Option<Amount> {
 /// Colors named outright, or by a choice made before: "black", "that color".
 pub(super) fn palette_named(p: &mut P) -> Option<Palette> {
     alt!(p;
-        |p| p.one_of(&["that color", "the chosen color"]).map(|_| Palette::Chosen),
+        |p| p.words("that color").map(|_| Palette::That),
+        |p| p.words("the chosen color").map(|_| Palette::Chosen),
         |p| {
             let mut cs = vec![color_word(p.peek_word()?)?];
             p.bump();

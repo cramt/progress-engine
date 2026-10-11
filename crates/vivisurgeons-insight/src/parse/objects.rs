@@ -434,8 +434,10 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         },
         |p| p.one_of(&["that's blocking", "that are blocking"]).map(|_| Post::Blocking),
         |p| p.words("other than ~").map(|_| Post::OtherThanSelf),
-        |p| p.one_of(&["of the chosen type", "of that type"]).map(|_| Post::OfChosenType),
-        |p| p.one_of(&["of the chosen color", "of that color"]).map(|_| Post::OfChosenColor),
+        |p| p.words("of the chosen type").map(|_| Post::OfChosenType),
+        |p| p.words("of that type").map(|_| Post::OfThatType),
+        |p| p.words("of the chosen color").map(|_| Post::OfChosenColor),
+        |p| p.words("of that color").map(|_| Post::OfThatColor),
         |p| p.words("attached to it").map(|_| Post::AttachedToIt),
         |p| {
             // "that shares at least one creature type with it" says the same.
@@ -451,7 +453,8 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| p.words("with a single target").map(|_| Post::WithSingleTarget),
         |p| p.words("of their choice").map(|_| Post::ChosenBy(Player::That)),
         |p| p.words("of your choice").map(|_| Post::ChosenBy(Player::You)),
-        |p| p.one_of(&["you've cast this turn", "you cast this turn"]).map(|_| Post::CastThisTurn(Player::You)),
+        |p| p.words("you've cast this turn").map(|_| Post::CastThisTurn(Player::You)),
+        |p| p.words("you cast this turn").map(|_| Post::WillCastThisTurn(Player::You)),
         |p| {
             p.words("with mana cost")?;
             let mut v = vec![mana(p)?];
@@ -464,8 +467,8 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| { p.word("on")?; let o = pronoun(p)?; Some(Post::On(Box::new(o))) },
         |p| { p.words("put onto the battlefield with")?; objects(p).map(|o| Post::PutOntoBattlefieldWith(Box::new(o))) },
         |p| {
-            let w = p.one_of(&["from among them", "revealed this way", "from among those cards"])?;
-            (w == "revealed this way" || !p.in_value).then_some(Post::FromAmongThem)
+            p.one_of(&["from among them", "from among those cards"])?;
+            (!p.in_value).then_some(Post::FromAmongThem)
         },
         |p| { p.words("exiled with")?; objects(p).map(|o| Post::ExiledWith(Box::new(o))) },
         |p| p.words("you cast").map(|_| Post::Cast(Player::You)),
@@ -604,8 +607,9 @@ pub(super) fn quant(p: &mut P) -> Option<Quant> {
         |p| { p.words("one or two target")?; Some(Quant::Target { n: Amount::Between(1, 2), up_to: false }) },
         |p| { p.words("up to")?; let n = amount(p)?; p.word("target")?; Some(Quant::Target { n, up_to: true }) },
         |p| { p.words("up to")?; amount(p).map(Quant::UpTo) },
-        |p| p.one_of(&["another target", "a second target"]).map(|_| Quant::AnotherTarget),
-        |p| { p.words("any number of target").map(|_| Quant::Target { n: Amount::X, up_to: true }) },
+        |p| p.words("another target").map(|_| Quant::AnotherTarget),
+        |p| p.words("a second target").map(|_| Quant::SecondTarget),
+        |p| p.words("any number of target").map(|_| Quant::AnyNumberOfTarget),
         |p| { let n = amount(p)?; p.word("target")?; Some(Quant::Target { n, up_to: false }) },
         |p| { let n = amount(p)?; p.words("or more")?; Some(Quant::AtLeast(n)) },
         |p| { let n = amount(p)?; p.words("or fewer").map(|_| Quant::AtMost(n)) },
@@ -634,7 +638,7 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
         // "each of those creatures": the earlier noun, each one.
         |p| { p.words("each of")?; let o = pronoun(p)?; (o.quant == Quant::Antecedent).then_some(o) },
         |p| p.words("the rest").map(|_| Objects { quant: Quant::Rest, filter: Filter::default() }),
-        |p| p.one_of(&["the other", "the others"]).map(|_| antecedent()),
+        |p| p.one_of(&["the other", "the others"]).map(|_| Objects { quant: Quant::Rest, filter: Filter::default() }),
         // "twice that many of each of those kinds of counters": the counters
         // an event named, kind by kind.
         |p| p.words("each of those kinds of counters").map(|_| Objects {
@@ -756,7 +760,7 @@ fn objects_read(p: &mut P) -> Option<Objects> {
             if first.quant != Quant::SelfRef { return None; }
             p.words("or another")?;
             let filter = filter(p)?;
-            Some(Objects { quant: Quant::SelfOrAnother, filter })
+            Some(Objects { quant: Quant::SelfOrAnother(Box::new(first)), filter })
         },
         // "the artifact with the greatest mana value": one, picked out by
         // the post, not an earlier noun.
@@ -770,7 +774,7 @@ fn objects_read(p: &mut P) -> Option<Objects> {
         |p| {
             p.words("each of")?;
             let o = objects(p)?;
-            matches!(o.quant, Quant::Target { .. }).then_some(o)
+            matches!(o.quant, Quant::Target { .. } | Quant::AnyNumberOfTarget).then_some(o)
         },
         // "two or more of those creatures": some of an earlier noun.
         |p| {
