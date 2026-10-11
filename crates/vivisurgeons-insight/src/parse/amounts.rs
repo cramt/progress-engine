@@ -18,9 +18,21 @@ pub(super) fn number(p: &mut P) -> Option<u32> {
     }
 }
 
+/// "first", "seventh", "twelfth".
+pub(super) fn ordinal(p: &mut P) -> Option<u32> {
+    const ORDINALS: [&str; 12] = [
+        "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth",
+        "tenth", "eleventh", "twelfth",
+    ];
+    let n = ORDINALS.iter().position(|w| p.peek_word() == Some(w))?;
+    p.bump();
+    Some(n as u32 + 1)
+}
+
 pub(super) fn amount(p: &mut P) -> Option<Amount> {
     let n = alt!(p;
         |p| { p.word("twice")?; amount(p).map(|n| Amount::Twice(Box::new(n))) },
+        |p| { p.words("three times")?; amount(p).map(|n| Amount::Thrice(Box::new(n))) },
         amount_bare,
     )?;
     Some(
@@ -68,9 +80,44 @@ pub(super) fn stat_of(s: Stat, o: Objects) -> Amount {
     }
 }
 
-/// What follows "equal to".
+/// What follows "equal to", perhaps with a number added on either side:
+/// "the number of cards in your hand plus one", "2 plus the sacrificed
+/// creature's mana value".
 pub(super) fn measure(p: &mut P) -> Option<Amount> {
+    if let Some(m) = p.attempt(|p| {
+        let k = number(p)?;
+        p.word("plus")?;
+        measure_bare(p).map(|m| Amount::Plus(Box::new(m), k))
+    }) {
+        return Some(m);
+    }
+    let m = measure_bare(p)?;
+    Some(
+        match p.attempt(|p| {
+            p.word("plus")?;
+            number(p)
+        }) {
+            Some(k) => Amount::Plus(Box::new(m), k),
+            None => m,
+        },
+    )
+}
+
+fn measure_bare(p: &mut P) -> Option<Amount> {
     alt!(p;
+        |p| p.words("that damage").map(|_| Amount::Damage),
+        |p| { p.words("the amount of mana spent to cast")?; objects(p).map(|o| Amount::ManaSpentToCast(Box::new(o))) },
+        |p| {
+            p.words("the number of times")?;
+            let what = alt!(p;
+                |p| p.word("it's").map(|_| antecedent()),
+                |p| { let o = objects(p)?; p.word("has")?; Some(o) },
+            )?;
+            p.words("been cast from")?;
+            let zone = zone(p)?;
+            p.words("this game")?;
+            Some(Amount::TimesCastFrom { what: Box::new(what), zone })
+        },
         |p| { p.words("the number of")?; objects(p).map(|o| Amount::CountOf(Box::new(o))) },
         |p| { p.one_of(&["its", "their"])?; p.words("base power")?; Some(Amount::BasePowerOf(Box::new(antecedent()))) },
         |p| { p.one_of(&["its", "their"])?; let s = stat(p)?; Some(stat_of(s, antecedent())) },

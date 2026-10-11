@@ -20,6 +20,11 @@ pub struct P<'a> {
     /// Per starting token: the object phrase read there, where it ended, and
     /// how far reading it got.
     objects_memo: Vec<Option<(Option<Objects>, usize, usize)>>,
+    /// Inside a comparison's value, where "from your graveyard" or "from
+    /// among them" after it belongs to the object being compared: "a card
+    /// with mana value less than the number of counters on that creature
+    /// from your graveyard".
+    in_value: bool,
 }
 
 macro_rules! alt {
@@ -40,6 +45,7 @@ impl<'a> P<'a> {
             implied: None,
             during: false,
             objects_memo: vec![None; t.len() + 1],
+            in_value: false,
         }
     }
 
@@ -109,7 +115,9 @@ impl<'a> P<'a> {
         let third = match base {
             "have" => "has".to_string(),
             "do" => "does".to_string(),
-            b if b.ends_with('s') || b.ends_with("sh") || b.ends_with('x') => format!("{b}es"),
+            b if b.ends_with('s') || b.ends_with("sh") || b.ends_with("ch") || b.ends_with('x') => {
+                format!("{b}es")
+            }
             b if b.ends_with('y') && !b.ends_with("ay") => format!("{}ies", &b[..b.len() - 1]),
             b => format!("{b}s"),
         };
@@ -150,7 +158,11 @@ impl<'a> P<'a> {
             .count();
         let quoted_period =
             quotes > 0 && before.len() > quotes && before[before.len() - quotes - 1] == Tok::Period;
-        quoted_period.then_some(())
+        // `with "{T}: Add {C}" and loses …`: a quoted ability whose last
+        // sentence has no period ends at its closing quote.
+        let closing = self.peek() == Some(&Tok::Quote)
+            && before.iter().filter(|t| **t == Tok::Quote).count() % 2 == 1;
+        (quoted_period || closing).then_some(())
     }
 
     fn end_of_clause(&self) -> bool {
@@ -214,11 +226,27 @@ fn limits(p: &mut P) -> Vec<Limit> {
     let mut v = Vec::new();
     while let Some(l) = p.attempt(|p| {
         let l = alt!(p;
-            |p| p.words("activate only as a sorcery").map(|_| Limit::SorcerySpeed),
-            |p| p.words("activate only once each turn").map(|_| Limit::OncePerTurn),
-            |p| p.words("activate only during your turn").map(|_| Limit::OnlyDuringYourTurn),
-            |p| { p.words("activate only if")?; condition(p).map(Limit::OnlyIf) },
-            |p| p.words("this ability triggers only once each turn").map(|_| Limit::OncePerTurn),
+            |p| p.words("activate only as a sorcery").map(|_| vec![Limit::SorcerySpeed]),
+            |p| p.words("activate only as an instant").map(|_| vec![Limit::InstantSpeed]),
+            |p| p.words("activate only once each turn").map(|_| vec![Limit::OncePerTurn]),
+            |p| p.words("activate only during your turn").map(|_| vec![Limit::OnlyDuringYourTurn]),
+            |p| {
+                p.words("activate only if")?;
+                let mut v = vec![Limit::OnlyIf(condition(p)?)];
+                // "… and only as a sorcery": two limits, "activate" said once.
+                if p.attempt(|p| p.words("and only as a sorcery")).is_some() {
+                    v.push(Limit::SorcerySpeed);
+                }
+                Some(v)
+            },
+            |p| p.words("this ability triggers only once each turn").map(|_| vec![Limit::OncePerTurn]),
+            |p| p.words("do this only once each turn").map(|_| vec![Limit::DoOnlyOncePerTurn]),
+            |p| {
+                p.words("spend only mana of")?;
+                let pal = palette_named(p)?;
+                p.words("to activate this ability")?;
+                Some(vec![Limit::SpendOnlyManaOf(pal)])
+            },
             |p| {
                 p.words("spend this mana only")?;
                 let uses = spend_uses(p)?;
@@ -229,7 +257,7 @@ fn limits(p: &mut P) -> Vec<Limit> {
                     let rule = restriction(p)?;
                     Some((what, rule))
                 });
-                Some(Limit::SpendOnly { uses, then })
+                Some(vec![Limit::SpendOnly { uses, then }])
             },
             |p| {
                 p.words("this ability costs")?;
@@ -237,13 +265,13 @@ fn limits(p: &mut P) -> Vec<Limit> {
                 let less = p.one_of(&["less", "more"])? == "less";
                 p.words("to activate")?;
                 let per = p.attempt(|p| { p.words("for each")?; objects(p) });
-                Some(Limit::CostChange { by, less, per })
+                Some(vec![Limit::CostChange { by, less, per }])
             },
         )?;
         p.tok(&Tok::Period)?;
         Some(l)
     }) {
-        v.push(l);
+        v.extend(l);
     }
     v
 }
@@ -253,8 +281,11 @@ fn spend_uses(p: &mut P) -> Option<Vec<SpendUse>> {
     let one = |p: &mut P| {
         alt!(p;
             |p| { p.words("to cast")?; objects(p).map(SpendUse::Cast) },
-            |p| { p.word("to")?; p.words("activate an ability of")?; objects(p).map(SpendUse::ActivateAbilityOf) },
-            |p| { p.words("activate an ability of")?; objects(p).map(SpendUse::ActivateAbilityOf) },
+            |p| {
+                p.attempt(|p| p.word("to"));
+                p.one_of(&["activate an ability of", "activate abilities of"])?;
+                objects(p).map(SpendUse::ActivateAbilityOf)
+            },
         )
     };
     let mut v = vec![one(p)?];
@@ -362,6 +393,19 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
         },
         |p| { if !spell { return None; } let e = effects(p)?; finished(p).then_some(Ability::Spell(e)) },
         |p| { let s = statics(p)?; finished(p).then_some(Ability::Static(s)) },
+        |p| {
+            let at_least = number(p)?;
+            p.tok(&Tok::Other('+'))?;
+            p.tok(&Tok::Other('|'))?;
+            let inner = ability(p, spell)?;
+            Some(Ability::Station { at_least, ability: Box::new(inner) })
+        },
+        |p| {
+            p.tok(&Tok::Other('∞'))?;
+            p.tok(&Tok::Dash)?;
+            let inner = ability(p, spell)?;
+            Some(Ability::Harnessed(Box::new(inner)))
+        },
         |p| {
             // An ability word or flavour word: a label, then the ability.
             let mut label = Vec::new();

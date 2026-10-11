@@ -55,6 +55,10 @@ impl Dest {
         }
     }
 
+    pub(super) fn zone(self) -> Zone {
+        self.zone
+    }
+
     pub(super) fn moving(self, what: Objects, from: Option<Zone>, order: Option<Order>) -> Effect {
         Effect::Move {
             what,
@@ -74,7 +78,12 @@ pub(super) fn destination(p: &mut P) -> Option<Dest> {
         |p| {
             p.words("the battlefield")?;
             let tapped = p.attempt(|p| p.word("tapped")).is_some();
-            let transformed = p.attempt(|p| p.word("transformed")).is_some();
+            let transformed = p.attempt(|p| {
+                if tapped {
+                    p.attempt(|p| p.word("and"));
+                }
+                p.word("transformed")
+            }).is_some();
             let under = p.attempt(|p| alt!(p;
                 |p| p.words("under your control").map(|_| Player::You),
                 |p| p.one_of(&["under its owner 's control", "under their owners ' control", "under their owner 's control"]).map(|_| Player::OwnerOf(Box::new(antecedent()))),
@@ -84,6 +93,12 @@ pub(super) fn destination(p: &mut P) -> Option<Dest> {
         },
         |p| owners_hand(p).map(Dest::to),
         |p| p.words("its owner 's graveyard").map(|_| Dest::to(Zone::OwnersGraveyard)),
+        |p| {
+            p.words("its owner 's library")?;
+            let n = ordinal(p)?;
+            p.words("from the top")?;
+            Some(Dest::to(Zone::OwnersLibraryNthFromTop(n)))
+        },
         |p| p.words("their owners ' graveyards").map(|_| Dest::to(Zone::OwnersGraveyard)),
         |p| p.words("the top of its owner 's library").map(|_| Dest::to(Zone::OwnersLibraryTop)),
         |p| p.words("the bottom of its owner 's library").map(|_| Dest::to(Zone::OwnersLibraryBottom)),
@@ -101,6 +116,9 @@ pub(super) fn put_to(p: &mut P) -> Option<Dest> {
     alt!(p;
         |p| { p.words("on top of")?; library_end(p, true) },
         |p| { p.words("on the bottom of")?; library_end(p, false) },
+        // "Put the rest on the bottom": of the library they were looked at
+        // in, as "on top" is.
+        |p| p.words("on the bottom").map(|_| Dest::to(Zone::OwnersLibraryBottom)),
         |p| { p.one_of(&["onto", "into", "on"])?; destination(p) },
     )
 }

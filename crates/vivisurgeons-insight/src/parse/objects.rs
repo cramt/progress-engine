@@ -16,6 +16,22 @@ pub(super) fn player(p: &mut P) -> Option<Player> {
         |p| p.words("each other player").map(|_| Player::EachOtherPlayer),
         |p| p.words("each player who can't").map(|_| Player::WhoCant(Box::new(Player::Each))),
         |p| p.words("each opponent who can't").map(|_| Player::WhoCant(Box::new(Player::EachOpponent))),
+        |p| {
+            p.words("each opponent attacking")?;
+            let attacked = player_simple(p)?;
+            Some(Player::Attacking { who: Box::new(Player::EachOpponent), attacked: Box::new(attacked) })
+        },
+        // "each player who searched a library this way".
+        |p| {
+            let who = alt!(p;
+                |p| p.words("each player").map(|_| Player::Each),
+                |p| p.words("each opponent").map(|_| Player::EachOpponent),
+            )?;
+            p.word("who")?;
+            let did = did(p, Player::That)?;
+            p.words("this way")?;
+            Some(Player::DidThisWay { who: Box::new(who), did: Box::new(did) })
+        },
         |p| p.words("each player").map(|_| Player::Each),
         |p| p.words("each opponent").map(|_| Player::EachOpponent),
         |p| p.words("your opponents").map(|_| Player::EachOpponent),
@@ -93,6 +109,8 @@ pub(super) fn state_word(w: &str) -> Option<State> {
         "nontoken" => State::Nontoken,
         "face-down" => State::FaceDown,
         "other" => State::Other,
+        "modified" => State::Modified,
+        "historic" => State::Historic,
         _ => return None,
     })
 }
@@ -116,7 +134,19 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
         return Some(Adj::State(State::AttackingOrBlocking));
     }
     let w = p.peek_word()?;
-    let adj = if w == "activated" || w == "triggered" {
+    let next_is_type = || matches!(p.t.get(p.i + 1), Some(Tok::Word(n)) if type_word(n).is_some());
+    // "Urza's Mine": a subtype the lexer split at its apostrophe.
+    if p.t.get(p.i + 1) == Some(&Tok::Possessive) {
+        let s = format!("{w}'s");
+        if vocab().subtypes.contains(&s) {
+            p.bump();
+            p.bump();
+            return Some(Adj::Subtype(s));
+        }
+    }
+    let adj = if w == "commander" && next_is_type() {
+        Adj::State(State::Commander)
+    } else if w == "activated" || w == "triggered" {
         // Only before "ability": "activated" alone is no kind of object.
         if !matches!(p.t.get(p.i + 1), Some(Tok::Word(n)) if n == "ability" || n == "abilities") {
             return None;
@@ -165,6 +195,7 @@ pub(super) fn kind(p: &mut P) -> Option<Noun> {
         |p| p.one_of(&["commanders", "commander"]).map(|_| Noun::Commander),
         |p| p.one_of(&["copies", "copy"]).map(|_| Noun::Copy),
         |p| p.one_of(&["counters", "counter"]).map(|_| Noun::Counter(None)),
+        |p| p.one_of(&["piles", "pile"]).map(|_| Noun::Pile),
         |p| {
             let k = counter_kind(p).filter(|k| !matches!(k.as_str(), "and" | "or" | "then" | "that" | "target" | "a" | "an" | "the"))?;
             p.one_of(&["counters", "counter"])?;
@@ -288,10 +319,9 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
         }
     }
     let mut posts = Vec::new();
-    // Only a counter is "on" something; elsewhere "on" starts a destination.
     let counter = matches!(kind, Some(Noun::Counter(_)));
-    while let Some(post) = p.attempt(|p| post(p).filter(|q| counter || !matches!(q, Post::On(_)))) {
-        posts.push(post);
+    while let Some(more) = p.attempt(|p| posts_one(p, counter)) {
+        posts.extend(more);
     }
     // "spell or nonland permanent": two kinds of object, so two filters. Both
     // must name their kind, or "creature or planeswalker" would split here
@@ -364,8 +394,10 @@ pub(super) fn comparison(p: &mut P) -> Option<(Op, Amount)> {
                 |p| p.words("greater than").map(|_| Op::Gt),
                 |p| p.words("equal to").map(|_| Op::Eq),
             )?;
-            let value = measure(p)?;
-            Some((op, value))
+            let outer = std::mem::replace(&mut p.in_value, true);
+            let value = p.attempt(measure);
+            p.in_value = outer;
+            Some((op, value?))
         },
     )
 }
@@ -385,18 +417,29 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             let k = counter_kind(p)?;
             p.one_of(&["counters", "counter"])?;
             p.one_of(&["on it", "on them"])?;
-            Some(Post::WithCounter(k))
+            Some(Post::WithCounter(Some(k)))
+        },
+        // "with a counter on it", "with counters on them": of any kind.
+        |p| {
+            p.word("with")?;
+            p.one_of(&["a counter", "one or more counters", "counters"])?;
+            p.one_of(&["on it", "on them"])?;
+            Some(Post::WithCounter(None))
         },
         |p| { p.word("with")?; let k = keyword_name(p)?; Some(Post::WithKeyword(k)) },
         |p| { p.word("without")?; let k = keyword_name(p)?; Some(Post::WithoutKeyword(k)) },
-        |p| { p.one_of(&["in", "from"])?; zone(p).map(Post::In) },
+        |p| {
+            if p.one_of(&["in", "from"])? == "from" && p.in_value { return None; }
+            zone(p).map(Post::In)
+        },
         |p| p.one_of(&["that's blocking", "that are blocking"]).map(|_| Post::Blocking),
         |p| p.words("other than ~").map(|_| Post::OtherThanSelf),
-        |p| p.words("of the chosen type").map(|_| Post::OfChosenType),
-        |p| p.words("of the chosen color").map(|_| Post::OfChosenType),
+        |p| p.one_of(&["of the chosen type", "of that type"]).map(|_| Post::OfChosenType),
+        |p| p.one_of(&["of the chosen color", "of that color"]).map(|_| Post::OfChosenColor),
         |p| p.words("attached to it").map(|_| Post::AttachedToIt),
         |p| {
-            p.one_of(&["that shares a", "that share a"])?;
+            // "that shares at least one creature type with it" says the same.
+            p.one_of(&["that shares a", "that share a", "that shares at least one", "that share at least one"])?;
             // "a card type": any one of them.
             let card_type = p.peek_word().filter(|w| *w == "card" || vocab().card_types.contains(*w))?.to_string();
             p.bump();
@@ -420,7 +463,10 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| p.words("on the battlefield").map(|_| Post::In(Zone::Battlefield)),
         |p| { p.word("on")?; let o = pronoun(p)?; Some(Post::On(Box::new(o))) },
         |p| { p.words("put onto the battlefield with")?; objects(p).map(|o| Post::PutOntoBattlefieldWith(Box::new(o))) },
-        |p| p.one_of(&["from among them", "revealed this way", "from among those cards"]).map(|_| Post::FromAmongThem),
+        |p| {
+            let w = p.one_of(&["from among them", "revealed this way", "from among those cards"])?;
+            (w == "revealed this way" || !p.in_value).then_some(Post::FromAmongThem)
+        },
         |p| { p.words("exiled with")?; objects(p).map(|o| Post::ExiledWith(Box::new(o))) },
         |p| p.words("you cast").map(|_| Post::Cast(Player::You)),
         |p| p.words("drawn this turn").map(|_| Post::DrawnThisTurn),
@@ -431,6 +477,52 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| p.one_of(&["who doesn't", "who don't"]).map(|_| Post::WhoDoesnt),
         |p| p.words("who can't").map(|_| Post::WhoCant),
         |p| { p.one_of(&["that aren't", "that isn't"])?; p.one_of(&["on", "in"])?; zone(p).map(Post::NotIn) },
+        |p| { p.one_of(&["that aren't", "that isn't"])?; post(p).map(|q| Post::Not(Box::new(q))) },
+        |p| p.one_of(&["that entered this turn", "that entered the battlefield this turn"]).map(|_| Post::EnteredThisTurn),
+        |p| {
+            if p.in_value { return None; }
+            p.words("from among")?;
+            objects(p).map(|o| Post::FromAmong(Box::new(o)))
+        },
+        |p| {
+            p.words("with the greatest")?;
+            let stat = stat(p)?;
+            let or_tied = p.attempt(|p| {
+                p.words("or tied for the greatest")?;
+                // The tie is on the same number the greatest named.
+                (super::stat(p)? == stat).then_some(())
+            }).is_some();
+            Some(Post::Greatest { stat, or_tied })
+        },
+        |p| {
+            p.one_of(&["that had a counter put on them this way", "that had a counter put on it this way"])?;
+            let on = antecedent();
+            Some(Post::DidThisWay(Box::new(Event::CountersPut { by: None, n: Quant::One, kind: None, on })))
+        },
+        |p| { p.word("who")?; let e = did(p, Player::That)?; p.words("this way")?; Some(Post::DidThisWay(Box::new(e))) },
+        |p| p.one_of(&["with the same name as one another", "with the same name"]).map(|_| Post::SameName),
+        |p| p.one_of(&["that are one or more colors", "that's one or more colors"]).map(|_| Post::OneOrMoreColors),
+        |p| p.words("with the chosen name").map(|_| Post::WithChosenName),
+        |p| p.words("of each permanent type").map(|_| Post::OfEachPermanentType),
+        // "each card they find": found by the search a condition named.
+        |p| {
+            let by = alt!(p; player_simple, |p| p.word("you").map(|_| Player::You))?;
+            p.one_of(&["find", "finds"])?;
+            Some(Post::MarkedBy { how: Marked::Found, by })
+        },
+        // "with lesser mana value", "with equal or lesser mana value": than
+        // the object the ability is about.
+        |p| {
+            p.word("with")?;
+            let op = alt!(p;
+                |p| p.words("equal or lesser").map(|_| Op::Le),
+                |p| p.word("lesser").map(|_| Op::Lt),
+                |p| p.words("equal or greater").map(|_| Op::Ge),
+                |p| p.word("greater").map(|_| Op::Gt),
+            )?;
+            let stat = stat(p)?;
+            Some(Post::With(Compare { stat, op, value: stat_of(stat, antecedent()) }))
+        },
         |p| p.words("with different names").map(|_| Post::DifferentNames),
         |p| { let pl = player_simple(p)?; p.one_of(&["owns", "own"])?; Some(Post::Owner(pl)) },
         |p| {
@@ -443,6 +535,51 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         // "each" says the post holds of every one, as it would anyway.
         |p| { p.words("each with")?; compare(p).map(Post::With) },
         |p| { let pl = player_simple(p)?; p.one_of(&["casts", "cast"])?; Some(Post::Cast(pl)) },
+    )
+}
+
+/// Posts that come as more than one: "that each have a different mana value
+/// X or less" says the values differ and bounds each.
+fn posts_one(p: &mut P, counter: bool) -> Option<Vec<Post>> {
+    alt!(p;
+        |p| {
+            p.words("that each have a different")?;
+            let stat = stat(p)?;
+            let mut v = vec![Post::DifferentValues(stat)];
+            if let Some((op, value)) = p.attempt(comparison) {
+                v.push(Post::With(Compare { stat, op, value }));
+            }
+            Some(v)
+        },
+        // "target card that's an instant or sorcery from your graveyard": the
+        // posts after the types are the card's, not the types'.
+        |p| {
+            p.word("that's")?;
+            p.one_of(&["a", "an"])?;
+            let mut f = filter(p)?;
+            let posts = std::mem::take(&mut f.posts);
+            let mut v = vec![Post::ThatIs(f)];
+            v.extend(posts);
+            Some(v)
+        },
+        // Only a counter is "on" something; elsewhere "on" starts a destination.
+        |p| post(p).filter(|q| counter || !matches!(q, Post::On(_))).map(|q| vec![q]),
+    )
+}
+
+/// What a player did, said after "who" with the player understood: "drew a
+/// card", "searches a library".
+pub(super) fn did(p: &mut P, who: Player) -> Option<Event> {
+    alt!(p;
+        |p| { p.one_of(&["drew", "draws", "draw"])?; p.words("a card")?; Some(Event::Draws(who.clone())) },
+        |p| {
+            p.one_of(&["searched", "searches", "search"])?;
+            let zone = alt!(p;
+                |p| p.words("a library").map(|_| Zone::ALibrary),
+                |p| { let w = whose(p)?; p.word("library")?; Some(Zone::Library(w)) },
+            )?;
+            Some(Event::Searches { who: who.clone(), zone })
+        },
     )
 }
 
@@ -475,9 +612,8 @@ pub(super) fn quant(p: &mut P) -> Option<Quant> {
         |p| p.word("target").map(|_| Quant::Target { n: Amount::N(1), up_to: false }),
         |p| p.words("the next").map(|_| Quant::Next),
         |p| p.word("additional").map(|_| Quant::Additional),
-        |p| p.words("each other").map(|_| Quant::Each),
+        // "each other creature": the "other" is the filter's own word.
         |p| p.word("each").map(|_| Quant::Each),
-        |p| p.words("all other").map(|_| Quant::All),
         |p| p.word("all").map(|_| Quant::All),
         |p| p.word("another").map(|_| Quant::Another),
         |p| p.words("one or more").map(|_| Quant::OneOrMore),
@@ -499,6 +635,14 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
         |p| { p.words("each of")?; let o = pronoun(p)?; (o.quant == Quant::Antecedent).then_some(o) },
         |p| p.words("the rest").map(|_| Objects { quant: Quant::Rest, filter: Filter::default() }),
         |p| p.one_of(&["the other", "the others"]).map(|_| antecedent()),
+        // "twice that many of each of those kinds of counters": the counters
+        // an event named, kind by kind.
+        |p| p.words("each of those kinds of counters").map(|_| Objects {
+            quant: Quant::Antecedent,
+            filter: Filter { kind: Some(Noun::Counter(None)), ..Filter::default() },
+        }),
+        // "Put both cards onto the battlefield": the two just named.
+        |p| { p.word("both")?; let f = filter(p)?; Some(Objects { quant: Quant::Antecedent, filter: f }) },
         |p| {
             p.words("up to")?;
             let n = amount(p)?;
@@ -528,12 +672,17 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
             p.words("the top")?;
             let n = p.attempt(amount).unwrap_or(Amount::N(1));
             p.one_of(&["cards", "card"])?;
-            p.word("of")?;
-            let w = whose(p)?;
-            p.word("library")?;
+            // "Shuffle your library, then exile the top card": of the library
+            // just named, as "put it on top" is.
+            let zone = p.attempt(|p| {
+                p.word("of")?;
+                let w = whose(p)?;
+                p.word("library")?;
+                Some(Zone::TopOfLibrary(w))
+            }).unwrap_or(Zone::OwnersLibraryTop);
             Some(Objects {
                 quant: Quant::N(n),
-                filter: Filter { kind: Some(Noun::Card), posts: vec![Post::In(Zone::TopOfLibrary(w))], ..Filter::default() },
+                filter: Filter { kind: Some(Noun::Card), posts: vec![Post::In(zone)], ..Filter::default() },
             })
         },
     )
@@ -580,6 +729,11 @@ pub(super) fn with_others(quant: Quant, mut f: Filter) -> Objects {
 /// tries the same one from many alternatives, so each start is read once.
 pub(super) fn objects_no_player(p: &mut P) -> Option<Objects> {
     let start = p.i;
+    // A comparison's value reads differently, so it neither uses nor fills
+    // the memo.
+    if p.in_value {
+        return objects_read(p);
+    }
     if let Some((o, end, furthest)) = p.objects_memo[start].clone() {
         p.furthest = p.furthest.max(furthest);
         if o.is_some() {
@@ -604,7 +758,31 @@ fn objects_read(p: &mut P) -> Option<Objects> {
             let filter = filter(p)?;
             Some(Objects { quant: Quant::SelfOrAnother, filter })
         },
+        // "the artifact with the greatest mana value": one, picked out by
+        // the post, not an earlier noun.
+        |p| {
+            p.word("the")?;
+            let filter = filter(p)?;
+            filter.posts.iter().any(|q| matches!(q, Post::Greatest { .. })).then_some(Objects { quant: Quant::One, filter })
+        },
         pronoun,
+        // "put a counter on each of up to two target creatures": each target.
+        |p| {
+            p.words("each of")?;
+            let o = objects(p)?;
+            matches!(o.quant, Quant::Target { .. }).then_some(o)
+        },
+        // "two or more of those creatures": some of an earlier noun.
+        |p| {
+            let quant = quant(p)?;
+            if !matches!(quant, Quant::AtLeast(_) | Quant::AtMost(_) | Quant::N(_)) { return None; }
+            p.word("of")?;
+            let among = pronoun(p)?;
+            (among.quant == Quant::Antecedent).then(|| Objects {
+                quant,
+                filter: Filter { posts: vec![Post::FromAmong(Box::new(among))], ..Filter::default() },
+            })
+        },
         |p| {
             let of = whose_pronoun(p)?;
             let n = ["first", "second", "third"].iter().position(|w| p.word(w).is_some())? as u32 + 1;

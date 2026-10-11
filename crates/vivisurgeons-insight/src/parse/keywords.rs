@@ -72,6 +72,15 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
         },
         |p| {
             let name = keyword_name(p)?;
+            if name == "splice" {
+                p.word("onto")?;
+                let onto = filter(p)?;
+                let cost = alt!(p;
+                    |p| { p.tok(&Tok::Dash)?; costs(p) },
+                    |p| mana(p).map(|m| vec![Cost::Mana(m)]),
+                )?;
+                return Some(Keyword { name, param: Some(KeywordParam::Splice { onto, cost }) });
+            }
             let param = alt!(p;
                 |p| { p.tok(&Tok::Dash)?; let c = costs(p)?; p.attempt(|p| p.tok(&Tok::Period)); Some(KeywordParam::Cost(c)) },
                 |p| mana(p).map(|m| KeywordParam::Cost(vec![Cost::Mana(m)])),

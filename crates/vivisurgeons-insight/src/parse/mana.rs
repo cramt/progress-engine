@@ -35,6 +35,7 @@ pub(super) fn cost(p: &mut P) -> Option<Cost> {
             (n > 0).then_some(Cost::Energy(n))
         },
         |p| { p.word("sacrifice")?; objects(p).map(Cost::Sacrifice) },
+        |p| p.words("discard your hand").map(|_| Cost::DiscardHand),
         |p| { p.word("discard")?; objects(p).map(Cost::Discard) },
         |p| { p.word("pay")?; let n = amount(p)?; p.word("life")?; Some(Cost::PayLife(n)) },
         |p| { p.words("pay life equal to")?; measure(p).map(Cost::PayLife) },
@@ -121,6 +122,8 @@ pub(super) fn mana_add(p: &mut P) -> Option<ManaAdd> {
             Some(ManaAdd::Of { n, pick, within })
         },
         |p| { p.words("an amount of")?; let m = mana(p)?; p.words("equal to")?; let n = measure(p)?; Some(ManaAdd::AmountOf { mana: m, n }) },
+        // "Add six {G}".
+        |p| { let n = amount(p)?; let m = mana(p)?; Some(ManaAdd::AmountOf { mana: m, n }) },
         |p| {
             p.words("an amount of mana")?;
             let (pick, within) = mana_pick(p)?;
@@ -160,6 +163,9 @@ pub(super) fn mana_pick(p: &mut P) -> Option<(Pick, Option<Palette>)> {
             let within = p.attempt(|p| alt!(p;
                 |p| { p.word("in")?; commander_identity(p) },
                 |p| { p.word("that")?; let o = objects(p)?; p.words("could produce")?; Some(Palette::CouldProduce(Box::new(o))) },
+                // "any type that land produced": "that" is the land's, not
+                // a relative pronoun as in "that … could produce".
+                |p| { let o = objects(p)?; p.word("produced")?; Some(Palette::Produced(Box::new(o))) },
                 |p| { p.word("among")?; objects(p).map(|o| Palette::ColorsOf(Box::new(o))) },
             ));
             Some((pick, within))

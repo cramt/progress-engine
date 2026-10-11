@@ -11,6 +11,7 @@ pub(super) fn whose_step(p: &mut P) -> Option<Whose> {
         |p| p.words("each player 's").map(|_| Whose::Each),
         |p| p.word("each").map(|_| Whose::Each),
         |p| p.words("that player 's").map(|_| Whose::ThatPlayers),
+        |p| p.word("that").map(|_| Whose::That),
         |p| p.words("the next turn 's").map(|_| Whose::The),
         |p| p.words("the next").map(|_| Whose::The),
         |p| p.word("the").map(|_| Whose::The),
@@ -65,9 +66,104 @@ pub(super) fn player_verb(p: &mut P, who: &Player) -> Option<Box<dyn Fn(Objects)
     )
 }
 
+/// One of several things a player does in a trigger: "attacks you with two
+/// or more creatures", "draws their second card each turn".
+fn player_predicate(p: &mut P, who: &Player) -> Option<Event> {
+    alt!(p;
+        |p| {
+            p.verb("attack")?;
+            let at = p.attempt(|p| alt!(p; player_simple, |p| p.word("you").map(|_| Player::You)));
+            p.word("with")?;
+            let what = objects(p)?;
+            Some(Event::AttacksWith { who: who.clone(), what, at })
+        },
+        |p| {
+            p.verb("draw")?;
+            whose_pronoun(p)?;
+            let n = ordinal(p)?;
+            p.words("card each turn")?;
+            Some(Event::DrawsNth { who: who.clone(), n })
+        },
+        |p| { p.verb("play")?; p.words("a land")?; Some(Event::PlaysLand(who.clone())) },
+        |p| {
+            p.verb("tap")?;
+            let what = objects(p)?;
+            p.word("for")?;
+            let mana = mana(p)?;
+            Some(Event::TapsFor { who: who.clone(), what, mana })
+        },
+        |p| {
+            p.verb("put")?;
+            let (n, kind) = counters_phrase(p)?;
+            p.word("on")?;
+            let on = objects(p)?;
+            Some(Event::CountersPut { by: Some(Actor::Player(who.clone())), n, kind, on })
+        },
+        |p| {
+            p.verb("put")?;
+            let what = objects(p)?;
+            let to = put_to(p)?;
+            Some(Event::Puts { who: who.clone(), what, to: to.zone() })
+        },
+        |p| { p.verb("exile")?; let what = objects(p)?; Some(Event::Exiles { who: who.clone(), what }) },
+        |p| { let v = player_verb(p, who)?; objects(p).map(v) },
+    )
+}
+
 pub(super) fn single_event(p: &mut P) -> Option<Event> {
     alt!(p;
         |p| p.words("you attack").map(|_| Event::YouAttack),
+        // "an opponent attacks you with two or more creatures, draws their
+        // second card each turn, or casts their second spell each turn": one
+        // player, a list of verbs.
+        |p| {
+            let who = player(p)?;
+            let mut v = vec![player_predicate(p, &who)?];
+            // Each item with where it started and whether "or" led it: a
+            // list ends in "or", so a trailing bare comma ends the trigger.
+            let mut items = Vec::new();
+            while let Some(item) = p.attempt(|p| {
+                let start = p.i;
+                let sep = p.one_of(&[", or", ",", "or"])?;
+                Some((start, sep != ",", player_predicate(p, &who)?))
+            }) {
+                items.push(item);
+            }
+            while let Some(&(start, false, _)) = items.last() {
+                p.i = start;
+                items.pop();
+            }
+            v.extend(items.into_iter().map(|(_, _, e)| e));
+            // A lone verb the rules below read is theirs to read.
+            if v.len() == 1 && !matches!(v[0], Event::AttacksWith { .. } | Event::PlaysLand(_) | Event::TapsFor { .. } | Event::CountersPut { .. } | Event::Puts { .. } | Event::Exiles { .. }) {
+                return None;
+            }
+            Some(if v.len() == 1 { v.remove(0) } else { Event::Or(v) })
+        },
+        |p| p.words("enchanted player is attacked").map(|_| Event::IsAttacked(Player::Enchanted)),
+        |p| {
+            p.word("the")?;
+            let n = ordinal(p)?;
+            let kind = counter_kind(p)?;
+            p.words("counter is put on")?;
+            let on = objects(p)?;
+            Some(Event::NthCounterPutOn { n, kind, on })
+        },
+        |p| {
+            let (n, kind) = counters_phrase(p)?;
+            p.one_of(&["are put on", "is put on"])?;
+            let on = objects(p)?;
+            Some(Event::CountersPut { by: None, n, kind, on })
+        },
+        |p| {
+            let of = objects_no_player(p)?;
+            p.tok(&Tok::Possessive)?;
+            p.words("ability causes")?;
+            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+            p.words("to add one or more mana of")?;
+            let pal = palette_named(p)?;
+            Some(Event::AddsMana { who, by_ability_of: of, of: pal })
+        },
         |p| { p.words("that mana is spent to cast")?; objects(p).map(Event::ManaSpentToCast) },
         |p| {
             let who = player(p)?;
@@ -130,6 +226,14 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
 pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
     alt!(p;
         |p| {
+            let e = alt!(p;
+                |p| p.verb("attack").map(|_| Event::Attacks(what.clone())),
+                |p| p.verb("block").map(|_| Event::Blocks(what.clone())),
+            )?;
+            p.words("for the first time each turn")?;
+            Some(Event::FirstTimeEachTurn(Box::new(e)))
+        },
+        |p| {
             p.verb("enter")?;
             p.attempt(|p| p.words("the battlefield"));
             let under = p.attempt(|p| { p.word("under")?; let w = whose(p)?; p.word("control")?; Some(w) });
@@ -154,6 +258,8 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
         |p| p.one_of(&["becomes tapped", "become tapped"]).map(|_| Event::BecomesTapped(what.clone())),
         |p| p.one_of(&["is tapped for mana", "are tapped for mana"]).map(|_| Event::TappedForMana(what.clone())),
         |p| { p.one_of(&["is put into", "are put into"])?; let to = zone(p)?; p.word("from")?; let from = zone(p)?; Some(Event::PutInto { what: what.clone(), to, from }) },
+        // "is put into exile" with no "from": from any zone, as "from anywhere" says.
+        |p| { p.one_of(&["is put into", "are put into"])?; let to = zone(p)?; Some(Event::PutInto { what: what.clone(), to, from: Zone::Anywhere }) },
         |p| { p.one_of(&["becomes the target of", "become the target of"])?; let of = p.attempt(objects); Some(Event::BecomesTarget { what: what.clone(), of }) },
     )
 }

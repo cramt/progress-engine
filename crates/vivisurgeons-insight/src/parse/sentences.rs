@@ -9,13 +9,21 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
         if let Some((who, cost)) = p.attempt(|p| {
             p.word("unless")?;
             let who = player(p)?;
-            p.verb("pay")?;
-            Some((who, costs(p)?))
+            Some((who, unless_costs(p)?))
         }) {
             e = Effect::Unless {
                 effect: Box::new(e),
                 who,
                 cost,
+            };
+        } else if let Some(cond) = p.attempt(|p| {
+            // "unless it has the same name as another card exiled this way".
+            p.word("unless")?;
+            condition(p)
+        }) {
+            e = Effect::If {
+                cond: Condition::Not(Box::new(cond)),
+                then: vec![e],
             };
         } else if let Some(each) = p.attempt(|p| {
             p.words("for each")?;
@@ -42,7 +50,17 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
         } else if let Some(of) = p.attempt(|p| {
             // "exile it instead of putting it into its owner's graveyard".
             p.words("instead of putting")?;
-            put_rest(p)
+            alt!(p;
+                put_rest,
+                // "exile it instead of putting it anywhere else": anywhere
+                // but exile.
+                |p| {
+                    if !matches!(e, Effect::Exile(_)) { return None; }
+                    let what = pronoun(p)?;
+                    p.words("anywhere else")?;
+                    Some(Effect::Move { what, from: None, to: Zone::AnywhereOtherThan(Box::new(Zone::Exile)), tapped: false, transformed: false, under: None, order: None })
+                },
+            )
         }) {
             e = Effect::InsteadOf {
                 then: Box::new(e),
@@ -62,8 +80,109 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
     }
 }
 
+/// What a player does to stop an "unless": "pays {1}", or a cost said as
+/// its own verb, "sacrifices a nonland permanent or discards a card".
+pub(super) fn unless_costs(p: &mut P) -> Option<Vec<Cost>> {
+    if let Some(c) = p.attempt(|p| {
+        p.verb("pay")?;
+        costs(p)
+    }) {
+        return Some(c);
+    }
+    let one = |p: &mut P| {
+        alt!(p;
+            |p| { p.verb("sacrifice")?; objects(p).map(Cost::Sacrifice) },
+            |p| { p.verb("discard")?; objects(p).map(Cost::Discard) },
+        )
+    };
+    let mut v = vec![one(p)?];
+    while let Some(c) = p.attempt(|p| {
+        p.word("or")?;
+        one(p)
+    }) {
+        v.push(c);
+    }
+    Some(vec![if v.len() == 1 {
+        v.remove(0)
+    } else {
+        Cost::OneOf(v)
+    }])
+}
+
+/// "Destroy target artifact, target creature, target enchantment, and
+/// target land": one verb, a list of objects, so one effect per object.
+fn object_list(p: &mut P) -> Option<Vec<Objects>> {
+    let mut v = vec![objects(p)?];
+    while let Some(o) = p.attempt(|p| {
+        p.tok(&Tok::Comma)?;
+        p.attempt(|p| p.word("and"));
+        objects(p)
+    }) {
+        v.push(o);
+    }
+    (v.len() > 2).then_some(v)
+}
+
 pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
     alt!(p;
+        |p| {
+            p.word("destroy")?;
+            let v = object_list(p)?;
+            Some(v.into_iter().map(|what| Effect::Destroy { what, no_regen: false }).collect())
+        },
+        // "Until end of turn, whenever a player taps an Island for mana, …".
+        |p| {
+            p.word("whenever")?;
+            let event = event(p)?;
+            p.tok(&Tok::Comma)?;
+            let mut then = clauses(p)?;
+            // "…, copy it. You may choose new targets for the copy.": the
+            // copy's own option, so the trigger's too.
+            if let Some(more) = p.attempt(|p| {
+                p.tok(&Tok::Period)?;
+                let c = clause(p)?;
+                matches!(&c[..], [Effect::May { then, .. }] if matches!(&then[..], [Effect::ChooseNewTargets(o)] if o.filter.kind == Some(Noun::Copy))).then_some(c)
+            }) {
+                then.extend(more);
+            }
+            Some(vec![Effect::DelayedWhenever { event, then }])
+        },
+        // "For each 1 damage prevented this way, create …": once per point.
+        |p| {
+            p.words("for each")?;
+            (number(p)? == 1).then_some(())?;
+            p.words("damage prevented this way ,")?;
+            Some(vec![Effect::Repeat { times: Amount::DamagePrevented, then: clauses(p)? }])
+        },
+        // "creatures you control have base power and toughness X/X and gain
+        // all creature types": one subject, two effects. A base size is what
+        // "becomes X/X" sets.
+        |p| {
+            let what = objects(p)?;
+            p.verb("have")?;
+            p.words("base power and toughness")?;
+            let pt = match p.peek()? { Tok::Pt(pt) if !pt.signed => *pt, _ => return None };
+            p.bump();
+            let also = p.attempt(|p| { p.word("and")?; p.verb("gain")?; p.words("all creature types") }).is_some();
+            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+            let mut v = vec![Effect::Becomes { what: what.clone(), pt: Some(pt), types: vec![], gains: vec![], keeps: Keeps::Nothing, dur: dur.clone() }];
+            if also {
+                v.push(Effect::AlsoIs { what, types: TypeSet::EveryCreatureType, dur });
+            }
+            Some(v)
+        },
+        // "creatures your opponents control attack each combat if able and
+        // attack a player other than you if able": one subject, two rules.
+        |p| {
+            let what = objects(p)?;
+            let mut rules = vec![restriction(p)?];
+            while let Some(r) = p.attempt(|p| { p.word("and")?; restriction(p) }) {
+                rules.push(r);
+            }
+            if rules.len() < 2 { return None; }
+            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+            Some(rules.into_iter().map(|rule| Effect::Restrict { what: what.clone(), rule, dur: dur.clone() }).collect())
+        },
         |p| {
             p.one_of(&["if you do", "if they do", "if that player does", "if the player does"])?;
             p.tok(&Tok::Comma)?;
@@ -225,6 +344,7 @@ pub(super) const IMPERATIVE: &[&str] = &[
     "scry",
     "surveil",
     "transform",
+    "remove",
 ];
 
 /// Verbs in the third person that, with no subject before them, continue
@@ -270,6 +390,15 @@ pub(super) fn subject_of(e: &Effect) -> Option<Player> {
     })
 }
 
+/// The object an effect's verb is said of, where it has one.
+fn object_subject_of(e: &Effect) -> Option<Objects> {
+    match e {
+        Effect::Modify { what, .. } | Effect::GrantAbility { what, .. } => Some(what.clone()),
+        Effect::Damage { source, .. } => source.clone(),
+        _ => None,
+    }
+}
+
 /// A clause whose subject, if it has none, is `who`.
 pub(super) fn clause_as(p: &mut P, who: Option<Player>) -> Option<Vec<Effect>> {
     let outer = std::mem::replace(&mut p.implied, who);
@@ -296,7 +425,21 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
         } else {
             p.implied.clone()
         };
-        clause_as(p, who)
+        let deals = p.peek_word() == Some("deals");
+        let mut c = clause_as(p, who)?;
+        // "This creature gets +2/+0 until end of turn and deals 1 damage to
+        // you": the damage is the earlier subject's.
+        if let (
+            true,
+            Some(Effect::Damage {
+                source: source @ None,
+                ..
+            }),
+        ) = (deals, c.first_mut())
+        {
+            *source = v.last().and_then(object_subject_of);
+        }
+        Some(c)
     }) {
         v.extend(more);
     }
@@ -321,6 +464,15 @@ pub(super) fn modal(p: &mut P) -> Option<Effect> {
         |p| p.word("one").map(|_| Choose::One),
         |p| number(p).map(Choose::N),
     )?;
+    let choose = match p.attempt(|p| {
+        p.one_of(&[
+            "that hasn't been chosen this turn",
+            "that haven't been chosen this turn",
+        ])
+    }) {
+        Some(_) => Choose::NotChosenThisTurn(Box::new(choose)),
+        None => choose,
+    };
     // "Choose one. If you control a commander as you cast this spell, you
     // may choose both instead." The modes follow the second sentence.
     let choose = match p.attempt(|p| {
@@ -372,6 +524,22 @@ pub(super) fn modal(p: &mut P) -> Option<Effect> {
 pub(super) fn sentence(p: &mut P) -> Option<Vec<Effect>> {
     alt!(p;
         |p| modal(p).map(|m| vec![m]),
+        // "Repeat the following process X times. …": the process is every
+        // sentence after it.
+        |p| {
+            p.words("repeat the following process")?;
+            let times = amount(p)?;
+            p.words("times .")?;
+            Some(vec![Effect::Repeat { times, then: effects(p)? }])
+        },
+        |p| {
+            p.words("repeat this process until")?;
+            let until = event(p)?;
+            // "whichever comes first" is what "until A or B" means anyway.
+            p.attempt(|p| p.words(", whichever comes first"));
+            p.end_sentence()?;
+            Some(vec![Effect::RepeatUntil(Box::new(until))])
+        },
         |p| { let e = clauses(p)?; p.end_sentence()?; Some(e) },
     )
 }

@@ -504,6 +504,190 @@ mod tests {
     }
 
     #[test]
+    fn an_aura_that_makes_a_new_creature_says_what_it_is_has_and_loses() {
+        let a = read(
+            "Some Mutation",
+            "Enchantment — Aura",
+            "Enchanted creature is an Insect artifact creature with base power and toughness 0/1 and has indestructible, and it loses all other abilities, card types, and creature types.",
+        );
+        let Ability::Static(s) = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert!(matches!(&s[0], Static::Is { types: TypeSet::Listed(t), .. } if t.len() == 3));
+        assert!(matches!(&s[1], Static::BasePt { .. }));
+        assert!(matches!(&s[2], Static::Modify { has, .. } if has.len() == 1));
+        assert_eq!(
+            s[3],
+            Static::Loses {
+                what: match &s[0] {
+                    Static::Is { what, .. } => what.clone(),
+                    _ => unreachable!(),
+                },
+                lost: [
+                    Characteristic::Abilities,
+                    Characteristic::CardTypes,
+                    Characteristic::CreatureTypes
+                ]
+                .map(|of| Lost::All { other: true, of })
+                .to_vec(),
+            }
+        );
+    }
+
+    #[test]
+    fn a_damage_doubler_replaces_the_amount_and_keeps_the_recipient() {
+        let a = read(
+            "Some Tyrant",
+            "Creature — Dragon",
+            "If a source you control would deal damage to an opponent or a permanent an opponent controls, it deals double that damage instead.",
+        );
+        let Ability::Static(s) = &a[0] else {
+            panic!("{a:?}")
+        };
+        let Static::Replacement { event, instead } = &s[0] else {
+            panic!("{s:?}")
+        };
+        assert!(matches!(**event, Event::DealsDamageTo { .. }));
+        assert!(matches!(
+            &instead[0],
+            Effect::ThatDamage { n: Amount::Twice(n), to: None, .. } if **n == Amount::Damage
+        ));
+    }
+
+    #[test]
+    fn digging_until_a_card_names_the_verb_and_the_card_it_stops_at() {
+        let a = read(
+            "Some Conqueror",
+            "Creature — Elder Giant",
+            "When this creature enters, each player exiles cards from the top of their library until they exile a nonland card.",
+        );
+        let Ability::Triggered { effect, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert!(matches!(
+            &effect[0],
+            Effect::UntilFound { who: Player::Each, verb: DigVerb::Exile, zone: Zone::TopOfLibrary(Player::That), until }
+                if until.filter.alts == vec![vec![Adj::Non("land".into())]]
+        ));
+    }
+
+    #[test]
+    fn a_repeated_process_is_every_sentence_after_it() {
+        let a = read(
+            "Some Torment",
+            "Sorcery",
+            "Repeat the following process X times. Each opponent loses 3 life unless that player sacrifices a nonland permanent of their choice or discards a card.",
+        );
+        let Ability::Spell(effect) = &a[0] else {
+            panic!("{a:?}")
+        };
+        let [Effect::Repeat {
+            times: Amount::X,
+            then,
+        }] = &effect[..]
+        else {
+            panic!("{effect:?}")
+        };
+        assert!(matches!(
+            &then[0],
+            Effect::Unless { who: Player::That, cost, .. } if matches!(&cost[..], [Cost::OneOf(c)] if c.len() == 2)
+        ));
+    }
+
+    #[test]
+    fn one_player_takes_a_list_of_trigger_verbs_that_ends_in_or() {
+        let a = read(
+            "Some Pairs",
+            "Enchantment",
+            "Whenever an opponent attacks you with two or more creatures, draws their second card each turn, or casts their second spell each turn, you draw a card.",
+        );
+        assert!(matches!(
+            &a[0],
+            Ability::Triggered { trigger: Trigger::When(e), .. }
+                if matches!(&**e, Event::Or(v) if v.len() == 3
+                    && matches!(&v[0], Event::AttacksWith { at: Some(Player::You), .. }))
+        ));
+        // A comma with no "or" after it ends the trigger, not the list.
+        let a = read(
+            "Some Necropotence",
+            "Enchantment",
+            "Whenever you discard a card, exile that card from your graveyard.",
+        );
+        assert!(matches!(
+            &a[0],
+            Ability::Triggered { trigger: Trigger::When(e), .. } if matches!(**e, Event::Discards { .. })
+        ));
+    }
+
+    #[test]
+    fn a_zone_after_a_compared_amount_belongs_to_the_object_compared() {
+        let a = read(
+            "Some Vial",
+            "Artifact",
+            "{T}: You may put a creature card with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield.",
+        );
+        let Ability::Activated { effect, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        let Effect::May { then, .. } = &effect[0] else {
+            panic!("{effect:?}")
+        };
+        assert!(matches!(
+            &then[0],
+            Effect::Move { what, .. } if what.filter.posts.last() == Some(&Post::In(Zone::Hand(Player::You)))
+        ));
+    }
+
+    #[test]
+    fn a_damage_clause_after_and_keeps_the_subject_before_it() {
+        let a = read(
+            "Some Satyr",
+            "Creature — Satyr",
+            "{1}{R}: This creature gets +1/+0 until end of turn and deals 1 damage to you.",
+        );
+        let Ability::Activated { effect, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert!(matches!(
+            &effect[1],
+            Effect::Damage { source: Some(o), .. } if o.quant == Quant::SelfRef
+        ));
+    }
+
+    #[test]
+    fn an_extra_combat_says_which_phase_it_follows() {
+        let a = read(
+            "Some Assault",
+            "Enchantment",
+            "{3}{R}{R}: Untap all creatures you control. After this main phase, there is an additional combat phase followed by an additional main phase. Activate only as a sorcery.",
+        );
+        let Ability::Activated { effect, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert_eq!(
+            effect[1],
+            Effect::AdditionalPhases {
+                after: Some(PhaseKind::Main),
+                phases: vec![PhaseKind::Combat, PhaseKind::Main],
+            }
+        );
+    }
+
+    #[test]
+    fn each_other_keeps_its_other() {
+        let a = read(
+            "Some Mimic",
+            "Artifact Creature — Shapeshifter",
+            "Each other creature you control of the chosen type enters with an additional +1/+1 counter on it.",
+        );
+        assert!(matches!(
+            &a[0],
+            Ability::Static(s) if matches!(&s[0], Static::EntersWithCounters { what, n: Amount::Additional(_), .. }
+                if what.quant == Quant::Each && what.filter.alts[0][0] == Adj::State(State::Other))
+        ));
+    }
+
+    #[test]
     fn a_passive_token_doubler_names_no_creator() {
         let a = read(
             "Some Dominus",
