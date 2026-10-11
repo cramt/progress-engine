@@ -905,6 +905,58 @@ mod tests {
     }
 
     #[test]
+    fn a_sentence_about_what_an_option_brought_in_is_the_options() {
+        let a = read(
+            "Some Breach",
+            "Instant — Arcane",
+            "You may put a creature card from your hand onto the battlefield. That creature gains haste. Sacrifice that creature at the beginning of the next end step.",
+        );
+        // No creature, no haste and no sacrifice: both are the option's.
+        assert!(matches!(&a[0], Ability::Spell(e)
+            if matches!(&e[..], [Effect::May { then, .. }]
+                if matches!(&then[..], [Effect::Move { .. }, Effect::Modify { .. }, Effect::Delayed { .. }]))));
+        let a = read(
+            "Some Ray",
+            "Sorcery",
+            "Tap all creatures target player controls. You may pay any amount of {E}. If you do, choose up to that many creatures tapped this way. Put a stun counter on each of them.",
+        );
+        let Ability::Spell(e) = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert!(
+            matches!(&e[2], Effect::IfYouDo(then)
+            if matches!(&then[..], [Effect::Choose(_), Effect::PutCounters { .. }])),
+            "{e:?}"
+        );
+        // "The rest" were looked at either way, so they stay outside.
+        let a = read(
+            "Some Symbiosis",
+            "Sorcery",
+            "Look at the top seven cards of your library. You may put a creature card from among them onto the battlefield. If that card has mana value 3 or less, it enters with three additional +1/+1 counters on it. Put the rest on the bottom of your library in a random order.",
+        );
+        assert!(matches!(&a[0], Ability::Spell(e)
+            if matches!(&e[..], [Effect::LookAtTop { .. }, Effect::May { then, .. }, Effect::Move { .. }] if then.len() == 2)));
+    }
+
+    #[test]
+    fn those_players_after_a_loop_are_the_loops_controllers() {
+        let a = read(
+            "Some Creativity",
+            "Sorcery",
+            "Destroy X target artifacts and/or creatures. For each permanent destroyed this way, its controller reveals cards from the top of their library until an artifact or creature card is revealed and exiles that card. Those players put the exiled cards onto the battlefield, then shuffle.",
+        );
+        let Ability::Spell(e) = &a[0] else {
+            panic!("{a:?}")
+        };
+        let Effect::ForEach { each, .. } = &e[1] else {
+            panic!("{e:?}")
+        };
+        let those = Player::Those(Box::new(Player::ControllerOf(Box::new(each.clone()))));
+        assert!(matches!(&e[2], Effect::Performed { by, .. } if *by == those));
+        assert_eq!(e[3], Effect::Shuffle(those));
+    }
+
+    #[test]
     fn protection_from_two_qualities_is_two_protection_abilities() {
         let a = read(
             "Some Riftwalker",

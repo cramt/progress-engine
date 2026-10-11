@@ -540,6 +540,15 @@ mod syn {
         alt(o, vec![once, again]);
     }
 
+    /// "You may put a creature card from your hand onto the battlefield.
+    /// That creature gains haste." and "…, then have it gain haste": a step
+    /// after the option is part of it, said in the option's sentence or as
+    /// a sentence of its own. Either way it happens only if the option was
+    /// taken, and is no second option.
+    pub fn option_steps(o: &mut Out, forms: Vec<Out>) {
+        alt(o, forms);
+    }
+
     /// A verb said once for several objects: "put one onto the battlefield
     /// and the other into your hand", "destroy target artifact, target
     /// creature, and target land", "You and permanents you control gain
@@ -1960,7 +1969,7 @@ fn player_num(p: &Player) -> Num {
     match p {
         Player::You => Num::Pl,
         Player::That | Player::EachOpponent => Num::Any,
-        Player::EachOf(_) => Num::Pl,
+        Player::EachOf(_) | Player::Those(_) => Num::Pl,
         _ => Num::Sg,
     }
 }
@@ -2024,6 +2033,7 @@ fn player(o: &mut Out, p: &Player) {
                 player(o, q);
             }
         }
+        Player::Those(_) => o.w("those players"),
     }
 }
 
@@ -2091,10 +2101,10 @@ fn subj(o: &mut Out, who: &Player, verb: &str, cx: &Cx) {
         };
         let alone = out(|o| o.verb(verb, alone_n));
         syn::subject(o, said, alone, after);
-    } else if cx.continues.as_ref() == Some(who) && n != Num::Pl {
+    } else if cx.continues.as_ref() == Some(who) && (n != Num::Pl || *who != Player::You) {
         // "that player shuffles", "those players …, then shuffle": the
         // verb agrees with however the subject was said.
-        let alone = out(|o| o.verb(verb, if n == Num::Any { Num::Any } else { Num::Sg }));
+        let alone = out(|o| o.verb(verb, n));
         syn::subject(o, said, alone, after);
     } else {
         o.add(said);
@@ -4225,7 +4235,21 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 continues: None,
                 modal: true,
             };
-            clauses(o, then, &inner);
+            // "You may put a creature card … onto the battlefield. That
+            // creature gains haste.": the steps after the option, said in
+            // its sentence or in sentences of their own.
+            let forms = (1..=then.len())
+                .map(|k| {
+                    out(|o| {
+                        clauses(o, &then[..k], &inner);
+                        if k < then.len() {
+                            o.w(".");
+                            clauses(o, &then[k..], cx);
+                        }
+                    })
+                })
+                .collect();
+            syn::option_steps(o, forms);
         }
         Effect::IfYouDont(v) => {
             o.w("if");

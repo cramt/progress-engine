@@ -394,6 +394,9 @@ pub enum Player {
     /// "that player or that planeswalker's controller": whichever one the
     /// earlier choice made it.
     OneOf(Vec<Player>),
+    /// "Those players" after "For each permanent destroyed this way, its
+    /// controller …": every player the loop before named, all at once.
+    Those(Box<Player>),
 }
 
 #[derive(Clone, Debug, PartialEq)]

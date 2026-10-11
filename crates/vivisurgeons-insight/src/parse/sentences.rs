@@ -239,18 +239,6 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                 Effect::Damage { source: Some(source), n: n2, to: to2 },
             ])
         },
-        // "Those players put the exiled cards onto the battlefield, then
-        // shuffle": the plural subject keeps both verbs.
-        |p| {
-            p.words("those players")?;
-            p.word("put")?;
-            let first = put_rest(p)?;
-            p.words(", then shuffle")?;
-            Some(vec![
-                Effect::Performed { by: Player::That, effect: Box::new(first) },
-                Effect::Shuffle(Player::That),
-            ])
-        },
         // "creatures your opponents control attack each combat if able and
         // attack a player other than you if able": one subject, two rules.
         |p| {
@@ -709,7 +697,14 @@ pub(super) fn sentence(p: &mut P) -> Option<Vec<Effect>> {
 
 pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
     let mut v: Vec<Effect> = Vec::new();
-    while let Some(s) = p.attempt(sentence) {
+    loop {
+        let s = match v.last().and_then(controllers_of_each) {
+            Some(each) => p.attempt(|p| those_players(p, each)),
+            None => None,
+        };
+        let Some(s) = s.or_else(|| p.attempt(sentence)) else {
+            break;
+        };
         // "When you do, put two +1/+1 counters … on target attacking
         // creature. It becomes an Angel …": "it" is what the reflexive
         // trigger targeted, so the sentence is that trigger's too.
@@ -719,9 +714,104 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
                 continue;
             }
         }
+        // "You may put a creature card from your hand onto the battlefield.
+        // That creature gains haste.": the creature is there only if the
+        // option was taken, so the sentence about it is the option's too.
+        if let Some(branch) = v.last_mut().and_then(branch_with_new_object) {
+            // "Otherwise, …" is the other branch of the "if" before it, so
+            // it goes where that "if" went (Thunderous Debut).
+            let otherwise = matches!(branch.last(), Some(Effect::If { .. }))
+                && matches!(s.first(), Some(Effect::Otherwise(_)));
+            if otherwise || s.first().is_some_and(refers_back) {
+                branch.extend(s);
+                continue;
+            }
+        }
         v.extend(s);
     }
     (!v.is_empty()).then_some(v)
+}
+
+/// The objects of a "For each …, its controller …" loop, whose controllers
+/// a later "those players" names.
+fn controllers_of_each(e: &Effect) -> Option<Objects> {
+    let Effect::ForEach { each, then } = e else {
+        return None;
+    };
+    let its = Objects {
+        quant: Quant::Antecedent,
+        filter: Filter::default(),
+    };
+    (then.first().and_then(subject_of) == Some(Player::ControllerOf(Box::new(its))))
+        .then(|| each.clone())
+}
+
+/// "Those players put the exiled cards onto the battlefield, then shuffle"
+/// after the loop: every controller the loop named, at once (the cards
+/// enter at the same time, and a player who exiled none still shuffles:
+/// Indomitable Creativity's rulings).
+fn those_players(p: &mut P, each: Objects) -> Option<Vec<Effect>> {
+    p.words("those players")?;
+    p.word("put")?;
+    let first = put_rest(p)?;
+    p.words(", then shuffle")?;
+    p.end_sentence()?;
+    let who = Player::Those(Box::new(Player::ControllerOf(Box::new(each))));
+    Some(vec![
+        Effect::Performed {
+            by: who.clone(),
+            effect: Box::new(first),
+        },
+        Effect::Shuffle(who),
+    ])
+}
+
+/// The effects of a `may` or `if you do` that bring in an object that
+/// exists only if the option was taken.
+fn branch_with_new_object(e: &mut Effect) -> Option<&mut Vec<Effect>> {
+    let then = match e {
+        Effect::May { then, .. } | Effect::IfYouDo(then) => then,
+        _ => return None,
+    };
+    then.iter().any(brings_in).then_some(then)
+}
+
+/// Whether an effect picks out a new object: one moved, made, found,
+/// chosen or revealed, not one an earlier clause named.
+fn brings_in(e: &Effect) -> bool {
+    let new = |x: &Objects| !matches!(x.quant, Quant::Antecedent | Quant::SelfRef);
+    match e {
+        Effect::Move { what, .. }
+        | Effect::Search { what, .. }
+        | Effect::Reveal { what, .. }
+        | Effect::Choose(Choice::Objects(what)) => new(what),
+        Effect::Create { .. } => true,
+        Effect::Or(v) => v.iter().all(brings_in),
+        _ => false,
+    }
+}
+
+/// Whether an effect is first said of a bare "it", "them" or "that
+/// creature": an object an earlier clause named.
+fn refers_back(e: &Effect) -> bool {
+    let it = |x: &Objects| x.quant == Quant::Antecedent;
+    match e {
+        Effect::Modify { what, .. }
+        | Effect::GrantAbility { what, .. }
+        | Effect::Becomes { what, .. }
+        | Effect::Move { what, .. }
+        | Effect::Sacrifice { what, .. }
+        | Effect::Destroy { what, .. }
+        | Effect::Exile(what)
+        | Effect::Tap(what)
+        | Effect::Untap(what)
+        | Effect::EntersWithCounters { what, .. } => it(what),
+        Effect::PutCounters { on, .. } => it(on),
+        Effect::Delayed { then, .. } | Effect::If { then, .. } => {
+            then.first().is_some_and(refers_back)
+        }
+        _ => false,
+    }
 }
 
 /// Whether an effect is said of a bare "it", so continues the last one's
