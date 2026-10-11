@@ -416,8 +416,18 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
                 if p.attempt(|p| p.tok(&Tok::Comma)).is_none() { break; }
             }
             p.tok(&Tok::Dash)?;
-            let effect = effects(p)?;
-            finished(p).then_some(Ability::Chapter { chapters, effect })
+            // "I — Crescent Fang — Search …": a flavour word between the
+            // chapter and its effect, with no rules meaning (CR 207.2d).
+            // Tried second, so "I, II — Choose one — …" stays a modal.
+            let effect = alt!(p;
+                |p| { let e = effects(p)?; finished(p).then_some(e) },
+                |p| {
+                    let label = flavour_label(p)?;
+                    let then = effects(p)?;
+                    finished(p).then_some(vec![Effect::Labelled { label, then }])
+                },
+            )?;
+            Some(Ability::Chapter { chapters, effect })
         },
         |p| {
             let cost = costs(p)?;
@@ -502,16 +512,46 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
             let inner = ability(p, spell)?;
             Some(Ability::Harnessed(Box::new(inner)))
         },
+        // "Max speed — …" is a keyword ability, not an ability word: the
+        // ability is the object's only while its controller's speed is 4
+        // (CR 702.178a).
         |p| {
-            // An ability word or flavour word: a label, then the ability.
-            let mut label = Vec::new();
-            while let Some(w) = p.peek_word() { label.push(w.to_string()); p.bump(); if label.len() > 6 { return None; } }
-            if label.is_empty() { return None; }
+            p.words("max speed")?;
             p.tok(&Tok::Dash)?;
             let inner = ability(p, spell)?;
-            Some(Ability::Labelled { label: label.join(" "), ability: Box::new(inner) })
+            Some(Ability::MaxSpeed(Box::new(inner)))
+        },
+        |p| {
+            // An ability word or flavour word: a label, then the ability.
+            let label = flavour_label(p)?;
+            let inner = ability(p, spell)?;
+            Some(Ability::Labelled { label, ability: Box::new(inner) })
         },
     )
+}
+
+/// An ability word or flavour word and its dash: "Landfall —", "Hero's
+/// Sundering —", "Do You Like Squirrels? —", "~ Beam —". Neither has a
+/// rules meaning (CR 207.2c, 207.2d), so the words are kept only to be said
+/// again. A flavour word may name the card or end in "!" or "?".
+pub(super) fn flavour_label(p: &mut P) -> Option<String> {
+    let mut label: Vec<String> = Vec::new();
+    loop {
+        match p.peek()? {
+            Tok::Word(_) | Tok::SelfRef | Tok::Possessive | Tok::Other('!' | '?') => {
+                label.push(crate::show(p.peek()?));
+                p.bump();
+            }
+            Tok::Dash => break,
+            _ => return None,
+        }
+        if label.len() > 6 {
+            return None;
+        }
+    }
+    p.tok(&Tok::Dash)?;
+    let words = label.iter().any(|w| w.starts_with(char::is_alphabetic));
+    words.then(|| label.join(" "))
 }
 
 /// Whether a static is a rule about the spell it is printed on, which an

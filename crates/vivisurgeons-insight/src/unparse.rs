@@ -1227,7 +1227,7 @@ fn ability_into(o: &mut Out, a: &Ability) {
                 o.w(["i", "ii", "iii", "iv", "v", "vi"][*c as usize - 1]);
             }
             o.tok(Tok::Dash);
-            sentences(o, effect, &cx);
+            sentences_in_mode(o, effect, &cx);
         }
         Ability::Station { at_least, ability } => {
             o.tok(Tok::Num(*at_least));
@@ -1237,6 +1237,11 @@ fn ability_into(o: &mut Out, a: &Ability) {
         }
         Ability::Harnessed(a) => {
             o.tok(Tok::Other('∞'));
+            o.tok(Tok::Dash);
+            ability_into(o, a);
+        }
+        Ability::MaxSpeed(a) => {
+            o.w("max speed");
             o.tok(Tok::Dash);
             ability_into(o, a);
         }
@@ -1987,6 +1992,10 @@ fn measure(o: &mut Out, a: &Amount) {
         Amount::Every { n, of } => {
             syn::number(o, *n);
             objects(o, of);
+        }
+        Amount::Speed(p) => {
+            whose(o, p);
+            o.w("speed");
         }
     }
 }
@@ -3694,6 +3703,13 @@ fn subject_of(e: &Effect) -> Option<Player> {
         | Effect::UntilFound { who, .. }
         | Effect::DigUntilTotal { who, .. }
         | Effect::Performed { by: who, .. } => who.clone(),
+        // "Counter target spell unless its controller pays {2}. If they do,
+        // …": the "do" is the paying, so "they" is the payer.
+        Effect::Unless { who, .. }
+        | Effect::Counter {
+            unless: Some((who, _)),
+            ..
+        } => who.clone(),
         _ => return None,
     })
 }
@@ -7300,6 +7316,11 @@ fn condition(o: &mut Out, c: &Condition) {
             player(o, p);
             o.verb("have", player_num(p));
             o.w("the city's blessing");
+        }
+        Condition::MaxSpeed(p) => {
+            player(o, p);
+            o.verb("have", player_num(p));
+            o.w("max speed");
         }
         Condition::ZoneHasCards { zone: z, op, n } => {
             zone(o, z);

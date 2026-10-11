@@ -1269,3 +1269,71 @@ mod tests {
         ));
     }
 }
+
+#[cfg(test)]
+mod round_nine {
+    use super::*;
+    use ast::*;
+
+    fn read(type_line: &str, text: &str) -> Vec<Ability> {
+        let face = Face {
+            name: "Some Card",
+            type_line,
+            text,
+        };
+        read_face(&face, "Some Card")
+            .into_iter()
+            .map(|l| match l.parsed {
+                Ok(a) => a,
+                Err(b) => panic!("{}: broke at {:?} after {:?}", l.text, b.at, b.read),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn max_speed_is_a_keyword_that_grants_an_ability_not_an_ability_word() {
+        let a = read(
+            "Artifact",
+            "Start your engines!\nMax speed — {T}: Add {C}{C}.",
+        );
+        assert_eq!(
+            a[0],
+            Ability::Keywords(vec![Keyword {
+                name: "start your engines!".into(),
+                param: None
+            }])
+        );
+        assert!(
+            matches!(&a[1], Ability::MaxSpeed(inner) if matches!(**inner, Ability::Activated { .. }))
+        );
+    }
+
+    #[test]
+    fn a_saga_chapter_may_carry_a_flavour_word_but_choose_one_is_a_mode() {
+        let a = read(
+            "Enchantment Creature — Saga Bird",
+            "I — Crescent Fang — Draw a card.\nII — Choose one —\n• Draw a card.\n• Discard a card.",
+        );
+        assert!(matches!(&a[0], Ability::Chapter { effect, .. }
+            if matches!(&effect[..], [Effect::Labelled { label, .. }] if label == "crescent fang")));
+        assert!(matches!(&a[1], Ability::Chapter { effect, .. }
+            if matches!(&effect[..], [Effect::Modal { .. }])));
+    }
+
+    #[test]
+    fn a_lander_is_a_predefined_artifact_token() {
+        let a = read("Sorcery", "Create a Lander token.");
+        assert!(matches!(&a[0], Ability::Spell(e)
+            if matches!(&e[0], Effect::Create { token, .. } if token.named.as_deref() == Some("lander"))));
+    }
+
+    #[test]
+    fn speed_is_an_amount_and_max_speed_a_condition() {
+        let a = read(
+            "Creature — God",
+            "This creature can't attack or block unless you have max speed.\nOther creatures you control get +X/+0, where X is your speed.",
+        );
+        assert!(format!("{:?}", a[0]).contains("MaxSpeed(You)"));
+        assert!(format!("{:?}", a[1]).contains("Speed(You)"));
+    }
+}

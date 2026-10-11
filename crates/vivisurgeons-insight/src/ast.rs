@@ -46,6 +46,9 @@ pub enum Ability {
     },
     /// "∞ — …": an ability on only once its permanent is harnessed.
     Harnessed(Box<Ability>),
+    /// "Max speed — …": the ability, as long as its controller's speed is 4
+    /// (CR 702.178a). A keyword ability, not an ability word.
+    MaxSpeed(Box<Ability>),
     /// An ability word or a flavour word: a label with no rules meaning.
     Labelled {
         label: String,
@@ -320,6 +323,8 @@ pub enum Amount {
         n: u32,
         of: Box<Objects>,
     },
+    /// "your speed": 0 for a player with none (CR 702.179f).
+    Speed(Player),
 }
 
 /// A set of colors a rule draws from, named by what decides it.
@@ -2499,6 +2504,8 @@ pub enum Condition {
     OwnAndControl(Vec<Objects>),
     /// "damage is prevented this way".
     DamagePreventedThisWay,
+    /// "you have max speed": that player's speed is 4 (CR 702.179e).
+    MaxSpeed(Player),
 }
 
 #[derive(Clone, Debug, PartialEq)]

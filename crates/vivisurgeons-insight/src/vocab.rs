@@ -55,6 +55,10 @@ pub fn vocab() -> &'static Vocab {
         ]
         .into_iter()
         .flat_map(lines)
+        // The artifact catalog misses four artifact types CR 205.3g lists,
+        // each a predefined token's (CR 111.10u–x): "Create a Lander token".
+        // Remove them once `artifact-types.txt` carries them.
+        .chain(["heartwood", "lander", "mutagen", "vibranium"].map(String::from))
         .collect();
         // Scryfall's catalogs miss a few the Comprehensive Rules define: Plot
         // is a keyword ability (CR 702.170), filed under actions there, and

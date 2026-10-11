@@ -32,6 +32,9 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "This spell can't be countered." on an instant or sorcery | `Static`, as on a permanent, not a `Spell` effect | settled: CR 113.6g, it functions on the stack; CR 113.3a, an instant's text is a spell ability only when it is not a static. Also under a condition (Exquisite Firecraft's spell mastery) |
 | "At the beginning of your next upkeep, pay …. If you don't, you lose the game." on an instant or sorcery | `Spell([Delayed { … }])`, not a printed `Triggered` | settled: CR 603.7a, a delayed trigger created as the spell resolves; its line stays its own ability (CR 113.2c). Triggers that work from other zones ("When you cycle this card", "Whenever … , you may return this card from your graveyard") stay `Triggered` |
 | "Buyback—Pay 3 life, Discard a card at random.", "Replicate—Pay {E}{E}{E}.", "Kicker—Forage.", "Splice onto Arcane—An opponent gains 5 life." | `Keywords`, the cost in words | settled: CR 702, a keyword with its cost; they read as a labelled spell before. "Pay {E}{E}" is the cost `{E}{E}` (CR 107.14) |
+| "Max speed — {T}: Add {C}{C}." | `MaxSpeed(ability)`, not `Labelled` | settled: CR 702.178a, a keyword ability meaning "as long as your speed is 4, this object has [ability]"; it read as an ability word before, which has no rules meaning (39 corpus trees moved) |
+| "Start your engines!" | `Keywords`, the "!" part of the name | settled: CR 702.179a, a static keyword ability; Scryfall's catalog files it among the ability words |
+| "I — Crescent Fang — Search …" | `Chapter { [Labelled { "crescent fang", … }] }` | settled: CR 207.2d, a flavour word has no rules meaning. Tried after the plain chapter, so "I, II — Choose one — •…" stays a modal chapter |
 
 ## Objects and players
 
@@ -127,11 +130,14 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "If that creature would die this turn, exile it instead" | `During { ThisTurn, [Replacement] }` | settled |
 | "Choose target creature … You may pay any amount of {E}. ~ deals that much damage" | `PayEnergy(AnyAmount)`, then `ThatMany` | settled |
 | "this is the first time this ability has resolved this turn … If it's the second time" | `NthResolution(n)` for both | settled: the second is the first said again without its tail |
-| "Kicker {G} and/or {1}{U}" | `EitherOrBoth` | settled: CR 702.33d, two kicker costs, each may be paid || "return it to the battlefield with a -1/-1 counter on it" | `EntersWith` around the move, not a `PutCounters` after it | settled: CR 122.6, it is given the counters as it enters |
+| "Kicker {G} and/or {1}{U}" | `EitherOrBoth` | settled: CR 702.33d, two kicker costs, each may be paid |
+| "return it to the battlefield with a -1/-1 counter on it" | `EntersWith` around the move, not a `PutCounters` after it | settled: CR 122.6, it is given the counters as it enters |
+| "Counter target spell unless its controller pays {2}. If they do, you create a Lander token." | `IfYouDo` after the `Counter`, whose "do" is the paying | settled: the option before it was the payer's, so "they" is that player; the tree keeps the order, and the round trip says the payer |
 | "~ deals 4 damage instead if …" | `Recipient::Same`: the recipient of the damage it replaces | settled: the text names none, and the replaced effect named one |
 | "Destroy that creature if A instead if B" | `Instead { B, [If { A, destroy }] }` | open: as "… instead" above |
 | "you may have this land deal 3 damage" | `May` around the land's own `Damage` | settled: after "may", an object's verb is said with "have"; who deals the damage is the land |
 | "until the end of your next turn" | `UntilEndOfYourNextTurn`, apart from "until your next turn" | settled: the first lasts through that turn, the second ends as it begins |
+| "your speed" | `Amount::Speed(You)`, 0 for a player with none | settled: CR 702.179f |
 ## Durations
 
 | Text | Tree | Status |

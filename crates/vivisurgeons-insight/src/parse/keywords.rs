@@ -9,6 +9,13 @@ pub(super) fn keyword_name(p: &mut P) -> Option<String> {
 
 pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
     alt!(p;
+        // "Start your engines!" is a keyword ability (CR 702.179), which
+        // Scryfall files among the ability words; its "!" is part of it.
+        |p| {
+            p.words("start your engines")?;
+            p.tok(&Tok::Other('!'))?;
+            Some(Keyword { name: "start your engines!".into(), param: None })
+        },
         |p| {
             p.words("protection from")?;
             if let Some(pal) = p.attempt(|p| { p.words("each color that's not in")?; commander_identity(p) }) {

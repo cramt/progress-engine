@@ -70,11 +70,11 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
 | EDHREC top 1000 | 990/990 | 1800/1800 | done |
-| Standard after the early-2027 rotation | 2486/3517 (70.7%) | 5913/7054 (83.8%) | |
+| Standard after the early-2027 rotation | 2573/3517 (73.2%) | 6030/7054 (85.5%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 3470/5157 (67.3%) | 8517/10420 (81.7%) | |
-| EDHREC top 2000 | 1711/1986 (86.2%) | 3527/3847 (91.7%) | |
-| EDHREC top 5000 | 3656/4975 (73.5%) | 8557/10100 (84.7%) | |
+| All of Standard | 3557/5157 (69.0%) | 8634/10420 (82.9%) | |
+| EDHREC top 2000 | 1713/1986 (86.3%) | 3531/3847 (91.8%) | |
+| EDHREC top 5000 | 3673/4975 (73.8%) | 8586/10100 (85.0%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
@@ -122,8 +122,8 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 |---|---|
 | EDHREC top 1000 (pinned) | 1800/1800 (100%) |
 | Modern metagame (pinned) | 1164/1164 (100%) |
-| EDHREC top 2000 | 3525/3527 (99.9%) |
-| All parsed abilities | 48196/48244 (99.9%) |
+| EDHREC top 2000 | 3529/3531 (99.9%) |
+| All parsed abilities | 48347/48394 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading
@@ -162,7 +162,7 @@ own" (in Two-Headed Giant a teammate owns cards too), "choose target
 opponent" as "choose an opponent" (which does not target), a Saga's "II —"
 as an ability word, a sorcery's "The next Dragon spell you cast costs …" as
 a static, and a bare "its graveyard" as its controller's (CR 400.3 makes it
-the owner's). The 48 corpus abilities that still do not round-trip are
+the owner's). The 47 corpus abilities that still do not round-trip are
 listed by `insight roundtrip`.
 
 After round 4 the parser read an evenly spaced sample of 25 successful parses.
