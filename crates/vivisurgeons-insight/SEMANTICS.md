@@ -25,6 +25,14 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "When that creature dies this turn, you gain 3 life. Target creature you control fights that creature." | the sentence after it is the spell's when it names a new target, or is a trigger of its own ("When …", "At …") | settled: a spell's targets are chosen as it is cast (CR 601.2c), so Time to Feed's fight happens as it resolves; Phantasmal Mount's two "When …" sentences are two delayed triggers |
 | "Whenever you cast … during your turn", "… while this creature has a -1/-1 counter on it" | `Event::While` on the event | settled |
 
+## Ability kinds
+
+| Text | Tree | Status |
+|---|---|---|
+| "This spell can't be countered." on an instant or sorcery | `Static`, as on a permanent, not a `Spell` effect | settled: CR 113.6g, it functions on the stack; CR 113.3a, an instant's text is a spell ability only when it is not a static. Also under a condition (Exquisite Firecraft's spell mastery) |
+| "At the beginning of your next upkeep, pay …. If you don't, you lose the game." on an instant or sorcery | `Spell([Delayed { … }])`, not a printed `Triggered` | settled: CR 603.7a, a delayed trigger created as the spell resolves; its line stays its own ability (CR 113.2c). Triggers that work from other zones ("When you cycle this card", "Whenever … , you may return this card from your graveyard") stay `Triggered` |
+| "Buyback—Pay 3 life, Discard a card at random.", "Replicate—Pay {E}{E}{E}.", "Kicker—Forage.", "Splice onto Arcane—An opponent gains 5 life." | `Keywords`, the cost in words | settled: CR 702, a keyword with its cost; they read as a labelled spell before. "Pay {E}{E}" is the cost `{E}{E}` (CR 107.14) |
+
 ## Objects and players
 
 | Text | Tree | Status |

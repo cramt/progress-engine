@@ -425,8 +425,20 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
             let limits = limits(p);
             finished(p).then_some(Ability::Activated { cost, effect, limits })
         },
+        // "This spell can't be countered" on an instant is a static, as it
+        // is on a creature: it works while the spell is on the stack (CR
+        // 113.6g), not as the spell resolves.
+        |p| {
+            if !spell { return None; }
+            let s = statics(p)?;
+            (finished(p) && s.iter().all(about_this_spell)).then_some(Ability::Static(s))
+        },
         |p| {
             let trigger = trigger(p)?;
+            // "At the beginning of your next upkeep, pay …" on an instant or
+            // sorcery is created as the spell resolves, a delayed trigger
+            // (CR 603.7a), so it is the spell's effect, not a printed trigger.
+            if spell && matches!(trigger, Trigger::At(_)) { return None; }
             p.tok(&Tok::Comma)?;
             alt!(p;
                 |p| {
@@ -493,6 +505,19 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
             Some(Ability::Labelled { label: label.join(" "), ability: Box::new(inner) })
         },
     )
+}
+
+/// Whether a static is a rule about the spell it is printed on, which an
+/// instant or sorcery's line would otherwise read as something the spell
+/// does as it resolves.
+fn about_this_spell(s: &Static) -> bool {
+    match s {
+        Static::Restrict { what, .. } => what.quant == Quant::SelfRef,
+        Static::If { then, .. } | Static::AsLongAs { then, .. } => {
+            then.iter().all(about_this_spell)
+        }
+        _ => false,
+    }
 }
 
 /// A whole ability line, which must be consumed to the last token.

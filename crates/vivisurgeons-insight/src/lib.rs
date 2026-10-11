@@ -811,6 +811,51 @@ mod tests {
     }
 
     #[test]
+    fn an_instants_lines_that_are_not_its_effect_get_their_own_kind() {
+        // CR 113.6g: it works on the stack, so it is a static, as on a
+        // creature, not something the spell does as it resolves.
+        let a = read("Some Decay", "Instant", "This spell can't be countered.");
+        assert!(matches!(&a[0], Ability::Static(s)
+            if matches!(&s[..], [Static::Restrict { rule: Restriction::CantBeCountered, .. }])));
+        let a = read(
+            "Some Firecraft",
+            "Sorcery",
+            "Spell mastery — If there are two or more instant and/or sorcery cards in your graveyard, this spell can't be countered.",
+        );
+        assert!(matches!(&a[0], Ability::Labelled { ability, .. }
+            if matches!(&**ability, Ability::Static(s) if matches!(&s[..], [Static::If { .. }]))));
+        // A Pact's upkeep trigger is created as it resolves (CR 603.7a),
+        // and losing the game is part of it.
+        let a = read(
+            "Some Pact",
+            "Instant",
+            "Counter target spell.\nAt the beginning of your next upkeep, pay {3}{U}{U}. If you don't, you lose the game.",
+        );
+        assert!(matches!(&a[1], Ability::Spell(e)
+            if matches!(&e[..], [Effect::Delayed { step: Step::Upkeep(Whose::YourNext), then }]
+                if matches!(&then[..], [Effect::Pay { .. }, Effect::IfYouDont(_)]))));
+        // A cost said in words after a keyword's dash is the keyword's.
+        for (text, cost) in [
+            (
+                "Buyback—Pay 3 life, Discard a card at random.",
+                "DiscardAtRandom",
+            ),
+            ("Replicate—Pay {E}{E}{E}.", "Energy(3)"),
+            ("Kicker—Forage.", "ActionAlone(\"forage\")"),
+            (
+                "Splice onto Arcane—An opponent gains 5 life.",
+                "PlayerGainsLife",
+            ),
+        ] {
+            let a = read("Some Bolt", "Sorcery", text);
+            assert!(
+                matches!(&a[0], Ability::Keywords(_)) && format!("{a:?}").contains(cost),
+                "{text}: {a:?}"
+            );
+        }
+    }
+
+    #[test]
     fn the_sentences_after_a_delayed_trigger_are_its() {
         let a = read(
             "Some Encampment",

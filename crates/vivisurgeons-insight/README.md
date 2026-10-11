@@ -70,11 +70,11 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
 | EDHREC top 1000 | 990/990 | 1800/1800 | done |
-| Standard after the early-2027 rotation | 2486/3517 (70.7%) | 5912/7054 (83.8%) | |
+| Standard after the early-2027 rotation | 2486/3517 (70.7%) | 5913/7054 (83.8%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 3470/5157 (67.3%) | 8516/10420 (81.7%) | |
+| All of Standard | 3470/5157 (67.3%) | 8517/10420 (81.7%) | |
 | EDHREC top 2000 | 1711/1986 (86.2%) | 3527/3847 (91.7%) | |
-| EDHREC top 5000 | 3654/4975 (73.4%) | 8555/10100 (84.7%) | |
+| EDHREC top 5000 | 3656/4975 (73.5%) | 8557/10100 (84.7%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
@@ -123,7 +123,7 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | EDHREC top 1000 (pinned) | 1800/1800 (100%) |
 | Modern metagame (pinned) | 1164/1164 (100%) |
 | EDHREC top 2000 | 3525/3527 (99.9%) |
-| All parsed abilities | 48136/48184 (99.9%) |
+| All parsed abilities | 48196/48244 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading

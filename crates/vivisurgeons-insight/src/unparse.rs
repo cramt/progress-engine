@@ -943,6 +943,13 @@ mod syn {
 
     // ---------------------------------------- made identical by the rules
 
+    /// "Pay {E}{E}: …", "Replicate—Pay {E}{E}{E}" and "{E}{E}: …": a cost
+    /// of energy symbols is paid whether or not the verb is said; to pay
+    /// {E} is to remove an energy counter (CR 107.14).
+    pub fn pay(o: &mut Out, bare: Out, said: Out) {
+        alt(o, vec![bare, said]);
+    }
+
     /// "When" and "Whenever" introduce the same kind of trigger (CR 603.1:
     /// "[When/Whenever/At] [trigger condition or event], [effect]"); Oracle
     /// style picks "when" for events that happen once.
@@ -1560,9 +1567,16 @@ fn cost(o: &mut Out, c: &Cost) {
             zone(o, &Zone::OwnersHand);
         }
         Cost::Energy(n) => {
-            for _ in 0..*n {
-                o.tok(Tok::Sym("E".into()));
-            }
+            let bare = out(|o| {
+                for _ in 0..*n {
+                    o.tok(Tok::Sym("E".into()));
+                }
+            });
+            let said = out(|o| {
+                o.w("pay");
+                o.add(bare.clone());
+            });
+            syn::pay(o, bare, said);
         }
         Cost::Reveal(x) => {
             o.w("reveal");
@@ -1614,6 +1628,16 @@ fn cost(o: &mut Out, c: &Cost) {
             counter_noun(o, kind, amount_num(n));
             o.w("from among");
             objects(o, among);
+        }
+        Cost::DiscardAtRandom(x) => {
+            o.w("discard");
+            objects(o, x);
+            o.w("at random");
+        }
+        Cost::ActionAlone(name) => o.w(name),
+        Cost::PlayerGainsLife { who, n } => {
+            subj(o, who, "gain", &Cx::default());
+            life(o, n);
         }
     }
 }

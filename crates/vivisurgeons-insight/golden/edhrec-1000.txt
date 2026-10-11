@@ -11,7 +11,7 @@ face: Abrupt Decay
 type: Instant
 > This spell can't be countered.
 > Destroy target nonland permanent with mana value 3 or less.
-= Spell([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, rule: CantBeCountered, dur: Permanent }])
+= Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, rule: CantBeCountered }])
 = Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [With(Compare { stat: ManaValue, op: Le, value: N(3) })], or: None } }, no_regen: false }])
 
 ## Academy Manufactor
@@ -1940,7 +1940,7 @@ face: Dovin's Veto
 type: Instant
 > This spell can't be countered.
 > Counter target noncreature spell.
-= Spell([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, rule: CantBeCountered, dur: Permanent }])
+= Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, rule: CantBeCountered }])
 = Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } }, unless: None }])
 
 ## Dragon Tempest
@@ -3751,7 +3751,7 @@ face: Last March of the Ents
 type: Sorcery
 > This spell can't be countered.
 > Draw cards equal to the greatest toughness among creatures you control, then put any number of creature cards from your hand onto the battlefield.
-= Spell([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, rule: CantBeCountered, dur: Permanent }])
+= Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, rule: CantBeCountered }])
 = Spell([Draw { who: You, n: Greatest { stat: Toughness, among: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } } }, Move { what: Objects { quant: AnyNumber, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }])
 
 ## Ledger Shredder
@@ -4750,7 +4750,7 @@ type: Instant
 > Counter target spell.
 > At the beginning of your next upkeep, pay {3}{U}{U}. If you don't, you lose the game.
 = Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }])
-= Triggered { trigger: At(Upkeep(YourNext)), effect: [Pay { who: You, cost: [Mana(Mana(["3", "U", "U"]))] }, IfYouDont([LoseGame(You)])], limits: [] }
+= Spell([Delayed { step: Upkeep(YourNext), then: [Pay { who: You, cost: [Mana(Mana(["3", "U", "U"]))] }, IfYouDont([LoseGame(You)])] }])
 
 ## Padeem, Consul of Innovation
 face: Padeem, Consul of Innovation
@@ -6320,7 +6320,7 @@ face: Supreme Verdict
 type: Sorcery
 > This spell can't be countered.
 > Destroy all creatures.
-= Spell([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, rule: CantBeCountered, dur: Permanent }])
+= Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, rule: CantBeCountered }])
 = Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }])
 
 ## Swan Song
@@ -7460,7 +7460,7 @@ face: Void Rend
 type: Instant
 > This spell can't be countered.
 > Destroy target nonland permanent.
-= Spell([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, rule: CantBeCountered, dur: Permanent }])
+= Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, rule: CantBeCountered }])
 = Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, no_regen: false }])
 
 ## Volcanic Island

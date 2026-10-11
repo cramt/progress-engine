@@ -176,6 +176,16 @@ pub enum Cost {
         kind: String,
         among: Objects,
     },
+    /// "Discard a card at random": the payer does not pick the card.
+    DiscardAtRandom(Objects),
+    /// "Kicker—Forage": a keyword action with no number, paid as a cost.
+    ActionAlone(String),
+    /// "Splice onto Arcane—An opponent gains 5 life": a cost paid by
+    /// another player gaining life.
+    PlayerGainsLife {
+        who: Player,
+        n: Amount,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]

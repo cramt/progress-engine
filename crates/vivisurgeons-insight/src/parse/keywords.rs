@@ -76,7 +76,7 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
                 p.word("onto")?;
                 let onto = filter(p)?;
                 let cost = alt!(p;
-                    |p| { p.tok(&Tok::Dash)?; costs(p) },
+                    |p| { p.tok(&Tok::Dash)?; keyword_costs(p) },
                     |p| mana(p).map(|m| vec![Cost::Mana(m)]),
                 )?;
                 return Some(Keyword { name, param: Some(KeywordParam::Splice { onto, cost }) });
@@ -88,7 +88,7 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
                     p.tok(&Tok::Dash)?;
                     condition(p).map(|c| KeywordParam::Condition(Box::new(c)))
                 },
-                |p| { p.tok(&Tok::Dash)?; let c = costs(p)?; p.attempt(|p| p.tok(&Tok::Period)); Some(KeywordParam::Cost(c)) },
+                |p| { p.tok(&Tok::Dash)?; let c = keyword_costs(p)?; p.attempt(|p| p.tok(&Tok::Period)); Some(KeywordParam::Cost(c)) },
                 // "Kicker {G} and/or {1}{U}".
                 |p| { let a = mana(p)?; p.word("and/or")?; let b = mana(p)?; Some(KeywordParam::EitherOrBoth(vec![a, b])) },
                 |p| mana(p).map(|m| KeywordParam::Cost(vec![Cost::Mana(m)])),

@@ -36,6 +36,7 @@ pub(super) fn cost(p: &mut P) -> Option<Cost> {
         },
         |p| { p.word("sacrifice")?; objects(p).map(Cost::Sacrifice) },
         |p| p.words("discard your hand").map(|_| Cost::DiscardHand),
+        |p| { p.word("discard")?; let o = objects(p)?; p.words("at random")?; Some(Cost::DiscardAtRandom(o)) },
         |p| { p.word("discard")?; objects(p).map(Cost::Discard) },
         |p| { p.word("pay")?; let n = amount(p)?; p.word("life")?; Some(Cost::PayLife(n)) },
         |p| { p.words("pay any amount of life")?; Some(Cost::PayLife(Amount::AnyAmount)) },
@@ -59,6 +60,14 @@ pub(super) fn cost(p: &mut P) -> Option<Cost> {
         },
         |p| { p.words("pay life equal to")?; measure(p).map(Cost::PayLife) },
         |p| { p.word("pay")?; mana(p).map(Cost::Mana) },
+        // "Replicate—Pay {E}{E}{E}": paying {E} is removing an energy
+        // counter (CR 107.14), the cost "{E}{E}{E}" says before a colon.
+        |p| {
+            p.word("pay")?;
+            let mut n = 0;
+            while sym(p, "E").is_some() { n += 1; }
+            (n > 0).then_some(Cost::Energy(n))
+        },
         |p| { p.word("exile")?; objects(p).map(Cost::Exile) },
         |p| {
             p.word("remove")?;
@@ -92,7 +101,23 @@ pub(super) fn cost(p: &mut P) -> Option<Cost> {
             alt!(p;
                 |p| amount(p).map(|n| Cost::Action { name: name.clone(), n }),
                 |p| mana(p).map(|m| Cost::ActionMana { name: name.clone(), mana: m }),
+                |p| { p.end_of_clause().then_some(())?; Some(Cost::ActionAlone(name.clone())) },
             )
+        },
+    )
+}
+
+/// A keyword's cost after its dash, which may be something another player
+/// does: "Splice onto Arcane—An opponent gains 5 life".
+pub(super) fn keyword_costs(p: &mut P) -> Option<Vec<Cost>> {
+    alt!(p;
+        costs,
+        |p| {
+            let who = player(p)?;
+            p.verb("gain")?;
+            let n = amount(p)?;
+            p.word("life")?;
+            Some(vec![Cost::PlayerGainsLife { who, n }])
         },
     )
 }
