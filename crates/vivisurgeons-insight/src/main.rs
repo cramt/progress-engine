@@ -286,12 +286,65 @@ fn sample(args: &[String]) -> Result<()> {
     Ok(())
 }
 
+/// Every failing ability among the EDHREC top N, most played first: the
+/// worklist for a round aimed at the cards people actually play.
+fn failing(args: &[String]) -> Result<()> {
+    let n: u64 = args.first().map(|a| a.parse()).transpose()?.unwrap_or(1000);
+    let excluded = excluded_ids(&cache("oracle-tags.jsonl"))?;
+    let (cards, _) = load(&cache("oracle-cards.jsonl"), &excluded, None)?;
+    let mut top: Vec<&Card> = cards
+        .iter()
+        .filter(|c| c.edhrec_rank.is_some_and(|r| r <= n) && !c.parsed())
+        .collect();
+    top.sort_by_key(|c| c.edhrec_rank);
+    for c in top {
+        for l in c.lines.iter() {
+            if let Err(b) = &l.parsed {
+                println!(
+                    "{:>5} {}\n      {}\n      BROKE at {:?} after: {}",
+                    c.edhrec_rank.unwrap_or(0),
+                    c.name,
+                    l.text.replace('\n', " / "),
+                    b.at,
+                    b.read
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+/// One line per ability that parses, with its tree, sorted. Diffing two
+/// snapshots shows every tree a grammar change touched: a rule that turns a
+/// right parse into a complete but wrong one moves no coverage number.
+fn snapshot(args: &[String]) -> Result<()> {
+    let out = args.first().context("snapshot needs an output path")?;
+    let (cards, _) = load(&cache("oracle-cards.jsonl"), &HashSet::new(), None)?;
+    let mut rows: Vec<String> = cards
+        .iter()
+        .flat_map(|c| {
+            c.lines.iter().filter_map(move |l| {
+                l.parsed
+                    .as_ref()
+                    .ok()
+                    .map(|a| format!("{} | {} | {a:?}", c.name, l.text.replace('\n', " / ")))
+            })
+        })
+        .collect();
+    rows.sort();
+    fs::write(out, rows.join("\n") + "\n")?;
+    println!("{} parsed abilities written to {out}", rows.len());
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         Some("coverage") => coverage(&args[1..]),
         Some("card") => card(&args[1..]),
         Some("sample") => sample(&args[1..]),
-        _ => bail!("usage: insight coverage [--bulk F] [--tags F] [--deck F]... [--top N] | insight card <name>"),
+        Some("failing") => failing(&args[1..]),
+        Some("snapshot") => snapshot(&args[1..]),
+        _ => bail!("usage: insight coverage [--bulk F] [--tags F] [--deck F]... [--top N] | insight card <name> | insight sample N | insight failing [N] | insight snapshot <file>"),
     }
 }
