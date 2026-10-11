@@ -1165,6 +1165,29 @@ mod tests {
     }
 
     #[test]
+    fn a_keyword_after_a_list_of_kinds_is_the_last_kinds() {
+        let what = |text: &str| {
+            let a = read("Some Fall", "Instant", text);
+            let Ability::Spell(e) = &a[0] else {
+                panic!("{a:?}")
+            };
+            let Effect::Destroy { what, .. } = &e[0] else {
+                panic!("{e:?}")
+            };
+            what.filter.clone()
+        };
+        let f = what("Destroy target artifact, battle, enchantment, or creature with flying.");
+        assert_eq!(f.alts.len(), 3);
+        assert!(f.posts.is_empty(), "{f:?}");
+        let last = f.or.unwrap();
+        assert_eq!(last.alts, vec![vec![Adj::Type("creature".into())]]);
+        assert_eq!(last.posts, vec![Post::WithKeyword("flying".into())]);
+        // A list of colors shares one kind, and the keyword holds of it.
+        let f = what("Destroy target blue or black creature with flying.");
+        assert!(f.or.is_none() && f.posts == vec![Post::WithKeyword("flying".into())]);
+    }
+
+    #[test]
     fn protection_from_two_qualities_is_two_protection_abilities() {
         let a = read(
             "Some Riftwalker",

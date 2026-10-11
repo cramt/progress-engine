@@ -352,6 +352,9 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
             g.splice(0..0, lead.iter().cloned());
         }
     }
+    // "artifact, enchantment, or creature": each alternative names its own
+    // kind, unlike "blue or black creature", which shares the last one's.
+    let own_kinds = groups.len() > 1 && groups.iter().all(|g| g.iter().any(is_typed));
     // "white or black creature": the last group's type belongs to every group.
     if let Some(last) = groups.last() {
         let shared: Vec<Adj> = last.iter().filter(|a| is_typed(a)).cloned().collect();
@@ -414,6 +417,9 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
         (None, None) => None,
     };
     let mut or = or;
+    if own_kinds && or.is_none() && kind.is_none() {
+        keyword_on_last_kind(&mut groups, &mut posts, &mut or);
+    }
     if kind.is_some() {
         share_with_kinds(&groups, kind == Some(Noun::Card), &mut posts, &mut or);
         if !article_again && posts.is_empty() {
@@ -483,6 +489,31 @@ fn share_with_kinds(
         }
         next = f.or.as_deref_mut();
     }
+}
+
+/// "target artifact, enchantment, or creature with flying", "Walls and/or
+/// creatures with flying": a keyword said after a list of kinds is the last
+/// kind's. Atraxa's Fall lists "battle" before "creature with flying", which
+/// would be pointless if flying held of the battle too, and a Wall with
+/// flying is already a creature with flying. The last kind becomes its own
+/// filter in the `or` chain; any other post still holds of every kind.
+fn keyword_on_last_kind(
+    groups: &mut Vec<Vec<Adj>>,
+    posts: &mut Vec<Post>,
+    or: &mut Option<Box<Filter>>,
+) {
+    let keyword = |q: &Post| matches!(q, Post::WithKeyword(_) | Post::WithoutKeyword(_));
+    if !posts.iter().any(keyword) {
+        return;
+    }
+    let last = groups.pop().expect("own_kinds has two groups");
+    let shared: Vec<Post> = posts.iter().filter(|q| !keyword(q)).cloned().collect();
+    *or = Some(Box::new(Filter {
+        alts: vec![last],
+        kind: None,
+        posts: std::mem::replace(posts, shared),
+        or: None,
+    }));
 }
 
 /// "target spell or nonland permanent an opponent controls", "target spell

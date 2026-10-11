@@ -2837,7 +2837,14 @@ fn filter_q(o: &mut Out, f: &Filter, n: Num, another: bool) {
             x.alts.is_empty() && x.kind.is_some() && x.or.is_none() && x.posts == f.posts
         });
     let printed = printed_groups(&f.alts);
-    let extra = usize::from(or_kind);
+    // "artifact, enchantment, or creature with flying": the last kind holds
+    // its keyword alone (`keyword_on_last_kind`), and the list is still one.
+    let kinds_after = f.kind.is_none()
+        && !f.alts.is_empty()
+        && f.or
+            .as_ref()
+            .is_some_and(|x| x.kind.is_none() && x.alts.len() == 1 && x.or.is_none());
+    let extra = usize::from(or_kind) + usize::from(kinds_after);
     let render = |o: &mut Out, groups: &[Vec<Adj>]| {
         groups_words(o, groups, f.kind.is_none(), n, extra, another);
         if or_kind {
@@ -2885,7 +2892,11 @@ fn filter_q(o: &mut Out, f: &Filter, n: Num, another: bool) {
     // ability": a chain of kinds, listed.
     let len = chain.len() + 1;
     for (i, x) in chain.iter().enumerate() {
-        kinds_sep(o, i + 1, len);
+        if kinds_after {
+            kinds_sep(o, f.alts.len(), f.alts.len() + 1);
+        } else {
+            kinds_sep(o, i + 1, len);
+        }
         let last = i + 1 == chain.len();
         let alone = Filter {
             or: None,
