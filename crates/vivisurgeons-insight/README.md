@@ -48,16 +48,18 @@ are in the corpus after tokens and Un-cards are removed.
 | 5 | Aimed at EDHREC top 250: reflexive and intervening-if triggers, typed mana constraints, replacement events | 52.4% | 69.0% | 77.7% | 72.0% | 87.8% |
 | 6 | Top 500: copy exceptions, `for each` clauses, top or bottom of a library, a subject with a list of predicates | 56.8% | 72.2% | 88.7% | 81.0% | 90.0% |
 | 7 | Top 1000: damage doublers, digging until a card, repeated processes, extra phases, aura-made creatures | 60.7% | 74.9% | **100%** | 86.0% | 92.2% |
+| 8 | The Modern metagame: suspend, energy, reflexive triggers that keep their target, one-shot shields, delayed triggers for a turn, domain and converge, tiered modes | 67.5% | 79.5% | **100%** | 89.0% | 95.6% |
 
-There are 33,427 cards and 60,603 abilities. After round 7 the grammar is
-about 5,100 lines in `src/parse/` over a 1,800-line AST, and the corpus runs
+There are 33,427 cards and 60,603 abilities. After round 8 the grammar is
+about 6,700 lines in `src/parse/` over a 2,400-line AST, and the corpus runs
 in about 16 s.
 
-Rounds 1–4 were written by hand against the whole corpus. Rounds 5–7 were
-written by agents working through `insight failing N`, the failing abilities
-among the EDHREC top N, in rank order. Each round was checked against a
-snapshot of every tree from before it (`insight snapshot`). No tree was lost,
-and every tree that changed was read and judged a correction.
+Rounds 1–4 were written by hand against the whole corpus. Rounds 5–8 were
+written by agents working through `insight failing N` (the failing abilities
+among the EDHREC top N, in rank order) or `insight failing modern-meta`.
+Each round was checked against a snapshot of every tree from before it
+(`insight snapshot`). No tree was lost, and every tree that changed was read
+and judged a correction.
 
 ## Milestones
 
@@ -68,17 +70,18 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
 | EDHREC top 1000 | 990/990 | 1800/1800 | done |
-| Standard after the early-2027 rotation | 2108/3517 (59.9%) | 5419/7054 (76.8%) | |
-| Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 384/571 (67.3%) | 939/1164 (80.7%) | |
-| All of Standard | 2889/5157 (56.0%) | 7770/10420 (74.6%) | |
-| EDHREC top 2000 | 1633/1986 (82.2%) | 3435/3847 (89.3%) | |
-| EDHREC top 5000 | 3340/4975 (67.1%) | 8171/10100 (80.9%) | |
+| Standard after the early-2027 rotation | 2486/3517 (70.7%) | 5912/7054 (83.8%) | |
+| Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
+| All of Standard | 3470/5157 (67.3%) | 8516/10420 (81.7%) | |
+| EDHREC top 2000 | 1711/1986 (86.2%) | 3527/3847 (91.7%) | |
+| EDHREC top 5000 | 3654/4975 (73.4%) | 8555/10100 (84.7%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
 
 A finished milestone is pinned: `insight pin 1000` writes every face's text
-and trees to `golden/edhrec-1000.txt`, and `tests/golden.rs` reads each one
+and trees to `golden/edhrec-1000.txt` (and `insight pin modern-meta` to
+`golden/modern-meta.txt`), and `tests/golden.rs` reads each one
 again and fails if a tree moved. Read each moved tree in the failure, then
 bless the change with `UPDATE_GOLDEN=1 cargo test -p vivisurgeons-insight
 --test golden` and commit the file with it, so the diff shows what changed.
@@ -103,9 +106,12 @@ back-references ("it", "that card", "the token"), and words the rules read
 the same with or without ("each of", "also", "whichever comes first"). The
 rest the Comprehensive Rules make identical: "when"/"whenever" (CR 603.1),
 "enters"/"enters the battlefield" (CR glossary), "first"/"precombat main
-phase" (CR 505.1a), whose library a card goes to (CR 400.3), "put"/"return"
-(CR 400.6), "protection from each color" (CR 105.1), "has base power and
-toughness"/"becomes" (CR 613.4b), and "When X and whenever Y" (CR 603.1b).
+phase" (CR 505.1a), whose library a card goes to and "its graveyard" as its
+owner's (CR 400.3), "put"/"return" (CR 400.6), "remains on the
+battlefield" (CR 400.7), "protection from each color" (CR 105.1),
+"protection from A and from B" (CR 702.16g), "has base power and
+toughness"/"becomes" (CR 613.4b), "It's still a land" as its own sentence
+(CR 205.1b), and "When X and whenever Y" (CR 603.1b).
 
 The line between the tree and that list is the game: a difference that
 changes what happens (timing, who acts, which zone, past or present, some
@@ -115,8 +121,9 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | Set | Round-trip |
 |---|---|
 | EDHREC top 1000 (pinned) | 1800/1800 (100%) |
-| EDHREC top 2000 | 3430/3435 (99.9%) |
-| All parsed abilities | 45334/45417 (99.8%) |
+| Modern metagame (pinned) | 1164/1164 (100%) |
+| EDHREC top 2000 | 3525/3527 (99.9%) |
+| All parsed abilities | 48136/48184 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading
@@ -149,9 +156,14 @@ were fixed:
 Beyond the top 1000 it found more: "Each player shuffles …, then draws
 seven cards" read as *you* draw, "choose a nonland card name" dropped
 "nonland", and "second main phase" read as "postcombat" (CR 505.1b counts
-main phases). The 83 corpus abilities that still fail are mostly other words
-dropped the same way (the cost "return two lands you control to their
-owner's hand" keeps no hand in its tree), listed by `insight roundtrip`.
+main phases). Making the Modern metagame parse found more trees the grammar
+already read wrongly: "cards you don't own" read as "cards your opponents
+own" (in Two-Headed Giant a teammate owns cards too), "choose target
+opponent" as "choose an opponent" (which does not target), a Saga's "II —"
+as an ability word, a sorcery's "The next Dragon spell you cast costs …" as
+a static, and a bare "its graveyard" as its controller's (CR 400.3 makes it
+the owner's). The 48 corpus abilities that still do not round-trip are
+listed by `insight roundtrip`.
 
 After round 4 the parser read an evenly spaced sample of 25 successful parses.
 24 were right. The 25th dropped the subject of "it explores". That led to a
@@ -174,14 +186,18 @@ keyword-ability catalog). By the 40th shape, a shape covers 7. A rule written
 for one shape now buys a handful of cards.
 
 **Card coverage is lower than ability coverage, and always will be.** A card
-needs every one of its abilities, so one unusual line sinks it. Two thirds of
-abilities parse, but fewer than half of cards do.
+needs every one of its abilities, so one unusual line sinks it. After round 4
+two thirds of abilities parsed but fewer than half of cards; after round 8,
+four in five abilities and two in three cards.
 
 **Aiming at a list breaks the plateau for that list.** Rounds 5–7 took the
 EDHREC top 1000 from 60% to 100%, and the corpus still rose 14 points, because
 a template written for a played card is shared with unplayed ones. After round
 7, 15,186 abilities fail, in 13,842 distinct shapes: still 91% one of a kind.
-The corpus tail did not get more regular; it got smaller.
+The corpus tail did not get more regular; it got smaller. Round 8 did the
+same for the Modern metagame, 67% to 100% of its cards, and the corpus rose
+another 6.8 points. After it, 12,419 abilities fail, in 11,410 distinct
+shapes.
 
 **Played cards are more regular.** The EDHREC top 1000 sits 14 points above
 the corpus, and Loam's list sits 29 points above. Lantern sits at 58%, because
@@ -190,7 +206,8 @@ libraries revealed*, Sensei's Divining Top, Mana Drain, Chaos Warp.
 
 After round 4, the tokens failing lines broke at were general grammar: `,`
 (1,445), `.` (842), `turn` (520), `or` (459). After round 7 they are still
-`,` (1,341) and `.` (1,038). `insight coverage` prints the full list.
+`,` (1,341) and `.` (1,038), and after round 8 `,` (1,281) and `.` (819).
+`insight coverage` prints the full list.
 
 ## Verdict
 
@@ -203,8 +220,10 @@ For a **fixed card pool** it is doable, and round 7 showed it: the 1000 most
 played Commander cards all read into typed trees, with no catch-all and no
 per-card override. The last 112 included Opposition Agent, Torment of
 Hailfire and Darksteel Mutation, and each took a general rule, not a special
-case. The milestones above are the next pools. Lantern still has 14 failing
-cards and Loam 7, and the same approach would finish both.
+case. Round 8 did the same for the 571 cards of the Modern metagame, from
+Suspend to Teferi's sorcery timing. The milestones above are the next pools.
+Lantern still has 11 failing cards and Loam 4, and the same approach would
+finish both.
 
 Two warnings for anyone who builds on this:
 
