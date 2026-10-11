@@ -7,6 +7,7 @@ pub mod ast;
 pub mod golden;
 pub mod lex;
 pub mod parse;
+pub mod unparse;
 pub mod vocab;
 
 use ast::Ability;
@@ -65,6 +66,18 @@ pub fn read_face(face: &Face, card_name: &str) -> Vec<Line> {
         // A line of nothing but reminder text says nothing to read.
         .filter(|l| !lex::lex(&l.text).is_empty())
         .collect()
+}
+
+impl Line {
+    /// Whether the line's tree renders back into the line's own words; `None`
+    /// for a line that did not parse.
+    pub fn round_trip(&self) -> Option<Result<(), unparse::Diff>> {
+        let a = self.parsed.as_ref().ok()?;
+        Some(unparse::compare(
+            &unparse::ability(a),
+            &unparse::line_tokens(&self.text),
+        ))
+    }
 }
 
 pub fn show(t: &lex::Tok) -> String {

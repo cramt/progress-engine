@@ -16,6 +16,7 @@ cargo run --release -p vivisurgeons-insight -- card Swords to Plowshares
 cargo run --release -p vivisurgeons-insight -- sample 25
 cargo run --release -p vivisurgeons-insight -- failing 2000            # or a milestone: failing modern-meta
 cargo run --release -p vivisurgeons-insight -- snapshot /tmp/trees.txt  # diff two of these around a change
+cargo run --release -p vivisurgeons-insight -- roundtrip               # or: roundtrip 2000, roundtrip --golden
 ```
 
 It reads `~/.cache/scryfall/oracle-cards.jsonl` and `oracle-tags.jsonl`, the
@@ -83,6 +84,75 @@ bless the change with `UPDATE_GOLDEN=1 cargo test -p vivisurgeons-insight
 --test golden` and commit the file with it, so the diff shows what changed.
 The test needs no bulk file, so CI holds the grammar to it.
 
+## The round trip
+
+A tree is meant to hold everything the text says that matters to the game:
+every subject, zone, quantity, duration, condition and back-reference. A tree
+that lost such a word cannot say it again, so `src/unparse.rs` renders every
+tree back into Oracle text and compares it with the line it came from. It
+renders from the typed nodes alone; nothing in a tree holds source text.
+
+The comparison reads both sides with the lexer, so reminder text, case,
+whitespace and the card's name as `~` are already the same, and "a" equals
+"an". Everything else it forgives is built in one module, `syn`, and each
+entry says why its forms mean the same. Most are English: agreement and
+punctuation (a number in digits or words, "it" or "them", how the clauses of
+one ability are joined, CR 113.2c and 608.2c), ellipsis and word order (a
+subject or verb said once for two clauses, "if" before or after its clause),
+back-references ("it", "that card", "the token"), and words the rules read
+the same with or without ("each of", "also", "whichever comes first"). The
+rest the Comprehensive Rules make identical: "when"/"whenever" (CR 603.1),
+"enters"/"enters the battlefield" (CR glossary), "first"/"precombat main
+phase" (CR 505.1a), whose library a card goes to (CR 400.3), "put"/"return"
+(CR 400.6), "protection from each color" (CR 105.1), "has base power and
+toughness"/"becomes" (CR 613.4b), and "When X and whenever Y" (CR 603.1b).
+
+The line between the tree and that list is the game: a difference that
+changes what happens (timing, who acts, which zone, past or present, some
+or all, may or must) is a node; a difference only in wording is a synonym.
+`SEMANTICS.md` records each call.
+
+| Set | Round-trip |
+|---|---|
+| EDHREC top 1000 (pinned) | 1800/1800 (100%) |
+| EDHREC top 2000 | 3430/3435 (99.9%) |
+| All parsed abilities | 45334/45417 (99.8%) |
+
+`tests/roundtrip.rs` holds every pinned ability to it. A second test renames
+each pinned card, in its name and in its text (the whole name, and a leading
+part of a legendary's name, CR 201.5c), and fails if any tree moves.
+
+Making the top 1000 round-trip found 18 kinds of tree that parsed completely
+and meant something else, and 60 of the 1800 pinned trees moved when they
+were fixed:
+
+- **Misread.** "Otherwise" read as "If you don't" (it is the other branch of
+  an "if", not an option declined). "It's an enchantment" read as "becomes"
+  (a returned permanent is that as it enters, CR 611.2e). "If it was a
+  creature" and "if it had counters on it" read in the present. "That many
+  plus one counters are put on it" read as "you put". "Any of that mana is
+  spent on" read as all of it. "Cards revealed this way" read as "from among
+  them". Cloud Key's "choose artifact, creature, …" read as choosing objects.
+- **Dropped.** "The next end step" and "the next turn's upkeep" read as "the
+  end step". "Any number of target creatures" read as "up to X". "Doesn't
+  untap during your untap step" and "… its controller's" read alike.
+  "Equip legendary creature {3}" dropped "legendary creature". "Combat damage
+  to a player or planeswalker" dropped the planeswalker. "The next spell you
+  cast this turn" read as one already cast. "That damage" read as "the
+  damage dealt this way". "A second target" read as "another target", which
+  CR 115.3 does not make the same.
+- **Referents.** "That color" and "the chosen color" are told apart, since
+  inside "for each color" the first is each pass's color; "the other" is what
+  the earlier choice left, not "it"; "this creature or another" keeps
+  "this creature".
+
+Beyond the top 1000 it found more: "Each player shuffles …, then draws
+seven cards" read as *you* draw, "choose a nonland card name" dropped
+"nonland", and "second main phase" read as "postcombat" (CR 505.1b counts
+main phases). The 83 corpus abilities that still fail are mostly other words
+dropped the same way (the cost "return two lands you control to their
+owner's hand" keeps no hand in its tree), listed by `insight roundtrip`.
+
 After round 4 the parser read an evenly spaced sample of 25 successful parses.
 24 were right. The 25th dropped the subject of "it explores". That led to a
 fix across the AST: every subject, zone and source the grammar reads is now
@@ -147,4 +217,6 @@ Two warnings for anyone who builds on this:
   belonged to the next clause (`any target and you gain 3 life`, `lands from
   your graveyard`). A grammar this size needs a sample read by eye after every
   round, as `insight sample` does. A coverage number alone does not catch a
-  parse that is complete and wrong.
+  parse that is complete and wrong; the round trip catches the ones that
+  lost or misread a word, but not a tree whose words all come back with the
+  wrong node under them.

@@ -191,7 +191,7 @@ impl<'a> P<'a> {
 
 /// Whether `w` is `base` in the third person singular, without building it:
 /// the grammar asks this on most tokens of every line.
-fn third_person(base: &str, w: &str) -> bool {
+pub(crate) fn third_person(base: &str, w: &str) -> bool {
     match base {
         "have" => return w == "has",
         "do" => return w == "does",
@@ -208,7 +208,7 @@ fn third_person(base: &str, w: &str) -> bool {
     w.len() == base.len() + 1 && w.starts_with(base) && w.ends_with('s')
 }
 
-const NUMBERS: [&str; 21] = [
+pub(crate) const NUMBERS: [&str; 21] = [
     "zero",
     "one",
     "two",

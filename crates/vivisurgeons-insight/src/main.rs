@@ -457,6 +457,98 @@ fn snapshot(args: &[String]) -> Result<()> {
     Ok(())
 }
 
+/// How many abilities render back into their own words, and the ones that
+/// do not, grouped by where they first part from the text, commonest first.
+/// `--golden` reads the pinned files instead of the bulk file.
+fn roundtrip(args: &[String]) -> Result<()> {
+    let mut golden_only = false;
+    let mut show_n = 3;
+    let mut target = None;
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--golden" => golden_only = true,
+            "--examples" => show_n = it.next().context("--examples needs a number")?.parse()?,
+            t => target = Some(t),
+        }
+    }
+    let mut rows: Vec<(String, Line)> = Vec::new();
+    if golden_only {
+        let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/golden");
+        for entry in fs::read_dir(dir)? {
+            let text = fs::read_to_string(entry?.path())?;
+            for (e, _) in golden::read(&text).map_err(anyhow::Error::msg)? {
+                let face = Face {
+                    name: &e.face,
+                    type_line: &e.type_line,
+                    text: &e.text,
+                };
+                rows.extend(
+                    read_face(&face, &e.card)
+                        .into_iter()
+                        .map(|l| (e.card.clone(), l)),
+                );
+            }
+        }
+    } else {
+        let excluded = excluded_ids(&cache("oracle-tags.jsonl"))?;
+        let (cards, _) = load(&cache("oracle-cards.jsonl"), &excluded, None)?;
+        let chosen: Option<HashSet<String>> = target
+            .map(|t| select(&cards, t).map(|cs| cs.iter().map(|c| c.name.clone()).collect()))
+            .transpose()?;
+        for c in cards {
+            if chosen.as_ref().is_none_or(|names| names.contains(&c.name)) {
+                rows.extend(c.lines.into_iter().map(|l| (c.name.clone(), l)));
+            }
+        }
+    }
+    let mut ok = 0;
+    let mut parsed = 0;
+    let mut groups: HashMap<String, Vec<(String, String, String)>> = HashMap::new();
+    for (card, l) in &rows {
+        let Some(r) = l.round_trip() else { continue };
+        parsed += 1;
+        match r {
+            Ok(()) => ok += 1,
+            Err(d) => {
+                let toks = vivisurgeons_insight::unparse::line_tokens(&l.text);
+                let before =
+                    d.at.checked_sub(1)
+                        .and_then(|i| toks.get(i))
+                        .map(vivisurgeons_insight::show)
+                        .unwrap_or_default();
+                let key = format!(
+                    "after {before:?}: want {} found {:?}",
+                    d.want.join(" | "),
+                    d.found
+                );
+                let Ok(a) = &l.parsed else { continue };
+                let canon = vivisurgeons_insight::unparse::ability(a).text();
+                groups.entry(key).or_default().push((
+                    card.clone(),
+                    l.text.replace('\n', " / "),
+                    canon.replace('\n', " / "),
+                ));
+            }
+        }
+    }
+    println!(
+        "{ok}/{parsed} parsed abilities round-trip ({}); {} of {} lines did not parse",
+        pct(ok, parsed),
+        rows.len() - parsed,
+        rows.len()
+    );
+    let mut groups: Vec<_> = groups.into_iter().collect();
+    groups.sort_by(|a, b| b.1.len().cmp(&a.1.len()).then(a.0.cmp(&b.0)));
+    for (key, v) in &groups {
+        println!("\n{:>5}  {key}", v.len());
+        for (card, text, canon) in v.iter().take(show_n) {
+            println!("       {card}: {text}\n         -> {canon}");
+        }
+    }
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
@@ -466,6 +558,7 @@ fn main() -> Result<()> {
         Some("failing") => failing(&args[1..]),
         Some("snapshot") => snapshot(&args[1..]),
         Some("pin") => pin(&args[1..]),
-        _ => bail!("usage: insight coverage [--bulk F] [--tags F] [--deck F]... [--top N] | insight card <name> | insight sample N | insight failing [N | milestone] | insight snapshot <file> | insight pin <N | milestone>"),
+        Some("roundtrip") => roundtrip(&args[1..]),
+        _ => bail!("usage: insight coverage [--bulk F] [--tags F] [--deck F]... [--top N] | insight card <name> | insight sample N | insight failing [N | milestone] | insight snapshot <file> | insight pin <N | milestone> | insight roundtrip [N | milestone] [--golden] [--examples N]"),
     }
 }

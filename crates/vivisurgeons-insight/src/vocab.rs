@@ -11,6 +11,8 @@ pub struct Vocab {
     pub keyword_actions: HashSet<String>,
     pub ability_words: Vec<Vec<String>>,
     pub card_types: HashSet<String>,
+    /// Land subtypes alone: "a Swamp in addition to its other land types".
+    pub land_types: HashSet<String>,
     pub supertypes: HashSet<String>,
     /// Every subtype of every card type, lowercased, one word or two.
     pub subtypes: HashSet<String>,
@@ -59,6 +61,7 @@ pub fn vocab() -> &'static Vocab {
             keyword_actions: lines(include_str!("../vocab/keyword-actions.txt")).collect(),
             ability_words: phrases(include_str!("../vocab/ability-words.txt")),
             card_types: lines(include_str!("../vocab/card-types.txt")).collect(),
+            land_types: lines(include_str!("../vocab/land-types.txt")).collect(),
             supertypes: lines(include_str!("../vocab/supertypes.txt")).collect(),
             subtypes,
         }
