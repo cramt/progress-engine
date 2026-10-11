@@ -129,6 +129,40 @@ fn deck_names(path: &str) -> Result<Vec<String>> {
         .collect())
 }
 
+/// The milestone lists in `milestones/`: one card name per line, `#` lines
+/// say where the list came from. Read at run time so a refreshed list needs
+/// no rebuild.
+fn milestones() -> Result<Vec<(String, Vec<String>)>> {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/milestones");
+    let mut out = Vec::new();
+    for entry in fs::read_dir(dir).with_context(|| format!("reading {dir}"))? {
+        let path = entry?.path();
+        let text = fs::read_to_string(&path)?;
+        let names = text
+            .lines()
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .map(str::to_string)
+            .collect();
+        let label = path.file_stem().unwrap_or_default().to_string_lossy();
+        out.push((label.into_owned(), names));
+    }
+    out.sort();
+    Ok(out)
+}
+
+/// Lists outside Scryfall name a double-faced card by its front face, so a
+/// name matches either the whole card or the face before ` // `.
+fn by_any_name(cards: &[Card]) -> HashMap<&str, &Card> {
+    let mut map = HashMap::new();
+    for c in cards {
+        map.insert(c.name.as_str(), c);
+        if let Some((front, _)) = c.name.split_once(" // ") {
+            map.entry(front).or_insert(c);
+        }
+    }
+    map
+}
+
 fn pct(a: usize, b: usize) -> String {
     if b == 0 {
         return "-".into();
@@ -187,14 +221,31 @@ fn coverage(args: &[String]) -> Result<()> {
     let (cards, skipped) = load(&bulk, &excluded, None)?;
     println!("excluded {skipped} cards tagged otag:{EXCLUDED_TAG}\n");
     report("all cards", &cards.iter().collect::<Vec<_>>());
-    report(
-        "EDHREC top 1000",
-        &cards
+    for n in [1000, 2000, 5000] {
+        report(
+            &format!("EDHREC top {n}"),
+            &cards
+                .iter()
+                .filter(|c| c.edhrec_rank.is_some_and(|r| r <= n))
+                .collect::<Vec<_>>(),
+        );
+    }
+    let by_name = by_any_name(&cards);
+    for (label, names) in milestones()? {
+        let found: Vec<&Card> = names
             .iter()
-            .filter(|c| c.edhrec_rank.is_some_and(|r| r <= 1000))
-            .collect::<Vec<_>>(),
-    );
-    let by_name: HashMap<&str, &Card> = cards.iter().map(|c| (c.name.as_str(), c)).collect();
+            .filter_map(|n| by_name.get(n.as_str()).copied())
+            .collect();
+        report(&label, &found);
+        // Excluded cards land here too, as do cards the bulk file renamed.
+        let missing: Vec<&String> = names
+            .iter()
+            .filter(|n| !by_name.contains_key(n.as_str()))
+            .collect();
+        if !missing.is_empty() {
+            println!("  not matched in the bulk file: {missing:?}");
+        }
+    }
     for d in &decks {
         let names = deck_names(d)?;
         let found: Vec<&Card> = names
@@ -286,17 +337,34 @@ fn sample(args: &[String]) -> Result<()> {
     Ok(())
 }
 
-/// Every failing ability among the EDHREC top N, most played first: the
-/// worklist for a round aimed at the cards people actually play.
+/// Every failing ability among the EDHREC top N, or on a milestone list, most
+/// played first: the worklist for a round aimed at cards people play.
 fn failing(args: &[String]) -> Result<()> {
-    let n: u64 = args.first().map(|a| a.parse()).transpose()?.unwrap_or(1000);
+    let target = args.first().map(String::as_str).unwrap_or("1000");
     let excluded = excluded_ids(&cache("oracle-tags.jsonl"))?;
     let (cards, _) = load(&cache("oracle-cards.jsonl"), &excluded, None)?;
-    let mut top: Vec<&Card> = cards
-        .iter()
-        .filter(|c| c.edhrec_rank.is_some_and(|r| r <= n) && !c.parsed())
-        .collect();
-    top.sort_by_key(|c| c.edhrec_rank);
+    let mut top: Vec<&Card> = match target.parse::<u64>() {
+        Ok(n) => cards
+            .iter()
+            .filter(|c| c.edhrec_rank.is_some_and(|r| r <= n))
+            .collect(),
+        Err(_) => {
+            let (_, names) = milestones()?
+                .into_iter()
+                .find(|(label, _)| label == target)
+                .with_context(|| format!("no milestone named {target}"))?;
+            let by_name = by_any_name(&cards);
+            let mut found: Vec<&Card> = names
+                .iter()
+                .filter_map(|n| by_name.get(n.as_str()).copied())
+                .collect();
+            found.dedup_by_key(|c| c.name.as_str());
+            found
+        }
+    };
+    top.retain(|c| !c.parsed());
+    // Unranked cards go last rather than first.
+    top.sort_by_key(|c| c.edhrec_rank.unwrap_or(u64::MAX));
     for c in top {
         for l in c.lines.iter() {
             if let Err(b) = &l.parsed {
@@ -345,6 +413,6 @@ fn main() -> Result<()> {
         Some("sample") => sample(&args[1..]),
         Some("failing") => failing(&args[1..]),
         Some("snapshot") => snapshot(&args[1..]),
-        _ => bail!("usage: insight coverage [--bulk F] [--tags F] [--deck F]... [--top N] | insight card <name> | insight sample N | insight failing [N] | insight snapshot <file>"),
+        _ => bail!("usage: insight coverage [--bulk F] [--tags F] [--deck F]... [--top N] | insight card <name> | insight sample N | insight failing [N | milestone] | insight snapshot <file>"),
     }
 }

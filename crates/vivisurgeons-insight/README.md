@@ -14,11 +14,13 @@ see what is inside, and the namesake is the first test: it reads as
 cargo run --release -p vivisurgeons-insight -- coverage --deck decks/lantern.deck.toml --deck decks/loam.deck.toml
 cargo run --release -p vivisurgeons-insight -- card Swords to Plowshares
 cargo run --release -p vivisurgeons-insight -- sample 25
+cargo run --release -p vivisurgeons-insight -- failing 2000            # or a milestone: failing modern-meta
+cargo run --release -p vivisurgeons-insight -- snapshot /tmp/trees.txt  # diff two of these around a change
 ```
 
 It reads `~/.cache/scryfall/oracle-cards.jsonl` and `oracle-tags.jsonl`, the
 files `scryfall sync` keeps. `--bulk` and `--tags` point elsewhere. The whole
-corpus takes about 13 s on one thread.
+corpus takes about 16 s on one thread.
 
 ## What counts as parsed
 
@@ -42,9 +44,37 @@ are in the corpus after tokens and Un-cards are removed.
 | 2 | Clause prefixes and suffixes (`may`, `unless`, `for each`, `where X is`, `if you don't`, delayed steps), `as ~ enters`, `becomes`, prevention, replacement effects | 43.7% | 62.3% | 57.8% | 58.0% | 68.9% |
 | 3 | Conditional statics, `would … instead`, werewolf conditions, Class levels | 45.5% | 64.0% | 58.8% | 58.0% | 70.0% |
 | 4 | Fixes for greedy rules (a zone eaten by the object before it), `X or another Y` | 46.3% | 64.6% | 60.3% | 58.0% | 75.6% |
+| 5 | Aimed at EDHREC top 250: reflexive and intervening-if triggers, typed mana constraints, replacement events | 52.4% | 69.0% | 77.7% | 72.0% | 87.8% |
+| 6 | Top 500: copy exceptions, `for each` clauses, top or bottom of a library, a subject with a list of predicates | 56.8% | 72.2% | 88.7% | 81.0% | 90.0% |
+| 7 | Top 1000: damage doublers, digging until a card, repeated processes, extra phases, aura-made creatures | 60.7% | 74.9% | **100%** | 86.0% | 92.2% |
 
-There are 33,427 cards and 60,603 abilities. After round 4 the grammar is
-about 1,900 lines of `parse.rs` over a 770-line AST.
+There are 33,427 cards and 60,603 abilities. After round 7 the grammar is
+about 5,100 lines in `src/parse/` over a 1,800-line AST, and the corpus runs
+in about 16 s.
+
+Rounds 1–4 were written by hand against the whole corpus. Rounds 5–7 were
+written by agents working through `insight failing N`, the failing abilities
+among the EDHREC top N, in rank order. Each round was checked against a
+snapshot of every tree from before it (`insight snapshot`). No tree was lost,
+and every tree that changed was read and judged a correction.
+
+## Milestones
+
+Each milestone is a set of cards that must all parse. `insight coverage`
+reports every one. The lists in `milestones/` say where they came from, and
+`insight failing <name>` is the worklist for one.
+
+| Milestone | Cards | Abilities | Status |
+|---|---|---|---|
+| EDHREC top 1000 | 990/990 | 1800/1800 | done |
+| Standard after the early-2027 rotation | 2108/3517 (59.9%) | 5419/7054 (76.8%) | |
+| Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 384/571 (67.3%) | 939/1164 (80.7%) | |
+| All of Standard | 2889/5157 (56.0%) | 7770/10420 (74.6%) | |
+| EDHREC top 2000 | 1633/1986 (82.2%) | 3435/3847 (89.3%) | |
+| EDHREC top 5000 | 3340/4975 (67.1%) | 8171/10100 (80.9%) | |
+
+Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
+Liberated and Trinisphere show up as not matched.
 
 After round 4 the parser read an evenly spaced sample of 25 successful parses.
 24 were right. The 25th dropped the subject of "it explores". That led to a
@@ -70,14 +100,20 @@ for one shape now buys a handful of cards.
 needs every one of its abilities, so one unusual line sinks it. Two thirds of
 abilities parse, but fewer than half of cards do.
 
+**Aiming at a list breaks the plateau for that list.** Rounds 5–7 took the
+EDHREC top 1000 from 60% to 100%, and the corpus still rose 14 points, because
+a template written for a played card is shared with unplayed ones. After round
+7, 15,186 abilities fail, in 13,842 distinct shapes: still 91% one of a kind.
+The corpus tail did not get more regular; it got smaller.
+
 **Played cards are more regular.** The EDHREC top 1000 sits 14 points above
 the corpus, and Loam's list sits 29 points above. Lantern sits at 58%, because
 it is built from odd cards: *Players play with the top card of their
 libraries revealed*, Sensei's Divining Top, Mana Drain, Chaos Warp.
 
-The tokens failing lines break at are general grammar: `,` (1,445), `.`
-(842), `turn` (520), `or` (459). `insight coverage` prints the full list.
-That is where the next rounds would go, at the same falling rate.
+After round 4, the tokens failing lines broke at were general grammar: `,`
+(1,445), `.` (842), `turn` (520), `or` (459). After round 7 they are still
+`,` (1,341) and `.` (1,038). `insight coverage` prints the full list.
 
 ## Verdict
 
@@ -86,15 +122,19 @@ not get to all of them. The remaining third is mostly one-off sentences, so
 the work stops being "write the grammar" and becomes "write each card".
 
 That rules out *parse Oracle text and you have an engine* for all of Magic.
-For a **fixed card pool** it is doable. Lantern and Loam together have 75
-distinct failing abilities across 62 cards. That is a list someone can write
-by hand, as overrides keyed by `oracle_id` beside the grammar's output.
+For a **fixed card pool** it is doable, and round 7 showed it: the 1000 most
+played Commander cards all read into typed trees, with no catch-all and no
+per-card override. The last 112 included Opposition Agent, Torment of
+Hailfire and Darksteel Mutation, and each took a general rule, not a special
+case. The milestones above are the next pools. Lantern still has 14 failing
+cards and Loam 7, and the same approach would finish both.
 
 Two warnings for anyone who builds on this:
 
-- **A parse is not semantics.** `IfYouDo` here also holds "When you do", which
-  is a reflexive trigger in the rules (CR 603.12), not a condition. The tree
-  says what the text says. An engine still has to give each node a meaning
+- **A parse is not semantics.** Until round 5, `IfYouDo` also held "When you
+  do", which is a reflexive trigger in the rules (CR 603.12), not a condition.
+  The tree says what the text says, and choosing its nodes is already a
+  claim about the rules. An engine still has to give each node a meaning
   under the layers, the stack and replacement rules.
 - **Greedy rules mislead silently.** Twice a list rule ate a word that
   belonged to the next clause (`any target and you gain 3 life`, `lands from
