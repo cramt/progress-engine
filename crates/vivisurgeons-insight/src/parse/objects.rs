@@ -454,7 +454,26 @@ pub(super) fn with_others(quant: Quant, mut f: Filter) -> Objects {
     }
 }
 
+/// An object phrase depends on nothing but where it starts, and the grammar
+/// tries the same one from many alternatives, so each start is read once.
 pub(super) fn objects_no_player(p: &mut P) -> Option<Objects> {
+    let start = p.i;
+    if let Some((o, end, furthest)) = p.objects_memo[start].clone() {
+        p.furthest = p.furthest.max(furthest);
+        if o.is_some() {
+            p.i = end;
+        }
+        return o;
+    }
+    let before = std::mem::replace(&mut p.furthest, start);
+    let o = objects_read(p);
+    let furthest = p.furthest;
+    p.furthest = before.max(furthest);
+    p.objects_memo[start] = Some((o.clone(), p.i, furthest));
+    o
+}
+
+fn objects_read(p: &mut P) -> Option<Objects> {
     alt!(p;
         |p| {
             let first = pronoun(p)?;

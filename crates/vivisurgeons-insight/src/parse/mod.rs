@@ -14,6 +14,9 @@ pub struct P<'a> {
     /// The subject a verb inherits when it has none of its own, as after
     /// "that player may".
     implied: Option<Player>,
+    /// Per starting token: the object phrase read there, where it ended, and
+    /// how far reading it got.
+    objects_memo: Vec<Option<(Option<Objects>, usize, usize)>>,
 }
 
 macro_rules! alt {
@@ -32,6 +35,7 @@ impl<'a> P<'a> {
             i: 0,
             furthest: 0,
             implied: None,
+            objects_memo: vec![None; t.len() + 1],
         }
     }
 
