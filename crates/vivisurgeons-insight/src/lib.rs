@@ -4,6 +4,7 @@
 //! with no hole in it, and where the rest breaks; see README.md for the number.
 
 pub mod ast;
+pub mod golden;
 pub mod lex;
 pub mod parse;
 pub mod vocab;

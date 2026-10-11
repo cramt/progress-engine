@@ -6,6 +6,7 @@ use std::fs;
 
 use anyhow::{bail, Context, Result};
 use serde_json::Value;
+use vivisurgeons_insight::golden::{self, Entry};
 use vivisurgeons_insight::{read_face, Face, Line};
 
 /// Layouts that are not cards a deck can hold.
@@ -28,6 +29,8 @@ const EXCLUDED_TAG: &str = "unique-cr-reference";
 struct Card {
     name: String,
     edhrec_rank: Option<u64>,
+    /// Each face's name, type line and Oracle text, as the bulk file has them.
+    faces: Vec<(String, String, String)>,
     lines: Vec<Line>,
 }
 
@@ -112,6 +115,7 @@ fn load(bulk: &str, excluded: &HashSet<String>, only: Option<&str>) -> Result<(V
         cards.push(Card {
             name,
             edhrec_rank: c["edhrec_rank"].as_u64(),
+            faces,
             lines,
         });
     }
@@ -337,13 +341,10 @@ fn sample(args: &[String]) -> Result<()> {
     Ok(())
 }
 
-/// Every failing ability among the EDHREC top N, or on a milestone list, most
-/// played first: the worklist for a round aimed at cards people play.
-fn failing(args: &[String]) -> Result<()> {
-    let target = args.first().map(String::as_str).unwrap_or("1000");
-    let excluded = excluded_ids(&cache("oracle-tags.jsonl"))?;
-    let (cards, _) = load(&cache("oracle-cards.jsonl"), &excluded, None)?;
-    let mut top: Vec<&Card> = match target.parse::<u64>() {
+/// The cards a target names: the EDHREC top N when it is a number, else the
+/// milestone list of that name.
+fn select<'a>(cards: &'a [Card], target: &str) -> Result<Vec<&'a Card>> {
+    let mut found: Vec<&Card> = match target.parse::<u64>() {
         Ok(n) => cards
             .iter()
             .filter(|c| c.edhrec_rank.is_some_and(|r| r <= n))
@@ -353,15 +354,25 @@ fn failing(args: &[String]) -> Result<()> {
                 .into_iter()
                 .find(|(label, _)| label == target)
                 .with_context(|| format!("no milestone named {target}"))?;
-            let by_name = by_any_name(&cards);
-            let mut found: Vec<&Card> = names
+            let by_name = by_any_name(cards);
+            names
                 .iter()
                 .filter_map(|n| by_name.get(n.as_str()).copied())
-                .collect();
-            found.dedup_by_key(|c| c.name.as_str());
-            found
+                .collect()
         }
     };
+    found.sort_by(|a, b| a.name.cmp(&b.name));
+    found.dedup_by_key(|c| c.name.as_str());
+    Ok(found)
+}
+
+/// Every failing ability among the EDHREC top N, or on a milestone list, most
+/// played first: the worklist for a round aimed at cards people play.
+fn failing(args: &[String]) -> Result<()> {
+    let target = args.first().map(String::as_str).unwrap_or("1000");
+    let excluded = excluded_ids(&cache("oracle-tags.jsonl"))?;
+    let (cards, _) = load(&cache("oracle-cards.jsonl"), &excluded, None)?;
+    let mut top = select(&cards, target)?;
     top.retain(|c| !c.parsed());
     // Unranked cards go last rather than first.
     top.sort_by_key(|c| c.edhrec_rank.unwrap_or(u64::MAX));
@@ -379,6 +390,47 @@ fn failing(args: &[String]) -> Result<()> {
             }
         }
     }
+    Ok(())
+}
+
+/// Pins the trees of a target's cards in `golden/<target>.txt`, which the
+/// golden test then holds the grammar to. Only a target that fully parses can
+/// be pinned: a golden file is a promise, not a progress report.
+fn pin(args: &[String]) -> Result<()> {
+    let target = args
+        .first()
+        .context("pin needs a target: N or a milestone")?;
+    let excluded = excluded_ids(&cache("oracle-tags.jsonl"))?;
+    let (cards, _) = load(&cache("oracle-cards.jsonl"), &excluded, None)?;
+    let chosen = select(&cards, target)?;
+    let broken = chosen.iter().filter(|c| !c.parsed()).count();
+    if broken > 0 {
+        bail!("{broken} cards in {target} do not parse yet; `insight failing {target}` lists them");
+    }
+    let entries: Vec<Entry> = chosen
+        .iter()
+        .flat_map(|c| {
+            c.faces.iter().map(|(face, type_line, text)| Entry {
+                card: c.name.clone(),
+                face: face.clone(),
+                type_line: type_line.clone(),
+                text: text.clone(),
+            })
+        })
+        .collect();
+    let label = if target.parse::<u64>().is_ok() {
+        format!("edhrec-{target}")
+    } else {
+        target.clone()
+    };
+    let path = format!("{}/golden/{label}.txt", env!("CARGO_MANIFEST_DIR"));
+    fs::create_dir_all(format!("{}/golden", env!("CARGO_MANIFEST_DIR")))?;
+    fs::write(&path, golden::render(&entries))?;
+    println!(
+        "{} cards, {} faces pinned in {path}",
+        chosen.len(),
+        entries.len()
+    );
     Ok(())
 }
 
@@ -413,6 +465,7 @@ fn main() -> Result<()> {
         Some("sample") => sample(&args[1..]),
         Some("failing") => failing(&args[1..]),
         Some("snapshot") => snapshot(&args[1..]),
-        _ => bail!("usage: insight coverage [--bulk F] [--tags F] [--deck F]... [--top N] | insight card <name> | insight sample N | insight failing [N | milestone] | insight snapshot <file>"),
+        Some("pin") => pin(&args[1..]),
+        _ => bail!("usage: insight coverage [--bulk F] [--tags F] [--deck F]... [--top N] | insight card <name> | insight sample N | insight failing [N | milestone] | insight snapshot <file> | insight pin <N | milestone>"),
     }
 }

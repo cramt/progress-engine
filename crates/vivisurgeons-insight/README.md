@@ -76,6 +76,13 @@ reports every one. The lists in `milestones/` say where they came from, and
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
 
+A finished milestone is pinned: `insight pin 1000` writes every face's text
+and trees to `golden/edhrec-1000.txt`, and `tests/golden.rs` reads each one
+again and fails if a tree moved. Read each moved tree in the failure, then
+bless the change with `UPDATE_GOLDEN=1 cargo test -p vivisurgeons-insight
+--test golden` and commit the file with it, so the diff shows what changed.
+The test needs no bulk file, so CI holds the grammar to it.
+
 After round 4 the parser read an evenly spaced sample of 25 successful parses.
 24 were right. The 25th dropped the subject of "it explores". That led to a
 fix across the AST: every subject, zone and source the grammar reads is now
