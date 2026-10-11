@@ -123,7 +123,7 @@ type: Legendary Planeswalker — Ajani
 > 0: Create a 2/1 white Cat Warrior creature token. When you do, if you control a red permanent other than Ajani, he deals damage equal to the number of creatures you control to any target.
 > −4: Each opponent chooses an artifact, a creature, an enchantment, and a planeswalker from among the nonland permanents they control, then sacrifices the rest.
 = Loyalty { change: N(2), effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Each, filter: Filter { alts: [[Subtype("cat")]], kind: None, posts: [Controller(You)], or: None } } }] }
-= Loyalty { change: N(0), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), colors: [White], types: ["cat", "warrior", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, WhenYouDo([If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Red)]], kind: Some(Permanent), posts: [OtherThanSelf], or: None } }), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }])] }
+= Loyalty { change: N(0), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), colors: [White], types: ["cat", "warrior", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, WhenYouDoIf { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Red)]], kind: Some(Permanent), posts: [OtherThanSelf], or: None } }), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }] }
 = Loyalty { change: N(-4), effect: [Performed { by: EachOpponent, effect: Choose(OneOfEach { picks: [Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None }, Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None }, Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None }, Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None }], among: Objects { quant: All, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(That)], or: None } } }) }, Sacrifice { who: EachOpponent, what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }
 
 ## All Is Dust
@@ -365,7 +365,7 @@ type: Land — Swamp Mountain
 face: Blood Moon
 type: Enchantment
 > Nonbasic lands are Mountains.
-= Static([Is { what: Objects { quant: Plural, filter: Filter { alts: [[Non("basic"), Type("land")]], kind: None, posts: [], or: None } }, types: Listed([Subtype("mountain")]) }])
+= Static([Is { what: Objects { quant: Plural, filter: Filter { alts: [[Non("basic"), Type("land")]], kind: None, posts: [], or: None } }, types: Subtypes([Subtype("mountain")]) }])
 
 ## Bloodghast
 face: Bloodghast
@@ -585,7 +585,7 @@ type: Creature — Phyrexian Angel
 > You may reveal this card from your opening hand. If you do, when each opponent casts their first spell of the game, counter that spell unless that player pays {1}.
 > Flying
 > Whenever an opponent casts a spell, counter it unless that player pays {1}.
-= Static([RevealFromOpeningHand([DelayedWhen { event: Casts { who: EachOpponent, what: Objects { quant: NthOfGame { n: 1, of: That }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }, then: [Counter { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: Some((That, [Mana(Mana(["1"]))])) }] }])])
+= Static([RevealFromOpeningHand([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [DelayedWhen { event: Casts { who: That, what: Objects { quant: NthOfGame { n: 1, of: That }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }, then: [Counter { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: Some((That, [Mana(Mana(["1"]))])) }] }] }])])
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [Counter { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: Some((That, [Mana(Mana(["1"]))])) }], limits: [] }
 
@@ -820,7 +820,7 @@ type: Creature — Plant Beast
 > When this creature enters, you may put a land card from your hand onto the battlefield tapped. If you do, draw a card and repeat this process.
 = Keywords([Keyword { name: "trample", param: None }])
 = Static([SetPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }) }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }] }, IfYouDo([Draw { who: You, n: N(1) }, RepeatProcess])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Process([May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }] }, IfYouDo([Draw { who: You, n: N(1) }, RepeatProcess])])], limits: [] }
 
 ## Curator of Mysteries
 face: Curator of Mysteries
@@ -1845,7 +1845,7 @@ type: Land
 face: Harbinger of the Seas
 type: Creature — Merfolk Wizard
 > Nonbasic lands are Islands.
-= Static([Is { what: Objects { quant: Plural, filter: Filter { alts: [[Non("basic"), Type("land")]], kind: None, posts: [], or: None } }, types: Listed([Subtype("island")]) }])
+= Static([Is { what: Objects { quant: Plural, filter: Filter { alts: [[Non("basic"), Type("land")]], kind: None, posts: [], or: None } }, types: Subtypes([Subtype("island")]) }])
 
 ## Hardened Academic
 face: Hardened Academic
@@ -2138,7 +2138,7 @@ type: Legendary Planeswalker — Karn
 > +1: Until your next turn, up to one target noncreature artifact becomes an artifact creature with power and toughness each equal to its mana value.
 > −2: You may reveal an artifact card you own from outside the game or choose a face-up artifact card you own in exile. Put that card into your hand.
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, rule: NoActivatedAbilities }])
-= Loyalty { change: N(1), effect: [During { dur: UntilYourNextTurn, then: [BecomesSized { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Non("creature"), Type("artifact")]], kind: None, posts: [], or: None } }, types: [Type("artifact"), Type("creature")], each_equal_to: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: Permanent }] }] }
+= Loyalty { change: N(1), effect: [During { dur: UntilYourNextTurn, then: [BecomesSized { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Non("creature"), Type("artifact")]], kind: None, posts: [], or: None } }, types: [Type("artifact"), Type("creature")], keeps: OtherTypes, each_equal_to: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: Permanent }] }] }
 = Loyalty { change: N(-2), effect: [May { who: You, then: [Or([Reveal { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [Owner(You), In(OutsideTheGame)], or: None } } }, Choose(Objects(Objects { quant: One, filter: Filter { alts: [[State(FaceUp), Type("artifact")]], kind: Some(Card), posts: [Owner(You), In(Exile)], or: None } }))]), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }] }
 
 ## Kaya's Guile
@@ -2356,7 +2356,7 @@ type: Creature — Dragon
 face: Magus of the Moon
 type: Creature — Human Wizard
 > Nonbasic lands are Mountains.
-= Static([Is { what: Objects { quant: Plural, filter: Filter { alts: [[Non("basic"), Type("land")]], kind: None, posts: [], or: None } }, types: Listed([Subtype("mountain")]) }])
+= Static([Is { what: Objects { quant: Plural, filter: Filter { alts: [[Non("basic"), Type("land")]], kind: None, posts: [], or: None } }, types: Subtypes([Subtype("mountain")]) }])
 
 ## Malevolent Rumble
 face: Malevolent Rumble
@@ -4212,7 +4212,7 @@ type: Creature — Merfolk Wizard
 > When this creature enters, if it was kicked, target land becomes an Island for as long as this creature remains on the battlefield.
 > This creature gets +1/+1 as long as an opponent controls an Island.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["1"]))])) }])
-= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), WasKicked), effect: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, pt: None, types: [Subtype("island")], gains: [], keeps: Nothing, dur: ForAsLongAs(In { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, zone: Battlefield }) }], limits: [] }
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), WasKicked), effect: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, pt: None, types: [Subtype("island")], gains: [], keeps: AllButSubtypesOfSet, dur: ForAsLongAs(In { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, zone: Battlefield }) }], limits: [] }
 = Static([AsLongAs { cond: PlayerControls(AnOpponent, Objects { quant: One, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
 
 ## Tolaria West

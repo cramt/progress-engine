@@ -300,7 +300,9 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
                     // Only what a card's type line and color say: "is
                     // attacking" is a condition, not a static.
                     let g = group(p).filter(|g| g.iter().all(|a| matches!(a, Adj::Type(_) | Adj::Subtype(_) | Adj::Supertype(_) | Adj::Color(_))))?;
-                    Some(TypeSet::Listed(g))
+                    // "Nonbasic lands are Mountains": subtypes replace only
+                    // their own set (CR 205.1a, 305.7).
+                    Some(if g.iter().all(|a| matches!(a, Adj::Subtype(_))) { TypeSet::Subtypes(g) } else { TypeSet::Listed(g) })
                 },
             )?;
             // "is a colorless land with "…"": the predicate list reads what

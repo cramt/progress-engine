@@ -269,6 +269,14 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             p.tok(&Tok::Comma)?;
             Some(vec![Effect::IfYouDo(clauses(p)?)])
         },
+        // "When you do, if …, …": the "if" right after the trigger condition
+        // is an intervening "if" (CR 603.4), for a reflexive trigger too.
+        |p| {
+            p.words("when you do , if")?;
+            let cond = condition(p)?;
+            p.tok(&Tok::Comma)?;
+            Some(vec![Effect::WhenYouDoIf { cond, then: clauses(p)? }])
+        },
         |p| {
             p.words("when you do")?;
             p.tok(&Tok::Comma)?;
@@ -294,7 +302,18 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             p.word("when")?;
             let event = event(p)?;
             p.tok(&Tok::Comma)?;
-            Some(vec![Effect::DelayedWhen { event, then: delayed_body(p)? }])
+            let then = delayed_body(p)?;
+            Some(vec![match event {
+                // "when each opponent casts their first spell of the game":
+                // a delayed trigger triggers once (CR 603.7b), and this one
+                // triggers for each opponent (Chancellor of the Annex's
+                // ruling), so it is one per opponent.
+                Event::Casts { who: Player::EachOpponent, what } => Effect::ForEach {
+                    each: Objects { quant: Quant::Plural, filter: Filter { kind: Some(Noun::Opponent), ..Filter::default() } },
+                    then: vec![Effect::DelayedWhen { event: Event::Casts { who: Player::That, what }, then }],
+                },
+                event => Effect::DelayedWhen { event, then },
+            }])
         },
         |p| {
             p.words("for each card type ,")?;
@@ -721,7 +740,12 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
         // "When you do, put two +1/+1 counters … on target attacking
         // creature. It becomes an Angel …": "it" is what the reflexive
         // trigger targeted, so the sentence is that trigger's too.
-        if let Some(Effect::WhenYouDo(then) | Effect::WhenThisWay { then, .. }) = v.last_mut() {
+        if let Some(
+            Effect::WhenYouDo(then)
+            | Effect::WhenYouDoIf { then, .. }
+            | Effect::WhenThisWay { then, .. },
+        ) = v.last_mut()
+        {
             if s.first().is_some_and(continues_target) {
                 then.extend(s);
                 continue;
@@ -752,7 +776,26 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
         }
         v.extend(s);
     }
+    // "… If you do, draw a card and repeat this process.": the process is
+    // every instruction of the ability, said from the first.
+    if v.iter().any(repeats) {
+        v = vec![Effect::Process(v)];
+    }
     (!v.is_empty()).then_some(v)
+}
+
+/// Whether an effect says "repeat this process", in any branch.
+fn repeats(e: &Effect) -> bool {
+    match e {
+        Effect::RepeatProcess | Effect::RepeatUntil(_) => true,
+        Effect::If { then, .. }
+        | Effect::Instead { then, .. }
+        | Effect::May { then, .. }
+        | Effect::IfYouDo(then)
+        | Effect::IfYouDont(then)
+        | Effect::Otherwise(then) => then.iter().any(repeats),
+        _ => false,
+    }
 }
 
 /// The objects of a "For each …, its controller …" loop, whose controllers

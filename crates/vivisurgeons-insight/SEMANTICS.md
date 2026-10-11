@@ -17,7 +17,7 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "When X and whenever Y" | one trigger on either event, the same tree as "Whenever X or Y" | settled: CR 603.1b, one ability with two trigger conditions |
 | "This ability triggers only once each turn" | a limit on the trigger | open |
 | "When you do, put … on target attacking creature. It becomes an Angel …" | the "It …" sentence inside `WhenYouDo` | settled: "it" is what the reflexive trigger targeted, which exists only when that trigger resolves |
-| "When you do, if you control a red permanent, he deals …" | `WhenYouDo([If { … }])`, as earlier trees read it | open: the form is CR 603.4's intervening-if, which would check as it triggers too |
+| "When you do, if you control a red permanent, he deals …" | `WhenYouDoIf { cond, then }`, not `WhenYouDo([If { … }])` | settled: CR 603.12 makes it a triggered ability and CR 603.4 makes the "if" right after its condition an intervening if, checked as it triggers and again as it resolves; Ajani's ruling, "if you control a red permanent other than Ajani, a second reflexive ability triggers". Ajani, Earthbender Ascension, Sigil of Myrkul |
 | "When a creature card is exiled this way, …" | `WhenThisWay`, a reflexive trigger | settled: CR 603.12 |
 | "When that creature dies this turn, …", "Whenever you attack this turn, …" | `During { ThisTurn, [DelayedWhen … ] }` | settled: the delayed trigger lasts the turn |
 | "If you do, at the beginning of your first upkeep, look at the top four cards …. You may put one of those cards back …. Exile the rest." | every sentence after the delayed trigger is its | settled: "those cards" are the ones it looked at, which exist only then |
@@ -110,7 +110,7 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "one or more" | `AtLeast(N(1))` | open |
 | "unless <condition>" | `If { Not(condition) }` | settled: "unless" is "if not" |
 | "… instead" after an effect, even on the previous line | `Effect::Instead` replaces the effect before it | open |
-| "Repeat this process until …" | `RepeatUntil`, which repeats everything before it in the ability; nothing in the tree says how far back | open: the tree should say |
+| "Repeat this process until …", "draw a card and repeat this process" | `Process([…])` around the ability's instructions, with `RepeatUntil` or `RepeatProcess` inside it: again from the first instruction of the enclosing `Process` | settled: in all six corpus cards "this process" is the whole ability; Cultivator Colossus's ruling, "the process is repeated until you decline to put a land card onto the battlefield", repeats the land as well as the draw |
 | ", whichever comes first" | consumed with no node, because "until A or B" already ends at the first | settled |
 | "Do this only once each turn" | a limit on the whole ability | open |
 | "if it had counters", "if it was a creature" | `Condition::Past`, as it was when the event happened | settled: last known information (CR 603.10a for leaving the battlefield), not as it is now |
@@ -118,6 +118,9 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "becomes a 2/2 creature with all creature types" | `Becomes` and `AlsoIs(EveryCreatureType)`, the same duration | settled: the second adds to the types the first sets |
 | "… until end of turn. It's still a land." | `Keeps::Listed`, as "that's still a land" | settled: CR 205.1b names both forms |
 | "he's a 3/4 Ninja creature" (Kaito) | `Is` (types replaced) and `BasePt` | settled: CR 205.1a, a type said without "still" or "in addition" replaces; a size with the types is a base size (CR 613.4b) |
+| "target land becomes an Island", "Nonbasic lands are Mountains", "becomes a Coward" | `Keeps::AllButSubtypesOfSet` on `Becomes`, `TypeSet::Subtypes` on `Is`: only subtypes are set, so only their set is replaced | settled: CR 205.1a, new subtypes replace the subtypes "from the appropriate set", and CR 305.7, setting a land's subtype adds or removes no card type or supertype. Tide Shaper's land stays a land, Blood Moon's stays snow or legendary. `Keeps::Nothing` read literally replaced every type |
+| "becomes an artifact creature", "becomes a 2/2 Construct artifact creature" | `Keeps::OtherTypes`, and `AllButSubtypesOfSet` with creature types | settled: CR 205.1b, "an 'artifact creature'" keeps all its prior card types and subtypes, a "[creature type] artifact creature" all but its creature types. `BecomesSized` (Karn) now says it too. "In addition to its other types" said or not is a `syn` entry |
+| "when each opponent casts their first spell of the game, counter that spell …" | `ForEach { opponents, [DelayedWhen { Casts { who: That, … } }] }` | settled: a delayed trigger triggers once (CR 603.7b), and Chancellor of the Annex's ruling has it trigger for each opponent, so it is one per opponent |
 | "Create a … token. It has "…"" | the ability in the token's own list | settled: CR 111.3, the effect that creates a token defines what it has |
 | "If you would draw one or more cards" | `DrawsOneOrMore`, apart from "draw a card" | settled: one instruction to draw several is several draws (CR 121.2); the first replaces the instruction, the second each draw |
 | "The next time a source of your choice would deal damage to you this turn, prevent that damage" | `NextTime` with `PreventThatDamage` | settled: CR 609.7, 615.8, a one-shot shield on the next instance |

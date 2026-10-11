@@ -423,7 +423,8 @@ fn effect_first(p: &mut P) -> Option<Effect> {
             p.words("with power and toughness each equal to")?;
             let each_equal_to = measure(p)?;
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
-            Some(Effect::BecomesSized { what, types, each_equal_to, dur })
+            let keeps = Keeps::implied_by(&types);
+            Some(Effect::BecomesSized { what, types, keeps, each_equal_to, dur })
         },
         // "Create a Monster Role token attached to it."
         |p| {
@@ -593,7 +594,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
             // ". It's still a land." after the duration.
             let keeps = match keeps {
-                Keeps::Nothing => p.attempt(still).unwrap_or(Keeps::Nothing),
+                Keeps::Nothing => p.attempt(still).unwrap_or_else(|| Keeps::implied_by(&types)),
                 k => k,
             };
             Some(Effect::Becomes { what, pt, types, gains, keeps, dur })

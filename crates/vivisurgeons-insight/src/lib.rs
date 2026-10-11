@@ -1114,6 +1114,57 @@ mod tests {
     }
 
     #[test]
+    fn the_settled_conventions_hold() {
+        // CR 603.12 + 603.4: a reflexive trigger's "if" is an intervening if.
+        let a = read(
+            "Some Sigil",
+            "Enchantment",
+            "At the beginning of combat on your turn, mill a card. When you do, if there are four or more creature cards in your graveyard, put a +1/+1 counter on target creature you control.",
+        );
+        assert!(matches!(&a[0], Ability::Triggered { effect, .. }
+            if matches!(&effect[1], Effect::WhenYouDoIf { then, .. } if matches!(then[0], Effect::PutCounters { .. }))));
+        // "This process" is the whole ability: the land as well as the draw.
+        let a = read(
+            "Some Colossus",
+            "Creature — Plant Beast",
+            "When this creature enters, you may put a land card from your hand onto the battlefield tapped. If you do, draw a card and repeat this process.",
+        );
+        assert!(matches!(&a[0], Ability::Triggered { effect, .. }
+            if matches!(&effect[..], [Effect::Process(v)] if matches!(&v[..], [Effect::May { .. }, Effect::IfYouDo(_)]))));
+        // One delayed trigger per opponent (Chancellor of the Annex's ruling).
+        let a = read(
+            "Some Chancellor",
+            "Creature — Phyrexian Advisor",
+            "You may reveal this card from your opening hand. If you do, when each opponent casts their first spell of the game, counter that spell unless that player pays {1}.",
+        );
+        assert!(format!("{a:?}").contains("ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent)"), "{a:?}");
+        assert!(
+            format!("{a:?}").contains("DelayedWhen { event: Casts { who: That"),
+            "{a:?}"
+        );
+        // A land subtype replaces land types only (CR 205.1a, 305.7).
+        let a = read("Some Moon", "Enchantment", "Nonbasic lands are Mountains.");
+        assert!(matches!(&a[0], Ability::Static(s)
+            if matches!(&s[0], Static::Is { types: TypeSet::Subtypes(_), .. })));
+        let a = read(
+            "Some Shaper",
+            "Creature — Merfolk Wizard",
+            "When this creature enters, target land becomes an Island.",
+        );
+        assert!(
+            format!("{a:?}").contains("keeps: AllButSubtypesOfSet"),
+            "{a:?}"
+        );
+        // "becomes an artifact creature" keeps its other types (CR 205.1b).
+        let a = read(
+            "Some Karn",
+            "Legendary Planeswalker — Karn",
+            "+1: Until your next turn, up to one target noncreature artifact becomes an artifact creature with power and toughness each equal to its mana value.",
+        );
+        assert!(format!("{a:?}").contains("keeps: OtherTypes"), "{a:?}");
+    }
+
+    #[test]
     fn protection_from_two_qualities_is_two_protection_abilities() {
         let a = read(
             "Some Riftwalker",

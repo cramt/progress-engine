@@ -1110,6 +1110,13 @@ pub enum Effect {
     /// "When you do, …": a reflexive triggered ability (CR 603.12), which goes
     /// on the stack, unlike "If you do".
     WhenYouDo(Vec<Effect>),
+    /// "When you do, if you control a red permanent other than Ajani, …": a
+    /// reflexive trigger with an intervening "if" (CR 603.12, 603.4), which
+    /// triggers only if it holds and checks it again as it resolves.
+    WhenYouDoIf {
+        cond: Condition,
+        then: Vec<Effect>,
+    },
     /// A modal spell's mode with a flavour label: "Sell Contraband — …".
     Labelled {
         label: String,
@@ -1208,8 +1215,13 @@ pub enum Effect {
         then: Vec<Effect>,
     },
     /// "Repeat this process until you put a card into your hand or …": the
-    /// ability's effects before it, again, until the event happens.
+    /// enclosing `Process` again, until the event happens.
     RepeatUntil(Box<Event>),
+    /// "this process": the instructions a "repeat this process" inside them
+    /// starts again from the first of. Every one in the corpus is the whole
+    /// ability: Cultivator Colossus repeats putting a land too, not only
+    /// drawing (its ruling: "until you decline to put a land card").
+    Process(Vec<Effect>),
     /// "shuffle your hand and graveyard into your library": every card in
     /// those zones.
     ShuffleZones {
@@ -1348,7 +1360,7 @@ pub enum Effect {
     },
     /// "You get X {E}".
     GetEnergyAmount(Amount),
-    /// "draw a card and repeat this process": everything before it, again.
+    /// "draw a card and repeat this process": the enclosing `Process` again.
     RepeatProcess,
     /// "you gain control of target opponent during that player's next turn":
     /// always the controlled player's next turn (CR 723.1).
@@ -1360,6 +1372,9 @@ pub enum Effect {
     BecomesSized {
         what: Objects,
         types: Vec<Adj>,
+        /// What it keeps of its types: Karn's "becomes an artifact creature"
+        /// keeps all of them (CR 205.1b).
+        keeps: Keeps,
         each_equal_to: Amount,
         dur: Duration,
     },
@@ -1468,6 +1483,31 @@ pub enum SpentOf {
     All,
 }
 
+impl Keeps {
+    /// What a type change keeps when it says nothing about it, by the types
+    /// it sets. Subtypes alone replace only their own set (CR 205.1a);
+    /// "becomes an artifact creature" keeps every prior card type and
+    /// subtype, and "a Construct artifact creature" all but the creature
+    /// types (CR 205.1b); any other card type replaces the card types.
+    pub fn implied_by(types: &[Adj]) -> Keeps {
+        let card_types: Vec<&str> = types
+            .iter()
+            .filter_map(|a| match a {
+                Adj::Type(t) => Some(t.as_str()),
+                _ => None,
+            })
+            .collect();
+        let subtypes = types.iter().any(|a| matches!(a, Adj::Subtype(_)));
+        let only_subtypes = !types.is_empty() && types.iter().all(|a| matches!(a, Adj::Subtype(_)));
+        match (&card_types[..], subtypes) {
+            _ if only_subtypes => Keeps::AllButSubtypesOfSet,
+            (["artifact", "creature"], false) => Keeps::OtherTypes,
+            (["artifact", "creature"], true) => Keeps::AllButSubtypesOfSet,
+            _ => Keeps::Nothing,
+        }
+    }
+}
+
 impl Effect {
     /// The one object an effect is said of, where it names no other:
     /// "~ gains indestructible until end of turn", "Tap it". A pronoun in
@@ -1536,6 +1576,11 @@ pub enum KeptMana {
 pub enum Keeps {
     /// The new types replace the old.
     Nothing,
+    /// "becomes an Island", "becomes a Coward": only subtypes are set, so
+    /// only the subtypes of their set are replaced; card types, supertypes
+    /// and other subtypes stay (CR 205.1a, 305.7). Tide Shaper's land is
+    /// still a land, and still basic or legendary.
+    AllButSubtypesOfSet,
     /// "in addition to its other types".
     OtherTypes,
     /// "that's still a land".
@@ -2267,6 +2312,10 @@ pub enum Static {
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypeSet {
     Listed(Vec<Adj>),
+    /// "Nonbasic lands are Mountains": subtypes alone, which replace only
+    /// the subtypes of their set; a Blood Mooned land is still a land, and
+    /// still snow or legendary (CR 205.1a, 305.7).
+    Subtypes(Vec<Adj>),
     /// "the chosen type".
     Chosen,
     EveryBasicLandType,

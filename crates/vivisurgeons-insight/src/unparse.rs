@@ -664,6 +664,21 @@ mod syn {
         alt(o, vec![named, of("it")]);
     }
 
+    /// "becomes an artifact creature" and "… in addition to its other
+    /// types": an object that becomes an artifact creature keeps its prior
+    /// card types and subtypes either way (CR 205.1b); "becomes an Island"
+    /// keeps all but its land types with nothing said (CR 205.1a).
+    pub fn keeps_implied(o: &mut Out, said: Out) {
+        alt(o, vec![Out::default(), said]);
+    }
+
+    /// "when each opponent casts their first spell of the game, …" and "for
+    /// each opponent, when that player casts …": "each" said inside the
+    /// event or before it, one delayed trigger per opponent either way.
+    pub fn each_in_trigger(o: &mut Out, per: Out, inside: Out) {
+        alt(o, vec![per, inside]);
+    }
+
     /// "Tyvar gains indestructible until end of turn. Tap it." and "… Tap
     /// Tyvar.": after a sentence whose only object is the card, "it" can
     /// name nothing else.
@@ -3543,7 +3558,7 @@ fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
                     adj(o, a, None);
                 }
                 o.w("with all creature types");
-                keeps_then_dur(o, k, d);
+                keeps_then_dur(o, k, types, d);
                 last = Out(o.0[start..].to_vec());
                 i += 2;
                 continue;
@@ -4513,7 +4528,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                     o.w("with");
                     keyword_list(o, gains);
                 }
-                keeps_then_dur(o, k, d);
+                keeps_then_dur(o, k, types, d);
             });
             match pt {
                 // "creatures you control have base power and toughness X/X".
@@ -4654,6 +4669,48 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w("unless");
             player(o, who);
             unless_costs(o, c, player_num(who));
+        }
+        // "when each opponent casts their first spell of the game, …": one
+        // delayed trigger per opponent, "each" said inside its event.
+        Effect::ForEach { each, then }
+            if each.filter.kind == Some(Noun::Opponent)
+                && matches!(
+                    &then[..],
+                    [Effect::DelayedWhen {
+                        event: Event::Casts {
+                            who: Player::That,
+                            ..
+                        },
+                        ..
+                    }]
+                ) =>
+        {
+            let [Effect::DelayedWhen {
+                event: Event::Casts { what, .. },
+                then: body,
+            }] = &then[..]
+            else {
+                return;
+            };
+            let per = out(|o| {
+                o.w("for each");
+                each_objects(o, each);
+                o.w(",");
+                clauses(o, then, cx);
+            });
+            let inside = out(|o| {
+                o.w("when");
+                event(
+                    o,
+                    &Event::Casts {
+                        who: Player::EachOpponent,
+                        what: what.clone(),
+                    },
+                );
+                o.w(",");
+                clauses(o, body, cx);
+            });
+            syn::each_in_trigger(o, per, inside);
         }
         Effect::ForEach { each, then } => {
             let before = out(|o| {
@@ -4862,6 +4919,13 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
         Effect::WhenYouDo(v) => {
             o.w("when you do,");
             clauses(o, v, cx);
+        }
+        Effect::Process(v) => clauses(o, v, cx),
+        Effect::WhenYouDoIf { cond, then } => {
+            o.w("when you do, if");
+            condition(o, cond);
+            o.w(",");
+            clauses(o, then, cx);
         }
         Effect::Labelled { label, then } => {
             o.w(label);
@@ -5320,6 +5384,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
         Effect::BecomesSized {
             what,
             types,
+            keeps: _,
             each_equal_to,
             dur: d,
         } => {
@@ -5849,8 +5914,15 @@ fn order_words(o: &mut Out, order: &Option<Order>) {
 
 /// What a "becomes" keeps and how long: "that's still a land until end of
 /// turn", or "until end of turn. It's still a land."
-fn keeps_then_dur(o: &mut Out, k: &Keeps, d: &Duration) {
+fn keeps_then_dur(o: &mut Out, k: &Keeps, types: &[Adj], d: &Duration) {
     match k {
+        // "becomes an artifact creature": what CR 205.1b keeps whether
+        // "in addition to its other types" is said or not.
+        k if *k != Keeps::Nothing && *k == Keeps::implied_by(types) => {
+            let said = out(|o| keeps(o, k));
+            syn::keeps_implied(o, said);
+            dur(o, d);
+        }
         Keeps::Listed(v) => {
             let clause = out(|o| {
                 keeps(o, k);
@@ -5874,7 +5946,7 @@ fn keeps_then_dur(o: &mut Out, k: &Keeps, d: &Duration) {
 
 fn keeps(o: &mut Out, k: &Keeps) {
     match k {
-        Keeps::Nothing => {}
+        Keeps::Nothing | Keeps::AllButSubtypesOfSet => {}
         Keeps::OtherTypes => o.w("in addition to its other types"),
         Keeps::Listed(v) => {
             o.w("that's still a");
@@ -8010,7 +8082,7 @@ fn is_land_type(a: &Adj) -> bool {
 
 fn type_set(o: &mut Out, t: &TypeSet, n: Num) {
     match t {
-        TypeSet::Listed(v) => type_words(o, v, n),
+        TypeSet::Listed(v) | TypeSet::Subtypes(v) => type_words(o, v, n),
         TypeSet::Chosen => o.w("the chosen type"),
         TypeSet::EveryBasicLandType => o.w("every basic land type"),
         TypeSet::EveryCreatureType => o.w("every creature type"),
