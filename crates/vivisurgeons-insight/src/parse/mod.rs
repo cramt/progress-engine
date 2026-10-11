@@ -815,6 +815,8 @@ fn refer_to_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut [E
     };
     struct Refer {
         to: Quant,
+        /// What the event's object was said to be.
+        object: Filter,
         seen_self: bool,
         /// The card was named in the clause still being read: "this
         /// artifact deals 1 damage to it" would say "itself" for the card.
@@ -827,6 +829,8 @@ fn refer_to_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut [E
         /// "draw a card and reveal it": the drawn card, which a draw names
         /// in no `Objects`; otherwise nothing refers back to one.
         drew: bool,
+        /// How deep in conditions the walk is.
+        in_cond: u32,
     }
     impl Visitor for Refer {
         fn enter(&mut self, o: &mut Objects) -> bool {
@@ -839,7 +843,27 @@ fn refer_to_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut [E
                     f.kind,
                     Some(Noun::Counter(_) | Noun::Player | Noun::Opponent)
                 );
-            if referable && !self.seen_new {
+            // "Whenever a land you control enters, … that creature": a card
+            // type the event's object was not said to have is another object.
+            let types = |f: &Filter| -> Vec<Adj> {
+                f.alts
+                    .iter()
+                    .flatten()
+                    .filter(|a| matches!(a, Adj::Type(_)))
+                    .cloned()
+                    .collect()
+            };
+            let theirs = types(&self.object);
+            let only_types = !self.object.alts.is_empty()
+                && self
+                    .object
+                    .alts
+                    .iter()
+                    .flatten()
+                    .all(|a| !matches!(a, Adj::Subtype(_)));
+            let other_type =
+                only_types && !theirs.is_empty() && types(f).iter().any(|t| !theirs.contains(t));
+            if referable && !self.seen_new && !other_type {
                 o.quant = if self.seen_self && *f == Filter::default() {
                     Quant::SelfRef
                 } else {
@@ -851,11 +875,22 @@ fn refer_to_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut [E
         fn leave(&mut self, o: &mut Objects) {
             // A back-reference left as one ("the exiled card") is to
             // another object, which "its" after it may be.
+            // "counter it if a card with the same name is in a graveyard":
+            // an indefinite in a condition says one exists, and is nothing
+            // a later "it" refers back to.
+            let indefinite = matches!(o.quant, Quant::One | Quant::Another | Quant::Plural);
             match o.quant {
                 Quant::SelfRef => self.self_pending = true,
                 Quant::Triggering => {}
+                _ if indefinite && self.in_cond > 0 => {}
                 _ => self.seen_new = true,
             }
+        }
+        fn condition(&mut self, _: &mut Condition) {
+            self.in_cond += 1;
+        }
+        fn condition_done(&mut self, _: &mut Condition) {
+            self.in_cond -= 1;
         }
         fn effect(&mut self, e: &mut Effect) {
             // A clause starting ends the one before it, as "If this
@@ -937,6 +972,7 @@ fn refer_to_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut [E
         }
     }
     let mut v = Refer {
+        object: object.filter.clone(),
         to: if object.quant == Quant::SelfRef {
             Quant::SelfRef
         } else {
@@ -947,6 +983,7 @@ fn refer_to_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut [E
         seen_new: false,
         damage_source: None,
         drew: false,
+        in_cond: 0,
     };
     if let Some(c) = cond {
         c.walk(&mut v);

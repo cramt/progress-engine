@@ -835,6 +835,13 @@ mod syn {
         );
     }
 
+    /// "a card with the same name is in a graveyard" and "… with the same
+    /// name as it": one object has no "one another", so the name it shares
+    /// is the one named before, said or not.
+    pub fn same_name_as_it(o: &mut Out, said: Out) {
+        alt(o, vec![of("with the same name"), said]);
+    }
+
     pub fn whichever_first(o: &mut Out) {
         alt(o, vec![Out::default(), of(", whichever comes first")]);
     }
@@ -3282,6 +3289,13 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.w("with");
             syn::number(o, *k);
             o.w("or more card types among them");
+        }
+        Post::SameNameAs(x) if is_bare_antecedent(x) => {
+            let said = out(|o| {
+                o.w("with the same name as");
+                objects(o, x);
+            });
+            syn::same_name_as_it(o, said);
         }
         Post::SameNameAs(x) => {
             o.w("with the same name as");

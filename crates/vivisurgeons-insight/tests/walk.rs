@@ -221,7 +221,10 @@ fn generate(src: &str) -> String {
              fn ability(&mut self, _a: &mut Ability) -> bool {\n        false\n    }\n    \
              /// Before and after an effect's parts.\n    \
              fn effect(&mut self, _e: &mut Effect) {}\n    \
-             fn effect_done(&mut self, _e: &mut Effect) {}\n\
+             fn effect_done(&mut self, _e: &mut Effect) {}\n    \
+             /// Before and after a condition's parts.\n    \
+             fn condition(&mut self, _c: &mut Condition) {}\n    \
+             fn condition_done(&mut self, _c: &mut Condition) {}\n\
          }\n\n\
          pub trait Walk {\n    fn walk(&mut self, v: &mut dyn Visitor);\n}\n",
     );
@@ -317,6 +320,7 @@ fn generate(src: &str) -> String {
             "Objects" => format!("if v.enter(self) {{\n{body}\n}}\nv.leave(self);"),
             "Ability" => format!("if !v.ability(self) {{\nreturn;\n}}\n{body}"),
             "Effect" => format!("v.effect(self);\n{body}\nv.effect_done(self);"),
+            "Condition" => format!("v.condition(self);\n{body}\nv.condition_done(self);"),
             _ => body,
         };
         write!(

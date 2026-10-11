@@ -18,6 +18,9 @@ pub trait Visitor {
     /// Before and after an effect's parts.
     fn effect(&mut self, _e: &mut Effect) {}
     fn effect_done(&mut self, _e: &mut Effect) {}
+    /// Before and after a condition's parts.
+    fn condition(&mut self, _c: &mut Condition) {}
+    fn condition_done(&mut self, _c: &mut Condition) {}
 }
 
 pub trait Walk {
@@ -273,6 +276,7 @@ impl Walk for Compare {
 impl Walk for Condition {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
+        v.condition(self);
         match self {
             Condition::YouControl(f0) => {
                 Walk::walk(f0, v);
@@ -443,6 +447,7 @@ impl Walk for Condition {
             }
             _ => {}
         }
+        v.condition_done(self);
     }
 }
 

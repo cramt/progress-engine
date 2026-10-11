@@ -1334,6 +1334,38 @@ mod tests {
     }
 
     #[test]
+    fn one_object_with_the_same_name_shares_it_with_the_one_before() {
+        let a = format!(
+            "{:?}",
+            read(
+                "Some Bazaar",
+                "Enchantment",
+                "Whenever a player casts a spell, counter it if a card with the same name is in a graveyard or a nontoken permanent with the same name is on the battlefield.",
+            )
+        );
+        // Both comparands and the countered spell are the spell cast.
+        assert_eq!(
+            a.matches("SameNameAs(Objects { quant: Triggering").count(),
+            2,
+            "{a}"
+        );
+        assert!(
+            a.contains("Counter { what: Objects { quant: Triggering"),
+            "{a}"
+        );
+        // Several objects share it with one another.
+        let a = format!(
+            "{:?}",
+            read(
+                "Some Atlas",
+                "Artifact",
+                "{2}, {T}: Draw a card. Activate only if you control three or more lands with the same name.",
+            )
+        );
+        assert!(a.contains("SameName]") || a.contains("SameName,"), "{a}");
+    }
+
+    #[test]
     fn hero_is_a_creature_type() {
         let a = read(
             "Some Assembly",

@@ -1256,6 +1256,16 @@ fn objects_read(p: &mut P) -> Option<Objects> {
             if exiled {
                 filter.posts.insert(0, Post::In(Zone::Exile));
             }
+            // "a card with the same name": one object has no "one another"
+            // to share a name with, so it is the same name as the object
+            // named before (Bazaar of Wonders' spell, Winnow's target).
+            if matches!(quant, Quant::One | Quant::Another) {
+                for q in filter.posts.iter_mut() {
+                    if *q == Post::SameName {
+                        *q = Post::SameNameAs(Box::new(antecedent()));
+                    }
+                }
+            }
             Some(Objects { quant, filter })
         },
     )
