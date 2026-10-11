@@ -1313,6 +1313,27 @@ mod tests {
     }
 
     #[test]
+    fn a_static_about_the_card_says_it_for_the_card() {
+        for text in [
+            "Some Thrasta has hexproof as long as it entered this turn.",
+            "As long as this creature is attacking, it gets +2/+0.",
+        ] {
+            let a = format!("{:?}", read("Some Thrasta", "Creature — Dinosaur", text));
+            assert!(!a.contains("Antecedent"), "{a}");
+        }
+        // Each land in turn is no one object.
+        let a = format!(
+            "{:?}",
+            read(
+                "Some Surge",
+                "Enchantment",
+                "Each land gets +2/+2 as long as it's a creature."
+            )
+        );
+        assert!(a.contains("Antecedent"), "{a}");
+    }
+
+    #[test]
     fn hero_is_a_creature_type() {
         let a = read(
             "Some Assembly",

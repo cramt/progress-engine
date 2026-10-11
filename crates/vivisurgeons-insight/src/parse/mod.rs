@@ -452,7 +452,8 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
         // 113.6g), not as the spell resolves.
         |p| {
             if !spell { return None; }
-            let s = statics(p)?;
+            let mut s = statics(p)?;
+            refer_to_the_card(&mut s);
             (finished(p) && s.iter().all(about_this_spell)).then_some(Ability::Static(s))
         },
         |p| {
@@ -482,7 +483,7 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
             )
         },
         |p| { if !spell { return None; } let e = effects(p)?; finished(p).then_some(Ability::Spell(e)) },
-        |p| { let s = statics(p)?; finished(p).then_some(Ability::Static(s)) },
+        |p| { let mut s = statics(p)?; refer_to_the_card(&mut s); finished(p).then_some(Ability::Static(s)) },
         // "Tiered / • Fire — {0} — ~ deals 1 damage to each creature. / …":
         // modes, each with its own additional cost (CR 702.183).
         |p| {
@@ -725,6 +726,68 @@ fn trigger_object(e: &Event) -> Option<Objects> {
     let mut count = Count(0);
     what.clone().walk(&mut count);
     (count.0 == 1).then(|| what.clone())
+}
+
+/// "~ has hexproof as long as it entered this turn", "This spell costs {3}
+/// less to cast if it targets a tapped creature", "As long as this creature
+/// is attacking, it gets +2/+0": a static about the card whose condition
+/// says "it" for the card, before or after naming it. Only the card: in
+/// "Each land gets +2/+2 as long as it's a creature" "it" is each land in
+/// turn, which no one object in the tree is.
+fn refer_to_the_card(statics: &mut [Static]) {
+    struct First(Option<Objects>);
+    impl Visitor for First {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            if self.0.is_none() {
+                self.0 = Some(o.clone());
+            }
+            false
+        }
+    }
+    let first = |w: &mut dyn FnMut(&mut First)| {
+        let mut f = First(None);
+        w(&mut f);
+        f.0
+    };
+    let is_card = |o: &Option<Objects>| o.as_ref().is_some_and(|o| o.quant == Quant::SelfRef);
+    let is_it = |o: &Option<Objects>| o.as_ref().is_some_and(|o| *o == antecedent());
+    for st in statics {
+        let (Static::AsLongAs { cond, then } | Static::If { cond, then }) = st else {
+            continue;
+        };
+        let subjects: Vec<Option<Objects>> = then
+            .iter_mut()
+            .map(|t| first(&mut |f: &mut First| t.walk(f)))
+            .collect();
+        let named = first(&mut |f: &mut First| cond.walk(f));
+        // "~ has hexproof as long as it's untapped": the subject is the card.
+        if !subjects.is_empty() && subjects.iter().all(is_card) && is_it(&named) {
+            cond.walk(&mut Bare(Quant::SelfRef));
+        }
+        // "As long as this creature is attacking, it gets +2/+0".
+        if is_card(&named) && subjects.iter().any(is_it) {
+            for t in then.iter_mut() {
+                let mut one = First(None);
+                t.walk(&mut one);
+                if is_it(&one.0) {
+                    t.walk(&mut FirstBare(false));
+                }
+            }
+        }
+    }
+}
+
+/// The first object of a static, its subject, when it is a bare "it".
+struct FirstBare(bool);
+
+impl Visitor for FirstBare {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        if !self.0 && *o == antecedent() {
+            o.quant = Quant::SelfRef;
+        }
+        self.0 = true;
+        false
+    }
 }
 
 /// Every bare "it" in a part of a clause, said of one object.

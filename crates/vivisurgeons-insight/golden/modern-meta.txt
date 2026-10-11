@@ -2225,7 +2225,7 @@ type: Artifact — Equipment
 > If this card is in your opening hand, you may begin the game with it on the battlefield.
 > Equipped creature gets +1/+1 and has double strike and trample.
 > Equip {3} ({3}: Attach to target creature you control. Equip only as a sorcery.)
-= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
+= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "double strike", param: None }, Keyword { name: "trample", param: None }], per: None }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["3"]))])) }])
 
@@ -2245,7 +2245,7 @@ type: Enchantment
 > If this card is in your opening hand, you may begin the game with it on the battlefield.
 > Whenever you tap a creature for mana, add an additional {G}.
 > {6}{G}{G}: Put a +1/+1 counter on each creature you control.
-= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
+= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
 = Triggered { trigger: When(TapsForMana { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }), effect: [AddMana(Additional(Symbols(Mana(["G"]))))], limits: [] }
 = Activated { cost: [Mana(Mana(["6", "G", "G"]))], effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 
@@ -2255,7 +2255,7 @@ type: Enchantment
 > If this card is in your opening hand, you may begin the game with it on the battlefield.
 > Each nonland permanent you control is all colors.
 > Lands you control are every basic land type in addition to their other types.
-= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
+= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
 = Static([IsAllColors(Objects { quant: Each, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(You)], or: None } })])
 = Static([AlsoIs { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, types: EveryBasicLandType }])
 
@@ -2626,7 +2626,7 @@ face: Mystical Dispute
 type: Instant
 > This spell costs {2} less to cast if it targets a blue spell.
 > Counter target spell unless its controller pays {3}.
-= Static([If { cond: Targets { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Spell), posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
+= Static([If { cond: Targets { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, target: Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Spell), posts: [], or: None } } }, then: [CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, by: Mana(["2"]), less: true, per: None }] }])
 = Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: Some((ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), [Mana(Mana(["3"]))])) }])
 
 ## Narset, Parter of Veils
