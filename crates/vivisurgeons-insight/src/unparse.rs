@@ -2267,6 +2267,7 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::AnotherTarget
         | Quant::SecondTarget
         | Quant::SelfOrAnother(_)
+        | Quant::SelfOrA(_)
         | Quant::NthEachTurn { .. }
         | Quant::NthOfGame { .. }
         | Quant::Triggering
@@ -2282,7 +2283,8 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::AtMost(_)
         | Quant::Rest
         | Quant::Additional
-        | Quant::WithOthers(_) => Num::Pl,
+        | Quant::WithOthers(_)
+        | Quant::SelfAnd(_) => Num::Pl,
         // "one or more creatures … deals": the verb may agree with "one".
         Quant::Antecedent | Quant::Other | Quant::OneOrMore => Num::Any,
         // "Krang & Shredder enter", "equipped creatures you control": a
@@ -2627,6 +2629,16 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         Quant::WithOthers(one) => {
             objects(o, one);
             o.w("and other");
+            filter(o, f, Num::Pl);
+        }
+        Quant::SelfOrA(me) => {
+            objects(o, me);
+            o.w("or a");
+            filter(o, f, Num::Sg);
+        }
+        Quant::SelfAnd(me) => {
+            objects(o, me);
+            o.w("and");
             filter(o, f, Num::Pl);
         }
         Quant::Possessive(p) => {

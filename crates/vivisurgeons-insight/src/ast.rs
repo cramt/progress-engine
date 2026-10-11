@@ -502,6 +502,12 @@ pub enum Quant {
     /// "this creature and other Vampire creatures you control": the one
     /// object, and every other the filter names.
     WithOthers(Box<Objects>),
+    /// "this creature or a commander you control": itself, or any one the
+    /// filter names, itself not excluded as "another" would.
+    SelfOrA(Box<Objects>),
+    /// "this creature and land creatures you control": the one object, and
+    /// every one the filter names, itself not excluded as "other" would.
+    SelfAnd(Box<Objects>),
     /// "your commander": the one a player has, by a possessive.
     Possessive(Player),
 

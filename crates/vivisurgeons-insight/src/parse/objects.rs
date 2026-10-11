@@ -938,7 +938,14 @@ pub(super) fn quant(p: &mut P) -> Option<Quant> {
 pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
     alt!(p;
         |p| p.tok(&Tok::SelfRef).map(|_| self_ref()),
-        |p| { p.word("this")?; let f = filter(p)?; Some(with_others(Quant::SelfRef, f)) },
+        // "this creature" names the card by its own type, so a list after
+        // it is a second object, read by `self_and_more`.
+        |p| {
+            p.word("this")?;
+            let f = filter(p)?;
+            let o = with_others(Quant::SelfRef, f);
+            (o.quant != Quant::SelfRef || o.filter.or.is_none() && o.filter.alts.len() < 2).then_some(o)
+        },
         |p| p.one_of(&["each of them", "it", "them", "they"]).map(|_| antecedent()),
         // "put X counters on him", "he deals damage": Oracle text gives a
         // gendered pronoun only to a character card naming itself.
@@ -1109,8 +1116,44 @@ pub(super) fn objects_no_player(p: &mut P) -> Option<Objects> {
     o
 }
 
+/// "this creature or a commander you control", "this creature and land
+/// creatures you control": the card by its type, then a second object.
+fn self_and_more(p: &mut P) -> Option<Objects> {
+    p.word("this")?;
+    let me = Objects {
+        quant: Quant::SelfRef,
+        filter: Filter {
+            alts: vec![group(p)?],
+            ..Filter::default()
+        },
+    };
+    let or = p.one_of(&["or a", "or an", "and"])?;
+    // "this land and a creature named …" is a list of two objects, which
+    // the caller reads; "this enchantment and counter that spell" is two
+    // clauses.
+    let filter = filter(p).filter(|f| !matches!(f.kind, Some(Noun::Counter(_))))?;
+    // "this creature and other Vampire creatures" is `WithOthers`.
+    if or == "and"
+        && filter
+            .alts
+            .iter()
+            .any(|g| g.first() == Some(&Adj::State(State::Other)))
+    {
+        return None;
+    }
+    Some(Objects {
+        quant: if or == "and" {
+            Quant::SelfAnd(Box::new(me))
+        } else {
+            Quant::SelfOrA(Box::new(me))
+        },
+        filter,
+    })
+}
+
 fn objects_read(p: &mut P) -> Option<Objects> {
     alt!(p;
+        self_and_more,
         |p| {
             let first = pronoun(p)?;
             if first.quant != Quant::SelfRef { return None; }

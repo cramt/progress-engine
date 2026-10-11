@@ -1188,6 +1188,33 @@ mod tests {
     }
 
     #[test]
+    fn this_creature_or_a_commander_is_two_objects() {
+        let a = read(
+            "Some Enforcer",
+            "Artifact Creature — Soldier",
+            "Whenever this creature or a commander you control attacks alone, draw a card.",
+        );
+        let Ability::Triggered {
+            trigger: Trigger::When(e),
+            ..
+        } = &a[0]
+        else {
+            panic!("{a:?}")
+        };
+        let Event::AttacksAlone(o) = &**e else {
+            panic!("{e:?}")
+        };
+        assert!(matches!(&o.quant, Quant::SelfOrA(me) if me.quant == Quant::SelfRef));
+        assert_eq!(o.filter.kind, Some(Noun::Commander));
+        let a = read(
+            "Some Advocate",
+            "Creature — Elf",
+            "This creature and land creatures you control get +2/+2.",
+        );
+        assert!(format!("{a:?}").contains("quant: SelfAnd("), "{a:?}");
+    }
+
+    #[test]
     fn protection_from_two_qualities_is_two_protection_abilities() {
         let a = read(
             "Some Riftwalker",
