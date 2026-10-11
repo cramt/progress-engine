@@ -43,6 +43,7 @@ pub(super) fn player(p: &mut P) -> Option<Player> {
         |p| p.words("an opponent").map(|_| Player::AnOpponent),
         |p| p.words("a player").map(|_| Player::APlayer),
         |p| p.words("that player").map(|_| Player::That),
+        |p| p.words("those players").map(|_| Player::That),
         |p| p.words("the chosen player").map(|_| Player::Chosen),
         |p| p.words("defending player").map(|_| Player::DefendingPlayer),
         |p| p.words("the active player").map(|_| Player::Active),
@@ -118,6 +119,7 @@ pub(super) fn state_word(w: &str) -> Option<State> {
         "unblocked" => State::Unblocked,
         "nontoken" => State::Nontoken,
         "face-down" => State::FaceDown,
+        "face-up" => State::FaceUp,
         "other" => State::Other,
         "modified" => State::Modified,
         "historic" => State::Historic,
@@ -156,19 +158,26 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
     }
     let adj = if w == "commander" && next_is_type() {
         Adj::State(State::Commander)
-    } else if w == "activated" || w == "triggered" {
-        // Only before "ability": "activated" alone is no kind of object.
+    } else if w == "activated" || w == "triggered" || w == "loyalty" {
+        // Only before "ability": "activated" alone is no kind of object, and
+        // "loyalty" is a counter's kind before "counter".
         if !matches!(p.t.get(p.i + 1), Some(Tok::Word(n)) if n == "ability" || n == "abilities") {
             return None;
         }
-        Adj::Ability(if w == "activated" {
-            AbilityKind::Activated
-        } else {
-            AbilityKind::Triggered
+        Adj::Ability(match w {
+            "activated" => AbilityKind::Activated,
+            "triggered" => AbilityKind::Triggered,
+            _ => AbilityKind::Loyalty,
         })
     } else if let Some(c) = color_word(w) {
         Adj::Color(c)
     } else if let Some(s) = state_word(w) {
+        // "creatures tapped this way": what an earlier verb did, a post.
+        let this_way = matches!(p.t.get(p.i + 1), Some(Tok::Word(a)) if a == "this")
+            && matches!(p.t.get(p.i + 2), Some(Tok::Word(b)) if b == "way");
+        if this_way {
+            return None;
+        }
         Adj::State(s)
     // Scryfall's catalog has "Token" for token type lines; in rules text
     // "token" is the noun `kind` reads.
@@ -192,7 +201,7 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
 
 pub(super) fn kind(p: &mut P) -> Option<Noun> {
     alt!(p;
-        |p| p.one_of(&["spells or abilities", "spell or ability"]).map(|_| Noun::SpellOrAbility),
+        |p| p.one_of(&["spells or abilities", "spell or ability", "spells and abilities"]).map(|_| Noun::SpellOrAbility),
         |p| p.one_of(&["permanent cards", "permanent card"]).map(|_| Noun::PermanentCard),
         |p| p.one_of(&["permanents", "permanent"]).map(|_| Noun::Permanent),
         |p| p.one_of(&["spells", "spell"]).map(|_| Noun::Spell),
@@ -372,12 +381,67 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
         }),
         (None, None) => None,
     };
+    let mut or = or;
+    if kind.is_some() {
+        share_with_kinds(&groups, kind == Some(Noun::Card), &mut posts, &mut or);
+    }
     Some(Filter {
         alts: groups,
         kind,
         posts,
         or,
     })
+}
+
+/// "a black or red permanent, spell, or card": colors said before a list
+/// of kinds hold of each kind; "a creature card or a planeswalker card from
+/// your graveyard": a zone said after a list of cards holds of each too.
+/// Each kind's filter gets them, so no kind reads as any color or as
+/// anywhere. A zone after a list of other kinds is the last one's: "target
+/// spell, nonland permanent, or card in a graveyard".
+fn share_with_kinds(
+    groups: &[Vec<Adj>],
+    card: bool,
+    posts: &mut Vec<Post>,
+    or: &mut Option<Box<Filter>>,
+) {
+    let Some(first_or) = or.as_deref_mut() else {
+        return;
+    };
+    let colors = !groups.is_empty()
+        && groups.iter().all(|g| {
+            g.iter()
+                .all(|a| matches!(a, Adj::Color(_) | Adj::NonColor(_)))
+        });
+    // The chain's last filter holds the posts said after the whole list.
+    let mut last = &*first_or;
+    let mut all_cards = card && last.kind == Some(Noun::Card);
+    while let Some(next) = last.or.as_deref() {
+        last = next;
+        all_cards &= last.kind == Some(Noun::Card);
+    }
+    // Only to kinds said with nothing after them: "a card revealed this way
+    // or a card in their graveyard" names a card in hand first.
+    let zone = match last.posts.last() {
+        Some(q @ Post::In(_)) if all_cards && posts.is_empty() => Some(q.clone()),
+        _ => None,
+    };
+    if let Some(z) = &zone {
+        posts.push(z.clone());
+    }
+    let mut next = Some(first_or);
+    while let Some(f) = next {
+        let is_last = f.or.is_none();
+        if colors && f.alts.is_empty() {
+            f.alts = groups.to_vec();
+        }
+        if let (Some(z), false) = (&zone, is_last) {
+            if f.posts.is_empty() {
+                f.posts.push(z.clone());
+            }
+        }
+        next = f.or.as_deref_mut();
+    }
 }
 
 pub(super) fn compare(p: &mut P) -> Option<Compare> {
@@ -419,7 +483,9 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| p.words("you control").map(|_| Post::Controller(Player::You)),
         |p| p.words("you don't control").map(|_| Post::NotControlledBy(Player::You)),
         |p| p.words("you own").map(|_| Post::Owner(Player::You)),
-        |p| p.words("you don't own").map(|_| Post::Owner(Player::EachOpponent)),
+        // Not "your opponents own": in Two-Headed Giant a teammate owns cards
+        // too (CR 810.1).
+        |p| p.words("you don't own").map(|_| Post::NotOwnedBy(Player::You)),
         |p| { let pl = player_simple(p)?; p.one_of(&["controls", "control"])?; Some(Post::Controller(pl)) },
         |p| { let pl = player_simple(p)?; p.one_of(&["doesn't control", "don't control"])?; Some(Post::NotControlledBy(pl)) },
         |p| { p.word("with")?; compare(p).map(Post::With) },
@@ -431,6 +497,14 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             p.one_of(&["on it", "on them"])?;
             Some(Post::WithCounter(Some(k)))
         },
+        // "with +1/+1 counters on them": the plural, with no article.
+        |p| {
+            p.word("with")?;
+            let k = counter_kind(p)?;
+            p.word("counters")?;
+            p.words("on them")?;
+            Some(Post::WithCounter(Some(k)))
+        },
         // "with a counter on it", "with counters on them": of any kind.
         |p| {
             p.word("with")?;
@@ -440,6 +514,15 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         },
         |p| { p.word("with")?; let k = keyword_name(p)?; Some(Post::WithKeyword(k)) },
         |p| { p.word("without")?; let k = keyword_name(p)?; Some(Post::WithoutKeyword(k)) },
+        // "in graveyards and libraries": any zone of either kind.
+        |p| {
+            if p.one_of(&["in", "from"])? == "from" && p.in_value { return None; }
+            let a = zone(p)?;
+            p.one_of(&["and", "or"])?;
+            let b = zone(p)?;
+            let any = |z: &Zone| matches!(z, Zone::AGraveyard | Zone::ALibrary);
+            (any(&a) && any(&b)).then(|| Post::In(Zone::AnyOf(vec![a, b])))
+        },
         |p| {
             if p.one_of(&["in", "from"])? == "from" && p.in_value { return None; }
             zone(p).map(Post::In)
@@ -502,18 +585,31 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| p.words("you cast").map(|_| Post::Cast(Player::You)),
         |p| p.words("drawn this turn").map(|_| Post::DrawnThisTurn),
         |p| { p.word("named")?; pronoun(p).map(|o| Post::Named(Box::new(o))) },
+        // "a creature named Hanweir Garrison": another card, by its name.
+        |p| { p.word("named")?; card_name(p, &[",", "with", "and"]).map(Post::NamedCard) },
         |p| { p.one_of(&["that target", "that targets"])?; objects(p).map(|o| Post::Targets(Box::new(o))) },
         |p| { p.word("that's")?; filter(p).map(Post::ThatIs) },
-        |p| { let how = marked(p)?; p.words("this way")?; Some(Post::Marked(how)) },
+        |p| { let how = marked_this_way(p)?; p.words("this way")?; Some(Post::Marked(how)) },
         |p| p.one_of(&["who doesn't", "who don't"]).map(|_| Post::WhoDoesnt),
         |p| p.words("who can't").map(|_| Post::WhoCant),
         |p| { p.one_of(&["that aren't", "that isn't"])?; p.one_of(&["on", "in"])?; zone(p).map(Post::NotIn) },
+        // "card not on the battlefield".
+        |p| { p.word("not")?; p.one_of(&["on", "in"])?; zone(p).map(Post::NotIn) },
         |p| { p.one_of(&["that aren't", "that isn't"])?; post(p).map(|q| Post::Not(Box::new(q))) },
         |p| p.one_of(&["that entered this turn", "that entered the battlefield this turn"]).map(|_| Post::EnteredThisTurn),
         |p| {
             if p.in_value { return None; }
             p.words("from among")?;
             objects(p).map(|o| Post::FromAmong(Box::new(o)))
+        },
+        // "with the greatest mana value among creatures and planeswalkers
+        // they control": greatest within those.
+        |p| {
+            p.words("with the greatest")?;
+            let stat = stat(p)?;
+            p.word("among")?;
+            let among = objects(p)?;
+            Some(Post::GreatestAmong { stat, among: Box::new(among) })
         },
         |p| {
             p.words("with the greatest")?;
@@ -531,7 +627,65 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             Some(Post::DidThisWay(Box::new(Event::CountersPut { by: None, n: Quant::One, kind: None, on })))
         },
         |p| { p.word("who")?; let e = did(p, Player::That)?; p.words("this way")?; Some(Post::DidThisWay(Box::new(e))) },
+        |p| { p.words("with the same name as")?; let o = pronoun(p)?; Some(Post::SameNameAs(Box::new(o))) },
         |p| p.one_of(&["with the same name as one another", "with the same name"]).map(|_| Post::SameName),
+        |p| p.words("dealt damage this way").map(|_| Post::DealtDamageThisWay),
+        |p| p.words("that were cast this turn").map(|_| Post::WasCastThisTurn),
+        |p| p.words("who lost life this turn").map(|_| Post::LostLifeThisTurn),
+        |p| { p.words("that could produce")?; mana(p).map(Post::CouldProduce) },
+        // "that is snow or could produce {C}": either predicate.
+        |p| {
+            p.words("that is")?;
+            let f = filter(p)?;
+            p.words("or could produce")?;
+            let m = mana(p)?;
+            Some(Post::Either(vec![Post::ThatIs(f), Post::CouldProduce(m)]))
+        },
+        |p| {
+            p.word("with")?;
+            let n = number(p)?;
+            p.words("or more card types among them")?;
+            Some(Post::CardTypesAmongAtLeast(n))
+        },
+        // "cards exiled from their hand this way".
+        |p| {
+            let how = marked(p)?;
+            p.word("from")?;
+            let from = zone(p)?;
+            p.words("this way")?;
+            Some(Post::MarkedFrom { how, from })
+        },
+        |p| p.words("with that name").map(|_| Post::WithThatName),
+        // "[with mana value 2 or less]": the words cleave removes.
+        |p| {
+            p.tok(&Tok::Other('['))?;
+            let mut v = vec![post(p)?];
+            while let Some(q) = p.attempt(post) { v.push(q); }
+            p.tok(&Tok::Other(']'))?;
+            Some(Post::Cleave(v))
+        },
+        |p| { p.words("other than")?; p.one_of(&["a", "an"])?; filter(p).map(Post::OtherThan) },
+        // "you've cycled or discarded this turn".
+        |p| {
+            p.word("you've")?;
+            let verb = |p: &mut P| alt!(p;
+                |p| p.word("cycled").map(|_| PastVerb::Cycled),
+                |p| p.word("discarded").map(|_| PastVerb::Discarded),
+            );
+            let mut verbs = vec![verb(p)?];
+            while let Some(v) = p.attempt(|p| { p.word("or")?; verb(p) }) { verbs.push(v); }
+            p.words("this turn")?;
+            Some(Post::DoneThisTurn { who: Player::You, verbs })
+        },
+        |p| p.one_of(&["they've cast this turn", "that player has cast this turn"]).map(|_| Post::CastThisTurn(Player::That)),
+        // "that player or that planeswalker's controller controls".
+        |p| {
+            let a = player_simple(p)?;
+            p.word("or")?;
+            let b = player(p)?;
+            p.one_of(&["controls", "control"])?;
+            Some(Post::Controller(Player::OneOf(vec![a, b])))
+        },
         |p| p.one_of(&["that are one or more colors", "that's one or more colors"]).map(|_| Post::OneOrMoreColors),
         |p| p.words("with the chosen name").map(|_| Post::WithChosenName),
         |p| p.words("of each permanent type").map(|_| Post::OfEachPermanentType),
@@ -588,6 +742,21 @@ fn posts_one(p: &mut P, counter: bool) -> Option<Vec<Post>> {
             p.word("that's")?;
             p.one_of(&["a", "an"])?;
             let mut f = filter(p)?;
+            let posts = std::mem::take(&mut f.posts);
+            let mut v = vec![Post::ThatIs(f)];
+            v.extend(posts);
+            Some(v)
+        },
+        // "cards that are black or red from all graveyards", "permanents
+        // that are Spirits and/or enchantments": a filter's alternatives, the
+        // posts after them the objects'. "That are tapped and attacking" is
+        // both states at once, which alternatives cannot say, so it is left
+        // to the token rule that reads it.
+        |p| {
+            p.words("that are")?;
+            let mut f = filter(p)?;
+            let states = f.alts.len() > 1 && f.alts.iter().all(|g| g.iter().all(|a| matches!(a, Adj::State(_))));
+            if states { return None; }
             let posts = std::mem::take(&mut f.posts);
             let mut v = vec![Post::ThatIs(f)];
             v.extend(posts);
@@ -665,6 +834,27 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
         |p| p.tok(&Tok::SelfRef).map(|_| self_ref()),
         |p| { p.word("this")?; let f = filter(p)?; Some(with_others(Quant::SelfRef, f)) },
         |p| p.one_of(&["each of them", "it", "them", "they"]).map(|_| antecedent()),
+        // "put X counters on him", "he deals damage": a character card's
+        // pronoun, an earlier noun as "it" is.
+        |p| p.one_of(&["him", "her", "he", "she"]).map(|_| antecedent()),
+        // "the rest of the exiled cards".
+        |p| {
+            p.words("the rest of")?;
+            let among = pronoun(p)?;
+            Some(Objects { quant: Quant::Rest, filter: Filter { posts: vec![Post::FromAmong(Box::new(among))], ..Filter::default() } })
+        },
+        // "the top half of their library, rounded up".
+        |p| {
+            p.words("the top half of")?;
+            let w = whose(p)?;
+            p.word("library")?;
+            p.tok(&Tok::Comma)?;
+            p.word("rounded")?;
+            let round_up = p.one_of(&["up", "down"])? == "up";
+            let library = Objects { quant: Quant::Plural, filter: Filter { kind: Some(Noun::Card), posts: vec![Post::In(Zone::Library(w.clone()))], ..Filter::default() } };
+            let n = Amount::Half { of: Box::new(Amount::CountOf(Box::new(library))), round_up };
+            Some(Objects { quant: Quant::N(n), filter: Filter { kind: Some(Noun::Card), posts: vec![Post::In(Zone::TopOfLibrary(w))], ..Filter::default() } })
+        },
         // "each of those creatures": the earlier noun, each one.
         |p| { p.words("each of")?; let o = pronoun(p)?; (o.quant == Quant::Antecedent).then_some(o) },
         |p| p.words("the rest").map(|_| Objects { quant: Quant::Rest, filter: Filter::default() }),
@@ -732,6 +922,18 @@ pub(super) fn marked(p: &mut P) -> Option<Marked> {
         |p| p.word("copied").map(|_| Marked::Copied),
         |p| p.word("returned").map(|_| Marked::Returned),
         |p| p.word("destroyed").map(|_| Marked::Destroyed),
+        |p| p.word("milled").map(|_| Marked::Milled),
+        |p| p.word("discarded").map(|_| Marked::Discarded),
+    )
+}
+
+/// A mark said with "this way" after the noun: "creatures tapped this way".
+/// "Tapped" alone before a noun is the state ("those tapped creatures"), so
+/// it marks only here.
+fn marked_this_way(p: &mut P) -> Option<Marked> {
+    alt!(p;
+        marked,
+        |p| p.word("tapped").map(|_| Marked::Tapped),
     )
 }
 
@@ -825,6 +1027,24 @@ fn objects_read(p: &mut P) -> Option<Objects> {
             Some(Objects { quant: Quant::NthEachTurn { n, of }, filter })
         },
         |p| {
+            let of = whose_pronoun(p)?;
+            let n = ordinal(p)?;
+            let filter = filter(p)?;
+            p.words("of the game")?;
+            Some(Objects { quant: Quant::NthOfGame { n, of }, filter })
+        },
+        // "target nonland permanent and all other permanents with the same
+        // name as that permanent": one verb for the one and the rest.
+        |p| {
+            if !p.ahead("and all other") { return None; }
+            let quant = quant(p)?;
+            if !matches!(quant, Quant::Target { .. }) { return None; }
+            let first = filter(p)?;
+            p.words("and all other")?;
+            let rest = filter(p)?;
+            Some(Objects { quant: Quant::WithAllOthers(Box::new(Objects { quant, filter: first })), filter: rest })
+        },
+        |p| {
             // "your commander": a possessive picks out the object, where a
             // possessive before a zone ("your graveyard") is read by `zone`.
             let who = whose_pronoun(p)?;
@@ -832,6 +1052,8 @@ fn objects_read(p: &mut P) -> Option<Objects> {
             (filter.kind == Some(Noun::Commander)).then_some(Objects { quant: Quant::Possessive(who), filter })
         },
         |p| p.words("any target").map(|_| Objects { quant: Quant::AnyTarget { n: Amount::N(1) }, filter: Filter::default() }),
+        // "divided as you choose among one or two targets".
+        |p| p.words("one or two targets").map(|_| Objects { quant: Quant::AnyTarget { n: Amount::Between(1, 2) }, filter: Filter::default() }),
         // "a Shaman or another Wizard you control": the second alternative is
         // one other than this object, and the posts hold of both.
         |p| {

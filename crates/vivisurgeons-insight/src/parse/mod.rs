@@ -180,6 +180,23 @@ impl<'a> P<'a> {
         (quoted_period || closing).then_some(())
     }
 
+    /// Whether `ws` is said somewhere before this sentence's period: a cheap
+    /// look ahead that spares a rule reading a long phrase only to fail on
+    /// the words that make it what it is.
+    fn ahead(&self, ws: &str) -> bool {
+        let want: Vec<&str> = ws.split(' ').collect();
+        let rest = &self.t[self.i.min(self.t.len())..];
+        let end = rest
+            .iter()
+            .position(|t| *t == Tok::Period)
+            .unwrap_or(rest.len());
+        rest[..end].windows(want.len()).any(|w| {
+            w.iter().zip(&want).all(|(t, s)| {
+                matches!(t, Tok::Word(x) if x == s) || (*s == "\"" && *t == Tok::Quote)
+            })
+        })
+    }
+
     fn end_of_clause(&self) -> bool {
         matches!(
             self.peek(),
@@ -427,6 +444,29 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
         },
         |p| { if !spell { return None; } let e = effects(p)?; finished(p).then_some(Ability::Spell(e)) },
         |p| { let s = statics(p)?; finished(p).then_some(Ability::Static(s)) },
+        // "Tiered / • Fire — {0} — ~ deals 1 damage to each creature. / …":
+        // modes, each with its own additional cost (CR 702.183).
+        |p| {
+            p.word("tiered")?;
+            let mut modes = Vec::new();
+            while p.attempt(|p| p.tok(&Tok::Bullet)).is_some() {
+                let mut label = Vec::new();
+                while let Some(w) = p.peek_word() {
+                    label.push(w.to_string());
+                    p.bump();
+                }
+                if label.is_empty() || label.len() > 6 { return None; }
+                p.tok(&Tok::Dash)?;
+                let cost = mana(p)?;
+                p.tok(&Tok::Dash)?;
+                let mut effect = Vec::new();
+                while !matches!(p.peek(), None | Some(Tok::Bullet)) {
+                    effect.extend(sentence(p)?);
+                }
+                modes.push(TieredMode { label: label.join(" "), cost, effect });
+            }
+            (!modes.is_empty() && finished(p)).then_some(Ability::Tiered(modes))
+        },
         |p| {
             let at_least = number(p)?;
             p.tok(&Tok::Other('+'))?;

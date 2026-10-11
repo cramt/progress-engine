@@ -16,6 +16,12 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "When/Whenever X, if Y, Z" | intervening-if on the trigger, not `Effect::If` | settled: CR 603.4 |
 | "When X and whenever Y" | one trigger on either event, the same tree as "Whenever X or Y" | settled: CR 603.1b, one ability with two trigger conditions |
 | "This ability triggers only once each turn" | a limit on the trigger | open |
+| "When you do, put … on target attacking creature. It becomes an Angel …" | the "It …" sentence inside `WhenYouDo` | settled: "it" is what the reflexive trigger targeted, which exists only when that trigger resolves |
+| "When you do, if you control a red permanent, he deals …" | `WhenYouDo([If { … }])`, as earlier trees read it | open: the form is CR 603.4's intervening-if, which would check as it triggers too |
+| "When a creature card is exiled this way, …" | `WhenThisWay`, a reflexive trigger | settled: CR 603.12 |
+| "When that creature dies this turn, …", "Whenever you attack this turn, …" | `During { ThisTurn, [DelayedWhen … ] }` | settled: the delayed trigger lasts the turn |
+| "If you do, at the beginning of your first upkeep, look at the top four cards …. You may put one of those cards back …. Exile the rest." | every sentence after the delayed trigger is its | settled: "those cards" are the ones it looked at, which exist only then |
+| "Whenever you cast … during your turn", "… while this creature has a -1/-1 counter on it" | `Event::While` on the event | settled |
 
 ## Objects and players
 
@@ -35,6 +41,13 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "a creature with the greatest power" | `Quant::One`, the same as "the creature with the greatest power" | settled: one object with that value; where several tie, the chooser picks |
 | "a graveyard has twenty or more cards in it" | `ZoneHasCards { AGraveyard, … }`: some one graveyard | settled: "a" is any one, not all graveyards counted together |
 | "it's the second creature spell you cast this turn" | `NthSpellThisTurn`, counting this spell among them | settled |
+| "cards you don't own", "cards your opponents own" | `NotOwnedBy(You)` and `Owner(EachOpponent)`, apart | settled: in Two-Headed Giant a teammate owns cards too (CR 810.1); earlier trees read the first as the second |
+| "choose target opponent", "choose an opponent" | `Choice::TargetOpponent` and `Choice::Opponent`, apart | settled: only the first targets (CR 115), so only it can fizzle or be stopped by hexproof; earlier trees read both as the second |
+| "a black or red permanent, spell, or card" | the colors on each kind's filter | settled: said before the list, they qualify every kind in it |
+| "a creature card or a planeswalker card from your graveyard" | the zone on each card's filter | settled: a zone after a list of cards holds of each. Not after other kinds: "target spell, nonland permanent, or card in a graveyard" keeps it on the card |
+| "creatures that are green and/or white", "that are tapped and attacking" | `ThatIs` with alternatives; the second is not read so | settled: the second is both states at once, which alternatives cannot say |
+| "Gideon deals 1 damage" on Gideon the Oathless | `~` | settled: CR 201.5c, a card's shortened name is its name ("X the Y" as "X of Y" already was), and a planeswalker's first word when it is its own subtype |
+| "tokens that are tapped and attacking" with nothing after | `Recipient::ControllerChooses` | settled: CR 508.4, its controller chooses what it attacks |
 | "each with power …" | the condition holds for every one; "each" is dropped | settled: "each" restates what a filter says of every object |
 | "with lesser mana value" | compared against the object the ability triggered on, which the text leaves unstated | open |
 
@@ -69,7 +82,7 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "choose artifact, creature, enchantment, instant, or sorcery" | `Choice::CardTypeAmong` | settled: a card type, not objects |
 | "has base power and toughness X/X" | `Becomes` with that size | settled: CR 613.4b, the same layer as "becomes X/X" |
 | "Each player shuffles …, then draws seven cards" | the draw continues "each player" | settled: a third-person verb continues the subject before it |
-| "choose both" | `Choose::N(2)` | open |
+| "choose both", "choose two" | `Choose::N(2)`; the round trip says "both" only when the spell has two modes | settled: "both" is two of two, so the mode count decides the word |
 | "one or more" | `AtLeast(N(1))` | open |
 | "unless <condition>" | `If { Not(condition) }` | settled: "unless" is "if not" |
 | "… instead" after an effect, even on the previous line | `Effect::Instead` replaces the effect before it | open |
@@ -77,7 +90,17 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | ", whichever comes first" | consumed with no node, because "until A or B" already ends at the first | settled |
 | "Do this only once each turn" | a limit on the whole ability | open |
 | "if it had counters", "if it was a creature" | `Condition::Past`, as it was when the event happened | settled: last known information (CR 603.10a for leaving the battlefield), not as it is now |
-| "return it to the battlefield with a -1/-1 counter on it" | `EntersWith` around the move, not a `PutCounters` after it | settled: CR 122.6, it is given the counters as it enters |
+| "protection from spells and from permanents that were cast this turn" | two `protection` keywords, "that were cast this turn" on the permanents alone | settled: CR 702.16g, two separate protection abilities; the post qualifies the noun it follows |
+| "becomes a 2/2 creature with all creature types" | `Becomes` and `AlsoIs(EveryCreatureType)`, the same duration | settled: the second adds to the types the first sets |
+| "… until end of turn. It's still a land." | `Keeps::Listed`, as "that's still a land" | settled: CR 205.1b names both forms |
+| "he's a 3/4 Ninja creature" (Kaito) | `Is` (types replaced) and `BasePt` | settled: CR 205.1a, a type said without "still" or "in addition" replaces; a size with the types is a base size (CR 613.4b) |
+| "Create a … token. It has "…"" | the ability in the token's own list | settled: CR 111.3, the effect that creates a token defines what it has |
+| "If you would draw one or more cards" | `DrawsOneOrMore`, apart from "draw a card" | settled: one instruction to draw several is several draws (CR 121.2); the first replaces the instruction, the second each draw |
+| "The next time a source of your choice would deal damage to you this turn, prevent that damage" | `NextTime` with `PreventThatDamage` | settled: CR 609.7, 615.8, a one-shot shield on the next instance |
+| "If that creature would die this turn, exile it instead" | `During { ThisTurn, [Replacement] }` | settled |
+| "Choose target creature … You may pay any amount of {E}. ~ deals that much damage" | `PayEnergy(AnyAmount)`, then `ThatMany` | settled |
+| "this is the first time this ability has resolved this turn … If it's the second time" | `NthResolution(n)` for both | settled: the second is the first said again without its tail |
+| "Kicker {G} and/or {1}{U}" | `EitherOrBoth` | settled: CR 702.33d, two kicker costs, each may be paid || "return it to the battlefield with a -1/-1 counter on it" | `EntersWith` around the move, not a `PutCounters` after it | settled: CR 122.6, it is given the counters as it enters |
 | "~ deals 4 damage instead if …" | `Recipient::Same`: the recipient of the damage it replaces | settled: the text names none, and the replaced effect named one |
 | "Destroy that creature if A instead if B" | `Instead { B, [If { A, destroy }] }` | open: as "… instead" above |
 | "you may have this land deal 3 damage" | `May` around the land's own `Damage` | settled: after "may", an object's verb is said with "have"; who deals the damage is the land |

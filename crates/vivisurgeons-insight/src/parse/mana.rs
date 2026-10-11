@@ -38,6 +38,25 @@ pub(super) fn cost(p: &mut P) -> Option<Cost> {
         |p| p.words("discard your hand").map(|_| Cost::DiscardHand),
         |p| { p.word("discard")?; objects(p).map(Cost::Discard) },
         |p| { p.word("pay")?; let n = amount(p)?; p.word("life")?; Some(Cost::PayLife(n)) },
+        |p| { p.words("pay any amount of life")?; Some(Cost::PayLife(Amount::AnyAmount)) },
+        // "Pay X {E}", "pay any amount of {E}".
+        |p| {
+            p.word("pay")?;
+            let n = alt!(p; |p| p.words("any amount of").map(|_| Amount::AnyAmount), amount)?;
+            sym(p, "E")?;
+            Some(Cost::PayEnergy(n))
+        },
+        // "Pay six {C}".
+        |p| { p.word("pay")?; let n = amount(p)?; let m = mana(p)?; Some(Cost::ManaTimes { n, mana: m }) },
+        |p| {
+            p.word("remove")?;
+            let n = amount_a(p)?;
+            let kind = counter_kind(p)?;
+            p.one_of(&["counters", "counter"])?;
+            p.words("from among")?;
+            let among = objects(p)?;
+            Some(Cost::RemoveCountersAmong { n, kind, among })
+        },
         |p| { p.words("pay life equal to")?; measure(p).map(Cost::PayLife) },
         |p| { p.word("pay")?; mana(p).map(Cost::Mana) },
         |p| { p.word("exile")?; objects(p).map(Cost::Exile) },
@@ -64,7 +83,35 @@ pub(super) fn cost(p: &mut P) -> Option<Cost> {
         |p| { p.word("reveal")?; objects(p).map(Cost::Reveal) },
         |p| { p.word("exert")?; objects(p).map(Cost::Exert) },
         |p| { p.word("mill")?; let n = amount_a(p)?; p.one_of(&["cards", "card"])?; Some(Cost::Mill(n)) },
+        // "Collect evidence 6", "blight 1", "Waterbend {8}": a keyword action
+        // paid as a cost. Last, and not for the verbs the rules above read,
+        // which say more after their number.
+        |p| {
+            if matches!(p.peek_word()?, "mill" | "exile" | "sacrifice" | "discard" | "tap" | "untap" | "reveal" | "exert" | "remove" | "put" | "return" | "pay") { return None; }
+            let name = keyword_action_phrase(p)?;
+            alt!(p;
+                |p| amount(p).map(|n| Cost::Action { name: name.clone(), n }),
+                |p| mana(p).map(|m| Cost::ActionMana { name: name.clone(), mana: m }),
+            )
+        },
     )
+}
+
+/// A keyword action's name, one word or two ("collect evidence", "manifest
+/// dread"), the longer tried first.
+pub(super) fn keyword_action_phrase(p: &mut P) -> Option<String> {
+    let w = p.peek_word()?;
+    if let Some(Tok::Word(next)) = p.t.get(p.i + 1) {
+        let two = format!("{w} {next}");
+        if vocab().keyword_actions.contains(&two) {
+            p.bump();
+            p.bump();
+            return Some(two);
+        }
+    }
+    let one = vocab().keyword_actions.contains(w).then(|| w.to_string())?;
+    p.bump();
+    Some(one)
 }
 
 pub(super) fn costs(p: &mut P) -> Option<Vec<Cost>> {

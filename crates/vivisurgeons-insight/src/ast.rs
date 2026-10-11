@@ -51,6 +51,18 @@ pub enum Ability {
         label: String,
         ability: Box<Ability>,
     },
+    /// "Tiered", then its modes, each with the additional cost paid for
+    /// choosing it (CR 702.183): one mode is chosen.
+    Tiered(Vec<TieredMode>),
+}
+
+/// "• Fira — {2} — ~ deals 2 damage to each creature.": a flavour label,
+/// the mode's additional cost, and what it does.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TieredMode {
+    pub label: String,
+    pub cost: Mana,
+    pub effect: Vec<Effect>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -84,6 +96,16 @@ pub enum KeywordParam {
         what: Box<Objects>,
         cost: Vec<Cost>,
     },
+    /// "Suspend 3—{1}{U}{U}", "Impending 5—{1}{B}": a number and a cost.
+    NCost {
+        n: Amount,
+        cost: Vec<Cost>,
+    },
+    /// "Kicker {G} and/or {1}{U}": two costs, either or both paid.
+    EitherOrBoth(Vec<Mana>),
+    /// "Companion — Each creature card in your starting deck is …": the
+    /// deckbuilding condition (CR 702.139).
+    Condition(Box<Condition>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -130,6 +152,30 @@ pub enum Cost {
     OneOf(Vec<Cost>),
     /// "Discard your hand".
     DiscardHand,
+    /// "Pay X {E}", "pay any amount of {E}".
+    PayEnergy(Amount),
+    /// "Pay six {C}".
+    ManaTimes {
+        n: Amount,
+        mana: Mana,
+    },
+    /// A keyword action paid as a cost: "Collect evidence 6", "blight 1".
+    Action {
+        name: String,
+        n: Amount,
+    },
+    /// "Waterbend {8}": a keyword action with a mana cost, paid as one.
+    ActionMana {
+        name: String,
+        mana: Mana,
+    },
+    /// "Remove ten oil counters from among permanents you control": split
+    /// as the payer likes among them.
+    RemoveCountersAmong {
+        n: Amount,
+        kind: String,
+        among: Objects,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -245,6 +291,25 @@ pub enum Amount {
     NumberOfBasicLandTypes(Box<Objects>),
     /// "the number of colors of mana spent to cast this spell": converge.
     ColorsOfManaSpentToCast(Box<Objects>),
+    /// "half X, rounded down", "the top half of their library, rounded up".
+    Half {
+        of: Box<Amount>,
+        round_up: bool,
+    },
+    /// "any amount of life": as much as the payer picks.
+    AnyAmount,
+    /// "the amount of {E} paid this way".
+    EnergyPaidThisWay,
+    /// "that number plus 1": the number the sentence just named.
+    ThatNumber,
+    /// "three minus X", "that many minus one".
+    Minus(Box<Amount>, Box<Amount>),
+    /// "for every seven cards in your graveyard": the count, divided by n
+    /// and rounded down.
+    Every {
+        n: u32,
+        of: Box<Objects>,
+    },
 }
 
 /// A set of colors a rule draws from, named by what decides it.
@@ -316,6 +381,9 @@ pub enum Player {
     UpToOneTarget,
     /// "any number of target players' graveyards".
     AnyNumberOfTarget,
+    /// "that player or that planeswalker's controller": whichever one the
+    /// earlier choice made it.
+    OneOf(Vec<Player>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -386,6 +454,15 @@ pub enum Quant {
     Next,
     /// "additional spells": more than those already counted.
     Additional,
+    /// "their first spell of the game".
+    NthOfGame {
+        n: u32,
+        of: Player,
+    },
+    /// "target nonland permanent and all other permanents with the same
+    /// name as that permanent": the one object, and every other the filter
+    /// names.
+    WithAllOthers(Box<Objects>),
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -418,6 +495,9 @@ pub enum Adj {
 pub enum AbilityKind {
     Activated,
     Triggered,
+    /// "a loyalty ability": an activated ability with a loyalty symbol in its
+    /// cost (CR 606.3).
+    Loyalty,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -440,6 +520,8 @@ pub enum State {
     Historic,
     /// "Commander creatures you control": a commander, by a word before its type.
     Commander,
+    /// "a face-up artifact card you own in exile".
+    FaceUp,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -567,6 +649,54 @@ pub enum Post {
     DiedThisTurn,
     /// "a nonland card from it": from the hand or pile an earlier verb named.
     From(Box<Objects>),
+    /// "with the greatest mana value among creatures and planeswalkers they
+    /// control": greatest within those, not on the battlefield.
+    GreatestAmong {
+        stat: Stat,
+        among: Box<Objects>,
+    },
+    /// "a permanent dealt damage this way".
+    DealtDamageThisWay,
+    /// "permanents that were cast this turn": by any player.
+    WasCastThisTurn,
+    /// "each opponent who lost life this turn".
+    LostLifeThisTurn,
+    /// "a land that could produce {C}".
+    CouldProduce(Mana),
+    /// "that is snow or could produce {C}": any one of these holds.
+    Either(Vec<Post>),
+    /// "with four or more card types among them".
+    CardTypesAmongAtLeast(u32),
+    /// "with the same name as that card".
+    SameNameAs(Box<Objects>),
+    /// "cards exiled from their hand this way".
+    MarkedFrom {
+        how: Marked,
+        from: Zone,
+    },
+    /// "with that name": the name an earlier choice named, as "that color"
+    /// is to "the chosen color".
+    WithThatName,
+    /// "[with mana value 2 or less]": words cleave removes (CR 702.148).
+    Cleave(Vec<Post>),
+    /// "other than a basic land card".
+    OtherThan(Filter),
+    /// "cards you don't own".
+    NotOwnedBy(Player),
+    /// "a creature named Hanweir Garrison": another card, by name.
+    NamedCard(String),
+    /// "each card you've cycled or discarded this turn".
+    DoneThisTurn {
+        who: Player,
+        verbs: Vec<PastVerb>,
+    },
+}
+
+/// What a player did to a card this turn, as a post names it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PastVerb {
+    Cycled,
+    Discarded,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -580,6 +710,9 @@ pub enum Marked {
     Destroyed,
     /// "each card they find": found by a search.
     Found,
+    Tapped,
+    Milled,
+    Discarded,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -628,6 +761,15 @@ pub enum Zone {
     Anywhere,
     /// "anywhere other than the battlefield".
     AnywhereOtherThan(Box<Zone>),
+    /// "from outside the game" (CR 400.11).
+    OutsideTheGame,
+    /// "in graveyards and libraries": any zone of these kinds.
+    AnyOf(Vec<Zone>),
+    /// "on their choice of the top or bottom of their library": either end,
+    /// as the player who puts it there picks.
+    TopOrBottomOfLibrary(Player),
+    /// "your starting deck", which a companion condition is about.
+    StartingDeck(Player),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -645,6 +787,8 @@ pub enum Duration {
     /// "until the end of your next turn": through your next turn, where
     /// "until your next turn" ends as it begins.
     UntilEndOfYourNextTurn,
+    /// "until this card is cast from exile".
+    UntilEvent(Box<Event>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1159,6 +1303,130 @@ pub enum Effect {
     },
     /// "Damage can't be prevented this turn."
     DamageCantBePrevented(Duration),
+    /// "Target player reveals their hand": the player's own hand.
+    RevealHand(Player),
+    /// "up to one other target creature loses all abilities".
+    Loses {
+        what: Objects,
+        lost: Vec<Lost>,
+        dur: Duration,
+    },
+    /// "gains your choice of double strike or lifelink": one of these, picked
+    /// as it resolves.
+    GainsChoiceOf {
+        what: Objects,
+        keywords: Vec<Keyword>,
+        dur: Duration,
+    },
+    /// "Shuffle this artifact and your graveyard into their owner's library":
+    /// objects and whole zones, one shuffle.
+    ShuffleAllInto {
+        who: Player,
+        what: Vec<Objects>,
+        zones: Vec<Zone>,
+    },
+    /// "You get X {E}".
+    GetEnergyAmount(Amount),
+    /// "draw a card and repeat this process": everything before it, again.
+    RepeatProcess,
+    /// "you gain control of target opponent during that player's next turn":
+    /// always the controlled player's next turn (CR 723.1).
+    ControlPlayerNextTurn(Player),
+    /// "After that turn, that player takes an extra turn."
+    ExtraTurnAfterThat(Player),
+    /// "becomes an artifact creature with power and toughness each equal to
+    /// its mana value".
+    BecomesSized {
+        what: Objects,
+        types: Vec<Adj>,
+        each_equal_to: Amount,
+        dur: Duration,
+    },
+    /// "The flashback cost is equal to its mana cost.": the cost of a
+    /// keyword the effect before it granted.
+    KeywordCostIs {
+        keyword: String,
+        cost: Vec<Cost>,
+    },
+    /// "create a colorless artifact token named Munitions with …".
+    CreateNamed {
+        who: Player,
+        n: Amount,
+        token: Token,
+        name: String,
+    },
+    /// "Create a Monster Role token attached to it."
+    CreateAttached {
+        who: Player,
+        n: Amount,
+        token: Token,
+        to: Objects,
+    },
+    /// "Each opponent gets an emblem with …".
+    EmblemFor {
+        who: Player,
+        abilities: Vec<Ability>,
+    },
+    /// "For each card type, …": once per card type (CR 205.2a), with "that
+    /// type" bound to it.
+    ForEachCardType(Vec<Effect>),
+    FlipCoin,
+    /// "instant and sorcery spells you cast cost {1} less to cast" for a while.
+    CostChange {
+        what: Objects,
+        by: Mana,
+        less: bool,
+        dur: Duration,
+    },
+    /// "deals 2 damage divided as you choose among one or two targets".
+    DamageDivided {
+        source: Option<Objects>,
+        n: Amount,
+        among: Objects,
+    },
+    /// "end the turn" (CR 724.1).
+    EndTheTurn,
+    /// "exiles cards from the top of their library until that player has
+    /// exiled cards with total mana value 20 or greater".
+    DigUntilTotal {
+        who: Player,
+        verb: DigVerb,
+        zone: Zone,
+        total: Compare,
+    },
+    /// "put two +1/+1 counters and a flying counter on target creature".
+    PutCountersEach {
+        counters: Vec<(Amount, String)>,
+        on: Objects,
+    },
+    /// "When a creature card is exiled this way, …": a reflexive triggered
+    /// ability on what the ability's own words did (CR 603.12).
+    WhenThisWay {
+        event: Event,
+        then: Vec<Effect>,
+    },
+    RemoveAllCounters(Objects),
+    /// "Target opponent loses all counters."
+    LosesAllCounters(Player),
+    /// "The next time a source of your choice would deal damage to you this
+    /// turn, …": a one-shot effect on the next such event (CR 609.7, 615.8).
+    NextTime {
+        event: Box<Event>,
+        dur: Duration,
+        then: Vec<Effect>,
+    },
+    /// "prevent that damage": the damage of the event the replacement watches.
+    PreventThatDamage,
+    /// "meld them into Hanweir, the Writhing Township" (CR 701.42).
+    Meld {
+        what: Objects,
+        into: String,
+    },
+    /// "it produces {C} instead of any other type and amount".
+    ProducesInstead {
+        what: Objects,
+        mana: Mana,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1230,6 +1498,11 @@ pub enum Exception {
         kind: String,
         cond: Option<Box<Condition>>,
     },
+    /// "his name is ~": the copy keeps this card's name.
+    NameIsSelf,
+    /// "he's a 4/4 Spider Human Hero in addition to his other types": a size
+    /// and types on top of the copied ones.
+    AlsoIsSized { pt: Pt, types: Vec<Adj> },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1265,6 +1538,8 @@ pub enum PlayerRule {
     },
     CantGainLife,
     CantSearchLibraries,
+    /// "That player can't get counters".
+    CantGetCounters,
 }
 
 /// Who does a thing a replacement effect watches for.
@@ -1290,6 +1565,9 @@ pub enum Recipient {
     /// "~ deals 4 damage instead": the recipient of the effect this one
     /// replaces, named there and not again.
     Same,
+    /// "tokens that are tapped and attacking": attacking whom its controller
+    /// chooses as it enters (CR 508.4).
+    ControllerChooses,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1399,6 +1677,10 @@ pub enum Restriction {
     /// "can't be activated unless they're mana abilities": the rule on a
     /// set of activated abilities that spares mana abilities.
     NoNonManaActivatedAbilities,
+    CantEnterBattlefield,
+    CantBeTurnedFaceUp,
+    /// "can't have counters put on it".
+    CantHaveCountersPut,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1581,6 +1863,42 @@ pub enum Event {
         what: Objects,
         who: Player,
     },
+    /// "equipped creature deals combat damage": to anything.
+    DealsCombatDamage(Objects),
+    /// "a creature card is exiled".
+    Exiled(Objects),
+    /// "one or more noncreature permanents are returned to hand": to their
+    /// owners' hands from the battlefield.
+    ReturnedToHand(Objects),
+    /// "a creature attacks you or a planeswalker you control".
+    AttacksAnyOf {
+        what: Objects,
+        to: Vec<Recipient>,
+    },
+    /// "you activate a loyalty ability".
+    Activates {
+        who: Player,
+        what: Objects,
+    },
+    /// "a land is tapped for two or more mana".
+    TappedForAtLeast {
+        what: Objects,
+        n: u32,
+    },
+    /// "would enter and it wasn't cast": the event, when the condition holds
+    /// of it.
+    AndIf {
+        event: Box<Event>,
+        cond: Box<Condition>,
+    },
+    /// "you would draw one or more cards": one event however many, where
+    /// "a card" is each draw.
+    DrawsOneOrMore(Player),
+    /// "this card is cast from exile".
+    CastFrom {
+        what: Objects,
+        zone: Zone,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1613,6 +1931,8 @@ pub enum Whose {
     NextTurns,
     ThatPlayers,
     YourNext,
+    /// "your first upkeep": of the game.
+    YourFirst,
     EachOther,
 
     /// "at the beginning of that combat": the one an earlier effect made.
@@ -1814,6 +2134,72 @@ pub enum Static {
         less: bool,
         per: Amount,
     },
+    /// "Permanents entering don't cause abilities of permanents your
+    /// opponents control to trigger"; any abilities when `of` is `None`.
+    EnteringDoesntTrigger {
+        what: Objects,
+        of: Option<Objects>,
+    },
+    /// "Each opponent can cast spells only any time they could cast a sorcery."
+    CastOnlyAsSorcery {
+        who: Player,
+        what: Objects,
+    },
+    /// "You may spend mana as though it were mana of any color to activate
+    /// abilities of creatures you control."
+    SpendAsAnyColor(Vec<SpendUse>),
+    /// "have all activated abilities of all creature cards exiled with ~".
+    HasAbilitiesOf {
+        what: Objects,
+        kind: AbilityKind,
+        of: Objects,
+    },
+    /// "Prevent all noncombat damage that would be dealt to other creatures
+    /// you control."
+    PreventNoncombat(Vec<Recipient>),
+    /// "Spells and abilities your opponents control can't cause their
+    /// controller to search their library."
+    CantCauseSearch(Objects),
+    /// "has vigilance if it's white, hexproof if it's blue, …": each keyword
+    /// while its condition holds of the object.
+    HasIf {
+        what: Objects,
+        pairs: Vec<(Vec<Keyword>, Condition)>,
+    },
+    /// "Your maximum hand size is five."
+    MaxHandSizeIs {
+        who: Player,
+        n: u32,
+    },
+    /// "As this creature transforms into ~, …": applied while it transforms (CR 712.20).
+    AsTransforms {
+        what: Objects,
+        into: Objects,
+        then: Vec<Effect>,
+    },
+    /// "You may reveal this card from your opening hand. If you do, …".
+    RevealFromOpeningHand(Vec<Effect>),
+    /// "As an additional cost to cast this spell, you may …": a cost the
+    /// caster may choose not to pay.
+    OptionalAdditionalCost(Vec<Cost>),
+    /// "You may cast this card from your graveyard using its bestow ability."
+    CastFromUsing {
+        zone: Zone,
+        keyword: String,
+    },
+    SetToughness {
+        what: Objects,
+        equal_to: Amount,
+    },
+    /// "This creature enters prepared.": a preparation card (CR 722) whose
+    /// copy of its inset spell may be cast while it is prepared.
+    EntersPrepared(Objects),
+    /// A "you may have" static followed by "When you do, …": a reflexive
+    /// trigger on the choice (CR 603.12).
+    Reflexive {
+        inner: Box<Static>,
+        then: Vec<Effect>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1977,6 +2363,33 @@ pub enum Condition {
         what: Holding,
         than: Player,
     },
+    /// "this is the fourth time this ability has resolved this turn".
+    NthResolution(u32),
+    /// "the {1}{B} cost was paid": the alternative cost of that amount.
+    CostPaid(Mana),
+    /// "this spell's additional cost was paid".
+    AdditionalCostPaid,
+    /// "enchanted creature is face down".
+    FaceDown(Objects),
+    /// "you win the flip", "you lose the flip".
+    WonFlip(bool),
+    /// "it was kicked with its {G} kicker".
+    KickedWith(Mana),
+    Or(Vec<Condition>),
+    /// "it entered from your library", "it entered under your control".
+    Entered {
+        what: Objects,
+        from: Option<Zone>,
+        under: Option<Player>,
+    },
+    /// "it wasn't cast": cast at all, by anyone.
+    WasCast(Objects),
+    /// "there is an instant card and a sorcery card in your graveyard".
+    ThereAre(Vec<Objects>),
+    /// "you both own and control this land and a creature named …".
+    OwnAndControl(Vec<Objects>),
+    /// "damage is prevented this way".
+    DamagePreventedThisWay,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1995,6 +2408,17 @@ pub enum Choice {
     /// "choose artifact, creature, enchantment, instant, or sorcery": one
     /// of these card types.
     CardTypeAmong(Vec<String>),
+    LandCardName,
+    /// "choose target opponent": a target, so it can be illegal on
+    /// resolution and hexproof stops it, where "choose an opponent" is not.
+    TargetOpponent,
+    TargetPlayer,
+    /// "an artifact, a creature, an enchantment, and a planeswalker from
+    /// among the nonland permanents they control": one of each.
+    OneOfEach {
+        picks: Vec<Filter>,
+        among: Objects,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]

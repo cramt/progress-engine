@@ -5,6 +5,9 @@ use super::*;
 pub(super) fn whose_step(p: &mut P) -> Option<Whose> {
     alt!(p;
         |p| p.words("your next").map(|_| Whose::YourNext),
+        // "your first upkeep": of the game. "Your first main phase" is the
+        // precombat one of each turn (CR 505.1a), read by `step`.
+        |p| { p.words("your first")?; (p.peek_word() != Some("main")).then_some(Whose::YourFirst) },
         |p| p.word("your").map(|_| Whose::Yours),
         |p| p.words("each opponent 's").map(|_| Whose::EachOpponent),
         |p| p.words("each other player 's").map(|_| Whose::EachOther),
@@ -65,6 +68,9 @@ pub(super) fn player_verb(p: &mut P, who: &Player) -> Option<Box<dyn Fn(Objects)
         |p| { p.verb("create")?; let w = who.clone(); Some(Box::new(move |what| Event::Creates { by: Actor::Player(w.clone()), what, under: None }) as Box<dyn Fn(Objects) -> Event>) },
         |p| { p.verb("sacrifice")?; let w = who.clone(); Some(Box::new(move |what| Event::Sacrifices { who: w.clone(), what }) as Box<dyn Fn(Objects) -> Event>) },
         |p| { p.verb("discard")?; let w = who.clone(); Some(Box::new(move |what| Event::Discards { who: w.clone(), what }) as Box<dyn Fn(Objects) -> Event>) },
+        // "you cycle or discard another card".
+        |p| { p.verb("cycle")?; let w = who.clone(); Some(Box::new(move |what| Event::Cycles { who: w.clone(), what: Some(what) }) as Box<dyn Fn(Objects) -> Event>) },
+        |p| { p.verb("activate")?; let w = who.clone(); Some(Box::new(move |what| Event::Activates { who: w.clone(), what }) as Box<dyn Fn(Objects) -> Event>) },
     )
 }
 
@@ -172,7 +178,8 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
             p.verb("draw")?;
             whose_pronoun(p)?;
             let n = ["first", "second", "third"].iter().position(|w| p.word(w).is_some())? as u32 + 1;
-            p.words("card each turn")?;
+            // "your third card in a turn": the same count as "each turn".
+            p.one_of(&["card each turn", "card in a turn"])?;
             Some(Event::DrawsNth { who, n })
         },
         // "you cast or copy an instant or sorcery spell": two verbs, one object.
@@ -227,6 +234,14 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
 
 pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
     alt!(p;
+        // "a creature attacks you or a planeswalker you control": before a
+        // bare "attacks" takes the verb.
+        |p| {
+            p.verb("attack")?;
+            let mut to = vec![recipient(p)?];
+            while let Some(r) = p.attempt(|p| { p.one_of(&["or", "and/or"])?; recipient(p) }) { to.push(r); }
+            (to.len() > 1).then(|| Event::AttacksAnyOf { what: what.clone(), to })
+        },
         |p| {
             let e = alt!(p;
                 |p| p.verb("attack").map(|_| Event::Attacks(what.clone())),
@@ -266,6 +281,10 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
             };
             Some(Event::DealsCombatDamageTo { what: what.clone(), to })
         },
+        // "Whenever equipped creature deals combat damage, …": to anything.
+        |p| { p.verb("deal")?; p.words("combat damage")?; (p.peek() == Some(&Tok::Comma)).then(|| Event::DealsCombatDamage(what.clone())) },
+        |p| { p.one_of(&["is exiled", "are exiled"])?; Some(Event::Exiled(what.clone())) },
+        |p| { p.one_of(&["is returned to hand", "are returned to hand"])?; Some(Event::ReturnedToHand(what.clone())) },
         |p| { p.verb("deal")?; p.words("damage to")?; let to = recipients(p)?; Some(Event::DealsDamageTo { what: what.clone(), to }) },
         |p| { p.verb("deal")?; p.word("damage")?; Some(Event::DealsDamage(what.clone())) },
         |p| { p.one_of(&["becomes level", "become level"])?; let n = number(p)?; Some(Event::BecomesLevel { what: what.clone(), n }) },
@@ -305,6 +324,16 @@ pub(super) fn trigger(p: &mut P) -> Option<Trigger> {
         |p| {
             p.one_of(&["whenever", "when"])?;
             let e = event(p)?;
+            // "Whenever you cast an instant or sorcery spell during your turn",
+            // "… while this creature has a -1/-1 counter on it": the event,
+            // only while the condition holds.
+            let e = match p.attempt(|p| alt!(p;
+                |p| p.words("during your turn").map(|_| Condition::ItsYourTurn),
+                |p| { p.word("while")?; condition(p) },
+            )) {
+                Some(cond) => Event::While { event: Box::new(e), cond: Box::new(cond) },
+                None => e,
+            };
             // "When this creature enters and whenever an opponent draws …":
             // two trigger conditions for one effect (CR 603.1b), which is
             // one trigger on either event.

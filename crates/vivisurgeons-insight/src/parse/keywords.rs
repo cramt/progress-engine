@@ -82,8 +82,18 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
                 return Some(Keyword { name, param: Some(KeywordParam::Splice { onto, cost }) });
             }
             let param = alt!(p;
+                // "Companion — Each creature card in your starting deck is …".
+                |p| {
+                    if name != "companion" { return None; }
+                    p.tok(&Tok::Dash)?;
+                    condition(p).map(|c| KeywordParam::Condition(Box::new(c)))
+                },
                 |p| { p.tok(&Tok::Dash)?; let c = costs(p)?; p.attempt(|p| p.tok(&Tok::Period)); Some(KeywordParam::Cost(c)) },
+                // "Kicker {G} and/or {1}{U}".
+                |p| { let a = mana(p)?; p.word("and/or")?; let b = mana(p)?; Some(KeywordParam::EitherOrBoth(vec![a, b])) },
                 |p| mana(p).map(|m| KeywordParam::Cost(vec![Cost::Mana(m)])),
+                // "Suspend 3—{1}{U}{U}".
+                |p| { let n = number(p)?; p.tok(&Tok::Dash)?; let cost = costs(p)?; Some(KeywordParam::NCost { n: Amount::N(n), cost }) },
                 |p| number(p).map(|n| KeywordParam::N(Amount::N(n))),
                 |p| p.word("x").map(|_| KeywordParam::N(Amount::X)),
                 // Only affinity is "for" something; "prowess for each counter"
@@ -107,12 +117,30 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
 
 pub(super) fn keyword_line(p: &mut P) -> Option<Vec<Keyword>> {
     let mut v = vec![keyword(p)?];
-    while let Some(k) = p.attempt(|p| {
-        p.one_of(&[",", ";"])
-            .or_else(|| p.tok(&Tok::Comma).map(|_| ","))?;
-        keyword(p)
-    }) {
-        v.push(k);
+    loop {
+        // "protection from spells and from permanents that were cast this
+        // turn" is two protection abilities (CR 702.16g).
+        let and_from = matches!(v.last(), Some(Keyword { param: Some(KeywordParam::Objects(_)), name }) if name == "protection");
+        let next = p.attempt(|p| {
+            if and_from {
+                if let Some(o) = p.attempt(|p| {
+                    p.words("and from")?;
+                    objects(p)
+                }) {
+                    return Some(Keyword {
+                        name: "protection".into(),
+                        param: Some(KeywordParam::Objects(Box::new(o))),
+                    });
+                }
+            }
+            p.one_of(&[",", ";"])
+                .or_else(|| p.tok(&Tok::Comma).map(|_| ","))?;
+            keyword(p)
+        });
+        match next {
+            Some(k) => v.push(k),
+            None => break,
+        }
     }
     Some(v)
 }

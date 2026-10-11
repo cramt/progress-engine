@@ -9,7 +9,14 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
         if let Some((who, cost)) = p.attempt(|p| {
             p.word("unless")?;
             let who = player(p)?;
-            Some((who, unless_costs(p)?))
+            let cost = unless_costs(p)?;
+            // "unless you sacrifice three creatures, pay 3 life, and have …":
+            // a list of what stops it that this rule reads only the first of.
+            // Leaving the rest as instructions of their own would misread it.
+            if p.attempt(|p| { p.tok(&Tok::Comma)?; p.one_of(&["pay", "sacrifice", "discard", "and"]) }).is_some() {
+                return None;
+            }
+            Some((who, cost))
         }) {
             e = Effect::Unless {
                 effect: Box::new(e),
@@ -130,6 +137,14 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             let v = object_list(p)?;
             Some(v.into_iter().map(|what| Effect::Destroy { what, no_regen: false }).collect())
         },
+        // "Whenever you attack this turn, …": a delayed trigger for the turn.
+        |p| {
+            p.word("whenever")?;
+            let event = event(p)?;
+            p.words("this turn ,")?;
+            let then = clauses(p)?;
+            Some(vec![Effect::During { dur: Duration::ThisTurn, then: vec![Effect::DelayedWhenever { event, then }] }])
+        },
         // "Until end of turn, whenever a player taps an Island for mana, …".
         |p| {
             p.word("whenever")?;
@@ -171,6 +186,80 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             }
             Some(v)
         },
+        // "This land becomes a 2/2 creature with all creature types until end
+        // of turn. It's still a land.": the new types, and all creature types
+        // on top of them.
+        |p| {
+            if !p.ahead("with all creature types") { return None; }
+            let what = objects(p)?;
+            p.verb("become")?;
+            p.one_of(&["a", "an"])?;
+            let pt = match p.peek()? { Tok::Pt(pt) if !pt.signed => *pt, _ => return None };
+            p.bump();
+            let types = group(p)?;
+            p.words("with all creature types")?;
+            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+            let keeps = still(p).unwrap_or(Keeps::Nothing);
+            Some(vec![
+                Effect::Becomes { what: what.clone(), pt: Some(pt), types, gains: vec![], keeps, dur: dur.clone() },
+                Effect::AlsoIs { what, types: TypeSet::EveryCreatureType, dur },
+            ])
+        },
+        // "gets +2/+2 and gains trample and "Whenever …"": one "gains" for a
+        // keyword and an ability.
+        |p| {
+            if !p.ahead("and \"") { return None; }
+            let what = objects(p)?;
+            p.verb("get")?;
+            let pt = pt_signed(p)?;
+            p.word("and")?;
+            p.verb("gain")?;
+            let gains = keyword_list(p)?;
+            p.word("and")?;
+            let ability = quoted(p)?;
+            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+            if dur == Duration::Permanent && !p.during { return None; }
+            Some(vec![
+                Effect::Modify { what: what.clone(), pt: Some(pt), gains, dur: dur.clone() },
+                Effect::GrantAbility { what, ability: Box::new(ability), dur },
+            ])
+        },
+        // "~ deals 1 damage to target player or planeswalker and 1 damage to
+        // target creature …": one source, its verb said once.
+        |p| {
+            // The second "and N damage to" says this is the pair; most damage
+            // clauses have one recipient list.
+            let has_second = p.t[p.i..].windows(3).any(|w| {
+                matches!(w, [Tok::Word(a), Tok::Num(_), Tok::Word(d)] if a == "and" && d == "damage")
+            }) || p.ahead("and x damage");
+            if !has_second { return None; }
+            let source = objects(p)?;
+            p.verb("deal")?;
+            let one = |p: &mut P| {
+                let n = amount(p)?;
+                p.words("damage to")?;
+                Some((n, recipients(p)?))
+            };
+            let (n1, to1) = one(p)?;
+            p.word("and")?;
+            let (n2, to2) = one(p)?;
+            Some(vec![
+                Effect::Damage { source: Some(source.clone()), n: n1, to: to1 },
+                Effect::Damage { source: Some(source), n: n2, to: to2 },
+            ])
+        },
+        // "Those players put the exiled cards onto the battlefield, then
+        // shuffle": the plural subject keeps both verbs.
+        |p| {
+            p.words("those players")?;
+            p.word("put")?;
+            let first = put_rest(p)?;
+            p.words(", then shuffle")?;
+            Some(vec![
+                Effect::Performed { by: Player::That, effect: Box::new(first) },
+                Effect::Shuffle(Player::That),
+            ])
+        },
         // "creatures your opponents control attack each combat if able and
         // attack a player other than you if able": one subject, two rules.
         |p| {
@@ -193,11 +282,31 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             p.tok(&Tok::Comma)?;
             Some(vec![Effect::WhenYouDo(clauses(p)?)])
         },
+        // "When a creature card is exiled this way, …": reflexive (CR 603.12).
+        |p| {
+            p.word("when")?;
+            let event = event(p)?;
+            p.words("this way ,")?;
+            Some(vec![Effect::WhenThisWay { event, then: clauses(p)? }])
+        },
+        // "When that creature dies this turn, …": a delayed trigger that
+        // lasts the turn.
+        |p| {
+            p.word("when")?;
+            let event = event(p)?;
+            p.words("this turn ,")?;
+            let then = clauses(p)?;
+            Some(vec![Effect::During { dur: Duration::ThisTurn, then: vec![Effect::DelayedWhen { event, then }] }])
+        },
         |p| {
             p.word("when")?;
             let event = event(p)?;
             p.tok(&Tok::Comma)?;
             Some(vec![Effect::DelayedWhen { event, then: clauses(p)? }])
+        },
+        |p| {
+            p.words("for each card type ,")?;
+            Some(vec![Effect::ForEachCardType(clauses(p)?)])
         },
         |p| {
             p.one_of(&["if you don't", "if they don't", "if that player doesn't", "if the player doesn't", "if no one does"])?;
@@ -291,7 +400,14 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             let outer = p.implied.replace(who.clone());
             let e = p.attempt(|p| {
                 let e = effect(p)?;
-                let mut then = vec![suffixed(p, e)];
+                let e = suffixed(p, e);
+                // "You may reveal an artifact card … or choose a face-up
+                // artifact card …": one option of two, each said in full.
+                let e = match p.attempt(|p| { p.word("or")?; let e = effect(p)?; Some(suffixed(p, e)) }) {
+                    Some(other) => Effect::Or(vec![e, other]),
+                    None => e,
+                };
+                let mut then = vec![e];
                 // "That player may search their library …, put it onto the
                 // battlefield, then shuffle": the steps after the first are
                 // the same optional action, by the same player.
@@ -400,6 +516,9 @@ pub(super) fn subject_of(e: &Effect) -> Option<Player> {
         | Effect::Create { who, .. }
         | Effect::Pay { who, .. }
         | Effect::May { who, .. }
+        | Effect::RevealHand(who)
+        | Effect::UntilFound { who, .. }
+        | Effect::DigUntilTotal { who, .. }
         | Effect::Performed { by: who, .. } => who.clone(),
         _ => return None,
     })
@@ -555,14 +674,49 @@ pub(super) fn sentence(p: &mut P) -> Option<Vec<Effect>> {
             p.end_sentence()?;
             Some(vec![Effect::RepeatUntil(Box::new(until))])
         },
-        |p| { let e = clauses(p)?; p.end_sentence()?; Some(e) },
+        |p| {
+            let mut e = clauses(p)?;
+            p.end_sentence()?;
+            // "Create a 1/1 colorless Eldrazi Scion creature token. It has
+            // "Sacrifice this token: Add {C}."": what the token has as it is
+            // created, said as a sentence of its own.
+            if let Some(Effect::Create { token, .. }) = e.last_mut() {
+                if token.abilities.is_empty() && token.keywords.is_empty() {
+                    if let Some(a) = p.attempt(|p| { p.words("it has")?; let a = quoted(p)?; p.end_sentence()?; Some(a) }) {
+                        token.abilities.push(a);
+                    }
+                }
+            }
+            Some(e)
+        },
     )
 }
 
 pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
-    let mut v = Vec::new();
+    let mut v: Vec<Effect> = Vec::new();
     while let Some(s) = p.attempt(sentence) {
+        // "When you do, put two +1/+1 counters … on target attacking
+        // creature. It becomes an Angel …": "it" is what the reflexive
+        // trigger targeted, so the sentence is that trigger's too.
+        if let Some(Effect::WhenYouDo(then) | Effect::WhenThisWay { then, .. }) = v.last_mut() {
+            if s.first().is_some_and(continues_target) {
+                then.extend(s);
+                continue;
+            }
+        }
         v.extend(s);
     }
     (!v.is_empty()).then_some(v)
+}
+
+/// Whether an effect is said of a bare "it", so continues the last one's
+/// target.
+fn continues_target(e: &Effect) -> bool {
+    let it = |x: &Objects| x.quant == Quant::Antecedent && x.filter == Filter::default();
+    match e {
+        Effect::Becomes { what, .. }
+        | Effect::Modify { what, .. }
+        | Effect::GrantAbility { what, .. } => it(what),
+        _ => false,
+    }
 }

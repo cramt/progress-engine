@@ -15,6 +15,35 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
     }) {
         return Some(s);
     }
+    // "As this creature transforms into ~, you get an emblem with …".
+    if let Some(s) = p.attempt(|p| {
+        p.word("as")?;
+        let what = objects(p)?;
+        p.verb("transform")?;
+        p.word("into")?;
+        let into = objects(p)?;
+        p.tok(&Tok::Comma)?;
+        effects(p).map(|then| vec![Static::AsTransforms { what, into, then }])
+    }) {
+        return Some(s);
+    }
+    // "You may reveal this card from your opening hand. If you do, …".
+    if let Some(s) = p.attempt(|p| {
+        p.words("you may reveal this card from your opening hand . if you do ,")?;
+        let mut then = effects(p)?;
+        // "If you do, at the beginning of your first upkeep, look at the top
+        // four cards … You may put one of those cards back …": what follows
+        // the delayed trigger is its, since nothing else happens then.
+        if then.len() > 1 && matches!(then[0], Effect::Delayed { .. }) {
+            let rest: Vec<Effect> = then.drain(1..).collect();
+            if let Effect::Delayed { then: delayed, .. } = &mut then[0] {
+                delayed.extend(rest);
+            }
+        }
+        Some(vec![Static::RevealFromOpeningHand(then)])
+    }) {
+        return Some(s);
+    }
     // "While an opponent is searching their library, they exile each card
     // they find. You may play those cards …": the sentences after it are
     // about what happens while it holds.
@@ -31,8 +60,19 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
             p.words("as long as")?;
             let cond = condition(p)?;
             p.tok(&Tok::Comma)?;
-            let then = static_joined(p)?;
+            // "As long as you have one or fewer cards in hand, if you would
+            // draw one or more cards, …": a replacement while it holds.
+            let then = alt!(p; replacement, static_joined)?;
             Some(vec![Static::AsLongAs { cond, then }])
+        },
+        // "During your turn, as long as ~ has one or more loyalty counters on
+        // him, he's a 3/4 Ninja creature and has hexproof."
+        |p| {
+            p.words("during your turn , as long as")?;
+            let cond = condition(p)?;
+            p.tok(&Tok::Comma)?;
+            let then = static_joined(p)?;
+            Some(vec![Static::AsLongAs { cond: Condition::ItsYourTurn, then: vec![Static::AsLongAs { cond, then }] }])
         },
         |p| {
             p.words("during your turn ,")?;
@@ -81,6 +121,9 @@ pub(super) fn would(p: &mut P, what: &Objects) -> Option<Event> {
     alt!(p;
         |p| p.verb("die").map(|_| Event::Dies(what.clone())),
         |p| { p.words("be put into")?; let to = zone(p)?; p.word("from")?; let from = zone(p)?; Some(Event::PutInto { what: what.clone(), to, from }) },
+        // "would be put into a graveyard": from anywhere, as the event says
+        // in a trigger.
+        |p| { p.words("be put into")?; let to = zone(p)?; Some(Event::PutInto { what: what.clone(), to, from: Zone::Anywhere }) },
         |p| p.words("leave the battlefield").map(|_| Event::Leaves { what: what.clone(), from: Zone::Battlefield }),
         |p| { p.words("deal damage to")?; let to = recipients(p)?; Some(Event::DealsDamageTo { what: what.clone(), to }) },
         |p| { p.words("deal noncombat damage to")?; let to = recipients(p)?; Some(Event::DealsNoncombatDamageTo { what: what.clone(), to }) },
@@ -122,10 +165,20 @@ pub(super) fn replacement(p: &mut P) -> Option<Vec<Static>> {
             )?;
             Some(Event::CountersPut { by, n, kind, on })
         },
+        // "If a land is tapped for two or more mana": no "would", since the
+        // replacement is on the mana it produces.
+        |p| {
+            let what = objects(p)?;
+            p.words("is tapped for")?;
+            let n = number(p)?;
+            p.words("or more mana")?;
+            Some(Event::TappedForAtLeast { what, n })
+        },
         |p| {
             let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
             p.word("would")?;
             alt!(p;
+                |p| p.words("draw one or more cards").map(|_| Event::DrawsOneOrMore(who.clone())),
                 |p| {
                     p.words("draw a card except the first one")?;
                     p.one_of(&["you draw in each of your draw steps", "they draw in each of their draw steps"])?;
@@ -148,6 +201,17 @@ pub(super) fn replacement(p: &mut P) -> Option<Vec<Static>> {
         )
     }) {
         Some(cond) => Event::While {
+            event: Box::new(event),
+            cond: Box::new(cond),
+        },
+        None => event,
+    };
+    // "If a nontoken creature would enter and it wasn't cast".
+    let event = match p.attempt(|p| {
+        p.word("and")?;
+        condition(p)
+    }) {
+        Some(cond) => Event::AndIf {
             event: Box::new(event),
             cond: Box::new(cond),
         },
@@ -176,6 +240,16 @@ pub(super) fn replacement(p: &mut P) -> Option<Vec<Static>> {
 }
 
 pub(super) fn static_body(p: &mut P) -> Option<Vec<Static>> {
+    if let Some(s) = p.attempt(static_body_first) {
+        return Some(s);
+    }
+    if let Some(s) = p.attempt(static_body_base) {
+        return Some(s);
+    }
+    p.attempt(static_body_more)
+}
+
+fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
     alt!(p;
         |p| p.words("you may cast this spell without paying its mana cost").map(|_| vec![Static::CastWithoutPaying]),
         |p| {
@@ -502,9 +576,144 @@ pub(super) fn static_body(p: &mut P) -> Option<Vec<Static>> {
     )
 }
 
+/// Static templates no older rule reads any part of, tried only when those
+/// fail.
+fn static_body_more(p: &mut P) -> Option<Vec<Static>> {
+    alt!(p;
+        // "Permanents entering don't cause abilities of permanents your
+        // opponents control to trigger", "Creatures entering don't cause
+        // abilities to trigger".
+        |p| {
+            let what = objects(p)?;
+            p.words("entering don't cause abilities")?;
+            let of = p.attempt(|p| { p.word("of")?; objects(p) });
+            p.words("to trigger")?;
+            Some(vec![Static::EnteringDoesntTrigger { what, of }])
+        },
+        |p| {
+            let who = player(p)?;
+            p.words("can cast")?;
+            let what = objects(p)?;
+            p.words("only any time they could cast a sorcery")?;
+            Some(vec![Static::CastOnlyAsSorcery { who, what }])
+        },
+        |p| {
+            p.words("you may spend mana as though it were mana of any color")?;
+            spend_uses(p).map(|u| vec![Static::SpendAsAnyColor(u)])
+        },
+        |p| {
+            p.words("prevent all noncombat damage that would be dealt to")?;
+            recipients(p).map(|r| vec![Static::PreventNoncombat(r)])
+        },
+        |p| {
+            let what = objects(p)?;
+            p.words("can't cause their controller to search their library")?;
+            Some(vec![Static::CantCauseSearch(what)])
+        },
+        |p| {
+            let who = whose(p)?;
+            p.words("maximum hand size is")?;
+            let n = number(p)?;
+            Some(vec![Static::MaxHandSizeIs { who, n }])
+        },
+        |p| {
+            p.words("as an additional cost to cast this spell , you may")?;
+            costs(p).map(|c| vec![Static::OptionalAdditionalCost(c)])
+        },
+    )
+}
+
+/// Statics an older rule would read a shorter part of and commit to: "you
+/// may cast this card from your graveyard" before "using its bestow
+/// ability", "~'s power is equal to …" before "and its toughness …", a
+/// copy before ". When you do, …".
+fn static_body_first(p: &mut P) -> Option<Vec<Static>> {
+    alt!(p;
+        // "You may cast this card from your graveyard using its bestow ability."
+        |p| {
+            p.words("you may cast this card from")?;
+            let zone = zone(p)?;
+            p.words("using its")?;
+            let keyword = keyword_name(p)?;
+            p.word("ability")?;
+            Some(vec![Static::CastFromUsing { zone, keyword }])
+        },
+        // "~'s power is equal to … and its toughness is equal to that number
+        // plus 1."
+        |p| {
+            let what = objects(p)?;
+            p.tok(&Tok::Possessive)?;
+            p.words("power is equal to")?;
+            let power = measure(p)?;
+            p.words("and its toughness is equal to")?;
+            let toughness = measure(p)?;
+            Some(vec![
+                Static::SetPower { what, equal_to: power },
+                // "its toughness": the same object, by pronoun.
+                Static::SetToughness { what: antecedent(), equal_to: toughness },
+            ])
+        },
+        // "You may have ~ enter as a copy of …, except …. When you do, exile
+        // that card.": the choice, and a reflexive trigger on it.
+        |p| {
+            // Only a choice can be followed by "When you do", so the
+            // statics it could be are not read twice.
+            if !p.at("you") { return None; }
+            let mut s = static_body_base(p)?;
+            if s.len() != 1 || !matches!(s[0], Static::EntersAsCopy { may: true, .. }) { return None; }
+            p.words(". when you do ,")?;
+            let then = clauses(p)?;
+            Some(vec![Static::Reflexive { inner: Box::new(s.remove(0)), then }])
+        },
+    )
+}
+
 /// What a static says of its subject, read once for each predicate.
 fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
     alt!(p;
+        // "have all activated abilities of all creature cards exiled with ~".
+        |p| {
+            p.verb("have")?;
+            p.word("all")?;
+            let kind = match descriptor(p)? { Adj::Ability(k) => k, _ => return None };
+            p.words("abilities of")?;
+            let of = objects(p)?;
+            Some(vec![Static::HasAbilitiesOf { what: what.clone(), kind, of }])
+        },
+        // "has vigilance if it's white, hexproof if it's blue, …, and
+        // trample if it's green".
+        |p| {
+            p.verb("have")?;
+            let one = |p: &mut P| {
+                let k = keyword(p)?;
+                p.word("if")?;
+                Some((vec![k], condition_one(p)?))
+            };
+            let mut pairs = vec![one(p)?];
+            while let Some(x) = p.attempt(|p| { p.one_of(&[", and", ","])?; one(p) }) { pairs.push(x); }
+            (pairs.len() > 1).then(|| vec![Static::HasIf { what: what.clone(), pairs }])
+        },
+        |p| { p.verb("enter")?; p.word("prepared")?; Some(vec![Static::EntersPrepared(what.clone())]) },
+        // "he's a 3/4 Ninja creature": a size and types, the size its base
+        // power and toughness (CR 613.4b).
+        |p| {
+            if what.quant != Quant::Antecedent { return None; }
+            p.tok(&Tok::Possessive)?;
+            p.one_of(&["a", "an"])?;
+            let pt = match p.peek()? { Tok::Pt(pt) if !pt.signed => *pt, _ => return None };
+            p.bump();
+            let types = group(p)?;
+            Some(vec![Static::Is { what: what.clone(), types: TypeSet::Listed(types) }, Static::BasePt { what: what.clone(), pt }])
+        },
+        // "gets +2/+0 for every seven cards in your graveyard".
+        |p| {
+            p.verb("get")?;
+            let pt = pt_signed(p)?;
+            p.words("for every")?;
+            let n = number(p)?;
+            let of = objects(p)?;
+            Some(vec![Static::Modify { what: what.clone(), pt: Some(pt), has: vec![], per: Some(Amount::Every { n, of: Box::new(of) }) }])
+        },
         |p| {
             p.verb("get")?;
             let pt = pt_signed(p)?;
@@ -593,7 +802,7 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             };
             let kind = counter_kind(p)?;
             p.one_of(&["counters", "counter"])?;
-            p.one_of(&["on it", "on them"])?;
+            p.one_of(&["on it", "on them", "on him", "on her"])?;
             if counted {
                 p.words("equal to")?;
                 let m = measure(p)?;
@@ -611,6 +820,8 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             });
             let n = match each {
                 Some(each) if n == Amount::N(1) => each,
+                // "an additional loyalty counter on him for each …".
+                Some(each) if n == Amount::Additional(Box::new(Amount::N(1))) => Amount::Additional(Box::new(each)),
                 Some(_) => return None,
                 None => n,
             };
@@ -670,7 +881,7 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             p.one_of(&["is", "are"])?;
             p.attempt(|p| p.one_of(&["a", "an"]));
             let types = group(p).filter(|g| g.iter().all(|a| matches!(a, Adj::Type(_) | Adj::Subtype(_) | Adj::Supertype(_) | Adj::Color(_))))?;
-            let mut v = vec![Static::Is { what: what.clone(), types: TypeSet::Listed(types) }];
+            let mut v = vec![Static::Is { what: what.clone(), types: TypeSet::Listed(types.clone()) }];
             if p.attempt(|p| p.word("with")).is_some() {
                 v.push(alt!(p;
                     |p| {
@@ -681,6 +892,11 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
                     },
                     |p| quoted(p).map(|a| Static::HasAbility { what: what.clone(), ability: Box::new(a) }),
                 )?);
+                // "… with base power and toughness 0/2 in addition to its
+                // other types": the types are added, not replacing.
+                if p.attempt(|p| p.one_of(&["in addition to its other types", "in addition to their other types"])).is_some() {
+                    v[0] = Static::AlsoIs { what: what.clone(), types: TypeSet::Listed(types) };
+                }
             }
             Some(v)
         },
@@ -689,7 +905,7 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
 
 /// What "loses" takes: "flying", "all abilities", "all other card types and
 /// abilities". "Other" is said once for the whole list.
-fn lost(p: &mut P) -> Option<Vec<Lost>> {
+pub(super) fn lost(p: &mut P) -> Option<Vec<Lost>> {
     if let Some(k) = p.attempt(keyword_list) {
         return Some(vec![Lost::Keywords(k)]);
     }
@@ -736,6 +952,7 @@ pub(super) fn player_rule_bare(p: &mut P) -> Option<PlayerRule> {
             Some(PlayerRule::CantCastMoreThanEachTurn { n, what })
         },
         |p| p.words("gain life").map(|_| PlayerRule::CantGainLife),
+        |p| p.words("get counters").map(|_| PlayerRule::CantGetCounters),
         |p| p.words("search libraries").map(|_| PlayerRule::CantSearchLibraries),
         |p| { p.word("cast")?; objects(p).map(PlayerRule::CantCast) },
         |p| { p.words("activate abilities of")?; objects(p).map(PlayerRule::CantActivateAbilitiesOf) },

@@ -66,10 +66,13 @@ pub fn mark_self(text: &str, names: &[&str], legendary: bool) -> String {
             if let Some((short, _)) = n.split_once(',') {
                 all.push(short.to_string());
             }
-            // "Loran of the Third Path" is "Loran" in its own text.
-            if let Some((short, _)) = n.split_once(" of ") {
-                if !short.contains(' ') {
-                    all.push(short.to_string());
+            // "Loran of the Third Path" is "Loran" in its own text, and
+            // "Gideon the Oathless" is "Gideon" (CR 201.5c).
+            for joint in [" of ", " the "] {
+                if let Some((short, _)) = n.split_once(joint) {
+                    if !short.contains(' ') && !short.contains(',') {
+                        all.push(short.to_string());
+                    }
                 }
             }
         }
@@ -78,6 +81,29 @@ pub fn mark_self(text: &str, names: &[&str], legendary: bool) -> String {
     all.sort_by_key(|n| std::cmp::Reverse(n.len()));
     for n in all.iter().filter(|n| !n.is_empty()) {
         out = out.replace(n.as_str(), &SELF.to_string());
+    }
+    out
+}
+
+/// Marks a short name standing alone as a word: not inside another word and
+/// not before a possessive, which names some other card ("Nissa's Chosen").
+pub fn mark_short_name(text: &str, short: &str) -> String {
+    let cs: Vec<char> = text.chars().collect();
+    let sc: Vec<char> = short.chars().collect();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < cs.len() {
+        let here = cs[i..].starts_with(&sc);
+        let before_ok = i == 0 || !cs[i - 1].is_alphanumeric();
+        let after = cs.get(i + sc.len());
+        let after_ok = after.is_none_or(|c| !c.is_alphanumeric() && *c != '\'' && *c != '’');
+        if here && before_ok && after_ok {
+            out.push(SELF);
+            i += sc.len();
+        } else {
+            out.push(cs[i]);
+            i += 1;
+        }
     }
     out
 }

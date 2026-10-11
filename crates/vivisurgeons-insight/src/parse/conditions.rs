@@ -73,6 +73,63 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             Some(Condition::ManaSpent { mana, what })
         },
         |p| p.words("you have the city 's blessing").map(|_| Condition::CitysBlessing(Player::You)),
+        // "this is the fourth time this ability has resolved this turn", and
+        // after the first, "it's the second time".
+        |p| {
+            p.one_of(&["this is the", "it's the"])?;
+            let n = ordinal(p)?;
+            p.word("time")?;
+            p.attempt(|p| p.words("this ability has resolved this turn"));
+            Some(Condition::NthResolution(n))
+        },
+        |p| { p.word("the")?; let m = mana(p)?; p.words("cost was paid")?; Some(Condition::CostPaid(m)) },
+        |p| p.words("this spell 's additional cost was paid").map(|_| Condition::AdditionalCostPaid),
+        |p| p.words("you win the flip").map(|_| Condition::WonFlip(true)),
+        |p| p.words("you lose the flip").map(|_| Condition::WonFlip(false)),
+        |p| {
+            p.words("it was kicked with its")?;
+            let m = mana(p)?;
+            p.word("kicker")?;
+            Some(Condition::KickedWith(m))
+        },
+        |p| p.words("damage is prevented this way").map(|_| Condition::DamagePreventedThisWay),
+        // "there is an instant card and a sorcery card in your graveyard":
+        // each in the zone said once after the last.
+        |p| {
+            p.words("there is")?;
+            let mut v = vec![objects(p)?];
+            while let Some(o) = p.attempt(|p| { p.word("and")?; objects(p) }) { v.push(o); }
+            if v.len() < 2 { return None; }
+            let zone = match v.last()?.filter.posts.last()? { Post::In(z) => z.clone(), _ => return None };
+            for o in v.iter_mut().rev().skip(1) {
+                o.filter.posts.push(Post::In(zone.clone()));
+            }
+            Some(Condition::ThereAre(v))
+        },
+        // "you both own and control this land and a creature named Hanweir
+        // Garrison".
+        |p| {
+            p.words("you both own and control")?;
+            let first = objects(p)?;
+            p.word("and")?;
+            let second = objects(p)?;
+            Some(Condition::OwnAndControl(vec![first, second]))
+        },
+        // "you exiled four or more cards this way".
+        |p| {
+            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+            p.word("exiled")?;
+            let what = objects(p)?;
+            p.words("this way")?;
+            Some(Condition::ThisWay(Box::new(Event::Exiles { who, what })))
+        },
+        // "you had a land enter the battlefield under your control this turn".
+        |p| {
+            p.words("you had")?;
+            let what = objects(p)?;
+            p.words("enter the battlefield under your control this turn")?;
+            Some(Condition::DidThisTurn(Box::new(Event::Enters { what, under: Some(Player::You), state: None })))
+        },
         // "a graveyard has twenty or more cards in it": some one graveyard.
         |p| {
             let zone = alt!(p;
@@ -105,8 +162,7 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.words("this turn")?;
             Some(Condition::DidThisTurn(Box::new(e)))
         },
-        |p| { p.words("you have")?; let n = number(p)?; p.words("or fewer cards in hand")?; Some(Condition::CardsInHandAtMost(n)) },
-        // "an opponent has 10 or less life": "you have" reads as its own.
+        |p| { p.words("you have")?; let n = number(p)?; p.words("or fewer cards in hand")?; Some(Condition::CardsInHandAtMost(n)) },        // "an opponent has 10 or less life": "you have" reads as its own.
         |p| {
             let who = player_simple(p)?;
             p.word("has")?;
@@ -274,6 +330,7 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             alt!(p;
                 |p| { p.one_of(&["is", "are"])?; p.words("in your opening hand")?; Some(Condition::InOpeningHand(what.clone())) },
                 |p| { p.one_of(&["remain exiled", "remains exiled"])?; Some(Condition::In { what: what.clone(), zone: Zone::Exile }) },
+                |p| { p.one_of(&["remain on the battlefield", "remains on the battlefield"])?; Some(Condition::In { what: what.clone(), zone: Zone::Battlefield }) },
                 |p| { p.one_of(&["is attached to", "are attached to"])?; let to = objects(p)?; Some(Condition::AttachedTo { what: what.clone(), to }) },
                 |p| p.words("died this turn").map(|_| Condition::DidThisTurn(Box::new(Event::Dies(what.clone())))),
                 |p| {
@@ -329,6 +386,41 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 },
                 |p| { p.words("was cast from")?; let zone = zone(p)?; Some(Condition::CastFrom { what: what.clone(), zone }) },
                 |p| { p.words("wasn't cast from")?; let zone = zone(p)?; Some(Condition::Not(Box::new(Condition::CastFrom { what: what.clone(), zone }))) },
+                |p| p.words("wasn't cast").map(|_| Condition::Not(Box::new(Condition::WasCast(what.clone())))),
+                |p| { p.one_of(&["is", "are"])?; p.words("face down")?; Some(Condition::FaceDown(what.clone())) },
+                // "a card is exiled with this land".
+                |p| {
+                    p.one_of(&["is", "are"])?;
+                    p.words("exiled with")?;
+                    let with = objects(p)?;
+                    Some(Condition::Is { what: what.clone(), filter: Filter { posts: vec![Post::ExiledWith(Box::new(with))], ..Filter::default() } })
+                },
+                // "it entered from your library or was cast from your library",
+                // "it entered under your control".
+                |p| {
+                    let entered = |p: &mut P| -> Option<Condition> {
+                        p.word("entered")?;
+                        alt!(p;
+                            |p| { p.word("from")?; let z = zone(p)?; Some(Condition::Entered { what: what.clone(), from: Some(z), under: None }) },
+                            |p| { p.word("under")?; let w = whose(p)?; p.word("control")?; Some(Condition::Entered { what: what.clone(), from: None, under: Some(w) }) },
+                        )
+                    };
+                    let first = entered(p)?;
+                    match p.attempt(|p| { p.words("or was cast from")?; zone(p) }) {
+                        Some(z) => Some(Condition::Or(vec![first, Condition::CastFrom { what: what.clone(), zone: z }])),
+                        None => Some(first),
+                    }
+                },
+                // "~ has one or more loyalty counters on him".
+                |p| {
+                    p.one_of(&["has", "have"])?;
+                    p.words("one or more")?;
+                    let kind = counter_kind(p)?;
+                    p.word("counters")?;
+                    p.word("on")?;
+                    pronoun(p)?;
+                    Some(Condition::HasCounter { what: what.clone(), kind: Some(kind) })
+                },
                 // "it has mana value 2 or less".
                 |p| { p.one_of(&["has", "have"])?; let cmp = compare(p)?; Some(Condition::Has { what: what.clone(), cmp }) },
                 |p| { p.one_of(&["targets", "target"])?; let target = objects(p)?; Some(Condition::Targets { what: what.clone(), target }) },

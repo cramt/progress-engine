@@ -103,8 +103,31 @@ pub(super) fn measure(p: &mut P) -> Option<Amount> {
     )
 }
 
+/// ", rounded up" or ", rounded down": whether a half rounds up.
+pub(super) fn rounded(p: &mut P) -> Option<bool> {
+    p.tok(&Tok::Comma)?;
+    p.word("rounded")?;
+    Some(p.one_of(&["up", "down"])? == "up")
+}
+
 fn measure_bare(p: &mut P) -> Option<Amount> {
     alt!(p;
+        // "half the number of cards in your library, rounded up".
+        |p| {
+            p.word("half")?;
+            let of = measure_bare(p)?;
+            let round_up = rounded(p)?;
+            Some(Amount::Half { of: Box::new(of), round_up })
+        },
+        |p| { p.words("the amount of")?; sym(p, "E")?; p.words("paid this way").map(|_| Amount::EnergyPaidThisWay) },
+        |p| p.words("that number").map(|_| Amount::ThatNumber),
+        // "three minus X".
+        |p| {
+            let a = number(p)?;
+            p.word("minus")?;
+            let b = amount(p)?;
+            Some(Amount::Minus(Box::new(Amount::N(a)), Box::new(b)))
+        },
         |p| p.words("that damage").map(|_| Amount::ThatDamage),
         |p| { p.words("the amount of mana spent to cast")?; objects(p).map(|o| Amount::ManaSpentToCast(Box::new(o))) },
         |p| {
@@ -119,6 +142,7 @@ fn measure_bare(p: &mut P) -> Option<Amount> {
             Some(Amount::TimesCastFrom { what: Box::new(what), zone })
         },
         |p| { p.words("the number of basic land types among")?; objects(p).map(|o| Amount::NumberOfBasicLandTypes(Box::new(o))) },
+        |p| { p.words("the number of card types among")?; objects(p).map(|o| Amount::NumberOfCardTypes(Box::new(o))) },
         |p| { p.words("the number of colors of mana spent to cast")?; objects(p).map(|o| Amount::ColorsOfManaSpentToCast(Box::new(o))) },
         |p| { p.words("the number of")?; objects(p).map(|o| Amount::CountOf(Box::new(o))) },
         // "twice the number of creatures you control".

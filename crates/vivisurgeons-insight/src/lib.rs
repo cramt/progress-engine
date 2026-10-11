@@ -37,6 +37,21 @@ pub fn read_face(face: &Face, card_name: &str) -> Vec<Line> {
     let legendary = face.type_line.contains("Legendary");
     let spell = face.type_line.contains("Instant") || face.type_line.contains("Sorcery");
     let marked = lex::mark_self(face.text, &[face.name, card_name], legendary);
+    // "Gideon the Oathless" is "Gideon" in its own text (CR 201.5c): a
+    // planeswalker whose name starts with its own subtype is called by it.
+    // Only planeswalkers: "Sliver Queen" says "Sliver creature token" of
+    // the type. And not before "'s": Nissa Revane names "Nissa's Chosen".
+    let short = (face.type_line.contains("Planeswalker") && !face.name.contains(','))
+        .then(|| {
+            let first = face.name.split(' ').next()?;
+            let subtypes = face.type_line.split_once('—')?.1;
+            (first != face.name && subtypes.split_whitespace().any(|s| s == first)).then_some(first)
+        })
+        .flatten();
+    let marked = match short {
+        Some(first) => lex::mark_short_name(&marked, first),
+        None => marked,
+    };
     let mut lines: Vec<String> = Vec::new();
     for l in marked.lines() {
         match lines.last_mut() {
@@ -776,6 +791,110 @@ mod tests {
             zone_of("Counter target spell with mana value less than or equal to the number of cards in its controller's graveyard."),
             vec![Post::In(Zone::Graveyard(Player::ControllerOf(it)))]
         );
+    }
+
+    #[test]
+    fn a_sentence_about_the_reflexive_targets_it_belongs_to_that_trigger() {
+        let a = read(
+            "Some Guide",
+            "Creature — Human Cleric",
+            "Whenever you attack, you may pay {E}{E}{E}. When you do, put two +1/+1 counters and a flying counter on target attacking creature. It becomes an Angel in addition to its other types.",
+        );
+        let Ability::Triggered { effect, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        // "It" is the creature the reflexive trigger targets, so it becomes
+        // an Angel when that trigger resolves, not when this one does.
+        assert_eq!(effect.len(), 2, "{effect:?}");
+        assert!(matches!(&effect[1], Effect::WhenYouDo(then)
+            if matches!(&then[..], [Effect::PutCountersEach { counters, .. }, Effect::Becomes { .. }] if counters.len() == 2)));
+    }
+
+    #[test]
+    fn protection_from_two_qualities_is_two_protection_abilities() {
+        let a = read(
+            "Some Riftwalker",
+            "Creature — Fox Wizard",
+            "Protection from Spirits and from Arcane",
+        );
+        // CR 702.16g: shorthand for two separate abilities.
+        assert!(matches!(&a[0], Ability::Keywords(ks)
+            if ks.len() == 2 && ks.iter().all(|k| k.name == "protection")));
+    }
+
+    #[test]
+    fn colors_before_a_list_of_kinds_hold_of_every_kind() {
+        let a = read(
+            "Some Sanctifier",
+            "Creature — Human Cleric",
+            "If a black or red permanent, spell, or card not on the battlefield would be put into a graveyard, exile it instead.",
+        );
+        let Ability::Static(s) = &a[0] else {
+            panic!("{a:?}")
+        };
+        let Static::Replacement { event, .. } = &s[0] else {
+            panic!("{s:?}")
+        };
+        let Event::PutInto { what, .. } = &**event else {
+            panic!("{event:?}")
+        };
+        let colors = vec![vec![Adj::Color(Color::Black)], vec![Adj::Color(Color::Red)]];
+        let spell = what.filter.or.as_deref().unwrap();
+        let card = spell.or.as_deref().unwrap();
+        assert_eq!(what.filter.alts, colors);
+        assert_eq!(spell.alts, colors);
+        assert_eq!(card.alts, colors);
+        assert_eq!(card.posts, vec![Post::NotIn(Zone::Battlefield)]);
+    }
+
+    #[test]
+    fn a_zone_after_a_list_holds_of_each_card_but_not_of_other_kinds() {
+        let zone_of = |text: &str| {
+            let a = read("Some Ending", "Sorcery", text);
+            let Ability::Spell(e) = &a[0] else {
+                panic!("{a:?}")
+            };
+            match &e[0] {
+                Effect::Move { what, .. } => what.filter.clone(),
+                e => panic!("{e:?}"),
+            }
+        };
+        let both = zone_of("Return target Dragon creature card or Ugin planeswalker card from your graveyard to your hand.");
+        assert_eq!(both.posts, vec![Post::In(Zone::Graveyard(Player::You))]);
+        // A spell is on the stack and a permanent on the battlefield, so "in
+        // a graveyard" is the card's alone.
+        let last = zone_of(
+            "Return target spell, nonland permanent, or card in a graveyard to its owner's hand.",
+        );
+        assert!(last.posts.is_empty(), "{last:?}");
+    }
+
+    #[test]
+    fn cards_you_dont_own_are_not_cards_your_opponents_own() {
+        let posts = |text: &str| {
+            let a = read("Some Thief", "Creature — Human Rogue", text);
+            format!("{a:?}")
+        };
+        // In Two-Headed Giant a teammate owns cards that are neither.
+        assert!(
+            posts("Whenever you cast a spell you don't own, draw a card.")
+                .contains("NotOwnedBy(You)")
+        );
+        assert!(
+            posts("Whenever you cast a spell your opponents own, draw a card.")
+                .contains("Owner(EachOpponent)")
+        );
+    }
+
+    #[test]
+    fn a_legendary_x_the_y_calls_itself_x() {
+        let a = read(
+            "Gideon the Oathless",
+            "Legendary Creature — Human Mercenary",
+            "Whenever a creature an opponent controls enters, Gideon deals 1 damage to that player.",
+        );
+        assert!(matches!(&a[0], Ability::Triggered { effect, .. }
+            if matches!(&effect[0], Effect::Damage { source: Some(s), .. } if s.quant == Quant::SelfRef)));
     }
 
     #[test]

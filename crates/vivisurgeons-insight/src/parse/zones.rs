@@ -7,6 +7,9 @@ pub(super) fn zone(p: &mut P) -> Option<Zone> {
         |p| p.words("a graveyard").map(|_| Zone::AGraveyard),
         // "target cards from graveyards": from any one, as "a graveyard" says.
         |p| p.word("graveyards").map(|_| Zone::AGraveyard),
+        |p| p.word("libraries").map(|_| Zone::ALibrary),
+        |p| p.words("outside the game").map(|_| Zone::OutsideTheGame),
+        |p| { let w = whose(p)?; p.words("starting deck")?; Some(Zone::StartingDeck(w)) },
         |p| p.one_of(&["all graveyards", "each graveyard"]).map(|_| Zone::Graveyard(Player::Each)),
         |p| { p.words("anywhere other than")?; zone(p).map(|z| Zone::AnywhereOtherThan(Box::new(z))) },
         |p| p.word("anywhere").map(|_| Zone::Anywhere),
@@ -61,6 +64,10 @@ impl Dest {
         self.zone
     }
 
+    pub(super) fn zone_ref(&self) -> &Zone {
+        &self.zone
+    }
+
     pub(super) fn moving(self, what: Objects, from: Option<Zone>, order: Option<Order>) -> Effect {
         Effect::Move {
             what,
@@ -88,7 +95,7 @@ pub(super) fn destination(p: &mut P) -> Option<Dest> {
             }).is_some();
             let under = p.attempt(|p| alt!(p;
                 |p| p.words("under your control").map(|_| Player::You),
-                |p| p.one_of(&["under its owner 's control", "under their owners ' control", "under their owner 's control"]).map(|_| Player::OwnerOf(Box::new(antecedent()))),
+                |p| p.one_of(&["under its owner 's control", "under their owners ' control", "under their owner 's control", "under his owner 's control", "under her owner 's control"]).map(|_| Player::OwnerOf(Box::new(antecedent()))),
             ));
             let tapped = tapped || p.attempt(|p| p.word("tapped")).is_some();
             Some(Dest { zone: Zone::Battlefield, tapped, transformed, under })
@@ -116,6 +123,13 @@ pub(super) fn destination(p: &mut P) -> Option<Dest> {
 /// bottom of" say which end of a library, so they are read with it.
 pub(super) fn put_to(p: &mut P) -> Option<Dest> {
     alt!(p;
+        // "on their choice of the top or bottom of their library".
+        |p| {
+            p.words("on their choice of the top or bottom of")?;
+            let w = whose(p)?;
+            p.word("library")?;
+            Some(Dest::to(Zone::TopOrBottomOfLibrary(w)))
+        },
         |p| { p.words("on top of")?; library_end(p, true) },
         |p| { p.words("on the bottom of")?; library_end(p, false) },
         // "Put the rest on the bottom": of the library they were looked at

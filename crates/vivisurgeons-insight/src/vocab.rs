@@ -56,9 +56,18 @@ pub fn vocab() -> &'static Vocab {
         .into_iter()
         .flat_map(lines)
         .collect();
+        // Scryfall's catalogs miss a few the Comprehensive Rules define: Plot
+        // is a keyword ability (CR 702.170), filed under actions there, and
+        // "Empower Jace" a keyword action (CR 701.71) not in either list.
+        // Remove an entry once the catalog it belongs in carries it.
+        let abilities = format!("{}\nplot\n", include_str!("../vocab/keyword-abilities.txt"));
+        let actions = format!(
+            "{}\nempower jace\n",
+            include_str!("../vocab/keyword-actions.txt")
+        );
         Vocab {
-            keyword_abilities: by_first_word(include_str!("../vocab/keyword-abilities.txt")),
-            keyword_actions: lines(include_str!("../vocab/keyword-actions.txt")).collect(),
+            keyword_abilities: by_first_word(&abilities),
+            keyword_actions: lines(&actions).collect(),
             ability_words: phrases(include_str!("../vocab/ability-words.txt")),
             card_types: lines(include_str!("../vocab/card-types.txt")).collect(),
             land_types: lines(include_str!("../vocab/land-types.txt")).collect(),
