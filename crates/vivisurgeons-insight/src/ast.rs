@@ -1579,7 +1579,10 @@ pub enum Keeps {
     /// "becomes an Island", "becomes a Coward": only subtypes are set, so
     /// only the subtypes of their set are replaced; card types, supertypes
     /// and other subtypes stay (CR 205.1a, 305.7). Tide Shaper's land is
-    /// still a land, and still basic or legendary.
+    /// still a land, and still basic or legendary. Also "becomes a 2/2
+    /// Construct artifact creature": it keeps every prior card type and
+    /// subtype but replaces its creature types (CR 205.1b, last sentence),
+    /// where a bare "artifact creature" keeps everything (`OtherTypes`).
     AllButSubtypesOfSet,
     /// "in addition to its other types".
     OtherTypes,
