@@ -1,7 +1,16 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { useSettingsEdit } from "../card/preference";
 import type { Card, Finish } from "../deck";
 import { parseLogin } from "../github/trade";
+import {
+  CURRENCIES,
+  formatPrice,
+  loadCurrency,
+  saveCurrency,
+  unitPrice,
+  usePrices,
+} from "../prices";
+import type { Currency } from "../scryfall";
 import type { SupplyShort } from "../supply";
 import { setFriends } from "../supply";
 import { tradeText } from "../trade/TradeView";
@@ -41,6 +50,18 @@ export function SourcingView({
   me: string;
   onUse: OnUseOwned;
 }) {
+  const [currency, setCurrency] = useState(loadCurrency);
+  // The deck's own printings, what buying a card means, and the friends'
+  // copies, what asking for one is worth.
+  const priced = useMemo(() => {
+    const out: { card: Card["card"] }[] = [...cards];
+    if (state.kind === "ready" && state.supply.kind === "supply")
+      for (const s of state.supply.short)
+        for (const f of s.friends) out.push(...f.pulls);
+    return out;
+  }, [cards, state]);
+  const prices = usePrices(priced);
+
   if (state.kind === "loading")
     return <p className="muted supply-status">Reading your collection…</p>;
   if (state.kind === "failed")
@@ -60,6 +81,22 @@ export function SourcingView({
   const lineOf = (r: Row) => cards[r.line.index];
   const { printings } = state;
   const buyText = b.buy.map((c) => `${c.short} ${c.name}`).join("\n");
+  // A short card is priced as the list names it: what buying it would cost.
+  const shortEach = (c: SupplyShort) => {
+    const line = cards[c.line];
+    return line && unitPrice(line, prices, currency);
+  };
+  const buy = sum(b.buy.map((c) => [shortEach(c), c.short]));
+  const fromFriends = sum(
+    b.friends.flatMap((c) =>
+      c.friends.flatMap((f) =>
+        f.pulls.map((p) => [unitPrice(p, prices, currency), p.qty] as const),
+      ),
+    ),
+  );
+  const toBuy = [...b.buy].sort(
+    (x, y) => (shortEach(y) ?? -1) * y.short - (shortEach(x) ?? -1) * x.short,
+  );
 
   return (
     <div className="supply">
@@ -82,11 +119,20 @@ export function SourcingView({
           <>
             {" "}
             · <strong>{b.copies.buy}</strong> to get
+            {buy.total > 0 && (
+              <>
+                , <strong>{formatPrice(buy.total, currency)}</strong>
+                {buy.unpriced > 0 && (
+                  <span className="muted"> + {buy.unpriced} unpriced</span>
+                )}
+              </>
+            )}
           </>
         )}
         {b.copies.basics > 0 && (
           <span className="muted"> · {b.copies.basics} basic lands</span>
         )}
+        <CurrencyPick currency={currency} onPick={setCurrency} />
       </p>
       <Friends
         friends={state.friends}
@@ -111,6 +157,12 @@ export function SourcingView({
               <th>Your copy</th>
               <th>The list names</th>
               <th>Where</th>
+              <th
+                className="cost-num"
+                title="One copy of the printing the list names"
+              >
+                Listed costs
+              </th>
               <th aria-label="Use" />
             </tr>
           </thead>
@@ -145,6 +197,10 @@ export function SourcingView({
                       : ""}
                   </td>
                   <td>{whereLabel(copies)}</td>
+                  <PriceCell
+                    each={line && unitPrice(line, prices, currency)}
+                    currency={currency}
+                  />
                   <td>
                     {usable && copies.card.kind === "printing" && (
                       <button
@@ -171,6 +227,10 @@ export function SourcingView({
         <SupplySection
           title="A friend has"
           count={b.copies.friends}
+          hint={
+            fromFriends.total > 0 &&
+            `Their copies are worth ${formatPrice(fromFriends.total, currency)}.`
+          }
           actions={state.friends
             .filter((who) => offersOf(s, who).length > 0)
             .map((who) => (
@@ -209,6 +269,11 @@ export function SourcingView({
                             {p.at ?? "unsorted"}
                             {p.inDeck && " (in a deck)"}
                             {label && <span className="muted"> · {label}</span>}
+                            <PullPrice
+                              each={unitPrice(p, prices, currency)}
+                              qty={p.qty}
+                              currency={currency}
+                            />
                           </li>
                         );
                       }),
@@ -238,18 +303,24 @@ export function SourcingView({
             <tr>
               <th>Short</th>
               <th>Card</th>
-              <th />
+              <th className="cost-num">Each</th>
+              <th className="cost-num">Total</th>
             </tr>
           </thead>
           <tbody>
-            {b.buy.map((c) => (
+            {toBuy.map((c) => (
               <ShortRow
                 key={c.name}
                 short={c}
                 cards={cards}
                 printings={printings}
               >
-                <td />
+                <PriceCell each={shortEach(c)} currency={currency} />
+                <PriceCell
+                  each={shortEach(c)}
+                  qty={c.short}
+                  currency={currency}
+                />
               </ShortRow>
             ))}
           </tbody>
@@ -411,5 +482,79 @@ function Friends({
         </span>
       )}
     </form>
+  );
+}
+
+/** The copies' total and how many of them have no price. */
+function sum(rows: readonly (readonly [number | undefined, number])[]) {
+  let total = 0;
+  let unpriced = 0;
+  for (const [each, qty] of rows) {
+    if (each === undefined) unpriced += qty;
+    else total += each * qty;
+  }
+  return { total, unpriced };
+}
+
+/** `qty` copies at `each`, or a dash for a card Scryfall has no price for. */
+function PriceCell({
+  each,
+  qty = 1,
+  currency,
+}: {
+  each: number | undefined;
+  qty?: number;
+  currency: Currency;
+}) {
+  return (
+    <td className="cost-num">
+      {each === undefined ? (
+        <span className="muted">—</span>
+      ) : (
+        formatPrice(each * qty, currency)
+      )}
+    </td>
+  );
+}
+
+/** The currency, shared with the cost view. */
+function CurrencyPick({
+  currency,
+  onPick,
+}: {
+  currency: Currency;
+  onPick: (c: Currency) => void;
+}) {
+  return (
+    <select
+      className="cost-currency"
+      aria-label="Currency"
+      value={currency}
+      onChange={(e) => {
+        const c = e.target.value as Currency;
+        onPick(c);
+        saveCurrency(c);
+      }}
+    >
+      {CURRENCIES.map((c) => (
+        <option key={c} value={c}>
+          {c.toUpperCase()}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function PullPrice({
+  each,
+  qty,
+  currency,
+}: {
+  each: number | undefined;
+  qty: number;
+  currency: Currency;
+}) {
+  return each === undefined ? null : (
+    <span className="muted"> · {formatPrice(each * qty, currency)}</span>
   );
 }

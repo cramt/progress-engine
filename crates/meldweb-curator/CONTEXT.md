@@ -39,7 +39,7 @@ The page `/trade?with=<login>` ([ADR-0035](../../docs/adr/0035-a-trade-reads-ano
 _Avoid_: match, swap
 
 **Sourcing**:
-A deck's view `?view=sourcing` ([ADR-0036](../../docs/adr/0036-a-decks-sourcing-and-build-are-the-deck-against-its-copies.md)): each card the deck needs a copy of, as owned as listed, owned in another printing (a **stand-in**), held by a friend, or still to get. The deck is taken alone, against the whole collection.
+A deck's view `?view=sourcing` ([ADR-0036](../../docs/adr/0036-a-decks-sourcing-and-build-are-the-deck-against-its-copies.md)): each card the deck needs a copy of, as owned as listed, owned in another printing (a **stand-in**), held by a friend, or still to get, each priced at the printing the list names. The deck is taken alone, against the whole collection.
 _Avoid_: acquisition, shopping list
 
 **Build**:
