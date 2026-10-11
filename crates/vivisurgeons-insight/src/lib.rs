@@ -1052,6 +1052,26 @@ mod tests {
     }
 
     #[test]
+    fn what_mana_does_to_the_spell_it_pays_for_happens_as_it_is_spent() {
+        let a = read(
+            "Some Arena",
+            "Land",
+            "{R}, {T}, Exert this land: Add {R}{R}. If any of that mana is spent on a creature spell, it gains haste until end of turn.",
+        );
+        // CR 106.6: as the mana is spent, not as the ability resolves, when
+        // none of it has been spent yet.
+        assert!(matches!(&a[0], Ability::Activated { effect, .. }
+            if matches!(&effect[1], Effect::OnSpend { of: SpentOf::Any, then, .. } if matches!(then[0], Effect::Modify { .. }))));
+        let a = read(
+            "Some Palace",
+            "Land",
+            "{1}, {T}: Add one mana of any color in your commander's color identity. If you spend this mana to cast your commander, it enters with a number of additional +1/+1 counters on it equal to the number of times it's been cast from the command zone this game.",
+        );
+        assert!(matches!(&a[0], Ability::Activated { effect, .. }
+            if matches!(&effect[1], Effect::OnSpend { of: SpentOf::All, .. })));
+    }
+
+    #[test]
     fn protection_from_two_qualities_is_two_protection_abilities() {
         let a = read(
             "Some Riftwalker",

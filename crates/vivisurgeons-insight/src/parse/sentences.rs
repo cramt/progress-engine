@@ -251,6 +251,19 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
             Some(rules.into_iter().map(|rule| Effect::Restrict { what: what.clone(), rule, dur: dur.clone() }).collect())
         },
+        // "If any of that mana is spent on a creature spell, it gains haste":
+        // what the mana does to the spell it pays for, as it is spent (CR
+        // 106.6).
+        |p| {
+            p.word("if")?;
+            let of = alt!(p;
+                |p| p.words("any of that mana is spent on").map(|_| SpentOf::Any),
+                |p| p.words("you spend this mana to cast").map(|_| SpentOf::All),
+            )?;
+            let on = objects(p)?;
+            p.tok(&Tok::Comma)?;
+            Some(vec![Effect::OnSpend { of, on, then: clauses(p)? }])
+        },
         |p| {
             p.one_of(&["if you do", "if they do", "if that player does", "if the player does"])?;
             p.tok(&Tok::Comma)?;

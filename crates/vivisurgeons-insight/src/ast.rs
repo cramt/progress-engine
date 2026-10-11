@@ -1448,6 +1448,24 @@ pub enum Effect {
         what: Objects,
         mana: Mana,
     },
+    /// "Add {R}{R}. If any of that mana is spent on a creature spell, it
+    /// gains haste until end of turn.": an effect of the mana itself on the
+    /// spell it pays for, applied when it is spent (CR 106.6), not a check
+    /// as the ability resolves, when none of it has been spent yet.
+    OnSpend {
+        of: SpentOf,
+        on: Objects,
+        then: Vec<Effect>,
+    },
+}
+
+/// How much of the mana an ability made a spell must be paid with.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SpentOf {
+    /// "If any of that mana is spent on …": some of it.
+    Any,
+    /// "If you spend this mana to cast …": the mana, all of it.
+    All,
 }
 
 impl Effect {
@@ -2331,11 +2349,6 @@ pub enum Condition {
         what: Objects,
         zone: Zone,
     },
-    /// "any of that mana is spent on a creature spell".
-    ManaSpentOn(Objects),
-    /// "any of that mana is spent on a creature spell": some of it, where
-    /// "you spend this mana to cast" is all of it.
-    AnyManaSpentOn(Objects),
     /// "you attacked with two or more creatures this turn".
     AttackedWithThisTurn(Objects),
     /// "the gift was promised".

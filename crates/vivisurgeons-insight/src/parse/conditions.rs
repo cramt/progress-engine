@@ -183,7 +183,6 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         },
         |p| { p.words("no mana was spent to cast")?; objects(p).map(Condition::NoManaSpentToCast) },
         |p| p.words("this spell was bargained").map(|_| Condition::WasBargained),
-        |p| { p.words("you spend this mana to cast")?; objects(p).map(Condition::ManaSpentOn) },
         // "an opponent lost 2 or more life this turn", "an opponent was dealt
         // 7 or more damage this turn".
         |p| {
@@ -256,7 +255,6 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             Some(Condition::AmountIs { n: Amount::CountOf(Box::new(cards)), op: Op::Eq, value: Amount::N(0) })
         },
         |p| { let e = event(p)?; p.words("this way")?; Some(Condition::ThisWay(Box::new(e))) },
-        |p| { p.words("any of that mana is spent on")?; objects(p).map(Condition::AnyManaSpentOn) },
         |p| {
             p.words("you attacked with")?;
             let what = objects(p)?;

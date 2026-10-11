@@ -4600,6 +4600,15 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w(",");
             clauses(o, v, cx);
         }
+        Effect::OnSpend { of, on, then } => {
+            o.w(match of {
+                SpentOf::Any => "if any of that mana is spent on",
+                SpentOf::All => "if you spend this mana to cast",
+            });
+            objects(o, on);
+            o.w(",");
+            clauses(o, then, cx);
+        }
         Effect::If { cond, then } => {
             let before = out(|o| {
                 o.w("if");
@@ -7137,10 +7146,6 @@ fn condition(o: &mut Out, c: &Condition) {
             o.w("was cast from");
             zone(o, z);
         }
-        Condition::ManaSpentOn(x) => {
-            o.w("you spend this mana to cast");
-            objects(o, x);
-        }
         Condition::AttackedWithThisTurn(x) => {
             o.w("you attacked with");
             objects(o, x);
@@ -7187,10 +7192,6 @@ fn condition(o: &mut Out, c: &Condition) {
             objects(o, x);
         }
         Condition::WasBargained => o.w("this spell was bargained"),
-        Condition::AnyManaSpentOn(x) => {
-            o.w("any of that mana is spent on");
-            objects(o, x);
-        }
         Condition::Past(c) => past(o, c),
         Condition::PlayerHasAtMost { who, at_most, what } => {
             player(o, who);

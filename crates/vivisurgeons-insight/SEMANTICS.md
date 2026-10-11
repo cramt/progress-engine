@@ -97,7 +97,8 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "This artifact deals damage equal to …. If the revealed land card was a Mountain, this artifact deals double that damage instead." | `Instead { [ThatDamage { n: Twice(ThatDamage) }] }` | settled: the damage of the effect "instead" replaces, which is never dealt, so it is not `Amount::Damage` ("dealt this way"); the replaced effect is the event `ThatDamage` names (Goblin Charbelcher) |
 | "any number of target creatures" | `AnyNumberOfTarget`, apart from "up to X target" | settled: no bound |
 | "the next spell you cast this turn" | `WillCastThisTurn`, apart from "spells you've cast this turn" | settled |
-| "any of that mana is spent on" | `AnyManaSpentOn`, apart from "you spend this mana to cast" | settled: some of it, not all |
+| "any of that mana is spent on" | `SpentOf::Any`, apart from "you spend this mana to cast", `SpentOf::All` | settled: some of it, not all |
+| "Add {R}{R}. If any of that mana is spent on a creature spell, it gains haste until end of turn." | `OnSpend { of, on, then }`, not `If { … }` | settled: CR 106.6, an additional effect on the spell the mana is spent on, applied as it is spent; an "if" checked as the ability resolves would always be false, since none of the mana is spent yet. Arena of Glory, Generator Servant, Opal Palace. "When that mana is spent to cast …" (Pyromancer's Goggles, Primal Amulet, Path of Ancestry) is a delayed trigger, `DelayedWhen`, as before |
 | "cards revealed this way" | `Marked(Revealed)`, not "from among them" | settled |
 | "Equip legendary creature {3}" | `CostFor`, the objects and the cost | settled |
 | "choose artifact, creature, enchantment, instant, or sorcery" | `Choice::CardTypeAmong` | settled: a card type, not objects |
