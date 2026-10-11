@@ -1215,6 +1215,41 @@ mod tests {
     }
 
     #[test]
+    fn a_sentence_about_what_an_if_brought_in_is_the_ifs() {
+        let a = read(
+            "Some Triumph",
+            "Sorcery",
+            "Exile target creature or planeswalker. If that permanent's mana value was 3 or less, return it to the battlefield tapped under your control. Exile it at the beginning of the next end step.",
+        );
+        let Ability::Spell(e) = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert_eq!(e.len(), 2, "{e:?}");
+        assert!(matches!(&e[1], Effect::If { then, .. } if then.len() == 2));
+        // "Otherwise, put that card onto the battlefield. That creature
+        // gains haste.": the creature is the other branch's.
+        let a = read(
+            "Some Raid",
+            "Enchantment",
+            "{2}{R}: Reveal the top card of your library. If it isn't a creature card, put it into your graveyard. Otherwise, put that card onto the battlefield. That creature gains haste. Sacrifice it at the beginning of the next end step.",
+        );
+        let Ability::Activated { effect, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert!(matches!(effect.last(), Some(Effect::Otherwise(then)) if then.len() == 3));
+        // Two cases of one revealed card stay side by side.
+        let a = read(
+            "Some Satchel",
+            "Artifact",
+            "{2}, {T}: Reveal the top card of your library. If it's a creature card, create a 1/1 green Saproling creature token. If it's a land card, put that card onto the battlefield under your control.",
+        );
+        let Ability::Activated { effect, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert_eq!(effect.len(), 3, "{effect:?}");
+    }
+
+    #[test]
     fn hero_is_a_creature_type() {
         let a = read(
             "Some Assembly",

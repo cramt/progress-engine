@@ -764,7 +764,18 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
         // "You may put a creature card from your hand onto the battlefield.
         // That creature gains haste.": the creature is there only if the
         // option was taken, so the sentence about it is the option's too.
-        if let Some(branch) = v.last_mut().and_then(branch_with_new_object) {
+        // "If it's a creature card, create …. If it's a land card, put that
+        // card onto the battlefield.": cases of one object, side by side.
+        let cases = matches!(
+            (v.last(), s.first()),
+            (Some(Effect::If { cond: a, .. }), Some(Effect::If { cond: b, .. }))
+                if tested(a).is_some() && tested(a) == tested(b)
+        );
+        if let Some(branch) = v
+            .last_mut()
+            .and_then(branch_with_new_object)
+            .filter(|_| !cases)
+        {
             // "Otherwise, …" is the other branch of the "if" before it, so
             // it goes where that "if" went (Thunderous Debut).
             let otherwise = matches!(branch.last(), Some(Effect::If { .. }))
@@ -832,36 +843,53 @@ fn those_players(p: &mut P, each: Objects) -> Option<Vec<Effect>> {
     ])
 }
 
-/// The effects of a `may` or `if you do` that bring in an object that
-/// exists only if the option was taken.
+/// The effects of a `may`, `if you do`, `if` or `otherwise` that bring in
+/// an object that exists only if that branch was taken.
 fn branch_with_new_object(e: &mut Effect) -> Option<&mut Vec<Effect>> {
     let then = match e {
-        Effect::May { then, .. } | Effect::IfYouDo(then) => then,
+        Effect::May { then, .. }
+        | Effect::IfYouDo(then)
+        | Effect::If { then, .. }
+        | Effect::Otherwise(then) => then,
         _ => return None,
     };
     then.iter().any(brings_in).then_some(then)
 }
 
-/// Whether an effect picks out a new object: one moved, made, found,
-/// chosen or revealed, not one an earlier clause named.
+/// Whether an effect picks out a new object: one moved, exiled, made,
+/// found, chosen or revealed, not one an earlier clause named. A card put
+/// onto the battlefield is a new object whatever named it (CR 400.7).
 fn brings_in(e: &Effect) -> bool {
     let new = |x: &Objects| !matches!(x.quant, Quant::Antecedent | Quant::SelfRef);
     match e {
+        Effect::Move {
+            what,
+            to: Zone::Battlefield,
+            ..
+        } => what.quant != Quant::SelfRef,
         Effect::Move { what, .. }
+        | Effect::Exile(what)
         | Effect::Search { what, .. }
         | Effect::Reveal { what, .. }
         | Effect::Choose(Choice::Objects(what)) => new(what),
-        Effect::Create { .. } => true,
+        Effect::Create { .. }
+        | Effect::CreateCopy { .. }
+        | Effect::CreateNamed { .. }
+        | Effect::CreateAttached { .. } => true,
         Effect::Or(v) => v.iter().all(brings_in),
         _ => false,
     }
 }
 
 /// Whether an effect is first said of a bare "it", "them" or "that
-/// creature": an object an earlier clause named.
+/// creature", or a definite "the token", "that card": an object an earlier
+/// clause named. "If the token isn't a creature, …" says it in the "if".
 fn refers_back(e: &Effect) -> bool {
     let it = |x: &Objects| x.quant == Quant::Antecedent;
     match e {
+        Effect::If { cond, .. } if tested(cond).is_some() => true,
+        Effect::Cast { what, .. } => it(what),
+        Effect::May { then, .. } => then.first().is_some_and(refers_back),
         Effect::Modify { what, .. }
         | Effect::GrantAbility { what, .. }
         | Effect::Becomes { what, .. }
@@ -877,6 +905,15 @@ fn refers_back(e: &Effect) -> bool {
             then.first().is_some_and(refers_back)
         }
         _ => false,
+    }
+}
+
+/// The earlier object an "if it's …" or "if it isn't …" tests.
+fn tested(c: &Condition) -> Option<&Objects> {
+    match c {
+        Condition::Is { what, .. } if what.quant == Quant::Antecedent => Some(what),
+        Condition::Not(c) => tested(c),
+        _ => None,
     }
 }
 
