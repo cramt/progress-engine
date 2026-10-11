@@ -1366,6 +1366,17 @@ mod tests {
     }
 
     #[test]
+    fn a_size_alone_keeps_every_type() {
+        let a = read(
+            "Some Square",
+            "Instant",
+            "Target creature has base power and toughness 4/4 until end of turn.",
+        );
+        assert!(format!("{a:?}").contains("keeps: OtherTypes"), "{a:?}");
+        assert_eq!(Keeps::implied_by(&[]), Keeps::OtherTypes);
+    }
+
+    #[test]
     fn hero_is_a_creature_type() {
         let a = read(
             "Some Assembly",

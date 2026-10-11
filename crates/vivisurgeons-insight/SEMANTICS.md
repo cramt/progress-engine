@@ -119,7 +119,7 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "cards revealed this way" | `Marked(Revealed)`, not "from among them" | settled |
 | "Equip legendary creature {3}" | `CostFor`, the objects and the cost | settled |
 | "choose artifact, creature, enchantment, instant, or sorcery" | `Choice::CardTypeAmong` | settled: a card type, not objects |
-| "has base power and toughness X/X" | `Becomes` with that size | settled: CR 613.4b, the same layer as "becomes X/X" |
+| "has base power and toughness X/X", "becomes a 4/4" | `Becomes` with that size and `Keeps::OtherTypes` | settled: CR 613.4b, the same layer as "becomes X/X"; it sets no type, so it replaces none (CR 205.1a replaces only the types an effect sets). It read `Keeps::Nothing`, every type stripped (Tezzeret, Betrayer of Flesh; 34 corpus trees, Mirror Entity pinned) |
 | "Each player shuffles …, then draws seven cards" | the draw continues "each player" | settled: a third-person verb continues the subject before it |
 | "choose both", "choose two" | `Choose::N(2)`; the round trip says "both" only when the spell has two modes | settled: "both" is two of two, so the mode count decides the word |
 | "one or more" | `AtLeast(N(1))` | open |

@@ -4737,7 +4737,9 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             });
             match pt {
                 // "creatures you control have base power and toughness X/X".
-                Some(pt) if types.is_empty() && gains.is_empty() && *k == Keeps::Nothing => {
+                Some(pt)
+                    if types.is_empty() && gains.is_empty() && *k == Keeps::implied_by(&[]) =>
+                {
                     let base = out(|o| {
                         obj_subj(o, what, "have");
                         o.w("base power and toughness");

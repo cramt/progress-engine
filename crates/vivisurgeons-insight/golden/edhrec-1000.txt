@@ -4159,7 +4159,7 @@ type: Creature — Shapeshifter
 > Changeling (This card is every creature type.)
 > {X}: Until end of turn, creatures you control have base power and toughness X/X and gain all creature types.
 = Keywords([Keyword { name: "changeling", param: None }])
-= Activated { cost: [Mana(Mana(["X"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: false }), types: [], gains: [], keeps: Nothing, dur: Permanent }, AlsoIs { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, types: EveryCreatureType, dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["X"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: false }), types: [], gains: [], keeps: OtherTypes, dur: Permanent }, AlsoIs { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, types: EveryCreatureType, dur: Permanent }] }], limits: [] }
 
 ## Mistrise Village
 face: Mistrise Village

@@ -1555,6 +1555,11 @@ impl Keeps {
     /// subtype, and "a Construct artifact creature" all but the creature
     /// types (CR 205.1b); any other card type replaces the card types.
     pub fn implied_by(types: &[Adj]) -> Keeps {
+        // "has base power and toughness 4/4": an effect that sets no type
+        // replaces none (CR 205.1a replaces only the types it sets).
+        if types.is_empty() {
+            return Keeps::OtherTypes;
+        }
         let card_types: Vec<&str> = types
             .iter()
             .filter_map(|a| match a {

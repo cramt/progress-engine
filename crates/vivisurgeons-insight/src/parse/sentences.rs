@@ -171,7 +171,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             p.bump();
             let also = p.attempt(|p| { p.word("and")?; p.verb("gain")?; p.words("all creature types") }).is_some();
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
-            let mut v = vec![Effect::Becomes { what: what.clone(), pt: Some(pt), types: vec![], gains: vec![], keeps: Keeps::Nothing, dur: dur.clone() }];
+            let mut v = vec![Effect::Becomes { what: what.clone(), pt: Some(pt), types: vec![], gains: vec![], keeps: Keeps::implied_by(&[]), dur: dur.clone() }];
             if also {
                 v.push(Effect::AlsoIs { what, types: TypeSet::EveryCreatureType, dur });
             }
