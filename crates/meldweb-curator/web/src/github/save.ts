@@ -3,10 +3,16 @@
  * themselves once the deck has been idle ten seconds, or at once when the page
  * is hidden or closing. A save is one Contents `PUT` guarded by the blob sha
  * from the last load or save. When GitHub refuses it because the file moved,
- * saving stops until the user reloads or overwrites; nothing is merged.
+ * an editor that takes merges has GitHub's file and its own merged by lines
+ * and committed; otherwise, or when both changed the same lines, saving stops
+ * until the user reloads or overwrites.
  */
 import { ConflictError, type GitHubApi, type RepoRef } from "./api";
+import { mergeLines } from "./merge";
 import { commitMessageFor, track } from "./repoFile";
+
+/** How many times a merge is committed before a conflict is given up on. */
+const MERGES = 3;
 
 export const IDLE_MS = 10_000;
 
@@ -58,10 +64,15 @@ export interface SaveOptions {
   text: string;
   sha: string | null;
   idleMs?: number;
+  /**
+   * The editor's text became `text`, GitHub's changes merged into its own.
+   * Without it a refused save is a conflict at once.
+   */
+  onMerge?: (text: string) => void;
 }
 
 export function createSaveStore(options: SaveOptions): SaveStore {
-  const { api, repo, path } = options;
+  const { api, repo, path, onMerge } = options;
   const idleMs = options.idleMs ?? IDLE_MS;
 
   let base = options.text;
@@ -103,15 +114,12 @@ export function createSaveStore(options: SaveOptions): SaveStore {
     const committing = (async () => {
       try {
         const from = await guard();
-        const message = commitMessageFor(path, from.before, after);
-        const r = await api.putFile(repo, path, {
-          text: after,
-          message,
-          sha: from.sha,
-          keepalive: true,
-        });
-        base = after;
-        sha = r.sha;
+        try {
+          await commit(from.before, from.sha, after);
+        } catch (e) {
+          if (!(e instanceof ConflictError) || !onMerge) throw e;
+          await merge(onMerge, e);
+        }
         set({ status: pending() ? "unsaved" : "saved" });
       } catch (e) {
         if (e instanceof ConflictError) set({ status: "conflict" });
@@ -133,6 +141,60 @@ export function createSaveStore(options: SaveOptions): SaveStore {
     inflight = committing;
     void track(path, committing);
     return committing;
+  }
+
+  async function commit(before: string, guard: string | null, text: string) {
+    const r = await api.putFile(repo, path, {
+      text,
+      message: commitMessageFor(path, before, text),
+      sha: guard,
+      keepalive: true,
+    });
+    base = text;
+    sha = r.sha;
+  }
+
+  /**
+   * Commits GitHub's file with the local edits merged in, on GitHub's sha.
+   * Throws `refused` when the two changed the same lines, the file is gone,
+   * or what the merge makes is not a file of its kind.
+   */
+  async function merge(onMerge: (text: string) => void, refused: Error) {
+    for (let attempt = 1; ; attempt++) {
+      const file = await api.getFile(repo, path);
+      if (!file) throw refused;
+      // From the latest local text, not the one being committed: nothing
+      // awaits between reading it and handing the merge back.
+      const merged = mergeLines(base, current, file.text);
+      if (merged === null) throw refused;
+      // Rust refuses to diff a text that is not a file of its kind.
+      let message: string;
+      try {
+        message = commitMessageFor(path, file.text, merged);
+      } catch {
+        throw refused;
+      }
+      current = merged;
+      onMerge(merged);
+      if (merged === file.text) {
+        base = merged;
+        sha = file.sha;
+        return;
+      }
+      try {
+        const r = await api.putFile(repo, path, {
+          text: merged,
+          message,
+          sha: file.sha,
+          keepalive: true,
+        });
+        base = merged;
+        sha = r.sha;
+        return;
+      } catch (e) {
+        if (!(e instanceof ConflictError) || attempt >= MERGES) throw e;
+      }
+    }
   }
 
   function save(keepalive: boolean): Promise<void> {

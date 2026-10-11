@@ -116,7 +116,15 @@ export function WantedEditor({
   const [currency, setCurrency] = useState(loadCurrency);
 
   const [store] = useState(() =>
-    createSaveStore({ api, repo, path, text: loaded, sha }),
+    createSaveStore({
+      api,
+      repo,
+      path,
+      text: loaded,
+      sha,
+      // Another tab's or device's edits, merged in, undo as one step.
+      onMerge: (text) => history.edit(text),
+    }),
   );
   const save = useSave(store);
   useEffect(() => store.edit(history.present), [store, history.present]);

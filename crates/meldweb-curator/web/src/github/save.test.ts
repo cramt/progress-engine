@@ -13,8 +13,11 @@ import { mockConnection } from "./testkit";
 // name, so it is stubbed through the same module the app imports.
 vi.mock("../deck", async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  commitMessage: (before: string, after: string, path: string) =>
-    `${path}: ${before.length} -> ${after.length} bytes`,
+  commitMessage: (before: string, after: string, path: string) => {
+    // Rust refuses to diff a text that is not a deck.
+    if (after.includes("not a deck")) throw new Error("refused");
+    return `${path}: ${before.length} -> ${after.length} bytes`;
+  },
 }));
 
 const PATH = "decks/lantern.deck.toml";
@@ -269,6 +272,73 @@ describe("a conflict", () => {
     await Promise.all([saving, overwriting]);
     expect(store.getState().status).toBe("saved");
     expect(conn.mock.file(PATH)?.text).toBe(v(1));
+  });
+});
+
+describe("a save another client got in ahead of", () => {
+  const deck = (...cards: string[]) =>
+    `name = "Lantern"\ncards = [\n${cards.map((c) => `  "${c}",\n`).join("")}]\n`;
+  let merged: string[];
+
+  beforeEach(async () => {
+    vi.useRealTimers();
+    store.dispose();
+    conn = mockConnection({ files: { [PATH]: deck("a", "b", "c", "d") } });
+    await conn.auth.token();
+    const file = conn.mock.file(PATH);
+    merged = [];
+    store = createSaveStore({
+      api: conn.api,
+      repo: conn.repo,
+      path: PATH,
+      text: file?.text ?? "",
+      sha: file?.sha ?? null,
+      onMerge: (text) => merged.push(text),
+    });
+    vi.useFakeTimers();
+  });
+
+  it("merges GitHub's edits with its own, commits them, and hands them back", async () => {
+    conn.mock.editOnGitHub(PATH, deck("a", "b", "c", "D"));
+    store.edit(deck("A", "b", "c", "d"));
+    await vi.advanceTimersByTimeAsync(IDLE_MS);
+    expect(store.getState().status).toBe("saved");
+    expect(conn.mock.file(PATH)?.text).toBe(deck("A", "b", "c", "D"));
+    expect(merged).toEqual([deck("A", "b", "c", "D")]);
+    // The commit says what this client changed, over GitHub's file.
+    expect(conn.mock.commits().at(-1)?.outOfBand).toBe(false);
+    // Saving goes on from the merge's sha.
+    store.edit(deck("A", "b", "c", "D", "e"));
+    await vi.advanceTimersByTimeAsync(IDLE_MS);
+    expect(store.getState().status).toBe("saved");
+    expect(conn.mock.file(PATH)?.text).toBe(deck("A", "b", "c", "D", "e"));
+  });
+
+  it("merges the edits made while the refused save was in flight too", async () => {
+    conn.mock.editOnGitHub(PATH, deck("a", "b", "c", "D"));
+    store.edit(deck("A", "b", "c", "d"));
+    const saving = store.flush();
+    store.edit(deck("A", "B", "c", "d"));
+    await saving;
+    expect(conn.mock.file(PATH)?.text).toBe(deck("A", "B", "c", "D"));
+    expect(store.getState().status).toBe("saved");
+  });
+
+  it("is a conflict when both changed the same line", async () => {
+    conn.mock.editOnGitHub(PATH, deck("a", "B2", "c", "d"));
+    store.edit(deck("a", "B1", "c", "d"));
+    await vi.advanceTimersByTimeAsync(IDLE_MS);
+    expect(store.getState().status).toBe("conflict");
+    expect(merged).toEqual([]);
+    expect(conn.mock.file(PATH)?.text).toBe(deck("a", "B2", "c", "d"));
+  });
+
+  it("is a conflict when the merge is not a deck", async () => {
+    conn.mock.editOnGitHub(PATH, deck("a", "b", "c", "d", "not a deck"));
+    store.edit(deck("A", "b", "c", "d"));
+    await vi.advanceTimersByTimeAsync(IDLE_MS);
+    expect(store.getState().status).toBe("conflict");
+    expect(merged).toEqual([]);
   });
 });
 

@@ -4,7 +4,7 @@ Meldweb Curator logs a user in with a GitHub App installed on exactly one reposi
 
 A deck's **path is its identity**. The filename is slugged from the deck's name when the deck is created and never follows a rename; renaming a deck changes only `name` inside the file. So every ordinary save touches one file and is one Contents API `PUT` guarded by that file's blob `sha` ([github-login-static-site.md](../research/github-login-static-site.md)).
 
-**Saving is not a user action.** Edits collect in the page and are committed once the deck has been idle ten seconds, or at once when the page is hidden or closing. The commit message is deterministic, generated in Rust from the semantic difference between the saved and the new `Deck`, for example `lantern: +1 Sol Ring, -1 Mind Stone, Sol Ring: ramp → draw`. That way the repo's log reads as the deck's changelog. When the `PUT` is refused because the file moved on GitHub, saving stops and the user chooses to reload or overwrite.
+**Saving is not a user action.** Edits collect in the page and are committed once the deck has been idle ten seconds, or at once when the page is hidden or closing. The commit message is deterministic, generated in Rust from the semantic difference between the saved and the new `Deck`, for example `lantern: +1 Sol Ring, -1 Mind Stone, Sol Ring: ramp → draw`. That way the repo's log reads as the deck's changelog. When the `PUT` is refused because the file moved on GitHub, as another tab or device saving the same file makes it, GitHub's file and the local edits are merged by lines against the text last saved, and the merge is committed on GitHub's sha and shown in the editor, where it undoes as one step. When both changed the same lines, or the merge is not a file Rust reads, saving stops and the user chooses to reload or overwrite. The settings page keeps draft rules rather than text and goes straight to that choice.
 
 ## Considered Options
 
@@ -12,5 +12,5 @@ A deck's **path is its identity**. The filename is slugged from the deck's name 
 - **Curator creates the repo.** Rejected if it needs a broader permission than Contents on one repo. Onboarding sends the user to GitHub's new-repo page with the name filled in, then to installing the app on that one repo.
 - **Rename moves the file.** Rejected: it makes a rename a multi-file commit through a second API, for a filename nobody reads.
 - **A commit per edit, or an explicit Save button.** Per edit runs into GitHub's 500 content writes an hour and fills the log with noise. A button is a thing to forget. An idle debounce is neither.
-- **Merge a conflicting save by replaying the edits.** Deferred: conflicts are rare for one person, and refusing never loses anything silently.
+- **Merge a conflicting save by replaying the edits.** Deferred: a line merge covers two clients editing different cards, since every file holds one card per line, and refusing still covers the rest without losing anything silently.
 - **A version inside each deck.toml.** Rejected for now: it would change ADR-0020's format for a problem that is about the repo's layout, not one file.

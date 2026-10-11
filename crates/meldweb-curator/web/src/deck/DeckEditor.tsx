@@ -101,7 +101,15 @@ export function DeckEditor({
   const { printings } = cards;
 
   const [store] = useState(() =>
-    createSaveStore({ api, repo, path, text: loaded, sha }),
+    createSaveStore({
+      api,
+      repo,
+      path,
+      text: loaded,
+      sha,
+      // Another tab's or device's edits, merged in, undo as one step.
+      onMerge: (text) => history.edit(text),
+    }),
   );
   const save = useSave(store);
   // Every change to the text, edit, undo or redo alike, is what gets saved.
