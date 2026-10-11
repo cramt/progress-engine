@@ -86,6 +86,8 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "the exiled card" in an ability that exiled nothing before it | `ExiledWith(SelfRef)`, the linked ability's card, not `Marked(Exiled)` | settled: CR 607.2a. On an instant or sorcery its paragraphs are one spell, so there "the exiled card" stays what another paragraph exiled |
 | "cards exiled with it", "if a card is exiled with it" | `ExiledWith(SelfRef)` | settled: CR 607.2a, "exiled with [this object]"; all 19 corpus lines are the card itself |
 | "from among the nonland permanents they control" | `Quant::All` | settled: who controls them says which they are; "the" points back to nothing |
+| "target activated or triggered ability", "all other activated and triggered abilities you control" | an alternative per kind of ability, and "other" on each | settled: the words before the first kind qualify each, as row 68's colors do; "activated" alone names no object, only before "ability" or "or triggered" |
+| "activated ability from an artifact source" | `Post::FromSource([artifact])` | settled: CR 113.7, the source of an ability is the object that generated it |
 
 ## Zones
 
@@ -172,6 +174,11 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "Planeswalkers you control have "[+1]: Add {R}."" | `Loyalty { change: +1 }` inside the granted ability | settled: CR 107.7 writes the loyalty symbol "[+N]"; Oracle text brackets it inside quotes; `syn::loyalty_cost` |
 | "Spend this mana only to activate abilities" | `SpendUse::ActivateAny` | settled: abilities of any object, apart from "abilities of creatures" |
 | "your speed" | `Amount::Speed(You)`, 0 for a player with none | settled: CR 702.179f |
+| "gains reach, hexproof, and "Whenever …"", "gets +2/+0 and gains "When …"", "gains haste, "When …," and "At …"" | `Modify` for the size and keywords, then one `GrantAbility` per quoted ability, each of the same object for the same duration | settled: one effect gives each its ability (CR 613.1f, layer 6), and the tree already read "gets +2/+2 and gains trample and "…"" so; Oracle text names the keywords first in every such list. A quoted ability ending in a comma before "and" ends there: the list's comma, set inside the quote (`syn::quoted_last_stop`, `syn::quote_list_sep`) |
+| "except it has haste and "At the beginning of the end step, sacrifice this token."" | `Exception::Has { keywords, abilities }` | settled: CR 707.9a, an ability the copy gains as part of copying is a copiable value, so it belongs to the exception. Phantasmal Image's and Pirated Copy's "it has "…"" read as a `HasAbility` of a bare "it" beside the copy effect (2 corpus trees moved; the other 12 `Has` trees, 10 `Upgrade` trees and 8 pinned trees only renamed) |
+| "Choose one. If this spell was cast using teamwork, choose both instead." | `Choose::Upgrade { may: false }`, apart from "you may choose both instead" | settled: the second is an option the caster may decline, the first an instruction; teamwork is whether its cost was declared (CR 702.194b). Pyrrhic Strike's "If this spell's additional cost was paid" likewise |
+| "and mana of any type can be spent to cast that spell" | `SpendAsAnyType`, as an effect or a static | settled: CR 609.4b names "mana of any type can be spent" with "as though it were mana of any type"; `syn::any_type_spent` |
+| "Activate only during your turn and only once each turn.", "Activate only if … and only once." | one `Limit` each: `OnlyDuringYourTurn`, `OncePerTurn`, `OnlyIf`, `Once`, `OnlyDuringYourUpkeep` | settled: two restrictions on one ability, "activate only" said once (`syn::only_again`); "only once" is once for the object, apart from "once each turn" |
 ## Durations
 
 | Text | Tree | Status |

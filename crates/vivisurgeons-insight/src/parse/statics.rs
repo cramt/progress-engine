@@ -304,6 +304,11 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
                 |p| { p.attempt(|p| p.one_of(&["a", "an"])); group(p).map(TypeSet::Listed) },
             )?;
             p.one_of(&["in addition to its other types", "in addition to its other land types", "in addition to their other types", "in addition to their other land types"])?;
+            // "… in addition to its other types and has "…"": a second
+            // predicate of the same subject, which the predicate list reads.
+            if p.peek_word() == Some("and") && matches!(p.t.get(p.i + 1), Some(Tok::Word(w)) if w == "has" || w == "have") {
+                return None;
+            }
             Some(vec![Static::AlsoIs { what, types }])
         },
         // "Creatures you control are every creature type": with no "in
@@ -326,7 +331,9 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             )?;
             // "is a colorless land with "…"": the predicate list reads what
             // the new object has.
-            if p.peek_word() == Some("with") { return None; }
+            // "is a Wizard in addition to its other types and has …": the
+            // types are added, which the rule before or the predicate list reads.
+            if matches!(p.peek_word(), Some("with" | "in")) { return None; }
             Some(vec![Static::Is { what, types }])
         },
         |p| {
@@ -611,6 +618,13 @@ fn static_body_more(p: &mut P) -> Option<Vec<Static>> {
         |p| {
             p.words("you may spend mana as though it were mana of any color")?;
             spend_uses(p).map(|u| vec![Static::SpendAsAnyColor(u)])
+        },
+        |p| {
+            alt!(p;
+                |p| p.words("you may spend mana as though it were mana of any type"),
+                |p| p.words("mana of any type can be spent"),
+            )?;
+            spend_uses(p).map(|u| vec![Static::SpendAsAnyType(u)])
         },
         |p| {
             p.words("prevent all noncombat damage that would be dealt to")?;

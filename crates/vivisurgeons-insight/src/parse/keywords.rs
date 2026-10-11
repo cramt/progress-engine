@@ -175,6 +175,33 @@ pub(super) fn keyword_list(p: &mut P) -> Option<Vec<Keyword>> {
     Some(v)
 }
 
+/// "haste and "At the beginning …"", "flying, "When …," and "At …"": a
+/// list of keywords, then of quoted abilities, with at least one ability.
+/// Every such list in Oracle text names its keywords first.
+pub(super) fn keywords_then_quoted(p: &mut P) -> Option<(Vec<Keyword>, Vec<Ability>)> {
+    let mut keywords = Vec::new();
+    let mut abilities = Vec::new();
+    loop {
+        let first = keywords.is_empty() && abilities.is_empty();
+        let item = p.attempt(|p| {
+            if !first {
+                p.one_of(&[", and", "and", ","])?;
+            }
+            match p.attempt(quoted) {
+                Some(a) => Some(Err(a)),
+                None => keyword(p).map(Ok),
+            }
+        });
+        match item {
+            Some(Ok(k)) if abilities.is_empty() => keywords.push(k),
+            Some(Ok(_)) => return None,
+            Some(Err(a)) => abilities.push(a),
+            None => break,
+        }
+    }
+    (!abilities.is_empty()).then_some((keywords, abilities))
+}
+
 /// A quoted ability: `"{T}: Add {G}."`
 pub(super) fn quoted(p: &mut P) -> Option<Ability> {
     p.tok(&Tok::Quote)?;

@@ -889,6 +889,12 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             p.words("spend mana as though it were mana of any type")?;
             spend_uses(p).map(Effect::SpendAsAnyType)
         },
+        // "and mana of any type can be spent to cast that spell": the same
+        // permission (CR 609.4b), said in the passive.
+        |p| {
+            p.words("mana of any type can be spent")?;
+            spend_uses(p).map(Effect::SpendAsAnyType)
+        },
         // "you may have that player lose 2 life": a verb you make another do.
         |p| {
             p.word("have")?;
@@ -1678,7 +1684,14 @@ fn exception(p: &mut P) -> Option<Exception> {
             p.one_of(&["in addition to his other types", "in addition to her other types", "in addition to its other types"])?;
             Some(Exception::AlsoIsSized { pt, types })
         },
-        |p| { p.one_of(&["it has", "the token has"])?; keyword_list(p).map(Exception::Has) },
+        |p| {
+            p.one_of(&["it has", "the token has"])?;
+            let (keywords, abilities) = alt!(p;
+                keywords_then_quoted,
+                |p| keyword_list(p).map(|k| (k, vec![])),
+            )?;
+            Some(Exception::Has { keywords, abilities })
+        },
         |p| {
             p.words("it enters with")?;
             let n = amount_a(p)?;

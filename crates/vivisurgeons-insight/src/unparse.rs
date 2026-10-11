@@ -518,6 +518,70 @@ mod syn {
         alt(o, vec![of("."), Out::default()]);
     }
 
+    /// A quoted ability's last stop before its closing quote: its period,
+    /// none (as above), or the comma of the list the quote is an item of,
+    /// which American punctuation sets inside the quote: `has "Whenever
+    /// …, draw a card," and is a Rogue`.
+    pub fn quoted_last_stop(o: &mut Out) {
+        alt(o, vec![of("."), Out::default(), of(",")]);
+    }
+
+    /// "spend mana as though it were mana of any type" and "mana of any
+    /// type can be spent": CR 609.4b makes the two one permission.
+    pub fn any_type_spent(o: &mut Out) {
+        any_of(
+            o,
+            &[
+                "spend mana as though it were mana of any type",
+                "mana of any type can be spent",
+            ],
+        );
+    }
+
+    /// "Activate only if … . Activate only as a sorcery." and "Activate
+    /// only if … and only as a sorcery": two limits on one ability, each
+    /// its own in the tree, with "activate only" said again or, by English
+    /// ellipsis, once.
+    pub fn only_again(o: &mut Out, phrase: Out) {
+        let again = out(|o| {
+            o.w(". activate only");
+            o.add(phrase.clone());
+        });
+        let and = out(|o| {
+            o.w("and only");
+            o.add(phrase.clone());
+        });
+        let comma = out(|o| {
+            o.w(", and only");
+            o.add(phrase);
+        });
+        alt(o, vec![again, and, comma]);
+    }
+
+    /// "You may spend mana as though it were mana of any type" and "mana
+    /// of any type can be spent": a permission said to the player who has
+    /// it, or in the passive; CR 609.4b makes them one.
+    pub fn may_or_passive(o: &mut Out, you_may: Out, passive: Out) {
+        alt(o, vec![you_may, passive]);
+    }
+
+    /// The separator before item `i` of a list after a quoted ability,
+    /// whose comma may stand inside the quote instead (`haste, "When …,"
+    /// and "At …"`): the same list either way.
+    pub fn quote_list_sep(o: &mut Out, i: usize, len: usize, after_quote: bool) {
+        let with = out(|o| list_sep(o, i, len, "and"));
+        if !after_quote || i == 0 {
+            o.add(with);
+            return;
+        }
+        let without = if i + 1 < len {
+            Out::default()
+        } else {
+            of("and")
+        };
+        alt(o, vec![with, without]);
+    }
+
     /// The period after a keyword line: none on a card, one inside a
     /// quoted ability or after a cost said in words ("Flashback—Sacrifice
     /// three creatures.").
@@ -1368,28 +1432,26 @@ fn limits(o: &mut Out, ls: &[Limit], triggered: bool) {
     while i < ls.len() {
         let l = &ls[i];
         i += 1;
-        // "Activate only if … and only as a sorcery.": "activate" said once
-        // for both.
-        if let (Limit::OnlyIf(c), Some(Limit::SorcerySpeed)) = (l, ls.get(i)) {
-            o.w("activate only if");
-            condition(o, c);
-            let again = out(|o| o.w(". activate only as a sorcery"));
-            let once = out(|o| o.w("and only as a sorcery"));
-            syn::gapped(o, again, once);
+        // "Activate only if … and only once each turn.": "activate only"
+        // said once for the limits after it.
+        if let Some(first) = activate_only(l, triggered) {
+            o.w("activate only");
+            o.add(first);
+            while let Some(next) = ls.get(i).and_then(|l| activate_only(l, triggered)) {
+                syn::only_again(o, next);
+                i += 1;
+            }
             o.tok(Tok::Period);
-            i += 1;
             continue;
         }
         match l {
-            Limit::SorcerySpeed => o.w("activate only as a sorcery"),
-            Limit::InstantSpeed => o.w("activate only as an instant"),
-            Limit::OncePerTurn if triggered => o.w("this ability triggers only once each turn"),
-            Limit::OncePerTurn => o.w("activate only once each turn"),
-            Limit::OnlyDuringYourTurn => o.w("activate only during your turn"),
-            Limit::OnlyIf(c) => {
-                o.w("activate only if");
-                condition(o, c);
-            }
+            Limit::SorcerySpeed
+            | Limit::InstantSpeed
+            | Limit::Once
+            | Limit::OnlyDuringYourTurn
+            | Limit::OnlyDuringYourUpkeep
+            | Limit::OnlyIf(_) => unreachable!("an activation limit"),
+            Limit::OncePerTurn => o.w("this ability triggers only once each turn"),
             Limit::SpendOnly { uses, then } => {
                 o.w("spend this mana only");
                 spend_uses(o, uses);
@@ -1418,6 +1480,24 @@ fn limits(o: &mut Out, ls: &[Limit], triggered: bool) {
         }
         o.tok(Tok::Period);
     }
+}
+
+/// What a limit says after "activate only", if it is one.
+fn activate_only(l: &Limit, triggered: bool) -> Option<Out> {
+    Some(out(|o| match l {
+        Limit::SorcerySpeed => o.w("as a sorcery"),
+        Limit::InstantSpeed => o.w("as an instant"),
+        Limit::OncePerTurn if !triggered => o.w("once each turn"),
+        Limit::Once => o.w("once"),
+        Limit::OnlyDuringYourTurn => o.w("during your turn"),
+        Limit::OnlyDuringYourUpkeep => o.w("during your upkeep"),
+        Limit::OnlyIf(c) => {
+            o.w("if");
+            condition(o, c);
+        }
+        _ => {}
+    }))
+    .filter(|x| !x.0.is_empty())
 }
 
 fn spend_uses(o: &mut Out, uses: &[SpendUse]) {
@@ -1623,7 +1703,7 @@ fn optional_final_period(ps: &mut Vec<Piece>) {
                 ps.pop();
             }
             let mut o = Out(std::mem::take(ps));
-            syn::quoted_period(&mut o);
+            syn::quoted_last_stop(&mut o);
             *ps = o.0;
         }
         _ => {}
@@ -2798,6 +2878,20 @@ fn is_typed(a: &Adj) -> bool {
 /// gave "creature" to both.
 fn printed_groups(alts: &[Vec<Adj>]) -> Vec<Vec<Adj>> {
     let mut g: Vec<Vec<Adj>> = alts.to_vec();
+    // "other activated and triggered abilities", as `filter` reads it.
+    let ability = |x: &[Adj]| matches!(x.last(), Some(Adj::Ability(_)));
+    if g.len() > 1 && g.iter().all(|x| ability(x)) {
+        let lead = &g[0][..g[0].len() - 1];
+        if g[1..]
+            .iter()
+            .all(|x| x.len() == lead.len() + 1 && x.starts_with(lead))
+        {
+            let lead = lead.len();
+            for x in g.iter_mut().skip(1) {
+                x.drain(..lead);
+            }
+        }
+    }
     if g.len() > 1 && g[0].iter().any(is_typed) {
         let lead: Vec<Adj> = g[0].iter().take_while(|a| !is_typed(a)).cloned().collect();
         if !lead.is_empty()
@@ -3097,6 +3191,13 @@ fn that_is(o: &mut Out, n: Num) {
 
 fn post(o: &mut Out, q: &Post, n: Num) {
     match q {
+        Post::FromSource(g) => {
+            o.w("from a");
+            for a in g {
+                adj(o, a, None);
+            }
+            o.w("source");
+        }
         Post::Controller(Player::You) => o.w("you control"),
         Post::Controller(p) => {
             player(o, p);
@@ -3732,6 +3833,72 @@ fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
                 continue;
             }
         }
+        // "gets +1/+0 and gains reach, hexproof, and "Whenever …" until end
+        // of turn": one "gains" and one duration for the keywords and the
+        // abilities, each ability its own effect in the tree.
+        let head = match e {
+            Effect::Modify {
+                what,
+                pt,
+                gains,
+                dur,
+            } if what.quant != Quant::Next => Some((what, pt, &gains[..], dur, 1)),
+            Effect::GrantAbility { what, dur, .. } => Some((what, &None, &[][..], dur, 0)),
+            _ => None,
+        };
+        let granted: Vec<&Ability> = match head {
+            Some((what, _, _, d, skip)) => es[i + skip..]
+                .iter()
+                .map_while(|x| match x {
+                    Effect::GrantAbility {
+                        what: w,
+                        ability,
+                        dur: d2,
+                    } if w == what && d2 == d => Some(&**ability),
+                    _ => None,
+                })
+                .collect(),
+            None => vec![],
+        };
+        if let Some((what, pt, gains, d, skip)) = head.filter(|h| granted.len() + h.4 > 1) {
+            let taken = granted.len() + skip;
+            let apart = out(|o| {
+                for (j, x) in es[i..i + taken].iter().enumerate() {
+                    if j > 0 {
+                        syn::joiner(o, true);
+                    }
+                    effect(o, x, &cx);
+                }
+            });
+            let joined = out(|o| {
+                objects(o, what);
+                let n = obj_num(what);
+                if n != Num::Sg {
+                    syn::each_after(o);
+                }
+                if let Some(pt) = pt {
+                    o.verb("get", n);
+                    o.tok(Tok::Pt(*pt));
+                    o.w("and");
+                }
+                o.verb("gain", n);
+                let len = gains.len() + granted.len();
+                for (j, k) in gains.iter().enumerate() {
+                    list_sep(o, j, len, "and");
+                    keyword(o, k);
+                }
+                for (j, a) in granted.iter().enumerate() {
+                    let at = gains.len() + j;
+                    syn::quote_list_sep(o, at, len, j > 0);
+                    quoted(o, a);
+                }
+                dur(o, d);
+            });
+            syn::gapped(o, apart, joined);
+            last = Out(o.0[start..].to_vec());
+            i += taken;
+            continue;
+        }
         // "This land becomes a 2/2 creature with all creature types until end
         // of turn": the new types and all creature types, one clause.
         if let (
@@ -3787,11 +3954,11 @@ fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
             // "gets +2/+2 and gains trample and "Whenever …"": "gains" said
             // once for the keyword and the ability.
             (
-                Some(Effect::Modify {
-                    what: w1, gains, ..
-                }),
+                Some(Effect::Modify { what: w1, .. } | Effect::GrantAbility { what: w1, .. }),
                 Effect::GrantAbility { what: w2, .. },
-            ) if w1 == w2 && !gains.is_empty() => {
+            ) if w1 == w2
+                && !matches!(prev, Some(Effect::Modify { gains, .. }) if gains.is_empty()) =>
+            {
                 let subject = out(|o| objects(o, w2));
                 let n = subject.0.len();
                 let pred = out(|o| o.0.extend(full.0.iter().skip(n).cloned()));
@@ -5550,7 +5717,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             spend_uses(o, uses);
         }
         Effect::SpendAsAnyType(uses) => {
-            o.w("spend mana as though it were mana of any type");
+            syn::any_type_spent(o);
             spend_uses(o, uses);
         }
         Effect::IsNow {
@@ -6265,10 +6432,24 @@ fn exceptions(o: &mut Out, es: &[Exception]) {
                     adj(o, a, None);
                 }
             }
-            Exception::Has(ks) => {
+            Exception::Has {
+                keywords,
+                abilities,
+            } => {
                 syn::anaphor(o, "token");
                 o.w("has");
-                keyword_list(o, ks);
+                keyword_list(o, keywords);
+                for (i, a) in abilities.iter().enumerate() {
+                    if !keywords.is_empty() || i > 0 {
+                        list_sep(
+                            o,
+                            keywords.len().min(1) + i,
+                            keywords.len().min(1) + abilities.len(),
+                            "and",
+                        );
+                    }
+                    quoted(o, a);
+                }
             }
             Exception::HasThisAbility => o.w("it has this ability"),
             Exception::EntersWithCounters { n, kind, cond } => {
@@ -6373,11 +6554,20 @@ fn choose_words(o: &mut Out, c: &Choose, modes: usize) {
             o.w("up to");
             syn::number(o, *n);
         }
-        Choose::Upgrade { base, cond, to } => {
+        Choose::Upgrade {
+            base,
+            cond,
+            to,
+            may,
+        } => {
             choose_words(o, base, modes);
             o.w(". if");
             condition(o, cond);
-            o.w(", you may choose");
+            o.w(",");
+            if *may {
+                o.w("you may");
+            }
+            o.w("choose");
             match **to {
                 Choose::N(2) if modes == 2 => o.w("both"),
                 ref t => choose_words(o, t, modes),
@@ -8854,6 +9044,15 @@ fn static_other(o: &mut Out, s: &Static) {
         }
         Static::SpendAsAnyColor(uses) => {
             o.w("you may spend mana as though it were mana of any color");
+            spend_uses(o, uses);
+        }
+        Static::SpendAsAnyType(uses) => {
+            let you_may = out(|o| {
+                o.w("you may");
+                syn::any_type_spent(o);
+            });
+            let passive = out(syn::any_type_spent);
+            syn::may_or_passive(o, you_may, passive);
             spend_uses(o, uses);
         }
         Static::PreventNoncombat(to) => {

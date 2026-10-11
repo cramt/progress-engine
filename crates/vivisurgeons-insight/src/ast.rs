@@ -258,6 +258,11 @@ pub enum Limit {
     /// "Do this only once each turn": the optional part of a triggered
     /// ability, which may trigger more often than that.
     DoOnlyOncePerTurn,
+    /// "Activate only once.": once for as long as the object stays the
+    /// same object.
+    Once,
+    /// "Activate only during your upkeep."
+    OnlyDuringYourUpkeep,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -624,6 +629,9 @@ pub enum Noun {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Post {
+    /// "activated ability from an artifact source": what the ability's
+    /// source is (CR 113.7).
+    FromSource(Vec<Adj>),
     Controller(Player),
     NotControlledBy(Player),
     Owner(Player),
@@ -1680,8 +1688,12 @@ pub enum Exception {
     AlsoIs(Vec<Adj>),
     /// "it isn't legendary", "the token isn't legendary".
     IsNot(Vec<Adj>),
-    /// "it has haste".
-    Has(Vec<Keyword>),
+    /// "it has haste", "it has haste and "At the beginning …"": keywords,
+    /// then quoted abilities, as Oracle text lists them.
+    Has {
+        keywords: Vec<Keyword>,
+        abilities: Vec<Ability>,
+    },
     /// "except it has this ability": the copy keeps the ability that made it.
     HasThisAbility,
     /// "it enters with an additional +1/+1 counter on it if it's a creature".
@@ -1771,11 +1783,13 @@ pub enum Choose {
     AnyNumber,
     UpTo(u32),
     /// "Choose one. If you control a commander as you cast this spell, you
-    /// may choose both instead."
+    /// may choose both instead." `may` is false for "If this spell was cast
+    /// using teamwork, choose both instead.", where the caster has no choice.
     Upgrade {
         base: Box<Choose>,
         cond: Box<Condition>,
         to: Box<Choose>,
+        may: bool,
     },
     /// "choose one that hasn't been chosen this turn".
     NotChosenThisTurn(Box<Choose>),
@@ -2361,6 +2375,9 @@ pub enum Static {
     /// "You may spend mana as though it were mana of any color to activate
     /// abilities of creatures you control."
     SpendAsAnyColor(Vec<SpendUse>),
+    /// "mana of any type can be spent to cast those spells", "you may
+    /// spend mana as though it were mana of any type to cast …" (CR 609.4b).
+    SpendAsAnyType(Vec<SpendUse>),
     /// "This creature saddles Mounts and crews Vehicles as though its power
     /// were 2 greater": for those keyword abilities' costs only, which count
     /// the tapped creatures' power (CR 702.171a, 702.122a, 702.184a); each

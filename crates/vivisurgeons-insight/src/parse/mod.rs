@@ -184,8 +184,20 @@ impl<'a> P<'a> {
             quotes > 0 && before.len() > quotes && before[before.len() - quotes - 1] == Tok::Period;
         // `with "{T}: Add {C}" and loses …`: a quoted ability whose last
         // sentence has no period ends at its closing quote.
-        let closing = self.peek() == Some(&Tok::Quote)
-            && before.iter().filter(|t| **t == Tok::Quote).count() % 2 == 1;
+        let open = before.iter().filter(|t| **t == Tok::Quote).count() % 2 == 1;
+        let closing = self.peek() == Some(&Tok::Quote) && open;
+        // `has "Whenever …, draw a card," and is a Rogue`: a quoted ability
+        // in a list ends in the list's comma, set inside the quote.
+        // Only before "and": a comma before anything else is the sentence's
+        // own ("with "…," where X is …"), which `quoted` has no place for.
+        if open
+            && self.peek() == Some(&Tok::Comma)
+            && self.t.get(self.i + 1) == Some(&Tok::Quote)
+            && matches!(self.t.get(self.i + 2), Some(Tok::Word(w)) if w == "and")
+        {
+            self.bump();
+            return Some(());
+        }
         (quoted_period || closing).then_some(())
     }
 
@@ -286,16 +298,16 @@ fn limits(p: &mut P) -> Vec<Limit> {
     let mut v = Vec::new();
     while let Some(l) = p.attempt(|p| {
         let l = alt!(p;
-            |p| p.words("activate only as a sorcery").map(|_| vec![Limit::SorcerySpeed]),
-            |p| p.words("activate only as an instant").map(|_| vec![Limit::InstantSpeed]),
-            |p| p.words("activate only once each turn").map(|_| vec![Limit::OncePerTurn]),
-            |p| p.words("activate only during your turn").map(|_| vec![Limit::OnlyDuringYourTurn]),
+            // "Activate only if … and only once each turn": "activate only"
+            // said once for several limits.
             |p| {
-                p.words("activate only if")?;
-                let mut v = vec![Limit::OnlyIf(condition(p)?)];
-                // "… and only as a sorcery": two limits, "activate" said once.
-                if p.attempt(|p| p.words("and only as a sorcery")).is_some() {
-                    v.push(Limit::SorcerySpeed);
+                p.words("activate only")?;
+                let mut v = vec![activate_only(p)?];
+                while let Some(l) = p.attempt(|p| {
+                    p.one_of(&[", and only", "and only"])?;
+                    activate_only(p)
+                }) {
+                    v.push(l);
                 }
                 Some(v)
             },
@@ -334,6 +346,19 @@ fn limits(p: &mut P) -> Vec<Limit> {
         v.extend(l);
     }
     v
+}
+
+/// What follows "activate only": "as a sorcery", "once each turn", "if …".
+fn activate_only(p: &mut P) -> Option<Limit> {
+    alt!(p;
+        |p| p.words("as a sorcery").map(|_| Limit::SorcerySpeed),
+        |p| p.words("as an instant").map(|_| Limit::InstantSpeed),
+        |p| p.words("once each turn").map(|_| Limit::OncePerTurn),
+        |p| p.word("once").map(|_| Limit::Once),
+        |p| p.words("during your turn").map(|_| Limit::OnlyDuringYourTurn),
+        |p| p.words("during your upkeep").map(|_| Limit::OnlyDuringYourUpkeep),
+        |p| { p.word("if")?; condition(p).map(Limit::OnlyIf) },
+    )
 }
 
 /// "to cast a creature spell of the chosen type or activate an ability of …".

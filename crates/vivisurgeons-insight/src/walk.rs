@@ -253,7 +253,7 @@ impl Walk for Choose {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
         match self {
-            Choose::Upgrade { base, cond, to } => {
+            Choose::Upgrade { base, cond, to, .. } => {
                 Walk::walk(&mut **base, v);
                 Walk::walk(&mut **cond, v);
                 Walk::walk(&mut **to, v);
@@ -1563,8 +1563,14 @@ impl Walk for Exception {
                     Walk::walk(x0, v);
                 }
             }
-            Exception::Has(f0) => {
-                for x0 in (f0).iter_mut() {
+            Exception::Has {
+                keywords,
+                abilities,
+            } => {
+                for x0 in (keywords).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+                for x0 in (abilities).iter_mut() {
                     Walk::walk(x0, v);
                 }
             }
@@ -1826,6 +1832,11 @@ impl Walk for Post {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
         match self {
+            Post::FromSource(f0) => {
+                for x0 in (f0).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Post::Controller(f0) => {
                 Walk::walk(f0, v);
             }
@@ -2319,6 +2330,11 @@ impl Walk for Static {
                 Walk::walk(what, v);
             }
             Static::SpendAsAnyColor(f0) => {
+                for x0 in (f0).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
+            Static::SpendAsAnyType(f0) => {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);
                 }

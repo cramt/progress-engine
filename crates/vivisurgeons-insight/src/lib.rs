@@ -1452,6 +1452,59 @@ mod tests {
     }
 
     #[test]
+    fn round_eleven_templates() {
+        let one = |ty: &str, text: &str| format!("{:?}", read("Some Card", ty, text));
+        // Keywords and quoted abilities after one "gains", each ability its
+        // own grant to the same object for the same duration.
+        let a = one(
+            "Instant",
+            "Until end of turn, target creature gains reach, hexproof, and \"Whenever this creature becomes tapped, draw a card.\"",
+        );
+        assert!(
+            a.contains("gains: [Keyword { name: \"reach\"")
+                && a.matches("GrantAbility").count() == 1,
+            "{a}"
+        );
+        // A copy's exception with a keyword and an ability.
+        let a = one(
+            "Instant",
+            "Create a token that's a copy of target creature you control, except it has haste and \"At the beginning of the end step, sacrifice this token.\"",
+        );
+        assert!(
+            a.contains("Has { keywords: [Keyword { name: \"haste\""),
+            "{a}"
+        );
+        // A quoted ability in a list ends at the list's comma.
+        let a = one(
+            "Artifact — Equipment",
+            "Equipped creature gets +1/+1, has \"Whenever this creature attacks, you gain 1 life,\" and is a Cleric in addition to its other types.",
+        );
+        assert!(a.contains("HasAbility") && a.contains("AlsoIs"), "{a}");
+        // No "you may": the caster chooses both.
+        let a = one(
+            "Instant",
+            "Choose one. If this spell was cast using teamwork, choose both instead.\n• Draw a card.\n• Scry 2.",
+        );
+        assert!(a.contains("may: false"), "{a}");
+        let a = one(
+            "Creature — Rogue",
+            "When this creature enters, you may cast target instant card from a graveyard, and mana of any type can be spent to cast that spell.",
+        );
+        assert!(a.contains("SpendAsAnyType"), "{a}");
+        // "activate only" said once for two limits.
+        let a = one(
+            "Artifact",
+            "{T}: Copy target activated or triggered ability you control from an artifact source. Activate only during your turn and only once each turn.",
+        );
+        assert!(
+            a.contains("[[Ability(Activated)], [Ability(Triggered)]]")
+                && a.contains("FromSource([Type(\"artifact\")])")
+                && a.contains("limits: [OnlyDuringYourTurn, OncePerTurn]"),
+            "{a}"
+        );
+    }
+
+    #[test]
     fn hero_is_a_creature_type() {
         let a = read(
             "Some Assembly",

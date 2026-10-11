@@ -185,7 +185,13 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
     } else if matches!(w, "activated" | "triggered" | "loyalty" | "exhaust") {
         // Only before "ability": "activated" alone is no kind of object, and
         // "loyalty" is a counter's kind before "counter".
-        if !matches!(p.t.get(p.i + 1), Some(Tok::Word(n)) if n == "ability" || n == "abilities") {
+        // "activated or triggered ability": each kind before the noun.
+        let listed = w == "activated"
+            && matches!(p.t.get(p.i + 1), Some(Tok::Word(c)) if c == "or" || c == "and")
+            && matches!(p.t.get(p.i + 2), Some(Tok::Word(t)) if t == "triggered");
+        if !listed
+            && !matches!(p.t.get(p.i + 1), Some(Tok::Word(n)) if n == "ability" || n == "abilities")
+        {
             return None;
         }
         Adj::Ability(match w {
@@ -348,6 +354,18 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
             .take_while(|a| !is_typed(a))
             .cloned()
             .collect();
+        for g in groups.iter_mut().skip(1) {
+            g.splice(0..0, lead.iter().cloned());
+        }
+    }
+    // "other activated and triggered abilities": the words before the first
+    // kind of ability belong to each.
+    let ability = |g: &[Adj]| matches!(g.last(), Some(Adj::Ability(_)));
+    if groups.len() > 1
+        && groups.iter().all(|g| ability(g))
+        && groups[1..].iter().all(|g| g.len() == 1)
+    {
+        let lead: Vec<Adj> = groups[0][..groups[0].len() - 1].to_vec();
         for g in groups.iter_mut().skip(1) {
             g.splice(0..0, lead.iter().cloned());
         }
@@ -577,6 +595,13 @@ pub(super) fn comparison(p: &mut P) -> Option<(Op, Amount)> {
 
 pub(super) fn post(p: &mut P) -> Option<Post> {
     alt!(p;
+        |p| {
+            p.word("from")?;
+            p.one_of(&["a", "an"])?;
+            let g = group(p)?;
+            p.word("source")?;
+            Some(Post::FromSource(g))
+        },
         |p| p.words("you control").map(|_| Post::Controller(Player::You)),
         |p| p.words("you don't control").map(|_| Post::NotControlledBy(Player::You)),
         |p| p.words("you own").map(|_| Post::Owner(Player::You)),

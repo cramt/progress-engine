@@ -196,24 +196,33 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                 Effect::AlsoIs { what, types: TypeSet::EveryCreatureType, dur },
             ])
         },
-        // "gets +2/+2 and gains trample and "Whenever …"": one "gains" for a
-        // keyword and an ability.
+        // "gets +2/+2 and gains trample and "Whenever …"", "gains haste,
+        // "When …," and "At …"": one "gains" for keywords and abilities, the
+        // keywords first.
         |p| {
-            if !p.ahead("and \"") { return None; }
+            if !p.ahead("\"") { return None; }
             let what = objects(p)?;
-            p.verb("get")?;
-            let pt = pt_signed(p)?;
-            p.word("and")?;
+            p.attempt(|p| p.word("each"));
+            let pt = p.attempt(|p| {
+                p.verb("get")?;
+                let pt = pt_signed(p)?;
+                p.word("and")?;
+                Some(pt)
+            });
             p.verb("gain")?;
-            let gains = keyword_list(p)?;
-            p.word("and")?;
-            let ability = quoted(p)?;
-            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
-            if dur == Duration::Permanent && !p.during { return None; }
-            Some(vec![
-                Effect::Modify { what: what.clone(), pt: Some(pt), gains, dur: dur.clone() },
-                Effect::GrantAbility { what, ability: Box::new(ability), dur },
-            ])
+            let (gains, abilities) = keywords_then_quoted(p)?;
+            if pt.is_none() && gains.is_empty() && abilities.len() < 2 { return None; }
+            let dur = match p.attempt(duration) {
+                Some(d) => d,
+                None if pt.is_some() && !p.during => return None,
+                None => Duration::Permanent,
+            };
+            let mut v = Vec::new();
+            if pt.is_some() || !gains.is_empty() {
+                v.push(Effect::Modify { what: what.clone(), pt, gains, dur: dur.clone() });
+            }
+            v.extend(abilities.into_iter().map(|a| Effect::GrantAbility { what: what.clone(), ability: Box::new(a), dur: dur.clone() }));
+            Some(v)
         },
         // "~ deals 1 damage to target player or planeswalker and 1 damage to
         // target creature …": one source, its verb said once.
@@ -648,18 +657,21 @@ pub(super) fn modal(p: &mut P) -> Option<Effect> {
         p.tok(&Tok::Period)?;
         p.word("if")?;
         let cond = condition(p)?;
-        p.words(", you may choose")?;
+        p.tok(&Tok::Comma)?;
+        let may = p.attempt(|p| p.words("you may")).is_some();
+        p.word("choose")?;
         let to = alt!(p;
             |p| p.word("both").map(|_| Choose::N(2)),
             |p| number(p).map(Choose::N),
         )?;
         p.words("instead .")?;
-        Some((cond, to))
+        Some((cond, to, may))
     }) {
-        Some((cond, to)) => Choose::Upgrade {
+        Some((cond, to, may)) => Choose::Upgrade {
             base: Box::new(choose),
             cond: Box::new(cond),
             to: Box::new(to),
+            may,
         },
         None => {
             p.tok(&Tok::Dash)?;

@@ -116,7 +116,7 @@ type: Instant
 > Choose one. If you control a commander as you cast this spell, you may choose both instead.
 > • Creatures you control gain flying, vigilance, and double strike until end of turn.
 > • Creatures you control gain lifelink, indestructible, and protection from each color until end of turn.
-= Spell([Modal { choose: Upgrade { base: One, cond: AsYouCastIt(YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } })), to: N(2) }, modes: [[Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }, Keyword { name: "double strike", param: None }], dur: UntilEndOfTurn }], [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "lifelink", param: None }, Keyword { name: "indestructible", param: None }, Keyword { name: "protection", param: Some(Colors([White, Blue, Black, Red, Green])) }], dur: UntilEndOfTurn }]] }])
+= Spell([Modal { choose: Upgrade { base: One, cond: AsYouCastIt(YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } })), to: N(2), may: true }, modes: [[Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }, Keyword { name: "double strike", param: None }], dur: UntilEndOfTurn }], [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "lifelink", param: None }, Keyword { name: "indestructible", param: None }, Keyword { name: "protection", param: Some(Colors([White, Blue, Black, Red, Green])) }], dur: UntilEndOfTurn }]] }])
 
 ## Alhammarret's Archive
 face: Alhammarret's Archive
@@ -1584,7 +1584,7 @@ type: Artifact
 > {T}: Add {R}.
 > As this artifact enters, you may have it become a copy of any creature on the battlefield until end of turn, except it has haste.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["R"])))], limits: [] }
-= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, then: [May { who: You, then: [BecomesCopy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } }, dur: UntilEndOfTurn, except: [Has([Keyword { name: "haste", param: None }])] }] }] }])
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, then: [May { who: You, then: [BecomesCopy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } }, dur: UntilEndOfTurn, except: [Has { keywords: [Keyword { name: "haste", param: None }], abilities: [] }] }] }] }])
 
 ## Cut a Deal
 face: Cut a Deal
@@ -3485,7 +3485,7 @@ type: Legendary Land
 face: Irenicus's Vile Duplication
 type: Sorcery
 > Create a token that's a copy of target creature you control, except the token has flying and it isn't legendary.
-= Spell([CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [Has([Keyword { name: "flying", param: None }]), IsNot([Supertype("legendary")])] }])
+= Spell([CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [Has { keywords: [Keyword { name: "flying", param: None }], abilities: [] }, IsNot([Supertype("legendary")])] }])
 
 ## Irrigated Farmland
 face: Irrigated Farmland
@@ -3542,7 +3542,7 @@ type: Sorcery
 > Choose one. If you control a commander as you cast this spell, you may choose both instead.
 > • Add {R} for each card in target opponent's hand.
 > • Exile the top three cards of your library. You may play them this turn.
-= Spell([Modal { choose: Upgrade { base: One, cond: AsYouCastIt(YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } })), to: N(2) }, modes: [[ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(TargetOpponent))], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }], [Exile(Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), May { who: You, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, payment: ManaCost, dur: ThisTurn }] }]] }])
+= Spell([Modal { choose: Upgrade { base: One, cond: AsYouCastIt(YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } })), to: N(2), may: true }, modes: [[ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(TargetOpponent))], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }], [Exile(Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), May { who: You, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, payment: ManaCost, dur: ThisTurn }] }]] }])
 
 ## Jet Medallion
 face: Jet Medallion
@@ -4205,7 +4205,7 @@ type: Creature — Bird Bard
 > Flying
 > You may have this creature enter as a copy of any creature on the battlefield with mana value less than or equal to the amount of mana spent to cast this creature, except it's a Bird in addition to its other types and it has flying.
 = Keywords([Keyword { name: "flying", param: None }])
-= Static([EntersAsCopy { may: true, tapped: false, what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, of: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield), With(Compare { stat: ManaValue, op: Le, value: ManaSpentToCast(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) })], or: None } }, except: [AlsoIs([Subtype("bird")]), Has([Keyword { name: "flying", param: None }])] }])
+= Static([EntersAsCopy { may: true, tapped: false, what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, of: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield), With(Compare { stat: ManaValue, op: Le, value: ManaSpentToCast(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) })], or: None } }, except: [AlsoIs([Subtype("bird")]), Has { keywords: [Keyword { name: "flying", param: None }], abilities: [] }] }])
 
 ## Moldervine Reclamation
 face: Moldervine Reclamation
