@@ -549,6 +549,8 @@ pub enum AbilityKind {
     /// "a loyalty ability": an activated ability with a loyalty symbol in its
     /// cost (CR 606.3).
     Loyalty,
+    /// "an exhaust ability": an activated ability with exhaust (CR 702.177a).
+    Exhaust,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -576,6 +578,8 @@ pub enum State {
     /// "if this creature isn't prepared": a preparation card whose copy of
     /// its inset spell may be cast (CR 722.3).
     Prepared,
+    /// "attacks while saddled": a designation until end of turn (CR 702.171b).
+    Saddled,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -2050,6 +2054,19 @@ pub enum Event {
         what: Objects,
         keyword: String,
     },
+    /// "a creature you control attacks alone": the only creature declared
+    /// as an attacker (CR 506.5).
+    AttacksAlone(Objects),
+    /// "you scry", "you surveil": a keyword action the player performs.
+    Performs {
+        who: Player,
+        action: String,
+    },
+    /// "this creature transforms into ~".
+    TransformsInto {
+        what: Objects,
+        into: Objects,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -2542,6 +2559,9 @@ pub enum Condition {
     DamagePreventedThisWay,
     /// "you have max speed": that player's speed is 4 (CR 702.179e).
     MaxSpeed(Player),
+    /// "you have an enduring story": a designation storied gives (CR
+    /// 702.195b).
+    EnduringStory(Player),
     /// "this spell was cast using teamwork": its caster chose to pay that
     /// keyword's cost (CR 702.194b).
     CastUsing {

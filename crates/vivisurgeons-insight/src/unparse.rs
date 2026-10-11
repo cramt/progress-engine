@@ -944,6 +944,30 @@ mod syn {
         any_of(o, &["cast", "has cast", "have cast"]);
     }
 
+    /// "if this land entered this turn or if you control a basic land" and
+    /// "… or you control a basic land": "if" said once for both, or again.
+    pub fn or_if(o: &mut Out) {
+        any_of(o, &["or", "or if"]);
+    }
+
+    /// "you had a land enter the battlefield under your control this turn"
+    /// and "a land entered the battlefield under your control this turn":
+    /// the same event, said of the player or of the land.
+    pub fn had_enter(o: &mut Out, had: Out, entered: Out) {
+        alt(o, vec![had, entered]);
+    }
+
+    /// The same said of "you", where "you've" contracts "you have".
+    pub fn you_have_cast(o: &mut Out) {
+        any_of(o, &["you cast", "you have cast", "you've cast"]);
+    }
+
+    /// "you haven't cast a spell this turn", "you didn't cast a spell this
+    /// turn": with "this turn" the tense says nothing more.
+    pub fn hasnt_cast(o: &mut Out) {
+        any_of(o, &["haven't cast", "hasn't cast", "didn't cast"]);
+    }
+
     pub fn did_tense(o: &mut Out, past: &str, present: Out) {
         alt(o, vec![of(past), present]);
     }
@@ -2679,6 +2703,7 @@ fn adj(o: &mut Out, a: &Adj, noun: Option<Num>) {
         Adj::Ability(AbilityKind::Activated) => "activated".into(),
         Adj::Ability(AbilityKind::Triggered) => "triggered".into(),
         Adj::Ability(AbilityKind::Loyalty) => "loyalty".into(),
+        Adj::Ability(AbilityKind::Exhaust) => "exhaust".into(),
         Adj::OtherThan(_) => "other".into(),
     };
     match noun {
@@ -2705,6 +2730,7 @@ fn state_word(s: State) -> &'static str {
         State::Commander => "commander",
         State::FaceUp => "face-up",
         State::Prepared => "prepared",
+        State::Saddled => "saddled",
     }
 }
 
@@ -6357,6 +6383,19 @@ fn event(o: &mut Out, e: &Event) {
             enters_rest(o, under, state);
         }
         Event::Dies(x) => obj_subj(o, x, "die"),
+        Event::AttacksAlone(x) => {
+            obj_subj(o, x, "attack");
+            o.w("alone");
+        }
+        Event::TransformsInto { what, into } => {
+            obj_subj(o, what, "transform");
+            o.w("into");
+            objects(o, into);
+        }
+        Event::Performs { who, action } => {
+            player(o, who);
+            o.verb(action, player_num(who));
+        }
         Event::CastUsing { what, keyword } if keyword == "warp" => {
             objects(o, what);
             o.verb("is", obj_num(what));
@@ -6554,6 +6593,13 @@ fn event(o: &mut Out, e: &Event) {
             event(o, e);
             match &**cond {
                 Condition::ItsYourTurn => o.w("during your turn"),
+                // "attacks while saddled": the attacker, said once.
+                Condition::Is { what, filter: f }
+                    if matches!(&**e, Event::Attacks(x) if x == what)
+                        && f.alts == [vec![Adj::State(State::Saddled)]] =>
+                {
+                    o.w("while saddled")
+                }
                 c => {
                     o.w("while");
                     condition(o, c);
@@ -6706,9 +6752,11 @@ fn event_subject(e: &Event) -> Option<Subject<'_>> {
         | Event::PutInto { what, .. }
         | Event::DealsDamageTo { what, .. }
         | Event::DealsNoncombatDamageTo { what, .. }
-        | Event::BecomesLevel { what, .. } => Subject::Obj(what),
+        | Event::BecomesLevel { what, .. }
+        | Event::TransformsInto { what, .. } => Subject::Obj(what),
         Event::Dies(x)
         | Event::Attacks(x)
+        | Event::AttacksAlone(x)
         | Event::Blocks(x)
         | Event::AttacksOrBlocks(x)
         | Event::BecomesBlocked(x)
@@ -6731,6 +6779,7 @@ fn event_subject(e: &Event) -> Option<Subject<'_>> {
         | Event::Puts { who, .. }
         | Event::Exiles { who, .. }
         | Event::AttacksWith { who, .. }
+        | Event::Performs { who, .. }
         | Event::Creates {
             by: Actor::Player(who),
             ..
@@ -7191,8 +7240,12 @@ fn condition(o: &mut Out, c: &Condition) {
                 o.w("this turn");
             }
             Event::Casts { who, what } => {
-                player(o, who);
-                syn::has_cast(o);
+                if *who == Player::You {
+                    syn::you_have_cast(o);
+                } else {
+                    player(o, who);
+                    syn::has_cast(o);
+                }
                 objects(o, what);
                 o.w("this turn");
             }
@@ -7203,9 +7256,31 @@ fn condition(o: &mut Out, c: &Condition) {
                 under: Some(Player::You),
                 ..
             } => {
-                o.w("you had");
+                let had = out(|o| {
+                    o.w("you had");
+                    objects(o, what);
+                    o.w("enter the battlefield under your control this turn");
+                });
+                let entered = out(|o| {
+                    objects(o, what);
+                    o.w("entered the battlefield under your control this turn");
+                });
+                syn::had_enter(o, had, entered);
+            }
+            // "this land entered this turn", "a creature entered the
+            // battlefield under an opponent's control this turn".
+            Event::Enters { what, under, .. } => {
                 objects(o, what);
-                o.w("enter the battlefield under your control this turn");
+                o.w("entered");
+                match under {
+                    Some(w) => {
+                        o.w("the battlefield under");
+                        whose(o, w);
+                        o.w("control");
+                    }
+                    None => syn::the_battlefield(o),
+                }
+                o.w("this turn");
             }
             // "you gained life this turn", "an opponent searched their
             // library this turn".
@@ -7354,6 +7429,11 @@ fn condition(o: &mut Out, c: &Condition) {
             o.verb("have", player_num(p));
             o.w("the city's blessing");
         }
+        Condition::EnduringStory(p) => {
+            player(o, p);
+            o.verb("have", player_num(p));
+            o.w("an enduring story");
+        }
         Condition::CastUsing { what, keyword } => {
             objects(o, what);
             o.w("was cast using");
@@ -7431,7 +7511,7 @@ fn condition(o: &mut Out, c: &Condition) {
             // one subject, said once.
             for (i, c) in v.iter().enumerate() {
                 if i > 0 {
-                    o.w("or");
+                    syn::or_if(o);
                 }
                 let full = out(|o| condition(o, c));
                 match (i, c) {
@@ -7466,7 +7546,7 @@ fn condition(o: &mut Out, c: &Condition) {
         }
         Condition::ThereAre(v) => {
             // The zone each is in is said once, after the last.
-            o.w("there is");
+            syn::there_is(o);
             for (i, x) in v.iter().enumerate() {
                 if i > 0 {
                     o.w("and");
@@ -7651,7 +7731,7 @@ fn not_condition(o: &mut Out, c: &Condition) {
         Condition::DidThisTurn(e) => {
             if let Event::Casts { who, what } = &**e {
                 player(o, who);
-                o.w("haven't cast");
+                syn::hasnt_cast(o);
                 objects(o, what);
                 o.w("this turn");
             }

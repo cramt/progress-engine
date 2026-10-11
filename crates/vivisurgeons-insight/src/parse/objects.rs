@@ -182,7 +182,7 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
     }
     let adj = if w == "commander" && next_is_type() {
         Adj::State(State::Commander)
-    } else if w == "activated" || w == "triggered" || w == "loyalty" {
+    } else if matches!(w, "activated" | "triggered" | "loyalty" | "exhaust") {
         // Only before "ability": "activated" alone is no kind of object, and
         // "loyalty" is a counter's kind before "counter".
         if !matches!(p.t.get(p.i + 1), Some(Tok::Word(n)) if n == "ability" || n == "abilities") {
@@ -191,6 +191,7 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
         Adj::Ability(match w {
             "activated" => AbilityKind::Activated,
             "triggered" => AbilityKind::Triggered,
+            "exhaust" => AbilityKind::Exhaust,
             _ => AbilityKind::Loyalty,
         })
     } else if let Some(c) = color_word(w) {

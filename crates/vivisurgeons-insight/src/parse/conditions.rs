@@ -30,7 +30,9 @@ pub(super) fn condition(p: &mut P) -> Option<Condition> {
     // warped this turn": either one.
     let mut alts = vec![c];
     while let Some(c) = p.attempt(|p| {
-        p.word("or")?;
+        // "Activate only if this land entered this turn or if you control a
+        // basic land": "if" said again.
+        p.one_of(&["or if", "or"])?;
         condition_one(p)
     }) {
         alts.push(c);
@@ -132,6 +134,14 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             }
             Some(Condition::ThereAre(v))
         },
+        // "there's a Lesson card in your graveyard": one object in a zone.
+        |p| {
+            p.one_of(&["there's", "there is"])?;
+            let o = objects(p)?;
+            if !matches!(o.filter.posts.last(), Some(Post::In(_))) { return None; }
+            Some(Condition::ThereAre(vec![o]))
+        },
+        |p| p.words("you have an enduring story").map(|_| Condition::EnduringStory(Player::You)),
         // "you both own and control this land and a creature named Hanweir
         // Garrison".
         |p| {
@@ -262,11 +272,17 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         // "an opponent has cast a blue or black spell this turn", "you haven't
         // cast a spell this turn", "an opponent cast three or more spells this turn".
         |p| {
-            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
-            let not = match p.attempt(|p| p.one_of(&["has", "have", "haven't", "hasn't"])) {
-                Some(w) => w.ends_with("n't"),
-                None => false,
-            };
+            // "you've cast another spell this turn", "you didn't cast a
+            // spell this turn".
+            let (who, not) = alt!(p;
+                |p| p.word("you've").map(|_| (Player::You, Some(false))),
+                |p| {
+                    let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+                    let not = p.attempt(|p| p.one_of(&["has", "have", "haven't", "hasn't", "didn't"])).map(|w| w.ends_with("n't"));
+                    Some((who, not))
+                },
+            )?;
+            let not = not.unwrap_or(false);
             p.word("cast")?;
             let what = objects(p)?;
             p.words("this turn")?;
@@ -465,6 +481,16 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 // "it has mana value 2 or less".
                 |p| { p.one_of(&["has", "have"])?; let cmp = compare(p)?; Some(Condition::Has { what: what.clone(), cmp }) },
                 |p| { p.one_of(&["targets", "target"])?; let target = objects(p)?; Some(Condition::Targets { what: what.clone(), target }) },
+                // "this land entered this turn", "two or more creatures
+                // entered the battlefield under your control this turn".
+                |p| {
+                    p.word("entered")?;
+                    let full = p.attempt(|p| p.words("the battlefield")).is_some();
+                    let under = p.attempt(|p| { p.word("under")?; let w = whose(p)?; p.word("control")?; Some(w) });
+                    if under.is_some() && !full { return None; }
+                    p.words("this turn")?;
+                    Some(Condition::DidThisTurn(Box::new(Event::Enters { what: what.clone(), under, state: None })))
+                },
                 // "a nonland permanent left the battlefield this turn".
                 |p| {
                     p.words("left the battlefield this turn")?;

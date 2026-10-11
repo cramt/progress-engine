@@ -114,6 +114,11 @@ fn player_predicate(p: &mut P, who: &Player) -> Option<Event> {
             Some(Event::Puts { who: who.clone(), what, to: to.zone() })
         },
         |p| { p.verb("exile")?; let what = objects(p)?; Some(Event::Exiles { who: who.clone(), what }) },
+        // "Whenever you scry or surveil": a keyword action with no object.
+        |p| {
+            let action = ["scry", "surveil"].into_iter().find(|a| p.verb(a).is_some())?;
+            Some(Event::Performs { who: who.clone(), action: action.into() })
+        },
         |p| { let v = player_verb(p, who)?; objects(p).map(v) },
     )
 }
@@ -143,7 +148,7 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
             }
             v.extend(items.into_iter().map(|(_, _, e)| e));
             // A lone verb the rules below read is theirs to read.
-            if v.len() == 1 && !matches!(v[0], Event::AttacksWith { .. } | Event::PlaysLand(_) | Event::TapsFor { .. } | Event::CountersPut { .. } | Event::Puts { .. } | Event::Exiles { .. }) {
+            if v.len() == 1 && !matches!(v[0], Event::AttacksWith { .. } | Event::PlaysLand(_) | Event::TapsFor { .. } | Event::CountersPut { .. } | Event::Puts { .. } | Event::Exiles { .. } | Event::Performs { .. }) {
                 return None;
             }
             Some(if v.len() == 1 { v.remove(0) } else { Event::Or(v) })
@@ -261,6 +266,8 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
             Some(Event::Enters { what: what.clone(), under, state })
         },
         |p| p.verb("die").map(|_| Event::Dies(what.clone())),
+        |p| { p.verb("attack")?; p.word("alone")?; Some(Event::AttacksAlone(what.clone())) },
+        |p| { p.verb("transform")?; p.word("into")?; let into = objects(p)?; Some(Event::TransformsInto { what: what.clone(), into }) },
         |p| { p.verb("leave")?; let from = zone(p)?; Some(Event::Leaves { what: what.clone(), from }) },
         |p| p.one_of(&["is countered", "are countered"]).map(|_| Event::Countered(what.clone())),
         |p| p.verb("attack or block").map(|_| Event::AttacksOrBlocks(what.clone())),
@@ -329,6 +336,14 @@ pub(super) fn trigger(p: &mut P) -> Option<Trigger> {
             // only while the condition holds.
             let e = match p.attempt(|p| alt!(p;
                 |p| p.words("during your turn").map(|_| Condition::ItsYourTurn),
+                // "Whenever this creature attacks while saddled": the
+                // attacker is saddled (CR 702.171b).
+                |p| {
+                    p.words("while saddled")?;
+                    let Event::Attacks(x) = &e else { return None };
+                    let f = Filter { alts: vec![vec![Adj::State(State::Saddled)]], ..Filter::default() };
+                    Some(Condition::Is { what: x.clone(), filter: f })
+                },
                 |p| { p.word("while")?; condition(p) },
             )) {
                 Some(cond) => Event::While { event: Box::new(e), cond: Box::new(cond) },

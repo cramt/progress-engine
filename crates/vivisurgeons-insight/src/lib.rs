@@ -1411,3 +1411,90 @@ mod round_nine_b {
         assert!(format!("{b:?}").contains("AmountIs { n: ManaSpentToCast("));
     }
 }
+
+#[cfg(test)]
+mod round_nine_c {
+    use super::*;
+    use ast::*;
+
+    fn read(type_line: &str, text: &str) -> Vec<Ability> {
+        let face = Face {
+            name: "Some Card",
+            type_line,
+            text,
+        };
+        read_face(&face, "Some Card")
+            .into_iter()
+            .map(|l| match l.parsed {
+                Ok(a) => a,
+                Err(b) => panic!("{}: broke at {:?} after {:?}", l.text, b.at, b.read),
+            })
+            .collect()
+    }
+
+    fn event(a: &Ability) -> &Event {
+        match a {
+            Ability::Triggered {
+                trigger: Trigger::When(e),
+                ..
+            } => e,
+            a => panic!("{a:?}"),
+        }
+    }
+
+    #[test]
+    fn attacking_alone_and_while_saddled_are_said_of_the_attacker() {
+        let a = read(
+            "Creature — Horse Mount",
+            "Whenever a creature you control attacks alone, draw a card.\nWhenever this creature attacks while saddled, draw a card.",
+        );
+        assert!(matches!(event(&a[0]), Event::AttacksAlone(_)));
+        let Event::While { event: e, cond } = event(&a[1]) else {
+            panic!("{a:?}")
+        };
+        let Event::Attacks(x) = &**e else {
+            panic!("{e:?}")
+        };
+        assert!(
+            matches!(&**cond, Condition::Is { what, filter } if what == x
+            && filter.alts == [vec![Adj::State(State::Saddled)]])
+        );
+    }
+
+    #[test]
+    fn scry_or_surveil_is_two_actions_of_one_player() {
+        let a = read(
+            "Creature — Human",
+            "Whenever you scry or surveil, draw a card.",
+        );
+        assert_eq!(
+            *event(&a[0]),
+            Event::Or(vec![
+                Event::Performs {
+                    who: Player::You,
+                    action: "scry".into()
+                },
+                Event::Performs {
+                    who: Player::You,
+                    action: "surveil".into()
+                },
+            ])
+        );
+    }
+
+    #[test]
+    fn youve_cast_and_entered_this_turn_are_past_events_of_the_turn() {
+        let a = read(
+            "Land",
+            "{T}: Add {B} or {R}. Activate only if this land entered this turn or if you control a basic land.",
+        );
+        assert!(format!("{a:?}")
+            .contains("OnlyIf(Or([DidThisTurn(Enters { what: Objects { quant: SelfRef"));
+        let b = read(
+            "Sorcery",
+            "This spell costs {2} less to cast if you've cast another spell this turn.",
+        );
+        assert!(format!("{b:?}")
+            .contains("DidThisTurn(Casts { who: You, what: Objects { quant: Another"));
+    }
+}

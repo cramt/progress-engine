@@ -24,6 +24,10 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "Whenever you attack this turn, create two … tokens …. Sacrifice them at the beginning of the next end step." | the same for every delayed trigger said first in its sentence (`Delayed`, `DelayedWhen`, `DelayedWhenever`, alone or for the turn): the sentences after it are its | settled: CR 603.7; each attack makes its own tokens, so each sacrifices its own. Dalkovan Encampment, Phelia, the Pacts |
 | "When that creature dies this turn, you gain 3 life. Target creature you control fights that creature." | the sentence after it is the spell's when it names a new target, or is a trigger of its own ("When …", "At …") | settled: a spell's targets are chosen as it is cast (CR 601.2c), so Time to Feed's fight happens as it resolves; Phantasmal Mount's two "When …" sentences are two delayed triggers |
 | "Whenever you cast … during your turn", "… while this creature has a -1/-1 counter on it" | `Event::While` on the event | settled |
+| "Whenever this creature attacks while saddled" | `While { Attacks(x), Is { x, State::Saddled } }` | settled: saddled is a designation of a permanent until end of turn (CR 702.171b), and the bare "while saddled" is said of the attacker |
+| "Whenever a creature you control attacks alone" | `AttacksAlone`, apart from `Attacks` | settled: CR 506.5, the only creature declared as an attacker |
+| "Whenever you scry or surveil" | `Or([Performs { You, "scry" }, Performs { You, "surveil" }])` | settled: two keyword actions, the player said once |
+| "Whenever this creature enters or transforms into ~" | `TransformsInto { this creature, SelfRef }` | settled: "~" is the back face's own name, the same object (CR 201.5c) |
 
 ## Ability kinds
 
@@ -141,6 +145,11 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "if a nonland permanent left the battlefield this turn or a spell was warped this turn" | `Or([DidThisTurn(Leaves), DidThisTurn(CastUsing { "warp" })])` | settled: "a spell was warped" is one cast for its warp cost (CR 702.185c); "or" between two whole conditions is either one |
 | "if this spell was cast using teamwork" | `CastUsing { SelfRef, "teamwork" }` | settled: CR 702.194b, whether its caster chose to pay that cost |
 | "if at least four mana was spent to cast it", "if five or more mana was spent to cast that spell" | `AmountIs { ManaSpentToCast(it), Ge, 4 }` | settled: the total of any kind, as "the amount of mana spent to cast" |
+| "if you've cast another spell this turn", "if you didn't cast a spell this turn" | `DidThisTurn(Casts { You, Another spell })`, `Not(…)` | settled: "another" is other than this spell; "didn't cast" and "haven't cast" with "this turn" are one test |
+| "if two or more nonland permanents entered the battlefield under your control this turn", "if this land entered this turn" | `DidThisTurn(Enters { … })`, the count the quantity's | settled: the same event as "you had a land enter the battlefield under your control this turn" |
+| "Activate only if this land entered this turn or if you control a basic land" | `Or([…, …])` | settled: "if" said again before the second changes nothing |
+| "if there's a Lesson card in your graveyard" | `ThereAre([a Lesson card in your graveyard])` | settled: one object, as "there is an instant card and a sorcery card" is two |
+| "as long as you have an enduring story" | `EnduringStory(You)` | settled: CR 702.195b, a designation storied gives |
 | "your speed" | `Amount::Speed(You)`, 0 for a player with none | settled: CR 702.179f |
 ## Durations
 
