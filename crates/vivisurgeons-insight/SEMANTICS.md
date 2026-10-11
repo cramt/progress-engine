@@ -57,6 +57,7 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "up to one target player or planeswalker" | an object whose kind is Player, not a separate player alternative | open |
 | "up to one other target creature or spell" | `Quant::OtherTarget`: "other" holds of every kind the filter lists | settled: said once before "target", it qualifies the whole noun phrase |
 | "players can't …", "each player can't …" | `Player::Each` | settled: a rule said of every player, one at a time or together |
+| "Heroes you control", "target Hero" | `Subtype("hero")` | settled: CR 205.3m lists Hero among the creature types and CR 205.2a has no Hero card type; Scryfall's card-types catalog lists one for the Theros challenge decks' Hero cards, whose text never names it, so `vocab` leaves it out (46 corpus trees and Superior Spider-Man's pinned tree moved). The only other word in two catalogs that a tree reads is "dungeon", which CR 205.2a makes a card type |
 | "its graveyard", "its library", "its hand" | `OwnerOf(it)`, the same tree as "its owner's graveyard" | settled: CR 400.3, an object's hand, library or graveyard is only ever its owner's |
 | "its controller's graveyard" | `ControllerOf(it)`, apart from "its graveyard" | settled: the player controlling it, who for a stolen permanent or a spell another player controls is not its owner |
 | "a creature with the greatest power" | `Quant::One`, the same as "the creature with the greatest power" | settled: one object with that value; where several tie, the chooser picks |

@@ -3872,7 +3872,7 @@ type: Enchantment — Aura
 face: Superior Spider-Man
 type: Legendary Creature — Spider Human Hero
 > Mind Swap — You may have Superior Spider-Man enter as a copy of any creature card in a graveyard, except his name is Superior Spider-Man and he's a 4/4 Spider Human Hero in addition to his other types. When you do, exile that card.
-= Labelled { label: "mind swap", ability: Static([Reflexive { inner: EntersAsCopy { may: true, tapped: false, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, except: [NameIsSelf, AlsoIsSized { pt: Pt { power: N(4), toughness: N(4), signed: false }, types: [Subtype("spider"), Subtype("human"), Type("hero")] }] }, then: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }]) }
+= Labelled { label: "mind swap", ability: Static([Reflexive { inner: EntersAsCopy { may: true, tapped: false, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, except: [NameIsSelf, AlsoIsSized { pt: Pt { power: N(4), toughness: N(4), signed: false }, types: [Subtype("spider"), Subtype("human"), Subtype("hero")] }] }, then: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }]) }
 
 ## Suppression Ray // Orderly Plaza
 face: Suppression Ray

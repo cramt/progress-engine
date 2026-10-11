@@ -1215,6 +1215,20 @@ mod tests {
     }
 
     #[test]
+    fn hero_is_a_creature_type() {
+        let a = read(
+            "Some Assembly",
+            "Enchantment",
+            "Heroes you control get +2/+2.",
+        );
+        let s = format!("{a:?}");
+        assert!(
+            s.contains("Subtype(\"hero\")") && !s.contains("Type(\"hero\")"),
+            "{s}"
+        );
+    }
+
+    #[test]
     fn protection_from_two_qualities_is_two_protection_abilities() {
         let a = read(
             "Some Riftwalker",

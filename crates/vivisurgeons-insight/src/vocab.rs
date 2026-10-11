@@ -73,7 +73,16 @@ pub fn vocab() -> &'static Vocab {
             keyword_abilities: by_first_word(&abilities),
             keyword_actions: lines(&actions).collect(),
             ability_words: phrases(include_str!("../vocab/ability-words.txt")),
-            card_types: lines(include_str!("../vocab/card-types.txt")).collect(),
+            // Scryfall's card-types catalog lists "Hero" for the Theros
+            // challenge decks' Hero cards (memorabilia, whose text never
+            // names it). CR 205.2a has no such card type and CR 205.3m lists
+            // Hero among the creature types, which every corpus line means:
+            // "Heroes you control get +2/+2". The grammar tries card types
+            // first, so it is removed here. "Dungeon", also filed among the
+            // planeswalker types, is the card type CR 205.2a lists, and stays.
+            card_types: lines(include_str!("../vocab/card-types.txt"))
+                .filter(|t| t != "hero")
+                .collect(),
             land_types: lines(include_str!("../vocab/land-types.txt")).collect(),
             supertypes: lines(include_str!("../vocab/supertypes.txt")).collect(),
             subtypes,
