@@ -36,6 +36,28 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
     alt!(p;
         |p| p.words("you're the starting player").map(|_| Condition::YouAreStartingPlayer),
         |p| p.words("the gift was promised").map(|_| Condition::GiftPromised),
+        |p| { p.words("you cast this spell during")?; step(p).map(Condition::CastDuring) },
+        // "an opponent has cast a blue or black spell this turn", "you haven't
+        // cast a spell this turn", "an opponent cast three or more spells this turn".
+        |p| {
+            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+            let not = match p.attempt(|p| p.one_of(&["has", "have", "haven't", "hasn't"])) {
+                Some(w) => w.ends_with("n't"),
+                None => false,
+            };
+            p.word("cast")?;
+            let what = objects(p)?;
+            p.words("this turn")?;
+            let c = Condition::DidThisTurn(Box::new(Event::Casts { who, what }));
+            Some(if not { Condition::Not(Box::new(c)) } else { c })
+        },
+        |p| { p.words("you control no")?; objects(p).map(Condition::YouDontControl) },
+        |p| {
+            let w = whose(p)?;
+            p.words("library has no cards in it")?;
+            let cards = Objects { quant: Quant::Plural, filter: Filter { kind: Some(Noun::Card), posts: vec![Post::In(Zone::Library(w))], ..Filter::default() } };
+            Some(Condition::AmountIs { n: Amount::CountOf(Box::new(cards)), op: Op::Eq, value: Amount::N(0) })
+        },
         |p| { let e = event(p)?; p.words("this way")?; Some(Condition::ThisWay(Box::new(e))) },
         |p| { p.words("any of that mana is spent on")?; objects(p).map(Condition::ManaSpentOn) },
         |p| {
@@ -101,8 +123,9 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.words("there are")?;
             let n = number(p)?;
             p.words("or more")?;
-            let f = filter(p)?;
-            Some(Condition::Graveyard(Amount::N(n), f))
+            let filter = filter(p)?;
+            let n_of = Amount::CountOf(Box::new(Objects { quant: Quant::Plural, filter }));
+            Some(Condition::AmountIs { n: n_of, op: Op::Ge, value: Amount::N(n) })
         },
         // One subject, read once, for every predicate that follows one.
         |p| {
@@ -110,6 +133,16 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             alt!(p;
                 |p| { p.one_of(&["is", "are"])?; p.words("in your opening hand")?; Some(Condition::InOpeningHand(what.clone())) },
                 |p| { p.one_of(&["is", "are"])?; p.one_of(&["on", "in"])?; let zone = zone(p)?; Some(Condition::In { what: what.clone(), zone }) },
+                // "this enchantment has seven or more quest counters on it".
+                |p| {
+                    p.one_of(&["has", "have"])?;
+                    let value = number(p)?;
+                    p.words("or more")?;
+                    let kind = counter_kind(p)?;
+                    p.words("counters on it")?;
+                    let counters = Objects { quant: Quant::Plural, filter: Filter { kind: Some(Noun::Counter(Some(kind))), posts: vec![Post::On(Box::new(what.clone()))], ..Filter::default() } };
+                    Some(Condition::AmountIs { n: Amount::CountOf(Box::new(counters)), op: Op::Ge, value: Amount::N(value) })
+                },
                 |p| {
                     p.one_of(&["has", "have", "had"])?;
                     p.words("counters on it")?;

@@ -14,6 +14,9 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
             if let Some(pal) = p.attempt(|p| { p.words("each color that's not in")?; commander_identity(p) }) {
                 return Some(Keyword { name: "protection".into(), param: Some(KeywordParam::ColorsNotIn(pal)) });
             }
+            if p.attempt(|p| p.words("the color of your choice")).is_some() {
+                return Some(Keyword { name: "protection".into(), param: Some(KeywordParam::Color(Palette::ChoiceOf(Player::You))) });
+            }
             let mut cs = Vec::new();
             while let Some(c) = p.peek_word().and_then(color_word) {
                 p.bump();
@@ -41,6 +44,16 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
             let w = w.to_string();
             p.bump();
             Some(Keyword { name: w, param: None })
+        },
+        // "hexproof from blue and from black".
+        |p| {
+            p.words("hexproof from")?;
+            let mut cs = vec![color_word(p.peek_word()?)?];
+            p.bump();
+            while let Some(c) = p.attempt(|p| { p.one_of(&["and from", ", from", ", and from"])?; let c = color_word(p.peek_word()?)?; p.bump(); Some(c) }) {
+                cs.push(c);
+            }
+            Some(Keyword { name: "hexproof".into(), param: Some(KeywordParam::Colors(cs)) })
         },
         |p| {
             p.word("gift")?;

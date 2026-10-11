@@ -23,6 +23,12 @@ pub enum Ability {
     },
     Static(Vec<Static>),
     Spell(Vec<Effect>),
+    /// A spree mode: "+ {1} — Copy target instant spell …", the cost added
+    /// for choosing it.
+    Spree {
+        cost: Mana,
+        effect: Vec<Effect>,
+    },
     LevelHeader {
         from: u32,
         to: Option<u32>,
@@ -54,6 +60,8 @@ pub enum KeywordParam {
     Colors(Vec<Color>),
     /// "protection from each color that's not in your commander's color identity".
     ColorsNotIn(Palette),
+    /// "protection from the color of your choice".
+    Color(Palette),
     /// "Gift a card": what the promised opponent gets.
     Gift(Gift),
 }
@@ -178,6 +186,8 @@ pub enum Amount {
     BasePowerOf(Box<Objects>),
     /// "four or more card types among cards in your graveyard".
     NumberOfCardTypes(Box<Objects>),
+    /// "the result" of a die rolled before.
+    DieResult,
 }
 
 /// A set of colors a rule draws from, named by what decides it.
@@ -192,6 +202,8 @@ pub enum Palette {
     ColorsOf(Box<Objects>),
     /// "that a land an opponent controls could produce".
     CouldProduce(Box<Objects>),
+    /// "the color of your choice": one color, picked as the effect happens.
+    ChoiceOf(Player),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -224,6 +236,9 @@ pub enum Player {
     Active,
     /// "you and target opponent each": every one of these players.
     EachOf(Vec<Player>),
+    /// "each player who can't": those of them who could not do what an
+    /// earlier effect asked.
+    WhoCant(Box<Player>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -277,6 +292,8 @@ pub enum Quant {
     },
     /// "the next spell you cast this turn".
     Next,
+    /// "additional spells": more than those already counted.
+    Additional,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -301,6 +318,14 @@ pub enum Adj {
     Supertype(String),
     Subtype(String),
     State(State),
+    /// "activated ability", "triggered ability".
+    Ability(AbilityKind),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AbilityKind {
+    Activated,
+    Triggered,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -347,7 +372,12 @@ pub enum Post {
     WithKeyword(String),
     WithoutKeyword(String),
     WithCounter(String),
-    Named,
+    /// "card named ~".
+    Named(Box<Objects>),
+    /// "spells your opponents cast that target this creature".
+    Targets(Box<Objects>),
+    /// "each spell you cast that's red or green".
+    ThatIs(Filter),
     Attacking,
     Blocking,
     AttachedToIt,
@@ -386,6 +416,8 @@ pub enum Post {
     DrawnThisTurn,
     /// "each opponent who doesn't": who did not do what an earlier "may" offered.
     WhoDoesnt,
+    /// "each opponent who can't": who could not do what an earlier effect asked.
+    WhoCant,
     /// "that aren't on the battlefield".
     NotIn(Zone),
     /// "lands with different names".
@@ -400,6 +432,7 @@ pub enum Marked {
     Sacrificed,
     Copied,
     Returned,
+    Destroyed,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -749,6 +782,23 @@ pub enum Effect {
     },
     /// "Change the target of target spell or ability with a single target."
     ChangeTarget(Objects),
+    /// "change the target of target spell with a single target to this creature".
+    ChangeTargetTo {
+        what: Objects,
+        to: Objects,
+    },
+    /// "Exile the top card of your library face down."
+    ExileFaceDown(Objects),
+    /// "Look at target player's hand."
+    LookAtHand {
+        who: Player,
+        whose: Player,
+    },
+    /// "You may cast spells this turn as though they had flash."
+    CastAsThoughFlash {
+        what: Objects,
+        dur: Duration,
+    },
     /// "Permanents your opponents control lose hexproof and indestructible".
     LoseKeywords {
         what: Objects,
@@ -809,6 +859,8 @@ pub enum Effect {
         dur: Duration,
     },
     WinGame(Player),
+    /// "roll a d20".
+    RollDie(u32),
     /// "you don't lose this mana as steps and phases end".
     KeepsMana {
         who: Player,
@@ -845,6 +897,8 @@ pub enum Exception {
     IsNot(Vec<Adj>),
     /// "it has haste".
     Has(Vec<Keyword>),
+    /// "except it has this ability": the copy keeps the ability that made it.
+    HasThisAbility,
     /// "it enters with an additional +1/+1 counter on it if it's a creature".
     EntersWithCounters {
         n: Amount,
@@ -944,6 +998,8 @@ pub enum Pick {
     AnyType,
     /// "mana of the chosen color": no pick, the color is given.
     Stated,
+    /// "three mana of that type": the type of mana named before, colorless too.
+    ThatType,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -990,6 +1046,8 @@ pub enum Restriction {
     NoActivatedAbilities,
     MayNotUntap,
     DoesntUntapNext,
+    /// "can't block creatures you control".
+    CantBlockAny(Filter),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1087,6 +1145,26 @@ pub enum Event {
     Searches {
         who: Player,
         zone: Zone,
+    },
+    /// "you tap a Swamp for mana".
+    TapsForMana {
+        who: Player,
+        what: Objects,
+    },
+    /// "If you would draw a card while your library has no cards in it".
+    While {
+        event: Box<Event>,
+        cond: Box<Condition>,
+    },
+    /// "deals damage to an opponent".
+    DealsDamageTo {
+        what: Objects,
+        to: Vec<Recipient>,
+    },
+    /// "When this Class becomes level 2".
+    BecomesLevel {
+        what: Objects,
+        n: u32,
     },
 }
 
@@ -1244,6 +1322,15 @@ pub enum Static {
         what: Objects,
         cost: Vec<Cost>,
     },
+    /// "Play with the top card of your library revealed."
+    PlayWithTopRevealed(Player),
+    /// "cost an additional 3 life to cast".
+    AdditionalCostFor {
+        what: Objects,
+        cost: Vec<Cost>,
+    },
+    /// "Skip your draw step."
+    SkipStep(Step),
     /// "Creatures you control can boast twice during each of your turns
     /// rather than once."
     ActivationsPerTurn {
@@ -1285,7 +1372,6 @@ pub enum Condition {
     },
     WasKicked,
     Threshold(Amount, Box<Objects>),
-    Graveyard(Amount, Filter),
     YouAttackedThisTurn,
     Opponent(Box<Condition>),
     OpponentsAtLeast(u32),
@@ -1353,6 +1439,8 @@ pub enum Condition {
     AttackedWithThisTurn(Objects),
     /// "the gift was promised".
     GiftPromised,
+    /// "you cast this spell during your main phase".
+    CastDuring(Step),
 }
 
 #[derive(Clone, Debug, PartialEq)]

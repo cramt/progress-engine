@@ -101,7 +101,14 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             }])
         },
         |p| { p.words("at the beginning of")?; let step = step(p)?; p.tok(&Tok::Comma)?; let then = clauses(p)?; Some(vec![Effect::Delayed { step, then }]) },
-        |p| { let dur = duration(p)?; p.tok(&Tok::Comma)?; let then = clauses(p)?; Some(vec![Effect::During { dur, then }]) },
+        |p| {
+            let dur = duration(p)?;
+            p.tok(&Tok::Comma)?;
+            let outer = std::mem::replace(&mut p.during, true);
+            let then = p.attempt(clauses);
+            p.during = outer;
+            Some(vec![Effect::During { dur, then: then? }])
+        },
         // "For each opponent, create …", "For each of those cards, pay 4 life
         // or …": the clauses once per object.
         |p| {

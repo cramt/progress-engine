@@ -14,6 +14,8 @@ pub(super) fn player(p: &mut P) -> Option<Player> {
         |p| p.words("target player").map(|_| Player::Target),
         |p| p.words("target opponent").map(|_| Player::TargetOpponent),
         |p| p.words("each other player").map(|_| Player::EachOtherPlayer),
+        |p| p.words("each player who can't").map(|_| Player::WhoCant(Box::new(Player::Each))),
+        |p| p.words("each opponent who can't").map(|_| Player::WhoCant(Box::new(Player::EachOpponent))),
         |p| p.words("each player").map(|_| Player::Each),
         |p| p.words("each opponent").map(|_| Player::EachOpponent),
         |p| p.words("your opponents").map(|_| Player::EachOpponent),
@@ -114,7 +116,17 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
         return Some(Adj::State(State::AttackingOrBlocking));
     }
     let w = p.peek_word()?;
-    let adj = if let Some(c) = color_word(w) {
+    let adj = if w == "activated" || w == "triggered" {
+        // Only before "ability": "activated" alone is no kind of object.
+        if !matches!(p.t.get(p.i + 1), Some(Tok::Word(n)) if n == "ability" || n == "abilities") {
+            return None;
+        }
+        Adj::Ability(if w == "activated" {
+            AbilityKind::Activated
+        } else {
+            AbilityKind::Triggered
+        })
+    } else if let Some(c) = color_word(w) {
         Adj::Color(c)
     } else if let Some(s) = state_word(w) {
         Adj::State(s)
@@ -294,13 +306,27 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
             ..Filter::default()
         })),
         (Some(_), None) => p.attempt(|p| {
-            p.word("or")?;
+            // A list of kinds: "instant spell, sorcery spell, activated
+            // ability, or triggered ability"; the comma needs a kind after it.
+            let comma = p.attempt(|p| p.tok(&Tok::Comma)).is_some();
+            let or = p.attempt(|p| p.word("or")).is_some();
+            if !or && !comma {
+                return None;
+            }
             // "a token or a land": after a bare kind, the second may be types.
             if bare_kind {
                 p.attempt(|p| p.one_of(&["a", "an"]));
             }
             let f = filter(p)?;
-            (f.kind.is_some() || bare_kind && !f.alts.is_empty()).then_some(Box::new(f))
+            // A comma with no "or" yet must be in a list that ends in one,
+            // or "an enchantment spell, counter it" would read as a list.
+            if comma && !or && f.or.is_none() {
+                return None;
+            }
+            if matches!(f.kind, Some(Noun::Counter(_))) {
+                return None;
+            }
+            (f.kind.is_some() || bare_kind && !f.alts.is_empty() && !comma).then_some(Box::new(f))
         }),
         (None, None) => None,
     };
@@ -398,7 +424,12 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| { p.words("exiled with")?; objects(p).map(|o| Post::ExiledWith(Box::new(o))) },
         |p| p.words("you cast").map(|_| Post::Cast(Player::You)),
         |p| p.words("drawn this turn").map(|_| Post::DrawnThisTurn),
+        |p| { p.word("named")?; pronoun(p).map(|o| Post::Named(Box::new(o))) },
+        |p| { p.one_of(&["that target", "that targets"])?; objects(p).map(|o| Post::Targets(Box::new(o))) },
+        |p| { p.word("that's")?; filter(p).map(Post::ThatIs) },
+        |p| { let how = marked(p)?; p.words("this way")?; Some(Post::Marked(how)) },
         |p| p.one_of(&["who doesn't", "who don't"]).map(|_| Post::WhoDoesnt),
+        |p| p.words("who can't").map(|_| Post::WhoCant),
         |p| { p.one_of(&["that aren't", "that isn't"])?; p.one_of(&["on", "in"])?; zone(p).map(Post::NotIn) },
         |p| p.words("with different names").map(|_| Post::DifferentNames),
         |p| { let pl = player_simple(p)?; p.one_of(&["owns", "own"])?; Some(Post::Owner(pl)) },
@@ -436,13 +467,14 @@ pub(super) fn quant(p: &mut P) -> Option<Quant> {
         |p| { p.words("one or two target")?; Some(Quant::Target { n: Amount::Between(1, 2), up_to: false }) },
         |p| { p.words("up to")?; let n = amount(p)?; p.word("target")?; Some(Quant::Target { n, up_to: true }) },
         |p| { p.words("up to")?; amount(p).map(Quant::UpTo) },
-        |p| p.words("another target").map(|_| Quant::AnotherTarget),
+        |p| p.one_of(&["another target", "a second target"]).map(|_| Quant::AnotherTarget),
         |p| { p.words("any number of target").map(|_| Quant::Target { n: Amount::X, up_to: true }) },
         |p| { let n = amount(p)?; p.word("target")?; Some(Quant::Target { n, up_to: false }) },
         |p| { let n = amount(p)?; p.words("or more")?; Some(Quant::AtLeast(n)) },
         |p| { let n = amount(p)?; p.words("or fewer").map(|_| Quant::AtMost(n)) },
         |p| p.word("target").map(|_| Quant::Target { n: Amount::N(1), up_to: false }),
         |p| p.words("the next").map(|_| Quant::Next),
+        |p| p.word("additional").map(|_| Quant::Additional),
         |p| p.words("each other").map(|_| Quant::Each),
         |p| p.word("each").map(|_| Quant::Each),
         |p| p.words("all other").map(|_| Quant::All),
@@ -463,6 +495,8 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
         |p| p.tok(&Tok::SelfRef).map(|_| self_ref()),
         |p| { p.word("this")?; let f = filter(p)?; Some(with_others(Quant::SelfRef, f)) },
         |p| p.one_of(&["each of them", "it", "them", "they"]).map(|_| antecedent()),
+        // "each of those creatures": the earlier noun, each one.
+        |p| { p.words("each of")?; let o = pronoun(p)?; (o.quant == Quant::Antecedent).then_some(o) },
         |p| p.words("the rest").map(|_| Objects { quant: Quant::Rest, filter: Filter::default() }),
         |p| p.one_of(&["the other", "the others"]).map(|_| antecedent()),
         |p| {
@@ -514,6 +548,7 @@ pub(super) fn marked(p: &mut P) -> Option<Marked> {
         |p| p.word("sacrificed").map(|_| Marked::Sacrificed),
         |p| p.word("copied").map(|_| Marked::Copied),
         |p| p.word("returned").map(|_| Marked::Returned),
+        |p| p.word("destroyed").map(|_| Marked::Destroyed),
     )
 }
 
@@ -585,6 +620,22 @@ fn objects_read(p: &mut P) -> Option<Objects> {
             (filter.kind == Some(Noun::Commander)).then_some(Objects { quant: Quant::Possessive(who), filter })
         },
         |p| p.words("any target").map(|_| Objects { quant: Quant::AnyTarget { n: Amount::N(1) }, filter: Filter::default() }),
+        // "a Shaman or another Wizard you control": the second alternative is
+        // one other than this object, and the posts hold of both.
+        |p| {
+            p.one_of(&["a", "an"])?;
+            let first = filter(p)?;
+            if !first.posts.is_empty() || first.kind.is_some() || first.or.is_some() { return None; }
+            p.words("or another")?;
+            let mut second = filter(p)?;
+            if second.kind.is_some() || second.or.is_some() { return None; }
+            let mut alts = first.alts;
+            for g in second.alts.iter_mut() {
+                g.insert(0, Adj::State(State::Other));
+            }
+            alts.extend(second.alts);
+            Some(Objects { quant: Quant::One, filter: Filter { alts, posts: second.posts, ..Filter::default() } })
+        },
         |p| { let n = amount(p)?; p.words("target")?; p.word("targets").map(|_| Objects { quant: Quant::AnyTarget { n }, filter: Filter::default() }) },
         |p| {
             let quant = p.attempt(quant).unwrap_or(Quant::Plural);

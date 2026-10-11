@@ -431,6 +431,79 @@ mod tests {
     }
 
     #[test]
+    fn one_subject_takes_a_list_of_predicates() {
+        let a = read(
+            "Some Regalia",
+            "Artifact — Equipment",
+            "Equipped creature has ward {2}, is an Assassin in addition to its other types, and can't be blocked.",
+        );
+        let Ability::Static(s) = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert!(matches!(&s[0], Static::Modify { .. }));
+        assert!(matches!(&s[1], Static::AlsoIs { .. }));
+        assert!(matches!(
+            &s[2],
+            Static::Restrict {
+                rule: Restriction::CantBeBlocked,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn a_cost_reduction_can_hang_on_a_condition() {
+        let a = read(
+            "Some Bend",
+            "Instant",
+            "This spell costs {3} less to cast if you control a creature with power 4 or greater.",
+        );
+        let Ability::Static(s) = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert!(matches!(
+            &s[0],
+            Static::If { cond: Condition::YouControl(_), then } if matches!(then[0], Static::CostChange { less: true, .. })
+        ));
+    }
+
+    #[test]
+    fn a_spree_mode_reads_its_added_cost() {
+        let a = read(
+            "Some Favor",
+            "Instant",
+            "+ {1} — Change the target of target spell or ability with a single target.",
+        );
+        assert!(matches!(
+            &a[0],
+            Ability::Spree { cost, effect } if cost == &Mana(vec!["1".into()])
+                && matches!(effect[0], Effect::ChangeTarget(_))
+        ));
+    }
+
+    #[test]
+    fn a_bonus_with_no_duration_needs_one_said_before_it() {
+        let a = read(
+            "Some Stampede",
+            "Sorcery",
+            "Until end of turn, creatures you control gain trample and get +X/+X, where X is the greatest power among creatures you control.",
+        );
+        assert!(matches!(&a[0], Ability::Spell(e) if matches!(e[0], Effect::During { .. })));
+        // Without the leading duration, the first bonus would last forever.
+        let lines = read_face(
+            &Face {
+                name: "Some Veteran",
+                type_line: "Creature — Human Soldier",
+                text: "Whenever this creature attacks, attacking red creatures get +2/+0 and attacking white creatures get +0/+2 until end of turn.",
+            },
+            "Some Veteran",
+        );
+        if let Ok(a) = &lines[0].parsed {
+            assert!(!format!("{a:?}").contains("dur: Permanent"), "{a:?}");
+        }
+    }
+
+    #[test]
     fn a_passive_token_doubler_names_no_creator() {
         let a = read(
             "Some Dominus",

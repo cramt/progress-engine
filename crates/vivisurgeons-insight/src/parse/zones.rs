@@ -5,7 +5,7 @@ use super::*;
 pub(super) fn zone(p: &mut P) -> Option<Zone> {
     alt!(p;
         |p| p.words("a graveyard").map(|_| Zone::AGraveyard),
-        |p| p.words("all graveyards").map(|_| Zone::Graveyard(Player::Each)),
+        |p| p.one_of(&["all graveyards", "each graveyard"]).map(|_| Zone::Graveyard(Player::Each)),
         |p| { p.words("anywhere other than")?; zone(p).map(|z| Zone::AnywhereOtherThan(Box::new(z))) },
         |p| p.word("anywhere").map(|_| Zone::Anywhere),
         |p| p.words("exile").map(|_| Zone::Exile),

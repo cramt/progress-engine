@@ -38,6 +38,7 @@ pub(super) fn cost(p: &mut P) -> Option<Cost> {
         |p| { p.word("discard")?; objects(p).map(Cost::Discard) },
         |p| { p.word("pay")?; let n = amount(p)?; p.word("life")?; Some(Cost::PayLife(n)) },
         |p| { p.words("pay life equal to")?; measure(p).map(Cost::PayLife) },
+        |p| { p.word("pay")?; mana(p).map(Cost::Mana) },
         |p| { p.word("exile")?; objects(p).map(Cost::Exile) },
         |p| {
             p.word("remove")?;
@@ -141,6 +142,7 @@ pub(super) fn mana_add(p: &mut P) -> Option<ManaAdd> {
 pub(super) fn mana_pick(p: &mut P) -> Option<(Pick, Option<Palette>)> {
     alt!(p;
         |p| { p.word("of")?; palette_named(p).map(|c| (Pick::Stated, Some(c))) },
+        |p| p.words("of that type").map(|_| (Pick::ThatType, None)),
         |p| {
             p.words("of any of")?;
             let o = objects_no_player(p)?;

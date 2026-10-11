@@ -97,7 +97,9 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
         |p| {
             let who = player(p)?;
             p.verb("draw")?;
-            p.words("a card except the first one they draw in each of their draw steps")?;
+            p.word("a")?;
+            p.words("card except the first one")?;
+            p.one_of(&["they draw in each of their draw steps", "you draw in each of your draw steps"])?;
             Some(Event::DrawsExceptFirstInDrawStep(who))
         },
         |p| { let who = player(p)?; p.verb("draw")?; p.words("a card")?; Some(Event::Draws(who)) },
@@ -111,6 +113,7 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
         |p| { let who = player(p)?; p.verb("discard")?; let what = objects(p)?; Some(Event::Discards { who, what }) },
         |p| { let who = player(p)?; p.verb("cycle")?; let what = p.attempt(objects); Some(Event::Cycles { who, what }) },
         |p| { let who = player(p)?; p.verb("sacrifice")?; let what = objects(p)?; Some(Event::Sacrifices { who, what }) },
+        |p| { let who = player(p)?; p.verb("tap")?; let what = objects(p)?; p.words("for mana")?; Some(Event::TapsForMana { who, what }) },
         |p| {
             // "enters or attacks": one subject, several predicates.
             let what = objects(p)?;
@@ -143,8 +146,10 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
         |p| p.verb("attack").map(|_| Event::Attacks(what.clone())),
         |p| p.verb("block").map(|_| Event::Blocks(what.clone())),
         |p| p.one_of(&["becomes blocked", "become blocked"]).map(|_| Event::BecomesBlocked(what.clone())),
-        |p| { p.verb("deal")?; p.words("combat damage to")?; p.one_of(&["a player", "an opponent", "one or more players", "a player or planeswalker"])?; Some(Event::DealsCombatDamageToPlayer(what.clone())) },
+        |p| { p.verb("deal")?; p.words("combat damage to")?; p.one_of(&["a player or planeswalker", "a player", "an opponent", "one or more players"])?; Some(Event::DealsCombatDamageToPlayer(what.clone())) },
+        |p| { p.verb("deal")?; p.words("damage to")?; let to = recipients(p)?; Some(Event::DealsDamageTo { what: what.clone(), to }) },
         |p| { p.verb("deal")?; p.word("damage")?; Some(Event::DealsDamage(what.clone())) },
+        |p| { p.one_of(&["becomes level", "become level"])?; let n = number(p)?; Some(Event::BecomesLevel { what: what.clone(), n }) },
         |p| p.one_of(&["is dealt damage", "are dealt damage"]).map(|_| Event::IsDealtDamage(what.clone())),
         |p| p.one_of(&["becomes tapped", "become tapped"]).map(|_| Event::BecomesTapped(what.clone())),
         |p| p.one_of(&["is tapped for mana", "are tapped for mana"]).map(|_| Event::TappedForMana(what.clone())),

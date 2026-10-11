@@ -14,6 +14,9 @@ pub struct P<'a> {
     /// The subject a verb inherits when it has none of its own, as after
     /// "that player may".
     implied: Option<Player>,
+    /// Inside "Until end of turn, …", whose clauses need no duration of
+    /// their own.
+    during: bool,
     /// Per starting token: the object phrase read there, where it ended, and
     /// how far reading it got.
     objects_memo: Vec<Option<(Option<Objects>, usize, usize)>>,
@@ -35,6 +38,7 @@ impl<'a> P<'a> {
             i: 0,
             furthest: 0,
             implied: None,
+            during: false,
             objects_memo: vec![None; t.len() + 1],
         }
     }
@@ -305,6 +309,14 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
                 finished(p).then_some(Ability::LevelPt(pt))
             }
             _ => None,
+        },
+        // "+ {1} — Copy target instant spell …": a spree mode.
+        |p| {
+            p.tok(&Tok::Other('+'))?;
+            let cost = mana(p)?;
+            p.tok(&Tok::Dash)?;
+            let effect = effects(p)?;
+            finished(p).then_some(Ability::Spree { cost, effect })
         },
         |p| {
             let mut chapters = Vec::new();
