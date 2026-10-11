@@ -72,6 +72,7 @@ pub(super) fn stat_of(s: Stat, o: Objects) -> Amount {
 pub(super) fn measure(p: &mut P) -> Option<Amount> {
     alt!(p;
         |p| { p.words("the number of")?; objects(p).map(|o| Amount::CountOf(Box::new(o))) },
+        |p| { p.one_of(&["its", "their"])?; p.words("base power")?; Some(Amount::BasePowerOf(Box::new(antecedent()))) },
         |p| { p.one_of(&["its", "their"])?; let s = stat(p)?; Some(stat_of(s, antecedent())) },
         |p| { let o = objects(p)?; p.tok(&Tok::Possessive)?; let s = stat(p)?; Some(stat_of(s, o)) },
         |p| { p.words("the life lost this way").map(|_| Amount::LifeLost) },

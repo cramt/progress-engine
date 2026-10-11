@@ -88,11 +88,17 @@ pub(super) fn replacement(p: &mut P) -> Option<Vec<Static>> {
     p.word("if")?;
     let event = alt!(p;
         |p| {
-            let by = actor(p)?;
+            let by = alt!(p; actor, |p| p.word("you").map(|_| Actor::Player(Player::You)))?;
             p.words("would create")?;
             let what = objects(p)?;
             let under = p.attempt(|p| { p.word("under")?; let w = whose(p)?; p.word("control")?; Some(w) });
             Some(Event::Creates { by, what, under })
+        },
+        |p| {
+            let what = objects(p)?;
+            p.words("would be created")?;
+            let under = p.attempt(|p| { p.word("under")?; let w = whose(p)?; p.word("control")?; Some(w) });
+            Some(Event::Creates { by: Actor::Passive, what, under })
         },
         |p| {
             let by = p.attempt(actor);
@@ -114,6 +120,8 @@ pub(super) fn replacement(p: &mut P) -> Option<Vec<Static>> {
         |p| { let what = objects(p)?; p.word("would")?; would(p, &what) },
     )?;
     p.tok(&Tok::Comma)?;
+    // "instead" may lead or trail; either way the clauses replace the event.
+    p.attempt(|p| p.word("instead"));
     let mut instead = clauses(p)?;
     p.attempt(|p| p.word("instead"));
     // "… you may discard a land card instead. If you do, …. If you don't, …"
@@ -180,6 +188,24 @@ pub(super) fn static_body(p: &mut P) -> Option<Vec<Static>> {
             )?;
             p.one_of(&["in addition to its other types", "in addition to its other land types", "in addition to their other types", "in addition to their other land types"])?;
             Some(vec![Static::AlsoIs { what, types }])
+        },
+        // "Creatures you control are every creature type": with no "in
+        // addition", the new types replace the old (CR 205.1b).
+        |p| {
+            let what = objects(p)?;
+            p.one_of(&["is", "are"])?;
+            let types = alt!(p;
+                |p| p.words("every creature type").map(|_| TypeSet::EveryCreatureType),
+                |p| p.words("every basic land type").map(|_| TypeSet::EveryBasicLandType),
+                |p| {
+                    p.attempt(|p| p.one_of(&["a", "an"]));
+                    // Only what a card's type line and color say: "is
+                    // attacking" is a condition, not a static.
+                    let g = group(p).filter(|g| g.iter().all(|a| matches!(a, Adj::Type(_) | Adj::Subtype(_) | Adj::Supertype(_) | Adj::Color(_))))?;
+                    Some(TypeSet::Listed(g))
+                },
+            )?;
+            Some(vec![Static::Is { what, types }])
         },
         |p| {
             p.words("you may play")?;
@@ -248,19 +274,83 @@ pub(super) fn static_body(p: &mut P) -> Option<Vec<Static>> {
             let equal_to = measure(p)?;
             Some(vec![Static::SetPower { what, equal_to }])
         },
+        // "You may play lands and cast spells from the top of your library":
+        // each verb and object, from the one zone named last.
         |p| {
             p.words("you may")?;
-            let what = alt!(p;
-                |p| { p.word("play")?; objects(p) },
-                |p| { p.word("cast")?; objects(p) },
-            )?;
-            let mut what = what;
-            // The object's own "from your graveyard" got there first.
-            let zone = match what.filter.posts.last() {
-                Some(Post::In(z)) => { let z = z.clone(); what.filter.posts.pop(); z }
+            let verb = |p: &mut P| alt!(p;
+                |p| p.word("play").map(|_| CastVerb::Play),
+                |p| p.word("cast").map(|_| CastVerb::Cast),
+            );
+            let first = verb(p)?;
+            let mut items = vec![(first, objects(p)?)];
+            while let Some(item) = p.attempt(|p| {
+                p.word("and")?;
+                let v = p.attempt(verb).unwrap_or(items.last().map(|(v, _)| *v)?);
+                Some((v, objects(p)?))
+            }) {
+                items.push(item);
+            }
+            // The last object's own "from your graveyard" got there first.
+            let last = &mut items.last_mut()?.1;
+            let zone = match last.filter.posts.last() {
+                Some(Post::In(z)) => { let z = z.clone(); last.filter.posts.pop(); z }
                 _ => { p.word("from")?; zone(p)? }
             };
-            Some(vec![Static::PlayFrom { what, zone }])
+            Some(items.into_iter().map(|(verb, what)| Static::PlayFrom { verb, what, zone: zone.clone() }).collect())
+        },
+        |p| {
+            let cost = costs(p)?;
+            p.words("rather than pay its mana cost")?;
+            Some(vec![Static::PaysRather { what: antecedent(), cost }])
+        },
+        |p| {
+            let may = p.attempt(|p| p.words("you may have")).is_some();
+            let what = objects(p)?;
+            p.verb("enter")?;
+            p.words("as a copy of")?;
+            let of = objects(p)?;
+            let except = p.attempt(exceptions).unwrap_or_default();
+            Some(vec![Static::EntersAsCopy { may, what, of, except }])
+        },
+        |p| {
+            let what = objects(p)?;
+            p.word("can")?;
+            let keyword = keyword_name(p)?;
+            let times = alt!(p;
+                |p| p.word("twice").map(|_| 2),
+                |p| { let n = number(p)?; p.word("times")?; Some(n) },
+            )?;
+            p.words("during each of")?;
+            let during = alt!(p;
+                |p| p.word("your").map(|_| Whose::Yours),
+                |p| p.word("their").map(|_| Whose::ThatPlayers),
+            )?;
+            p.words("turns rather than once")?;
+            Some(vec![Static::ActivationsPerTurn { what, keyword, times, during }])
+        },
+        |p| {
+            p.words("the same is true for")?;
+            let mut v = vec![objects(p)?];
+            while let Some(o) = p.attempt(|p| { p.one_of(&[", and", "and", ","])?; objects(p) }) {
+                v.push(o);
+            }
+            Some(vec![Static::SameFor(v)])
+        },
+        // "The escape cost is equal to the card's mana cost plus exile three
+        // other cards from your graveyard."
+        |p| {
+            p.word("the")?;
+            let keyword = keyword_name(p)?;
+            p.words("cost is equal to")?;
+            let of = objects(p)?;
+            p.tok(&Tok::Possessive)?;
+            p.words("mana cost")?;
+            let mut cost = vec![Cost::ManaCostOf(of)];
+            if p.attempt(|p| p.word("plus")).is_some() {
+                cost.extend(costs(p)?);
+            }
+            Some(vec![Static::KeywordCost { keyword, cost }])
         },
         |p| {
             let what = objects(p)?;
@@ -268,7 +358,13 @@ pub(super) fn static_body(p: &mut P) -> Option<Vec<Static>> {
                 |p| {
                     p.verb("get")?;
                     let pt = pt_signed(p)?;
-                    let per = p.attempt(|p| { p.words("for each")?; objects(p) });
+                    let per = p.attempt(|p| {
+                        p.words("for each")?;
+                        alt!(p;
+                            |p| { p.words("color among")?; objects(p).map(|o| Amount::NumberOfColors(Box::new(Palette::ColorsOf(Box::new(o))))) },
+                            |p| objects(p).map(|o| Amount::CountOf(Box::new(o))),
+                        )
+                    });
                     let has = p.attempt(|p| { p.word("and")?; p.verb("have")?; keyword_list(p) }).unwrap_or_default();
                     Some(vec![Static::Modify { what: what.clone(), pt: Some(pt), has, per }])
                 },

@@ -94,7 +94,20 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
         |p| { let who = player(p)?; p.verb("cast")?; let what = objects(p)?; Some(Event::Casts { who, what }) },
         |p| { let who = player(p)?; p.verb("gain")?; p.word("life")?; Some(Event::GainsLife(who)) },
         |p| { let who = player(p)?; p.verb("lose")?; p.word("life")?; Some(Event::LosesLife(who)) },
+        |p| {
+            let who = player(p)?;
+            p.verb("draw")?;
+            p.words("a card except the first one they draw in each of their draw steps")?;
+            Some(Event::DrawsExceptFirstInDrawStep(who))
+        },
         |p| { let who = player(p)?; p.verb("draw")?; p.words("a card")?; Some(Event::Draws(who)) },
+        |p| {
+            let who = player(p)?;
+            p.verb("search")?;
+            let w = whose(p)?;
+            p.word("library")?;
+            Some(Event::Searches { who, zone: Zone::Library(w) })
+        },
         |p| { let who = player(p)?; p.verb("discard")?; let what = objects(p)?; Some(Event::Discards { who, what }) },
         |p| { let who = player(p)?; p.verb("cycle")?; let what = p.attempt(objects); Some(Event::Cycles { who, what }) },
         |p| { let who = player(p)?; p.verb("sacrifice")?; let what = objects(p)?; Some(Event::Sacrifices { who, what }) },
@@ -124,7 +137,8 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
             Some(Event::Enters { what: what.clone(), under, state })
         },
         |p| p.verb("die").map(|_| Event::Dies(what.clone())),
-        |p| p.words("leaves the battlefield").map(|_| Event::LeavesBattlefield(what.clone())),
+        |p| { p.verb("leave")?; let from = zone(p)?; Some(Event::Leaves { what: what.clone(), from }) },
+        |p| p.one_of(&["is countered", "are countered"]).map(|_| Event::Countered(what.clone())),
         |p| p.verb("attack or block").map(|_| Event::AttacksOrBlocks(what.clone())),
         |p| p.verb("attack").map(|_| Event::Attacks(what.clone())),
         |p| p.verb("block").map(|_| Event::Blocks(what.clone())),
@@ -142,7 +156,9 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
 pub(super) fn event(p: &mut P) -> Option<Event> {
     let first = single_event(p)?;
     let mut rest = Vec::new();
+    // "Whenever another creature dies, or a creature card is put into …".
     while let Some(e) = p.attempt(|p| {
+        p.attempt(|p| p.tok(&Tok::Comma));
         p.word("or")?;
         single_event(p)
     }) {
@@ -160,6 +176,15 @@ pub(super) fn event(p: &mut P) -> Option<Event> {
 pub(super) fn trigger(p: &mut P) -> Option<Trigger> {
     alt!(p;
         |p| { p.words("at the beginning of")?; step(p).map(Trigger::At) },
-        |p| { p.one_of(&["whenever", "when"])?; event(p).map(|e| Trigger::When(Box::new(e))) },
+        |p| {
+            p.one_of(&["whenever", "when"])?;
+            let e = event(p)?;
+            // "When this creature enters and whenever an opponent draws …":
+            // two triggers for one effect, which is either event.
+            Some(Trigger::When(Box::new(match p.attempt(|p| { p.word("and")?; p.one_of(&["whenever", "when"])?; event(p) }) {
+                Some(more) => Event::Or(vec![e, more]),
+                None => e,
+            })))
+        },
     )
 }

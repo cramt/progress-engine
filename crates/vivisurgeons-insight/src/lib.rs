@@ -285,4 +285,166 @@ mod tests {
             } if **rule == Restriction::CantAttackPlayer(Player::You)
         ));
     }
+
+    #[test]
+    fn mana_for_each_color_binds_that_color_per_color() {
+        let a = read(
+            "Some Tender",
+            "Creature — Elf",
+            "{T}: For each color among permanents you control, add one mana of that color.",
+        );
+        let Ability::Activated { effect, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        let [Effect::ForEachColor {
+            among: Palette::ColorsOf(_),
+            then,
+        }] = &effect[..]
+        else {
+            panic!("{effect:?}")
+        };
+        assert_eq!(
+            then,
+            &vec![Effect::AddMana(ManaAdd::Of {
+                n: Amount::N(1),
+                pick: Pick::Stated,
+                within: Some(Palette::Chosen),
+            })]
+        );
+    }
+
+    #[test]
+    fn a_clone_keeps_what_its_except_adds() {
+        let a = read(
+            "Some Metamorph",
+            "Artifact Creature — Phyrexian Shapeshifter",
+            "You may have this creature enter as a copy of any artifact or creature on the battlefield, except it's an artifact in addition to its other types.",
+        );
+        let Ability::Static(s) = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert!(matches!(
+            &s[0],
+            Static::EntersAsCopy { may: true, except, .. }
+                if except == &vec![Exception::AlsoIs(vec![Adj::Type("artifact".into())])]
+        ));
+    }
+
+    #[test]
+    fn exiling_a_countered_spell_replaces_where_it_would_go() {
+        let a = read(
+            "Some Negation",
+            "Instant",
+            "Counter target spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
+        );
+        let Ability::Spell(effect) = &a[0] else {
+            panic!("{a:?}")
+        };
+        let Effect::If { cond, then } = &effect[1] else {
+            panic!("{effect:?}")
+        };
+        assert!(matches!(cond, Condition::ThisWay(e) if matches!(**e, Event::Countered(_))));
+        assert!(matches!(
+            &then[0],
+            Effect::InsteadOf { then, of }
+                if matches!(**then, Effect::Exile(_))
+                && matches!(**of, Effect::Move { to: Zone::OwnersGraveyard, .. })
+        ));
+    }
+
+    #[test]
+    fn on_top_and_on_the_bottom_say_which_end_of_the_library() {
+        let a = read(
+            "Some Oracle",
+            "Sorcery",
+            "Look at the top three cards of your library. Put up to one of them on top of your library and the rest on the bottom of your library in a random order.",
+        );
+        let Ability::Spell(effect) = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert!(matches!(
+            &effect[1],
+            Effect::Move { what, to: Zone::TopOfLibrary(Player::You), .. }
+                if what.quant == Quant::UpTo(Amount::N(1))
+        ));
+        assert!(matches!(
+            &effect[2],
+            Effect::Move {
+                to: Zone::BottomOfLibrary(Player::You),
+                order: Some(Order::Random),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn a_land_that_becomes_a_creature_says_it_is_still_a_land() {
+        let a = read(
+            "Some Touch",
+            "Sorcery",
+            "Target land becomes a 2/2 creature that's still a land.",
+        );
+        assert!(matches!(
+            &a[0],
+            Ability::Spell(e) if matches!(&e[0], Effect::Becomes { keeps: Keeps::Listed(k), .. }
+                if k == &vec![Adj::Type("land".into())])
+        ));
+    }
+
+    #[test]
+    fn token_is_a_kind_of_object_even_last_in_a_list_of_types() {
+        let a = read(
+            "Some Kitty",
+            "Creature — Cat",
+            "{2}, Sacrifice another creature or token: Draw a card.",
+        );
+        let Ability::Activated { cost, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        let Cost::Sacrifice(o) = &cost[1] else {
+            panic!("{cost:?}")
+        };
+        assert_eq!(o.filter.alts, vec![vec![Adj::Type("creature".into())]]);
+        assert_eq!(
+            o.filter.or.as_ref().and_then(|f| f.kind.clone()),
+            Some(Noun::Token)
+        );
+    }
+
+    #[test]
+    fn a_leading_for_each_repeats_its_clauses_per_object() {
+        let a = read(
+            "Some Cathar",
+            "Creature — Human Knight",
+            "Whenever you attack, for each opponent, create a 1/1 white Human creature token that's tapped and attacking that player or a planeswalker they control.",
+        );
+        let Ability::Triggered { effect, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        let [Effect::ForEach { then, .. }] = &effect[..] else {
+            panic!("{effect:?}")
+        };
+        assert!(matches!(
+            &then[0],
+            Effect::Create { token, .. } if token.tapped && matches!(token.attacking, Some(Recipient::Or(_)))
+        ));
+    }
+
+    #[test]
+    fn a_passive_token_doubler_names_no_creator() {
+        let a = read(
+            "Some Dominus",
+            "Creature — Phyrexian Dragon",
+            "If one or more tokens would be created under your control, twice that many of those tokens are created instead.",
+        );
+        let Ability::Static(s) = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert!(matches!(
+            &s[0],
+            Static::Replacement { event, instead }
+                if matches!(**event, Event::Creates { by: Actor::Passive, under: Some(Player::You), .. })
+                && matches!(&instead[0], Effect::CreateThose { by: Actor::Passive, n: Amount::Twice(_), .. })
+        ));
+    }
 }

@@ -6,6 +6,7 @@ pub(super) fn zone(p: &mut P) -> Option<Zone> {
     alt!(p;
         |p| p.words("a graveyard").map(|_| Zone::AGraveyard),
         |p| p.words("all graveyards").map(|_| Zone::Graveyard(Player::Each)),
+        |p| { p.words("anywhere other than")?; zone(p).map(|z| Zone::AnywhereOtherThan(Box::new(z))) },
         |p| p.word("anywhere").map(|_| Zone::Anywhere),
         |p| p.words("exile").map(|_| Zone::Exile),
         |p| p.words("the battlefield").map(|_| Zone::Battlefield),
@@ -92,6 +93,28 @@ pub(super) fn destination(p: &mut P) -> Option<Dest> {
         |p| p.word("top").map(|_| Dest::to(Zone::OwnersLibraryTop)),
         |p| zone(p).map(Dest::to),
     )
+}
+
+/// A preposition and where it puts something. "On top of" and "on the
+/// bottom of" say which end of a library, so they are read with it.
+pub(super) fn put_to(p: &mut P) -> Option<Dest> {
+    alt!(p;
+        |p| { p.words("on top of")?; library_end(p, true) },
+        |p| { p.words("on the bottom of")?; library_end(p, false) },
+        |p| { p.one_of(&["onto", "into", "on"])?; destination(p) },
+    )
+}
+
+fn library_end(p: &mut P, top: bool) -> Option<Dest> {
+    let zone = alt!(p;
+        |p| p.one_of(&["its owner 's library", "their owner 's library", "their owners ' libraries"]).map(|_| if top { Zone::OwnersLibraryTop } else { Zone::OwnersLibraryBottom }),
+        |p| {
+            let w = whose(p)?;
+            p.one_of(&["library", "libraries"])?;
+            Some(if top { Zone::TopOfLibrary(w) } else { Zone::BottomOfLibrary(w) })
+        },
+    )?;
+    Some(Dest::to(zone))
 }
 
 pub(super) fn order(p: &mut P) -> Option<Order> {

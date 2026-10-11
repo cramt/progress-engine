@@ -4,6 +4,13 @@ use super::*;
 
 pub(super) fn player(p: &mut P) -> Option<Player> {
     alt!(p;
+        |p| {
+            let mut v = vec![alt!(p; player_simple, |p| p.word("you").map(|_| Player::You))?];
+            p.word("and")?;
+            v.push(alt!(p; player_simple, |p| p.word("you").map(|_| Player::You))?);
+            p.word("each")?;
+            Some(Player::EachOf(v))
+        },
         |p| p.words("target player").map(|_| Player::Target),
         |p| p.words("target opponent").map(|_| Player::TargetOpponent),
         |p| p.words("each other player").map(|_| Player::EachOtherPlayer),
@@ -111,7 +118,9 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
         Adj::Color(c)
     } else if let Some(s) = state_word(w) {
         Adj::State(s)
-    } else if vocab().supertypes.contains(w) {
+    // Scryfall's catalog has "Token" for token type lines; in rules text
+    // "token" is the noun `kind` reads.
+    } else if vocab().supertypes.contains(w) && w != "token" {
         Adj::Supertype(w.to_string())
     } else if let Some(t) = type_word(w) {
         t
@@ -166,6 +175,9 @@ pub(super) fn is_typed(a: &Adj) -> bool {
 
 pub(super) fn filter(p: &mut P) -> Option<Filter> {
     let mut groups = Vec::new();
+    // "an artifact, enchantment, or token": a list of types whose last
+    // alternative is a kind of object instead.
+    let mut or_kind = None;
     if let Some(g) = p.attempt(group) {
         groups.push(g);
         // A comma list of types ends in "or" or "and"; without one the comma
@@ -190,11 +202,34 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
             }
             group(p)
         });
+        let kind_last = || {
+            let commas = !commas.is_empty();
+            move |p: &mut P| {
+                if commas {
+                    p.tok(&Tok::Comma)?;
+                }
+                p.word("or")?;
+                p.attempt(|p| p.one_of(&["a", "an"]));
+                kind(p).filter(|k| !matches!(k, Noun::Counter(_)))
+            }
+        };
+        let last = match last {
+            None => match p.attempt(kind_last()) {
+                Some(k) => {
+                    or_kind = Some(k);
+                    groups.extend(std::mem::take(&mut commas));
+                    None
+                }
+                None => None,
+            },
+            l => l,
+        };
         match last {
             Some(l) => {
                 groups.extend(commas);
                 groups.push(l);
             }
+            None if or_kind.is_some() => {}
             // "noncreature, nonland permanent": words before any type are an and.
             None if !groups[0].iter().any(is_typed) => {
                 for c in commas {
@@ -205,8 +240,12 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
         }
     }
     // A counter takes no type words: "enchantment and counter" is two clauses.
-    let kind =
-        p.attempt(|p| kind(p).filter(|k| groups.is_empty() || !matches!(k, Noun::Counter(_))));
+    let kind = match or_kind {
+        Some(_) => None,
+        None => {
+            p.attempt(|p| kind(p).filter(|k| groups.is_empty() || !matches!(k, Noun::Counter(_))))
+        }
+    };
     if groups.is_empty() && kind.is_none() {
         return None;
     }
@@ -245,14 +284,25 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
     // "spell or nonland permanent": two kinds of object, so two filters. Both
     // must name their kind, or "creature or planeswalker" would split here
     // instead of reading as one filter's alternatives above.
-    let or = match kind {
-        Some(_) => p.attempt(|p| {
+    let bare_kind = groups.is_empty();
+    let or = match (&kind, or_kind) {
+        // Its posts follow the kind word but hold of both: "creature or
+        // token you control".
+        (_, Some(k)) => Some(Box::new(Filter {
+            kind: Some(k),
+            posts: posts.clone(),
+            ..Filter::default()
+        })),
+        (Some(_), None) => p.attempt(|p| {
             p.word("or")?;
+            // "a token or a land": after a bare kind, the second may be types.
+            if bare_kind {
+                p.attempt(|p| p.one_of(&["a", "an"]));
+            }
             let f = filter(p)?;
-            f.kind.as_ref()?;
-            Some(Box::new(f))
+            (f.kind.is_some() || bare_kind && !f.alts.is_empty()).then_some(Box::new(f))
         }),
-        None => None,
+        (None, None) => None,
     };
     Some(Filter {
         alts: groups,
@@ -264,6 +314,12 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
 
 pub(super) fn compare(p: &mut P) -> Option<Compare> {
     let stat = stat(p)?;
+    let (op, value) = comparison(p)?;
+    Some(Compare { stat, op, value })
+}
+
+/// What a number is compared with: "3 or less", "greater than its base power".
+pub(super) fn comparison(p: &mut P) -> Option<(Op, Amount)> {
     alt!(p;
         |p| {
             let value = amount(p)?;
@@ -272,7 +328,7 @@ pub(super) fn compare(p: &mut P) -> Option<Compare> {
                 |p| p.words("or greater").map(|_| Op::Ge),
                 |p| p.words("or more").map(|_| Op::Ge),
             ).unwrap_or(Op::Eq);
-            Some(Compare { stat, op, value })
+            Some((op, value))
         },
         |p| {
             let op = alt!(p;
@@ -283,7 +339,7 @@ pub(super) fn compare(p: &mut P) -> Option<Compare> {
                 |p| p.words("equal to").map(|_| Op::Eq),
             )?;
             let value = measure(p)?;
-            Some(Compare { stat, op, value })
+            Some((op, value))
         },
     )
 }
@@ -315,7 +371,8 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| p.words("attached to it").map(|_| Post::AttachedToIt),
         |p| {
             p.one_of(&["that shares a", "that share a"])?;
-            let card_type = p.peek_word().filter(|w| vocab().card_types.contains(*w))?.to_string();
+            // "a card type": any one of them.
+            let card_type = p.peek_word().filter(|w| *w == "card" || vocab().card_types.contains(*w))?.to_string();
             p.bump();
             p.word("type")?;
             let with = p.attempt(|p| { p.word("with")?; objects(p) }).map(Box::new);
@@ -340,6 +397,20 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| p.one_of(&["from among them", "revealed this way", "from among those cards"]).map(|_| Post::FromAmongThem),
         |p| { p.words("exiled with")?; objects(p).map(|o| Post::ExiledWith(Box::new(o))) },
         |p| p.words("you cast").map(|_| Post::Cast(Player::You)),
+        |p| p.words("drawn this turn").map(|_| Post::DrawnThisTurn),
+        |p| p.one_of(&["who doesn't", "who don't"]).map(|_| Post::WhoDoesnt),
+        |p| { p.one_of(&["that aren't", "that isn't"])?; p.one_of(&["on", "in"])?; zone(p).map(Post::NotIn) },
+        |p| p.words("with different names").map(|_| Post::DifferentNames),
+        |p| { let pl = player_simple(p)?; p.one_of(&["owns", "own"])?; Some(Post::Owner(pl)) },
+        |p| {
+            let by = alt!(p; player_simple, |p| p.word("you").map(|_| Player::You))?;
+            let how = marked(p)?;
+            p.words("this way")?;
+            Some(Post::MarkedBy { how, by })
+        },
+        // "creatures you control each with power greater than its base power":
+        // "each" says the post holds of every one, as it would anyway.
+        |p| { p.words("each with")?; compare(p).map(Post::With) },
         |p| { let pl = player_simple(p)?; p.one_of(&["casts", "cast"])?; Some(Post::Cast(pl)) },
     )
 }
@@ -362,6 +433,7 @@ pub(super) fn player_simple(p: &mut P) -> Option<Player> {
 
 pub(super) fn quant(p: &mut P) -> Option<Quant> {
     alt!(p;
+        |p| { p.words("one or two target")?; Some(Quant::Target { n: Amount::Between(1, 2), up_to: false }) },
         |p| { p.words("up to")?; let n = amount(p)?; p.word("target")?; Some(Quant::Target { n, up_to: true }) },
         |p| { p.words("up to")?; amount(p).map(Quant::UpTo) },
         |p| p.words("another target").map(|_| Quant::AnotherTarget),
@@ -370,6 +442,7 @@ pub(super) fn quant(p: &mut P) -> Option<Quant> {
         |p| { let n = amount(p)?; p.words("or more")?; Some(Quant::AtLeast(n)) },
         |p| { let n = amount(p)?; p.words("or fewer").map(|_| Quant::AtMost(n)) },
         |p| p.word("target").map(|_| Quant::Target { n: Amount::N(1), up_to: false }),
+        |p| p.words("the next").map(|_| Quant::Next),
         |p| p.words("each other").map(|_| Quant::Each),
         |p| p.word("each").map(|_| Quant::Each),
         |p| p.words("all other").map(|_| Quant::All),
@@ -378,6 +451,9 @@ pub(super) fn quant(p: &mut P) -> Option<Quant> {
         |p| p.words("one or more").map(|_| Quant::OneOrMore),
         |p| p.words("any number of").map(|_| Quant::AnyNumber),
         |p| p.one_of(&["a", "an"]).map(|_| Quant::One),
+        // "a copy of any creature on the battlefield": one, of the chooser's
+        // pick, as "a" would be.
+        |p| p.word("any").map(|_| Quant::One),
         |p| amount(p).map(Quant::N),
     )
 }
@@ -390,6 +466,12 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
         |p| p.words("the rest").map(|_| Objects { quant: Quant::Rest, filter: Filter::default() }),
         |p| p.one_of(&["the other", "the others"]).map(|_| antecedent()),
         |p| {
+            p.words("up to")?;
+            let n = amount(p)?;
+            p.words("of them")?;
+            Some(Objects { quant: Quant::UpTo(n), filter: Filter { posts: vec![Post::FromAmongThem], ..Filter::default() } })
+        },
+        |p| {
             let n = amount_a(p)?;
             let posts = if p.attempt(|p| p.words("of them")).is_some() { vec![Post::FromAmongThem] } else { vec![] };
             // A bare number names the cards just found: "put one onto the battlefield".
@@ -399,14 +481,7 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
         |p| {
             p.one_of(&["that", "those", "the"])?;
             // "the exiled card", "the token", "those creatures".
-            let marked = p.attempt(|p| alt!(p;
-                |p| p.word("exiled").map(|_| Marked::Exiled),
-                |p| p.word("chosen").map(|_| Marked::Chosen),
-                |p| p.word("revealed").map(|_| Marked::Revealed),
-                |p| p.word("sacrificed").map(|_| Marked::Sacrificed),
-                |p| p.word("copied").map(|_| Marked::Copied),
-                |p| p.word("returned").map(|_| Marked::Returned),
-            ));
+            let marked = p.attempt(marked);
             let mut f = filter(p)?;
             if let Some(m) = marked {
                 f.posts.insert(0, Post::Marked(m));
@@ -427,6 +502,18 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
                 filter: Filter { kind: Some(Noun::Card), posts: vec![Post::In(Zone::TopOfLibrary(w))], ..Filter::default() },
             })
         },
+    )
+}
+
+/// What an earlier verb did to an object: "the exiled card".
+pub(super) fn marked(p: &mut P) -> Option<Marked> {
+    alt!(p;
+        |p| p.word("exiled").map(|_| Marked::Exiled),
+        |p| p.word("chosen").map(|_| Marked::Chosen),
+        |p| p.word("revealed").map(|_| Marked::Revealed),
+        |p| p.word("sacrificed").map(|_| Marked::Sacrificed),
+        |p| p.word("copied").map(|_| Marked::Copied),
+        |p| p.word("returned").map(|_| Marked::Returned),
     )
 }
 
@@ -501,7 +588,13 @@ fn objects_read(p: &mut P) -> Option<Objects> {
         |p| { let n = amount(p)?; p.words("target")?; p.word("targets").map(|_| Objects { quant: Quant::AnyTarget { n }, filter: Filter::default() }) },
         |p| {
             let quant = p.attempt(quant).unwrap_or(Quant::Plural);
-            let filter = filter(p)?;
+            // "an exiled card": one in exile, where "the exiled card" is one
+            // an earlier verb exiled.
+            let exiled = p.attempt(|p| p.word("exiled")).is_some();
+            let mut filter = filter(p)?;
+            if exiled {
+                filter.posts.insert(0, Post::In(Zone::Exile));
+            }
             Some(Objects { quant, filter })
         },
     )

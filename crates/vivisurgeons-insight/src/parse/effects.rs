@@ -12,11 +12,25 @@ pub(super) fn duration(p: &mut P) -> Option<Duration> {
     )
 }
 
+/// What a "becomes" keeps of the types it had: "in addition to its other
+/// types", "that's still a land".
+pub(super) fn keeps(p: &mut P) -> Option<Keeps> {
+    alt!(p;
+        |p| p.one_of(&["in addition to its other types", "in addition to their other types"]).map(|_| Keeps::OtherTypes),
+        |p| { p.one_of(&["that's still a", "that's still an", "that are still"])?; group(p).map(Keeps::Listed) },
+    )
+}
+
 pub(super) fn cards(p: &mut P) -> Option<Amount> {
     let n = alt!(p;
         |p| { p.words("up to")?; amount(p).map(|n| Amount::UpTo(Box::new(n))) },
         amount_a,
     )?;
+    // "draw two additional cards".
+    let n = match p.attempt(|p| p.word("additional")) {
+        Some(_) => Amount::Additional(Box::new(n)),
+        None => n,
+    };
     p.one_of(&["cards", "card"])?;
     Some(n)
 }
@@ -109,6 +123,16 @@ pub(super) fn token(p: &mut P) -> Option<(Amount, Token)> {
             }
         }
     }
+    // "that's tapped and attacking that player or a planeswalker they control".
+    let (tapped, attacking) = match p.attempt(|p| {
+        p.one_of(&["that's", "that are"])?;
+        let tapped = p.attempt(|p| p.words("tapped and")).is_some();
+        p.word("attacking")?;
+        Some((tapped, recipient(p)?))
+    }) {
+        Some((t, r)) => (tapped || t, Some(r)),
+        None => (tapped, None),
+    };
     Some((
         n,
         Token {
@@ -119,6 +143,7 @@ pub(super) fn token(p: &mut P) -> Option<(Amount, Token)> {
             keywords,
             abilities,
             named,
+            attacking,
         },
     ))
 }
@@ -242,6 +267,15 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
             p.words("leaves the battlefield")?;
             Some(Effect::ExileUntilLeaves { what, until })
         },
+        |p| {
+            p.word("exile")?;
+            let what = objects(p)?;
+            p.word("with")?;
+            let n = amount_a(p)?;
+            let kind = counter_kind(p)?;
+            p.one_of(&["counter on it", "counters on it", "counter on them", "counters on them"])?;
+            Some(Effect::ExileWithCounters { what, n, kind })
+        },
         |p| { p.word("exile")?; objects(p).map(Effect::Exile) },
         |p| {
             let who = subject_player(p);
@@ -271,7 +305,18 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
             p.words("a copy of")?;
             let of = objects(p)?;
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
-            Some(Effect::BecomesCopy { what, of, dur })
+            let except = p.attempt(exceptions).unwrap_or_default();
+            Some(Effect::BecomesCopy { what, of, dur, except })
+        },
+        // "you may have it become a copy of any creature on the battlefield".
+        |p| {
+            p.word("have")?;
+            let what = objects(p)?;
+            p.words("become a copy of")?;
+            let of = objects(p)?;
+            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+            let except = p.attempt(exceptions).unwrap_or_default();
+            Some(Effect::BecomesCopy { what, of, dur, except })
         },
         |p| {
             let what = objects(p)?;
@@ -285,10 +330,72 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
             }
             if types.is_empty() && pt.is_none() { return None; }
             let gains = p.attempt(|p| { p.word("with")?; keyword_list(p) }).unwrap_or_default();
-            p.attempt(|p| p.words("in addition to its other types"));
-            p.attempt(|p| p.words("that's still a land"));
+            let keeps = p.attempt(keeps).unwrap_or(Keeps::Nothing);
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
-            Some(Effect::Becomes { what, pt, types, gains, dur })
+            Some(Effect::Becomes { what, pt, types, gains, keeps, dur })
+        },
+        |p| { let who = subject_player(p); p.verb("win")?; p.words("the game")?; Some(Effect::WinGame(who)) },
+        |p| {
+            let who = subject_player(p);
+            p.one_of(&["don't lose", "doesn't lose"])?;
+            let mana = alt!(p;
+                |p| p.words("this mana").map(|_| KeptMana::This),
+                |p| {
+                    p.word("unspent")?;
+                    let c = p.attempt(|p| { let c = color_word(p.peek_word()?)?; p.bump(); Some(c) });
+                    p.word("mana")?;
+                    Some(KeptMana::Unspent(c))
+                },
+            )?;
+            p.words("as steps and phases end")?;
+            Some(Effect::KeepsMana { who, mana })
+        },
+        |p| {
+            p.words("double the")?;
+            let stats = alt!(p;
+                |p| p.words("power and toughness").map(|_| vec![Stat::Power, Stat::Toughness]),
+                |p| stat(p).map(|s| vec![s]),
+            )?;
+            p.word("of")?;
+            let of = objects(p)?;
+            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+            Some(Effect::Double { stats, of, dur })
+        },
+        |p| {
+            p.word("move")?;
+            let counters = objects(p)?;
+            if !matches!(counters.filter.kind, Some(Noun::Counter(_))) { return None; }
+            p.word("from")?;
+            let from = objects(p)?;
+            p.word("onto")?;
+            let to = objects(p)?;
+            Some(Effect::MoveCounters { counters, from, to })
+        },
+        // "put those counters on ~": the object's own "on" reads where.
+        |p| {
+            p.word("put")?;
+            let mut those = objects(p)?;
+            if those.quant != Quant::Antecedent || !matches!(those.filter.kind, Some(Noun::Counter(_))) { return None; }
+            let on = match those.filter.posts.pop() { Some(Post::On(o)) => *o, _ => return None };
+            Some(Effect::PutThoseCounters { those, on })
+        },
+        // "Each player exiles all creature cards from their graveyard, then
+        // sacrifices all creatures they control": read by "A verb that takes
+        // no player" below.
+        |p| {
+            let who = subject_player(p);
+            p.verb("create")?;
+            let n = amount_a(p)?;
+            p.words("of each")?;
+            Some(Effect::CreateOfEach { who, n })
+        },
+        // "It's an enchantment.": what it is now, as "becomes" would say.
+        |p| {
+            p.word("it's")?;
+            p.one_of(&["a", "an"])?;
+            let types = group(p)?;
+            let keeps = p.attempt(keeps).unwrap_or(Keeps::Nothing);
+            Some(Effect::Becomes { what: antecedent(), pt: None, types, gains: vec![], keeps, dur: Duration::Permanent })
         },
         |p| p.words("you become the monarch").map(|_| Effect::Designation("monarch".into())),
         |p| p.words("you take the initiative").map(|_| Effect::Designation("initiative".into())),
@@ -324,8 +431,9 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
         // verb was said once for both.
         |p| {
             let what = objects(p)?;
-            p.one_of(&["onto", "into", "on top of", "on the bottom of"])?;
-            let to = destination(p)?;
+            // A bare "on" here would start "on the battlefield" as a post.
+            if p.peek_word() == Some("on") && !matches!(p.t.get(p.i + 1), Some(Tok::Word(w)) if w == "top" || w == "the") { return None; }
+            let to = put_to(p)?;
             let order = p.attempt(order);
             Some(to.moving(what, None, order))
         },
@@ -347,7 +455,13 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
             Some(Effect::Counter { what, unless })
         },
         // tokens
-        |p| { p.word("create")?; p.words("a token that's a copy of")?; let of = objects(p)?; Some(Effect::CreateCopy { n: Amount::N(1), of }) },
+        |p| {
+            p.word("create")?;
+            p.words("a token that's a copy of")?;
+            let of = objects(p)?;
+            let except = p.attempt(exceptions).unwrap_or_default();
+            Some(Effect::CreateCopy { n: Amount::N(1), of, except })
+        },
         |p| {
             let who = subject_player(p);
             p.verb("create")?;
@@ -438,7 +552,12 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
         |p| { p.word("transform")?; objects(p).map(Effect::Transform) },
         |p| { p.word("regenerate")?; objects(p).map(Effect::Regenerate) },
         |p| { p.word("attach")?; let what = objects(p)?; p.word("to")?; let to = objects(p)?; Some(Effect::Attach { what, to }) },
-        |p| { p.word("copy")?; let what = objects(p)?; Some(Effect::Copy { what, may_choose_new_targets: false }) },
+        |p| {
+            p.word("copy")?;
+            let what = objects(p)?;
+            let may_choose_new_targets = p.attempt(|p| p.one_of(&["and may choose a new target for the copy", "and may choose new targets for the copy"])).is_some();
+            Some(Effect::Copy { what, may_choose_new_targets })
+        },
         |p| { p.words("choose new targets for")?; objects(p).map(Effect::ChooseNewTargets) },
         |p| {
             p.word("play")?;
@@ -457,11 +576,11 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
             // "You may cast this card from your graveyard" is the card's own
             // rule about being cast, a static ability, never its effect.
             if what.quant == Quant::SelfRef { return None; }
-            let payment = match p.attempt(|p| p.one_of(&["without paying its mana cost", "without paying their mana costs"])) {
-                Some(_) => Payment::Free,
-                None => Payment::ManaCost,
-            };
+            let free = |p: &mut P| p.one_of(&["without paying its mana cost", "without paying their mana costs"]).map(|_| Payment::Free);
+            let payment = p.attempt(free);
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+            // "play it this turn without paying its mana cost".
+            let payment = payment.or_else(|| p.attempt(free)).unwrap_or(Payment::ManaCost);
             Some(Effect::Cast { verb, what, payment, dur })
         },
         |p| {
@@ -510,6 +629,14 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
             };
             Some(Effect::PutThose { by, n, those, on })
         },
+        // "twice that many of those tokens are created instead".
+        |p| {
+            let n = amount(p)?;
+            p.word("of")?;
+            let those = objects(p)?;
+            p.words("are created")?;
+            Some(Effect::CreateThose { by: Actor::Passive, n, those })
+        },
         // "that many plus one +1/+1 counters are put on it".
         |p| {
             let n = amount(p)?;
@@ -524,13 +651,14 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
             let by = match p.attempt(player) {
                 Some(by) => by,
                 // "that player reveals …, then puts it into their hand".
-                None if matches!(p.peek_word(), Some("puts" | "adds")) => p.implied.clone()?,
+                None if matches!(p.peek_word(), Some("puts" | "adds" | "exiles")) => p.implied.clone()?,
                 None => return None,
             };
             if by == Player::You { return None; }
             let e = alt!(p;
                 |p| { p.verb("put")?; put_rest(p) },
                 |p| { p.verb("add")?; mana_add(p).map(Effect::AddMana) },
+                |p| { p.verb("exile")?; objects(p).map(Effect::Exile) },
             )?;
             Some(Effect::Performed { by, effect: Box::new(e) })
         },
@@ -538,6 +666,9 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
         // modify
         |p| {
             let what = objects(p)?;
+            // "permanents you control also gain indestructible": "also" adds
+            // to what came before, as a later effect does anyway.
+            p.attempt(|p| p.word("also"));
             let (pt, gains) = alt!(p;
                 |p| {
                     p.verb("get")?;
@@ -555,7 +686,12 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
                 },
                 |p| { p.verb("gain")?; Some((None, keyword_list(p)?)) },
             )?;
-            let dur = duration(p)?;
+            // "That token gains haste.": a keyword with no duration stays.
+            let dur = match (p.attempt(duration), &pt) {
+                (Some(d), _) => d,
+                (None, None) => Duration::Permanent,
+                (None, Some(_)) => return None,
+            };
             Some(Effect::Modify { what, pt, gains, dur })
         },
         |p| {
@@ -587,6 +723,80 @@ pub(super) fn effect(p: &mut P) -> Option<Effect> {
             p.end_of_clause().then_some(Effect::Action { by, name: base, n: None })
         },
         |p| p.words("venture into the dungeon").map(|_| Effect::Action { by: None, name: "venture into the dungeon".into(), n: None }),
+        |p| {
+            p.word("amass")?;
+            let of = match type_word(p.peek_word()?)? { Adj::Subtype(s) => s, _ => return None };
+            p.bump();
+            let n = amount(p)?;
+            Some(Effect::Amass { of, n })
+        },
+        // "Its controller manifests the top card of their library", "goad
+        // target creature": a keyword action done by a player to objects.
+        |p| {
+            let who = subject_player(p);
+            let name = keyword_action_verb(p)?;
+            let what = objects(p)?;
+            Some(Effect::ActionOn { who, name, what })
+        },
+    )
+}
+
+/// Keyword actions whose object is an object phrase and that no rule of
+/// their own reads. "Exile", "destroy" and the rest have rules that read
+/// what follows them; letting this one take them too would let a line those
+/// rules refuse slip through as a bare action.
+const ACTIONS_ON_OBJECTS: &[&str] = &[
+    "goad", "manifest", "detain", "cloak", "suspect", "exert", "airbend",
+];
+
+/// One of those in either number: "manifest", "manifests".
+fn keyword_action_verb(p: &mut P) -> Option<String> {
+    let w = p.peek_word()?;
+    let base = [w.strip_suffix("es"), w.strip_suffix('s'), Some(w)]
+        .into_iter()
+        .flatten()
+        .find(|b| ACTIONS_ON_OBJECTS.contains(b))?
+        .to_string();
+    p.bump();
+    Some(base)
+}
+
+/// ", except it's an artifact in addition to its other types", the values a
+/// copy has that its original does not.
+pub(super) fn exceptions(p: &mut P) -> Option<Vec<Exception>> {
+    p.words(", except")?;
+    let mut v = vec![exception(p)?];
+    while let Some(e) = p.attempt(|p| {
+        p.one_of(&[", and", ",", "and"])?;
+        exception(p)
+    }) {
+        v.push(e);
+    }
+    Some(v)
+}
+
+fn exception(p: &mut P) -> Option<Exception> {
+    alt!(p;
+        |p| {
+            p.one_of(&["it's a", "it's an"])?;
+            let types = group(p)?;
+            p.words("in addition to its other types")?;
+            Some(Exception::AlsoIs(types))
+        },
+        |p| { p.one_of(&["it isn't", "it's not", "the token isn't", "the token is not"])?; group(p).map(Exception::IsNot) },
+        |p| { p.one_of(&["it has", "the token has"])?; keyword_list(p).map(Exception::Has) },
+        |p| {
+            p.words("it enters with")?;
+            let n = amount_a(p)?;
+            let n = match p.attempt(|p| p.word("additional")) {
+                Some(_) => Amount::Additional(Box::new(n)),
+                None => n,
+            };
+            let kind = counter_kind(p)?;
+            p.one_of(&["counter on it", "counters on it"])?;
+            let cond = p.attempt(|p| { p.word("if")?; condition(p) }).map(Box::new);
+            Some(Exception::EntersWithCounters { n, kind, cond })
+        },
     )
 }
 
@@ -600,7 +810,7 @@ pub(super) fn put_rest(p: &mut P) -> Option<Effect> {
     // "put them back": where they were looked at, the top.
     let to = alt!(p;
         |p| p.word("back").map(|_| Dest::to(Zone::OwnersLibraryTop)),
-        |p| { p.one_of(&["onto", "into", "on top of", "on the bottom of", "on"])?; destination(p) },
+        put_to,
     )?;
     // "Put your commander into your hand from the command zone."
     let from = match from {
@@ -622,21 +832,32 @@ pub(super) fn actor(p: &mut P) -> Option<Actor> {
     )
 }
 
+/// One player or object an effect is done to.
+pub(super) fn recipient(p: &mut P) -> Option<Recipient> {
+    alt!(p;
+        |p| {
+            // "target player or planeswalker": one target of either kind.
+            let pl = player_simple(p)?;
+            let quant = match pl { Player::Target | Player::TargetOpponent => Quant::Target { n: Amount::N(1), up_to: false }, _ => return None };
+            p.word("or")?;
+            let f = filter(p)?;
+            Some(Recipient::Or(vec![Recipient::Player(pl), Recipient::Objects(Objects { quant, filter: f })]))
+        },
+        // "that player or a planeswalker they control".
+        |p| {
+            let pl = player_simple(p)?;
+            p.word("or")?;
+            let o = objects(p)?;
+            if o.quant == Quant::Plural { return None; }
+            Some(Recipient::Or(vec![Recipient::Player(pl), Recipient::Objects(o)]))
+        },
+        |p| player_simple(p).or_else(|| p.words("each player").map(|_| Player::Each)).or_else(|| p.words("each opponent").map(|_| Player::EachOpponent)).or_else(|| p.word("you").map(|_| Player::You)).map(Recipient::Player),
+        |p| objects(p).map(Recipient::Objects),
+    )
+}
+
 pub(super) fn recipients(p: &mut P) -> Option<Vec<Recipient>> {
-    let one = |p: &mut P| {
-        alt!(p;
-            |p| {
-                // "target player or planeswalker": one target of either kind.
-                let pl = player_simple(p)?;
-                let quant = match pl { Player::Target | Player::TargetOpponent => Quant::Target { n: Amount::N(1), up_to: false }, _ => return None };
-                p.word("or")?;
-                let f = filter(p)?;
-                Some(Recipient::Or(vec![Recipient::Player(pl), Recipient::Objects(Objects { quant, filter: f })]))
-            },
-            |p| player_simple(p).or_else(|| p.words("each player").map(|_| Player::Each)).or_else(|| p.words("each opponent").map(|_| Player::EachOpponent)).or_else(|| p.word("you").map(|_| Player::You)).map(Recipient::Player),
-            |p| objects(p).map(Recipient::Objects),
-        )
-    };
+    let one = recipient;
     let mut v = vec![one(p)?];
     while let Some(r) = p.attempt(|p| {
         p.attempt(|p| p.tok(&Tok::Comma));

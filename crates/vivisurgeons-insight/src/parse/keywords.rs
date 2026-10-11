@@ -11,6 +11,9 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
     alt!(p;
         |p| {
             p.words("protection from")?;
+            if let Some(pal) = p.attempt(|p| { p.words("each color that's not in")?; commander_identity(p) }) {
+                return Some(Keyword { name: "protection".into(), param: Some(KeywordParam::ColorsNotIn(pal)) });
+            }
             let mut cs = Vec::new();
             while let Some(c) = p.peek_word().and_then(color_word) {
                 p.bump();
@@ -38,6 +41,21 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
             let w = w.to_string();
             p.bump();
             Some(Keyword { name: w, param: None })
+        },
+        |p| {
+            p.word("gift")?;
+            let gift = alt!(p;
+                |p| p.words("a card").map(|_| Gift::Card),
+                |p| p.words("an extra turn").map(|_| Gift::ExtraTurn),
+                |p| {
+                    p.one_of(&["a", "an"])?;
+                    let tapped = p.attempt(|p| p.word("tapped")).is_some();
+                    let named = match type_word(p.peek_word()?)? { Adj::Subtype(s) => s, _ => return None };
+                    p.bump();
+                    Some(Gift::Token { tapped, named })
+                },
+            )?;
+            Some(Keyword { name: "gift".into(), param: Some(KeywordParam::Gift(gift)) })
         },
         |p| {
             let name = keyword_name(p)?;

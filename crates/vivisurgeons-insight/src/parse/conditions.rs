@@ -35,6 +35,30 @@ pub(super) fn condition(p: &mut P) -> Option<Condition> {
 pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
     alt!(p;
         |p| p.words("you're the starting player").map(|_| Condition::YouAreStartingPlayer),
+        |p| p.words("the gift was promised").map(|_| Condition::GiftPromised),
+        |p| { let e = event(p)?; p.words("this way")?; Some(Condition::ThisWay(Box::new(e))) },
+        |p| { p.words("any of that mana is spent on")?; objects(p).map(Condition::ManaSpentOn) },
+        |p| {
+            p.words("you attacked with")?;
+            let what = objects(p)?;
+            p.words("this turn")?;
+            Some(Condition::AttackedWithThisTurn(what))
+        },
+        // "there are four or more card types among cards in your graveyard".
+        |p| {
+            p.words("there are")?;
+            let value = number(p)?;
+            p.words("or more card types among")?;
+            let among = objects(p)?;
+            Some(Condition::AmountIs { n: Amount::NumberOfCardTypes(Box::new(among)), op: Op::Ge, value: Amount::N(value) })
+        },
+        // "X is 10 or more", "its power is greater than each other creature's power".
+        |p| {
+            let n = measure(p)?;
+            p.word("is")?;
+            let (op, value) = comparison(p)?;
+            Some(Condition::AmountIs { n, op, value })
+        },
         |p| p.words("you're not the starting player").map(|_| Condition::Not(Box::new(Condition::YouAreStartingPlayer))),
         |p| {
             p.word("you")?;
@@ -87,11 +111,27 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 |p| { p.one_of(&["is", "are"])?; p.words("in your opening hand")?; Some(Condition::InOpeningHand(what.clone())) },
                 |p| { p.one_of(&["is", "are"])?; p.one_of(&["on", "in"])?; let zone = zone(p)?; Some(Condition::In { what: what.clone(), zone }) },
                 |p| {
+                    p.one_of(&["has", "have", "had"])?;
+                    p.words("counters on it")?;
+                    Some(Condition::HasCounter { what: what.clone(), kind: None })
+                },
+                |p| {
+                    let not = p.one_of(&["has", "doesn't have"])? != "has";
+                    p.words("the same name as")?;
+                    let mut as_any_of = vec![objects(p)?];
+                    while let Some(o) = p.attempt(|p| { p.word("or")?; objects(p) }) {
+                        as_any_of.push(o);
+                    }
+                    let c = Condition::SameName { what: what.clone(), as_any_of };
+                    Some(if not { Condition::Not(Box::new(c)) } else { c })
+                },
+                |p| { p.words("was cast from")?; let zone = zone(p)?; Some(Condition::CastFrom { what: what.clone(), zone }) },
+                |p| {
                     p.one_of(&["has", "have"])?;
                     p.word("a")?;
                     let kind = counter_kind(p)?;
                     p.words("counter on it")?;
-                    Some(Condition::HasCounter { what: what.clone(), kind })
+                    Some(Condition::HasCounter { what: what.clone(), kind: Some(kind) })
                 },
                 |p| { p.words("have total")?; let cmp = compare(p)?; Some(Condition::Total { what: what.clone(), cmp }) },
                 |p| {

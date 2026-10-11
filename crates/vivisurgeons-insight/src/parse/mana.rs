@@ -60,6 +60,7 @@ pub(super) fn cost(p: &mut P) -> Option<Cost> {
         |p| { p.word("tap")?; objects(p).map(Cost::TapUntapped) },
         |p| { p.word("return")?; let o = objects(p)?; p.word("to")?; owners_hand(p)?; Some(Cost::ReturnToHand(o)) },
         |p| { p.word("reveal")?; objects(p).map(Cost::Reveal) },
+        |p| { p.word("exert")?; objects(p).map(Cost::Exert) },
         |p| { p.word("mill")?; let n = amount_a(p)?; p.one_of(&["cards", "card"])?; Some(Cost::Mill(n)) },
     )
 }

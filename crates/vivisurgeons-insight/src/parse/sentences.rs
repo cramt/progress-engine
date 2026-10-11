@@ -23,7 +23,7 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
         }) {
             e = Effect::ForEach {
                 each,
-                effect: Box::new(e),
+                then: vec![e],
             };
         } else if let Some(x) = p.attempt(|p| {
             p.attempt(|p| p.tok(&Tok::Comma));
@@ -38,6 +38,15 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
             e = Effect::If {
                 cond,
                 then: vec![e],
+            };
+        } else if let Some(of) = p.attempt(|p| {
+            // "exile it instead of putting it into its owner's graveyard".
+            p.words("instead of putting")?;
+            put_rest(p)
+        }) {
+            e = Effect::InsteadOf {
+                then: Box::new(e),
+                of: Box::new(of),
             };
         } else if let Some(s) = p.attempt(|p| {
             p.words("at the beginning of")?;
@@ -93,6 +102,38 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
         },
         |p| { p.words("at the beginning of")?; let step = step(p)?; p.tok(&Tok::Comma)?; let then = clauses(p)?; Some(vec![Effect::Delayed { step, then }]) },
         |p| { let dur = duration(p)?; p.tok(&Tok::Comma)?; let then = clauses(p)?; Some(vec![Effect::During { dur, then }]) },
+        // "For each opponent, create …", "For each of those cards, pay 4 life
+        // or …": the clauses once per object.
+        |p| {
+            p.words("for each")?;
+            let each = alt!(p;
+                |p| { p.word("of")?; pronoun(p) },
+                objects,
+            )?;
+            p.tok(&Tok::Comma)?;
+            let then = clauses(p)?;
+            Some(vec![Effect::ForEach { each, then }])
+        },
+        |p| {
+            p.words("for each color among")?;
+            let among = objects(p)?;
+            p.tok(&Tok::Comma)?;
+            let then = clauses(p)?;
+            Some(vec![Effect::ForEachColor { among: Palette::ColorsOf(Box::new(among)), then }])
+        },
+        // "You and permanents you control gain hexproof until end of turn":
+        // one verb said of a player and of objects, so two effects.
+        |p| {
+            p.words("you and")?;
+            let what = objects(p)?;
+            p.word("gain")?;
+            let keywords = keyword_list(p)?;
+            let dur = duration(p)?;
+            Some(vec![
+                Effect::PlayerGains { who: Player::You, keywords: keywords.clone(), dur: dur.clone() },
+                Effect::Modify { what, pt: None, gains: keywords, dur },
+            ])
+        },
         |p| { p.word("then")?; clause(p) },
         // "it loses "…" and gains "…"": one subject, two verbs.
         |p| {
@@ -139,7 +180,19 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             if let Some(cond) = p.attempt(|p| { p.words("instead if")?; condition(p) }) {
                 return Some(vec![Effect::Instead { cond, then: vec![e] }]);
             }
-            Some(vec![suffixed(p, e)])
+            let e = suffixed(p, e);
+            // "pay 4 life or put the card on top of your library": a choice of
+            // two verbs, each said in full.
+            let mut v = vec![e];
+            while let Some(e) = p.attempt(|p| {
+                p.word("or")?;
+                if !p.peek_word().is_some_and(|w| w == "pay" || IMPERATIVE.contains(&w)) { return None; }
+                let e = effect(p)?;
+                Some(suffixed(p, e))
+            }) {
+                v.push(e);
+            }
+            Some(vec![if v.len() == 1 { v.remove(0) } else { Effect::Or(v) }])
         },
     )
 }
@@ -183,6 +236,7 @@ pub(super) const THIRD_PERSON: &[&str] = &[
     "puts",
     "pays",
     "adds",
+    "exiles",
 ];
 
 /// The player an effect's verb is said of, where it has one.
