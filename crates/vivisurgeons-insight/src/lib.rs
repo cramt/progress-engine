@@ -1313,6 +1313,29 @@ mod tests {
     }
 
     #[test]
+    fn an_activated_abilitys_it_after_the_card_is_the_card() {
+        let a = format!(
+            "{:?}",
+            read(
+                "Some Figure",
+                "Creature — Kithkin",
+                "{R/W}{R/W}{R/W}: If this creature is a Spirit, it becomes a Kithkin Spirit Warrior with base power and toughness 4/4.",
+            )
+        );
+        assert!(!a.contains("Antecedent"), "{a}");
+        // "them" after the card and another object is both.
+        let a = format!(
+            "{:?}",
+            read(
+                "Some Battlements",
+                "Land",
+                "{3}{R}{R}, {T}: If you both own and control this land and a creature named Hanweir Garrison, exile them.",
+            )
+        );
+        assert!(a.contains("Antecedent"), "{a}");
+    }
+
+    #[test]
     fn a_static_about_the_card_says_it_for_the_card() {
         for text in [
             "Some Thrasta has hexproof as long as it entered this turn.",

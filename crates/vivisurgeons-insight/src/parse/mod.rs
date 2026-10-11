@@ -392,6 +392,8 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
             }
             p.tok(&Tok::Colon)?;
             let effect = effects(p)?;
+            let mut effect = effect;
+            refer_to_the_card_in(&mut effect);
             finished(p).then_some(Ability::Loyalty { change, effect })
         },
         |p| {
@@ -451,6 +453,8 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
                 None => effects(p)?,
             };
             let limits = limits(p);
+            let mut effect = effect;
+            refer_to_the_card_in(&mut effect);
             finished(p).then_some(Ability::Activated { cost, effect, limits })
         },
         // "This spell can't be countered" on an instant is a static, as it
@@ -816,9 +820,20 @@ impl Visitor for Bare {
 /// counter on this creature and it can't be blocked"). Once another object
 /// is named, "it" may be that one, and stays a plain back-reference.
 fn refer_to_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut [Effect]) {
-    let Some(object) = trigger_object(e) else {
-        return;
-    };
+    if let Some(object) = trigger_object(e) {
+        refer(Some(&object), cond, effect);
+    }
+}
+
+/// "{S}{S}{S}: If this creature is a Warrior, put a flying counter on it and
+/// it becomes …": in an ability with no trigger, a bare "it" after the card
+/// is named in a finished clause is the card, by the same rule as in a
+/// trigger; nothing else changes.
+pub(super) fn refer_to_the_card_in(effect: &mut [Effect]) {
+    refer(None, None, effect);
+}
+
+fn refer(object: Option<&Objects>, cond: Option<&mut Condition>, effect: &mut [Effect]) {
     struct Refer {
         to: Quant,
         /// What the event's object was said to be.
@@ -888,7 +903,10 @@ fn refer_to_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut [E
             match o.quant {
                 Quant::SelfRef => self.self_pending = true,
                 Quant::Triggering => {}
-                _ if indefinite && self.in_cond > 0 => {}
+                // Only against a trigger's object: with none, "this land
+                // and a creature named Hanweir Garrison … exile them" names
+                // both.
+                _ if indefinite && self.in_cond > 0 && self.to != Quant::Antecedent => {}
                 _ => self.seen_new = true,
             }
         }
@@ -934,8 +952,9 @@ fn refer_to_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut [E
             } = e
             {
                 if src.quant == Quant::Antecedent && src.filter == Filter::default() {
+                    // Which object, still said by pronoun.
                     if let Some(same) = &self.damage_source {
-                        *src = same.clone();
+                        src.quant = same.quant.clone();
                     }
                 }
             }
@@ -978,11 +997,12 @@ fn refer_to_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut [E
         }
     }
     let mut v = Refer {
-        object: object.filter.clone(),
-        to: if object.quant == Quant::SelfRef {
-            Quant::SelfRef
-        } else {
-            Quant::Triggering
+        object: object.map(|o| o.filter.clone()).unwrap_or_default(),
+        to: match object {
+            Some(o) if o.quant == Quant::SelfRef => Quant::SelfRef,
+            Some(_) => Quant::Triggering,
+            // No trigger: a first reference back stays one.
+            None => Quant::Antecedent,
         },
         seen_self: false,
         self_pending: false,
