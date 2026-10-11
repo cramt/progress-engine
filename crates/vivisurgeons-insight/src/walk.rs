@@ -2323,6 +2323,16 @@ impl Walk for Static {
                     Walk::walk(x0, v);
                 }
             }
+            Static::PowerGreaterFor { what, keywords, by } => {
+                Walk::walk(what, v);
+                for x0 in (keywords).iter_mut() {
+                    {
+                        let (_, t1_1) = x0;
+                        Walk::walk(t1_1, v);
+                    }
+                }
+                Walk::walk(by, v);
+            }
             Static::HasAbilitiesOf { what, of, .. } => {
                 Walk::walk(what, v);
                 Walk::walk(of, v);

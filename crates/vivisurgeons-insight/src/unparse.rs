@@ -842,6 +842,20 @@ mod syn {
         alt(o, vec![of("with the same name"), said]);
     }
 
+    /// "becomes a 4/4 artifact creature with flying" and "… and gains
+    /// flying": the abilities one effect adds, in layer 6 either way (CR
+    /// 613.1f, 613.6), for the same duration.
+    pub fn becomes_with(o: &mut Out, with: Out, and_gains: Out) {
+        alt(o, vec![with, and_gains]);
+    }
+
+    /// "+1: Add {R}." on a planeswalker and "[+1]: Add {R}." inside a
+    /// quoted ability: Oracle text brackets a loyalty cost inside quotes,
+    /// the same cost (CR 107.7 writes the loyalty symbol "[+N]").
+    pub fn loyalty_cost(o: &mut Out, plain: Out, bracketed: Out) {
+        alt(o, vec![plain, bracketed]);
+    }
+
     pub fn whichever_first(o: &mut Out) {
         alt(o, vec![Out::default(), of(", whichever comes first")]);
     }
@@ -1253,10 +1267,17 @@ fn ability_into(o: &mut Out, a: &Ability) {
             limits(o, ls, false);
         }
         Ability::Loyalty { change, effect } => {
-            o.tok(match change {
+            let cost = match change {
                 Signed::N(0) => Tok::Num(0),
                 s => Tok::Signed(*s),
+            };
+            let plain = out(|o| o.tok(cost.clone()));
+            let bracketed = out(|o| {
+                o.tok(Tok::Other('['));
+                o.tok(cost.clone());
+                o.tok(Tok::Other(']'));
             });
+            syn::loyalty_cost(o, plain, bracketed);
             o.w(":");
             sentences(o, effect, &cx);
         }
@@ -4719,19 +4740,49 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             let becomes = out(|o| {
                 obj_subj(o, what, "become");
                 // "becomes a 2/2 creature", "becomes blue": an article only
-                // before a noun.
-                if pt.is_some() || types.last().is_some_and(is_typed) {
+                // before a noun, and only for one object: "Artifacts you
+                // control become artifact creatures".
+                let n = obj_num(what);
+                let noun = types.last().is_some_and(is_typed);
+                if (pt.is_some() || noun) && n != Num::Pl {
                     o.w("a");
                 }
-                if let Some(pt) = pt {
-                    o.tok(Tok::Pt(*pt));
-                }
-                for a in types {
-                    adj(o, a, None);
+                let type_words = |o: &mut Out| {
+                    for (i, a) in types.iter().enumerate() {
+                        let last = i + 1 == types.len();
+                        adj(o, a, (last && noun && n == Num::Pl).then_some(Num::Pl));
+                    }
+                };
+                let inline = out(|o| {
+                    if let Some(pt) = pt {
+                        o.tok(Tok::Pt(*pt));
+                    }
+                    type_words(o);
+                });
+                match pt {
+                    // "becomes a Kithkin Scout with base power and
+                    // toughness 2/3".
+                    Some(pt) if !types.is_empty() => {
+                        let with = out(|o| {
+                            type_words(o);
+                            o.w("with base power and toughness");
+                            o.tok(Tok::Pt(*pt));
+                        });
+                        syn::base_pt(o, inline, with);
+                    }
+                    _ => o.add(inline),
                 }
                 if !gains.is_empty() {
-                    o.w("with");
-                    keyword_list(o, gains);
+                    let with = out(|o| {
+                        o.w("with");
+                        keyword_list(o, gains);
+                    });
+                    let and_gains = out(|o| {
+                        o.w("and");
+                        o.verb("gain", obj_num(what));
+                        keyword_list(o, gains);
+                    });
+                    syn::becomes_with(o, with, and_gains);
                 }
                 keeps_then_dur(o, k, types, d);
             });
@@ -8808,6 +8859,19 @@ fn static_other(o: &mut Out, s: &Static) {
         Static::PreventNoncombat(to) => {
             o.w("prevent all noncombat damage that would be dealt to");
             recipients(o, to);
+        }
+        Static::PowerGreaterFor { what, keywords, by } => {
+            objects(o, what);
+            for (i, (k, x)) in keywords.iter().enumerate() {
+                if i > 0 {
+                    o.w("and");
+                }
+                o.verb(k, obj_num(what));
+                objects(o, x);
+            }
+            o.w("as though its power were");
+            amount(o, by);
+            o.w("greater");
         }
         Static::CantCauseSearch(x) => {
             objects(o, x);

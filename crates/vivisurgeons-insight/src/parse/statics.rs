@@ -47,6 +47,25 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
     }
     let s = alt!(p;
         |p| {
+            let what = objects(p)?;
+            let mut keywords = Vec::new();
+            loop {
+                let k = alt!(p;
+                    |p| p.verb("saddle").map(|_| "saddle"),
+                    |p| p.verb("crew").map(|_| "crew"),
+                    |p| p.verb("station").map(|_| "station"),
+                )?;
+                keywords.push((k.to_string(), objects(p)?));
+                if p.attempt(|p| p.word("and")).is_none() {
+                    break;
+                }
+            }
+            p.words("as though its power were")?;
+            let by = amount(p)?;
+            p.word("greater")?;
+            Some(vec![Static::PowerGreaterFor { what, keywords, by }])
+        },
+        |p| {
             p.words("as long as")?;
             let cond = condition(p)?;
             p.tok(&Tok::Comma)?;

@@ -598,7 +598,22 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                 types.push(a);
             }
             if types.is_empty() && pt.is_none() { return None; }
-            let gains = p.attempt(|p| { p.word("with")?; keyword_list(p) }).unwrap_or_default();
+            // "becomes a Kithkin Scout with base power and toughness 2/3":
+            // the size said after the types (CR 613.4b, as "a 2/3 Kithkin
+            // Scout").
+            let pt = match pt {
+                Some(pt) => Some(pt),
+                None => p.attempt(|p| {
+                    p.words("with base power and toughness")?;
+                    match p.peek()? { Tok::Pt(pt) if !pt.signed => { let pt = *pt; p.bump(); Some(pt) } _ => None }
+                }),
+            };
+            // "… with flying", "… and gains flying": what the same effect
+            // adds, in layer 6 either way (CR 613.1f, 613.6).
+            let gains = p.attempt(|p| {
+                alt!(p; |p| p.word("with"), |p| { p.word("and")?; p.verb("gain") })?;
+                keyword_list(p)
+            }).unwrap_or_default();
             let keeps = p.attempt(keeps).unwrap_or(Keeps::Nothing);
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
             // ". It's still a land." after the duration.

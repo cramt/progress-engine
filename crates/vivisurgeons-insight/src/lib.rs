@@ -1390,6 +1390,36 @@ mod tests {
     }
 
     #[test]
+    fn round_ten_templates() {
+        let one = |ty: &str, text: &str| format!("{:?}", read("Some Card", ty, text));
+        // A loyalty cost in brackets inside quotes.
+        let a = one(
+            "Enchantment",
+            "Planeswalkers you control have \"[+1]: Add {R}.\"",
+        );
+        assert!(a.contains("Loyalty { change: N(1)"), "{a}");
+        // Crewing and saddling as though bigger.
+        let a = one(
+            "Creature — Human Pilot",
+            "This creature saddles Mounts and crews Vehicles as though its power were 2 greater.",
+        );
+        assert!(
+            a.contains("PowerGreaterFor") && a.contains("\"saddle\"") && a.contains("\"crew\""),
+            "{a}"
+        );
+        // The size after the types, and what the same effect adds.
+        let a = one(
+            "Instant",
+            "Until end of turn, target artifact or creature becomes an artifact creature with base power and toughness 4/4 and gains flying.",
+        );
+        assert!(
+            a.contains("pt: Some(Pt { power: N(4), toughness: N(4)")
+                && a.contains("gains: [Keyword { name: \"flying\""),
+            "{a}"
+        );
+    }
+
+    #[test]
     fn hero_is_a_creature_type() {
         let a = read(
             "Some Assembly",

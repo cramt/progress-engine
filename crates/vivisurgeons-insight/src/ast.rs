@@ -2353,6 +2353,15 @@ pub enum Static {
     /// "You may spend mana as though it were mana of any color to activate
     /// abilities of creatures you control."
     SpendAsAnyColor(Vec<SpendUse>),
+    /// "This creature saddles Mounts and crews Vehicles as though its power
+    /// were 2 greater": for those keyword abilities' costs only, which count
+    /// the tapped creatures' power (CR 702.171a, 702.122a, 702.184a); each
+    /// keyword with what it is said of.
+    PowerGreaterFor {
+        what: Objects,
+        keywords: Vec<(String, Objects)>,
+        by: Amount,
+    },
     /// "have all activated abilities of all creature cards exiled with ~".
     HasAbilitiesOf {
         what: Objects,
