@@ -27,6 +27,10 @@ pub struct P<'a> {
     /// with mana value less than the number of counters on that creature
     /// from your graveyard".
     in_value: bool,
+    /// Whether the line is an instant or sorcery's, whose paragraphs are all
+    /// one spell's: "the exiled card" there is what another paragraph of
+    /// the same spell exiled.
+    spell: bool,
 }
 
 macro_rules! alt {
@@ -49,6 +53,7 @@ impl<'a> P<'a> {
             objects_memo: vec![None; t.len() + 1],
             player_memo: vec![None; t.len() + 1],
             in_value: false,
+            spell: false,
         }
     }
 
@@ -443,16 +448,18 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
             alt!(p;
                 |p| {
                     p.word("if")?;
-                    let cond = condition(p)?;
+                    let mut cond = condition(p)?;
                     p.tok(&Tok::Comma)?;
-                    let effect = effects(p)?;
+                    let mut effect = effects(p)?;
                     let limits = limits(p);
+                    about_the_trigger(&trigger, Some(&mut cond), &mut effect);
                     let trigger = Trigger::InterveningIf(Box::new(trigger.clone()), Box::new(cond));
                     finished(p).then_some(Ability::Triggered { trigger, effect, limits })
                 },
                 |p| {
-                    let effect = effects(p)?;
+                    let mut effect = effects(p)?;
                     let limits = limits(p);
+                    about_the_trigger(&trigger, None, &mut effect);
                     finished(p).then_some(Ability::Triggered { trigger: trigger.clone(), effect, limits })
                 },
             )
@@ -520,9 +527,77 @@ fn about_this_spell(s: &Static) -> bool {
     }
 }
 
+/// The object an event names, if it names one; of several events, the
+/// first that does.
+fn event_object(e: &Event) -> Option<&Objects> {
+    match e {
+        Event::Enters { what, .. }
+        | Event::Dies(what)
+        | Event::Sacrifices { what, .. }
+        | Event::PutInto { what, .. } => Some(what),
+        Event::Or(v) => v.iter().find_map(event_object),
+        _ => None,
+    }
+}
+
+/// Words a triggered ability says of the object its event named, which the
+/// text leaves unstated. Valakut: "Whenever a Mountain you control enters,
+/// if you control at least five other Mountains": other than the one that
+/// entered (its ruling: "five or more Mountains other than that new one").
+/// Orah: "return target Cleric card with lesser mana value": lesser than
+/// the Cleric that died, where nothing before it in the effect names an
+/// object to compare with.
+fn about_the_trigger(t: &Trigger, cond: Option<&mut Condition>, effect: &mut [Effect]) {
+    let Trigger::When(e) = t else { return };
+    let Some(subject) = event_object(e) else {
+        return;
+    };
+    let triggering = || Objects {
+        quant: Quant::Triggering,
+        filter: Filter::default(),
+    };
+    if let Some(Condition::YouControl(counted)) = cond {
+        let same_kind = |g: &Vec<Adj>| {
+            g.first() == Some(&Adj::State(State::Other))
+                && subject.filter.alts == vec![g[1..].to_vec()]
+        };
+        if subject.quant != Quant::SelfRef
+            && counted.filter.alts.len() == 1
+            && same_kind(&counted.filter.alts[0])
+        {
+            counted.filter.alts[0][0] = Adj::OtherThan(Box::new(triggering()));
+        }
+    }
+    fn lesser(e: &mut Effect, to: &Objects) {
+        let what = match e {
+            Effect::May { then, .. } => return then.iter_mut().take(1).for_each(|e| lesser(e, to)),
+            Effect::Move { what, .. } | Effect::Cast { what, .. } | Effect::Search { what, .. } => {
+                what
+            }
+            Effect::UntilFound { until, .. } => until,
+            _ => return,
+        };
+        for q in &mut what.filter.posts {
+            if let Post::With(Compare {
+                value: Amount::ManaValueOf(x),
+                ..
+            }) = q
+            {
+                if **x == antecedent() {
+                    **x = to.clone();
+                }
+            }
+        }
+    }
+    if let Some(first) = effect.first_mut() {
+        lesser(first, &triggering());
+    }
+}
+
 /// A whole ability line, which must be consumed to the last token.
 pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
     let mut p = P::new(toks);
+    p.spell = spell;
     match ability(&mut p, spell) {
         Some(a) if p.at_end() => Ok(a),
         _ => Err(p.furthest),

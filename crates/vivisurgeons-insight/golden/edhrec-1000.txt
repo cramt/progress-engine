@@ -1293,7 +1293,7 @@ type: Artifact
 > Imprint — When this artifact enters, you may exile a nonartifact, nonland card from your hand.
 > {T}: Add one mana of any of the exiled card's colors.
 = Labelled { label: "imprint", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Exile(Objects { quant: One, filter: Filter { alts: [[Non("artifact"), Non("land")]], kind: Some(Card), posts: [In(Hand(You))], or: None } })] }], limits: [] } }
-= Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: Some(ColorsOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } })) })], limits: [] }
+= Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: Some(ColorsOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } })) })], limits: [] }
 
 ## Cinder Glade
 face: Cinder Glade
@@ -3502,7 +3502,7 @@ type: Artifact
 > Imprint — When this artifact enters, you may exile an instant card with mana value 2 or less from your hand.
 > {2}, {T}: You may copy the exiled card. If you do, you may cast the copy without paying its mana cost.
 = Labelled { label: "imprint", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Exile(Objects { quant: One, filter: Filter { alts: [[Type("instant")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: N(2) }), In(Hand(You))], or: None } })] }], limits: [] } }
-= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [May { who: You, then: [Copy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, may_choose_new_targets: false }] }, IfYouDo([May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Copy), posts: [], or: None } }, payment: Free, dur: Permanent }] }])], limits: [] }
+= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [May { who: You, then: [Copy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, may_choose_new_targets: false }] }, IfYouDo([May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Copy), posts: [], or: None } }, payment: Free, dur: Permanent }] }])], limits: [] }
 
 ## Isolated Chapel
 face: Isolated Chapel
@@ -3693,7 +3693,7 @@ type: Legendary Creature — Spirit
 > Whenever another permanent you control enters, if it wasn't put onto the battlefield with this ability, you may put a permanent card with equal or lesser mana value from your hand onto the battlefield.
 > Partner (You can have two commanders if both have partner.)
 = Keywords([Keyword { name: "reach", param: None }])
-= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, under: None, state: None }), Past(Not(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: None, posts: [PutOntoBattlefieldWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Ability), posts: [], or: None } })], or: None } }))), effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [With(Compare { stat: ManaValue, op: Le, value: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }), In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, under: None, state: None }), Past(Not(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: None, posts: [PutOntoBattlefieldWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Ability), posts: [], or: None } })], or: None } }))), effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [With(Compare { stat: ManaValue, op: Le, value: ManaValueOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }), In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 = Keywords([Keyword { name: "partner", param: None }])
 
 ## Kodama of the West Tree
@@ -4294,7 +4294,7 @@ type: Land
 = Keywords([Keyword { name: "hideaway", param: Some(N(N(4))) }])
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["G"])), Tap], effect: [May { who: You, then: [If { cond: Total { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, cmp: Compare { stat: Power, op: Ge, value: N(10) } }, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, payment: Free, dur: Permanent }] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["G"])), Tap], effect: [May { who: You, then: [If { cond: Total { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, cmp: Compare { stat: Power, op: Ge, value: N(10) } }, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, payment: Free, dur: Permanent }] }] }], limits: [] }
 
 ## Mother of Runes
 face: Mother of Runes
@@ -5147,7 +5147,7 @@ type: Creature — Human Assassin
 > This creature has first strike during your turn.
 > Whenever an opponent draws a card, this creature deals 1 damage to them.
 = Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "first strike", param: None }], per: None }] }])
-= Triggered { trigger: When(Draws(AnOpponent)), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Triggered { trigger: When(Draws(AnOpponent)), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), n: N(1), to: [Player(That)] }], limits: [] }
 
 ## Read the Bones
 face: Read the Bones
@@ -5569,7 +5569,7 @@ type: Land
 face: Scrap Trawler
 type: Artifact Creature — Construct
 > Whenever this creature dies or another artifact you control is put into a graveyard from the battlefield, return to your hand target artifact card in your graveyard with lesser mana value.
-= Triggered { trigger: When(Or([Dies(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), PutInto { what: Objects { quant: Another, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, to: AGraveyard, from: Battlefield }])), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(You)), With(Compare { stat: ManaValue, op: Lt, value: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }) })], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
+= Triggered { trigger: When(Or([Dies(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), PutInto { what: Objects { quant: Another, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, to: AGraveyard, from: Battlefield }])), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [In(Graveyard(You)), With(Compare { stat: ManaValue, op: Lt, value: ManaValueOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }) })], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Scrawling Crawler
 face: Scrawling Crawler
@@ -6078,7 +6078,7 @@ type: Land
 = Keywords([Keyword { name: "hideaway", param: Some(N(N(4))) }])
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["R"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["R"])), Tap], effect: [May { who: You, then: [If { cond: AmountIs { n: DamageDealtThisTurn(AnOpponent), op: Ge, value: N(7) }, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, payment: Free, dur: Permanent }] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["R"])), Tap], effect: [May { who: You, then: [If { cond: AmountIs { n: DamageDealtThisTurn(AnOpponent), op: Ge, value: N(7) }, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, payment: Free, dur: Permanent }] }] }], limits: [] }
 
 ## Spire Garden
 face: Spire Garden
@@ -7589,7 +7589,7 @@ type: Land
 = Keywords([Keyword { name: "hideaway", param: Some(N(N(4))) }])
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["W"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["W"])), Tap], effect: [May { who: You, then: [If { cond: AttackedWithThisTurn(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, payment: Free, dur: Permanent }] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["W"])), Tap], effect: [May { who: You, then: [If { cond: AttackedWithThisTurn(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, payment: Free, dur: Permanent }] }] }], limits: [] }
 
 ## Windfall
 face: Windfall

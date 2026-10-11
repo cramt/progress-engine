@@ -1745,6 +1745,10 @@ pub(super) fn recipient(p: &mut P) -> Option<Recipient> {
                 |p| p.word("owner").map(|_| Player::OwnerOf(Box::new(o.clone()))),
             ).map(Recipient::Player)
         },
+        // "this enchantment deals 1 damage to them": damage to a bare "them"
+        // is always a player in Oracle text, the singular "they"; objects
+        // are "each of them".
+        |p| p.word("them").map(|_| Recipient::Player(Player::That)),
         |p| objects(p).map(Recipient::Objects),
     )
 }

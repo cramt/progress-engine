@@ -714,6 +714,16 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
                 continue;
             }
         }
+        // "Tyvar gains indestructible until end of turn. Tap it.": the only
+        // object the sentence before names is the card itself, so "it" is.
+        let mut s = s;
+        if let (Some(prev), Some(first)) = (v.last(), s.first_mut()) {
+            if let (Some(me), Some(it)) = (prev.sole_object(), first.sole_object_mut()) {
+                if me.quant == Quant::SelfRef && *it == antecedent() {
+                    *it = me.clone();
+                }
+            }
+        }
         // "You may put a creature card from your hand onto the battlefield.
         // That creature gains haste.": the creature is there only if the
         // option was taken, so the sentence about it is the option's too.

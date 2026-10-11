@@ -687,7 +687,8 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
         // "he's a 3/4 Ninja creature": a size and types, the size its base
         // power and toughness (CR 613.4b).
         |p| {
-            if what.quant != Quant::Antecedent { return None; }
+            // A pronoun's "'s", not a possessive: "it's", "he's".
+            if !matches!(what.quant, Quant::Antecedent | Quant::SelfRef) || what.filter != Filter::default() { return None; }
             p.tok(&Tok::Possessive)?;
             p.one_of(&["a", "an"])?;
             let pt = match p.peek()? { Tok::Pt(pt) if !pt.signed => *pt, _ => return None };

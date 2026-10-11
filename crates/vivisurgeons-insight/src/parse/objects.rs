@@ -605,6 +605,9 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             p.one_of(&["from among them", "from among those cards"])?;
             (!p.in_value).then_some(Post::FromAmongThem)
         },
+        // "cards exiled with it": "it" is the object whose ability exiled
+        // them, which on a card's own text is the card (CR 607.2a).
+        |p| { p.words("exiled with it")?; Some(Post::ExiledWith(Box::new(self_ref()))) },
         |p| { p.words("exiled with")?; objects(p).map(|o| Post::ExiledWith(Box::new(o))) },
         |p| p.words("you cast").map(|_| Post::Cast(Player::You)),
         |p| p.words("drawn this turn").map(|_| Post::DrawnThisTurn),
@@ -624,7 +627,13 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| {
             if p.in_value { return None; }
             p.words("from among")?;
-            objects(p).map(|o| Post::FromAmong(Box::new(o)))
+            let mut o = objects(p)?;
+            // "from among the nonland permanents they control": who controls
+            // them says which they are, so "the" points back to nothing.
+            if o.quant == Quant::Antecedent && o.filter.posts.iter().any(|q| matches!(q, Post::Controller(_))) {
+                o.quant = Quant::All;
+            }
+            Some(Post::FromAmong(Box::new(o)))
         },
         // "with the greatest mana value among creatures and planeswalkers
         // they control": greatest within those.
@@ -858,9 +867,9 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
         |p| p.tok(&Tok::SelfRef).map(|_| self_ref()),
         |p| { p.word("this")?; let f = filter(p)?; Some(with_others(Quant::SelfRef, f)) },
         |p| p.one_of(&["each of them", "it", "them", "they"]).map(|_| antecedent()),
-        // "put X counters on him", "he deals damage": a character card's
-        // pronoun, an earlier noun as "it" is.
-        |p| p.one_of(&["him", "her", "he", "she"]).map(|_| antecedent()),
+        // "put X counters on him", "he deals damage": Oracle text gives a
+        // gendered pronoun only to a character card naming itself.
+        |p| p.one_of(&["him", "her", "he", "she"]).map(|_| self_ref()),
         // "the rest of the exiled cards".
         |p| {
             p.words("the rest of")?;
@@ -905,12 +914,22 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
             Some(Objects { quant: Quant::N(n), filter: Filter { posts, ..Filter::default() } })
         },
         |p| {
+            let start = p.i;
             p.one_of(&["that", "those", "the"])?;
             // "the exiled card", "the token", "those creatures".
             let marked = p.attempt(marked);
             let mut f = filter(p)?;
-            if let Some(m) = marked {
-                f.posts.insert(0, Post::Marked(m));
+            match marked {
+                // Isochron Scepter's "{2}, {T}: You may copy the exiled card":
+                // nothing in this ability exiled it, so it is the card its
+                // linked ability exiled with this object (CR 607.2a). An
+                // instant's paragraphs are one spell, so there it is what
+                // another of them exiled.
+                Some(Marked::Exiled) if !p.spell && !exiled_earlier(&p.t[..start]) => {
+                    f.posts.insert(0, Post::ExiledWith(Box::new(self_ref())));
+                }
+                Some(m) => f.posts.insert(0, Post::Marked(m)),
+                None => {}
             }
             Some(Objects { quant: Quant::Antecedent, filter: f })
         },
@@ -934,6 +953,14 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
             })
         },
     )
+}
+
+/// Whether the words of an ability before a phrase exile something, so
+/// that "the exiled card" can be what they exiled.
+fn exiled_earlier(before: &[Tok]) -> bool {
+    before
+        .iter()
+        .any(|t| matches!(t, Tok::Word(w) if w == "exile" || w == "exiles"))
 }
 
 /// What an earlier verb did to an object: "the exiled card".

@@ -61,7 +61,14 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "Gideon deals 1 damage" on Gideon the Oathless | `~` | settled: CR 201.5c, a card's shortened name is its name ("X the Y" as "X of Y" already was), and a planeswalker's first word when it is its own subtype |
 | "tokens that are tapped and attacking" with nothing after | `Recipient::ControllerChooses` | settled: CR 508.4, its controller chooses what it attacks |
 | "each with power …" | the condition holds for every one; "each" is dropped | settled: "each" restates what a filter says of every object |
-| "with lesser mana value" | compared against the object the ability triggered on, which the text leaves unstated | open |
+| "with lesser mana value" | in a trigger's first effect, when the event names an object: `ManaValueOf(Triggering)`, the triggering object; after an earlier object (Kethek's sacrificed creature, Reinterpret's countered spell, Rushed Rebirth's "that creature"): that object, `Antecedent` | settled: Orah, Clement, Havi, Jackdaw Savior, Riveteers Ascendancy, Scrap Trawler and Kodama compare with the object that triggered them, and nothing else is named before |
+| "Whenever a Mountain you control enters, if you control at least five other Mountains" | `Adj::OtherThan(Triggering)`, not `State::Other` | settled: Valakut's ruling, "five or more Mountains other than that new one". Only where the counted objects are the event's kind and the event's object is not the card itself (Valakut, Roiling Canopy); `State::Other` stays "other than this object" |
+| "he deals damage", "put a +1/+1 counter on him", "he's a 3/4" | `SelfRef` | settled: CR 201.5c names a card by its name; Oracle text gives "he" or "she" only to a character card naming itself (every one of the 114 corpus lines does) |
+| "Tyvar gains indestructible until end of turn. Tap it." | `SelfRef`: a bare "it" whose sentence before names only the card is the card | settled: English binds the pronoun to the nearest noun, and the effect before names nothing else (the cost's creature is in the cost). Not after a sentence with another object: "~ deals 2 damage to target creature. Tap it." taps the creature |
+| "this enchantment deals 1 damage to them" | `Recipient::Player(That)` | settled: in all of Oracle text a bare "damage to them" is a player, the singular "they" (Roiling Vortex, Browbeat, Risk Factor, Razorkin Needlehead); objects are "each of them" |
+| "the exiled card" in an ability that exiled nothing before it | `ExiledWith(SelfRef)`, the linked ability's card, not `Marked(Exiled)` | settled: CR 607.2a. On an instant or sorcery its paragraphs are one spell, so there "the exiled card" stays what another paragraph exiled |
+| "cards exiled with it", "if a card is exiled with it" | `ExiledWith(SelfRef)` | settled: CR 607.2a, "exiled with [this object]"; all 19 corpus lines are the card itself |
+| "from among the nonland permanents they control" | `Quant::All` | settled: who controls them says which they are; "the" points back to nothing |
 
 ## Zones
 
@@ -69,6 +76,7 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 |---|---|---|
 | "put … on top" or "put them back" with no library named | `OwnersLibraryTop` | settled: the library just named, which is the owner's (CR 400.3); "back" is the top they were looked at from |
 | a bare "the top card" or "on the bottom" | the owner's library | settled: CR 400.3 |
+| "Shuffle ~ into its owner's library" | `ShuffleInto { who: You, … }`: `who` follows the instruction, and the library is the owner's whatever the words | settled: CR 400.3, a card goes only to its owner's library, so the tree needs no zone; Green Sun's Zenith cast by a player who does not own it still goes to its owner's |
 | "is put into exile" with no "from" | `from: Zone::Anywhere` | settled: an event that names no zone comes from any |
 | "put", "return", "put … back" | one `Move`, no verb in the tree | settled: no rule reads the verb (CR 400.6 names a move by its zones) |
 | "doesn't untap during your untap step", "… its controller's untap step" | `DoesntUntap(Player)`, whose untap step | settled: for an Aura on another player's creature they are different steps |
@@ -86,6 +94,7 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "that many plus one +1/+1 counters are put on it" | `CountersArePut`, said in the passive | settled: put by whoever was putting the counters, not by "you" |
 | "that color", "of that type" | `Palette::That`, `OfThatType`, apart from "the chosen color/type" | settled: "that" binds to the nearest one named, which inside "for each color" is the pass's color |
 | "that damage" | `Amount::ThatDamage`, apart from "the damage dealt this way" | settled: the event's damage, not this ability's |
+| "This artifact deals damage equal to …. If the revealed land card was a Mountain, this artifact deals double that damage instead." | `Instead { [ThatDamage { n: Twice(ThatDamage) }] }` | settled: the damage of the effect "instead" replaces, which is never dealt, so it is not `Amount::Damage` ("dealt this way"); the replaced effect is the event `ThatDamage` names (Goblin Charbelcher) |
 | "any number of target creatures" | `AnyNumberOfTarget`, apart from "up to X target" | settled: no bound |
 | "the next spell you cast this turn" | `WillCastThisTurn`, apart from "spells you've cast this turn" | settled |
 | "any of that mana is spent on" | `AnyManaSpentOn`, apart from "you spend this mana to cast" | settled: some of it, not all |

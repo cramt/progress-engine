@@ -652,6 +652,31 @@ mod syn {
         any_of(o, &["that", "those", "the", "both"]);
     }
 
+    /// "~", "he", "him": a character card is "he" or "she" in its own
+    /// text, and Oracle text gives a gendered pronoun to nothing else.
+    pub fn self_named(o: &mut Out) {
+        any_of(o, &["~", "he", "she", "him", "her"]);
+    }
+
+    /// "cards exiled with it", "cards exiled with ~": "it" there is the
+    /// object whose ability exiled them, the card itself (CR 607.2a).
+    pub fn exiled_with_it(o: &mut Out, named: Out) {
+        alt(o, vec![named, of("it")]);
+    }
+
+    /// "Tyvar gains indestructible until end of turn. Tap it." and "… Tap
+    /// Tyvar.": after a sentence whose only object is the card, "it" can
+    /// name nothing else.
+    pub fn it_self(o: &mut Out, named: Out, it: Out) {
+        alt(o, vec![named, it]);
+    }
+
+    /// "deals 1 damage to that player", "… to them": the singular "they"
+    /// of a player, in the object case. Plural objects are "each of them".
+    pub fn them(o: &mut Out) {
+        any_of(o, &["that player", "them", "the player", "they"]);
+    }
+
     pub fn its(o: &mut Out) {
         any_of(o, &["its", "their", "his", "her"]);
     }
@@ -811,6 +836,13 @@ mod syn {
     /// tie, the chooser picks among them either way.
     pub fn the_greatest(o: &mut Out) {
         any_of(o, &["the", "a"]);
+    }
+
+    /// "from among the nonland permanents they control", "… all nonland
+    /// permanents they control": a description that names its set in full
+    /// (here by who controls it) picks out every object in it either way.
+    pub fn all_or_the(o: &mut Out, all: Out, the: Out) {
+        alt(o, vec![all, the]);
     }
 
     /// "all the cards from your hand", "all cards from your hand": the
@@ -1963,6 +1995,30 @@ fn is_bare_antecedent(x: &Objects) -> bool {
     x.quant == Quant::Antecedent && x.filter == Filter::default()
 }
 
+/// "from among the nonland permanents they control": a set its description
+/// names in full, said with "the" or "all".
+fn from_among(o: &mut Out, x: &Objects) {
+    o.w("from among");
+    if x.quant == Quant::All {
+        let all = out(|o| objects(o, x));
+        let the = out(|o| {
+            o.w("the");
+            filter(o, &x.filter, obj_num(x));
+        });
+        syn::all_or_the(o, all, the);
+    } else {
+        objects(o, x);
+    }
+}
+
+/// The card itself, said by name or by a character's pronoun.
+fn self_named() -> Objects {
+    Objects {
+        quant: Quant::SelfRef,
+        filter: Filter::default(),
+    }
+}
+
 // ---------------------------------------------------------------- players
 
 fn player_num(p: &Player) -> Num {
@@ -2131,6 +2187,7 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::SelfOrAnother(_)
         | Quant::NthEachTurn { .. }
         | Quant::NthOfGame { .. }
+        | Quant::Triggering
         | Quant::Next => Num::Sg,
         Quant::WithAllOthers(_) => Num::Pl,
         // "your commander", "your commanders": a partner pair is two.
@@ -2368,7 +2425,13 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             o.w("a second target");
             filter(o, f, n);
         }
-        Quant::SelfRef if *f == Filter::default() => o.w("~"),
+        // Said only in a comparison ("lesser mana value") or as "other",
+        // which render no object; elsewhere it is "that one".
+        Quant::Triggering => {
+            syn::that(o);
+            filter(o, f, n);
+        }
+        Quant::SelfRef if *f == Filter::default() => syn::self_named(o),
         Quant::SelfRef => {
             o.w("this");
             filter(o, f, n);
@@ -2403,6 +2466,24 @@ fn objects_plain(o: &mut Out, x: &Objects) {
                     filter(o, f, n);
                 });
                 syn::position(o, before, after);
+            }
+            // Isochron Scepter's "the exiled card": the card its linked
+            // ability exiled with it.
+            Some(Post::ExiledWith(x)) if x.quant == Quant::SelfRef => {
+                let rest = Filter {
+                    posts: f.posts[1..].to_vec(),
+                    ..f.clone()
+                };
+                let adjective = out(|o| {
+                    syn::that(o);
+                    o.w("exiled");
+                    filter(o, &rest, n);
+                });
+                let phrase = out(|o| {
+                    syn::that(o);
+                    filter(o, f, n);
+                });
+                syn::exiled(o, adjective, phrase);
             }
             _ => {
                 syn::each_of(o);
@@ -2564,6 +2645,7 @@ fn adj(o: &mut Out, a: &Adj, noun: Option<Num>) {
         Adj::Ability(AbilityKind::Activated) => "activated".into(),
         Adj::Ability(AbilityKind::Triggered) => "triggered".into(),
         Adj::Ability(AbilityKind::Loyalty) => "loyalty".into(),
+        Adj::OtherThan(_) => "other".into(),
     };
     match noun {
         Some(n) => o.noun(&word, n),
@@ -2896,10 +2978,7 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             post(o, q, n);
         }
         Post::EnteredThisTurn => o.w("that entered this turn"),
-        Post::FromAmong(x) => {
-            o.w("from among");
-            objects(o, x);
-        }
+        Post::FromAmong(x) => from_among(o, x),
         Post::Greatest { stat, or_tied } => {
             o.w("with the greatest");
             o.w(stat_name(*stat));
@@ -2948,6 +3027,11 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.verb("cast", player_num(p));
         }
         Post::FromAmongThem => syn::from_among_them(o),
+        Post::ExiledWith(x) if x.quant == Quant::SelfRef => {
+            o.w("exiled with");
+            let named = out(|o| objects(o, x));
+            syn::exiled_with_it(o, named);
+        }
         Post::ExiledWith(x) => {
             o.w("exiled with");
             objects(o, x);
@@ -3131,7 +3215,9 @@ fn compare_words(o: &mut Out, c: &Compare) {
     let relative = match (&c.value, c.stat) {
         (Amount::PowerOf(x), Stat::Power)
         | (Amount::ToughnessOf(x), Stat::Toughness)
-        | (Amount::ManaValueOf(x), Stat::ManaValue) => is_bare_antecedent(x),
+        | (Amount::ManaValueOf(x), Stat::ManaValue) => {
+            is_bare_antecedent(x) || x.quant == Quant::Triggering
+        }
         _ => false,
     };
     if relative {
@@ -3366,6 +3452,24 @@ fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
         };
         let full = out(|o| effect(o, e, &cx));
         let prev = i.checked_sub(1).map(|j| &es[j]);
+        // "Tyvar gains indestructible until end of turn. Tap it.": the card,
+        // named just before as the only object, again by pronoun.
+        let named_or_it = match (prev.cloned(), e.clone()) {
+            (Some(p), mut it)
+                if p.sole_object().is_some_and(|x| x.quant == Quant::SelfRef)
+                    && p.sole_object() == it.sole_object() =>
+            {
+                if let Some(x) = it.sole_object_mut() {
+                    *x = Objects {
+                        quant: Quant::Antecedent,
+                        filter: Filter::default(),
+                    };
+                }
+                let pronoun = out(|o| effect(o, &it, &cx));
+                out(|o| syn::it_self(o, full.clone(), pronoun))
+            }
+            _ => full.clone(),
+        };
         if i > 0 {
             syn::joiner(o, ends_in_quote(&last));
         }
@@ -3494,9 +3598,9 @@ fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
             // its "you" said.
             (_, e) if says_no_player(e) => {
                 let you = out(|o| o.w("you"));
-                syn::subject(o, you, full.clone(), full);
+                syn::subject(o, you, named_or_it.clone(), named_or_it);
             }
-            _ => o.add(full),
+            _ => o.add(named_or_it),
         }
         last = Out(o.0[start..].to_vec());
         if let Some(s) = subject_of(e) {
@@ -3636,6 +3740,7 @@ fn recipients(o: &mut Out, rs: &[Recipient]) {
 fn recipient(o: &mut Out, r: &Recipient) {
     match r {
         Recipient::Objects(x) => objects(o, x),
+        Recipient::Player(Player::That) => syn::them(o),
         Recipient::Player(p) => player(o, p),
         Recipient::Or(v) => match &v[..] {
             [Recipient::Player(p @ (Player::Target | Player::TargetOpponent)), Recipient::Objects(x)]
@@ -5856,8 +5961,7 @@ fn choice(o: &mut Out, c: &Choice) {
                 o.w("a");
                 filter(o, f, Num::Sg);
             }
-            o.w("from among");
-            objects(o, among);
+            from_among(o, among);
         }
     }
 }
@@ -7643,7 +7747,7 @@ fn sized(o: &mut Out, ss: &[Static], i: usize) -> usize {
     let s = &ss[i];
     match (s, ss.get(i + 1)) {
         (Static::Is { what, types }, Some(Static::BasePt { what: w2, pt }))
-            if what == w2 && is_bare_antecedent(what) =>
+            if what == w2 && (is_bare_antecedent(what) || *what == self_named()) =>
         {
             let inline = out(|o| {
                 syn::it_is(o);

@@ -438,6 +438,10 @@ pub enum Quant {
     },
     /// The card itself.
     SelfRef,
+    /// The object whose event triggered the ability: Valakut's "other
+    /// Mountains" are other than "that new one" (its ruling), and Orah's
+    /// "card with lesser mana value" is lesser than the Cleric that died.
+    Triggering,
     /// "it", "them", "that creature", "those cards": an earlier noun.
     Antecedent,
     Enchanted,
@@ -502,6 +506,10 @@ pub enum Adj {
     State(State),
     /// "activated ability", "triggered ability".
     Ability(AbilityKind),
+    /// "other" said of an object other than the card itself: Valakut's
+    /// "five other Mountains" are other than the one that entered.
+    /// `State::Other` is other than the card.
+    OtherThan(Box<Objects>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1440,6 +1448,29 @@ pub enum Effect {
         what: Objects,
         mana: Mana,
     },
+}
+
+impl Effect {
+    /// The one object an effect is said of, where it names no other:
+    /// "~ gains indestructible until end of turn", "Tap it". A pronoun in
+    /// the next sentence can only point back to it.
+    pub fn sole_object(&self) -> Option<Objects> {
+        self.clone().sole_object_mut().cloned()
+    }
+
+    pub fn sole_object_mut(&mut self) -> Option<&mut Objects> {
+        match self {
+            Effect::Modify { what, .. }
+            | Effect::GrantAbility { what, .. }
+            | Effect::Becomes { what, .. }
+            | Effect::Tap(what)
+            | Effect::Untap(what)
+            | Effect::Transform(what)
+            | Effect::PhaseOut(what) => Some(what),
+            Effect::PutCounters { on, .. } => Some(on),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

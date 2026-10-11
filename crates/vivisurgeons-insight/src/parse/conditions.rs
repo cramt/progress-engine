@@ -392,7 +392,8 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 |p| {
                     p.one_of(&["is", "are"])?;
                     p.words("exiled with")?;
-                    let with = objects(p)?;
+                    // "if a card is exiled with it": the card itself (CR 607.2a).
+                    let with = alt!(p; |p| p.word("it").map(|_| self_ref()), objects)?;
                     Some(Condition::Is { what: what.clone(), filter: Filter { posts: vec![Post::ExiledWith(Box::new(with))], ..Filter::default() } })
                 },
                 // "it entered from your library or was cast from your library",

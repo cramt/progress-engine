@@ -957,6 +957,101 @@ mod tests {
     }
 
     #[test]
+    fn a_pronoun_for_the_card_is_the_card() {
+        let me = || Objects {
+            quant: Quant::SelfRef,
+            filter: Filter::default(),
+        };
+        // A gendered pronoun names only a character card itself.
+        let a = read(
+            "Ajani, Nacatl Avenger",
+            "Legendary Planeswalker — Ajani",
+            "0: Create a 2/1 white Cat Warrior creature token. When you do, if you control a red permanent other than Ajani, he deals damage equal to the number of creatures you control to any target.",
+        );
+        assert!(
+            format!("{a:?}").contains(&format!("Damage {{ source: Some({:?})", me())),
+            "{a:?}"
+        );
+        // The sentence before names only the card, so "it" is the card.
+        let a = read(
+            "Tyvar, the Pummeler",
+            "Legendary Creature — Elf Warrior",
+            "Tap another untapped creature you control: Tyvar gains indestructible until end of turn. Tap it.",
+        );
+        assert!(
+            matches!(&a[0], Ability::Activated { effect, .. } if effect[1] == Effect::Tap(me()))
+        );
+        // Damage to a bare "them" is a player's.
+        let a = read(
+            "Some Vortex",
+            "Enchantment",
+            "At the beginning of each player's upkeep, this enchantment deals 1 damage to them.",
+        );
+        assert!(matches!(&a[0], Ability::Triggered { effect, .. }
+            if matches!(&effect[0], Effect::Damage { to, .. } if to == &vec![Recipient::Player(Player::That)])));
+        // "The exiled card" no earlier verb exiled is the linked ability's
+        // (CR 607.2a), and so is "exiled with it".
+        let linked = Post::ExiledWith(Box::new(me()));
+        for text in [
+            "{2}, {T}: You may copy the exiled card. If you do, you may cast the copy without paying its mana cost.",
+            "This creature enters with a +1/+1 counter on it for each instant and sorcery card exiled with it.",
+        ] {
+            let a = read("Some Scepter", "Artifact", text);
+            assert!(format!("{a:?}").contains(&format!("{linked:?}")), "{text}: {a:?}");
+        }
+        // "from among the nonland permanents they control" is all of them.
+        let a = read(
+            "Some Gearhulk",
+            "Artifact Creature — Construct",
+            "When this creature enters, each player chooses an artifact, a creature, an enchantment, and a planeswalker from among the nonland permanents they control, then sacrifices the rest.",
+        );
+        assert!(
+            format!("{a:?}").contains("among: Objects { quant: All"),
+            "{a:?}"
+        );
+    }
+
+    #[test]
+    fn other_and_lesser_on_a_trigger_are_said_of_its_object() {
+        let triggering = Objects {
+            quant: Quant::Triggering,
+            filter: Filter::default(),
+        };
+        let a = read(
+            "Some Pinnacle",
+            "Land",
+            "Whenever a Mountain you control enters, if you control at least five other Mountains, you may have this land deal 3 damage to any target.",
+        );
+        let Ability::Triggered {
+            trigger: Trigger::InterveningIf(_, c),
+            ..
+        } = &a[0]
+        else {
+            panic!("{a:?}")
+        };
+        // Other than the Mountain that entered: "five or more Mountains
+        // other than that new one" (Valakut's ruling).
+        assert!(matches!(&**c, Condition::YouControl(o)
+            if o.filter.alts == vec![vec![Adj::OtherThan(Box::new(triggering.clone())), Adj::Subtype("mountain".into())]]));
+        let a = read(
+            "Some Hierophant",
+            "Creature — Kor Cleric",
+            "Whenever this creature or another Cleric you control dies, return target Cleric card with lesser mana value from your graveyard to the battlefield.",
+        );
+        assert!(
+            format!("{a:?}").contains(&format!("ManaValueOf({triggering:?})")),
+            "{a:?}"
+        );
+        // With no event object, "lesser" is than what the effect named.
+        let a = read(
+            "Some Goliath",
+            "Creature — Dragon",
+            "At the beginning of your end step, you may sacrifice another creature. If you do, reveal cards from the top of your library until you reveal a nonlegendary creature card with lesser mana value, put it onto the battlefield, then put the rest on the bottom of your library in a random order.",
+        );
+        assert!(!format!("{a:?}").contains("Triggering"), "{a:?}");
+    }
+
+    #[test]
     fn protection_from_two_qualities_is_two_protection_abilities() {
         let a = read(
             "Some Riftwalker",
