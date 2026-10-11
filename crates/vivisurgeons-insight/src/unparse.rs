@@ -691,6 +691,15 @@ mod syn {
         alt(o, vec![named, it]);
     }
 
+    /// "When this creature dies, return it to its owner's hand", "~ has
+    /// hexproof as long as it entered this turn": the card itself, said by
+    /// its name or by a pronoun where the text refers back to it. The tree
+    /// holds which object the pronoun is (SEMANTICS, "Referents"); which
+    /// word says it is English.
+    pub fn the_card(o: &mut Out, named: Out, pronoun: Out) {
+        alt(o, vec![named, pronoun]);
+    }
+
     /// "deals 1 damage to that player", "… to them": the singular "they"
     /// of a player, in the object case. Plural objects are "each of them".
     pub fn them(o: &mut Out) {
@@ -1169,7 +1178,23 @@ fn out(f: impl FnOnce(&mut Out)) -> Out {
 // ---------------------------------------------------------------- abilities
 
 pub fn ability(a: &Ability) -> Out {
-    out(|o| ability_into(o, a))
+    // The trigger's own object is only ever said by referring back to it:
+    // "it", "its", "that card", "with lesser mana value".
+    struct Said;
+    impl crate::walk::Visitor for Said {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            if o.quant == Quant::Triggering {
+                o.quant = Quant::Antecedent;
+            }
+            true
+        }
+        fn ability(&mut self, _: &mut Ability) -> bool {
+            true
+        }
+    }
+    let mut a = a.clone();
+    crate::walk::Walk::walk(&mut a, &mut Said);
+    out(|o| ability_into(o, &a))
 }
 
 fn ability_into(o: &mut Out, a: &Ability) {
@@ -1952,12 +1977,15 @@ fn measure(o: &mut Out, a: &Amount) {
         }
         Amount::TimesCastFrom { what, zone: z } => {
             o.w("the number of times");
-            if is_bare_antecedent(what) {
-                o.w("it's");
-            } else {
-                objects(o, what);
-                o.w("has");
-            }
+            pronoun_or(
+                o,
+                what,
+                |o| o.w("it's"),
+                |o| {
+                    objects(o, what);
+                    o.w("has");
+                },
+            );
             o.w("been cast from");
             zone(o, z);
             o.w("this game");
@@ -1977,12 +2005,10 @@ fn measure(o: &mut Out, a: &Amount) {
         Amount::DamagePrevented => o.w("1 damage prevented this way"),
         Amount::TimesAttackedThisTurn(x) => {
             o.w("time");
-            if is_bare_antecedent(x) {
-                syn::it_has(o);
-            } else {
+            pronoun_or(o, x, syn::it_has, |o| {
                 objects(o, x);
                 o.w("has");
-            }
+            });
             o.w("attacked this turn");
         }
         Amount::Greatest { stat, among } => {
@@ -2065,16 +2091,39 @@ fn rounded(o: &mut Out, up: bool) {
 
 /// "~'s", "target creature's", or "its" for an earlier noun.
 fn possessive_of(o: &mut Out, x: &Objects) {
-    if is_bare_antecedent(x) {
-        syn::its(o);
-    } else {
+    pronoun_or(o, x, syn::its, |o| {
         objects(o, x);
         o.tok(Tok::Possessive);
-    }
+    });
 }
 
 fn is_bare_antecedent(x: &Objects) -> bool {
     x.quant == Quant::Antecedent && x.filter == Filter::default()
+}
+
+/// The card itself with nothing more said, which the text may name or
+/// refer back to.
+fn is_bare_self(x: &Objects) -> bool {
+    x.quant == Quant::SelfRef && x.filter == Filter::default()
+}
+
+/// Where English has a pronoun form: an earlier noun by pronoun, the card
+/// itself by name or pronoun (`syn::the_card`), anything else by name.
+fn pronoun_or(
+    o: &mut Out,
+    x: &Objects,
+    pronoun: impl FnOnce(&mut Out),
+    named: impl FnOnce(&mut Out),
+) {
+    if is_bare_antecedent(x) {
+        pronoun(o);
+    } else if is_bare_self(x) {
+        let named = out(named);
+        let pronoun = out(pronoun);
+        syn::the_card(o, named, pronoun);
+    } else {
+        named(o);
+    }
 }
 
 /// "from among the nonland permanents they control": a set its description
@@ -2126,16 +2175,24 @@ fn player(o: &mut Out, p: &Player) {
         Player::APlayer => o.w("a player"),
         Player::That => syn::that_player(o),
         Player::DefendingPlayer => o.w("defending player"),
-        Player::ControllerOf(x) if is_bare_antecedent(x) => {
-            syn::its(o);
-            o.w("controller");
-        }
-        Player::ControllerOf(x) => genitive(o, "controller", x),
-        Player::OwnerOf(x) if is_bare_antecedent(x) => {
-            syn::its(o);
-            o.w("owner");
-        }
-        Player::OwnerOf(x) => genitive(o, "owner", x),
+        Player::ControllerOf(x) => pronoun_or(
+            o,
+            x,
+            |o| {
+                syn::its(o);
+                o.w("controller");
+            },
+            |o| genitive(o, "controller", x),
+        ),
+        Player::OwnerOf(x) => pronoun_or(
+            o,
+            x,
+            |o| {
+                syn::its(o);
+                o.w("owner");
+            },
+            |o| genitive(o, "owner", x),
+        ),
         Player::Chosen => o.w("the chosen player"),
         Player::Active => o.w("the active player"),
         Player::EachOf(v) => {
@@ -2194,7 +2251,10 @@ fn whose(o: &mut Out, p: &Player) {
     match p {
         Player::You => o.w("your"),
         Player::That => syn::their(o),
-        Player::OwnerOf(x) if is_bare_antecedent(x) => syn::its_owners(o),
+        Player::OwnerOf(x) => pronoun_or(o, x, syn::its_owners, |o| {
+            player(o, p);
+            o.tok(Tok::Possessive);
+        }),
         p => {
             player(o, p);
             o.tok(Tok::Possessive);
@@ -2515,10 +2575,21 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             syn::that(o);
             filter(o, f, n);
         }
-        Quant::SelfRef if *f == Filter::default() => syn::self_named(o),
+        Quant::SelfRef if *f == Filter::default() => {
+            let named = out(syn::self_named);
+            let pronoun = out(syn::it);
+            syn::the_card(o, named, pronoun);
+        }
         Quant::SelfRef => {
-            o.w("this");
-            filter(o, f, n);
+            let named = out(|o| {
+                o.w("this");
+                filter(o, f, n);
+            });
+            let back = out(|o| {
+                syn::that(o);
+                filter(o, f, n);
+            });
+            syn::the_card(o, named, back);
         }
         Quant::Antecedent if *f == Filter::default() => {
             syn::each_of(o);
@@ -3325,15 +3396,13 @@ fn post(o: &mut Out, q: &Post, n: Num) {
 
 fn compare_words(o: &mut Out, c: &Compare) {
     // "with lesser mana value": than the object the ability is about.
-    let relative = match (&c.value, c.stat) {
+    let of = match (&c.value, c.stat) {
         (Amount::PowerOf(x), Stat::Power)
         | (Amount::ToughnessOf(x), Stat::Toughness)
-        | (Amount::ManaValueOf(x), Stat::ManaValue) => {
-            is_bare_antecedent(x) || x.quant == Quant::Triggering
-        }
-        _ => false,
+        | (Amount::ManaValueOf(x), Stat::ManaValue) => Some(x),
+        _ => None,
     };
-    if relative {
+    let relative = |o: &mut Out| {
         o.w(match c.op {
             Op::Le => "equal or lesser",
             Op::Lt => "lesser",
@@ -3342,10 +3411,15 @@ fn compare_words(o: &mut Out, c: &Compare) {
             Op::Eq => "equal",
         });
         o.w(stat_name(c.stat));
-        return;
+    };
+    let stated = |o: &mut Out| {
+        o.w(stat_name(c.stat));
+        comparison(o, c.op, &c.value);
+    };
+    match of {
+        Some(x) => pronoun_or(o, x, relative, stated),
+        None => stated(o),
     }
-    o.w(stat_name(c.stat));
-    comparison(o, c.op, &c.value);
 }
 
 fn comparison(o: &mut Out, op: Op, value: &Amount) {
@@ -3895,12 +3969,15 @@ fn recipient(o: &mut Out, r: &Recipient) {
         Recipient::Same | Recipient::ControllerChooses => {}
         Recipient::AttackedBy(x) => {
             o.w("the player or planeswalker");
-            if is_bare_antecedent(x) {
-                o.w("it's");
-            } else {
-                objects(o, x);
-                o.w("is");
-            }
+            pronoun_or(
+                o,
+                x,
+                |o| o.w("it's"),
+                |o| {
+                    objects(o, x);
+                    o.w("is");
+                },
+            );
             o.w("attacking");
         }
     }
@@ -5151,9 +5228,11 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                         },
                 },
             on,
-        } if matches!(&posts[..], [Post::On(x)] if is_bare_antecedent(x)) => {
+        } if matches!(&posts[..], [Post::On(x)] if is_bare_antecedent(x) || is_bare_self(x)) => {
             o.w("put");
-            syn::its(o);
+            if let [Post::On(x)] = &posts[..] {
+                possessive_of(o, x);
+            }
             if let Some(k) = kind {
                 counter_kind(o, k);
             }
@@ -5408,11 +5487,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             types,
             keeps: k,
         } => {
-            if is_bare_antecedent(what) {
-                o.w("it's");
-            } else {
-                obj_subj(o, what, "are");
-            }
+            pronoun_or(o, what, |o| o.w("it's"), |o| obj_subj(o, what, "are"));
             type_words(o, types, Num::Sg);
             keeps(o, k);
         }
@@ -7156,12 +7231,15 @@ fn condition(o: &mut Out, c: &Condition) {
             o.w("or fewer cards in hand");
         }
         Condition::Is { what, filter: f } => {
-            if is_bare_antecedent(what) {
-                o.w("it's");
-            } else {
-                objects(o, what);
-                o.verb("are", obj_num(what));
-            }
+            pronoun_or(
+                o,
+                what,
+                |o| o.w("it's"),
+                |o| {
+                    objects(o, what);
+                    o.verb("are", obj_num(what));
+                },
+            );
             is_predicate(o, f);
         }
         Condition::WasKicked => {
@@ -7279,19 +7357,29 @@ fn condition(o: &mut Out, c: &Condition) {
         } if !is_bare_antecedent(what) => {
             // "this creature remains on the battlefield": a permanent that
             // leaves is a new object (CR 400.7), so being on it is remaining.
-            objects(o, what);
-            let is = out(|o| o.verb("are", obj_num(what)));
-            let remains = out(|o| o.verb("remain", obj_num(what)));
-            syn::remains(o, is, remains);
+            pronoun_or(
+                o,
+                what,
+                |o| o.w("it's"),
+                |o| {
+                    objects(o, what);
+                    let is = out(|o| o.verb("are", obj_num(what)));
+                    let remains = out(|o| o.verb("remain", obj_num(what)));
+                    syn::remains(o, is, remains);
+                },
+            );
             o.w("on the battlefield");
         }
         Condition::In { what, zone: z } => {
-            if is_bare_antecedent(what) {
-                o.w("it's");
-            } else {
-                objects(o, what);
-                o.verb("are", obj_num(what));
-            }
+            pronoun_or(
+                o,
+                what,
+                |o| o.w("it's"),
+                |o| {
+                    objects(o, what);
+                    o.verb("are", obj_num(what));
+                },
+            );
             o.w(if *z == Zone::Battlefield { "on" } else { "in" });
             zone(o, z);
         }
@@ -7544,11 +7632,7 @@ fn condition(o: &mut Out, c: &Condition) {
             spell,
             who,
         } => {
-            if is_bare_antecedent(what) {
-                o.w("it's");
-            } else {
-                obj_subj(o, what, "are");
-            }
+            pronoun_or(o, what, |o| o.w("it's"), |o| obj_subj(o, what, "are"));
             o.w("the");
             o.w(ordinal_word(*n));
             filter(o, spell, Num::Sg);
@@ -8131,8 +8215,17 @@ fn static_full(o: &mut Out, s: &Static) {
         Static::Restrict {
             rule: Restriction::NoActivatedAbilities,
             what,
-        } if is_bare_antecedent(what) => {
-            o.w("its activated abilities can't be activated");
+        } if is_bare_antecedent(what) || is_bare_self(what) => {
+            pronoun_or(
+                o,
+                what,
+                |o| o.w("its activated abilities can't be activated"),
+                |o| {
+                    o.w("activated abilities of");
+                    objects(o, what);
+                    o.w("can't be activated");
+                },
+            );
             return;
         }
         // "Activated abilities of artifacts can't be activated", perhaps

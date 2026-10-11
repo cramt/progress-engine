@@ -5,6 +5,7 @@
 use crate::ast::*;
 use crate::lex::{Pt, Signed, Tok};
 use crate::vocab::{singulars, vocab};
+use crate::walk::{Visitor, Walk};
 
 pub struct P<'a> {
     t: &'a [Tok],
@@ -604,16 +605,17 @@ fn event_object(e: &Event) -> Option<&Objects> {
 /// Orah: "return target Cleric card with lesser mana value": lesser than
 /// the Cleric that died, where nothing before it in the effect names an
 /// object to compare with.
-fn about_the_trigger(t: &Trigger, cond: Option<&mut Condition>, effect: &mut [Effect]) {
+fn about_the_trigger(t: &Trigger, mut cond: Option<&mut Condition>, effect: &mut [Effect]) {
     let Trigger::When(e) = t else { return };
     let Some(subject) = event_object(e) else {
+        refer_to_the_trigger(e, cond, effect);
         return;
     };
     let triggering = || Objects {
         quant: Quant::Triggering,
         filter: Filter::default(),
     };
-    if let Some(Condition::YouControl(counted)) = cond {
+    if let Some(Condition::YouControl(counted)) = cond.as_deref_mut() {
         let same_kind = |g: &Vec<Adj>| {
             g.first() == Some(&Adj::State(State::Other))
                 && subject.filter.alts == vec![g[1..].to_vec()]
@@ -648,6 +650,247 @@ fn about_the_trigger(t: &Trigger, cond: Option<&mut Condition>, effect: &mut [Ef
     }
     if let Some(first) = effect.first_mut() {
         lesser(first, &triggering());
+    }
+    refer_to_the_trigger(e, cond, effect);
+}
+
+/// The one object a trigger event names, which the effect may call "it",
+/// "its", "that card" or "that spell": the creature that died, the spell
+/// cast. None where the event names two (a spell that targets a creature),
+/// so "that creature" could be either.
+fn trigger_object(e: &Event) -> Option<Objects> {
+    let what = match e {
+        Event::Enters { what, .. }
+        | Event::Dies(what)
+        | Event::Leaves { what, .. }
+        | Event::Attacks(what)
+        | Event::Blocks(what)
+        | Event::AttacksOrBlocks(what)
+        | Event::BecomesBlocked(what)
+        | Event::DealsCombatDamageToPlayer(what)
+        | Event::DealsCombatDamage(what)
+        | Event::DealsDamage(what)
+        | Event::IsDealtDamage(what)
+        | Event::Casts { what, .. }
+        | Event::Copies { what, .. }
+        | Event::WasCast(what)
+        | Event::CastFrom { what, .. }
+        | Event::CastUsing { what, .. }
+        | Event::Countered(what)
+        | Event::Discards { what, .. }
+        | Event::Sacrifices { what, .. }
+        | Event::PutInto { what, .. }
+        | Event::Puts { what, .. }
+        | Event::Exiles { what, .. }
+        | Event::Exiled(what)
+        | Event::ReturnedToHand(what)
+        | Event::LeftUnderControlOf { what, .. }
+        | Event::BecomesTapped(what)
+        | Event::TappedForMana(what)
+        | Event::TapsForMana { what, .. }
+        | Event::TapsFor { what, .. }
+        | Event::TappedForAtLeast { what, .. }
+        | Event::CounterPutOn(what)
+        | Event::CountersPut { on: what, .. }
+        | Event::NthCounterPutOn { on: what, .. }
+        | Event::Creates { what, .. }
+        | Event::Activates { what, .. }
+        | Event::BecomesLevel { what, .. }
+        | Event::AttacksWith { what, .. }
+        | Event::AttacksAlone(what)
+        | Event::TransformsInto { what, .. }
+        | Event::Cycles {
+            what: Some(what), ..
+        } => what,
+        Event::While { event, .. }
+        | Event::AndIf { event, .. }
+        | Event::FirstTimeEachTurn(event) => {
+            return trigger_object(event);
+        }
+        Event::Or(v) => {
+            let all: Vec<Objects> = v.iter().map(trigger_object).collect::<Option<_>>()?;
+            return all.windows(2).all(|w| w[0] == w[1]).then(|| all[0].clone());
+        }
+        _ => return None,
+    };
+    // "a spell that targets a creature you control", "a spell that targets
+    // this creature": two objects, and "it" may be either.
+    struct Count(usize);
+    impl Visitor for Count {
+        fn enter(&mut self, _: &mut Objects) -> bool {
+            self.0 += 1;
+            true
+        }
+    }
+    let mut count = Count(0);
+    what.clone().walk(&mut count);
+    (count.0 == 1).then(|| what.clone())
+}
+
+/// Every bare "it" in a part of a clause, said of one object.
+struct Bare(Quant);
+
+impl Visitor for Bare {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        if o.quant == Quant::Antecedent && o.filter == Filter::default() {
+            o.quant = self.0.clone();
+        }
+        true
+    }
+}
+
+/// "Whenever another nontoken creature you control dies, if its mana value
+/// was 1 or greater, … return that card to the battlefield": a reference
+/// back said before the effect names any other object is to the trigger's
+/// own object, `Triggering`, or the card itself where that is what the event
+/// named. A bare "it" after the card was named is the card ("put a +1/+1
+/// counter on this creature and it can't be blocked"). Once another object
+/// is named, "it" may be that one, and stays a plain back-reference.
+fn refer_to_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut [Effect]) {
+    let Some(object) = trigger_object(e) else {
+        return;
+    };
+    struct Refer {
+        to: Quant,
+        seen_self: bool,
+        /// The card was named in the clause still being read: "this
+        /// artifact deals 1 damage to it" would say "itself" for the card.
+        self_pending: bool,
+        seen_new: bool,
+        /// The source of the damage just dealt: "it deals 3 damage to
+        /// target opponent and 3 damage to up to one target creature" says
+        /// one subject for both.
+        damage_source: Option<Objects>,
+        /// "draw a card and reveal it": the drawn card, which a draw names
+        /// in no `Objects`; otherwise nothing refers back to one.
+        drew: bool,
+    }
+    impl Visitor for Refer {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            let f = &o.filter;
+            // "those counters", "the exiled card": not the trigger's object.
+            let referable = o.quant == Quant::Antecedent
+                && f.posts.is_empty()
+                && f.or.is_none()
+                && !matches!(
+                    f.kind,
+                    Some(Noun::Counter(_) | Noun::Player | Noun::Opponent)
+                );
+            if referable && !self.seen_new {
+                o.quant = if self.seen_self && *f == Filter::default() {
+                    Quant::SelfRef
+                } else {
+                    self.to.clone()
+                };
+            }
+            true
+        }
+        fn leave(&mut self, o: &mut Objects) {
+            // A back-reference left as one ("the exiled card") is to
+            // another object, which "its" after it may be.
+            match o.quant {
+                Quant::SelfRef => self.self_pending = true,
+                Quant::Triggering => {}
+                _ => self.seen_new = true,
+            }
+        }
+        fn effect(&mut self, e: &mut Effect) {
+            // A clause starting ends the one before it, as "If this
+            // enchantment isn't a creature, it becomes …" ends its "if".
+            self.seen_self |= self.self_pending;
+            if self.drew && matches!(e, Effect::Reveal { what, .. } if *what == antecedent()) {
+                self.seen_new = true;
+            }
+            // "this creature deals damage equal to its power to it": the
+            // amount is the card's own, and what it acts on is not the card,
+            // which English would call "itself".
+            let to = self.to.clone();
+            let open = !self.seen_new;
+            match e {
+                Effect::Damage {
+                    source: Some(src),
+                    n,
+                    to: recipients,
+                } if src.quant == Quant::SelfRef => {
+                    n.walk(&mut Bare(Quant::SelfRef));
+                    if open {
+                        let mut bare = Bare(to);
+                        for r in recipients.iter_mut() {
+                            r.walk(&mut bare);
+                        }
+                    }
+                }
+                Effect::Attach { what, to: on } if what.quant == Quant::SelfRef && open => {
+                    on.walk(&mut Bare(to));
+                }
+                _ => {}
+            }
+            if let Effect::Damage {
+                source: Some(src), ..
+            } = e
+            {
+                if src.quant == Quant::Antecedent && src.filter == Filter::default() {
+                    if let Some(same) = &self.damage_source {
+                        *src = same.clone();
+                    }
+                }
+            }
+        }
+        // "reveal the top card of your library. If it's a creature card":
+        // effects that bring in an object they name in no `Objects`.
+        fn effect_done(&mut self, e: &mut Effect) {
+            self.seen_self |= self.self_pending;
+            self.drew = matches!(e, Effect::Draw { .. });
+            self.damage_source = match e {
+                Effect::Damage {
+                    source: Some(src), ..
+                } if matches!(src.quant, Quant::SelfRef | Quant::Triggering) => Some(src.clone()),
+                _ => None,
+            };
+            if matches!(
+                e,
+                Effect::RevealTop { .. }
+                    | Effect::LookAtTop { .. }
+                    | Effect::RevealHand { .. }
+                    | Effect::LookAtHand { .. }
+                    | Effect::Mill { .. }
+                    | Effect::Scry { .. }
+                    | Effect::Surveil { .. }
+                    | Effect::Create { .. }
+                    | Effect::CreateCopy { .. }
+                    | Effect::CreateThose { .. }
+                    | Effect::CreateThosePlus { .. }
+                    | Effect::CreateOfEach { .. }
+                    | Effect::CreateNamed { .. }
+                    | Effect::CreateAttached { .. }
+                    | Effect::Copy { .. }
+                    | Effect::Amass { .. }
+                    | Effect::Action { .. }
+                    | Effect::UntilFound { .. }
+                    | Effect::DigUntilTotal { .. }
+            ) {
+                self.seen_new = true;
+            }
+        }
+    }
+    let mut v = Refer {
+        to: if object.quant == Quant::SelfRef {
+            Quant::SelfRef
+        } else {
+            Quant::Triggering
+        },
+        seen_self: false,
+        self_pending: false,
+        seen_new: false,
+        damage_source: None,
+        drew: false,
+    };
+    if let Some(c) = cond {
+        c.walk(&mut v);
+        v.seen_self |= v.self_pending;
+    }
+    for x in effect {
+        x.walk(&mut v);
     }
 }
 

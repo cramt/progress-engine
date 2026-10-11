@@ -9,6 +9,7 @@ pub mod lex;
 pub mod parse;
 pub mod unparse;
 pub mod vocab;
+pub mod walk;
 
 use ast::Ability;
 
@@ -1247,6 +1248,68 @@ mod tests {
             panic!("{a:?}")
         };
         assert_eq!(effect.len(), 3, "{effect:?}");
+    }
+
+    #[test]
+    fn a_reference_back_to_the_triggers_object_is_triggering_or_the_card() {
+        let quants = |name: &str, ty: &str, text: &str| -> Vec<String> {
+            let a = format!("{:?}", read(name, ty, text));
+            a.match_indices("quant: ")
+                .map(|(i, _)| {
+                    a[i + 7..]
+                        .split([' ', ',', '('])
+                        .next()
+                        .unwrap()
+                        .to_string()
+                })
+                .filter(|q| matches!(q.as_str(), "Antecedent" | "Triggering" | "SelfRef"))
+                .collect()
+        };
+        // The event's object, in the intervening "if" and in the effect.
+        assert_eq!(
+            quants(
+                "Some Magistrate",
+                "Creature — Human",
+                "Whenever another nontoken creature you control dies, if its mana value was 1 or greater, return that card to the battlefield under its owner's control.",
+            ),
+            ["Triggering", "Triggering", "Triggering"]
+        );
+        // The card named in a finished clause is what a bare "it" is.
+        assert_eq!(
+            quants(
+                "Some Sahagin",
+                "Creature — Merfolk",
+                "Whenever you cast a noncreature spell, if at least four mana was spent to cast it, put a +1/+1 counter on this creature and it can't be blocked this turn.",
+            ),
+            ["Triggering", "SelfRef", "SelfRef"]
+        );
+        // In its own clause the card would be "itself".
+        assert_eq!(
+            quants(
+                "Some Minefield",
+                "Enchantment",
+                "Whenever a creature attacks or blocks, this enchantment deals 2 damage to it.",
+            ),
+            ["SelfRef", "Triggering"]
+        );
+        // A revealed card is another object.
+        assert_eq!(
+            quants(
+                "Some Predators",
+                "Enchantment",
+                "Whenever an opponent casts a spell, reveal the top card of your library. If it's a creature card, put it onto the battlefield.",
+            ),
+            ["Antecedent", "Antecedent"]
+        );
+        // "a spell that targets this creature" names two objects.
+        assert_eq!(
+            quants(
+                "Some Trailblazer",
+                "Creature — Cat",
+                "Whenever you cast a spell that targets this creature, put a +1/+1 counter on it.",
+            ),
+            ["SelfRef", "Antecedent"]
+        );
     }
 
     #[test]
