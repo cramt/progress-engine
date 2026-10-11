@@ -2,7 +2,31 @@
 
 use super::*;
 
+/// A player phrase depends on nothing but where it starts, and almost every
+/// effect rule asks for a subject first, so each start is read once, as
+/// `objects_no_player` is.
 pub(super) fn player(p: &mut P) -> Option<Player> {
+    let start = p.i;
+    // A comparison's value reads objects differently, so it bypasses both.
+    if p.in_value {
+        return player_read(p);
+    }
+    if let Some((pl, end, furthest)) = p.player_memo[start].clone() {
+        p.furthest = p.furthest.max(furthest);
+        if pl.is_some() {
+            p.i = end;
+        }
+        return pl;
+    }
+    let before = std::mem::replace(&mut p.furthest, start);
+    let pl = player_read(p);
+    let furthest = p.furthest;
+    p.furthest = before.max(furthest);
+    p.player_memo[start] = Some((pl.clone(), p.i, furthest));
+    pl
+}
+
+fn player_read(p: &mut P) -> Option<Player> {
     alt!(p;
         |p| {
             let mut v = vec![alt!(p; player_simple, |p| p.word("you").map(|_| Player::You))?];

@@ -20,6 +20,8 @@ pub struct P<'a> {
     /// Per starting token: the object phrase read there, where it ended, and
     /// how far reading it got.
     objects_memo: Vec<Option<(Option<Objects>, usize, usize)>>,
+    /// The same for a player: most effect rules ask for a subject first.
+    player_memo: Vec<Option<(Option<Player>, usize, usize)>>,
     /// Inside a comparison's value, where "from your graveyard" or "from
     /// among them" after it belongs to the object being compared: "a card
     /// with mana value less than the number of counters on that creature
@@ -45,6 +47,7 @@ impl<'a> P<'a> {
             implied: None,
             during: false,
             objects_memo: vec![None; t.len() + 1],
+            player_memo: vec![None; t.len() + 1],
             in_value: false,
         }
     }
