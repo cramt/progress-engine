@@ -30,17 +30,7 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
     // "You may reveal this card from your opening hand. If you do, …".
     if let Some(s) = p.attempt(|p| {
         p.words("you may reveal this card from your opening hand . if you do ,")?;
-        let mut then = effects(p)?;
-        // "If you do, at the beginning of your first upkeep, look at the top
-        // four cards … You may put one of those cards back …": what follows
-        // the delayed trigger is its, since nothing else happens then.
-        if then.len() > 1 && matches!(then[0], Effect::Delayed { .. }) {
-            let rest: Vec<Effect> = then.drain(1..).collect();
-            if let Effect::Delayed { then: delayed, .. } = &mut then[0] {
-                delayed.extend(rest);
-            }
-        }
-        Some(vec![Static::RevealFromOpeningHand(then)])
+        Some(vec![Static::RevealFromOpeningHand(effects(p)?)])
     }) {
         return Some(s);
     }

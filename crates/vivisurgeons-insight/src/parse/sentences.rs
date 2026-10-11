@@ -142,7 +142,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             p.word("whenever")?;
             let event = event(p)?;
             p.words("this turn ,")?;
-            let then = clauses(p)?;
+            let then = delayed_body(p)?;
             Some(vec![Effect::During { dur: Duration::ThisTurn, then: vec![Effect::DelayedWhenever { event, then }] }])
         },
         // "Until end of turn, whenever a player taps an Island for mana, …".
@@ -150,16 +150,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             p.word("whenever")?;
             let event = event(p)?;
             p.tok(&Tok::Comma)?;
-            let mut then = clauses(p)?;
-            // "…, copy it. You may choose new targets for the copy.": the
-            // copy's own option, so the trigger's too.
-            if let Some(more) = p.attempt(|p| {
-                p.tok(&Tok::Period)?;
-                let c = clause(p)?;
-                matches!(&c[..], [Effect::May { then, .. }] if matches!(&then[..], [Effect::ChooseNewTargets(o)] if o.filter.kind == Some(Noun::Copy))).then_some(c)
-            }) {
-                then.extend(more);
-            }
+            let then = delayed_body(p)?;
             Some(vec![Effect::DelayedWhenever { event, then }])
         },
         // "For each 1 damage prevented this way, create …": once per point.
@@ -295,14 +286,14 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             p.word("when")?;
             let event = event(p)?;
             p.words("this turn ,")?;
-            let then = clauses(p)?;
+            let then = delayed_body(p)?;
             Some(vec![Effect::During { dur: Duration::ThisTurn, then: vec![Effect::DelayedWhen { event, then }] }])
         },
         |p| {
             p.word("when")?;
             let event = event(p)?;
             p.tok(&Tok::Comma)?;
-            Some(vec![Effect::DelayedWhen { event, then: clauses(p)? }])
+            Some(vec![Effect::DelayedWhen { event, then: delayed_body(p)? }])
         },
         |p| {
             p.words("for each card type ,")?;
@@ -336,7 +327,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                 _ => Effect::Instead { cond, then },
             }])
         },
-        |p| { p.words("at the beginning of")?; let step = step(p)?; p.tok(&Tok::Comma)?; let then = clauses(p)?; Some(vec![Effect::Delayed { step, then }]) },
+        |p| { p.words("at the beginning of")?; let step = step(p)?; p.tok(&Tok::Comma)?; let then = delayed_body(p)?; Some(vec![Effect::Delayed { step, then }]) },
         |p| {
             let dur = duration(p)?;
             p.tok(&Tok::Comma)?;
@@ -451,6 +442,30 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             Some(vec![if v.len() == 1 { v.remove(0) } else { Effect::Or(v) }])
         },
     )
+}
+
+/// A delayed trigger's effect: its clauses, and the sentences after them.
+/// "Whenever you attack this turn, create two tokens …. Sacrifice them at
+/// the beginning of the next end step.": the tokens exist only once it has
+/// triggered, so the sentences that follow are its (CR 603.7). Not a
+/// sentence that is a trigger of its own (Phantasmal Mount's second "When
+/// …"), and not one that names a new target: the spell's targets are chosen
+/// as it is cast (CR 601.2c), so Time to Feed's "Target creature you control
+/// fights that creature" happens as the spell resolves, not when the
+/// creature dies.
+fn delayed_body(p: &mut P) -> Option<Vec<Effect>> {
+    let mut then = clauses(p)?;
+    while let Some(more) = p.attempt(|p| {
+        p.end_sentence()?;
+        let own_trigger = p.at("when") || p.at("whenever") || p.at("at");
+        if own_trigger || p.ahead("target") {
+            return None;
+        }
+        clauses(p)
+    }) {
+        then.extend(more);
+    }
+    Some(then)
 }
 
 /// Verbs that start a clause with no subject of their own.

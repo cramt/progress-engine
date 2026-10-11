@@ -811,6 +811,55 @@ mod tests {
     }
 
     #[test]
+    fn the_sentences_after_a_delayed_trigger_are_its() {
+        let a = read(
+            "Some Encampment",
+            "Land",
+            "{2}{W}, {T}: Whenever you attack this turn, create two 1/1 red Warrior creature tokens that are tapped and attacking. Sacrifice them at the beginning of the next end step.",
+        );
+        let Ability::Activated { effect, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        // The tokens exist only once it has triggered, so each attack makes
+        // its own and sacrifices its own.
+        let [Effect::During { then, .. }] = &effect[..] else {
+            panic!("{effect:?}")
+        };
+        assert!(matches!(&then[..], [Effect::DelayedWhenever { then, .. }]
+            if matches!(&then[..], [Effect::Create { .. }, Effect::Delayed { .. }])));
+        // A sentence naming a new target is the spell's, chosen as it is
+        // cast; a second "When …" is a trigger of its own.
+        let a = read(
+            "Some Feeding",
+            "Sorcery",
+            "Choose target creature an opponent controls. When that creature dies this turn, you gain 3 life. Target creature you control fights that creature.",
+        );
+        let Ability::Spell(effect) = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert!(
+            matches!(
+                &effect[..],
+                [
+                    Effect::Choose(_),
+                    Effect::During { .. },
+                    Effect::Fight { .. }
+                ]
+            ),
+            "{effect:?}"
+        );
+        let a = read(
+            "Some Mount",
+            "Creature — Horse",
+            "{T}: Target creature you control gets +1/+1 until end of turn. When this creature leaves the battlefield this turn, sacrifice that creature. When the creature leaves the battlefield this turn, sacrifice this creature.",
+        );
+        let Ability::Activated { effect, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert_eq!(effect.len(), 3, "{effect:?}");
+    }
+
+    #[test]
     fn protection_from_two_qualities_is_two_protection_abilities() {
         let a = read(
             "Some Riftwalker",

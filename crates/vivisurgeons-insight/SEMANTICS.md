@@ -21,6 +21,8 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "When a creature card is exiled this way, …" | `WhenThisWay`, a reflexive trigger | settled: CR 603.12 |
 | "When that creature dies this turn, …", "Whenever you attack this turn, …" | `During { ThisTurn, [DelayedWhen … ] }` | settled: the delayed trigger lasts the turn |
 | "If you do, at the beginning of your first upkeep, look at the top four cards …. You may put one of those cards back …. Exile the rest." | every sentence after the delayed trigger is its | settled: "those cards" are the ones it looked at, which exist only then |
+| "Whenever you attack this turn, create two … tokens …. Sacrifice them at the beginning of the next end step." | the same for every delayed trigger said first in its sentence (`Delayed`, `DelayedWhen`, `DelayedWhenever`, alone or for the turn): the sentences after it are its | settled: CR 603.7; each attack makes its own tokens, so each sacrifices its own. Dalkovan Encampment, Phelia, the Pacts |
+| "When that creature dies this turn, you gain 3 life. Target creature you control fights that creature." | the sentence after it is the spell's when it names a new target, or is a trigger of its own ("When …", "At …") | settled: a spell's targets are chosen as it is cast (CR 601.2c), so Time to Feed's fight happens as it resolves; Phantasmal Mount's two "When …" sentences are two delayed triggers |
 | "Whenever you cast … during your turn", "… while this creature has a -1/-1 counter on it" | `Event::While` on the event | settled |
 
 ## Objects and players
