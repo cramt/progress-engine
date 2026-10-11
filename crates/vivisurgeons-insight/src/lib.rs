@@ -1072,6 +1072,48 @@ mod tests {
     }
 
     #[test]
+    fn a_qualifier_after_a_list_said_with_one_article_holds_of_each_kind() {
+        let posts = |text: &str| {
+            let a = read("Some Stupor", "Instant", text);
+            let Ability::Spell(e) = &a[0] else {
+                panic!("{a:?}")
+            };
+            let Effect::Move { what, .. } = &e[0] else {
+                panic!("{e:?}")
+            };
+            (
+                what.filter.posts.clone(),
+                what.filter.or.as_ref().unwrap().posts.clone(),
+            )
+        };
+        // A spell has a controller (CR 601.2a), so an opponent's spell only.
+        let (spell, permanent) = posts(
+            "Return target spell or nonland permanent an opponent controls to its owner's hand.",
+        );
+        assert_eq!(spell, vec![Post::Controller(Player::AnOpponent)]);
+        assert_eq!(spell, permanent);
+        let (spell, permanent) = posts(
+            "Return target spell or permanent with mana value 1 or greater to its owner's hand.",
+        );
+        assert!(!spell.is_empty() && spell == permanent);
+        // A card in a graveyard has no controller and is in no other zone.
+        let (spell, _) = posts(
+            "Return target spell, nonland permanent, or card in a graveyard to its owner's hand.",
+        );
+        assert!(spell.is_empty());
+        // With the article said again, what trails is the last kind's.
+        let a = read(
+            "Some Teachings",
+            "Instant",
+            "Search your library for an instant card or a card with flash, reveal it, put it into your hand, then shuffle.",
+        );
+        assert!(
+            format!("{a:?}").contains("kind: Some(Card), posts: [], or: Some"),
+            "{a:?}"
+        );
+    }
+
+    #[test]
     fn protection_from_two_qualities_is_two_protection_abilities() {
         let a = read(
             "Some Riftwalker",

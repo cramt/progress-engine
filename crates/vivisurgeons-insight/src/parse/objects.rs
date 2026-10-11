@@ -370,6 +370,9 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
     // must name their kind, or "creature or planeswalker" would split here
     // instead of reading as one filter's alternatives above.
     let bare_kind = groups.is_empty();
+    // "an instant card or a card with flash": an article said again starts
+    // a noun phrase of its own, so what trails it is its alone.
+    let mut article_again = false;
     let or = match (&kind, or_kind) {
         // Its posts follow the kind word but hold of both: "creature or
         // token you control".
@@ -378,36 +381,43 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
             posts: posts.clone(),
             ..Filter::default()
         })),
-        (Some(_), None) => p.attempt(|p| {
-            // A list of kinds: "instant spell, sorcery spell, activated
-            // ability, or triggered ability"; the comma needs a kind after it.
-            let comma = p.attempt(|p| p.tok(&Tok::Comma)).is_some();
-            let or = p.attempt(|p| p.word("or")).is_some();
-            if !or && !comma {
-                return None;
-            }
-            // "a token or a land": after a bare kind, the second may be types;
-            // "an instant card or a card with flash": after "or", a second
-            // kind may take its own article.
-            if bare_kind || or {
-                p.attempt(|p| p.one_of(&["a", "an"]));
-            }
-            let f = filter(p)?;
-            // A comma with no "or" yet must be in a list that ends in one,
-            // or "an enchantment spell, counter it" would read as a list.
-            if comma && !or && f.or.is_none() {
-                return None;
-            }
-            if matches!(f.kind, Some(Noun::Counter(_))) {
-                return None;
-            }
-            (f.kind.is_some() || bare_kind && !f.alts.is_empty() && !comma).then_some(Box::new(f))
-        }),
+        (Some(_), None) => p
+            .attempt(|p| {
+                // A list of kinds: "instant spell, sorcery spell, activated
+                // ability, or triggered ability"; the comma needs a kind after it.
+                let comma = p.attempt(|p| p.tok(&Tok::Comma)).is_some();
+                let or = p.attempt(|p| p.word("or")).is_some();
+                if !or && !comma {
+                    return None;
+                }
+                // "a token or a land": after a bare kind, the second may be types;
+                // "an instant card or a card with flash": after "or", a second
+                // kind may take its own article.
+                let again = (bare_kind || or) && p.attempt(|p| p.one_of(&["a", "an"])).is_some();
+                let f = filter(p)?;
+                // A comma with no "or" yet must be in a list that ends in one,
+                // or "an enchantment spell, counter it" would read as a list.
+                if comma && !or && f.or.is_none() {
+                    return None;
+                }
+                if matches!(f.kind, Some(Noun::Counter(_))) {
+                    return None;
+                }
+                (f.kind.is_some() || bare_kind && !f.alts.is_empty() && !comma)
+                    .then_some((Box::new(f), again))
+            })
+            .map(|(f, again)| {
+                article_again = again;
+                f
+            }),
         (None, None) => None,
     };
     let mut or = or;
     if kind.is_some() {
         share_with_kinds(&groups, kind == Some(Noun::Card), &mut posts, &mut or);
+        if !article_again && posts.is_empty() {
+            share_trailing(kind.as_ref(), &mut posts, &or);
+        }
     }
     Some(Filter {
         alts: groups,
@@ -446,8 +456,14 @@ fn share_with_kinds(
     }
     // Only to kinds said with nothing after them: "a card revealed this way
     // or a card in their graveyard" names a card in hand first.
+    // "a Plains card or a creature card … from among the cards milled this
+    // way": where the cards are picked from is a zone too.
     let zone = match last.posts.last() {
-        Some(q @ Post::In(_)) if all_cards && posts.is_empty() => Some(q.clone()),
+        Some(q @ (Post::In(_) | Post::FromAmong(_) | Post::FromAmongThem))
+            if all_cards && posts.is_empty() =>
+        {
+            Some(q.clone())
+        }
         _ => None,
     };
     if let Some(z) = &zone {
@@ -465,6 +481,31 @@ fn share_with_kinds(
             }
         }
         next = f.or.as_deref_mut();
+    }
+}
+
+/// "target spell or nonland permanent an opponent controls", "target spell
+/// or permanent with mana value 1 or greater": with one article for the
+/// list, what trails it holds of each kind it can. A spell has a controller
+/// (CR 601.2a) as a permanent does (CR 110.2); a card elsewhere has none
+/// (CR 108.4), and a zone is shared only among cards (`share_with_kinds`).
+fn share_trailing(kind: Option<&Noun>, posts: &mut Vec<Post>, or: &Option<Box<Filter>>) {
+    let Some(mut last) = or.as_deref() else {
+        return;
+    };
+    while let Some(next) = last.or.as_deref() {
+        last = next;
+    }
+    let holds = |q: &Post| match q {
+        Post::In(_) | Post::NotIn(_) => false,
+        Post::Controller(_) | Post::NotControlledBy(_) => {
+            matches!(kind, Some(Noun::Spell | Noun::Permanent))
+        }
+        Post::With(_) | Post::ThatIs(_) => true,
+        _ => false,
+    };
+    if !last.posts.is_empty() && last.posts.iter().all(holds) {
+        posts.extend(last.posts.iter().cloned());
     }
 }
 

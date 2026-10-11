@@ -2778,15 +2778,20 @@ fn filter_q(o: &mut Out, f: &Filter, n: Num, another: bool) {
             next = x.or.as_deref();
         }
     }
-    // "a creature card or a planeswalker card from your graveyard": a zone
-    // each kind is in, said once after the last (as `filter` shares it).
-    let shared_zone = chain
-        .last()
-        .and_then(|l| l.posts.last())
-        .filter(|q| matches!(q, Post::In(_)) && f.posts.last() == Some(*q));
+    // "a creature card or a planeswalker card from your graveyard", "target
+    // spell or nonland permanent an opponent controls": what holds of each
+    // kind, said once after the last (as `filter` shares it).
+    let shared: &[Post] = match chain.last() {
+        Some(l) if !l.posts.is_empty() && f.posts.ends_with(&l.posts) => &l.posts,
+        Some(l) => match l.posts.last() {
+            Some(q) if f.posts.last() == Some(q) => std::slice::from_ref(q),
+            _ => &[],
+        },
+        None => &[],
+    };
     let without_zone = |ps: &[Post]| -> Vec<Post> {
-        match (shared_zone, ps.split_last()) {
-            (Some(z), Some((last, rest))) if last == z => rest.to_vec(),
+        match ps.strip_suffix(shared) {
+            Some(rest) if !shared.is_empty() => rest.to_vec(),
             _ => ps.to_vec(),
         }
     };

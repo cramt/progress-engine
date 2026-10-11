@@ -5894,7 +5894,7 @@ type: Artifact
 face: Sink into Stupor
 type: Instant
 > Return target spell or nonland permanent an opponent controls to its owner's hand.
-= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: Some(Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None }) } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }])
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [Controller(AnOpponent)], or: Some(Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None }) } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }])
 
 ## Sink into Stupor // Soporific Springs
 face: Soporific Springs
