@@ -448,6 +448,13 @@ mod syn {
         alt(o, vec![with, have]);
     }
 
+    /// "your life total becomes equal to your starting life total" and "…
+    /// becomes half your starting life total": the value, with or without
+    /// "equal to".
+    pub fn becomes_equal_to(o: &mut Out) {
+        alt(o, vec![of("equal to"), Out::default()]);
+    }
+
     pub fn different_values(o: &mut Out, s: Stat) {
         let plural = match s {
             Stat::Power => "powers",
@@ -2303,6 +2310,10 @@ fn measure(o: &mut Out, a: &Amount) {
         Amount::LifeTotal(p) => {
             whose(o, p);
             o.w("life total");
+        }
+        Amount::StartingLifeTotal(p) => {
+            whose(o, p);
+            o.w("starting life total");
         }
         Amount::NumberOfBasicLandTypes(x) => {
             o.w("the number of basic land types among");
@@ -5982,8 +5993,40 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             amount_a(o, n);
             o.w("of each");
         }
+        Effect::LifeTotalBecomes { who, n } => {
+            whose(o, who);
+            o.w("life total becomes");
+            if is_measure(n) {
+                syn::becomes_equal_to(o);
+                measure(o, n);
+            } else {
+                amount(o, n);
+            }
+        }
         Effect::InsteadOf { then, of } => {
             effect(o, then, cx);
+            // "instead of into that player's graveyard": the verb and its
+            // object said once, for the same object.
+            if let (
+                Effect::Move { what: w1, .. },
+                Effect::Move {
+                    what: w2, to: z, ..
+                },
+            ) = (&**then, &**of)
+            {
+                if w1 == w2 && !matches!(z, Zone::AnywhereOtherThan(_)) {
+                    let full = out(|o| {
+                        o.w("instead of putting");
+                        move_put_rest(o, of);
+                    });
+                    let elided = out(|o| {
+                        o.w("instead of into");
+                        zone(o, z);
+                    });
+                    syn::gapped(o, full, elided);
+                    return;
+                }
+            }
             o.w("instead of putting");
             match &**of {
                 Effect::Move {
@@ -7394,6 +7437,12 @@ fn palette_named(o: &mut Out, p: &Palette) {
 
 fn trigger(o: &mut Out, t: &Trigger) {
     match t {
+        Trigger::WhenAndAt(e, s) => {
+            syn::when(o);
+            event(o, e);
+            o.w("and at the beginning of");
+            step(o, s);
+        }
         Trigger::At(s) => {
             o.w("at the beginning of");
             step(o, s);

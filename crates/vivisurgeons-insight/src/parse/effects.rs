@@ -633,6 +633,17 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             Some(Effect::Becomes { what, pt, types, gains, keeps, dur })
         },
         |p| { let who = subject_player(p); p.verb("win")?; p.words("the game")?; Some(Effect::WinGame(who)) },
+        // "your life total becomes 15", "target player's life total becomes 10".
+        |p| {
+            let who = whose(p)?;
+            p.words("life total becomes")?;
+            let n = alt!(p;
+                |p| { p.words("equal to")?; measure(p) },
+                measure,
+                amount,
+            )?;
+            Some(Effect::LifeTotalBecomes { who, n })
+        },
         |p| {
             p.words("roll a")?;
             match p.peek_word()?.strip_prefix('d')?.parse() {

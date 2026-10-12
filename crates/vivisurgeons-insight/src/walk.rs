@@ -151,6 +151,9 @@ impl Walk for Amount {
     fn walk(&mut self, v: &mut dyn Visitor) {
         v.amount(self);
         match self {
+            Amount::StartingLifeTotal(f0) => {
+                Walk::walk(f0, v);
+            }
             Amount::AnyOf(f0) => {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);
@@ -597,6 +600,10 @@ impl Walk for Effect {
             }
             Effect::DiscardHand(f0) => {
                 Walk::walk(f0, v);
+            }
+            Effect::LifeTotalBecomes { who, n } => {
+                Walk::walk(who, v);
+                Walk::walk(n, v);
             }
             Effect::Damage { source, n, to } => {
                 if let Some(x0) = (source).as_mut() {
@@ -2583,6 +2590,9 @@ impl Walk for Trigger {
             Trigger::InterveningIf(f0, f1) => {
                 Walk::walk(&mut **f0, v);
                 Walk::walk(&mut **f1, v);
+            }
+            Trigger::WhenAndAt(f0, _) => {
+                Walk::walk(&mut **f0, v);
             }
             _ => {}
         }

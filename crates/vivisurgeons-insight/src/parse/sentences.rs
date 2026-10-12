@@ -85,6 +85,23 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
                 then: Box::new(e),
                 of: Box::new(of),
             };
+        } else if let Some(to) = p.attempt(|p| {
+            // "put it on top of its owner's library instead of into that
+            // player's graveyard": the same object, its verb said once.
+            if !matches!(e, Effect::Move { .. }) {
+                return None;
+            }
+            p.words("instead of into")?;
+            zone(p)
+        }) {
+            let Effect::Move { what, .. } = &e else {
+                unreachable!("checked above")
+            };
+            let of = Effect::Move { what: what.clone(), from: None, to, tapped: false, transformed: false, under: None, order: None };
+            e = Effect::InsteadOf {
+                then: Box::new(e),
+                of: Box::new(of),
+            };
         } else if let Some(s) = p.attempt(|p| {
             p.words("at the beginning of")?;
             step(p)

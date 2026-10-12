@@ -380,6 +380,10 @@ pub(super) fn trigger(p: &mut P) -> Option<Trigger> {
             // "When this creature enters and whenever an opponent draws …":
             // two trigger conditions for one effect (CR 603.1b), which is
             // one trigger on either event.
+            // "When this artifact enters and at the beginning of your upkeep".
+            if let Some(s) = p.attempt(|p| { p.words("and at the beginning of")?; step(p) }) {
+                return Some(Trigger::WhenAndAt(Box::new(e), s));
+            }
             Some(Trigger::When(Box::new(match p.attempt(|p| { p.word("and")?; p.one_of(&["whenever", "when"])?; event(p) }) {
                 Some(more) => Event::Or(vec![e, more]),
                 None => e,

@@ -123,6 +123,7 @@ fn measure_bare(p: &mut P) -> Option<Amount> {
         },
         |p| { p.words("the amount of")?; sym(p, "E")?; p.words("paid this way").map(|_| Amount::EnergyPaidThisWay) },
         |p| p.words("that number").map(|_| Amount::ThatNumber),
+        |p| { let w = whose(p)?; p.words("starting life total")?; Some(Amount::StartingLifeTotal(w)) },
         // "three minus X".
         |p| {
             let a = number(p)?;

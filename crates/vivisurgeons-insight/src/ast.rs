@@ -292,6 +292,8 @@ pub enum SpendUse {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Amount {
+    /// "your starting life total" (CR 119.1).
+    StartingLifeTotal(Player),
     /// "with mana value 4, 5, or 6", "2 or 3": any one of the values, in a
     /// comparison for equality.
     AnyOf(Vec<Amount>),
@@ -1006,6 +1008,13 @@ pub enum Effect {
         random: bool,
     },
     DiscardHand(Player),
+    /// "your life total becomes 15", "… becomes half your starting life
+    /// total, rounded up": the player gains or loses the life needed to end
+    /// with it (CR 119.5).
+    LifeTotalBecomes {
+        who: Player,
+        n: Amount,
+    },
     Damage {
         source: Option<Objects>,
         n: Amount,
@@ -2060,6 +2069,9 @@ pub enum Trigger {
     /// "When ~ enters, if you cast it, …": checked as it triggers and again
     /// as it resolves (CR 603.4).
     InterveningIf(Box<Trigger>, Box<Condition>),
+    /// "When this artifact enters and at the beginning of your upkeep": one
+    /// ability with two trigger conditions (CR 603.1b), an event and a step.
+    WhenAndAt(Box<Event>, Step),
 }
 
 #[derive(Clone, Debug, PartialEq)]
