@@ -217,6 +217,12 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
         },
         |p| { let who = player(p)?; p.verb("cast")?; let what = objects(p)?; Some(casts(who, what)) },
         |p| { let who = player(p)?; p.verb("gain")?; p.word("life")?; Some(Event::GainsLife(who)) },
+        |p| {
+            let who = player(p)?;
+            p.verb("roll")?;
+            let each_die = p.one_of(&["one or more dice", "a die"])? == "a die";
+            Some(Event::RollsDice { who, each_die })
+        },
         |p| { let who = player(p)?; p.verb("lose")?; p.word("life")?; Some(Event::LosesLife(who)) },
         |p| {
             let who = player(p)?;

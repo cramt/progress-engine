@@ -1423,6 +1423,9 @@ impl Walk for Event {
             Event::GainsLife(f0) => {
                 Walk::walk(f0, v);
             }
+            Event::RollsDice { who, .. } => {
+                Walk::walk(who, v);
+            }
             Event::LosesLife(f0) => {
                 Walk::walk(f0, v);
             }

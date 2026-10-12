@@ -2158,6 +2158,13 @@ pub enum Event {
         what: Objects,
     },
     GainsLife(Player),
+    /// "Whenever you roll one or more dice" (once per instruction to roll,
+    /// the planar die among them, CR 706.7), "Whenever you roll a die"
+    /// (`each_die`: once per die rolled).
+    RollsDice {
+        who: Player,
+        each_die: bool,
+    },
     LosesLife(Player),
     Draws(Player),
     Discards {

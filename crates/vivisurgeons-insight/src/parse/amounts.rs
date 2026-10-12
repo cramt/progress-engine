@@ -123,6 +123,8 @@ fn measure_bare(p: &mut P) -> Option<Amount> {
         },
         |p| { p.words("the amount of")?; sym(p, "E")?; p.words("paid this way").map(|_| Amount::EnergyPaidThisWay) },
         |p| p.words("that number").map(|_| Amount::ThatNumber),
+        // "equal to the result", "where X is the result": a die's.
+        |p| p.words("the result").map(|_| Amount::DieResult),
         // "draw cards equal to the difference", not "the difference between
         // those results", which names its two sides.
         |p| { p.words("the difference")?; (p.peek_word() != Some("between")).then_some(Amount::TheDifference) },

@@ -7968,6 +7968,15 @@ fn event(o: &mut Out, e: &Event) {
             o.verb("gain", player_num(p));
             o.w("life");
         }
+        Event::RollsDice { who, each_die } => {
+            player(o, who);
+            o.verb("roll", player_num(who));
+            o.w(if *each_die {
+                "a die"
+            } else {
+                "one or more dice"
+            });
+        }
         Event::LosesLife(p) => {
             player(o, p);
             o.verb("lose", player_num(p));
@@ -8321,6 +8330,7 @@ fn event_subject(e: &Event) -> Option<Subject<'_>> {
             ..
         } => Subject::Player(who),
         Event::GainsLife(p)
+        | Event::RollsDice { who: p, .. }
         | Event::LosesLife(p)
         | Event::Draws(p)
         | Event::PlaysLand(p)
