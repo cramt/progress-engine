@@ -1322,6 +1322,9 @@ fn brings_in(e: &Effect) -> bool {
             ..
         } => what.quant != Quant::SelfRef,
         Effect::Exile(what) => what.quant != Quant::SelfRef,
+        // "If you do, exile the top card of your library face down. You may
+        // look at that card …" (Intet): a card exiled is a new object.
+        Effect::ExileFaceDown(what) => what.quant != Quant::SelfRef,
         Effect::Move { what, .. }
         | Effect::Search { what, .. }
         | Effect::Reveal { what, .. }
@@ -1360,6 +1363,12 @@ fn refers_back(e: &Effect) -> bool {
     match e {
         Effect::If { cond, .. } if tested(cond).is_some() => true,
         Effect::Cast { what, .. } => it(what),
+        // "You may look at that card for as long as it remains exiled" (Intet).
+        Effect::LookAt { what, .. } => it(what),
+        // "Put that card onto the battlefield tapped and attacking" (Fireflux
+        // Squad), "return it … with a +1/+1 counter on it": said of the
+        // moved card.
+        Effect::EntersWith { effect, .. } | Effect::EntersAttacking(effect) => refers_back(effect),
         Effect::May { then, .. } => then.first().is_some_and(refers_back),
         Effect::Modify { what, .. }
         | Effect::GrantAbility { what, .. }
