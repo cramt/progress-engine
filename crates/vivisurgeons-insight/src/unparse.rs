@@ -3300,7 +3300,12 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             o.w("of the game");
         }
         Quant::WithAllOthers(one) => {
-            objects(o, one);
+            // The zone said once after the rest holds of the head too.
+            let mut one = (**one).clone();
+            one.filter
+                .posts
+                .retain(|q| !(matches!(q, Post::In(_)) && f.posts.contains(q)));
+            objects(o, &one);
             o.w("and all other");
             filter(o, f, Num::Pl);
         }

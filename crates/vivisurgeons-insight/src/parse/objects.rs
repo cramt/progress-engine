@@ -1474,6 +1474,15 @@ fn objects_read(p: &mut P) -> Option<Objects> {
             let first = filter(p)?;
             p.words("and all other")?;
             let rest = filter(p)?;
+            let mut first = first;
+            // "target creature card and all other cards with the same name
+            // as that card from your graveyard": the zone holds of the
+            // target card too ([same-name-zone], [zone-after-cards]).
+            if first.kind == Some(Noun::Card) && !first.posts.iter().any(|q| matches!(q, Post::In(_))) {
+                if let Some(z) = rest.posts.iter().find(|q| matches!(q, Post::In(_))) {
+                    first.posts.push(z.clone());
+                }
+            }
             Some(Objects { quant: Quant::WithAllOthers(Box::new(Objects { quant, filter: first })), filter: rest })
         },
         |p| {
