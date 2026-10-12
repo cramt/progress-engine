@@ -973,6 +973,7 @@ fn refer_to_the_card(statics: &mut [Static]) {
                 if subjects.iter().all(|t| t.as_ref() == Some(s)) {
                     if let Some(to) = clause_object(&s.quant).filter(|_| s.quant != Quant::SelfRef)
                     {
+                        others_than_clause_object(cond, &to, s);
                         cond.walk(&mut Bare(to));
                     }
                 }
@@ -1021,17 +1022,20 @@ impl Visitor for Bare {
 /// ([trailing-if]). A clause that names its object by a reference back
 /// leaves them alone: both point at the same earlier noun.
 pub(super) fn after_clause(clause: &Effect, cond: &mut Condition) {
-    struct Named(Vec<Quant>);
+    struct Named(Vec<Objects>);
     impl Visitor for Named {
         fn enter(&mut self, o: &mut Objects) -> bool {
-            self.0.push(o.quant.clone());
+            self.0.push(o.clone());
             false
         }
     }
     let mut named = Named(Vec::new());
     clause.clone().walk(&mut named);
-    let [q] = named.0.as_slice() else { return };
-    let Some(to) = clause_object(q) else { return };
+    let [one] = named.0.as_slice() else { return };
+    let Some(to) = clause_object(&one.quant) else {
+        return;
+    };
+    others_than_clause_object(cond, &to, one);
     struct Bind(Quant);
     impl Visitor for Bind {
         fn enter(&mut self, o: &mut Objects) -> bool {
@@ -1046,6 +1050,33 @@ pub(super) fn after_clause(clause: &Effect, cond: &mut Condition) {
         }
     }
     cond.walk(&mut Bind(to));
+}
+
+/// "each creature you control gets +1/+1 … if it has the same name as
+/// another creature you control", "Enchanted creature has shroud as long as
+/// its controller controls another creature": "another" of the clause
+/// object's kind in its trailing condition is other than that object, the
+/// one bound or each in turn ([other-than-subject]): `Quant::One` with
+/// `OtherThan`. `Quant::Another` alone is other than the card itself.
+fn others_than_clause_object(cond: &mut Condition, to: &Quant, of: &Objects) {
+    struct Others<'a>(Objects, Vec<&'a Adj>);
+    impl Visitor for Others<'_> {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            if o.quant == Quant::Another {
+                other_than(o, &self.0, Some(&self.1));
+            }
+            true
+        }
+    }
+    let like = kinds(&of.filter);
+    if like.is_empty() {
+        return;
+    }
+    let than = Objects {
+        quant: to.clone(),
+        filter: Filter::default(),
+    };
+    cond.walk(&mut Others(than, like));
 }
 
 /// Every reference back in a clause said before a trailing "for each".

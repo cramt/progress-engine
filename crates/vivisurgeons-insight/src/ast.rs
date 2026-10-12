@@ -515,6 +515,10 @@ pub enum Quant {
     /// picks, with no bound, where "up to X target" has one.
     AnyNumberOfTarget,
     UpTo(Amount),
+    /// "another creature": one object other than the card itself. Where the text means other than some other
+    /// object (the trigger's, a clause's target, each of a set in turn) the
+    /// tree says `One` with `Adj::OtherThan(that object)` instead
+    /// ([other-than-trigger], [other-than-subject], [other-than-named-before]).
     Another,
     AnotherTarget,
     /// "a second target permanent": another use of "target", which may
