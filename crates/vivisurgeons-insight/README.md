@@ -70,11 +70,12 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
 | EDHREC top 1000 | 990/990 | 1800/1800 | done |
-| Standard after the early-2027 rotation | 2933/3517 (83.4%) | 6431/7054 (91.2%) | |
+| My decks: every card in the 17 decks of cramt/mtg | 851/1022 (83.3%) | 1948/2134 (91.3%) | |
+| Standard after the early-2027 rotation | 2941/3517 (83.6%) | 6440/7054 (91.3%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 3997/5157 (77.5%) | 9133/10420 (87.6%) | |
-| EDHREC top 2000 | 1733/1986 (87.3%) | 3556/3847 (92.4%) | |
-| EDHREC top 5000 | 3787/4975 (76.1%) | 8723/10100 (86.4%) | |
+| All of Standard | 4016/5157 (77.9%) | 9153/10420 (87.8%) | |
+| EDHREC top 2000 | 1743/1986 (87.8%) | 3567/3847 (92.7%) | |
+| EDHREC top 5000 | 3813/4975 (76.6%) | 8756/10100 (86.7%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
@@ -122,8 +123,8 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 |---|---|
 | EDHREC top 1000 (pinned) | 1800/1800 (100%) |
 | Modern metagame (pinned) | 1164/1164 (100%) |
-| EDHREC top 2000 | 3554/3556 (99.9%) |
-| All parsed abilities | 49653/49692 (99.9%) |
+| EDHREC top 2000 | 3564/3567 (99.9%) |
+| All parsed abilities | 49843/49884 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading
@@ -162,7 +163,7 @@ own" (in Two-Headed Giant a teammate owns cards too), "choose target
 opponent" as "choose an opponent" (which does not target), a Saga's "II —"
 as an ability word, a sorcery's "The next Dragon spell you cast costs …" as
 a static, and a bare "its graveyard" as its controller's (CR 400.3 makes it
-the owner's). The 47 corpus abilities that still do not round-trip are
+the owner's). The 41 corpus abilities that still do not round-trip are
 listed by `insight roundtrip`.
 
 After round 4 the parser read an evenly spaced sample of 25 successful parses.
