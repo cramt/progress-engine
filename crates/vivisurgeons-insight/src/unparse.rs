@@ -462,6 +462,17 @@ mod syn {
         alt(o, vec![yours, cast]);
     }
 
+    /// "a creature card is exiled this way", "… was exiled this way": the
+    /// tense of a passive said of what this very ability did changes
+    /// nothing; the verb agrees with its subject.
+    pub fn passive_be(o: &mut Out, n: Num) {
+        match n {
+            Num::Sg => any_of(o, &["is", "was"]),
+            Num::Pl => any_of(o, &["are", "were"]),
+            Num::Any => any_of(o, &["is", "was", "are", "were"]),
+        }
+    }
+
     pub fn different_values(o: &mut Out, s: Stat) {
         let plural = match s {
             Stat::Power => "powers",
@@ -8266,6 +8277,12 @@ fn condition(o: &mut Out, c: &Condition) {
             syn::control_no(o, no, dont);
         }
         Condition::ItsYourTurn => o.w("it's your turn"),
+        Condition::DoneThisWay { what, how } => {
+            objects(o, what);
+            syn::passive_be(o, obj_num(what));
+            o.w(marked_word(*how));
+            o.w("this way");
+        }
         Condition::FirstCombatPhase { your_turn } => {
             o.w("it's the first combat phase of");
             o.w(if *your_turn { "your turn" } else { "the turn" });

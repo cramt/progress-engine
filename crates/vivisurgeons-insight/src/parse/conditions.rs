@@ -232,6 +232,15 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         },
         |p| { p.words("no mana was spent to cast")?; objects(p).map(Condition::NoManaSpentToCast) },
         |p| p.words("this spell was bargained").map(|_| Condition::WasBargained),
+        // "If a creature card was exiled this way".
+        |p| {
+            let what = objects(p)?;
+            if !matches!(what.quant, Quant::One | Quant::Another | Quant::AtLeast(_) | Quant::OneOrMore | Quant::N(_)) { return None; }
+            p.one_of(&["is", "was", "are", "were"])?;
+            let how = super::objects::marked(p)?;
+            p.words("this way")?;
+            Some(Condition::DoneThisWay { what, how })
+        },
         // "an opponent lost 2 or more life this turn", "an opponent was dealt
         // 7 or more damage this turn".
         |p| {

@@ -468,6 +468,9 @@ impl Walk for Condition {
                     Walk::walk(x0, v);
                 }
             }
+            Condition::DoneThisWay { what, .. } => {
+                Walk::walk(what, v);
+            }
             Condition::OwnAndControl(f0) => {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);

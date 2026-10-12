@@ -2885,6 +2885,13 @@ pub enum Condition {
     WasCast(Objects),
     /// "there is an instant card and a sorcery card in your graveyard".
     ThereAre(Vec<Objects>),
+    /// "If a creature card was exiled this way", "if an artifact is
+    /// destroyed this way": one of those objects is among what this
+    /// ability's verb acted on.
+    DoneThisWay {
+        what: Objects,
+        how: Marked,
+    },
     /// "you both own and control this land and a creature named …".
     OwnAndControl(Vec<Objects>),
     /// "damage is prevented this way".

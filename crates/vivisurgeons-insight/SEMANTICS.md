@@ -276,6 +276,7 @@ new row takes a new one.
 | [ability-cost-if] | "This ability costs {2} less to activate if you control a creature with a +1/+1 counter on it" | `Limit::CostChange { cond: Some(…) }` | settled: the reduction only while the condition holds as the cost is determined (CR 601.2f) |
 | [left-graveyard] | "if a card left your graveyard this turn" | `DidThisTurn(Leaves { a card, from: Graveyard(You) })` | settled: as "left the battlefield this turn" |
 | [sacrificed-this-way] | "If you sacrificed a creature this way", "if you sacrificed a permanent this turn" | `ThisWay(Sacrifices { … })`, `DidThisTurn(Sacrifices { … })` | settled: as "you exiled … this way" |
+| [done-this-way] | "If a creature card was exiled this way", "If an artifact is destroyed this way", "if at least one Zombie card is milled this way" | `Condition::DoneThisWay { what, how: Marked }` | settled: one of those objects is among what this ability's verb acted on, as the post "cards revealed this way" picks them out; the tense of the passive changes nothing (`syn::passive_be`) |
 | [for-each-color] | "draw a card for each color among permanents you control" | `ForEachColor { among, then: [Draw] }`, trailing as `ForEach` does | settled: once per color, the same tree as "For each color among …, draw a card" (`syn::position`) |
 ## Durations
 
