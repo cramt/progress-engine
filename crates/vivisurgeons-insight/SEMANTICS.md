@@ -146,6 +146,7 @@ new row takes a new one.
 | [the-next-step] | "the next end step", "the next turn's upkeep" | `Whose::Next`, `Whose::NextTurns`, not `The` | settled: "the next" may be a later turn's |
 | [first-main] | "first main phase" | `PrecombatMain` | settled: CR 505.1a |
 | [second-main] | "second main phase" | `SecondMain`, apart from "postcombat main phase" | settled: CR 505.1b counts main phases |
+| [first-combat-phase] | "if it's the first combat phase of the turn", "… of your turn" | `Condition::FirstCombatPhase { your_turn }` | settled: no combat phase came before this one this turn; extra combat phases are added after the phase that makes them (CR 500.8), so the condition keeps an untap-and-attack-again loop to one extra phase (Genji Glove, Karlach, Finest Hour, Raiyuu) |
 
 ## Effects
 

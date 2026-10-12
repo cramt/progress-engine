@@ -2679,6 +2679,12 @@ pub enum Condition {
     YouControl(Objects),
     YouDontControl(Objects),
     ItsYourTurn,
+    /// "if it's the first combat phase of the turn": no combat phase came
+    /// before this one this turn, where extra combat phases follow it (CR
+    /// 500.8); `your_turn` when said "of your turn", which it must also be.
+    FirstCombatPhase {
+        your_turn: bool,
+    },
     NotYourTurn,
     /// "during an opponent's turn", "it's an opponent's turn": apart from
     /// "not your turn", which a teammate's turn also is.

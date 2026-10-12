@@ -379,6 +379,11 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         |p| { p.words("you don't control")?; objects(p).map(Condition::YouDontControl) },
         |p| { p.words("an opponent controls")?; objects(p).map(|o| Condition::Opponent(Box::new(Condition::YouControl(o)))) },
         |p| p.words("it's your turn").map(|_| Condition::ItsYourTurn),
+        |p| {
+            p.words("it's the first combat phase of")?;
+            let your_turn = p.one_of(&["the turn", "your turn"])? == "your turn";
+            Some(Condition::FirstCombatPhase { your_turn })
+        },
         |p| p.words("it's not your turn").map(|_| Condition::NotYourTurn),
         |p| p.words("it's an opponent 's turn").map(|_| Condition::OpponentsTurn),
         |p| { p.words("you have")?; let n = number(p)?; p.words("or more life")?; Some(Condition::LifeAtLeast(n)) },

@@ -139,7 +139,17 @@ fn object_list(p: &mut P) -> Option<Vec<Objects>> {
     }) {
         v.push(o);
     }
-    (v.len() > 2).then_some(v)
+    if v.len() > 2 {
+        return Some(v);
+    }
+    // "Destroy target artifact and target enchantment", "untap it and all
+    // Samurai you control": two, where the clause ends after the second.
+    let second = p.attempt(|p| {
+        p.word("and")?;
+        let o = objects(p)?;
+        matches!(p.peek(), Some(Tok::Period | Tok::Comma) | None).then_some(o)
+    })?;
+    (v.len() == 1).then(|| vec![v.remove(0), second])
 }
 
 pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
@@ -149,6 +159,9 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             let v = object_list(p)?;
             Some(v.into_iter().map(|what| Effect::Destroy { what, no_regen: false }).collect())
         },
+        |p| { p.word("exile")?; object_list(p).map(|v| v.into_iter().map(Effect::Exile).collect()) },
+        |p| { p.word("tap")?; object_list(p).map(|v| v.into_iter().map(Effect::Tap).collect()) },
+        |p| { p.word("untap")?; object_list(p).map(|v| v.into_iter().map(Effect::Untap).collect()) },
         // "Whenever you attack this turn, …": a delayed trigger for the turn.
         |p| {
             p.word("whenever")?;

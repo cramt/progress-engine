@@ -70,12 +70,12 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
 | EDHREC top 1000 | 990/990 | 1800/1800 | done |
-| My decks: every card in the 17 decks of cramt/mtg | 858/1022 (84.0%) | 1957/2134 (91.7%) | |
-| Standard after the early-2027 rotation | 2949/3517 (83.8%) | 6449/7054 (91.4%) | |
+| My decks: every card in the 17 decks of cramt/mtg | 860/1022 (84.1%) | 1959/2134 (91.8%) | |
+| Standard after the early-2027 rotation | 2952/3517 (83.9%) | 6453/7054 (91.5%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 4027/5157 (78.1%) | 9166/10420 (88.0%) | |
-| EDHREC top 2000 | 1747/1986 (88.0%) | 3571/3847 (92.8%) | |
-| EDHREC top 5000 | 3831/4975 (77.0%) | 8777/10100 (86.9%) | |
+| All of Standard | 4030/5157 (78.1%) | 9170/10420 (88.0%) | |
+| EDHREC top 2000 | 1750/1986 (88.1%) | 3574/3847 (92.9%) | |
+| EDHREC top 5000 | 3838/4975 (77.1%) | 8785/10100 (87.0%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
@@ -123,8 +123,8 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 |---|---|
 | EDHREC top 1000 (pinned) | 1800/1800 (100%) |
 | Modern metagame (pinned) | 1164/1164 (100%) |
-| EDHREC top 2000 | 3568/3571 (99.9%) |
-| All parsed abilities | 49975/50016 (99.9%) |
+| EDHREC top 2000 | 3571/3574 (99.9%) |
+| All parsed abilities | 50015/50058 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading
@@ -163,7 +163,7 @@ own" (in Two-Headed Giant a teammate owns cards too), "choose target
 opponent" as "choose an opponent" (which does not target), a Saga's "II —"
 as an ability word, a sorcery's "The next Dragon spell you cast costs …" as
 a static, and a bare "its graveyard" as its controller's (CR 400.3 makes it
-the owner's). The 41 corpus abilities that still do not round-trip are
+the owner's). The 43 corpus abilities that still do not round-trip are
 listed by `insight roundtrip`.
 
 After round 4 the parser read an evenly spaced sample of 25 successful parses.

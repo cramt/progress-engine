@@ -4329,7 +4329,10 @@ fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
             }
             // "put two into your hand and the rest on the bottom".
             (Some(Effect::Move { .. }), Effect::Move { .. })
-            | (Some(Effect::Destroy { .. }), Effect::Destroy { .. }) => {
+            | (Some(Effect::Destroy { .. }), Effect::Destroy { .. })
+            | (Some(Effect::Exile(_)), Effect::Exile(_))
+            | (Some(Effect::Tap(_)), Effect::Tap(_))
+            | (Some(Effect::Untap(_)), Effect::Untap(_)) => {
                 let without = match e {
                     Effect::Move { .. } => out(|o| move_put_rest(o, e)),
                     _ => out(|o| o.0.extend(full.0.iter().skip(1).cloned())),
@@ -8125,6 +8128,10 @@ fn condition(o: &mut Out, c: &Condition) {
             syn::control_no(o, no, dont);
         }
         Condition::ItsYourTurn => o.w("it's your turn"),
+        Condition::FirstCombatPhase { your_turn } => {
+            o.w("it's the first combat phase of");
+            o.w(if *your_turn { "your turn" } else { "the turn" });
+        }
         Condition::NotYourTurn => o.w("it's not your turn"),
         Condition::OpponentsTurn => o.w("it's an opponent's turn"),
         Condition::LifeAtLeast(n) => {
