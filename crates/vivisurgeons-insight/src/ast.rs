@@ -813,6 +813,9 @@ pub enum Post {
     /// with an ability of that kind (for cycling, any typecycling too, CR
     /// 702.29f).
     WithAbilityOf(AbilityKind),
+    /// "with mana value of the chosen quality", "with power of that
+    /// quality": whose value has the parity chosen (odd or even).
+    OfChosenParity(Stat),
     /// "a spell with {X} in its mana cost": one whose mana cost has the
     /// symbol (CR 107.3), whatever X was chosen as.
     XInManaCost,
@@ -2917,6 +2920,8 @@ pub enum Condition {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Choice {
     Color,
+    /// "choose odd or even": a parity, zero being even.
+    OddOrEven,
     CreatureType,
     CardType,
     CardName,

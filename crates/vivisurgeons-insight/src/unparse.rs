@@ -485,6 +485,12 @@ mod syn {
         alt(o, vec![full, short]);
     }
 
+    /// "of the chosen quality" and "of that quality": the parity just
+    /// chosen, by either back-reference.
+    pub fn chosen_quality(o: &mut Out) {
+        any_of(o, &["of the chosen quality", "of that quality"]);
+    }
+
     pub fn different_values(o: &mut Out, s: Stat) {
         let plural = match s {
             Stat::Power => "powers",
@@ -3703,6 +3709,11 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.w("blocking");
         }
         Post::AttachedToIt => o.w("attached to it"),
+        Post::OfChosenParity(s) => {
+            o.w("with");
+            o.w(stat_name(*s));
+            syn::chosen_quality(o);
+        }
         Post::AttachedTo(x) => {
             that_is(o, n);
             o.w("attached to");
@@ -7281,6 +7292,7 @@ fn exceptions(o: &mut Out, es: &[Exception]) {
 fn choice(o: &mut Out, c: &Choice) {
     match c {
         Choice::Color => o.w("a color"),
+        Choice::OddOrEven => o.w("odd or even"),
         Choice::CreatureType => o.w("a creature type"),
         Choice::CardType => o.w("a card type"),
         Choice::CardName => o.w("a card name"),

@@ -707,6 +707,13 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| p.words("of the chosen type").map(|_| Post::OfChosenType),
         |p| p.words("of that type").map(|_| Post::OfThatType),
         |p| p.words("of the chosen color").map(|_| Post::OfChosenColor),
+        |p| {
+            p.word("with")?;
+            let s = stat(p)?;
+            p.word("of")?;
+            p.one_of(&["the chosen quality", "that quality"])?;
+            Some(Post::OfChosenParity(s))
+        },
         |p| p.words("of that color").map(|_| Post::OfThatColor),
         |p| p.words("attached to it").map(|_| Post::AttachedToIt),
         |p| {

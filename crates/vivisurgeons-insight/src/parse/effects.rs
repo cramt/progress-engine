@@ -944,6 +944,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             p.word("choose")?;
             let c = alt!(p;
                 |p| p.words("a color").map(|_| Choice::Color),
+                |p| p.words("odd or even").map(|_| Choice::OddOrEven),
                 |p| p.words("a creature type").map(|_| Choice::CreatureType),
                 |p| p.words("a card type").map(|_| Choice::CardType),
                 |p| p.words("a card name").map(|_| Choice::CardName),
