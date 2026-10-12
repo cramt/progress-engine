@@ -322,6 +322,13 @@ pub(super) fn restriction_bare(p: &mut P) -> Option<Restriction> {
         |p| { p.words("can block an additional")?; p.attempt(|p| p.word("creature")); p.words("each combat").map(|_| Restriction::CanBlockAdditional(Amount::N(1))) },
         |p| p.words("can block any number of creatures").map(|_| Restriction::CanBlockAnyNumber),
         |p| p.words("can't attack or block").map(|_| Restriction::CantAttackOrBlock),
+        // "can't block this creature", "can't block it": one attacker, the
+        // card or what was named before.
+        |p| {
+            p.words("can't block")?;
+            let o = objects(p)?;
+            matches!(o.quant, Quant::SelfRef | Quant::Antecedent).then_some(Restriction::CantBlockObject(o))
+        },
         |p| { p.words("can't block")?; filter(p).map(Restriction::CantBlockAny) },
         |p| p.words("can't block").map(|_| Restriction::CantBlock),
         // "can't attack you or planeswalkers you control".

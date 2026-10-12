@@ -2085,6 +2085,10 @@ pub enum Restriction {
     DoesntUntapNext,
     /// "can't block creatures you control".
     CantBlockAny(Filter),
+    /// "Target creature can't block this creature this turn", "Creatures
+    /// with power less than this creature's power can't block it": a
+    /// restriction on blocking one attacker (CR 509.1b).
+    CantBlockObject(Objects),
     /// "can't attack you or planeswalkers you control": any of these.
     CantAttackAnyOf(Vec<Recipient>),
     /// "attack a player other than you if able".

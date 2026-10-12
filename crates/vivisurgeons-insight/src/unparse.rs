@@ -5122,6 +5122,10 @@ fn restriction(o: &mut Out, r: &Restriction, n: Num) {
             o.w("can't block");
             filter(o, f, Num::Pl);
         }
+        Restriction::CantBlockObject(x) => {
+            o.w("can't block");
+            objects(o, x);
+        }
         Restriction::CantAttackAnyOf(v) => {
             o.w("can't attack");
             for (i, r) in v.iter().enumerate() {

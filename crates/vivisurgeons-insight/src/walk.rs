@@ -2191,6 +2191,9 @@ impl Walk for Restriction {
             Restriction::CantBlockAny(f0) => {
                 Walk::walk(f0, v);
             }
+            Restriction::CantBlockObject(f0) => {
+                Walk::walk(f0, v);
+            }
             Restriction::CantAttackAnyOf(f0) => {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);

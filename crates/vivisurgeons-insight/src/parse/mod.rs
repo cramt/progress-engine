@@ -907,6 +907,16 @@ fn refer_to_the_card(statics: &mut [Static]) {
                 continue;
             }
             Static::AsLongAs { .. } | Static::If { .. } => {}
+            // "Creatures with power less than this creature's power can't
+            // block it": the attacker a static's blockers can't block is the
+            // card; the plural subject would be "them".
+            Static::Restrict {
+                rule: Restriction::CantBlockObject(it),
+                ..
+            } if *it == antecedent() => {
+                it.quant = Quant::SelfRef;
+                continue;
+            }
             // "This creature enters with a +1/+1 counter on it for each
             // color of mana spent to cast it": a static whose subject is the
             // card says "it" for the card, as the condition in SEMANTICS [static-it-is-card] does.
