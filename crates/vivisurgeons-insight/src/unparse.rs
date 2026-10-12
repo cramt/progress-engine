@@ -1497,6 +1497,7 @@ pub fn ability(a: &Ability) -> Out {
                 o.quant,
                 Quant::Triggering
                     | Quant::BeforeEach
+                    | Quant::ClauseObject
                     | Quant::Itself
                     | Quant::Created
                     | Quant::ThisAbility
@@ -2817,6 +2818,7 @@ fn obj_num(x: &Objects) -> Num {
         // "one or more creatures … deals": the verb may agree with "one".
         Quant::Antecedent
         | Quant::BeforeEach
+        | Quant::ClauseObject
         | Quant::Itself
         | Quant::Created
         | Quant::ThisAbility
@@ -3105,6 +3107,7 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         ),
         // Said as any reference back is.
         Quant::BeforeEach
+        | Quant::ClauseObject
         | Quant::Itself
         | Quant::Created
         | Quant::ThisAbility

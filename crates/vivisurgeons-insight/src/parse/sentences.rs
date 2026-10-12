@@ -23,11 +23,12 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
                 who,
                 cost,
             };
-        } else if let Some(cond) = p.attempt(|p| {
+        } else if let Some(mut cond) = p.attempt(|p| {
             // "unless it has the same name as another card exiled this way".
             p.word("unless")?;
             condition(p)
         }) {
+            after_clause(&e, &mut cond);
             e = Effect::If {
                 cond: Condition::Not(Box::new(cond)),
                 then: vec![e],
@@ -58,10 +59,11 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
             measure(p)
         }) {
             e = Effect::Where { then: vec![e], x };
-        } else if let Some(cond) = p.attempt(|p| {
+        } else if let Some(mut cond) = p.attempt(|p| {
             p.word("if")?;
             condition(p)
         }) {
+            after_clause(&e, &mut cond);
             e = Effect::If {
                 cond,
                 then: vec![e],

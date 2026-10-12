@@ -820,6 +820,11 @@ fn trigger_object(e: &Event) -> Option<Objects> {
         | Event::AttacksWith { what, .. }
         | Event::AttacksAlone(what)
         | Event::AttacksUnblocked { what, .. }
+        // "Whenever a creature attacks enchanted player, put a +1/+1 counter
+        // on it", "Whenever this creature attacks a battle, it gets +1/+1":
+        // what is attacked is said only to say which attacks trigger it, as
+        // `AttacksUnblocked`'s player is ([attack-recipient]).
+        | Event::AttacksAnyOf { what, .. }
         // "Whenever this creature becomes the target of a spell or ability
         // you control …, put a +1/+1 counter on it": the spell is said
         // only to say what targets it; a reference back to the spell names
@@ -985,6 +990,44 @@ impl Visitor for Bare {
         }
         true
     }
+}
+
+/// An "if" said after its clause: its references back are the one object
+/// the clause names, when the clause names one by a noun of its own
+/// ([trailing-if]). A clause that names its object by a reference back
+/// leaves them alone: both point at the same earlier noun.
+pub(super) fn after_clause(clause: &Effect, cond: &mut Condition) {
+    struct Named(Vec<Quant>);
+    impl Visitor for Named {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            self.0.push(o.quant.clone());
+            false
+        }
+    }
+    let mut named = Named(Vec::new());
+    clause.clone().walk(&mut named);
+    let [q] = named.0.as_slice() else { return };
+    let fresh = matches!(
+        q,
+        Quant::Target { .. }
+            | Quant::AnyTarget { .. }
+            | Quant::AnotherTarget
+            | Quant::OtherTarget { .. }
+            | Quant::SecondTarget
+    );
+    if !fresh {
+        return;
+    }
+    struct Bind;
+    impl Visitor for Bind {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            if o.quant == Quant::Antecedent {
+                o.quant = Quant::ClauseObject;
+            }
+            true
+        }
+    }
+    cond.walk(&mut Bind);
 }
 
 /// Every reference back in a clause said before a trailing "for each".
