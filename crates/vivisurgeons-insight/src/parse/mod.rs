@@ -2381,7 +2381,10 @@ fn clause_object(q: &Quant) -> Option<Quant> {
         | Quant::OtherTarget { .. }
         | Quant::SecondTarget
         | Quant::Enchanted
-        | Quant::Equipped => Some(Quant::ClauseObject),
+        | Quant::Equipped
+        // "You may put the exiled card onto the battlefield if it's a
+        // creature card" (The Creation of Avacyn).
+        | Quant::Linked => Some(Quant::ClauseObject),
         Quant::Each | Quant::All | Quant::Plural => Some(Quant::Itself),
         _ => None,
     }

@@ -284,6 +284,17 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.words("this turn")?;
             Some(Condition::AmountIs { n, op, value })
         },
+        // "If it's a land card, you may put it onto the battlefield. If you
+        // don't put the card onto the battlefield, put it into your hand":
+        // the put this ability offered didn't happen, whether the "if"
+        // before failed or the option was declined.
+        |p| {
+            p.words("you don't put")?;
+            let what = objects(p)?;
+            let to = put_to(p)?.zone();
+            p.attempt(|p| p.words("this way"));
+            Some(Condition::Not(Box::new(Condition::ThisWay(Box::new(Event::Puts { who: Player::You, what, to })))))
+        },
         // "you didn't create a token this way": the event, not done.
         |p| {
             let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;

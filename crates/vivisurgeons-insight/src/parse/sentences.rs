@@ -1410,6 +1410,13 @@ fn acts_on_target(e: &Effect) -> bool {
 fn refers_back(e: &Effect) -> bool {
     let it = |x: &Objects| x.quant == Quant::Antecedent;
     match e {
+        // "If it's a land card, you may put it onto the battlefield. If you
+        // don't put the card onto the battlefield, put it into your hand":
+        // asked whatever the branch before did, so never inside it.
+        Effect::If {
+            cond: Condition::Not(c),
+            ..
+        } if matches!(**c, Condition::ThisWay(_)) => false,
         Effect::If { cond, .. } if tested(cond).is_some() => true,
         Effect::Cast { what, .. } => it(what),
         // "You may look at that card for as long as it remains exiled" (Intet).

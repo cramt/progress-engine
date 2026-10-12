@@ -1172,6 +1172,13 @@ mod syn {
 
     // ---------------------------------------- words read the same either way
 
+    /// "If you don't put the card onto the battlefield" and "If you don't
+    /// put a card into your hand this way": the put asked about is the one
+    /// the same ability offered, said or not.
+    pub fn this_way_or_not(o: &mut Out) {
+        alt(o, vec![Out::default(), of("this way")]);
+    }
+
     /// "can't have flying" and "can't have or gain flying": an object that
     /// can't have an ability can't gain it, so "or gain" only says so.
     pub fn or_gain(o: &mut Out) {
@@ -9804,6 +9811,13 @@ fn not_condition(o: &mut Out, c: &Condition) {
                 o.w("didn't create");
                 objects(o, what);
                 o.w("this way");
+            }
+            Event::Puts { who, what, to } => {
+                player(o, who);
+                o.w("don't put");
+                objects(o, what);
+                put_to(o, to, false, false, &None);
+                syn::this_way_or_not(o);
             }
             e => {
                 o.w("not");
