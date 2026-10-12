@@ -1465,6 +1465,16 @@ fn refer(
                 Effect::Attach { what, to: on } if what.quant == Quant::SelfRef && open => {
                     on.walk(&mut Bare(to));
                 }
+                // "you may put an Aura card from your hand onto the
+                // battlefield attached to it": the Aura is said in the same
+                // clause, and English would call it "itself"; "it" is what
+                // was named before the clause.
+                Effect::EntersAttached { to: on, .. } if self.after_card => {
+                    on.walk(&mut Bare(Quant::SelfRef));
+                }
+                Effect::EntersAttached { to: on, .. } if open => {
+                    on.walk(&mut Bare(to));
+                }
                 _ => {}
             }
             if let Effect::Damage {
@@ -1491,6 +1501,23 @@ fn refer(
             }
             self.seen_self |= self.self_pending;
             self.drew = matches!(e, Effect::Draw { .. });
+            // "return that card to the battlefield …. Return this card to
+            // the battlefield attached to that creature": the permanent the
+            // card became is a new object (CR 400.7), which the trigger's
+            // object never was, so what is said of it after refers back.
+            if let Effect::Move {
+                what,
+                to: Zone::Battlefield,
+                ..
+            } = e
+            {
+                if what.quant == Quant::Triggering {
+                    self.seen_new = true;
+                    self.tokens_only = false;
+                    let w: Vec<Adj> = kinds(&self.object).into_iter().cloned().collect();
+                    self.named_since.extend(w);
+                }
+            }
             self.damage_source = match e {
                 Effect::Damage {
                     source: Some(src), ..
