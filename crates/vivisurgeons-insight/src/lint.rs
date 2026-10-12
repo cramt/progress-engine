@@ -115,9 +115,9 @@ pub fn face_context(lines: &[crate::Line], mana_cost: &str) -> Vec<Context> {
                 x_defined,
                 prior: named,
             };
-            if let Ok(a) = &l.parsed {
-                named |= names_anything(a);
-            }
+            // An unread paragraph may have named anything: a d20 table's
+            // rows lean on the roll above them.
+            named |= l.parsed.as_ref().map_or(true, names_anything);
             c
         })
         .collect()
@@ -152,6 +152,18 @@ fn names_anything(a: &Ability) -> bool {
         }
         fn player(&mut self, p: &mut Player) {
             self.0 |= !matches!(p, Player::You);
+        }
+        // "Create two 1/1 white Human creature tokens. … create five of
+        // those tokens instead": objects no `Objects` names.
+        fn effect(&mut self, e: &mut Effect) {
+            self.0 |= matches!(
+                e,
+                Effect::Create { .. }
+                    | Effect::Draw { .. }
+                    | Effect::Mill { .. }
+                    | Effect::LookAtTop { .. }
+                    | Effect::RevealTop { .. }
+            );
         }
     }
     let mut v = Any(false);

@@ -184,7 +184,7 @@ each in text order (`src/walk.rs`):
 
 | Kind | What it finds | Corpus |
 |---|---|---|
-| dangling-antecedent | "it", "that creature" with nothing named before it in the ability. A card drawn, milled or looked at counts, and so does an earlier paragraph of the same spell (CR 608.2c) | 13 |
+| dangling-antecedent | "it", "that creature" with nothing named before it in the ability. A card drawn, milled or looked at counts, and so does an earlier paragraph of the same spell that named something or did not parse (CR 608.2c) | 9 |
 | dangling-that-player | "that player" with no player before it. A player named by the trigger ("deals combat damage to a player", "each player's upkeep") or by an owner's zone counts, and the player of the same effect does ([that-player-in-effect]) | 2 |
 | self-comparison | both sides of a comparison the same expression | 0 |
 | spell-in-zone | a spell in a zone other than the stack (CR 112.1) | 0 |

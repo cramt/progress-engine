@@ -1,6 +1,6 @@
 # Lint violations per kind across the corpus; tests/lint.rs fails if one rises.
 # `insight lint <kind>` lists them. Lower with UPDATE_LINT=1 cargo test -p vivisurgeons-insight --test lint
-dangling-antecedent 13
+dangling-antecedent 9
 dangling-that-player 2
 self-comparison 0
 spell-in-zone 0
