@@ -2205,6 +2205,27 @@ fn counters_on_itself(a: &mut Ability) {
     }
 }
 
+/// "Put that card onto the battlefield …, then put all other cards revealed
+/// this way on the bottom of your library" (Shifting Shadow, Hermit Druid):
+/// the permanent whose ability it is was never revealed or exiled this way,
+/// so "other" among those cards is other than the card named before
+/// ([other-than-named-before]), in any ability, as in a spell.
+struct OtherMarkedCards;
+
+impl Visitor for OtherMarkedCards {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        let marked = o.filter.kind == Some(Noun::Card)
+            && o.filter.posts.iter().any(|q| matches!(q, Post::Marked(_)));
+        if marked {
+            other_than(o, &antecedent(), None);
+        }
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        true
+    }
+}
+
 /// A whole ability line, which must be consumed to the last token.
 pub fn parse_line(toks: &[Tok], spell: bool, continues: bool) -> Result<Ability, usize> {
     let mut p = P::new(toks);
@@ -2221,6 +2242,7 @@ pub fn parse_line(toks: &[Tok], spell: bool, continues: bool) -> Result<Ability,
             a.walk(&mut FromRevealedHand(None));
             a.walk(&mut EachItself);
             a.walk(&mut DelayedX);
+            a.walk(&mut OtherMarkedCards);
             counters_on_itself(&mut a);
             Ok(a)
         }
