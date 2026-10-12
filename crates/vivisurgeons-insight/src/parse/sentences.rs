@@ -254,6 +254,24 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                 Effect::AlsoIs { what, types: TypeSet::EveryCreatureType, dur },
             ])
         },
+        // "Until end of turn, creatures target player controls lose all
+        // abilities and have base power and toughness 0/2" (Sudden Spoiling):
+        // the abilities lost and the base size set, one subject, one
+        // duration (layers 6 and 7b, CR 613.1f, 613.4b).
+        |p| {
+            let what = objects(p)?;
+            p.verb("lose")?;
+            p.words("all abilities and")?;
+            p.verb("have")?;
+            p.words("base power and toughness")?;
+            let pt = match p.peek()? { Tok::Pt(pt) if !pt.signed => *pt, _ => return None };
+            p.bump();
+            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+            Some(vec![
+                Effect::Loses { what: what.clone(), lost: vec![Lost::All { other: false, of: Characteristic::Abilities }], dur: dur.clone() },
+                Effect::Becomes { what, pt: Some(pt), types: vec![], gains: vec![], keeps: Keeps::implied_by(&[]), dur },
+            ])
+        },
         // "Until end of turn, this land becomes a 3/2 red Goblin creature
         // with "Whenever this creature attacks, …". It's still a land.": the
         // new types and keywords, and each quoted ability granted for as

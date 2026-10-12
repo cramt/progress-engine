@@ -4750,6 +4750,33 @@ fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
             i += taken;
             continue;
         }
+        // "creatures target player controls lose all abilities and have base
+        // power and toughness 0/2": one subject, one duration.
+        if let (
+            Effect::Loses { what, lost, dur: d },
+            Some(Effect::Becomes {
+                what: w2,
+                pt: Some(pt),
+                types,
+                gains,
+                dur: d2,
+                ..
+            }),
+        ) = (e, es.get(i + 1))
+        {
+            if what == w2 && d == d2 && types.is_empty() && gains.is_empty() {
+                obj_subj(o, what, "lose");
+                lost_words(o, lost);
+                o.w("and");
+                o.verb("have", obj_num(what));
+                o.w("base power and toughness");
+                o.tok(Tok::Pt(*pt));
+                dur(o, d);
+                last = Out(o.0[start..].to_vec());
+                i += 2;
+                continue;
+            }
+        }
         // "this land becomes a 3/2 red Goblin creature with "Whenever …"":
         // the quoted abilities granted with the new types, one "with".
         if let Effect::Becomes {
