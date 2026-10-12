@@ -681,6 +681,12 @@ pub enum State {
     Prepared,
     /// "attacks while saddled": a designation until end of turn (CR 702.171b).
     Saddled,
+    /// "all enchanted creatures", "a creature you control that's enchanted":
+    /// with an Aura attached (CR 303.4), any Aura; apart from
+    /// `Quant::Enchanted`, the one this Aura enchants.
+    Enchanted,
+    /// "that's enchanted or equipped": with an Equipment attached (CR 301.5).
+    Equipped,
 }
 
 #[derive(Clone, Debug, PartialEq)]

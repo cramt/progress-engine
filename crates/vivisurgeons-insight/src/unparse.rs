@@ -3264,6 +3264,8 @@ fn state_word(s: State) -> &'static str {
         State::FaceUp => "face-up",
         State::Prepared => "prepared",
         State::Saddled => "saddled",
+        State::Enchanted => "enchanted",
+        State::Equipped => "equipped",
     }
 }
 

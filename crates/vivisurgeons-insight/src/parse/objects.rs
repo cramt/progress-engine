@@ -147,6 +147,8 @@ pub(super) fn state_word(w: &str) -> Option<State> {
         "other" => State::Other,
         "modified" => State::Modified,
         "historic" => State::Historic,
+        "enchanted" => State::Enchanted,
+        "equipped" => State::Equipped,
         _ => return None,
     })
 }
@@ -207,6 +209,21 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
     } else if let Some(c) = color_word(w) {
         Adj::Color(c)
     } else if let Some(s) = state_word(w) {
+        // "target enchanted permanent", "that's enchanted or equipped": a
+        // state only after a quantifier or a verb of being; a bare
+        // "enchanted creature" or "enchanted player" is the one this Aura
+        // enchants (`Quant::Enchanted`, `Player::Enchanted`).
+        if matches!(s, State::Enchanted | State::Equipped) {
+            let before = p.i.checked_sub(1).and_then(|j| p.t.get(j));
+            let after_quant = matches!(before, Some(Tok::Word(b)) if matches!(b.as_str(),
+                "target" | "all" | "each" | "a" | "an" | "another" | "more" | "any"
+                    | "that's" | "are" | "is" | "it's" | "was" | "were" | "or"));
+            let player =
+                matches!(p.t.get(p.i + 1), Some(Tok::Word(n)) if n == "player" || n == "players");
+            if !after_quant || player {
+                return None;
+            }
+        }
         // "creatures tapped this way": what an earlier verb did, a post.
         let this_way = matches!(p.t.get(p.i + 1), Some(Tok::Word(a)) if a == "this")
             && matches!(p.t.get(p.i + 2), Some(Tok::Word(b)) if b == "way");
