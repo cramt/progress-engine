@@ -1339,8 +1339,12 @@ fn refer(
             // "create a … token, then put … counters on it equal to the
             // greatest mana value among those cards": only tokens were
             // named since, and a card is none of them.
-            let seen_new =
-                seen_new && !(self.tokens_only && !before_each && f.kind == Some(Noun::Card));
+            // "create a 0/0 … Fractal creature token. Put X +1/+1 counters on
+            // it, where X is that spell's mana value": nor a spell.
+            let seen_new = seen_new
+                && !(self.tokens_only
+                    && !before_each
+                    && matches!(f.kind, Some(Noun::Card | Noun::Spell)));
             // "Whenever one or more Dragons you control deal combat damage
             // …, look at the top three cards …. You may return one of those
             // Dragons to its owner's hand" (Zurgo and Ojutai): a reference
@@ -1397,9 +1401,22 @@ fn refer(
                 self.named.1 = true;
                 self.after_card = false;
             }
+            // "if one or more of them entered from a graveyard or was cast
+            // from a graveyard": some of the trigger's objects, which "them"
+            // said again still is.
+            let among_trigger = o
+                .filter
+                .posts
+                .iter()
+                .any(|p| matches!(p, Post::FromAmong(x) if x.quant == Quant::Triggering));
             match o.quant {
                 Quant::SelfRef => self.self_pending = true,
                 Quant::Triggering => {}
+                _ if among_trigger => {}
+                // The tokens said again: still only tokens since the window
+                // closed.
+                Quant::Created => self.seen_new = true,
+                Quant::Antecedent if self.tokens_only && o.filter == Filter::default() => {}
                 // Only against a trigger's object: with none, "this land
                 // and a creature named Hanweir Garrison … exile them" names
                 // both.
@@ -1979,6 +1996,8 @@ struct CreatedTokens {
     /// still means them after other objects (Ajani's Chosen's "If that
     /// enchantment is an Aura, you may attach it to the token").
     tokens: bool,
+    /// The card and creature types of the tokens just created.
+    types: Vec<String>,
 }
 
 impl CreatedTokens {
@@ -1990,6 +2009,7 @@ impl CreatedTokens {
             wheres: Vec::new(),
             skip: None,
             tokens: false,
+            types: Vec::new(),
         }
     }
 }
@@ -2006,6 +2026,29 @@ impl Visitor for CreatedTokens {
             _ => false,
         };
         if self.created.is_some() && o.quant == Quant::Antecedent && bare && fits {
+            o.quant = Quant::Created;
+        }
+        // "Create a 1/1 blue and red Otter creature token with prowess. If
+        // this spell was cast from anywhere other than your hand, put a
+        // +1/+1 counter on that creature": said with the token's own types.
+        let typed = match o.filter.alts.as_slice() {
+            [group] => {
+                !group.is_empty()
+                    && group.iter().all(|a| match a {
+                        Adj::Type(t) | Adj::Subtype(t) => self.types.contains(t),
+                        _ => false,
+                    })
+            }
+            _ => false,
+        };
+        if self.created.is_some()
+            && o.quant == Quant::Antecedent
+            && typed
+            && o.filter.kind.is_none()
+            && o.filter.posts.is_empty()
+            && o.filter.or.is_none()
+            && self.in_cond == 0
+        {
             o.quant = Quant::Created;
         }
         if self.tokens && o.quant == Quant::Antecedent && bare && o.filter.kind == Some(Noun::Token)
@@ -2107,6 +2150,13 @@ impl Visitor for CreatedTokens {
             | Effect::DigUntilTotal { .. } => None,
             _ => self.created,
         };
+        match e {
+            Effect::Create { token, .. }
+            | Effect::CreateNamed { token, .. }
+            | Effect::CreateAttached { token, .. } => self.types = token.types.clone(),
+            Effect::CreateCopy { .. } | Effect::CreateOfEach { .. } => self.types.clear(),
+            _ => {}
+        }
         if self.created.is_some() {
             self.tokens = true;
         }
