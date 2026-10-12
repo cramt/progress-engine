@@ -170,6 +170,53 @@ pub(super) fn costs(p: &mut P) -> Option<Vec<Cost>> {
     Some(v)
 }
 
+/// A cost said with a gerund, after "by": "paying {3}{R} and exiling four
+/// other cards from your graveyard", "paying life equal to its mana value",
+/// "discarding a card".
+fn gerund_cost(p: &mut P) -> Option<Cost> {
+    alt!(p;
+        |p| { p.words("paying life equal to")?; measure(p).map(Cost::PayLife) },
+        |p| { p.word("paying")?; let n = amount(p)?; p.word("life")?; Some(Cost::PayLife(n)) },
+        |p| {
+            p.word("paying")?;
+            let mut n = 0;
+            while sym(p, "E").is_some() { n += 1; }
+            (n > 0).then_some(Cost::Energy(n))
+        },
+        |p| { p.word("paying")?; mana(p).map(Cost::Mana) },
+        |p| { p.word("exiling")?; objects(p).map(Cost::Exile) },
+        |p| { p.word("sacrificing")?; objects(p).map(Cost::Sacrifice) },
+        |p| { p.word("discarding")?; objects(p).map(Cost::Discard) },
+        |p| { p.word("tapping")?; objects(p).map(Cost::TapUntapped) },
+    )
+}
+
+/// "by paying {2}{W} rather than paying its mana cost", "by paying 3 life
+/// in addition to paying their other costs": the costs and whether they
+/// replace the mana cost (CR 118.9) or add to it (CR 118.8).
+pub(super) fn paying(p: &mut P) -> Option<(Vec<Cost>, bool)> {
+    p.word("by")?;
+    let mut v = vec![gerund_cost(p)?];
+    while let Some(c) = p.attempt(|p| {
+        alt!(p;
+            |p| { p.tok(&Tok::Comma)?; p.attempt(|p| p.word("and")); Some(()) },
+            |p| p.word("and"),
+        )?;
+        gerund_cost(p)
+    }) {
+        v.push(c);
+    }
+    let rather = alt!(p;
+        |p| p.one_of(&["rather than paying its mana cost", "rather than paying their mana costs"]).map(|_| true),
+        |p| {
+            p.words("in addition to")?;
+            p.attempt(|p| p.word("paying"));
+            p.one_of(&["its other costs", "their other costs"]).map(|_| false)
+        },
+    )?;
+    Some((v, rather))
+}
+
 pub(super) fn counter_kind(p: &mut P) -> Option<String> {
     match p.peek()? {
         Tok::Pt(pt) if pt.signed => {

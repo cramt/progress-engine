@@ -1312,6 +1312,15 @@ pub enum Effect {
         payment: Payment,
         dur: Duration,
     },
+    /// "you may cast it by paying {1} rather than paying its mana cost", "cast
+    /// target instant or sorcery card from your graveyard by paying {R}{R} in
+    /// addition to its other costs": an alternative cost applied by this
+    /// effect (`rather`, CR 118.9), or an additional cost (CR 118.8).
+    CastPaying {
+        what: Objects,
+        cost: Vec<Cost>,
+        rather: bool,
+    },
     /// "you gain protection from everything".
     PlayerGains {
         who: Player,
@@ -2543,6 +2552,17 @@ pub enum Static {
         permissions: Vec<Static>,
         spell: Objects,
         rules: Vec<Static>,
+    },
+    /// "You may cast this card from your graveyard by paying {2}{W} rather
+    /// than paying its mana cost", "You may cast artifact spells from your
+    /// graveyard by paying 3 life in addition to paying their other costs":
+    /// a permission to cast, from `zone` where one is said, with an
+    /// alternative cost (`rather`, CR 118.9) or an additional one (CR 118.8).
+    CastPaying {
+        what: Objects,
+        zone: Option<Zone>,
+        cost: Vec<Cost>,
+        rather: bool,
     },
     PlayFrom {
         verb: CastVerb,

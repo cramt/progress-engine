@@ -582,6 +582,31 @@ mod syn {
         any_of(o, &[",", "and", ", and"]);
     }
 
+    /// "rather than paying its mana cost" (or "their mana costs"), "in
+    /// addition to paying its other costs" (or without "paying"): which
+    /// cost a cast's own costs replace or add to.
+    pub fn paying_tail(o: &mut Out, rather: bool) {
+        if rather {
+            any_of(
+                o,
+                &[
+                    "rather than paying its mana cost",
+                    "rather than paying their mana costs",
+                ],
+            );
+        } else {
+            any_of(
+                o,
+                &[
+                    "in addition to paying its other costs",
+                    "in addition to its other costs",
+                    "in addition to paying their other costs",
+                    "in addition to their other costs",
+                ],
+            );
+        }
+    }
+
     /// Joins two clauses of one ability. A paragraph is one ability (CR
     /// 113.2c) and its instructions are followed in the order written (CR
     /// 608.2c), so a period, a comma, "and" and "then" between them say the
@@ -2089,6 +2114,40 @@ fn costs_said(o: &mut Out, cs: &[Cost]) {
         }
         cost_said(o, c);
     }
+}
+
+/// "by paying {3}{R} and exiling four other cards from your graveyard
+/// rather than paying its mana cost": a cast's costs said with gerunds.
+fn by_paying(o: &mut Out, cs: &[Cost], rather: bool) {
+    o.w("by");
+    for (i, c) in cs.iter().enumerate() {
+        if i > 0 {
+            syn::cost_sep(o);
+        }
+        if matches!(c, Cost::Energy(_)) {
+            o.w("paying");
+            cost(o, c);
+            continue;
+        }
+        let mut said = out(|o| cost_said(o, c));
+        if let Some(Piece::Toks(t)) = said.0.first_mut() {
+            if let Some(Tok::Word(w)) = t.first_mut() {
+                let ing = match w.as_str() {
+                    "pay" => "paying",
+                    "exile" => "exiling",
+                    "sacrifice" => "sacrificing",
+                    "discard" => "discarding",
+                    "tap" => "tapping",
+                    _ => "",
+                };
+                if !ing.is_empty() {
+                    *w = ing.to_string();
+                }
+            }
+        }
+        o.add(said);
+    }
+    syn::paying_tail(o, rather);
 }
 
 fn cost_said(o: &mut Out, c: &Cost) {
@@ -6138,6 +6197,15 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 o.add(free);
             });
             syn::position(o, free_first, dur_first);
+        }
+        Effect::CastPaying {
+            what,
+            cost: c,
+            rather,
+        } => {
+            o.w("cast");
+            objects(o, what);
+            by_paying(o, c, *rather);
         }
         Effect::PlayerGains {
             who,
@@ -10392,6 +10460,20 @@ fn static_other(o: &mut Out, s: &Static) {
             objects(o, what);
             o.w("from");
             zone(o, z);
+        }
+        Static::CastPaying {
+            what,
+            zone: z,
+            cost: c,
+            rather,
+        } => {
+            o.w("you may cast");
+            objects(o, what);
+            if let Some(z) = z {
+                o.w("from");
+                zone(o, z);
+            }
+            by_paying(o, c, *rather);
         }
         Static::Replacement { event, instead } => {
             let w = out(|o| would(o, event));

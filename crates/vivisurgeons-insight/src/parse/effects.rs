@@ -1238,6 +1238,14 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             p.words("as though they had flash")?;
             Some(Effect::CastAsThoughFlash { what, dur })
         },
+        // "you may cast it by paying {1} rather than paying its mana cost".
+        |p| {
+            p.word("cast")?;
+            let what = objects(p)?;
+            if what.quant == Quant::SelfRef { return None; }
+            let (cost, rather) = paying(p)?;
+            Some(Effect::CastPaying { what, cost, rather })
+        },
         |p| {
             let verb = alt!(p;
                 |p| p.word("play").map(|_| CastVerb::Play),

@@ -960,6 +960,12 @@ impl Walk for Effect {
                 Walk::walk(what, v);
                 Walk::walk(dur, v);
             }
+            Effect::CastPaying { what, cost, .. } => {
+                Walk::walk(what, v);
+                for x0 in (cost).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Effect::PlayerGains { who, keywords, dur } => {
                 Walk::walk(who, v);
                 for x0 in (keywords).iter_mut() {
@@ -2357,6 +2363,17 @@ impl Walk for Static {
                 }
                 Walk::walk(spell, v);
                 for x0 in (rules).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
+            Static::CastPaying {
+                what, zone, cost, ..
+            } => {
+                Walk::walk(what, v);
+                if let Some(x0) = (zone).as_mut() {
+                    Walk::walk(x0, v);
+                }
+                for x0 in (cost).iter_mut() {
                     Walk::walk(x0, v);
                 }
             }

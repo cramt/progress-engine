@@ -571,6 +571,18 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             let equal_to = measure(p)?;
             Some(vec![Static::SetPower { what, equal_to }])
         },
+        // "You may cast this card from your graveyard by paying {2}{W} rather
+        // than paying its mana cost" (Raffine's Guidance).
+        |p| {
+            p.words("you may cast")?;
+            let mut what = objects(p)?;
+            let zone = match what.filter.posts.last() {
+                Some(Post::In(z)) => { let z = z.clone(); what.filter.posts.pop(); Some(z) }
+                _ => p.attempt(|p| { p.word("from")?; zone(p) }),
+            };
+            let (cost, rather) = paying(p)?;
+            Some(vec![Static::CastPaying { what, zone, cost, rather }])
+        },
         // "You may play lands and cast spells from the top of your library":
         // each verb and object, from the one zone named last.
         |p| {
