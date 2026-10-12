@@ -7727,6 +7727,12 @@ fn unless_costs(o: &mut Out, cs: &[Cost], n: Num) {
             o.verb("discard", n);
             objects(o, x);
         }
+        [Cost::ReturnToHand(x)] => {
+            o.verb("return", n);
+            objects(o, x);
+            o.w("to");
+            zone(o, &Zone::OwnersHand);
+        }
         [Cost::OneOf(v)]
             if v.iter()
                 .all(|c| matches!(c, Cost::Sacrifice(_) | Cost::Discard(_))) =>

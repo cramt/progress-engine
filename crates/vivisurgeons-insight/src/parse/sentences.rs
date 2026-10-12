@@ -131,6 +131,15 @@ pub(super) fn unless_costs(p: &mut P) -> Option<Vec<Cost>> {
         alt!(p;
             |p| { p.verb("sacrifice")?; objects(p).map(Cost::Sacrifice) },
             |p| { p.verb("discard")?; objects(p).map(Cost::Discard) },
+            // "sacrifice it unless you return an untapped Plains you control
+            // to its owner's hand" (Karoo).
+            |p| {
+                p.verb("return")?;
+                let x = objects(p)?;
+                p.word("to")?;
+                if owners_hand(p)? != Zone::OwnersHand { return None; }
+                Some(Cost::ReturnToHand(x))
+            },
         )
     };
     let mut v = vec![one(p)?];
