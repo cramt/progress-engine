@@ -383,6 +383,15 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
         |p| p.words("you have no maximum hand size").map(|_| vec![Static::MaxHandSize]),
         |p| { p.words("you have")?; keyword_list(p).map(|k| vec![Static::YouHave(k)]) },
         |p| p.words("~ can be your commander").map(|_| vec![Static::CanBeCommander]),
+        |p| {
+            p.words("a deck can have")?;
+            let n = alt!(p;
+                |p| p.words("any number of").map(|_| None),
+                |p| { p.words("up to")?; number(p).map(Some) },
+            )?;
+            p.words("cards named ~")?;
+            Some(vec![Static::DeckCanHave(n)])
+        },
         |p| p.words("you may look at the top card of your library any time").map(|_| vec![Static::LookAtTopAnyTime]),
         |p| {
             p.words("as an additional cost to cast this spell ,")?;

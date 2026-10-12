@@ -10254,6 +10254,17 @@ fn static_other(o: &mut Out, s: &Static) {
             o.w("rather than pay this spell's mana cost");
         }
         Static::CanBeCommander => o.w("~ can be your commander"),
+        Static::DeckCanHave(n) => {
+            o.w("a deck can have");
+            match n {
+                None => o.w("any number of"),
+                Some(n) => {
+                    o.w("up to");
+                    syn::number(o, *n);
+                }
+            }
+            o.w("cards named ~");
+        }
         Static::Control(x) => {
             o.w("you control");
             objects(o, x);

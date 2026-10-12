@@ -2491,6 +2491,10 @@ pub enum Static {
     AdditionalCost(Vec<Cost>),
     AlternativeCost(Vec<Cost>),
     CanBeCommander,
+    /// "A deck can have any number of cards named ~" (`None`), "… up to
+    /// nine cards named ~": a deck-construction rule that replaces the
+    /// limit of four (CR 100.2a) for this card.
+    DeckCanHave(Option<u32>),
     Control(Objects),
     AsEnters {
         what: Objects,
