@@ -4686,7 +4686,7 @@ fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
                 syn::subject(o, subject, alone, pred);
             }
             // "put two into your hand and the rest on the bottom".
-            (Some(Effect::Move { .. }), Effect::Move { .. })
+            (Some(Effect::Move { .. } | Effect::EntersAttacking(_)), Effect::Move { .. })
             | (Some(Effect::Destroy { .. }), Effect::Destroy { .. })
             | (Some(Effect::Exile(_)), Effect::Exile(_))
             | (Some(Effect::Tap(_)), Effect::Tap(_))
@@ -6738,6 +6738,15 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             });
             syn::enters_with_after(o, with, after);
         }
+        Effect::EntersAttacking(inner) => {
+            let (inner, tapped) = untapped(inner);
+            effect(o, &inner, cx);
+            o.w(if tapped {
+                "tapped and attacking"
+            } else {
+                "attacking"
+            });
+        }
         Effect::DamageCantBePrevented(d) => {
             o.w("damage can't be prevented");
             dur(o, d);
@@ -7227,6 +7236,15 @@ fn performed(o: &mut Out, e: &Effect, n: Num) {
             performed(o, inner, n);
             o.w("with");
             enters_counters(o, k, kind);
+        }
+        Effect::EntersAttacking(inner) => {
+            let (inner, tapped) = untapped(inner);
+            performed(o, &inner, n);
+            o.w(if tapped {
+                "tapped and attacking"
+            } else {
+                "attacking"
+            });
         }
         e => effect(o, e, &Cx::default()),
     }
@@ -10689,6 +10707,18 @@ fn life_subject(o: &mut Out, p: &Player, verb: &str) {
     let mut perfect = perfect;
     perfect.w(verb);
     syn::perfect(o, simple, perfect);
+}
+
+/// The move inside `EntersAttacking` with its "tapped" taken off, and
+/// whether it had one: "under your control tapped and attacking" says
+/// "tapped" with "attacking", after where the move says its controller.
+fn untapped(e: &Effect) -> (Effect, bool) {
+    let mut e = e.clone();
+    let tapped = match &mut e {
+        Effect::Move { tapped, .. } => std::mem::replace(tapped, false),
+        _ => false,
+    };
+    (e, tapped)
 }
 
 #[cfg(test)]

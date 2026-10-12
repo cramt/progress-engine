@@ -1335,7 +1335,7 @@ fn brings_in(e: &Effect) -> bool {
         // reveal a creature card. Put that card into your hand" (Foster).
         Effect::UntilFound { .. } => true,
         // "return target Pirate creature card … with a finality counter on it".
-        Effect::EntersWith { effect, .. } => brings_in(effect),
+        Effect::EntersWith { effect, .. } | Effect::EntersAttacking(effect) => brings_in(effect),
         Effect::Or(v) => v.iter().all(brings_in),
         _ => false,
     }

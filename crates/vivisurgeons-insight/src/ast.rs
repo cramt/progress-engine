@@ -1602,6 +1602,10 @@ pub enum Effect {
         n: Amount,
         kind: String,
     },
+    /// "return this card from your graveyard to the battlefield tapped and
+    /// attacking": the moved creature enters attacking, what it attacks
+    /// its controller's choice (CR 508.4); it never "attacked".
+    EntersAttacking(Box<Effect>),
     /// "Damage can't be prevented this turn."
     DamageCantBePrevented(Duration),
     /// "Target player reveals their hand": the player's own hand.

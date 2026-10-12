@@ -1865,6 +1865,18 @@ fn entering_with(p: &mut P, e: Effect) -> Effect {
     ) {
         return e;
     }
+    // "to the battlefield tapped and attacking" (CR 508.4).
+    let tapped = matches!(e, Effect::Move { tapped: true, .. });
+    if p.attempt(|p| {
+        if tapped {
+            p.word("and")?;
+        }
+        p.word("attacking")
+    })
+    .is_some()
+    {
+        return Effect::EntersAttacking(Box::new(e));
+    }
     match p.attempt(|p| {
         p.word("with")?;
         let n = amount_a(p)?;

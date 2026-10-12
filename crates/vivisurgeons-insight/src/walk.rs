@@ -1219,6 +1219,9 @@ impl Walk for Effect {
                 Walk::walk(&mut **effect, v);
                 Walk::walk(n, v);
             }
+            Effect::EntersAttacking(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             Effect::DamageCantBePrevented(f0) => {
                 Walk::walk(f0, v);
             }
