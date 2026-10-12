@@ -132,7 +132,9 @@ fn player_predicate(p: &mut P, who: &Player) -> Option<Event> {
 
 pub(super) fn single_event(p: &mut P) -> Option<Event> {
     alt!(p;
-        |p| p.words("you attack").map(|_| Event::YouAttack),
+        // "Whenever you attack with two or more creatures" is the player's
+        // attack with objects, read below.
+        |p| { p.words("you attack")?; (p.peek_word() != Some("with")).then_some(Event::YouAttack) },
         // "an opponent attacks you with two or more creatures, draws their
         // second card each turn, or casts their second spell each turn": one
         // player, a list of verbs.
