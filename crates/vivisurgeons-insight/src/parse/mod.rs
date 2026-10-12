@@ -836,6 +836,25 @@ fn trigger_object(e: &Event) -> Option<Objects> {
         | Event::Cycles {
             what: Some(what), ..
         } => what,
+        // "Whenever a creature you control with deathtouch deals damage to a
+        // player or planeswalker, put a +1/+1 counter on that creature"
+        // (Vraska): a recipient that is never a creature says only which
+        // damage triggers it, as an attack's does ([attack-recipient]).
+        // A planeswalker or battle recipient is still an object: "Whenever
+        // this token deals damage to a planeswalker, destroy that
+        // planeswalker" names it, so the source must be said by a card type
+        // the reference can be told apart by.
+        Event::DealsCombatDamageTo { what, to }
+            if !may_be_creature(to) && (typed(what) || !names_object(to)) =>
+        {
+            what
+        }
+        Event::DealsDamageTo { what, to }
+            if !to.iter().any(may_be_creature)
+                && (typed(what) || !to.iter().any(names_object)) =>
+        {
+            what
+        }
         Event::While { event, .. }
         | Event::AndIf { event, .. }
         | Event::FirstTimeEachTurn(event) => {
@@ -864,6 +883,48 @@ fn trigger_object(e: &Event) -> Option<Objects> {
     let mut count = Count(0);
     what.clone().walk(&mut count);
     (count.0 == 1).then(|| what.clone())
+}
+
+/// Whether a damage recipient may be a creature, so another object a
+/// "that creature" could name: a player, a planeswalker or a battle is not.
+fn may_be_creature(r: &Recipient) -> bool {
+    match r {
+        Recipient::Player(_) => false,
+        Recipient::Or(v) => v.iter().any(may_be_creature),
+        Recipient::Objects(o) => {
+            o.filter.or.is_some()
+                || o.filter.alts.is_empty()
+                || o.filter.alts.iter().any(|g| {
+                    !g.iter()
+                        .any(|a| matches!(a, Adj::Type(t) if t == "planeswalker" || t == "battle"))
+                })
+        }
+        _ => true,
+    }
+}
+
+/// Whether a damage recipient names an object, not only players.
+fn names_object(r: &Recipient) -> bool {
+    match r {
+        Recipient::Player(_) => false,
+        Recipient::Or(v) => v.iter().any(names_object),
+        _ => true,
+    }
+}
+
+/// Whether an event's object is said by its card types and nothing else,
+/// so a reference of another card type is told apart from it.
+fn typed(o: &Objects) -> bool {
+    !o.filter.alts.is_empty()
+        && o.filter
+            .alts
+            .iter()
+            .all(|g| g.iter().any(|a| matches!(a, Adj::Type(_))))
+        && o.filter
+            .alts
+            .iter()
+            .flatten()
+            .all(|a| !matches!(a, Adj::Subtype(_)))
 }
 
 /// "~ has hexproof as long as it entered this turn", "This spell costs {3}
