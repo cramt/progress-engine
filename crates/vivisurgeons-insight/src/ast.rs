@@ -532,6 +532,10 @@ pub enum Quant {
     /// or `SelfRef` instead ("it gets +1/+0 … for each other attacking
     /// creature").
     BeforeEach,
+    /// "Put both cards onto the battlefield": the two objects the clauses
+    /// before it named, one each (Sword of Hearth and Home's exiled
+    /// creature card and the land card found), where "them" is one plural.
+    Both,
     Enchanted,
     Equipped,
     /// A bare plural: "Creatures you control get +1/+1".

@@ -761,7 +761,7 @@ mod syn {
 
     // ---------------------------------------- back-references
 
-    /// "it", "them", "they"; "that", "those", "the", "both"; "its", "their":
+    /// "it", "them", "they"; "that", "those", "the"; "its", "their":
     /// a pronoun or a definite article agrees with the noun it points back
     /// to, which the tree holds by position, not by word. A character card
     /// is "he" or "she", "him" or "her", where another object is "it".
@@ -770,7 +770,7 @@ mod syn {
     }
 
     pub fn that(o: &mut Out) {
-        any_of(o, &["that", "those", "the", "both"]);
+        any_of(o, &["that", "those", "the"]);
     }
 
     /// "~", "he", "him": a character card is "he" or "she" in its own
@@ -2572,7 +2572,7 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::NthOfGame { .. }
         | Quant::Triggering
         | Quant::Next => Num::Sg,
-        Quant::WithAllOthers(_) => Num::Pl,
+        Quant::WithAllOthers(_) | Quant::Both => Num::Pl,
         // "your commander", "your commanders": a partner pair is two.
         Quant::Possessive(_) => Num::Any,
         Quant::All
@@ -2854,6 +2854,10 @@ fn objects_plain(o: &mut Out, x: &Objects) {
                 filter(o, f, n);
             });
             syn::the_card(o, named, back);
+        }
+        Quant::Both => {
+            o.w("both");
+            filter(o, f, Num::Pl);
         }
         Quant::NFromEach(k) => objects_plain(
             o,

@@ -1016,7 +1016,7 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
             filter: Filter { kind: Some(Noun::Counter(None)), ..Filter::default() },
         }),
         // "Put both cards onto the battlefield": the two just named.
-        |p| { p.word("both")?; let f = filter(p)?; Some(Objects { quant: Quant::Antecedent, filter: f }) },
+        |p| { p.word("both")?; let f = filter(p)?; Some(Objects { quant: Quant::Both, filter: f }) },
         |p| {
             p.words("up to")?;
             let n = amount(p)?;
