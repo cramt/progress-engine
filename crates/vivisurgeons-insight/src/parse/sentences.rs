@@ -728,7 +728,22 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
             "then",
             ",",
         ])?;
-        let continues = p.peek_word().is_some_and(|w| THIRD_PERSON.contains(&w));
+        // "any number of target players each mill a card and lose 1 life":
+        // after a plural subject the verb agrees in the plural, so a bare
+        // verb continues it as the third person does after a singular one.
+        let plural = matches!(
+            v.last().and_then(subject_of),
+            Some(Player::AnyNumberOfTarget | Player::EachOf(_))
+        );
+        let agrees = |w: &str| {
+            THIRD_PERSON.contains(&w)
+                || plural
+                    && THIRD_PERSON.iter().any(|t| {
+                        t.strip_suffix('s')
+                            .is_some_and(|b| b == w || b.strip_suffix('e') == Some(w))
+                    })
+        };
+        let continues = p.peek_word().is_some_and(agrees);
         let who = if continues {
             v.last().and_then(subject_of)
         } else {
