@@ -1075,6 +1075,12 @@ fn refer(
         /// its owner's graveyard". A bare "it" is the card until another
         /// object is named.
         after_card: bool,
+        /// For each `Or` being read, its depth and what had been named as
+        /// it began: each alternative starts from there, since only one is
+        /// done ("tap all untapped creatures that share a creature type
+        /// with it or untap all tapped creatures that share a creature type
+        /// with it").
+        ors: Vec<(u32, bool, bool)>,
     }
     impl Visitor for Refer {
         fn enter(&mut self, o: &mut Objects) -> bool {
@@ -1134,6 +1140,11 @@ fn refer(
             true
         }
         fn leave(&mut self, o: &mut Objects) {
+            // "the number of counters on it": a counter is never what "it"
+            // refers back to, so naming one ends nothing.
+            if matches!(o.filter.kind, Some(Noun::Counter(_))) {
+                return;
+            }
             // A back-reference left as one ("the exiled card") is to
             // another object, which "its" after it may be.
             // "counter it if a card with the same name is in a graveyard":
@@ -1174,7 +1185,16 @@ fn refer(
                 self.after_card = self.named == (true, false);
                 self.named = (false, false);
             }
+            if let Some(&(d, new, card)) = self.ors.last() {
+                if self.depth == d {
+                    self.seen_new = new;
+                    self.seen_self = card;
+                }
+            }
             self.depth += 1;
+            if matches!(e, Effect::Or(_)) {
+                self.ors.push((self.depth, self.seen_new, self.seen_self));
+            }
             self.seen_self |= self.self_pending;
             if matches!(e, Effect::ForEach { .. }) {
                 self.loops.push((self.seen_new, self.seen_self));
@@ -1222,6 +1242,9 @@ fn refer(
         // effects that bring in an object they name in no `Objects`.
         fn effect_done(&mut self, e: &mut Effect) {
             self.depth -= 1;
+            if matches!(e, Effect::Or(_)) {
+                self.ors.pop();
+            }
             if matches!(e, Effect::ForEach { .. }) {
                 self.loops.pop();
             }
@@ -1240,8 +1263,6 @@ fn refer(
                     | Effect::RevealHand { .. }
                     | Effect::LookAtHand { .. }
                     | Effect::Mill { .. }
-                    | Effect::Scry { .. }
-                    | Effect::Surveil { .. }
                     | Effect::Create { .. }
                     | Effect::CreateCopy { .. }
                     | Effect::CreateThose { .. }
@@ -1281,6 +1302,7 @@ fn refer(
         depth: 0,
         named: (false, false),
         after_card: false,
+        ors: Vec::new(),
     };
     if let Some(c) = cond {
         c.walk(&mut v);
