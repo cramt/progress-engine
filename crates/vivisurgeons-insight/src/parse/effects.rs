@@ -23,10 +23,29 @@ pub(super) fn duration(p: &mut P) -> Option<Duration> {
     )
 }
 
+/// The colors and types a "becomes" gives: "a 4/4 black and green Horror
+/// creature" is two colors and one creature (CR 105.2).
+pub(super) fn becomes_types(p: &mut P) -> Vec<Adj> {
+    let mut types = Vec::new();
+    while let Some(a) = p.attempt(|p| {
+        if matches!(types.last(), Some(Adj::Color(_))) && p.attempt(|p| p.word("and")).is_some() {
+            return descriptor(p).filter(|a| matches!(a, Adj::Color(_)));
+        }
+        descriptor(p)
+    }) {
+        types.push(a);
+    }
+    types
+}
+
 /// ". It's still a land.": a sentence of its own after a "becomes", saying
 /// what "that's still a land" says inside it.
 pub(super) fn still(p: &mut P) -> Option<Keeps> {
-    p.tok(&Tok::Period)?;
+    // A closing quote ends the sentence before it: "with "…." It's still a
+    // land."
+    if p.i == 0 || p.t.get(p.i - 1) != Some(&Tok::Quote) {
+        p.tok(&Tok::Period)?;
+    }
     p.words("it's still")?;
     p.one_of(&["a", "an"])?;
     group(p).map(Keeps::Listed)
@@ -634,17 +653,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             p.attempt(|p| p.one_of(&["a", "an"]));
             let pt = p.attempt(|p| match p.peek()? { Tok::Pt(pt) if !pt.signed => { let pt = *pt; p.bump(); Some(pt) } _ => None });
             p.attempt(|p| p.words("base power and toughness"));
-            let mut types = Vec::new();
-            while let Some(a) = p.attempt(|p| {
-                // "a 4/4 black and green Horror creature": two colors, one
-                // creature (CR 105.2).
-                if matches!(types.last(), Some(Adj::Color(_))) && p.attempt(|p| p.word("and")).is_some() {
-                    return descriptor(p).filter(|a| matches!(a, Adj::Color(_)));
-                }
-                descriptor(p)
-            }) {
-                types.push(a);
-            }
+            let types = becomes_types(p);
             if types.is_empty() && pt.is_none() { return None; }
             // "becomes a Kithkin Scout with base power and toughness 2/3":
             // the size said after the types (CR 613.4b, as "a 2/3 Kithkin

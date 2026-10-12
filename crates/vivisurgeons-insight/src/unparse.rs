@@ -4750,6 +4750,76 @@ fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
             i += taken;
             continue;
         }
+        // "this land becomes a 3/2 red Goblin creature with "Whenever …"":
+        // the quoted abilities granted with the new types, one "with".
+        if let Effect::Becomes {
+            what,
+            pt,
+            types,
+            gains,
+            keeps: k,
+            dur: d,
+        } = e
+        {
+            let granted: Vec<&Ability> = es[i + 1..]
+                .iter()
+                .map_while(|x| match x {
+                    Effect::GrantAbility {
+                        what: w,
+                        ability,
+                        dur: d2,
+                    } if w == what && d2 == d => Some(&**ability),
+                    _ => None,
+                })
+                .collect();
+            if !granted.is_empty() && !types.is_empty() {
+                obj_subj(o, what, "become");
+                let n = obj_num(what);
+                let noun = types.last().is_some_and(is_typed);
+                if (pt.is_some() || noun) && n != Num::Pl {
+                    o.w("a");
+                }
+                if let Some(pt) = pt {
+                    o.tok(Tok::Pt(*pt));
+                }
+                for (j, a) in types.iter().enumerate() {
+                    if j > 0 && matches!(a, Adj::Color(_)) && matches!(types[j - 1], Adj::Color(_))
+                    {
+                        o.w("and");
+                    }
+                    let last = j + 1 == types.len();
+                    adj(o, a, (last && noun && n == Num::Pl).then_some(Num::Pl));
+                }
+                o.w("with");
+                let len = gains.len() + granted.len();
+                for (j, kw) in gains.iter().enumerate() {
+                    list_sep(o, j, len, "and");
+                    keyword(o, kw);
+                }
+                for (j, a) in granted.iter().enumerate() {
+                    let at = gains.len() + j;
+                    syn::quote_list_sep(o, at, len, j > 0);
+                    quoted(o, a);
+                }
+                // Nothing said after a closing quote: the quote ends the
+                // sentence, and "It's still a land." starts the next.
+                match k {
+                    Keeps::Listed(v) if *d == Duration::Permanent => {
+                        o.w("it's still a");
+                        for a in v {
+                            adj(o, a, None);
+                        }
+                    }
+                    _ if *k != Keeps::implied_by(types) || *d != Duration::Permanent => {
+                        keeps_then_dur(o, k, types, d);
+                    }
+                    _ => {}
+                }
+                last = Out(o.0[start..].to_vec());
+                i += 1 + granted.len();
+                continue;
+            }
+        }
         // "This land becomes a 2/2 creature with all creature types until end
         // of turn": the new types and all creature types, one clause.
         if let (

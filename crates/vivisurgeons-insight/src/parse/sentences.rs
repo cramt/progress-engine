@@ -254,6 +254,28 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                 Effect::AlsoIs { what, types: TypeSet::EveryCreatureType, dur },
             ])
         },
+        // "Until end of turn, this land becomes a 3/2 red Goblin creature
+        // with "Whenever this creature attacks, …". It's still a land.": the
+        // new types and keywords, and each quoted ability granted for as
+        // long (Hanweir Battlements' kin, the Mutavault-style lands).
+        |p| {
+            if !p.ahead("\"") { return None; }
+            let what = objects(p)?;
+            // "they become 3/3 blue Bird creatures": plural, not read here.
+            if p.peek_word() != Some("becomes") && what.quant == Quant::Antecedent { return None; }
+            p.verb("become")?;
+            p.attempt(|p| p.one_of(&["a", "an"]));
+            let pt = p.attempt(|p| match p.peek()? { Tok::Pt(pt) if !pt.signed => { let pt = *pt; p.bump(); Some(pt) } _ => None });
+            let types = becomes_types(p);
+            if types.is_empty() && pt.is_none() { return None; }
+            p.word("with")?;
+            let (gains, abilities) = keywords_then_quoted(p)?;
+            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+            let keeps = p.attempt(still).unwrap_or_else(|| Keeps::implied_by(&types));
+            let mut v = vec![Effect::Becomes { what: what.clone(), pt, types, gains, keeps, dur: dur.clone() }];
+            v.extend(abilities.into_iter().map(|a| Effect::GrantAbility { what: what.clone(), ability: Box::new(a), dur: dur.clone() }));
+            Some(v)
+        },
         // "gets +2/+2 and gains trample and "Whenever …"", "gains haste,
         // "When …," and "At …"": one "gains" for keywords and abilities, the
         // keywords first.
