@@ -21,6 +21,8 @@ pub trait Visitor {
     /// Before and after a condition's parts.
     fn condition(&mut self, _c: &mut Condition) {}
     fn condition_done(&mut self, _c: &mut Condition) {}
+    /// Before an amount's parts.
+    fn amount(&mut self, _a: &mut Amount) {}
 }
 
 pub trait Walk {
@@ -147,6 +149,7 @@ impl Walk for Adj {
 impl Walk for Amount {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
+        v.amount(self);
         match self {
             Amount::CountOf(f0) => {
                 Walk::walk(&mut **f0, v);

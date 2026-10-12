@@ -590,6 +590,15 @@ mod syn {
         alt(o, vec![a_number, where_x]);
     }
 
+    /// "Look at the top X cards of your library, where X is your devotion
+    /// to blue. … If X is greater than or equal to …": X defined once holds
+    /// in every sentence of the ability that says X (CR 107.3i, all
+    /// instances of X on an object have the same value), so the definition
+    /// may follow any of them.
+    pub fn where_x_after(o: &mut Out, forms: Vec<Out>) {
+        alt(o, forms);
+    }
+
     /// "You may spend mana as though it were mana of any type" and "mana
     /// of any type can be spent": a permission said to the player who has
     /// it, or in the passive; CR 609.4b makes them one.
@@ -5258,9 +5267,20 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             }
         }
         Effect::Where { then, x } => {
-            clauses(o, then, cx);
-            o.w(", where X is");
-            measure(o, x);
+            let forms = (1..=then.len())
+                .map(|k| {
+                    out(|o| {
+                        clauses(o, &then[..k], cx);
+                        o.w(", where X is");
+                        measure(o, x);
+                        if k < then.len() {
+                            syn::joiner(o, false);
+                            clauses(o, &then[k..], cx);
+                        }
+                    })
+                })
+                .collect();
+            syn::where_x_after(o, forms);
         }
         Effect::IfYouDo(v) => {
             o.w("if");

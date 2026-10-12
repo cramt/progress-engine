@@ -2221,4 +2221,19 @@ mod round_nine_d {
             "{s}"
         );
     }
+
+    #[test]
+    fn x_defined_once_binds_every_later_sentence_that_says_it() {
+        let a = read(
+            "Creature — Merfolk Wizard",
+            "When this creature enters, look at the top X cards of your library, where X is your devotion to blue. Put up to one of them on top of your library and the rest on the bottom of your library in a random order. If X is greater than or equal to the number of cards in your library, you win the game.",
+        );
+        let Ability::Triggered { effect, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        assert!(
+            matches!(&effect[..], [Effect::Where { then, .. }] if matches!(then.last(), Some(Effect::If { .. }))),
+            "{effect:?}"
+        );
+    }
 }

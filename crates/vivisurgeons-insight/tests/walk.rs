@@ -224,7 +224,9 @@ fn generate(src: &str) -> String {
              fn effect_done(&mut self, _e: &mut Effect) {}\n    \
              /// Before and after a condition's parts.\n    \
              fn condition(&mut self, _c: &mut Condition) {}\n    \
-             fn condition_done(&mut self, _c: &mut Condition) {}\n\
+             fn condition_done(&mut self, _c: &mut Condition) {}\n    \
+             /// Before an amount's parts.\n    \
+             fn amount(&mut self, _a: &mut Amount) {}\n\
          }\n\n\
          pub trait Walk {\n    fn walk(&mut self, v: &mut dyn Visitor);\n}\n",
     );
@@ -321,6 +323,7 @@ fn generate(src: &str) -> String {
             "Ability" => format!("if !v.ability(self) {{\nreturn;\n}}\n{body}"),
             "Effect" => format!("v.effect(self);\n{body}\nv.effect_done(self);"),
             "Condition" => format!("v.condition(self);\n{body}\nv.condition_done(self);"),
+            "Amount" => format!("v.amount(self);\n{body}"),
             _ => body,
         };
         write!(

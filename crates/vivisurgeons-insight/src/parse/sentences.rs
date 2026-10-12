@@ -829,6 +829,20 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
                 continue;
             }
         }
+        // "Look at the top X cards of your library, where X is your devotion
+        // to blue. … If X is greater than or equal to …": X keeps the value
+        // defined for it (CR 107.3i), so every sentence from the definition
+        // to one that says X again is in its scope.
+        if let Some(k) = v.iter().rposition(|e| matches!(e, Effect::Where { .. })) {
+            if says_x(&s) && !s.iter().any(|e| matches!(e, Effect::Where { .. })) {
+                let tail: Vec<Effect> = v.drain(k + 1..).collect();
+                if let Some(Effect::Where { then, .. }) = v.last_mut() {
+                    then.extend(tail);
+                    then.extend(s);
+                }
+                continue;
+            }
+        }
         // "Tyvar gains indestructible until end of turn. Tap it.": the only
         // object the sentence before names is the card itself, so "it" is.
         let mut s = s;
@@ -883,6 +897,24 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
         v = vec![Effect::Process(v)];
     }
     (!v.is_empty()).then_some(v)
+}
+
+/// Whether effects say X anywhere outside a quoted ability.
+fn says_x(es: &[Effect]) -> bool {
+    struct X(bool);
+    impl Visitor for X {
+        fn enter(&mut self, _: &mut Objects) -> bool {
+            true
+        }
+        fn amount(&mut self, a: &mut Amount) {
+            self.0 |= *a == Amount::X;
+        }
+    }
+    let mut x = X(false);
+    for e in es {
+        e.clone().walk(&mut x);
+    }
+    x.0
 }
 
 /// Whether an effect says "repeat this process", in any branch.
