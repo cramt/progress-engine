@@ -3373,10 +3373,13 @@ fn printed_groups(alts: &[Vec<Adj>]) -> Vec<Vec<Adj>> {
             .take_while(|a| matches!(a, Adj::Subtype(_)))
             .count();
         let types = &last[lead..];
+        // The first group keeps the words said before the list ("tapped
+        // Merfolk or Kithkin creature"), given back to it above.
         let subtypes_then = |x: &[Adj]| {
-            x.len() > types.len()
+            let untyped = x.iter().take_while(|a| !is_typed(a)).count();
+            x.len() > types.len() + untyped
                 && x.ends_with(types)
-                && x[..x.len() - types.len()]
+                && x[untyped..x.len() - types.len()]
                     .iter()
                     .all(|a| matches!(a, Adj::Subtype(_)))
         };

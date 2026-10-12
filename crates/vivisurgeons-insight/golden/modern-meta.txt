@@ -1027,7 +1027,7 @@ type: Legendary Creature — Elder Dragon
 face: Drannith Magistrate
 type: Creature — Human Wizard
 > Your opponents can't cast spells from anywhere other than their hands.
-= Static([PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [In(AnywhereOtherThan(Hand(That)))], or: None } })] }])
+= Static([PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(AnywhereOtherThan(Hand(That)))], or: None } })] }])
 
 ## Dreadmaw's Ire
 face: Dreadmaw's Ire
@@ -1748,7 +1748,7 @@ type: Artifact
 > Creature cards in graveyards and libraries can't enter the battlefield.
 > Players can't cast spells from graveyards or libraries.
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AnyOf([AGraveyard, ALibrary]))], or: None } }, rule: CantEnterBattlefield }])
-= Static([PlayerRestrict { who: Each, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [In(AnyOf([AGraveyard, ALibrary]))], or: None } })] }])
+= Static([PlayerRestrict { who: Each, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(AnyOf([AGraveyard, ALibrary]))], or: None } })] }])
 
 ## Gran-Gran
 face: Gran-Gran

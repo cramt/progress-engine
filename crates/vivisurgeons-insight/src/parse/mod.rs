@@ -1596,6 +1596,34 @@ fn other_than_named_before(effect: &mut [Effect]) {
     }
 }
 
+/// "The first spell you cast from exile each turn has cascade", "Players
+/// can't cast spells from graveyards": a spell is a card on the stack (CR
+/// 112.1), so a zone said of one is where it was cast from, as `casts`
+/// reads it in an event ([spell-cast-from]).
+struct SpellCastFrom;
+
+impl Visitor for SpellCastFrom {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        let mut f = Some(&mut o.filter);
+        while let Some(filter) = f {
+            if filter.kind == Some(Noun::Spell) {
+                for q in filter.posts.iter_mut() {
+                    if let Post::In(z) = q {
+                        if *z != Zone::Stack {
+                            *q = Post::CastFrom(z.clone());
+                        }
+                    }
+                }
+            }
+            f = filter.or.as_deref_mut();
+        }
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        true
+    }
+}
+
 /// "Exile the top card of each player's library": the possessive "each
 /// player's" distributes, so the count is per library, one card from each.
 struct FromEachLibrary;
@@ -1943,6 +1971,7 @@ pub fn parse_line(toks: &[Tok], spell: bool, continues: bool) -> Result<Ability,
         Some(mut a) if p.at_end() => {
             a.walk(&mut OtherThanTheSource);
             a.walk(&mut FromEachLibrary);
+            a.walk(&mut SpellCastFrom);
             a.walk(&mut MaySubject);
             a.walk(&mut DelayedSameClause);
             a.walk(&mut CreatedTokens::new());

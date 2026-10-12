@@ -376,8 +376,19 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
             .take_while(|a| !is_typed(a))
             .cloned()
             .collect();
+        // "enchanted creature or enchantment creature" lists a noun phrase
+        // of its own, which takes nothing from the one before; "equipped
+        // creature and Equipment" lists an Equipment, which is attached to
+        // a creature, not equipped (CR 301.5) ([lead-words]).
+        let takes = |g: &[Adj]| {
+            let equipment = g == [Adj::Subtype("equipment".into())];
+            let types = g.iter().filter(|a| matches!(a, Adj::Type(_))).count();
+            types < 2 && !(equipment && lead.contains(&Adj::State(State::Equipped)))
+        };
         for g in groups.iter_mut().skip(1) {
-            g.splice(0..0, lead.iter().cloned());
+            if takes(g) {
+                g.splice(0..0, lead.iter().cloned());
+            }
         }
     }
     // "other activated and triggered abilities": the words before the first
@@ -407,18 +418,22 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
     }
     // "Beast, Camel, Horse, Elephant, and Wolf creature": a card type after
     // a list of subtypes holds of each, as "white or black creature" does.
-    let subtypes = |g: &[Adj]| g.iter().all(|a| matches!(a, Adj::Subtype(_)));
+    // Words before the first subtype ("Other Ninja and Rogue creatures")
+    // were spread over the list above, so a subtype list starts after them.
+    let untyped = |g: &[Adj]| g.iter().take_while(|a| !is_typed(a)).count();
+    let subtypes = |g: &[Adj]| g[untyped(g)..].iter().all(|a| matches!(a, Adj::Subtype(_)));
     if let Some((last, rest)) = groups.split_last_mut() {
-        let lead = last
-            .iter()
-            .take_while(|a| matches!(a, Adj::Subtype(_)))
-            .count();
+        let lead = untyped(last)
+            + last[untyped(last)..]
+                .iter()
+                .take_while(|a| matches!(a, Adj::Subtype(_)))
+                .count();
         let trailing: Vec<Adj> = last[lead..].to_vec();
         if !rest.is_empty()
-            && lead > 0
+            && lead > untyped(last)
             && !trailing.is_empty()
             && trailing.iter().all(|a| matches!(a, Adj::Type(_)))
-            && rest.iter().all(|g| !g.is_empty() && subtypes(g))
+            && rest.iter().all(|g| g.len() > untyped(g) && subtypes(g))
         {
             for g in rest.iter_mut() {
                 g.extend(trailing.iter().cloned());
@@ -1029,6 +1044,18 @@ fn posts_one(p: &mut P, counter: bool) -> Option<Vec<Post>> {
                 v.push(Post::With(Compare { stat, op, value }));
             }
             Some(v)
+        },
+        // "a card with the same name as that spell in your graveyard": a
+        // reference back names its object already, so the zone after it is
+        // the card's ([same-name-zone]).
+        |p| {
+            p.words("with the same name as")?;
+            let mut o = pronoun(p)?;
+            if o.quant != Quant::Antecedent || !matches!(o.filter.posts.last(), Some(Post::In(_))) {
+                return None;
+            }
+            let zone = o.filter.posts.pop()?;
+            Some(vec![Post::SameNameAs(Box::new(o)), zone])
         },
         // "target card that's an instant or sorcery from your graveyard": the
         // posts after the types are the card's, not the types'.
