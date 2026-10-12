@@ -585,6 +585,8 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let cost = alt!(p;
                 |p| { let n = amount(p)?; p.word("life")?; Some(vec![Cost::PayLife(n)]) },
                 |p| p.words("any amount of life").map(|_| vec![Cost::PayLife(Amount::AnyAmount)]),
+                // "you may pay life equal to its power".
+                |p| { p.words("life equal to")?; measure(p).map(|n| vec![Cost::PayLife(n)]) },
                 |p| { p.words("any amount of")?; sym(p, "E")?; Some(vec![Cost::PayEnergy(Amount::AnyAmount)]) },
                 // "pay {1} and 3 life".
                 |p| { let m = mana(p)?; p.word("and")?; let n = amount(p)?; p.word("life")?; Some(vec![Cost::Mana(m), Cost::PayLife(n)]) },
