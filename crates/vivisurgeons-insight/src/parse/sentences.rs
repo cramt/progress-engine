@@ -527,12 +527,15 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                 // "That player may search their library …, put it onto the
                 // battlefield, then shuffle": the steps after the first are
                 // the same optional action, by the same player.
-                while let Some(e) = p.attempt(|p| {
-                    p.one_of(&[", then", ", and then", ", and", "and then", "and", ","])?;
+                while let Some((joiner, e)) = p.attempt(|p| {
+                    let joiner = p.one_of(&[", then", ", and then", ", and", "and then", "and", ","])?;
                     if !p.peek_word().is_some_and(|w| IMPERATIVE.contains(&w)) { return None; }
                     let e = effect(p)?;
-                    Some(suffixed(p, e))
+                    Some((joiner, suffixed(p, e)))
                 }) {
+                    if joiner == "and" {
+                        if let Some(a) = then.last_mut() { play_and_cast_from(a, &e); }
+                    }
                     then.push(e);
                 }
                 Some(then)
@@ -781,10 +784,49 @@ fn spend_with_play(v: &mut [Effect]) {
     }
 }
 
+/// "Until end of turn, you may play lands and cast spells from your
+/// graveyard", "You may play lands and cast spells from among the exiled
+/// cards for as long as they remain exiled": the zone and the duration said
+/// once after the last verb hold of the lands too, as the static's
+/// `PlayFrom` already reads them. A land is played from that zone (`In`);
+/// the spell keeps `CastFrom` ([spell-cast-from]).
+fn play_and_cast_from(a: &mut Effect, b: &Effect) {
+    let (
+        Effect::Cast {
+            what: first,
+            dur: dur_a,
+            ..
+        },
+        Effect::Cast {
+            what: last,
+            dur: dur_b,
+            ..
+        },
+    ) = (a, b)
+    else {
+        return;
+    };
+    let zone_of = |q: &Post| match q {
+        Post::In(z) | Post::CastFrom(z) => Some(Post::In(z.clone())),
+        Post::FromAmong(_) => Some(q.clone()),
+        _ => None,
+    };
+    if first.filter.posts.iter().any(|q| zone_of(q).is_some()) || first.quant != Quant::Plural {
+        return;
+    }
+    let Some(zone) = last.filter.posts.iter().find_map(zone_of) else {
+        return;
+    };
+    first.filter.posts.push(zone);
+    if *dur_a == Duration::Permanent {
+        *dur_a = dur_b.clone();
+    }
+}
+
 pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
     let mut v = clause(p)?;
-    while let Some(more) = p.attempt(|p| {
-        p.one_of(&[
+    while let Some((joiner, more)) = p.attempt(|p| {
+        let joiner = p.one_of(&[
             ", and then",
             ", then",
             ", and",
@@ -828,10 +870,15 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
         {
             *source = v.last().and_then(object_subject_of);
         }
-        Some(c)
+        Some((joiner, c))
     }) {
         let mut more = more;
         listed(&v, &mut more);
+        if joiner == "and" {
+            if let (Some(a), Some(b)) = (v.last_mut(), more.first()) {
+                play_and_cast_from(a, b);
+            }
+        }
         v.extend(more);
     }
     spend_with_play(&mut v);

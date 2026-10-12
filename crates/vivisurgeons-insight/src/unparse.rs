@@ -787,6 +787,13 @@ mod syn {
         alt(o, vec![with_verb, without]);
     }
 
+    /// "you may play lands and cast spells from your graveyard until end of
+    /// turn": the zone and duration said once after the last verb hold of
+    /// each, as `PlayFrom`'s run already says them ([spell-cast-from]).
+    pub fn zone_said_once(o: &mut Out, again: Out, once: Out) {
+        alt(o, vec![again, once]);
+    }
+
     /// "a noncreature artifact or enchantment" and "a noncreature artifact
     /// or noncreature enchantment": the word before the first type belongs
     /// to every type after it, said once or again.
@@ -4357,6 +4364,22 @@ fn cant_be_regenerated(o: &mut Out, what: &[&Objects]) {
     o.w("can't be regenerated");
 }
 
+/// The zone a play or cast permission's objects are in or cast from.
+fn zone_post(q: &Post) -> Option<Post> {
+    match q {
+        Post::In(z) | Post::CastFrom(z) => Some(Post::In(z.clone())),
+        Post::FromAmong(_) => Some(q.clone()),
+        _ => None,
+    }
+}
+
+/// Whether two permissions' objects come from the same zone.
+fn same_zone(a: &Objects, b: &Objects) -> bool {
+    let za: Vec<Post> = a.filter.posts.iter().filter_map(zone_post).collect();
+    let zb: Vec<Post> = b.filter.posts.iter().filter_map(zone_post).collect();
+    !za.is_empty() && za == zb
+}
+
 /// The destroys inside a branch ("if", "where", "instead", an option) that
 /// stop regeneration, cleared in a copy of the branch, and the objects they
 /// destroy: the sentence is said once after the branch ([no-regen-after]).
@@ -4439,6 +4462,19 @@ fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
                         cant_be_regenerated(o, &run);
                     }
                 })
+            }
+            Effect::Cast { what, dur: d, .. }
+                if matches!(es.get(i + 1), Some(Effect::Cast { what: w2, dur: d2, .. })
+                    if d2 == d && same_zone(what, w2)) =>
+            {
+                let mut bare = e.clone();
+                if let Effect::Cast { what, dur, .. } = &mut bare {
+                    what.filter.posts.retain(|q| zone_post(q).is_none());
+                    *dur = Duration::Permanent;
+                }
+                let again = out(|o| effect(o, e, &cx));
+                let once = out(|o| effect(o, &bare, &cx));
+                out(|o| syn::zone_said_once(o, again, once))
             }
             _ => match regen_in_branch(e) {
                 // "Destroy target creature if it's white. A creature
