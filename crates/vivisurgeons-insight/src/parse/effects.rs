@@ -79,6 +79,18 @@ pub(super) fn cards(p: &mut P) -> Option<Amount> {
 
 /// "the top three cards of your library", or "the top card of" with no count.
 pub(super) fn top_of_library(p: &mut P) -> Option<(Amount, Player)> {
+    // "that many cards from the top of your library": the same cards, named
+    // from the top down (`syn::top_cards`).
+    if let Some(r) = p.attempt(|p| {
+        let n = amount_a(p)?;
+        p.one_of(&["cards", "card"])?;
+        p.words("from the top of")?;
+        let whose = whose(p)?;
+        p.word("library")?;
+        Some((n, whose))
+    }) {
+        return Some(r);
+    }
     p.words("the top")?;
     let n = alt!(p;
         cards,
@@ -1174,6 +1186,19 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         |p| { let who = subject_player(p); p.verb("mill")?; p.words("cards equal to")?; let n = measure(p)?; Some(Effect::Mill { who, n }) },
         |p| { let who = subject_player(p); p.verb("look at")?; let (n, whose) = top_of_library(p)?; Some(Effect::LookAtTop { who, whose, n }) },
         |p| { let who = subject_player(p); p.verb("look at")?; let whose = whose(p)?; p.word("hand")?; Some(Effect::LookAtHand { who, whose }) },
+        |p| {
+            let who = subject_player(p);
+            p.verb("look at")?;
+            let what = objects(p)?;
+            // "the creature cards in target opponent's hand" is every one
+            // there, not a reference back, which `objects` would make it.
+            let zoned = what.filter.posts.iter().any(|q| matches!(q, Post::In(_)));
+            if what.quant == Quant::Antecedent && zoned {
+                return None;
+            }
+            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+            Some(Effect::LookAt { who, what, dur })
+        },
         |p| { let who = subject_player(p); p.verb("reveal")?; let (n, whose) = top_of_library(p)?; Some(Effect::RevealTop { who, whose, n }) },
         |p| { let who = subject_player(p); p.verb("reveal")?; let what = objects(p)?; Some(Effect::Reveal { who, what }) },
         // permanents
@@ -1361,6 +1386,8 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                     let n = p.attempt(amount);
                     p.end_of_clause().then_some(Effect::Action { by: None, name, n })
                 },
+                // "Each player exiles the top card of their library face down".
+                |p| { p.verb("exile")?; let what = objects(p)?; p.words("face down")?; Some(Effect::ExileFaceDown(what)) },
                 |p| { p.verb("exile")?; objects(p).map(Effect::Exile) },
                 |p| {
                     p.verb("gain")?;

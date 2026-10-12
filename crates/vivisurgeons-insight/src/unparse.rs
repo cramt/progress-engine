@@ -6286,6 +6286,11 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             whose(o, w);
             o.w("hand");
         }
+        Effect::LookAt { who, what, dur: d } => {
+            subj(o, who, "look at", cx);
+            objects(o, what);
+            dur(o, d);
+        }
         Effect::CastAsThoughFlash { what, dur: d } => {
             o.w("cast");
             objects(o, what);
@@ -7201,6 +7206,11 @@ fn performed(o: &mut Out, e: &Effect, n: Num) {
             o.verb("exile", n);
             objects(o, x);
         }
+        Effect::ExileFaceDown(x) => {
+            o.verb("exile", n);
+            objects(o, x);
+            o.w("face down");
+        }
         Effect::GainControl { what, dur: d } => {
             o.verb("gain", n);
             o.w("control of");
@@ -7447,14 +7457,24 @@ fn life(o: &mut Out, n: &Amount) {
 }
 
 fn top_of(o: &mut Out, n: &Amount, w: &Player) {
-    o.w("the top");
-    if *n != Amount::N(1) {
-        amount(o, n);
-    }
-    o.noun("card", amount_num(n));
-    o.w("of");
-    whose(o, w);
-    o.w("library");
+    let the_top = out(|o| {
+        o.w("the top");
+        if *n != Amount::N(1) {
+            amount(o, n);
+        }
+        o.noun("card", amount_num(n));
+        o.w("of");
+        whose(o, w);
+        o.w("library");
+    });
+    let from_the_top = out(|o| {
+        amount_a(o, n);
+        o.noun("card", amount_num(n));
+        o.w("from the top of");
+        whose(o, w);
+        o.w("library");
+    });
+    syn::top_cards(o, the_top, from_the_top);
 }
 
 fn order_words(o: &mut Out, order: &Option<Order>) {

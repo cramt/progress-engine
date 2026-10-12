@@ -1036,6 +1036,11 @@ impl Walk for Effect {
             Effect::ExileFaceDown(f0) => {
                 Walk::walk(f0, v);
             }
+            Effect::LookAt { who, what, dur } => {
+                Walk::walk(who, v);
+                Walk::walk(what, v);
+                Walk::walk(dur, v);
+            }
             Effect::LookAtHand { who, whose } => {
                 Walk::walk(who, v);
                 Walk::walk(whose, v);

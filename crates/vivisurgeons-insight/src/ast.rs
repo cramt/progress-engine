@@ -1384,6 +1384,15 @@ pub enum Effect {
     },
     /// "Exile the top card of your library face down."
     ExileFaceDown(Objects),
+    /// "exile the top card of your library face down and look at it", "You
+    /// may look at that card for as long as it remains exiled": a look at
+    /// objects already named, once or (with a duration) any time while it
+    /// lasts.
+    LookAt {
+        who: Player,
+        what: Objects,
+        dur: Duration,
+    },
     /// "Look at target player's hand."
     LookAtHand {
         who: Player,
