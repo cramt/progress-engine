@@ -651,11 +651,7 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             zone(p).map(Post::In)
         },
         |p| p.one_of(&["that's blocking", "that are blocking"]).map(|_| Post::Blocking),
-        |p| {
-            p.words("other than")?;
-            let o = objects(p)?;
-            (o.quant == Quant::SelfRef).then_some(Post::OtherThanSelf(o.filter))
-        },
+        |p| { p.words("other than")?; self_noun(p).map(|o| Post::OtherThanSelf(o.filter)) },
         |p| p.words("of the chosen type").map(|_| Post::OfChosenType),
         |p| p.words("of that type").map(|_| Post::OfThatType),
         |p| p.words("of the chosen color").map(|_| Post::OfChosenColor),
@@ -711,6 +707,7 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         // "cards exiled with it": "it" is the object whose ability exiled
         // them, which on a card's own text is the card (CR 607.2a).
         |p| { p.words("exiled with it")?; Some(Post::ExiledWith(Box::new(self_ref()))) },
+        |p| { p.words("exiled with")?; self_noun(p).map(|o| Post::ExiledWith(Box::new(o))) },
         |p| { p.words("exiled with")?; objects(p).map(|o| Post::ExiledWith(Box::new(o))) },
         |p| p.words("you cast").map(|_| Post::Cast(Player::You)),
         |p| p.words("drawn this turn").map(|_| Post::DrawnThisTurn),
@@ -865,6 +862,42 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
     )
 }
 
+/// "other than this creature", "exiled with this artifact": the card by its
+/// own noun. That noun names one object already, so it takes no posts: what
+/// trails it qualifies the objects the phrase is said of. "Creatures you
+/// control other than this creature with total power 10 or greater" bounds
+/// the tapped creatures' power, and Ichorid's "a black creature card other
+/// than this card from your graveyard" is a card in your graveyard.
+fn self_noun(p: &mut P) -> Option<Objects> {
+    alt!(p;
+        |p| p.tok(&Tok::SelfRef).map(|_| self_ref()),
+        |p| {
+            p.word("this")?;
+            let alts: Vec<Vec<Adj>> = p.attempt(group).into_iter().collect();
+            let kind = p.attempt(|p| kind(p).filter(|k| !matches!(k, Noun::Counter(_))));
+            (!alts.is_empty() || kind.is_some()).then(|| Objects {
+                quant: Quant::SelfRef,
+                filter: Filter { alts, kind, ..Filter::default() },
+            })
+        },
+    )
+}
+
+/// Rod of Absorption: "any number of spells from among cards exiled with
+/// this artifact with total mana value X or less": a total bounds the
+/// objects chosen, not the set they are chosen from, whose total nobody
+/// picks (its ruling: "you cast as many spells with total mana value X or
+/// less from among the exiled cards as you would like").
+fn total_of_the_chosen(q: Post) -> Vec<Post> {
+    match q {
+        Post::FromAmong(mut o) if matches!(o.filter.posts.last(), Some(Post::Total(_))) => {
+            let total = o.filter.posts.pop().expect("matched a last post");
+            vec![Post::FromAmong(o), total]
+        }
+        q => vec![q],
+    }
+}
+
 /// Posts that come as more than one: "that each have a different mana value
 /// X or less" says the values differ and bounds each.
 fn posts_one(p: &mut P, counter: bool) -> Option<Vec<Post>> {
@@ -905,7 +938,7 @@ fn posts_one(p: &mut P, counter: bool) -> Option<Vec<Post>> {
             Some(v)
         },
         // Only a counter is "on" something; elsewhere "on" starts a destination.
-        |p| post(p).filter(|q| counter || !matches!(q, Post::On(_))).map(|q| vec![q]),
+        |p| post(p).filter(|q| counter || !matches!(q, Post::On(_))).map(total_of_the_chosen),
     )
 }
 
