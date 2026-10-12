@@ -508,6 +508,17 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                     then: vec![Effect::May { who, then: inner.clone() }],
                 }]);
             }
+            // "You may cast it without paying its mana cost if that spell's
+            // mana value is 8 or less. If you don't, …": the option exists
+            // only if the condition holds, so the "if" holds the "may", and
+            // "If you don't" and "Otherwise" after it answer the choice and
+            // the condition, not a choice that was always offered.
+            if let [Effect::If { cond, then: inner }] = &then[..] {
+                return Some(vec![Effect::If {
+                    cond: cond.clone(),
+                    then: vec![Effect::May { who, then: inner.clone() }],
+                }]);
+            }
             Some(vec![Effect::May { who, then }])
         },
         |p| {

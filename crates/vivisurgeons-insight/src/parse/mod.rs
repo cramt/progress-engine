@@ -1131,7 +1131,12 @@ fn refer(
             // "counter it if a card with the same name is in a graveyard":
             // an indefinite in a condition says one exists, and is nothing
             // a later "it" refers back to.
-            let indefinite = matches!(o.quant, Quant::One | Quant::Another | Quant::Plural);
+            // A quantified noun ("each other creature's power") is no referent
+            // either.
+            let indefinite = matches!(
+                o.quant,
+                Quant::One | Quant::Another | Quant::Plural | Quant::Each | Quant::All
+            );
             if o.quant == Quant::SelfRef {
                 self.named.0 = true;
             } else {
