@@ -3789,6 +3789,13 @@ fn that_is(o: &mut Out, n: Num) {
     }
 }
 
+/// "exactly two colors".
+fn exactly_colors(o: &mut Out, k: u32) {
+    o.w("exactly");
+    syn::number(o, k);
+    o.w(if k == 1 { "color" } else { "colors" });
+}
+
 fn post(o: &mut Out, q: &Post, n: Num) {
     match q {
         Post::FromSource(g) => {
@@ -3924,7 +3931,14 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             } else {
                 "that aren't"
             });
-            post(o, q, n);
+            match &**q {
+                Post::ExactlyColors(k) => exactly_colors(o, *k),
+                q => post(o, q, n),
+            }
+        }
+        Post::ExactlyColors(k) => {
+            that_is(o, n);
+            exactly_colors(o, *k);
         }
         Post::EnteredThisTurn => o.w("that entered this turn"),
         Post::EnteredUnderThisTurn(p) => {

@@ -842,6 +842,13 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         // "a creature named Hanweir Garrison": another card, by its name.
         |p| { p.word("named")?; card_name(p, &[",", "with", "and"]).map(Post::NamedCard) },
         |p| { p.one_of(&["that target", "that targets"])?; objects(p).map(|o| Post::Targets(Box::new(o))) },
+        // "a spell that's exactly two colors", "that isn't exactly two colors".
+        |p| {
+            let not = p.one_of(&["that's exactly", "that are exactly", "that isn't exactly", "that aren't exactly"])?.contains("n't");
+            let n = number(p)?;
+            p.one_of(&["colors", "color"])?;
+            Some(if not { Post::Not(Box::new(Post::ExactlyColors(n))) } else { Post::ExactlyColors(n) })
+        },
         |p| { p.word("that's")?; filter(p).map(Post::ThatIs) },
         |p| { let how = marked_this_way(p)?; p.words("this way")?; Some(Post::Marked(how)) },
         |p| p.one_of(&["who doesn't", "who don't"]).map(|_| Post::WhoDoesnt),

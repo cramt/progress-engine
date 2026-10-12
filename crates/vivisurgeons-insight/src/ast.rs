@@ -750,6 +750,9 @@ pub enum Noun {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Post {
+    /// "a spell that's exactly two colors", "a nonland permanent that isn't
+    /// exactly two colors" (with `Not`): its number of colors (CR 105.2).
+    ExactlyColors(u32),
     /// "Whenever you cast a legendary spell from your hand": the zone a spell
     /// was cast from, which it left as it was cast (CR 601.2a); a spell is
     /// on the stack, so it is in no hand.
