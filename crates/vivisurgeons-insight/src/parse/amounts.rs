@@ -157,11 +157,16 @@ fn measure_bare(p: &mut P) -> Option<Amount> {
         |p| { p.one_of(&["its", "their"])?; let s = stat(p)?; Some(stat_of(s, antecedent())) },
         |p| { let o = objects(p)?; p.tok(&Tok::Possessive)?; let s = stat(p)?; Some(stat_of(s, o)) },
         |p| { p.words("the life lost this way").map(|_| Amount::LifeLost) },
+        // "the amount of life you gained this turn", "the life you've lost
+        // this turn", "the amount of life they lost this turn".
         |p| {
-            p.words("the amount of life")?;
-            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
-            p.words("gained this turn")?;
-            Some(Amount::LifeGainedThisTurn(who))
+            p.word("the")?;
+            p.attempt(|p| p.words("amount of"));
+            p.word("life")?;
+            let who = life_subject(p)?;
+            let gained = p.one_of(&["gained", "lost"])? == "gained";
+            p.words("this turn")?;
+            Some(if gained { Amount::LifeGainedThisTurn(who) } else { Amount::LifeLostThisTurn(who) })
         },
         |p| { p.words("the damage dealt this way").map(|_| Amount::Damage) },
         |p| { p.words("the amount of damage dealt this way").map(|_| Amount::Damage) },
@@ -235,4 +240,16 @@ pub(super) fn self_ref() -> Objects {
         quant: Quant::SelfRef,
         filter: Filter::default(),
     }
+}
+
+/// Who gained or lost life: "you", "you've", "they", "that player has".
+pub(super) fn life_subject(p: &mut P) -> Option<Player> {
+    alt!(p;
+        |p| p.word("you've").map(|_| Player::You),
+        |p| {
+            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+            p.attempt(|p| p.one_of(&["has", "have"]));
+            Some(who)
+        },
+    )
 }

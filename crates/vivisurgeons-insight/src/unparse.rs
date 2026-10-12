@@ -1195,6 +1195,18 @@ mod syn {
         any_of(o, &["haven't cast", "hasn't cast", "didn't cast"]);
     }
 
+    /// "the life you lost this turn" and "the amount of life you lost this
+    /// turn": the same amount, the second counted aloud.
+    pub fn the_life(o: &mut Out) {
+        any_of(o, &["the life", "the amount of life"]);
+    }
+
+    /// "you gained 3 or more life this turn" and "you've gained …": with
+    /// "this turn" the simple past and the present perfect say the same.
+    pub fn perfect(o: &mut Out, simple: Out, perfect: Out) {
+        alt(o, vec![simple, perfect]);
+    }
+
     pub fn did_tense(o: &mut Out, past: &str, present: Out) {
         alt(o, vec![of(past), present]);
     }
@@ -2298,15 +2310,15 @@ fn measure(o: &mut Out, a: &Amount) {
             }
             o.w("drawn this turn");
         }
-        Amount::LifeGainedThisTurn(p) => {
-            o.w("the amount of life");
-            player(o, p);
-            o.w("gained this turn");
-        }
-        Amount::LifeLostThisTurn(p) => {
-            o.w("the life");
-            player(o, p);
-            o.w("lost this turn");
+        Amount::LifeGainedThisTurn(p) | Amount::LifeLostThisTurn(p) => {
+            syn::the_life(o);
+            let verb = if matches!(a, Amount::LifeGainedThisTurn(_)) {
+                "gained"
+            } else {
+                "lost"
+            };
+            life_subject(o, p, verb);
+            o.w("this turn");
         }
         Amount::DamageDealtThisTurn(p) => {
             o.w("the damage");
@@ -8926,19 +8938,23 @@ fn amount_is(o: &mut Out, n: &Amount, op: Op, value: &Amount) {
             amount(o, value);
             o.w("or more cards this turn");
         }
-        Amount::LifeLostThisTurn(p) | Amount::DamageDealtThisTurn(p) => {
-            player(o, p);
-            o.w(if matches!(n, Amount::LifeLostThisTurn(_)) {
-                "lost"
-            } else {
-                "was dealt"
-            });
+        Amount::LifeLostThisTurn(p)
+        | Amount::LifeGainedThisTurn(p)
+        | Amount::DamageDealtThisTurn(p) => {
+            match n {
+                Amount::LifeLostThisTurn(_) => life_subject(o, p, "lost"),
+                Amount::LifeGainedThisTurn(_) => life_subject(o, p, "gained"),
+                _ => {
+                    player(o, p);
+                    o.w("was dealt");
+                }
+            }
             amount(o, value);
             o.w(if op == Op::Ge { "or more" } else { "or less" });
-            o.w(if matches!(n, Amount::LifeLostThisTurn(_)) {
-                "life"
-            } else {
+            o.w(if matches!(n, Amount::DamageDealtThisTurn(_)) {
                 "damage"
+            } else {
+                "life"
             });
             o.w("this turn");
         }
@@ -10070,6 +10086,25 @@ fn statics_joined(o: &mut Out, ss: &[Static]) {
         }
         i += sized(o, ss, i);
     }
+}
+
+/// "you gained", "you've gained", "that player has gained": who gained or
+/// lost life this turn, in the past or the present perfect.
+fn life_subject(o: &mut Out, p: &Player, verb: &str) {
+    let simple = out(|o| {
+        player(o, p);
+        o.w(verb);
+    });
+    let perfect = out(|o| match p {
+        Player::You => o.w("you've"),
+        p => {
+            player(o, p);
+            o.verb("have", player_num(p));
+        }
+    });
+    let mut perfect = perfect;
+    perfect.w(verb);
+    syn::perfect(o, simple, perfect);
 }
 
 #[cfg(test)]

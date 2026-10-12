@@ -235,9 +235,11 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         // "an opponent lost 2 or more life this turn", "an opponent was dealt
         // 7 or more damage this turn".
         |p| {
-            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+            let who = super::amounts::life_subject(p)?;
             let n = alt!(p;
                 |p| p.word("lost").map(|_| Amount::LifeLostThisTurn(who.clone())),
+                // "if you've gained 3 or more life this turn".
+                |p| p.word("gained").map(|_| Amount::LifeGainedThisTurn(who.clone())),
                 |p| p.words("was dealt").map(|_| Amount::DamageDealtThisTurn(who.clone())),
             )?;
             let value = amount(p)?;
@@ -245,7 +247,7 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 |p| p.words("or more").map(|_| Op::Ge),
                 |p| p.words("or less").map(|_| Op::Le),
             )?;
-            let unit = if matches!(n, Amount::LifeLostThisTurn(_)) { "life" } else { "damage" };
+            let unit = if matches!(n, Amount::DamageDealtThisTurn(_)) { "damage" } else { "life" };
             p.word(unit)?;
             p.words("this turn")?;
             Some(Condition::AmountIs { n, op, value })
