@@ -633,8 +633,18 @@ pub(super) fn flavour_label(p: &mut P) -> Option<String> {
     let mut label: Vec<String> = Vec::new();
     loop {
         match p.peek()? {
-            Tok::Word(_) | Tok::SelfRef | Tok::Possessive | Tok::Other('!' | '?') => {
+            Tok::Word(_) | Tok::SelfRef => {
                 label.push(crate::show(p.peek()?));
+                p.bump();
+            }
+            // "Shiva's Aid", "Do You Like Squirrels?": the possessive and the
+            // mark close up on the word before, as printed.
+            Tok::Possessive | Tok::Other('!' | '?') => {
+                let s = crate::show(p.peek()?);
+                match label.last_mut() {
+                    Some(last) => last.push_str(&s),
+                    None => label.push(s),
+                }
                 p.bump();
             }
             Tok::Dash => break,
