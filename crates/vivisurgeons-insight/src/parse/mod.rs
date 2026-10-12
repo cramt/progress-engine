@@ -817,6 +817,11 @@ fn trigger_object(e: &Event) -> Option<Objects> {
         }
         _ => return None,
     };
+    // "Whenever ~ or another creature you control enters, if you cast it
+    // …": one object entered, the card or another, and "it" is that one.
+    if matches!(what.quant, Quant::SelfOrAnother(_) | Quant::SelfOrA(_)) {
+        return Some(what.clone());
+    }
     // "a spell that targets a creature you control", "a spell that targets
     // this creature": two objects, and "it" may be either.
     struct Count(usize);
