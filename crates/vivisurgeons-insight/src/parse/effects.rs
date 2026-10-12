@@ -1483,6 +1483,17 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             }
             p.end_of_clause().then_some(Effect::Action { by: None, name, n: None })
         },
+        // "Proliferate X times": the action, that many times over.
+        |p| {
+            let name = p.peek_word()?.to_string();
+            if !vocab().keyword_actions.contains(&name) { return None; }
+            p.bump();
+            let times = alt!(p;
+                |p| p.word("twice").map(|_| Amount::N(2)),
+                |p| { let t = amount(p)?; p.word("times")?; Some(t) },
+            )?;
+            Some(Effect::Repeat { times, then: vec![Effect::Action { by: None, name, n: None }] })
+        },
         |p| {
             let by = p.attempt(objects);
             let w = p.peek_word()?;

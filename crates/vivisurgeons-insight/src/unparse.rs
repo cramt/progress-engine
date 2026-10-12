@@ -1174,6 +1174,12 @@ mod syn {
         alt(o, vec![the_top, from_the_top]);
     }
 
+    /// "Repeat the following process X times. Proliferate.", "Proliferate
+    /// X times": one action done that many times over, said either way.
+    pub fn times_after(o: &mut Out, process: Out, said: Out) {
+        alt(o, vec![process, said]);
+    }
+
     /// "a +1/+1 counter on it for each creature that died this turn" and
     /// "a number of +1/+1 counters on it equal to the number of creatures
     /// that died this turn": one counter per object is that many counters.
@@ -6482,10 +6488,26 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 clauses(o, then, cx);
             }
             t => {
-                o.w("repeat the following process");
-                amount(o, t);
-                o.w("times.");
-                clauses(o, then, cx);
+                let process = out(|o| {
+                    o.w("repeat the following process");
+                    amount(o, t);
+                    o.w("times.");
+                    clauses(o, then, cx);
+                });
+                // "Proliferate X times": one action said with its count.
+                let said = out(|o| {
+                    clauses(o, then, cx);
+                    if *t == Amount::N(2) {
+                        o.w("twice");
+                    } else {
+                        amount(o, t);
+                        o.w("times");
+                    }
+                });
+                match &then[..] {
+                    [Effect::Action { n: None, .. }] => syn::times_after(o, process, said),
+                    _ => o.add(process),
+                }
             }
         },
         Effect::RepeatUntil(e) => {
