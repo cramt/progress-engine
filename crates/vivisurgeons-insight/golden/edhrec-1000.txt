@@ -4622,7 +4622,7 @@ type: Creature — Human Rogue
 > You control your opponents while they're searching their libraries.
 > While an opponent is searching their library, they exile each card they find. You may play those cards for as long as they remain exiled, and you may spend mana as though it were mana of any color to cast them.
 = Keywords([Keyword { name: "flash", param: None }])
-= Static([AsLongAs { cond: Searching { who: That, zone: Library(That) }, then: [ControlPlayer(EachOpponent)] }])
+= Static([AsLongAs { cond: Searching { who: AnOpponent, zone: Library(That) }, then: [ControlPlayer(That)] }])
 = Static([While { cond: Searching { who: AnOpponent, zone: Library(That) }, then: [Performed { by: That, effect: Exile(Objects { quant: Each, filter: Filter { alts: [], kind: Some(Card), posts: [MarkedBy { how: Found, by: That }], or: None } }) }, May { who: You, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: ForAsLongAs(In { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Exile }) }] }, May { who: You, then: [SpendAsAnyColor([Cast(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })])] }] }])
 
 ## Opt

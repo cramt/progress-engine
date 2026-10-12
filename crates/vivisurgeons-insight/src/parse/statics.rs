@@ -421,6 +421,12 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             let who = player(p)?;
             p.word("while")?;
             let cond = condition(p)?;
+            // "while they're searching their libraries": each opponent while that
+            // one searches, not every opponent while some "that" player does.
+            if who == Player::EachOpponent && cond == (Condition::Searching { who: Player::That, zone: Zone::Library(Player::That) }) {
+                let cond = Condition::Searching { who: Player::AnOpponent, zone: Zone::Library(Player::That) };
+                return Some(vec![Static::AsLongAs { cond, then: vec![Static::ControlPlayer(Player::That)] }]);
+            }
             Some(vec![Static::AsLongAs { cond, then: vec![Static::ControlPlayer(who)] }])
         },
         |p| { p.words("you control")?; objects(p).map(|o| vec![Static::Control(o)]) },

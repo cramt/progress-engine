@@ -2392,7 +2392,12 @@ pub enum Static {
     /// "You control your opponents": one player making another's choices.
     ControlPlayer(Player),
     /// "While an opponent is searching their library, they exile each card
-    /// they find. …": effects that apply to what happens while it holds.
+    /// they find. You may play those cards for as long as they remain
+    /// exiled, …": effects done while it holds. Each lasts as long as it
+    /// says, not only while the condition holds: the play permission is
+    /// given as the card is exiled and lasts while it stays exiled, and
+    /// the spending rule with it, which names no end, while you may cast
+    /// them.
     While {
         cond: Condition,
         then: Vec<Effect>,

@@ -590,6 +590,17 @@ mod syn {
         alt(o, vec![a_number, where_x]);
     }
 
+    /// "You control your opponents while they're searching their libraries"
+    /// and "While an opponent is searching their library, you control that
+    /// player": a plural object whose condition says "they" holds of each
+    /// one while that one meets it, as "Creatures you control get +1/+1 as
+    /// long as they're attacking" does of each creature (Opposition Agent's
+    /// ruling: "While controlling an opponent, you make all choices … for
+    /// that player").
+    pub fn each_while_they(o: &mut Out, plural: Out, one: Out) {
+        alt(o, vec![plural, one]);
+    }
+
     /// "Look at the top X cards of your library, where X is your devotion
     /// to blue. … If X is greater than or equal to …": X defined once holds
     /// in every sentence of the ability that says X (CR 107.3i, all
@@ -9198,6 +9209,35 @@ fn static_other(o: &mut Out, s: &Static) {
             step(o, s);
         }
         Static::AsLongAs { cond, then } => {
+            if let (
+                [Static::ControlPlayer(Player::That)],
+                Condition::Searching {
+                    who: Player::AnOpponent,
+                    zone: Zone::Library(Player::That),
+                },
+            ) = (&then[..], cond)
+            {
+                let each = out(|o| {
+                    o.w("you control");
+                    player(o, &Player::EachOpponent);
+                    o.w("while");
+                    condition(
+                        o,
+                        &Condition::Searching {
+                            who: Player::That,
+                            zone: Zone::Library(Player::That),
+                        },
+                    );
+                });
+                let one = out(|o| {
+                    o.w("while");
+                    condition(o, cond);
+                    o.w(", you control");
+                    player(o, &Player::That);
+                });
+                syn::each_while_they(o, each, one);
+                return;
+            }
             if let [Static::ControlPlayer(p)] = &then[..] {
                 o.w("you control");
                 player(o, p);
