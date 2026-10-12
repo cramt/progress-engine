@@ -1035,7 +1035,11 @@ pub(super) fn after_clause(clause: &Effect, cond: &mut Condition) {
     struct Bind(Quant);
     impl Visitor for Bind {
         fn enter(&mut self, o: &mut Objects) -> bool {
-            if o.quant == Quant::Antecedent {
+            // "the revealed card's power", "the sacrificed creature's
+            // power": what a cost or an earlier verb marked keeps its own
+            // referent; only the pronoun is the clause's object.
+            let marked = o.filter.posts.iter().any(|p| matches!(p, Post::Marked(_)));
+            if o.quant == Quant::Antecedent && !marked {
                 o.quant = self.0.clone();
             }
             true
