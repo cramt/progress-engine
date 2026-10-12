@@ -482,7 +482,15 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                 Effect::Modify { what, pt: None, gains: keywords, dur },
             ])
         },
-        |p| { p.word("then")?; clause(p) },
+        |p| {
+            // A paragraph opens with "Then" ("Coven — Then if …") only where
+            // it continues a spell's instructions ([then-paragraph]);
+            // anywhere else the word would be dropped with nothing to say it.
+            let opens = p.i == 0 || p.t.get(p.i - 1) == Some(&Tok::Dash);
+            if opens && !p.continues { return None; }
+            p.word("then")?;
+            clause(p)
+        },
         // "it loses "…" and gains "…"": one subject, two verbs.
         |p| {
             let what = objects(p)?;

@@ -163,7 +163,9 @@ fn show(t: &Tok) -> String {
 }
 
 /// Nouns whose plural is the singular: "seven or more Plains", "untapped
-/// Myr", "Equipment you control".
+/// Myr", "Equipment you control". The creature types from "samurai" on are
+/// never said with an "s" in Oracle text ("all Samurai you control",
+/// "other Kavu", "Exile all creatures and Spacecraft").
 const SAME_PLURAL: &[&str] = &[
     "plains",
     "myr",
@@ -181,6 +183,11 @@ const SAME_PLURAL: &[&str] = &[
     "zubera",
     "arcane",
     "eldrazi",
+    "samurai",
+    "kavu",
+    "aetherborn",
+    "spacecraft",
+    "nephilim",
 ];
 
 fn plural(sg: &str) -> String {
@@ -591,6 +598,16 @@ mod syn {
         any_of(o, JOINERS);
     }
 
+    /// "Coven — Then if you control …, draw a card." on an instant's second
+    /// paragraph: the paragraphs of an instant or sorcery are its spell
+    /// abilities (CR 113.3a), followed in the order written (CR 608.2c), so
+    /// "then" says the order the card's abilities already have, as it does
+    /// between two clauses of one paragraph (`joiner`). Offered only on a
+    /// spell's paragraph after its first; `paragraph` checks it.
+    pub fn then_paragraph(o: &mut Out) {
+        alt(o, vec![Out::default(), of("then")]);
+    }
+
     const JOINERS: &[&str] = &[
         ". ",
         ", then ",
@@ -821,6 +838,13 @@ mod syn {
     /// your graveyard". The object is in that zone either way.
     pub fn in_from(o: &mut Out) {
         any_of(o, &["from", "in"]);
+    }
+
+    /// The same for the battlefield, which English puts things "on":
+    /// "exile all creatures … from the battlefield", "each creature on the
+    /// battlefield".
+    pub fn on_from(o: &mut Out) {
+        any_of(o, &["on", "from"]);
     }
 
     /// "2 plus the sacrificed creature's mana value": a sum is the same in
@@ -1496,6 +1520,28 @@ pub fn ability(a: &Ability) -> Out {
     let mut a = a.clone();
     crate::walk::Walk::walk(&mut a, &mut Said);
     out(|o| ability_into(o, &a))
+}
+
+/// One line of a card: its ability, and whether the line continues a
+/// spell's instructions from the paragraph before it, which licenses an
+/// opening "Then" ([then-paragraph]).
+pub fn paragraph(a: &Ability, continues: bool) -> Out {
+    match a {
+        Ability::Spell(_) if continues => out(|o| {
+            syn::then_paragraph(o);
+            o.add(ability(a));
+        }),
+        Ability::Labelled {
+            label,
+            ability: inner,
+        } if continues && matches!(**inner, Ability::Spell(_)) => out(|o| {
+            o.w(label);
+            o.tok(Tok::Dash);
+            syn::then_paragraph(o);
+            o.add(ability(inner));
+        }),
+        _ => ability(a),
+    }
 }
 
 fn ability_into(o: &mut Out, a: &Ability) {
@@ -3648,7 +3694,10 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             player(o, p);
             o.verb("own", player_num(p));
         }
-        Post::In(Zone::Battlefield) => o.w("on the battlefield"),
+        Post::In(Zone::Battlefield) => {
+            syn::on_from(o);
+            o.w("the battlefield");
+        }
         Post::In(z) => {
             syn::in_from(o);
             zone(o, z);

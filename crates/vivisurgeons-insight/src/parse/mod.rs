@@ -32,6 +32,9 @@ pub struct P<'a> {
     /// one spell's: "the exiled card" there is what another paragraph of
     /// the same spell exiled.
     spell: bool,
+    /// A spell's paragraph after its first, which alone may open with
+    /// "Then" ([then-paragraph]).
+    continues: bool,
 }
 
 macro_rules! alt {
@@ -55,6 +58,7 @@ impl<'a> P<'a> {
             player_memo: vec![None; t.len() + 1],
             in_value: false,
             spell: false,
+            continues: false,
         }
     }
 
@@ -1888,9 +1892,10 @@ impl Visitor for EachItself {
 }
 
 /// A whole ability line, which must be consumed to the last token.
-pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
+pub fn parse_line(toks: &[Tok], spell: bool, continues: bool) -> Result<Ability, usize> {
     let mut p = P::new(toks);
     p.spell = spell;
+    p.continues = continues;
     match ability(&mut p, spell) {
         Some(mut a) if p.at_end() => {
             a.walk(&mut OtherThanTheSource);

@@ -24,6 +24,10 @@ pub struct Line {
     /// The line as read, with the card's name as `~`.
     pub text: String,
     pub parsed: Result<Ability, Broke>,
+    /// An instant or sorcery's paragraph after its first: the same spell's
+    /// instructions, followed after the ones before (CR 608.2c), so it may
+    /// open with "Then".
+    pub continues: bool,
 }
 
 /// Where a line stopped parsing: the words read and the word it could not.
@@ -66,10 +70,14 @@ pub fn read_face(face: &Face, card_name: &str) -> Vec<Line> {
     lines
         .into_iter()
         .filter(|l| !l.trim().is_empty())
-        .map(|l| {
+        // A line of nothing but reminder text says nothing to read.
+        .filter(|l| !lex::lex(&l.replace('\u{E000}', "~")).is_empty())
+        .enumerate()
+        .map(|(i, l)| {
             let toks = lex::lex(&l);
             let text = l.replace('\u{E000}', "~");
-            let parsed = parse::parse_line(&toks, spell).map_err(|at| Broke {
+            let continues = spell && i > 0;
+            let parsed = parse::parse_line(&toks, spell, continues).map_err(|at| Broke {
                 read: toks[..at.min(toks.len())]
                     .iter()
                     .map(show)
@@ -77,10 +85,12 @@ pub fn read_face(face: &Face, card_name: &str) -> Vec<Line> {
                     .join(" "),
                 at: toks.get(at).map(show).unwrap_or_else(|| "<end>".into()),
             });
-            Line { text, parsed }
+            Line {
+                text,
+                parsed,
+                continues,
+            }
         })
-        // A line of nothing but reminder text says nothing to read.
-        .filter(|l| !lex::lex(&l.text).is_empty())
         .collect()
 }
 
@@ -90,7 +100,7 @@ impl Line {
     pub fn round_trip(&self) -> Option<Result<(), unparse::Diff>> {
         let a = self.parsed.as_ref().ok()?;
         Some(unparse::compare(
-            &unparse::ability(a),
+            &unparse::paragraph(a, self.continues),
             &unparse::line_tokens(&self.text),
         ))
     }
