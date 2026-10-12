@@ -337,7 +337,8 @@ fn limits(p: &mut P) -> Vec<Limit> {
                 let less = p.one_of(&["less", "more"])? == "less";
                 p.words("to activate")?;
                 let per = p.attempt(|p| { p.words("for each")?; objects(p) });
-                Some(vec![Limit::CostChange { by, less, per }])
+                let cond = p.attempt(|p| { p.word("if")?; condition(p) });
+                Some(vec![Limit::CostChange { by, less, per, cond }])
             },
         )?;
         p.tok(&Tok::Period)?;

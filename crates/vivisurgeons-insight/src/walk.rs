@@ -1723,8 +1723,11 @@ impl Walk for Limit {
                     }
                 }
             }
-            Limit::CostChange { per, .. } => {
+            Limit::CostChange { per, cond, .. } => {
                 if let Some(x0) = (per).as_mut() {
+                    Walk::walk(x0, v);
+                }
+                if let Some(x0) = (cond).as_mut() {
                     Walk::walk(x0, v);
                 }
             }

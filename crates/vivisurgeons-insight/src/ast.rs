@@ -259,11 +259,13 @@ pub enum Limit {
         uses: Vec<SpendUse>,
         then: Option<(Objects, Restriction)>,
     },
-    /// "This ability costs {1} less to activate for each …".
+    /// "This ability costs {1} less to activate for each …", "… if you
+    /// control a creature with a +1/+1 counter on it".
     CostChange {
         by: Mana,
         less: bool,
         per: Option<Objects>,
+        cond: Option<Condition>,
     },
     /// "Activate only as an instant": no earlier than an instant could be
     /// cast, which a mana ability otherwise ignores.
@@ -484,6 +486,10 @@ pub enum Quant {
     AnyTarget {
         n: Amount,
     },
+    /// "any other target": a creature, player, planeswalker or battle other
+    /// than the object the sentence named before it (its source, or an
+    /// earlier target).
+    AnyOtherTarget,
     Each,
     All,
     One,
@@ -858,6 +864,9 @@ pub enum Zone {
     Hand(Player),
     Graveyard(Player),
     AGraveyard,
+    /// "up to two target cards from a single graveyard": every one of the
+    /// objects from the same graveyard.
+    SingleGraveyard,
     /// "searches a library": any one.
     ALibrary,
     Library(Player),

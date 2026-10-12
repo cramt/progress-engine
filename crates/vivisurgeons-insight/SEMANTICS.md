@@ -94,6 +94,9 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "from among the nonland permanents they control" | `Quant::All` | settled: who controls them says which they are; "the" points back to nothing |
 | "target activated or triggered ability", "all other activated and triggered abilities you control" | an alternative per kind of ability, and "other" on each | settled: the words before the first kind qualify each, as row 68's colors do; "activated" alone names no object, only before "ability" or "or triggered" |
 | "activated ability from an artifact source" | `Post::FromSource([artifact])` | settled: CR 113.7, the source of an ability is the object that generated it |
+| "any other target" | `Quant::AnyOtherTarget` | open: other than the object the sentence named before it, which is the source (Red Hulk, Pain for All's enchanted creature) or an earlier target (Boulder Dash); the tree does not say which |
+| "among one, two, or three target creatures", "among one, two, or three targets" | `Target { n: Between(1, 3) }`, `AnyTarget { n: Between(1, 3) }` | settled: as "one or two", a range of how many |
+| "up to two target cards from a single graveyard" | `Zone::SingleGraveyard`, apart from `AGraveyard` | settled: every target from the same graveyard, which "from a graveyard" (any one each) does not require |
 | "each creature you control other than this creature", "a permanent other than ~" | `Post::OtherThanSelf(the noun)`: the card, by the noun it was named with | settled: the same object as "~" (row 51), kept with its noun for the round trip; a filter, not an object, so the event naming it still names one object (Yomiji's "that card" stays `Triggering`). The 5 corpus trees with "other than ~" only renamed |
 
 ## Zones
@@ -207,6 +210,10 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "if it had a -1/-1 counter on it", "if it had one or more counters on it", "if it had a counter on it" | `Past(HasCounter { kind })`, `kind: None` for any kind | settled: as it was when the event happened (CR 603.10a); "a counter" and "one or more counters" both mean at least one (`syn::any_counters`) |
 | "Any number of target players each mill two cards" | `Mill { who: AnyNumberOfTarget }`, "each" dropped | settled: "each" restates that every one of them does, as row 166 for objects; the verb is plural |
 | "loses half their life, rounded up", "mills half their library, rounded down" | `LoseLife { n: Half { LifeTotal(w) } }`, `Mill { n: Half { CountOf(cards in Library(w)) } }` | settled: CR 107.1a, the ability says how to round; "half their library" is half the number of cards in it (`syn::half_library`) |
+| "This ability costs {2} less to activate if you control a creature with a +1/+1 counter on it" | `Limit::CostChange { cond: Some(…) }` | settled: the reduction only while the condition holds as the cost is determined (CR 601.2f) |
+| "if a card left your graveyard this turn" | `DidThisTurn(Leaves { a card, from: Graveyard(You) })` | settled: as "left the battlefield this turn" |
+| "If you sacrificed a creature this way", "if you sacrificed a permanent this turn" | `ThisWay(Sacrifices { … })`, `DidThisTurn(Sacrifices { … })` | settled: as "you exiled … this way" |
+| "draw a card for each color among permanents you control" | `ForEachColor { among, then: [Draw] }`, trailing as `ForEach` does | settled: once per color, the same tree as "For each color among …, draw a card" (`syn::position`) |
 ## Durations
 
 | Text | Tree | Status |

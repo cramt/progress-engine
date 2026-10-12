@@ -32,6 +32,14 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
                 cond: Condition::Not(Box::new(cond)),
                 then: vec![e],
             };
+        } else if let Some(among) = p.attempt(|p| {
+            p.words("for each color among")?;
+            objects(p)
+        }) {
+            e = Effect::ForEachColor {
+                among: Palette::ColorsOf(Box::new(among)),
+                then: vec![e],
+            };
         } else if let Some(each) = p.attempt(|p| {
             p.words("for each")?;
             objects(p)

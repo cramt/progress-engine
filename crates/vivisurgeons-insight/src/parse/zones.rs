@@ -5,6 +5,7 @@ use super::*;
 pub(super) fn zone(p: &mut P) -> Option<Zone> {
     alt!(p;
         |p| p.words("a graveyard").map(|_| Zone::AGraveyard),
+        |p| p.words("a single graveyard").map(|_| Zone::SingleGraveyard),
         // "target cards from graveyards": from any one, as "a graveyard" says.
         |p| p.word("graveyards").map(|_| Zone::AGraveyard),
         |p| p.word("libraries").map(|_| Zone::ALibrary),

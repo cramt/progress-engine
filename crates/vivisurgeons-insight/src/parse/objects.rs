@@ -944,6 +944,7 @@ pub(super) fn player_simple(p: &mut P) -> Option<Player> {
 pub(super) fn quant(p: &mut P) -> Option<Quant> {
     alt!(p;
         |p| { p.words("one or two target")?; Some(Quant::Target { n: Amount::Between(1, 2), up_to: false }) },
+        |p| { p.words("one , two , or three target")?; Some(Quant::Target { n: Amount::Between(1, 3), up_to: false }) },
         |p| { p.words("up to")?; let n = amount(p)?; p.word("target")?; Some(Quant::Target { n, up_to: true }) },
         |p| { p.words("up to")?; amount(p).map(Quant::UpTo) },
         |p| p.words("another target").map(|_| Quant::AnotherTarget),
@@ -1257,6 +1258,10 @@ fn objects_read(p: &mut P) -> Option<Objects> {
         |p| p.words("any target").map(|_| Objects { quant: Quant::AnyTarget { n: Amount::N(1) }, filter: Filter::default() }),
         // "divided as you choose among one or two targets".
         |p| p.words("one or two targets").map(|_| Objects { quant: Quant::AnyTarget { n: Amount::Between(1, 2) }, filter: Filter::default() }),
+        |p| p.words("one , two , or three targets").map(|_| Objects { quant: Quant::AnyTarget { n: Amount::Between(1, 3) }, filter: Filter::default() }),
+        // "any other target": other than the object the sentence names
+        // before it.
+        |p| p.words("any other target").map(|_| Objects { quant: Quant::AnyOtherTarget, filter: Filter::default() }),
         // "a Shaman or another Wizard you control": the second alternative is
         // one other than this object, and the posts hold of both.
         |p| {

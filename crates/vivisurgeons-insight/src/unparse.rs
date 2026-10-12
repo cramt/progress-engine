@@ -1511,7 +1511,12 @@ fn limits(o: &mut Out, ls: &[Limit], triggered: bool) {
                     restriction(o, rule, obj_num(what));
                 }
             }
-            Limit::CostChange { by, less, per } => {
+            Limit::CostChange {
+                by,
+                less,
+                per,
+                cond,
+            } => {
                 o.w("this ability costs");
                 mana(o, by);
                 o.w(if *less { "less" } else { "more" });
@@ -1519,6 +1524,10 @@ fn limits(o: &mut Out, ls: &[Limit], triggered: bool) {
                 if let Some(per) = per {
                     o.w("for each");
                     each_objects(o, per);
+                }
+                if let Some(c) = cond {
+                    o.w("if");
+                    condition(o, c);
                 }
             }
             Limit::SpendOnlyManaOf(pal) => {
@@ -2042,10 +2051,22 @@ fn amount(o: &mut Out, a: &Amount) {
             o.w("plus");
             syn::number(o, *k);
         }
+        // "one or two", "one, two, or three".
         Amount::Between(a, b) => {
-            syn::number(o, *a);
-            o.w("or");
-            syn::number(o, *b);
+            for k in *a..=*b {
+                if k > *a {
+                    o.w(if k == *b {
+                        if b - a > 1 {
+                            ", or"
+                        } else {
+                            "or"
+                        }
+                    } else {
+                        ","
+                    });
+                }
+                syn::number(o, k);
+            }
         }
         Amount::Additional(a) => {
             amount(o, a);
@@ -2515,6 +2536,7 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::One
         | Quant::Another
         | Quant::AnotherTarget
+        | Quant::AnyOtherTarget
         | Quant::SecondTarget
         | Quant::SelfOrAnother(_)
         | Quant::SelfOrA(_)
@@ -2619,7 +2641,7 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             }
             match (k, up_to) {
                 (Amount::N(1), false) => {}
-                (Amount::Between(1, 2), false) => o.w("one or two"),
+                (k @ Amount::Between(..), false) => amount(o, k),
                 (k, true) => {
                     o.w("up to");
                     amount(o, k);
@@ -2635,9 +2657,13 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             filter(o, f, n);
         }
         Quant::AnyTarget { n: Amount::N(1) } => o.w("any target"),
+        Quant::AnyOtherTarget => o.w("any other target"),
         Quant::AnyTarget {
-            n: Amount::Between(1, 2),
-        } => o.w("one or two targets"),
+            n: k @ Amount::Between(..),
+        } => {
+            amount(o, k);
+            o.w("targets");
+        }
         Quant::AnyTarget { n: k } => {
             amount(o, k);
             o.w("target targets");
@@ -3694,6 +3720,7 @@ fn zone(o: &mut Out, z: &Zone) {
             o.noun("graveyard", possessor_num(w));
         }
         Zone::AGraveyard => syn::a_graveyard(o),
+        Zone::SingleGraveyard => o.w("a single graveyard"),
         Zone::ALibrary => syn::a_library(o),
         Zone::Library(w) => {
             whose(o, w);
@@ -5326,12 +5353,27 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             }
         }
         Effect::ForEachColor { among, then } => {
-            o.w("for each color among");
-            if let Palette::ColorsOf(x) = among {
-                objects(o, x);
+            let colors = |o: &mut Out| {
+                o.w("for each color among");
+                if let Palette::ColorsOf(x) = among {
+                    objects(o, x);
+                }
+            };
+            let before = out(|o| {
+                colors(o);
+                o.w(",");
+                clauses(o, then, cx);
+            });
+            // "draw a card for each color among permanents you control".
+            if then.len() == 1 {
+                let after = out(|o| {
+                    clauses(o, then, cx);
+                    colors(o);
+                });
+                syn::position(o, before, after);
+            } else {
+                o.add(before);
             }
-            o.w(",");
-            clauses(o, then, cx);
         }
         Effect::Modal { choose, modes } => modal(o, choose, modes, cx),
         Effect::GrantAbility {
@@ -7936,6 +7978,22 @@ fn condition(o: &mut Out, c: &Condition) {
                 objects(o, what);
                 o.w("left the battlefield this turn");
             }
+            Event::Sacrifices { who, what } => {
+                player(o, who);
+                syn::did_tense(
+                    o,
+                    "sacrificed",
+                    out(|o| o.verb("sacrifice", player_num(who))),
+                );
+                objects(o, what);
+                o.w("this turn");
+            }
+            Event::Leaves { what, from } => {
+                objects(o, what);
+                o.w("left");
+                zone(o, from);
+                o.w("this turn");
+            }
             Event::CastUsing { what, keyword } if keyword == "warp" => {
                 objects(o, what);
                 o.w("was warped this turn");
@@ -8032,6 +8090,16 @@ fn condition(o: &mut Out, c: &Condition) {
             Event::WasCast(x) => {
                 objects(o, x);
                 o.w("was cast this way");
+            }
+            Event::Sacrifices { who, what } => {
+                player(o, who);
+                syn::did_tense(
+                    o,
+                    "sacrificed",
+                    out(|o| o.verb("sacrifice", player_num(who))),
+                );
+                objects(o, what);
+                o.w("this way");
             }
             // "you exiled four or more cards this way".
             Event::Exiles { who, what } => {

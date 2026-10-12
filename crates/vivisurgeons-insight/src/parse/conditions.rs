@@ -151,6 +151,18 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             let second = objects(p)?;
             Some(Condition::OwnAndControl(vec![first, second]))
         },
+        // "you sacrificed a creature this way", "you sacrificed a permanent
+        // this turn".
+        |p| {
+            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+            p.word("sacrificed")?;
+            let what = objects(p)?;
+            let e = Box::new(Event::Sacrifices { who, what });
+            alt!(p;
+                |p| p.words("this way").map(|_| Condition::ThisWay(e.clone())),
+                |p| p.words("this turn").map(|_| Condition::DidThisTurn(e.clone())),
+            )
+        },
         // "you exiled four or more cards this way".
         |p| {
             let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
@@ -527,6 +539,14 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 |p| {
                     p.words("left the battlefield this turn")?;
                     Some(Condition::DidThisTurn(Box::new(Event::Leaves { what: what.clone(), from: Zone::Battlefield })))
+                },
+                // "a card left your graveyard this turn".
+                |p| {
+                    p.word("left")?;
+                    let from = zone(p)?;
+                    if from == Zone::Battlefield { return None; }
+                    p.words("this turn")?;
+                    Some(Condition::DidThisTurn(Box::new(Event::Leaves { what: what.clone(), from })))
                 },
                 // "if a Dragon was beheld": by this spell's cost (CR 701.4b).
                 |p| p.words("was beheld").map(|_| Condition::Beheld(what.clone())),

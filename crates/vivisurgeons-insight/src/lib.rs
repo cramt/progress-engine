@@ -1643,6 +1643,34 @@ mod tests {
     }
 
     #[test]
+    fn round_eleven_ranges_and_past_events() {
+        let one = |ty: &str, text: &str| format!("{:?}", read("Some Card", ty, text));
+        let a = one(
+            "Sorcery",
+            "Distribute three +1/+1 counters among one, two, or three target creatures you control.",
+        );
+        assert!(a.contains("Between(1, 3)"), "{a}");
+        let a = one(
+            "Creature — Human",
+            "When this creature enters, exile up to two target cards from a single graveyard.\nAt the beginning of your end step, if a card left your graveyard this turn, draw a card.",
+        );
+        assert!(
+            a.contains("SingleGraveyard") && a.contains("Leaves { what: Objects { quant: One"),
+            "{a}"
+        );
+        let a = one(
+            "Artifact",
+            "{2}, {T}: Tap target creature. This ability costs {1} less to activate if you control a creature with a +1/+1 counter on it.",
+        );
+        assert!(a.contains("cond: Some(YouControl"), "{a}");
+        let a = one(
+            "Sorcery",
+            "Each player sacrifices a creature of their choice. If you sacrificed a creature this way, draw a card.",
+        );
+        assert!(a.contains("ThisWay(Sacrifices { who: You"), "{a}");
+    }
+
+    #[test]
     fn hero_is_a_creature_type() {
         let a = read(
             "Some Assembly",
