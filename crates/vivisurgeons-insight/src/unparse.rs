@@ -1001,6 +1001,44 @@ mod syn {
         any_of(o, &["its", "their", "his", "her", "those"]);
     }
 
+    /// "it's", "the copy is", "they're" (or "it isn't", "the copy isn't",
+    /// "they're not"): the copy or copies a copy effect's exception is said
+    /// of, by pronoun or noun.
+    pub fn copy_is(o: &mut Out, neg: bool) {
+        let forms: &[&str] = if neg {
+            &[
+                "it isn't",
+                "it's not",
+                "it is not",
+                "that token isn't",
+                "the token isn't",
+                "the token is not",
+                "the copy isn't",
+                "the copy is not",
+                "they're not",
+                "they aren't",
+                "the tokens aren't",
+                "those tokens aren't",
+                "those creatures aren't",
+                "the copies aren't",
+            ]
+        } else {
+            &[
+                "it's",
+                "it is",
+                "the token is",
+                "that token is",
+                "the copy is",
+                "they're",
+                "they are",
+                "the tokens are",
+                "those tokens are",
+                "the copies are",
+            ]
+        };
+        any_of(o, forms);
+    }
+
     pub fn it_is(o: &mut Out) {
         any_of(o, &["it's", "he's", "she's"]);
     }
@@ -7658,16 +7696,33 @@ fn exceptions(o: &mut Out, es: &[Exception]) {
         list_sep(o, i, es.len(), "and");
         match e {
             Exception::AlsoIs(v) => {
-                o.w("it's a");
+                syn::copy_is(o, false);
+                o.w("a");
                 for a in v {
                     adj(o, a, None);
                 }
-                o.w("in addition to its other types");
+                o.w("in addition to");
+                syn::its(o);
+                o.w("other types");
             }
             Exception::IsNot(v) => {
-                syn::anaphor(o, "token");
-                o.w("isn't");
+                syn::copy_is(o, true);
                 for a in v {
+                    adj(o, a, None);
+                }
+            }
+            Exception::Is { pt, adjs } => {
+                syn::copy_is(o, false);
+                if adjs
+                    .iter()
+                    .any(|a| matches!(a, Adj::Type(_) | Adj::Subtype(_)))
+                {
+                    o.w("a");
+                }
+                if let Some(pt) = pt {
+                    o.tok(Tok::Pt(*pt));
+                }
+                for a in adjs {
                     adj(o, a, None);
                 }
             }

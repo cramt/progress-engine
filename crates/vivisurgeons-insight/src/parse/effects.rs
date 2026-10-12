@@ -1830,15 +1830,62 @@ pub(super) fn exceptions(p: &mut P) -> Option<Vec<Exception>> {
     Some(v)
 }
 
+/// "it's", "the copy is", "they're": the copy or copies an exception is
+/// said of.
+const COPY_IS: &[&str] = &[
+    "it's",
+    "it is",
+    "the token is",
+    "that token is",
+    "the copy is",
+    "they're",
+    "they are",
+    "the tokens are",
+    "those tokens are",
+    "the copies are",
+];
+/// "it isn't", "the copy isn't", "they're not".
+const COPY_ISNT: &[&str] = &[
+    "it isn't",
+    "it's not",
+    "it is not",
+    "the token isn't",
+    "the token is not",
+    "that token isn't",
+    "the copy isn't",
+    "the copy is not",
+    "they're not",
+    "they aren't",
+    "the tokens aren't",
+    "those tokens aren't",
+    "those creatures aren't",
+    "the copies aren't",
+];
+
 fn exception(p: &mut P) -> Option<Exception> {
     alt!(p;
         |p| {
-            p.one_of(&["it's a", "it's an"])?;
+            p.one_of(COPY_IS)?;
+            p.one_of(&["a", "an"])?;
             let types = group(p)?;
-            p.words("in addition to its other types")?;
+            p.one_of(&["in addition to its other types", "in addition to their other types"])?;
             Some(Exception::AlsoIs(types))
         },
-        |p| { p.one_of(&["it isn't", "it's not", "the token isn't", "the token is not"])?; group(p).map(Exception::IsNot) },
+        |p| { p.one_of(COPY_ISNT)?; group(p).map(Exception::IsNot) },
+        // "except it's a 4/4 black Zombie", "except it's legendary", "except
+        // the token is 1/1" (CR 707.9b).
+        |p| {
+            p.one_of(COPY_IS)?;
+            p.attempt(|p| p.one_of(&["a", "an"]));
+            let pt = p.attempt(|p| match p.peek()? {
+                Tok::Pt(pt) if !pt.signed => { let pt = *pt; p.bump(); Some(pt) }
+                _ => None,
+            });
+            let adjs = p.attempt(group).unwrap_or_default();
+            if pt.is_none() && adjs.is_empty() { return None; }
+            if p.peek_word() == Some("in") { return None; }
+            Some(Exception::Is { pt, adjs })
+        },
         |p| p.words("it has this ability").map(|_| Exception::HasThisAbility),
         |p| p.one_of(&["his name is ~", "her name is ~", "its name is ~"]).map(|_| Exception::NameIsSelf),
         // "he's a 4/4 Spider Human Hero in addition to his other types".

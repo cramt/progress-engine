@@ -1948,6 +1948,10 @@ pub enum Exception {
     /// "he's a 4/4 Spider Human Hero in addition to his other types": a size
     /// and types on top of the copied ones.
     AlsoIsSized { pt: Pt, types: Vec<Adj> },
+    /// "except it's legendary", "except it's a 4/4 black Zombie", "except
+    /// it's 1/1": values the copy has in place of the copied ones, part of
+    /// its copiable values (CR 707.9b).
+    Is { pt: Option<Pt>, adjs: Vec<Adj> },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
