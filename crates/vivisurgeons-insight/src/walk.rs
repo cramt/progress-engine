@@ -1382,6 +1382,12 @@ impl Walk for Effect {
             Effect::BecomesPrepared(f0) => {
                 Walk::walk(f0, v);
             }
+            Effect::BecomesPlotted(f0) => {
+                Walk::walk(f0, v);
+            }
+            Effect::BecomesSaddled(f0) => {
+                Walk::walk(f0, v);
+            }
             Effect::RemoveAnyCounters { n, from } => {
                 Walk::walk(n, v);
                 Walk::walk(from, v);

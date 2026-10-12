@@ -514,6 +514,21 @@ fn effect_first(p: &mut P) -> Option<Effect> {
             p.word("prepared")?;
             Some(Effect::BecomesPrepared(what))
         },
+        // "it becomes plotted" (CR 702.170c).
+        |p| {
+            let what = objects(p)?;
+            p.verb("become")?;
+            p.word("plotted")?;
+            Some(Effect::BecomesPlotted(what))
+        },
+        // "target Mount you control becomes saddled until end of turn" (CR
+        // 702.171b): it lasts the turn, which the text says.
+        |p| {
+            let what = objects(p)?;
+            p.verb("become")?;
+            p.words("saddled until end of turn")?;
+            Some(Effect::BecomesSaddled(what))
+        },
     )
 }
 

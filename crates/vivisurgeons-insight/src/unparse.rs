@@ -6108,6 +6108,14 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             obj_subj(o, what, "become");
             o.w("prepared");
         }
+        Effect::BecomesPlotted(what) => {
+            obj_subj(o, what, "become");
+            o.w("plotted");
+        }
+        Effect::BecomesSaddled(what) => {
+            obj_subj(o, what, "become");
+            o.w("saddled until end of turn");
+        }
         Effect::OnSpend { of, on, then } => {
             o.w(match of {
                 SpentOf::Any => "if any of that mana is spent on",

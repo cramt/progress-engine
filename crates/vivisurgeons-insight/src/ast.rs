@@ -1774,6 +1774,12 @@ pub enum Effect {
     /// "this creature becomes prepared": while it is, its controller may
     /// cast a copy of its inset spell (CR 722.3).
     BecomesPrepared(Objects),
+    /// "it becomes plotted": a card in exile its owner may cast without
+    /// paying its mana cost as a sorcery on a later turn (CR 702.170c-d).
+    BecomesPlotted(Objects),
+    /// "target Mount you control becomes saddled until end of turn": a
+    /// designation that lasts the turn (CR 702.171b).
+    BecomesSaddled(Objects),
     /// "remove up to three counters from target creature": of any kinds,
     /// as the player picks.
     RemoveAnyCounters {
