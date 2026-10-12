@@ -5870,6 +5870,13 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 let type_words = |o: &mut Out| {
                     for (i, a) in types.iter().enumerate() {
                         let last = i + 1 == types.len();
+                        // "a 4/4 black and green Horror creature".
+                        if i > 0
+                            && matches!(a, Adj::Color(_))
+                            && matches!(types[i - 1], Adj::Color(_))
+                        {
+                            o.w("and");
+                        }
                         adj(o, a, (last && noun && n == Num::Pl).then_some(Num::Pl));
                     }
                 };

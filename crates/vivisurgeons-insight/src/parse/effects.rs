@@ -633,7 +633,14 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let pt = p.attempt(|p| match p.peek()? { Tok::Pt(pt) if !pt.signed => { let pt = *pt; p.bump(); Some(pt) } _ => None });
             p.attempt(|p| p.words("base power and toughness"));
             let mut types = Vec::new();
-            while let Some(a) = p.attempt(descriptor) {
+            while let Some(a) = p.attempt(|p| {
+                // "a 4/4 black and green Horror creature": two colors, one
+                // creature (CR 105.2).
+                if matches!(types.last(), Some(Adj::Color(_))) && p.attempt(|p| p.word("and")).is_some() {
+                    return descriptor(p).filter(|a| matches!(a, Adj::Color(_)));
+                }
+                descriptor(p)
+            }) {
                 types.push(a);
             }
             if types.is_empty() && pt.is_none() { return None; }
