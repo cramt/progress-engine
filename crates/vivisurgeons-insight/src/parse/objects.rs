@@ -186,7 +186,14 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
         Adj::State(State::Commander)
     } else if matches!(
         w,
-        "activated" | "triggered" | "loyalty" | "exhaust" | "cycling" | "mana"
+        "activated"
+            | "triggered"
+            | "loyalty"
+            | "exhaust"
+            | "cycling"
+            | "mana"
+            | "equip"
+            | "ninjutsu"
     ) {
         // Only before "ability": "activated" alone is no kind of object, and
         // "loyalty" is a counter's kind before "counter".
@@ -205,6 +212,8 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
             "exhaust" => AbilityKind::Exhaust,
             "cycling" => AbilityKind::Cycling,
             "mana" => AbilityKind::Mana,
+            "equip" => AbilityKind::Equip,
+            "ninjutsu" => AbilityKind::Ninjutsu,
             _ => AbilityKind::Loyalty,
         })
     } else if let Some(c) = color_word(w) {

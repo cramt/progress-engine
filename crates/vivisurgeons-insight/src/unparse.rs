@@ -3455,6 +3455,8 @@ fn adj(o: &mut Out, a: &Adj, noun: Option<Num>) {
         Adj::Ability(AbilityKind::Exhaust) => "exhaust".into(),
         Adj::Ability(AbilityKind::Cycling) => "cycling".into(),
         Adj::Ability(AbilityKind::Mana) => "mana".into(),
+        Adj::Ability(AbilityKind::Equip) => "equip".into(),
+        Adj::Ability(AbilityKind::Ninjutsu) => "ninjutsu".into(),
         Adj::OtherThan(_) => "other".into(),
     };
     match noun {
@@ -10117,6 +10119,21 @@ fn static_other(o: &mut Out, s: &Static) {
             adj(o, &Adj::Ability(*kind), None);
             o.w("abilities of");
             objects(o, of);
+            o.w("cost");
+            mana(o, by);
+            o.w(if *less { "less" } else { "more" });
+            o.w("to activate");
+        }
+        Static::ActivatedCostChange {
+            kind,
+            who,
+            by,
+            less,
+        } => {
+            adj(o, &Adj::Ability(*kind), None);
+            o.w("abilities");
+            player(o, who);
+            o.verb("activate", player_num(who));
             o.w("cost");
             mana(o, by);
             o.w(if *less { "less" } else { "more" });

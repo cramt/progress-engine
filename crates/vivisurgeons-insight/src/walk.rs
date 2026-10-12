@@ -2266,6 +2266,9 @@ impl Walk for Static {
             Static::AbilityCostChange { of, .. } => {
                 Walk::walk(of, v);
             }
+            Static::ActivatedCostChange { who, .. } => {
+                Walk::walk(who, v);
+            }
             Static::ExtraLand(f0) => {
                 Walk::walk(f0, v);
             }

@@ -686,6 +686,10 @@ pub enum AbilityKind {
     Cycling,
     /// "a mana ability" (CR 605.1).
     Mana,
+    /// "equip abilities": the equip keyword ability (CR 702.6a).
+    Equip,
+    /// "ninjutsu abilities": the ninjutsu keyword ability (CR 702.49a).
+    Ninjutsu,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2443,6 +2447,16 @@ pub enum Static {
     AbilityCostChange {
         kind: AbilityKind,
         of: Objects,
+        by: Mana,
+        less: bool,
+    },
+    /// "Cycling abilities you activate cost {2} less to activate": every
+    /// such ability that player activates, from any zone, apart from the
+    /// abilities of some objects: a cycling card in hand has an owner and
+    /// no controller, and only its owner activates it (CR 602.2, 113.8).
+    ActivatedCostChange {
+        kind: AbilityKind,
+        who: Player,
         by: Mana,
         less: bool,
     },

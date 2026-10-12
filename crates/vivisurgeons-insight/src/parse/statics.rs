@@ -462,6 +462,18 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
                 None => cast,
             }])
         },
+        // "Cycling abilities you activate cost {2} less to activate".
+        |p| {
+            let kind = match descriptor(p)? { Adj::Ability(k) => k, _ => return None };
+            p.word("abilities")?;
+            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+            p.verb("activate")?;
+            p.verb("cost")?;
+            let by = mana(p)?;
+            let less = p.one_of(&["less", "more"])? == "less";
+            p.words("to activate")?;
+            Some(vec![Static::ActivatedCostChange { kind, who, by, less }])
+        },
         // "Activated abilities of artifacts you control cost {1} less to
         // activate".
         |p| {
