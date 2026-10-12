@@ -1023,7 +1023,7 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
 /// than this card from your graveyard" is a card in your graveyard.
 fn self_noun(p: &mut P) -> Option<Objects> {
     alt!(p;
-        |p| p.tok(&Tok::SelfRef).map(|_| self_ref()),
+        |p| p.card_name(),
         |p| {
             p.word("this")?;
             let alts: Vec<Vec<Adj>> = p.attempt(group).into_iter().collect();
@@ -1179,7 +1179,7 @@ pub(super) fn quant(p: &mut P) -> Option<Quant> {
 
 pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
     alt!(p;
-        |p| p.tok(&Tok::SelfRef).map(|_| self_ref()),
+        |p| p.card_name(),
         // "this creature" names the card by its own type, so a list after
         // it is a second object, read by `self_and_more`.
         |p| {

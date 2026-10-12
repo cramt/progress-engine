@@ -410,7 +410,7 @@ fn stat_of(stat: Stat, a: &Amount) -> Option<&Objects> {
 fn singular(o: &Objects) -> bool {
     matches!(
         o.quant,
-        Quant::SelfRef | Quant::Triggering | Quant::Enchanted | Quant::Equipped
+        Quant::SelfRef | Quant::Granter | Quant::Triggering | Quant::Enchanted | Quant::Equipped
     ) || o.quant
         == (Quant::Target {
             n: Amount::N(1),

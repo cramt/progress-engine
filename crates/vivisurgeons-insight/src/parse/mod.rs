@@ -66,6 +66,32 @@ impl<'a> P<'a> {
         self.t.get(self.i)
     }
 
+    /// Whether the next token is inside a quoted ability. A function of the
+    /// position alone, so the memos stay sound.
+    fn in_quote(&self) -> bool {
+        self.t[..self.i.min(self.t.len())]
+            .iter()
+            .filter(|t| **t == Tok::Quote)
+            .count()
+            % 2
+            == 1
+    }
+
+    /// The card's name: the card itself, or inside a quoted ability the
+    /// object that granted it (CR 201.5a).
+    fn card_name(&mut self) -> Option<Objects> {
+        let granted = self.in_quote();
+        self.tok(&Tok::SelfRef)?;
+        Some(Objects {
+            quant: if granted {
+                Quant::Granter
+            } else {
+                Quant::SelfRef
+            },
+            filter: Filter::default(),
+        })
+    }
+
     fn peek_word(&self) -> Option<&'a str> {
         match self.peek() {
             Some(Tok::Word(w)) => Some(w.as_str()),

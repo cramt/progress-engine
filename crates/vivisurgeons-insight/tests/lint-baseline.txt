@@ -9,5 +9,5 @@ state-of-triggering-spell 0
 equipped-equipment 0
 bare-other 0
 unbound-x 2
-fight-one-object 1
+fight-one-object 0
 types-without-card-type 0

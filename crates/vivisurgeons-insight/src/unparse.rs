@@ -2976,6 +2976,7 @@ fn obj_num(x: &Objects) -> Num {
         Quant::SelfRef if x.filter == Filter::default() => Num::Any,
         Quant::SelfRef => Num::Sg,
         Quant::Enchanted | Quant::Equipped => Num::Any,
+        Quant::Granter => Num::Sg,
     }
 }
 
@@ -3223,6 +3224,8 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             syn::that(o);
             filter(o, f, n);
         }
+        // The granting card is said by its name alone (CR 201.5a).
+        Quant::Granter => o.tok(Tok::SelfRef),
         Quant::SelfRef if *f == Filter::default() => {
             let named = out(syn::self_named);
             let pronoun = out(syn::it);

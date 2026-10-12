@@ -588,6 +588,12 @@ pub enum Quant {
     },
     /// The card itself.
     SelfRef,
+    /// The card's name inside a quoted ability it grants: the source of
+    /// the granting ability, and no other object (CR 201.5a). Shifting
+    /// Shadow's enchanted creature has "… attach ~ to it": ~ is the Aura,
+    /// while "this creature" in the same quote is the creature that has
+    /// the ability (`SelfRef`).
+    Granter,
     /// The object whose event triggered the ability: Valakut's "other
     /// Mountains" are other than "that new one" (its ruling), and Orah's
     /// "card with lesser mana value" is lesser than the Cleric that died.
