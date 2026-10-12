@@ -3347,6 +3347,7 @@ fn adj(o: &mut Out, a: &Adj, noun: Option<Num>) {
         Adj::Ability(AbilityKind::Loyalty) => "loyalty".into(),
         Adj::Ability(AbilityKind::Exhaust) => "exhaust".into(),
         Adj::Ability(AbilityKind::Cycling) => "cycling".into(),
+        Adj::Ability(AbilityKind::Mana) => "mana".into(),
         Adj::OtherThan(_) => "other".into(),
     };
     match noun {
@@ -3718,7 +3719,12 @@ fn post(o: &mut Out, q: &Post, n: Num) {
                 "that aren't"
             });
             if let Post::ThatIs(f) = &**q {
-                filter(o, f, n);
+                // "that isn't a Dragon", "that aren't enchanted".
+                let state = f.alts.iter().flatten().all(|a| matches!(a, Adj::State(_)));
+                if !state {
+                    o.w("a");
+                }
+                filter(o, f, if state { n } else { Num::Sg });
             }
         }
         Post::Not(q) => {

@@ -657,6 +657,8 @@ pub enum AbilityKind {
     Exhaust,
     /// "a cycling ability": cycling or any typecycling (CR 702.29f).
     Cycling,
+    /// "a mana ability" (CR 605.1).
+    Mana,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

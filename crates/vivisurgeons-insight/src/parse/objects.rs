@@ -186,7 +186,7 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
         Adj::State(State::Commander)
     } else if matches!(
         w,
-        "activated" | "triggered" | "loyalty" | "exhaust" | "cycling"
+        "activated" | "triggered" | "loyalty" | "exhaust" | "cycling" | "mana"
     ) {
         // Only before "ability": "activated" alone is no kind of object, and
         // "loyalty" is a counter's kind before "counter".
@@ -204,6 +204,7 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
             "triggered" => AbilityKind::Triggered,
             "exhaust" => AbilityKind::Exhaust,
             "cycling" => AbilityKind::Cycling,
+            "mana" => AbilityKind::Mana,
             _ => AbilityKind::Loyalty,
         })
     } else if let Some(c) = color_word(w) {
@@ -711,6 +712,17 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| {
             p.one_of(&["that's attached to", "that are attached to"])?;
             objects(p).map(|o| Post::AttachedTo(Box::new(o)))
+        },
+        // "an ability that isn't a mana ability", "a creature that isn't a
+        // Dragon": not of that kind.
+        |p| {
+            p.one_of(&["that isn't a", "that isn't an"])?;
+            let f = filter(p)?;
+            if f.posts.is_empty() && f.or.is_none() && !f.alts.is_empty() {
+                Some(Post::Not(Box::new(Post::ThatIs(f))))
+            } else {
+                None
+            }
         },
         // "creatures that aren't enchanted": not in that state.
         |p| {
