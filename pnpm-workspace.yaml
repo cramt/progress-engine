@@ -1,3 +1,4 @@
 packages:
   - crates/meldweb-curator/web
   - crates/meldweb-curator/worker
+  - crates/vivisurgeons-insight/driver

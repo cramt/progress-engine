@@ -1,0 +1,32 @@
+[
+  {
+    "name": "my-decks",
+    "coverageLabel": "my-decks",
+    "target": "my-decks"
+  },
+  {
+    "name": "post-rotation-standard",
+    "coverageLabel": "post-rotation-standard",
+    "target": "post-rotation-standard"
+  },
+  {
+    "name": "edhrec-2000",
+    "coverageLabel": "EDHREC top 2000",
+    "target": "2000"
+  },
+  {
+    "name": "standard",
+    "coverageLabel": "standard",
+    "target": "standard"
+  },
+  {
+    "name": "edhrec-5000",
+    "coverageLabel": "EDHREC top 5000",
+    "target": "5000"
+  },
+  {
+    "name": "precons",
+    "coverageLabel": "precons",
+    "target": "precons"
+  }
+]
