@@ -1039,6 +1039,12 @@ mod syn {
         any_of(o, forms);
     }
 
+    /// "you may have it become …" after a may, or the plain "it becomes"
+    /// where the clause is not the may's own.
+    pub fn have_or_not(o: &mut Out, have: Out, plain: Out) {
+        alt(o, vec![have, plain]);
+    }
+
     pub fn it_is(o: &mut Out) {
         any_of(o, &["it's", "he's", "she's"]);
     }
@@ -5858,7 +5864,19 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             dur: d,
         } => {
             let becomes = out(|o| {
-                obj_subj(o, what, "become");
+                // "you may have it become …": after "may", an object's verb
+                // is said with "have".
+                if cx.modal {
+                    let have = out(|o| {
+                        o.w("have");
+                        objects(o, what);
+                        o.verb("become", Num::Pl);
+                    });
+                    let plain = out(|o| obj_subj(o, what, "become"));
+                    syn::have_or_not(o, have, plain);
+                } else {
+                    obj_subj(o, what, "become");
+                }
                 // "becomes a 2/2 creature", "becomes blue": an article only
                 // before a noun, and only for one object: "Artifacts you
                 // control become artifact creatures".
@@ -7684,7 +7702,11 @@ fn keeps_then_dur(o: &mut Out, k: &Keeps, types: &[Adj], d: &Duration) {
 fn keeps(o: &mut Out, k: &Keeps) {
     match k {
         Keeps::Supertypes | Keeps::AllButSubtypesOfSet => {}
-        Keeps::OtherTypes => o.w("in addition to its other types"),
+        Keeps::OtherTypes => {
+            o.w("in addition to");
+            syn::its(o);
+            o.w("other types");
+        }
         Keeps::Listed(v) => {
             o.w("that's still a");
             for a in v {

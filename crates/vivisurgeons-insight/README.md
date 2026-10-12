@@ -71,10 +71,10 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
 | EDHREC top 1000 | 990/990 | 1799/1799 | done |
-| My decks: every card in the 17 decks of cramt/mtg | 908/1022 (88.8%) | 2012/2134 (94.3%) | |
-| Standard after the early-2027 rotation | 2990/3517 (85.0%) | 6498/7054 (92.1%) | |
+| My decks: every card in the 17 decks of cramt/mtg | 909/1022 (88.9%) | 2013/2134 (94.3%) | |
+| Standard after the early-2027 rotation | 2991/3517 (85.0%) | 6499/7054 (92.1%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 4093/5157 (79.4%) | 9248/10420 (88.8%) | |
+| All of Standard | 4094/5157 (79.4%) | 9249/10420 (88.8%) | |
 | EDHREC top 2000 | 1775/1986 (89.4%) | 3603/3847 (93.7%) | |
 | EDHREC top 5000 | 3936/4975 (79.1%) | 8903/10098 (88.2%) | |
 
@@ -125,7 +125,7 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | EDHREC top 1000 (pinned) | 1800/1800 (100%) |
 | Modern metagame (pinned) | 1164/1164 (100%) |
 | EDHREC top 2000 | 3600/3603 (99.9%) |
-| All parsed abilities | 50627/50661 (99.9%) |
+| All parsed abilities | 50641/50674 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading
@@ -164,7 +164,7 @@ own" (in Two-Headed Giant a teammate owns cards too), "choose target
 opponent" as "choose an opponent" (which does not target), a Saga's "II —"
 as an ability word, a sorcery's "The next Dragon spell you cast costs …" as
 a static, and a bare "its graveyard" as its controller's (CR 400.3 makes it
-the owner's). The 34 corpus abilities that still do not round-trip are
+the owner's). The 33 corpus abilities that still do not round-trip are
 listed by `insight roundtrip`.
 
 After round 4 the parser read an evenly spaced sample of 25 successful parses.
