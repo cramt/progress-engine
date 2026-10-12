@@ -1393,6 +1393,12 @@ pub enum Effect {
         what: Objects,
         dur: Duration,
     },
+    /// "exchange life totals with target opponent": each gains or loses
+    /// the life to equal the other's previous total (CR 701.12c).
+    ExchangeLifeTotals {
+        who: Player,
+        with: Player,
+    },
     /// "Look at target player's hand."
     LookAtHand {
         who: Player,

@@ -1041,6 +1041,10 @@ impl Walk for Effect {
                 Walk::walk(what, v);
                 Walk::walk(dur, v);
             }
+            Effect::ExchangeLifeTotals { who, with } => {
+                Walk::walk(who, v);
+                Walk::walk(with, v);
+            }
             Effect::LookAtHand { who, whose } => {
                 Walk::walk(who, v);
                 Walk::walk(whose, v);

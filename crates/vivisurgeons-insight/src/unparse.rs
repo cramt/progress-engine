@@ -6286,6 +6286,11 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             whose(o, w);
             o.w("hand");
         }
+        Effect::ExchangeLifeTotals { who, with } => {
+            subj(o, who, "exchange", cx);
+            o.w("life totals with");
+            player(o, with);
+        }
         Effect::LookAt { who, what, dur: d } => {
             subj(o, who, "look at", cx);
             objects(o, what);
@@ -9018,6 +9023,10 @@ fn condition(o: &mut Out, c: &Condition) {
                 syn::did_tense(o, "exiled", out(|o| o.verb("exile", player_num(who))));
                 objects(o, what);
                 o.w("this way");
+            }
+            Event::LosesLife(who) => {
+                player(o, who);
+                o.w("lost life this way");
             }
             e => {
                 event(o, e);

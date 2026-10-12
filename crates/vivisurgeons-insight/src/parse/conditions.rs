@@ -163,6 +163,12 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 |p| p.words("this turn").map(|_| Condition::DidThisTurn(e.clone())),
             )
         },
+        // "If you lost life this way, draw that many cards" (Mister Negative).
+        |p| {
+            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+            p.words("lost life this way")?;
+            Some(Condition::ThisWay(Box::new(Event::LosesLife(who))))
+        },
         // "you exiled four or more cards this way".
         |p| {
             let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
