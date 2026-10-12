@@ -666,6 +666,18 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
             Some(Effect::Double { stats, of, dur })
         },
+        // "Double target creature's power until end of turn".
+        |p| {
+            p.word("double")?;
+            let of = objects(p)?;
+            p.tok(&Tok::Possessive)?;
+            let stats = alt!(p;
+                |p| p.words("power and toughness").map(|_| vec![Stat::Power, Stat::Toughness]),
+                |p| stat(p).map(|s| vec![s]),
+            )?;
+            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+            Some(Effect::Double { stats, of, dur })
+        },
         |p| {
             p.word("move")?;
             let counters = objects(p)?;

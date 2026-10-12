@@ -1753,6 +1753,8 @@ fn keyword(o: &mut Out, k: &Keyword) {
         Some(KeywordParam::ColorsNotIn(_)) => {
             o.w("protection from each color that's not in your commander's color identity")
         }
+        Some(KeywordParam::Color(Palette::Chosen)) => o.w("protection from the chosen color"),
+        Some(KeywordParam::Color(Palette::That)) => o.w("protection from that color"),
         Some(KeywordParam::Color(_)) => o.w("protection from the color of your choice"),
         Some(KeywordParam::Objects(x)) if k.name == "protection" => {
             o.w("protection from");
@@ -6014,14 +6016,24 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             syn::it(o);
         }
         Effect::Double { stats, of, dur: d } => {
-            o.w("double the");
-            if stats.len() == 2 {
-                o.w("power and toughness");
+            o.w("double");
+            let stat = if stats.len() == 2 {
+                "power and toughness"
             } else {
-                o.w(stat_name(stats[0]));
-            }
-            o.w("of");
-            objects(o, of);
+                stat_name(stats[0])
+            };
+            let of_form = out(|o| {
+                o.w("the");
+                o.w(stat);
+                o.w("of");
+                objects(o, of);
+            });
+            let s_form = out(|o| {
+                objects(o, of);
+                o.tok(Tok::Possessive);
+                o.w(stat);
+            });
+            syn::genitive(o, of_form, s_form);
             dur(o, d);
         }
         Effect::RollDie(n) => o.w(&format!("roll a d{n}")),

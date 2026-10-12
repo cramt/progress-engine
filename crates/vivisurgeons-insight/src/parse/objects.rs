@@ -1333,6 +1333,13 @@ fn self_and_more(p: &mut P) -> Option<Objects> {
 fn objects_read(p: &mut P) -> Option<Objects> {
     alt!(p;
         self_and_more,
+        // "~ and other Knights you control": the card by name, and the others.
+        |p| {
+            p.tok(&Tok::SelfRef)?;
+            p.words("and other")?;
+            let filter = filter(p)?;
+            Some(Objects { quant: Quant::WithOthers(Box::new(self_ref())), filter })
+        },
         |p| {
             let first = pronoun(p)?;
             if first.quant != Quant::SelfRef { return None; }

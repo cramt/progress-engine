@@ -24,6 +24,13 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
             if p.attempt(|p| p.words("the color of your choice")).is_some() {
                 return Some(Keyword { name: "protection".into(), param: Some(KeywordParam::Color(Palette::ChoiceOf(Player::You))) });
             }
+            // "protection from the chosen color", "… from that color".
+            if let Some(pal) = p.attempt(|p| alt!(p;
+                |p| p.words("the chosen color").map(|_| Palette::Chosen),
+                |p| p.words("that color").map(|_| Palette::That),
+            )) {
+                return Some(Keyword { name: "protection".into(), param: Some(KeywordParam::Color(pal)) });
+            }
             let mut cs = Vec::new();
             while let Some(c) = p.peek_word().and_then(color_word) {
                 p.bump();
