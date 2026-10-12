@@ -7055,6 +7055,11 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 "attacking"
             });
         }
+        Effect::EntersAttached { effect: inner, to } => {
+            effect(o, inner, cx);
+            o.w("attached to");
+            objects(o, to);
+        }
         Effect::DamageCantBePrevented(d) => {
             o.w("damage can't be prevented");
             dur(o, d);
@@ -7565,6 +7570,11 @@ fn performed(o: &mut Out, e: &Effect, n: Num) {
                 "attacking"
             });
         }
+        Effect::EntersAttached { effect: inner, to } => {
+            performed(o, inner, n);
+            o.w("attached to");
+            objects(o, to);
+        }
         e => effect(o, e, &Cx::default()),
     }
 }
@@ -7947,6 +7957,7 @@ fn choice(o: &mut Out, c: &Choice) {
         Choice::OddOrEven => o.w("odd or even"),
         Choice::CreatureType => o.w("a creature type"),
         Choice::CardType => o.w("a card type"),
+        Choice::PermanentType => o.w("a permanent type"),
         Choice::CardName => o.w("a card name"),
         Choice::NonlandCardName => o.w("a nonland card name"),
         Choice::Number => o.w("a number"),

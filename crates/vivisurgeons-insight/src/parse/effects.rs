@@ -1019,6 +1019,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                 |p| p.words("odd or even").map(|_| Choice::OddOrEven),
                 |p| p.words("a creature type").map(|_| Choice::CreatureType),
                 |p| p.words("a card type").map(|_| Choice::CardType),
+                |p| p.words("a permanent type").map(|_| Choice::PermanentType),
                 |p| p.words("a card name").map(|_| Choice::CardName),
                 |p| p.words("a nonland card name").map(|_| Choice::NonlandCardName),
                 |p| p.words("a land card name").map(|_| Choice::LandCardName),
@@ -2031,6 +2032,16 @@ fn entering_with(p: &mut P, e: Effect) -> Effect {
     .is_some()
     {
         return Effect::EntersAttacking(Box::new(e));
+    }
+    // "to the battlefield attached to that creature" (CR 303.4f).
+    if let Some(to) = p.attempt(|p| {
+        p.words("attached to")?;
+        objects(p)
+    }) {
+        return Effect::EntersAttached {
+            effect: Box::new(e),
+            to,
+        };
     }
     match p.attempt(|p| {
         p.word("with")?;

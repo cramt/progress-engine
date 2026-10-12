@@ -1385,7 +1385,9 @@ fn brings_in(e: &Effect) -> bool {
         // reveal a creature card. Put that card into your hand" (Foster).
         Effect::UntilFound { .. } => true,
         // "return target Pirate creature card … with a finality counter on it".
-        Effect::EntersWith { effect, .. } | Effect::EntersAttacking(effect) => brings_in(effect),
+        Effect::EntersWith { effect, .. }
+        | Effect::EntersAttacking(effect)
+        | Effect::EntersAttached { effect, .. } => brings_in(effect),
         Effect::Or(v) => v.iter().all(brings_in),
         _ => false,
     }
@@ -1415,7 +1417,9 @@ fn refers_back(e: &Effect) -> bool {
         // "Put that card onto the battlefield tapped and attacking" (Fireflux
         // Squad), "return it … with a +1/+1 counter on it": said of the
         // moved card.
-        Effect::EntersWith { effect, .. } | Effect::EntersAttacking(effect) => refers_back(effect),
+        Effect::EntersWith { effect, .. }
+        | Effect::EntersAttacking(effect)
+        | Effect::EntersAttached { effect, .. } => refers_back(effect),
         Effect::May { then, .. } => then.first().is_some_and(refers_back),
         Effect::Modify { what, .. }
         | Effect::GrantAbility { what, .. }

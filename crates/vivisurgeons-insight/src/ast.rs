@@ -1690,6 +1690,14 @@ pub enum Effect {
     /// attacking": the moved creature enters attacking, what it attacks
     /// its controller's choice (CR 508.4); it never "attacked".
     EntersAttacking(Box<Effect>),
+    /// "return target Aura or Equipment card from your graveyard to the
+    /// battlefield attached to a creature you control": the moved Aura or
+    /// Equipment enters attached to `to`, which the effect names, so no
+    /// player chooses it (CR 303.4f).
+    EntersAttached {
+        effect: Box<Effect>,
+        to: Objects,
+    },
     /// "Damage can't be prevented this turn."
     DamageCantBePrevented(Duration),
     /// "Target player reveals their hand": the player's own hand.
@@ -3119,6 +3127,9 @@ pub enum Choice {
     OddOrEven,
     CreatureType,
     CardType,
+    /// "choose a permanent type": artifact, battle, creature, enchantment,
+    /// land or planeswalker (CR 110.4).
+    PermanentType,
     CardName,
     /// "choose a nonland card name".
     NonlandCardName,
