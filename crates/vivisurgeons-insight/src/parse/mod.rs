@@ -1795,6 +1795,51 @@ impl Visitor for FromRevealedHand {
     }
 }
 
+/// Canopy Gargantuan: "put a number of +1/+1 counters on each other
+/// creature you control equal to that creature's toughness"; Lukka: "Each
+/// creature you control deals damage equal to its power to each opponent".
+/// The amount is worked out for each object the effect acts on, each in
+/// turn, so its "its" or "that creature's" is `Quant::Itself`, as in a
+/// filter's comparison (Kutzil), where a bare `Antecedent` would be one
+/// earlier object.
+struct EachItself;
+
+impl Visitor for EachItself {
+    fn enter(&mut self, _: &mut Objects) -> bool {
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        true
+    }
+    fn effect(&mut self, e: &mut Effect) {
+        let (each, n) = match e {
+            Effect::PutCounters { n, on, .. } => (&*on, n),
+            Effect::Damage {
+                source: Some(src),
+                n,
+                ..
+            } => (&*src, n),
+            _ => return,
+        };
+        if !matches!(each.quant, Quant::Each | Quant::All | Quant::Plural) {
+            return;
+        }
+        let theirs: Vec<&Adj> = kinds(&each.filter);
+        let one = |x: &Objects| {
+            x.quant == Quant::Antecedent
+                && x.filter.posts.is_empty()
+                && x.filter.or.is_none()
+                && x.filter.kind.is_none()
+                && kinds(&x.filter).iter().all(|a| theirs.contains(a))
+        };
+        if let Amount::PowerOf(x) | Amount::ToughnessOf(x) | Amount::ManaValueOf(x) = n {
+            if one(x) {
+                x.quant = Quant::Itself;
+            }
+        }
+    }
+}
+
 /// A whole ability line, which must be consumed to the last token.
 pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
     let mut p = P::new(toks);
@@ -1807,6 +1852,7 @@ pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
             a.walk(&mut DelayedSameClause);
             a.walk(&mut CreatedTokens::new());
             a.walk(&mut FromRevealedHand(None));
+            a.walk(&mut EachItself);
             Ok(a)
         }
         _ => Err(p.furthest),

@@ -532,9 +532,13 @@ pub enum Quant {
     /// or `SelfRef` instead ("it gets +1/+0 … for each other attacking
     /// creature").
     BeforeEach,
-    /// "its" in a comparison an object is tested by: "creatures you
-    /// control each with power greater than its base power" compares each
-    /// creature with its own base power.
+    /// Each one of a set in turn, said by "its" or "that creature": in a
+    /// comparison an object is tested by ("creatures you control each with
+    /// power greater than its base power" compares each creature with its
+    /// own base power) and in an amount worked out for each object an
+    /// effect acts on ("each creature you control deals damage equal to its
+    /// power"). Where the tree can tell, "each in turn" is this, never a
+    /// bare `Antecedent`.
     Itself,
     /// "Create a token that's a copy of …. Sacrifice it at the beginning of
     /// the next end step", "Create two 1/1 … tokens. They gain haste": the
