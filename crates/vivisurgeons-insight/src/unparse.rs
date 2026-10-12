@@ -1351,7 +1351,12 @@ pub fn ability(a: &Ability) -> Out {
         fn enter(&mut self, o: &mut Objects) -> bool {
             if matches!(
                 o.quant,
-                Quant::Triggering | Quant::BeforeEach | Quant::Itself | Quant::Created
+                Quant::Triggering
+                    | Quant::BeforeEach
+                    | Quant::Itself
+                    | Quant::Created
+                    | Quant::ThisAbility
+                    | Quant::SourceOf(_)
             ) {
                 o.quant = Quant::Antecedent;
             }
@@ -2620,6 +2625,8 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::BeforeEach
         | Quant::Itself
         | Quant::Created
+        | Quant::ThisAbility
+        | Quant::SourceOf(_)
         | Quant::Other
         | Quant::OneOrMore => Num::Any,
         // "Krang & Shredder enter", "equipped creatures you control": a
@@ -2902,7 +2909,11 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             },
         ),
         // Said as any reference back is.
-        Quant::BeforeEach | Quant::Itself | Quant::Created => objects_plain(
+        Quant::BeforeEach
+        | Quant::Itself
+        | Quant::Created
+        | Quant::ThisAbility
+        | Quant::SourceOf(_) => objects_plain(
             o,
             &Objects {
                 quant: Quant::Antecedent,

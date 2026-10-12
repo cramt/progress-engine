@@ -542,6 +542,14 @@ pub enum Quant {
     /// names, so a bare `Antecedent` would point past them to the copied
     /// creature.
     Created,
+    /// "Counter target activated ability from an artifact source and destroy
+    /// that artifact if it's on the battlefield": the object that generated
+    /// the ability (CR 113.7), which the ability named as its source.
+    SourceOf(Box<Objects>),
+    /// "This ability costs {1} less to activate if it targets a creature
+    /// with power 3 or less": the ability the text is part of, which is no
+    /// card (CR 113.1).
+    ThisAbility,
     /// "Put both cards onto the battlefield": the two objects the clauses
     /// before it named, one each (Sword of Hearth and Home's exiled
     /// creature card and the land card found), where "them" is one plural.

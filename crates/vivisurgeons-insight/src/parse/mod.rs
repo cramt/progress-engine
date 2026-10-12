@@ -337,7 +337,15 @@ fn limits(p: &mut P) -> Vec<Limit> {
                 let less = p.one_of(&["less", "more"])? == "less";
                 p.words("to activate")?;
                 let per = p.attempt(|p| { p.words("for each")?; objects(p) });
-                let cond = p.attempt(|p| { p.word("if")?; condition(p) });
+                let mut cond = p.attempt(|p| { p.word("if")?; condition(p) });
+                // "This ability costs {1} less to activate if it targets a
+                // creature with power 3 or less": "it" is this ability, the
+                // subject of the sentence.
+                if let Some(Condition::Targets { what, .. }) = cond.as_mut() {
+                    if *what == antecedent() {
+                        what.quant = Quant::ThisAbility;
+                    }
+                }
                 Some(vec![Limit::CostChange { by, less, per, cond }])
             },
         )?;

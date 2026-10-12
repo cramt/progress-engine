@@ -1004,6 +1004,7 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
     }
     permission_rules(&mut v);
     enters_with_after(&mut v);
+    source_of_ability(&mut v);
     // "… If you do, draw a card and repeat this process.": the process is
     // every instruction of the ability, said from the first.
     if v.iter().any(repeats) {
@@ -1267,6 +1268,62 @@ fn enters_with_after(v: &mut Vec<Effect>) {
             v[i - 1] = Effect::EntersWith { effect, n, kind };
         } else {
             i += 1;
+        }
+    }
+}
+
+/// Ouphe Vandals: "Counter target activated ability from an artifact source
+/// and destroy that artifact if it's on the battlefield". "That artifact"
+/// is the ability's source (CR 113.7), named by the ability's "from an
+/// artifact source", and "it" is that artifact: the ruling has the ability
+/// target the ability on the stack, not the artifact. Both read as bare
+/// references back, whose nearest object is the ability.
+fn source_of_ability(v: &mut [Effect]) {
+    let source = |e: &Effect| -> Option<Vec<Adj>> {
+        let (Effect::Counter { what, .. } | Effect::Copy { what, .. }) = e else {
+            return None;
+        };
+        what.filter.posts.iter().find_map(|q| match q {
+            Post::FromSource(g) => Some(g.clone()),
+            _ => None,
+        })
+    };
+    let Some(k) = v.iter().position(|e| source(e).is_some()) else {
+        return;
+    };
+    let types = source(&v[k]).expect("found above");
+    let ability = Objects {
+        quant: Quant::Antecedent,
+        filter: Filter {
+            kind: Some(Noun::Ability),
+            ..Filter::default()
+        },
+    };
+    let of = |filter: Filter| Objects {
+        quant: Quant::SourceOf(Box::new(ability.clone())),
+        filter,
+    };
+    for e in v[k + 1..].iter_mut() {
+        let Effect::If { cond, then } = e else {
+            continue;
+        };
+        let [Effect::Destroy { what, .. }] = &mut then[..] else {
+            continue;
+        };
+        let named = what.quant == Quant::Antecedent
+            && what.filter
+                == Filter {
+                    alts: vec![types.clone()],
+                    ..Filter::default()
+                };
+        if !named {
+            continue;
+        }
+        *what = of(what.filter.clone());
+        if let Condition::In { what: it, .. } = cond {
+            if *it == antecedent() {
+                *it = of(Filter::default());
+            }
         }
     }
 }

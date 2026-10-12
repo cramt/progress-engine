@@ -2038,6 +2038,9 @@ impl Walk for Quant {
             Quant::OtherTarget { n, .. } => {
                 Walk::walk(n, v);
             }
+            Quant::SourceOf(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             Quant::AtLeast(f0) => {
                 Walk::walk(f0, v);
             }
