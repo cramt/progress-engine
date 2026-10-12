@@ -1948,6 +1948,10 @@ struct CreatedTokens {
     wheres: Vec<u32>,
     /// Inside a `Modal` whose modes were read on their own.
     skip: Option<u32>,
+    /// Tokens were created and no other token named since: "the token"
+    /// still means them after other objects (Ajani's Chosen's "If that
+    /// enchantment is an Aura, you may attach it to the token").
+    tokens: bool,
 }
 
 impl CreatedTokens {
@@ -1958,6 +1962,7 @@ impl CreatedTokens {
             depth: 0,
             wheres: Vec::new(),
             skip: None,
+            tokens: false,
         }
     }
 }
@@ -1976,9 +1981,16 @@ impl Visitor for CreatedTokens {
         if self.created.is_some() && o.quant == Quant::Antecedent && bare && fits {
             o.quant = Quant::Created;
         }
+        if self.tokens && o.quant == Quant::Antecedent && bare && o.filter.kind == Some(Noun::Token)
+        {
+            o.quant = Quant::Created;
+        }
         true
     }
     fn leave(&mut self, o: &mut Objects) {
+        if o.filter.kind == Some(Noun::Token) && o.quant != Quant::Created {
+            self.tokens = false;
+        }
         let in_cond_card = self.in_cond > 0 && o.quant == Quant::SelfRef;
         if o.quant != Quant::Created && !in_cond_card {
             self.created = None;
@@ -2002,7 +2014,10 @@ impl Visitor for CreatedTokens {
                 on.quant = Quant::Created;
             }
             Effect::Where { .. } => self.wheres.push(self.depth),
-            Effect::Otherwise(_) | Effect::IfYouDont(_) => self.created = None,
+            Effect::Otherwise(_) | Effect::IfYouDont(_) => {
+                self.created = None;
+                self.tokens = false;
+            }
             Effect::Damage {
                 source: Some(src), ..
             } if *src == antecedent() && self.created == Some(false) => self.created = None,
@@ -2065,6 +2080,9 @@ impl Visitor for CreatedTokens {
             | Effect::DigUntilTotal { .. } => None,
             _ => self.created,
         };
+        if self.created.is_some() {
+            self.tokens = true;
+        }
     }
 }
 
