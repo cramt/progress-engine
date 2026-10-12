@@ -2206,4 +2206,19 @@ mod round_nine_d {
         );
         assert!(s.contains("})), ForEach {"), "{s}");
     }
+
+    #[test]
+    fn a_choice_said_with_a_delayed_step_is_made_as_the_delayed_trigger_resolves() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Instant",
+                "Counter target spell. Its controller may draw up to two cards at the beginning of the next turn's upkeep."
+            )
+        );
+        assert!(
+            s.contains("Delayed { step: Upkeep(NextTurns), then: [May {"),
+            "{s}"
+        );
+    }
 }

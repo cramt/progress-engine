@@ -498,6 +498,16 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                     }]);
                 }
             }
+            // "Its controller may draw up to two cards at the beginning of
+            // the next turn's upkeep": the spell makes the delayed trigger
+            // whatever anyone chooses, and the choice is made as it resolves
+            // (Arcane Denial's ruling; CR 603.7a, 608.2d).
+            if let [Effect::Delayed { step, then: inner }] = &then[..] {
+                return Some(vec![Effect::Delayed {
+                    step: step.clone(),
+                    then: vec![Effect::May { who, then: inner.clone() }],
+                }]);
+            }
             Some(vec![Effect::May { who, then }])
         },
         |p| {
