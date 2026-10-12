@@ -9069,7 +9069,10 @@ fn static_predicate(o: &mut Out, s: &Static) {
             o.verb("enter", n);
             o.w("prepared");
         }
-        s => static_other(o, s),
+        // Every caller asks `static_subject` first, so a static here has a
+        // predicate above. Handing it to `static_other` instead, as this arm
+        // did, could come back here through `static_full` and never end.
+        s => unsaid(o, s),
     }
 }
 
@@ -9536,8 +9539,45 @@ fn static_other(o: &mut Out, s: &Static) {
             o.w(". when you do,");
             clauses(o, then, &Cx::default());
         }
-        s => static_full(o, s),
+        // Said as a subject and a predicate. Listed rather than caught by a
+        // wildcard that hands the static back to `static_full`: a variant
+        // with no subject that reached such a wildcard went round
+        // `static_full` and here forever, and a new variant now fails to
+        // compile until it is said somewhere. Every other call here is on a
+        // strictly smaller static, so rendering a static ends.
+        Static::Modify { .. }
+        | Static::HasAbility { .. }
+        | Static::Restrict { .. }
+        | Static::EntersTappedUnless { .. }
+        | Static::EntersWithCounters { .. }
+        | Static::AlsoIs { .. }
+        | Static::Is { .. }
+        | Static::Loses { .. }
+        | Static::BasePt { .. }
+        | Static::AdditionalCostFor { .. }
+        | Static::EntersTapped(_)
+        | Static::EntersUntapped(_)
+        | Static::IsAllColors(_)
+        | Static::EntersPrepared(_)
+        | Static::HasAbilitiesOf { .. }
+        | Static::HasIf { .. }
+        | Static::CostChange { .. }
+        | Static::CostChangePer { .. } => match static_subject(s) {
+            Some(what) => {
+                objects(o, what);
+                static_predicate(o, s);
+            }
+            None => unsaid(o, s),
+        },
     }
+}
+
+/// A static no render function says, which the round trip reports as a
+/// mismatch instead of the renderer recursing on it.
+fn unsaid(o: &mut Out, s: &Static) {
+    o.w("[unrendered static");
+    o.w(&format!("{s:?}"));
+    o.w("]");
 }
 
 /// Statics inside "as long as …," or "if …,": one sentence, joined.
@@ -9578,6 +9618,16 @@ mod tests {
             .parsed
             .unwrap_or_else(|b| panic!("{text}: broke at {}", b.at));
         (a, line.text)
+    }
+
+    /// A static with no subject handed to the predicate renderer is
+    /// reported, not passed back to `static_full`, which once looped forever.
+    #[test]
+    fn a_static_with_no_subject_as_a_predicate_ends() {
+        let s = Static::MaxHandSize;
+        assert!(static_subject(&s).is_none());
+        let said = out(|o| static_predicate(o, &s));
+        assert!(format!("{said:?}").contains("unrendered"), "{said:?}");
     }
 
     fn round_trips(a: &Ability, text: &str) -> bool {
