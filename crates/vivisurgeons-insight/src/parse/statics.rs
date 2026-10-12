@@ -1034,6 +1034,7 @@ pub(super) fn statics(p: &mut P) -> Option<Vec<Static>> {
     while let Some(s) = p.attempt(static_sentence) {
         v.extend(s);
     }
+    static_permission_rules(&mut v);
     (!v.is_empty()).then_some(v)
 }
 
@@ -1065,4 +1066,42 @@ pub(super) fn player_rule_bare(p: &mut P) -> Option<PlayerRule> {
             Some(PlayerRule::CantDrawMoreThanEachTurn(n))
         },
     )
+}
+
+/// "You may cast noncreature spells from the top of your library. If you
+/// cast a spell this way, you may cast it as though it had flash": the
+/// "if" is the rules for each spell cast through the permissions before
+/// it (`Static::PermissionRules`), not a condition that holds for a while.
+fn static_permission_rules(v: &mut Vec<Static>) {
+    fn permits(s: &Static) -> bool {
+        match s {
+            Static::PlayFrom { .. } => true,
+            Static::If { then, .. } | Static::AsLongAs { then, .. } => then.iter().any(permits),
+            _ => false,
+        }
+    }
+    let rule = matches!(
+        v.last(),
+        Some(Static::If { cond: Condition::ThisWay(e), .. })
+            if matches!(&**e, Event::Casts { who: Player::You, .. })
+    );
+    if !rule || !v[..v.len() - 1].iter().any(permits) {
+        return;
+    }
+    let Some(Static::If {
+        cond: Condition::ThisWay(e),
+        then,
+    }) = v.pop()
+    else {
+        unreachable!("matched above");
+    };
+    let Event::Casts { what, .. } = *e else {
+        unreachable!("matched above");
+    };
+    let permissions = std::mem::take(v);
+    v.push(Static::PermissionRules {
+        permissions,
+        spell: what,
+        rules: then,
+    });
 }

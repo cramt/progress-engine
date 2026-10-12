@@ -1150,6 +1150,17 @@ pub enum Effect {
         cond: Condition,
         then: Vec<Effect>,
     },
+    /// "Until the end of your next turn, you may play those cards. If you
+    /// cast a spell this way, mana of any type can be spent to cast it": a
+    /// permission to cast, with the rules for each `spell` cast through it,
+    /// applied as that spell is cast. They are part of the permission, not
+    /// an "if" tested as the ability resolves, when nothing has been cast
+    /// through it yet.
+    PermissionRules {
+        permission: Box<Effect>,
+        spell: Objects,
+        rules: Vec<Effect>,
+    },
     Unless {
         effect: Box<Effect>,
         who: Player,
@@ -2337,6 +2348,17 @@ pub enum Static {
     If {
         cond: Condition,
         then: Vec<Static>,
+    },
+    /// "You may cast noncreature spells from the top of your library. If you
+    /// cast a spell this way, you may cast it as though it had flash": the
+    /// permissions, with the rules for each `spell` cast through them,
+    /// applied as it is cast (CR 601.3 for when it may be cast) or as it
+    /// enters. A static `If` would hold while a condition is true, and
+    /// "you cast a spell this way" is no state.
+    PermissionRules {
+        permissions: Vec<Static>,
+        spell: Objects,
+        rules: Vec<Static>,
     },
     PlayFrom {
         verb: CastVerb,

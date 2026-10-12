@@ -5433,6 +5433,27 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 syn::position(o, before, after);
             }
         }
+        // The rules are said as an "if" after the permission.
+        Effect::PermissionRules {
+            permission,
+            spell,
+            rules,
+        } => {
+            effect(o, permission, cx);
+            syn::joiner(o, false);
+            let cond = Condition::ThisWay(Box::new(Event::Casts {
+                who: Player::You,
+                what: spell.clone(),
+            }));
+            effect(
+                o,
+                &Effect::If {
+                    cond,
+                    then: rules.clone(),
+                },
+                cx,
+            );
+        }
         Effect::Unless {
             effect: inner,
             who,
@@ -8845,6 +8866,35 @@ fn static_subject(s: &Static) -> Option<&Objects> {
 }
 
 fn statics(o: &mut Out, ss: &[Static]) {
+    // Permissions with rules for what is cast through them: the
+    // permissions, then an "if" about each spell, in the same list.
+    if ss
+        .iter()
+        .any(|s| matches!(s, Static::PermissionRules { .. }))
+    {
+        let mut said = Vec::new();
+        for s in ss {
+            match s {
+                Static::PermissionRules {
+                    permissions,
+                    spell,
+                    rules,
+                } => {
+                    said.extend(permissions.iter().cloned());
+                    let cond = Condition::ThisWay(Box::new(Event::Casts {
+                        who: Player::You,
+                        what: spell.clone(),
+                    }));
+                    said.push(Static::If {
+                        cond,
+                        then: rules.clone(),
+                    });
+                }
+                s => said.push(s.clone()),
+            }
+        }
+        return statics(o, &said);
+    }
     let mut i = 0;
     let mut start = 0;
     while i < ss.len() {
@@ -9298,6 +9348,21 @@ fn lost_words(o: &mut Out, lost: &[Lost]) {
 
 fn static_other(o: &mut Out, s: &Static) {
     match s {
+        Static::PermissionRules {
+            permissions,
+            spell,
+            rules,
+        } => {
+            // `statics` says it as its parts; alone, the same.
+            statics(
+                o,
+                &[Static::PermissionRules {
+                    permissions: permissions.clone(),
+                    spell: spell.clone(),
+                    rules: rules.clone(),
+                }],
+            );
+        }
         Static::AbilityCostChange { kind, of, by, less } => {
             adj(o, &Adj::Ability(*kind), None);
             o.w("abilities of");

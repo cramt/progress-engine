@@ -991,6 +991,7 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
         }
         v.extend(s);
     }
+    permission_rules(&mut v);
     // "… If you do, draw a card and repeat this process.": the process is
     // every instruction of the ability, said from the first.
     if v.iter().any(repeats) {
@@ -1176,5 +1177,50 @@ fn continues_target(e: &Effect) -> bool {
         | Effect::Modify { what, .. }
         | Effect::GrantAbility { what, .. } => it(what),
         _ => false,
+    }
+}
+
+/// "Until the end of your next turn, you may play those cards. If you cast
+/// a spell this way, mana of any type can be spent to cast it": the "if"
+/// after a lasting permission to cast is part of it (`PermissionRules`).
+/// A cast made as the ability resolves ("You may cast that card without
+/// paying its mana cost. If you cast a creature spell this way, …") has
+/// happened by the "if", which stays one.
+fn permission_rules(v: &mut Vec<Effect>) {
+    fn lasting(e: &Effect, during: bool) -> bool {
+        match e {
+            Effect::Cast { dur, .. } => during || *dur != Duration::Permanent,
+            Effect::May { then, .. } => then.iter().any(|e| lasting(e, during)),
+            Effect::During { then, .. } => then.iter().any(|e| lasting(e, true)),
+            _ => false,
+        }
+    }
+    let mut i = 1;
+    while i < v.len() {
+        let rule = matches!(
+            &v[i],
+            Effect::If { cond: Condition::ThisWay(e), .. }
+                if matches!(&**e, Event::Casts { who: Player::You, .. })
+        );
+        if rule && lasting(&v[i - 1], false) {
+            let Effect::If {
+                cond: Condition::ThisWay(e),
+                then,
+            } = v.remove(i)
+            else {
+                unreachable!("matched above");
+            };
+            let Event::Casts { what, .. } = *e else {
+                unreachable!("matched above");
+            };
+            let permission = Box::new(v[i - 1].clone());
+            v[i - 1] = Effect::PermissionRules {
+                permission,
+                spell: what,
+                rules: then,
+            };
+        } else {
+            i += 1;
+        }
     }
 }

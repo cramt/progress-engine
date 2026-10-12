@@ -871,6 +871,17 @@ impl Walk for Effect {
                     Walk::walk(x0, v);
                 }
             }
+            Effect::PermissionRules {
+                permission,
+                spell,
+                rules,
+            } => {
+                Walk::walk(&mut **permission, v);
+                Walk::walk(spell, v);
+                for x0 in (rules).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Effect::Unless { effect, who, cost } => {
                 Walk::walk(&mut **effect, v);
                 Walk::walk(who, v);
@@ -2257,6 +2268,19 @@ impl Walk for Static {
             Static::If { cond, then } => {
                 Walk::walk(cond, v);
                 for x0 in (then).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
+            Static::PermissionRules {
+                permissions,
+                spell,
+                rules,
+            } => {
+                for x0 in (permissions).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+                Walk::walk(spell, v);
+                for x0 in (rules).iter_mut() {
                     Walk::walk(x0, v);
                 }
             }
