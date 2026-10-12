@@ -850,6 +850,16 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
         },
         |p| { p.one_of(&["is", "are"])?; p.words("all colors")?; Some(vec![Static::IsAllColors(what.clone())]) },
         |p| { p.one_of(&["is", "are"])?; p.word("goaded")?; Some(vec![Static::Goaded(what.clone())]) },
+        // "This creature escapes with two +1/+1 counters on it".
+        |p| {
+            p.verb("escape")?;
+            p.word("with")?;
+            let n = amount_a(p)?;
+            let kind = counter_kind(p)?;
+            p.one_of(&["counters", "counter"])?;
+            p.one_of(&["on it", "on him", "on her"])?;
+            Some(vec![Static::EscapesWithCounters { what: what.clone(), n, kind }])
+        },
         |p| {
             p.verb("enter")?;
             p.attempt(|p| p.words("the battlefield"));

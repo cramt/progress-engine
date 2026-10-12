@@ -9057,6 +9057,7 @@ fn static_subject(s: &Static) -> Option<&Objects> {
         | Static::Restrict { what, .. }
         | Static::EntersTappedUnless { what, .. }
         | Static::EntersWithCounters { what, .. }
+        | Static::EscapesWithCounters { what, .. }
         | Static::AlsoIs { what, .. }
         | Static::Is { what, .. }
         | Static::Loses { what, .. }
@@ -9405,6 +9406,11 @@ fn static_predicate(o: &mut Out, s: &Static) {
         Static::EntersWithCounters { n: k, kind, .. } => {
             o.verb("enter", n);
             syn::the_battlefield(o);
+            o.w("with");
+            enters_counters(o, k, kind);
+        }
+        Static::EscapesWithCounters { n: k, kind, .. } => {
+            o.verb("escape", n);
             o.w("with");
             enters_counters(o, k, kind);
         }
@@ -10055,6 +10061,7 @@ fn static_other(o: &mut Out, s: &Static) {
         | Static::Restrict { .. }
         | Static::EntersTappedUnless { .. }
         | Static::EntersWithCounters { .. }
+        | Static::EscapesWithCounters { .. }
         | Static::AlsoIs { .. }
         | Static::Is { .. }
         | Static::Loses { .. }

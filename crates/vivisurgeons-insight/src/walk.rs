@@ -2220,6 +2220,10 @@ impl Walk for Static {
                 Walk::walk(what, v);
                 Walk::walk(n, v);
             }
+            Static::EscapesWithCounters { what, n, .. } => {
+                Walk::walk(what, v);
+                Walk::walk(n, v);
+            }
             Static::CostChange { what, per, .. } => {
                 Walk::walk(what, v);
                 if let Some(x0) = (per).as_mut() {

@@ -308,6 +308,8 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
             };
             Some(Event::DealsCombatDamageTo { what: what.clone(), to })
         },
+        // "deals combat damage to a creature", "… to a player or battle".
+        |p| { p.verb("deal")?; p.words("combat damage to")?; let to = recipient(p)?; Some(Event::DealsCombatDamageTo { what: what.clone(), to }) },
         // "Whenever equipped creature deals combat damage, …": to anything.
         |p| { p.verb("deal")?; p.words("combat damage")?; (p.peek() == Some(&Tok::Comma)).then(|| Event::DealsCombatDamage(what.clone())) },
         |p| { p.one_of(&["is exiled", "are exiled"])?; Some(Event::Exiled(what.clone())) },

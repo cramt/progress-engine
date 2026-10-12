@@ -2362,6 +2362,13 @@ pub enum Static {
         n: Amount,
         kind: String,
     },
+    /// "This creature escapes with two +1/+1 counters on it": if it escaped
+    /// (was cast with escape), it enters with those counters (CR 702.138c).
+    EscapesWithCounters {
+        what: Objects,
+        n: Amount,
+        kind: String,
+    },
     CostChange {
         what: Objects,
         by: Mana,
