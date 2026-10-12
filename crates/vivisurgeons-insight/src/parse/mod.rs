@@ -1455,9 +1455,16 @@ fn other_than_the_subject(statics: &mut [Static]) {
                 per: Some(Amount::CountOf(counted)),
                 ..
             } if what.quant != Quant::SelfRef => {
+                // The creature getting the bonus, each in turn ([each-itself]):
+                // "other" is other than it, and "with it" is it.
+                let itself = Objects {
+                    quant: Quant::Itself,
+                    filter: Filter::default(),
+                };
                 let like = kinds(&what.filter);
                 if !like.is_empty() {
-                    other_than(counted, &antecedent(), Some(&like));
+                    other_than(counted, &itself, Some(&like));
+                    counted.walk(&mut Bare(Quant::Itself));
                 }
             }
             Static::AsLongAs { then, .. } | Static::If { then, .. } => other_than_the_subject(then),
