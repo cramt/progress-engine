@@ -1091,6 +1091,9 @@ fn refer(
         /// with it or untap all tapped creatures that share a creature type
         /// with it").
         ors: Vec<(u32, bool, bool)>,
+        /// The window was ended only by tokens created, so a reference to a
+        /// card still goes past them.
+        tokens_only: bool,
     }
     impl Visitor for Refer {
         fn enter(&mut self, o: &mut Objects) -> bool {
@@ -1137,6 +1140,11 @@ fn refer(
                 o.quant = Quant::SelfRef;
                 return true;
             }
+            // "create a … token, then put … counters on it equal to the
+            // greatest mana value among those cards": only tokens were
+            // named since, and a card is none of them.
+            let seen_new =
+                seen_new && !(self.tokens_only && !before_each && f.kind == Some(Noun::Card));
             if referable && !seen_new && !other_type {
                 o.quant = if seen_self && *f == Filter::default() {
                     Quant::SelfRef
@@ -1179,7 +1187,10 @@ fn refer(
                 // and a creature named Hanweir Garrison … exile them" names
                 // both.
                 _ if indefinite && self.in_cond > 0 && self.to != Quant::Antecedent => {}
-                _ => self.seen_new = true,
+                _ => {
+                    self.seen_new = true;
+                    self.tokens_only = false;
+                }
             }
         }
         fn condition(&mut self, _: &mut Condition) {
@@ -1211,6 +1222,7 @@ fn refer(
             }
             if self.drew && matches!(e, Effect::Reveal { what, .. } if *what == antecedent()) {
                 self.seen_new = true;
+                self.tokens_only = false;
             }
             // "this creature deals damage equal to its power to it": the
             // amount is the card's own, and what it acts on is not the card,
@@ -1286,6 +1298,16 @@ fn refer(
                     | Effect::UntilFound { .. }
                     | Effect::DigUntilTotal { .. }
             ) {
+                // Tokens alone: a card is none of them (CR 108.2, 111.1).
+                let tokens = matches!(
+                    e,
+                    Effect::Create { .. }
+                        | Effect::CreateCopy { .. }
+                        | Effect::CreateOfEach { .. }
+                        | Effect::CreateNamed { .. }
+                        | Effect::CreateAttached { .. }
+                );
+                self.tokens_only = tokens && (!self.seen_new || self.tokens_only);
                 self.seen_new = true;
                 // "Create X tokens …. Exile them": the effect named more
                 // than the card.
@@ -1313,6 +1335,7 @@ fn refer(
         named: (false, false),
         after_card: false,
         ors: Vec::new(),
+        tokens_only: false,
     };
     if let Some(c) = cond {
         c.walk(&mut v);
@@ -1713,6 +1736,12 @@ impl Visitor for CreatedTokens {
             return;
         }
         match e {
+            // "put a number of +1/+1 counters on it equal to the greatest
+            // mana value among those cards": "it" is said before the amount,
+            // which the tree holds first.
+            Effect::PutCounters { on, .. } if self.created.is_some() && *on == antecedent() => {
+                on.quant = Quant::Created;
+            }
             Effect::Where { .. } => self.wheres.push(self.depth),
             Effect::Otherwise(_) | Effect::IfYouDont(_) => self.created = None,
             Effect::Damage {
