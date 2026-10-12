@@ -308,8 +308,12 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             Some(vec![Static::BeginOnBattlefield { what, counters, then }])
         },
         |p| {
-            let what = objects(p)?;
-            p.one_of(&["is", "are"])?;
+            // "As long as enchanted permanent is a Vehicle, it's a creature in
+            // addition to its other types": "it's" is the subject and verb.
+            let what = alt!(p;
+                |p| p.word("it's").map(|_| antecedent()),
+                |p| { let w = objects(p)?; p.one_of(&["is", "are"])?; Some(w) },
+            )?;
             let types = alt!(p;
                 |p| p.words("the chosen type").map(|_| TypeSet::Chosen),
                 |p| p.words("every basic land type").map(|_| TypeSet::EveryBasicLandType),

@@ -232,6 +232,14 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         },
         |p| { p.words("no mana was spent to cast")?; objects(p).map(Condition::NoManaSpentToCast) },
         |p| p.words("this spell was bargained").map(|_| Condition::WasBargained),
+        // "if there are no charge counters on this Vehicle".
+        |p| {
+            p.words("there are no")?;
+            let kind = p.attempt(counter_kind);
+            p.words("counters on")?;
+            let what = objects(p)?;
+            Some(Condition::Not(Box::new(Condition::HasCounter { what, kind })))
+        },
         // "If a creature card was exiled this way".
         |p| {
             let what = objects(p)?;
@@ -473,6 +481,14 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                     p.words("counters on it")?;
                     let counters = Objects { quant: Quant::Plural, filter: Filter { kind: Some(Noun::Counter(Some(kind))), posts: vec![Post::On(Box::new(what.clone()))], ..Filter::default() } };
                     Some(Condition::AmountIs { n: Amount::CountOf(Box::new(counters)), op: Op::Ge, value: Amount::N(value) })
+                },
+                // "if this enchantment has no charge counters on it".
+                |p| {
+                    p.one_of(&["has no", "have no"])?;
+                    let kind = p.attempt(counter_kind);
+                    p.words("counters on")?;
+                    p.one_of(&["it", "them"])?;
+                    Some(Condition::Not(Box::new(Condition::HasCounter { what: what.clone(), kind })))
                 },
                 // "if it had counters on it": as it was when it left.
                 |p| {

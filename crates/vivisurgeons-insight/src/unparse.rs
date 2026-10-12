@@ -473,6 +473,18 @@ mod syn {
         }
     }
 
+    /// "this enchantment has no charge counters on it" and "there are no
+    /// charge counters on this enchantment": one object's counters, said
+    /// with it as subject or with "there are".
+    pub fn there_are_on(o: &mut Out, has: Out, there: Out) {
+        alt(o, vec![has, there]);
+    }
+
+    /// "it is" and "it's": a pronoun and its verb, contracted or not.
+    pub fn contraction(o: &mut Out, full: Out, short: Out) {
+        alt(o, vec![full, short]);
+    }
+
     pub fn different_values(o: &mut Out, s: Stat) {
         let plural = match s {
             Stat::Power => "powers",
@@ -9022,6 +9034,30 @@ fn past(o: &mut Out, c: &Condition) {
 
 fn not_condition(o: &mut Out, c: &Condition) {
     match c {
+        // "this enchantment has no charge counters on it", "there are no
+        // charge counters on this Vehicle".
+        Condition::HasCounter { what, kind } => {
+            let kind_word = |o: &mut Out| {
+                if let Some(k) = kind {
+                    counter_kind(o, k);
+                }
+            };
+            let has = out(|o| {
+                objects(o, what);
+                o.verb("have", obj_num(what));
+                o.w("no");
+                kind_word(o);
+                o.w("counters on");
+                syn::it(o);
+            });
+            let there = out(|o| {
+                o.w("there are no");
+                kind_word(o);
+                o.w("counters on");
+                objects(o, what);
+            });
+            syn::there_are_on(o, has, there);
+        }
         Condition::ThisWay(e) => match &**e {
             Event::WasCast(x) => {
                 objects(o, x);
@@ -9444,6 +9480,19 @@ fn sized(o: &mut Out, ss: &[Static], i: usize) -> usize {
 
 fn static_full(o: &mut Out, s: &Static) {
     match s {
+        // "it's a creature in addition to its other types": the pronoun and
+        // its verb contracted.
+        Static::AlsoIs { what, .. } if is_bare_antecedent(what) || is_bare_self(what) => {
+            let full = out(|o| {
+                objects(o, what);
+                static_predicate(o, s);
+            });
+            let pred = out(|o| static_predicate(o, s));
+            let mut contracted = out(syn::it_is);
+            contracted.0.extend(pred.0.into_iter().skip(1));
+            syn::contraction(o, full, contracted);
+            return;
+        }
         // "its activated abilities can't be activated": the subject is a
         // possessive inside the rule.
         Static::Restrict {
