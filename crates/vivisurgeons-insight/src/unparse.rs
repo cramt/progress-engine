@@ -441,6 +441,13 @@ mod syn {
         any_of(o, &["an opponent", "one of your opponents"]);
     }
 
+    /// "is an Insect creature with base power and toughness 0/1" and "has
+    /// base power and toughness 9/9": one base size (CR 613.4b), said with
+    /// "with" after a type and with "has" on its own.
+    pub fn with_base_pt(o: &mut Out, with: Out, have: Out) {
+        alt(o, vec![with, have]);
+    }
+
     pub fn different_values(o: &mut Out, s: Stat) {
         let plural = match s {
             Stat::Power => "powers",
@@ -9436,8 +9443,16 @@ fn static_predicate(o: &mut Out, s: &Static) {
             lost_words(o, lost);
         }
         Static::BasePt { pt, .. } => {
-            o.w("with base power and toughness");
-            o.tok(Tok::Pt(*pt));
+            let with = out(|o| {
+                o.w("with base power and toughness");
+                o.tok(Tok::Pt(*pt));
+            });
+            let have = out(|o| {
+                o.verb("have", n);
+                o.w("base power and toughness");
+                o.tok(Tok::Pt(*pt));
+            });
+            syn::with_base_pt(o, with, have);
         }
         Static::AdditionalCostFor { cost: c, .. } => {
             o.verb("cost", n);

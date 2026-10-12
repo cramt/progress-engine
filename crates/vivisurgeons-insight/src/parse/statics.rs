@@ -850,6 +850,14 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
         },
         |p| { p.one_of(&["is", "are"])?; p.words("all colors")?; Some(vec![Static::IsAllColors(what.clone())]) },
         |p| { p.one_of(&["is", "are"])?; p.word("goaded")?; Some(vec![Static::Goaded(what.clone())]) },
+        // "Enchanted creature has base power and toughness 9/9".
+        |p| {
+            p.verb("have")?;
+            p.words("base power and toughness")?;
+            let pt = match p.peek()? { Tok::Pt(pt) if !pt.signed => *pt, _ => return None };
+            p.bump();
+            Some(vec![Static::BasePt { what: what.clone(), pt }])
+        },
         // "This creature escapes with two +1/+1 counters on it".
         |p| {
             p.verb("escape")?;
