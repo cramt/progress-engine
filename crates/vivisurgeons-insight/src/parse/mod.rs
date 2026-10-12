@@ -2226,6 +2226,33 @@ impl Visitor for OtherMarkedCards {
     }
 }
 
+/// "a creature card that shares a creature type with enchanted creature
+/// from among them" (Call to the Kindred): "from among them" is where the
+/// card is chosen from, not the creature it shares a type with, so it goes
+/// on the outer objects, after the shared type ([after-self-noun]).
+struct FromAmongAfterShares;
+
+impl Visitor for FromAmongAfterShares {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        let mut moved = Vec::new();
+        for q in o.filter.posts.iter_mut() {
+            if let Post::SharesType { with: Some(w), .. } = q {
+                if matches!(
+                    w.filter.posts.last(),
+                    Some(Post::FromAmongThem | Post::FromAmong(_))
+                ) {
+                    moved.extend(w.filter.posts.pop());
+                }
+            }
+        }
+        o.filter.posts.extend(moved);
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        true
+    }
+}
+
 /// A whole ability line, which must be consumed to the last token.
 pub fn parse_line(toks: &[Tok], spell: bool, continues: bool) -> Result<Ability, usize> {
     let mut p = P::new(toks);
@@ -2243,6 +2270,7 @@ pub fn parse_line(toks: &[Tok], spell: bool, continues: bool) -> Result<Ability,
             a.walk(&mut EachItself);
             a.walk(&mut DelayedX);
             a.walk(&mut OtherMarkedCards);
+            a.walk(&mut FromAmongAfterShares);
             counters_on_itself(&mut a);
             Ok(a)
         }
