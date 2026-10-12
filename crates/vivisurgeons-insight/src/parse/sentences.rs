@@ -634,6 +634,34 @@ pub(super) fn subject_of(e: &Effect) -> Option<Player> {
     })
 }
 
+/// `subject_of`, to change it.
+pub(super) fn subject_mut(e: &mut Effect) -> Option<&mut Player> {
+    Some(match e {
+        Effect::Draw { who, .. }
+        | Effect::Discard { who, .. }
+        | Effect::DiscardHand(who)
+        | Effect::GainLife { who, .. }
+        | Effect::LoseLife { who, .. }
+        | Effect::Search { who, .. }
+        | Effect::Shuffle(who)
+        | Effect::ShuffleInto { who, .. }
+        | Effect::ShuffleZones { who, .. }
+        | Effect::Mill { who, .. }
+        | Effect::Reveal { who, .. }
+        | Effect::RevealTop { who, .. }
+        | Effect::LookAtTop { who, .. }
+        | Effect::Sacrifice { who, .. }
+        | Effect::Create { who, .. }
+        | Effect::Pay { who, .. }
+        | Effect::May { who, .. }
+        | Effect::RevealHand(who)
+        | Effect::UntilFound { who, .. }
+        | Effect::DigUntilTotal { who, .. }
+        | Effect::Performed { by: who, .. } => who,
+        _ => return None,
+    })
+}
+
 /// The object an effect's verb is said of, where it has one.
 fn object_subject_of(e: &Effect) -> Option<Objects> {
     match e {

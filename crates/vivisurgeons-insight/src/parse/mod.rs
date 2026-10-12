@@ -1459,6 +1459,57 @@ impl Visitor for FromEachLibrary {
     }
 }
 
+/// Selvala: "its controller may draw a card if its power is greater than
+/// each other creature's power": the verb after "may" inherits the may's
+/// subject (`subject_player`), so it is the same player, whatever objects
+/// were named between. The referent rule resolves the may's own "its" before
+/// "each other creature" closes the window, and the draw's copy after it;
+/// here the copy follows the may.
+struct MaySubject;
+
+impl Visitor for MaySubject {
+    fn enter(&mut self, _: &mut Objects) -> bool {
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        true
+    }
+    fn effect(&mut self, e: &mut Effect) {
+        let Effect::May { who, then } = e else {
+            return;
+        };
+        // The may's subject as it was said, before the referent rule.
+        let said = match who {
+            Player::ControllerOf(o)
+                if o.quant != Quant::Antecedent && o.filter == Filter::default() =>
+            {
+                Player::ControllerOf(Box::new(antecedent()))
+            }
+            Player::OwnerOf(o) if o.quant != Quant::Antecedent && o.filter == Filter::default() => {
+                Player::OwnerOf(Box::new(antecedent()))
+            }
+            _ => return,
+        };
+        struct Same<'a>(&'a Player, &'a Player);
+        impl Visitor for Same<'_> {
+            fn enter(&mut self, _: &mut Objects) -> bool {
+                false
+            }
+            fn effect(&mut self, e: &mut Effect) {
+                if let Some(s) = sentences::subject_mut(e) {
+                    if s == self.0 {
+                        *s = self.1.clone();
+                    }
+                }
+            }
+        }
+        let resolved = who.clone();
+        for t in then.iter_mut() {
+            t.walk(&mut Same(&said, &resolved));
+        }
+    }
+}
+
 /// A whole ability line, which must be consumed to the last token.
 pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
     let mut p = P::new(toks);
@@ -1467,6 +1518,7 @@ pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
         Some(mut a) if p.at_end() => {
             a.walk(&mut OtherThanTheSource);
             a.walk(&mut FromEachLibrary);
+            a.walk(&mut MaySubject);
             Ok(a)
         }
         _ => Err(p.furthest),
