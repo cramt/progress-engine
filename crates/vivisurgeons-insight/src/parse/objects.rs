@@ -1179,6 +1179,14 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
         |p| {
             p.words("the rest of")?;
             let among = pronoun(p)?;
+            // "Put the rest of the cards on the bottom" (Winota), "the rest
+            // of those cards": what the earlier choice left of the cards
+            // looked at, which `Rest` says ([the-other]); a reference back
+            // would be the card just chosen.
+            let bare = Objects { quant: Quant::Antecedent, filter: Filter { kind: Some(Noun::Card), ..Filter::default() } };
+            if among == bare {
+                return Some(Objects { quant: Quant::Rest, filter: Filter::default() });
+            }
             Some(Objects { quant: Quant::Rest, filter: Filter { posts: vec![Post::FromAmong(Box::new(among))], ..Filter::default() } })
         },
         // "the top half of their library, rounded up".

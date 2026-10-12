@@ -67,7 +67,7 @@ new row takes a new one.
 |---|---|---|---|
 | [any-creature] | "any creature" | `Quant::One`, the same as "a creature" | settled: one, of the chooser's pick, either way |
 | [second-target] | "a second target" | `SecondTarget`, not `AnotherTarget` | settled: CR 115.3, a second "target" may choose the first one again; "another" may not |
-| [the-other] | "the other" (of two) | `Quant::Rest`, what the earlier choice left, not "it" | settled |
+| [the-other] | "the other" (of two), "the rest of the cards", "the rest of those cards" | `Quant::Rest`, what the earlier choice left, not "it" | settled. "Of the cards" and "of those cards" restate the cards the choice was made among, and add no `FromAmong`: as a reference back it was the card just chosen (Winota, Call to the Kindred). "The rest of the revealed cards" and "of those exiled cards" keep theirs, a marked set |
 | [self-or-another] | "this creature or another creature" | `SelfOrAnother` keeps "this creature", as `SelfRef` does elsewhere | settled: the same object as "~", kept because the type line is not in the tree |
 | [self-or-a] | "this creature or a commander you control", "this creature and land creatures you control" | `SelfOrA` and `SelfAnd`: the card, then a second object | settled: "this creature" names the card by its own type, so what follows "or a" or "and" is another object, not more of the card's types. They read as `SelfRef` over the whole list, so Ironsoul Enforcer missed a commander attacking alone (Campsite Cuisine, The Dragon-Kami Reborn, Sylvan Advocate likewise). Apart from "or another" and "and other", which exclude the card |
 | [that-player] | "that player", "they", "the player" | `Player::That` | settled: one back-reference |

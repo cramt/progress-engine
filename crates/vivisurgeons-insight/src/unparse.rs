@@ -1082,7 +1082,16 @@ mod syn {
     /// "the rest", "the other", "the others": what an earlier choice left,
     /// in the number it has.
     pub fn the_rest(o: &mut Out) {
-        any_of(o, &["the rest", "the other", "the others"]);
+        any_of(
+            o,
+            &[
+                "the rest",
+                "the other",
+                "the others",
+                "the rest of the cards",
+                "the rest of those cards",
+            ],
+        );
     }
 
     /// "cards in hand", "cards in your hand": the subject's own hand, said
