@@ -289,8 +289,6 @@ impl Visitor for Lint {
 
     fn effect(&mut self, e: &mut Effect) {
         self.effects += 1;
-        // "Return target permanent to its owner's hand. Then that player
-        // discards a card": the owner, whom a zone names.
         // A delayed trigger's "deals combat damage to a player".
         if let Effect::DelayedWhen { event, .. }
         | Effect::DelayedWhenever { event, .. }
@@ -300,6 +298,8 @@ impl Visitor for Lint {
                 self.players += 1;
             }
         }
+        // "Return target permanent to its owner's hand. Then that player
+        // discards a card": the owner, whom a zone names.
         if let Effect::Move { to, .. } = e {
             if matches!(
                 to,

@@ -320,7 +320,7 @@ pub(super) fn restriction_bare(p: &mut P) -> Option<Restriction> {
         |p| p.words("can't be blocked by more than one creature").map(|_| Restriction::CantBeBlockedByMoreThanOne),
         |p| { p.words("can't be blocked by")?; filter(p).map(Restriction::CantBeBlockedBy) },
         |p| { p.words("can block an additional")?; p.attempt(|p| p.word("creature")); p.words("each combat").map(|_| Restriction::CanBlockAdditional(Amount::N(1))) },
-        |p| p.words("can block any number of creatures").map(|_| Restriction::CanBlockAdditional(Amount::X)),
+        |p| p.words("can block any number of creatures").map(|_| Restriction::CanBlockAnyNumber),
         |p| p.words("can't attack or block").map(|_| Restriction::CantAttackOrBlock),
         |p| { p.words("can't block")?; filter(p).map(Restriction::CantBlockAny) },
         |p| p.words("can't block").map(|_| Restriction::CantBlock),

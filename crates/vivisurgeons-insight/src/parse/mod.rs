@@ -520,6 +520,7 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
                     let mut effect = effects(p)?;
                     let limits = limits(p);
                     about_the_trigger(&trigger, Some(&mut cond), &mut effect);
+                    x_of_the_spell(&trigger, &mut effect);
                     those_counters(&cond, &mut effect);
                     if let Trigger::When(e) = &trigger { other_than_the_trigger(e, Some(&mut cond), &mut effect); }
                     let trigger = Trigger::InterveningIf(Box::new(trigger.clone()), Box::new(cond));
@@ -529,6 +530,7 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
                     let mut effect = effects(p)?;
                     let limits = limits(p);
                     about_the_trigger(&trigger, None, &mut effect);
+                    x_of_the_spell(&trigger, &mut effect);
                     if let Trigger::When(e) = &trigger { other_than_the_trigger(e, None, &mut effect); }
                     finished(p).then_some(Ability::Triggered { trigger: trigger.clone(), effect, limits })
                 },
@@ -1993,4 +1995,40 @@ pub(super) fn casts(who: Player, mut what: Objects) -> Event {
         }
     }
     Event::Casts { who, what }
+}
+
+/// "Whenever you cast a spell with {X} in its mana cost, put X +1/+1
+/// counters on ~": the ability's X is the spell's (CR 107.3e), where
+/// nothing else defines one ([x-of-the-spell]).
+fn x_of_the_spell(t: &Trigger, effect: &mut [Effect]) {
+    let Trigger::When(e) = t else { return };
+    let Some(spell) = trigger_object(e) else {
+        return;
+    };
+    if !spell.filter.posts.contains(&Post::XInManaCost) {
+        return;
+    }
+    struct V(u32);
+    impl Visitor for V {
+        fn enter(&mut self, _: &mut Objects) -> bool {
+            true
+        }
+        fn effect(&mut self, e: &mut Effect) {
+            self.0 += u32::from(matches!(e, Effect::Where { .. }));
+        }
+        fn effect_done(&mut self, e: &mut Effect) {
+            self.0 -= u32::from(matches!(e, Effect::Where { .. }));
+        }
+        fn amount(&mut self, a: &mut Amount) {
+            if *a == Amount::X && self.0 == 0 {
+                *a = Amount::XOf(Box::new(Objects {
+                    quant: Quant::Triggering,
+                    filter: Filter::default(),
+                }));
+            }
+        }
+    }
+    for e in effect {
+        e.walk(&mut V(0));
+    }
 }

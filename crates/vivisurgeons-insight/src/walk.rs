@@ -254,6 +254,9 @@ impl Walk for Amount {
             Amount::Speed(f0) => {
                 Walk::walk(f0, v);
             }
+            Amount::XOf(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             _ => {}
         }
     }

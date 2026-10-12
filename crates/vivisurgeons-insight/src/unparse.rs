@@ -2260,6 +2260,7 @@ fn is_measure(a: &Amount) -> bool {
         Amount::N(_)
         | Amount::AnyOf(_)
         | Amount::X
+        | Amount::XOf(_)
         | Amount::ThatMany
         | Amount::Between(..)
         | Amount::AnyAmount => false,
@@ -2293,7 +2294,7 @@ fn amount(o: &mut Out, a: &Amount) {
             }
         }
         Amount::N(n) => syn::number(o, *n),
-        Amount::X => o.w("X"),
+        Amount::X | Amount::XOf(_) => o.w("X"),
         Amount::ThatMany => syn::that_many(o),
         Amount::UpTo(a) => {
             o.w("up to");
@@ -2364,6 +2365,7 @@ fn measure(o: &mut Out, a: &Amount) {
         Amount::N(_)
         | Amount::AnyOf(_)
         | Amount::X
+        | Amount::XOf(_)
         | Amount::ThatMany
         | Amount::UpTo(_)
         | Amount::Twice(_)
@@ -4974,7 +4976,7 @@ fn restriction(o: &mut Out, r: &Restriction, n: Num) {
         Restriction::CantBeBlockedByMoreThanOne => {
             o.w("can't be blocked by more than one creature")
         }
-        Restriction::CanBlockAdditional(Amount::X) => o.w("can block any number of creatures"),
+        Restriction::CanBlockAnyNumber => o.w("can block any number of creatures"),
         Restriction::CanBlockAdditional(_) => o.w("can block an additional creature each combat"),
         Restriction::Unless(r, c) => {
             restriction(o, r, n);

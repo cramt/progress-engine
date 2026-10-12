@@ -8,6 +8,6 @@ permanent-state-off-battlefield 0
 state-of-triggering-spell 0
 equipped-equipment 0
 bare-other 0
-unbound-x 14
+unbound-x 2
 fight-one-object 1
 types-without-card-type 7

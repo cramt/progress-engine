@@ -400,6 +400,10 @@ pub enum Amount {
     },
     /// "your speed": 0 for a player with none (CR 702.179f).
     Speed(Player),
+    /// "Whenever you cast a spell with {X} in its mana cost, put X +1/+1
+    /// counters on ~": the X of that object's mana cost (CR 107.3e), not
+    /// one this ability's controller chooses (CR 107.3f).
+    XOf(Box<Objects>),
 }
 
 /// A set of colors a rule draws from, named by what decides it.
@@ -2060,6 +2064,9 @@ pub enum Restriction {
     CantBeBlockedBy(Filter),
     CantBeBlockedByMoreThanOne,
     CanBlockAdditional(Amount),
+    /// "can block any number of creatures": no bound on how many it
+    /// blocks, where an X would be a number someone chooses.
+    CanBlockAnyNumber,
     Unless(Box<Restriction>, Condition),
     /// "can't attack you unless their controller pays {2} for each …".
     UnlessPays {
