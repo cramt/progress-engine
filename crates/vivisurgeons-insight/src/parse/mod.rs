@@ -866,6 +866,18 @@ impl Visitor for Bare {
     }
 }
 
+/// Every reference back in a clause said before a trailing "for each".
+pub(super) struct BeforeEach;
+
+impl Visitor for BeforeEach {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        if o.quant == Quant::Antecedent {
+            o.quant = Quant::BeforeEach;
+        }
+        true
+    }
+}
+
 /// "Whenever another nontoken creature you control dies, if its mana value
 /// was 1 or greater, … return that card to the battlefield": a reference
 /// back said before the effect names any other object is to the trigger's
@@ -906,12 +918,21 @@ fn refer(object: Option<&Objects>, cond: Option<&mut Condition>, effect: &mut [E
         drew: bool,
         /// How deep in conditions the walk is.
         in_cond: u32,
+        /// What had been named as each `ForEach` still being read began,
+        /// before its loop's noun: a reference said before a trailing "for
+        /// each" is read against that.
+        loops: Vec<(bool, bool)>,
     }
     impl Visitor for Refer {
         fn enter(&mut self, o: &mut Objects) -> bool {
             let f = &o.filter;
+            let before_each = o.quant == Quant::BeforeEach;
+            let (seen_new, seen_self) = match self.loops.last() {
+                Some(&said) if before_each => said,
+                _ => (self.seen_new, self.seen_self),
+            };
             // "those counters", "the exiled card": not the trigger's object.
-            let referable = o.quant == Quant::Antecedent
+            let referable = (o.quant == Quant::Antecedent || before_each)
                 && f.posts.is_empty()
                 && f.or.is_none()
                 && !matches!(
@@ -938,9 +959,12 @@ fn refer(object: Option<&Objects>, cond: Option<&mut Condition>, effect: &mut [E
                     .all(|a| !matches!(a, Adj::Subtype(_)));
             let other_type =
                 only_types && !theirs.is_empty() && types(f).iter().any(|t| !theirs.contains(t));
-            if referable && !self.seen_new && !other_type {
-                o.quant = if self.seen_self && *f == Filter::default() {
+            if referable && !seen_new && !other_type {
+                o.quant = if seen_self && *f == Filter::default() {
                     Quant::SelfRef
+                } else if before_each && self.to == Quant::Antecedent {
+                    // No trigger object: still an earlier noun outside the loop.
+                    Quant::BeforeEach
                 } else {
                     self.to.clone()
                 };
@@ -974,6 +998,9 @@ fn refer(object: Option<&Objects>, cond: Option<&mut Condition>, effect: &mut [E
             // A clause starting ends the one before it, as "If this
             // enchantment isn't a creature, it becomes …" ends its "if".
             self.seen_self |= self.self_pending;
+            if matches!(e, Effect::ForEach { .. }) {
+                self.loops.push((self.seen_new, self.seen_self));
+            }
             if self.drew && matches!(e, Effect::Reveal { what, .. } if *what == antecedent()) {
                 self.seen_new = true;
             }
@@ -1016,6 +1043,9 @@ fn refer(object: Option<&Objects>, cond: Option<&mut Condition>, effect: &mut [E
         // "reveal the top card of your library. If it's a creature card":
         // effects that bring in an object they name in no `Objects`.
         fn effect_done(&mut self, e: &mut Effect) {
+            if matches!(e, Effect::ForEach { .. }) {
+                self.loops.pop();
+            }
             self.seen_self |= self.self_pending;
             self.drew = matches!(e, Effect::Draw { .. });
             self.damage_source = match e {
@@ -1064,6 +1094,7 @@ fn refer(object: Option<&Objects>, cond: Option<&mut Condition>, effect: &mut [E
         damage_source: None,
         drew: false,
         in_cond: 0,
+        loops: Vec::new(),
     };
     if let Some(c) = cond {
         c.walk(&mut v);

@@ -518,8 +518,17 @@ pub enum Quant {
     /// Mountains" are other than "that new one" (its ruling), and Orah's
     /// "card with lesser mana value" is lesser than the Cleric that died.
     Triggering,
-    /// "it", "them", "that creature", "those cards": an earlier noun.
+    /// "it", "them", "that creature", "those cards": an earlier noun. In
+    /// the clauses of a `ForEach`, the object of that pass ("For each
+    /// creature you control, put a +1/+1 counter on it").
     Antecedent,
+    /// A reference back said before a trailing "for each", so an earlier
+    /// noun and never the object each pass counts: "put a +1/+1 counter on
+    /// it for each creature your opponents control" is the token created
+    /// before. Where the referent rule knows the object it is `Triggering`
+    /// or `SelfRef` instead ("it gets +1/+0 … for each other attacking
+    /// creature").
+    BeforeEach,
     Enchanted,
     Equipped,
     /// A bare plural: "Creatures you control get +1/+1".

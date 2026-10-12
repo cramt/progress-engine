@@ -44,6 +44,10 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
             p.words("for each")?;
             objects(p)
         }) {
+            // "it gets +1/+0 … for each other attacking creature": every
+            // reference back in the clause was said before the loop's noun,
+            // so none of them is the object a pass counts.
+            e.walk(&mut BeforeEach);
             e = Effect::ForEach {
                 each,
                 then: vec![e],

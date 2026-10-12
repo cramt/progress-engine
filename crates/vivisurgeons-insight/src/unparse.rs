@@ -1296,11 +1296,13 @@ fn out(f: impl FnOnce(&mut Out)) -> Out {
 
 pub fn ability(a: &Ability) -> Out {
     // The trigger's own object is only ever said by referring back to it:
-    // "it", "its", "that card", "with lesser mana value".
+    // "it", "its", "that card", "with lesser mana value". So is a reference
+    // said before a trailing "for each", which only that position tells
+    // from the loop's own object.
     struct Said;
     impl crate::walk::Visitor for Said {
         fn enter(&mut self, o: &mut Objects) -> bool {
-            if o.quant == Quant::Triggering {
+            if matches!(o.quant, Quant::Triggering | Quant::BeforeEach) {
                 o.quant = Quant::Antecedent;
             }
             true
@@ -2558,7 +2560,7 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::WithOthers(_)
         | Quant::SelfAnd(_) => Num::Pl,
         // "one or more creatures … deals": the verb may agree with "one".
-        Quant::Antecedent | Quant::Other | Quant::OneOrMore => Num::Any,
+        Quant::Antecedent | Quant::BeforeEach | Quant::Other | Quant::OneOrMore => Num::Any,
         // "Krang & Shredder enter", "equipped creatures you control": a
         // name or an attached-to creature may be one or several.
         Quant::SelfRef if x.filter == Filter::default() => Num::Any,
@@ -2807,6 +2809,14 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             });
             syn::the_card(o, named, back);
         }
+        // Said as any reference back is.
+        Quant::BeforeEach => objects_plain(
+            o,
+            &Objects {
+                quant: Quant::Antecedent,
+                filter: f.clone(),
+            },
+        ),
         Quant::Antecedent if *f == Filter::default() => {
             syn::each_of(o);
             syn::it(o);

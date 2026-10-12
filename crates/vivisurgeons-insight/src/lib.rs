@@ -2069,4 +2069,30 @@ mod round_nine_d {
         assert!(s.contains("PutThoseCounters { those: Objects { quant: All, filter: Filter { alts: [], kind: Some(Counter(None))"), "{s}");
         assert!(s.contains("RemoveAnyCounters { n: N(1)"), "{s}");
     }
+
+    #[test]
+    fn it_said_before_a_trailing_for_each_is_not_what_the_loop_counts() {
+        let a = read(
+            "Enchantment",
+            "Whenever a creature you control attacks, it gets +1/+0 until end of turn for each other attacking creature that shares a creature type with it.",
+        );
+        let s = format!("{a:?}");
+        assert!(
+            s.contains("then: [Modify { what: Objects { quant: Triggering"),
+            "{s}"
+        );
+        let a = read(
+            "Instant",
+            "Create a 1/1 white Ally creature token. Put a +1/+1 counter on it for each creature your opponents control.",
+        );
+        let s = format!("{a:?}");
+        assert!(s.contains("on: Objects { quant: BeforeEach"), "{s}");
+        // Said first, "it" is the object of each pass.
+        let a = read(
+            "Sorcery",
+            "For each creature you control, put a +1/+1 counter on it.",
+        );
+        let s = format!("{a:?}");
+        assert!(s.contains("on: Objects { quant: Antecedent"), "{s}");
+    }
 }
