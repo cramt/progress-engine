@@ -912,19 +912,18 @@ fn names_object(r: &Recipient) -> bool {
     }
 }
 
-/// Whether an event's object is said by its card types and nothing else,
-/// so a reference of another card type is told apart from it.
+/// Whether an event's object is said by a type or subtype in each of its
+/// alternatives, none of them a planeswalker's or battle's, so a
+/// reference said with the recipient's ("that planeswalker") is told apart
+/// from it.
 fn typed(o: &Objects) -> bool {
+    let recipient = |a: &Adj| matches!(a, Adj::Type(t) if t == "planeswalker" || t == "battle");
     !o.filter.alts.is_empty()
-        && o.filter
-            .alts
-            .iter()
-            .all(|g| g.iter().any(|a| matches!(a, Adj::Type(_))))
-        && o.filter
-            .alts
-            .iter()
-            .flatten()
-            .all(|a| !matches!(a, Adj::Subtype(_)))
+        && o.filter.alts.iter().all(|g| {
+            g.iter()
+                .any(|a| matches!(a, Adj::Type(_) | Adj::Subtype(_)))
+        })
+        && !o.filter.alts.iter().flatten().any(recipient)
 }
 
 /// "~ has hexproof as long as it entered this turn", "This spell costs {3}
@@ -1262,6 +1261,9 @@ fn refer(
         /// The window was ended only by tokens created, so a reference to a
         /// card still goes past them.
         tokens_only: bool,
+        /// The types and subtypes of what was named after the window
+        /// closed: a reference said with one of them may be that.
+        named_since: Vec<Adj>,
     }
     impl Visitor for Refer {
         fn enter(&mut self, o: &mut Objects) -> bool {
@@ -1313,6 +1315,27 @@ fn refer(
             // named since, and a card is none of them.
             let seen_new =
                 seen_new && !(self.tokens_only && !before_each && f.kind == Some(Noun::Card));
+            // "Whenever one or more Dragons you control deal combat damage
+            // …, look at the top three cards …. You may return one of those
+            // Dragons to its owner's hand" (Zurgo and Ojutai): a reference
+            // said with the words the event's object was said with, which
+            // nothing named since was said with, is still that object.
+            let words = |f: &Filter| -> Vec<Adj> {
+                f.alts
+                    .iter()
+                    .flatten()
+                    .filter(|a| matches!(a, Adj::Type(_) | Adj::Subtype(_)))
+                    .cloned()
+                    .collect()
+            };
+            let mine = words(f);
+            let same_words = self.to == Quant::Triggering
+                && !before_each
+                && f.kind == self.object.kind
+                && !mine.is_empty()
+                && mine.iter().all(|a| words(&self.object).contains(a))
+                && !mine.iter().any(|a| self.named_since.contains(a));
+            let seen_new = seen_new && !same_words;
             if referable && !seen_new && !other_type {
                 o.quant = if seen_self && *f == Filter::default() {
                     Quant::SelfRef
@@ -1358,6 +1381,8 @@ fn refer(
                 _ => {
                     self.seen_new = true;
                     self.tokens_only = false;
+                    self.named_since
+                        .extend(o.filter.alts.iter().flatten().cloned());
                 }
             }
         }
@@ -1476,6 +1501,17 @@ fn refer(
                         | Effect::CreateAttached { .. }
                 );
                 self.tokens_only = tokens && (!self.seen_new || self.tokens_only);
+                // "Create a 5/5 red Dragon creature token …": a later "those
+                // Dragons" may be the tokens, whose types no `Objects` says.
+                if let Effect::Create { token, .. }
+                | Effect::CreateNamed { token, .. }
+                | Effect::CreateAttached { token, .. } = e
+                {
+                    for t in &token.types {
+                        self.named_since.push(Adj::Type(t.clone()));
+                        self.named_since.push(Adj::Subtype(t.clone()));
+                    }
+                }
                 self.seen_new = true;
                 // "Create X tokens …. Exile them": the effect named more
                 // than the card.
@@ -1504,6 +1540,7 @@ fn refer(
         after_card: false,
         ors: Vec::new(),
         tokens_only: false,
+        named_since: Vec::new(),
     };
     if let Some(c) = cond {
         c.walk(&mut v);
