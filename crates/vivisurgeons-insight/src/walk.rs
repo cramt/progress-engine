@@ -1496,6 +1496,12 @@ impl Walk for Event {
             Event::BecomesLevel { what, .. } => {
                 Walk::walk(what, v);
             }
+            Event::PlayerAttacks { who, at } => {
+                Walk::walk(who, v);
+                if let Some(x0) = (at).as_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Event::AttacksWith { who, what, at } => {
                 Walk::walk(who, v);
                 Walk::walk(what, v);

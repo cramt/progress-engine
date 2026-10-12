@@ -88,7 +88,12 @@ fn player_predicate(p: &mut P, who: &Player) -> Option<Event> {
         |p| {
             p.verb("attack")?;
             let at = p.attempt(|p| alt!(p; player_simple, |p| p.word("you").map(|_| Player::You)));
-            p.word("with")?;
+            if p.attempt(|p| p.word("with")).is_none() {
+                // "attacks you and/or one or more planeswalkers you control" is
+                // read by the rule for attacked objects.
+                let ends = matches!(p.peek(), Some(Tok::Comma));
+                return (*who != Player::You && ends).then(|| Event::PlayerAttacks { who: who.clone(), at });
+            }
             let what = objects(p)?;
             Some(Event::AttacksWith { who: who.clone(), what, at })
         },
@@ -157,7 +162,7 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
             }
             v.extend(items.into_iter().map(|(_, _, e)| e));
             // A lone verb the rules below read is theirs to read.
-            if v.len() == 1 && !matches!(v[0], Event::AttacksWith { .. } | Event::PlaysLand(_) | Event::TapsFor { .. } | Event::CountersPut { .. } | Event::Puts { .. } | Event::Exiles { .. } | Event::Performs { .. }) {
+            if v.len() == 1 && !matches!(v[0], Event::AttacksWith { .. } | Event::PlayerAttacks { .. } | Event::PlaysLand(_) | Event::TapsFor { .. } | Event::CountersPut { .. } | Event::Puts { .. } | Event::Exiles { .. } | Event::Performs { .. }) {
                 return None;
             }
             Some(if v.len() == 1 { v.remove(0) } else { Event::Or(v) })
@@ -254,7 +259,7 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
             p.verb("attack")?;
             let mut to = vec![recipient(p)?];
             while let Some(r) = p.attempt(|p| { p.one_of(&["or", "and/or"])?; recipient(p) }) { to.push(r); }
-            (to.len() > 1).then(|| Event::AttacksAnyOf { what: what.clone(), to })
+            Some(Event::AttacksAnyOf { what: what.clone(), to })
         },
         |p| {
             let e = alt!(p;

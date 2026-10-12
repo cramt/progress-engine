@@ -2169,6 +2169,14 @@ pub enum Event {
         what: Objects,
         n: u32,
     },
+    /// "Whenever a player attacks one of your opponents", "Whenever an
+    /// opponent attacks you": one or more creatures that player controls
+    /// are declared as attackers (CR 508.3d), at `at` when it is said.
+    /// "you attack" alone is `YouAttack`.
+    PlayerAttacks {
+        who: Player,
+        at: Option<Player>,
+    },
     /// "an opponent attacks you with two or more creatures"; `at` is who
     /// they attack, when the text says.
     AttacksWith {

@@ -64,7 +64,7 @@ fn player_read(p: &mut P) -> Option<Player> {
         |p| p.words("all opponents").map(|_| Player::EachOpponent),
         // "Players can't gain life this turn": a rule about each of them.
         |p| p.word("players").map(|_| Player::Each),
-        |p| p.words("an opponent").map(|_| Player::AnOpponent),
+        |p| p.one_of(&["an opponent", "one of your opponents"]).map(|_| Player::AnOpponent),
         |p| p.words("a player").map(|_| Player::APlayer),
         |p| p.words("that player").map(|_| Player::That),
         |p| p.words("those players").map(|_| Player::That),
@@ -1024,7 +1024,7 @@ pub(super) fn player_simple(p: &mut P) -> Option<Player> {
     alt!(p;
         |p| p.words("target player").map(|_| Player::Target),
         |p| p.words("target opponent").map(|_| Player::TargetOpponent),
-        |p| p.words("an opponent").map(|_| Player::AnOpponent),
+        |p| p.one_of(&["an opponent", "one of your opponents"]).map(|_| Player::AnOpponent),
         |p| p.words("your opponents").map(|_| Player::EachOpponent),
         |p| p.words("that player").map(|_| Player::That),
         |p| p.words("defending player").map(|_| Player::DefendingPlayer),

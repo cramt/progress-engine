@@ -435,6 +435,12 @@ mod syn {
         alt(o, forms);
     }
 
+    /// "an opponent", "one of your opponents": any one player who is your
+    /// opponent (CR 102.2), said with or without "your".
+    pub fn an_opponent(o: &mut Out) {
+        any_of(o, &["an opponent", "one of your opponents"]);
+    }
+
     pub fn different_values(o: &mut Out, s: Stat) {
         let plural = match s {
             Stat::Power => "powers",
@@ -2476,7 +2482,7 @@ fn player(o: &mut Out, p: &Player) {
         Player::Each => syn::each_player(o),
         Player::EachOpponent => syn::each_opponent(o),
         Player::EachOtherPlayer => o.w("each other player"),
-        Player::AnOpponent => o.w("an opponent"),
+        Player::AnOpponent => syn::an_opponent(o),
         Player::APlayer => o.w("a player"),
         Player::That => syn::that_player(o),
         Player::DefendingPlayer => o.w("defending player"),
@@ -7665,6 +7671,13 @@ fn event(o: &mut Out, e: &Event) {
             }
             o.w("with");
             objects(o, what);
+        }
+        Event::PlayerAttacks { who, at } => {
+            player(o, who);
+            o.verb("attack", player_num(who));
+            if let Some(a) = at {
+                player(o, a);
+            }
         }
         Event::BeginsExtraTurn(p) => {
             player(o, p);
