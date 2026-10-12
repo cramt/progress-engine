@@ -2686,6 +2686,26 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             o.w("other target");
             filter(o, f, n);
         }
+        // "another creature you control" said against an object the
+        // sentence named: one, other than it.
+        Quant::One
+            if !f.alts.is_empty()
+                && f.alts
+                    .iter()
+                    .all(|g| matches!(g.first(), Some(Adj::OtherThan(_)))) =>
+        {
+            o.w("another");
+            let rest = Filter {
+                alts: f
+                    .alts
+                    .iter()
+                    .map(|g| g[1..].to_vec())
+                    .filter(|g| !g.is_empty())
+                    .collect(),
+                ..f.clone()
+            };
+            filter(o, &rest, n);
+        }
         Quant::One => {
             // "the artifact with the greatest mana value": one, picked out.
             let greatest = f.posts.iter().any(|q| matches!(q, Post::Greatest { .. }));

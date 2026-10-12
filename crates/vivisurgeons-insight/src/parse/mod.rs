@@ -490,6 +490,7 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
             if !spell { return None; }
             let mut s = statics(p)?;
             refer_to_the_card(&mut s);
+            other_than_the_subject(&mut s);
             (finished(p) && s.iter().all(about_this_spell)).then_some(Ability::Static(s))
         },
         |p| {
@@ -507,6 +508,7 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
                     let mut effect = effects(p)?;
                     let limits = limits(p);
                     about_the_trigger(&trigger, Some(&mut cond), &mut effect);
+                    if let Trigger::When(e) = &trigger { other_than_the_trigger(e, Some(&mut cond), &mut effect); }
                     let trigger = Trigger::InterveningIf(Box::new(trigger.clone()), Box::new(cond));
                     finished(p).then_some(Ability::Triggered { trigger, effect, limits })
                 },
@@ -514,12 +516,13 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
                     let mut effect = effects(p)?;
                     let limits = limits(p);
                     about_the_trigger(&trigger, None, &mut effect);
+                    if let Trigger::When(e) = &trigger { other_than_the_trigger(e, None, &mut effect); }
                     finished(p).then_some(Ability::Triggered { trigger: trigger.clone(), effect, limits })
                 },
             )
         },
-        |p| { if !spell { return None; } let e = effects(p)?; finished(p).then_some(Ability::Spell(e)) },
-        |p| { let mut s = statics(p)?; refer_to_the_card(&mut s); finished(p).then_some(Ability::Static(s)) },
+        |p| { if !spell { return None; } let mut e = effects(p)?; other_than_named_before(&mut e); finished(p).then_some(Ability::Spell(e)) },
+        |p| { let mut s = statics(p)?; refer_to_the_card(&mut s); other_than_the_subject(&mut s); finished(p).then_some(Ability::Static(s)) },
         // "As this enchantment enters, choose Khans or Dragons. / • Khans —
         // … / • Dragons — …": anchor words (CR 614.12c). Each bullet's
         // ability is read alone, up to the next bullet.
@@ -1243,12 +1246,210 @@ fn refer(
     }
 }
 
+// ------------------------------------------------- "other" against a referent
+
+/// The card and creature types a filter says.
+fn kinds(f: &Filter) -> Vec<&Adj> {
+    f.alts
+        .iter()
+        .flatten()
+        .filter(|a| matches!(a, Adj::Type(_) | Adj::Subtype(_)))
+        .collect()
+}
+
+/// "each other creature", "another creature you control" said against
+/// `than`: `State::Other` becomes `OtherThan(than)`, and "another" one
+/// object other than it. `like`, when given, is the kinds the object must
+/// share some of; an object of a kind no card is said of here (a spell, a
+/// player) keeps its "other".
+fn other_than(o: &mut Objects, than: &Objects, like: Option<&[&Adj]>) -> bool {
+    if matches!(
+        o.filter.kind,
+        Some(Noun::Spell | Noun::Player | Noun::Opponent | Noun::Ability | Noun::SpellOrAbility)
+    ) {
+        return false;
+    }
+    let shares = |g: &[Adj]| {
+        like.is_none_or(|like| {
+            g.iter()
+                .any(|a| matches!(a, Adj::Type(_) | Adj::Subtype(_)) && like.contains(&a))
+        })
+    };
+    let to = Adj::OtherThan(Box::new(than.clone()));
+    let mut moved = false;
+    if o.quant == Quant::Another && o.filter.alts.iter().all(|g| shares(g)) {
+        if o.filter.alts.is_empty() {
+            if like.is_some() {
+                return false;
+            }
+            o.filter.alts.push(vec![]);
+        }
+        o.quant = Quant::One;
+        for g in &mut o.filter.alts {
+            g.insert(0, to.clone());
+        }
+        return true;
+    }
+    for g in &mut o.filter.alts {
+        if !shares(g) {
+            continue;
+        }
+        for a in g.iter_mut() {
+            if *a == Adj::State(State::Other) {
+                *a = to.clone();
+                moved = true;
+            }
+        }
+    }
+    moved
+}
+
+/// Selvala's "if its power is greater than each other creature's power",
+/// Shared Animosity's "each other attacking creature that shares a creature
+/// type with it", Guardian Project's "the same name as another creature you
+/// control": "other" said of the event's own kind in a triggered ability is
+/// other than the object that triggered it, as Valakut's is (its ruling).
+fn other_than_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut [Effect]) {
+    let Some(object) = trigger_object(e) else {
+        return;
+    };
+    if object.quant == Quant::SelfRef {
+        return;
+    }
+    let like: Vec<Adj> = kinds(&object.filter).into_iter().cloned().collect();
+    if like.is_empty() {
+        return;
+    }
+    struct V(Vec<Adj>);
+    impl Visitor for V {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            let like: Vec<&Adj> = self.0.iter().collect();
+            let triggering = Objects {
+                quant: Quant::Triggering,
+                filter: Filter::default(),
+            };
+            other_than(o, &triggering, Some(&like));
+            true
+        }
+    }
+    let mut v = V(like);
+    if let Some(c) = cond {
+        c.walk(&mut v);
+    }
+    for x in effect {
+        x.walk(&mut v);
+    }
+}
+
+/// Chandra's Ignition: "Target creature you control deals damage equal to
+/// its power to each other creature": other than the creature dealing it,
+/// where that is not the card.
+struct OtherThanTheSource;
+
+impl Visitor for OtherThanTheSource {
+    fn enter(&mut self, _: &mut Objects) -> bool {
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        true
+    }
+    fn effect(&mut self, e: &mut Effect) {
+        let Effect::Damage {
+            source: Some(src),
+            to,
+            ..
+        } = e
+        else {
+            return;
+        };
+        let than = match src.quant {
+            Quant::SelfRef => return,
+            Quant::Triggering => src.clone(),
+            _ => antecedent(),
+        };
+        let like = kinds(&src.filter);
+        let like = (!like.is_empty()).then_some(&like[..]);
+        for r in to.iter_mut() {
+            if let Recipient::Objects(o) = r {
+                other_than(o, &than, like);
+            }
+        }
+    }
+}
+
+/// Coat of Arms: "Each creature gets +1/+1 for each other creature on the
+/// battlefield that shares at least one creature type with it": other than
+/// the creature getting the bonus, each in turn, which "it" also names.
+fn other_than_the_subject(statics: &mut [Static]) {
+    for st in statics {
+        match st {
+            Static::Modify {
+                what,
+                per: Some(Amount::CountOf(counted)),
+                ..
+            } if what.quant != Quant::SelfRef => {
+                let like = kinds(&what.filter);
+                if !like.is_empty() {
+                    other_than(counted, &antecedent(), Some(&like));
+                }
+            }
+            Static::AsLongAs { then, .. } | Static::If { then, .. } => other_than_the_subject(then),
+            _ => {}
+        }
+    }
+}
+
+/// "Each player chooses any number of creatures they control …, then
+/// sacrifices all other creatures they control", "Put that card into your
+/// hand and exile all other cards revealed this way": an instant or sorcery
+/// is never the creature or card "other" excludes, so it is other than what
+/// the spell named before it. With nothing named before (Mirrorweave's
+/// "Each other creature becomes a copy of target …") it stays as said.
+fn other_than_named_before(effect: &mut [Effect]) {
+    if let [Effect::Modal { modes, .. }] = effect {
+        for m in modes {
+            other_than_named_before(m);
+        }
+        return;
+    }
+    struct V(bool);
+    impl Visitor for V {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            if self.0 {
+                other_than(o, &antecedent(), None);
+            }
+            true
+        }
+        fn leave(&mut self, o: &mut Objects) {
+            if o.quant != Quant::SelfRef
+                && !matches!(o.filter.kind, Some(Noun::Player | Noun::Opponent))
+            {
+                self.0 = true;
+            }
+        }
+        fn effect_done(&mut self, e: &mut Effect) {
+            // "Create X 1/1 … tokens. If X is 5 or more, destroy all other
+            // creatures."
+            if matches!(e, Effect::Create { .. } | Effect::CreateCopy { .. }) {
+                self.0 = true;
+            }
+        }
+    }
+    let mut v = V(false);
+    for x in effect {
+        x.walk(&mut v);
+    }
+}
+
 /// A whole ability line, which must be consumed to the last token.
 pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
     let mut p = P::new(toks);
     p.spell = spell;
     match ability(&mut p, spell) {
-        Some(a) if p.at_end() => Ok(a),
+        Some(mut a) if p.at_end() => {
+            a.walk(&mut OtherThanTheSource);
+            Ok(a)
+        }
         _ => Err(p.furthest),
     }
 }

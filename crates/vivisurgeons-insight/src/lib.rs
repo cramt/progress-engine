@@ -2135,4 +2135,37 @@ mod round_nine_d {
             "{s}"
         );
     }
+
+    /// "other" said against an object the ability names, not the card.
+    #[test]
+    fn other_is_other_than_the_object_it_is_said_against() {
+        for (type_line, text, want) in [
+            ("Sorcery", "Target creature you control deals damage equal to its power to each other creature and each opponent.", "OtherThan(Objects { quant: Antecedent"),
+            ("Artifact", "Each creature gets +1/+1 for each other creature on the battlefield that shares at least one creature type with it.", "OtherThan(Objects { quant: Antecedent"),
+            ("Enchantment", "Whenever a nontoken creature you control enters, if it doesn't have the same name as another creature you control or a creature card in your graveyard, draw a card.", "quant: One, filter: Filter { alts: [[OtherThan(Objects { quant: Triggering"),
+            ("Legendary Creature — Elf", "Whenever another creature enters, its controller may draw a card if its power is greater than each other creature's power.", "OtherThan(Objects { quant: Triggering"),
+            ("Sorcery", "Each player chooses any number of creatures they control with total power 4 or less, then sacrifices all other creatures they control.", "OtherThan(Objects { quant: Antecedent"),
+            ("Sorcery", "Each player sacrifices a creature or planeswalker of their choice. If you sacrificed a permanent this way, you may return another permanent card from your graveyard to your hand.", "OtherThan(Objects { quant: Antecedent"),
+        ] {
+            let s = format!("{:?}", read(type_line, text));
+            assert!(s.contains(want) && !s.contains("State(Other)"), "{text}\n{s}");
+        }
+        // The card's own damage, and another spell: the card.
+        let s = format!(
+            "{:?}",
+            read(
+                "Sorcery",
+                "Some Card deals 2 damage to each other creature."
+            )
+        );
+        assert!(s.contains("State(Other)"), "{s}");
+        let s = format!(
+            "{:?}",
+            read(
+                "Instant",
+                "Destroy target creature. If you've cast another spell this turn, draw a card."
+            )
+        );
+        assert!(s.contains("quant: Another"), "{s}");
+    }
 }
