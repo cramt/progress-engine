@@ -383,6 +383,26 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
             }
         }
     }
+    // "Beast, Camel, Horse, Elephant, and Wolf creature": a card type after
+    // a list of subtypes holds of each, as "white or black creature" does.
+    let subtypes = |g: &[Adj]| g.iter().all(|a| matches!(a, Adj::Subtype(_)));
+    if let Some((last, rest)) = groups.split_last_mut() {
+        let lead = last
+            .iter()
+            .take_while(|a| matches!(a, Adj::Subtype(_)))
+            .count();
+        let trailing: Vec<Adj> = last[lead..].to_vec();
+        if !rest.is_empty()
+            && lead > 0
+            && !trailing.is_empty()
+            && trailing.iter().all(|a| matches!(a, Adj::Type(_)))
+            && rest.iter().all(|g| !g.is_empty() && subtypes(g))
+        {
+            for g in rest.iter_mut() {
+                g.extend(trailing.iter().cloned());
+            }
+        }
+    }
     let mut posts = Vec::new();
     let counter = matches!(kind, Some(Noun::Counter(_)));
     while let Some(more) = p.attempt(|p| posts_one(p, counter)) {

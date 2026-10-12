@@ -3118,6 +3118,30 @@ fn printed_groups(alts: &[Vec<Adj>]) -> Vec<Vec<Adj>> {
                 }
             }
         }
+        // "Beast, Camel, Horse, Elephant, and Wolf creature": the card types
+        // after the last group's subtypes were given to each group of
+        // subtypes alone.
+        let lead = last
+            .iter()
+            .take_while(|a| matches!(a, Adj::Subtype(_)))
+            .count();
+        let types = &last[lead..];
+        let subtypes_then = |x: &[Adj]| {
+            x.len() > types.len()
+                && x.ends_with(types)
+                && x[..x.len() - types.len()]
+                    .iter()
+                    .all(|a| matches!(a, Adj::Subtype(_)))
+        };
+        if lead > 0
+            && !types.is_empty()
+            && types.iter().all(|a| matches!(a, Adj::Type(_)))
+            && g[..n - 1].iter().all(|x| subtypes_then(x))
+        {
+            for x in g.iter_mut().take(n - 1) {
+                x.truncate(x.len() - types.len());
+            }
+        }
     }
     g
 }
