@@ -5415,7 +5415,18 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                     _ => o.add(if_forms),
                 }
             } else {
-                o.add(before);
+                // "exile it if it's an instant or sorcery card. You may cast
+                // that card …": the sentences after the first are the
+                // branch's too (SEMANTICS [branch-owns-new-object]), and the
+                // "if" goes after the first as it may after a lone clause.
+                let after = out(|o| {
+                    clauses(o, &then[..1], cx);
+                    o.w("if");
+                    condition(o, cond);
+                    syn::joiner(o, false);
+                    clauses(o, &then[1..], cx);
+                });
+                syn::position(o, before, after);
             }
         }
         Effect::Unless {

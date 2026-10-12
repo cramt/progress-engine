@@ -956,10 +956,29 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
                 continue;
             }
         }
+        // "You may copy it. If you do, those spells gain wither. You may
+        // choose new targets for the copy.": "if you do" is the branch the
+        // may before it took, so the copy exists in it too.
+        let n = v.len();
+        let inherits = n >= 2
+            && matches!(v[n - 1], Effect::IfYouDo(_))
+            && branch_with_new_object(&mut v[n - 2]).is_some()
+            && s.first().is_some_and(refers_back);
+        if inherits {
+            if let Some(Effect::IfYouDo(then)) = v.last_mut() {
+                then.extend(s);
+                continue;
+            }
+        }
+        // "copy it if you control an artifact, then copy it if you control an
+        // enchantment. You may choose new targets for the copies.": copies
+        // made in two branches are both the sentence's, so it is neither's.
+        let copies_before = v[..n.saturating_sub(1)].iter().any(makes_copy);
+        let both = copies_before && v.last().is_some_and(makes_copy);
         if let Some(branch) = v
             .last_mut()
             .and_then(branch_with_new_object)
-            .filter(|_| !cases)
+            .filter(|_| !cases && !both)
         {
             // "Otherwise, …" is the other branch of the "if" before it, so
             // it goes where that "if" went (Thunderous Debut).
@@ -1046,22 +1065,43 @@ fn those_players(p: &mut P, each: Objects) -> Option<Vec<Effect>> {
     ])
 }
 
-/// The effects of a `may`, `if you do`, `if` or `otherwise` that bring in
-/// an object that exists only if that branch was taken.
+/// The effects of a `may`, `if you do`, `if you don't`, `if` or `otherwise`
+/// that bring in an object that exists only if that branch was taken; where
+/// it brings in none itself, a branch it ends with ("If they don't, you may copy that
+/// spell": the copy exists only if you chose to).
 fn branch_with_new_object(e: &mut Effect) -> Option<&mut Vec<Effect>> {
     let then = match e {
         Effect::May { then, .. }
         | Effect::IfYouDo(then)
+        | Effect::IfYouDont(then)
         | Effect::If { then, .. }
         | Effect::Otherwise(then) => then,
         _ => return None,
     };
-    then.iter().any(brings_in).then_some(then)
+    if then.iter().any(brings_in) {
+        return Some(then);
+    }
+    then.last_mut().and_then(branch_with_new_object)
+}
+
+/// Whether an effect copies a spell or card, in any branch.
+fn makes_copy(e: &Effect) -> bool {
+    match e {
+        Effect::Copy { .. } => true,
+        Effect::If { then, .. }
+        | Effect::May { then, .. }
+        | Effect::IfYouDo(then)
+        | Effect::IfYouDont(then)
+        | Effect::Otherwise(then) => then.iter().any(makes_copy),
+        _ => false,
+    }
 }
 
 /// Whether an effect picks out a new object: one moved, exiled, made,
-/// found, chosen or revealed, not one an earlier clause named. A card put
-/// onto the battlefield is a new object whatever named it (CR 400.7).
+/// copied, found, chosen or revealed, not one an earlier clause named. A
+/// card put onto the battlefield or exiled is a new object whatever named
+/// it (CR 400.7), so "you may exile it. You may play that card from exile
+/// this turn" plays a card that is there only if you exiled it.
 fn brings_in(e: &Effect) -> bool {
     let new = |x: &Objects| !matches!(x.quant, Quant::Antecedent | Quant::SelfRef);
     match e {
@@ -1070,15 +1110,18 @@ fn brings_in(e: &Effect) -> bool {
             to: Zone::Battlefield,
             ..
         } => what.quant != Quant::SelfRef,
+        Effect::Exile(what) => what.quant != Quant::SelfRef,
         Effect::Move { what, .. }
-        | Effect::Exile(what)
         | Effect::Search { what, .. }
         | Effect::Reveal { what, .. }
         | Effect::Choose(Choice::Objects(what)) => new(what),
         Effect::Create { .. }
         | Effect::CreateCopy { .. }
         | Effect::CreateNamed { .. }
-        | Effect::CreateAttached { .. } => true,
+        | Effect::CreateAttached { .. }
+        | Effect::Copy { .. } => true,
+        // "return target Pirate creature card … with a finality counter on it".
+        Effect::EntersWith { effect, .. } => brings_in(effect),
         Effect::Or(v) => v.iter().all(brings_in),
         _ => false,
     }
@@ -1104,6 +1147,8 @@ fn refers_back(e: &Effect) -> bool {
         | Effect::Untap(what)
         | Effect::EntersWithCounters { what, .. } => it(what),
         Effect::PutCounters { on, .. } => it(on),
+        // "You may choose new targets for the copy".
+        Effect::ChooseNewTargets(what) => it(what),
         // "For each of those cards, pay 4 life or …" (Sylvan Library).
         Effect::ForEach { each, .. } => it(each),
         Effect::Delayed { then, .. } | Effect::If { then, .. } => {
