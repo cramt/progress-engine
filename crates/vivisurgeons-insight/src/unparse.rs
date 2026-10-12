@@ -3451,6 +3451,10 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             syn::in_from(o);
             zone(o, z);
         }
+        Post::CastFrom(z) => {
+            o.w("from");
+            zone(o, z);
+        }
         Post::With(c) => {
             syn::each_with(o);
             compare_words(o, c);

@@ -1744,3 +1744,15 @@ pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
         _ => Err(p.furthest),
     }
 }
+
+/// "you cast a legendary spell from your hand": the zone said after the
+/// spell is where it was cast from, read as `Post::CastFrom`. The object
+/// rule reads it as a zone the spell is in, and a spell is on the stack.
+pub(super) fn casts(who: Player, mut what: Objects) -> Event {
+    for q in what.filter.posts.iter_mut() {
+        if let Post::In(z) = q {
+            *q = Post::CastFrom(z.clone());
+        }
+    }
+    Event::Casts { who, what }
+}

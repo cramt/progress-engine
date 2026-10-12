@@ -1876,6 +1876,9 @@ impl Walk for Post {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
         match self {
+            Post::CastFrom(f0) => {
+                Walk::walk(f0, v);
+            }
             Post::FromSource(f0) => {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);

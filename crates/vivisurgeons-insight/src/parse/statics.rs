@@ -502,7 +502,7 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
             type Verb = fn(Player, Objects) -> Event;
             let gerund = |p: &mut P| alt!(p;
-                |p| p.word("casting").map(|_| (|who, what| Event::Casts { who, what }) as Verb),
+                |p| p.word("casting").map(|_| casts as Verb),
                 |p| p.word("copying").map(|_| (|who, what| Event::Copies { who, what }) as Verb),
             );
             let mut verbs = vec![gerund(p)?];

@@ -265,7 +265,7 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.word("cast")?;
             let what = objects(p)?;
             p.words("this game")?;
-            Some(Condition::DidThisGame(Box::new(Event::Casts { who: Player::You, what })))
+            Some(Condition::DidThisGame(Box::new(casts(Player::You, what))))
         },
         // "you control an Urza's Mine and an Urza's Power-Plant": one test per object.
         |p| {
@@ -299,7 +299,7 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.word("cast")?;
             let what = objects(p)?;
             p.words("this turn")?;
-            let c = Condition::DidThisTurn(Box::new(Event::Casts { who, what }));
+            let c = Condition::DidThisTurn(Box::new(casts(who, what)));
             Some(if not { Condition::Not(Box::new(c)) } else { c })
         },
         // "you've drawn two or more cards this turn".

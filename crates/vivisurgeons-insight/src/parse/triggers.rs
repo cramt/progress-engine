@@ -70,7 +70,7 @@ pub(super) fn step_of(s: Step, w: Whose) -> Step {
 pub(super) fn player_verb(p: &mut P, who: &Player) -> Option<Box<dyn Fn(Objects) -> Event>> {
     let who = who.clone();
     alt!(p;
-        |p| { p.verb("cast")?; let w = who.clone(); Some(Box::new(move |what| Event::Casts { who: w.clone(), what }) as Box<dyn Fn(Objects) -> Event>) },
+        |p| { p.verb("cast")?; let w = who.clone(); Some(Box::new(move |what| casts(w.clone(), what)) as Box<dyn Fn(Objects) -> Event>) },
         |p| { p.verb("copy")?; let w = who.clone(); Some(Box::new(move |what| Event::Copies { who: w.clone(), what }) as Box<dyn Fn(Objects) -> Event>) },
         |p| { p.verb("create")?; let w = who.clone(); Some(Box::new(move |what| Event::Creates { by: Actor::Player(w.clone()), what, under: None }) as Box<dyn Fn(Objects) -> Event>) },
         |p| { p.verb("sacrifice")?; let w = who.clone(); Some(Box::new(move |what| Event::Sacrifices { who: w.clone(), what }) as Box<dyn Fn(Objects) -> Event>) },
@@ -208,7 +208,7 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
                 _ => Event::Or(verbs.iter().map(|v| v(what.clone())).collect()),
             })
         },
-        |p| { let who = player(p)?; p.verb("cast")?; let what = objects(p)?; Some(Event::Casts { who, what }) },
+        |p| { let who = player(p)?; p.verb("cast")?; let what = objects(p)?; Some(casts(who, what)) },
         |p| { let who = player(p)?; p.verb("gain")?; p.word("life")?; Some(Event::GainsLife(who)) },
         |p| { let who = player(p)?; p.verb("lose")?; p.word("life")?; Some(Event::LosesLife(who)) },
         |p| {

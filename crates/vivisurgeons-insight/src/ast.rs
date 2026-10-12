@@ -683,6 +683,10 @@ pub enum Noun {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Post {
+    /// "Whenever you cast a legendary spell from your hand": the zone a spell
+    /// was cast from, which it left as it was cast (CR 601.2a); a spell is
+    /// on the stack, so it is in no hand.
+    CastFrom(Zone),
     /// "activated ability from an artifact source": what the ability's
     /// source is (CR 113.7).
     FromSource(Vec<Adj>),
