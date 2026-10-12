@@ -6898,7 +6898,7 @@ fn keeps_then_dur(o: &mut Out, k: &Keeps, types: &[Adj], d: &Duration) {
     match k {
         // "becomes an artifact creature": what CR 205.1b keeps whether
         // "in addition to its other types" is said or not.
-        k if *k != Keeps::Nothing && *k == Keeps::implied_by(types) => {
+        k if *k == Keeps::implied_by(types) => {
             let said = out(|o| keeps(o, k));
             syn::keeps_implied(o, said);
             dur(o, d);
@@ -6926,7 +6926,7 @@ fn keeps_then_dur(o: &mut Out, k: &Keeps, types: &[Adj], d: &Duration) {
 
 fn keeps(o: &mut Out, k: &Keeps) {
     match k {
-        Keeps::Nothing | Keeps::AllButSubtypesOfSet => {}
+        Keeps::Supertypes | Keeps::AllButSubtypesOfSet => {}
         Keeps::OtherTypes => o.w("in addition to its other types"),
         Keeps::Listed(v) => {
             o.w("that's still a");

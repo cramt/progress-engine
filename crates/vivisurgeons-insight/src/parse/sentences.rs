@@ -202,7 +202,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             let types = group(p)?;
             p.words("with all creature types")?;
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
-            let keeps = still(p).unwrap_or(Keeps::Nothing);
+            let keeps = still(p).unwrap_or_else(|| Keeps::implied_by(&types));
             Some(vec![
                 Effect::Becomes { what: what.clone(), pt: Some(pt), types, gains: vec![], keeps, dur: dur.clone() },
                 Effect::AlsoIs { what, types: TypeSet::EveryCreatureType, dur },

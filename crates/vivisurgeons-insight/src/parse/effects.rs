@@ -629,12 +629,12 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                 alt!(p; |p| p.word("with"), |p| { p.word("and")?; p.verb("gain") })?;
                 keyword_list(p)
             }).unwrap_or_default();
-            let keeps = p.attempt(keeps).unwrap_or(Keeps::Nothing);
+            let keeps = p.attempt(keeps);
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
             // ". It's still a land." after the duration.
             let keeps = match keeps {
-                Keeps::Nothing => p.attempt(still).unwrap_or_else(|| Keeps::implied_by(&types)),
-                k => k,
+                None => p.attempt(still).unwrap_or_else(|| Keeps::implied_by(&types)),
+                Some(k) => k,
             };
             Some(Effect::Becomes { what, pt, types, gains, keeps, dur })
         },
@@ -706,7 +706,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             p.word("it's")?;
             p.one_of(&["a", "an"])?;
             let types = group(p)?;
-            let keeps = p.attempt(keeps).unwrap_or(Keeps::Nothing);
+            let keeps = p.attempt(keeps).unwrap_or_else(|| Keeps::implied_by(&types));
             Some(Effect::IsNow { what: antecedent(), types, keeps })
         },
         // "it deals that much damage plus 2 instead".

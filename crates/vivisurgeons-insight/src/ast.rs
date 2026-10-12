@@ -1700,9 +1700,16 @@ impl Keeps {
             .cloned()
             .collect();
         let types = &types[..];
-        // "has base power and toughness 4/4", "becomes black": an effect
-        // that sets no type replaces none.
-        if types.is_empty() {
+        // "has base power and toughness 4/4", "becomes black", "becomes
+        // blocked": an effect that sets no type replaces none. "becomes
+        // snow": a supertype gained keeps every other type (CR 205.4b).
+        let types: Vec<Adj> = types
+            .iter()
+            .filter(|a| !matches!(a, Adj::State(_)))
+            .cloned()
+            .collect();
+        let types = &types[..];
+        if types.iter().all(|a| matches!(a, Adj::Supertype(_))) {
             return Keeps::OtherTypes;
         }
         let card_types: Vec<&str> = types
@@ -1718,7 +1725,7 @@ impl Keeps {
             _ if only_subtypes => Keeps::AllButSubtypesOfSet,
             (["artifact", "creature"], false) => Keeps::OtherTypes,
             (["artifact", "creature"], true) => Keeps::AllButSubtypesOfSet,
-            _ => Keeps::Nothing,
+            _ => Keeps::Supertypes,
         }
     }
 }
@@ -1789,8 +1796,11 @@ pub enum KeptMana {
 /// What a type-changing effect leaves of the types before it (CR 205.1b).
 #[derive(Clone, Debug, PartialEq)]
 pub enum Keeps {
-    /// The new types replace the old.
-    Nothing,
+    /// "becomes a 4/4 red Dragon creature": the card types and subtypes it
+    /// sets replace the old (CR 205.1a), and its supertypes stay, which
+    /// changing card types or subtypes never changes (CR 205.4b): a
+    /// legendary planeswalker is a legendary Dragon.
+    Supertypes,
     /// "becomes an Island", "becomes a Coward": only subtypes are set, so
     /// only the subtypes of their set are replaced; card types, supertypes
     /// and other subtypes stay (CR 205.1a, 305.7). Tide Shaper's land is
