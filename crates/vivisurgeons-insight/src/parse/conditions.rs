@@ -578,6 +578,18 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                     Some(Condition::HasCounter { what: what.clone(), kind: Some(kind) })
                 },
                 |p| { p.words("have total")?; let cmp = compare(p)?; Some(Condition::Total { what: what.clone(), cmp }) },
+                // "if enchanted creature is white and untapped": two
+                // predicates of one object, both to hold. A filter reads
+                // "white and untapped" as alternatives, as a list of kinds is.
+                |p| {
+                    p.word("is")?;
+                    let plain = |g: &Vec<Adj>| !g.iter().any(super::objects::is_typed);
+                    let a = group(p).filter(plain)?;
+                    p.word("and")?;
+                    let b = group(p).filter(plain)?;
+                    let is = |g| Condition::Is { what: what.clone(), filter: Filter { alts: vec![g], ..Filter::default() } };
+                    Some(Condition::And(vec![is(a), is(b)]))
+                },
                 // "if it was a creature": as it was when the event happened.
                 |p| {
                     let past = p.one_of(&["is", "was", "are"])? == "was";

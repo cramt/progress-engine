@@ -8028,6 +8028,28 @@ fn condition(o: &mut Out, c: &Condition) {
                 }
                 return;
             }
+            // "enchanted creature is white and untapped": one subject said
+            // once for both predicates.
+            if let [Condition::Is { what: a, filter: f }, Condition::Is { what: b, filter: g }] =
+                &v[..]
+            {
+                if a == b {
+                    let said = out(|o| {
+                        objects(o, a);
+                        o.verb("are", obj_num(a));
+                        filter(o, f, Num::Sg);
+                        o.w("and");
+                        filter(o, g, Num::Sg);
+                    });
+                    let full = out(|o| {
+                        condition(o, &v[0]);
+                        o.w("and");
+                        condition(o, &v[1]);
+                    });
+                    syn::said_again(o, said, full);
+                    return;
+                }
+            }
             for (i, c) in v.iter().enumerate() {
                 if i > 0 {
                     o.w("and");
