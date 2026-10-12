@@ -5625,8 +5625,20 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 keyword_list(o, gains);
                 return;
             }
-            objects(o, what);
-            let n = obj_num(what);
+            // "you may have target creature get -1/-1": after "may", an
+            // object's verb is said with "have", in the plain form.
+            let n = if cx.modal {
+                let have = out(|o| {
+                    o.w("have");
+                    objects(o, what);
+                });
+                let plain = out(|o| objects(o, what));
+                syn::have_or_not(o, have, plain);
+                Num::Any
+            } else {
+                objects(o, what);
+                obj_num(what)
+            };
             syn::also(o);
             if n != Num::Sg {
                 syn::each_after(o);
@@ -6611,7 +6623,17 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             keywords,
             dur: d,
         } => {
-            obj_subj(o, what, "lose");
+            if cx.modal {
+                let have = out(|o| {
+                    o.w("have");
+                    objects(o, what);
+                    o.verb("lose", Num::Pl);
+                });
+                let plain = out(|o| obj_subj(o, what, "lose"));
+                syn::have_or_not(o, have, plain);
+            } else {
+                obj_subj(o, what, "lose");
+            }
             keyword_list(o, keywords);
             dur(o, d);
         }

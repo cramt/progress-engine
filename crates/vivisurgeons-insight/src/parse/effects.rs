@@ -598,7 +598,8 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let e = effect(p)?;
             // "you may have it become a 0/0 Elemental creature until end of
             // turn" (Crawling Barrens).
-            matches!(e, Effect::Damage { source: Some(_), .. } | Effect::Fight { .. } | Effect::Becomes { .. }).then_some(e)
+            // "you may have target creature get -1/-1 until end of turn".
+            matches!(e, Effect::Damage { source: Some(_), .. } | Effect::Fight { .. } | Effect::Becomes { .. } | Effect::Modify { .. } | Effect::LoseKeywords { .. }).then_some(e)
         },
         |p| { p.words("damage can't be prevented")?; duration(p).map(Effect::DamageCantBePrevented) },
         |p| { let who = subject_player(p); p.verb("lose")?; p.words("the game")?; Some(Effect::LoseGame(who)) },
