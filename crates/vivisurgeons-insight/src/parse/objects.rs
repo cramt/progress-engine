@@ -1083,6 +1083,17 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
             if posts.is_empty() && !matches!(p.peek_word(), Some("onto" | "into" | "on")) { return None; }
             Some(Objects { quant: Quant::N(n), filter: Filter { posts, ..Filter::default() } })
         },
+        // Spinerock Tyrant: "you may copy it. If you do, those spells gain
+        // wither": the spell copied and its copy (a copy of a spell is a
+        // spell, CR 707.10), where "that spell" would be one of them.
+        |p| {
+            let copied = p.t[..p.i].iter().any(|t| matches!(t, Tok::Word(w) if w == "copy"));
+            p.words("those spells")?;
+            copied.then(|| Objects {
+                quant: Quant::OriginalAndCopies,
+                filter: Filter { kind: Some(Noun::Spell), ..Filter::default() },
+            })
+        },
         |p| {
             let start = p.i;
             p.one_of(&["that", "those", "the"])?;

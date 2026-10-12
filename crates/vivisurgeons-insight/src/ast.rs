@@ -546,6 +546,9 @@ pub enum Quant {
     /// that artifact if it's on the battlefield": the object that generated
     /// the ability (CR 113.7), which the ability named as its source.
     SourceOf(Box<Objects>),
+    /// "you may copy it. If you do, those spells gain wither": the spell the
+    /// effect before copied and its copies, each a spell (CR 707.10).
+    OriginalAndCopies,
     /// "the exiled card", "the token" in an ability that exiled or created
     /// nothing: the object a linked ability of this object exiled or
     /// created (CR 607.1, 607.2a), which the filter's first post names

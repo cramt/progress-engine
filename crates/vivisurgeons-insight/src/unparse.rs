@@ -1358,6 +1358,7 @@ pub fn ability(a: &Ability) -> Out {
                     | Quant::ThisAbility
                     | Quant::SourceOf(_)
                     | Quant::Linked
+                    | Quant::OriginalAndCopies
             ) {
                 o.quant = Quant::Antecedent;
             }
@@ -2620,7 +2621,8 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::Rest
         | Quant::Additional
         | Quant::WithOthers(_)
-        | Quant::SelfAnd(_) => Num::Pl,
+        | Quant::SelfAnd(_)
+        | Quant::OriginalAndCopies => Num::Pl,
         // "one or more creatures … deals": the verb may agree with "one".
         Quant::Antecedent
         | Quant::BeforeEach
@@ -2916,7 +2918,8 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         | Quant::Created
         | Quant::ThisAbility
         | Quant::SourceOf(_)
-        | Quant::Linked => objects_plain(
+        | Quant::Linked
+        | Quant::OriginalAndCopies => objects_plain(
             o,
             &Objects {
                 quant: Quant::Antecedent,
