@@ -194,7 +194,7 @@ each in text order (`src/walk.rs`):
 | bare-other | "other" with no kind of object | 0 |
 | unbound-x | an X that no mana, additional, keyword or activation cost defines, no "where X is", and no cost the ability asks for ("you may pay {X}", CR 107.3a, 107.3f), or the X of the spell that triggered the ability (CR 107.3e) | 2 |
 | fight-one-object | one object fighting itself | 1 |
-| types-without-card-type | "is a black Dragon" read as a list of types with subtypes and no card type | 7 |
+| types-without-card-type | "is a black Dragon" read as a list of types with subtypes and no card type | 0 |
 
 The zeros are kinds earlier rounds fixed (Wild-Magic Sorcerer's spell in
 exile, Sage-Eye Avengers comparing its power with its own), and the lint

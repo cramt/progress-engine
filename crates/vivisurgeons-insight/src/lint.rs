@@ -194,19 +194,7 @@ fn scope(mut a: Ability, cx: Context, out: &mut Vec<Kind>) {
                 v.players += 1;
             }
         }
-        Ability::Static(s) => {
-            for s in s {
-                if let Static::Is {
-                    types: TypeSet::Listed(types),
-                    ..
-                } = s
-                {
-                    if no_card_type(types) {
-                        v.out.push(Kind::TypesWithoutCardType);
-                    }
-                }
-            }
-        }
+        Ability::Static(s) => statics(s, &mut v.out),
         _ => {}
     }
     a.walk(&mut v);
@@ -596,6 +584,30 @@ pub fn faces(entries: &[Entry]) -> Vec<(Kind, String, String)> {
             .flat_map(|p| p.join().expect("a lint thread panicked"))
             .collect()
     })
+}
+
+/// The checks no walk reaches: a static's type list, through the statics
+/// that hold others ("During your turn, this creature is a Bear").
+fn statics(ss: &[Static], out: &mut Vec<Kind>) {
+    for s in ss {
+        match s {
+            Static::Is {
+                types: TypeSet::Listed(types),
+                ..
+            } if no_card_type(types) => out.push(Kind::TypesWithoutCardType),
+            Static::AsLongAs { then, .. } | Static::If { then, .. } => statics(then, out),
+            Static::PermissionRules {
+                permissions, rules, ..
+            } => {
+                statics(permissions, out);
+                statics(rules, out);
+            }
+            Static::Where { inner, .. } | Static::Reflexive { inner, .. } => {
+                statics(std::slice::from_ref(inner), out)
+            }
+            _ => {}
+        }
+    }
 }
 
 #[cfg(test)]

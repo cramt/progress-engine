@@ -342,7 +342,7 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
                     let g = group(p).filter(|g| g.iter().all(|a| matches!(a, Adj::Type(_) | Adj::Subtype(_) | Adj::Supertype(_) | Adj::Color(_))))?;
                     // "Nonbasic lands are Mountains": subtypes replace only
                     // their own set (CR 205.1a, 305.7).
-                    Some(if g.iter().all(|a| matches!(a, Adj::Subtype(_))) { TypeSet::Subtypes(g) } else { TypeSet::Listed(g) })
+                    Some(set_of(g))
                 },
             )?;
             // "is a colorless land with "…"": the predicate list reads what
@@ -791,7 +791,7 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             let pt = match p.peek()? { Tok::Pt(pt) if !pt.signed => *pt, _ => return None };
             p.bump();
             let types = group(p)?;
-            Some(vec![Static::Is { what: what.clone(), types: TypeSet::Listed(types) }, Static::BasePt { what: what.clone(), pt }])
+            Some(vec![Static::Is { what: what.clone(), types: set_of(types) }, Static::BasePt { what: what.clone(), pt }])
         },
         // "gets +2/+0 for every seven cards in your graveyard".
         |p| {
@@ -1016,7 +1016,7 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             p.one_of(&["is", "are"])?;
             p.attempt(|p| p.one_of(&["a", "an"]));
             let types = group(p).filter(|g| g.iter().all(|a| matches!(a, Adj::Type(_) | Adj::Subtype(_) | Adj::Supertype(_) | Adj::Color(_))))?;
-            let mut v = vec![Static::Is { what: what.clone(), types: TypeSet::Listed(types.clone()) }];
+            let mut v = vec![Static::Is { what: what.clone(), types: set_of(types.clone()) }];
             if p.attempt(|p| p.word("with")).is_some() {
                 v.push(alt!(p;
                     |p| {
@@ -1138,4 +1138,17 @@ fn static_permission_rules(v: &mut Vec<Static>) {
         spell: what,
         rules: then,
     });
+}
+
+/// What "is a …" sets. Subtypes with no card type replace only the
+/// subtypes of their set, and a color said with them the color (CR 205.1a,
+/// 305.7, 105.3): Blood Moon's lands are still lands, Lignify's Treefolk
+/// and Eye of Nidhogg's black Dragon still creatures ([is-subtypes]).
+fn set_of(g: Vec<Adj>) -> TypeSet {
+    let subtype = g.iter().any(|a| matches!(a, Adj::Subtype(_)));
+    if subtype && !g.iter().any(|a| matches!(a, Adj::Type(_))) {
+        TypeSet::Subtypes(g)
+    } else {
+        TypeSet::Listed(g)
+    }
 }

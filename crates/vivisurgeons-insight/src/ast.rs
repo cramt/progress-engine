@@ -2723,7 +2723,8 @@ pub enum TypeSet {
     Listed(Vec<Adj>),
     /// "Nonbasic lands are Mountains": subtypes alone, which replace only
     /// the subtypes of their set; a Blood Mooned land is still a land, and
-    /// still snow or legendary (CR 205.1a, 305.7).
+    /// still snow or legendary (CR 205.1a, 305.7). A color said with them,
+    /// "is a black Dragon", replaces its colors (CR 105.3).
     Subtypes(Vec<Adj>),
     /// "the chosen type".
     Chosen,
