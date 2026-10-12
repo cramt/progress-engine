@@ -17,6 +17,7 @@ cargo run --release -p vivisurgeons-insight -- sample 25
 cargo run --release -p vivisurgeons-insight -- failing 2000            # or a milestone: failing modern-meta
 cargo run --release -p vivisurgeons-insight -- snapshot /tmp/trees.txt  # diff two of these around a change
 cargo run --release -p vivisurgeons-insight -- roundtrip               # or: roundtrip 2000, roundtrip --golden
+cargo run --release -p vivisurgeons-insight -- lint                    # or: lint unbound-x --examples 20, lint --counts
 ```
 
 It reads `~/.cache/scryfall/oracle-cards.jsonl` and `oracle-tags.jsonl`, the
@@ -173,6 +174,36 @@ kept in the tree. Before the fix, a discarded word still counted as a success.
 The numbers did not move, which is what a change that only keeps information
 should do.
 
+## The lint
+
+The round trip catches a tree that lost a word. It does not catch a tree
+whose words all come back under the wrong node: "it" pointing at nothing, a
+creature compared with itself. Many of those a machine can see, and
+`insight lint` (`src/lint.rs`) looks for them in every parsed tree, walking
+each in text order (`src/walk.rs`):
+
+| Kind | What it finds | Corpus |
+|---|---|---|
+| dangling-antecedent | "it", "that creature" with nothing named before it in the ability. A card drawn, milled or looked at counts, and so does an earlier paragraph of the same spell (CR 608.2c) | 30 |
+| dangling-that-player | "that player" with no player before it. A player named by the trigger ("deals combat damage to a player", "each player's upkeep") or by an owner's zone counts, and the player of the same effect does ([that-player-in-effect]) | 2 |
+| self-comparison | both sides of a comparison the same expression | 0 |
+| spell-in-zone | a spell in a zone other than the stack (CR 112.1) | 0 |
+| permanent-state-off-battlefield | a spell or card that is tapped, attacking, enchanted or equipped | 0 |
+| state-of-triggering-spell | a permanent's state tested of the spell that triggered the ability | 0 |
+| equipped-equipment | an equipped Equipment (CR 301.5) | 0 |
+| bare-other | "other" with no kind of object | 0 |
+| unbound-x | an X that no mana, additional, keyword or activation cost defines, no "where X is", and no cost the ability asks for ("you may pay {X}", CR 107.3a, 107.3f) | 14 |
+| fight-one-object | one object fighting itself | 1 |
+| types-without-card-type | "is a black Dragon" read as a list of types with subtypes and no card type | 7 |
+
+The zeros are kinds earlier rounds fixed (Wild-Magic Sorcerer's spell in
+exile, Sage-Eye Avengers comparing its power with its own), and the lint
+holds them there. `tests/lint.rs` holds the pinned trees to no violation of
+any kind, and the rest of the corpus to `tests/lint-baseline.txt`: a count
+that rises fails the test, and a count that falls is lowered with
+`UPDATE_LINT=1 cargo test -p vivisurgeons-insight --test lint`. A golden
+file carries each face's mana cost (`cost:`) for the X check.
+
 ## What the curve says
 
 **The gain per round falls fast: +6.5, +1.8, then +0.8 points of cards.**
@@ -239,4 +270,4 @@ Two warnings for anyone who builds on this:
   round, as `insight sample` does. A coverage number alone does not catch a
   parse that is complete and wrong; the round trip catches the ones that
   lost or misread a word, but not a tree whose words all come back with the
-  wrong node under them.
+  wrong node under them. `insight lint` catches the ones a machine can see.

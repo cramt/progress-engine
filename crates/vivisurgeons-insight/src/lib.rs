@@ -4,8 +4,10 @@
 //! with no hole in it, and where the rest breaks; see README.md for the number.
 
 pub mod ast;
+pub mod corpus;
 pub mod golden;
 pub mod lex;
+pub mod lint;
 pub mod parse;
 pub mod unparse;
 pub mod vocab;

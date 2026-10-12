@@ -124,7 +124,8 @@ fn mentions(ty: &str) -> Vec<String> {
 }
 
 fn walkable(types: &BTreeMap<String, Shape>) -> BTreeSet<String> {
-    let mut set: BTreeSet<String> = ["Objects".to_string()].into();
+    // Players too, so a walk sees "that player" where no object is said.
+    let mut set: BTreeSet<String> = ["Objects".to_string(), "Player".to_string()].into();
     let field_types = |s: &Shape| -> Vec<String> {
         match s {
             Shape::Struct(f) => f.iter().map(|(_, t)| t.clone()).collect(),
@@ -226,7 +227,9 @@ fn generate(src: &str) -> String {
              fn condition(&mut self, _c: &mut Condition) {}\n    \
              fn condition_done(&mut self, _c: &mut Condition) {}\n    \
              /// Before an amount's parts.\n    \
-             fn amount(&mut self, _a: &mut Amount) {}\n\
+             fn amount(&mut self, _a: &mut Amount) {}\n    \
+             /// Before a player's parts.\n    \
+             fn player(&mut self, _p: &mut Player) {}\n\
          }\n\n\
          pub trait Walk {\n    fn walk(&mut self, v: &mut dyn Visitor);\n}\n",
     );
@@ -324,6 +327,7 @@ fn generate(src: &str) -> String {
             "Effect" => format!("v.effect(self);\n{body}\nv.effect_done(self);"),
             "Condition" => format!("v.condition(self);\n{body}\nv.condition_done(self);"),
             "Amount" => format!("v.amount(self);\n{body}"),
+            "Player" => format!("v.player(self);\n{body}"),
             _ => body,
         };
         write!(

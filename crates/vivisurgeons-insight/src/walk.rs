@@ -23,6 +23,8 @@ pub trait Visitor {
     fn condition_done(&mut self, _c: &mut Condition) {}
     /// Before an amount's parts.
     fn amount(&mut self, _a: &mut Amount) {}
+    /// Before a player's parts.
+    fn player(&mut self, _p: &mut Player) {}
 }
 
 pub trait Walk {
@@ -1859,6 +1861,7 @@ impl Walk for Palette {
 impl Walk for Player {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
+        v.player(self);
         match self {
             Player::ControllerOf(f0) => {
                 Walk::walk(&mut **f0, v);

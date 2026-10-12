@@ -6,33 +6,43 @@
 //! ## Sol Ring
 //! face: Sol Ring
 //! type: Artifact
+//! cost: {1}
 //! > {T}: Add {C}{C}.
 //! = Activated { cost: [Tap], ... }
 //! ```
 //!
-//! `>` lines are the face's text as Scryfall prints it; `=` lines are its
-//! abilities in order, as `Debug` prints them.
+//! `cost:` is the face's mana cost, absent where it has none. `>` lines are
+//! the face's text as Scryfall prints it; `=` lines are its abilities in
+//! order, as `Debug` prints them.
 
 use std::fmt::Write;
 
-use crate::{read_face, Face};
+use crate::{read_face, Face, Line};
 
+#[derive(Clone)]
 pub struct Entry {
     pub card: String,
     pub face: String,
     pub type_line: String,
     pub text: String,
+    /// As Scryfall prints it: "{X}{R}". An {X} in it defines X for the
+    /// face's text (CR 107.3a), which `insight lint` checks.
+    pub mana_cost: String,
 }
 
 impl Entry {
-    /// The face's abilities as one line each, as the grammar reads them now.
-    pub fn trees(&self) -> Vec<String> {
+    pub fn lines(&self) -> Vec<Line> {
         let face = Face {
             name: &self.face,
             type_line: &self.type_line,
             text: &self.text,
         };
         read_face(&face, &self.card)
+    }
+
+    /// The face's abilities as one line each, as the grammar reads them now.
+    pub fn trees(&self) -> Vec<String> {
+        self.lines()
             .into_iter()
             .map(|l| match l.parsed {
                 Ok(a) => format!("{a:?}"),
@@ -50,6 +60,9 @@ pub fn render(entries: &[Entry]) -> String {
             "## {}\nface: {}\ntype: {}",
             e.card, e.face, e.type_line
         );
+        if !e.mana_cost.is_empty() {
+            let _ = writeln!(out, "cost: {}", e.mana_cost);
+        }
         for l in e.text.lines() {
             let _ = writeln!(out, "> {l}");
         }
@@ -73,6 +86,7 @@ pub fn read(text: &str) -> Result<Vec<(Entry, Vec<String>)>, String> {
                     face: String::new(),
                     type_line: String::new(),
                     text: String::new(),
+                    mana_cost: String::new(),
                 },
                 Vec::new(),
             ));
@@ -86,6 +100,8 @@ pub fn read(text: &str) -> Result<Vec<(Entry, Vec<String>)>, String> {
             e.face = f.into();
         } else if let Some(t) = line.strip_prefix("type: ") {
             e.type_line = t.into();
+        } else if let Some(c) = line.strip_prefix("cost: ") {
+            e.mana_cost = c.into();
         } else if let Some(t) = line
             .strip_prefix("> ")
             .or(line.strip_prefix(">").filter(|r| r.is_empty()))

@@ -5,32 +5,16 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 
 use anyhow::{bail, Context, Result};
-use serde_json::Value;
 use vivisurgeons_insight::golden::{self, Entry};
 use vivisurgeons_insight::{read_face, Face, Line};
 
-/// Layouts that are not cards a deck can hold.
-const NOT_CARDS: &[&str] = &[
-    "token",
-    "double_faced_token",
-    "emblem",
-    "art_series",
-    "scheme",
-    "planar",
-    "vanguard",
-    "reversible_card",
-];
-
-/// Cards with a rule in the Comprehensive Rules written for them alone. They
-/// are the tail a grammar should not chase: each is its own special case in
-/// any engine, so the headline leaves them out and says how many.
-const EXCLUDED_TAG: &str = "unique-cr-reference";
+use vivisurgeons_insight::corpus::{self, cache, excluded_ids, EXCLUDED_TAG};
 
 struct Card {
     name: String,
     edhrec_rank: Option<u64>,
-    /// Each face's name, type line and Oracle text, as the bulk file has them.
-    faces: Vec<(String, String, String)>,
+    /// Each face as the bulk file has it.
+    faces: Vec<Entry>,
     lines: Vec<Line>,
 }
 
@@ -40,85 +24,17 @@ impl Card {
     }
 }
 
-fn cache(file: &str) -> String {
-    let home = std::env::var("HOME").unwrap_or_default();
-    format!("{home}/.cache/scryfall/{file}")
-}
-
-fn excluded_ids(tags_path: &str) -> Result<HashSet<String>> {
-    let text = fs::read_to_string(tags_path).with_context(|| format!("reading {tags_path}"))?;
-    for line in text.lines() {
-        let v: Value = serde_json::from_str(line)?;
-        if v["slug"] == EXCLUDED_TAG {
-            return Ok(v["taggings"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .filter_map(|t| t["oracle_id"].as_str().map(str::to_string))
-                .collect());
-        }
-    }
-    bail!("{tags_path} has no {EXCLUDED_TAG} tag")
-}
-
 fn load(bulk: &str, excluded: &HashSet<String>, only: Option<&str>) -> Result<(Vec<Card>, usize)> {
-    let text = fs::read_to_string(bulk).with_context(|| format!("reading {bulk}"))?;
-    let mut cards = Vec::new();
-    let mut skipped = 0;
-    for line in text.lines() {
-        let c: Value = serde_json::from_str(line)?;
-        let layout = c["layout"].as_str().unwrap_or("");
-        if NOT_CARDS.contains(&layout) || c["set_type"] == "funny" {
-            continue;
-        }
-        if c["oracle_id"]
-            .as_str()
-            .is_some_and(|id| excluded.contains(id))
-        {
-            skipped += 1;
-            continue;
-        }
-        let name = c["name"].as_str().unwrap_or("").to_string();
-        if only.is_some_and(|o| !name.eq_ignore_ascii_case(o)) {
-            continue;
-        }
-        let faces: Vec<(String, String, String)> = match c["card_faces"].as_array() {
-            Some(fs) if c["oracle_text"].is_null() => fs
-                .iter()
-                .map(|f| {
-                    (
-                        f["name"].as_str().unwrap_or("").to_string(),
-                        f["type_line"].as_str().unwrap_or("").to_string(),
-                        f["oracle_text"].as_str().unwrap_or("").to_string(),
-                    )
-                })
-                .collect(),
-            _ => vec![(
-                name.clone(),
-                c["type_line"].as_str().unwrap_or("").to_string(),
-                c["oracle_text"].as_str().unwrap_or("").to_string(),
-            )],
-        };
-        let lines = faces
-            .iter()
-            .flat_map(|(n, t, o)| {
-                read_face(
-                    &Face {
-                        name: n,
-                        type_line: t,
-                        text: o,
-                    },
-                    &name,
-                )
-            })
-            .collect();
-        cards.push(Card {
-            name,
-            edhrec_rank: c["edhrec_rank"].as_u64(),
-            faces,
-            lines,
-        });
-    }
+    let (printed, skipped) = corpus::read(bulk, excluded, only)?;
+    let cards = printed
+        .into_iter()
+        .map(|p| Card {
+            lines: p.faces.iter().flat_map(Entry::lines).collect(),
+            name: p.name,
+            edhrec_rank: p.edhrec_rank,
+            faces: p.faces,
+        })
+        .collect();
     Ok((cards, skipped))
 }
 
@@ -422,17 +338,7 @@ fn pin(args: &[String]) -> Result<()> {
     if broken > 0 {
         bail!("{broken} cards in {target} do not parse yet; `insight failing {target}` lists them");
     }
-    let entries: Vec<Entry> = chosen
-        .iter()
-        .flat_map(|c| {
-            c.faces.iter().map(|(face, type_line, text)| Entry {
-                card: c.name.clone(),
-                face: face.clone(),
-                type_line: type_line.clone(),
-                text: text.clone(),
-            })
-        })
-        .collect();
+    let entries: Vec<Entry> = chosen.iter().flat_map(|c| c.faces.clone()).collect();
     let label = if target.parse::<u64>().is_ok() {
         format!("edhrec-{target}")
     } else {
@@ -564,6 +470,45 @@ fn roundtrip(args: &[String]) -> Result<()> {
     Ok(())
 }
 
+/// Every parsed tree in the corpus through `lint`: the count of each kind,
+/// and the first cards of each. `--counts` prints only the counts, in the
+/// form `tests/lint-baseline.txt` holds.
+fn lint(args: &[String]) -> Result<()> {
+    use vivisurgeons_insight::lint::{self, Kind};
+    let mut show_n = 5;
+    let mut counts_only = false;
+    let mut only: Option<Kind> = None;
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--examples" => show_n = it.next().context("--examples needs a number")?.parse()?,
+            "--counts" => counts_only = true,
+            k => only = Some(Kind::from_name(k).with_context(|| format!("no lint named {k}"))?),
+        }
+    }
+    let excluded = excluded_ids(&cache("oracle-tags.jsonl"))?;
+    let (printed, _) = corpus::read(&cache("oracle-cards.jsonl"), &excluded, None)?;
+    let faces: Vec<Entry> = printed.into_iter().flat_map(|p| p.faces).collect();
+    let mut hits: HashMap<Kind, Vec<(String, String)>> = HashMap::new();
+    for (k, card, text) in lint::faces(&faces) {
+        hits.entry(k).or_default().push((card, text));
+    }
+    for k in Kind::ALL {
+        if only.is_some_and(|o| o != k) {
+            continue;
+        }
+        let v = hits.get(&k).map(Vec::as_slice).unwrap_or_default();
+        println!("{k} {}", v.len());
+        if counts_only {
+            continue;
+        }
+        for (card, text) in v.iter().take(show_n) {
+            println!("    {card}: {}", text.replace('\n', " / "));
+        }
+    }
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
@@ -574,6 +519,7 @@ fn main() -> Result<()> {
         Some("snapshot") => snapshot(&args[1..]),
         Some("pin") => pin(&args[1..]),
         Some("roundtrip") => roundtrip(&args[1..]),
-        _ => bail!("usage: insight coverage [--bulk F] [--tags F] [--deck F]... [--top N] | insight card <name> | insight sample N | insight failing [N | milestone] | insight snapshot <file> | insight pin <N | milestone> | insight roundtrip [N | milestone] [--golden] [--examples N]"),
+        Some("lint") => lint(&args[1..]),
+        _ => bail!("usage: insight coverage [--bulk F] [--tags F] [--deck F]... [--top N] | insight card <name> | insight sample N | insight failing [N | milestone] | insight snapshot <file> | insight pin <N | milestone> | insight roundtrip [N | milestone] [--golden] [--examples N] | insight lint [kind] [--counts] [--examples N]"),
     }
 }
