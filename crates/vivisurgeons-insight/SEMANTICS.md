@@ -29,6 +29,8 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "Whenever you scry or surveil" | `Or([Performs { You, "scry" }, Performs { You, "surveil" }])` | settled: two keyword actions, the player said once |
 | "Whenever this creature enters or transforms into ~" | `TransformsInto { this creature, SelfRef }` | settled: "~" is the back face's own name, the same object (CR 201.5c) |
 | "Whenever you cast a spell during an opponent's turn" | `While { …, OpponentsTurn }`, apart from `NotYourTurn` | settled: in a team game a teammate's turn is not yours and not an opponent's (CR 102.3, teammates are not opponents) |
+| "At the beginning of combat on each opponent's turn", "At the beginning of each of your main phases" | `Combat(EachOpponent)`, `Main(Yours)` | settled: a step on that player's turn, as "combat on your turn"; a turn has two main phases (CR 505.1), and "your main phase" names each (`syn::your_main_phase`) |
+| "If a creature attacking causes a triggered ability of a permanent you control to trigger, …" | `AdditionalTrigger { cause: Attacks(…) }` | settled: as "a permanent entering", the event that triggers it |
 | "Whenever you gain life for the first time each turn", "… becomes the target of a spell or ability for the first time each turn" | `FirstTimeEachTurn` around any event | settled: it read only "attacks/blocks for the first time each turn"; the same words after any event |
 | "When you next cast an instant or sorcery spell this turn, copy that spell." | `DelayedNext { event, dur: ThisTurn, then }` | settled: CR 603.7b, a delayed trigger triggers once unless it has a stated duration such as "this turn", so "next … this turn" is once and within the turn, which neither `DelayedWhen` (once, any time) nor `During { ThisTurn, DelayedWhen }` (each time this turn) says. "That spell" stays a plain back-reference to the event's spell, as in `DelayedWhen` (Pyromancer's Goggles): open |
 
@@ -43,6 +45,7 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "if this creature isn't prepared" | `Not(Is { State::Prepared })` | settled: a creature with a prepare spell is prepared or not (Codie's rulings). "Prepared" is read only there and after "becomes", not as an adjective, so "a prepared spell" (Codie) does not parse: what it names is not settled |
 | "Start your engines!" | `Keywords`, the "!" part of the name | settled: CR 702.179a, a static keyword ability; Scryfall's catalog files it among the ability words |
 | "I — Crescent Fang — Search …" | `Chapter { [Labelled { "crescent fang", … }] }` | settled: CR 207.2d, a flavour word has no rules meaning. Tried after the plain chapter, so "I, II — Choose one — •…" stays a modal chapter |
+| "As this enchantment enters, choose Khans or Dragons. • Khans — … • Dragons — …" | `Ability::Anchored { what, options: [AnchoredAbility { word, ability }] }` | settled: CR 614.12c, anchor words; each bullet's ability is read as a line of its own, and the permanent has the one chosen as it entered. The Sieges, Mirrodin Besieged, Phenomenon Investigators |
 
 ## Objects and players
 
@@ -192,6 +195,12 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "Firebending X, where X is this creature's power", "Mobilize X, where X is …" | the keyword's number is the measure | settled: the line defines X for that keyword alone |
 | "enters with X +1/+1 counters on it, where X is …", "enters with a +1/+1 counter on it for each color of mana spent to cast it" | `EntersWithCounters { n: <the measure> }`, converge's `ColorsOfManaSpentToCast` | settled: a counter per color is that many counters; `syn::where_x` and `syn::for_each_count` |
 | "This token can't block or be blocked by non-Spirit creatures" | two `Restrict`s, `CantBlockAny` and `CantBeBlockedBy`, with the same filter | settled: two rules of one object, the filter said once |
+| "if a creature died under your control this turn" | `DidThisTurn(Dies(a creature you control))` | settled: who controlled it as it died (CR 603.10a); `syn::died_under` |
+| "you've drawn two or more cards this turn", "the number of cards you've drawn this turn" | `AmountIs { CardsDrawnThisTurn(You), Ge, 2 }`, `CardsDrawnThisTurn(You)` | settled |
+| "the number of differently named lands you control" | `Amount::DifferentlyNamed(lands you control)` | settled: how many names among them |
+| "creatures that entered the battlefield under your control this turn" | `Post::EnteredUnderThisTurn(You)`, apart from `EnteredThisTurn` | settled: under whose control it entered, which a later change of control does not undo |
+| "Activated abilities of artifacts you control cost {1} less to activate", "Exhaust abilities of other permanents you control …" | `Static::AbilityCostChange { kind, of, by, less }` | settled: the cost of each such ability of those objects. "… of Equipment you control that target this creature" does not parse: the targeting is the ability's, and the tree has no place for it |
+| "Exile cards from the top of your library until you exile a nonland card" | `UntilFound { who: You, … }`, as "Target opponent exiles cards … until they exile" | settled: the dig, not an exile of "cards" |
 ## Durations
 
 | Text | Tree | Status |

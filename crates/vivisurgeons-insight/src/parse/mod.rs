@@ -519,6 +519,34 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
         },
         |p| { if !spell { return None; } let e = effects(p)?; finished(p).then_some(Ability::Spell(e)) },
         |p| { let mut s = statics(p)?; refer_to_the_card(&mut s); finished(p).then_some(Ability::Static(s)) },
+        // "As this enchantment enters, choose Khans or Dragons. / • Khans —
+        // … / • Dragons — …": anchor words (CR 614.12c). Each bullet's
+        // ability is read alone, up to the next bullet.
+        |p| {
+            p.word("as")?;
+            let what = objects(p)?;
+            if what.quant != Quant::SelfRef { return None; }
+            p.words("enters , choose")?;
+            let first = p.peek_word()?.to_string();
+            p.bump();
+            p.word("or")?;
+            let second = p.peek_word()?.to_string();
+            p.bump();
+            p.tok(&Tok::Period)?;
+            let mut options = Vec::new();
+            for word in [first, second] {
+                p.tok(&Tok::Bullet)?;
+                p.word(&word)?;
+                p.tok(&Tok::Dash)?;
+                let end = p.t[p.i..].iter().position(|t| *t == Tok::Bullet).map_or(p.t.len(), |n| p.i + n);
+                let mut sub = P::new(&p.t[p.i..end]);
+                let a = ability(&mut sub, false)?;
+                if !sub.at_end() { return None; }
+                p.i = end;
+                options.push(AnchoredAbility { word, ability: Box::new(a) });
+            }
+            finished(p).then_some(Ability::Anchored { what, options })
+        },
         // "Tiered / • Fire — {0} — ~ deals 1 damage to each creature. / …":
         // modes, each with its own additional cost (CR 702.183).
         |p| {

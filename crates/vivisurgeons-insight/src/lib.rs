@@ -1580,6 +1580,40 @@ mod tests {
     }
 
     #[test]
+    fn round_eleven_anchor_words_and_turn_counts() {
+        let one = |ty: &str, text: &str| format!("{:?}", read("Some Card", ty, text));
+        let a = one(
+            "Enchantment",
+            "As this enchantment enters, choose Khans or Dragons.\n• Khans — At the beginning of combat on your turn, put two +1/+1 counters on target creature you control.\n• Dragons — At the beginning of combat on each opponent's turn, tap target creature that player controls.",
+        );
+        assert!(
+            a.starts_with("[Anchored")
+                && a.contains("word: \"dragons\"")
+                && a.contains("Combat(EachOpponent)"),
+            "{a}"
+        );
+        let a = one(
+            "Creature — Bird",
+            "This creature gets +2/+0 as long as you've drawn two or more cards this turn.\nAt the beginning of your end step, if a creature died under your control this turn, draw a card.",
+        );
+        assert!(
+            a.contains("CardsDrawnThisTurn(You)")
+                && a.contains("posts: [Controller(You)], or: None } }))"),
+            "{a}"
+        );
+        let a = one(
+            "Artifact",
+            "Activated abilities of artifacts you control cost {1} less to activate.",
+        );
+        assert!(a.contains("AbilityCostChange { kind: Activated"), "{a}");
+        let a = one(
+            "Sorcery",
+            "Exile cards from the top of your library until you exile a nonland card. You may cast that card this turn.",
+        );
+        assert!(a.contains("UntilFound { who: You"), "{a}");
+    }
+
+    #[test]
     fn hero_is_a_creature_type() {
         let a = read(
             "Some Assembly",

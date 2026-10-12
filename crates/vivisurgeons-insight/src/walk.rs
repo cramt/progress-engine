@@ -109,6 +109,12 @@ impl Walk for Ability {
                     Walk::walk(x0, v);
                 }
             }
+            Ability::Anchored { what, options } => {
+                Walk::walk(what, v);
+                for x0 in (options).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             _ => {}
         }
     }
@@ -169,6 +175,12 @@ impl Walk for Amount {
             }
             Amount::LifeGainedThisTurn(f0) => {
                 Walk::walk(f0, v);
+            }
+            Amount::CardsDrawnThisTurn(f0) => {
+                Walk::walk(f0, v);
+            }
+            Amount::DifferentlyNamed(f0) => {
+                Walk::walk(&mut **f0, v);
             }
             Amount::DamageDealtThisTurn(f0) => {
                 Walk::walk(f0, v);
@@ -231,6 +243,13 @@ impl Walk for Amount {
             }
             _ => {}
         }
+    }
+}
+
+impl Walk for AnchoredAbility {
+    #[allow(clippy::all)]
+    fn walk(&mut self, v: &mut dyn Visitor) {
+        Walk::walk(&mut **&mut self.ability, v);
     }
 }
 
@@ -1877,6 +1896,9 @@ impl Walk for Post {
             Post::Not(f0) => {
                 Walk::walk(&mut **f0, v);
             }
+            Post::EnteredUnderThisTurn(f0) => {
+                Walk::walk(f0, v);
+            }
             Post::FromAmong(f0) => {
                 Walk::walk(&mut **f0, v);
             }
@@ -2150,6 +2172,9 @@ impl Walk for Static {
                 if let Some(x0) = (per).as_mut() {
                     Walk::walk(x0, v);
                 }
+            }
+            Static::AbilityCostChange { of, .. } => {
+                Walk::walk(of, v);
             }
             Static::ExtraLand(f0) => {
                 Walk::walk(f0, v);

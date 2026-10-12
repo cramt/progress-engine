@@ -726,6 +726,12 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         // "card not on the battlefield".
         |p| { p.word("not")?; p.one_of(&["on", "in"])?; zone(p).map(Post::NotIn) },
         |p| { p.one_of(&["that aren't", "that isn't"])?; post(p).map(|q| Post::Not(Box::new(q))) },
+        |p| {
+            p.words("that entered")?;
+            p.attempt(|p| p.words("the battlefield"));
+            p.words("under your control this turn")?;
+            Some(Post::EnteredUnderThisTurn(Player::You))
+        },
         |p| p.one_of(&["that entered this turn", "that entered the battlefield this turn"]).map(|_| Post::EnteredThisTurn),
         |p| {
             if p.in_value { return None; }

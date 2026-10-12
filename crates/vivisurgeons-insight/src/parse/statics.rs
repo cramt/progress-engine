@@ -270,11 +270,23 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
         |p| {
             p.word("if")?;
             let what = objects(p)?;
-            p.word("entering")?;
+            // "a creature entering", "a creature attacking"; "entering the
+            // battlefield" is the same event (CR glossary, "enters").
+            let cause = alt!(p;
+                |p| { p.word("entering")?; p.attempt(|p| p.words("the battlefield")); Some(Event::Enters { what: what.clone(), under: None, state: None }) },
+                |p| p.word("attacking").map(|_| Event::Attacks(what.clone())),
+                // The object read the trailing "attacking" as its state.
+                |p| {
+                    if p.peek_word() != Some("causes") { return None; }
+                    let mut x = what.clone();
+                    let [g] = &mut x.filter.alts[..] else { return None };
+                    (g.pop()? == Adj::State(State::Attacking)).then_some(Event::Attacks(x))
+                },
+            )?;
             p.words("causes a triggered ability of")?;
             let of = objects(p)?;
             p.words("to trigger , that ability triggers an additional time")?;
-            Some(vec![Static::AdditionalTrigger { of, cause: Some(Event::Enters { what, under: None, state: None }) }])
+            Some(vec![Static::AdditionalTrigger { of, cause: Some(cause) }])
         },
         |p| {
             p.words("you may begin the game with")?;
@@ -439,6 +451,22 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
                 Some(cond) => Static::If { cond, then: vec![cast] },
                 None => cast,
             }])
+        },
+        // "Activated abilities of artifacts you control cost {1} less to
+        // activate".
+        |p| {
+            let kind = match descriptor(p)? { Adj::Ability(k) => k, _ => return None };
+            p.words("abilities of")?;
+            let of = objects(p)?;
+            // "… of Equipment you control that target this creature": the
+            // abilities target, not the Equipment, which the tree has no
+            // place for.
+            if of.filter.posts.iter().any(|q| matches!(q, Post::Targets(_))) { return None; }
+            p.verb("cost")?;
+            let by = mana(p)?;
+            let less = p.one_of(&["less", "more"])? == "less";
+            p.words("to activate")?;
+            Some(vec![Static::AbilityCostChange { kind, of, by, less }])
         },
         // "Activated abilities of artifacts your opponents control can't be
         // activated", perhaps "unless they're mana abilities".

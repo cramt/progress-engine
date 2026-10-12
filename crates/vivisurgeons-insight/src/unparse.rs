@@ -558,6 +558,18 @@ mod syn {
         alt(o, vec![again, and, comma]);
     }
 
+    /// "a creature you control died this turn" and "a creature died under
+    /// your control this turn": who controlled it as it died (CR 603.10a).
+    pub fn died_under(o: &mut Out, said: Out, under: Out) {
+        alt(o, vec![said, under]);
+    }
+
+    /// "your main phase" and "each of your main phases": a turn has two
+    /// (CR 505.1), and a step names each one it begins.
+    pub fn your_main_phase(o: &mut Out) {
+        any_of(o, &["your main phase", "each of your main phases"]);
+    }
+
     /// "a number of +1/+1 counters on it equal to N" and "X +1/+1 counters
     /// on it, where X is N": the same count, named or defined.
     pub fn where_x(o: &mut Out, a_number: Out, where_x: Out) {
@@ -1419,6 +1431,24 @@ fn ability_into(o: &mut Out, a: &Ability) {
             o.tok(Tok::Dash);
             ability_into(o, ability);
         }
+        Ability::Anchored { what, options } => {
+            o.w("as");
+            objects(o, what);
+            o.w("enters, choose");
+            for (i, a) in options.iter().enumerate() {
+                if i > 0 {
+                    o.w("or");
+                }
+                o.w(&a.word);
+            }
+            o.tok(Tok::Period);
+            for a in options {
+                o.tok(Tok::Bullet);
+                o.w(&a.word);
+                o.tok(Tok::Dash);
+                ability_into(o, &a.ability);
+            }
+        }
         Ability::Tiered(modes) => {
             o.w("tiered");
             for m in modes {
@@ -2112,6 +2142,21 @@ fn measure(o: &mut Out, a: &Amount) {
         }
         // The grammar reads these only in a condition, which says them its
         // own way ("an opponent lost 2 or more life this turn").
+        Amount::DifferentlyNamed(x) => {
+            o.w("the number of differently named");
+            objects(o, x);
+        }
+        Amount::CardsDrawnThisTurn(p) => {
+            o.w("the number of cards");
+            match p {
+                Player::You => o.w("you've"),
+                p => {
+                    player(o, p);
+                    o.w("has");
+                }
+            }
+            o.w("drawn this turn");
+        }
         Amount::LifeGainedThisTurn(p) => {
             o.w("the amount of life");
             player(o, p);
@@ -3312,6 +3357,13 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             post(o, q, n);
         }
         Post::EnteredThisTurn => o.w("that entered this turn"),
+        Post::EnteredUnderThisTurn(p) => {
+            o.w("that entered");
+            syn::the_battlefield(o);
+            o.w("under");
+            whose(o, p);
+            o.w("control this turn");
+        }
         Post::FromAmong(x) => from_among(o, x),
         Post::Greatest { stat, or_tied } => {
             o.w("with the greatest");
@@ -6892,6 +6944,14 @@ fn step(o: &mut Out, s: &Step) {
         o.w("combat on your turn");
         return;
     }
+    if matches!(s, Step::Combat(Whose::EachOpponent)) {
+        o.w("combat on each opponent's turn");
+        return;
+    }
+    if matches!(s, Step::Main(Whose::Yours)) {
+        syn::your_main_phase(o);
+        return;
+    }
     if *w == Whose::Each {
         syn::each_step(o);
         if matches!(s, Step::PrecombatMain(_)) {
@@ -7782,8 +7842,22 @@ fn condition(o: &mut Out, c: &Condition) {
         Condition::YouAreStartingPlayer => o.w("you're the starting player"),
         Condition::DidThisTurn(e) => match &**e {
             Event::Dies(x) => {
-                objects(o, x);
-                o.w("died this turn");
+                let said = out(|o| {
+                    objects(o, x);
+                    o.w("died this turn");
+                });
+                match x.filter.posts.split_last() {
+                    Some((Post::Controller(Player::You), rest)) => {
+                        let mut without = x.clone();
+                        without.filter.posts = rest.to_vec();
+                        let under = out(|o| {
+                            objects(o, &without);
+                            o.w("died under your control this turn");
+                        });
+                        syn::died_under(o, said, under);
+                    }
+                    _ => o.add(said),
+                }
             }
             Event::Leaves {
                 what,
@@ -8328,6 +8402,11 @@ fn not_condition(o: &mut Out, c: &Condition) {
 
 fn amount_is(o: &mut Out, n: &Amount, op: Op, value: &Amount) {
     match n {
+        Amount::CardsDrawnThisTurn(Player::You) if op == Op::Ge => {
+            o.w("you've drawn");
+            amount(o, value);
+            o.w("or more cards this turn");
+        }
         Amount::LifeLostThisTurn(p) | Amount::DamageDealtThisTurn(p) => {
             player(o, p);
             o.w(if matches!(n, Amount::LifeLostThisTurn(_)) {
@@ -8892,6 +8971,15 @@ fn lost_words(o: &mut Out, lost: &[Lost]) {
 
 fn static_other(o: &mut Out, s: &Static) {
     match s {
+        Static::AbilityCostChange { kind, of, by, less } => {
+            adj(o, &Adj::Ability(*kind), None);
+            o.w("abilities of");
+            objects(o, of);
+            o.w("cost");
+            mana(o, by);
+            o.w(if *less { "less" } else { "more" });
+            o.w("to activate");
+        }
         Static::ExtraLand(n) => {
             o.w("you may play");
             amount_a(o, n);
@@ -9033,7 +9121,16 @@ fn static_other(o: &mut Out, s: &Static) {
             Some(Event::Enters { what, .. }) => {
                 o.w("if");
                 objects(o, what);
-                o.w("entering causes a triggered ability of");
+                o.w("entering");
+                syn::the_battlefield(o);
+                o.w("causes a triggered ability of");
+                objects(o, of);
+                o.w("to trigger, that ability triggers an additional time");
+            }
+            Some(Event::Attacks(what)) => {
+                o.w("if");
+                objects(o, what);
+                o.w("attacking causes a triggered ability of");
                 objects(o, of);
                 o.w("to trigger, that ability triggers an additional time");
             }

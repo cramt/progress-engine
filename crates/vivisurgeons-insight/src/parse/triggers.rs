@@ -22,6 +22,10 @@ pub(super) fn whose_step(p: &mut P) -> Option<Whose> {
 }
 
 pub(super) fn step(p: &mut P) -> Option<Step> {
+    // "each of your main phases": both of them (CR 505.1).
+    if p.attempt(|p| p.words("each of your main phases")).is_some() {
+        return Some(Step::Main(Whose::Yours));
+    }
     let w = p.attempt(whose_step);
     let named = w.is_some();
     let w = w.unwrap_or(Whose::The);
@@ -40,6 +44,9 @@ pub(super) fn step(p: &mut P) -> Option<Step> {
     // "At the beginning of combat on your turn": the turn says whose.
     if p.attempt(|p| p.words("on your turn")).is_some() {
         return (!named || w == Whose::The).then(|| step_of(s, Whose::Yours));
+    }
+    if p.attempt(|p| p.words("on each opponent 's turn")).is_some() {
+        return (!named && matches!(s, Step::Combat(_))).then(|| step_of(s, Whose::EachOpponent));
     }
     named.then_some(s)
 }

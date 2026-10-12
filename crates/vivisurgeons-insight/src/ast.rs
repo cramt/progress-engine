@@ -60,6 +60,21 @@ pub enum Ability {
     /// "Tiered", then its modes, each with the additional cost paid for
     /// choosing it (CR 702.183): one mode is chosen.
     Tiered(Vec<TieredMode>),
+    /// "As this enchantment enters, choose Khans or Dragons. • Khans — … •
+    /// Dragons — …": the permanent has the ability whose anchor word was
+    /// chosen as it entered (CR 614.12c), each linked to the choice.
+    Anchored {
+        what: Objects,
+        options: Vec<AnchoredAbility>,
+    },
+}
+
+/// "Khans — At the beginning of combat on your turn, …": an anchor word,
+/// a name with no rules meaning but the choice, and the ability it gives.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AnchoredAbility {
+    pub word: String,
+    pub ability: Box<Ability>,
 }
 
 /// The keywords written before a dash and an ability, each adding rules to
@@ -298,6 +313,11 @@ pub enum Amount {
     LifeLostThisTurn(Player),
     /// "the amount of life you gained this turn".
     LifeGainedThisTurn(Player),
+    /// "the number of cards you've drawn this turn".
+    CardsDrawnThisTurn(Player),
+    /// "the number of differently named lands you control": how many names
+    /// among them.
+    DifferentlyNamed(Box<Objects>),
     /// "an opponent was dealt 7 or more damage this turn".
     DamageDealtThisTurn(Player),
     /// "each 1 damage prevented this way".
@@ -667,6 +687,9 @@ pub enum Post {
     Not(Box<Post>),
     /// "that entered this turn".
     EnteredThisTurn,
+    /// "that entered the battlefield under your control this turn": under
+    /// whose control it entered, whoever controls it now.
+    EnteredUnderThisTurn(Player),
     /// "from among the nonland cards exiled this way".
     FromAmong(Box<Objects>),
     /// "with the greatest mana value or tied for the greatest mana value".
@@ -2210,6 +2233,15 @@ pub enum Static {
         by: Mana,
         less: bool,
         per: Option<Objects>,
+    },
+    /// "Activated abilities of artifacts you control cost {1} less to
+    /// activate", "Exhaust abilities of other permanents you control …":
+    /// the cost of each such ability of those objects.
+    AbilityCostChange {
+        kind: AbilityKind,
+        of: Objects,
+        by: Mana,
+        less: bool,
     },
     /// "You may play two additional lands on each of your turns."
     ExtraLand(Amount),

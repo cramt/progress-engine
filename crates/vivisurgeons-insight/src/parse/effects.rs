@@ -536,7 +536,14 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             Some(Effect::ExileWithCounters { what, n, kind })
         },
         |p| { p.word("exile")?; let what = objects(p)?; p.words("face down")?; Some(Effect::ExileFaceDown(what)) },
-        |p| { p.word("exile")?; objects(p).map(Effect::Exile) },
+        // "Exile cards from the top of your library until you exile a
+        // nonland card" is the dig below, not "exile cards".
+        |p| {
+            p.word("exile")?;
+            let dig = p.at("cards") && matches!(p.t.get(p.i + 1), Some(Tok::Word(w)) if w == "from") && p.ahead("library until");
+            if dig { return None; }
+            objects(p).map(Effect::Exile)
+        },
         |p| {
             let who = subject_player(p);
             p.verb("pay")?;

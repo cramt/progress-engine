@@ -290,6 +290,13 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             let c = Condition::DidThisTurn(Box::new(Event::Casts { who, what }));
             Some(if not { Condition::Not(Box::new(c)) } else { c })
         },
+        // "you've drawn two or more cards this turn".
+        |p| {
+            p.words("you've drawn")?;
+            let value = number(p)?;
+            p.words("or more cards this turn")?;
+            Some(Condition::AmountIs { n: Amount::CardsDrawnThisTurn(Player::You), op: Op::Ge, value: Amount::N(value) })
+        },
         |p| { p.words("you control no")?; objects(p).map(Condition::YouDontControl) },
         |p| {
             let w = whose(p)?;
@@ -378,6 +385,14 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 |p| { p.one_of(&["remain on the battlefield", "remains on the battlefield"])?; Some(Condition::In { what: what.clone(), zone: Zone::Battlefield }) },
                 |p| { p.one_of(&["is attached to", "are attached to"])?; let to = objects(p)?; Some(Condition::AttachedTo { what: what.clone(), to }) },
                 |p| p.words("died this turn").map(|_| Condition::DidThisTurn(Box::new(Event::Dies(what.clone())))),
+                // "a creature died under your control this turn": one you
+                // controlled as it died.
+                |p| {
+                    p.words("died under your control this turn")?;
+                    let mut x = what.clone();
+                    x.filter.posts.push(Post::Controller(Player::You));
+                    Some(Condition::DidThisTurn(Box::new(Event::Dies(x))))
+                },
                 |p| {
                     let not = p.one_of(&["was", "wasn't"])? == "wasn't";
                     p.words("cast this way")?;
