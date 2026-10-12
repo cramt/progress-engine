@@ -4402,7 +4402,7 @@ type: Enchantment
 > Cumulative upkeep {1} (At the beginning of your upkeep, put an age counter on this permanent, then sacrifice it unless you pay its upkeep cost for each age counter on it.)
 > Whenever an opponent casts a noncreature spell, you may draw a card unless that player pays {4}.
 = Keywords([Keyword { name: "cumulative upkeep", param: Some(Cost([Mana(Mana(["1"]))])) }])
-= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Unless { effect: Draw { who: You, n: N(1) }, who: That, cost: [Mana(Mana(["4"]))] }] }], limits: [] }
+= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Unless { effect: May { who: You, then: [Draw { who: You, n: N(1) }] }, who: That, cost: [Mana(Mana(["4"]))] }], limits: [] }
 
 ## Mystic Sanctuary
 face: Mystic Sanctuary
@@ -5324,7 +5324,7 @@ type: Land
 face: Rhystic Study
 type: Enchantment
 > Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.
-= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Unless { effect: Draw { who: You, n: N(1) }, who: That, cost: [Mana(Mana(["1"]))] }] }], limits: [] }
+= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [Unless { effect: May { who: You, then: [Draw { who: You, n: N(1) }] }, who: That, cost: [Mana(Mana(["1"]))] }], limits: [] }
 
 ## Rhythm of the Wild
 face: Rhythm of the Wild

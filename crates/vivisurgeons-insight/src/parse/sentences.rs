@@ -484,7 +484,21 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                 Some(then)
             });
             p.implied = outer;
-            Some(vec![Effect::May { who, then: e? }])
+            let then = e?;
+            // "you may draw a card unless that player pays {1}": the payer
+            // decides first, and the option is offered only if they don't
+            // (Rhystic Study's ruling; CR 608.2d), so the "unless" holds the
+            // "may", not the other way round.
+            if let [Effect::Unless { effect, who: payer, cost }] = &then[..] {
+                if *payer != who {
+                    return Some(vec![Effect::Unless {
+                        effect: Box::new(Effect::May { who, then: vec![(**effect).clone()] }),
+                        who: payer.clone(),
+                        cost: cost.clone(),
+                    }]);
+                }
+            }
+            Some(vec![Effect::May { who, then }])
         },
         |p| {
             let e = effect(p)?;

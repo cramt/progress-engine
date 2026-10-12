@@ -2168,4 +2168,19 @@ mod round_nine_d {
         );
         assert!(s.contains("quant: Another"), "{s}");
     }
+
+    #[test]
+    fn the_payer_of_an_unless_decides_before_the_player_who_may() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Enchantment",
+                "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}."
+            )
+        );
+        assert!(
+            s.contains("effect: [Unless { effect: May { who: You"),
+            "{s}"
+        );
+    }
 }
