@@ -1156,7 +1156,8 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             Some(Effect::LoseLife { who, n })
         },
         // mana
-        |p| { p.word("add")?; mana_add(p).map(Effect::AddMana) },
+        // "You add {B}{B} and draw a card": "you" said before the instruction.
+        |p| { p.attempt(|p| p.word("you")); p.word("add")?; mana_add(p).map(Effect::AddMana) },
         // library
         |p| {
             let who = subject_player(p);

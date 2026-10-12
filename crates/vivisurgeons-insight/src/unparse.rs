@@ -4752,6 +4752,7 @@ fn says_no_player(e: &Effect) -> bool {
     matches!(
         e,
         Effect::Untap(_)
+            | Effect::AddMana(_)
             | Effect::Tap(_)
             | Effect::Exile(_)
             | Effect::Destroy { .. }
