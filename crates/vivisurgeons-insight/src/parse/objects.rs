@@ -609,6 +609,16 @@ pub(super) fn compare(p: &mut P) -> Option<Compare> {
 /// What a number is compared with: "3 or less", "greater than its base power".
 pub(super) fn comparison(p: &mut P) -> Option<(Op, Amount)> {
     alt!(p;
+        // "4, 5, or 6", "2 or 3": one of the values.
+        |p| {
+            let mut v = vec![number(p).map(Amount::N)?];
+            while let Some(n) = p.attempt(|p| { p.tok(&Tok::Comma)?; number(p).map(Amount::N) }) { v.push(n); }
+            if v.len() > 1 { p.tok(&Tok::Comma)?; }
+            p.word("or")?;
+            v.push(number(p).map(Amount::N)?);
+            // "3 or less", "3 or greater" are a bound, read below.
+            Some((Op::Eq, Amount::AnyOf(v)))
+        },
         |p| {
             let value = amount(p)?;
             let op = alt!(p;

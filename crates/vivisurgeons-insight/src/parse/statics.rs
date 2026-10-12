@@ -315,7 +315,7 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
                 |p| p.words("every basic land type").map(|_| TypeSet::EveryBasicLandType),
                 |p| { p.attempt(|p| p.one_of(&["a", "an"])); group(p).map(TypeSet::Listed) },
             )?;
-            p.one_of(&["in addition to its other types", "in addition to its other land types", "in addition to their other types", "in addition to their other land types"])?;
+            p.one_of(&["in addition to its other types", "in addition to its other land types", "in addition to their other types", "in addition to their other land types", "in addition to its other creature types", "in addition to their other creature types"])?;
             // "… in addition to its other types and has "…"": a second
             // predicate of the same subject, which the predicate list reads.
             if p.peek_word() == Some("and") && matches!(p.t.get(p.i + 1), Some(Tok::Word(w)) if w == "has" || w == "have") {
@@ -1002,7 +1002,7 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             p.one_of(&["is", "are"])?;
             p.attempt(|p| p.one_of(&["a", "an"]));
             let types = group(p)?;
-            p.one_of(&["in addition to its other types", "in addition to their other types"])?;
+            p.one_of(&["in addition to its other types", "in addition to their other types", "in addition to its other creature types", "in addition to their other creature types"])?;
             Some(vec![Static::AlsoIs { what: what.clone(), types: TypeSet::Listed(types) }])
         },
         // "is an Insect artifact creature with base power and toughness 0/1",
@@ -1025,7 +1025,7 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
                 )?);
                 // "… with base power and toughness 0/2 in addition to its
                 // other types": the types are added, not replacing.
-                if p.attempt(|p| p.one_of(&["in addition to its other types", "in addition to their other types"])).is_some() {
+                if p.attempt(|p| p.one_of(&["in addition to its other types", "in addition to their other types", "in addition to its other creature types", "in addition to their other creature types"])).is_some() {
                     v[0] = Static::AlsoIs { what: what.clone(), types: TypeSet::Listed(types) };
                 }
             }

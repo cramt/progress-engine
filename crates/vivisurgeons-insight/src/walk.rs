@@ -151,6 +151,11 @@ impl Walk for Amount {
     fn walk(&mut self, v: &mut dyn Visitor) {
         v.amount(self);
         match self {
+            Amount::AnyOf(f0) => {
+                for x0 in (f0).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Amount::CountOf(f0) => {
                 Walk::walk(&mut **f0, v);
             }

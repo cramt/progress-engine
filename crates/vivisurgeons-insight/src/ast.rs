@@ -292,6 +292,9 @@ pub enum SpendUse {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Amount {
+    /// "with mana value 4, 5, or 6", "2 or 3": any one of the values, in a
+    /// comparison for equality.
+    AnyOf(Vec<Amount>),
     N(u32),
     X,
     ThatMany,

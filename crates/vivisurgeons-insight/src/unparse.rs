@@ -1366,6 +1366,22 @@ mod syn {
     /// land subtypes alone: a land given a land type in addition to its own
     /// keeps its land types (CR 305.7), and no land subtype touches a card
     /// type or supertype, so the rest it keeps either way (CR 205.1b).
+    /// "are Juggernauts in addition to their other types" and "… their
+    /// other creature types": setting a creature type in addition keeps the
+    /// creature types it had, and no creature subtype touches a card type,
+    /// supertype or other subtype (CR 205.1a, 205.1b).
+    pub fn other_creature_types(o: &mut Out) {
+        any_of(
+            o,
+            &[
+                "in addition to its other types",
+                "in addition to its other creature types",
+                "in addition to their other types",
+                "in addition to their other creature types",
+            ],
+        );
+    }
+
     pub fn other_land_types(o: &mut Out) {
         any_of(
             o,
@@ -2137,9 +2153,12 @@ fn pt_text(pt: &Pt) -> String {
 /// Amounts said before a noun: a number, X, "that many".
 fn is_measure(a: &Amount) -> bool {
     match a {
-        Amount::N(_) | Amount::X | Amount::ThatMany | Amount::Between(..) | Amount::AnyAmount => {
-            false
-        }
+        Amount::N(_)
+        | Amount::AnyOf(_)
+        | Amount::X
+        | Amount::ThatMany
+        | Amount::Between(..)
+        | Amount::AnyAmount => false,
         Amount::UpTo(a) | Amount::Twice(a) | Amount::Thrice(a) | Amount::Additional(a) => {
             is_measure(a)
         }
@@ -2158,6 +2177,17 @@ fn amount_num(a: &Amount) -> Num {
 
 fn amount(o: &mut Out, a: &Amount) {
     match a {
+        Amount::AnyOf(v) => {
+            for (i, x) in v.iter().enumerate() {
+                if i > 0 && v.len() > 2 {
+                    o.w(",");
+                }
+                if i + 1 == v.len() {
+                    o.w("or");
+                }
+                amount(o, x);
+            }
+        }
         Amount::N(n) => syn::number(o, *n),
         Amount::X => o.w("X"),
         Amount::ThatMany => syn::that_many(o),
@@ -2228,6 +2258,7 @@ fn stat_name(s: Stat) -> &'static str {
 fn measure(o: &mut Out, a: &Amount) {
     match a {
         Amount::N(_)
+        | Amount::AnyOf(_)
         | Amount::X
         | Amount::ThatMany
         | Amount::UpTo(_)
@@ -9426,8 +9457,11 @@ fn static_predicate(o: &mut Out, s: &Static) {
             type_set(o, types, n);
             let land_types = matches!(types, TypeSet::Listed(v) if v.iter().all(is_land_type))
                 || *types == TypeSet::EveryBasicLandType;
+            let creature_types = matches!(types, TypeSet::Listed(v) if v.iter().all(|a| matches!(a, Adj::Subtype(_)) && !is_land_type(a)));
             if land_types {
                 syn::other_land_types(o);
+            } else if creature_types {
+                syn::other_creature_types(o);
             } else {
                 o.w("in addition to");
                 syn::its(o);
