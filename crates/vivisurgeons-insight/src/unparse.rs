@@ -573,7 +573,7 @@ mod syn {
 
     /// "had counters on it", "had a counter on it", "had one or more
     /// counters on it": each holds if there was at least one ("one or
-    /// more" is `AtLeast(N(1))`, SEMANTICS).
+    /// more" is `AtLeast(N(1))`, SEMANTICS [one-or-more]).
     pub fn any_counters(o: &mut Out) {
         any_of(o, &["counters", "a counter", "one or more counters"]);
     }
@@ -818,7 +818,7 @@ mod syn {
     /// "When this creature dies, return it to its owner's hand", "~ has
     /// hexproof as long as it entered this turn": the card itself, said by
     /// its name or by a pronoun where the text refers back to it. The tree
-    /// holds which object the pronoun is (SEMANTICS, "Referents"); which
+    /// holds which object the pronoun is (SEMANTICS [referent-trigger]); which
     /// word says it is English.
     pub fn the_card(o: &mut Out, named: Out, pronoun: Out) {
         alt(o, vec![named, pronoun]);

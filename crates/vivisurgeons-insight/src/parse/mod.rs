@@ -874,7 +874,7 @@ fn refer_to_the_card(statics: &mut [Static]) {
             Static::AsLongAs { .. } | Static::If { .. } => {}
             // "This creature enters with a +1/+1 counter on it for each
             // color of mana spent to cast it": a static whose subject is the
-            // card says "it" for the card, as row 86's condition does.
+            // card says "it" for the card, as the condition in SEMANTICS [static-it-is-card] does.
             st => {
                 if is_card(&first(&mut |f: &mut First| st.walk(f))) {
                     st.walk(&mut Bare(Quant::SelfRef));
