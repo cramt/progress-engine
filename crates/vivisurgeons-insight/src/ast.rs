@@ -791,6 +791,11 @@ pub enum Post {
     WillCastThisTurn(Player),
     /// "with mana cost {0} or {1}".
     ManaCost(Vec<Mana>),
+    /// "a spell with {X} in its mana cost": one whose mana cost has the
+    /// symbol (CR 107.3), whatever X was chosen as.
+    XInManaCost,
+    /// "a spell that's one or more colors without {X} in its mana cost".
+    NoXInManaCost,
     AttackingPlayer(Player),
     /// "counter on ~".
     On(Box<Objects>),

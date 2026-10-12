@@ -3755,6 +3755,17 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         }
         Post::CastThisTurn(_) => o.w("you've cast this turn"),
         Post::WillCastThisTurn(_) => o.w("you cast this turn"),
+        Post::XInManaCost | Post::NoXInManaCost => {
+            o.w(if *q == Post::XInManaCost {
+                "with"
+            } else {
+                "without"
+            });
+            o.w("{X} in");
+            syn::its(o);
+            o.w("mana");
+            o.noun("cost", n);
+        }
         Post::ManaCost(v) => {
             o.w("with mana cost");
             for (i, m) in v.iter().enumerate() {

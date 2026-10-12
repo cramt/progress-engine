@@ -709,6 +709,16 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         },
         |p| p.words("you've cast this turn").map(|_| Post::CastThisTurn(Player::You)),
         |p| p.words("you cast this turn").map(|_| Post::WillCastThisTurn(Player::You)),
+        // "with {X} in its mana cost", "without {X} in their mana costs".
+        |p| {
+            let without = p.one_of(&["with", "without"])? == "without";
+            p.tok(&Tok::Sym("X".into()))?;
+            p.word("in")?;
+            p.one_of(&["its", "their"])?;
+            p.word("mana")?;
+            p.one_of(&["costs", "cost"])?;
+            Some(if without { Post::NoXInManaCost } else { Post::XInManaCost })
+        },
         |p| {
             p.words("with mana cost")?;
             let mut v = vec![mana(p)?];
