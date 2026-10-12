@@ -2095,4 +2095,44 @@ mod round_nine_d {
         let s = format!("{a:?}");
         assert!(s.contains("on: Objects { quant: Antecedent"), "{s}");
     }
+
+    /// Every bare "it" here is the card; none is `Antecedent`.
+    #[test]
+    fn it_after_the_card_is_named_anywhere_before_is_the_card() {
+        for (type_line, text) in [
+            ("Artifact", "At the beginning of your draw step, if this artifact is tapped, it deals 1 damage to you."),
+            ("Artifact Creature — Construct", "Remove a +1/+1 counter from this creature: It deals 1 damage to any target."),
+            ("Land", "Channel — {2}{W}, Discard this card: It deals 4 damage to target attacking or blocking creature."),
+            ("Land — Swamp Forest", "As this land enters, you may pay 2 life. If you don't, it enters tapped."),
+            ("Artifact", "If this artifact would enter, you may discard a land card instead. If you do, put this artifact onto the battlefield. If you don't, put it into its owner's graveyard."),
+            ("Artifact Creature — Turtle", "Whenever this creature or another artifact you control enters, put a +1/+1 counter on this creature. It can't be blocked this turn."),
+            ("Creature — Mouse", "Valiant — Whenever this creature becomes the target of a spell or ability you control for the first time each turn, put a +1/+1 counter on it."),
+            ("Creature — Elf", "This creature enters with a +1/+1 counter on it for each color of mana spent to cast it."),
+            ("Creature — Spirit", "As long as this creature has three or more +1/+1 counters on it, it can attack as though it didn't have defender."),
+        ] {
+            let s = format!("{:?}", read(type_line, text));
+            assert!(!s.contains("Antecedent"), "{text}\n{s}");
+        }
+        // The tokens created are what "them" is, not the card.
+        let s = format!(
+            "{:?}",
+            read(
+                "Enchantment — Aura",
+                "Enchanted creature has \"{T}: Create X 1/1 red Elemental creature tokens with haste, where X is this creature's power. Exile them at the beginning of the next end step.\""
+            )
+        );
+        assert!(s.contains("Exile(Objects { quant: Antecedent"), "{s}");
+        // "that spell" is the spell that targets, not the creature.
+        let s = format!(
+            "{:?}",
+            read(
+                "Creature — Spirit",
+                "Whenever this creature becomes the target of a spell, counter that spell."
+            )
+        );
+        assert!(
+            !s.contains("Counter { what: Objects { quant: SelfRef"),
+            "{s}"
+        );
+    }
 }

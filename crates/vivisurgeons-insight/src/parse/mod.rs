@@ -419,7 +419,7 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
             p.tok(&Tok::Colon)?;
             let effect = effects(p)?;
             let mut effect = effect;
-            refer_to_the_card_in(&mut effect);
+            refer_to_the_card_in(&[], &mut effect);
             finished(p).then_some(Ability::Loyalty { change, effect })
         },
         |p| {
@@ -480,7 +480,7 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
             };
             let limits = limits(p);
             let mut effect = effect;
-            refer_to_the_card_in(&mut effect);
+            refer_to_the_card_in(&cost, &mut effect);
             finished(p).then_some(Ability::Activated { cost, effect, limits })
         },
         // "This spell can't be countered" on an instant is a static, as it
@@ -671,7 +671,11 @@ fn event_object(e: &Event) -> Option<&Objects> {
 /// the Cleric that died, where nothing before it in the effect names an
 /// object to compare with.
 fn about_the_trigger(t: &Trigger, mut cond: Option<&mut Condition>, effect: &mut [Effect]) {
-    let Trigger::When(e) = t else { return };
+    // "At the beginning of your draw step, if this artifact is tapped, it
+    // deals 1 damage to you": no event object, but the card is named.
+    let Trigger::When(e) = t else {
+        return refer(None, false, cond, effect);
+    };
     let Some(subject) = event_object(e) else {
         refer_to_the_trigger(e, cond, effect);
         return;
@@ -763,6 +767,11 @@ fn trigger_object(e: &Event) -> Option<Objects> {
         | Event::BecomesLevel { what, .. }
         | Event::AttacksWith { what, .. }
         | Event::AttacksAlone(what)
+        // "Whenever this creature becomes the target of a spell or ability
+        // you control …, put a +1/+1 counter on it": the spell is said
+        // only to say what targets it; a reference back to the spell names
+        // it as one.
+        | Event::BecomesTarget { what, .. }
         | Event::TransformsInto { what, .. }
         | Event::Cycles {
             what: Some(what), ..
@@ -816,9 +825,63 @@ fn refer_to_the_card(statics: &mut [Static]) {
     let is_card = |o: &Option<Objects>| o.as_ref().is_some_and(|o| o.quant == Quant::SelfRef);
     let is_it = |o: &Option<Objects>| o.as_ref().is_some_and(|o| *o == antecedent());
     for st in statics {
+        match st {
+            // "As this land enters, you may pay 2 life. If you don't, it
+            // enters tapped."
+            Static::AsEnters { what, then } if what.quant == Quant::SelfRef => {
+                refer_after_the_card(then);
+                continue;
+            }
+            // Mox Diamond: "If this artifact would enter, you may discard a
+            // land card instead. If you do, put this artifact onto the
+            // battlefield. If you don't, put it into its owner's graveyard."
+            Static::Replacement { event, instead }
+                if event_object(event).is_some_and(|o| o.quant == Quant::SelfRef) =>
+            {
+                refer_after_the_card(instead);
+                continue;
+            }
+            Static::AsLongAs { .. } | Static::If { .. } => {}
+            // "This creature enters with a +1/+1 counter on it for each
+            // color of mana spent to cast it": a static whose subject is the
+            // card says "it" for the card, as row 86's condition does.
+            st => {
+                if is_card(&first(&mut |f: &mut First| st.walk(f))) {
+                    st.walk(&mut Bare(Quant::SelfRef));
+                }
+                continue;
+            }
+        }
         let (Static::AsLongAs { cond, then } | Static::If { cond, then }) = st else {
             continue;
         };
+        // "As long as this creature has three or more +1/+1 counters on it,
+        // it has flying": the condition names only the card, the counters
+        // being on it.
+        struct OnlyCard(bool, bool);
+        impl Visitor for OnlyCard {
+            fn enter(&mut self, o: &mut Objects) -> bool {
+                match (&o.quant, &o.filter.kind) {
+                    (Quant::SelfRef, _) => self.0 = true,
+                    (_, Some(Noun::Counter(_))) => {}
+                    _ => self.1 = true,
+                }
+                true
+            }
+        }
+        let mut only = OnlyCard(false, false);
+        cond.walk(&mut only);
+        if only.0
+            && !only.1
+            && then
+                .iter_mut()
+                .any(|t| is_it(&first(&mut |f: &mut First| t.walk(f))))
+        {
+            for t in then.iter_mut() {
+                t.walk(&mut FirstBare(false));
+            }
+            continue;
+        }
         let subjects: Vec<Option<Objects>> = then
             .iter_mut()
             .map(|t| first(&mut |f: &mut First| t.walk(f)))
@@ -886,20 +949,57 @@ impl Visitor for BeforeEach {
 /// counter on this creature and it can't be blocked"). Once another object
 /// is named, "it" may be that one, and stays a plain back-reference.
 fn refer_to_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut [Effect]) {
-    if let Some(object) = trigger_object(e) {
-        refer(Some(&object), cond, effect);
-    }
+    // "Whenever this creature or another artifact you control enters, put a
+    // +1/+1 counter on this creature. It can't be blocked this turn": with
+    // no one object, the card half of the rule still holds.
+    let object = trigger_object(e);
+    refer(object.as_ref(), false, cond, effect);
 }
 
 /// "{S}{S}{S}: If this creature is a Warrior, put a flying counter on it and
 /// it becomes …": in an ability with no trigger, a bare "it" after the card
 /// is named in a finished clause is the card, by the same rule as in a
-/// trigger; nothing else changes.
-pub(super) fn refer_to_the_card_in(effect: &mut [Effect]) {
-    refer(None, None, effect);
+/// trigger; nothing else changes. "Remove a +1/+1 counter from this
+/// creature: It deals 1 damage to any target": a cost that names the card
+/// and nothing else has named it before the effect.
+pub(super) fn refer_to_the_card_in(cost: &[Cost], effect: &mut [Effect]) {
+    struct Named {
+        card: bool,
+        other: bool,
+    }
+    impl Visitor for Named {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            if o.quant == Quant::SelfRef {
+                self.card = true;
+            } else {
+                self.other = true;
+            }
+            false
+        }
+    }
+    let mut named = Named {
+        card: false,
+        other: false,
+    };
+    for c in cost {
+        c.clone().walk(&mut named);
+    }
+    refer(None, named.card && !named.other, None, effect);
 }
 
-fn refer(object: Option<&Objects>, cond: Option<&mut Condition>, effect: &mut [Effect]) {
+/// The card half of the rule over an effect a static says of the card:
+/// "As this land enters, you may pay 2 life. If you don't, it enters
+/// tapped", Mox Diamond's "If this artifact would enter, …".
+fn refer_after_the_card(effect: &mut [Effect]) {
+    refer(None, true, None, effect);
+}
+
+fn refer(
+    object: Option<&Objects>,
+    card_named: bool,
+    cond: Option<&mut Condition>,
+    effect: &mut [Effect],
+) {
     struct Refer {
         to: Quant,
         /// What the event's object was said to be.
@@ -922,6 +1022,16 @@ fn refer(object: Option<&Objects>, cond: Option<&mut Condition>, effect: &mut [E
         /// before its loop's noun: a reference said before a trailing "for
         /// each" is read against that.
         loops: Vec<(bool, bool)>,
+        /// How deep in effects the walk is: 0 between two of the list.
+        depth: u32,
+        /// Whether the effect of the list being read has named the card,
+        /// and anything else.
+        named: (bool, bool),
+        /// The effect before named the card and nothing else: "If you do,
+        /// put this artifact onto the battlefield. If you don't, put it into
+        /// its owner's graveyard". A bare "it" is the card until another
+        /// object is named.
+        after_card: bool,
     }
     impl Visitor for Refer {
         fn enter(&mut self, o: &mut Objects) -> bool {
@@ -959,6 +1069,15 @@ fn refer(object: Option<&Objects>, cond: Option<&mut Condition>, effect: &mut [E
                     .all(|a| !matches!(a, Adj::Subtype(_)));
             let other_type =
                 only_types && !theirs.is_empty() && types(f).iter().any(|t| !theirs.contains(t));
+            // "that spell" when the event's object was a permanent.
+            let spellish = |k: &Option<Noun>| {
+                matches!(k, Some(Noun::Spell | Noun::Ability | Noun::SpellOrAbility))
+            };
+            let other_type = other_type || (spellish(&f.kind) && f.kind != self.object.kind);
+            if referable && self.after_card && !before_each && *f == Filter::default() {
+                o.quant = Quant::SelfRef;
+                return true;
+            }
             if referable && !seen_new && !other_type {
                 o.quant = if seen_self && *f == Filter::default() {
                     Quant::SelfRef
@@ -978,6 +1097,12 @@ fn refer(object: Option<&Objects>, cond: Option<&mut Condition>, effect: &mut [E
             // an indefinite in a condition says one exists, and is nothing
             // a later "it" refers back to.
             let indefinite = matches!(o.quant, Quant::One | Quant::Another | Quant::Plural);
+            if o.quant == Quant::SelfRef {
+                self.named.0 = true;
+            } else {
+                self.named.1 = true;
+                self.after_card = false;
+            }
             match o.quant {
                 Quant::SelfRef => self.self_pending = true,
                 Quant::Triggering => {}
@@ -997,6 +1122,11 @@ fn refer(object: Option<&Objects>, cond: Option<&mut Condition>, effect: &mut [E
         fn effect(&mut self, e: &mut Effect) {
             // A clause starting ends the one before it, as "If this
             // enchantment isn't a creature, it becomes …" ends its "if".
+            if self.depth == 0 {
+                self.after_card = self.named == (true, false);
+                self.named = (false, false);
+            }
+            self.depth += 1;
             self.seen_self |= self.self_pending;
             if matches!(e, Effect::ForEach { .. }) {
                 self.loops.push((self.seen_new, self.seen_self));
@@ -1043,6 +1173,7 @@ fn refer(object: Option<&Objects>, cond: Option<&mut Condition>, effect: &mut [E
         // "reveal the top card of your library. If it's a creature card":
         // effects that bring in an object they name in no `Objects`.
         fn effect_done(&mut self, e: &mut Effect) {
+            self.depth -= 1;
             if matches!(e, Effect::ForEach { .. }) {
                 self.loops.pop();
             }
@@ -1077,6 +1208,10 @@ fn refer(object: Option<&Objects>, cond: Option<&mut Condition>, effect: &mut [E
                     | Effect::DigUntilTotal { .. }
             ) {
                 self.seen_new = true;
+                // "Create X tokens …. Exile them": the effect named more
+                // than the card.
+                self.named.1 = true;
+                self.after_card = false;
             }
         }
     }
@@ -1088,13 +1223,16 @@ fn refer(object: Option<&Objects>, cond: Option<&mut Condition>, effect: &mut [E
             // No trigger: a first reference back stays one.
             None => Quant::Antecedent,
         },
-        seen_self: false,
+        seen_self: card_named,
         self_pending: false,
         seen_new: false,
         damage_source: None,
         drew: false,
         in_cond: 0,
         loops: Vec::new(),
+        depth: 0,
+        named: (false, false),
+        after_card: false,
     };
     if let Some(c) = cond {
         c.walk(&mut v);
