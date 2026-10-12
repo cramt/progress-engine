@@ -532,6 +532,10 @@ pub enum Quant {
     /// or `SelfRef` instead ("it gets +1/+0 … for each other attacking
     /// creature").
     BeforeEach,
+    /// "its" in a comparison an object is tested by: "creatures you
+    /// control each with power greater than its base power" compares each
+    /// creature with its own base power.
+    Itself,
     /// "Put both cards onto the battlefield": the two objects the clauses
     /// before it named, one each (Sword of Hearth and Home's exiled
     /// creature card and the land card found), where "them" is one plural.

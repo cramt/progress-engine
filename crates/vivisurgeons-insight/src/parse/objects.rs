@@ -611,7 +611,7 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| { let pl = player_simple(p)?; p.one_of(&["controls", "control"])?; Some(Post::Controller(pl)) },
         |p| { let pl = player_simple(p)?; p.one_of(&["doesn't control", "don't control"])?; Some(Post::NotControlledBy(pl)) },
         |p| { p.words("with total")?; compare(p).map(Post::Total) },
-        |p| { p.word("with")?; compare(p).map(Post::With) },
+        |p| { p.word("with")?; compare(p).map(itself).map(Post::With) },
         |p| {
             p.word("with")?;
             p.one_of(&["a", "one or more"])?;
@@ -860,7 +860,7 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         },
         // "creatures you control each with power greater than its base power":
         // "each" says the post holds of every one, as it would anyway.
-        |p| { p.words("each with")?; compare(p).map(Post::With) },
+        |p| { p.words("each with")?; compare(p).map(itself).map(Post::With) },
         |p| { let pl = player_simple(p)?; p.one_of(&["casts", "cast"])?; Some(Post::Cast(pl)) },
     )
 }
@@ -1314,4 +1314,20 @@ fn objects_read(p: &mut P) -> Option<Objects> {
 
 pub fn objects(p: &mut P) -> Option<Objects> {
     objects_no_player(p)
+}
+
+/// "with power greater than its base power", "each with toughness greater
+/// than its power": the possessive in the comparison a filter tests an
+/// object by is that object's own.
+fn itself(mut c: Compare) -> Compare {
+    if let Amount::PowerOf(o)
+    | Amount::ToughnessOf(o)
+    | Amount::ManaValueOf(o)
+    | Amount::BasePowerOf(o) = &mut c.value
+    {
+        if **o == antecedent() {
+            o.quant = Quant::Itself;
+        }
+    }
+    c
 }

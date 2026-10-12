@@ -3732,7 +3732,7 @@ type: Legendary Creature — Cat Warrior
 > Your opponents can't cast spells during your turn.
 > Whenever one or more creatures you control each with power greater than its base power deals combat damage to a player, draw a card.
 = Static([AsLongAs { cond: ItsYourTurn, then: [PlayerRestrict { who: EachOpponent, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }] }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Gt, value: BasePowerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }) })], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Gt, value: BasePowerOf(Objects { quant: Itself, filter: Filter { alts: [], kind: None, posts: [], or: None } }) })], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Laboratory Maniac
 face: Laboratory Maniac
