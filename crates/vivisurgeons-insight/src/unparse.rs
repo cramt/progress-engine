@@ -773,6 +773,14 @@ mod syn {
         any_of(o, &["that", "those", "the"]);
     }
 
+    /// "that creature's controller sacrifices it": an object said a second
+    /// time in one clause is said by pronoun, English naming a noun once
+    /// per clause. The tree holds both as the same object, so the pronoun
+    /// can be nothing else (Animate Dead's delayed trigger).
+    pub fn again_it(o: &mut Out, named: Out) {
+        alt(o, vec![of("it"), of("them"), named]);
+    }
+
     /// "~", "he", "him": a character card is "he" or "she" in its own
     /// text, and Oracle text gives a gendered pronoun to nothing else.
     pub fn self_named(o: &mut Out) {
@@ -4921,7 +4929,15 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
         }
         Effect::Sacrifice { who, what } => {
             subj(o, who, "sacrifice", cx);
-            objects(o, what);
+            match who {
+                Player::ControllerOf(x) | Player::OwnerOf(x)
+                    if **x == *what && x.quant == Quant::Antecedent =>
+                {
+                    let named = out(|o| objects(o, what));
+                    syn::again_it(o, named);
+                }
+                _ => objects(o, what),
+            }
         }
         Effect::Fight { a, b } => {
             if cx.modal {

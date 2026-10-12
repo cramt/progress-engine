@@ -1537,6 +1537,47 @@ impl Visitor for MaySubject {
     }
 }
 
+/// Animate Dead: "When this Aura leaves the battlefield, that creature's
+/// controller sacrifices it". A delayed trigger refers to the particular
+/// object the ability that made it named (CR 603.7c), and its own event's
+/// object is no referent of a reference made inside the clause: "it" after
+/// "that creature" in one clause is that creature, the returned one, not
+/// the Aura whose leaving is the event. The tree says it as the same
+/// object as the subject's, typed, so no resolver can take the Aura.
+struct DelayedSameClause;
+
+impl Visitor for DelayedSameClause {
+    fn enter(&mut self, _: &mut Objects) -> bool {
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        true
+    }
+    fn effect(&mut self, e: &mut Effect) {
+        let (Effect::DelayedWhen { event, then }
+        | Effect::DelayedWhenever { event, then }
+        | Effect::DelayedNext { event, then, .. }) = e
+        else {
+            return;
+        };
+        let Some(own) = trigger_object(event) else {
+            return;
+        };
+        for t in then.iter_mut() {
+            if let Effect::Sacrifice {
+                who: Player::ControllerOf(x) | Player::OwnerOf(x),
+                what,
+            } = t
+            {
+                let typed = x.quant == Quant::Antecedent && x.filter != Filter::default();
+                if typed && *what == antecedent() && x.filter != own.filter {
+                    *what = (**x).clone();
+                }
+            }
+        }
+    }
+}
+
 /// A whole ability line, which must be consumed to the last token.
 pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
     let mut p = P::new(toks);
@@ -1546,6 +1587,7 @@ pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
             a.walk(&mut OtherThanTheSource);
             a.walk(&mut FromEachLibrary);
             a.walk(&mut MaySubject);
+            a.walk(&mut DelayedSameClause);
             Ok(a)
         }
         _ => Err(p.furthest),
