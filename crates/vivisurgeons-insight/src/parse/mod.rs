@@ -1980,6 +1980,66 @@ impl Visitor for EachItself {
     }
 }
 
+/// Corrosion: "put a rust counter on each artifact target opponent
+/// controls. Then destroy each artifact with mana value less than or equal
+/// to the number of rust counters on it": where the ability puts that kind
+/// of counter on other objects, "on it" in a filter's comparison is the
+/// object tested, each in turn ([itself-in-with]). Sphere of Annihilation's
+/// void counters, which the card itself holds, stay a reference back.
+struct CountersOnItself(Vec<String>);
+
+impl Visitor for CountersOnItself {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        for q in o.filter.posts.iter_mut() {
+            let Post::With(c) = q else { continue };
+            let Amount::CountOf(n) = &mut c.value else {
+                continue;
+            };
+            let Some(Noun::Counter(Some(k))) = &n.filter.kind else {
+                continue;
+            };
+            if !self.0.contains(k) {
+                continue;
+            }
+            for q in n.filter.posts.iter_mut() {
+                if let Post::On(x) = q {
+                    if **x == antecedent() {
+                        x.quant = Quant::Itself;
+                    }
+                }
+            }
+        }
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        true
+    }
+}
+
+fn counters_on_itself(a: &mut Ability) {
+    struct Kinds(Vec<String>);
+    impl Visitor for Kinds {
+        fn enter(&mut self, _: &mut Objects) -> bool {
+            true
+        }
+        fn ability(&mut self, _: &mut Ability) -> bool {
+            true
+        }
+        fn effect(&mut self, e: &mut Effect) {
+            if let Effect::PutCounters { kind, on, .. } = e {
+                if on.quant != Quant::SelfRef {
+                    self.0.push(kind.clone());
+                }
+            }
+        }
+    }
+    let mut kinds = Kinds(Vec::new());
+    a.walk(&mut kinds);
+    if !kinds.0.is_empty() {
+        a.walk(&mut CountersOnItself(kinds.0));
+    }
+}
+
 /// A whole ability line, which must be consumed to the last token.
 pub fn parse_line(toks: &[Tok], spell: bool, continues: bool) -> Result<Ability, usize> {
     let mut p = P::new(toks);
@@ -1995,6 +2055,7 @@ pub fn parse_line(toks: &[Tok], spell: bool, continues: bool) -> Result<Ability,
             a.walk(&mut CreatedTokens::new());
             a.walk(&mut FromRevealedHand(None));
             a.walk(&mut EachItself);
+            counters_on_itself(&mut a);
             Ok(a)
         }
         _ => Err(p.furthest),
