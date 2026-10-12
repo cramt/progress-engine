@@ -1741,6 +1741,38 @@ impl Visitor for CreatedTokens {
     }
 }
 
+/// Deceit: "Target opponent reveals their hand. You choose a nonland card
+/// from it": "it" is the hand just revealed, which no `Objects` names, so
+/// a reference back would point at whatever object came before (Deceit's
+/// creature). After a player reveals or is looked at their hand, "from it"
+/// is that player's hand.
+struct FromRevealedHand(Option<Player>);
+
+impl Visitor for FromRevealedHand {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        if let Some(who) = &self.0 {
+            for q in o.filter.posts.iter_mut() {
+                if matches!(q, Post::From(x) if **x == antecedent()) {
+                    *q = Post::FromHand(who.clone());
+                }
+            }
+        }
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        true
+    }
+    fn effect_done(&mut self, e: &mut Effect) {
+        match e {
+            Effect::RevealHand(who) | Effect::LookAtHand { whose: who, .. } => {
+                self.0 = Some(who.clone());
+            }
+            Effect::Modal { .. } => self.0 = None,
+            _ => {}
+        }
+    }
+}
+
 /// A whole ability line, which must be consumed to the last token.
 pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
     let mut p = P::new(toks);
@@ -1752,6 +1784,7 @@ pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
             a.walk(&mut MaySubject);
             a.walk(&mut DelayedSameClause);
             a.walk(&mut CreatedTokens::new());
+            a.walk(&mut FromRevealedHand(None));
             Ok(a)
         }
         _ => Err(p.furthest),

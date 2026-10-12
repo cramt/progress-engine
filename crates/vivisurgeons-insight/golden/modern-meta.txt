@@ -1313,7 +1313,7 @@ type: Sorcery
 > Choose one —
 > • Target opponent reveals their hand. You may choose a creature, enchantment, or planeswalker card from it. That player discards that card.
 > • Target opponent sacrifices an enchantment of their choice.
-= Spell([Modal { choose: One, modes: [[RevealHand(TargetOpponent), May { who: You, then: [Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("enchantment")], [Type("planeswalker")]], kind: Some(Card), posts: [From(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }))] }, Discard { who: That, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], [Sacrifice { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [ChosenBy(That)], or: None } } }]] }])
+= Spell([Modal { choose: One, modes: [[RevealHand(TargetOpponent), May { who: You, then: [Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("enchantment")], [Type("planeswalker")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } }))] }, Discard { who: That, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], [Sacrifice { who: TargetOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [ChosenBy(That)], or: None } } }]] }])
 
 ## Fable of the Mirror-Breaker // Reflection of Kiki-Jiki
 face: Fable of the Mirror-Breaker
@@ -2008,7 +2008,7 @@ type: Land
 face: Inquisition of Kozilek
 type: Sorcery
 > Target player reveals their hand. You choose a nonland card from it with mana value 3 or less. That player discards that card.
-= Spell([RevealHand(Target), Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [From(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), With(Compare { stat: ManaValue, op: Le, value: N(3) })], or: None } })), Discard { who: That, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
+= Spell([RevealHand(Target), Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(Target), With(Compare { stat: ManaValue, op: Le, value: N(3) })], or: None } })), Discard { who: That, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])
 
 ## Inspiring Vantage
 face: Inspiring Vantage
@@ -4162,14 +4162,14 @@ type: Creature — Eldrazi
 > ({C} represents colorless mana.)
 > When this creature enters, target opponent reveals their hand. You choose a nonland card from it and exile that card.
 > When this creature leaves the battlefield, target opponent draws a card.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [RevealHand(TargetOpponent), Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [From(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } })), Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [RevealHand(TargetOpponent), Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } })), Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], limits: [] }
 = Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [Draw { who: TargetOpponent, n: N(1) }], limits: [] }
 
 ## Thoughtseize
 face: Thoughtseize
 type: Sorcery
 > Target player reveals their hand. You choose a nonland card from it. That player discards that card. You lose 2 life.
-= Spell([RevealHand(Target), Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [From(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } })), Discard { who: That, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: You, n: N(2) }])
+= Spell([RevealHand(Target), Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Card), posts: [FromHand(Target)], or: None } })), Discard { who: That, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, LoseLife { who: You, n: N(2) }])
 
 ## Thraben Charm
 face: Thraben Charm

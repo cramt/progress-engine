@@ -1986,6 +1986,9 @@ impl Walk for Post {
             Post::From(f0) => {
                 Walk::walk(&mut **f0, v);
             }
+            Post::FromHand(f0) => {
+                Walk::walk(f0, v);
+            }
             Post::GreatestAmong { among, .. } => {
                 Walk::walk(&mut **among, v);
             }

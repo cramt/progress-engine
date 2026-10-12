@@ -3668,6 +3668,7 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.w("from");
             objects(o, x);
         }
+        Post::FromHand(_) => o.w("from it"),
         Post::GreatestAmong { stat, among } => {
             o.w("with the greatest");
             o.w(stat_name(*stat));

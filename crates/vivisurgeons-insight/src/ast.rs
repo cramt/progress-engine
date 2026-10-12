@@ -820,6 +820,11 @@ pub enum Post {
     DiedThisTurn,
     /// "a nonland card from it": from the hand or pile an earlier verb named.
     From(Box<Objects>),
+    /// "Target opponent reveals their hand. You choose a nonland card from
+    /// it": that player's hand, which the sentence before revealed or
+    /// looked at, said by pronoun. A hand is in no `Objects`, so `From` a
+    /// reference back would point at an object named before it.
+    FromHand(Player),
     /// "with the greatest mana value among creatures and planeswalkers they
     /// control": greatest within those, not on the battlefield.
     GreatestAmong {
