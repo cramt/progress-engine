@@ -7408,6 +7408,15 @@ fn life(o: &mut Out, n: &Amount) {
             return;
         }
     }
+    // "you gain that much life plus 1".
+    if let Amount::Plus(a, k) = n {
+        if **a == Amount::ThatMany {
+            amount(o, a);
+            o.w("life plus");
+            syn::number(o, *k);
+            return;
+        }
+    }
     if is_measure(n) {
         o.w("life equal to");
         measure(o, n);

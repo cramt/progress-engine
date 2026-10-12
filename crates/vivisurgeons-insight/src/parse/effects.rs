@@ -1126,6 +1126,9 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                     p.word("life")?;
                     Some(Amount::Half { of: Box::new(of), round_up: rounded(p)? })
                 },
+                // "you gain that much life plus 1 instead": the number added
+                // after the noun.
+                |p| { p.words("that much life plus")?; let k = number(p)?; Some(Amount::Plus(Box::new(Amount::ThatMany), k)) },
                 |p| { let n = amount(p)?; p.word("life")?; Some(n) },
                 |p| { p.words("life equal to")?; measure(p) },
             )?;
