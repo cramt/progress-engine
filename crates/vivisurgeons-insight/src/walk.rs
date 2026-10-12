@@ -1946,6 +1946,9 @@ impl Walk for Post {
             Post::ThatIs(f0) => {
                 Walk::walk(f0, v);
             }
+            Post::AttachedTo(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             Post::Not(f0) => {
                 Walk::walk(&mut **f0, v);
             }

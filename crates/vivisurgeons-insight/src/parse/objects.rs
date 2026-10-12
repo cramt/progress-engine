@@ -709,6 +709,18 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| p.words("of that color").map(|_| Post::OfThatColor),
         |p| p.words("attached to it").map(|_| Post::AttachedToIt),
         |p| {
+            p.one_of(&["that's attached to", "that are attached to"])?;
+            objects(p).map(|o| Post::AttachedTo(Box::new(o)))
+        },
+        // "creatures that aren't enchanted": not in that state.
+        |p| {
+            p.one_of(&["that aren't", "that isn't"])?;
+            let s = p.peek_word().and_then(state_word).filter(|s| matches!(s, State::Enchanted | State::Equipped | State::Tapped | State::Untapped))?;
+            p.bump();
+            let f = Filter { alts: vec![vec![Adj::State(s)]], ..Filter::default() };
+            Some(Post::Not(Box::new(Post::ThatIs(f))))
+        },
+        |p| {
             // "that shares at least one creature type with it" says the same.
             p.one_of(&["that shares a", "that share a", "that shares at least one", "that share at least one"])?;
             // "a card type": any one of them.
@@ -1386,6 +1398,17 @@ fn objects_read(p: &mut P) -> Option<Objects> {
             let of = whose_pronoun(p)?;
             let n = ["first", "second", "third"].iter().position(|w| p.word(w).is_some())? as u32 + 1;
             let filter = filter(p)?;
+            p.words("each turn")?;
+            Some(Objects { quant: Quant::NthEachTurn { n, of }, filter })
+        },
+        // "the first creature spell you cast each turn": the same spell.
+        |p| {
+            p.word("the")?;
+            let n = ["first", "second", "third"].iter().position(|w| p.word(w).is_some())? as u32 + 1;
+            let mut filter = filter(p)?;
+            if filter.kind != Some(Noun::Spell) { return None; }
+            let Some(Post::Cast(of)) = filter.posts.first().cloned() else { return None };
+            filter.posts.remove(0);
             p.words("each turn")?;
             Some(Objects { quant: Quant::NthEachTurn { n, of }, filter })
         },

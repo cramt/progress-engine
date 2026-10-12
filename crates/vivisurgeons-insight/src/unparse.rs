@@ -455,6 +455,13 @@ mod syn {
         alt(o, vec![of("equal to"), Out::default()]);
     }
 
+    /// "your first creature spell each turn" and "the first creature spell
+    /// you cast each turn": the spell is the one you cast, said by the
+    /// possessive or by "you cast".
+    pub fn nth_spell(o: &mut Out, yours: Out, cast: Out) {
+        alt(o, vec![yours, cast]);
+    }
+
     pub fn different_values(o: &mut Out, s: Stat) {
         let plural = match s {
             Stat::Power => "powers",
@@ -3167,10 +3174,27 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             filter(o, f, n);
         }
         Quant::NthEachTurn { n: k, of } => {
-            whose(o, of);
-            o.w(["first", "second", "third"][*k as usize - 1]);
-            filter(o, f, Num::Sg);
-            o.w("each turn");
+            let nth = ["first", "second", "third"][*k as usize - 1];
+            let yours = out(|o| {
+                whose(o, of);
+                o.w(nth);
+                filter(o, f, Num::Sg);
+                o.w("each turn");
+            });
+            // "the first creature spell you cast each turn".
+            let cast = out(|o| {
+                o.w("the");
+                o.w(nth);
+                let mut g = f.clone();
+                g.posts.insert(0, Post::Cast(of.clone()));
+                filter(o, &g, Num::Sg);
+                o.w("each turn");
+            });
+            if f.kind == Some(Noun::Spell) {
+                syn::nth_spell(o, yours, cast);
+            } else {
+                o.add(yours);
+            }
         }
 
         Quant::NthOfGame { n: k, of } => {
@@ -3655,10 +3679,25 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.w("blocking");
         }
         Post::AttachedToIt => o.w("attached to it"),
+        Post::AttachedTo(x) => {
+            that_is(o, n);
+            o.w("attached to");
+            objects(o, x);
+        }
         Post::OfChosenType => o.w("of the chosen type"),
         Post::OfChosenColor => o.w("of the chosen color"),
         Post::OfThatType => o.w("of that type"),
         Post::OfThatColor => o.w("of that color"),
+        Post::Not(q) if matches!(&**q, Post::ThatIs(_)) => {
+            o.w(if n == Num::Sg {
+                "that isn't"
+            } else {
+                "that aren't"
+            });
+            if let Post::ThatIs(f) = &**q {
+                filter(o, f, n);
+            }
+        }
         Post::Not(q) => {
             o.w(if n == Num::Sg {
                 "that isn't"

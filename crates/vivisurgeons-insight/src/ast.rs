@@ -746,6 +746,9 @@ pub enum Post {
     Attacking,
     Blocking,
     AttachedToIt,
+    /// "each Aura you control that's attached to a creature": attached to
+    /// one of those objects.
+    AttachedTo(Box<Objects>),
     /// "of the chosen type", "of that type".
     OfChosenType,
     /// "of the chosen color", "of that color".
