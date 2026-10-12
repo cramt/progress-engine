@@ -2566,6 +2566,7 @@ fn measure(o: &mut Out, a: &Amount) {
             o.w("paid this way");
         }
         Amount::ThatNumber => o.w("that number"),
+        Amount::TheDifference => o.w("the difference"),
         Amount::Minus(a, b) => {
             measure(o, a);
             o.w("minus");
@@ -9042,6 +9043,22 @@ fn condition(o: &mut Out, c: &Condition) {
                 }
                 Holding::CardsInGraveyard => o.w("or fewer cards in their graveyard"),
                 Holding::Opponents => o.w("or fewer opponents"),
+            }
+        }
+        Condition::PlayerHasFewerThan { who, n, what } => {
+            player(o, who);
+            o.verb("have", player_num(who));
+            o.w("fewer than");
+            syn::number(o, *n);
+            match what {
+                Holding::Life => o.w("life"),
+                Holding::CardsInHand => {
+                    o.w("cards in");
+                    syn::own(o, who);
+                    o.w("hand");
+                }
+                Holding::CardsInGraveyard => o.w("cards in their graveyard"),
+                Holding::Opponents => o.w("opponents"),
             }
         }
         Condition::Has { what, cmp } => {

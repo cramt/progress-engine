@@ -220,6 +220,15 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             let what = holding(p)?;
             Some(Condition::PlayerHasAtMost { who, at_most, what })
         },
+        // "if you have fewer than seven cards in hand".
+        |p| {
+            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+            p.one_of(&["have", "has"])?;
+            p.words("fewer than")?;
+            let n = number(p)?;
+            let what = holding(p)?;
+            Some(Condition::PlayerHasFewerThan { who, n, what })
+        },
         // "an opponent has more life than you".
         |p| {
             let who = player_simple(p)?;

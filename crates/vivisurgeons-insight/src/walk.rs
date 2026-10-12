@@ -420,6 +420,9 @@ impl Walk for Condition {
             Condition::PlayerHasAtMost { who, .. } => {
                 Walk::walk(who, v);
             }
+            Condition::PlayerHasFewerThan { who, .. } => {
+                Walk::walk(who, v);
+            }
             Condition::Has { what, cmp } => {
                 Walk::walk(what, v);
                 Walk::walk(cmp, v);

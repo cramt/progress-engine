@@ -390,6 +390,10 @@ pub enum Amount {
     EnergyPaidThisWay,
     /// "that number plus 1": the number the sentence just named.
     ThatNumber,
+    /// "if you have fewer than seven cards in hand, draw cards equal to the
+    /// difference": how far apart the two sides of the comparison the
+    /// condition before it tested are ([the-difference]).
+    TheDifference,
     /// "three minus X", "that many minus one".
     Minus(Box<Amount>, Box<Amount>),
     /// "for every seven cards in your graveyard": the count, divided by n
@@ -2864,6 +2868,14 @@ pub enum Condition {
     PlayerHasAtMost {
         who: Player,
         at_most: u32,
+        what: Holding,
+    },
+    /// "you have fewer than seven cards in hand": strictly fewer, kept
+    /// apart from "six or fewer" because "the difference" after it is
+    /// counted from the number said ([the-difference]).
+    PlayerHasFewerThan {
+        who: Player,
+        n: u32,
         what: Holding,
     },
     /// "it has mana value 2 or less".
