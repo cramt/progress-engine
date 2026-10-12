@@ -723,6 +723,9 @@ impl Walk for Effect {
                 Walk::walk(a, v);
                 Walk::walk(b, v);
             }
+            Effect::FightEachOther(f0) => {
+                Walk::walk(f0, v);
+            }
             Effect::Shuffle(f0) => {
                 Walk::walk(f0, v);
             }

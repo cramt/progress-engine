@@ -176,7 +176,8 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
         |p| {
             p.word("destroy")?;
             let v = object_list(p)?;
-            Some(v.into_iter().map(|what| Effect::Destroy { what, no_regen: false }).collect())
+            let no_regen = cant_be_regenerated(p, &v);
+            Some(v.into_iter().map(|what| Effect::Destroy { what, no_regen }).collect())
         },
         |p| { p.word("exile")?; object_list(p).map(|v| v.into_iter().map(Effect::Exile).collect()) },
         // "create a Food token and a Treasure token": two tokens, one verb.
@@ -829,6 +830,8 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
         }
         Some(c)
     }) {
+        let mut more = more;
+        listed(&v, &mut more);
         v.extend(more);
     }
     spend_with_play(&mut v);
@@ -1008,9 +1011,10 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
                 continue;
             }
         }
+        let mut s = s;
+        listed(&v, &mut s);
         // "Tyvar gains indestructible until end of turn. Tap it.": the only
         // object the sentence before names is the card itself, so "it" is.
-        let mut s = s;
         if let (Some(prev), Some(first)) = (v.last(), s.first_mut()) {
             if let (Some(me), Some(it)) = (prev.sole_object(), first.sole_object_mut()) {
                 if me.quant == Quant::SelfRef && *it == antecedent() {
@@ -1424,4 +1428,50 @@ fn last_token(e: &mut [Effect]) -> Option<&mut Token> {
         }
         _ => None,
     }
+}
+
+/// "Exile up to one target artifact you control and up to one target
+/// creature you control. Then return them", Rohgahh's "tap ~ and all
+/// creatures named Kobolds of Kher Keep, then an opponent gains control of
+/// them": after a verb said once for two or more objects, the references
+/// back that open the next clause are all of them ([listed-objects]).
+fn listed(before: &[Effect], after: &mut [Effect]) {
+    let verb = |e: &Effect| match e {
+        Effect::Destroy { .. } => Some(0),
+        Effect::Exile(_) => Some(1),
+        Effect::Tap(_) => Some(2),
+        Effect::Untap(_) => Some(3),
+        _ => None,
+    };
+    let Some(last) = before.last().and_then(verb) else {
+        return;
+    };
+    if before
+        .iter()
+        .rev()
+        .take_while(|e| verb(e) == Some(last))
+        .count()
+        < 2
+    {
+        return;
+    }
+    let Some(first) = after.first_mut() else {
+        return;
+    };
+    struct Them {
+        done: bool,
+    }
+    impl Visitor for Them {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            if self.done {
+                return false;
+            }
+            match o.quant {
+                Quant::Antecedent => o.quant = Quant::Listed,
+                _ => self.done = true,
+            }
+            false
+        }
+    }
+    first.walk(&mut Them { done: false });
 }

@@ -546,6 +546,12 @@ pub enum Quant {
     /// target, not the spell that triggered the ability or an earlier
     /// noun ([trailing-if]).
     ClauseObject,
+    /// "Exile up to one target artifact you control and up to one target
+    /// creature you control. Then return them", "tap it and up to one target
+    /// creature …. They don't untap": every object a verb said once named
+    /// just before, which no one `Objects` names, so a bare `Antecedent`
+    /// would be the last of them alone ([listed-objects]).
+    Listed,
     /// Each one of a set in turn, said by "its" or "that creature": in a
     /// comparison an object is tested by ("creatures you control each with
     /// power greater than its base power" compares each creature with its
@@ -1114,6 +1120,9 @@ pub enum Effect {
         a: Objects,
         b: Objects,
     },
+    /// "Those creatures fight each other": each of the objects deals damage
+    /// equal to its power to the other (CR 701.14a).
+    FightEachOther(Objects),
     Shuffle(Player),
     Reveal {
         who: Player,

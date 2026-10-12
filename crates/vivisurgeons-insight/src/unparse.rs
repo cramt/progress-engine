@@ -997,17 +997,26 @@ mod syn {
         any_of(o, &["this spell", "it", "~"]);
     }
 
-    pub fn destroyed(o: &mut Out) {
-        any_of(
-            o,
-            &[
-                "it",
-                "they",
-                "a creature destroyed this way",
-                "creatures destroyed this way",
-                "a permanent destroyed this way",
-            ],
-        );
+    /// "It can't be regenerated", "The creature can't be regenerated",
+    /// "Creatures destroyed this way can't be regenerated": what the destroy
+    /// before named, by pronoun, by a definite noun of a type it was said
+    /// to have, or as what it destroyed. Every destroyed object is a
+    /// permanent (CR 701.8a), so that noun is always licensed.
+    pub fn destroyed(o: &mut Out, types: &[String]) {
+        let mut forms = vec![of("it"), of("they")];
+        for t in types.iter().map(String::as_str).chain(["permanent"]) {
+            let pl = plural(t);
+            for f in [
+                format!("that {t}"),
+                format!("the {t}"),
+                format!("those {pl}"),
+                format!("a {t} destroyed this way"),
+                format!("{pl} destroyed this way"),
+            ] {
+                forms.push(of(&f));
+            }
+        }
+        alt(o, forms);
     }
 
     /// "twice that many of each of those kinds of counters", "… of those
@@ -1498,6 +1507,7 @@ pub fn ability(a: &Ability) -> Out {
                 Quant::Triggering
                     | Quant::BeforeEach
                     | Quant::ClauseObject
+                    | Quant::Listed
                     | Quant::Itself
                     | Quant::Created
                     | Quant::ThisAbility
@@ -2819,6 +2829,7 @@ fn obj_num(x: &Objects) -> Num {
         Quant::Antecedent
         | Quant::BeforeEach
         | Quant::ClauseObject
+        | Quant::Listed
         | Quant::Itself
         | Quant::Created
         | Quant::ThisAbility
@@ -3108,6 +3119,7 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         // Said as any reference back is.
         Quant::BeforeEach
         | Quant::ClauseObject
+        | Quant::Listed
         | Quant::Itself
         | Quant::Created
         | Quant::ThisAbility
@@ -4304,6 +4316,22 @@ fn destination(o: &mut Out, z: &Zone, tapped: bool, transformed: bool, under: &O
 // ---------------------------------------------------------------- effects
 
 /// Clauses in order, each joined to the last, ending in a period.
+/// The sentence after a destroy: "They can't be regenerated."
+fn cant_be_regenerated(o: &mut Out, what: &[&Objects]) {
+    let types: Vec<String> = what
+        .iter()
+        .flat_map(|x| {
+            x.filter.alts.iter().filter_map(|g| match g.last() {
+                Some(Adj::Type(t)) => Some(t.clone()),
+                _ => None,
+            })
+        })
+        .collect();
+    o.tok(Tok::Period);
+    syn::destroyed(o, &types);
+    o.w("can't be regenerated");
+}
+
 fn sentences(o: &mut Out, es: &[Effect], cx: &Cx) {
     clauses(o, es, cx);
     // A modal effect's modes end their own sentences.
@@ -4323,7 +4351,39 @@ fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
             continues: implied.clone(),
             ..cx.clone()
         };
-        let full = out(|o| effect(o, e, &cx));
+        let full = match e {
+            // "Destroy target nonblack creature and target land. They can't
+            // be regenerated.": one sentence after the last destroy of the
+            // list says it of each.
+            Effect::Destroy {
+                what,
+                no_regen: true,
+            } => {
+                let run: Vec<&Objects> = es[..=i]
+                    .iter()
+                    .rev()
+                    .map_while(|x| match x {
+                        Effect::Destroy {
+                            what,
+                            no_regen: true,
+                        } => Some(what),
+                        _ => None,
+                    })
+                    .collect();
+                let more = matches!(es.get(i + 1), Some(Effect::Destroy { no_regen: true, .. }));
+                out(|o| {
+                    let bare = Effect::Destroy {
+                        what: what.clone(),
+                        no_regen: false,
+                    };
+                    effect(o, &bare, &cx);
+                    if !more {
+                        cant_be_regenerated(o, &run);
+                    }
+                })
+            }
+            _ => out(|o| effect(o, e, &cx)),
+        };
         let prev = i.checked_sub(1).map(|j| &es[j]);
         // "Tyvar gains indestructible until end of turn. Tap it.": the card,
         // named just before as the only object, again by pronoun.
@@ -5079,9 +5139,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w("destroy");
             objects(o, what);
             if *no_regen {
-                o.tok(Tok::Period);
-                syn::destroyed(o);
-                o.w("can't be regenerated");
+                cant_be_regenerated(o, &[what]);
             }
         }
         Effect::Exile(x) => {
@@ -5287,6 +5345,10 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 }
                 _ => objects(o, what),
             }
+        }
+        Effect::FightEachOther(a) => {
+            objects(o, a);
+            o.verb("fight each other", Num::Pl);
         }
         Effect::Fight { a, b } => {
             if cx.modal {

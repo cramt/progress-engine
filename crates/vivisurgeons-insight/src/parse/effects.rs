@@ -499,11 +499,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         |p| {
             p.word("destroy")?;
             let what = objects(p)?;
-            let no_regen = p.attempt(|p| {
-                p.tok(&Tok::Period)?;
-                p.one_of(&["it", "they", "a creature destroyed this way", "creatures destroyed this way", "a permanent destroyed this way"])?;
-                p.words("can't be regenerated")
-            }).is_some();
+            let no_regen = cant_be_regenerated(p, std::slice::from_ref(&what));
             Some(Effect::Destroy { what, no_regen })
         },
         |p| {
@@ -1153,6 +1149,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         |p| { p.word("tap")?; objects(p).map(Effect::Tap) },
         |p| { p.word("untap")?; objects(p).map(Effect::Untap) },
         |p| { let who = subject_player(p); p.verb("sacrifice")?; let what = objects(p)?; Some(Effect::Sacrifice { who, what }) },
+        |p| { let a = objects(p)?; p.verb("fight")?; p.words("each other")?; Some(Effect::FightEachOther(a)) },
         |p| { let a = objects(p)?; p.verb("fight")?; let b = objects(p)?; Some(Effect::Fight { a, b }) },
         |p| { p.words("gain control of")?; let what = objects(p)?; let dur = p.attempt(duration).unwrap_or(Duration::Permanent); Some(Effect::GainControl { what, dur }) },
         |p| { p.word("transform")?; objects(p).map(Effect::Transform) },
@@ -1971,4 +1968,39 @@ pub(super) fn prevent(p: &mut P) -> Option<Effect> {
         by,
         dur,
     })
+}
+
+/// "Destroy that creature. The creature can't be regenerated.", "Destroy
+/// target nonblack creature and target land. They can't be regenerated.":
+/// the sentence after a destroy that says what it destroyed can't be
+/// regenerated, which is the destroy's own: a regeneration shield replaces
+/// that destruction (CR 701.19a), and the sentence stops it (CR 701.19c). It names the
+/// destroyed objects by pronoun, by a definite noun of their type, or as
+/// what was "destroyed this way" ([no-regen-after]).
+pub(super) fn cant_be_regenerated(p: &mut P, what: &[Objects]) -> bool {
+    let types: Vec<String> = what
+        .iter()
+        .flat_map(|o| {
+            o.filter.alts.iter().filter_map(|g| match g.last() {
+                Some(Adj::Type(t)) => Some(t.clone()),
+                _ => None,
+            })
+        })
+        .chain(["permanent".to_string()])
+        .collect();
+    let noun = |p: &mut P| {
+        let w = p.peek_word()?.to_string();
+        let sg = w.strip_suffix('s').unwrap_or(&w).to_string();
+        types.contains(&sg).then(|| p.bump())
+    };
+    p.attempt(|p| {
+        p.tok(&Tok::Period)?;
+        alt!(p;
+            |p| p.one_of(&["it", "they"]).map(|_| ()),
+            |p| { p.one_of(&["that", "the", "those"])?; noun(p) },
+            |p| { p.attempt(|p| p.one_of(&["a", "an"])); noun(p)?; p.words("destroyed this way") },
+        )?;
+        p.words("can't be regenerated")
+    })
+    .is_some()
 }
