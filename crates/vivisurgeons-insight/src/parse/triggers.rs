@@ -298,6 +298,8 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
             p.verb("deal")?;
             p.words("combat damage to")?;
             let to = match p.one_of(&["a player or planeswalker", "a player", "an opponent", "one or more players"])? {
+                // "a player or battle" is the recipient rule's.
+                "a player" if p.attempt(|p| p.words("or battle")).is_some() => return None,
                 "a player" => return Some(Event::DealsCombatDamageToPlayer(what.clone())),
                 "an opponent" => Recipient::Player(Player::AnOpponent),
                 "one or more players" => Recipient::Objects(Objects { quant: Quant::OneOrMore, filter: Filter { kind: Some(Noun::Player), ..Filter::default() } }),

@@ -1909,7 +1909,12 @@ pub(super) fn recipient(p: &mut P) -> Option<Recipient> {
         |p| {
             // "target player or planeswalker": one target of either kind.
             let pl = player_simple(p)?;
-            let quant = match pl { Player::Target | Player::TargetOpponent => Quant::Target { n: Amount::N(1), up_to: false }, _ => return None };
+            // "a player or battle": the article said once for both.
+            let quant = match pl {
+                Player::Target | Player::TargetOpponent => Quant::Target { n: Amount::N(1), up_to: false },
+                Player::APlayer => Quant::One,
+                _ => return None,
+            };
             p.word("or")?;
             let f = filter(p)?;
             Some(Recipient::Or(vec![Recipient::Player(pl), Recipient::Objects(Objects { quant, filter: f })]))
