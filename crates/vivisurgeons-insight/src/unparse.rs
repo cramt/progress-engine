@@ -5918,8 +5918,19 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                     } else {
                         "whenever"
                     });
-                    event(o, ev);
-                    o.w("this turn,");
+                    match ev {
+                        Event::InterveningIf { event: e, cond } => {
+                            event(o, e);
+                            o.w("this turn");
+                            o.w(", if");
+                            condition(o, cond);
+                            o.w(",");
+                        }
+                        _ => {
+                            event(o, ev);
+                            o.w("this turn,");
+                        }
+                    }
                     clauses(o, then, cx);
                 }
                 Effect::Replacement { event: ev, instead } => {
@@ -8700,6 +8711,11 @@ fn event(o: &mut Out, e: &Event) {
         Event::AndIf { event: e, cond } => {
             would(o, e);
             o.w("and");
+            condition(o, cond);
+        }
+        Event::InterveningIf { event: e, cond } => {
+            event(o, e);
+            o.w(", if");
             condition(o, cond);
         }
         Event::DrawsOneOrMore(p) => {

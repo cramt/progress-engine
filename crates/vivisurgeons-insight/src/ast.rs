@@ -2458,6 +2458,14 @@ pub enum Event {
         event: Box<Event>,
         cond: Box<Condition>,
     },
+    /// "When the creature an opponent controls dies this turn, if you
+    /// control your commander, …": a delayed trigger's event with an
+    /// intervening "if" (CR 603.4), checked as it triggers and again as it
+    /// resolves. A printed trigger's is `Trigger::InterveningIf`.
+    InterveningIf {
+        event: Box<Event>,
+        cond: Box<Condition>,
+    },
     /// "you would draw one or more cards": one event however many, where
     /// "a card" is each draw.
     DrawsOneOrMore(Player),

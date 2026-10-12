@@ -1642,6 +1642,10 @@ impl Walk for Event {
                 Walk::walk(&mut **event, v);
                 Walk::walk(&mut **cond, v);
             }
+            Event::InterveningIf { event, cond } => {
+                Walk::walk(&mut **event, v);
+                Walk::walk(&mut **cond, v);
+            }
             Event::DrawsOneOrMore(f0) => {
                 Walk::walk(f0, v);
             }

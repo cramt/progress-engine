@@ -209,6 +209,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             p.word("whenever")?;
             let event = event(p)?;
             p.words("this turn ,")?;
+            let event = intervening(p, event);
             let then = delayed_body(p)?;
             Some(vec![Effect::During { dur: Duration::ThisTurn, then: vec![Effect::DelayedWhenever { event, then }] }])
         },
@@ -217,6 +218,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             p.word("whenever")?;
             let event = event(p)?;
             p.tok(&Tok::Comma)?;
+            let event = intervening(p, event);
             let then = delayed_body(p)?;
             Some(vec![Effect::DelayedWhenever { event, then }])
         },
@@ -444,6 +446,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             p.word("when")?;
             let event = event(p)?;
             p.words("this turn ,")?;
+            let event = intervening(p, event);
             let then = delayed_body(p)?;
             Some(vec![Effect::During { dur: Duration::ThisTurn, then: vec![Effect::DelayedWhen { event, then }] }])
         },
@@ -451,6 +454,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             p.word("when")?;
             let event = event(p)?;
             p.tok(&Tok::Comma)?;
+            let event = intervening(p, event);
             let then = delayed_body(p)?;
             Some(vec![match event {
                 // "when each opponent casts their first spell of the game":
@@ -1171,7 +1175,30 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
             // it goes where that "if" went (Thunderous Debut).
             let otherwise = matches!(branch.last(), Some(Effect::If { .. }))
                 && matches!(s.first(), Some(Effect::Otherwise(_)));
-            if otherwise || s.first().is_some_and(refers_back) {
+            // "You may reveal a creature card … from among them. You may put
+            // it onto the battlefield if it's your turn. If you don't put it
+            // onto the battlefield, put it into your hand" (Whiskervale
+            // Forerunner): the card exists only if it was revealed, so the
+            // "if" is the reveal's; never the put's own branch ([didnt-put]).
+            // Not "If you don't put a card into your hand this way" (Courier
+            // of Comestibles), which holds when the option was declined.
+            let didnt_put = matches!(
+                s.first(),
+                Some(Effect::If { cond: Condition::Not(c), .. })
+                    if matches!(&**c, Condition::ThisWay(e) if matches!(&**e, Event::Puts { what, .. } if what.quant == Quant::Antecedent))
+            ) && branch.iter().any(|e| {
+                brings_in(e)
+                    && !matches!(
+                        e,
+                        Effect::Move {
+                            to: Zone::Battlefield,
+                            ..
+                        } | Effect::EntersWith { .. }
+                            | Effect::EntersAttacking(_)
+                            | Effect::EntersAttached { .. }
+                    )
+            });
+            if otherwise || didnt_put || s.first().is_some_and(refers_back) {
                 branch.extend(s);
                 continue;
             }
@@ -1678,4 +1705,23 @@ fn listed(before: &[Effect], after: &mut [Effect]) {
         }
     }
     first.walk(&mut Them { done: false });
+}
+
+/// "When the creature an opponent controls dies this turn, if you control
+/// your commander, you become the monarch": the "if" right after a delayed
+/// trigger's condition is an intervening "if" (CR 603.4), as a printed
+/// trigger's is.
+fn intervening(p: &mut P, event: Event) -> Event {
+    match p.attempt(|p| {
+        p.word("if")?;
+        let cond = condition(p)?;
+        p.tok(&Tok::Comma)?;
+        Some(cond)
+    }) {
+        Some(cond) => Event::InterveningIf {
+            event: Box::new(event),
+            cond: Box::new(cond),
+        },
+        None => event,
+    }
 }
