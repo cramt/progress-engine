@@ -508,6 +508,7 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
                     let mut effect = effects(p)?;
                     let limits = limits(p);
                     about_the_trigger(&trigger, Some(&mut cond), &mut effect);
+                    those_counters(&cond, &mut effect);
                     if let Trigger::When(e) = &trigger { other_than_the_trigger(e, Some(&mut cond), &mut effect); }
                     let trigger = Trigger::InterveningIf(Box::new(trigger.clone()), Box::new(cond));
                     finished(p).then_some(Ability::Triggered { trigger, effect, limits })
@@ -650,6 +651,32 @@ fn about_this_spell(s: &Static) -> bool {
             then.iter().all(about_this_spell)
         }
         _ => false,
+    }
+}
+
+/// The Ozolith: "Whenever a creature you control leaves the battlefield, if
+/// it had counters on it, put those counters on ~": "those counters" are
+/// the counters the intervening "if" said it had, every one of them on that
+/// object, as "put its counters on" says (Parish-Blade Trainee).
+fn those_counters(cond: &Condition, effect: &mut [Effect]) {
+    let c = match cond {
+        Condition::Past(c) => &**c,
+        c => c,
+    };
+    let Condition::HasCounter { what, kind } = c else {
+        return;
+    };
+    for e in effect {
+        if let Effect::PutThoseCounters { those, .. } = e {
+            let bare = those.quant == Quant::Antecedent
+                && those.filter.posts.is_empty()
+                && those.filter.alts.is_empty()
+                && those.filter.kind == Some(Noun::Counter(kind.clone()));
+            if bare {
+                those.quant = Quant::All;
+                those.filter.posts.push(Post::On(Box::new(what.clone())));
+            }
+        }
     }
 }
 

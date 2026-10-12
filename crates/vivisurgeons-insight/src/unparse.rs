@@ -826,6 +826,16 @@ mod syn {
         any_of(o, &["its", "their", "his", "her"]);
     }
 
+    /// "put its counters on", "put those counters on": every counter on an
+    /// object referred back to. The parser reads "those counters" so only
+    /// after an intervening "if it had counters on it" (The Ozolith), where
+    /// "those" points back to the counters that clause said were on it; the
+    /// determiner changes which noun the reference goes through, not which
+    /// counters are put.
+    pub fn its_counters(o: &mut Out) {
+        any_of(o, &["its", "their", "his", "her", "those"]);
+    }
+
     pub fn it_is(o: &mut Out) {
         any_of(o, &["it's", "he's", "she's"]);
     }
@@ -5777,7 +5787,11 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
         } if matches!(&posts[..], [Post::On(x)] if is_bare_antecedent(x) || is_bare_self(x)) => {
             o.w("put");
             if let [Post::On(x)] = &posts[..] {
-                possessive_of(o, x);
+                if is_bare_antecedent(x) {
+                    syn::its_counters(o);
+                } else {
+                    possessive_of(o, x);
+                }
             }
             if let Some(k) = kind {
                 counter_kind(o, k);
