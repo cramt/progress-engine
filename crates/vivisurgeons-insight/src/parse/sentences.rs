@@ -1003,6 +1003,7 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
         v.extend(s);
     }
     permission_rules(&mut v);
+    enters_with_after(&mut v);
     // "… If you do, draw a card and repeat this process.": the process is
     // every instruction of the ability, said from the first.
     if v.iter().any(repeats) {
@@ -1230,6 +1231,40 @@ fn permission_rules(v: &mut Vec<Effect>) {
                 spell: what,
                 rules: then,
             };
+        } else {
+            i += 1;
+        }
+    }
+}
+
+/// Aberrant Return: "Put one, two, or three target creature cards from
+/// graveyards onto the battlefield under your control. Each of them enters
+/// with an additional -1/-1 counter on it": the counters are a replacement
+/// on the move's entering (CR 614.1c), as "return it to the battlefield
+/// with a -1/-1 counter on it" is (`EntersWith`), not counters put on after
+/// it entered. Only where the sentence after says it of the moved objects
+/// and nothing else; "If a Hero enters this way, it enters with …" adds the
+/// counters to some of them only, and stays as said.
+fn enters_with_after(v: &mut Vec<Effect>) {
+    let mut i = 1;
+    while i < v.len() {
+        let moved = matches!(
+            &v[i - 1],
+            Effect::Move {
+                to: Zone::Battlefield,
+                ..
+            }
+        );
+        let counters = matches!(
+            &v[i],
+            Effect::EntersWithCounters { what, .. } if *what == antecedent()
+        );
+        if moved && counters {
+            let Effect::EntersWithCounters { n, kind, .. } = v.remove(i) else {
+                unreachable!("matched above");
+            };
+            let effect = Box::new(v[i - 1].clone());
+            v[i - 1] = Effect::EntersWith { effect, n, kind };
         } else {
             i += 1;
         }

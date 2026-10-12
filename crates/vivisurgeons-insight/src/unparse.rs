@@ -697,6 +697,15 @@ mod syn {
         alt(o, vec![before, after]);
     }
 
+    /// "Put … onto the battlefield with an additional -1/-1 counter on it"
+    /// and "Put … onto the battlefield …. Each of them enters with an
+    /// additional -1/-1 counter on it": the counters are a replacement on
+    /// the move's entering either way (CR 614.1c), said with the move or
+    /// in the sentence after it.
+    pub fn enters_with_after(o: &mut Out, with: Out, after: Out) {
+        alt(o, vec![with, after]);
+    }
+
     /// "If you control a creature with power 4 or greater, instead search
     /// …" and "… search … instead": "instead" before or after the clauses
     /// it replaces with, or unsaid where they say "instead of" themselves.
@@ -6168,9 +6177,29 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             n,
             kind,
         } => {
-            effect(o, inner, cx);
-            o.w("with");
-            enters_counters(o, n, kind);
+            let with = out(|o| {
+                effect(o, inner, cx);
+                o.w("with");
+                enters_counters(o, n, kind);
+            });
+            let after = out(|o| {
+                effect(o, inner, cx);
+                syn::joiner(o, false);
+                let what = Objects {
+                    quant: Quant::Antecedent,
+                    filter: Filter::default(),
+                };
+                effect(
+                    o,
+                    &Effect::EntersWithCounters {
+                        what,
+                        n: n.clone(),
+                        kind: kind.clone(),
+                    },
+                    cx,
+                );
+            });
+            syn::enters_with_after(o, with, after);
         }
         Effect::DamageCantBePrevented(d) => {
             o.w("damage can't be prevented");
