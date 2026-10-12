@@ -191,8 +191,19 @@ pub(super) fn token_named(p: &mut P) -> Option<(Amount, Token, Option<String>)> 
     // "a colorless artifact token named Munitions with …".
     let name = p.attempt(|p| {
         p.word("named")?;
-        card_name(p, &["with"])
+        // "named Boulder that's tapped and attacking", "named Cadet, where
+        // X is …": a relative clause or a definition after the name is no
+        // part of it.
+        card_name(p, &["with", "that's", "that", "where"])
     });
+    // Overlord of the Hauntwoods: "a … land token named Everywhere that is
+    // every basic land type": the five subtypes (CR 205.3i).
+    if name.is_some()
+        && p.attempt(|p| p.words("that is every basic land type"))
+            .is_some()
+    {
+        types.extend(BASIC_LAND_TYPES.iter().map(|t| t.to_string()));
+    }
     let mut keywords = Vec::new();
     let mut abilities = Vec::new();
     if p.attempt(|p| p.word("with")).is_some() {
@@ -1619,7 +1630,13 @@ pub(super) fn card_name(p: &mut P, stops: &[&str]) -> Option<String> {
                 words.push(w.clone());
                 p.bump();
             }
-            Some(Tok::Comma) if !stops.contains(&",") && !words.is_empty() => {
+            // "named Cadet, where X is …": a comma before a stop word ends
+            // the name as the word would.
+            Some(Tok::Comma)
+                if !stops.contains(&",")
+                    && !words.is_empty()
+                    && !matches!(p.t.get(p.i + 1), Some(Tok::Word(w)) if stops.contains(&w.as_str())) =>
+            {
                 words.push(",".into());
                 p.bump();
             }

@@ -4533,6 +4533,11 @@ fn token(o: &mut Out, n: &Amount, t: &Token) {
         o.w("equal to");
         measure(o, n);
     }
+    token_attacking(o, n, t);
+}
+
+/// "that's tapped and attacking": said after everything else the token is.
+fn token_attacking(o: &mut Out, n: &Amount, t: &Token) {
     if let Some(r) = &t.attacking {
         that_is(o, amount_num(n));
         if t.tapped {
@@ -6334,12 +6339,36 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             let with = Token {
                 keywords: vec![],
                 abilities: vec![],
+                // "named Boulder that's tapped and attacking".
+                attacking: None,
+                tapped: t.tapped && t.attacking.is_none(),
                 ..t.clone()
+            };
+            // "named Everywhere that is every basic land type": the five
+            // basic land types, said after the name.
+            let every_basic = BASIC_LAND_TYPES
+                .iter()
+                .all(|b| t.types.iter().any(|x| x == b));
+            let with = Token {
+                types: if every_basic {
+                    with.types
+                        .iter()
+                        .filter(|x| !BASIC_LAND_TYPES.contains(&x.as_str()))
+                        .cloned()
+                        .collect()
+                } else {
+                    with.types
+                },
+                ..with
             };
             token(o, n, &with);
             o.w("named");
             o.w(name);
+            if every_basic {
+                o.w("that is every basic land type");
+            }
             token_has(o, t);
+            token_attacking(o, n, t);
         }
         Effect::CreateAttached {
             who,

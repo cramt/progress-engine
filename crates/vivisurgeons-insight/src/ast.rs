@@ -2859,3 +2859,6 @@ pub enum Holding {
     CardsInGraveyard,
     Opponents,
 }
+
+/// The basic land types (CR 205.3i), as a token's subtypes say them.
+pub const BASIC_LAND_TYPES: [&str; 5] = ["plains", "island", "swamp", "mountain", "forest"];
