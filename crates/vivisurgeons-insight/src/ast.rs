@@ -296,6 +296,8 @@ pub enum Amount {
     },
     /// "an opponent lost 2 or more life this turn".
     LifeLostThisTurn(Player),
+    /// "the amount of life you gained this turn".
+    LifeGainedThisTurn(Player),
     /// "an opponent was dealt 7 or more damage this turn".
     DamageDealtThisTurn(Player),
     /// "each 1 damage prevented this way".
@@ -686,8 +688,10 @@ pub enum Post {
     WithChosenName,
     /// "a permanent they control of each permanent type": one per type.
     OfEachPermanentType,
-    /// "other than ~".
-    OtherThanSelf,
+    /// "other than ~", "other than this creature": the card, with the noun
+    /// it was named by (as `SelfRef`'s filter keeps it), not an object of
+    /// its own: a trigger's event still names one object.
+    OtherThanSelf(Filter),
     Cast(Player),
     FromAmongThem,
     ExiledWith(Box<Objects>),

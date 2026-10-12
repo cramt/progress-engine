@@ -167,6 +167,9 @@ impl Walk for Amount {
             Amount::LifeLostThisTurn(f0) => {
                 Walk::walk(f0, v);
             }
+            Amount::LifeGainedThisTurn(f0) => {
+                Walk::walk(f0, v);
+            }
             Amount::DamageDealtThisTurn(f0) => {
                 Walk::walk(f0, v);
             }
@@ -1884,6 +1887,9 @@ impl Walk for Post {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);
                 }
+            }
+            Post::OtherThanSelf(f0) => {
+                Walk::walk(f0, v);
             }
             Post::Cast(f0) => {
                 Walk::walk(f0, v);

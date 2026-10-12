@@ -91,6 +91,7 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "from among the nonland permanents they control" | `Quant::All` | settled: who controls them says which they are; "the" points back to nothing |
 | "target activated or triggered ability", "all other activated and triggered abilities you control" | an alternative per kind of ability, and "other" on each | settled: the words before the first kind qualify each, as row 68's colors do; "activated" alone names no object, only before "ability" or "or triggered" |
 | "activated ability from an artifact source" | `Post::FromSource([artifact])` | settled: CR 113.7, the source of an ability is the object that generated it |
+| "each creature you control other than this creature", "a permanent other than ~" | `Post::OtherThanSelf(the noun)`: the card, by the noun it was named with | settled: the same object as "~" (row 51), kept with its noun for the round trip; a filter, not an object, so the event naming it still names one object (Yomiji's "that card" stays `Triggering`). The 5 corpus trees with "other than ~" only renamed |
 
 ## Zones
 
@@ -187,6 +188,10 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "with total mana value 6 or less", "with total power 4 or less" | `Post::Total(Compare)`, apart from `With` | settled: a bound on the sum over the objects chosen; each one alone may be bigger than another's share |
 | "put a number of +1/+1 counters on ~ equal to that creature's power", "… equal to its power on up to one target creature" | `PutCounters { n: <the measure> }` | settled: "a number of … equal to" is the measure's count, before or after the object (`syn::position`) |
 | "gets +1/+0 until end of turn and can't be blocked this turn", "gains first strike until end of turn and must be blocked this turn if able" | `Modify` then `Restrict`, each with its own duration | settled: one subject for both predicates; the rule's "this turn" is its own duration |
+| "where X is the amount of life you gained this turn", "if an opponent lost life this turn" | `Amount::LifeGainedThisTurn(You)`, `DidThisTurn(LosesLife(AnOpponent))` | settled: the second as "you gained life this turn" already read |
+| "Firebending X, where X is this creature's power", "Mobilize X, where X is …" | the keyword's number is the measure | settled: the line defines X for that keyword alone |
+| "enters with X +1/+1 counters on it, where X is …", "enters with a +1/+1 counter on it for each color of mana spent to cast it" | `EntersWithCounters { n: <the measure> }`, converge's `ColorsOfManaSpentToCast` | settled: a counter per color is that many counters; `syn::where_x` and `syn::for_each_count` |
+| "This token can't block or be blocked by non-Spirit creatures" | two `Restrict`s, `CantBlockAny` and `CantBeBlockedBy`, with the same filter | settled: two rules of one object, the filter said once |
 ## Durations
 
 | Text | Tree | Status |

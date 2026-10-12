@@ -1544,6 +1544,42 @@ mod tests {
     }
 
     #[test]
+    fn round_eleven_measures_and_the_card_by_its_noun() {
+        let one = |ty: &str, text: &str| format!("{:?}", read("Some Card", ty, text));
+        let a = one(
+            "Creature — Human Monk",
+            "Firebending X, where X is this creature's power.\nAt the beginning of your end step, if an opponent lost life this turn, target opponent loses X life, where X is the amount of life you gained this turn.",
+        );
+        assert!(
+            a.contains("param: Some(N(PowerOf")
+                && a.contains("DidThisTurn(LosesLife(AnOpponent))")
+                && a.contains("LifeGainedThisTurn(You)"),
+            "{a}"
+        );
+        let a = one(
+            "Creature — Elemental",
+            "Converge — This creature enters with a +1/+1 counter on it for each color of mana spent to cast it.",
+        );
+        assert!(a.contains("n: ColorsOfManaSpentToCast"), "{a}");
+        let a = one(
+            "Creature — Dinosaur",
+            "Whenever this creature attacks, Dinosaurs you control other than this creature get +1/+1 until end of turn.",
+        );
+        assert!(
+            a.contains("OtherThanSelf(Filter { alts: [[Type(\"creature\")]]"),
+            "{a}"
+        );
+        let a = one(
+            "Creature — Spirit",
+            "This creature can't block or be blocked by creatures with power 2 or greater.",
+        );
+        assert!(
+            a.contains("CantBlockAny") && a.contains("CantBeBlockedBy"),
+            "{a}"
+        );
+    }
+
+    #[test]
     fn hero_is_a_creature_type() {
         let a = read(
             "Some Assembly",

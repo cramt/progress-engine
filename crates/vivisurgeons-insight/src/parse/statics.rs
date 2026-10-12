@@ -812,6 +812,15 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             Some(vec![Static::EntersTappedUnless { what: what.clone(), unless }])
         },
         |p| { p.verb("have")?; let a = quoted(p)?; Some(vec![Static::HasAbility { what: what.clone(), ability: Box::new(a) }]) },
+        // "can't block or be blocked by non-Spirit creatures": two rules.
+        |p| {
+            p.words("can't block or be blocked by")?;
+            let f = filter(p)?;
+            Some(vec![
+                Static::Restrict { what: what.clone(), rule: Restriction::CantBlockAny(f.clone()) },
+                Static::Restrict { what: what.clone(), rule: Restriction::CantBeBlockedBy(f) },
+            ])
+        },
         |p| {
             let rule = restriction(p)?;
             let restrict = Static::Restrict { what: what.clone(), rule };
@@ -846,6 +855,12 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             let kind = counter_kind(p)?;
             p.one_of(&["counters", "counter"])?;
             p.one_of(&["on it", "on them", "on him", "on her"])?;
+            // "with X +1/+1 counters on it, where X is …": the measure.
+            if n == Amount::X {
+                if let Some(m) = p.attempt(|p| { p.words(", where x is")?; measure(p) }) {
+                    return Some(vec![Static::EntersWithCounters { what: what.clone(), n: m, kind }]);
+                }
+            }
             if counted {
                 p.words("equal to")?;
                 let m = measure(p)?;
@@ -858,6 +873,8 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
                 p.words("for each")?;
                 alt!(p;
                     |p| p.words("time it was kicked").map(|_| Amount::TimesKicked),
+                    // Converge: "for each color of mana spent to cast it".
+                    |p| { p.words("color of mana spent to cast")?; objects(p).map(|o| Amount::ColorsOfManaSpentToCast(Box::new(o))) },
                     |p| objects(p).map(|o| Amount::CountOf(Box::new(o))),
                 )
             });

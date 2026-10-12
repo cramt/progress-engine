@@ -188,6 +188,7 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
             let e = alt!(p;
                 |p| p.words("gained life").map(|_| Event::GainsLife(who.clone())),
+                |p| p.words("lost life").map(|_| Event::LosesLife(who.clone())),
                 |p| {
                     p.word("searched")?;
                     let w = whose(p)?;

@@ -558,6 +558,12 @@ mod syn {
         alt(o, vec![again, and, comma]);
     }
 
+    /// "a number of +1/+1 counters on it equal to N" and "X +1/+1 counters
+    /// on it, where X is N": the same count, named or defined.
+    pub fn where_x(o: &mut Out, a_number: Out, where_x: Out) {
+        alt(o, vec![a_number, where_x]);
+    }
+
     /// "You may spend mana as though it were mana of any type" and "mana
     /// of any type can be spent": a permission said to the player who has
     /// it, or in the passive; CR 609.4b makes them one.
@@ -1634,6 +1640,12 @@ fn keyword(o: &mut Out, k: &Keyword) {
             o.w(&k.name);
             keyword_cost(o, c);
         }
+        // "Firebending X, where X is this creature's power".
+        Some(KeywordParam::N(n)) if is_measure(n) => {
+            o.w(&k.name);
+            o.w("x, where x is");
+            measure(o, n);
+        }
         Some(KeywordParam::N(n)) => {
             o.w(&k.name);
             amount(o, n);
@@ -2100,6 +2112,11 @@ fn measure(o: &mut Out, a: &Amount) {
         }
         // The grammar reads these only in a condition, which says them its
         // own way ("an opponent lost 2 or more life this turn").
+        Amount::LifeGainedThisTurn(p) => {
+            o.w("the amount of life");
+            player(o, p);
+            o.w("gained this turn");
+        }
         Amount::LifeLostThisTurn(p) => {
             o.w("the life");
             player(o, p);
@@ -3337,7 +3354,16 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         }
         Post::WithChosenName => o.w("with the chosen name"),
         Post::OfEachPermanentType => o.w("of each permanent type"),
-        Post::OtherThanSelf => o.w("other than ~"),
+        Post::OtherThanSelf(f) => {
+            o.w("other than");
+            objects(
+                o,
+                &Objects {
+                    quant: Quant::SelfRef,
+                    filter: f.clone(),
+                },
+            );
+        }
         Post::Cast(Player::You) => o.w("you cast"),
         Post::Cast(p) => {
             player(o, p);
@@ -6306,16 +6332,52 @@ fn enters_counters(o: &mut Out, n: &Amount, kind: &str) {
         Amount::Additional(b) => (&**b, true),
         b => (b, false),
     };
+    // "a +1/+1 counter on it for each color of mana spent to cast it".
+    if let (Amount::ColorsOfManaSpentToCast(x), false) = (base, extra) {
+        let for_each = out(|o| {
+            o.w("a");
+            counter_noun(o, kind, Num::Sg);
+            o.w("on");
+            syn::it(o);
+            o.w("for each color of mana spent to cast");
+            objects(o, x);
+        });
+        let a_number = out(|o| {
+            o.w("a number of");
+            counter_noun(o, kind, Num::Pl);
+            o.w("on");
+            syn::it(o);
+            o.w("equal to");
+            measure(o, base);
+        });
+        syn::for_each_count(o, for_each, a_number);
+        return;
+    }
     if is_measure(base) && !matches!(base, Amount::TimesKicked | Amount::CountOf(_)) {
-        o.w("a number of");
+        let a_number = out(|o| {
+            o.w("a number of");
+            if extra {
+                o.w("additional");
+            }
+            counter_noun(o, kind, Num::Pl);
+            o.w("on");
+            syn::it(o);
+            o.w("equal to");
+            measure(o, base);
+        });
         if extra {
-            o.w("additional");
+            o.add(a_number);
+            return;
         }
-        counter_noun(o, kind, Num::Pl);
-        o.w("on");
-        syn::it(o);
-        o.w("equal to");
-        measure(o, base);
+        let where_x = out(|o| {
+            o.w("x");
+            counter_noun(o, kind, Num::Pl);
+            o.w("on");
+            syn::it(o);
+            o.w(", where x is");
+            measure(o, base);
+        });
+        syn::where_x(o, a_number, where_x);
         return;
     }
     match base {
@@ -6347,7 +6409,20 @@ fn enters_counters(o: &mut Out, n: &Amount, kind: &str) {
                 o.w("equal to");
                 measure(o, base);
             });
-            syn::for_each_count(o, for_each, a_number);
+            if extra {
+                syn::for_each_count(o, for_each, a_number);
+                return;
+            }
+            let where_x = out(|o| {
+                o.w("x");
+                counter_noun(o, kind, Num::Pl);
+                o.w("on");
+                syn::it(o);
+                o.w(", where x is");
+                measure(o, base);
+            });
+            let counted = out(|o| syn::where_x(o, a_number, where_x));
+            syn::for_each_count(o, for_each, counted);
         }
         b => {
             amount_a(o, b);
@@ -7776,6 +7851,11 @@ fn condition(o: &mut Out, c: &Condition) {
                 syn::did_tense(o, "gained", out(|o| o.verb("gain", player_num(who))));
                 o.w("life this turn");
             }
+            Event::LosesLife(who) => {
+                player(o, who);
+                syn::did_tense(o, "lost", out(|o| o.verb("lose", player_num(who))));
+                o.w("life this turn");
+            }
             Event::Searches { who, zone: z } => {
                 player(o, who);
                 syn::did_tense(o, "searched", out(|o| o.verb("search", player_num(who))));
@@ -8406,6 +8486,37 @@ fn statics(o: &mut Out, ss: &[Static]) {
             zone(o, z);
             i = j;
             continue;
+        }
+        // "can't block or be blocked by non-Spirit creatures": two rules,
+        // one object said once.
+        if let (
+            Static::Restrict {
+                what,
+                rule: Restriction::CantBlockAny(f1),
+            },
+            Some(
+                next @ Static::Restrict {
+                    what: w2,
+                    rule: Restriction::CantBeBlockedBy(f2),
+                },
+            ),
+        ) = (s, ss.get(i + 1))
+        {
+            if what == w2 && f1 == f2 {
+                let apart = out(|o| {
+                    static_full(o, s);
+                    syn::joiner(o, false);
+                    static_full(o, next);
+                });
+                let joined = out(|o| {
+                    objects(o, what);
+                    o.w("can't block or be blocked by");
+                    filter(o, f1, Num::Pl);
+                });
+                syn::gapped(o, apart, joined);
+                i += 2;
+                continue;
+            }
         }
         // An Is followed by what the new object has: "is an Insect artifact
         // creature with base power and toughness 0/1"; the pairs a size

@@ -124,6 +124,21 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
 
 pub(super) fn keyword_line(p: &mut P) -> Option<Vec<Keyword>> {
     let mut v = vec![keyword(p)?];
+    // "Firebending X, where X is this creature's power": the keyword's
+    // number is the measure, as the line defines X for nothing else.
+    if let [Keyword {
+        param: Some(KeywordParam::N(n @ Amount::X)),
+        ..
+    }] = &mut v[..]
+    {
+        if let Some(m) = p.attempt(|p| {
+            p.words(", where x is")?;
+            measure(p)
+        }) {
+            *n = m;
+            return Some(v);
+        }
+    }
     loop {
         // "protection from spells and from permanents that were cast this
         // turn" is two protection abilities (CR 702.16g).

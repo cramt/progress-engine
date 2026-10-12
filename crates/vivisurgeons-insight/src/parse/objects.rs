@@ -651,7 +651,11 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             zone(p).map(Post::In)
         },
         |p| p.one_of(&["that's blocking", "that are blocking"]).map(|_| Post::Blocking),
-        |p| p.words("other than ~").map(|_| Post::OtherThanSelf),
+        |p| {
+            p.words("other than")?;
+            let o = objects(p)?;
+            (o.quant == Quant::SelfRef).then_some(Post::OtherThanSelf(o.filter))
+        },
         |p| p.words("of the chosen type").map(|_| Post::OfChosenType),
         |p| p.words("of that type").map(|_| Post::OfThatType),
         |p| p.words("of the chosen color").map(|_| Post::OfChosenColor),

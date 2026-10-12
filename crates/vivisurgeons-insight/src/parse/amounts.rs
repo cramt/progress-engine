@@ -155,6 +155,12 @@ fn measure_bare(p: &mut P) -> Option<Amount> {
         |p| { p.one_of(&["its", "their"])?; let s = stat(p)?; Some(stat_of(s, antecedent())) },
         |p| { let o = objects(p)?; p.tok(&Tok::Possessive)?; let s = stat(p)?; Some(stat_of(s, o)) },
         |p| { p.words("the life lost this way").map(|_| Amount::LifeLost) },
+        |p| {
+            p.words("the amount of life")?;
+            let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;
+            p.words("gained this turn")?;
+            Some(Amount::LifeGainedThisTurn(who))
+        },
         |p| { p.words("the damage dealt this way").map(|_| Amount::Damage) },
         |p| { p.words("the amount of damage dealt this way").map(|_| Amount::Damage) },
         |p| p.words("the greatest number of cards a player discarded this way").map(|_| Amount::GreatestDiscardedThisWay),
