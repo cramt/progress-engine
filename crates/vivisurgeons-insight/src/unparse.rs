@@ -1816,6 +1816,10 @@ fn keyword(o: &mut Out, k: &Keyword) {
                 o.w(color_name(*c));
             }
         }
+        Some(KeywordParam::PartnerWith(name)) => {
+            o.w("partner with");
+            o.w(name);
+        }
         Some(KeywordParam::ColorsNotIn(_)) => {
             o.w("protection from each color that's not in your commander's color identity")
         }
@@ -4815,6 +4819,7 @@ fn restriction(o: &mut Out, r: &Restriction, n: Num) {
             filter(o, f, Num::Pl);
         }
         Restriction::CantBeCountered => o.w("can't be countered"),
+        Restriction::CantBeSacrificed => o.w("can't be sacrificed"),
         Restriction::DoesntUntap(p) => {
             o.verb("don't", n);
             o.w("untap during");

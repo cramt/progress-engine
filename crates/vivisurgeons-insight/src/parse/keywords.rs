@@ -16,6 +16,12 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
             p.tok(&Tok::Other('!'))?;
             Some(Keyword { name: "start your engines!".into(), param: None })
         },
+        // "Partner with Pir, Imaginative Rascal": the name to the line's end.
+        |p| {
+            p.words("partner with")?;
+            let name = super::effects::card_name(p, &[])?;
+            p.at_end().then(|| Keyword { name: "partner with".into(), param: Some(KeywordParam::PartnerWith(name)) })
+        },
         |p| {
             p.words("protection from")?;
             if let Some(pal) = p.attempt(|p| { p.words("each color that's not in")?; commander_identity(p) }) {

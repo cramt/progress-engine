@@ -144,6 +144,9 @@ pub enum KeywordParam {
         n: Amount,
         cost: Vec<Cost>,
     },
+    /// "Partner with Shabraz, the Skyshark": the one card it partners with
+    /// (CR 702.124j), by name.
+    PartnerWith(String),
     /// "Kicker {G} and/or {1}{U}": two costs, either or both paid.
     EitherOrBoth(Vec<Mana>),
     /// "Companion — Each creature card in your starting deck is …": the
@@ -2027,6 +2030,8 @@ pub enum Restriction {
     CantBeBlocked,
     CantBeBlockedExceptBy(Filter),
     CantBeCountered,
+    /// "can't be sacrificed": no effect or cost may sacrifice it.
+    CantBeSacrificed,
     /// "doesn't untap during your untap step", "… its controller's untap
     /// step": whose untap step, which for an Aura on another player's
     /// creature are not the same player.
