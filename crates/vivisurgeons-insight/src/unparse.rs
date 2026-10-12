@@ -472,6 +472,12 @@ mod syn {
     /// "a creature card is exiled this way", "… was exiled this way": the
     /// tense of a passive said of what this very ability did changes
     /// nothing; the verb agrees with its subject.
+    /// "that was put there", "that were put there": the past of "be"
+    /// agrees with a noun whose number the tree doesn't hold.
+    pub fn was_or_were(o: &mut Out) {
+        any_of(o, &["was", "were"]);
+    }
+
     pub fn passive_be(o: &mut Out, n: Num) {
         match n {
             Num::Sg => any_of(o, &["is", "was"]),
@@ -4099,6 +4105,15 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             comparison(o, *op, value);
         }
         Post::DiedThisTurn => o.w("that died this turn"),
+        Post::PutThereFromBattlefieldThisTurn => {
+            o.w("that");
+            match n {
+                Num::Sg => o.w("was"),
+                Num::Pl => o.w("were"),
+                Num::Any => syn::was_or_were(o),
+            }
+            o.w("put there from the battlefield this turn");
+        }
         Post::From(x) => {
             o.w("from");
             objects(o, x);

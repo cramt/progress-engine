@@ -943,6 +943,10 @@ pub enum Post {
     },
     /// "creatures that died this turn".
     DiedThisTurn,
+    /// "creature cards in your graveyard that were put there from the
+    /// battlefield this turn": put into that graveyard from the battlefield
+    /// this turn, creatures or not.
+    PutThereFromBattlefieldThisTurn,
     /// "a nonland card from it": from the hand or pile an earlier verb named.
     From(Box<Objects>),
     /// "Target opponent reveals their hand. You choose a nonland card from
