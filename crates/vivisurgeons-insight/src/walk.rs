@@ -1155,15 +1155,17 @@ impl Walk for Effect {
                 Walk::walk(types, v);
                 Walk::walk(dur, v);
             }
-            Effect::SpendAsAnyColor(f0) => {
-                for x0 in (f0).iter_mut() {
+            Effect::SpendAsAnyColor { uses, dur } => {
+                for x0 in (uses).iter_mut() {
                     Walk::walk(x0, v);
                 }
+                Walk::walk(dur, v);
             }
-            Effect::SpendAsAnyType(f0) => {
-                for x0 in (f0).iter_mut() {
+            Effect::SpendAsAnyType { uses, dur } => {
+                for x0 in (uses).iter_mut() {
                     Walk::walk(x0, v);
                 }
+                Walk::walk(dur, v);
             }
             Effect::IsNow { what, types, keeps } => {
                 Walk::walk(what, v);

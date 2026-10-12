@@ -898,17 +898,17 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         },
         |p| {
             p.words("spend mana as though it were mana of any color")?;
-            spend_uses(p).map(Effect::SpendAsAnyColor)
+            spend_uses(p).map(|uses| Effect::SpendAsAnyColor { uses, dur: Duration::Permanent })
         },
         |p| {
             p.words("spend mana as though it were mana of any type")?;
-            spend_uses(p).map(Effect::SpendAsAnyType)
+            spend_uses(p).map(|uses| Effect::SpendAsAnyType { uses, dur: Duration::Permanent })
         },
         // "and mana of any type can be spent to cast that spell": the same
         // permission (CR 609.4b), said in the passive.
         |p| {
             p.words("mana of any type can be spent")?;
-            spend_uses(p).map(Effect::SpendAsAnyType)
+            spend_uses(p).map(|uses| Effect::SpendAsAnyType { uses, dur: Duration::Permanent })
         },
         // "you may have that player lose 2 life": a verb you make another do.
         |p| {

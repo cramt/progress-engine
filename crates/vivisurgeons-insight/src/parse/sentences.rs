@@ -679,6 +679,43 @@ pub(super) fn clause_as(p: &mut P, who: Option<Player>) -> Option<Vec<Effect>> {
     c
 }
 
+/// "You may play those cards for as long as they remain exiled, and you may
+/// spend mana as though it were mana of any color to cast them": the spend
+/// permission is for casting what the play permission before it lets you
+/// cast, so it lasts as long (Opposition Agent's ruling: the ability "is
+/// trying to exile the card and give permission to play it"). The text says
+/// the duration once, with the play permission.
+fn spend_with_play(v: &mut [Effect]) {
+    fn play_dur(e: &Effect) -> Option<&Duration> {
+        match e {
+            Effect::Cast { dur, .. } => Some(dur),
+            Effect::May { then, .. } => match &then[..] {
+                [e] => play_dur(e),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+    fn spend_dur(e: &mut Effect) -> Option<&mut Duration> {
+        match e {
+            Effect::SpendAsAnyColor { dur, .. } | Effect::SpendAsAnyType { dur, .. } => Some(dur),
+            Effect::May { then, .. } => match &mut then[..] {
+                [e] => spend_dur(e),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+    let mut play: Option<Duration> = None;
+    for e in v.iter_mut() {
+        if let Some(d) = play_dur(e) {
+            play = Some(d.clone());
+        } else if let (Some(d), Some(p)) = (spend_dur(e), &play) {
+            *d = p.clone();
+        }
+    }
+}
+
 pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
     let mut v = clause(p)?;
     while let Some(more) = p.attempt(|p| {
@@ -715,6 +752,7 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
     }) {
         v.extend(more);
     }
+    spend_with_play(&mut v);
     // "it deals X damage to each opponent and you gain X life, where X is
     // …": the trailing definition binds X in every clause of the sentence.
     if v.len() > 1 && matches!(v.last(), Some(Effect::Where { .. })) {

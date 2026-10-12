@@ -1451,11 +1451,22 @@ pub enum Effect {
         dur: Duration,
     },
     /// "you may spend mana as though it were mana of any color to cast them".
-    SpendAsAnyColor(Vec<SpendUse>),
+    /// `dur` is how long the permission lasts: the text never says it, and
+    /// it is the play permission's it is given with ("You may play those
+    /// cards for as long as they remain exiled, and you may spend mana …"),
+    /// since mana is spent to cast them only while they may be cast.
+    /// `Permanent` where no play permission is said with it.
+    SpendAsAnyColor {
+        uses: Vec<SpendUse>,
+        dur: Duration,
+    },
     /// "… as though it were mana of any type": colorless too, one of the six
     /// types (CR 106.1b), so colored mana pays a {C} symbol, which "any
-    /// color" does not allow.
-    SpendAsAnyType(Vec<SpendUse>),
+    /// color" does not allow. `dur` as for `SpendAsAnyColor`.
+    SpendAsAnyType {
+        uses: Vec<SpendUse>,
+        dur: Duration,
+    },
     /// "It's an enchantment.": what a permanent an effect returns is as it
     /// enters, where "becomes" would apply only after (CR 611.2e).
     IsNow {

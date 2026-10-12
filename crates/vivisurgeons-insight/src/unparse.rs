@@ -6024,11 +6024,12 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w("all creature types");
             dur(o, d);
         }
-        Effect::SpendAsAnyColor(uses) => {
+        // Its duration is the play permission's, said with it.
+        Effect::SpendAsAnyColor { uses, .. } => {
             o.w("spend mana as though it were mana of any color");
             spend_uses(o, uses);
         }
-        Effect::SpendAsAnyType(uses) => {
+        Effect::SpendAsAnyType { uses, .. } => {
             syn::any_type_spent(o);
             spend_uses(o, uses);
         }
