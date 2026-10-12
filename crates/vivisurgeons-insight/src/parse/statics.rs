@@ -885,10 +885,16 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             let k = keyword_list(p)?;
             let modify = Static::Modify { what: what.clone(), pt: None, has: k, per: None };
             // "~ has annihilator X, where X is the number of +1/+1 counters on it."
-            Some(vec![match p.attempt(|p| { p.words(", where x is")?; measure(p) }) {
+            let mut v = vec![match p.attempt(|p| { p.words(", where x is")?; measure(p) }) {
                 Some(x) => Static::Where { inner: Box::new(modify), x },
                 None => modify,
-            }])
+            }];
+            // "Enchanted creature has flying and "Sacrifice a creature: …""
+            // (Fallen Ideal).
+            if let Some(a) = p.attempt(|p| { p.one_of(&[", and", "and"])?; quoted(p) }) {
+                v.push(Static::HasAbility { what: what.clone(), ability: Box::new(a) });
+            }
+            Some(v)
         },
         |p| { p.one_of(&["is", "are"])?; p.words("all colors")?; Some(vec![Static::IsAllColors(what.clone())]) },
         |p| { p.one_of(&["is", "are"])?; p.word("goaded")?; Some(vec![Static::Goaded(what.clone())]) },
