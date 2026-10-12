@@ -2183,4 +2183,27 @@ mod round_nine_d {
             "{s}"
         );
     }
+
+    #[test]
+    fn a_sentence_about_a_branchs_choice_is_the_branchs() {
+        let s = format!(
+            "{:?}",
+            read(
+                "Legendary Enchantment Creature — Nightmare",
+                "At the beginning of your end step, you may sacrifice an artifact, creature, enchantment, land, or planeswalker. If you do, each opponent may sacrifice a permanent of their choice that shares a card type with it. For each opponent who doesn't, that player loses 2 life and you draw a card."
+            )
+        );
+        assert!(
+            s.contains("IfYouDo([May { who: EachOpponent") && s.ends_with("}] }])], limits: [] }]"),
+            "{s}"
+        );
+        let s = format!(
+            "{:?}",
+            read(
+                "Enchantment",
+                "At the beginning of your draw step, you may draw two additional cards. If you do, choose two cards in your hand drawn this turn. For each of those cards, pay 4 life or put the card on top of your library."
+            )
+        );
+        assert!(s.contains("})), ForEach {"), "{s}");
+    }
 }

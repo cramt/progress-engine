@@ -839,6 +839,18 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
             (Some(Effect::If { cond: a, .. }), Some(Effect::If { cond: b, .. }))
                 if tested(a).is_some() && tested(a) == tested(b)
         );
+        // "If you do, each opponent may sacrifice a permanent …. For each
+        // opponent who doesn't, …": the players who declined were offered
+        // the choice only in that branch, so the sentence about them is its.
+        if let Some(Effect::IfYouDo(then) | Effect::If { then, .. } | Effect::Otherwise(then)) =
+            v.last_mut()
+        {
+            let declined = |e: &Effect| matches!(e, Effect::ForEach { each, .. } if each.filter.posts.contains(&Post::WhoDoesnt));
+            if matches!(then.last(), Some(Effect::May { .. })) && s.first().is_some_and(declined) {
+                then.extend(s);
+                continue;
+            }
+        }
         if let Some(branch) = v
             .last_mut()
             .and_then(branch_with_new_object)
@@ -969,6 +981,8 @@ fn refers_back(e: &Effect) -> bool {
         | Effect::Untap(what)
         | Effect::EntersWithCounters { what, .. } => it(what),
         Effect::PutCounters { on, .. } => it(on),
+        // "For each of those cards, pay 4 life or …" (Sylvan Library).
+        Effect::ForEach { each, .. } => it(each),
         Effect::Delayed { then, .. } | Effect::If { then, .. } => {
             then.first().is_some_and(refers_back)
         }
