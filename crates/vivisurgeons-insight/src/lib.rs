@@ -1356,7 +1356,7 @@ mod tests {
             let a = format!("{:?}", read("Some Thrasta", "Creature — Dinosaur", text));
             assert!(!a.contains("Antecedent"), "{a}");
         }
-        // Each land in turn is no one object.
+        // Each land in turn, not one object ([trailing-if]).
         let a = format!(
             "{:?}",
             read(
@@ -1365,7 +1365,10 @@ mod tests {
                 "Each land gets +2/+2 as long as it's a creature."
             )
         );
-        assert!(a.contains("Antecedent"), "{a}");
+        assert!(
+            a.contains("cond: Is { what: Objects { quant: Itself"),
+            "{a}"
+        );
     }
 
     #[test]

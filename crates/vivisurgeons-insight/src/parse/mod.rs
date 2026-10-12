@@ -956,6 +956,19 @@ fn refer_to_the_card(statics: &mut [Static]) {
         if !subjects.is_empty() && subjects.iter().all(is_card) && is_it(&named) {
             cond.walk(&mut Bare(Quant::SelfRef));
         }
+        // "Enchanted creature gets +1/+2 as long as it's white", "Each
+        // Vehicle you control gets +1/+1 as long as it's a creature": the
+        // one subject, or each of them in turn ([trailing-if]).
+        if is_it(&named) {
+            if let Some(Some(s)) = subjects.first() {
+                if subjects.iter().all(|t| t.as_ref() == Some(s)) {
+                    if let Some(to) = clause_object(&s.quant).filter(|_| s.quant != Quant::SelfRef)
+                    {
+                        cond.walk(&mut Bare(to));
+                    }
+                }
+            }
+        }
         // "As long as this creature is attacking, it gets +2/+0".
         if is_card(&named) && subjects.iter().any(is_it) {
             for t in then.iter_mut() {
@@ -1009,27 +1022,17 @@ pub(super) fn after_clause(clause: &Effect, cond: &mut Condition) {
     let mut named = Named(Vec::new());
     clause.clone().walk(&mut named);
     let [q] = named.0.as_slice() else { return };
-    let fresh = matches!(
-        q,
-        Quant::Target { .. }
-            | Quant::AnyTarget { .. }
-            | Quant::AnotherTarget
-            | Quant::OtherTarget { .. }
-            | Quant::SecondTarget
-    );
-    if !fresh {
-        return;
-    }
-    struct Bind;
+    let Some(to) = clause_object(q) else { return };
+    struct Bind(Quant);
     impl Visitor for Bind {
         fn enter(&mut self, o: &mut Objects) -> bool {
             if o.quant == Quant::Antecedent {
-                o.quant = Quant::ClauseObject;
+                o.quant = self.0.clone();
             }
             true
         }
     }
-    cond.walk(&mut Bind);
+    cond.walk(&mut Bind(to));
 }
 
 /// Every reference back in a clause said before a trailing "for each".
@@ -2030,5 +2033,22 @@ fn x_of_the_spell(t: &Trigger, effect: &mut [Effect]) {
     }
     for e in effect {
         e.walk(&mut V(0));
+    }
+}
+
+/// What a reference back in a condition said after its clause is, when the
+/// clause names one object by a noun of its own ([trailing-if]): that
+/// object, or each of a set in turn.
+fn clause_object(q: &Quant) -> Option<Quant> {
+    match q {
+        Quant::Target { .. }
+        | Quant::AnyTarget { .. }
+        | Quant::AnotherTarget
+        | Quant::OtherTarget { .. }
+        | Quant::SecondTarget
+        | Quant::Enchanted
+        | Quant::Equipped => Some(Quant::ClauseObject),
+        Quant::Each | Quant::All | Quant::Plural => Some(Quant::Itself),
+        _ => None,
     }
 }

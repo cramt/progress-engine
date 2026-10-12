@@ -544,9 +544,9 @@ pub enum Quant {
     /// or `SelfRef` instead ("it gets +1/+0 … for each other attacking
     /// creature").
     BeforeEach,
-    /// A reference back in an "if" or "unless" said after its clause: the
-    /// one object that clause names, which the tree holds after the
-    /// condition. "Destroy target creature if it's tapped" tests the
+    /// A reference back in an "if", "unless" or "as long as" said after its
+    /// clause: the one object that clause names, which the tree holds after
+    /// the condition. "Destroy target creature if it's tapped" tests the
     /// target, not the spell that triggered the ability or an earlier
     /// noun ([trailing-if]).
     ClauseObject,
