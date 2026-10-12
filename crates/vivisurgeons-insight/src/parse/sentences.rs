@@ -330,6 +330,9 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             let e = effect(p)?;
             let what = match &e {
                 Effect::Modify { what, .. } if what.quant != Quant::Next => what.clone(),
+                // "creatures your opponents control lose hexproof and shroud
+                // and can't have hexproof or shroud" (Arcane Lighthouse).
+                Effect::LoseKeywords { what, .. } => what.clone(),
                 _ => return None,
             };
             p.word("and")?;

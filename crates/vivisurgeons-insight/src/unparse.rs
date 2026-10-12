@@ -1172,6 +1172,12 @@ mod syn {
 
     // ---------------------------------------- words read the same either way
 
+    /// "can't have flying" and "can't have or gain flying": an object that
+    /// can't have an ability can't gain it, so "or gain" only says so.
+    pub fn or_gain(o: &mut Out) {
+        alt(o, vec![Out::default(), of("or gain")]);
+    }
+
     /// "each of those creatures", "each of up to two target creatures";
     /// "each with power greater than …": "each" says distributively what a
     /// rule about the objects says of each of them anyway.
@@ -5391,6 +5397,16 @@ fn restriction(o: &mut Out, r: &Restriction, n: Num) {
         Restriction::CantEnterBattlefield => o.w("can't enter the battlefield"),
         Restriction::CantBeTurnedFaceUp => o.w("can't be turned face up"),
         Restriction::CantHaveCountersPut => o.w("can't have counters put on it"),
+        Restriction::CantHave(ks) => {
+            o.w("can't have");
+            syn::or_gain(o);
+            for (i, k) in ks.iter().enumerate() {
+                if i > 0 {
+                    syn::or_sep(o, i, ks.len());
+                }
+                keyword(o, k);
+            }
+        }
         Restriction::MustBeBlocked => o.w("must be blocked if able"),
     }
 }

@@ -400,6 +400,15 @@ pub(super) fn restriction_bare(p: &mut P) -> Option<Restriction> {
         |p| p.words("can't enter the battlefield").map(|_| Restriction::CantEnterBattlefield),
         |p| p.words("can't be turned face up").map(|_| Restriction::CantBeTurnedFaceUp),
         |p| p.words("can't have counters put on it").map(|_| Restriction::CantHaveCountersPut),
+        // "can't have hexproof or shroud", "can't have or gain flying".
+        |p| {
+            p.words("can't have")?;
+            p.attempt(|p| p.words("or gain"));
+            let mut v = vec![keyword(p)?];
+            while let Some(k) = p.attempt(|p| { p.tok(&Tok::Comma)?; keyword(p) }) { v.push(k); }
+            if let Some(k) = p.attempt(|p| { p.attempt(|p| p.tok(&Tok::Comma)); p.word("or")?; keyword(p) }) { v.push(k); }
+            Some(Restriction::CantHave(v))
+        },
         |p| p.words("must be blocked if able").map(|_| Restriction::MustBeBlocked),
         |p| p.one_of(&["attacks each combat if able", "attack each combat if able"]).map(|_| Restriction::AttacksEachCombat),
         |p| p.one_of(&["attacks this turn if able", "attack this turn if able"]).map(|_| Restriction::AttacksThisTurn),

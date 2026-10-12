@@ -2212,6 +2212,9 @@ pub enum Restriction {
     CantBeTurnedFaceUp,
     /// "can't have counters put on it".
     CantHaveCountersPut,
+    /// "can't have hexproof or shroud", "can't have or gain flying": no
+    /// effect can give the object these keywords while it applies.
+    CantHave(Vec<Keyword>),
     /// "must be blocked if able": a requirement on the declaration of
     /// blockers (CR 509.1c).
     MustBeBlocked,
