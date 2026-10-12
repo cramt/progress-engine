@@ -536,7 +536,7 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
                 },
             )
         },
-        |p| { if !spell { return None; } let mut e = effects(p)?; other_than_named_before(&mut e); finished(p).then_some(Ability::Spell(e)) },
+        |p| { if !spell { return None; } let mut e = effects(p)?; other_than_named_before(&mut e); kicked_it(&mut e); finished(p).then_some(Ability::Spell(e)) },
         |p| { let mut s = statics(p)?; refer_to_the_card(&mut s); other_than_the_subject(&mut s); finished(p).then_some(Ability::Static(s)) },
         // "As this enchantment enters, choose Khans or Dragons. / • Khans —
         // … / • Dragons — …": anchor words (CR 614.12c). Each bullet's
@@ -951,7 +951,16 @@ fn refer_to_the_card(statics: &mut [Static]) {
             .iter_mut()
             .map(|t| first(&mut |f: &mut First| t.walk(f)))
             .collect();
-        let named = first(&mut |f: &mut First| cond.walk(f));
+        // "If ~ was kicked, it enters with five +1/+1 counters on it": the
+        // kicked spell is the card, which `WasKicked` holds no object for.
+        let named = if *cond == Condition::WasKicked {
+            Some(Objects {
+                quant: Quant::SelfRef,
+                filter: Filter::default(),
+            })
+        } else {
+            first(&mut |f: &mut First| cond.walk(f))
+        };
         // "~ has hexproof as long as it's untapped": the subject is the card.
         if !subjects.is_empty() && subjects.iter().all(is_card) && is_it(&named) {
             cond.walk(&mut Bare(Quant::SelfRef));
@@ -2050,5 +2059,36 @@ fn clause_object(q: &Quant) -> Option<Quant> {
         | Quant::Equipped => Some(Quant::ClauseObject),
         Quant::Each | Quant::All | Quant::Plural => Some(Quant::Itself),
         _ => None,
+    }
+}
+
+/// "Damage can't be prevented this turn. If this spell was kicked, it deals
+/// 5 damage …": with no object named before, the "it" after "this spell was
+/// kicked" is the spell, as in a static ([kicked-it]).
+fn kicked_it(effect: &mut [Effect]) {
+    struct Any(bool);
+    impl Visitor for Any {
+        fn enter(&mut self, _: &mut Objects) -> bool {
+            self.0 = true;
+            false
+        }
+    }
+    for e in effect {
+        if let Effect::If {
+            cond: Condition::WasKicked,
+            then,
+        } = e
+        {
+            let mut bare = FirstBare(false);
+            for t in then.iter_mut() {
+                t.walk(&mut bare);
+            }
+            return;
+        }
+        let mut any = Any(false);
+        e.walk(&mut any);
+        if any.0 {
+            return;
+        }
     }
 }
