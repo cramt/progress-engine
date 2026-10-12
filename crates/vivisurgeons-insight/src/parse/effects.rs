@@ -1319,6 +1319,17 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                 |p| { p.verb("add")?; mana_add(p).map(Effect::AddMana) },
                 |p| { p.verb("scry")?; amount(p).map(Effect::Scry) },
                 |p| { p.verb("surveil")?; amount(p).map(Effect::Surveil) },
+                // "Its controller investigates": a keyword action the
+                // player performs (CR 701), with no object of its own.
+                |p| {
+                    let w = p.peek_word()?;
+                    let name = w.strip_suffix("es").filter(|b| vocab().keyword_actions.contains(*b))
+                        .or_else(|| w.strip_suffix('s').filter(|b| vocab().keyword_actions.contains(*b)))?
+                        .to_string();
+                    p.bump();
+                    let n = p.attempt(amount);
+                    p.end_of_clause().then_some(Effect::Action { by: None, name, n })
+                },
                 |p| { p.verb("exile")?; objects(p).map(Effect::Exile) },
                 |p| {
                     p.verb("gain")?;

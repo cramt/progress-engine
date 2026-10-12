@@ -7180,6 +7180,16 @@ fn performed(o: &mut Out, e: &Effect, n: Num) {
             objects(o, what);
             dur(o, d);
         }
+        Effect::Action {
+            by: None,
+            name,
+            n: k,
+        } => {
+            o.verb(name, n);
+            if let Some(k) = k {
+                amount(o, k);
+            }
+        }
         Effect::Scry(k) | Effect::Surveil(k) => {
             o.verb(
                 if matches!(e, Effect::Scry(_)) {
