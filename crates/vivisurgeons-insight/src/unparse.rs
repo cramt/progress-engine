@@ -1342,7 +1342,7 @@ pub fn ability(a: &Ability) -> Out {
         fn enter(&mut self, o: &mut Objects) -> bool {
             if matches!(
                 o.quant,
-                Quant::Triggering | Quant::BeforeEach | Quant::Itself
+                Quant::Triggering | Quant::BeforeEach | Quant::Itself | Quant::Created
             ) {
                 o.quant = Quant::Antecedent;
             }
@@ -2607,9 +2607,12 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::WithOthers(_)
         | Quant::SelfAnd(_) => Num::Pl,
         // "one or more creatures … deals": the verb may agree with "one".
-        Quant::Antecedent | Quant::BeforeEach | Quant::Itself | Quant::Other | Quant::OneOrMore => {
-            Num::Any
-        }
+        Quant::Antecedent
+        | Quant::BeforeEach
+        | Quant::Itself
+        | Quant::Created
+        | Quant::Other
+        | Quant::OneOrMore => Num::Any,
         // "Krang & Shredder enter", "equipped creatures you control": a
         // name or an attached-to creature may be one or several.
         Quant::SelfRef if x.filter == Filter::default() => Num::Any,
@@ -2890,7 +2893,7 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             },
         ),
         // Said as any reference back is.
-        Quant::BeforeEach | Quant::Itself => objects_plain(
+        Quant::BeforeEach | Quant::Itself | Quant::Created => objects_plain(
             o,
             &Objects {
                 quant: Quant::Antecedent,

@@ -536,6 +536,12 @@ pub enum Quant {
     /// control each with power greater than its base power" compares each
     /// creature with its own base power.
     Itself,
+    /// "Create a token that's a copy of …. Sacrifice it at the beginning of
+    /// the next end step", "Create two 1/1 … tokens. They gain haste": the
+    /// tokens the effect before created, which no `Objects` in the tree
+    /// names, so a bare `Antecedent` would point past them to the copied
+    /// creature.
+    Created,
     /// "Put both cards onto the battlefield": the two objects the clauses
     /// before it named, one each (Sword of Hearth and Home's exiled
     /// creature card and the land card found), where "them" is one plural.

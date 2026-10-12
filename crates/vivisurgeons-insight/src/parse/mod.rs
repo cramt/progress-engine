@@ -1578,6 +1578,151 @@ impl Visitor for DelayedSameClause {
     }
 }
 
+/// Kiki-Jiki: "Create a token that's a copy of target nonlegendary creature
+/// you control, except it has haste. Sacrifice it at the beginning of the
+/// next end step"; Sokenzan: "Create two 1/1 colorless Spirit creature
+/// tokens. They gain haste until end of turn". The tokens are named by no
+/// `Objects`, so a bare reference after them would point past them to the
+/// copied creature. A reference back ("it", "them", "the token", "those
+/// tokens") said after an effect that created tokens, before any other
+/// object is named, is `Created`. Not:
+/// - a bare "it" in a condition, which tests what was named before the
+///   tokens ("exile target card …. If it was a creature card, create a 2/2
+///   …. If it was a land card, …"); "If the token isn't a creature" is;
+/// - an object in a `Where`'s definition of X, which is worked out before
+///   its effect creates anything ("create X Junk tokens, where X is the
+///   number of +1/+1 counters on it");
+/// - "it deals" after more than one token was created ("create three 1/1
+///   … Hamster creature tokens, then it deals X damage"): the singular verb
+///   is the Vehicle's, where the tokens would be "they";
+/// - in the other branch of an "if" ("If it's a land card, create a 2/2
+///   … Ox creature token. Otherwise, you may cast it") or another mode,
+///   where nothing was created; nor after an effect that brings in an
+///   object of its own ("create a Treasure token, then look at the top
+///   card of that player's library and exile it face down").
+struct CreatedTokens {
+    /// The tokens just created, and whether they were one.
+    created: Option<bool>,
+    in_cond: u32,
+    depth: u32,
+    /// The depths of the `Where`s being read.
+    wheres: Vec<u32>,
+    /// Inside a `Modal` whose modes were read on their own.
+    skip: Option<u32>,
+}
+
+impl CreatedTokens {
+    fn new() -> Self {
+        CreatedTokens {
+            created: None,
+            in_cond: 0,
+            depth: 0,
+            wheres: Vec::new(),
+            skip: None,
+        }
+    }
+}
+
+impl Visitor for CreatedTokens {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        if self.skip.is_some() {
+            return true;
+        }
+        let bare = o.filter.alts.is_empty() && o.filter.posts.is_empty() && o.filter.or.is_none();
+        let fits = match o.filter.kind {
+            Some(Noun::Token) => true,
+            None => self.in_cond == 0,
+            _ => false,
+        };
+        if self.created.is_some() && o.quant == Quant::Antecedent && bare && fits {
+            o.quant = Quant::Created;
+        }
+        true
+    }
+    fn leave(&mut self, o: &mut Objects) {
+        let in_cond_card = self.in_cond > 0 && o.quant == Quant::SelfRef;
+        if o.quant != Quant::Created && !in_cond_card {
+            self.created = None;
+        }
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        // A quoted ability inside an effect is its own text; a label's
+        // ability is the line's.
+        self.depth == 0
+    }
+    fn effect(&mut self, e: &mut Effect) {
+        self.depth += 1;
+        if self.skip.is_some() {
+            return;
+        }
+        match e {
+            Effect::Where { .. } => self.wheres.push(self.depth),
+            Effect::Otherwise(_) | Effect::IfYouDont(_) => self.created = None,
+            Effect::Damage {
+                source: Some(src), ..
+            } if *src == antecedent() && self.created == Some(false) => self.created = None,
+            Effect::Modal { modes, .. } => {
+                for m in modes.iter_mut() {
+                    let mut v = CreatedTokens::new();
+                    for x in m.iter_mut() {
+                        x.walk(&mut v);
+                    }
+                }
+                self.skip = Some(self.depth);
+            }
+            _ => {}
+        }
+    }
+    fn amount(&mut self, _: &mut Amount) {
+        // The `Where`'s own X, read after its effects.
+        if self.skip.is_none() && self.wheres.last() == Some(&self.depth) {
+            self.created = None;
+        }
+    }
+    fn condition(&mut self, _: &mut Condition) {
+        self.in_cond += 1;
+    }
+    fn condition_done(&mut self, _: &mut Condition) {
+        self.in_cond -= 1;
+    }
+    fn effect_done(&mut self, e: &mut Effect) {
+        if self.skip == Some(self.depth) {
+            self.skip = None;
+        }
+        if self.skip.is_some() {
+            self.depth -= 1;
+            return;
+        }
+        if self.wheres.last() == Some(&self.depth) && matches!(e, Effect::Where { .. }) {
+            self.wheres.pop();
+        }
+        self.depth -= 1;
+        let one = |n: &Amount| *n == Amount::N(1);
+        self.created = match e {
+            Effect::Create { n, .. }
+            | Effect::CreateCopy { n, .. }
+            | Effect::CreateNamed { n, .. }
+            | Effect::CreateAttached { n, .. } => Some(one(n)),
+            Effect::CreateOfEach { .. } => Some(false),
+            // Effects that bring in an object they name in no `Objects`.
+            Effect::RevealTop { .. }
+            | Effect::LookAtTop { .. }
+            | Effect::RevealHand { .. }
+            | Effect::LookAtHand { .. }
+            | Effect::Mill { .. }
+            | Effect::Scry { .. }
+            | Effect::Surveil { .. }
+            | Effect::Draw { .. }
+            | Effect::Copy { .. }
+            | Effect::Amass { .. }
+            | Effect::Action { .. }
+            | Effect::UntilFound { .. }
+            | Effect::DigUntilTotal { .. } => None,
+            _ => self.created,
+        };
+    }
+}
+
 /// A whole ability line, which must be consumed to the last token.
 pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
     let mut p = P::new(toks);
@@ -1588,6 +1733,7 @@ pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
             a.walk(&mut FromEachLibrary);
             a.walk(&mut MaySubject);
             a.walk(&mut DelayedSameClause);
+            a.walk(&mut CreatedTokens::new());
             Ok(a)
         }
         _ => Err(p.furthest),
