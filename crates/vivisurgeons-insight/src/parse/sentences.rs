@@ -1326,6 +1326,10 @@ fn those_players(p: &mut P, each: Objects) -> Option<Vec<Effect>> {
 fn branch_with_new_object(e: &mut Effect) -> Option<&mut Vec<Effect>> {
     let (then, option) = match e {
         Effect::May { then, .. } | Effect::IfYouDo(then) | Effect::IfYouDont(then) => (then, true),
+        // "When you do, choose up to one target creature card exiled this
+        // way. Create a token that's a copy of that card" (Espers to
+        // Magicite): the reflexive trigger's target exists only in it.
+        Effect::WhenYouDo(then) | Effect::WhenYouDoIf { then, .. } => (then, true),
         Effect::If { then, .. } | Effect::Otherwise(then) => (then, false),
         _ => return None,
     };
@@ -1429,6 +1433,8 @@ fn refers_back(e: &Effect) -> bool {
         Effect::PutCounters { on, .. } => it(on),
         // "You may choose new targets for the copy".
         Effect::ChooseNewTargets(what) => it(what),
+        // "Create a token that's a copy of that card".
+        Effect::CreateCopy { of, .. } => it(of),
         // "For each of those cards, pay 4 life or …" (Sylvan Library).
         Effect::ForEach { each, .. } => it(each),
         Effect::Delayed { then, .. } | Effect::If { then, .. } => {

@@ -1454,6 +1454,23 @@ mod syn {
 
     // ---------------------------------------- made identical by the rules
 
+    /// "except it's an artifact" and "except it's an artifact and it loses
+    /// all other card types": an effect that sets a card type replaces the
+    /// existing ones (CR 205.1a), so the loss is said or not.
+    pub fn loses_other_card_types(o: &mut Out) {
+        let mut said = Vec::new();
+        for f in [
+            "and it loses all other card types",
+            "and loses all other card types",
+            "and they lose all other card types",
+            "and lose all other card types",
+        ] {
+            said.push(of(f));
+        }
+        said.push(Out::default());
+        alt(o, said);
+    }
+
     /// "Pay {E}{E}: …", "Replicate—Pay {E}{E}{E}" and "{E}{E}: …": a cost
     /// of energy symbols is paid whether or not the verb is said; to pay
     /// {E} is to remove an energy counter (CR 107.14).
@@ -7844,6 +7861,9 @@ fn exceptions(o: &mut Out, es: &[Exception]) {
                 }
                 for a in adjs {
                     adj(o, a, None);
+                }
+                if adjs.iter().any(|a| matches!(a, Adj::Type(_))) {
+                    syn::loses_other_card_types(o);
                 }
             }
             Exception::Has {

@@ -1925,6 +1925,16 @@ fn exception(p: &mut P) -> Option<Exception> {
             let adjs = p.attempt(group).unwrap_or_default();
             if pt.is_none() && adjs.is_empty() { return None; }
             if p.peek_word() == Some("in") { return None; }
+            // "except it's an artifact and it loses all other card types":
+            // setting a card type already replaces the others (CR 205.1a).
+            if adjs.iter().any(|a| matches!(a, Adj::Type(_))) {
+                p.attempt(|p| p.one_of(&[
+                    "and it loses all other card types",
+                    "and loses all other card types",
+                    "and they lose all other card types",
+                    "and lose all other card types",
+                ]));
+            }
             Some(Exception::Is { pt, adjs })
         },
         |p| p.words("it has this ability").map(|_| Exception::HasThisAbility),
