@@ -1097,6 +1097,19 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
                 // another of them exiled.
                 Some(Marked::Exiled) if !p.spell && !exiled_earlier(&p.t[..start]) => {
                     f.posts.insert(0, Post::ExiledWith(Box::new(self_ref())));
+                    return Some(Objects { quant: Quant::Linked, filter: f });
+                }
+                // Dance of Many's "When this enchantment leaves the
+                // battlefield, exile the token": a token its linked ability
+                // created (CR 607.1), where this one created none.
+                None if f.kind == Some(Noun::Token)
+                    && f.alts.is_empty()
+                    && f.posts.is_empty()
+                    && !p.spell
+                    && !created_earlier(&p.t[..start]) =>
+                {
+                    f.posts.insert(0, Post::CreatedWith(Box::new(self_ref())));
+                    return Some(Objects { quant: Quant::Linked, filter: f });
                 }
                 Some(m) => f.posts.insert(0, Post::Marked(m)),
                 None => {}
@@ -1131,6 +1144,13 @@ fn exiled_earlier(before: &[Tok]) -> bool {
     before
         .iter()
         .any(|t| matches!(t, Tok::Word(w) if w == "exile" || w == "exiles"))
+}
+
+/// Whether the words of an ability before a phrase create a token.
+fn created_earlier(before: &[Tok]) -> bool {
+    before
+        .iter()
+        .any(|t| matches!(t, Tok::Word(w) if w == "create" || w == "creates" || w == "created"))
 }
 
 /// What an earlier verb did to an object: "the exiled card".

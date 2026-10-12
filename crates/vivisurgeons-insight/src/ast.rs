@@ -546,6 +546,12 @@ pub enum Quant {
     /// that artifact if it's on the battlefield": the object that generated
     /// the ability (CR 113.7), which the ability named as its source.
     SourceOf(Box<Objects>),
+    /// "the exiled card", "the token" in an ability that exiled or created
+    /// nothing: the object a linked ability of this object exiled or
+    /// created (CR 607.1, 607.2a), which the filter's first post names
+    /// (`ExiledWith(SelfRef)`, `CreatedWith(SelfRef)`). No reference back:
+    /// nothing before it in the ability names it.
+    Linked,
     /// "This ability costs {1} less to activate if it targets a creature
     /// with power 3 or less": the ability the text is part of, which is no
     /// card (CR 113.1).
@@ -784,6 +790,9 @@ pub enum Post {
     /// "the exiled card": an object an earlier verb picked out.
     Marked(Marked),
     PutOntoBattlefieldWith(Box<Objects>),
+    /// "the token" in an ability that created none: one a linked ability of
+    /// that object created (CR 607.1).
+    CreatedWith(Box<Objects>),
     /// "cards they exiled this way": marked by an earlier verb of one player.
     MarkedBy {
         how: Marked,

@@ -1357,6 +1357,7 @@ pub fn ability(a: &Ability) -> Out {
                     | Quant::Created
                     | Quant::ThisAbility
                     | Quant::SourceOf(_)
+                    | Quant::Linked
             ) {
                 o.quant = Quant::Antecedent;
             }
@@ -2627,6 +2628,7 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::Created
         | Quant::ThisAbility
         | Quant::SourceOf(_)
+        | Quant::Linked
         | Quant::Other
         | Quant::OneOrMore => Num::Any,
         // "Krang & Shredder enter", "equipped creatures you control": a
@@ -2913,7 +2915,8 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         | Quant::Itself
         | Quant::Created
         | Quant::ThisAbility
-        | Quant::SourceOf(_) => objects_plain(
+        | Quant::SourceOf(_)
+        | Quant::Linked => objects_plain(
             o,
             &Objects {
                 quant: Quant::Antecedent,
@@ -2950,6 +2953,16 @@ fn objects_plain(o: &mut Out, x: &Objects) {
                     filter(o, f, n);
                 });
                 syn::position(o, before, after);
+            }
+            // Dance of Many's "the token": the one its linked ability
+            // created.
+            Some(Post::CreatedWith(x)) if x.quant == Quant::SelfRef => {
+                let rest = Filter {
+                    posts: f.posts[1..].to_vec(),
+                    ..f.clone()
+                };
+                syn::that(o);
+                filter(o, &rest, n);
             }
             // Isochron Scepter's "the exiled card": the card its linked
             // ability exiled with it.
@@ -3628,6 +3641,11 @@ fn post(o: &mut Out, q: &Post, n: Num) {
                 o.w("with");
                 objects(o, x);
             }
+        }
+        // Only said as "the token" (`objects`), where it is the first post.
+        Post::CreatedWith(x) => {
+            o.w("created with");
+            objects(o, x);
         }
         Post::WithBasicLandType => o.w("with a basic land type"),
         Post::WithSingleTarget => o.w("with a single target"),

@@ -1971,6 +1971,9 @@ impl Walk for Post {
             Post::PutOntoBattlefieldWith(f0) => {
                 Walk::walk(&mut **f0, v);
             }
+            Post::CreatedWith(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             Post::MarkedBy { by, .. } => {
                 Walk::walk(by, v);
             }
