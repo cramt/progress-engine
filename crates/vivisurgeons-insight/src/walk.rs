@@ -2471,6 +2471,9 @@ impl Walk for Static {
             Static::Goaded(f0) => {
                 Walk::walk(f0, v);
             }
+            Static::ProtectionDoesntRemove(f0) => {
+                Walk::walk(f0, v);
+            }
             Static::CostChangePer { what, per, .. } => {
                 Walk::walk(what, v);
                 Walk::walk(per, v);

@@ -10298,6 +10298,10 @@ fn static_other(o: &mut Out, s: &Static) {
             replacement(o, w, instead, &Cx::default());
         }
         Static::CastWithoutPaying => o.w("you may cast this spell without paying its mana cost"),
+        Static::ProtectionDoesntRemove(what) => {
+            o.w("this effect doesn't remove");
+            objects(o, what);
+        }
         Static::AdditionalTrigger { of, cause } => match cause {
             None => {
                 o.w("if a triggered ability of");

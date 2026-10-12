@@ -2646,6 +2646,10 @@ pub enum Static {
     /// static applies, not until that player's next turn as a one-shot
     /// goad is (CR 701.15a).
     Goaded(Objects),
+    /// "Enchanted creature has protection from black. This effect doesn't
+    /// remove this Aura.": the Auras named are not put into their owners'
+    /// graveyards by the protection this static gives (CR 702.16n).
+    ProtectionDoesntRemove(Objects),
     /// "This spell costs {1} less to cast for each card type among cards in
     /// your graveyard": a change per a count that is not of objects.
     CostChangePer {

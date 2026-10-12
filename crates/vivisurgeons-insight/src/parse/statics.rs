@@ -46,6 +46,11 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
         return Some(s);
     }
     let s = alt!(p;
+        // "This effect doesn't remove this Aura." (CR 702.16n)
+        |p| {
+            p.words("this effect doesn't remove")?;
+            objects(p).map(|what| vec![Static::ProtectionDoesntRemove(what)])
+        },
         |p| {
             let what = objects(p)?;
             let mut keywords = Vec::new();
