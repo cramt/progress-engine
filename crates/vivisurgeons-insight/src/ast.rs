@@ -1882,6 +1882,8 @@ pub struct Token {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Restriction {
+    /// "can attack as though it didn't have defender".
+    AttacksDespiteDefender,
     CantBlock,
     CantAttack,
     CantAttackOrBlock,
@@ -2537,6 +2539,8 @@ pub enum Condition {
         what: Holding,
     },
     YouCastIt,
+    /// "if you cast it from your hand": by you, from that zone.
+    YouCastItFrom(Zone),
     NoSpellsCastLastTurn,
     TwoSpellsCastByAPlayerLastTurn,
     Not(Box<Condition>),

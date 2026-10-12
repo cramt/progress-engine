@@ -92,9 +92,16 @@ pub(super) fn top_of_library(p: &mut P) -> Option<(Amount, Player)> {
 
 /// The subject of a sentence whose verb takes a player.
 pub(super) fn subject_player(p: &mut P) -> Player {
-    p.attempt(player)
-        .or_else(|| p.implied.clone())
-        .unwrap_or(Player::You)
+    match p.attempt(player) {
+        // "Any number of target players each mill two cards": "each"
+        // restates that every one of them does.
+        Some(Player::AnyNumberOfTarget) => {
+            p.attempt(|p| p.word("each"));
+            Player::AnyNumberOfTarget
+        }
+        Some(who) => who,
+        None => p.implied.clone().unwrap_or(Player::You),
+    }
 }
 
 pub(super) fn token(p: &mut P) -> Option<(Amount, Token)> {
@@ -297,6 +304,7 @@ pub(super) fn restriction(p: &mut P) -> Option<Restriction> {
 
 pub(super) fn restriction_bare(p: &mut P) -> Option<Restriction> {
     alt!(p;
+        |p| p.words("can attack as though it didn't have defender").map(|_| Restriction::AttacksDespiteDefender),
         |p| { p.words("can block only")?; filter(p).map(Restriction::CanBlockOnly) },
         |p| p.words("can't be blocked by more than one creature").map(|_| Restriction::CantBeBlockedByMoreThanOne),
         |p| { p.words("can't be blocked by")?; filter(p).map(Restriction::CantBeBlockedBy) },
@@ -948,6 +956,28 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             while sym(p, "E").is_some() { n += 1; }
             (n > 0).then_some(Effect::GetEnergy(n))
         },
+        // "Each opponent loses half their life, rounded up", "Target
+        // opponent mills half their library, rounded down": half of a
+        // count, rounded as said (CR 107.1a).
+        |p| {
+            let who = subject_player(p);
+            p.verb("lose")?;
+            p.word("half")?;
+            let w = whose(p)?;
+            p.word("life")?;
+            let round_up = rounded(p)?;
+            Some(Effect::LoseLife { who, n: Amount::Half { of: Box::new(Amount::LifeTotal(w)), round_up } })
+        },
+        |p| {
+            let who = subject_player(p);
+            p.verb("mill")?;
+            p.word("half")?;
+            let w = whose(p)?;
+            p.word("library")?;
+            let round_up = rounded(p)?;
+            let cards = Objects { quant: Quant::Plural, filter: Filter { kind: Some(Noun::Card), posts: vec![Post::In(Zone::Library(w))], ..Filter::default() } };
+            Some(Effect::Mill { who, n: Amount::Half { of: Box::new(Amount::CountOf(Box::new(cards))), round_up } })
+        },
         |p| {
             p.words("you get an emblem with")?;
             let mut v = vec![quoted(p)?];
@@ -1339,6 +1369,13 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let ability = quoted(p)?;
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
             Some(Effect::GrantAbility { what, ability: Box::new(ability), dur })
+        },
+        // "can attack this turn as though it didn't have defender": the
+        // duration inside.
+        |p| {
+            let what = objects(p)?;
+            p.words("can attack this turn as though it didn't have defender")?;
+            Some(Effect::Restrict { what, rule: Restriction::AttacksDespiteDefender, dur: Duration::ThisTurn })
         },
         |p| {
             let what = objects(p)?;

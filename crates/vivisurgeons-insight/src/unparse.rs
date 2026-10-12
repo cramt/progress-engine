@@ -175,6 +175,7 @@ const SAME_PLURAL: &[&str] = &[
     "moonfolk",
     "fish",
     "sheep",
+    "starfish",
     "djinn",
     "elk",
     "zubera",
@@ -562,6 +563,19 @@ mod syn {
     /// your control this turn": who controlled it as it died (CR 603.10a).
     pub fn died_under(o: &mut Out, said: Out, under: Out) {
         alt(o, vec![said, under]);
+    }
+
+    /// "mills half their library" and "mills cards equal to half the number
+    /// of cards in their library": the same count.
+    pub fn half_library(o: &mut Out, short: Out, long: Out) {
+        alt(o, vec![short, long]);
+    }
+
+    /// "had counters on it", "had a counter on it", "had one or more
+    /// counters on it": each holds if there was at least one ("one or
+    /// more" is `AtLeast(N(1))`, SEMANTICS).
+    pub fn any_counters(o: &mut Out) {
+        any_of(o, &["counters", "a counter", "one or more counters"]);
     }
 
     /// "your main phase" and "each of your main phases": a turn has two
@@ -2326,7 +2340,7 @@ fn player_num(p: &Player) -> Num {
     match p {
         Player::You => Num::Pl,
         Player::That | Player::EachOpponent => Num::Any,
-        Player::EachOf(_) | Player::Those(_) => Num::Pl,
+        Player::EachOf(_) | Player::Those(_) | Player::AnyNumberOfTarget => Num::Pl,
         _ => Num::Sg,
     }
 }
@@ -2451,7 +2465,13 @@ fn did(o: &mut Out, e: &Event) {
 fn subj(o: &mut Out, who: &Player, verb: &str, cx: &Cx) {
     let inherited = cx.implied.clone().unwrap_or(Player::You);
     let n = if cx.modal { Num::Pl } else { player_num(who) };
-    let said = out(|o| player(o, who));
+    let said = out(|o| {
+        player(o, who);
+        // "Any number of target players each mill two cards".
+        if *who == Player::AnyNumberOfTarget {
+            syn::each_after(o);
+        }
+    });
     let after = out(|o| o.verb(verb, n));
     // "you may have that player lose 2 life": after "may", another
     // player's verb is said with "have".
@@ -4179,6 +4199,27 @@ fn dur(o: &mut Out, d: &Duration) {
 /// "draw two cards", "draw cards equal to …".
 fn cards(o: &mut Out, n: &Amount) {
     match n {
+        // "mills half their library, rounded down".
+        Amount::Half { of, round_up } if matches!(&**of, Amount::CountOf(x) if matches!(&x.filter.posts[..], [Post::In(Zone::Library(_))])) =>
+        {
+            let Amount::CountOf(x) = &**of else {
+                unreachable!()
+            };
+            let [Post::In(Zone::Library(w))] = &x.filter.posts[..] else {
+                unreachable!()
+            };
+            let short = out(|o| {
+                o.w("half");
+                whose(o, w);
+                o.w("library");
+                rounded(o, *round_up);
+            });
+            let long = out(|o| {
+                o.w("cards equal to");
+                measure(o, n);
+            });
+            syn::half_library(o, short, long);
+        }
         // "draw half X cards, rounded down".
         Amount::Half { of, round_up } if !is_measure(of) => {
             o.w("half");
@@ -4355,6 +4396,11 @@ fn token_has(o: &mut Out, t: &Token) {
 
 fn restriction(o: &mut Out, r: &Restriction, n: Num) {
     match r {
+        Restriction::AttacksDespiteDefender => {
+            o.w("can attack as though");
+            syn::it(o);
+            o.w("didn't have defender");
+        }
         Restriction::CantBlock => o.w("can't block"),
         Restriction::CantAttack => o.w("can't attack"),
         Restriction::CantAttackOrBlock => o.w("can't attack or block"),
@@ -4791,6 +4837,16 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             top_of(o, n, w);
         }
         // "must be blocked this turn if able": the duration before "if able".
+        Effect::Restrict {
+            what,
+            rule: Restriction::AttacksDespiteDefender,
+            dur: Duration::ThisTurn,
+        } => {
+            objects(o, what);
+            o.w("can attack this turn as though");
+            syn::it(o);
+            o.w("didn't have defender");
+        }
         Effect::Restrict {
             what,
             rule: Restriction::MustBeBlocked,
@@ -6517,6 +6573,16 @@ fn unless_costs(o: &mut Out, cs: &[Cost], n: Num) {
 }
 
 fn life(o: &mut Out, n: &Amount) {
+    // "loses half their life, rounded up".
+    if let Amount::Half { of, round_up } = n {
+        if let Amount::LifeTotal(w) = &**of {
+            o.w("half");
+            whose(o, w);
+            o.w("life");
+            rounded(o, *round_up);
+            return;
+        }
+    }
     if is_measure(n) {
         o.w("life equal to");
         measure(o, n);
@@ -7746,6 +7812,10 @@ fn condition(o: &mut Out, c: &Condition) {
             }
         }
         Condition::YouCastIt => o.w("you cast it"),
+        Condition::YouCastItFrom(z) => {
+            o.w("you cast it from");
+            zone(o, z);
+        }
         Condition::NoSpellsCastLastTurn => o.w("no spells were cast last turn"),
         Condition::TwoSpellsCastByAPlayerLastTurn => {
             o.w("a player cast two or more spells last turn")
@@ -8310,7 +8380,10 @@ fn past(o: &mut Out, c: &Condition) {
                     counter_kind(o, k);
                     o.w("counter on it");
                 }
-                None => o.w("counters on it"),
+                None => {
+                    syn::any_counters(o);
+                    o.w("on it");
+                }
             }
         }
         Condition::YouControl(x) => {
@@ -9407,7 +9480,11 @@ fn statics_joined(o: &mut Out, ss: &[Static]) {
         if i > 0 {
             syn::joiner(o, false);
             if static_subject(s).is_some() && static_subject(s) == static_subject(&ss[i - 1]) {
-                static_predicate(o, s);
+                // "… can attack as though it didn't have defender and it
+                // can't be blocked": the subject again by pronoun, or not.
+                let pred = out(|o| static_predicate(o, s));
+                let it = out(syn::it);
+                syn::subject(o, it, pred.clone(), pred);
                 i += 1;
                 continue;
             }

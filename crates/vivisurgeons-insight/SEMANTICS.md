@@ -201,6 +201,12 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "creatures that entered the battlefield under your control this turn" | `Post::EnteredUnderThisTurn(You)`, apart from `EnteredThisTurn` | settled: under whose control it entered, which a later change of control does not undo |
 | "Activated abilities of artifacts you control cost {1} less to activate", "Exhaust abilities of other permanents you control …" | `Static::AbilityCostChange { kind, of, by, less }` | settled: the cost of each such ability of those objects. "… of Equipment you control that target this creature" does not parse: the targeting is the ability's, and the tree has no place for it |
 | "Exile cards from the top of your library until you exile a nonland card" | `UntilFound { who: You, … }`, as "Target opponent exiles cards … until they exile" | settled: the dig, not an exile of "cards" |
+| "This creature enters with a +1/+1 counter on it if you attacked this turn" | `Static::If { cond, [EntersWithCounters] }` | settled: the replacement applies only if the condition holds as the permanent enters (CR 614.12) |
+| "if you cast it from your hand" | `Condition::YouCastItFrom(Hand(You))`, beside `YouCastIt` | settled: who cast it and from where; "it was cast from" (`CastFrom`) does not say who |
+| "can attack as though it didn't have defender", "can attack this turn as though …" | `Restriction::AttacksDespiteDefender`, the effect's duration `ThisTurn` | settled: a permission said as a rule of the object, as "can block an additional creature" is |
+| "if it had a -1/-1 counter on it", "if it had one or more counters on it", "if it had a counter on it" | `Past(HasCounter { kind })`, `kind: None` for any kind | settled: as it was when the event happened (CR 603.10a); "a counter" and "one or more counters" both mean at least one (`syn::any_counters`) |
+| "Any number of target players each mill two cards" | `Mill { who: AnyNumberOfTarget }`, "each" dropped | settled: "each" restates that every one of them does, as row 166 for objects; the verb is plural |
+| "loses half their life, rounded up", "mills half their library, rounded down" | `LoseLife { n: Half { LifeTotal(w) } }`, `Mill { n: Half { CountOf(cards in Library(w)) } }` | settled: CR 107.1a, the ability says how to round; "half their library" is half the number of cards in it (`syn::half_library`) |
 ## Durations
 
 | Text | Tree | Status |

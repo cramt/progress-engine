@@ -355,6 +355,7 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             Some(Condition::ControlsMore { who, what, than })
         },
         |p| { let who = player_simple(p)?; p.one_of(&["controls", "control"])?; let o = objects(p)?; Some(Condition::PlayerControls(who, o)) },
+        |p| { p.words("you cast it from")?; zone(p).map(Condition::YouCastItFrom) },
         |p| p.words("you cast it").map(|_| Condition::YouCastIt),
         |p| p.words("no spells were cast last turn").map(|_| Condition::NoSpellsCastLastTurn),
         |p| p.words("a player cast two or more spells last turn").map(|_| Condition::TwoSpellsCastByAPlayerLastTurn),
@@ -449,6 +450,17 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                     p.words("counters on it")?;
                     let c = Condition::HasCounter { what: what.clone(), kind: None };
                     Some(if past { Condition::Past(Box::new(c)) } else { c })
+                },
+                // "if it had a -1/-1 counter on it", "if it had one or more
+                // counters on it": as it was when it left.
+                |p| {
+                    p.word("had")?;
+                    let kind = alt!(p;
+                        |p| p.words("one or more counters on it").map(|_| None),
+                        |p| p.words("a counter on it").map(|_| None),
+                        |p| { p.word("a")?; let k = counter_kind(p)?; p.words("counter on it")?; Some(Some(k)) },
+                    )?;
+                    Some(Condition::Past(Box::new(Condition::HasCounter { what: what.clone(), kind })))
                 },
                 |p| {
                     let not = p.one_of(&["has", "doesn't have"])? != "has";

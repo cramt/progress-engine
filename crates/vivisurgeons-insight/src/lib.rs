@@ -1614,6 +1614,35 @@ mod tests {
     }
 
     #[test]
+    fn round_eleven_entering_conditions_and_halves() {
+        let one = |ty: &str, text: &str| format!("{:?}", read("Some Card", ty, text));
+        let a = one(
+            "Creature — Human",
+            "Raid — This creature enters with a +1/+1 counter on it if you attacked this turn.\nThis creature enters with a divinity counter on it if you cast it from your hand.",
+        );
+        assert!(a.contains("If { cond: YouAttackedThisTurn"), "{a}");
+        assert!(a.contains("YouCastItFrom(Hand(You))"), "{a}");
+        let a = one(
+            "Creature — Wall",
+            "{W}: This creature can attack this turn as though it didn't have defender.\nWhen this creature dies, if it had a -1/-1 counter on it, draw a card.",
+        );
+        assert!(
+            a.contains("AttacksDespiteDefender, dur: ThisTurn")
+                && a.contains("Past(HasCounter { what: Objects { quant: SelfRef"),
+            "{a}"
+        );
+        let a = one(
+            "Sorcery",
+            "Any number of target players each mill two cards. Target opponent loses half their life, rounded up.",
+        );
+        assert!(
+            a.contains("Mill { who: AnyNumberOfTarget")
+                && a.contains("Half { of: LifeTotal(That), round_up: true }"),
+            "{a}"
+        );
+    }
+
+    #[test]
     fn hero_is_a_creature_type() {
         let a = read(
             "Some Assembly",

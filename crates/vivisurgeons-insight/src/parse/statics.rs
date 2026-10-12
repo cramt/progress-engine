@@ -913,7 +913,14 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
                 Some(_) => return None,
                 None => n,
             };
-            Some(vec![Static::EntersWithCounters { what: what.clone(), n, kind }])
+            let enters = Static::EntersWithCounters { what: what.clone(), n, kind };
+            // "enters with a +1/+1 counter on it if you attacked this turn":
+            // the replacement applies only if the condition holds as it
+            // enters.
+            Some(vec![match p.attempt(|p| { p.word("if")?; condition(p) }) {
+                Some(cond) => Static::If { cond, then: vec![enters] },
+                None => enters,
+            }])
         },
         // "costs {1} less to cast for each card type among cards in your
         // graveyard": a count of types, not of objects.
