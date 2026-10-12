@@ -696,6 +696,16 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             p.one_of(&["on it", "on them"])?;
             Some(Post::WithCounter(Some(k)))
         },
+        // "each nonland permanent without a fate counter on it" (Oblivion
+        // Stone).
+        |p| {
+            p.word("without")?;
+            p.one_of(&["a", "an"])?;
+            let k = counter_kind(p)?;
+            p.word("counter")?;
+            p.one_of(&["on it", "on them"])?;
+            Some(Post::Not(Box::new(Post::WithCounter(Some(k)))))
+        },
         // "with +1/+1 counters on them": the plural, with no article.
         |p| {
             p.word("with")?;

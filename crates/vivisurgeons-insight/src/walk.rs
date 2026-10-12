@@ -1357,6 +1357,9 @@ impl Walk for Effect {
             Effect::RemoveAllCounters(f0) => {
                 Walk::walk(f0, v);
             }
+            Effect::RemoveAllCountersOf { from, .. } => {
+                Walk::walk(from, v);
+            }
             Effect::LosesAllCounters(f0) => {
                 Walk::walk(f0, v);
             }

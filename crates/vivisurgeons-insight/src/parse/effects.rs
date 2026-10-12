@@ -1675,6 +1675,14 @@ fn effect_more(p: &mut P) -> Option<Effect> {
             Some(Effect::PutCountersEach { counters, on })
         },
         |p| { p.words("remove all counters from")?; objects(p).map(Effect::RemoveAllCounters) },
+        // "then remove all fate counters from all permanents" (Oblivion Stone).
+        |p| {
+            p.words("remove all")?;
+            let kind = counter_kind(p)?;
+            p.words("counters from")?;
+            let from = objects(p)?;
+            Some(Effect::RemoveAllCountersOf { kind, from })
+        },
         // "remove up to three counters from target creature", "remove a
         // counter from her": of any kinds.
         |p| {

@@ -3969,6 +3969,15 @@ fn post(o: &mut Out, q: &Post, n: Num) {
                 filter(o, f, if state { n } else { Num::Sg });
             }
         }
+        // "without a fate counter on it".
+        Post::Not(q) if matches!(&**q, Post::WithCounter(Some(_))) => {
+            if let Post::WithCounter(Some(k)) = &**q {
+                o.w("without a");
+                counter_kind(o, k);
+                o.w("counter on");
+                syn::it(o);
+            }
+        }
         Post::Not(q) => {
             o.w(if n == Num::Sg {
                 "that isn't"
@@ -7266,6 +7275,12 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w("remove all counters from");
             objects(o, x);
         }
+        Effect::RemoveAllCountersOf { kind, from } => {
+            o.w("remove all");
+            counter_kind(o, kind);
+            o.w("counters from");
+            objects(o, from);
+        }
         Effect::LosesAllCounters(who) => {
             player(o, who);
             o.verb("lose", player_num(who));
@@ -8981,7 +8996,7 @@ fn condition(o: &mut Out, c: &Condition) {
                     o.verb("are", obj_num(what));
                 },
             );
-            is_predicate(o, f);
+            is_predicate_of(o, f, obj_num(what));
         }
         Condition::WasKicked => {
             syn::kicked(o);
@@ -9641,6 +9656,16 @@ fn is_predicate(o: &mut Out, f: &Filter) {
         o.w("a");
     }
     filter(o, f, Num::Sg);
+}
+
+/// "if all lands on the battlefield are Islands": a plural subject's
+/// predicate noun is plural, with no article.
+fn is_predicate_of(o: &mut Out, f: &Filter, n: Num) {
+    if n == Num::Pl && has_noun(f) && f.posts.is_empty() {
+        filter(o, f, Num::Pl);
+    } else {
+        is_predicate(o, f);
+    }
 }
 
 /// Whether a filter ends in a noun, which takes an article: "a land card",

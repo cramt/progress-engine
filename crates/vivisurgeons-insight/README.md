@@ -71,12 +71,12 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
 | EDHREC top 1000 | 990/990 | 1799/1799 | done |
-| My decks: every card in the 17 decks of cramt/mtg | 911/1022 (89.1%) | 2016/2134 (94.5%) | |
+| My decks: every card in the 17 decks of cramt/mtg | 912/1022 (89.2%) | 2017/2134 (94.5%) | |
 | Standard after the early-2027 rotation | 2995/3517 (85.2%) | 6503/7054 (92.2%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
 | All of Standard | 4101/5157 (79.5%) | 9258/10420 (88.8%) | |
-| EDHREC top 2000 | 1776/1986 (89.4%) | 3606/3847 (93.7%) | |
-| EDHREC top 5000 | 3941/4975 (79.2%) | 8910/10098 (88.2%) | |
+| EDHREC top 2000 | 1777/1986 (89.5%) | 3607/3847 (93.8%) | |
+| EDHREC top 5000 | 3942/4975 (79.2%) | 8911/10098 (88.2%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
@@ -124,8 +124,8 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 |---|---|
 | EDHREC top 1000 (pinned) | 1800/1800 (100%) |
 | Modern metagame (pinned) | 1164/1164 (100%) |
-| EDHREC top 2000 | 3603/3606 (99.9%) |
-| All parsed abilities | 50668/50701 (99.9%) |
+| EDHREC top 2000 | 3604/3607 (99.9%) |
+| All parsed abilities | 50690/50722 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading
@@ -164,7 +164,7 @@ own" (in Two-Headed Giant a teammate owns cards too), "choose target
 opponent" as "choose an opponent" (which does not target), a Saga's "II —"
 as an ability word, a sorcery's "The next Dragon spell you cast costs …" as
 a static, and a bare "its graveyard" as its controller's (CR 400.3 makes it
-the owner's). The 33 corpus abilities that still do not round-trip are
+the owner's). The 32 corpus abilities that still do not round-trip are
 listed by `insight roundtrip`.
 
 After round 4 the parser read an evenly spaced sample of 25 successful parses.

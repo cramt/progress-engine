@@ -1741,6 +1741,12 @@ pub enum Effect {
         then: Vec<Effect>,
     },
     RemoveAllCounters(Objects),
+    /// "remove all fate counters from all permanents": every counter of one
+    /// kind.
+    RemoveAllCountersOf {
+        kind: String,
+        from: Objects,
+    },
     /// "Target opponent loses all counters."
     LosesAllCounters(Player),
     /// "The next time a source of your choice would deal damage to you this
