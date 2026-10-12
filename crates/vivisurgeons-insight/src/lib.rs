@@ -227,7 +227,7 @@ mod tests {
         assert!(matches!(
             &a[0],
             Ability::Triggered { trigger: Trigger::InterveningIf(_, c), .. }
-                if **c == Condition::YouCastIt
+                if matches!(**c, Condition::YouCastIt(_))
         ));
     }
 
@@ -1621,7 +1621,10 @@ mod tests {
             "Raid — This creature enters with a +1/+1 counter on it if you attacked this turn.\nThis creature enters with a divinity counter on it if you cast it from your hand.",
         );
         assert!(a.contains("If { cond: YouAttackedThisTurn"), "{a}");
-        assert!(a.contains("YouCastItFrom(Hand(You))"), "{a}");
+        assert!(
+            a.contains("YouCastItFrom { what: Objects { quant: SelfRef"),
+            "{a}"
+        );
         let a = one(
             "Creature — Wall",
             "{W}: This creature can attack this turn as though it didn't have defender.\nWhen this creature dies, if it had a -1/-1 counter on it, draw a card.",

@@ -327,8 +327,12 @@ impl Walk for Condition {
             Condition::PlayerHas { who, .. } => {
                 Walk::walk(who, v);
             }
-            Condition::YouCastItFrom(f0) => {
+            Condition::YouCastIt(f0) => {
                 Walk::walk(f0, v);
+            }
+            Condition::YouCastItFrom { what, zone } => {
+                Walk::walk(what, v);
+                Walk::walk(zone, v);
             }
             Condition::Not(f0) => {
                 Walk::walk(&mut **f0, v);

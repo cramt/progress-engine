@@ -367,8 +367,8 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             Some(Condition::ControlsMore { who, what, than })
         },
         |p| { let who = player_simple(p)?; p.one_of(&["controls", "control"])?; let o = objects(p)?; Some(Condition::PlayerControls(who, o)) },
-        |p| { p.words("you cast it from")?; zone(p).map(Condition::YouCastItFrom) },
-        |p| p.words("you cast it").map(|_| Condition::YouCastIt),
+        |p| { p.words("you cast it from")?; zone(p).map(|zone| Condition::YouCastItFrom { what: antecedent(), zone }) },
+        |p| p.words("you cast it").map(|_| Condition::YouCastIt(antecedent())),
         |p| p.words("no spells were cast last turn").map(|_| Condition::NoSpellsCastLastTurn),
         |p| p.words("a player cast two or more spells last turn").map(|_| Condition::TwoSpellsCastByAPlayerLastTurn),
         |p| { p.words("you control")?; objects(p).map(Condition::YouControl) },

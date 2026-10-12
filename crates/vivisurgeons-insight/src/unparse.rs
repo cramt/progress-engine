@@ -8005,9 +8005,14 @@ fn condition(o: &mut Out, c: &Condition) {
                 Holding::Opponents => o.w("opponents"),
             }
         }
-        Condition::YouCastIt => o.w("you cast it"),
-        Condition::YouCastItFrom(z) => {
-            o.w("you cast it from");
+        Condition::YouCastIt(what) => {
+            o.w("you cast");
+            pronoun_or(o, what, syn::it, |o| objects(o, what));
+        }
+        Condition::YouCastItFrom { what, zone: z } => {
+            o.w("you cast");
+            pronoun_or(o, what, syn::it, |o| objects(o, what));
+            o.w("from");
             zone(o, z);
         }
         Condition::NoSpellsCastLastTurn => o.w("no spells were cast last turn"),

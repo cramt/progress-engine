@@ -2589,9 +2589,14 @@ pub enum Condition {
         at_least: u32,
         what: Holding,
     },
-    YouCastIt,
+    /// "if you cast it": the object cast, the card or the object a trigger
+    /// named.
+    YouCastIt(Objects),
     /// "if you cast it from your hand": by you, from that zone.
-    YouCastItFrom(Zone),
+    YouCastItFrom {
+        what: Objects,
+        zone: Zone,
+    },
     NoSpellsCastLastTurn,
     TwoSpellsCastByAPlayerLastTurn,
     Not(Box<Condition>),
