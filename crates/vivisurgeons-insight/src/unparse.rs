@@ -1019,6 +1019,24 @@ mod syn {
         alt(o, forms);
     }
 
+    /// "Destroy that creature. It can't be regenerated.", "destroy target
+    /// Knight and it can't be regenerated": a second sentence or a second
+    /// clause of one subject, the same instruction ([no-regen-after]).
+    pub fn regen_join(o: &mut Out) {
+        let mut stop = Out::default();
+        stop.tok(Tok::Period);
+        alt(o, vec![stop, of("and")]);
+    }
+
+    /// "Destroy target creature if it's white. A creature destroyed this way
+    /// can't be regenerated.", "… where X is …. They can't be regenerated.":
+    /// the sentence said after the condition or definition that holds the
+    /// destroy, rather than right after the destroy, names the same
+    /// destroyed objects ([no-regen-after]).
+    pub fn regen_after_branch(o: &mut Out, inside: Out, after: Out) {
+        alt(o, vec![inside, after]);
+    }
+
     /// "twice that many of each of those kinds of counters", "… of those
     /// counters": the counters an event named, kind by kind either way.
     pub fn those_counters(o: &mut Out) {
@@ -4334,9 +4352,42 @@ fn cant_be_regenerated(o: &mut Out, what: &[&Objects]) {
             })
         })
         .collect();
-    o.tok(Tok::Period);
+    syn::regen_join(o);
     syn::destroyed(o, &types);
     o.w("can't be regenerated");
+}
+
+/// The destroys inside a branch ("if", "where", "instead", an option) that
+/// stop regeneration, cleared in a copy of the branch, and the objects they
+/// destroy: the sentence is said once after the branch ([no-regen-after]).
+fn regen_in_branch(e: &Effect) -> Option<(Effect, Vec<Objects>)> {
+    fn clear(e: &mut Effect, found: &mut Vec<Objects>) {
+        match e {
+            Effect::Destroy { what, no_regen } if *no_regen => {
+                *no_regen = false;
+                found.push(what.clone());
+            }
+            Effect::If { then, .. }
+            | Effect::Instead { then, .. }
+            | Effect::Where { then, .. }
+            | Effect::May { then, .. }
+            | Effect::IfYouDo(then)
+            | Effect::IfYouDont(then)
+            | Effect::Otherwise(then) => {
+                for t in then.iter_mut() {
+                    clear(t, found);
+                }
+            }
+            _ => {}
+        }
+    }
+    if matches!(e, Effect::Destroy { .. }) {
+        return None;
+    }
+    let mut plain = e.clone();
+    let mut found = Vec::new();
+    clear(&mut plain, &mut found);
+    (!found.is_empty()).then_some((plain, found))
 }
 
 fn sentences(o: &mut Out, es: &[Effect], cx: &Cx) {
@@ -4389,7 +4440,19 @@ fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
                     }
                 })
             }
-            _ => out(|o| effect(o, e, &cx)),
+            _ => match regen_in_branch(e) {
+                // "Destroy target creature if it's white. A creature
+                // destroyed this way can't be regenerated."
+                Some((plain, run)) => {
+                    let inside = out(|o| effect(o, e, &cx));
+                    let after = out(|o| {
+                        effect(o, &plain, &cx);
+                        cant_be_regenerated(o, &run.iter().collect::<Vec<_>>());
+                    });
+                    out(|o| syn::regen_after_branch(o, inside, after))
+                }
+                None => out(|o| effect(o, e, &cx)),
+            },
         };
         let prev = i.checked_sub(1).map(|j| &es[j]);
         // "Tyvar gains indestructible until end of turn. Tap it.": the card,

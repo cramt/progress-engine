@@ -1080,6 +1080,7 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
         v.extend(s);
     }
     permission_rules(&mut v);
+    no_regen_after(&mut v);
     enters_with_after(&mut v);
     source_of_ability(&mut v);
     // "… If you do, draw a card and repeat this process.": the process is
@@ -1088,6 +1089,67 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
         v = vec![Effect::Process(v)];
     }
     (!v.is_empty()).then_some(v)
+}
+
+/// "Destroy target creature if it's white. A creature destroyed this way
+/// can't be regenerated.", "Destroy up to X target nonblack creatures, where
+/// X is …. They can't be regenerated.", "destroy target Knight and it can't
+/// be regenerated": the destroy said inside an "if", a "where" or a branch
+/// is the one the sentence stops regeneration of, as when it stands alone
+/// ([no-regen-after]). A pronoun takes the destroy said last; "destroyed
+/// this way" every destroy of the effect before.
+fn no_regen_after(v: &mut Vec<Effect>) {
+    fn branch(e: &mut Effect) -> Option<&mut Vec<Effect>> {
+        match e {
+            Effect::If { then, .. }
+            | Effect::Instead { then, .. }
+            | Effect::Where { then, .. }
+            | Effect::May { then, .. }
+            | Effect::IfYouDo(then)
+            | Effect::IfYouDont(then)
+            | Effect::Otherwise(then) => Some(then),
+            _ => None,
+        }
+    }
+    // The destroys `e` ends with (a pronoun) or holds anywhere (marked).
+    fn set(e: &mut Effect, all: bool) -> bool {
+        if let Effect::Destroy { no_regen, .. } = e {
+            *no_regen = true;
+            return true;
+        }
+        let Some(then) = branch(e) else { return false };
+        if all {
+            let mut any = false;
+            for t in then.iter_mut() {
+                any |= set(t, true);
+            }
+            any
+        } else {
+            then.last_mut().is_some_and(|t| set(t, false))
+        }
+    }
+    for e in v.iter_mut() {
+        if let Some(then) = branch(e) {
+            no_regen_after(then);
+        }
+    }
+    let mut i = 1;
+    while i < v.len() {
+        if let Effect::Restrict {
+            what,
+            rule: Restriction::CantBeRegenerated,
+            dur: Duration::Permanent,
+        } = &v[i]
+        {
+            let marked = what.filter.posts.contains(&Post::Marked(Marked::Destroyed));
+            let pronoun = *what == antecedent();
+            if (marked || pronoun) && set(&mut v[i - 1], marked) {
+                v.remove(i);
+                continue;
+            }
+        }
+        i += 1;
+    }
 }
 
 /// Whether effects say X anywhere outside a quoted ability.
