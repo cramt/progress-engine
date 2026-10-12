@@ -414,6 +414,24 @@ mod syn {
         any_of(o, &["that many", "that much"]);
     }
 
+    /// "that each have a different power" and "with different powers": the
+    /// singular says of each object what the plural says of the set, that
+    /// no two share the value.
+    pub fn different_values(o: &mut Out, s: Stat) {
+        let plural = match s {
+            Stat::Power => "powers",
+            Stat::Toughness => "toughnesses",
+            Stat::ManaValue => "mana values",
+        };
+        alt(
+            o,
+            vec![
+                of(&format!("that each have a different {}", stat_name(s))),
+                of(&format!("with different {plural}")),
+            ],
+        );
+    }
+
     /// "that's", "that are"; "it's attacked", "it has attacked"; "there's",
     /// "there is": the verb agrees with its subject, or is contracted.
     pub fn that_is(o: &mut Out) {
@@ -3589,10 +3607,7 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             }
         },
         Post::SameName => syn::same_name(o),
-        Post::DifferentValues(s) => {
-            o.w("that each have a different");
-            o.w(stat_name(*s));
-        }
+        Post::DifferentValues(s) => syn::different_values(o, *s),
         Post::OneOrMoreColors => {
             that_is(o, n);
             o.w("one or more colors");

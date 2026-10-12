@@ -878,6 +878,15 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             Some(Post::With(Compare { stat, op, value: stat_of(stat, antecedent()) }))
         },
         |p| p.words("with different names").map(|_| Post::DifferentNames),
+        // "three or more creatures with different powers".
+        |p| {
+            p.words("with different")?;
+            alt!(p;
+                |p| p.word("powers").map(|_| Stat::Power),
+                |p| p.word("toughnesses").map(|_| Stat::Toughness),
+                |p| p.words("mana values").map(|_| Stat::ManaValue),
+            ).map(Post::DifferentValues)
+        },
         |p| { let pl = player_simple(p)?; p.one_of(&["owns", "own"])?; Some(Post::Owner(pl)) },
         |p| {
             let by = alt!(p; player_simple, |p| p.word("you").map(|_| Player::You))?;
