@@ -681,6 +681,13 @@ fn static_body_more(p: &mut P) -> Option<Vec<Static>> {
             p.words("prevent all noncombat damage that would be dealt to")?;
             recipients(p).map(|r| vec![Static::PreventNoncombat(r)])
         },
+        // On a permanent the prevention lasts as long as the static applies.
+        |p| match prevent(p)? {
+            Effect::Prevent { combat_only, n: None, to, by, dur: Duration::Permanent } => {
+                Some(vec![Static::PreventDamage { combat_only, to, by }])
+            }
+            _ => None,
+        },
         |p| {
             let what = objects(p)?;
             p.words("can't cause their controller to search their library")?;

@@ -576,24 +576,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             )?;
             Some(Effect::Pay { who, cost })
         },
-        |p| {
-            p.word("prevent")?;
-            let n = alt!(p;
-                |p| p.word("all").map(|_| None),
-                |p| { p.words("the next")?; amount(p).map(Some) },
-            )?;
-            let combat_only = p.attempt(|p| p.word("combat")).is_some();
-            p.words("damage that would be dealt")?;
-            // "dealt to and dealt by that creature": one object, both ways.
-            if let Some(o) = p.attempt(|p| { p.words("to and dealt by")?; objects(p) }) {
-                let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
-                return Some(Effect::Prevent { combat_only, n, to: Some(vec![Recipient::Objects(o.clone())]), by: Some(o), dur });
-            }
-            let to = p.attempt(|p| { p.word("to")?; recipients(p) });
-            let by = p.attempt(|p| { p.word("by")?; objects(p) });
-            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
-            Some(Effect::Prevent { combat_only, n, to, by, dur })
-        },
+        prevent,
         |p| {
             let what = objects(p)?;
             p.verb("become")?;
@@ -1921,4 +1904,46 @@ pub(super) fn recipients(p: &mut P) -> Option<Vec<Recipient>> {
         v.push(r);
     }
     Some(v)
+}
+
+/// "Prevent all combat damage that would be dealt to this creature", "…
+/// the next 3 damage that would be dealt to any target this turn".
+pub(super) fn prevent(p: &mut P) -> Option<Effect> {
+    p.word("prevent")?;
+    let n = alt!(p;
+        |p| p.word("all").map(|_| None),
+        |p| { p.words("the next")?; amount(p).map(Some) },
+    )?;
+    let combat_only = p.attempt(|p| p.word("combat")).is_some();
+    p.words("damage that would be dealt")?;
+    // "dealt to and dealt by that creature": one object, both ways.
+    if let Some(o) = p.attempt(|p| {
+        p.words("to and dealt by")?;
+        objects(p)
+    }) {
+        let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+        return Some(Effect::Prevent {
+            combat_only,
+            n,
+            to: Some(vec![Recipient::Objects(o.clone())]),
+            by: Some(o),
+            dur,
+        });
+    }
+    let to = p.attempt(|p| {
+        p.word("to")?;
+        recipients(p)
+    });
+    let by = p.attempt(|p| {
+        p.word("by")?;
+        objects(p)
+    });
+    let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+    Some(Effect::Prevent {
+        combat_only,
+        n,
+        to,
+        by,
+        dur,
+    })
 }

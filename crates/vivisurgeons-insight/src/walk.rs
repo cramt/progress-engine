@@ -2468,6 +2468,16 @@ impl Walk for Static {
                     Walk::walk(x0, v);
                 }
             }
+            Static::PreventDamage { to, by, .. } => {
+                if let Some(x0) = (to).as_mut() {
+                    for x1 in (x0).iter_mut() {
+                        Walk::walk(x1, v);
+                    }
+                }
+                if let Some(x0) = (by).as_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Static::CantCauseSearch(f0) => {
                 Walk::walk(f0, v);
             }

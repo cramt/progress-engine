@@ -9479,6 +9479,20 @@ fn lost_words(o: &mut Out, lost: &[Lost]) {
 
 fn static_other(o: &mut Out, s: &Static) {
     match s {
+        Static::PreventDamage {
+            combat_only,
+            to,
+            by,
+        } => {
+            let as_effect = Effect::Prevent {
+                combat_only: *combat_only,
+                n: None,
+                to: to.clone(),
+                by: by.clone(),
+                dur: Duration::Permanent,
+            };
+            effect(o, &as_effect, &Cx::default());
+        }
         Static::PermissionRules {
             permissions,
             spell,

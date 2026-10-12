@@ -2586,6 +2586,16 @@ pub enum Static {
     /// "Prevent all noncombat damage that would be dealt to other creatures
     /// you control."
     PreventNoncombat(Vec<Recipient>),
+    /// "Prevent all damage that would be dealt to this creature", "Prevent
+    /// all combat damage that would be dealt to attacking artifact creatures
+    /// you control": a prevention effect for as long as the static applies
+    /// (CR 615.1a), of all damage or only combat damage, to and by what it
+    /// says.
+    PreventDamage {
+        combat_only: bool,
+        to: Option<Vec<Recipient>>,
+        by: Option<Objects>,
+    },
     /// "Spells and abilities your opponents control can't cause their
     /// controller to search their library."
     CantCauseSearch(Objects),
