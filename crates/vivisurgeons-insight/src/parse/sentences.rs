@@ -925,6 +925,24 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
         // to blue. … If X is greater than or equal to …": X keeps the value
         // defined for it (CR 107.3i), so every sentence from the definition
         // to one that says X again is in its scope.
+        // Tivash: "you may pay X life, where X is the amount of life you
+        // gained this turn. If you do, create an X/X black Demon": the X of
+        // a "may"'s only clause is the ability's, so the definition goes
+        // around the "may" before the sentence after joins it.
+        if says_x(&s) && !v.iter().any(|e| matches!(e, Effect::Where { .. })) {
+            if let Some(k) = v.iter().rposition(|e| {
+                matches!(e, Effect::May { then, .. } if matches!(&then[..], [Effect::Where { .. }]))
+            }) {
+                if let Effect::May { who, then } = v[k].clone() {
+                    if let [Effect::Where { then: inner, x }] = &then[..] {
+                        v[k] = Effect::Where {
+                            then: vec![Effect::May { who, then: inner.clone() }],
+                            x: x.clone(),
+                        };
+                    }
+                }
+            }
+        }
         if let Some(k) = v.iter().rposition(|e| matches!(e, Effect::Where { .. })) {
             if says_x(&s) && !s.iter().any(|e| matches!(e, Effect::Where { .. })) {
                 let tail: Vec<Effect> = v.drain(k + 1..).collect();
@@ -1022,6 +1040,20 @@ fn says_x(es: &[Effect]) -> bool {
         }
         fn amount(&mut self, a: &mut Amount) {
             self.0 |= *a == Amount::X;
+        }
+        // "create an X/X black Demon", "gets +X/+X": a size says X too.
+        fn effect(&mut self, e: &mut Effect) {
+            let pt = match e {
+                Effect::Create { token, .. }
+                | Effect::CreateNamed { token, .. }
+                | Effect::CreateAttached { token, .. } => token.pt,
+                Effect::Modify { pt, .. } | Effect::Becomes { pt, .. } => *pt,
+                _ => None,
+            };
+            let x = |p: crate::lex::PtPart| {
+                matches!(p, crate::lex::PtPart::X | crate::lex::PtPart::MinusX)
+            };
+            self.0 |= pt.is_some_and(|pt| x(pt.power) || x(pt.toughness));
         }
     }
     let mut x = X(false);
