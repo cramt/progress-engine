@@ -1154,6 +1154,9 @@ fn static_permission_rules(v: &mut Vec<Static>) {
     fn permits(s: &Static) -> bool {
         match s {
             Static::PlayFrom { .. } => true,
+            // "You may cast artifact spells from your graveyard by paying 3
+            // life …. If you cast a spell this way, …" (Noctis).
+            Static::CastPaying { .. } => true,
             Static::If { then, .. } | Static::AsLongAs { then, .. } => then.iter().any(permits),
             _ => false,
         }
