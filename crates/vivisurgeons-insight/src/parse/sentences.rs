@@ -1284,15 +1284,12 @@ fn those_players(p: &mut P, each: Objects) -> Option<Vec<Effect>> {
 /// it brings in none itself, a branch it ends with ("If they don't, you may copy that
 /// spell": the copy exists only if you chose to).
 fn branch_with_new_object(e: &mut Effect) -> Option<&mut Vec<Effect>> {
-    let then = match e {
-        Effect::May { then, .. }
-        | Effect::IfYouDo(then)
-        | Effect::IfYouDont(then)
-        | Effect::If { then, .. }
-        | Effect::Otherwise(then) => then,
+    let (then, option) = match e {
+        Effect::May { then, .. } | Effect::IfYouDo(then) | Effect::IfYouDont(then) => (then, true),
+        Effect::If { then, .. } | Effect::Otherwise(then) => (then, false),
         _ => return None,
     };
-    if then.iter().any(brings_in) {
+    if then.iter().any(brings_in) || (option && then.iter().any(acts_on_target)) {
         return Some(then);
     }
     then.last_mut().and_then(branch_with_new_object)
@@ -1334,11 +1331,25 @@ fn brings_in(e: &Effect) -> bool {
         | Effect::CreateNamed { .. }
         | Effect::CreateAttached { .. }
         | Effect::Copy { .. } => true,
+        // "If you do, reveal cards from the top of your library until you
+        // reveal a creature card. Put that card into your hand" (Foster).
+        Effect::UntilFound { .. } => true,
         // "return target Pirate creature card … with a finality counter on it".
         Effect::EntersWith { effect, .. } => brings_in(effect),
         Effect::Or(v) => v.iter().all(brings_in),
         _ => false,
     }
+}
+
+/// Whether an effect acts on a target it names. "If you do, tap up to
+/// eight target permanents. Those permanents don't untap …" (Lorthos): the
+/// targets are acted on only if the option was taken, so what is said of
+/// them after is the option's too. Not after a plain "if": "If you win the
+/// flip, target Orc creature gets +2/+0 …. If you lose the flip, it gets
+/// -0/-2" (Orcish Captain) are two cases side by side.
+fn acts_on_target(e: &Effect) -> bool {
+    e.sole_object()
+        .is_some_and(|o| matches!(o.quant, Quant::Target { .. }))
 }
 
 /// Whether an effect is first said of a bare "it", "them" or "that
@@ -1359,6 +1370,12 @@ fn refers_back(e: &Effect) -> bool {
         | Effect::Exile(what)
         | Effect::Tap(what)
         | Effect::Untap(what)
+        // "If you do, put it onto the battlefield under your control. It's a
+        // Warlock in addition to its other types." (Lorcan).
+        | Effect::IsNow { what, .. }
+        | Effect::AlsoIs { what, .. }
+        | Effect::GainControl { what, .. }
+        | Effect::Restrict { what, .. }
         | Effect::EntersWithCounters { what, .. } => it(what),
         Effect::PutCounters { on, .. } => it(on),
         // "You may choose new targets for the copy".
