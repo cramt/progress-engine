@@ -6387,7 +6387,13 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             let n = player_num(by);
             let said = out(|o| player(o, by));
             let rest = |n: Num| out(|o| performed(o, inner, n));
-            if cx.implied.as_ref() == Some(by) || cx.continues.as_ref() == Some(by) {
+            // "you may have that player gain control of equipped creature":
+            // after "may", another player's verb is said with "have".
+            if cx.modal && cx.implied.as_ref() != Some(by) {
+                o.w("have");
+                o.add(said);
+                o.add(rest(Num::Pl));
+            } else if cx.implied.as_ref() == Some(by) || cx.continues.as_ref() == Some(by) {
                 syn::subject(o, said, rest(n), rest(n));
             } else {
                 o.add(said);
