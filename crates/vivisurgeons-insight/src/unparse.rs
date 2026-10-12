@@ -4462,7 +4462,15 @@ fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
             | (Some(Effect::Destroy { .. }), Effect::Destroy { .. })
             | (Some(Effect::Exile(_)), Effect::Exile(_))
             | (Some(Effect::Tap(_)), Effect::Tap(_))
-            | (Some(Effect::Untap(_)), Effect::Untap(_)) => {
+            | (Some(Effect::Untap(_)), Effect::Untap(_))
+            | (
+                Some(Effect::Create {
+                    who: Player::You, ..
+                }),
+                Effect::Create {
+                    who: Player::You, ..
+                },
+            ) => {
                 let without = match e {
                     Effect::Move { .. } => out(|o| move_put_rest(o, e)),
                     _ => out(|o| o.0.extend(full.0.iter().skip(1).cloned())),

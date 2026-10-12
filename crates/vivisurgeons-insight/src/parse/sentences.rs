@@ -177,6 +177,19 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             Some(v.into_iter().map(|what| Effect::Destroy { what, no_regen: false }).collect())
         },
         |p| { p.word("exile")?; object_list(p).map(|v| v.into_iter().map(Effect::Exile).collect()) },
+        // "create a Food token and a Treasure token": two tokens, one verb.
+        |p| {
+            p.word("create")?;
+            let (n1, t1) = token(p)?;
+            p.word("and")?;
+            let (n2, t2) = token(p)?;
+            if !matches!(p.peek(), Some(Tok::Period | Tok::Comma) | None) { return None; }
+            let who = p.implied.clone().unwrap_or(Player::You);
+            Some(vec![
+                Effect::Create { who: who.clone(), n: n1, token: t1 },
+                Effect::Create { who, n: n2, token: t2 },
+            ])
+        },
         |p| { p.word("tap")?; object_list(p).map(|v| v.into_iter().map(Effect::Tap).collect()) },
         |p| { p.word("untap")?; object_list(p).map(|v| v.into_iter().map(Effect::Untap).collect()) },
         // "Whenever you attack this turn, …": a delayed trigger for the turn.
