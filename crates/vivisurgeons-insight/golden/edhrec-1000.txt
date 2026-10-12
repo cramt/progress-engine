@@ -308,7 +308,7 @@ cost: {G}{G}{G}
 > • Search your library for a creature or land card and reveal it. Put it onto the battlefield tapped if it's a land card. Otherwise, put it into your hand. Then shuffle.
 > • Put a +1/+1 counter on target creature you control. It deals damage equal to its power to target creature you don't control.
 > • Exile target artifact or enchantment.
-= Spell([Modal { choose: One, modes: [[Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("land")]], kind: Some(Card), posts: [], or: None } } }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }] }, Otherwise([Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }]), Shuffle(You)], [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, Damage { source: Some(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NotControlledBy(You)], or: None } })] }], [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: None } })]] }])
+= Spell([Modal { choose: One, modes: [[Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("land")]], kind: Some(Card), posts: [], or: None } } }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }] }, Otherwise([Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }]), Shuffle(You)], [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, Damage { source: Some(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NotControlledBy(You)], or: None } })] }], [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: None } })]] }])
 
 ## Archivist of Oghma
 face: Archivist of Oghma
@@ -444,7 +444,7 @@ cost: {5}{G}{G}
 > When this creature enters, create a 0/1 green Plant creature token for each land you control.
 > Landfall — Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), colors: [Green], types: ["plant", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
-= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Each, filter: Filter { alts: [[Subtype("plant"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }] }], limits: [] } }
+= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Subtype("plant"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }] }], limits: [] } }
 
 ## Ayara, First of Locthwain
 face: Ayara, First of Locthwain
@@ -1012,7 +1012,7 @@ face: Branching Evolution
 type: Enchantment
 cost: {2}{G}
 > If one or more +1/+1 counters would be put on a creature you control, twice that many +1/+1 counters are put on that creature instead.
-= Static([Replacement { event: CountersPut { by: None, n: AtLeast(N(1)), kind: Some("Pt { power: N(1), toughness: N(1), signed: true }"), on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, instead: [CountersArePut { n: Twice(ThatMany), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }])
+= Static([Replacement { event: CountersPut { by: None, n: AtLeast(N(1)), kind: Some("+1/+1"), on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, instead: [CountersArePut { n: Twice(ThatMany), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }])
 
 ## Brash Taunter
 face: Brash Taunter
@@ -1072,8 +1072,8 @@ type: Legendary Creature — Plant Druid
 cost: {1}{G}
 > Landfall — Whenever a land you control enters, put a +1/+1 counter on target creature.
 > {3}{G}{G}: Double the number of +1/+1 counters on each creature you control.
-= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] } }
-= Activated { cost: [Mana(Mana(["3", "G", "G"]))], effect: [DoubleCounters { kind: Some("Pt { power: N(1), toughness: N(1), signed: true }"), on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
+= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] } }
+= Activated { cost: [Mana(Mana(["3", "G", "G"]))], effect: [DoubleCounters { kind: Some("+1/+1"), on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 
 ## Brotherhood Regalia
 face: Brotherhood Regalia
@@ -1223,7 +1223,7 @@ cost: {B}
 > This creature can't block.
 > Sacrifice a creature: Put a +1/+1 counter on this creature.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBlock }])
-= Activated { cost: [Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
+= Activated { cost: [Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Cascade Bluffs
 face: Cascade Bluffs
@@ -1268,7 +1268,7 @@ face: Cathars' Crusade
 type: Enchantment
 cost: {3}{W}{W}
 > Whenever a creature you control enters, put a +1/+1 counter on each creature you control.
-= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 
 ## Cavern of Souls
 face: Cavern of Souls
@@ -1317,7 +1317,7 @@ cost: {1}{G}{G}
 > Creatures with power less than this creature's power can't block creatures you control.
 > Whenever another creature you control enters, put a +1/+1 counter on this creature.
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Lt, value: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) })], or: None } }, rule: CantBlockAny(Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None }) }])
-= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Champion's Helm
 face: Champion's Helm
@@ -1368,8 +1368,8 @@ type: Creature — Squid Horror
 cost: {2}{U}
 > Whenever you draw a card, put a +1/+1 counter on this creature.
 > When this creature dies, create X 1/1 blue Squid creature tokens with islandwalk, where X is the number of +1/+1 counters on this creature. (They can't be blocked as long as defending player controls an Island.)
-= Triggered { trigger: When(Draws(You)), effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
-= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Where { then: [Create { who: You, n: X, token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Blue], types: ["squid", "creature"], keywords: [Keyword { name: "islandwalk", param: None }], abilities: [], named: None, attacking: None } }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("Pt { power: N(1), toughness: N(1), signed: true }"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], or: None } }) }], limits: [] }
+= Triggered { trigger: When(Draws(You)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Where { then: [Create { who: You, n: X, token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Blue], types: ["squid", "creature"], keywords: [Keyword { name: "islandwalk", param: None }], abilities: [], named: None, attacking: None } }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], or: None } }) }], limits: [] }
 
 ## Chimil, the Inner Sun
 face: Chimil, the Inner Sun
@@ -2011,7 +2011,7 @@ cost: {1}{G}
 > {T}: Add {G}.
 > Put a -1/-1 counter on this creature: Untap this creature.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G"])))], limits: [] }
-= Activated { cost: [PutCounters { n: N(1), kind: "Pt { power: N(-1), toughness: N(-1), signed: true }", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], effect: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [] }
+= Activated { cost: [PutCounters { n: N(1), kind: "-1/-1", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], effect: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Diabolic Intent
 face: Diabolic Intent
@@ -2314,7 +2314,7 @@ cost: {3}{W}{W}
 > −3: Destroy target creature an opponent controls with mana value 3 or greater.
 = Static([Replacement { event: Creates { by: Passive, what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, under: Some(You) }, instead: [CreateThose { by: Passive, n: Twice(ThatMany), those: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }])
 = Loyalty { change: N(1), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }
-= Loyalty { change: N(0), effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }], dur: UntilYourNextTurn }] }
+= Loyalty { change: N(0), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }], dur: UntilYourNextTurn }] }
 = Loyalty { change: N(-3), effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent), With(Compare { stat: ManaValue, op: Ge, value: N(3) })], or: None } }, no_regen: false }] }
 
 ## Elspeth, Sun's Champion
@@ -2486,7 +2486,7 @@ face: Essence Flux
 type: Instant
 cost: {U}
 > Exile target creature you control, then return that card to the battlefield under its owner's control. If it's a Spirit, put a +1/+1 counter on it.
-= Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("spirit")]], kind: None, posts: [], or: None } }, then: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
+= Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("spirit")]], kind: None, posts: [], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
 
 ## Etali, Primal Conqueror // Etali, Primal Sickness
 face: Etali, Primal Conqueror
@@ -2565,7 +2565,7 @@ cost: {2}{G}
 > {1}{G}: Adapt 2. (If this creature has no +1/+1 counters on it, put two +1/+1 counters on it.)
 > Whenever one or more +1/+1 counters are put on this creature, return target permanent card from your graveyard to your hand.
 = Activated { cost: [Mana(Mana(["1", "G"]))], effect: [Action { by: None, name: "adapt", n: Some(N(2)) }], limits: [] }
-= Triggered { trigger: When(CountersPut { by: None, n: AtLeast(N(1)), kind: Some("Pt { power: N(1), toughness: N(1), signed: true }"), on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
+= Triggered { trigger: When(CountersPut { by: None, n: AtLeast(N(1)), kind: Some("+1/+1"), on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Evolving Wilds
 face: Evolving Wilds
@@ -2730,7 +2730,7 @@ cost: {3}{W}
 > Landfall — Whenever a land you control enters, choose one —
 > • Create a 2/2 white Cat Beast creature token.
 > • Put a +1/+1 counter on each creature you control. Those creatures gain vigilance until end of turn.
-= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Modal { choose: One, modes: [[Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [White], types: ["cat", "beast", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "vigilance", param: None }], dur: UntilEndOfTurn }]] }], limits: [] } }
+= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Modal { choose: One, modes: [[Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [White], types: ["cat", "beast", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "vigilance", param: None }], dur: UntilEndOfTurn }]] }], limits: [] } }
 
 ## Fell the Profane // Fell Mire
 face: Fell the Profane
@@ -2947,8 +2947,8 @@ type: Creature — Elemental
 cost: {3}{G}
 > Whenever a player casts a spell, you may put a +1/+1 counter on this creature.
 > At the beginning of your upkeep, you may move any number of +1/+1 counters from this creature onto other creatures.
-= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] }
-= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [MoveCounters { counters: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Counter(Some("Pt { power: N(1), toughness: N(1), signed: true }"))), posts: [], or: None } }, from: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, to: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [MoveCounters { counters: Objects { quant: AnyNumber, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [], or: None } }, from: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, to: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Forgotten Cave
 face: Forgotten Cave
@@ -3081,7 +3081,7 @@ type: Land
 > {T}: Add {C}.
 > {2}{G}{W}, {T}: Put a +1/+1 counter on each creature you control.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["2", "G", "W"])), Tap], effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "G", "W"])), Tap], effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 
 ## Geier Reach Sanitarium
 face: Geier Reach Sanitarium
@@ -3412,7 +3412,7 @@ cost: {1}{G}
 > Evolve (Whenever a creature you control enters, if that creature has greater power or toughness than this creature, put a +1/+1 counter on this creature.)
 > {T}: Add {G} for each +1/+1 counter on this creature.
 = Keywords([Keyword { name: "evolve", param: None }])
-= Activated { cost: [Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("Pt { power: N(1), toughness: N(1), signed: true }"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], or: None } }, then: [AddMana(Symbols(Mana(["G"])))] }], limits: [] }
+= Activated { cost: [Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], or: None } }, then: [AddMana(Symbols(Mana(["G"])))] }], limits: [] }
 
 ## Hall of Heliod's Generosity
 face: Hall of Heliod's Generosity
@@ -3445,7 +3445,7 @@ face: Hardened Scales
 type: Enchantment
 cost: {G}
 > If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on it instead.
-= Static([Replacement { event: CountersPut { by: None, n: AtLeast(N(1)), kind: Some("Pt { power: N(1), toughness: N(1), signed: true }"), on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, instead: [CountersArePut { n: Plus(ThatMany, 1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
+= Static([Replacement { event: CountersPut { by: None, n: AtLeast(N(1)), kind: Some("+1/+1"), on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, instead: [CountersArePut { n: Plus(ThatMany, 1), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
 
 ## Harmonic Prodigy
 face: Harmonic Prodigy
@@ -3734,7 +3734,7 @@ type: Creature — Elf Druid
 cost: {1}{G}
 > {T}: Add one mana of any type that a land you control could produce. If this creature has a +1/+1 counter on it, add three mana of that type instead.
 > {3}{G}{G}: Adapt 3. (If this creature has no +1/+1 counters on it, put three +1/+1 counters on it.)
-= Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyType, within: Some(CouldProduce(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })) }), Instead { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, kind: Some("Pt { power: N(1), toughness: N(1), signed: true }") }, then: [AddMana(Of { n: N(3), pick: ThatType, within: None })] }], limits: [] }
+= Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyType, within: Some(CouldProduce(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })) }), Instead { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, kind: Some("+1/+1") }, then: [AddMana(Of { n: N(3), pick: ThatType, within: None })] }], limits: [] }
 = Activated { cost: [Mana(Mana(["3", "G", "G"]))], effect: [Action { by: None, name: "adapt", n: Some(N(3)) }], limits: [] }
 
 ## Indatha Triome
@@ -3770,7 +3770,7 @@ cost: {1}{G}
 > Permanents you control with counters on them have ward {1}.
 > {3}{G}: Level 3
 > If you would put one or more counters on a permanent or player, put twice that many of each of those kinds of counters on that permanent or player instead.
-= Triggered { trigger: At(Combat(Yours)), effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
+= Triggered { trigger: At(Combat(Yours)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 = Activated { cost: [Mana(Mana(["G"]))], effect: [ClassLevel(2)], limits: [] }
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You), WithCounter(None)], or: None } }, pt: None, has: [Keyword { name: "ward", param: Some(Cost([Mana(Mana(["1"]))])) }], per: None }])
 = Activated { cost: [Mana(Mana(["3", "G"]))], effect: [ClassLevel(3)], limits: [] }
@@ -3781,7 +3781,7 @@ face: Inspiring Call
 type: Instant
 cost: {2}{G}
 > Draw a card for each creature you control with a +1/+1 counter on it. Those creatures gain indestructible until end of turn. (Damage and effects that say "destroy" don't destroy them.)
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), WithCounter(Some("Pt { power: N(1), toughness: N(1), signed: true }"))], or: None } }, then: [Draw { who: You, n: N(1) }] }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }])
+= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), WithCounter(Some("+1/+1"))], or: None } }, then: [Draw { who: You, n: N(1) }] }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }])
 
 ## Inspiring Statuary
 face: Inspiring Statuary
@@ -3924,7 +3924,7 @@ type: Creature — Spirit
 cost: {2}{G}
 > If one or more +1/+1 counters would be put on a permanent you control, that many plus one +1/+1 counters are put on that permanent instead.
 > {T}: Add X mana of any one color, where X is this creature's power.
-= Static([Replacement { event: CountersPut { by: None, n: AtLeast(N(1)), kind: Some("Pt { power: N(1), toughness: N(1), signed: true }"), on: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } } }, instead: [CountersArePut { n: Plus(ThatMany, 1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }] }])
+= Static([Replacement { event: CountersPut { by: None, n: AtLeast(N(1)), kind: Some("+1/+1"), on: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } } }, instead: [CountersArePut { n: Plus(ThatMany, 1), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }] }])
 = Activated { cost: [Tap], effect: [Where { then: [AddMana(Of { n: X, pick: AnyOneColor, within: None })], x: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }], limits: [] }
 
 ## Kappa Cannoneer
@@ -3936,7 +3936,7 @@ cost: {5}{U}
 > Whenever this creature or another artifact you control enters, put a +1/+1 counter on this creature. It can't be blocked this turn.
 = Keywords([Keyword { name: "improvise", param: None }])
 = Keywords([Keyword { name: "ward", param: Some(Cost([Mana(Mana(["4"]))])) }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] }
 
 ## Kardur, Doomscourge
 face: Kardur, Doomscourge
@@ -4070,7 +4070,7 @@ face: Krenko, Tin Street Kingpin
 type: Legendary Creature — Goblin
 cost: {2}{R}
 > Whenever Krenko attacks, put a +1/+1 counter on it, then create a number of 1/1 red Goblin creature tokens equal to Krenko's power.
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Create { who: You, n: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["goblin", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Create { who: You, n: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["goblin", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Krosan Grip
 face: Krosan Grip
@@ -4449,7 +4449,7 @@ cost: {2}
 > Each other creature you control of the chosen type enters with an additional +1/+1 counter on it.
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Choose(CreatureType)] }])
 = Static([AlsoIs { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: Chosen }])
-= Static([EntersWithCounters { what: Objects { quant: Each, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You), OfChosenType], or: None } }, n: Additional(N(1)), kind: "Pt { power: N(1), toughness: N(1), signed: true }" }])
+= Static([EntersWithCounters { what: Objects { quant: Each, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You), OfChosenType], or: None } }, n: Additional(N(1)), kind: "+1/+1" }])
 
 ## Meteor Golem
 face: Meteor Golem
@@ -4684,8 +4684,8 @@ cost: {2}{G}
 > This creature enters with a +1/+1 counter on it.
 > Landfall — Whenever a land you control enters, double the number of +1/+1 counters on this creature.
 = Keywords([Keyword { name: "trample", param: None }])
-= Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }" }])
-= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [DoubleCounters { kind: Some("Pt { power: N(1), toughness: N(1), signed: true }"), on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] } }
+= Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, n: N(1), kind: "+1/+1" }])
+= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [DoubleCounters { kind: Some("+1/+1"), on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] } }
 
 ## Mossfire Valley
 face: Mossfire Valley
@@ -5038,7 +5038,7 @@ type: Land
 > {T}: Add {C}.
 > {1}, {T}: Add one mana of any color in your commander's color identity. If you spend this mana to cast your commander, it enters with a number of additional +1/+1 counters on it equal to the number of times it's been cast from the command zone this game.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: Some(CommanderIdentity) }), OnSpend { of: All, on: Objects { quant: Possessive(You), filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }, then: [EntersWithCounters { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Additional(TimesCastFrom { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: CommandZone }), kind: "Pt { power: N(1), toughness: N(1), signed: true }" }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: Some(CommanderIdentity) }), OnSpend { of: All, on: Objects { quant: Possessive(You), filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }, then: [EntersWithCounters { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Additional(TimesCastFrom { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: CommandZone }), kind: "+1/+1" }] }], limits: [] }
 
 ## Open the Armory
 face: Open the Armory
@@ -5101,7 +5101,7 @@ type: Land
 > {T}: Put a +1/+1 counter on each green creature that entered this turn.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G"])))], limits: [] }
-= Activated { cost: [Tap], effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Each, filter: Filter { alts: [[Color(Green), Type("creature")]], kind: None, posts: [EnteredThisTurn], or: None } } }], limits: [] }
+= Activated { cost: [Tap], effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Color(Green), Type("creature")]], kind: None, posts: [EnteredThisTurn], or: None } } }], limits: [] }
 
 ## Orcish Bowmasters
 face: Orcish Bowmasters
@@ -5188,8 +5188,8 @@ cost: {1}{G}
 > If one or more +1/+1 counters would be put on an artifact or creature you control, that many plus one +1/+1 counters are put on it instead.
 > {1}{G}, {T}: Put a +1/+1 counter on target artifact or creature you control. Activate only as a sorcery.
 > Cycling {2} ({2}, Discard this card: Draw a card.)
-= Static([Replacement { event: CountersPut { by: None, n: AtLeast(N(1)), kind: Some("Pt { power: N(1), toughness: N(1), signed: true }"), on: Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, instead: [CountersArePut { n: Plus(ThatMany, 1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
-= Activated { cost: [Mana(Mana(["1", "G"])), Tap], effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [SorcerySpeed] }
+= Static([Replacement { event: CountersPut { by: None, n: AtLeast(N(1)), kind: Some("+1/+1"), on: Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, instead: [CountersArePut { n: Plus(ThatMany, 1), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
+= Activated { cost: [Mana(Mana(["1", "G"])), Tap], effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [SorcerySpeed] }
 = Keywords([Keyword { name: "cycling", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
 ## Pact of Negation
@@ -5819,7 +5819,7 @@ face: Revitalizing Repast
 type: Instant
 cost: {B/G}
 > Put a +1/+1 counter on target creature. It gains indestructible until end of turn.
-= Spell([PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }])
+= Spell([PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }])
 
 ## Revitalizing Repast // Old-Growth Grove
 face: Old-Growth Grove
@@ -5881,7 +5881,7 @@ type: Legendary Creature — Elf Druid
 cost: {2}{G}
 > When Rishkar enters, put a +1/+1 counter on each of up to two target creatures.
 > Each creature you control with a counter on it has "{T}: Add {G}."
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
 = Static([HasAbility { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), WithCounter(None)], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G"])))], limits: [] } }])
 
 ## Rising of the Day
@@ -6520,7 +6520,7 @@ face: Snakeskin Veil
 type: Instant
 cost: {G}
 > Put a +1/+1 counter on target creature you control. It gains hexproof until end of turn. (It can't be the target of spells or abilities your opponents control.)
-= Spell([PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "hexproof", param: None }], dur: UntilEndOfTurn }])
+= Spell([PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "hexproof", param: None }], dur: UntilEndOfTurn }])
 
 ## Snap
 face: Snap
@@ -6606,7 +6606,7 @@ face: Spark Double
 type: Creature — Illusion
 cost: {3}{U}
 > You may have this creature enter as a copy of a creature or planeswalker you control, except it enters with an additional +1/+1 counter on it if it's a creature, it enters with an additional loyalty counter on it if it's a planeswalker, and it isn't legendary.
-= Static([EntersAsCopy { may: true, tapped: false, what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, of: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } }, except: [EntersWithCounters { n: Additional(N(1)), kind: "Pt { power: N(1), toughness: N(1), signed: true }", cond: Some(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }, EntersWithCounters { n: Additional(N(1)), kind: "loyalty", cond: Some(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } }) }, IsNot([Supertype("legendary")])] }])
+= Static([EntersAsCopy { may: true, tapped: false, what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, of: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } }, except: [EntersWithCounters { n: Additional(N(1)), kind: "+1/+1", cond: Some(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }, EntersWithCounters { n: Additional(N(1)), kind: "loyalty", cond: Some(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } }) }, IsNot([Supertype("legendary")])] }])
 
 ## Spectator Seating
 face: Spectator Seating
@@ -6735,7 +6735,7 @@ face: Steel Overseer
 type: Artifact Creature — Construct
 cost: {2}
 > {T}: Put a +1/+1 counter on each artifact creature you control.
-= Activated { cost: [Tap], effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Each, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
+= Activated { cost: [Tap], effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 
 ## Stitcher's Supplier
 face: Stitcher's Supplier
@@ -7162,7 +7162,7 @@ cost: {2}{R}
 > Changeling (This card is every creature type.)
 > Whenever an opponent casts a spell, you may put a +1/+1 counter on this creature.
 = Keywords([Keyword { name: "changeling", param: None }])
-= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Tear Asunder
 face: Tear Asunder
@@ -7343,7 +7343,7 @@ face: Terrasymbiosis
 type: Enchantment
 cost: {2}{G}
 > Whenever you put one or more +1/+1 counters on a creature you control, you may draw that many cards. Do this only once each turn.
-= Triggered { trigger: When(CountersPut { by: Some(Player(You)), n: AtLeast(N(1)), kind: Some("Pt { power: N(1), toughness: N(1), signed: true }"), on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }), effect: [May { who: You, then: [Draw { who: You, n: ThatMany }] }], limits: [DoOnlyOncePerTurn] }
+= Triggered { trigger: When(CountersPut { by: Some(Player(You)), n: AtLeast(N(1)), kind: Some("+1/+1"), on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }), effect: [May { who: You, then: [Draw { who: You, n: ThatMany }] }], limits: [DoOnlyOncePerTurn] }
 
 ## Terror of the Peaks
 face: Terror of the Peaks
@@ -7379,8 +7379,8 @@ cost: {2}{G}{G}
 > If one or more +1/+1 counters would be put on a creature you control, twice that many +1/+1 counters are put on that creature instead.
 > {4}{G}{G}, {T}: Distribute two +1/+1 counters among one or two target creatures you control.
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Color(Green)]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: None }])
-= Static([Replacement { event: CountersPut { by: None, n: AtLeast(N(1)), kind: Some("Pt { power: N(1), toughness: N(1), signed: true }"), on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, instead: [CountersArePut { n: Twice(ThatMany), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }])
-= Activated { cost: [Mana(Mana(["4", "G", "G"])), Tap], effect: [DistributeCounters { n: N(2), kind: "Pt { power: N(1), toughness: N(1), signed: true }", among: Objects { quant: Target { n: Between(1, 2), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
+= Static([Replacement { event: CountersPut { by: None, n: AtLeast(N(1)), kind: Some("+1/+1"), on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, instead: [CountersArePut { n: Twice(ThatMany), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }])
+= Activated { cost: [Mana(Mana(["4", "G", "G"])), Tap], effect: [DistributeCounters { n: N(2), kind: "+1/+1", among: Objects { quant: Target { n: Between(1, 2), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 
 ## The Fire Crystal
 face: The Fire Crystal
@@ -7415,7 +7415,7 @@ cost: {7}{G}{G}
 > Whenever a nontoken creature you control enters, put a +1/+1 counter on it and draw a card.
 = Static([Where { inner: CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, by: Mana(["X"]), less: true, per: None }, x: Greatest { stat: Power, among: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } } }])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["G", "G"]))), GainLife { who: You, n: N(2) }], limits: [] }
-= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Draw { who: You, n: N(1) }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Draw { who: You, n: N(1) }], limits: [] }
 
 ## The Meathook Massacre
 face: The Meathook Massacre
@@ -7644,7 +7644,7 @@ cost: {2}{G}
 > Landfall — Whenever a land you control enters, investigate. (Create a Clue token. It's an artifact with "{2}, Sacrifice this token: Draw a card.")
 > Whenever you sacrifice a Clue, put a +1/+1 counter on this creature.
 = Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Action { by: None, name: "investigate", n: None }], limits: [] } }
-= Triggered { trigger: When(Sacrifices { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("clue")]], kind: None, posts: [], or: None } } }), effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: When(Sacrifices { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("clue")]], kind: None, posts: [], or: None } } }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Tocasia's Welcome
 face: Tocasia's Welcome
@@ -7730,7 +7730,7 @@ face: Tribute to the World Tree
 type: Enchantment
 cost: {G}{G}{G}
 > Whenever a creature you control enters, draw a card if its power is 3 or greater. Otherwise, put two +1/+1 counters on it.
-= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [If { cond: AmountIs { n: PowerOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Ge, value: N(3) }, then: [Draw { who: You, n: N(1) }] }, Otherwise([PutCounters { n: N(2), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [If { cond: AmountIs { n: PowerOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }), op: Ge, value: N(3) }, then: [Draw { who: You, n: N(1) }] }, Otherwise([PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
 
 ## Tropical Island
 face: Tropical Island
@@ -7782,7 +7782,7 @@ cost: {2}{W}
 > Creatures you control gain indestructible until end of turn.
 > Addendum — If you cast this spell during your main phase, put a +1/+1 counter on each of those creatures and they gain vigilance until end of turn.
 = Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }])
-= Labelled { label: "addendum", ability: Spell([If { cond: CastDuring(Main(Yours)), then: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "vigilance", param: None }], dur: UntilEndOfTurn }] }]) }
+= Labelled { label: "addendum", ability: Spell([If { cond: CastDuring(Main(Yours)), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "vigilance", param: None }], dur: UntilEndOfTurn }] }]) }
 
 ## Unclaimed Territory
 face: Unclaimed Territory
@@ -8153,9 +8153,9 @@ cost: {X}{X}
 > This creature enters with X +1/+1 counters on it.
 > {4}: Put a +1/+1 counter on this creature.
 > Remove a +1/+1 counter from this creature: It deals 1 damage to any target.
-= Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, n: X, kind: "Pt { power: N(1), toughness: N(1), signed: true }" }])
-= Activated { cost: [Mana(Mana(["4"]))], effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
-= Activated { cost: [RemoveCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", from: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, n: X, kind: "+1/+1" }])
+= Activated { cost: [Mana(Mana(["4"]))], effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
+= Activated { cost: [RemoveCounters { n: N(1), kind: "+1/+1", from: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## War Room
 face: War Room
@@ -8348,7 +8348,7 @@ cost: {U}
 = Activated { cost: [Mana(Mana(["2", "U"]))], effect: [ClassLevel(2)], limits: [] }
 = Triggered { trigger: When(BecomesLevel { what: Objects { quant: SelfRef, filter: Filter { alts: [[Subtype("class")]], kind: None, posts: [], or: None } }, n: 2 }), effect: [Draw { who: You, n: N(2) }], limits: [] }
 = Activated { cost: [Mana(Mana(["4", "U"]))], effect: [ClassLevel(3)], limits: [] }
-= Triggered { trigger: When(Draws(You)), effect: [PutCounters { n: N(1), kind: "Pt { power: N(1), toughness: N(1), signed: true }", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
+= Triggered { trigger: When(Draws(You)), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 
 ## Wonder
 face: Wonder
@@ -8441,7 +8441,7 @@ cost: {2}{B}{B}
 > Pay 1 life, Sacrifice another creature: Put a -1/-1 counter on up to one target creature and draw a card.
 > {B}{B}, Discard a card: Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)
 = Keywords([Keyword { name: "protection", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } })) }])
-= Activated { cost: [PayLife(N(1)), Sacrifice(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [PutCounters { n: N(1), kind: "Pt { power: N(-1), toughness: N(-1), signed: true }", on: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, Draw { who: You, n: N(1) }], limits: [] }
+= Activated { cost: [PayLife(N(1)), Sacrifice(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [PutCounters { n: N(1), kind: "-1/-1", on: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, Draw { who: You, n: N(1) }], limits: [] }
 = Activated { cost: [Mana(Mana(["B", "B"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [Action { by: None, name: "proliferate", n: None }], limits: [] }
 
 ## Young Pyromancer

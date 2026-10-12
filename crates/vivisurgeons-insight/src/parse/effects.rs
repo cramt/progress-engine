@@ -1663,7 +1663,7 @@ fn effect_more(p: &mut P) -> Option<Effect> {
             p.word("put")?;
             let one = |p: &mut P| {
                 let n = amount_a(p)?;
-                let kind = alt!(p; keyword_name, counter_kind)?;
+                let kind = alt!(p; |p| keyword_name(p).map(CounterKind::Named), counter_kind)?;
                 p.one_of(&["counters", "counter"])?;
                 Some((n, kind))
             };

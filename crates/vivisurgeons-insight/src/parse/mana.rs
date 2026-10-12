@@ -217,17 +217,17 @@ pub(super) fn paying(p: &mut P) -> Option<(Vec<Cost>, bool)> {
     Some((v, rather))
 }
 
-pub(super) fn counter_kind(p: &mut P) -> Option<String> {
+pub(super) fn counter_kind(p: &mut P) -> Option<CounterKind> {
     match p.peek()? {
         Tok::Pt(pt) if pt.signed => {
-            let s = format!("{pt:?}");
+            let k = CounterKind::Pt(*pt);
             p.bump();
-            Some(s)
+            Some(k)
         }
         Tok::Word(w) if !matches!(w.as_str(), "on" | "from" | "counter" | "counters") => {
-            let w = w.clone();
+            let k = CounterKind::Named(w.clone());
             p.bump();
-            Some(w)
+            Some(k)
         }
         _ => None,
     }

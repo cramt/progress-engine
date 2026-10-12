@@ -2,7 +2,58 @@
 //! run: an engine would interpret these, and the spike's question is only
 //! whether text can be read into them without a hole.
 
-use crate::lex::{Pt, Signed};
+use crate::lex::{Pt, PtPart, Signed};
+
+/// A counter's kind: a printed `+1/+1` (CR 122.1a), or a word ("loyalty",
+/// "finality", "oil"). A tree prints either as the card says it, quoted.
+#[derive(Clone, PartialEq)]
+pub enum CounterKind {
+    Pt(Pt),
+    Named(String),
+}
+
+impl CounterKind {
+    /// The kind as printed: "+1/+1", "-1/-1", "loyalty".
+    pub fn text(&self) -> String {
+        match self {
+            CounterKind::Named(w) => w.clone(),
+            CounterKind::Pt(pt) => {
+                let part = |p: PtPart| match (p, pt.signed) {
+                    (PtPart::N(n), true) if n < 0 => format!("-{}", -n),
+                    (PtPart::N(n), true) => format!("+{n}"),
+                    (PtPart::N(n), false) => n.to_string(),
+                    (PtPart::X, true) => "+X".into(),
+                    (PtPart::X, false) => "X".into(),
+                    (PtPart::MinusX, _) => "-X".into(),
+                    (PtPart::Star, _) => "*".into(),
+                };
+                format!("{}/{}", part(pt.power), part(pt.toughness))
+            }
+        }
+    }
+
+    pub fn is(&self, word: &str) -> bool {
+        matches!(self, CounterKind::Named(w) if w == word)
+    }
+}
+
+impl std::fmt::Debug for CounterKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.text())
+    }
+}
+
+impl From<&str> for CounterKind {
+    fn from(w: &str) -> Self {
+        CounterKind::Named(w.to_string())
+    }
+}
+
+impl From<String> for CounterKind {
+    fn from(w: String) -> Self {
+        CounterKind::Named(w)
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Ability {
@@ -177,12 +228,12 @@ pub enum Cost {
     Exile(Objects),
     RemoveCounters {
         n: Amount,
-        kind: String,
+        kind: CounterKind,
         from: Objects,
     },
     PutCounters {
         n: Amount,
-        kind: String,
+        kind: CounterKind,
         on: Objects,
     },
     TapUntapped(Objects),
@@ -219,7 +270,7 @@ pub enum Cost {
     /// as the payer likes among them.
     RemoveCountersAmong {
         n: Amount,
-        kind: String,
+        kind: CounterKind,
         among: Objects,
     },
     /// "Discard a card at random": the payer does not pick the card.
@@ -743,7 +794,7 @@ pub enum Noun {
     /// A copy of a spell: "the copy".
     Copy,
     /// "burden counter", or any kind when `None`: "those counters".
-    Counter(Option<String>),
+    Counter(Option<CounterKind>),
     /// "one pile": a pile an earlier separation made.
     Pile,
 }
@@ -772,7 +823,7 @@ pub enum Post {
     WithoutKeyword(String),
     /// "with a +1/+1 counter on it", or of any kind when `None`: "with
     /// counters on them".
-    WithCounter(Option<String>),
+    WithCounter(Option<CounterKind>),
     /// "card named ~".
     Named(Box<Objects>),
     /// "spells your opponents cast that target this creature".
@@ -1088,12 +1139,12 @@ pub enum Effect {
     },
     PutCounters {
         n: Amount,
-        kind: String,
+        kind: CounterKind,
         on: Objects,
     },
     RemoveCounters {
         n: Amount,
-        kind: String,
+        kind: CounterKind,
         from: Objects,
     },
     Modify {
@@ -1197,7 +1248,7 @@ pub enum Effect {
     /// replacement watches for, not by "you".
     CountersArePut {
         n: Amount,
-        kind: String,
+        kind: CounterKind,
         on: Objects,
     },
     Pay {
@@ -1472,7 +1523,7 @@ pub enum Effect {
     ExileWithCounters {
         what: Objects,
         n: Amount,
-        kind: String,
+        kind: CounterKind,
     },
     /// "double the power and toughness of each creature you control".
     Double {
@@ -1517,12 +1568,12 @@ pub enum Effect {
     EntersWithCounters {
         what: Objects,
         n: Amount,
-        kind: String,
+        kind: CounterKind,
     },
     /// "Distribute two +1/+1 counters among one or two target creatures".
     DistributeCounters {
         n: Amount,
-        kind: String,
+        kind: CounterKind,
         among: Objects,
     },
     /// "After this main phase, there is an additional combat phase followed
@@ -1548,7 +1599,7 @@ pub enum Effect {
     },
     /// "double the number of +1/+1 counters on this creature".
     DoubleCounters {
-        kind: Option<String>,
+        kind: Option<CounterKind>,
         on: Objects,
     },
     /// "it deals double that damage instead": the damage of the event a
@@ -1571,7 +1622,7 @@ pub enum Effect {
     GetCounters {
         who: Player,
         n: Amount,
-        kind: String,
+        kind: CounterKind,
     },
     /// "Until end of turn, whenever a player taps an Island for mana, …": a
     /// delayed triggered ability that triggers each time, where `DelayedWhen`
@@ -1627,7 +1678,7 @@ pub enum Effect {
     EntersWith {
         effect: Box<Effect>,
         n: Amount,
-        kind: String,
+        kind: CounterKind,
     },
     /// "return this card from your graveyard to the battlefield tapped and
     /// attacking": the moved creature enters attacking, what it attacks
@@ -1731,7 +1782,7 @@ pub enum Effect {
     },
     /// "put two +1/+1 counters and a flying counter on target creature".
     PutCountersEach {
-        counters: Vec<(Amount, String)>,
+        counters: Vec<(Amount, CounterKind)>,
         on: Objects,
     },
     /// "When a creature card is exiled this way, …": a reflexive triggered
@@ -1744,7 +1795,7 @@ pub enum Effect {
     /// "remove all fate counters from all permanents": every counter of one
     /// kind.
     RemoveAllCountersOf {
-        kind: String,
+        kind: CounterKind,
         from: Objects,
     },
     /// "Target opponent loses all counters."
@@ -1952,7 +2003,7 @@ pub enum Exception {
     /// "it enters with an additional +1/+1 counter on it if it's a creature".
     EntersWithCounters {
         n: Amount,
-        kind: String,
+        kind: CounterKind,
         cond: Option<Box<Condition>>,
     },
     /// "his name is ~": the copy keeps this card's name.
@@ -2254,7 +2305,7 @@ pub enum Event {
     CountersPut {
         by: Option<Actor>,
         n: Quant,
-        kind: Option<String>,
+        kind: Option<CounterKind>,
         on: Objects,
     },
     TappedForMana(Objects),
@@ -2315,7 +2366,7 @@ pub enum Event {
     /// "the twelfth hour counter is put on this artifact".
     NthCounterPutOn {
         n: u32,
-        kind: String,
+        kind: CounterKind,
         on: Objects,
     },
     /// "enchanted player is attacked".
@@ -2480,14 +2531,14 @@ pub enum Static {
     EntersWithCounters {
         what: Objects,
         n: Amount,
-        kind: String,
+        kind: CounterKind,
     },
     /// "This creature escapes with two +1/+1 counters on it": if it escaped
     /// (was cast with escape), it enters with those counters (CR 702.138c).
     EscapesWithCounters {
         what: Objects,
         n: Amount,
-        kind: String,
+        kind: CounterKind,
     },
     CostChange {
         what: Objects,
@@ -2663,7 +2714,7 @@ pub enum Static {
     /// rule (CR 103.6), with what follows "If you do".
     BeginOnBattlefield {
         what: Objects,
-        counters: Option<(Amount, String)>,
+        counters: Option<(Amount, CounterKind)>,
         then: Vec<Effect>,
     },
     /// "You control your opponents": one player making another's choices.
@@ -2879,7 +2930,7 @@ pub enum Condition {
     /// "it has a +1/+1 counter on it", or any kind when `None`: "counters".
     HasCounter {
         what: Objects,
-        kind: Option<String>,
+        kind: Option<CounterKind>,
     },
     /// "it's on the battlefield".
     In {

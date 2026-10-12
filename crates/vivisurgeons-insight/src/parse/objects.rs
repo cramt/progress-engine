@@ -278,7 +278,7 @@ pub(super) fn kind(p: &mut P) -> Option<Noun> {
         |p| p.one_of(&["counters", "counter"]).map(|_| Noun::Counter(None)),
         |p| p.one_of(&["piles", "pile"]).map(|_| Noun::Pile),
         |p| {
-            let k = counter_kind(p).filter(|k| !matches!(k.as_str(), "and" | "or" | "then" | "that" | "target" | "a" | "an" | "the"))?;
+            let k = counter_kind(p).filter(|k| !matches!(k, CounterKind::Named(w) if matches!(w.as_str(), "and" | "or" | "then" | "that" | "target" | "a" | "an" | "the")))?;
             p.one_of(&["counters", "counter"])?;
             Some(Noun::Counter(Some(k)))
         },

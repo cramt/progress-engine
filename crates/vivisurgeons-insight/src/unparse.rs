@@ -13,7 +13,7 @@
 //! forgives is one module long.
 
 use crate::ast::*;
-use crate::lex::{self, Pt, PtPart, Signed, Tok};
+use crate::lex::{self, Pt, Signed, Tok};
 use crate::parse::third_person;
 use crate::vocab::singulars;
 
@@ -2350,49 +2350,20 @@ fn cost(o: &mut Out, c: &Cost) {
 }
 
 /// A counter's kind, a word or a printed `+1/+1`, then the noun.
-fn counter_noun(o: &mut Out, kind: &str, n: Num) {
+fn counter_noun(o: &mut Out, kind: &CounterKind, n: Num) {
     counter_kind(o, kind);
     o.noun("counter", n);
 }
 
-fn counter_kind(o: &mut Out, kind: &str) {
-    match pt_of_debug(kind) {
-        Some(pt) => o.tok(Tok::Pt(pt)),
-        None => o.w(kind),
+fn counter_kind(o: &mut Out, kind: &CounterKind) {
+    match kind {
+        CounterKind::Pt(pt) => o.tok(Tok::Pt(*pt)),
+        CounterKind::Named(w) => o.w(w),
     }
 }
 
-/// `counter_kind` keeps a printed `+1/+1` as its `Debug`; read it back.
-fn pt_of_debug(s: &str) -> Option<Pt> {
-    let inner = s.strip_prefix("Pt { power: ")?.strip_suffix(" }")?;
-    let (power, rest) = inner.split_once(", toughness: ")?;
-    let (toughness, signed) = rest.split_once(", signed: ")?;
-    let part = |p: &str| -> Option<PtPart> {
-        Some(match p {
-            "X" => PtPart::X,
-            "MinusX" => PtPart::MinusX,
-            "Star" => PtPart::Star,
-            _ => PtPart::N(p.strip_prefix("N(")?.strip_suffix(')')?.parse().ok()?),
-        })
-    };
-    Some(Pt {
-        power: part(power)?,
-        toughness: part(toughness)?,
-        signed: signed == "true",
-    })
-}
-
 fn pt_text(pt: &Pt) -> String {
-    let part = |p: PtPart| match (p, pt.signed) {
-        (PtPart::N(n), true) if n < 0 => format!("-{}", -n),
-        (PtPart::N(n), true) => format!("+{n}"),
-        (PtPart::N(n), false) => n.to_string(),
-        (PtPart::X, true) => "+X".into(),
-        (PtPart::X, false) => "X".into(),
-        (PtPart::MinusX, _) => "-X".into(),
-        (PtPart::Star, _) => "*".into(),
-    };
-    format!("{}/{}", part(pt.power), part(pt.toughness))
+    CounterKind::Pt(*pt).text()
 }
 
 // ---------------------------------------------------------------- amounts
@@ -7584,7 +7555,7 @@ fn phase_word(k: PhaseKind) -> &'static str {
     }
 }
 
-fn enters_counters(o: &mut Out, n: &Amount, kind: &str) {
+fn enters_counters(o: &mut Out, n: &Amount, kind: &CounterKind) {
     let (base, extra) = match n {
         Amount::Additional(b) => (&**b, true),
         b => (b, false),
@@ -8779,7 +8750,7 @@ fn quant_is_one(q: &Quant) -> bool {
     matches!(q, Quant::One | Quant::N(Amount::N(1)))
 }
 
-fn counters_phrase(o: &mut Out, n: &Quant, kind: &Option<String>) {
+fn counters_phrase(o: &mut Out, n: &Quant, kind: &Option<CounterKind>) {
     let x = Objects {
         quant: n.clone(),
         filter: Filter::default(),

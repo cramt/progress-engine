@@ -2125,7 +2125,7 @@ impl Visitor for EachItself {
 /// of counter on other objects, "on it" in a filter's comparison is the
 /// object tested, each in turn ([itself-in-with]). Sphere of Annihilation's
 /// void counters, which the card itself holds, stay a reference back.
-struct CountersOnItself(Vec<String>);
+struct CountersOnItself(Vec<CounterKind>);
 
 impl Visitor for CountersOnItself {
     fn enter(&mut self, o: &mut Objects) -> bool {
@@ -2156,7 +2156,7 @@ impl Visitor for CountersOnItself {
 }
 
 fn counters_on_itself(a: &mut Ability) {
-    struct Kinds(Vec<String>);
+    struct Kinds(Vec<CounterKind>);
     impl Visitor for Kinds {
         fn enter(&mut self, _: &mut Objects) -> bool {
             true

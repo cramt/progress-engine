@@ -148,7 +148,7 @@ pub(super) fn would(p: &mut P, what: &Objects) -> Option<Event> {
 }
 
 /// "one or more +1/+1 counters", "one or more counters".
-pub(super) fn counters_phrase(p: &mut P) -> Option<(Quant, Option<String>)> {
+pub(super) fn counters_phrase(p: &mut P) -> Option<(Quant, Option<CounterKind>)> {
     let n = quant(p)?;
     let kind = p.attempt(counter_kind);
     p.one_of(&["counters", "counter"])?;
