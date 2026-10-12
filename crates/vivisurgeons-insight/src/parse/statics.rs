@@ -817,6 +817,10 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
                 return Some(vec![Static::Where { inner: Box::new(modify), x }]);
             }
             let mut v = vec![modify];
+            // "gets +2/+2 and is goaded".
+            if p.attempt(|p| p.words("and is goaded")).is_some() {
+                v.push(Static::Goaded(what.clone()));
+            }
             // "gets +1/+1 and has trample and "Whenever …"", "gets +2/+2 and has "…"".
             if let Some(a) = p.attempt(|p| {
                 p.word("and")?;
@@ -838,6 +842,7 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             }])
         },
         |p| { p.one_of(&["is", "are"])?; p.words("all colors")?; Some(vec![Static::IsAllColors(what.clone())]) },
+        |p| { p.one_of(&["is", "are"])?; p.word("goaded")?; Some(vec![Static::Goaded(what.clone())]) },
         |p| {
             p.verb("enter")?;
             p.attempt(|p| p.words("the battlefield"));

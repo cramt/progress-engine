@@ -2531,6 +2531,11 @@ pub enum Static {
     ActivateAsThoughHaste(Objects),
     /// "Each nonland permanent you control is all colors."
     IsAllColors(Objects),
+    /// "Enchanted creature gets +2/+2 and is goaded": goaded, a designation
+    /// (CR 701.15b), by the controller of this object for as long as the
+    /// static applies, not until that player's next turn as a one-shot
+    /// goad is (CR 701.15a).
+    Goaded(Objects),
     /// "This spell costs {1} less to cast for each card type among cards in
     /// your graveyard": a change per a count that is not of objects.
     CostChangePer {

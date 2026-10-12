@@ -2416,6 +2416,9 @@ impl Walk for Static {
             Static::IsAllColors(f0) => {
                 Walk::walk(f0, v);
             }
+            Static::Goaded(f0) => {
+                Walk::walk(f0, v);
+            }
             Static::CostChangePer { what, per, .. } => {
                 Walk::walk(what, v);
                 Walk::walk(per, v);

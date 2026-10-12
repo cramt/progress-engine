@@ -8959,6 +8959,7 @@ fn static_subject(s: &Static) -> Option<&Objects> {
         Static::EntersTapped(what)
         | Static::EntersUntapped(what)
         | Static::IsAllColors(what)
+        | Static::Goaded(what)
         | Static::EntersPrepared(what) => Some(what),
         Static::HasAbilitiesOf { what, .. } | Static::HasIf { what, .. } => Some(what),
         Static::CostChange { what, .. } | Static::CostChangePer { what, .. } => Some(what),
@@ -9379,6 +9380,10 @@ fn static_predicate(o: &mut Out, s: &Static) {
         Static::IsAllColors(_) => {
             o.verb("are", n);
             o.w("all colors");
+        }
+        Static::Goaded(_) => {
+            o.verb("are", n);
+            o.w("goaded");
         }
         Static::Where { inner, x } if static_subject(inner).is_some() => {
             static_predicate(o, inner);
@@ -9938,6 +9943,7 @@ fn static_other(o: &mut Out, s: &Static) {
         | Static::EntersTapped(_)
         | Static::EntersUntapped(_)
         | Static::IsAllColors(_)
+        | Static::Goaded(_)
         | Static::EntersPrepared(_)
         | Static::HasAbilitiesOf { .. }
         | Static::HasIf { .. }
