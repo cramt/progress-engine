@@ -296,10 +296,12 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 },
             )?;
             let not = not.unwrap_or(false);
-            p.word("cast")?;
+            // "if you cycled two or more cards this turn".
+            let cycled = p.one_of(&["cast", "cycled"])? == "cycled";
             let what = objects(p)?;
             p.words("this turn")?;
-            let c = Condition::DidThisTurn(Box::new(casts(who, what)));
+            let e = if cycled { Event::Cycles { who, what: Some(what) } } else { casts(who, what) };
+            let c = Condition::DidThisTurn(Box::new(e));
             Some(if not { Condition::Not(Box::new(c)) } else { c })
         },
         // "you've drawn two or more cards this turn".

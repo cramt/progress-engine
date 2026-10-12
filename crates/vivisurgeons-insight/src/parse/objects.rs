@@ -182,7 +182,10 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
     }
     let adj = if w == "commander" && next_is_type() {
         Adj::State(State::Commander)
-    } else if matches!(w, "activated" | "triggered" | "loyalty" | "exhaust") {
+    } else if matches!(
+        w,
+        "activated" | "triggered" | "loyalty" | "exhaust" | "cycling"
+    ) {
         // Only before "ability": "activated" alone is no kind of object, and
         // "loyalty" is a counter's kind before "counter".
         // "activated or triggered ability": each kind before the noun.
@@ -198,6 +201,7 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
             "activated" => AbilityKind::Activated,
             "triggered" => AbilityKind::Triggered,
             "exhaust" => AbilityKind::Exhaust,
+            "cycling" => AbilityKind::Cycling,
             _ => AbilityKind::Loyalty,
         })
     } else if let Some(c) = color_word(w) {
@@ -709,6 +713,17 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         },
         |p| p.words("you've cast this turn").map(|_| Post::CastThisTurn(Player::You)),
         |p| p.words("you cast this turn").map(|_| Post::WillCastThisTurn(Player::You)),
+        // "with a cycling ability", "that has a cycling ability".
+        |p| {
+            alt!(p;
+                |p| p.words("with a").map(|_| ()),
+                |p| p.word("with").map(|_| ()),
+                |p| p.one_of(&["that has a", "that have a"]).map(|_| ()),
+            )?;
+            let kind = match descriptor(p)? { Adj::Ability(k) => k, _ => return None };
+            p.one_of(&["ability", "abilities"])?;
+            Some(Post::WithAbilityOf(kind))
+        },
         // "with {X} in its mana cost", "without {X} in their mana costs".
         |p| {
             let without = p.one_of(&["with", "without"])? == "without";

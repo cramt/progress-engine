@@ -650,6 +650,8 @@ pub enum AbilityKind {
     Loyalty,
     /// "an exhaust ability": an activated ability with exhaust (CR 702.177a).
     Exhaust,
+    /// "a cycling ability": cycling or any typecycling (CR 702.29f).
+    Cycling,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -791,6 +793,10 @@ pub enum Post {
     WillCastThisTurn(Player),
     /// "with mana cost {0} or {1}".
     ManaCost(Vec<Mana>),
+    /// "a card with a cycling ability", "that has a cycling ability": one
+    /// with an ability of that kind (for cycling, any typecycling too, CR
+    /// 702.29f).
+    WithAbilityOf(AbilityKind),
     /// "a spell with {X} in its mana cost": one whose mana cost has the
     /// symbol (CR 107.3), whatever X was chosen as.
     XInManaCost,

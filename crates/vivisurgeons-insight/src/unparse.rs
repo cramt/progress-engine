@@ -417,6 +417,24 @@ mod syn {
     /// "that each have a different power" and "with different powers": the
     /// singular says of each object what the plural says of the set, that
     /// no two share the value.
+    /// "with a cycling ability", "that has a cycling ability", "with
+    /// cycling abilities": a relative clause or a "with" phrase saying the
+    /// object has one, in the number of its noun.
+    pub fn with_ability(o: &mut Out, kind: Out, n: Num) {
+        let form = |lead: &str, noun: &str| {
+            let mut f = of(lead);
+            f.add(kind.clone());
+            f.w(noun);
+            f
+        };
+        let mut forms = vec![form("with a", "ability"), form("that has a", "ability")];
+        if n != Num::Sg {
+            forms.push(form("with", "abilities"));
+            forms.push(form("that have a", "ability"));
+        }
+        alt(o, forms);
+    }
+
     pub fn different_values(o: &mut Out, s: Stat) {
         let plural = match s {
             Stat::Power => "powers",
@@ -3212,6 +3230,7 @@ fn adj(o: &mut Out, a: &Adj, noun: Option<Num>) {
         Adj::Ability(AbilityKind::Triggered) => "triggered".into(),
         Adj::Ability(AbilityKind::Loyalty) => "loyalty".into(),
         Adj::Ability(AbilityKind::Exhaust) => "exhaust".into(),
+        Adj::Ability(AbilityKind::Cycling) => "cycling".into(),
         Adj::OtherThan(_) => "other".into(),
     };
     match noun {
@@ -3770,6 +3789,10 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         }
         Post::CastThisTurn(_) => o.w("you've cast this turn"),
         Post::WillCastThisTurn(_) => o.w("you cast this turn"),
+        Post::WithAbilityOf(k) => {
+            let kind = out(|o| adj(o, &Adj::Ability(*k), None));
+            syn::with_ability(o, kind, n);
+        }
         Post::XInManaCost | Post::NoXInManaCost => {
             o.w(if *q == Post::XInManaCost {
                 "with"
@@ -8283,6 +8306,16 @@ fn condition(o: &mut Out, c: &Condition) {
         }
         Condition::YouAreStartingPlayer => o.w("you're the starting player"),
         Condition::DidThisTurn(e) => match &**e {
+            // "if you cycled two or more cards this turn".
+            Event::Cycles {
+                who,
+                what: Some(what),
+            } => {
+                player(o, who);
+                syn::did_tense(o, "cycled", out(|o| o.verb("cycle", player_num(who))));
+                objects(o, what);
+                o.w("this turn");
+            }
             Event::Dies(x) => {
                 let said = out(|o| {
                     objects(o, x);
