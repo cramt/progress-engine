@@ -2096,6 +2096,7 @@ pub fn parse_line(toks: &[Tok], spell: bool, continues: bool) -> Result<Ability,
             a.walk(&mut CreatedTokens::new());
             a.walk(&mut FromRevealedHand(None));
             a.walk(&mut EachItself);
+            a.walk(&mut DelayedX);
             counters_on_itself(&mut a);
             Ok(a)
         }
@@ -2120,6 +2121,32 @@ pub(super) fn casts(who: Player, mut what: Objects) -> Event {
 /// nothing else defines one ([x-of-the-spell]).
 fn x_of_the_spell(t: &Trigger, effect: &mut [Effect]) {
     let Trigger::When(e) = t else { return };
+    x_of_event(e, effect);
+}
+
+/// Brass Infiniscope: "When you next cast a spell with {X} in its mana cost
+/// this turn, you draw a card and gain half X life": a delayed trigger's X
+/// is its spell's too ([x-of-the-spell]).
+struct DelayedX;
+
+impl Visitor for DelayedX {
+    fn enter(&mut self, _: &mut Objects) -> bool {
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        true
+    }
+    fn effect(&mut self, e: &mut Effect) {
+        if let Effect::DelayedNext { event, then, .. }
+        | Effect::DelayedWhen { event, then }
+        | Effect::DelayedWhenever { event, then } = e
+        {
+            x_of_event(event, then);
+        }
+    }
+}
+
+fn x_of_event(e: &Event, effect: &mut [Effect]) {
     let Some(spell) = trigger_object(e) else {
         return;
     };

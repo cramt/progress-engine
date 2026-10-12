@@ -4934,8 +4934,16 @@ fn recipient(o: &mut Out, r: &Recipient) {
 }
 
 fn token(o: &mut Out, n: &Amount, t: &Token) {
-    let counted = is_measure(n) || matches!(n, Amount::DieResult);
-    if counted {
+    // "create half X Food tokens, rounded up".
+    let half = match n {
+        Amount::Half { of, round_up } if !is_measure(of) => Some((of, *round_up)),
+        _ => None,
+    };
+    let counted = half.is_none() && (is_measure(n) || matches!(n, Amount::DieResult));
+    if let Some((of, _)) = half {
+        o.w("half");
+        amount(o, of);
+    } else if counted {
         o.w("a number of");
     } else {
         amount_a(o, n);
@@ -4963,6 +4971,9 @@ fn token(o: &mut Out, n: &Amount, t: &Token) {
         }
     }
     o.noun("token", amount_num(n));
+    if let Some((_, up)) = half {
+        rounded(o, up);
+    }
     token_has(o, t);
     if counted {
         o.w("equal to");
@@ -7383,6 +7394,14 @@ fn life(o: &mut Out, n: &Amount) {
         if let Amount::LifeTotal(w) = &**of {
             o.w("half");
             whose(o, w);
+            o.w("life");
+            rounded(o, *round_up);
+            return;
+        }
+        // "gain half X life, rounded down".
+        if !is_measure(of) {
+            o.w("half");
+            amount(o, of);
             o.w("life");
             rounded(o, *round_up);
             return;

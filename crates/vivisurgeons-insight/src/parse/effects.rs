@@ -113,9 +113,14 @@ pub(super) fn token(p: &mut P) -> Option<(Amount, Token)> {
 
 /// A token, and the name "named Munitions" gives it.
 pub(super) fn token_named(p: &mut P) -> Option<(Amount, Token, Option<String>)> {
+    // "create half X Food tokens, rounded up": the rounding is said after
+    // the tokens (CR 107.1a).
+    let half = p.attempt(|p| p.word("half")).is_some();
     // "a number of Treasure tokens equal to the result".
     let n = match p.attempt(|p| p.words("a number of")) {
-        Some(_) => None,
+        Some(_) if !half => None,
+        Some(_) => return None,
+        None if half => Some(amount(p)?),
         None => Some(amount_a(p)?),
     };
     // "an additional Food token": one more than the event made.
@@ -185,6 +190,13 @@ pub(super) fn token_named(p: &mut P) -> Option<(Amount, Token, Option<String>)> 
         return None;
     }
     p.one_of(&["tokens", "token"])?;
+    let n = match n {
+        Some(of) if half => Some(Amount::Half {
+            of: Box::new(of),
+            round_up: rounded(p)?,
+        }),
+        n => n,
+    };
     if pt.is_some() {
         named = None;
     }
@@ -1105,6 +1117,13 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let who = subject_player(p);
             p.verb("gain")?;
             let n = alt!(p;
+                // "gain half X life, rounded down".
+                |p| {
+                    p.word("half")?;
+                    let of = amount(p)?;
+                    p.word("life")?;
+                    Some(Amount::Half { of: Box::new(of), round_up: rounded(p)? })
+                },
                 |p| { let n = amount(p)?; p.word("life")?; Some(n) },
                 |p| { p.words("life equal to")?; measure(p) },
             )?;
