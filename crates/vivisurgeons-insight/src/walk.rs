@@ -2009,6 +2009,9 @@ impl Walk for Quant {
             Quant::N(f0) => {
                 Walk::walk(f0, v);
             }
+            Quant::NFromEach(f0) => {
+                Walk::walk(f0, v);
+            }
             Quant::UpTo(f0) => {
                 Walk::walk(f0, v);
             }

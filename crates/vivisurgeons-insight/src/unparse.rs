@@ -1325,6 +1325,11 @@ pub fn ability(a: &Ability) -> Out {
             if matches!(o.quant, Quant::Triggering | Quant::BeforeEach) {
                 o.quant = Quant::Antecedent;
             }
+            // "the top card of each player's library" says the count once,
+            // the possessive making it one per library.
+            if let Quant::NFromEach(n) = &o.quant {
+                o.quant = Quant::N(n.clone());
+            }
             true
         }
         fn ability(&mut self, _: &mut Ability) -> bool {
@@ -2550,6 +2555,7 @@ fn obj_num(x: &Objects) -> Num {
         Quant::Target { n, .. }
         | Quant::OtherTarget { n, .. }
         | Quant::N(n)
+        | Quant::NFromEach(n)
         | Quant::UpTo(n)
         | Quant::AnyTarget { n } => amount_num(n),
         // "one or more creatures … deals": the verb may agree with "one".
@@ -2849,6 +2855,13 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             });
             syn::the_card(o, named, back);
         }
+        Quant::NFromEach(k) => objects_plain(
+            o,
+            &Objects {
+                quant: Quant::N(k.clone()),
+                filter: f.clone(),
+            },
+        ),
         // Said as any reference back is.
         Quant::BeforeEach => objects_plain(
             o,

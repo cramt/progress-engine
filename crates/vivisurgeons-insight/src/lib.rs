@@ -2236,4 +2236,13 @@ mod round_nine_d {
             "{effect:?}"
         );
     }
+
+    #[test]
+    fn the_top_card_of_each_players_library_is_one_per_library() {
+        let s = format!(
+            "{:?}",
+            read("Sorcery", "Exile the top card of each player's library.")
+        );
+        assert!(s.contains("quant: NFromEach(N(1))"), "{s}");
+    }
 }

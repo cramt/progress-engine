@@ -494,6 +494,9 @@ pub enum Quant {
     All,
     One,
     N(Amount),
+    /// "the top card of each player's library": that many from each
+    /// player's zone, so as many sets as there are players.
+    NFromEach(Amount),
     OneOrMore,
     AnyNumber,
     /// "any number of target creatures": as many targets as the player

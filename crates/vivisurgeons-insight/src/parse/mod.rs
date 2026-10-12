@@ -1441,6 +1441,24 @@ fn other_than_named_before(effect: &mut [Effect]) {
     }
 }
 
+/// "Exile the top card of each player's library": the possessive "each
+/// player's" distributes, so the count is per library, one card from each.
+struct FromEachLibrary;
+
+impl Visitor for FromEachLibrary {
+    fn enter(&mut self, o: &mut Objects) -> bool {
+        if let (Quant::N(n), [Post::In(Zone::TopOfLibrary(Player::Each | Player::EachOpponent))]) =
+            (&o.quant, &o.filter.posts[..])
+        {
+            o.quant = Quant::NFromEach(n.clone());
+        }
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        true
+    }
+}
+
 /// A whole ability line, which must be consumed to the last token.
 pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
     let mut p = P::new(toks);
@@ -1448,6 +1466,7 @@ pub fn parse_line(toks: &[Tok], spell: bool) -> Result<Ability, usize> {
     match ability(&mut p, spell) {
         Some(mut a) if p.at_end() => {
             a.walk(&mut OtherThanTheSource);
+            a.walk(&mut FromEachLibrary);
             Ok(a)
         }
         _ => Err(p.furthest),

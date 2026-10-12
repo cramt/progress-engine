@@ -67,6 +67,7 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "its graveyard", "its library", "its hand" | `OwnerOf(it)`, the same tree as "its owner's graveyard" | settled: CR 400.3, an object's hand, library or graveyard is only ever its owner's |
 | "its controller's graveyard" | `ControllerOf(it)`, apart from "its graveyard" | settled: the player controlling it, who for a stolen permanent or a spell another player controls is not its owner |
 | "a creature with the greatest power" | `Quant::One`, the same as "the creature with the greatest power" | settled: one object with that value; where several tie, the chooser picks |
+| "exile the top card of each player's library", "… of each opponent's library" | `Quant::NFromEach(1)`: one card from each library | settled: the possessive "each player's" distributes the count over the libraries, so as many cards as players; Etali's and Lidless Gaze's "those cards" are one per player, and Pako puts "a fetch counter on each of them". It read `N(1)`, one card in all (12 corpus trees) |
 | "a graveyard has twenty or more cards in it" | `ZoneHasCards { AGraveyard, … }`: some one graveyard | settled: "a" is any one, not all graveyards counted together |
 | "it's the second creature spell you cast this turn" | `NthSpellThisTurn`, counting this spell among them | settled |
 | "cards you don't own", "cards your opponents own" | `NotOwnedBy(You)` and `Owner(EachOpponent)`, apart | settled: in Two-Headed Giant a teammate owns cards too (CR 810.1); earlier trees read the first as the second |
