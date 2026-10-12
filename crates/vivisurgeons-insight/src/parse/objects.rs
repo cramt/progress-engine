@@ -914,6 +914,13 @@ fn total_of_the_chosen(q: Post) -> Vec<Post> {
             let total = o.filter.posts.pop().expect("matched a last post");
             vec![Post::FromAmong(o), total]
         }
+        // Kotose: "target card other than a basic land card from an
+        // opponent's graveyard": where the card is is the target's, as
+        // after "other than this card" ([after-self-noun]).
+        Post::OtherThan(mut f) if matches!(f.posts.last(), Some(Post::In(_) | Post::From(_))) => {
+            let zone = f.posts.pop().expect("matched a last post");
+            vec![Post::OtherThan(f), zone]
+        }
         q => vec![q],
     }
 }
