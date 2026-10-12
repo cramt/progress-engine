@@ -885,9 +885,11 @@ pub(super) fn sentence(p: &mut P) -> Option<Vec<Effect>> {
             // "Create a 1/1 colorless Eldrazi Scion creature token. It has
             // "Sacrifice this token: Add {C}."": what the token has as it is
             // created, said as a sentence of its own.
-            if let Some(Effect::Create { token, .. }) = e.last_mut() {
+            // "If you do, create three 1/1 … Scion creature tokens. They have
+            // "…"": the plural, and a token made in a branch.
+            if let Some(token) = last_token(&mut e) {
                 if token.abilities.is_empty() && token.keywords.is_empty() {
-                    if let Some(a) = p.attempt(|p| { p.words("it has")?; let a = quoted(p)?; p.end_sentence()?; Some(a) }) {
+                    if let Some(a) = p.attempt(|p| { p.one_of(&["it has", "they have"])?; let a = quoted(p)?; p.end_sentence()?; Some(a) }) {
                         token.abilities.push(a);
                     }
                 }
@@ -1357,5 +1359,16 @@ fn source_of_ability(v: &mut [Effect]) {
                 *it = of(Filter::default());
             }
         }
+    }
+}
+
+/// The token the last effect creates, in the branch it ends with.
+fn last_token(e: &mut [Effect]) -> Option<&mut Token> {
+    match e.last_mut()? {
+        Effect::Create { token, .. } => Some(token),
+        Effect::May { then, .. } | Effect::IfYouDo(then) | Effect::If { then, .. } => {
+            last_token(then)
+        }
+        _ => None,
     }
 }

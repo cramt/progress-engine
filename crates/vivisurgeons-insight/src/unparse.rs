@@ -4842,7 +4842,8 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                         };
                         token(o, n, &bare);
                         o.tok(Tok::Period);
-                        o.w("it has");
+                        syn::it(o);
+                        o.verb("have", amount_num(n));
                         quoted(o, a);
                     });
                     syn::token_has(o, with, it_has);
