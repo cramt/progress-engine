@@ -28,6 +28,9 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "Whenever a creature you control attacks alone" | `AttacksAlone`, apart from `Attacks` | settled: CR 506.5, the only creature declared as an attacker |
 | "Whenever you scry or surveil" | `Or([Performs { You, "scry" }, Performs { You, "surveil" }])` | settled: two keyword actions, the player said once |
 | "Whenever this creature enters or transforms into ~" | `TransformsInto { this creature, SelfRef }` | settled: "~" is the back face's own name, the same object (CR 201.5c) |
+| "Whenever you cast a spell during an opponent's turn" | `While { …, OpponentsTurn }`, apart from `NotYourTurn` | settled: in a team game a teammate's turn is not yours and not an opponent's (CR 102.3, teammates are not opponents) |
+| "Whenever you gain life for the first time each turn", "… becomes the target of a spell or ability for the first time each turn" | `FirstTimeEachTurn` around any event | settled: it read only "attacks/blocks for the first time each turn"; the same words after any event |
+| "When you next cast an instant or sorcery spell this turn, copy that spell." | `DelayedNext { event, dur: ThisTurn, then }` | settled: CR 603.7b, a delayed trigger triggers once unless it has a stated duration such as "this turn", so "next … this turn" is once and within the turn, which neither `DelayedWhen` (once, any time) nor `During { ThisTurn, DelayedWhen }` (each time this turn) says. "That spell" stays a plain back-reference to the event's spell, as in `DelayedWhen` (Pyromancer's Goggles): open |
 
 ## Ability kinds
 
@@ -179,6 +182,11 @@ Status: **settled** (follows the CR or a deliberate decision), **open**
 | "Choose one. If this spell was cast using teamwork, choose both instead." | `Choose::Upgrade { may: false }`, apart from "you may choose both instead" | settled: the second is an option the caster may decline, the first an instruction; teamwork is whether its cost was declared (CR 702.194b). Pyrrhic Strike's "If this spell's additional cost was paid" likewise |
 | "and mana of any type can be spent to cast that spell" | `SpendAsAnyType`, as an effect or a static | settled: CR 609.4b names "mana of any type can be spent" with "as though it were mana of any type"; `syn::any_type_spent` |
 | "Activate only during your turn and only once each turn.", "Activate only if … and only once." | one `Limit` each: `OnlyDuringYourTurn`, `OncePerTurn`, `OnlyIf`, `Once`, `OnlyDuringYourUpkeep` | settled: two restrictions on one ability, "activate only" said once (`syn::only_again`); "only once" is once for the object, apart from "once each turn" |
+| "You may cast this spell as though it had flash if you control a Human", "If there are three or more Lesson cards in your graveyard, you may cast this spell as though it had flash" | `Static::If { cond, [CastAsThoughFlash(this spell)] }` | settled: a permission while the condition holds, checked as the spell is cast |
+| "You may cast this spell as though it had flash if you pay {2} more to cast it", "… if you behold a Dragon as an additional cost to cast it" | `CastAsThoughFlashFor { what, cost }` | settled: what the caster pays for the permission (CR 601.2f), not a condition the game checks |
+| "with total mana value 6 or less", "with total power 4 or less" | `Post::Total(Compare)`, apart from `With` | settled: a bound on the sum over the objects chosen; each one alone may be bigger than another's share |
+| "put a number of +1/+1 counters on ~ equal to that creature's power", "… equal to its power on up to one target creature" | `PutCounters { n: <the measure> }` | settled: "a number of … equal to" is the measure's count, before or after the object (`syn::position`) |
+| "gets +1/+0 until end of turn and can't be blocked this turn", "gains first strike until end of turn and must be blocked this turn if able" | `Modify` then `Restrict`, each with its own duration | settled: one subject for both predicates; the rule's "this turn" is its own duration |
 ## Durations
 
 | Text | Tree | Status |

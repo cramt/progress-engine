@@ -331,11 +331,17 @@ pub(super) fn trigger(p: &mut P) -> Option<Trigger> {
         |p| {
             p.one_of(&["whenever", "when"])?;
             let e = event(p)?;
+            // "Whenever you gain life for the first time each turn".
+            let e = match p.attempt(|p| p.words("for the first time each turn")) {
+                Some(_) => Event::FirstTimeEachTurn(Box::new(e)),
+                None => e,
+            };
             // "Whenever you cast an instant or sorcery spell during your turn",
             // "… while this creature has a -1/-1 counter on it": the event,
             // only while the condition holds.
             let e = match p.attempt(|p| alt!(p;
                 |p| p.words("during your turn").map(|_| Condition::ItsYourTurn),
+                |p| p.words("during an opponent 's turn").map(|_| Condition::OpponentsTurn),
                 // "Whenever this creature attacks while saddled": the
                 // attacker is saddled (CR 702.171b).
                 |p| {

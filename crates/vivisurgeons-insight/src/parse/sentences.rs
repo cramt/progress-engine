@@ -224,6 +224,25 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             v.extend(abilities.into_iter().map(|a| Effect::GrantAbility { what: what.clone(), ability: Box::new(a), dur: dur.clone() }));
             Some(v)
         },
+        // "gains lifelink until end of turn and can't be blocked this turn",
+        // "gets +3/+3 until end of turn and must be blocked this turn if
+        // able": one subject, a bonus and a rule, each with its duration.
+        |p| {
+            if !p.ahead("and can't") && !p.ahead("and must") { return None; }
+            let e = effect(p)?;
+            let what = match &e {
+                Effect::Modify { what, .. } if what.quant != Quant::Next => what.clone(),
+                _ => return None,
+            };
+            p.word("and")?;
+            // "must be blocked this turn if able": the duration inside.
+            if p.attempt(|p| p.words("must be blocked this turn if able")).is_some() {
+                return Some(vec![e, Effect::Restrict { what, rule: Restriction::MustBeBlocked, dur: Duration::ThisTurn }]);
+            }
+            let rule = restriction(p)?;
+            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+            Some(vec![e, Effect::Restrict { what, rule, dur }])
+        },
         // "~ deals 1 damage to target player or planeswalker and 1 damage to
         // target creature …": one source, its verb said once.
         |p| {
@@ -290,6 +309,17 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             p.words("when you do")?;
             p.tok(&Tok::Comma)?;
             Some(vec![Effect::WhenYouDo(clauses(p)?)])
+        },
+        // "When you next cast an instant or sorcery spell this turn, copy
+        // that spell": once, the next time, this turn (CR 603.7b).
+        |p| {
+            p.words("when you next")?;
+            let v = player_verb(p, &Player::You)?;
+            let what = objects(p)?;
+            let dur = duration(p)?;
+            p.tok(&Tok::Comma)?;
+            let then = delayed_body(p)?;
+            Some(vec![Effect::DelayedNext { event: v(what), dur, then }])
         },
         // "When a creature card is exiled this way, …": reflexive (CR 603.12).
         |p| {

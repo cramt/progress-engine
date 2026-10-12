@@ -1010,6 +1010,18 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             }
             Some(if v.len() == 1 { first } else { Effect::Or(v) })
         },
+        // "put a number of +1/+1 counters on ~ equal to that creature's
+        // power", the amount before or after the object.
+        |p| {
+            p.words("put a number of")?;
+            let kind = counter_kind(p)?;
+            p.word("counters")?;
+            let (n, on) = alt!(p;
+                |p| { p.word("on")?; let on = objects(p)?; p.words("equal to")?; Some((measure(p)?, on)) },
+                |p| { p.words("equal to")?; let n = measure(p)?; p.word("on")?; Some((n, objects(p)?)) },
+            )?;
+            Some(Effect::PutCounters { n, kind, on })
+        },
         // counters
         |p| {
             p.word("put")?;

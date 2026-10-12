@@ -1505,6 +1505,45 @@ mod tests {
     }
 
     #[test]
+    fn round_eleven_delayed_and_flash_templates() {
+        let one = |ty: &str, text: &str| format!("{:?}", read("Some Card", ty, text));
+        let a = one(
+            "Artifact",
+            "{T}: When you next cast an instant or sorcery spell this turn, copy that spell. You may choose new targets for the copy.",
+        );
+        assert!(
+            a.contains("DelayedNext { event: Casts") && a.contains("dur: ThisTurn"),
+            "{a}"
+        );
+        let a = one(
+            "Creature — Bird",
+            "Whenever you cast a spell during an opponent's turn, surveil 1.\nWhenever you gain life for the first time each turn, draw a card.",
+        );
+        assert!(
+            a.contains("OpponentsTurn") && a.contains("FirstTimeEachTurn(GainsLife"),
+            "{a}"
+        );
+        let a = one(
+            "Creature — Human",
+            "You may cast this spell as though it had flash if you pay {2} more to cast it.\nYou may cast this spell as though it had flash if you control a Human.",
+        );
+        assert!(
+            a.contains("CastAsThoughFlashFor") && a.contains("If { cond: YouControl"),
+            "{a}"
+        );
+        let a = one(
+            "Sorcery",
+            "Return up to three target creature cards with total mana value 3 or less from your graveyard to the battlefield.",
+        );
+        assert!(a.contains("Total(Compare { stat: ManaValue"), "{a}");
+        let a = one(
+            "Instant",
+            "Target creature you control gets +1/+0 until end of turn and can't be blocked this turn.",
+        );
+        assert!(a.contains("Modify") && a.contains("Restrict"), "{a}");
+    }
+
+    #[test]
     fn hero_is_a_creature_type() {
         let a = read(
             "Some Assembly",

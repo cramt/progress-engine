@@ -632,6 +632,9 @@ pub enum Post {
     /// "activated ability from an artifact source": what the ability's
     /// source is (CR 113.7).
     FromSource(Vec<Adj>),
+    /// "up to three target creature cards with total mana value 3 or less":
+    /// a bound on the sum over the objects chosen, not on each.
+    Total(Compare),
     Controller(Player),
     NotControlledBy(Player),
     Owner(Player),
@@ -1169,6 +1172,15 @@ pub enum Effect {
     /// triggered ability (CR 603.7).
     DelayedWhen {
         event: Event,
+        then: Vec<Effect>,
+    },
+    /// "When you next cast an instant or sorcery spell this turn, copy that
+    /// spell": a delayed trigger that triggers once, the next time, and only
+    /// within `dur` (CR 603.7b); "this turn" alone would let it trigger
+    /// every time.
+    DelayedNext {
+        event: Event,
+        dur: Duration,
         then: Vec<Effect>,
     },
     /// "When you do, …": a reflexive triggered ability (CR 603.12), which goes
@@ -2348,6 +2360,13 @@ pub enum Static {
     EntersUntapped(Objects),
     /// "You may cast spells as though they had flash."
     CastAsThoughFlash(Objects),
+    /// "You may cast this spell as though it had flash if you pay {2} more
+    /// to cast it": flash for an additional cost (CR 601.2f), which a
+    /// condition would not ask the caster to pay.
+    CastAsThoughFlashFor {
+        what: Objects,
+        cost: Vec<Cost>,
+    },
     /// "You may activate abilities of creatures you control as though those
     /// creatures had haste."
     ActivateAsThoughHaste(Objects),
@@ -2460,6 +2479,9 @@ pub enum Condition {
     YouDontControl(Objects),
     ItsYourTurn,
     NotYourTurn,
+    /// "during an opponent's turn", "it's an opponent's turn": apart from
+    /// "not your turn", which a teammate's turn also is.
+    OpponentsTurn,
     LifeAtLeast(u32),
     LifeAtMost(u32),
     CardsInHandAtMost(u32),

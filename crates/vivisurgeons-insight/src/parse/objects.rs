@@ -610,6 +610,7 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| p.words("you don't own").map(|_| Post::NotOwnedBy(Player::You)),
         |p| { let pl = player_simple(p)?; p.one_of(&["controls", "control"])?; Some(Post::Controller(pl)) },
         |p| { let pl = player_simple(p)?; p.one_of(&["doesn't control", "don't control"])?; Some(Post::NotControlledBy(pl)) },
+        |p| { p.words("with total")?; compare(p).map(Post::Total) },
         |p| { p.word("with")?; compare(p).map(Post::With) },
         |p| {
             p.word("with")?;

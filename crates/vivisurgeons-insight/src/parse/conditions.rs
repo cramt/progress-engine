@@ -355,6 +355,7 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         |p| { p.words("an opponent controls")?; objects(p).map(|o| Condition::Opponent(Box::new(Condition::YouControl(o)))) },
         |p| p.words("it's your turn").map(|_| Condition::ItsYourTurn),
         |p| p.words("it's not your turn").map(|_| Condition::NotYourTurn),
+        |p| p.words("it's an opponent 's turn").map(|_| Condition::OpponentsTurn),
         |p| { p.words("you have")?; let n = number(p)?; p.words("or more life")?; Some(Condition::LifeAtLeast(n)) },
         |p| { p.words("you have")?; let n = number(p)?; p.words("or less life")?; Some(Condition::LifeAtMost(n)) },
         |p| { p.one_of(&["this spell was kicked", "~ was kicked", "it was kicked"]).map(|_| Condition::WasKicked) },

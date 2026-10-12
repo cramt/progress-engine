@@ -3230,6 +3230,10 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             syn::each_with(o);
             compare_words(o, c);
         }
+        Post::Total(c) => {
+            o.w("with total");
+            compare_words(o, c);
+        }
         Post::WithKeyword(k) => {
             o.w("with");
             o.w(k);
@@ -4527,6 +4531,25 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 _ => token(o, n, t),
             }
         }
+        // "put a number of +1/+1 counters on it equal to its power", the
+        // amount before or after the object.
+        Effect::PutCounters { n, kind, on } if is_measure(n) => {
+            o.w("put a number of");
+            counter_noun(o, kind, Num::Pl);
+            let on_first = out(|o| {
+                o.w("on");
+                objects(o, on);
+                o.w("equal to");
+                measure(o, n);
+            });
+            let equal_first = out(|o| {
+                o.w("equal to");
+                measure(o, n);
+                o.w("on");
+                objects(o, on);
+            });
+            syn::position(o, on_first, equal_first);
+        }
         Effect::PutCounters { n, kind, on } => {
             o.w("put");
             amount_a(o, n);
@@ -4688,6 +4711,15 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
         Effect::LookAtTop { who, whose: w, n } => {
             subj(o, who, "look at", cx);
             top_of(o, n, w);
+        }
+        // "must be blocked this turn if able": the duration before "if able".
+        Effect::Restrict {
+            what,
+            rule: Restriction::MustBeBlocked,
+            dur: Duration::ThisTurn,
+        } => {
+            objects(o, what);
+            o.w("must be blocked this turn if able");
         }
         Effect::Restrict { what, rule, dur: d } => {
             objects(o, what);
@@ -5342,6 +5374,27 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
         Effect::DelayedWhen { event: ev, then } => {
             o.w("when");
             event(o, ev);
+            o.w(",");
+            clauses(o, then, cx);
+        }
+        Effect::DelayedNext {
+            event: ev,
+            dur: d,
+            then,
+        } => {
+            o.w("when you next");
+            match ev {
+                Event::Casts { what, .. } => {
+                    o.w("cast");
+                    objects(o, what);
+                }
+                Event::Activates { what, .. } => {
+                    o.w("activate");
+                    objects(o, what);
+                }
+                e => event(o, e),
+            }
+            dur(o, d);
             o.w(",");
             clauses(o, then, cx);
         }
@@ -7012,6 +7065,7 @@ fn event(o: &mut Out, e: &Event) {
             event(o, e);
             match &**cond {
                 Condition::ItsYourTurn => o.w("during your turn"),
+                Condition::OpponentsTurn => o.w("during an opponent's turn"),
                 // "attacks while saddled": the attacker, said once.
                 Condition::Is { what, filter: f }
                     if matches!(&**e, Event::Attacks(x) if x == what)
@@ -7476,6 +7530,7 @@ fn condition(o: &mut Out, c: &Condition) {
         }
         Condition::ItsYourTurn => o.w("it's your turn"),
         Condition::NotYourTurn => o.w("it's not your turn"),
+        Condition::OpponentsTurn => o.w("it's an opponent's turn"),
         Condition::LifeAtLeast(n) => {
             o.w("you have");
             syn::number(o, *n);
@@ -9017,10 +9072,28 @@ fn static_other(o: &mut Out, s: &Static) {
             o.verb("aren't", obj_num(what));
             type_words(o, types, obj_num(what));
         }
+        Static::CastAsThoughFlashFor { what, cost } => {
+            o.w("you may cast");
+            objects(o, what);
+            o.w("as though it had flash if you");
+            match &cost[..] {
+                [Cost::Mana(m)] => {
+                    o.w("pay");
+                    mana(o, m);
+                    o.w("more to cast it");
+                }
+                c => {
+                    costs(o, c);
+                    o.w("as an additional cost to cast it");
+                }
+            }
+        }
         Static::CastAsThoughFlash(x) => {
             o.w("you may cast");
             objects(o, x);
-            o.w("as though they had flash");
+            o.w("as though");
+            syn::it(o);
+            o.w("had flash");
         }
         Static::ActivateAsThoughHaste(x) => {
             o.w("you may activate abilities of");

@@ -420,8 +420,25 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
                 if what.quant != Quant::Plural || more.quant != Quant::Plural || what.filter.or.is_some() { return None; }
                 what.filter.or = Some(Box::new(more.filter));
             }
-            p.words("as though they had flash")?;
-            Some(vec![Static::CastAsThoughFlash(what)])
+            p.one_of(&["as though they had flash", "as though it had flash"])?;
+            // "if you pay {2} more to cast it", "if you behold a Dragon as an
+            // additional cost to cast it": a cost for the permission.
+            if let Some(cost) = p.attempt(|p| {
+                p.words("if you")?;
+                alt!(p;
+                    |p| { p.word("pay")?; let m = mana(p)?; p.words("more to cast it")?; Some(vec![Cost::Mana(m)]) },
+                    |p| { let c = costs(p)?; p.words("as an additional cost to cast it")?; Some(c) },
+                )
+            }) {
+                return Some(vec![Static::CastAsThoughFlashFor { what, cost }]);
+            }
+            let cast = Static::CastAsThoughFlash(what);
+            // "You may cast this spell as though it had flash if you control
+            // a Human": the permission only while the condition holds.
+            Some(vec![match p.attempt(|p| { p.word("if")?; condition(p) }) {
+                Some(cond) => Static::If { cond, then: vec![cast] },
+                None => cast,
+            }])
         },
         // "Activated abilities of artifacts your opponents control can't be
         // activated", perhaps "unless they're mana abilities".

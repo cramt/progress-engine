@@ -934,6 +934,13 @@ impl Walk for Effect {
                     Walk::walk(x0, v);
                 }
             }
+            Effect::DelayedNext { event, dur, then } => {
+                Walk::walk(event, v);
+                Walk::walk(dur, v);
+                for x0 in (then).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Effect::WhenYouDo(f0) => {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);
@@ -1837,6 +1844,9 @@ impl Walk for Post {
                     Walk::walk(x0, v);
                 }
             }
+            Post::Total(f0) => {
+                Walk::walk(f0, v);
+            }
             Post::Controller(f0) => {
                 Walk::walk(f0, v);
             }
@@ -2308,6 +2318,12 @@ impl Walk for Static {
             }
             Static::CastAsThoughFlash(f0) => {
                 Walk::walk(f0, v);
+            }
+            Static::CastAsThoughFlashFor { what, cost } => {
+                Walk::walk(what, v);
+                for x0 in (cost).iter_mut() {
+                    Walk::walk(x0, v);
+                }
             }
             Static::ActivateAsThoughHaste(f0) => {
                 Walk::walk(f0, v);
