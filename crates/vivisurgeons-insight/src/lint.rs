@@ -751,5 +751,25 @@ mod tests {
             n: Amount::N(1),
         }]);
         assert_eq!(kinds(that), [Kind::DanglingThatPlayer]);
+        // "You gain 1 life for each artifact that player controls" with no
+        // player before: "that player" is never you, so the effect's own
+        // player excuses nothing ([that-player-in-effect]).
+        let each = |who: Player| {
+            Ability::Spell(vec![Effect::ForEach {
+                each: objects(
+                    Quant::Plural,
+                    vec![vec![Adj::Type("artifact".into())]],
+                    None,
+                    vec![Post::Controller(Player::That)],
+                ),
+                then: vec![Effect::GainLife {
+                    who,
+                    n: Amount::N(1),
+                }],
+            }])
+        };
+        assert_eq!(kinds(each(Player::You)), [Kind::DanglingThatPlayer]);
+        // "Target player gains 1 life for each artifact they control".
+        assert_eq!(kinds(each(Player::Target)), []);
     }
 }
