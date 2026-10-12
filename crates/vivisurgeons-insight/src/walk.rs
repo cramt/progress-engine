@@ -1589,6 +1589,12 @@ impl Walk for Event {
             Event::AttacksAlone(f0) => {
                 Walk::walk(f0, v);
             }
+            Event::AttacksUnblocked { what, at } => {
+                Walk::walk(what, v);
+                if let Some(x0) = (at).as_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Event::Performs { who, .. } => {
                 Walk::walk(who, v);
             }

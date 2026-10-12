@@ -276,6 +276,12 @@ pub(super) fn predicate(p: &mut P, what: &Objects) -> Option<Event> {
         },
         |p| p.verb("die").map(|_| Event::Dies(what.clone())),
         |p| { p.verb("attack")?; p.word("alone")?; Some(Event::AttacksAlone(what.clone())) },
+        |p| {
+            p.verb("attack")?;
+            let at = p.attempt(recipient);
+            p.words("and isn't blocked")?;
+            Some(Event::AttacksUnblocked { what: what.clone(), at })
+        },
         |p| { p.verb("transform")?; p.word("into")?; let into = objects(p)?; Some(Event::TransformsInto { what: what.clone(), into }) },
         |p| { p.verb("leave")?; let from = zone(p)?; Some(Event::Leaves { what: what.clone(), from }) },
         |p| p.one_of(&["is countered", "are countered"]).map(|_| Event::Countered(what.clone())),

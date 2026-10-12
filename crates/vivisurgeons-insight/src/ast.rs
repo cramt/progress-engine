@@ -2262,6 +2262,13 @@ pub enum Event {
     /// "a creature you control attacks alone": the only creature declared
     /// as an attacker (CR 506.5).
     AttacksAlone(Objects),
+    /// "Whenever this creature attacks and isn't blocked", "attacks a player
+    /// and isn't blocked": no creature was declared as its blocker (CR
+    /// 509.3g), at the attack's recipient when one is said.
+    AttacksUnblocked {
+        what: Objects,
+        at: Option<Recipient>,
+    },
     /// "you scry", "you surveil": a keyword action the player performs.
     Performs {
         who: Player,

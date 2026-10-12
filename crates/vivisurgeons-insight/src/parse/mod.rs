@@ -815,6 +815,7 @@ fn trigger_object(e: &Event) -> Option<Objects> {
         | Event::BecomesLevel { what, .. }
         | Event::AttacksWith { what, .. }
         | Event::AttacksAlone(what)
+        | Event::AttacksUnblocked { what, .. }
         // "Whenever this creature becomes the target of a spell or ability
         // you control …, put a +1/+1 counter on it": the spell is said
         // only to say what targets it; a reference back to the spell names

@@ -7397,6 +7397,13 @@ fn event(o: &mut Out, e: &Event) {
             obj_subj(o, x, "attack");
             o.w("alone");
         }
+        Event::AttacksUnblocked { what, at } => {
+            obj_subj(o, what, "attack");
+            if let Some(r) = at {
+                recipient(o, r);
+            }
+            o.w("and isn't blocked");
+        }
         Event::TransformsInto { what, into } => {
             obj_subj(o, what, "transform");
             o.w("into");
@@ -7764,6 +7771,7 @@ fn event_subject(e: &Event) -> Option<Subject<'_>> {
         | Event::DealsDamageTo { what, .. }
         | Event::DealsNoncombatDamageTo { what, .. }
         | Event::BecomesLevel { what, .. }
+        | Event::AttacksUnblocked { what, .. }
         | Event::TransformsInto { what, .. } => Subject::Obj(what),
         Event::Dies(x)
         | Event::Attacks(x)
