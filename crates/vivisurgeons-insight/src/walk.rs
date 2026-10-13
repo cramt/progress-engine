@@ -1070,6 +1070,10 @@ impl Walk for Effect {
                 Walk::walk(what, v);
                 Walk::walk(dur, v);
             }
+            Effect::ExchangeLifeWithStat { who, what, .. } => {
+                Walk::walk(who, v);
+                Walk::walk(what, v);
+            }
             Effect::ExchangeLifeTotals { who, with } => {
                 Walk::walk(who, v);
                 Walk::walk(with, v);

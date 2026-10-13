@@ -1279,6 +1279,18 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         |p| { let who = subject_player(p); p.verb("look at")?; let (n, whose) = top_of_library(p)?; Some(Effect::LookAtTop { who, whose, n }) },
         |p| { let who = subject_player(p); p.verb("look at")?; let whose = whose(p)?; p.word("hand")?; Some(Effect::LookAtHand { who, whose }) },
         |p| { let who = subject_player(p); p.verb("exchange")?; p.words("life totals with")?; let with = player(p)?; Some(Effect::ExchangeLifeTotals { who, with }) },
+        // "Exchange your life total with this creature's toughness" (Tree of
+        // Redemption).
+        |p| {
+            p.word("exchange")?;
+            let who = whose(p)?;
+            p.words("life total with")?;
+            let what = objects(p)?;
+            p.tok(&Tok::Possessive)?;
+            let stat = stat(p)?;
+            if stat == Stat::ManaValue { return None; }
+            Some(Effect::ExchangeLifeWithStat { who, what, stat })
+        },
         |p| {
             let who = subject_player(p);
             p.verb("look at")?;

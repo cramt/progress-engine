@@ -6759,6 +6759,13 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             whose(o, w);
             o.w("hand");
         }
+        Effect::ExchangeLifeWithStat { who, what, stat } => {
+            o.w("exchange");
+            whose(o, who);
+            o.w("life total with");
+            possessive_of(o, what);
+            o.w(stat_name(*stat));
+        }
         Effect::ExchangeLifeTotals { who, with } => {
             subj(o, who, "exchange", cx);
             o.w("life totals with");

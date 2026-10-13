@@ -1515,6 +1515,14 @@ pub enum Effect {
         what: Objects,
         dur: Duration,
     },
+    /// "Exchange your life total with this creature's toughness": the
+    /// player's life total becomes the stat and the stat the life total
+    /// (CR 701.12a: all of it or nothing).
+    ExchangeLifeWithStat {
+        who: Player,
+        what: Objects,
+        stat: Stat,
+    },
     /// "exchange life totals with target opponent": each gains or loses
     /// the life to equal the other's previous total (CR 701.12c).
     ExchangeLifeTotals {
