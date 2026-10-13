@@ -797,6 +797,9 @@ pub enum State {
     /// "a land or double-faced card": a card with a Magic card face on each
     /// side, or half an oversized face on one (CR 712.1).
     DoubleFaced,
+    /// "transformed permanents": double-faced permanents with their back
+    /// face up (CR 712.8e).
+    Transformed,
 }
 
 #[derive(Clone, Debug, PartialEq)]

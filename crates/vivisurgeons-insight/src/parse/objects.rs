@@ -150,6 +150,7 @@ pub(super) fn state_word(w: &str) -> Option<State> {
         "enchanted" => State::Enchanted,
         "equipped" => State::Equipped,
         "double-faced" => State::DoubleFaced,
+        "transformed" => State::Transformed,
         _ => return None,
     })
 }

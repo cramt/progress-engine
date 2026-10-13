@@ -3705,6 +3705,7 @@ fn state_word(s: State) -> &'static str {
         State::Modified => "modified",
         State::Historic => "historic",
         State::DoubleFaced => "double-faced",
+        State::Transformed => "transformed",
         State::Commander => "commander",
         State::FaceUp => "face-up",
         State::Prepared => "prepared",
