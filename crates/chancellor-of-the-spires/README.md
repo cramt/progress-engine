@@ -13,8 +13,10 @@ the seam:
   counters, attachments, static abilities, and the continuous effects
   resolved spells left with the set each affects fixed (CR 611.2c).
 - A continuous effect is the engine's own `Op`, one per layer, and the
-  variant is the layer. Insight's trees will be lowered into these; today
-  the tests build them by hand.
+  variant is the layer. `lower::card` reads a card's Oracle text through
+  Insight and lowers the tree into these, refusing by name any node it
+  has no lowering for. Triggered and activated abilities are carried
+  unread, so an effect can still remove them.
 - `characteristics(&State)` applies them. Rust walks the layers in CR
   613.1's order and applies one effect at a time (CR 613.8c); before each,
   an ascent program picks which: dependency (CR 613.8a), loops (CR 613.8b)
@@ -32,14 +34,18 @@ subtype, colour, controller, "nontoken", "other", "this" and "enchanted".
 `tests/layers.rs` is the evidence: CR 613.4d, 613.5, 613.6 and 613.9's
 worked examples, and Glorious Anthem with counters, Giant Growth under
 Humility, CR 611.2c's fixed set, Blood Moon with Urborg and Humility with
-Opalescence in both timestamp orders, against their Gatherer rulings, and
-Toph, the First Metalbender under Humility, with an earthbent land.
+Opalescence in both timestamp orders, against their Gatherer rulings.
+`tests/oracle.rs` reads its cards from Oracle text instead: Humility with
+Toph, the First Metalbender, including Toph's own earthbend (CR 701.66a)
+on a Forest and on a Sol Ring Toph made a land.
 
 Not yet: layers 1–3 (copy, control, text), 7a (characteristic-defining
 abilities, and so CDAs first, CR 613.3), dependency through "what it does"
 (CR 613.8a), counters' own timestamps (CR 613.7c), abilities granted with a
 later timestamp (CR 613.7a), effects on players and rules (CR 613.10–11),
-and any lowering from Insight.
+and lowering for most of Insight's nodes: today `Modify`, `BasePt`,
+`Loses` (all abilities), `AlsoIs` with listed types, filters over type,
+supertype, "nontoken", "other" and "you control", and earthbend.
 
 ## Speed
 

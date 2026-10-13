@@ -7,6 +7,7 @@
 //! (ADR-0037). docs/research/rules-engine.md is the plan.
 
 pub mod layers;
+pub mod lower;
 pub mod model;
 
 pub use layers::characteristics;

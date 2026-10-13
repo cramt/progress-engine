@@ -93,6 +93,10 @@ pub enum Keyword {
 pub enum Ability {
     Keyword(Keyword),
     Static(StaticId),
+    /// A triggered or activated ability: the layers carry it, so an effect
+    /// can remove it, but don't read it. The index is its place among the
+    /// object's unread abilities.
+    Unread(u16),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

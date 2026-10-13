@@ -1,0 +1,392 @@
+//! A card's Oracle text, read by Vivisurgeon's Insight, lowered into the
+//! engine's own characteristics and continuous effects (ADR-0037).
+//!
+//! Lowering never drops what it can't read: it refuses, naming the line and
+//! the node. What the layers don't interpret (triggered and activated
+//! abilities) is still an ability the object has, which Humility can take
+//! away, so it is kept, unread.
+
+use std::collections::BTreeSet;
+use std::fmt;
+
+use vivisurgeons_insight::ast::{
+    self as i, Adj, Characteristic, Lost, Objects, Post, Quant, TypeSet,
+};
+use vivisurgeons_insight::lex::{Pt as IPt, PtPart};
+use vivisurgeons_insight::{read_face, Face};
+
+use crate::model::*;
+
+/// A card as Scryfall gives it, the fields the layers read.
+pub struct Card<'a> {
+    pub name: &'a str,
+    pub type_line: &'a str,
+    pub oracle_text: &'a str,
+    pub mana_value: u32,
+    pub colors: &'a [Color],
+    pub pt: Option<Pt>,
+}
+
+pub struct Lowered {
+    pub chars: Chars,
+    pub statics: Vec<StaticAbility>,
+    /// The abilities the layers carry but don't read, in the order of
+    /// `Ability::Unread`'s index, for the state machine to run.
+    pub unread: Vec<i::Ability>,
+}
+
+#[derive(Debug)]
+pub enum Refusal {
+    TypeLine(String),
+    /// Insight couldn't read the line.
+    Unparsed {
+        line: String,
+        at: String,
+    },
+    /// Insight read it, and the engine has no lowering for this node yet.
+    Unlowered {
+        line: String,
+        node: String,
+    },
+}
+
+impl fmt::Display for Refusal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Refusal::TypeLine(t) => write!(f, "can't read the type line {t:?}"),
+            Refusal::Unparsed { line, at } => write!(f, "Insight breaks at {at:?} in {line:?}"),
+            Refusal::Unlowered { line, node } => write!(f, "no lowering for {node} in {line:?}"),
+        }
+    }
+}
+
+/// One card, printed: its characteristics, the static abilities that
+/// generate its continuous effects, and the rest of its abilities.
+pub fn card(card: &Card) -> Result<Lowered, Refusal> {
+    let (types, supertypes, subtypes) = type_line(card.type_line)?;
+    let mut lowered = Lowered {
+        chars: Chars {
+            types,
+            supertypes,
+            subtypes,
+            colors: card.colors.iter().copied().collect(),
+            abilities: BTreeSet::new(),
+            pt: card.pt,
+            mana_value: card.mana_value,
+            controller: PlayerId(0),
+        },
+        statics: Vec::new(),
+        unread: Vec::new(),
+    };
+    let face = Face {
+        name: card.name,
+        type_line: card.type_line,
+        text: card.oracle_text,
+    };
+    for line in read_face(&face, card.name) {
+        let ability = line.parsed.map_err(|b| Refusal::Unparsed {
+            line: line.text.clone(),
+            at: b.at,
+        })?;
+        let refuse = |node: &dyn fmt::Debug| Refusal::Unlowered {
+            line: line.text.clone(),
+            node: short(node),
+        };
+        match &ability {
+            i::Ability::Static(parts) => lowered
+                .statics
+                .push(static_ability(parts).map_err(|n| refuse(&n))?),
+            i::Ability::Keywords(keywords) => {
+                for k in keywords {
+                    let k = keyword(k).ok_or_else(|| refuse(k))?;
+                    lowered.chars.abilities.insert(Ability::Keyword(k));
+                }
+            }
+            i::Ability::Triggered { .. } | i::Ability::Activated { .. } => {
+                let index = lowered.unread.len() as u16;
+                lowered.chars.abilities.insert(Ability::Unread(index));
+                lowered.unread.push(ability);
+            }
+            other => return Err(refuse(other)),
+        }
+    }
+    Ok(lowered)
+}
+
+/// What a resolving keyword action leaves on the objects it was told to
+/// affect: the continuous effect, and counters put on them.
+pub struct Resolution {
+    pub ops: Vec<Op>,
+    pub counters: Vec<(Counter, u32)>,
+}
+
+/// A keyword action from an ability's effect, as it resolves.
+pub fn action(effect: &i::Effect) -> Result<Resolution, Refusal> {
+    let refuse = || Refusal::Unlowered {
+        line: format!("{effect:?}"),
+        node: short(effect),
+    };
+    match effect {
+        // CR 701.66a: "Target land you control becomes a 0/0 land creature
+        // with haste in addition to its other types. Put N +1/+1 counters
+        // on it." Its return-to-the-battlefield trigger is the state
+        // machine's.
+        i::Effect::Action {
+            name,
+            n: Some(i::Amount::N(n)),
+            ..
+        } if name == "earthbend" => Ok(Resolution {
+            ops: vec![
+                Op::AddTypes([CardType::Land, CardType::Creature].into()),
+                Op::SetBasePt(PtValue::Fixed(pt(0, 0))),
+                Op::Grant(Ability::Keyword(Keyword::Haste)),
+            ],
+            counters: vec![(Counter::PlusOne, *n)],
+        }),
+        _ => Err(refuse()),
+    }
+}
+
+fn short(node: &dyn fmt::Debug) -> String {
+    let s = format!("{node:?}");
+    let end = s.find(['(', '{', ' ']).unwrap_or(s.len());
+    s[..end].to_string()
+}
+
+/// Card types, supertypes and subtypes, from the type line.
+type Types = (BTreeSet<CardType>, BTreeSet<Supertype>, BTreeSet<Subtype>);
+
+fn type_line(line: &str) -> Result<Types, Refusal> {
+    let (before, after) = line.split_once(" — ").unwrap_or((line, ""));
+    let mut types = BTreeSet::new();
+    let mut supertypes = BTreeSet::new();
+    // Scryfall writes a token's as "Token Artifact"; being a token is the
+    // object's, not a type (CR 111.1).
+    for word in before.split_whitespace().filter(|w| *w != "Token") {
+        if let Some(t) = card_type(word) {
+            types.insert(t);
+        } else if let Some(t) = supertype(word) {
+            supertypes.insert(t);
+        } else {
+            return Err(Refusal::TypeLine(line.to_string()));
+        }
+    }
+    let subtypes = after
+        .split_whitespace()
+        .map(|w| subtype(w, &types))
+        .collect();
+    Ok((types, supertypes, subtypes))
+}
+
+fn card_type(word: &str) -> Option<CardType> {
+    Some(match word.to_ascii_lowercase().as_str() {
+        "artifact" => CardType::Artifact,
+        "battle" => CardType::Battle,
+        "creature" => CardType::Creature,
+        "enchantment" => CardType::Enchantment,
+        "instant" => CardType::Instant,
+        "kindred" => CardType::Kindred,
+        "land" => CardType::Land,
+        "planeswalker" => CardType::Planeswalker,
+        "sorcery" => CardType::Sorcery,
+        _ => return None,
+    })
+}
+
+fn supertype(word: &str) -> Option<Supertype> {
+    Some(match word.to_ascii_lowercase().as_str() {
+        "basic" => Supertype::Basic,
+        "legendary" => Supertype::Legendary,
+        "snow" => Supertype::Snow,
+        "world" => Supertype::World,
+        _ => return None,
+    })
+}
+
+fn basic_land_type(word: &str) -> Option<BasicLandType> {
+    Some(match word.to_ascii_lowercase().as_str() {
+        "plains" => BasicLandType::Plains,
+        "island" => BasicLandType::Island,
+        "swamp" => BasicLandType::Swamp,
+        "mountain" => BasicLandType::Mountain,
+        "forest" => BasicLandType::Forest,
+        _ => return None,
+    })
+}
+
+/// A subtype is a land type on a land, a creature type on a creature or
+/// kindred (CR 205.3d), and otherwise kept as written.
+fn subtype(word: &str, types: &BTreeSet<CardType>) -> Subtype {
+    let word = capitalised(word);
+    if let Some(b) = basic_land_type(&word) {
+        Subtype::BasicLand(b)
+    } else if types.contains(&CardType::Land) {
+        Subtype::OtherLand(word)
+    } else if types.contains(&CardType::Creature) || types.contains(&CardType::Kindred) {
+        Subtype::Creature(word)
+    } else {
+        Subtype::Other(word)
+    }
+}
+
+fn capitalised(word: &str) -> String {
+    let mut c = word.chars();
+    c.next()
+        .map(|f| {
+            f.to_uppercase()
+                .chain(c.flat_map(|x| x.to_lowercase()))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn keyword(k: &i::Keyword) -> Option<Keyword> {
+    if k.param.is_some() {
+        return None;
+    }
+    Some(match k.name.as_str() {
+        "deathtouch" => Keyword::Deathtouch,
+        "flying" => Keyword::Flying,
+        "haste" => Keyword::Haste,
+        "lifelink" => Keyword::Lifelink,
+        "trample" => Keyword::Trample,
+        "vigilance" => Keyword::Vigilance,
+        _ => return None,
+    })
+}
+
+/// A static ability is one ability however many sentences it has: each
+/// part is an `Op` over one filter. Parts over different objects would be
+/// two effects, and nothing needs that yet.
+fn static_ability(parts: &[i::Static]) -> Result<StaticAbility, String> {
+    let mut filter: Option<Filter> = None;
+    let mut ops = Vec::new();
+    for part in parts {
+        let (what, part_ops) = static_part(part)?;
+        let f = objects(what)?;
+        if filter.as_ref().is_some_and(|g| *g != f) {
+            return Err("parts over different objects".into());
+        }
+        filter = Some(f);
+        ops.extend(part_ops);
+    }
+    Ok(StaticAbility {
+        filter: filter.ok_or("an empty static ability")?,
+        ops,
+    })
+}
+
+fn static_part(part: &i::Static) -> Result<(&Objects, Vec<Op>), String> {
+    let unlowered = || short(part);
+    Ok(match part {
+        i::Static::Modify {
+            what,
+            pt: p,
+            has,
+            per: None,
+        } => {
+            let mut ops = Vec::new();
+            if let Some(p) = p {
+                ops.push(Op::ModifyPt(
+                    fixed(p).filter(|_| p.signed).ok_or_else(unlowered)?,
+                ));
+            }
+            for k in has {
+                ops.push(Op::Grant(Ability::Keyword(
+                    keyword(k).ok_or_else(unlowered)?,
+                )));
+            }
+            (what, ops)
+        }
+        i::Static::BasePt { what, pt: p } => {
+            let p = fixed(p).filter(|_| !p.signed).ok_or_else(unlowered)?;
+            (what, vec![Op::SetBasePt(PtValue::Fixed(p))])
+        }
+        i::Static::Loses { what, lost } => {
+            let ops = lost
+                .iter()
+                .map(|l| match l {
+                    Lost::All {
+                        other: false,
+                        of: Characteristic::Abilities,
+                    } => Ok(Op::LoseAll),
+                    _ => Err(unlowered()),
+                })
+                .collect::<Result<_, _>>()?;
+            (what, ops)
+        }
+        i::Static::AlsoIs {
+            what,
+            types: TypeSet::Listed(adjs),
+        } => {
+            let mut types = BTreeSet::new();
+            let mut subtypes = BTreeSet::new();
+            for adj in adjs {
+                match adj {
+                    Adj::Type(t) => {
+                        types.insert(card_type(t).ok_or_else(unlowered)?);
+                    }
+                    Adj::Subtype(s) => {
+                        subtypes.insert(subtype(s, &types));
+                    }
+                    _ => return Err(unlowered()),
+                }
+            }
+            let mut ops = Vec::new();
+            if !types.is_empty() {
+                ops.push(Op::AddTypes(types));
+            }
+            if !subtypes.is_empty() {
+                ops.push(Op::AddSubtypes(subtypes));
+            }
+            (what, ops)
+        }
+        _ => return Err(unlowered()),
+    })
+}
+
+fn fixed(p: &IPt) -> Option<Pt> {
+    match (p.power, p.toughness) {
+        (PtPart::N(a), PtPart::N(b)) => Some(pt(a, b)),
+        _ => None,
+    }
+}
+
+/// "All creatures", "nontoken artifacts you control": a filter over the
+/// battlefield, re-read as the layers go. Targets aren't a static's.
+fn objects(o: &Objects) -> Result<Filter, String> {
+    if !matches!(o.quant, Quant::All | Quant::Each | Quant::Plural) {
+        return Err(format!("quantity {}", short(&o.quant)));
+    }
+    let f = &o.filter;
+    let [alt] = f.alts.as_slice() else {
+        return Err("a filter with alternatives".into());
+    };
+    if f.kind.is_some() || f.or.is_some() {
+        return Err("a filter over a kind of object".into());
+    }
+    let mut preds = Vec::new();
+    for adj in alt {
+        preds.push(match adj {
+            Adj::Type(t) => Pred::Is(Prop::Type(card_type(t).ok_or(format!("type {t}"))?)),
+            Adj::Non(t) => Pred::IsNot(match (card_type(t), supertype(t)) {
+                (Some(t), _) => Prop::Type(t),
+                (None, Some(s)) => Prop::Supertype(s),
+                _ => return Err(format!("non-{t}")),
+            }),
+            Adj::Supertype(t) => Pred::Is(Prop::Supertype(
+                supertype(t).ok_or(format!("supertype {t}"))?,
+            )),
+            Adj::State(i::State::Nontoken) => Pred::Nontoken,
+            Adj::State(i::State::Other) => Pred::Other,
+            other => return Err(short(other)),
+        });
+    }
+    for post in &f.posts {
+        preds.push(match post {
+            Post::Controller(i::Player::You) => Pred::YouControl,
+            other => return Err(short(other)),
+        });
+    }
+    Ok(Filter(preds))
+}

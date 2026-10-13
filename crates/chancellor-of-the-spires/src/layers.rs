@@ -90,7 +90,7 @@ impl Run<'_> {
         let statics = self.now.iter().flat_map(|(o, c)| {
             c.abilities.iter().filter_map(move |a| match a {
                 Ability::Static(s) => Some(Effect::Static(*o, *s)),
-                Ability::Keyword(_) => None,
+                Ability::Keyword(_) | Ability::Unread(_) => None,
             })
         });
         let resolved = (0..self.state.resolved.len()).map(Effect::Resolved);
