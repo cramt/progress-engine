@@ -10805,6 +10805,7 @@ fn type_set(o: &mut Out, t: &TypeSet, n: Num) {
         TypeSet::Chosen => o.w("the chosen type"),
         TypeSet::EveryBasicLandType => o.w("every basic land type"),
         TypeSet::EveryCreatureType => o.w("every creature type"),
+        TypeSet::EveryNonbasicLandType => o.w("every nonbasic land type"),
     }
 }
 

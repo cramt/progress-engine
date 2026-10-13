@@ -373,6 +373,7 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             let types = alt!(p;
                 |p| p.words("the chosen type").map(|_| TypeSet::Chosen),
                 |p| p.words("every basic land type").map(|_| TypeSet::EveryBasicLandType),
+                |p| p.words("every nonbasic land type").map(|_| TypeSet::EveryNonbasicLandType),
                 |p| { p.attempt(|p| p.one_of(&["a", "an"])); group(p).map(TypeSet::Listed) },
             )?;
             p.one_of(&["in addition to its other types", "in addition to its other land types", "in addition to their other types", "in addition to their other land types", "in addition to its other creature types", "in addition to their other creature types"])?;
@@ -391,6 +392,7 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             let types = alt!(p;
                 |p| p.words("every creature type").map(|_| TypeSet::EveryCreatureType),
                 |p| p.words("every basic land type").map(|_| TypeSet::EveryBasicLandType),
+                |p| p.words("every nonbasic land type").map(|_| TypeSet::EveryNonbasicLandType),
                 |p| {
                     p.attempt(|p| p.one_of(&["a", "an"]));
                     // Only what a card's type line and color say: "is
@@ -883,6 +885,14 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             (pairs.len() > 1).then(|| vec![Static::HasIf { what: what.clone(), pairs }])
         },
         |p| { p.verb("enter")?; p.word("prepared")?; Some(vec![Static::EntersPrepared(what.clone())]) },
+        // "Equipped creature gets +1/+1 and is every creature type": a
+        // predicate after another (CR 205.1b: no "in addition", so the
+        // creature types are all of them).
+        |p| {
+            p.one_of(&["is", "are"])?;
+            p.words("every creature type")?;
+            Some(vec![Static::Is { what: what.clone(), types: TypeSet::EveryCreatureType }])
+        },
         // "he's a 3/4 Ninja creature": a size and types, the size its base
         // power and toughness (CR 613.4b).
         |p| {

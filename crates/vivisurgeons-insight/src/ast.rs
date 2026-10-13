@@ -2999,6 +2999,9 @@ pub enum TypeSet {
     Chosen,
     EveryBasicLandType,
     EveryCreatureType,
+    /// "This land is every nonbasic land type" (Planar Nexus): each land
+    /// type that is not basic (CR 205.3i).
+    EveryNonbasicLandType,
 }
 
 #[derive(Clone, Debug, PartialEq)]

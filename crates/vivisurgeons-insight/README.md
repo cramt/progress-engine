@@ -71,12 +71,12 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
 | EDHREC top 1000 | 990/990 | 1799/1799 | done |
-| My decks: every card in the 17 decks of cramt/mtg | 934/1022 (91.4%) | 2040/2134 (95.6%) | |
+| My decks: every card in the 17 decks of cramt/mtg | 935/1022 (91.5%) | 2041/2134 (95.6%) | |
 | Standard after the early-2027 rotation | 3014/3517 (85.7%) | 6522/7054 (92.5%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
 | All of Standard | 4142/5157 (80.3%) | 9305/10420 (89.3%) | |
 | EDHREC top 2000 | 1789/1986 (90.1%) | 3619/3847 (94.1%) | |
-| EDHREC top 5000 | 3982/4975 (80.0%) | 8952/10098 (88.7%) | |
+| EDHREC top 5000 | 3983/4975 (80.1%) | 8953/10098 (88.7%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
@@ -125,7 +125,7 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | EDHREC top 1000 (pinned) | 1800/1800 (100%) |
 | Modern metagame (pinned) | 1164/1164 (100%) |
 | EDHREC top 2000 | 3616/3619 (99.9%) |
-| All parsed abilities | 51015/51047 (99.9%) |
+| All parsed abilities | 51019/51051 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading
