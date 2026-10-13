@@ -824,7 +824,7 @@ cost: {2}{W}
 > When this enchantment enters, draw a card.
 > Each planeswalker with one or more loyalty counters on it loses all abilities and is a creature with power and toughness each equal to the number of loyalty counters on it.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }], limits: [] }
-= BROKE at "power" after: each planeswalker with one or more loyalty counters on it loses all abilities and is a creature with
+= Static([Loses { what: Objects { quant: Each, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [WithCounter(Some("loyalty"))], or: None } }, lost: [All { other: false, of: Abilities }] }, Is { what: Objects { quant: Each, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [WithCounter(Some("loyalty"))], or: None } }, types: Listed([Type("creature")]) }, BasePtEqual { what: Objects { quant: Each, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [WithCounter(Some("loyalty"))], or: None } }, each_equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("loyalty"))), posts: [On(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }) }])
 
 ## Spectral Interference
 face: Spectral Interference

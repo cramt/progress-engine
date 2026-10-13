@@ -201,7 +201,7 @@ type: Enchantment — Room
 cost: {4}{W}{W}
 > Creatures you control have base power and toughness each equal to the number of creatures you control.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "each" after: creatures you control have base power and toughness
+= Static([BasePtEqual { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, each_equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }) }])
 
 ## Dragonrage
 face: Dragonrage

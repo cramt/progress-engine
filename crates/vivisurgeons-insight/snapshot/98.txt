@@ -546,7 +546,7 @@ face: March of the Machines
 type: Enchantment
 cost: {3}{U}
 > Each noncreature artifact is an artifact creature with power and toughness each equal to its mana value. (Equipment that's a creature can't equip a creature.)
-= BROKE at "power" after: each noncreature artifact is an artifact creature with
+= Static([Is { what: Objects { quant: Each, filter: Filter { alts: [[Non("creature"), Type("artifact")]], kind: None, posts: [], or: None } }, types: Listed([Type("artifact"), Type("creature")]) }, BasePtEqual { what: Objects { quant: Each, filter: Filter { alts: [[Non("creature"), Type("artifact")]], kind: None, posts: [], or: None } }, each_equal_to: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }])
 
 ## Mausoleum Guard
 face: Mausoleum Guard

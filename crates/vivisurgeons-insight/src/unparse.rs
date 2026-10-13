@@ -10997,6 +10997,7 @@ fn static_subject(s: &Static) -> Option<&Objects> {
         | Static::Is { what, .. }
         | Static::Loses { what, .. }
         | Static::BasePt { what, .. }
+        | Static::BasePtEqual { what, .. }
         | Static::AdditionalCostFor { what, .. } => Some(what),
         Static::EntersTapped(what)
         | Static::EntersUntapped(what)
@@ -11172,12 +11173,18 @@ fn statics(o: &mut Out, ss: &[Static]) {
             }
             let pred = out(|o| static_predicate(o, next));
             let after_is = matches!(ss[j - 1], Static::Is { .. })
-                && matches!(next, Static::BasePt { .. } | Static::HasAbility { .. });
+                && matches!(
+                    next,
+                    Static::BasePt { .. } | Static::BasePtEqual { .. } | Static::HasAbility { .. }
+                );
             if after_is {
                 o.w("with");
                 if let Static::BasePt { pt, .. } = next {
                     o.w("base power and toughness");
                     o.tok(Tok::Pt(*pt));
+                } else if let Static::BasePtEqual { each_equal_to, .. } = next {
+                    o.w("power and toughness each equal to");
+                    measure(o, each_equal_to);
                 } else if let Static::HasAbility { ability, .. } = next {
                     quoted(o, ability);
                 }
@@ -11454,6 +11461,11 @@ fn static_predicate(o: &mut Out, s: &Static) {
                 o.tok(Tok::Pt(*pt));
             });
             syn::with_base_pt(o, with, have);
+        }
+        Static::BasePtEqual { each_equal_to, .. } => {
+            o.verb("have", n);
+            o.w("base power and base toughness each equal to");
+            measure(o, each_equal_to);
         }
         Static::AdditionalCostFor { cost: c, .. } => {
             o.verb("cost", n);
@@ -12213,6 +12225,7 @@ fn static_other(o: &mut Out, s: &Static) {
         | Static::Is { .. }
         | Static::Loses { .. }
         | Static::BasePt { .. }
+        | Static::BasePtEqual { .. }
         | Static::AdditionalCostFor { .. }
         | Static::EntersTapped(_)
         | Static::EntersUntapped(_)

@@ -815,7 +815,7 @@ face: Opalescence
 type: Enchantment
 cost: {2}{W}{W}
 > Each other non-Aura enchantment is a creature in addition to its other types and has base power and base toughness each equal to its mana value.
-= BROKE at "base" after: each other non-aura enchantment is a creature in addition to its other types and has base power and
+= Static([AlsoIs { what: Objects { quant: Each, filter: Filter { alts: [[State(Other), Non("aura"), Type("enchantment")]], kind: None, posts: [], or: None } }, types: Listed([Type("creature")]) }, BasePtEqual { what: Objects { quant: Each, filter: Filter { alts: [[State(Other), Non("aura"), Type("enchantment")]], kind: None, posts: [], or: None } }, each_equal_to: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }])
 
 ## Organ Grinder
 face: Organ Grinder

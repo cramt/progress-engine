@@ -1100,6 +1100,15 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
             p.bump();
             Some(vec![Static::BasePt { what: what.clone(), pt }])
         },
+        // "has base power and base toughness each equal to its mana value"
+        // (Opalescence).
+        |p| {
+            p.verb("have")?;
+            p.one_of(&["base power and base toughness", "base power and toughness"])?;
+            p.words("each equal to")?;
+            let n = measure(p)?;
+            Some(vec![Static::BasePtEqual { what: what.clone(), each_equal_to: n }])
+        },
         // "This creature escapes with two +1/+1 counters on it".
         |p| {
             p.verb("escape")?;
@@ -1262,6 +1271,12 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
                         let pt = match p.peek()? { Tok::Pt(pt) if !pt.signed => *pt, _ => return None };
                         p.bump();
                         Some(Static::BasePt { what: what.clone(), pt })
+                    },
+                    // "is an artifact creature with power and toughness each
+                    // equal to its mana value" (March of the Machines).
+                    |p| {
+                        p.words("power and toughness each equal to")?;
+                        measure(p).map(|n| Static::BasePtEqual { what: what.clone(), each_equal_to: n })
                     },
                     |p| quoted(p).map(|a| Static::HasAbility { what: what.clone(), ability: Box::new(a) }),
                 )?);

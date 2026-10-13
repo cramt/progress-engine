@@ -3018,6 +3018,14 @@ pub enum Static {
         what: Objects,
         pt: Pt,
     },
+    /// "has base power and base toughness each equal to its mana value"
+    /// (Opalescence), "is an artifact creature with power and toughness each
+    /// equal to its mana value" (March of the Machines): base power and
+    /// toughness set from a number, in layer 7b (CR 613.4b).
+    BasePtEqual {
+        what: Objects,
+        each_equal_to: Amount,
+    },
     /// "loses all other abilities, card types, and creature types".
     Loses {
         what: Objects,

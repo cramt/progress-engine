@@ -730,7 +730,7 @@ cost: {4}{W}
 > At the beginning of your upkeep, you may return target enchantment card from your graveyard to the battlefield.
 > As long as you control five or more enchantments, each other non-Aura enchantment you control is a creature in addition to its other types and has base power and base toughness each equal to its mana value.
 = Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("enchantment")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
-= BROKE at "base" after: as long as you control five or more enchantments , each other non-aura enchantment you control is a creature in addition to its other types and has base power and
+= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(5)), filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }), then: [AlsoIs { what: Objects { quant: Each, filter: Filter { alts: [[State(Other), Non("aura"), Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, types: Listed([Type("creature")]) }, BasePtEqual { what: Objects { quant: Each, filter: Filter { alts: [[State(Other), Non("aura"), Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, each_equal_to: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }] }])
 
 ## Stormchaser Drake
 face: Stormchaser Drake

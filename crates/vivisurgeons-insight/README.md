@@ -90,9 +90,9 @@ reports every one. The lists in `milestones/` say where they came from, and
 | My decks: every card in the 17 decks of cramt/mtg | 967/1023 (94.5%) | 2074/2136 (97.1%) | |
 | Standard after the early-2027 rotation | 3036/3517 (86.3%) | 6547/7055 (92.8%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 4179/5157 (81.0%) | 9347/10421 (89.7%) | |
+| All of Standard | 4180/5157 (81.1%) | 9348/10421 (89.7%) | |
 | EDHREC top 2000 | 1799/1987 (90.5%) | 3630/3848 (94.3%) | |
-| EDHREC top 5000 | 4038/4977 (81.1%) | 9022/10101 (89.3%) | |
+| EDHREC top 5000 | 4040/4977 (81.2%) | 9023/10100 (89.3%) | |
 | Commander precons | 4543/6114 (74.3%) | 10409/12175 (85.5%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn

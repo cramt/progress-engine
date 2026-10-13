@@ -2643,6 +2643,13 @@ impl Walk for Static {
             Static::BasePt { what, .. } => {
                 Walk::walk(what, v);
             }
+            Static::BasePtEqual {
+                what,
+                each_equal_to,
+            } => {
+                Walk::walk(what, v);
+                Walk::walk(each_equal_to, v);
+            }
             Static::Loses { what, lost } => {
                 Walk::walk(what, v);
                 for x0 in (lost).iter_mut() {
