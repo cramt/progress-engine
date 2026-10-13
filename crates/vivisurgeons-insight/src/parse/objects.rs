@@ -801,6 +801,23 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             p.word("choice")?;
             Some(Post::ChosenBy(who))
         },
+        // "creatures you control with base power 0" (Primo).
+        |p| {
+            p.words("with base")?;
+            let stat = alt!(p;
+                |p| p.word("power").map(|_| Stat::Power),
+                |p| p.word("toughness").map(|_| Stat::Toughness),
+            )?;
+            if p.at("and") || p.at("or") { return None; }
+            let (op, value) = comparison(p)?;
+            Some(Post::Base(Compare { stat, op, value }))
+        },
+        |p| {
+            p.words("with base power and toughness")?;
+            let pt = match p.peek()? { Tok::Pt(pt) if !pt.signed => *pt, _ => return None };
+            p.bump();
+            Some(Post::BasePt(pt))
+        },
         |p| { p.words("with power or toughness")?; let (op, value) = comparison(p)?; Some(Post::PowerOrToughness { op, value }) },
         |p| p.words("that died this turn").map(|_| Post::DiedThisTurn),
         |p| { p.words("that died under")?; let who = whose_pronoun(p)?; p.words("control this turn")?; Some(Post::DiedUnderControlThisTurn(who)) },

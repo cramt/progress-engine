@@ -1233,6 +1233,12 @@ mod syn {
         alt(o, vec![Out::default(), of("each of")]);
     }
 
+    /// "that damage", or "the damage dealt" said bare in an ability whose
+    /// trigger dealt it (Primo's "equal to the damage dealt").
+    pub fn that_damage(o: &mut Out) {
+        any_of(o, &["that damage", "the damage dealt"]);
+    }
+
     pub fn each_with(o: &mut Out) {
         any_of(o, &["with", "each with"]);
     }
@@ -2713,7 +2719,7 @@ fn measure(o: &mut Out, a: &Amount) {
             objects(o, x);
         }
         Amount::DieResult => o.w("the result"),
-        Amount::ThatDamage => o.w("that damage"),
+        Amount::ThatDamage => syn::that_damage(o),
         Amount::Half { of, round_up } => {
             o.w("half");
             measure(o, of);
@@ -3936,6 +3942,14 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         Post::With(c) => {
             syn::each_with(o);
             compare_words(o, c);
+        }
+        Post::Base(c) => {
+            o.w("with base");
+            compare_words(o, c);
+        }
+        Post::BasePt(pt) => {
+            o.w("with base power and toughness");
+            o.tok(Tok::Pt(*pt));
         }
         Post::Total(c) => {
             o.w("with total");

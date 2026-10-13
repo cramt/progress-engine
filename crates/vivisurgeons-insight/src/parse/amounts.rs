@@ -185,6 +185,16 @@ fn measure_bare(p: &mut P) -> Option<Amount> {
         },
         |p| { p.words("the damage dealt this way").map(|_| Amount::Damage) },
         |p| { p.words("the amount of damage dealt this way").map(|_| Amount::Damage) },
+        // "Whenever one or more creatures you control … deal combat damage to
+        // a player, … put a number of +1/+1 counters on it equal to the
+        // damage dealt" (Primo): the trigger's damage. Not "the damage dealt
+        // to …" or "by …", which say whose, nor "…, but not more", said after
+        // the ability's own damage.
+        |p| {
+            p.words("the damage dealt")?;
+            if p.at("this") || p.at("to") || p.at("by") || p.peek() == Some(&Tok::Comma) { return None; }
+            Some(Amount::ThatDamage)
+        },
         |p| p.words("the greatest number of cards a player discarded this way").map(|_| Amount::GreatestDiscardedThisWay),
         |p| {
             p.words("the total")?;

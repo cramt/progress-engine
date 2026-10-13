@@ -829,6 +829,11 @@ pub enum Post {
     Owner(Player),
     In(Zone),
     With(Compare),
+    /// "with base power 0": its power before any effect changes it (CR
+    /// 208.4). Only power or toughness.
+    Base(Compare),
+    /// "with base power and toughness 1/1".
+    BasePt(Pt),
     WithKeyword(String),
     WithoutKeyword(String),
     /// "with a +1/+1 counter on it", or of any kind when `None`: "with

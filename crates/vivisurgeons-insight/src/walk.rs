@@ -1997,6 +1997,9 @@ impl Walk for Post {
             Post::With(f0) => {
                 Walk::walk(f0, v);
             }
+            Post::Base(f0) => {
+                Walk::walk(f0, v);
+            }
             Post::Named(f0) => {
                 Walk::walk(&mut **f0, v);
             }
