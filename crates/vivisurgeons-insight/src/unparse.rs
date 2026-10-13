@@ -144,9 +144,11 @@ fn flatten(ps: &[Piece], out: &mut Vec<String>) {
                 Num::Pl => plural(sg),
                 _ => sg.clone(),
             }),
+            // An `Any` subject is nearly always one object said either way
+            // ("this card", "it"), so it reads "this card enters", not "enter".
             Piece::Verb(b, n) => out.push(match n {
-                Num::Sg => third(b),
-                _ => b.clone(),
+                Num::Sg | Num::Any => third(b),
+                Num::Pl => b.clone(),
             }),
             Piece::Alt(alts) => flatten(&alts[0], out),
             Piece::Descriptor => out.push("card".into()),
