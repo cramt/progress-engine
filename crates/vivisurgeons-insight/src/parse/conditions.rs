@@ -430,6 +430,13 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         |p| p.words("it's not your turn").map(|_| Condition::NotYourTurn),
         |p| p.words("it's an opponent 's turn").map(|_| Condition::OpponentsTurn),
         |p| { p.words("you have")?; let n = number(p)?; p.words("or more life")?; Some(Condition::LifeAtLeast(n)) },
+        |p| {
+            p.words("you have at least")?;
+            let n = number(p)?;
+            p.words("life more than your starting life total")?;
+            let value = Amount::Plus(Box::new(Amount::StartingLifeTotal(Player::You)), n);
+            Some(Condition::AmountIs { n: Amount::LifeTotal(Player::You), op: Op::Ge, value })
+        },
         |p| { p.words("you have")?; let n = number(p)?; p.words("or less life")?; Some(Condition::LifeAtMost(n)) },
         |p| { p.one_of(&["this spell was kicked", "~ was kicked", "it was kicked"]).map(|_| Condition::WasKicked) },
         |p| p.words("you attacked this turn").map(|_| Condition::YouAttackedThisTurn),

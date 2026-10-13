@@ -121,6 +121,15 @@ fn measure_bare(p: &mut P) -> Option<Amount> {
             let round_up = rounded(p)?;
             Some(Amount::Half { of: Box::new(of), round_up })
         },
+        // "less than half their starting life total": a value compared with.
+        |p| {
+            if !p.in_value {
+                return None;
+            }
+            p.word("half")?;
+            let of = measure_bare(p)?;
+            Some(Amount::HalfUnrounded(Box::new(of)))
+        },
         |p| { p.words("the amount of")?; sym(p, "E")?; p.words("paid this way").map(|_| Amount::EnergyPaidThisWay) },
         |p| p.words("that number").map(|_| Amount::ThatNumber),
         // "equal to the result", "where X is the result": a die's.

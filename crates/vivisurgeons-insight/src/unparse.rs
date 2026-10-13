@@ -2714,6 +2714,10 @@ fn measure(o: &mut Out, a: &Amount) {
             measure(o, of);
             rounded(o, *round_up);
         }
+        Amount::HalfUnrounded(of) => {
+            o.w("half");
+            measure(o, of);
+        }
         Amount::AnyAmount => o.w("any amount of"),
         Amount::EnergyPaidThisWay => {
             o.w("the amount of");
@@ -9999,6 +10003,16 @@ fn not_condition(o: &mut Out, c: &Condition) {
 
 fn amount_is(o: &mut Out, n: &Amount, op: Op, value: &Amount) {
     match n {
+        // "you have at least 10 life more than your starting life total".
+        Amount::LifeTotal(Player::You)
+            if op == Op::Ge
+                && matches!(value, Amount::Plus(b, _) if **b == Amount::StartingLifeTotal(Player::You)) =>
+        {
+            let Amount::Plus(_, k) = value else { return };
+            o.w("you have at least");
+            syn::number(o, *k);
+            o.w("life more than your starting life total");
+        }
         Amount::CardsDrawnThisTurn(Player::You) if op == Op::Ge => {
             o.w("you've drawn");
             amount(o, value);

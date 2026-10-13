@@ -435,6 +435,10 @@ pub enum Amount {
         of: Box<Amount>,
         round_up: bool,
     },
+    /// "less than or equal to half your starting life total": compared
+    /// exactly, so not rounded (CR 107.1a rounds only a number the
+    /// effect generates).
+    HalfUnrounded(Box<Amount>),
     /// "any amount of life": as much as the payer picks.
     AnyAmount,
     /// "the amount of {E} paid this way".

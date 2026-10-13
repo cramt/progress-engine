@@ -244,6 +244,9 @@ impl Walk for Amount {
             Amount::Half { of, .. } => {
                 Walk::walk(&mut **of, v);
             }
+            Amount::HalfUnrounded(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             Amount::Minus(f0, f1) => {
                 Walk::walk(&mut **f0, v);
                 Walk::walk(&mut **f1, v);
