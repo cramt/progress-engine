@@ -1245,6 +1245,19 @@ mod syn {
         any_of(o, &["that damage", "the damage dealt"]);
     }
 
+    /// "creatures that are enchanted by …", "each creature that's enchanted
+    /// by …", "creatures enchanted by …": one relative clause.
+    pub fn enchanted_by(o: &mut Out) {
+        any_of(
+            o,
+            &[
+                "enchanted by",
+                "that's enchanted by",
+                "that are enchanted by",
+            ],
+        );
+    }
+
     pub fn each_with(o: &mut Out) {
         any_of(o, &["with", "each with"]);
     }
@@ -3948,6 +3961,10 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         Post::With(c) => {
             syn::each_with(o);
             compare_words(o, c);
+        }
+        Post::EnchantedBy(by) => {
+            syn::enchanted_by(o);
+            objects(o, by);
         }
         Post::Base(c) => {
             o.w("with base");

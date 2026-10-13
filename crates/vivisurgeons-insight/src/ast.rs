@@ -834,6 +834,9 @@ pub enum Post {
     Base(Compare),
     /// "with base power and toughness 1/1".
     BasePt(Pt),
+    /// "that's enchanted by an Aura you control", "enchanted by two or more
+    /// Auras": attached to by such an Aura (CR 303.4).
+    EnchantedBy(Box<Objects>),
     WithKeyword(String),
     WithoutKeyword(String),
     /// "with a +1/+1 counter on it", or of any kind when `None`: "with

@@ -1112,6 +1112,13 @@ fn total_of_the_chosen(q: Post) -> Vec<Post> {
 /// X or less" says the values differ and bounds each.
 fn posts_one(p: &mut P, counter: bool) -> Option<Vec<Post>> {
     alt!(p;
+        // "Each creature that's enchanted by an Aura you control" (Eriette).
+        |p| {
+            p.attempt(|p| p.one_of(&["that's", "that are"]));
+            p.words("enchanted by")?;
+            let by = objects(p)?;
+            Some(vec![Post::EnchantedBy(Box::new(by))])
+        },
         |p| {
             p.words("that each have a different")?;
             let stat = stat(p)?;

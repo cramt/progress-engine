@@ -2015,6 +2015,9 @@ impl Walk for Post {
             Post::Base(f0) => {
                 Walk::walk(f0, v);
             }
+            Post::EnchantedBy(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             Post::Named(f0) => {
                 Walk::walk(&mut **f0, v);
             }
