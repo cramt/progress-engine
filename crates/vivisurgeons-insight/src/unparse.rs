@@ -901,6 +901,21 @@ mod syn {
         alt(o, vec![with_verb, without]);
     }
 
+    /// "you gain half X life and draw half X cards. Round down each time."
+    /// is "you gain half X life, rounded down, and draw half X cards,
+    /// rounded down": a rounding said once for every half before it (CR
+    /// 107.1a, which rounds only where the card says).
+    pub fn round_each_time(o: &mut Out, each: Out, once: Out) {
+        alt(o, vec![each, once]);
+    }
+
+    /// An amount said once for two clauses: "you gain life and draw cards
+    /// equal to its power" is "you gain life equal to its power and draw
+    /// cards equal to its power". Each clause holds the amount in the tree.
+    pub fn shared_amount(o: &mut Out, each: Out, once: Out) {
+        alt(o, vec![each, once]);
+    }
+
     /// "you may play lands and cast spells from your graveyard until end of
     /// turn": the zone and duration said once after the last verb hold of
     /// each, as `PlayFrom`'s run already says them ([spell-cast-from]).
@@ -2824,9 +2839,39 @@ fn measure(o: &mut Out, a: &Amount) {
     }
 }
 
+thread_local! {
+    /// Set while `sentences` renders the form that says the rounding once
+    /// at the end ("Round down each time."), so each half says none.
+    static ROUND_LATER: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
 /// ", rounded up", ", rounded down".
 fn rounded(o: &mut Out, up: bool) {
+    if ROUND_LATER.with(|r| r.get()) {
+        return;
+    }
     o.w(if up { ", rounded up" } else { ", rounded down" });
+}
+
+/// The rounding of every half the effects hold, in order.
+fn halves(es: &[Effect]) -> Vec<bool> {
+    struct H(Vec<bool>);
+    impl crate::walk::Visitor for H {
+        fn enter(&mut self, _o: &mut Objects) -> bool {
+            true
+        }
+        fn amount(&mut self, a: &mut Amount) {
+            if let Amount::Half { round_up, .. } = a {
+                self.0.push(*round_up);
+            }
+        }
+    }
+    use crate::walk::Walk;
+    let mut h = H(Vec::new());
+    for mut e in es.iter().cloned() {
+        e.walk(&mut h);
+    }
+    h.0
 }
 
 /// What follows "for each": "time you've cast your commander from the
@@ -4767,6 +4812,30 @@ fn regen_in_branch(e: &Effect) -> Option<(Effect, Vec<Objects>)> {
 }
 
 fn sentences(o: &mut Out, es: &[Effect], cx: &Cx) {
+    // "you gain half X life and draw half X cards. Round down each time.":
+    // two or more halves rounded alike may say it once, after them.
+    let hs = if es.len() > 1 && !ROUND_LATER.with(|r| r.get()) {
+        halves(es)
+    } else {
+        Vec::new()
+    };
+    if hs.len() > 1 && hs.iter().all(|h| *h == hs[0]) {
+        let each = out(|o| clauses_in(o, es, cx, true));
+        ROUND_LATER.with(|r| r.set(true));
+        let once = out(|o| {
+            clauses_in(o, es, cx, true);
+            o.period();
+            o.w(if hs[0] {
+                "round up each time"
+            } else {
+                "round down each time"
+            });
+        });
+        ROUND_LATER.with(|r| r.set(false));
+        syn::round_each_time(o, each, once);
+        o.period();
+        return;
+    }
     clauses_in(o, es, cx, true);
     // A modal effect's modes end their own sentences, after "you may" too.
     let modal = |e: &Effect| match e {
@@ -4945,6 +5014,44 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                     dur(o, d2);
                 });
                 syn::gapped(o, apart, joined);
+                last = Out(o.0[start..].to_vec());
+                i += 2;
+                continue;
+            }
+        }
+        // "you gain life and draw cards equal to its power": one amount
+        // said for both clauses.
+        let life_or_cards = |e: &Effect| match e {
+            Effect::GainLife { who, n } => Some((who.clone(), n.clone(), "gain", "life")),
+            Effect::LoseLife { who, n } => Some((who.clone(), n.clone(), "lose", "life")),
+            Effect::Draw { who, n } => Some((who.clone(), n.clone(), "draw", "cards")),
+            _ => None,
+        };
+        if let (Some((w1, n1, v1, s1)), Some((w2, n2, v2, s2))) =
+            (life_or_cards(e), es.get(i + 1).and_then(life_or_cards))
+        {
+            if w1 == w2 && n1 == n2 && is_measure(&n1) {
+                let next = out(|o| effect(o, &es[i + 1], &cx));
+                let each = out(|o| {
+                    o.add(full.clone());
+                    syn::joiner(o, false);
+                    o.add(next);
+                });
+                let once = out(|o| {
+                    subj(o, &w1, v1, &cx);
+                    o.w(s1);
+                    o.w("and");
+                    let cx2 = Cx {
+                        implied: Some(w1.clone()),
+                        continues: Some(w1.clone()),
+                        ..cx.clone()
+                    };
+                    subj(o, &w1, v2, &cx2);
+                    o.w(s2);
+                    o.w("equal to");
+                    measure(o, &n1);
+                });
+                syn::shared_amount(o, each, once);
                 last = Out(o.0[start..].to_vec());
                 i += 2;
                 continue;

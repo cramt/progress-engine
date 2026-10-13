@@ -144,9 +144,13 @@ pub(super) fn measure(p: &mut P) -> Option<Amount> {
 
 /// ", rounded up" or ", rounded down": whether a half rounds up.
 pub(super) fn rounded(p: &mut P) -> Option<bool> {
-    p.tok(&Tok::Comma)?;
-    p.word("rounded")?;
-    Some(p.one_of(&["up", "down"])? == "up")
+    let said = p.attempt(|p| {
+        p.tok(&Tok::Comma)?;
+        p.word("rounded")?;
+        Some(p.one_of(&["up", "down"])? == "up")
+    });
+    // "you gain half X life and draw half X cards. Round down each time."
+    said.or_else(|| p.rounds_later())
 }
 
 fn measure_bare(p: &mut P) -> Option<Amount> {

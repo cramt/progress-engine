@@ -195,6 +195,26 @@ fn object_list(p: &mut P) -> Option<Vec<Objects>> {
 
 pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
     alt!(p;
+        // "you gain life and draw cards equal to its power", "You draw cards
+        // and lose life equal to the number of counters removed this way":
+        // one amount said once for both.
+        |p| {
+            let who = subject_player(p);
+            type Make = fn(Player, Amount) -> Effect;
+            let part = |p: &mut P| -> Option<Make> {
+                alt!(p;
+                    |p| { p.verb("gain")?; p.word("life")?; Some((|who, n| Effect::GainLife { who, n }) as Make) },
+                    |p| { p.verb("lose")?; p.word("life")?; Some((|who, n| Effect::LoseLife { who, n }) as Make) },
+                    |p| { p.verb("draw")?; p.word("cards")?; Some((|who, n| Effect::Draw { who, n }) as Make) },
+                )
+            };
+            let a = part(p)?;
+            p.word("and")?;
+            let b = part(p)?;
+            p.words("equal to")?;
+            let n = measure(p)?;
+            Some(vec![a(who.clone(), n.clone()), b(who, n)])
+        },
         |p| {
             p.word("destroy")?;
             let v = object_list(p)?;
@@ -1099,6 +1119,20 @@ pub(super) fn sentence(p: &mut P) -> Option<Vec<Effect>> {
 pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
     let mut v: Vec<Effect> = Vec::new();
     loop {
+        // "Round down each time.": the halves before it took their
+        // rounding from it (`P::rounds_later`).
+        if !v.is_empty()
+            && p.halved_before()
+            && p.attempt(|p| {
+                p.word("round")?;
+                p.one_of(&["up", "down"])?;
+                p.words("each time")?;
+                p.end_sentence()
+            })
+            .is_some()
+        {
+            continue;
+        }
         let s = match v.last().and_then(controllers_of_each) {
             Some(each) => p.attempt(|p| those_players(p, each)),
             None => None,

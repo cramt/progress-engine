@@ -77,6 +77,29 @@ impl<'a> P<'a> {
             == 1
     }
 
+    /// "… you gain half X life and draw half X cards. Round down each
+    /// time.": the rounding a later sentence of the line says for every
+    /// half before it, `Some(true)` for up. A function of the position
+    /// alone, so the memos stay sound.
+    fn rounds_later(&self) -> Option<bool> {
+        let rest = &self.t[self.i.min(self.t.len())..];
+        rest.windows(5).find_map(|w| match w {
+            [Tok::Period, Tok::Word(r), Tok::Word(d), Tok::Word(e), Tok::Word(t)]
+                if r == "round" && e == "each" && t == "time" && (d == "up" || d == "down") =>
+            {
+                Some(d == "up")
+            }
+            _ => None,
+        })
+    }
+
+    /// Whether a "half" was said earlier on the line.
+    fn halved_before(&self) -> bool {
+        self.t[..self.i.min(self.t.len())]
+            .iter()
+            .any(|t| matches!(t, Tok::Word(w) if w == "half"))
+    }
+
     /// The card's name: the card itself, or inside a quoted ability the
     /// object that granted it (CR 201.5a).
     fn card_name(&mut self) -> Option<Objects> {
