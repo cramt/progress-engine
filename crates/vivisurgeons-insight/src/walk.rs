@@ -1450,6 +1450,11 @@ impl Walk for Event {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
         match self {
+            Event::ManaSpent(f0) => {
+                for x0 in (f0).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Event::Enters { what, under, .. } => {
                 Walk::walk(what, v);
                 if let Some(x0) = (under).as_mut() {
@@ -1566,9 +1571,6 @@ impl Walk for Event {
             }
             Event::DrawsNth { who, .. } => {
                 Walk::walk(who, v);
-            }
-            Event::ManaSpentToCast(f0) => {
-                Walk::walk(f0, v);
             }
             Event::DrawsExceptFirstInDrawStep(f0) => {
                 Walk::walk(f0, v);

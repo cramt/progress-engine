@@ -192,7 +192,13 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
             let pal = palette_named(p)?;
             Some(Event::AddsMana { who, by_ability_of: of, of: pal })
         },
-        |p| { p.words("that mana is spent to cast")?; objects(p).map(Event::ManaSpentToCast) },
+        // "When you spend this mana to cast a Dragon creature spell", "When
+        // that mana is spent": the delayed trigger on mana an ability added
+        // (CR 106.6).
+        |p| {
+            p.one_of(&["you spend this mana", "that mana is spent"])?;
+            Some(Event::ManaSpent(p.attempt(super::spend_uses).unwrap_or_default()))
+        },
         |p| {
             let who = player(p)?;
             p.verb("draw")?;

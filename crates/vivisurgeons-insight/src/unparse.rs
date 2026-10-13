@@ -484,6 +484,24 @@ mod syn {
         any_of(o, &["was", "were"]);
     }
 
+    /// "if you spend this mana to cast", "if that mana is spent on", "if
+    /// that mana is spent to cast": all of the mana, on one spell.
+    pub fn spend_all(o: &mut Out) {
+        any_of(
+            o,
+            &[
+                "if you spend this mana to cast",
+                "if that mana is spent on",
+                "if that mana is spent to cast",
+            ],
+        );
+    }
+
+    /// "when you spend this mana", "when that mana is spent".
+    pub fn when_mana_spent(o: &mut Out) {
+        any_of(o, &["you spend this mana", "that mana is spent"]);
+    }
+
     /// "it isn't a creature" and "it's not a creature".
     pub fn its_not(o: &mut Out, isnt: Out, its_not: Out) {
         alt(o, vec![isnt, its_not]);
@@ -6625,10 +6643,10 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w("saddled until end of turn");
         }
         Effect::OnSpend { of, on, then } => {
-            o.w(match of {
-                SpentOf::Any => "if any of that mana is spent on",
-                SpentOf::All => "if you spend this mana to cast",
-            });
+            match of {
+                SpentOf::Any => o.w("if any of that mana is spent on"),
+                SpentOf::All => syn::spend_all(o),
+            }
             objects(o, on);
             o.w(",");
             clauses(o, then, cx);
@@ -8848,6 +8866,10 @@ fn step(o: &mut Out, s: &Step) {
 
 fn event(o: &mut Out, e: &Event) {
     match e {
+        Event::ManaSpent(uses) => {
+            syn::when_mana_spent(o);
+            spend_uses(o, uses);
+        }
         Event::Enters { what, under, state } => {
             obj_subj(o, what, "enter");
             syn::the_battlefield(o);
@@ -9051,10 +9073,6 @@ fn event(o: &mut Out, e: &Event) {
             o.w(ordinal_word(*n));
             o.w("card");
             syn::each_turn(o);
-        }
-        Event::ManaSpentToCast(x) => {
-            o.w("that mana is spent to cast");
-            objects(o, x);
         }
         Event::DrawsExceptFirstInDrawStep(p) => {
             player(o, p);

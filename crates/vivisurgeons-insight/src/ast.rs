@@ -2381,6 +2381,10 @@ pub enum Trigger {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Event {
+    /// "When you spend this mana to cast …", "When that mana is spent": the
+    /// delayed trigger a mana ability makes, on the mana it added (CR
+    /// 106.6); no uses: spent on anything.
+    ManaSpent(Vec<SpendUse>),
     Enters {
         what: Objects,
         under: Option<Player>,
@@ -2470,8 +2474,6 @@ pub enum Event {
         who: Player,
         n: u32,
     },
-    /// "When that mana is spent to cast a creature spell".
-    ManaSpentToCast(Objects),
     /// "an opponent draws a card except the first one they draw in each of
     /// their draw steps".
     DrawsExceptFirstInDrawStep(Player),

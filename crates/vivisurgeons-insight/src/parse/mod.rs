@@ -424,7 +424,7 @@ fn activate_only(p: &mut P) -> Option<Limit> {
 }
 
 /// "to cast a creature spell of the chosen type or activate an ability of …".
-fn spend_uses(p: &mut P) -> Option<Vec<SpendUse>> {
+pub(super) fn spend_uses(p: &mut P) -> Option<Vec<SpendUse>> {
     let one = |p: &mut P| {
         alt!(p;
             |p| { p.words("to cast")?; objects(p).map(SpendUse::Cast) },

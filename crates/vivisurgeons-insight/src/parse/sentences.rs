@@ -432,6 +432,7 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             let of = alt!(p;
                 |p| p.words("any of that mana is spent on").map(|_| SpentOf::Any),
                 |p| p.words("you spend this mana to cast").map(|_| SpentOf::All),
+                |p| p.one_of(&["that mana is spent on", "that mana is spent to cast"]).map(|_| SpentOf::All),
             )?;
             let on = objects(p)?;
             p.tok(&Tok::Comma)?;
