@@ -6,7 +6,12 @@ import { join } from "node:path";
 import { test } from "node:test";
 import type { HookCallback } from "@anthropic-ai/claude-agent-sdk";
 import { PIN, PUSH, touches, writerGuard } from "./agents.ts";
-import { batchCommitOnOrigin, pushRebasing } from "./git.ts";
+import {
+  batchCommitOnOrigin,
+  preflight,
+  pushRebasing,
+  setBranch,
+} from "./git.ts";
 import {
   failingCount,
   parseCoverage,
@@ -374,4 +379,50 @@ test("gate: origin moving is the writer pushing only when it holds a batch commi
   commit(r2.driver, "d.txt", "writer\n", "insight: d");
   git(r2.driver, "push", "-q", "origin", `${mine}:main`);
   assert.equal(await batchCommitOnOrigin(r2.driver, base2), mine);
+});
+
+// ---------- a driver branch that takes in main ----------
+
+/** `repos()` with the driver on its own `insight` branch, pushed. */
+function branchRepos(): ReturnType<typeof repos> {
+  const r = repos();
+  git(r.driver, "checkout", "-q", "-b", "insight");
+  git(r.driver, "push", "-q", "-u", "origin", "insight");
+  return r;
+}
+
+async function onBranch<T>(f: () => Promise<T>): Promise<T> {
+  setBranch("insight");
+  try {
+    return await f();
+  } finally {
+    setBranch("main");
+  }
+}
+
+test("preflight: a branch takes in what the human pushed to main, and pushes it", async () => {
+  const r = branchRepos();
+  commit(r.driver, "b.txt", "writer\n", "insight: b");
+  git(r.driver, "push", "-q", "origin", "insight");
+  const human = humanPushes(r, "c.txt", "human\n");
+  const pf = await onBranch(() => preflight(r.driver));
+  assert.ok(pf.kind === "ready");
+  assert.equal(git(r.origin, "rev-parse", "insight"), pf.head);
+  assert.equal(
+    git(r.driver, "merge-base", "--is-ancestor", human, pf.head),
+    "",
+  );
+});
+
+test("preflight: a branch main conflicts with is left alone and refused", async () => {
+  const r = branchRepos();
+  commit(r.driver, "a.txt", "writer\n", "insight: a");
+  git(r.driver, "push", "-q", "origin", "insight");
+  const mine = git(r.driver, "rev-parse", "HEAD");
+  humanPushes(r, "a.txt", "human\n");
+  const pf = await onBranch(() => preflight(r.driver));
+  assert.equal(pf.kind, "refused");
+  assert.equal(git(r.driver, "rev-parse", "HEAD"), mine);
+  assert.equal(git(r.driver, "status", "--porcelain"), "");
+  assert.equal(git(r.origin, "rev-parse", "insight"), mine);
 });

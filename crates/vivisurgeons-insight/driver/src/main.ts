@@ -22,12 +22,14 @@ import {
 } from "./agents.ts";
 import { describe, gateReport, runGates } from "./gates.ts";
 import {
+  branchName,
   commitsSince,
   dirty,
   branch as gitBranch,
   parkAndReset,
   preflight,
   pushRebasing,
+  setBranch,
   type Unpushed,
 } from "./git.ts";
 import {
@@ -101,6 +103,7 @@ const { values: args } = parseArgs({
     "dry-run": { type: "boolean", default: false },
     "compare-snapshot": { type: "string" },
     "reset-failures": { type: "boolean", default: false },
+    branch: { type: "string", default: "main" },
   },
   strict: true,
 });
@@ -125,6 +128,8 @@ const cfg = {
   reviewParallel: num("review-parallel"),
   failingShown: num("failing-shown"),
 };
+
+setBranch(args.branch);
 
 const paths: Paths = pathsFor(REPO);
 const file = (name: string) => join(cfg.stateDir, name);
@@ -393,7 +398,10 @@ async function startBatch(batch: number): Promise<Started> {
   const pf = await preflight(REPO);
   if (pf.kind === "refused")
     return { kind: "stop", reason: { kind: "unsafe-git", reason: pf.reason } };
-  log("baseline", `HEAD ${pf.head.slice(0, 7)}, in sync with origin/main`);
+  log(
+    "baseline",
+    `HEAD ${pf.head.slice(0, 7)}, in sync with origin/${branchName()}`,
+  );
   await buildRelease(REPO);
   const dir = batchDir(batch);
   mkdirSync(dir, { recursive: true });
@@ -916,6 +924,25 @@ function stopFor(state: State, ran: number): StopReason | null {
   return null;
 }
 
+/**
+ * The exit status of a run that stopped on something only a human can clear,
+ * so whatever schedules the driver knows not to just start it again.
+ */
+const NEEDS_HUMAN = 3;
+
+function needsHuman(r: StopReason): boolean {
+  switch (r.kind) {
+    case "max-batches":
+    case "max-cost":
+      return false;
+    case "consecutive-failures":
+    case "milestone-ready":
+    case "all-pinned":
+    case "unsafe-git":
+      return true;
+  }
+}
+
 function stopLine(r: StopReason): string {
   switch (r.kind) {
     case "max-batches":
@@ -992,6 +1019,7 @@ async function loop(): Promise<void> {
   setBatch(null);
   if (stop.kind === "consecutive-failures" || stop.kind === "unsafe-git")
     escalate(null, "stop", stopLine(stop));
+  if (needsHuman(stop)) process.exitCode = NEEDS_HUMAN;
   log(
     "stop",
     `${stopLine(stop)}; this run spent $${spentUsd.toFixed(2)}, lifetime $${state.lifetimeCostUsd.toFixed(2)}`,

@@ -1,6 +1,18 @@
 import { log, must, run, tail } from "./sh.ts";
 
-const BRANCH = "main";
+const TRUNK = "main";
+let BRANCH = TRUNK;
+
+/**
+ * The branch the driver commits to and pushes. Any branch but main also takes
+ * in origin/main before every batch (see preflight), so the human merges it
+ * back into main and no batch builds on a stale main.
+ */
+export function setBranch(b: string): void {
+  BRANCH = b;
+}
+
+export const branchName = (): string => BRANCH;
 
 export async function head(repo: string): Promise<string> {
   return must("git", ["rev-parse", "HEAD"], { cwd: repo });
@@ -10,7 +22,7 @@ export async function branch(repo: string): Promise<string> {
   return must("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: repo });
 }
 
-/** origin/main as this clone last saw it, without fetching. */
+/** origin/<branch> as this clone last saw it, without fetching. */
 export async function originMain(repo: string): Promise<string> {
   return must("git", ["rev-parse", `origin/${BRANCH}`], { cwd: repo });
 }
@@ -99,7 +111,47 @@ export async function preflight(repo: string): Promise<Preflight> {
       reason: `${BRANCH} ${h.slice(0, 7)} is not origin/${BRANCH} ${o.slice(0, 7)}`,
     };
   }
-  return { kind: "ready", head: h };
+  return BRANCH === TRUNK ? { kind: "ready", head: h } : takeInTrunk(repo, h);
+}
+
+/**
+ * Merges origin/main into the branch (a fast-forward when main holds nothing
+ * but the branch's own merged commits) and pushes it at once, so the baseline
+ * is on origin as resetHazard expects. A conflict or a rejected push leaves the
+ * branch where it was.
+ */
+async function takeInTrunk(repo: string, h: string): Promise<Preflight> {
+  await must("git", ["fetch", "origin", TRUNK], { cwd: repo });
+  if (await isAncestor(repo, `origin/${TRUNK}`, h))
+    return { kind: "ready", head: h };
+  const m = await run(
+    "git",
+    [
+      "merge",
+      "--no-edit",
+      "-m",
+      `insight: take in ${TRUNK}`,
+      `origin/${TRUNK}`,
+    ],
+    { cwd: repo },
+  );
+  if (m.code !== 0) {
+    await run("git", ["merge", "--abort"], { cwd: repo });
+    return {
+      kind: "refused",
+      reason: `merging origin/${TRUNK} into ${BRANCH} conflicted:\n${tail(`${m.stdout}\n${m.stderr}`, 12)}`,
+    };
+  }
+  const p = await pushOnce(repo);
+  if (p.kind === "rejected") {
+    await must("git", ["reset", "--hard", h], { cwd: repo });
+    return {
+      kind: "refused",
+      reason: `pushing ${BRANCH} with origin/${TRUNK} merged in: ${p.detail}`,
+    };
+  }
+  log("git", `took in origin/${TRUNK}; ${BRANCH} at ${p.head.slice(0, 7)}`);
+  return { kind: "ready", head: p.head };
 }
 
 /** Why the batch's commits may not be reset, or null when they may. */

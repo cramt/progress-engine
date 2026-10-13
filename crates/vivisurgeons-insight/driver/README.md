@@ -22,8 +22,14 @@ builds the review inputs, then stops. It calls no agent, pushes and resets
 nothing, and leaves `state.json` alone. Add
 `--compare-snapshot <old snapshot>` to build review inputs from a real diff.
 
-A real run refuses to start unless `main` is checked out, clean, and equal to
-`origin/main`.
+A real run refuses to start unless the branch (`--branch`, default `main`) is
+checked out, clean, and equal to its origin. On any branch but `main` it then
+merges `origin/main` in and pushes that before the baseline, so batches build
+on whatever the human has merged or pushed to main, and merging the branch
+back into main stays a fast-forward until main moves on its own. A merge
+conflict stops the run. Merge the branch with a merge or a fast-forward, not a
+squash: a squash leaves the branch's commits off main, and the next merge
+conflicts with them.
 
 ## One batch
 
@@ -82,7 +88,9 @@ A real run refuses to start unless `main` is checked out, clean, and equal to
 
 Stops: `--max-batches` and `--max-cost-usd` for this run, two failed or empty
 batches in a row (failed, unpushed or empty; rerun with `--reset-failures` after looking), a milestone
-ready to pin, or a git state the driver won't reset.
+ready to pin, or a git state the driver won't reset. A stop that needs a human
+(the failures, a milestone to pin, every milestone pinned, git) exits 3, so a
+scheduler can tell it from a run that just used up its batches or budget.
 
 ## State (`--state-dir`, default `/tmp/insight/driver/`)
 
@@ -104,7 +112,7 @@ ready to pin, or a git state the driver won't reset.
 `--method-every 3`, `--review-chunk 90`, `--review-changed-cap 300`,
 `--review-parallel 3`, `--failing-shown 120`, `--model`, `--review-model`,
 `--claude-path` (defaults to the CLI binary bundled with the SDK),
-`--handoff-source`.
+`--handoff-source`, `--branch`.
 
 ## Agent settings
 
