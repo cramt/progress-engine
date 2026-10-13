@@ -1308,6 +1308,12 @@ mod syn {
         alt(o, vec![Out::default(), of("this way")]);
     }
 
+    /// "a … token named Wirefly with flying" and "a … token with flying
+    /// named Wirefly": one token, its name said before or after what it has.
+    pub fn named_after(o: &mut Out, before: Out, after: Out) {
+        alt(o, vec![before, after]);
+    }
+
     /// "in their mana costs" and "in their mana cost": each object has
     /// one mana cost, said in the plural or not.
     pub fn cost_or_costs(o: &mut Out, agreeing: Out) {
@@ -7809,12 +7815,25 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 ..with
             };
             token(o, n, &with);
-            o.w("named");
-            o.w(name);
-            if every_basic {
-                o.w("that is every basic land type");
+            let name_first = out(|o| {
+                o.w("named");
+                o.w(name);
+                if every_basic {
+                    o.w("that is every basic land type");
+                }
+                token_has(o, t);
+            });
+            // "a 1/2 blue Bird creature token with flying named Storm Crow".
+            let name_after = out(|o| {
+                token_has(o, t);
+                o.w("named");
+                o.w(name);
+            });
+            if every_basic || t.keywords.is_empty() && t.abilities.is_empty() {
+                o.add(name_first);
+            } else {
+                syn::named_after(o, name_first, name_after);
             }
-            token_has(o, t);
             token_attacking(o, n, t);
         }
         Effect::CreateAttached {

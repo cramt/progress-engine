@@ -299,6 +299,15 @@ pub(super) fn token_named(p: &mut P) -> Option<(Amount, Token, Option<String>)> 
             first = false;
         }
     }
+    // "a 1/2 blue Bird creature token with flying named Storm Crow": the
+    // name after what the token has.
+    let name = match name {
+        None if !keywords.is_empty() || !abilities.is_empty() => p.attempt(|p| {
+            p.word("named")?;
+            card_name(p, &["that's", "that", "where", "at", "for", "until"])
+        }),
+        name => name,
+    };
     let n = match n {
         Some(n) => n,
         None => {
