@@ -31,7 +31,7 @@ type: Legendary Creature — Phyrexian Cat
 cost: {2}{W}{B}
 > Whenever you cast a Phyrexian creature or artifact creature spell, incubate X, where X is that spell's mana value. (Create an Incubator token with X +1/+1 counters on it and "{2}: Transform this token." It transforms into a 0/0 Phyrexian artifact creature.)
 > At the beginning of each end step, if a Phyrexian died under your control this turn, proliferate.
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("phyrexian"), Type("creature")], [Type("artifact"), Type("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Where { then: [Action { by: None, name: "incubate", n: Some(X) }], x: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("phyrexian"), Type("creature")], [Type("artifact"), Type("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Where { then: [Action { by: None, name: "incubate", n: Some(X) }], x: ManaValueOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }], limits: [] }
 = Triggered { trigger: InterveningIf(At(EndStep(Each)), DidThisTurn(Dies(Objects { quant: One, filter: Filter { alts: [[Subtype("phyrexian")]], kind: None, posts: [Controller(You)], or: None } }))), effect: [Action { by: None, name: "proliferate", n: None }], limits: [] }
 
 ## Buzzard-Wasp Colony
@@ -263,7 +263,7 @@ face: Exhibition Tidecaller
 type: Creature — Djinn Wizard
 cost: {U}
 > Opus — Whenever you cast an instant or sorcery spell, target player mills three cards. If five or more mana was spent to cast that spell, that player mills ten cards instead.
-= Labelled { label: "opus", ability: Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Mill { who: Target, n: N(3) }, Instead { cond: AmountIs { n: ManaSpentToCast(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), op: Ge, value: N(5) }, then: [Mill { who: That, n: N(10) }] }], limits: [] } }
+= Labelled { label: "opus", ability: Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Mill { who: Target, n: N(3) }, Instead { cond: AmountIs { n: ManaSpentToCast(Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), op: Ge, value: N(5) }, then: [Mill { who: That, n: N(10) }] }], limits: [] } }
 
 ## Fan Bearer
 face: Fan Bearer

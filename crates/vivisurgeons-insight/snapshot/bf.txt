@@ -609,7 +609,7 @@ face: Monstrous Vortex
 type: Enchantment
 cost: {3}{G}
 > Whenever you cast a creature spell with power 5 or greater, discover X, where X is that spell's mana value. (Exile cards from the top of your library until you exile a nonland card with that mana value or less. Cast it without paying its mana cost or put it into your hand. Put the rest on the bottom in a random order.)
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [With(Compare { stat: Power, op: Ge, value: N(5) })], or: None } } }), effect: [Where { then: [Action { by: None, name: "discover", n: Some(X) }], x: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [With(Compare { stat: Power, op: Ge, value: N(5) })], or: None } } }), effect: [Where { then: [Action { by: None, name: "discover", n: Some(X) }], x: ManaValueOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }], limits: [] }
 
 ## Mortality Spear
 face: Mortality Spear

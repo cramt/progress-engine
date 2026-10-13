@@ -830,7 +830,7 @@ face: Pure Reflection
 type: Enchantment
 cost: {2}{W}
 > Whenever a player casts a creature spell, destroy all Reflections. Then that player creates an X/X white Reflection creature token, where X is the mana value of that spell.
-= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Destroy { what: Objects { quant: All, filter: Filter { alts: [[Subtype("reflection")]], kind: None, posts: [], or: None } }, no_regen: false }, Where { then: [Create { who: That, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: X, toughness: X, signed: false }), colors: [White], types: ["reflection", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], x: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }], limits: [] }
+= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Destroy { what: Objects { quant: All, filter: Filter { alts: [[Subtype("reflection")]], kind: None, posts: [], or: None } }, no_regen: false }, Where { then: [Create { who: That, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: X, toughness: X, signed: false }), colors: [White], types: ["reflection", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], x: ManaValueOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }], limits: [] }
 
 ## Pyre Spawn
 face: Pyre Spawn

@@ -1474,6 +1474,8 @@ fn refer(
         /// The types and subtypes of what was named after the window
         /// closed: a reference said with one of them may be that.
         named_since: Vec<Adj>,
+        /// A spell or ability was named after the window closed.
+        spells_since: bool,
     }
     impl Visitor for Refer {
         fn enter(&mut self, o: &mut Objects) -> bool {
@@ -1549,7 +1551,16 @@ fn refer(
                 && !mine.is_empty()
                 && mine.iter().all(|a| words(&self.object).contains(a))
                 && !mine.iter().any(|a| self.named_since.contains(a));
-            let seen_new = seen_new && !same_words;
+            // "you may reveal the top card of your library. If you do, counter
+            // that spell" (Counterbalance): "that spell" when no spell was
+            // named since the trigger's is still the trigger's.
+            let same_kind = self.to == Quant::Triggering
+                && !before_each
+                && spellish(&f.kind)
+                && f.kind == self.object.kind
+                && mine.is_empty()
+                && !self.spells_since;
+            let seen_new = seen_new && !same_words && !same_kind;
             if referable && !seen_new && !other_type {
                 o.quant = if seen_self && *f == Filter::default() {
                     Quant::SelfRef
@@ -1608,6 +1619,10 @@ fn refer(
                 _ => {
                     self.seen_new = true;
                     self.tokens_only = false;
+                    self.spells_since |= matches!(
+                        o.filter.kind,
+                        Some(Noun::Spell | Noun::Ability | Noun::SpellOrAbility)
+                    );
                     self.named_since
                         .extend(o.filter.alts.iter().flatten().cloned());
                 }
@@ -1805,6 +1820,7 @@ fn refer(
         ors: Vec::new(),
         tokens_only: false,
         named_since: Vec::new(),
+        spells_since: false,
     };
     if let Some(c) = cond {
         c.walk(&mut v);

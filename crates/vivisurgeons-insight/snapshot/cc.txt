@@ -897,7 +897,7 @@ cost: {3}{B}{R}
 > Whenever a player casts their first spell each turn, choose another target player. The Lord of Pain deals damage equal to that spell's mana value to the chosen player.
 = Keywords([Keyword { name: "menace", param: None }])
 = Static([PlayerRestrict { who: EachOpponent, rules: [CantGainLife] }])
-= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: NthEachTurn { n: 1, of: That }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [Choose(Objects(Objects { quant: AnotherTarget, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })), Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), to: [Player(Chosen)] }], limits: [] }
+= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: NthEachTurn { n: 1, of: That }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [Choose(Objects(Objects { quant: AnotherTarget, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })), Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ManaValueOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), to: [Player(Chosen)] }], limits: [] }
 
 ## The Ninth Doctor
 face: The Ninth Doctor

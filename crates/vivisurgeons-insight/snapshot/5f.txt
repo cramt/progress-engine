@@ -149,7 +149,7 @@ cost: {3}{U}{U}
 > Flying
 > Whenever you cast a Spirit or Arcane spell, you may have target player mill X cards, where X is that spell's mana value.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("spirit")], [Subtype("arcane")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Where { then: [Mill { who: Target, n: X }], x: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }] }], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("spirit")], [Subtype("arcane")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [Where { then: [Mill { who: Target, n: X }], x: ManaValueOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }] }], limits: [] }
 
 ## Coralhelm Chronicler
 face: Coralhelm Chronicler
