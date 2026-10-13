@@ -854,6 +854,21 @@ impl Walk for Effect {
                 Walk::walk(keeps, v);
                 Walk::walk(dur, v);
             }
+            Effect::BaseBecomes {
+                what,
+                power,
+                toughness,
+                dur,
+            } => {
+                Walk::walk(what, v);
+                if let Some(x0) = (power).as_mut() {
+                    Walk::walk(x0, v);
+                }
+                if let Some(x0) = (toughness).as_mut() {
+                    Walk::walk(x0, v);
+                }
+                Walk::walk(dur, v);
+            }
             Effect::BecomesCopy {
                 what,
                 of,

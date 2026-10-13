@@ -1,6 +1,7 @@
 //! One effect: a verb, its subject and its objects.
 
 use super::*;
+use crate::lex::PtPart;
 
 pub(super) fn duration(p: &mut P) -> Option<Duration> {
     alt!(p;
@@ -661,6 +662,52 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
             let except = p.attempt(exceptions).unwrap_or_default();
             Some(Effect::BecomesCopy { what, of, dur, except })
+        },
+        // "this creature's base power and toughness become 4/2 until end of
+        // turn", "you may have this creature's base power become equal to
+        // that creature's power" (CR 613.4b).
+        |p| {
+            let have = p.attempt(|p| p.word("have")).is_some();
+            let what = alt!(p;
+                |p| p.word("its").map(|_| antecedent()),
+                |p| { let o = objects(p)?; p.tok(&Tok::Possessive)?; Some(o) },
+            )?;
+            p.word("base")?;
+            let both = alt!(p;
+                |p| p.words("power and toughness").map(|_| true),
+                |p| p.word("power").map(|_| false),
+            )?;
+            match (have, both) {
+                (true, _) => p.word("become")?,
+                (false, true) => p.word("become")?,
+                (false, false) => p.word("becomes")?,
+            }
+            let (power, toughness) = alt!(p;
+                |p| match p.peek()? {
+                    Tok::Pt(Pt { power: PtPart::N(a), toughness: PtPart::N(b), signed: false }) if both => {
+                        let (a, b) = (*a, *b);
+                        p.bump();
+                        Some((Some(Amount::N(u32::try_from(a).ok()?)), Some(Amount::N(u32::try_from(b).ok()?))))
+                    }
+                    _ => None,
+                },
+                |p| {
+                    if !both { return None; }
+                    p.words("equal to")?;
+                    let of = alt!(p;
+                        |p| { let o = objects(p)?; p.tok(&Tok::Possessive)?; p.words("power and toughness")?; Some(o) },
+                        |p| { p.words("the power and toughness of")?; objects(p) },
+                    )?;
+                    Some((Some(Amount::PowerOf(Box::new(of.clone()))), Some(Amount::ToughnessOf(Box::new(of)))))
+                },
+                |p| {
+                    if both { return None; }
+                    p.words("equal to")?;
+                    Some((Some(measure(p)?), None))
+                },
+            )?;
+            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+            Some(Effect::BaseBecomes { what, power, toughness, dur })
         },
         // "you may have it become a copy of any creature on the battlefield".
         |p| {

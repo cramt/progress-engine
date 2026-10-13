@@ -455,6 +455,12 @@ mod syn {
         alt(o, vec![with, have]);
     }
 
+    /// "~'s base power becomes …" and "you may have ~'s base power become
+    /// …": the "may" is the branch's; "have" only words the option.
+    pub fn have_become(o: &mut Out, said: Out, had: Out) {
+        alt(o, vec![said, had]);
+    }
+
     /// "your life total becomes equal to your starting life total" and "…
     /// becomes half your starting life total": the value, with or without
     /// "equal to".
@@ -6886,6 +6892,53 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 o.w(stat);
             });
             syn::genitive(o, of_form, s_form);
+            dur(o, d);
+        }
+        Effect::BaseBecomes {
+            what,
+            power,
+            toughness,
+            dur: d,
+        } => {
+            let both = toughness.is_some();
+            let size = out(|o| match (power, toughness) {
+                (Some(Amount::N(a)), Some(Amount::N(b))) => o.tok(Tok::Pt(Pt {
+                    power: lex::PtPart::N(*a as i32),
+                    toughness: lex::PtPart::N(*b as i32),
+                    signed: false,
+                })),
+                (Some(Amount::PowerOf(x)), Some(_)) => {
+                    o.w("equal to");
+                    let s_form = out(|o| {
+                        objects(o, x);
+                        o.tok(Tok::Possessive);
+                        o.w("power and toughness");
+                    });
+                    let of_form = out(|o| {
+                        o.w("the power and toughness of");
+                        objects(o, x);
+                    });
+                    syn::genitive(o, of_form, s_form);
+                }
+                (Some(a), _) => {
+                    o.w("equal to");
+                    measure(o, a);
+                }
+                (None, _) => {}
+            });
+            let form = |have: bool| {
+                out(|o| {
+                    if have {
+                        o.w("have");
+                    }
+                    possessive_of(o, what);
+                    o.w("base");
+                    o.w(if both { "power and toughness" } else { "power" });
+                    o.w(if have || both { "become" } else { "becomes" });
+                    o.0.extend(size.0.iter().cloned());
+                })
+            };
+            syn::have_become(o, form(false), form(true));
             dur(o, d);
         }
         Effect::RollDie(n) => o.w(&format!("roll a d{n}")),

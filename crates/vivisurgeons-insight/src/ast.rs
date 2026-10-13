@@ -1317,6 +1317,15 @@ pub enum Effect {
         keeps: Keeps,
         dur: Duration,
     },
+    /// "this creature's base power and toughness become 4/2", "its base
+    /// power becomes equal to the number of Towns you control": the base
+    /// size set, layer 7b (CR 613.4b). `None` leaves that stat alone.
+    BaseBecomes {
+        what: Objects,
+        power: Option<Amount>,
+        toughness: Option<Amount>,
+        dur: Duration,
+    },
     BecomesCopy {
         what: Objects,
         of: Objects,
