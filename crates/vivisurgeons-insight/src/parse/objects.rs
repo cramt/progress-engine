@@ -416,11 +416,17 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
     // kind, unlike "blue or black creature", which shares the last one's.
     let own_kinds = groups.len() > 1 && groups.iter().all(|g| g.iter().any(is_typed));
     // "white or black creature": the last group's type belongs to every group.
+    // Not to a group that only excludes card types: "noncreature or Dragon
+    // spell" is any noncreature spell or any Dragon spell (Firespitter Whelp).
+    let excludes_types = |g: &[Adj]| {
+        g.iter()
+            .all(|a| matches!(a, Adj::Non(t) if matches!(type_word(t), Some(Adj::Type(_)))))
+    };
     if let Some(last) = groups.last() {
         let shared: Vec<Adj> = last.iter().filter(|a| is_typed(a)).cloned().collect();
         let n = groups.len();
         for g in groups.iter_mut().take(n - 1) {
-            if !g.iter().any(is_typed) {
+            if !g.iter().any(is_typed) && !excludes_types(g) {
                 g.extend(shared.iter().cloned());
             }
         }
