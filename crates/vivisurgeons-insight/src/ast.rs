@@ -259,6 +259,13 @@ pub enum Cost {
     DiscardHand,
     /// "Pay X {E}", "pay any amount of {E}".
     PayEnergy(Amount),
+    /// "{1} for each card in your hand", said after "pays": the mana once
+    /// for each object counted as it is paid; after a fixed amount, "plus an
+    /// additional {2} for each …".
+    ManaPer {
+        mana: Mana,
+        per: Objects,
+    },
     /// "Pay six {C}".
     ManaTimes {
         n: Amount,

@@ -136,7 +136,8 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
 pub(super) fn unless_costs(p: &mut P) -> Option<Vec<Cost>> {
     if let Some(c) = p.attempt(|p| {
         p.verb("pay")?;
-        costs(p)
+        let c = costs(p)?;
+        Some(per_costs(p, c))
     }) {
         return Some(c);
     }

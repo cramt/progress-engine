@@ -2507,6 +2507,11 @@ fn cost(o: &mut Out, c: &Cost) {
             amount(o, n);
             mana(o, m);
         }
+        Cost::ManaPer { mana: m, per } => {
+            mana(o, m);
+            o.w("for each");
+            each_objects(o, per);
+        }
         Cost::Action { name, n } => {
             o.w(name);
             amount(o, n);
@@ -5979,8 +5984,12 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             if let Some((who, c)) = unless {
                 o.w("unless");
                 player(o, who);
-                o.verb("pay", player_num(who));
-                costs(o, c);
+                if let [Cost::Mana(_), Cost::ManaPer { .. }] = c.as_slice() {
+                    unless_costs(o, c, player_num(who));
+                } else {
+                    o.verb("pay", player_num(who));
+                    costs(o, c);
+                }
             }
         }
         Effect::Create { who, n, token: t } => {
@@ -8310,6 +8319,14 @@ fn unless_costs(o: &mut Out, cs: &[Cost], n: Num) {
                 }
                 unless_costs(o, std::slice::from_ref(c), n);
             }
+        }
+        // "pays {2} plus an additional {2} for each card named ~ in each
+        // graveyard" (Rune Snag).
+        [Cost::Mana(m), extra @ Cost::ManaPer { .. }] => {
+            o.verb("pay", n);
+            mana(o, m);
+            o.w("plus an additional");
+            cost(o, extra);
         }
         cs => {
             o.verb("pay", n);

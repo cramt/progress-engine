@@ -54,6 +54,31 @@ pub(super) fn still(p: &mut P) -> Option<Keeps> {
 
 /// What a "becomes" keeps of the types it had: "in addition to its other
 /// types", "that's still a land".
+/// "pays {1} for each card in your hand", "pays {2} plus an additional {2}
+/// for each card named ~ in each graveyard": one payment whose mana is
+/// counted, not the effect done once for each object.
+pub(super) fn per_costs(p: &mut P, mut c: Vec<Cost>) -> Vec<Cost> {
+    let [Cost::Mana(m)] = c.as_slice() else {
+        return c;
+    };
+    let m = m.clone();
+    if let Some(per) = p.attempt(|p| {
+        p.words("for each")?;
+        objects(p)
+    }) {
+        return vec![Cost::ManaPer { mana: m, per }];
+    }
+    if let Some((mana, per)) = p.attempt(|p| {
+        p.words("plus an additional")?;
+        let m2 = mana(p)?;
+        p.words("for each")?;
+        Some((m2, objects(p)?))
+    }) {
+        c.push(Cost::ManaPer { mana, per });
+    }
+    c
+}
+
 pub(super) fn keeps(p: &mut P) -> Option<Keeps> {
     alt!(p;
         |p| p.one_of(&["in addition to its other colors and types", "in addition to their other colors and types"]).map(|_| Keeps::OtherColorsAndTypes),
@@ -1178,7 +1203,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         |p| {
             p.word("counter")?;
             let what = objects(p)?;
-            let unless = p.attempt(|p| { p.word("unless")?; let who = player(p)?; p.verb("pay")?; Some((who, costs(p)?)) });
+            let unless = p.attempt(|p| { p.word("unless")?; let who = player(p)?; p.verb("pay")?; let c = costs(p)?; Some((who, per_costs(p, c))) });
             Some(Effect::Counter { what, unless })
         },
         // tokens

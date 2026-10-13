@@ -574,6 +574,9 @@ impl Walk for Cost {
             Cost::PayEnergy(f0) => {
                 Walk::walk(f0, v);
             }
+            Cost::ManaPer { per, .. } => {
+                Walk::walk(per, v);
+            }
             Cost::ManaTimes { n, .. } => {
                 Walk::walk(n, v);
             }
