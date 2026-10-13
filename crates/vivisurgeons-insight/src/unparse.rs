@@ -478,6 +478,11 @@ mod syn {
         any_of(o, &["was", "were"]);
     }
 
+    /// "it isn't a creature" and "it's not a creature".
+    pub fn its_not(o: &mut Out, isnt: Out, its_not: Out) {
+        alt(o, vec![isnt, its_not]);
+    }
+
     /// "you may cast Zombie spells by paying {0} rather than paying their
     /// mana costs" and "you may pay {0} rather than pay the mana cost for
     /// Zombie spells you cast": one alternative cost (CR 118.9).
@@ -9958,9 +9963,29 @@ fn not_condition(o: &mut Out, c: &Condition) {
             }
         },
         Condition::Is { what, filter: f } => {
-            objects(o, what);
-            o.verb("aren't", obj_num(what));
-            is_predicate(o, f);
+            let isnt = out(|o| {
+                objects(o, what);
+                o.verb("aren't", obj_num(what));
+                is_predicate(o, f);
+            });
+            let pronoun = what.filter == Filter::default()
+                && matches!(
+                    what.quant,
+                    Quant::Antecedent
+                        | Quant::Triggering
+                        | Quant::SelfRef
+                        | Quant::ClauseObject
+                        | Quant::Itself
+                );
+            if pronoun {
+                let its_not = out(|o| {
+                    o.w("it's not");
+                    is_predicate(o, f);
+                });
+                syn::its_not(o, isnt, its_not);
+            } else {
+                o.add(isnt);
+            }
         }
         Condition::YouAreStartingPlayer => o.w("you're not the starting player"),
         Condition::CastFrom { what, zone: z } => {

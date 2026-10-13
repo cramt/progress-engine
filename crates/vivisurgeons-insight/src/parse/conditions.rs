@@ -669,5 +669,7 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         },
         |p| { p.word("it's")?; p.one_of(&["on", "in"])?; let zone = zone(p)?; Some(Condition::In { what: antecedent(), zone }) },
         |p| { p.word("it's")?; p.attempt(|p| p.one_of(&["a", "an"])); let f = filter(p)?; Some(Condition::Is { what: antecedent(), filter: f }) },
+        // "If it's not a creature, it becomes …": the same as "it isn't".
+        |p| { p.words("it's not")?; p.attempt(|p| p.one_of(&["a", "an"])); let f = filter(p)?; Some(Condition::Not(Box::new(Condition::Is { what: antecedent(), filter: f }))) },
     )
 }
