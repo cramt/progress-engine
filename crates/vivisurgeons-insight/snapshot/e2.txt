@@ -817,7 +817,7 @@ cost: {4}{U}
 > Flying (This creature can't be blocked except by creatures with flying or reach.)
 > Whenever this creature deals combat damage to a player, that player exiles the top four cards of their library. If two or more of those cards have the same name, repeat this process.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "the" after: whenever this creature deals combat damage to a player , that player exiles the top four cards of their library . if two or more of those cards have
+= BROKE at "name" after: whenever this creature deals combat damage to a player , that player exiles the top four cards of their library . if two or more of those cards have the same
 
 ## Searing Barrage
 face: Searing Barrage

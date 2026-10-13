@@ -571,7 +571,7 @@ type: Enchantment Creature — Moonfolk
 > Flying
 > Whenever you cast a spell, your opponents can't cast spells with the same mana value as that spell until your next turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "mana" after: whenever you cast a spell , your opponents can't cast spells with the same
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [PlayerRestrict { who: EachOpponent, rule: CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Eq, value: ManaValueOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) })], or: None } }), dur: UntilYourNextTurn }], limits: [] }
 
 ## Iona's Blessing
 face: Iona's Blessing

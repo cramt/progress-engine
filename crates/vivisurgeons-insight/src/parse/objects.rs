@@ -650,6 +650,20 @@ fn share_trailing(kind: Option<&Noun>, posts: &mut Vec<Post>, or: &Option<Box<Fi
 }
 
 pub(super) fn compare(p: &mut P) -> Option<Compare> {
+    // "the same mana value as the revealed card": equal to its mana value.
+    if let Some(c) = p.attempt(|p| {
+        p.words("the same")?;
+        let stat = stat(p)?;
+        p.word("as")?;
+        let x = objects(p)?;
+        Some(Compare {
+            stat,
+            op: Op::Eq,
+            value: stat_of(stat, x),
+        })
+    }) {
+        return Some(c);
+    }
     let stat = stat(p)?;
     let (op, value) = comparison(p)?;
     Some(Compare { stat, op, value })

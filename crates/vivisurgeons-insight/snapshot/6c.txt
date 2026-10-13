@@ -844,7 +844,7 @@ face: Sanguine Praetor
 type: Creature — Avatar Praetor
 cost: {6}{B}{B}
 > {B}, Sacrifice a creature: Destroy each creature with the same mana value as the sacrificed creature.
-= BROKE at "mana" after: {B} , sacrifice a creature : destroy each creature with the same
+= Activated { cost: [Mana(Mana(["B"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [Destroy { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: ManaValue, op: Eq, value: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }) })], or: None } }, no_regen: false }], limits: [] }
 
 ## Savage Punch
 face: Savage Punch

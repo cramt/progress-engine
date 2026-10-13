@@ -381,7 +381,7 @@ face: Hisoka, Minamo Sensei
 type: Legendary Creature — Human Wizard
 cost: {2}{U}{U}
 > {2}{U}, Discard a card: Counter target spell if it has the same mana value as the discarded card.
-= BROKE at "mana" after: {2} {U} , discard a card : counter target spell if it has the same
+= Activated { cost: [Mana(Mana(["2", "U"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [If { cond: Has { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: None, posts: [], or: None } }, cmp: Compare { stat: ManaValue, op: Eq, value: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Discarded)], or: None } }) } }, then: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }], limits: [] }
 
 ## Hordewing Skaab
 face: Hordewing Skaab

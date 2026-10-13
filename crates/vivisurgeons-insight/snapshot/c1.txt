@@ -181,7 +181,7 @@ face: Counterbalance
 type: Enchantment
 cost: {U}{U}
 > Whenever an opponent casts a spell, you may reveal the top card of your library. If you do, counter that spell if it has the same mana value as the revealed card.
-= BROKE at "mana" after: whenever an opponent casts a spell , you may reveal the top card of your library . if you do , counter that spell if it has the same
+= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [RevealTop { who: You, whose: You, n: N(1) }] }, IfYouDo([If { cond: Has { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, cmp: Compare { stat: ManaValue, op: Eq, value: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Revealed)], or: None } }) } }, then: [Counter { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }])], limits: [] }
 
 ## Diamond Weapon
 face: Diamond Weapon

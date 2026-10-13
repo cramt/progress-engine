@@ -399,6 +399,12 @@ mod syn {
         alt(o, forms.iter().map(|s| of(s)).collect());
     }
 
+    /// "with the same mana value as the revealed card" or "with mana value
+    /// equal to the revealed card's mana value": one comparison.
+    pub fn same_stat_as(o: &mut Out, equal_to: Out, same_as: Out) {
+        alt(o, vec![equal_to, same_as]);
+    }
+
     // ---------------------------------------- agreement and punctuation
 
     /// A number in digits or in words: "3 damage", "three cards". Oracle
@@ -4718,6 +4724,17 @@ fn compare_words(o: &mut Out, c: &Compare) {
         comparison(o, c.op, &c.value);
     };
     match of {
+        // "the same mana value as the revealed card".
+        Some(x) if c.op == Op::Eq => {
+            let a = out(|o| pronoun_or(o, x, relative, stated));
+            let b = out(|o| {
+                o.w("the same");
+                o.w(stat_name(c.stat));
+                o.w("as");
+                objects(o, x);
+            });
+            syn::same_stat_as(o, a, b);
+        }
         Some(x) => pronoun_or(o, x, relative, stated),
         None => stated(o),
     }
