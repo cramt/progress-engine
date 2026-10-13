@@ -9,6 +9,7 @@ repository.workspace = true
 [dependencies]
 ascent = { workspace = true }
 vivisurgeons-insight = { workspace = true }
+imbl.workspace = true
 
 # ascent's `par` feature pulls in rayon, which has no threads to run on in
 # wasm32-unknown-unknown, and the engine has to run in Meldweb's browser
