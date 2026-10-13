@@ -371,7 +371,7 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
                 |p| { let w = objects(p)?; p.one_of(&["is", "are"])?; Some(w) },
             )?;
             let types = alt!(p;
-                |p| p.words("the chosen type").map(|_| TypeSet::Chosen),
+                |p| p.one_of(&["the chosen type", "the chosen creature type"]).map(|_| TypeSet::Chosen),
                 |p| p.words("every basic land type").map(|_| TypeSet::EveryBasicLandType),
                 |p| p.words("every nonbasic land type").map(|_| TypeSet::EveryNonbasicLandType),
                 |p| { p.attempt(|p| p.one_of(&["a", "an"])); group(p).map(TypeSet::Listed) },

@@ -965,6 +965,14 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             p.words("this turn")?;
             Some(Post::WasDealtDamageThisTurn { by, combat })
         },
+        // "each nonland permanent … whose controller was dealt combat damage
+        // by this creature this turn": what is said of its controller.
+        |p| {
+            p.words("whose controller")?;
+            p.attempt(|p| p.word("was"));
+            let of = post(p)?;
+            Some(Post::ControllerIs(Box::new(of)))
+        },
         |p| p.words("that were cast this turn").map(|_| Post::WasCastThisTurn),
         |p| p.words("who lost life this turn").map(|_| Post::LostLifeThisTurn),
         |p| { p.words("that could produce")?; mana(p).map(Post::CouldProduce) },

@@ -443,6 +443,11 @@ pub enum Amount {
         of: Box<Amount>,
         round_up: bool,
     },
+    /// "a third of their life, rounded up".
+    Third {
+        of: Box<Amount>,
+        round_up: bool,
+    },
     /// "less than or equal to half your starting life total": compared
     /// exactly, so not rounded (CR 107.1a rounds only a number the
     /// effect generates).
@@ -1004,6 +1009,9 @@ pub enum Post {
         by: Option<Box<Objects>>,
         combat: bool,
     },
+    /// "whose controller was dealt combat damage by this creature this
+    /// turn": the post holds of the object's controller.
+    ControllerIs(Box<Post>),
     /// "target creature that dealt damage this turn", "creatures that dealt
     /// damage to you this turn": damage it dealt this turn, to `to` when
     /// said.

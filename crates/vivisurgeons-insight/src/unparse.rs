@@ -901,6 +901,13 @@ mod syn {
         alt(o, vec![with_verb, without]);
     }
 
+    /// "are the chosen type in addition to their other types", "are the
+    /// chosen creature type …": the type chosen as the permanent entered,
+    /// which "choose a creature type" made a creature type either way.
+    pub fn chosen_type(o: &mut Out) {
+        any_of(o, &["the chosen type", "the chosen creature type"]);
+    }
+
     /// "you gain half X life and draw half X cards. Round down each time."
     /// is "you gain half X life, rounded down, and draw half X cards,
     /// rounded down": a rounding said once for every half before it (CR
@@ -2811,6 +2818,11 @@ fn measure(o: &mut Out, a: &Amount) {
             measure(o, of);
             rounded(o, *round_up);
         }
+        Amount::Third { of, round_up } => {
+            o.w("a third of");
+            measure(o, of);
+            rounded(o, *round_up);
+        }
         Amount::HalfUnrounded(of) => {
             o.w("half");
             measure(o, of);
@@ -2861,7 +2873,7 @@ fn halves(es: &[Effect]) -> Vec<bool> {
             true
         }
         fn amount(&mut self, a: &mut Amount) {
-            if let Amount::Half { round_up, .. } = a {
+            if let Amount::Half { round_up, .. } | Amount::Third { round_up, .. } = a {
                 self.0.push(*round_up);
             }
         }
@@ -4360,6 +4372,13 @@ fn post(o: &mut Out, q: &Post, n: Num) {
                 player(o, to);
             }
             o.w("this turn");
+        }
+        Post::ControllerIs(of) => {
+            o.w("whose controller");
+            if matches!(**of, Post::WasDealtDamageThisTurn { .. }) {
+                o.w("was");
+            }
+            post(o, of, Num::Sg);
         }
         Post::WasCastThisTurn => o.w("that were cast this turn"),
         Post::LostLifeThisTurn => o.w("who lost life this turn"),
@@ -8237,6 +8256,16 @@ fn unless_costs(o: &mut Out, cs: &[Cost], n: Num) {
 }
 
 fn life(o: &mut Out, n: &Amount) {
+    // "loses a third of their life, rounded up".
+    if let Amount::Third { of, round_up } = n {
+        if let Amount::LifeTotal(w) = &**of {
+            o.w("a third of");
+            whose(o, w);
+            o.w("life");
+            rounded(o, *round_up);
+            return;
+        }
+    }
     // "loses half their life, rounded up".
     if let Amount::Half { of, round_up } = n {
         if let Amount::LifeTotal(w) = &**of {
@@ -11021,7 +11050,7 @@ fn is_land_type(a: &Adj) -> bool {
 fn type_set(o: &mut Out, t: &TypeSet, n: Num) {
     match t {
         TypeSet::Listed(v) | TypeSet::Subtypes(v) => type_words(o, v, n),
-        TypeSet::Chosen => o.w("the chosen type"),
+        TypeSet::Chosen => syn::chosen_type(o),
         TypeSet::EveryBasicLandType => o.w("every basic land type"),
         TypeSet::EveryCreatureType => o.w("every creature type"),
         TypeSet::EveryNonbasicLandType => o.w("every nonbasic land type"),

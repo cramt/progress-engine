@@ -249,6 +249,9 @@ impl Walk for Amount {
             Amount::Half { of, .. } => {
                 Walk::walk(&mut **of, v);
             }
+            Amount::Third { of, .. } => {
+                Walk::walk(&mut **of, v);
+            }
             Amount::HalfUnrounded(f0) => {
                 Walk::walk(&mut **f0, v);
             }
@@ -2125,6 +2128,9 @@ impl Walk for Post {
                 if let Some(x0) = (by).as_mut() {
                     Walk::walk(&mut **x0, v);
                 }
+            }
+            Post::ControllerIs(f0) => {
+                Walk::walk(&mut **f0, v);
             }
             Post::DealtDamageThisTurn(f0) => {
                 if let Some(x0) = (f0).as_mut() {

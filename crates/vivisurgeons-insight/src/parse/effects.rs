@@ -1107,6 +1107,16 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let round_up = rounded(p)?;
             Some(Effect::LoseLife { who, n: Amount::Half { of: Box::new(Amount::LifeTotal(w)), round_up } })
         },
+        // "each player loses a third of their life, rounded up".
+        |p| {
+            let who = subject_player(p);
+            p.verb("lose")?;
+            p.words("a third of")?;
+            let w = whose(p)?;
+            p.word("life")?;
+            let round_up = rounded(p)?;
+            Some(Effect::LoseLife { who, n: Amount::Third { of: Box::new(Amount::LifeTotal(w)), round_up } })
+        },
         |p| {
             let who = subject_player(p);
             p.verb("mill")?;
