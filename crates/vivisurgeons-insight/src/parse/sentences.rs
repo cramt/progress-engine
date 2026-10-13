@@ -1487,7 +1487,9 @@ fn refers_back(e: &Effect) -> bool {
         Effect::CreateCopy { of, .. } => it(of),
         // "For each of those cards, pay 4 life or …" (Sylvan Library).
         Effect::ForEach { each, .. } => it(each),
-        Effect::Delayed { then, .. } | Effect::If { then, .. } => {
+        // "When you do, exile the top two cards of your library. Until the
+        // end of your next turn, you may play those cards" (Anep).
+        Effect::Delayed { then, .. } | Effect::During { then, .. } | Effect::If { then, .. } => {
             then.first().is_some_and(refers_back)
         }
         _ => false,
