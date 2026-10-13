@@ -607,6 +607,14 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                     p.words("left the battlefield this turn")?;
                     Some(Condition::DidThisTurn(Box::new(Event::Leaves { what: what.clone(), from: Zone::Battlefield })))
                 },
+                // "one or more cards were put into exile this turn".
+                |p| {
+                    p.one_of(&["was put into", "were put into"])?;
+                    let to = zone(p)?;
+                    let from = p.attempt(|p| { p.word("from")?; zone(p) }).unwrap_or(Zone::Anywhere);
+                    p.words("this turn")?;
+                    Some(Condition::DidThisTurn(Box::new(Event::PutInto { what: what.clone(), to, from })))
+                },
                 // "a card left your graveyard this turn".
                 |p| {
                     p.word("left")?;

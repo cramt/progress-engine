@@ -750,6 +750,30 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             }
             Some(vec![Static::KeywordCost { keyword, cost }])
         },
+        // "This creature and enchanted creature each get +X/+X, where X is
+        // …": one static for each subject.
+        |p| {
+            let a = objects(p)?;
+            p.word("and")?;
+            let b = objects(p)?;
+            p.word("each")?;
+            let v = predicate_static(p, &a)?;
+            let [s] = v.as_slice() else { return None };
+            let inner = match s {
+                Static::Where { inner, .. } => &**inner,
+                s => s,
+            };
+            let Static::Modify { .. } = inner else { return None };
+            let mut t = s.clone();
+            match &mut t {
+                Static::Where { inner, .. } => {
+                    if let Static::Modify { what, .. } = &mut **inner { *what = b; }
+                }
+                Static::Modify { what, .. } => *what = b,
+                _ => return None,
+            }
+            Some(vec![s.clone(), t])
+        },
         // "Equipped creature has ward {2}, is an Assassin in addition to its
         // other types, and can't be blocked": one subject, several predicates.
         |p| {

@@ -9798,6 +9798,20 @@ fn condition(o: &mut Out, c: &Condition) {
                 zone(o, from);
                 o.w("this turn");
             }
+            // "one or more cards were put into exile this turn".
+            Event::PutInto { what, to, from } => {
+                objects(o, what);
+                syn::was_or_were(o);
+                o.w("put into");
+                zone(o, to);
+                if *from == Zone::Anywhere {
+                    syn::from_anywhere(o, out(|o| o.w("from anywhere")));
+                } else {
+                    o.w("from");
+                    zone(o, from);
+                }
+                o.w("this turn");
+            }
             Event::CastUsing { what, keyword } if keyword == "warp" => {
                 objects(o, what);
                 o.w("was warped this turn");
@@ -10607,6 +10621,33 @@ fn statics(o: &mut Out, ss: &[Static]) {
             syn::joiner(o, ends_in_quote(&last));
         }
         start = o.0.len();
+        // "This creature and enchanted creature each get +X/+X, where X is
+        // …": one static said of two subjects, a static each in the tree.
+        if let (Some(a), Some(next)) = (two_subject_static(s), ss.get(i + 1)) {
+            if let Some(b) = two_subject_static(next) {
+                if a != b && with_static_subject(s, b) == *next {
+                    let apart = out(|o| {
+                        static_full(o, s);
+                        syn::joiner(o, false);
+                        static_full(o, next);
+                    });
+                    let joined = out(|o| {
+                        objects(o, a);
+                        o.w("and");
+                        objects(o, b);
+                        o.w("each");
+                        let pred = out(|o| static_predicate(o, s));
+                        o.0.extend(pred.0.into_iter().map(|p| match p {
+                            Piece::Verb(v, _) => Piece::Verb(v, Num::Pl),
+                            p => p,
+                        }));
+                    });
+                    syn::gapped(o, apart, joined);
+                    i += 2;
+                    continue;
+                }
+            }
+        }
         // A run of PlayFrom from one zone is one sentence.
         if let Static::PlayFrom { zone: z, .. } = s {
             let mut j = i;
@@ -10787,6 +10828,36 @@ fn sized(o: &mut Out, ss: &[Static], i: usize) -> usize {
             1
         }
     }
+}
+
+/// The subject a static that may be said of two subjects at once is
+/// said of: "This creature and enchanted creature each get …".
+fn two_subject_static(s: &Static) -> Option<&Objects> {
+    match s {
+        Static::Modify { what, .. } => Some(what),
+        Static::Where { inner, .. } => match &**inner {
+            Static::Modify { what, .. } => Some(what),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// The same static said of `b`.
+fn with_static_subject(s: &Static, b: &Objects) -> Static {
+    let mut s = s.clone();
+    let what = match &mut s {
+        Static::Modify { what, .. } => Some(what),
+        Static::Where { inner, .. } => match &mut **inner {
+            Static::Modify { what, .. } => Some(what),
+            _ => None,
+        },
+        _ => None,
+    };
+    if let Some(w) = what {
+        *w = b.clone();
+    }
+    s
 }
 
 fn static_full(o: &mut Out, s: &Static) {
