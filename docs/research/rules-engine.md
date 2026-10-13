@@ -236,8 +236,10 @@ cache (see the open questions).
 3. **Ascent for what is true now:** characteristics through the layers
    (CR 613), dependency (CR 613.8), and legality. This is approach (b): fixed
    general rules over Insight's nodes as facts.
-4. **Insight's typed AST goes in directly,** with no serialisation and no
-   second language.
+4. **Insight's trees are lowered into Chancellor's own effects,** one per
+   layer, with no serialisation and no second language. This revises the
+   plan's first draft, which had the AST going in directly: see
+   [ADR-0037](../adr/0037-chancellor-lowers-insights-trees-into-its-own-effects-and-applies-them-layer-by-layer.md).
 5. **The first slice is the 571 pinned Modern-metagame cards**
    (`crates/vivisurgeons-insight/golden/modern-meta.txt`). The point is to
    feed back on the AST's shape before months of grammar work fix it in
