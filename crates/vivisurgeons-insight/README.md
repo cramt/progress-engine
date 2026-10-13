@@ -63,7 +63,7 @@ are in the corpus.
 | 6 | Top 500: copy exceptions, `for each` clauses, top or bottom of a library, a subject with a list of predicates | 56.8% | 72.2% | 88.7% | 81.0% | 90.0% |
 | 7 | Top 1000: damage doublers, digging until a card, repeated processes, extra phases, aura-made creatures | 60.7% | 74.9% | **100%** | 86.0% | 92.2% |
 | 8 | The Modern metagame: suspend, energy, reflexive triggers that keep their target, one-shot shields, delayed triggers for a turn, domain and converge, tiered modes | 67.5% | 79.5% | **100%** | 89.0% | 95.6% |
-| 9 | Card by card through my decks, Standard, the top 2000 and the precons, one sentence per commit; the corpus becomes Vintage-legal cards | 76.6% | 85.8% | 99.9% | 95.0% | 98.9% |
+| 9 | Card by card through my decks, Standard, the top 2000 and the precons, one sentence per commit; the corpus becomes Vintage-legal cards | 76.7% | 85.9% | 99.9% | 95.0% | 98.9% |
 
 There are 31,964 cards and 58,272 abilities. After round 9 the grammar is
 about 11,900 lines in `src/parse/` over a 3,300-line AST, and the corpus runs
@@ -86,13 +86,13 @@ reports every one. The lists in `milestones/` say where they came from, and
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
 | EDHREC top 1000 | 990/991 (99.9%) | 1802/1803 (99.9%) | pinned; Saw in Half was outside the old corpus |
-| My decks: every card in the 17 decks of cramt/mtg | 955/1023 (93.4%) | 2062/2136 (96.5%) | |
+| My decks: every card in the 17 decks of cramt/mtg | 957/1023 (93.5%) | 2064/2136 (96.6%) | |
 | Standard after the early-2027 rotation | 3025/3517 (86.0%) | 6535/7055 (92.6%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
 | All of Standard | 4162/5157 (80.7%) | 9328/10421 (89.5%) | |
 | EDHREC top 2000 | 1793/1987 (90.2%) | 3624/3849 (94.2%) | |
-| EDHREC top 5000 | 4013/4977 (80.6%) | 8995/10103 (89.0%) | |
-| Commander precons | 4516/6114 (73.9%) | 10382/12175 (85.3%) | |
+| EDHREC top 5000 | 4014/4977 (80.7%) | 8995/10101 (89.1%) | |
+| Commander precons | 4523/6114 (74.0%) | 10389/12175 (85.3%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
@@ -141,7 +141,7 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | EDHREC top 1000 (pinned) | 1800/1800 (100%) |
 | Modern metagame (pinned) | 1164/1164 (100%) |
 | EDHREC top 2000 | 3621/3624 (99.9%) |
-| All parsed abilities | 49989/50019 (99.9%) |
+| All parsed abilities | 50004/50034 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading
