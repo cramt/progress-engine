@@ -2653,6 +2653,14 @@ pub enum Static {
         what: Objects,
         then: Vec<Effect>,
     },
+    /// "Once each turn, you may cast a spell from the top of your library",
+    /// "Once during each of your turns, you may cast a creature spell from
+    /// your graveyard": the permission used at most once a turn, in your
+    /// turns only when `yours`.
+    Once {
+        yours: bool,
+        then: Vec<Static>,
+    },
     AsEnters {
         what: Objects,
         then: Vec<Effect>,

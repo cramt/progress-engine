@@ -10814,6 +10814,14 @@ fn static_other(o: &mut Out, s: &Static) {
                 clauses(o, then, &Cx::default());
             }
         }
+        Static::Once { yours, then } => {
+            o.w(if *yours {
+                "once during each of your turns,"
+            } else {
+                "once each turn,"
+            });
+            statics_joined(o, then);
+        }
         Static::AsEnters { what, then } => {
             o.w("as");
             obj_subj(o, what, "enter");

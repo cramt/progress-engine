@@ -56,6 +56,16 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
     }) {
         return Some(s);
     }
+    // "Once each turn, you may cast …", "Once during each of your turns, you
+    // may cast a creature spell from your graveyard."
+    if let Some(s) = p.attempt(|p| {
+        let yours = p.one_of(&["once during each of your turns ,", "once each turn ,"])?
+            != "once each turn ,";
+        let then = static_sentence(p)?;
+        Some(vec![Static::Once { yours, then }])
+    }) {
+        return Some(s);
+    }
     // "As this creature transforms into ~, you get an emblem with …".
     if let Some(s) = p.attempt(|p| {
         p.word("as")?;
@@ -1198,7 +1208,9 @@ fn static_permission_rules(v: &mut Vec<Static>) {
             // "You may cast artifact spells from your graveyard by paying 3
             // life …. If you cast a spell this way, …" (Noctis).
             Static::CastPaying { .. } => true,
-            Static::If { then, .. } | Static::AsLongAs { then, .. } => then.iter().any(permits),
+            Static::If { then, .. } | Static::AsLongAs { then, .. } | Static::Once { then, .. } => {
+                then.iter().any(permits)
+            }
             _ => false,
         }
     }

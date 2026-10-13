@@ -2373,6 +2373,11 @@ impl Walk for Static {
                     Walk::walk(x0, v);
                 }
             }
+            Static::Once { then, .. } => {
+                for x0 in (then).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Static::AsEnters { what, then } => {
                 Walk::walk(what, v);
                 for x0 in (then).iter_mut() {
