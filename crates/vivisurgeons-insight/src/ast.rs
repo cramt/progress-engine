@@ -2931,6 +2931,18 @@ pub enum Static {
         of: Objects,
         except: Vec<Exception>,
     },
+    /// "Enchanted land is a 3/3 black Ooze creature with haste. It's still
+    /// a land.": what `Effect::Becomes` makes it, for as long as the static
+    /// applies. The size sets base power and toughness (CR 613.4b), colors
+    /// among `types` replace its colors, and `keeps` is what it retains
+    /// (CR 205.1b).
+    IsA {
+        what: Objects,
+        pt: Pt,
+        types: Vec<Adj>,
+        has: Vec<Keyword>,
+        keeps: Keeps,
+    },
     /// "Creatures you control are every creature type": types that replace
     /// the old, where `AlsoIs` adds to them.
     Is {

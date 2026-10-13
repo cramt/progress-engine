@@ -146,7 +146,7 @@ cost: {1}{B}
 > Enchanted land is a 3/3 black Ooze creature. It's still a land.
 > When enchanted land dies, return that card to its owner's hand.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "<pt>" after: enchanted land is a
+= Static([IsA { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, pt: Pt { power: N(3), toughness: N(3), signed: false }, types: [Color(Black), Subtype("ooze"), Type("creature")], has: [], keeps: Listed([Type("land")]) }])
 = Triggered { trigger: When(Dies(Objects { quant: Enchanted, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })), effect: [Move { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Crystal Skull, Isu Spyglass

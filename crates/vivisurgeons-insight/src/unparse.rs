@@ -11702,6 +11702,31 @@ fn static_other(o: &mut Out, s: &Static) {
             statics_joined(o, then);
         }
         Static::X(x) => x_limit(o, x),
+        Static::IsA {
+            what,
+            pt,
+            types,
+            has,
+            keeps: k,
+        } => {
+            let n = obj_num(what);
+            objects(o, what);
+            o.verb("are", n);
+            o.w("a");
+            o.tok(Tok::Pt(*pt));
+            for (i, a) in types.iter().enumerate() {
+                // "a 4/4 black and green Horror creature".
+                if i > 0 && matches!(a, Adj::Color(_)) && matches!(types[i - 1], Adj::Color(_)) {
+                    o.w("and");
+                }
+                adj(o, a, None);
+            }
+            if !has.is_empty() {
+                o.w("with");
+                keyword_list(o, has);
+            }
+            keeps_then_dur(o, k, types, &Duration::Permanent);
+        }
         Static::AsEnters { what, then } => {
             o.w("as");
             obj_subj(o, what, "enter");

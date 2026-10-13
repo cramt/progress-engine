@@ -23,6 +23,45 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
     }) {
         return Some(s);
     }
+    // "Enchanted land is a 3/3 black Ooze creature with haste. It's still a
+    // land.": a "becomes" that holds while the static does.
+    if let Some(s) = p.attempt(|p| {
+        let what = objects(p)?;
+        p.one_of(&["is", "are"])?;
+        p.one_of(&["a", "an"])?;
+        let pt = match p.peek()? {
+            Tok::Pt(pt) if !pt.signed => *pt,
+            _ => return None,
+        };
+        p.bump();
+        let types = becomes_types(p);
+        types
+            .iter()
+            .any(|a| *a == Adj::Type("creature".into()))
+            .then_some(())?;
+        let has = p
+            .attempt(|p| {
+                p.word("with")?;
+                keyword_list(p)
+            })
+            .unwrap_or_default();
+        let keeps = match p.attempt(keeps) {
+            Some(k) => k,
+            None => p
+                .attempt(still)
+                .unwrap_or_else(|| Keeps::implied_by(&types)),
+        };
+        p.end_sentence()?;
+        Some(vec![Static::IsA {
+            what,
+            pt,
+            types,
+            has,
+            keeps,
+        }])
+    }) {
+        return Some(s);
+    }
     // "You can't cast ~ during your first, second, or third turns of the
     // game": a cast restriction while it's one of those turns. Before the
     // rules that read "you can't cast ~" alone.

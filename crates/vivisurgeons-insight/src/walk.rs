@@ -2558,6 +2558,22 @@ impl Walk for Static {
                     Walk::walk(x0, v);
                 }
             }
+            Static::IsA {
+                what,
+                types,
+                has,
+                keeps,
+                ..
+            } => {
+                Walk::walk(what, v);
+                for x0 in (types).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+                for x0 in (has).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+                Walk::walk(keeps, v);
+            }
             Static::Is { what, types } => {
                 Walk::walk(what, v);
                 Walk::walk(types, v);

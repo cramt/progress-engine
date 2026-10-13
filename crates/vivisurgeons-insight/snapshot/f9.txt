@@ -561,7 +561,7 @@ face: Rusted Relic
 type: Artifact
 cost: {4}
 > Metalcraft — This artifact is a 5/5 Golem artifact creature as long as you control three or more artifacts.
-= BROKE at "<pt>" after: metalcraft — this artifact is a
+= BROKE at "as" after: metalcraft — this artifact is a <pt> golem artifact creature
 
 ## Sage of Ancient Lore // Werewolf of Ancient Hunger
 face: Sage of Ancient Lore

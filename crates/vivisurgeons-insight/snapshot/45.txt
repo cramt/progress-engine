@@ -195,7 +195,7 @@ cost: {B}
 > Solved — This Case is a 4/4 Gorgon creature with deathtouch and lifelink in addition to its other types.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Subtype("case")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WasDealtDamageThisTurn { by: None, combat: false }], or: None } }, no_regen: false }], limits: [] }
 = BROKE at "into" after: to solve — three or more creature cards were put
-= BROKE at "<pt>" after: solved — this case is a
+= KeywordOn { keyword: Solved, ability: Static([IsA { what: Objects { quant: SelfRef, filter: Filter { alts: [[Subtype("case")]], kind: None, posts: [], or: None } }, pt: Pt { power: N(4), toughness: N(4), signed: false }, types: [Subtype("gorgon"), Type("creature")], has: [Keyword { name: "deathtouch", param: None }, Keyword { name: "lifelink", param: None }], keeps: OtherTypes }]) }
 
 ## Cavalry Master
 face: Cavalry Master

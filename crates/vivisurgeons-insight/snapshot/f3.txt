@@ -580,7 +580,7 @@ cost: {3}{G}
 > Enchanted land is a 4/5 green Spirit creature with vigilance and haste. It's still a land.
 > If enchanted land would be destroyed, instead sacrifice this Aura and that land gains indestructible until end of turn.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })) }])
-= BROKE at "<pt>" after: enchanted land is a
+= Static([IsA { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, pt: Pt { power: N(4), toughness: N(5), signed: false }, types: [Color(Green), Subtype("spirit"), Type("creature")], has: [Keyword { name: "vigilance", param: None }, Keyword { name: "haste", param: None }], keeps: Listed([Type("land")]) }])
 = BROKE at "," after: if enchanted land would be destroyed
 
 ## Havengul Skaab

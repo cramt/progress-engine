@@ -920,7 +920,7 @@ cost: {U}
 > Enchanted land is a 2/2 blue Elemental creature with flying. It's still a land.
 > When enchanted land dies, return that card to its owner's hand.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "<pt>" after: enchanted land is a
+= Static([IsA { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, pt: Pt { power: N(2), toughness: N(2), signed: false }, types: [Color(Blue), Subtype("elemental"), Type("creature")], has: [Keyword { name: "flying", param: None }], keeps: Listed([Type("land")]) }])
 = Triggered { trigger: When(Dies(Objects { quant: Enchanted, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })), effect: [Move { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## You Cannot Pass!

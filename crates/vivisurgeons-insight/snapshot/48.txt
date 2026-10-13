@@ -225,7 +225,7 @@ cost: {1}{R}
 > Enchanted land is a 3/3 red Spirit creature with haste. It's still a land.
 > If enchanted land would be destroyed, instead sacrifice this Aura and that land gains indestructible until end of turn.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })) }])
-= BROKE at "<pt>" after: enchanted land is a
+= Static([IsA { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, pt: Pt { power: N(3), toughness: N(3), signed: false }, types: [Color(Red), Subtype("spirit"), Type("creature")], has: [Keyword { name: "haste", param: None }], keeps: Listed([Type("land")]) }])
 = BROKE at "," after: if enchanted land would be destroyed
 
 ## Cryptic Serpent
@@ -1218,7 +1218,7 @@ cost: {4}{G}
 > Enchanted land is a 6/4 green Elemental creature. It's still a land.
 > When enchanted land dies, return that card to its owner's hand.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "<pt>" after: enchanted land is a
+= Static([IsA { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, pt: Pt { power: N(6), toughness: N(4), signed: false }, types: [Color(Green), Subtype("elemental"), Type("creature")], has: [], keeps: Listed([Type("land")]) }])
 = Triggered { trigger: When(Dies(Objects { quant: Enchanted, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })), effect: [Move { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Volatile Wanderglyph
