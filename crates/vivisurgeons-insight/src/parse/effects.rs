@@ -83,6 +83,7 @@ pub(super) fn keeps(p: &mut P) -> Option<Keeps> {
     alt!(p;
         |p| p.one_of(&["in addition to its other colors and types", "in addition to their other colors and types"]).map(|_| Keeps::OtherColorsAndTypes),
         |p| p.one_of(&["in addition to its other types", "in addition to their other types"]).map(|_| Keeps::OtherTypes),
+        |p| p.one_of(&["in addition to its other creature types", "in addition to their other creature types"]).map(|_| Keeps::OtherCreatureTypes),
         |p| { p.one_of(&["that's still a", "that's still an", "that are still"])?; group(p).map(Keeps::Listed) },
     )
 }
@@ -886,9 +887,21 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                     Some(w)
                 },
             )?;
+            // "That creature is black and is a Nightmare …" (Chainer): the
+            // color said first, its own predicate.
+            let colored = p
+                .attempt(|p| {
+                    let g = group(p)?;
+                    if g.is_empty() || !g.iter().all(|a| matches!(a, Adj::Color(_))) { return None; }
+                    p.words("and is")?;
+                    Some(g)
+                })
+                .unwrap_or_default();
             p.one_of(&["a", "an"])?;
-            let types = group(p)?;
+            let mut types = group(p)?;
+            if !colored.is_empty() && types.iter().any(|a| matches!(a, Adj::Color(_))) { return None; }
             let keeps = p.attempt(keeps).unwrap_or_else(|| Keeps::implied_by(&types));
+            types.splice(0..0, colored);
             Some(Effect::IsNow { what, types, keeps })
         },
         // "it deals that much damage plus 2 instead".

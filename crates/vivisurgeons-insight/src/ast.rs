@@ -2171,6 +2171,11 @@ pub enum Keeps {
     /// added too, where a color an effect gives otherwise replaces the old
     /// (CR 105.3).
     OtherColorsAndTypes,
+    /// "in addition to its other creature types": only creature types are
+    /// added, and every type it had stays (CR 205.1b). A color said with it
+    /// replaces the old (CR 105.3): Chainer's "That creature is black and
+    /// is a Nightmare in addition to its other creature types".
+    OtherCreatureTypes,
     /// "that's still a land".
     Listed(Vec<Adj>),
 }

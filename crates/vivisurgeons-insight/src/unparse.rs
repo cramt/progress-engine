@@ -967,6 +967,12 @@ mod syn {
         alt(o, vec![before, after]);
     }
 
+    /// "is a black Nightmare" and "is black and is a Nightmare" (Chainer):
+    /// the same colors and types, the color its own predicate.
+    pub fn color_predicate(o: &mut Out, joined: Out, split: Out) {
+        alt(o, vec![joined, split]);
+    }
+
     /// "Put … onto the battlefield with an additional -1/-1 counter on it"
     /// and "Put … onto the battlefield …. Each of them enters with an
     /// additional -1/-1 counter on it": the counters are a replacement on
@@ -7637,7 +7643,24 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             keeps: k,
         } => {
             pronoun_or(o, what, |o| o.w("it's"), |o| obj_subj(o, what, "are"));
-            type_words(o, types, Num::Sg);
+            let colors = types
+                .iter()
+                .take_while(|a| matches!(a, Adj::Color(_)))
+                .count();
+            if colors > 0 && colors < types.len() {
+                // "is black and is a Nightmare" or "is a black Nightmare".
+                let joined = out(|o| type_words(o, types, Num::Sg));
+                let split = out(|o| {
+                    for a in &types[..colors] {
+                        adj(o, a, None);
+                    }
+                    o.w("and is");
+                    type_words(o, &types[colors..], Num::Sg);
+                });
+                syn::color_predicate(o, joined, split);
+            } else {
+                type_words(o, types, Num::Sg);
+            }
             keeps(o, k);
         }
 
@@ -8536,6 +8559,11 @@ fn keeps(o: &mut Out, k: &Keeps) {
             o.w("in addition to");
             syn::its(o);
             o.w("other colors and types");
+        }
+        Keeps::OtherCreatureTypes => {
+            o.w("in addition to");
+            syn::its(o);
+            o.w("other creature types");
         }
         Keeps::Listed(v) => {
             o.w("that's still a");
