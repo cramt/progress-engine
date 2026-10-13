@@ -411,6 +411,19 @@ mod syn {
         alt(o, vec![theirs, total]);
     }
 
+    /// "creatures that entered the battlefield under your control this
+    /// turn" or "creatures you had enter the battlefield under your control
+    /// this turn": the same creatures.
+    pub fn you_had_enter(o: &mut Out, that: Out) {
+        alt(
+            o,
+            vec![
+                that,
+                of("you had enter the battlefield under your control this turn"),
+            ],
+        );
+    }
+
     // ---------------------------------------- agreement and punctuation
 
     /// A number in digits or in words: "3 damage", "three cards". Oracle
@@ -4396,11 +4409,17 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         }
         Post::EnteredThisTurn => o.w("that entered this turn"),
         Post::EnteredUnderThisTurn(p) => {
-            o.w("that entered");
-            syn::the_battlefield(o);
-            o.w("under");
-            whose(o, p);
-            o.w("control this turn");
+            let that = out(|o| {
+                o.w("that entered");
+                syn::the_battlefield(o);
+                o.w("under");
+                whose(o, p);
+                o.w("control this turn");
+            });
+            match p {
+                Player::You => syn::you_had_enter(o, that),
+                _ => o.add(that),
+            }
         }
         Post::FromAmong(x) => from_among(o, x),
         Post::Greatest { stat, or_tied } => {

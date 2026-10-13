@@ -491,7 +491,7 @@ cost: {2}{B}{G}
 > At the beginning of your end step, create a number of Food tokens equal to the number of nontoken creatures you had enter the battlefield under your control this turn.
 > {1}, Sacrifice a Food: Target creature gains indestructible until end of turn. Tap it.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "had" after: at the beginning of your end step , create a number of food tokens equal to the number of nontoken creatures you
+= Triggered { trigger: At(EndStep(Yours)), effect: [Create { who: You, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [EnteredUnderThisTurn(You)], or: None } }), token: Token { tapped: false, pt: None, colors: [], types: ["food"], keywords: [], abilities: [], named: Some("food"), attacking: None } }], limits: [] }
 = Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Subtype("food")]], kind: None, posts: [], or: None } })], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }, Tap(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Harvester of Souls

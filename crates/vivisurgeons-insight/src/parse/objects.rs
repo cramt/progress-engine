@@ -945,6 +945,12 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             p.words("under your control this turn")?;
             Some(Post::EnteredUnderThisTurn(Player::You))
         },
+        // "nontoken creatures you had enter the battlefield under your
+        // control this turn": the same creatures.
+        |p| {
+            p.words("you had enter the battlefield under your control this turn")?;
+            Some(Post::EnteredUnderThisTurn(Player::You))
+        },
         |p| p.one_of(&["that entered this turn", "that entered the battlefield this turn"]).map(|_| Post::EnteredThisTurn),
         |p| {
             if p.in_value { return None; }
