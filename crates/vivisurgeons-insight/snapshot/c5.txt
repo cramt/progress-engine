@@ -524,7 +524,7 @@ cost: {G}{W}{U}
 > Flying, lifelink
 > Whenever you cast a spell from anywhere other than your hand, you may cast a permanent spell with equal or lesser mana value from your hand without paying its mana cost. If you don't, you may put a land card from your hand onto the battlefield.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "lifelink", param: None }])
-= BROKE at "spell" after: whenever you cast a spell from anywhere other than your hand , you may cast a permanent
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(AnywhereOtherThan(Hand(You)))], or: None } } }), effect: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [[Permanent]], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Le, value: ManaValueOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }), CastFrom(Hand(You))], or: None } }, payment: Free, dur: Permanent }] }, IfYouDont([May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }])], limits: [] }
 
 ## Kitesail Cleric
 face: Kitesail Cleric

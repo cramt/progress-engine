@@ -317,7 +317,7 @@ cost: {3}{W}{W}
 > Whenever you cast a white permanent spell, create a 1/1 white Soldier creature token.
 = Keywords([Keyword { name: "vigilance", param: None }])
 = BROKE at "permanent" after: as an additional cost to cast white
-= BROKE at "," after: whenever you cast a white permanent spell
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Color(White), Permanent]], kind: Some(Spell), posts: [], or: None } } }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Dragon's Disciple
 face: Dragon's Disciple

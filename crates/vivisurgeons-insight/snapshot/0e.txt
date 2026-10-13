@@ -634,7 +634,7 @@ cost: {5}{U}{U}{U}
 > Myojin of Cryptic Dreams enters with an indestructible counter on it if you cast it from your hand.
 > Remove an indestructible counter from Myojin of Cryptic Dreams: Copy target permanent spell you control three times. (The copies become tokens.)
 = Static([If { cond: YouCastItFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(1), kind: "indestructible" }] }])
-= BROKE at "spell" after: remove an indestructible counter from ~ : copy target permanent
+= Activated { cost: [RemoveCounters { n: N(1), kind: "indestructible", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [Repeat { times: N(3), then: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Permanent]], kind: Some(Spell), posts: [Controller(You)], or: None } }, may_choose_new_targets: false }] }], limits: [] }
 
 ## Nature's Ruin
 face: Nature's Ruin

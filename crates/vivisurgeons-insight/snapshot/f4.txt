@@ -274,7 +274,7 @@ cost: {3}{G}{G}
 > Whenever you cast a green permanent spell, put a +1/+1 counter on each creature you control.
 = Keywords([Keyword { name: "trample", param: None }])
 = BROKE at "permanent" after: as an additional cost to cast green
-= BROKE at "," after: whenever you cast a green permanent spell
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Color(Green), Permanent]], kind: Some(Spell), posts: [], or: None } } }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 
 ## Delayed Blast Fireball
 face: Delayed Blast Fireball

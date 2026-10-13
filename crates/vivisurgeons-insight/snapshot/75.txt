@@ -471,7 +471,7 @@ face: In Search of Greatness
 type: Enchantment
 cost: {G}{G}
 > At the beginning of your upkeep, you may cast a permanent spell from your hand with mana value equal to 1 plus the greatest mana value among other permanents you control without paying its mana cost. If you don't, scry 1.
-= BROKE at "spell" after: at the beginning of your upkeep , you may cast a permanent
+= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [[Permanent]], kind: Some(Spell), posts: [CastFrom(Hand(You)), With(Compare { stat: ManaValue, op: Eq, value: Plus(Greatest { stat: ManaValue, among: Objects { quant: Plural, filter: Filter { alts: [[State(Other)]], kind: Some(Permanent), posts: [Controller(You)], or: None } } }, 1) })], or: None } }, payment: Free, dur: Permanent }] }, IfYouDont([Scry(N(1))])], limits: [] }
 
 ## Ingenious Leonin
 face: Ingenious Leonin

@@ -494,7 +494,7 @@ cost: {1}{W/B}{W/B}
 > Once during each of your turns, you may cast a permanent spell with mana value 2 or less from your graveyard.
 = Keywords([Keyword { name: "companion", param: Some(Condition(Has { what: Objects { quant: Each, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [In(StartingDeck(You))], or: None } }, cmp: Compare { stat: ManaValue, op: Le, value: N(2) } })) }])
 = Keywords([Keyword { name: "lifelink", param: None }])
-= BROKE at "spell" after: once during each of your turns , you may cast a permanent
+= Static([Once { yours: true, then: [PlayFrom { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [[Permanent]], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Le, value: N(2) })], or: None } }, zone: Graveyard(You) }] }])
 
 ## Mammoth Bellow
 face: Mammoth Bellow

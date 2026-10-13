@@ -175,6 +175,14 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
         return Some(Adj::State(State::AttackingOrBlocking));
     }
     let w = p.peek_word()?;
+    // "a permanent spell": an artifact, battle, creature, enchantment, or
+    // planeswalker spell (CR 110.4b), still a spell.
+    if w == "permanent"
+        && matches!(p.t.get(p.i + 1), Some(Tok::Word(n)) if n == "spell" || n == "spells")
+    {
+        p.bump();
+        return Some(Adj::Permanent);
+    }
     let next_is_type = || matches!(p.t.get(p.i + 1), Some(Tok::Word(n)) if type_word(n).is_some());
     // "Urza's Mine": a subtype the lexer split at its apostrophe.
     if p.t.get(p.i + 1) == Some(&Tok::Possessive) {
@@ -375,6 +383,15 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
     };
     if groups.is_empty() && kind.is_none() {
         return None;
+    }
+    // "a Faerie or Wizard permanent spell": "permanent" said last is of
+    // every alternative, as the noun is.
+    if groups.len() > 1 && groups.last().and_then(|g| g.last()) == Some(&Adj::Permanent) {
+        for g in groups.iter_mut() {
+            if g.last() != Some(&Adj::Permanent) {
+                g.push(Adj::Permanent);
+            }
+        }
     }
     // "red instant or sorcery": the first group's words before its type
     // belong to every later group that is a bare type. A first group with no

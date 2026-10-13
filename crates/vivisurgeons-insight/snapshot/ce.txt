@@ -317,7 +317,7 @@ cost: {G}
 = Keywords([Keyword { name: "station", param: None }])
 = Station { at_least: 3, ability: Static([ExtraLand(N(1))]) }
 = Station { at_least: 8, ability: Keywords([Keyword { name: "flying", param: None }]) }
-= BROKE at "spell" after: once during each of your turns , you may cast a permanent
+= Static([Once { yours: true, then: [CastPaying { what: Objects { quant: One, filter: Filter { alts: [[Permanent]], kind: Some(Spell), posts: [], or: None } }, zone: Some(Graveyard(You)), cost: [Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })], rather: false }] }])
 
 ## Falkenrath Torturer
 face: Falkenrath Torturer

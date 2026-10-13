@@ -1518,6 +1518,9 @@ fn refer(
                 matches!(k, Some(Noun::Spell | Noun::Ability | Noun::SpellOrAbility))
             };
             let other_type = other_type || (spellish(&f.kind) && f.kind != self.object.kind);
+            // "copy that spell …. If the copy is a permanent spell" (Mizzix):
+            // a copy is made by the effect, never the event's object.
+            let other_type = other_type || f.kind == Some(Noun::Copy);
             if referable && self.after_card && !before_each && *f == Filter::default() {
                 o.quant = Quant::SelfRef;
                 return true;

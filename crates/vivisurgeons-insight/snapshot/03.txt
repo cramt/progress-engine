@@ -1154,7 +1154,7 @@ cost: {1}{G}{G}
 = Static([HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] } }])
 = Loyalty { change: N(1), effect: [Becomes { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), types: [Subtype("elemental"), Type("creature")], gains: [Keyword { name: "vigilance", param: None }, Keyword { name: "hexproof", param: None }, Keyword { name: "haste", param: None }], keeps: Listed([Type("land")]), dur: UntilYourNextTurn }] }
 = Loyalty { change: N(-2), effect: [Mill { who: You, n: N(3) }, May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [FromAmong(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Milled)], or: None } })], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }] }
-= BROKE at "spells" after: N(-7) : you get an emblem with " you may play lands and cast permanent
+= Loyalty { change: N(-7), effect: [Emblem([Static([PlayFrom { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, zone: Graveyard(You) }, PlayFrom { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [[Permanent]], kind: Some(Spell), posts: [], or: None } }, zone: Graveyard(You) }])])] }
 
 ## Yorvo, Lord of Garenbrig
 face: Yorvo, Lord of Garenbrig

@@ -45,7 +45,7 @@ type: Legendary Creature — Elemental Sorcerer
 cost: {2}{R}
 > Elemental permanent spells you cast from your hand gain evoke {4} as you cast them. (If you cast a spell for its evoke cost, it's sacrificed when it enters.)
 > Whenever you sacrifice a nontoken Elemental, create a token that's a copy of it. The token gains haste until end of turn. At the beginning of your next end step, sacrifice it unless you pay {W}{U}{B}{R}{G}.
-= BROKE at "hand" after: elemental permanent spells you cast from your
+= BROKE at "gain" after: elemental permanent spells you cast from your hand
 = Triggered { trigger: When(Sacrifices { who: You, what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Subtype("elemental")]], kind: None, posts: [], or: None } } }), effect: [CreateCopy { n: N(1), of: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }, Modify { what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }, Delayed { step: EndStep(YourNext), then: [Unless { effect: Sacrifice { who: You, what: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, who: You, cost: [Mana(Mana(["W", "U", "B", "R", "G"]))] }] }], limits: [] }
 
 ## Auroral Procession

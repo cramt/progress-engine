@@ -785,7 +785,7 @@ type: Enchantment — Room
 cost: {4}{W}
 > Nonland permanents you control and permanent spells you control are enchantments in addition to their other types.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "you" after: nonland permanents you control and permanent spells
+= BROKE at "are" after: nonland permanents you control and permanent spells you control
 
 ## Secret Arcade // Dusty Parlor
 face: Dusty Parlor

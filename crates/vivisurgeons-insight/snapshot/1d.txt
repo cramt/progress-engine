@@ -199,7 +199,7 @@ cost: {2}{B}{B}
 > Whenever you cast a black permanent spell, target creature you control gets +1/+1 and gains menace until end of turn.
 = Keywords([Keyword { name: "menace", param: None }])
 = BROKE at "permanent" after: as an additional cost to cast black
-= BROKE at "," after: whenever you cast a black permanent spell
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Color(Black), Permanent]], kind: Some(Spell), posts: [], or: None } } }), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [Keyword { name: "menace", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Drownyard Explorers
 face: Drownyard Explorers

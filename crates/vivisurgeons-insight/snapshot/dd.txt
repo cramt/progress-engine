@@ -34,7 +34,7 @@ cost: {4}{U}
 > Flying, ward {2}
 > Whenever you cast a Faerie or Wizard permanent spell, copy it. (The copy becomes a token.)
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "ward", param: Some(Cost([Mana(Mana(["2"]))])) }])
-= BROKE at "spell" after: whenever you cast a faerie or wizard permanent
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("faerie"), Permanent], [Subtype("wizard"), Permanent]], kind: Some(Spell), posts: [], or: None } } }), effect: [Copy { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: false }], limits: [] }
 
 ## Ardbert, Warrior of Darkness
 face: Ardbert, Warrior of Darkness

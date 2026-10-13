@@ -775,6 +775,10 @@ pub struct Filter {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Adj {
     Color(Color),
+    /// "a permanent spell": one that will enter the battlefield as a
+    /// permanent, an artifact, battle, creature, enchantment, or
+    /// planeswalker spell (CR 110.4b).
+    Permanent,
     Non(String),
     NonColor(Color),
     Type(String),

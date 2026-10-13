@@ -3873,6 +3873,13 @@ fn is_typed(a: &Adj) -> bool {
 /// gave "creature" to both.
 fn printed_groups(alts: &[Vec<Adj>]) -> Vec<Vec<Adj>> {
     let mut g: Vec<Vec<Adj>> = alts.to_vec();
+    // "a Faerie or Wizard permanent spell": "permanent" said once, last.
+    if g.len() > 1 && g.iter().all(|x| x.last() == Some(&Adj::Permanent)) {
+        let n = g.len();
+        for x in g.iter_mut().take(n - 1) {
+            x.pop();
+        }
+    }
     // "other activated and triggered abilities", as `filter` reads it.
     let ability = |x: &[Adj]| matches!(x.last(), Some(Adj::Ability(_)));
     if g.len() > 1 && g.iter().all(|x| ability(x)) {
@@ -3968,6 +3975,7 @@ fn printed_groups(alts: &[Vec<Adj>]) -> Vec<Vec<Adj>> {
 fn adj(o: &mut Out, a: &Adj, noun: Option<Num>) {
     let word = match a {
         Adj::Color(c) => color_name(*c).to_string(),
+        Adj::Permanent => "permanent".into(),
         Adj::Non(s) if crate::vocab::vocab().subtypes.contains(s) => format!("non-{s}"),
         Adj::Non(s) => format!("non{s}"),
         Adj::NonColor(c) => format!("non{}", color_name(*c)),
@@ -5571,6 +5579,24 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
         // it if …. You may choose new targets for the copies").
         let after = copy_said_after(e)
             .filter(|_| top && !cx.modal && es.get(i + 1).and_then(copy_said_after).is_none());
+        // "If you do, copy that spell and you may choose new targets for the
+        // copy. If the copy is …" (Mizzix): a copy inside a branch that goes
+        // on past it says its choice where it is, as the branch's last
+        // effect is not a copy for the ability to say it after.
+        let after = after.or_else(|| {
+            (!top
+                && !cx.modal
+                && i + 1 < es.len()
+                && es[i + 1..].iter().all(|e| copy_said_after(e).is_none())
+                && matches!(
+                    e,
+                    Effect::Copy {
+                        may_choose_new_targets: true,
+                        ..
+                    }
+                ))
+            .then_some(false)
+        });
         if let Some(many) = after {
             let run = es[..i]
                 .iter()

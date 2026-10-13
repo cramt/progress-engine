@@ -515,7 +515,7 @@ cost: {4}
 > {4}, {T}: Copy target permanent spell you control. (The copy becomes a token.)
 = Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Ability(Activated)], [Ability(Triggered)]], kind: Some(Ability), posts: [Controller(You)], or: None } }, may_choose_new_targets: true }], limits: [] }
 = Activated { cost: [Mana(Mana(["3"])), Tap], effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Controller(You)], or: None } }, may_choose_new_targets: true }], limits: [] }
-= BROKE at "spell" after: {4} , {T} : copy target permanent
+= Activated { cost: [Mana(Mana(["4"])), Tap], effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Permanent]], kind: Some(Spell), posts: [Controller(You)], or: None } }, may_choose_new_targets: false }], limits: [] }
 
 ## Maddening Hex
 face: Maddening Hex
@@ -623,7 +623,7 @@ cost: {3}{G}
 > Landfall — Whenever a land you control enters, you get {E}{E} (two energy counters).
 > You may pay eight {E} rather than pay the mana cost for permanent spells you cast.
 = Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [GetEnergy(2)], limits: [] } }
-= BROKE at "spells" after: you may pay eight {E} rather than pay the mana cost for permanent
+= Static([CastPaying { what: Objects { quant: Plural, filter: Filter { alts: [[Permanent]], kind: Some(Spell), posts: [Cast(You)], or: None } }, zone: None, cost: [PayEnergy(N(8))], rather: true }])
 
 ## Nylea's Colossus
 face: Nylea's Colossus

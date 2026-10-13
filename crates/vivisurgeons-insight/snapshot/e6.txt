@@ -390,7 +390,7 @@ face: Encroaching Mycosynth
 type: Artifact
 cost: {3}{U}
 > Nonland permanents you control are artifacts in addition to their other types. The same is true for permanent spells you control and nonland permanent cards you own that aren't on the battlefield.
-= BROKE at "spells" after: nonland permanents you control are artifacts in addition to their other types . the same is true for permanent
+= Static([AlsoIs { what: Objects { quant: Plural, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(You)], or: None } }, types: Listed([Type("artifact")]) }, SameFor([Objects { quant: Plural, filter: Filter { alts: [[Permanent]], kind: Some(Spell), posts: [Controller(You)], or: None } }, Objects { quant: Plural, filter: Filter { alts: [[Non("land")]], kind: Some(PermanentCard), posts: [Owner(You), NotIn(Battlefield)], or: None } }])])
 
 ## Etherium Sculptor
 face: Etherium Sculptor
