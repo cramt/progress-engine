@@ -38,10 +38,13 @@ Vintage takes every paper set and bans only on principle, never for power,
 so that one check leaves out the digital-only cards (Alchemy's
 "perpetually"), the Un-cards, and the cards no paper game plays: ante,
 dexterity (Chaos Orb), subgames (Shahrazad), Conspiracy's draft cards and
-the cards banned in 2020 for racist content. Unfinity's cards without the
-acorn are Vintage-legal and are in it. Before round 9 the corpus was every
-card outside a "funny" set, 33,427 of them; rounds 1–8 below are measured
-against that.
+the cards banned in 2020 for racist content. Before round 9 the corpus was
+every card outside a "funny" set, 33,427 of them, and rounds 1–8 below are
+measured against that. That test read the one printing the oracle bulk file
+keeps for each card, so it also dropped 47 Vintage-legal cards whose kept
+printing is Unfinity's, Saw in Half among them, though Saw in Half has
+since been printed in other sets. Legality belongs to the card, not a
+printing, so the Vintage test has no such hole.
 
 Cards tagged `otag:unique-cr-reference` are left out of every figure. Each
 has a rule in the Comprehensive Rules written for it alone, so any engine
@@ -64,8 +67,8 @@ are in the corpus.
 
 There are 31,964 cards and 58,272 abilities. After round 9 the grammar is
 about 11,900 lines in `src/parse/` over a 3,300-line AST, and the corpus runs
-in about 6 s. The top 1000 is short one card, Saw in Half, an Unfinity card
-the Vintage corpus let in at rank 582.
+in about 6 s. The top 1000 is short one card, Saw in Half (rank 582), which
+the old corpus had dropped.
 
 Rounds 1–4 were written by hand against the whole corpus. Rounds 5–8 were
 written by agents working through `insight failing N` (the failing abilities
@@ -82,7 +85,7 @@ reports every one. The lists in `milestones/` say where they came from, and
 
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
-| EDHREC top 1000 | 990/991 (99.9%) | 1802/1803 (99.9%) | pinned; Saw in Half came in with the Vintage corpus |
+| EDHREC top 1000 | 990/991 (99.9%) | 1802/1803 (99.9%) | pinned; Saw in Half was outside the old corpus |
 | My decks: every card in the 17 decks of cramt/mtg | 955/1023 (93.4%) | 2062/2136 (96.5%) | |
 | Standard after the early-2027 rotation | 3025/3517 (86.0%) | 6535/7055 (92.6%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
