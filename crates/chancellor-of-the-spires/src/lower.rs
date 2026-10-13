@@ -102,7 +102,9 @@ pub fn card(card: &Card) -> Result<Lowered, Refusal> {
                     lowered.chars.abilities.insert(Ability::Keyword(k));
                 }
             }
-            i::Ability::Triggered { .. } | i::Ability::Activated { .. } => {
+            // A spell's instructions are an ability too (CR 113.3a), run as
+            // it resolves.
+            i::Ability::Triggered { .. } | i::Ability::Activated { .. } | i::Ability::Spell(_) => {
                 let index = lowered.unread.len() as u16;
                 lowered.chars.abilities.insert(Ability::Unread(index));
                 lowered.unread.push(ability);
@@ -113,15 +115,17 @@ pub fn card(card: &Card) -> Result<Lowered, Refusal> {
     Ok(lowered)
 }
 
-/// What a resolving keyword action leaves on the objects it was told to
-/// affect: the continuous effect, and counters put on them.
+/// What a resolving effect leaves on the objects it was told to affect: the
+/// continuous effect, and counters put on them. Which objects is the state
+/// machine's: the targets chosen, or the set an "all" matched as it
+/// resolved (CR 611.2c). How long it lasts is the state machine's too.
 pub struct Resolution {
     pub ops: Vec<Op>,
     pub counters: Vec<(Counter, u32)>,
 }
 
-/// A keyword action from an ability's effect, as it resolves.
-pub fn action(effect: &i::Effect) -> Result<Resolution, Refusal> {
+/// One effect of a spell or an ability, as it resolves.
+pub fn resolution(effect: &i::Effect) -> Result<Resolution, Refusal> {
     let refuse = || Refusal::Unlowered {
         line: format!("{effect:?}"),
         node: short(effect),
@@ -143,6 +147,22 @@ pub fn action(effect: &i::Effect) -> Result<Resolution, Refusal> {
             ],
             counters: vec![(Counter::PlusOne, *n)],
         }),
+        // "Target creature gets +3/+3 until end of turn."
+        i::Effect::Modify { pt: p, gains, .. } => {
+            let mut ops = Vec::new();
+            if let Some(p) = p {
+                ops.push(Op::ModifyPt(
+                    fixed(p).filter(|_| p.signed).ok_or_else(refuse)?,
+                ));
+            }
+            for k in gains {
+                ops.push(Op::Grant(Ability::Keyword(keyword(k).ok_or_else(refuse)?)));
+            }
+            Ok(Resolution {
+                ops,
+                counters: vec![],
+            })
+        }
         _ => Err(refuse()),
     }
 }
@@ -341,7 +361,50 @@ fn static_part(part: &i::Static) -> Result<(&Objects, Vec<Op>), String> {
             }
             (what, ops)
         }
+        // "Nonbasic lands are Mountains" (CR 305.7).
+        i::Static::Is {
+            what,
+            types: TypeSet::Subtypes(adjs),
+        } => match adjs.as_slice() {
+            [Adj::Subtype(s)] => (
+                what,
+                vec![Op::SetBasicLandType(
+                    basic_land_type(s).ok_or_else(unlowered)?,
+                )],
+            ),
+            _ => return Err(unlowered()),
+        },
+        // "is an artifact creature": unlike most effects that set card
+        // types, it keeps the object's others (CR 205.1b). Other types
+        // set would replace them (CR 205.1a), which nothing models yet.
+        i::Static::Is {
+            what,
+            types: TypeSet::Listed(adjs),
+        } if *adjs == [Adj::Type("artifact".into()), Adj::Type("creature".into())] => (
+            what,
+            vec![Op::AddTypes(
+                [CardType::Artifact, CardType::Creature].into(),
+            )],
+        ),
+        // "each equal to its mana value": the object's own.
+        i::Static::BasePtEqual {
+            what,
+            each_equal_to: i::Amount::ManaValueOf(of),
+        } if of.quant == Quant::Antecedent && of.filter == i::Filter::default() => {
+            (what, vec![Op::SetBasePt(PtValue::ManaValue)])
+        }
         _ => return Err(unlowered()),
+    })
+}
+
+fn color(c: &i::Color) -> Option<Color> {
+    Some(match c {
+        i::Color::White => Color::White,
+        i::Color::Blue => Color::Blue,
+        i::Color::Black => Color::Black,
+        i::Color::Red => Color::Red,
+        i::Color::Green => Color::Green,
+        _ => return None,
     })
 }
 
@@ -365,6 +428,15 @@ fn objects(o: &Objects) -> Result<Filter, String> {
     if f.kind.is_some() || f.or.is_some() {
         return Err("a filter over a kind of object".into());
     }
+    // A subtype's set is the card type it is said with: "non-Aura
+    // enchantment", "non-Human creature".
+    let types: BTreeSet<CardType> = alt
+        .iter()
+        .filter_map(|a| match a {
+            Adj::Type(t) => card_type(t),
+            _ => None,
+        })
+        .collect();
     let mut preds = Vec::new();
     for adj in alt {
         preds.push(match adj {
@@ -372,11 +444,14 @@ fn objects(o: &Objects) -> Result<Filter, String> {
             Adj::Non(t) => Pred::IsNot(match (card_type(t), supertype(t)) {
                 (Some(t), _) => Prop::Type(t),
                 (None, Some(s)) => Prop::Supertype(s),
-                _ => return Err(format!("non-{t}")),
+                (None, None) => Prop::Subtype(subtype(t, &types)),
             }),
             Adj::Supertype(t) => Pred::Is(Prop::Supertype(
                 supertype(t).ok_or(format!("supertype {t}"))?,
             )),
+            Adj::Subtype(t) => Pred::Is(Prop::Subtype(subtype(t, &types))),
+            Adj::Color(c) => Pred::Is(Prop::Color(color(c).ok_or(short(c))?)),
+            Adj::NonColor(c) => Pred::IsNot(Prop::Color(color(c).ok_or(short(c))?)),
             Adj::State(i::State::Nontoken) => Pred::Nontoken,
             Adj::State(i::State::Other) => Pred::Other,
             other => return Err(short(other)),

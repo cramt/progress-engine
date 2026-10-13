@@ -31,21 +31,27 @@ Layers 4 (adding types and subtypes, setting a basic land type, CR 305.7),
 5 (colour), 6 (granting, removing, removing all) and 7b–7d (setting,
 modifying, switching), counters in 7c, filters over type, supertype,
 subtype, colour, controller, "nontoken", "other", "this" and "enchanted".
-`tests/layers.rs` is the evidence: CR 613.4d, 613.5, 613.6 and 613.9's
-worked examples, and Glorious Anthem with counters, Giant Growth under
-Humility, CR 611.2c's fixed set, Blood Moon with Urborg and Humility with
-Opalescence in both timestamp orders, against their Gatherer rulings.
-`tests/oracle.rs` reads its cards from Oracle text instead: Humility with
-Toph, the First Metalbender, including Toph's own earthbend (CR 701.66a)
-on a Forest and on a Sol Ring Toph made a land.
+`tests/layers.rs` has CR 613.4d, 613.5, 613.6 and 613.9's worked
+examples, built by hand since their cards are hypothetical. `tests/oracle.rs`
+reads real cards from their Oracle text: Glorious Anthem with counters,
+Giant Growth under Humility, Inspired Charge's fixed set against Glorious
+Anthem (CR 611.2c), Blood Moon with Urborg and Humility with Opalescence in
+both timestamp orders against their Gatherer rulings, March of the Machines
+(CR 613.6, 205.1b), Crusade, and Humility with Toph, the First Metalbender,
+including Toph's own earthbend (CR 701.66a) on a Forest and on a Sol Ring
+Toph made a land.
 
 Not yet: layers 1–3 (copy, control, text), 7a (characteristic-defining
 abilities, and so CDAs first, CR 613.3), dependency through "what it does"
 (CR 613.8a), counters' own timestamps (CR 613.7c), abilities granted with a
 later timestamp (CR 613.7a), effects on players and rules (CR 613.10–11),
-and lowering for most of Insight's nodes: today `Modify`, `BasePt`,
-`Loses` (all abilities), `AlsoIs` with listed types, filters over type,
-supertype, "nontoken", "other" and "you control", and earthbend.
+and lowering for most of Insight's nodes. Today it lowers the statics
+`Modify`, `BasePt`, `BasePtEqual` (its mana value), `Loses` (all
+abilities), `AlsoIs` with listed types, `Is` setting a basic land type or
+making an artifact creature (CR 205.1b); filters over type, supertype,
+subtype, colour, "nontoken", "other" and "you control"; and, as they
+resolve, `Modify` and earthbend. `insight card <name>` shows what a card
+reads as, and `lower::card` says by name what it refuses.
 
 ## Speed
 

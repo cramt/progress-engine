@@ -1,6 +1,7 @@
-//! Rules questions with one right answer, each naming the rule it checks.
-//! CR 613's own worked examples come first, then the cards ADR-0037's slice
-//! is about.
+//! Rules questions with one right answer, each naming the rule it checks:
+//! CR 613's own worked examples, whose cards and effects are hypothetical,
+//! so they are built by hand. Real cards are read from their Oracle text in
+//! tests/oracle.rs.
 
 use std::collections::BTreeSet;
 
@@ -67,78 +68,6 @@ fn glorious_anthem(s: &mut State) -> ObjectId {
             vec![creatures(), Pred::YouControl],
         )],
     )
-}
-
-fn humility(s: &mut State) -> ObjectId {
-    s.enter(
-        enchantment(4),
-        vec![of(
-            vec![Op::LoseAll, Op::SetBasePt(PtValue::Fixed(pt(1, 1)))],
-            vec![creatures()],
-        )],
-    )
-}
-
-fn opalescence(s: &mut State) -> ObjectId {
-    s.enter(
-        enchantment(4),
-        vec![of(
-            vec![
-                Op::AddTypes(set([CardType::Creature])),
-                Op::SetBasePt(PtValue::ManaValue),
-            ],
-            vec![
-                Pred::Is(Prop::Type(CardType::Enchantment)),
-                Pred::IsNot(Prop::Subtype(Subtype::Other("Aura".into()))),
-                Pred::Other,
-            ],
-        )],
-    )
-}
-
-fn blood_moon(s: &mut State) -> ObjectId {
-    s.enter(
-        enchantment(3),
-        vec![of(
-            vec![Op::SetBasicLandType(BasicLandType::Mountain)],
-            vec![
-                Pred::Is(Prop::Type(CardType::Land)),
-                Pred::IsNot(Prop::Supertype(Supertype::Basic)),
-            ],
-        )],
-    )
-}
-
-fn urborg(s: &mut State) -> ObjectId {
-    let mut c = chars(&[CardType::Land], 0, None);
-    c.supertypes.insert(Supertype::Legendary);
-    s.enter(
-        c,
-        vec![of(
-            vec![Op::AddSubtypes(set([Subtype::BasicLand(
-                BasicLandType::Swamp,
-            )]))],
-            vec![Pred::Is(Prop::Type(CardType::Land))],
-        )],
-    )
-}
-
-fn forest(s: &mut State) -> ObjectId {
-    let mut c = chars(&[CardType::Land], 0, None);
-    c.supertypes.insert(Supertype::Basic);
-    c.subtypes.insert(Subtype::BasicLand(BasicLandType::Forest));
-    s.enter(c, vec![])
-}
-
-fn land_types(state: &State, o: ObjectId) -> BTreeSet<BasicLandType> {
-    characteristics(state)[&o]
-        .subtypes
-        .iter()
-        .filter_map(|s| match s {
-            Subtype::BasicLand(t) => Some(*t),
-            _ => None,
-        })
-        .collect()
 }
 
 fn has(state: &State, o: ObjectId, a: Ability) -> bool {
@@ -237,8 +166,8 @@ fn cr_613_6_a_color_and_a_pump_from_one_effect_apply_in_layers_5_and_7c() {
 
 #[test]
 fn cr_613_6_noncreature_artifacts_that_became_creatures_still_get_the_7b_part() {
-    // The example's spell; March of the Machines is the static version,
-    // whose filter no longer matches by 7b: its set began in layer 4.
+    // The example's spell. tests/oracle.rs has March of the Machines, the
+    // static version, from its text.
     let mut s = State::default();
     let ring = s.enter(chars(&[CardType::Artifact], 1, None), vec![]);
     s.resolve(
@@ -249,25 +178,6 @@ fn cr_613_6_noncreature_artifacts_that_became_creatures_still_get_the_7b_part() 
         ],
     );
     assert_eq!(pt_of(&s, ring), Some(pt(2, 2)));
-
-    let mut s = State::default();
-    let ring = s.enter(chars(&[CardType::Artifact], 1, None), vec![]);
-    s.enter(
-        enchantment(4),
-        vec![of(
-            vec![
-                Op::AddTypes(set([CardType::Creature])),
-                Op::SetBasePt(PtValue::ManaValue),
-            ],
-            vec![
-                Pred::Is(Prop::Type(CardType::Artifact)),
-                Pred::IsNot(Prop::Type(CardType::Creature)),
-            ],
-        )],
-    );
-    let now = &characteristics(&s)[&ring];
-    assert!(now.is(CardType::Creature));
-    assert_eq!(now.pt, Some(pt(1, 1)));
 }
 
 // CR 613.9's two examples.
@@ -317,120 +227,6 @@ fn cr_613_9_white_creatures_get_the_bonus_whatever_color_the_creature_was() {
     );
     s.attach(paint, c);
     assert_eq!(pt_of(&s, c), Some(pt(3, 3)));
-}
-
-// The slice's cards.
-
-#[test]
-fn counters_and_an_anthem_both_modify_in_7c() {
-    // CR 613.4c. The counters don't annihilate here: that's a state-based
-    // action (CR 704.5q), the state machine's.
-    let mut s = State::default();
-    let bears = s.enter(creature(pt(2, 2), 2, Color::Green), vec![]);
-    s.put_counters(bears, Counter::PlusOne, 2);
-    s.put_counters(bears, Counter::MinusOne, 1);
-    glorious_anthem(&mut s);
-    assert_eq!(pt_of(&s, bears), Some(pt(4, 4)));
-}
-
-#[test]
-fn giant_growth_survives_humility_whichever_came_first() {
-    // CR 613.4b, 613.4c: Humility sets in 7b and the pump adds in 7c.
-    for humility_first in [false, true] {
-        let mut s = State::default();
-        let bears = s.enter(creature(pt(2, 2), 2, Color::Green), vec![]);
-        if humility_first {
-            humility(&mut s);
-        }
-        s.resolve([bears], vec![Op::ModifyPt(pt(3, 3))]);
-        if !humility_first {
-            humility(&mut s);
-        }
-        assert_eq!(
-            pt_of(&s, bears),
-            Some(pt(4, 4)),
-            "humility first: {humility_first}"
-        );
-    }
-}
-
-#[test]
-fn a_resolved_pump_fixes_its_set_and_an_anthem_reads_its_filter_again() {
-    // CR 611.2c.
-    let mut s = State::default();
-    let first = s.enter(creature(pt(2, 2), 2, Color::Green), vec![]);
-    s.resolve([first], vec![Op::ModifyPt(pt(1, 1))]);
-    let later = s.enter(creature(pt(2, 2), 2, Color::Green), vec![]);
-    assert_eq!(pt_of(&s, first), Some(pt(3, 3)));
-    assert_eq!(pt_of(&s, later), Some(pt(2, 2)));
-
-    glorious_anthem(&mut s);
-    let latest = s.enter(creature(pt(2, 2), 2, Color::Green), vec![]);
-    assert_eq!(pt_of(&s, latest), Some(pt(3, 3)));
-}
-
-#[test]
-fn blood_moon_turns_off_urborg_whichever_came_first() {
-    // CR 613.8a: Blood Moon removes Urborg's ability (CR 305.7), which
-    // changes the existence of Urborg's effect, so Urborg's effect depends
-    // on Blood Moon's and waits for it (CR 613.8b) despite timestamps, and
-    // then no longer exists. Urborg's ruling of 2021-03-19: set to a basic
-    // land type by Magus of the Moon, "it won't turn lands into Swamps, no
-    // matter in what order those effects started to apply."
-    for moon_first in [false, true] {
-        let mut s = State::default();
-        let f = forest(&mut s);
-        let (u, _) = if moon_first {
-            let m = blood_moon(&mut s);
-            (urborg(&mut s), m)
-        } else {
-            let u = urborg(&mut s);
-            (u, blood_moon(&mut s))
-        };
-        assert_eq!(
-            land_types(&s, u),
-            set([BasicLandType::Mountain]),
-            "moon first: {moon_first}"
-        );
-        assert_eq!(
-            land_types(&s, f),
-            set([BasicLandType::Forest]),
-            "moon first: {moon_first}"
-        );
-    }
-}
-
-#[test]
-fn humility_and_opalescence_by_timestamp() {
-    // Opalescence's layer 4 part makes Humility a creature, so Humility's
-    // layer 6 part removes Humility's own ability. Both effects began
-    // applying before then and keep applying (CR 613.6). In 7b they apply
-    // in timestamp order: the later one sets Humility's power and
-    // toughness. Opalescence affects only other enchantments, so it is no
-    // creature and keeps its ability. Other creatures are 1/1 either way.
-    // Humility's and Opalescence's ruling of 2009-10-01 walks the same
-    // layers: Opalescence first leaves Humility 1/1, Humility first 4/4.
-    for humility_first in [false, true] {
-        let mut s = State::default();
-        let bears = s.enter(creature(pt(2, 2), 2, Color::Green), vec![]);
-        let (h, o) = if humility_first {
-            let h = humility(&mut s);
-            (h, opalescence(&mut s))
-        } else {
-            let o = opalescence(&mut s);
-            (humility(&mut s), o)
-        };
-        let now = characteristics(&s);
-        let expect = if humility_first { pt(4, 4) } else { pt(1, 1) };
-        assert_eq!(now[&h].pt, Some(expect), "humility first: {humility_first}");
-        assert!(
-            now[&h].abilities.is_empty(),
-            "humility first: {humility_first}"
-        );
-        assert!(!now[&o].is(CardType::Creature));
-        assert!(!now[&o].abilities.is_empty());
-        assert_eq!(now[&bears].pt, Some(pt(1, 1)));
-    }
 }
 
 /// The research's game-scale board (docs/research/rules-engine.md,
