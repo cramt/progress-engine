@@ -814,6 +814,9 @@ fn about_the_trigger(t: &Trigger, mut cond: Option<&mut Condition>, effect: &mut
     let Trigger::When(e) = t else {
         return refer(None, false, cond, effect);
     };
+    if matches!(**e, Event::Casts { .. }) || event_object(e).is_some() {
+        lesser_than_the_trigger(effect);
+    }
     let Some(subject) = event_object(e) else {
         refer_to_the_trigger(e, cond, effect);
         return;
@@ -859,6 +862,41 @@ fn about_the_trigger(t: &Trigger, mut cond: Option<&mut Condition>, effect: &mut
         lesser(first, &triggering());
     }
     refer_to_the_trigger(e, cond, effect);
+}
+
+/// Rashmi: "reveal the top card of your library. You may cast it … if it's a
+/// spell with lesser mana value": "it" is the revealed card, which is not
+/// compared with itself, and the reveal names no other object, so the
+/// comparison is with the trigger's spell ([lesser-mana-value]).
+fn lesser_than_the_trigger(effect: &mut [Effect]) {
+    let triggering = || Objects {
+        quant: Quant::Triggering,
+        filter: Filter::default(),
+    };
+    let unnamed = |e: &Effect| matches!(e, Effect::RevealTop { .. });
+    if let Some(i) = effect.iter().position(|e| !unnamed(e)) {
+        if i > 0 {
+            if let Effect::If {
+                cond: Condition::Is { what, filter },
+                ..
+            } = &mut effect[i]
+            {
+                if *what == antecedent() {
+                    for q in &mut filter.posts {
+                        if let Post::With(Compare {
+                            value: Amount::ManaValueOf(x),
+                            ..
+                        }) = q
+                        {
+                            if **x == antecedent() {
+                                **x = triggering();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// The one object a trigger event names, which the effect may call "it",
