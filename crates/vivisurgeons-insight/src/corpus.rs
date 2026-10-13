@@ -1,5 +1,5 @@
-//! The corpus: every card in Scryfall's oracle bulk file that a deck can
-//! hold, face by face, as `scryfall sync` keeps it in `~/.cache/scryfall/`.
+//! The corpus: every card in Scryfall's oracle bulk file that Vintage
+//! plays, face by face, as `scryfall sync` keeps it in `~/.cache/scryfall/`.
 
 use std::collections::HashSet;
 use std::fs;
@@ -25,6 +25,19 @@ const NOT_CARDS: &[&str] = &[
 /// are the tail a grammar should not chase: each is its own special case in
 /// any engine, so the headline leaves them out and says how many.
 pub const EXCLUDED_TAG: &str = "unique-cr-reference";
+
+/// The scope is paper Magic: every card legal or restricted in Vintage.
+/// Vintage takes every paper set and bans only on principle, never for
+/// power, so this leaves out exactly the digital-only cards (Alchemy's
+/// "perpetually"), the Un-cards, and the cards no paper game plays: ante,
+/// dexterity (Chaos Orb), subgames (Shahrazad), Conspiracy's draft cards,
+/// and the cards banned in 2020 for racist content.
+fn vintage_playable(c: &Value) -> bool {
+    matches!(
+        c["legalities"]["vintage"].as_str(),
+        Some("legal" | "restricted")
+    )
+}
 
 pub struct Printed {
     pub name: String,
@@ -67,7 +80,7 @@ pub fn read(
     for line in text.lines() {
         let c: Value = serde_json::from_str(line)?;
         let layout = c["layout"].as_str().unwrap_or("");
-        if NOT_CARDS.contains(&layout) || c["set_type"] == "funny" {
+        if NOT_CARDS.contains(&layout) || !vintage_playable(&c) {
             continue;
         }
         if c["oracle_id"]

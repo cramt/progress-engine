@@ -22,7 +22,7 @@ cargo run --release -p vivisurgeons-insight -- lint                    # or: lin
 
 It reads `~/.cache/scryfall/oracle-cards.jsonl` and `oracle-tags.jsonl`, the
 files `scryfall sync` keeps. `--bulk` and `--tags` point elsewhere. The whole
-corpus takes about 16 s on one thread.
+corpus takes about 6 s on one thread.
 
 ## What counts as parsed
 
@@ -33,10 +33,20 @@ Reminder text is dropped before parsing. Keyword names, card types, subtypes
 and keyword actions come from Scryfall's catalogs in `vocab/`, not from a list
 written by hand.
 
+The corpus is paper Magic: every card legal or restricted in Vintage.
+Vintage takes every paper set and bans only on principle, never for power,
+so that one check leaves out the digital-only cards (Alchemy's
+"perpetually"), the Un-cards, and the cards no paper game plays: ante,
+dexterity (Chaos Orb), subgames (Shahrazad), Conspiracy's draft cards and
+the cards banned in 2020 for racist content. Unfinity's cards without the
+acorn are Vintage-legal and are in it. Before round 9 the corpus was every
+card outside a "funny" set, 33,427 of them; rounds 1–8 below are measured
+against that.
+
 Cards tagged `otag:unique-cr-reference` are left out of every figure. Each
 has a rule in the Comprehensive Rules written for it alone, so any engine
-handles it as its own special case. The tag holds 70 cards, and 62 of them
-are in the corpus after tokens and Un-cards are removed.
+handles it as its own special case. The tag holds 70 cards, and 64 of them
+are in the corpus.
 
 ## The numbers
 
@@ -50,10 +60,12 @@ are in the corpus after tokens and Un-cards are removed.
 | 6 | Top 500: copy exceptions, `for each` clauses, top or bottom of a library, a subject with a list of predicates | 56.8% | 72.2% | 88.7% | 81.0% | 90.0% |
 | 7 | Top 1000: damage doublers, digging until a card, repeated processes, extra phases, aura-made creatures | 60.7% | 74.9% | **100%** | 86.0% | 92.2% |
 | 8 | The Modern metagame: suspend, energy, reflexive triggers that keep their target, one-shot shields, delayed triggers for a turn, domain and converge, tiered modes | 67.5% | 79.5% | **100%** | 89.0% | 95.6% |
+| 9 | Card by card through my decks, Standard, the top 2000 and the precons, one sentence per commit; the corpus becomes Vintage-legal cards | 76.6% | 85.8% | 99.9% | 95.0% | 98.9% |
 
-There are 33,427 cards and 60,603 abilities. After round 8 the grammar is
-about 6,700 lines in `src/parse/` over a 2,400-line AST, and the corpus runs
-in about 16 s.
+There are 31,964 cards and 58,272 abilities. After round 9 the grammar is
+about 11,900 lines in `src/parse/` over a 3,300-line AST, and the corpus runs
+in about 6 s. The top 1000 is short one card, Saw in Half, an Unfinity card
+the Vintage corpus let in at rank 582.
 
 Rounds 1–4 were written by hand against the whole corpus. Rounds 5–8 were
 written by agents working through `insight failing N` (the failing abilities
@@ -70,13 +82,14 @@ reports every one. The lists in `milestones/` say where they came from, and
 
 | Milestone | Cards | Abilities | Status |
 |---|---|---|---|
-| EDHREC top 1000 | 990/990 | 1799/1799 | done |
-| My decks: every card in the 17 decks of cramt/mtg | 955/1022 (93.4%) | 2061/2134 (96.6%) | |
-| Standard after the early-2027 rotation | 3024/3517 (86.0%) | 6533/7054 (92.6%) | |
+| EDHREC top 1000 | 990/991 (99.9%) | 1802/1803 (99.9%) | pinned; Saw in Half came in with the Vintage corpus |
+| My decks: every card in the 17 decks of cramt/mtg | 955/1023 (93.4%) | 2062/2136 (96.5%) | |
+| Standard after the early-2027 rotation | 3025/3517 (86.0%) | 6535/7055 (92.6%) | |
 | Modern metagame: every card in MTGGoldfish's 60 archetypes, sideboards included | 571/571 | 1164/1164 | done |
-| All of Standard | 4161/5157 (80.7%) | 9326/10420 (89.5%) | |
-| EDHREC top 2000 | 1794/1986 (90.3%) | 3624/3847 (94.2%) | |
-| EDHREC top 5000 | 4011/4975 (80.6%) | 8991/10098 (89.0%) | |
+| All of Standard | 4162/5157 (80.7%) | 9328/10421 (89.5%) | |
+| EDHREC top 2000 | 1793/1987 (90.2%) | 3624/3849 (94.2%) | |
+| EDHREC top 5000 | 4013/4977 (80.6%) | 8995/10103 (89.0%) | |
+| Commander precons | 4516/6114 (73.9%) | 10382/12175 (85.3%) | |
 
 Cards tagged `unique-cr-reference` are left out of the lists too, so Karn
 Liberated and Trinisphere show up as not matched.
@@ -125,7 +138,7 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | EDHREC top 1000 (pinned) | 1800/1800 (100%) |
 | Modern metagame (pinned) | 1164/1164 (100%) |
 | EDHREC top 2000 | 3621/3624 (99.9%) |
-| All parsed abilities | 51223/51255 (99.9%) |
+| All parsed abilities | 49989/50019 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading
@@ -243,9 +256,12 @@ After round 4, the tokens failing lines broke at were general grammar: `,`
 
 ## Verdict
 
-**A grammar gets about two thirds of Magic's abilities and plateaus.** It does
-not get to all of them. The remaining third is mostly one-off sentences, so
-the work stops being "write the grammar" and becomes "write each card".
+**Templates get about two thirds of Magic's abilities and plateau.** The
+remaining third is mostly one-off sentences, so the work stops being "write
+the grammar" and becomes "write each card". Round 9 is that work: about 210
+commits, each teaching the grammar one card's sentence, took the old corpus
+from 67.5% to 74.7% of cards (at b9a2922), about ten cards a commit. It has
+not plateaued yet, but each commit buys fewer cards as the tail thins.
 
 That rules out *parse Oracle text and you have an engine* for all of Magic.
 For a **fixed card pool** it is doable, and round 7 showed it: the 1000 most
@@ -254,7 +270,7 @@ per-card override. The last 112 included Opposition Agent, Torment of
 Hailfire and Darksteel Mutation, and each took a general rule, not a special
 case. Round 8 did the same for the 571 cards of the Modern metagame, from
 Suspend to Teferi's sorcery timing. The milestones above are the next pools.
-Lantern still has 11 failing cards and Loam 4, and the same approach would
+Lantern still has 5 failing cards and Loam 1, and the same approach would
 finish both.
 
 Two warnings for anyone who builds on this:
