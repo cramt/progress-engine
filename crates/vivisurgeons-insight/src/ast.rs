@@ -794,6 +794,9 @@ pub enum State {
     Enchanted,
     /// "that's enchanted or equipped": with an Equipment attached (CR 301.5).
     Equipped,
+    /// "a land or double-faced card": a card with a Magic card face on each
+    /// side, or half an oversized face on one (CR 712.1).
+    DoubleFaced,
 }
 
 #[derive(Clone, Debug, PartialEq)]
