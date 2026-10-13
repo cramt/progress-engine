@@ -665,8 +665,18 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
                 Some(from)
             };
             p.tok(&Tok::Other('|'))?;
+            let start = p.i;
             match ability(p, true)? {
-                Ability::Spell(effect) => Some(Ability::DieRow { from, to, effect }),
+                Ability::Spell(mut effect) => {
+                    // A permanent's row is its own ability's effect, so the
+                    // card rule holds there as in an activated ability
+                    // (Iron Mastiff's "equal to its power").
+                    if !spell {
+                        refer_to_the_card_in(&[], &mut effect);
+                        sacrifice_it_is_the_card(&p.t[start..p.i], &mut effect);
+                    }
+                    Some(Ability::DieRow { from, to, effect })
+                }
                 _ => None,
             }
         },
@@ -1301,6 +1311,53 @@ pub(super) fn refer_to_the_card_in(cost: &[Cost], effect: &mut [Effect]) {
         c.clone().walk(&mut named);
     }
     refer(None, named.card && !named.other, None, effect);
+}
+
+/// Journey to the Lost City's "20 | Put all permanent cards exiled with this
+/// enchantment onto the battlefield, then sacrifice it": the singular "it"
+/// is not the cards, said in the plural, so it is the card named with them.
+/// Only where nothing singular but the card was named.
+fn sacrifice_it_is_the_card(toks: &[Tok], effect: &mut [Effect]) {
+    struct Named {
+        card: bool,
+        singular: bool,
+    }
+    impl Visitor for Named {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            match o.quant {
+                Quant::SelfRef => self.card = true,
+                Quant::All | Quant::Each | Quant::Plural | Quant::Antecedent => {}
+                _ => self.singular = true,
+            }
+            true
+        }
+    }
+    let said = toks.windows(2).any(
+        |w| matches!((&w[0], &w[1]), (Tok::Word(a), Tok::Word(b)) if a == "sacrifice" && b == "it"),
+    );
+    let Some((
+        Effect::Sacrifice {
+            who: Player::You,
+            what,
+        },
+        before,
+    )) = effect.split_last_mut()
+    else {
+        return;
+    };
+    if !said || *what != antecedent() {
+        return;
+    }
+    let mut named = Named {
+        card: false,
+        singular: false,
+    };
+    for e in before.iter_mut() {
+        e.walk(&mut named);
+    }
+    if named.card && !named.singular {
+        what.quant = Quant::SelfRef;
+    }
 }
 
 /// The card half of the rule over an effect a static says of the card:
@@ -2164,6 +2221,15 @@ impl Visitor for CreatedTokens {
             // which the tree holds first.
             Effect::PutCounters { on, .. } if self.created.is_some() && *on == antecedent() => {
                 on.quant = Quant::Created;
+            }
+            // "Create a 1/1 red Goblin creature token, then attach this
+            // Equipment to it": the card named in the clause is not "it".
+            Effect::Attach { what, to }
+                if self.created.is_some()
+                    && what.quant == Quant::SelfRef
+                    && *to == antecedent() =>
+            {
+                to.quant = Quant::Created;
             }
             Effect::Where { .. } => self.wheres.push((self.depth, None)),
             Effect::Otherwise(_) | Effect::IfYouDont(_) => {

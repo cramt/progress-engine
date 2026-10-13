@@ -30,6 +30,11 @@ pub struct Line {
     /// instructions, followed after the ones before (CR 608.2c), so it may
     /// open with "Then".
     pub continues: bool,
+    /// The tree as the line's own words say it, where reading the card's
+    /// other lines resolved it further (Swarming Goblins' "Create two of
+    /// those tokens" under the row that describes them): the round trip
+    /// says this.
+    pub said: Option<Ability>,
 }
 
 /// Where a line stopped parsing: the words read and the word it could not.
@@ -69,7 +74,7 @@ pub fn read_face(face: &Face, card_name: &str) -> Vec<Line> {
             _ => lines.push(l.to_string()),
         }
     }
-    lines
+    let mut read: Vec<Line> = lines
         .into_iter()
         .filter(|l| !l.trim().is_empty())
         // A line of nothing but reminder text says nothing to read.
@@ -91,18 +96,85 @@ pub fn read_face(face: &Face, card_name: &str) -> Vec<Line> {
                 text,
                 parsed,
                 continues,
+                said: None,
             }
         })
-        .collect()
+        .collect();
+    those_tokens(&mut read);
+    read
 }
 
+/// "Create two of those tokens" where no tokens were made to be "those":
+/// the tokens a row above described (Swarming Goblins' "1—9 | Create a 1/1
+/// red Goblin creature token. / 10—19 | Create two of those tokens."), the
+/// paragraph before (Gather the Townsfolk), or the branch not taken (Brood
+/// Birthing's "Otherwise, create one of those tokens"). It is a `Create` of
+/// that description ([those-tokens-described]).
+fn those_tokens(lines: &mut [Line]) {
+    use ast::{Actor, Effect, Noun, Objects, Player, Quant, Token};
+    use walk::{Visitor, Walk};
+    struct Those {
+        last: Option<Token>,
+        changed: bool,
+    }
+    impl Visitor for Those {
+        fn enter(&mut self, _: &mut Objects) -> bool {
+            true
+        }
+        fn ability(&mut self, _: &mut Ability) -> bool {
+            true
+        }
+        fn effect(&mut self, e: &mut Effect) {
+            match e {
+                Effect::Create {
+                    who: Player::You,
+                    token,
+                    ..
+                } => self.last = Some(token.clone()),
+                Effect::CreateThose {
+                    by: Actor::Player(Player::You),
+                    n,
+                    those,
+                } if those.quant == Quant::Antecedent
+                    && those.filter.kind == Some(Noun::Token)
+                    && those.filter.alts.is_empty()
+                    && those.filter.posts.is_empty()
+                    && those.filter.or.is_none() =>
+                {
+                    if let Some(token) = self.last.clone() {
+                        *e = Effect::Create {
+                            who: Player::You,
+                            n: n.clone(),
+                            token,
+                        };
+                        self.changed = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    let mut v = Those {
+        last: None,
+        changed: false,
+    };
+    for l in lines.iter_mut() {
+        let Ok(a) = &mut l.parsed else { continue };
+        let before = a.clone();
+        v.changed = false;
+        a.walk(&mut v);
+        if v.changed {
+            l.said = Some(before);
+        }
+    }
+}
 impl Line {
     /// Whether the line's tree renders back into the line's own words; `None`
     /// for a line that did not parse.
     pub fn round_trip(&self) -> Option<Result<(), unparse::Diff>> {
         let a = self.parsed.as_ref().ok()?;
         Some(unparse::compare(
-            &unparse::paragraph(a, self.continues),
+            &unparse::paragraph(self.said.as_ref().unwrap_or(a), self.continues),
             &unparse::line_tokens(&self.text),
         ))
     }
