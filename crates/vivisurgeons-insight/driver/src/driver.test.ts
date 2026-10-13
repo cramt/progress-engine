@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import type { HookCallback } from "@anthropic-ai/claude-agent-sdk";
 import { PIN, PUSH, touches, writerGuard } from "./agents.ts";
-import { pushRebasing } from "./git.ts";
+import { batchCommitOnOrigin, pushRebasing } from "./git.ts";
 import {
   failingCount,
   parseCoverage,
@@ -357,4 +357,21 @@ test("push: a re-gate that throws parks instead of crashing", async () => {
   assert.ok(p.kind === "unpushed");
   assert.deepEqual(p.cause, { kind: "error", detail: "cargo build exploded" });
   assert.equal(git(r.driver, "rev-parse", "HEAD"), originHead(r));
+});
+
+test("gate: origin moving is the writer pushing only when it holds a batch commit", async () => {
+  const r = repos();
+  const baseline = git(r.driver, "rev-parse", "HEAD");
+  commit(r.driver, "b.txt", "writer\n", "insight: b");
+  humanPushes(r, "c.txt", "human\n");
+  git(r.driver, "fetch", "-q", "origin", "main");
+  assert.equal(await batchCommitOnOrigin(r.driver, baseline), null);
+
+  const r2 = repos();
+  const base2 = git(r2.driver, "rev-parse", "HEAD");
+  commit(r2.driver, "b.txt", "writer\n", "insight: b");
+  const mine = git(r2.driver, "rev-parse", "HEAD");
+  commit(r2.driver, "d.txt", "writer\n", "insight: d");
+  git(r2.driver, "push", "-q", "origin", `${mine}:main`);
+  assert.equal(await batchCommitOnOrigin(r2.driver, base2), mine);
 });

@@ -1,5 +1,10 @@
 import { readFileSync } from "node:fs";
-import { commitsSince, dirty, branch as gitBranch, originMain } from "./git.ts";
+import {
+  batchCommitOnOrigin,
+  commitsSince,
+  dirty,
+  branch as gitBranch,
+} from "./git.ts";
 import { buildRelease, measure, type Paths, row } from "./insight.ts";
 import { snapDiff } from "./parse.ts";
 import { log, run, secs, tail } from "./sh.ts";
@@ -35,11 +40,11 @@ async function gitFailures(
   if (b !== "main") failures.push({ gate: "git", reason: `on ${b}, not main` });
   const d = await dirty(paths.repo);
   if (d) failures.push({ gate: "git", reason: `uncommitted changes:\n${d}` });
-  const o = await originMain(paths.repo);
-  if (o !== baseline.head) {
+  const pushed = await batchCommitOnOrigin(paths.repo, baseline.head);
+  if (pushed) {
     failures.push({
       gate: "git",
-      reason: `origin/main moved to ${o.slice(0, 7)} during the batch; the writer must not push`,
+      reason: `origin/main holds the batch's commit ${pushed.slice(0, 7)}; the writer must not push`,
     });
   }
   for (const c of await commitsSince(paths.repo, baseline.head)) {

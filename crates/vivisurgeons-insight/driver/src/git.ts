@@ -53,6 +53,29 @@ export async function commitsSince(
     });
 }
 
+/**
+ * The first of the batch's commits (those past `baseline` on HEAD) that
+ * origin/main already holds, or null. Only that means the batch was pushed;
+ * origin/main moving on its own is someone else's push, which the push's
+ * rebase handles.
+ */
+export async function batchCommitOnOrigin(
+  repo: string,
+  baseline: string,
+): Promise<string | null> {
+  const onOrigin = new Set(
+    (
+      await must("git", ["rev-list", `${baseline}..origin/${BRANCH}`], {
+        cwd: repo,
+      })
+    )
+      .split("\n")
+      .filter(Boolean),
+  );
+  const mine = await commitsSince(repo, baseline);
+  return mine.find((c) => onOrigin.has(c.sha))?.sha ?? null;
+}
+
 export type Preflight =
   | { kind: "ready"; head: string }
   | { kind: "refused"; reason: string };

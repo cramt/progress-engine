@@ -41,10 +41,14 @@ A real run refuses to start unless `main` is checked out, clean, and equal to
    editing the handoff. The AbortController stops the call 20 minutes after
    that. Writers report a decision they carried out in their summary, not in
    the file.
-3. **Gates.** Git hygiene (on main, clean, nothing pushed, `insight: `
-   subjects, no AI attribution), `cargo fmt --all --check`,
+3. **Gates.** Git hygiene (on main, clean, none of the batch's commits
+   already on `origin/main`, `insight: ` subjects, no AI attribution);
+   `origin/main` moving past the baseline by itself is a human's push, left
+   to the push's rebase below. Then `cargo fmt --all --check`,
    `cargo clippy --all-targets -- -D warnings`,
-   `cargo test -p vivisurgeons-insight`, then the ratchets against the
+   `cargo test -p vivisurgeons-insight`, which holds every tree in `golden/`
+   and `snapshot/`, so a batch that moves trees must commit them blessed
+   (`UPDATE_GOLDEN=1`, as the writer prompt says), then the ratchets against the
    baseline: round-trip failures, abilities parsed, lint per kind, and no lost
    tree in the snapshot diff. If the Scryfall bulk changed mid-batch, the
    baseline is measured again in a worktree at the baseline commit. On a pass
