@@ -349,6 +349,20 @@ pub enum Limit {
     Once,
     /// "Activate only during your upkeep."
     OnlyDuringYourUpkeep,
+    /// "X can't be 0.", "X can't be greater than …": a bound on the value
+    /// the controller chooses for X (CR 107.3a).
+    X(XLimit),
+    /// "This ability can't be copied."
+    CantBeCopied,
+}
+
+/// A bound on a chosen X (CR 107.3a).
+#[derive(Clone, Debug, PartialEq)]
+pub enum XLimit {
+    /// "X can't be 0."
+    NotZero,
+    /// "X can't be greater than the number of players in the game."
+    AtMost(Amount),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -2735,6 +2749,9 @@ pub enum Whose {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Static {
+    /// "X can't be greater than the number of players in the game." as a
+    /// spell's own paragraph: a bound on the X chosen as it is cast.
+    X(XLimit),
     Modify {
         what: Objects,
         pt: Option<Pt>,

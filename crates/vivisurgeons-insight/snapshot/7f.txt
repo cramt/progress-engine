@@ -972,7 +972,7 @@ cost: {G}{W}{U}
 > Lifelink
 > At the beginning of your end step, you may pay {X}. If you do, draw X cards. X can't be greater than the amount of life you gained this turn.
 = Keywords([Keyword { name: "lifelink", param: None }])
-= BROKE at "be" after: at the beginning of your end step , you may pay {X} . if you do , draw x cards . x can't
+= Triggered { trigger: At(EndStep(Yours)), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["X"]))] }] }, IfYouDo([Draw { who: You, n: X }])], limits: [X(AtMost(LifeGainedThisTurn(You)))] }
 
 ## Shardless Agent
 face: Shardless Agent

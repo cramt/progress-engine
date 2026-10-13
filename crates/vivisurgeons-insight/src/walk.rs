@@ -1892,6 +1892,9 @@ impl Walk for Limit {
             Limit::SpendOnlyManaOf(f0) => {
                 Walk::walk(f0, v);
             }
+            Limit::X(f0) => {
+                Walk::walk(f0, v);
+            }
             _ => {}
         }
     }
@@ -2381,6 +2384,9 @@ impl Walk for Static {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
         match self {
+            Static::X(f0) => {
+                Walk::walk(f0, v);
+            }
             Static::Modify { what, has, per, .. } => {
                 Walk::walk(what, v);
                 for x0 in (has).iter_mut() {
@@ -2816,6 +2822,18 @@ impl Walk for TypeSet {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);
                 }
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Walk for XLimit {
+    #[allow(clippy::all)]
+    fn walk(&mut self, v: &mut dyn Visitor) {
+        match self {
+            XLimit::AtMost(f0) => {
+                Walk::walk(f0, v);
             }
             _ => {}
         }

@@ -2110,8 +2110,30 @@ fn limits(o: &mut Out, ls: &[Limit], triggered: bool) {
                 o.w("to activate this ability");
             }
             Limit::DoOnlyOncePerTurn => o.w("do this only once each turn"),
+            Limit::X(x) => x_limit(o, x),
+            Limit::CantBeCopied => {
+                o.w("this ability can't be copied");
+                // "This ability can't be copied and X can't be 0.": one sentence.
+                if let Some(Limit::X(x)) = ls.get(i) {
+                    o.w("and");
+                    x_limit(o, x);
+                    i += 1;
+                }
+            }
         }
         o.tok(Tok::Period);
+    }
+}
+
+/// "X can't be 0", "X can't be greater than …".
+fn x_limit(o: &mut Out, x: &XLimit) {
+    o.w("x can't be");
+    match x {
+        XLimit::NotZero => syn::number(o, 0),
+        XLimit::AtMost(n) => {
+            o.w("greater than");
+            measure(o, n);
+        }
     }
 }
 
@@ -2737,6 +2759,16 @@ fn measure(o: &mut Out, a: &Amount) {
         Amount::CountOf(x) => {
             o.w("the number of");
             objects(o, x);
+            // Every player: "the number of players in the game".
+            if x.quant == Quant::Plural
+                && x.filter
+                    == (Filter {
+                        kind: Some(Noun::Player),
+                        ..Filter::default()
+                    })
+            {
+                o.w("in the game");
+            }
         }
         Amount::PowerOf(x) | Amount::ToughnessOf(x) | Amount::ManaValueOf(x) => {
             let s = match a {
@@ -11614,6 +11646,7 @@ fn static_other(o: &mut Out, s: &Static) {
             });
             statics_joined(o, then);
         }
+        Static::X(x) => x_limit(o, x),
         Static::AsEnters { what, then } => {
             o.w("as");
             obj_subj(o, what, "enter");

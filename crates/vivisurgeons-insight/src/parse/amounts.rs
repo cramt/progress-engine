@@ -204,6 +204,11 @@ fn measure_bare(p: &mut P) -> Option<Amount> {
         |p| { p.words("the number of basic land types among")?; objects(p).map(|o| Amount::NumberOfBasicLandTypes(Box::new(o))) },
         |p| { p.words("the number of card types among")?; objects(p).map(|o| Amount::NumberOfCardTypes(Box::new(o))) },
         |p| { p.words("the number of colors of mana spent to cast")?; objects(p).map(|o| Amount::ColorsOfManaSpentToCast(Box::new(o))) },
+        // "the number of players in the game": every player.
+        |p| {
+            p.words("the number of players in the game")?;
+            Some(Amount::CountOf(Box::new(Objects { quant: Quant::Plural, filter: Filter { kind: Some(Noun::Player), ..Filter::default() } })))
+        },
         |p| { p.words("the number of")?; objects(p).map(|o| Amount::CountOf(Box::new(o))) },
         // "twice the number of creatures you control".
         |p| { p.word("twice")?; measure_bare(p).map(|m| Amount::Twice(Box::new(m))) },

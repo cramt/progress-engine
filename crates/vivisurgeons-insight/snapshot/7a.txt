@@ -679,7 +679,7 @@ cost: {5}{B}
 > Flying
 > Primarch of the Death Guard — At the beginning of your end step, you may pay {X}. If you do, create X 2/2 black Astartes Warrior creature tokens with menace. X can't be greater than the amount of life you lost this turn.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "be" after: primarch of the death guard — at the beginning of your end step , you may pay {X} . if you do , create x <pt> black astartes warrior creature tokens with menace . x can't
+= Labelled { label: "primarch of the death guard", ability: Triggered { trigger: At(EndStep(Yours)), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["X"]))] }] }, IfYouDo([Create { who: You, n: X, token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["astartes", "warrior", "creature"], keywords: [Keyword { name: "menace", param: None }], abilities: [], named: None, attacking: None } }])], limits: [X(AtMost(LifeLostThisTurn(You)))] } }
 
 ## Mossfire Valley
 face: Mossfire Valley

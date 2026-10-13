@@ -15,6 +15,14 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
     }) {
         return Some(s);
     }
+    // "X can't be greater than the number of players in the game." alone.
+    if let Some(s) = p.attempt(|p| {
+        let x = super::x_limit(p)?;
+        p.end_sentence()?;
+        Some(vec![Static::X(x)])
+    }) {
+        return Some(s);
+    }
     // "You can't cast ~ during your first, second, or third turns of the
     // game": a cast restriction while it's one of those turns. Before the
     // rules that read "you can't cast ~" alone.

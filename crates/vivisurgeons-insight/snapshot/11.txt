@@ -649,7 +649,7 @@ type: Sorcery
 cost: {X}{G}{G}
 > X can't be greater than the number of players in the game.
 > Reveal cards from the top of your library until you reveal X land cards. Put those land cards onto the battlefield tapped and the rest on the bottom of your library in a random order.
-= BROKE at "of" after: x can't be greater than the number
+= Static([X(AtMost(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } })))])
 = Spell([UntilFound { who: You, verb: Reveal, zone: TopOfLibrary(You), until: Objects { quant: N(X), filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Random) }])
 
 ## Origin of Thor

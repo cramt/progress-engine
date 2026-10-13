@@ -521,7 +521,7 @@ cost: {U}{B}
 > Whenever Ludevic enters or attacks, mill a card.
 > {X}{U}{U}{B}{B}, Exile X creature cards from your graveyard: Transform Ludevic. X can't be 0. Activate only as a sorcery.
 = Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Mill { who: You, n: N(1) }], limits: [] }
-= BROKE at "be" after: {X} {U} {U} {B} {B} , exile x creature cards from your graveyard : transform ~ . x can't
+= Activated { cost: [Mana(Mana(["X", "U", "U", "B", "B"])), Exile(Objects { quant: N(X), filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [X(NotZero), SorcerySpeed] }
 
 ## Ludevic, Necrogenius // Olag, Ludevic's Hubris
 face: Olag, Ludevic's Hubris

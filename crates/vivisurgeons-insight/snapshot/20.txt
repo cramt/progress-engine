@@ -1084,6 +1084,6 @@ cost: {X}{U}
 > X can't be greater than the number of snow lands you control.
 > Choose X target attacking creatures. For each of those creatures, its controller may pay {1} or {2}. If that player doesn't, destroy that creature at end of combat. If that player pays only {1}, prevent all combat damage that would be dealt to and dealt by that creature this combat.
 = BROKE at "blockers" after: cast this spell only during combat before
-= BROKE at "of" after: x can't be greater than the number
+= Static([X(AtMost(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Supertype("snow"), Type("land")]], kind: None, posts: [Controller(You)], or: None } })))])
 = BROKE at "{2}" after: choose x target attacking creatures . for each of those creatures , its controller may pay {1} or
 

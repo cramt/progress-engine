@@ -365,6 +365,16 @@ fn limits(p: &mut P) -> Vec<Limit> {
                 Some(v)
             },
             |p| p.words("this ability triggers only once each turn").map(|_| vec![Limit::OncePerTurn]),
+            // "This ability can't be copied and X can't be 0."
+            |p| {
+                p.words("this ability can't be copied")?;
+                let mut v = vec![Limit::CantBeCopied];
+                if let Some(x) = p.attempt(|p| { p.word("and")?; x_limit(p) }) {
+                    v.push(Limit::X(x));
+                }
+                Some(v)
+            },
+            |p| x_limit(p).map(|x| vec![Limit::X(x)]),
             |p| p.words("do this only once each turn").map(|_| vec![Limit::DoOnlyOncePerTurn]),
             |p| {
                 p.words("spend only mana of")?;
@@ -408,6 +418,15 @@ fn limits(p: &mut P) -> Vec<Limit> {
         v.extend(l);
     }
     v
+}
+
+/// "X can't be 0", "X can't be greater than …" (CR 107.3a).
+pub(super) fn x_limit(p: &mut P) -> Option<XLimit> {
+    p.words("x can't be")?;
+    alt!(p;
+        |p| p.tok(&Tok::Num(0)).map(|_| XLimit::NotZero),
+        |p| { p.words("greater than")?; measure(p).map(XLimit::AtMost) },
+    )
 }
 
 /// What follows "activate only": "as a sorcery", "once each turn", "if …".

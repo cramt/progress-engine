@@ -656,7 +656,7 @@ type: Sorcery
 cost: {3}{R}{R}
 > As an additional cost to cast this spell, blight X. X can't be greater than the greatest toughness among creatures you control. (Put X -1/-1 counters on a creature you control.)
 > Soul Immolation deals X damage to each opponent and each creature they control.
-= BROKE at "be" after: as an additional cost to cast this spell , blight x . x can't
+= Static([AdditionalCost([Action { name: "blight", n: X }]), X(AtMost(Greatest { stat: Toughness, among: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }))])
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Player(EachOpponent), Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } })] }])
 
 ## Spectacular Tactics
