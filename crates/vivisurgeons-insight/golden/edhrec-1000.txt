@@ -2210,7 +2210,7 @@ cost: {1}{R}{R}
 > Flash
 > When this creature enters, copy target instant or sorcery spell. You may choose new targets for the copy.
 = Keywords([Keyword { name: "flash", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: false }, May { who: You, then: [ChooseNewTargets(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Copy), posts: [], or: None } })] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }], limits: [] }
 
 ## Dusk // Dawn
 face: Dusk
@@ -5801,7 +5801,7 @@ cost: {R}{R}
 > + {1} — Copy target instant spell, sorcery spell, activated ability, or triggered ability. You may choose new targets for the copy.
 > + {1} — Change the target of target spell or ability with a single target.
 = Keywords([Keyword { name: "spree", param: None }])
-= Spree { cost: Mana(["1"]), effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")]], kind: Some(Spell), posts: [], or: Some(Filter { alts: [[Type("sorcery")]], kind: Some(Spell), posts: [], or: Some(Filter { alts: [[Ability(Activated)]], kind: Some(Ability), posts: [], or: Some(Filter { alts: [[Ability(Triggered)]], kind: Some(Ability), posts: [], or: None }) }) }) } }, may_choose_new_targets: false }, May { who: You, then: [ChooseNewTargets(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Copy), posts: [], or: None } })] }] }
+= Spree { cost: Mana(["1"]), effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")]], kind: Some(Spell), posts: [], or: Some(Filter { alts: [[Type("sorcery")]], kind: Some(Spell), posts: [], or: Some(Filter { alts: [[Ability(Activated)]], kind: Some(Ability), posts: [], or: Some(Filter { alts: [[Ability(Triggered)]], kind: Some(Ability), posts: [], or: None }) }) }) } }, may_choose_new_targets: true }] }
 = Spree { cost: Mana(["1"]), effect: [ChangeTarget(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [WithSingleTarget], or: None } })] }
 
 ## Return to Nature
@@ -6793,7 +6793,7 @@ face: Strionic Resonator
 type: Artifact
 cost: {2}
 > {2}, {T}: Copy target triggered ability you control. You may choose new targets for the copy. (A triggered ability uses the words "when," "whenever," or "at.")
-= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Ability(Triggered)]], kind: Some(Ability), posts: [Controller(You)], or: None } }, may_choose_new_targets: false }, May { who: You, then: [ChooseNewTargets(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Copy), posts: [], or: None } })] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2"])), Tap], effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Ability(Triggered)]], kind: Some(Ability), posts: [Controller(You)], or: None } }, may_choose_new_targets: true }], limits: [] }
 
 ## Strip Mine
 face: Strip Mine

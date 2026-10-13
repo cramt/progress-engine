@@ -186,6 +186,36 @@ mod tests {
     }
 
     #[test]
+    fn a_copy_s_choice_of_new_targets_belongs_to_each_copy() {
+        // CR 707.10c: the choice is made as each copy is put on the stack,
+        // so it sits on the Copy inside the loop, with no "may" after it.
+        let a = read(
+            "Thunderclap Drake",
+            "Creature — Drake",
+            "{2}{U}, Sacrifice this creature: When you next cast an instant or sorcery spell this turn, copy it for each time you've cast your commander from the command zone this game. You may choose new targets for the copies.",
+        );
+        let Ability::Activated { effect, .. } = &a[0] else {
+            panic!("{a:?}")
+        };
+        let [Effect::DelayedNext { then, .. }] = effect.as_slice() else {
+            panic!("{effect:?}")
+        };
+        let [Effect::Repeat { then, .. }] = then.as_slice() else {
+            panic!("{then:?}")
+        };
+        assert!(
+            matches!(
+                then.as_slice(),
+                [Effect::Copy {
+                    may_choose_new_targets: true,
+                    ..
+                }]
+            ),
+            "{then:?}"
+        );
+    }
+
+    #[test]
     fn a_new_templated_enters_trigger_reads_this_creature_as_itself() {
         let a = read(
             "Some Bear",

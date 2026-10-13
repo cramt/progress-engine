@@ -1245,6 +1245,7 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
     }
     permission_rules(&mut v);
     no_regen_after(&mut v);
+    new_targets_after(&mut v);
     enters_with_after(&mut v);
     source_of_ability(&mut v);
     // "… If you do, draw a card and repeat this process.": the process is
@@ -1253,6 +1254,56 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
         v = vec![Effect::Process(v)];
     }
     (!v.is_empty()).then_some(v)
+}
+
+/// "Copy target instant or sorcery spell. You may choose new targets for
+/// the copy.", "copy it for each time you've cast your commander from the
+/// command zone this game. You may choose new targets for the copies.": the
+/// choice is made as each copy is put onto the stack (CR 707.10c), so it
+/// belongs to the copy effect, inside whatever loop or delayed trigger
+/// holds it, and not to a "may" said after the copies exist
+/// ([copy-new-targets]).
+fn new_targets_after(v: &mut Vec<Effect>) {
+    for e in v.iter_mut() {
+        if let Effect::DelayedNext { then, .. }
+        | Effect::DelayedWhen { then, .. }
+        | Effect::DelayedWhenever { then, .. }
+        | Effect::During { then, .. }
+        | Effect::IfYouDont(then)
+        | Effect::If { then, .. }
+        | Effect::Where { then, .. }
+        | Effect::ForEach { then, .. }
+        | Effect::May { then, .. }
+        | Effect::IfYouDo(then)
+        | Effect::WhenYouDo(then) = e
+        {
+            new_targets_after(then);
+        }
+        if let Effect::Modal { modes, .. } = e {
+            modes.iter_mut().for_each(new_targets_after);
+        }
+    }
+    let mut i = 1;
+    while i < v.len() {
+        let about_copy = matches!(&v[i], Effect::May { who: Player::You, then }
+            if matches!(then.as_slice(), [Effect::ChooseNewTargets(o)]
+                if o.quant == Quant::Antecedent
+                    && o.filter == Filter { kind: Some(Noun::Copy), ..Filter::default() }));
+        if about_copy && v[i - 1].trailing_copy() == Some(false) {
+            // "copy it if you control an artifact, then copy it if you
+            // control an enchantment. You may choose new targets for the
+            // copies": each copy said before.
+            for e in v[..i].iter_mut().rev() {
+                match e.trailing_copy_mut() {
+                    Some(flag) if !*flag => *flag = true,
+                    _ => break,
+                }
+            }
+            v.remove(i);
+            continue;
+        }
+        i += 1;
+    }
 }
 
 /// "Destroy target creature if it's white. A creature destroyed this way

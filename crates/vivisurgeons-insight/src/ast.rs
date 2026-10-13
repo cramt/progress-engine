@@ -1981,6 +1981,57 @@ impl Keeps {
 }
 
 impl Effect {
+    /// The copy a following "You may choose new targets for the copy" is
+    /// about: the `Copy` this effect ends with, through the branches,
+    /// loops and delayed triggers that hold it ("copy it for each time
+    /// you've cast your commander …", "When you next cast an instant or
+    /// sorcery spell this turn, copy it"), but not through a "may", whose
+    /// copy says its own "and may choose a new target for the copy".
+    /// Returns its `may_choose_new_targets`.
+    pub fn trailing_copy_mut(&mut self) -> Option<&mut bool> {
+        match self {
+            Effect::Copy {
+                may_choose_new_targets,
+                ..
+            } => Some(may_choose_new_targets),
+            Effect::Repeat { then, .. }
+            | Effect::DelayedNext { then, .. }
+            | Effect::DelayedWhen { then, .. }
+            | Effect::DelayedWhenever { then, .. }
+            | Effect::During { then, .. }
+            | Effect::IfYouDont(then)
+            | Effect::If { then, .. }
+            | Effect::Where { then, .. }
+            | Effect::IfYouDo(then)
+            | Effect::ForEach { then, .. }
+            | Effect::May { then, .. }
+            | Effect::WhenYouDo(then) => then.last_mut()?.trailing_copy_mut(),
+            _ => None,
+        }
+    }
+
+    pub fn trailing_copy(&self) -> Option<bool> {
+        match self {
+            Effect::Copy {
+                may_choose_new_targets,
+                ..
+            } => Some(*may_choose_new_targets),
+            Effect::Repeat { then, .. }
+            | Effect::DelayedNext { then, .. }
+            | Effect::DelayedWhen { then, .. }
+            | Effect::DelayedWhenever { then, .. }
+            | Effect::During { then, .. }
+            | Effect::IfYouDont(then)
+            | Effect::If { then, .. }
+            | Effect::Where { then, .. }
+            | Effect::IfYouDo(then)
+            | Effect::ForEach { then, .. }
+            | Effect::May { then, .. }
+            | Effect::WhenYouDo(then) => then.last()?.trailing_copy(),
+            _ => None,
+        }
+    }
+
     /// The one object an effect is said of, where it names no other:
     /// "~ gains indestructible until end of turn", "Tap it". A pronoun in
     /// the next sentence can only point back to it.

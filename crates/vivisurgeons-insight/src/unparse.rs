@@ -591,6 +591,27 @@ mod syn {
         any_of(o, &["abilities", "an ability"]);
     }
 
+    /// "you may copy it and may choose a new target for the copy", "you
+    /// may copy it. You may choose new targets for the copy.": the second
+    /// "may" is the same player's, and the clauses of one ability are
+    /// followed in order whatever joins them (`joiner`).
+    pub fn may_copy_new_targets(o: &mut Out, and: Out, sentence: Out) {
+        alt(o, vec![and, sentence]);
+    }
+
+    /// "for the copy", "for the copies": agreement with however many
+    /// copies the effect made, which "copy any number of target spells"
+    /// or "copy it for each time …" leaves to the game; the choice is made
+    /// for each copy alike (CR 707.10c). `many` picks the form shown.
+    pub fn copies(o: &mut Out, many: bool) {
+        let (a, b) = if many {
+            ("copies", "copy")
+        } else {
+            ("copy", "copies")
+        };
+        any_of(o, &[a, b]);
+    }
+
     pub fn new_targets(o: &mut Out) {
         any_of(o, &["new targets", "a new target"]);
     }
@@ -4719,7 +4740,7 @@ fn regen_in_branch(e: &Effect) -> Option<(Effect, Vec<Objects>)> {
 }
 
 fn sentences(o: &mut Out, es: &[Effect], cx: &Cx) {
-    clauses(o, es, cx);
+    clauses_in(o, es, cx, true);
     // A modal effect's modes end their own sentences, after "you may" too.
     let modal = |e: &Effect| match e {
         Effect::Modal { .. } => true,
@@ -4731,8 +4752,51 @@ fn sentences(o: &mut Out, es: &[Effect], cx: &Cx) {
     }
 }
 
+/// "Copy target instant spell. You may choose new targets for the copy.",
+/// "copy it for each time …. You may choose new targets for the copies.",
+/// "copy that spell and you may choose new targets for the copy": the
+/// choice a `Copy` carries, said after the clause that holds it. `Some`
+/// when `e` ends in such a copy outside a "may" (which says it itself),
+/// holding whether the copy is made more than once.
+fn copy_said_after(e: &Effect) -> Option<bool> {
+    match e {
+        Effect::Copy {
+            may_choose_new_targets: true,
+            ..
+        } => Some(false),
+        Effect::Repeat { then, .. } | Effect::ForEach { then, .. } => {
+            then.last().and_then(copy_said_after).map(|_| true)
+        }
+        Effect::DelayedNext { then, .. }
+        | Effect::DelayedWhen { then, .. }
+        | Effect::DelayedWhenever { then, .. }
+        | Effect::During { then, .. }
+        | Effect::IfYouDont(then)
+        | Effect::If { then, .. }
+        | Effect::Where { then, .. }
+        | Effect::IfYouDo(then)
+        | Effect::WhenYouDo(then) => then.last().and_then(copy_said_after),
+        _ => None,
+    }
+}
+
+fn new_targets_sentence(o: &mut Out, many: bool) {
+    syn::joiner(o, false);
+    o.w("you may choose");
+    syn::new_targets(o);
+    o.w("for");
+    syn::that(o);
+    syn::copies(o, many);
+}
+
 /// Clauses joined, with no period after the last.
 fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
+    clauses_in(o, es, cx, false);
+}
+
+/// `top`: the clauses are an ability's or a mode's sentences, after which a
+/// copy's choice of new targets is said.
+fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
     let mut implied = cx.continues.clone();
     let mut i = 0;
     let mut last = Out::default();
@@ -5124,6 +5188,18 @@ fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
                 syn::subject(o, you, named_or_it.clone(), named_or_it);
             }
             _ => o.add(named_or_it),
+        }
+        // Said once after a run of such copies ("copy it if …, then copy
+        // it if …. You may choose new targets for the copies").
+        let after = copy_said_after(e)
+            .filter(|_| top && !cx.modal && es.get(i + 1).and_then(copy_said_after).is_none());
+        if let Some(many) = after {
+            let run = es[..i]
+                .iter()
+                .rev()
+                .take_while(|e| copy_said_after(e).is_some())
+                .count();
+            new_targets_sentence(o, many || run > 0);
         }
         last = Out(o.0[start..].to_vec());
         if let Some(s) = subject_of(e) {
@@ -5972,12 +6048,21 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
         } => {
             o.w("copy");
             objects(o, what);
-            if *may_choose_new_targets {
-                o.w("and may choose");
-                syn::new_targets(o);
-                o.w("for");
-                syn::that(o);
-                o.w("copy");
+            // "you may copy this spell and may choose a new target for the
+            // copy"; otherwise the choice is its own sentence, said after
+            // the clause that holds the copy (`new_targets_sentence`).
+            // "you may copy it. You may choose new targets for the copy.":
+            // the same choice, in a sentence of its own.
+            if *may_choose_new_targets && cx.modal {
+                let and = out(|o| {
+                    o.w("and may choose");
+                    syn::new_targets(o);
+                    o.w("for");
+                    syn::that(o);
+                    o.w("copy");
+                });
+                let sentence = out(|o| new_targets_sentence(o, false));
+                syn::may_copy_new_targets(o, and, sentence);
             }
         }
         Effect::ExtraTurn => o.w("take an extra turn after this one"),

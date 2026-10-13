@@ -2706,7 +2706,7 @@ type: Land
 > {4}{C}, {T}, Sacrifice this land: Create a token that's a copy of target creature you control.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["2", "C"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })], effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Controller(You)], or: None } }, may_choose_new_targets: false }, May { who: You, then: [ChooseNewTargets(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Copy), posts: [], or: None } })] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "C"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })], effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Controller(You)], or: None } }, may_choose_new_targets: true }], limits: [] }
 = Activated { cost: [Mana(Mana(["4", "C"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })], effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }], limits: [] }
 
 ## Mishra's Bauble
