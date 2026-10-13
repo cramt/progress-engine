@@ -1,7 +1,7 @@
 //! `insight coverage` reads every card in Scryfall's oracle bulk file and
 //! reports how many parse with no hole; `insight card <name>` prints one tree.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 
 use anyhow::{bail, Context, Result};
@@ -355,26 +355,55 @@ fn pin(args: &[String]) -> Result<()> {
     Ok(())
 }
 
-/// One line per ability that parses, with its tree, sorted. Diffing two
-/// snapshots shows every tree a grammar change touched: a rule that turns a
-/// right parse into a complete but wrong one moves no coverage number.
+/// Writes `snapshot/`: every face of the corpus with the trees it reads into
+/// now, the lines that break included. The golden test holds the grammar to
+/// it, so a rule that turns a right parse into a complete but wrong one, which
+/// moves no coverage number, fails until its moved trees are read. Run it
+/// after `scryfall sync` brings new cards or new Oracle text.
+///
+/// Given a path, it writes the driver's flat file there instead: one line
+/// per ability that parses, "card | text | tree", sorted, which the driver
+/// diffs between a batch's baseline and its end.
 fn snapshot(args: &[String]) -> Result<()> {
-    let out = args.first().context("snapshot needs an output path")?;
     let (cards, _) = load(&cache("oracle-cards.jsonl"), &HashSet::new(), None)?;
-    let mut rows: Vec<String> = cards
-        .iter()
-        .flat_map(|c| {
-            c.lines.iter().filter_map(move |l| {
-                l.parsed
-                    .as_ref()
-                    .ok()
-                    .map(|a| format!("{} | {} | {a:?}", c.name, l.text.replace('\n', " / ")))
+    if let Some(out) = args.first() {
+        let mut rows: Vec<String> = cards
+            .iter()
+            .flat_map(|c| {
+                c.lines.iter().filter_map(move |l| {
+                    l.parsed
+                        .as_ref()
+                        .ok()
+                        .map(|a| format!("{} | {} | {a:?}", c.name, l.text.replace('\n', " / ")))
+                })
             })
-        })
-        .collect();
-    rows.sort();
-    fs::write(out, rows.join("\n") + "\n")?;
-    println!("{} parsed abilities written to {out}", rows.len());
+            .collect();
+        rows.sort();
+        fs::write(out, rows.join("\n") + "\n")?;
+        println!("{} parsed abilities written to {out}", rows.len());
+        return Ok(());
+    }
+    let mut shards: BTreeMap<String, Vec<Entry>> = BTreeMap::new();
+    for c in &cards {
+        shards
+            .entry(golden::shard(&c.name))
+            .or_default()
+            .extend(c.faces.iter().cloned());
+    }
+    let dir = format!("{}/snapshot", env!("CARGO_MANIFEST_DIR"));
+    // Rewritten whole, so a card Scryfall dropped leaves no stale entry.
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir)?;
+    for (file, entries) in &mut shards {
+        entries.sort_by(|a, b| a.card.cmp(&b.card));
+        fs::write(format!("{dir}/{file}"), golden::render(entries))?;
+    }
+    let faces: usize = shards.values().map(Vec::len).sum();
+    println!(
+        "{} cards, {faces} faces in {} files under {dir}",
+        cards.len(),
+        shards.len()
+    );
     Ok(())
 }
 
@@ -520,6 +549,6 @@ fn main() -> Result<()> {
         Some("pin") => pin(&args[1..]),
         Some("roundtrip") => roundtrip(&args[1..]),
         Some("lint") => lint(&args[1..]),
-        _ => bail!("usage: insight coverage [--bulk F] [--tags F] [--deck F]... [--top N] | insight card <name> | insight sample N | insight failing [N | milestone] | insight snapshot <file> | insight pin <N | milestone> | insight roundtrip [N | milestone] [--golden] [--examples N] | insight lint [kind] [--counts] [--examples N]"),
+        _ => bail!("usage: insight coverage [--bulk F] [--tags F] [--deck F]... [--top N] | insight card <name> | insight sample N | insight failing [N | milestone] | insight snapshot [file] | insight pin <N | milestone> | insight roundtrip [N | milestone] [--golden] [--examples N] | insight lint [kind] [--counts] [--examples N]"),
     }
 }

@@ -52,6 +52,18 @@ impl Entry {
     }
 }
 
+/// The `snapshot/` file a card's faces live in: one of 256, by an FNV-1a
+/// hash of its name. A hash std does not promise to keep would move every
+/// card between files on a toolchain bump. Splitting at all is for git: a
+/// commit that moves a few trees rewrites a few small files, not one the
+/// size of the corpus.
+pub fn shard(card: &str) -> String {
+    let h = card.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
+        (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
+    });
+    format!("{:02x}.txt", h & 0xff)
+}
+
 pub fn render(entries: &[Entry]) -> String {
     let mut out = String::new();
     for e in entries {

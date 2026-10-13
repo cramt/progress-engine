@@ -60,7 +60,14 @@ structured report.
 {{roundtripFailures}}; abilities parsed not below {{abilitiesOk}}; no lint kind
 above its baseline; and no ability that parsed at the baseline may stop
 parsing (`insight snapshot` before and after, compared by card and text). Run
-them yourself before you stop. A failed batch is parked on a branch and main
+them yourself before you stop.
+
+`cargo test` holds every tree in `golden/` and `snapshot/` to what it was.
+When a rule moves trees, the test lists them: read each, and if every one is
+a correction or a card that now parses, bless them with `UPDATE_GOLDEN=1
+cargo test -p vivisurgeons-insight --test golden` and commit the rewritten
+files in the same commit as the rule. A moved tree you would not defend is a
+rule that reads too much; narrow it rather than bless it. A failed batch is parked on a branch and main
 is reset, so its work is lost.
 
 ## Before you stop

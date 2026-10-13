@@ -1,0 +1,1253 @@
+## Admiral Brass, Unsinkable
+face: Admiral Brass, Unsinkable
+type: Legendary Creature — Human Pirate
+cost: {2}{U}{B}{R}
+> When Admiral Brass enters, mill four cards.
+> At the beginning of combat on your turn, you may return target Pirate creature card from your graveyard to the battlefield with a finality counter on it. It has base power and toughness 4/4. It gains haste until end of turn. (If a creature with a finality counter on it would die, exile it instead.)
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Mill { who: You, n: N(4) }], limits: [] }
+= Triggered { trigger: At(Combat(Yours)), effect: [May { who: You, then: [EntersWith { effect: Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("pirate"), Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, n: N(1), kind: "finality" }, Becomes { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [], gains: [], keeps: OtherTypes, dur: Permanent }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }] }], limits: [] }
+
+## Aeronaut Tinkerer
+face: Aeronaut Tinkerer
+type: Creature — Human Artificer
+cost: {2}{U}
+> This creature has flying as long as you control an artifact. (It can't be blocked except by creatures with flying or reach.)
+= Static([AsLongAs { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+
+## Agent of Shauku
+face: Agent of Shauku
+type: Creature — Human Mercenary
+cost: {1}{B}
+> {1}{B}, Sacrifice a land: Target creature gets +2/+0 until end of turn.
+= Activated { cost: [Mana(Mana(["1", "B"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
+
+## Aggravated Assault
+face: Aggravated Assault
+type: Enchantment
+cost: {2}{R}
+> {3}{R}{R}: Untap all creatures you control. After this main phase, there is an additional combat phase followed by an additional main phase. Activate only as a sorcery.
+= Activated { cost: [Mana(Mana(["3", "R", "R"]))], effect: [Untap(Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), AdditionalPhases { after: Some(Main), phases: [Combat, Main] }], limits: [SorcerySpeed] }
+
+## Alacrian Armory
+face: Alacrian Armory
+type: Artifact
+cost: {3}{W}
+> Creatures you control get +0/+1 and have vigilance.
+> At the beginning of combat on your turn, choose up to one target Mount or Vehicle you control. Until end of turn, that permanent becomes saddled if it's a Mount and becomes an artifact creature if it's a Vehicle.
+= Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(0), toughness: N(1), signed: true }), has: [Keyword { name: "vigilance", param: None }], per: None }])
+= BROKE at "if" after: at the beginning of combat on your turn , choose up to one target mount or vehicle you control . until end of turn , that permanent becomes saddled
+
+## Ambush Paratrooper
+face: Ambush Paratrooper
+type: Creature — Human Soldier
+cost: {1}{W}
+> Flash
+> Flying
+> {5}: Creatures you control get +1/+1 until end of turn.
+= Keywords([Keyword { name: "flash", param: None }])
+= Keywords([Keyword { name: "flying", param: None }])
+= Activated { cost: [Mana(Mana(["5"]))], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
+
+## Ancient Kavu
+face: Ancient Kavu
+type: Creature — Kavu
+cost: {3}{R}
+> {2}: This creature becomes colorless until end of turn.
+= Activated { cost: [Mana(Mana(["2"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, types: [Color(Colorless)], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] }
+
+## Annie Flash, the Veteran
+face: Annie Flash, the Veteran
+type: Legendary Creature — Human Rogue
+cost: {3}{R}{G}{W}
+> Flash
+> When Annie Flash enters, if you cast it, return target permanent card with mana value 3 or less from your graveyard to the battlefield tapped.
+> Whenever Annie Flash becomes tapped, exile the top two cards of your library. You may play those cards this turn.
+= Keywords([Keyword { name: "flash", param: None }])
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), YouCastIt(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [With(Compare { stat: ManaValue, op: Le, value: N(3) }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }], limits: [] }
+= Triggered { trigger: When(BecomesTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Exile(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), May { who: You, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: ThisTurn }] }], limits: [] }
+
+## Artificer's Assistant
+face: Artificer's Assistant
+type: Creature — Bird
+cost: {U}
+> Flying
+> Whenever you cast a historic spell, scry 1. (Artifacts, legendaries, and Sagas are historic. To scry 1, look at the top card of your library, then you may put that card on the bottom.)
+= Keywords([Keyword { name: "flying", param: None }])
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[State(Historic)]], kind: Some(Spell), posts: [], or: None } } }), effect: [Scry(N(1))], limits: [] }
+
+## Aurora Champion
+face: Aurora Champion
+type: Creature — Elf Warrior
+cost: {2}{W}
+> Whenever this creature attacks, if your team controls another Warrior, tap target creature.
+= BROKE at "controls" after: whenever this creature attacks , if your team
+
+## Avatar of Woe
+face: Avatar of Woe
+type: Creature — Avatar
+cost: {6}{B}{B}
+> If there are ten or more creature cards total in all graveyards, this spell costs {6} less to cast.
+> Fear (This creature can't be blocked except by artifact creatures and/or black creatures.)
+> {T}: Destroy target creature. It can't be regenerated.
+= BROKE at "total" after: if there are ten or more creature cards
+= Keywords([Keyword { name: "fear", param: None }])
+= Activated { cost: [Tap], effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: true }], limits: [] }
+
+## Azog, Moria's Ruin
+face: Azog, Moria's Ruin
+type: Legendary Creature — Goblin Soldier
+cost: {2}{B}
+> When Azog enters, destroy up to one other target creature. Its controller amasses Goblins X, where X is that creature's power. If you controlled that creature, draw a card. (To amass Goblins X, that player puts X +1/+1 counters on an Army they control. It's also a Goblin. If they don't control an Army, they create a 0/0 black Goblin Army creature token first.)
+= BROKE at "goblins" after: when ~ enters , destroy up to one other target creature . its controller amasses
+
+## Battlefly Swarm
+face: Battlefly Swarm
+type: Creature — Phyrexian Insect
+cost: {B}
+> Flying
+> {B}: This creature gains deathtouch until end of turn.
+= Keywords([Keyword { name: "flying", param: None }])
+= Activated { cost: [Mana(Mana(["B"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "deathtouch", param: None }], dur: UntilEndOfTurn }], limits: [] }
+
+## Bladetusk Boar
+face: Bladetusk Boar
+type: Creature — Boar
+cost: {3}{R}
+> Intimidate (This creature can't be blocked except by artifact creatures and/or creatures that share a color with it.)
+= Keywords([Keyword { name: "intimidate", param: None }])
+
+## Blisterstick Shaman
+face: Blisterstick Shaman
+type: Creature — Goblin Shaman
+cost: {2}{R}
+> When this creature enters, it deals 1 damage to any target.
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+
+## Broken Wings
+face: Broken Wings
+type: Instant
+cost: {2}{G}
+> Destroy target artifact, enchantment, or creature with flying.
+= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: Some(Filter { alts: [[Type("creature")]], kind: None, posts: [WithKeyword("flying")], or: None }) } }, no_regen: false }])
+
+## Bronze Cudgels
+face: Bronze Cudgels
+type: Artifact — Equipment
+cost: {1}
+> {2}: Until end of turn, equipped creature gets +X/+0, where X is the number of times this ability has resolved this turn.
+> Equip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)
+= BROKE at "resolved" after: {2} : until end of turn , equipped creature gets <pt> , where x is the number of times this ability has
+= Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["1"]))])) }])
+
+## Caldera Lake
+face: Caldera Lake
+type: Land
+> This land enters tapped.
+> {T}: Add {C}.
+> {T}: Add {U} or {R}. This land deals 1 damage to you.
+= Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })])
+= Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
+= Activated { cost: [Tap], effect: [AddMana(Or([Mana(["U"]), Mana(["R"])])), Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }), n: N(1), to: [Player(You)] }], limits: [] }
+
+## Captain America, Skybound
+face: Captain America, Skybound
+type: Legendary Creature — Human Soldier Hero
+cost: {3}{W}{W}
+> Flying, vigilance
+> Battalion — Whenever Captain America and at least two other creatures attack, put a +1/+1 counter on each attacking creature. They gain indestructible until end of turn. (Damage and effects that say "destroy" don't destroy them.)
+= Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
+= BROKE at "creatures" after: battalion — whenever ~ and at least two other
+
+## Cartouche of Zeal
+face: Cartouche of Zeal
+type: Enchantment — Aura Cartouche
+cost: {R}
+> Enchant creature you control
+> When this Aura enters, target creature can't block this turn.
+> Enchanted creature gets +1/+1 and has haste. (It can attack and {T} no matter when it came under your control.)
+= Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })) }])
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Subtype("aura")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBlock, dur: ThisTurn }], limits: [] }
+= Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "haste", param: None }], per: None }])
+
+## Chrome Steed
+face: Chrome Steed
+type: Artifact Creature — Horse
+cost: {4}
+> Metalcraft — This creature gets +2/+2 as long as you control three or more artifacts.
+= Labelled { label: "metalcraft", ability: Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }]) }
+
+## Conceited Witch // Price of Beauty
+face: Conceited Witch
+type: Creature — Human Warlock
+cost: {2}{B}
+> Menace (This creature can't be blocked except by two or more creatures.)
+= Keywords([Keyword { name: "menace", param: None }])
+
+## Conceited Witch // Price of Beauty
+face: Price of Beauty
+type: Sorcery — Adventure
+cost: {B}
+> Create a Wicked Role token attached to target creature you control. (Then exile this card. You may cast the creature later from exile.)
+= Spell([CreateAttached { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["role"], keywords: [], abilities: [], named: Some("wicked role"), attacking: None }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }])
+
+## Convicted Killer // Branded Howler
+face: Convicted Killer
+type: Creature — Human Werewolf
+cost: {2}{R}
+> At the beginning of each upkeep, if no spells were cast last turn, transform this creature.
+= Triggered { trigger: InterveningIf(At(Upkeep(Each)), NoSpellsCastLastTurn), effect: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [] }
+
+## Convicted Killer // Branded Howler
+face: Branded Howler
+type: Creature — Werewolf
+> At the beginning of each upkeep, if a player cast two or more spells last turn, transform this creature.
+= Triggered { trigger: InterveningIf(At(Upkeep(Each)), TwoSpellsCastByAPlayerLastTurn), effect: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [] }
+
+## Copycrook
+face: Copycrook
+type: Creature — Shapeshifter Rogue
+cost: {2}{U}{U}
+> You may have this creature enter as a copy of any creature on the battlefield, except it has "Whenever this creature attacks, it connives." (Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on this creature.)
+= Static([EntersAsCopy { may: true, tapped: false, what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, of: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } }, except: [Has { keywords: [], abilities: [Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Action { by: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), name: "connive", n: None }], limits: [] }] }] }])
+
+## Corpse Traders
+face: Corpse Traders
+type: Creature — Human Rogue
+cost: {3}{B}
+> {2}{B}, Sacrifice a creature: Target opponent reveals their hand. You choose a card from it. That player discards that card. Activate only as a sorcery.
+= Activated { cost: [Mana(Mana(["2", "B"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [RevealHand(TargetOpponent), Choose(Objects(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [FromHand(TargetOpponent)], or: None } })), Discard { who: That, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [SorcerySpeed] }
+
+## Crackling Emergence
+face: Crackling Emergence
+type: Enchantment — Aura
+cost: {1}{R}
+> Enchant land you control
+> Enchanted land is a 3/3 red Spirit creature with haste. It's still a land.
+> If enchanted land would be destroyed, instead sacrifice this Aura and that land gains indestructible until end of turn.
+= Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })) }])
+= BROKE at "<pt>" after: enchanted land is a
+= BROKE at "," after: if enchanted land would be destroyed
+
+## Cryptic Serpent
+face: Cryptic Serpent
+type: Creature — Serpent
+cost: {5}{U}{U}
+> This spell costs {1} less to cast for each instant and sorcery card in your graveyard.
+= Static([CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }) }])
+
+## D'Avenant Archer
+face: D'Avenant Archer
+type: Creature — Human Soldier Archer
+cost: {2}{W}
+> {T}: This creature deals 1 damage to target attacking or blocking creature.
+= Activated { cost: [Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(AttackingOrBlocking), Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
+
+## Darigaaz's Caldera
+face: Darigaaz's Caldera
+type: Land — Lair
+> When this land enters, sacrifice it unless you return a non-Lair land you control to its owner's hand.
+> {T}: Add {B}, {R}, or {G}.
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Unless { effect: Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, who: You, cost: [ReturnToHand(Objects { quant: One, filter: Filter { alts: [[Non("lair"), Type("land")]], kind: None, posts: [Controller(You)], or: None } })] }], limits: [] }
+= Activated { cost: [Tap], effect: [AddMana(Or([Mana(["B"]), Mana(["R"]), Mana(["G"])]))], limits: [] }
+
+## Deathsprout
+face: Deathsprout
+type: Instant
+cost: {1}{B}{B}{G}
+> Destroy target creature. Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.
+= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }, Shuffle(You)])
+
+## Denzilore Fatehold
+face: Denzilore Fatehold
+type: Legendary Creature — Elder Sphinx
+cost: {1}{W}{U}{U}
+> Flash
+> Flying
+> Whenever you scry or surveil, put a +1/+1 counter on each creature you control.
+= Keywords([Keyword { name: "flash", param: None }])
+= Keywords([Keyword { name: "flying", param: None }])
+= Triggered { trigger: When(Or([Performs { who: You, action: "scry" }, Performs { who: You, action: "surveil" }])), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
+
+## Desynchronize
+face: Desynchronize
+type: Instant
+cost: {4}{U}
+> Target nonland permanent's owner puts it on their choice of the top or bottom of their library. Scry 2.
+= Spell([Performed { by: OwnerOf(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }), effect: Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: TopOrBottomOfLibrary(That), tapped: false, transformed: false, under: None, order: None } }, Scry(N(2))])
+
+## Devils' Playground
+face: Devils' Playground
+type: Sorcery
+cost: {4}{R}{R}
+> Create four 1/1 red Devil creature tokens. They have "When this token dies, it deals 1 damage to any target."
+= Spell([Create { who: You, n: N(4), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["devil", "creature"], keywords: [], abilities: [Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } })), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }], named: None, attacking: None } }])
+
+## Devour Flesh
+face: Devour Flesh
+type: Instant
+cost: {1}{B}
+> Target player sacrifices a creature of their choice, then gains life equal to that creature's toughness.
+= Spell([Sacrifice { who: Target, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, GainLife { who: Target, n: ToughnessOf(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }])
+
+## Draining Whelk
+face: Draining Whelk
+type: Creature — Illusion
+cost: {4}{U}{U}
+> Flash
+> Flying
+> When this creature enters, counter target spell. Put X +1/+1 counters on this creature, where X is that spell's mana value.
+= Keywords([Keyword { name: "flash", param: None }])
+= Keywords([Keyword { name: "flying", param: None }])
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }, Where { then: [PutCounters { n: X, kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], x: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }], limits: [] }
+
+## Drudge Reavers
+face: Drudge Reavers
+type: Creature — Skeleton
+cost: {3}{B}
+> Flash (You may cast this spell any time you could cast an instant.)
+> {B}: Regenerate this creature.
+= Keywords([Keyword { name: "flash", param: None }])
+= Activated { cost: [Mana(Mana(["B"]))], effect: [Regenerate(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], limits: [] }
+
+## ED-E, Lonesome Eyebot
+face: ED-E, Lonesome Eyebot
+type: Legendary Artifact Creature — Robot
+cost: {3}
+> Flying
+> ED-E My Love — Whenever you attack, if the number of attacking creatures is greater than the number of quest counters on ED-E, put a quest counter on it.
+> {2}, Sacrifice ED-E: Draw a card, then draw an additional card for each quest counter on ED-E.
+= Keywords([Keyword { name: "flying", param: None }])
+= Labelled { label: "~ my love", ability: Triggered { trigger: InterveningIf(When(YouAttack), AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }), op: Gt, value: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("quest"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }) }), effect: [PutCounters { n: N(1), kind: "quest", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }
+= Activated { cost: [Mana(Mana(["2"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: N(1) }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("quest"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [Draw { who: You, n: Additional(N(1)) }] }], limits: [] }
+
+## Entrapment Maneuver
+face: Entrapment Maneuver
+type: Instant
+cost: {3}{W}
+> Target player sacrifices an attacking creature of their choice. You create X 1/1 white Soldier creature tokens, where X is that creature's toughness.
+= Spell([Sacrifice { who: Target, what: Objects { quant: One, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Where { then: [Create { who: You, n: X, token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], x: ToughnessOf(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }])
+
+## Eviscerator
+face: Eviscerator
+type: Creature — Phyrexian Horror
+cost: {3}{B}{B}
+> Protection from white
+> When this creature enters, you lose 5 life.
+= Keywords([Keyword { name: "protection", param: Some(Colors([White])) }])
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [LoseLife { who: You, n: N(5) }], limits: [] }
+
+## Eye of Vecna
+face: Eye of Vecna
+type: Legendary Artifact
+cost: {2}
+> When Eye of Vecna enters, you draw a card and you lose 2 life.
+> At the beginning of your upkeep, you may pay {2}. If you do, you draw a card and you lose 2 life.
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }, LoseLife { who: You, n: N(2) }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2"]))] }] }, IfYouDo([Draw { who: You, n: N(1) }, LoseLife { who: You, n: N(2) }])], limits: [] }
+
+## Feasting Hobbit
+face: Feasting Hobbit
+type: Creature — Halfling Citizen
+cost: {1}{G}
+> Devour Food 3 (As this creature enters, you may sacrifice any number of Foods. It enters with three times that many +1/+1 counters on it.)
+> Creatures with power less than this creature's power can't block it.
+= BROKE at "3" after: devour food
+= Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Lt, value: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) })], or: None } }, rule: CantBlockObject(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }])
+
+## Fire Drake
+face: Fire Drake
+type: Creature — Drake
+cost: {1}{R}{R}
+> Flying
+> {R}: This creature gets +1/+0 until end of turn. Activate only once each turn.
+= Keywords([Keyword { name: "flying", param: None }])
+= Activated { cost: [Mana(Mana(["R"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [OncePerTurn] }
+
+## Firesong and Sunspeaker
+face: Firesong and Sunspeaker
+type: Legendary Creature — Minotaur Cleric
+cost: {4}{R}{W}
+> Red instant and sorcery spells you control have lifelink.
+> Whenever a white instant or sorcery spell causes you to gain life, Firesong and Sunspeaker deals 3 damage to target creature or player.
+= Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Color(Red), Type("instant")], [Color(Red), Type("sorcery")]], kind: Some(Spell), posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }])
+= BROKE at "causes" after: whenever a white instant or sorcery spell
+
+## Flare of Duplication
+face: Flare of Duplication
+type: Instant
+cost: {1}{R}{R}
+> You may sacrifice a nontoken red creature rather than pay this spell's mana cost.
+> Copy target instant or sorcery spell. You may choose new targets for the copy.
+= Static([AlternativeCost([Sacrifice(Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Color(Red), Type("creature")]], kind: None, posts: [], or: None } })])])
+= Spell([Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }])
+
+## Fledgling Mawcor
+face: Fledgling Mawcor
+type: Creature — Beast
+cost: {3}{U}
+> Flying
+> {T}: This creature deals 1 damage to any target.
+> Morph {U}{U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
+= Keywords([Keyword { name: "flying", param: None }])
+= Activated { cost: [Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["U", "U"]))])) }])
+
+## Forensic Gadgeteer
+face: Forensic Gadgeteer
+type: Creature — Vedalken Artificer Detective
+cost: {2}{U}
+> Whenever you cast an artifact spell, investigate. (Create a Clue token. It's an artifact with "{2}, Sacrifice this token: Draw a card.")
+> Activated abilities of artifacts you control cost {1} less to activate. This effect can't reduce the mana in that cost to less than one mana.
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Action { by: None, name: "investigate", n: None }], limits: [] }
+= BROKE at "can't" after: activated abilities of artifacts you control cost {1} less to activate . this effect
+
+## Foundry Assembler
+face: Foundry Assembler
+type: Artifact Creature — Assembly-Worker
+cost: {5}
+> Improvise (Your artifacts can help cast this spell. Each artifact you tap after you're done activating mana abilities pays for {1}.)
+= Keywords([Keyword { name: "improvise", param: None }])
+
+## Fíli the Pathfinder
+face: Fíli the Pathfinder
+type: Legendary Creature — Dwarf Scout
+cost: {3}{W}
+> Storied (If you control three or more artifacts, legendaries, and/or Sagas, you have an enduring story for the rest of the game.)
+> As long as you have an enduring story, creatures you control get +1/+1.
+> Whenever Fíli or another nontoken Dwarf you control enters, create a 2/2 red Dwarf creature token.
+= Keywords([Keyword { name: "storied", param: None }])
+= Static([AsLongAs { cond: EnduringStory(You), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }] }])
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[State(Nontoken), Subtype("dwarf")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Red], types: ["dwarf", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
+
+## Gangrenous Goliath
+face: Gangrenous Goliath
+type: Creature — Zombie Giant
+cost: {3}{B}{B}
+> Tap three untapped Clerics you control: Return this card from your graveyard to your hand.
+= Activated { cost: [TapUntapped(Objects { quant: N(N(3)), filter: Filter { alts: [[State(Untapped), Subtype("cleric")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
+
+## Glaring Aegis
+face: Glaring Aegis
+type: Enchantment — Aura
+cost: {W}
+> Enchant creature
+> When this Aura enters, tap target creature an opponent controls.
+> Enchanted creature gets +1/+3.
+= Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Subtype("aura")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Tap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } })], limits: [] }
+= Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(3), signed: true }), has: [], per: None }])
+
+## Glittering Stockpile
+face: Glittering Stockpile
+type: Artifact — Treasure
+cost: {2}{R}
+> {T}: Add {R}. Put a stash counter on this artifact.
+> {T}, Sacrifice this artifact: Add X mana of any one color, where X is the number of stash counters on this artifact.
+= Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["R"]))), PutCounters { n: N(1), kind: "stash", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } } }], limits: [] }
+= Activated { cost: [Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], effect: [Where { then: [AddMana(Of { n: X, pick: AnyOneColor, within: None })], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("stash"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], or: None } }) }], limits: [] }
+
+## Golden-Tail Disciple
+face: Golden-Tail Disciple
+type: Enchantment Creature — Fox Monk
+cost: {2}{W}
+> Lifelink (Damage dealt by this creature also causes you to gain that much life.)
+= Keywords([Keyword { name: "lifelink", param: None }])
+
+## Gristle Grinner
+face: Gristle Grinner
+type: Creature — Zombie
+cost: {4}{B}
+> Whenever a creature dies, this creature gets +2/+2 until end of turn.
+= Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
+
+## Guild Thief
+face: Guild Thief
+type: Creature — Orc Rogue
+cost: {1}{U}
+> Whenever this creature deals combat damage to a player, put a +1/+1 counter on it.
+> Cunning Action — {3}{U}: This creature can't be blocked this turn.
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
+= Labelled { label: "cunning action", ability: Activated { cost: [Mana(Mana(["3", "U"]))], effect: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] } }
+
+## Harsh Mentor
+face: Harsh Mentor
+type: Creature — Human Cleric
+cost: {1}{R}
+> Whenever an opponent activates an ability of an artifact, creature, or land on the battlefield, if it isn't a mana ability, this creature deals 2 damage to that player.
+= BROKE at "artifact" after: whenever an opponent activates an ability of an
+
+## Heartlash Cinder
+face: Heartlash Cinder
+type: Creature — Elemental Warrior
+cost: {1}{R}
+> Haste
+> Chroma — When this creature enters, it gets +X/+0 until end of turn, where X is the number of red mana symbols in the mana costs of permanents you control.
+= Keywords([Keyword { name: "haste", param: None }])
+= BROKE at "symbols" after: chroma — when this creature enters , it gets <pt> until end of turn , where x is the number of red mana
+
+## Hinterland Harbor
+face: Hinterland Harbor
+type: Land
+> This land enters tapped unless you control a Forest or an Island.
+> {T}: Add {G} or {U}.
+= Static([EntersTappedUnless { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, unless: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("forest")], [Subtype("island")]], kind: None, posts: [], or: None } }) }])
+= Activated { cost: [Tap], effect: [AddMana(Or([Mana(["G"]), Mana(["U"])]))], limits: [] }
+
+## Horrid Shadowspinner
+face: Horrid Shadowspinner
+type: Creature — Horror
+cost: {1}{U}{B}
+> Lifelink
+> Whenever this creature attacks, you may draw cards equal to its power. If you do, discard that many cards.
+= Keywords([Keyword { name: "lifelink", param: None }])
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }] }, IfYouDo([Discard { who: You, what: Objects { quant: N(ThatMany), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+
+## Howl from Beyond
+face: Howl from Beyond
+type: Instant
+cost: {X}{B}
+> Target creature gets +X/+0 until end of turn.
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: X, toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }])
+
+## Hunted Nightmare
+face: Hunted Nightmare
+type: Creature — Nightmare
+cost: {1}{B}{B}
+> Menace
+> When this creature enters, target opponent puts a deathtouch counter on a creature they control.
+= Keywords([Keyword { name: "menace", param: None }])
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Performed { by: TargetOpponent, effect: PutCounters { n: N(1), kind: "deathtouch", on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } } } }], limits: [] }
+
+## Immaculate Magistrate
+face: Immaculate Magistrate
+type: Creature — Elf Shaman
+cost: {3}{G}
+> {T}: Put a +1/+1 counter on target creature for each Elf you control.
+= Activated { cost: [Tap], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("elf")]], kind: None, posts: [Controller(You)], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] }
+
+## Infest
+face: Infest
+type: Sorcery
+cost: {1}{B}{B}
+> All creatures get -2/-2 until end of turn.
+= Spell([Modify { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }])
+
+## Intimidation Campaign
+face: Intimidation Campaign
+type: Enchantment
+cost: {1}{U}{B}
+> When this enchantment enters, each opponent loses 1 life, you gain 1 life, and you draw a card.
+> Whenever you commit a crime, you may return this enchantment to its owner's hand. (It returns only from the battlefield. Targeting opponents, anything they control, and/or cards in their graveyards is a crime.)
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [LoseLife { who: EachOpponent, n: N(1) }, GainLife { who: You, n: N(1) }, Draw { who: You, n: N(1) }], limits: [] }
+= BROKE at "," after: whenever you commit a crime
+
+## Irencrag Feat
+face: Irencrag Feat
+type: Sorcery
+cost: {1}{R}{R}{R}
+> Add seven {R}. You can cast only one more spell this turn.
+= BROKE at "can" after: add seven {R} . you
+
+## Jazal Goldmane
+face: Jazal Goldmane
+type: Legendary Creature — Cat Warrior
+cost: {2}{W}{W}
+> First strike (This creature deals combat damage before creatures without first strike.)
+> {3}{W}{W}: Attacking creatures you control get +X/+X until end of turn, where X is the number of attacking creatures.
+= Keywords([Keyword { name: "first strike", param: None }])
+= Activated { cost: [Mana(Mana(["3", "W", "W"]))], effect: [Where { then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: true }), gains: [], dur: UntilEndOfTurn }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }) }], limits: [] }
+
+## Judge Unworthy
+face: Judge Unworthy
+type: Instant
+cost: {1}{W}
+> Choose target attacking or blocking creature. Scry 3, then reveal the top card of your library. Judge Unworthy deals damage equal to that card's mana value to that creature.
+= Spell([Choose(Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(AttackingOrBlocking), Type("creature")]], kind: None, posts: [], or: None } })), Scry(N(3)), RevealTop { who: You, whose: You, n: N(1) }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }), to: [Objects(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])
+
+## Kaervek's Torch
+face: Kaervek's Torch
+type: Sorcery
+cost: {X}{R}
+> As long as Kaervek's Torch is on the stack, spells that target it cost {2} more to cast.
+> Kaervek's Torch deals X damage to any target.
+= Static([AsLongAs { cond: In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Stack }, then: [CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Targets(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, by: Mana(["2"]), less: false, per: None }] }])
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
+
+## Kapow!
+face: Kapow!
+type: Sorcery
+cost: {2}{G}
+> Put a +1/+1 counter on target creature you control. It fights target creature an opponent controls. (Each deals damage equal to its power to the other.)
+= Spell([PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, Fight { a: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, b: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } } }])
+
+## Kill-Zone Acrobat
+face: Kill-Zone Acrobat
+type: Creature — Human Soldier
+cost: {2}{B}
+> Whenever this creature attacks, you may sacrifice another creature or artifact. If you do, this creature gains flying until end of turn.
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")], [Type("artifact")]], kind: None, posts: [], or: None } } }] }, IfYouDo([Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }])], limits: [] }
+
+## Kirol, Attentive First-Year
+face: Kirol, Attentive First-Year
+type: Legendary Creature — Vampire Cleric
+cost: {1}{R/W}{R/W}
+> Tap two untapped creatures you control: Copy target triggered ability you control. You may choose new targets for the copy. Activate only once each turn.
+= Activated { cost: [TapUntapped(Objects { quant: N(N(2)), filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Ability(Triggered)]], kind: Some(Ability), posts: [Controller(You)], or: None } }, may_choose_new_targets: true }], limits: [OncePerTurn] }
+
+## Knight Exemplar
+face: Knight Exemplar
+type: Creature — Human Knight
+cost: {1}{W}{W}
+> First strike (This creature deals combat damage before creatures without first strike.)
+> Other Knight creatures you control get +1/+1 and have indestructible. (Damage and effects that say "destroy" don't destroy them.)
+= Keywords([Keyword { name: "first strike", param: None }])
+= Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("knight"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "indestructible", param: None }], per: None }])
+
+## Krovikan Vampire
+face: Krovikan Vampire
+type: Creature — Vampire
+cost: {3}{B}{B}
+> At the beginning of each end step, if a creature dealt damage by this creature this turn died, put that card onto the battlefield under your control. Sacrifice it when you lose control of this creature.
+= BROKE at "," after: at the beginning of each end step , if a creature dealt damage by this creature this turn died
+
+## Kyren Archive
+face: Kyren Archive
+type: Artifact — Book
+cost: {3}
+> At the beginning of your upkeep, you may exile the top card of your library face down.
+> {5}, Discard your hand, Sacrifice this artifact: Put all cards exiled with this artifact into their owner's hand.
+= Triggered { trigger: At(Upkeep(Yours)), effect: [May { who: You, then: [ExileFaceDown(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } })] }], limits: [] }
+= Activated { cost: [Mana(Mana(["5"])), DiscardHand, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], effect: [Move { what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
+
+## Leave in the Dust
+face: Leave in the Dust
+type: Instant
+cost: {3}{U}
+> Return target nonland permanent to its owner's hand.
+> Draw a card.
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }])
+= Spell([Draw { who: You, n: N(1) }])
+
+## Lucky the Pizza Dog
+face: Lucky the Pizza Dog
+type: Legendary Creature — Dog
+cost: {1}{G}
+> Whenever you cast a Cat, Dog, or Hero spell, create a Food token. (It's an artifact with "{2}, {T}, Sacrifice this token: You gain 3 life.")
+> At the beginning of each end step, if you gained life this turn, put a +1/+1 counter on Lucky.
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("cat")], [Subtype("dog")], [Subtype("hero")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["food"], keywords: [], abilities: [], named: Some("food"), attacking: None } }], limits: [] }
+= Triggered { trigger: InterveningIf(At(EndStep(Each)), DidThisTurn(GainsLife(You))), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
+
+## Lumbering Falls
+face: Lumbering Falls
+type: Land
+> This land enters tapped.
+> {T}: Add {G} or {U}.
+> {2}{G}{U}: Until end of turn, this land becomes a 3/3 green and blue Elemental creature with hexproof. It's still a land.
+= Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })])
+= Activated { cost: [Tap], effect: [AddMana(Or([Mana(["G"]), Mana(["U"])]))], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "G", "U"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), types: [Color(Green), Color(Blue), Subtype("elemental"), Type("creature")], gains: [Keyword { name: "hexproof", param: None }], keeps: Listed([Type("land")]), dur: Permanent }] }], limits: [] }
+
+## Lure of Prey
+face: Lure of Prey
+type: Instant
+cost: {2}{G}{G}
+> Cast this spell only if an opponent cast a creature spell this turn.
+> You may put a green creature card from your hand onto the battlefield.
+= BROKE at "cast" after: cast this spell only if an opponent
+= Spell([May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Color(Green), Type("creature")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }])
+
+## Mage's Attendant
+face: Mage's Attendant
+type: Creature — Cat Rogue
+cost: {2}{W}
+> When this creature enters, create a 1/1 blue Wizard creature token with "{1}, Sacrifice this token: Counter target noncreature spell unless its controller pays {1}."
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Blue], types: ["wizard", "creature"], keywords: [], abilities: [Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } })], effect: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } }, unless: Some((ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), [Mana(Mana(["1"]))])) }], limits: [] }], named: None, attacking: None } }], limits: [] }
+
+## Mageta's Boon
+face: Mageta's Boon
+type: Enchantment — Aura
+cost: {1}{W}
+> Flash
+> Enchant creature
+> Enchanted creature gets +1/+2.
+= Keywords([Keyword { name: "flash", param: None }])
+= Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
+= Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(2), signed: true }), has: [], per: None }])
+
+## Magister of Worth
+face: Magister of Worth
+type: Creature — Angel
+cost: {4}{W}{B}
+> Flying
+> Will of the council — When this creature enters, starting with you, each player votes for grace or condemnation. If grace gets more votes, each player returns each creature card from their graveyard to the battlefield. If condemnation gets more votes or the vote is tied, destroy all creatures other than this creature.
+= Keywords([Keyword { name: "flying", param: None }])
+= BROKE at "with" after: will of the council — when this creature enters , starting
+
+## Malakir Cullblade
+face: Malakir Cullblade
+type: Creature — Vampire Warrior
+cost: {1}{B}
+> Whenever a creature an opponent controls dies, put a +1/+1 counter on this creature.
+= Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
+
+## Mantle of the Wolf
+face: Mantle of the Wolf
+type: Enchantment — Aura
+cost: {3}{G}
+> Enchant creature
+> Enchanted creature gets +4/+4.
+> When this Aura is put into a graveyard from the battlefield, create two 2/2 green Wolf creature tokens.
+= Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
+= Static([Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: true }), has: [], per: None }])
+= Triggered { trigger: When(PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [[Subtype("aura")]], kind: None, posts: [], or: None } }, to: AGraveyard, from: Battlefield }), effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Green], types: ["wolf", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
+
+## Markov Crusader
+face: Markov Crusader
+type: Creature — Vampire Knight
+cost: {4}{B}
+> Lifelink
+> This creature has haste as long as you control another Vampire.
+= Keywords([Keyword { name: "lifelink", param: None }])
+= Static([AsLongAs { cond: YouControl(Objects { quant: Another, filter: Filter { alts: [[Subtype("vampire")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "haste", param: None }], per: None }] }])
+
+## Metropolis Angel
+face: Metropolis Angel
+type: Creature — Angel Soldier
+cost: {2}{W}{U}
+> Flying
+> Whenever you attack with one or more creatures with counters on them, draw a card.
+= Keywords([Keyword { name: "flying", param: None }])
+= Triggered { trigger: When(AttacksWith { who: You, what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithCounter(None)], or: None } }, at: None }), effect: [Draw { who: You, n: N(1) }], limits: [] }
+
+## Mimeoplasm, Revered One
+face: Mimeoplasm, Revered One
+type: Legendary Creature — Ooze
+cost: {X}{B}{G}{U}
+> As Mimeoplasm enters, exile up to X creature cards from your graveyard. It enters with three +1/+1 counters on it for each creature card exiled this way.
+> {2}: Mimeoplasm becomes a copy of target creature card exiled with it, except it's 0/0 and has this ability.
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Exile(Objects { quant: UpTo(X), filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, then: [EntersWithCounters { what: Objects { quant: BeforeEach, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(3), kind: "+1/+1" }] }] }])
+= BROKE at "this" after: {2} : ~ becomes a copy of target creature card exiled with it , except it's <pt> and has
+
+## Mind Stone
+face: Mind Stone
+type: Artifact
+cost: {2}
+> {T}: Add {C}.
+> {1}, {T}, Sacrifice this artifact: Draw a card.
+= Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
+= Activated { cost: [Mana(Mana(["1"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], effect: [Draw { who: You, n: N(1) }], limits: [] }
+
+## Mine Excavation
+face: Mine Excavation
+type: Sorcery
+cost: {1}{W}
+> Return target artifact or enchantment card from a graveyard to its owner's hand.
+> Conspire (As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it and you may choose a new target for the copy.)
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }])
+= Keywords([Keyword { name: "conspire", param: None }])
+
+## Mist-Syndicate Naga
+face: Mist-Syndicate Naga
+type: Creature — Snake Ninja
+cost: {2}{U}
+> Ninjutsu {2}{U} ({2}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)
+> Whenever this creature deals combat damage to a player, create a token that's a copy of this creature.
+= Keywords([Keyword { name: "ninjutsu", param: Some(Cost([Mana(Mana(["2", "U"]))])) }])
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
+
+## Moseo, Vein's New Dean
+face: Moseo, Vein's New Dean
+type: Legendary Creature — Bird Skeleton Warlock
+cost: {2}{B}
+> Flying
+> When Moseo enters, create a 1/1 black and green Pest creature token with "Whenever this token attacks, you gain 1 life."
+> Infusion — At the beginning of your end step, if you gained life this turn, return up to one target creature card with mana value X or less from your graveyard to the battlefield, where X is the amount of life you gained this turn.
+= Keywords([Keyword { name: "flying", param: None }])
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black, Green], types: ["pest", "creature"], keywords: [], abilities: [Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } })), effect: [GainLife { who: You, n: N(1) }], limits: [] }], named: None, attacking: None } }], limits: [] }
+= Labelled { label: "infusion", ability: Triggered { trigger: InterveningIf(At(EndStep(Yours)), DidThisTurn(GainsLife(You))), effect: [Where { then: [Move { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: X }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }], x: LifeGainedThisTurn(You) }], limits: [] } }
+
+## Muzzio, Visionary Architect
+face: Muzzio, Visionary Architect
+type: Legendary Creature — Human Artificer
+cost: {1}{U}{U}
+> {3}{U}, {T}: Look at the top X cards of your library, where X is the greatest mana value among artifacts you control. You may put an artifact card from among them onto the battlefield. Put the rest on the bottom of your library in any order.
+= Activated { cost: [Mana(Mana(["3", "U"])), Tap], effect: [Where { then: [LookAtTop { who: You, whose: You, n: X }], x: Greatest { stat: ManaValue, among: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } } } }, May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [FromAmongThem], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: BottomOfLibrary(You), tapped: false, transformed: false, under: None, order: Some(Any) }], limits: [] }
+
+## Nightmarish End
+face: Nightmarish End
+type: Instant
+cost: {2}{B}
+> Target creature gets -X/-X until end of turn, where X is the number of cards in your hand.
+= Spell([Where { then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: MinusX, toughness: MinusX, signed: true }), gains: [], dur: UntilEndOfTurn }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }) }])
+
+## Nihilith
+face: Nihilith
+type: Creature — Horror
+cost: {4}{B}{B}
+> Fear (This creature can't be blocked except by artifact creatures and/or black creatures.)
+> Suspend 7—{1}{B} (Rather than cast this card from your hand, you may pay {1}{B} and exile it with seven time counters on it. At the beginning of your upkeep, remove a time counter. When the last is removed, you may cast it without paying its mana cost. It has haste.)
+> Whenever a card is put into an opponent's graveyard from anywhere, if this card is suspended, you may remove a time counter from this card.
+= Keywords([Keyword { name: "fear", param: None }])
+= Keywords([Keyword { name: "suspend", param: Some(NCost { n: N(7), cost: [Mana(Mana(["1", "B"]))] }) }])
+= BROKE at "," after: whenever a card is put into an opponent 's graveyard from anywhere , if this card is suspended
+
+## Obstinate Gargoyle
+face: Obstinate Gargoyle
+type: Artifact Creature — Gargoyle
+cost: {1}{W}{B}
+> This creature has flying as long as it's modified. (Equipment, Auras you control, and counters are modifications.)
+> Persist (When this creature dies, if it had no -1/-1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)
+= Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Modified)]], kind: None, posts: [], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, has: [Keyword { name: "flying", param: None }], per: None }] }])
+= Keywords([Keyword { name: "persist", param: None }])
+
+## Old Thrush
+face: Old Thrush
+type: Creature — Bird
+cost: {2}
+> Flying
+> When this creature enters, you gain 2 life. You may search your library for a basic land card, reveal it, then shuffle and put that card on top.
+= Keywords([Keyword { name: "flying", param: None }])
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [GainLife { who: You, n: N(2) }, May { who: You, then: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Shuffle(You), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: OwnersLibraryTop, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
+
+## Oni of Wild Places
+face: Oni of Wild Places
+type: Creature — Demon Spirit
+cost: {5}{R}
+> Haste
+> At the beginning of your upkeep, return a red creature you control to its owner's hand.
+= Keywords([Keyword { name: "haste", param: None }])
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Move { what: Objects { quant: One, filter: Filter { alts: [[Color(Red), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
+
+## Open the Armory
+face: Open the Armory
+type: Sorcery
+cost: {1}{W}
+> Search your library for an Aura or Equipment card, reveal it, put it into your hand, then shuffle.
+= Spell([Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Subtype("aura")], [Subtype("equipment")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You)])
+
+## Oxidda Daredevil
+face: Oxidda Daredevil
+type: Creature — Goblin Artificer
+cost: {1}{R}
+> Sacrifice an artifact: This creature gains haste until end of turn.
+= Activated { cost: [Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }], limits: [] }
+
+## Palace Jailer
+face: Palace Jailer
+type: Creature — Human Soldier
+cost: {2}{W}{W}
+> When this creature enters, you become the monarch.
+> When this creature enters, exile target creature an opponent controls until an opponent becomes the monarch.
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("monarch")], limits: [] }
+= BROKE at "becomes" after: when this creature enters , exile target creature an opponent controls until an opponent
+
+## Pox
+face: Pox
+type: Sorcery
+cost: {B}{B}{B}
+> Each player loses a third of their life, then discards a third of the cards in their hand, then sacrifices a third of the creatures they control of their choice, then sacrifices a third of the lands they control of their choice. Round up each time.
+= BROKE at "of" after: each player loses a third of their life , then discards a third
+
+## Preyseizer Dragon
+face: Preyseizer Dragon
+type: Creature — Dragon
+cost: {4}{R}{R}
+> Flying
+> Devour 2 (As this creature enters, you may sacrifice any number of creatures. It enters with twice that many +1/+1 counters on it.)
+> Whenever this creature attacks, it deals damage to any target equal to the number of +1/+1 counters on this creature.
+= Keywords([Keyword { name: "flying", param: None }])
+= Keywords([Keyword { name: "devour", param: Some(N(N(2))) }])
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], or: None } }), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+
+## Profane Prayers
+face: Profane Prayers
+type: Sorcery
+cost: {2}{B}{B}
+> Profane Prayers deals X damage to any target and you gain X life, where X is the number of Clerics on the battlefield.
+= Spell([Where { then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: X, to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, GainLife { who: You, n: X }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("cleric")]], kind: None, posts: [In(Battlefield)], or: None } }) }])
+
+## Professional Wrestler
+face: Professional Wrestler
+type: Creature — Human Warrior Performer
+cost: {3}{G}
+> When this creature enters, create a Treasure token. (It's an artifact with "{T}, Sacrifice this token: Add one mana of any color.")
+> This creature can't be blocked by more than one creature.
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }], limits: [] }
+= Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlockedByMoreThanOne }])
+
+## Puresight Merrow
+face: Puresight Merrow
+type: Creature — Merfolk Wizard
+cost: {W/U}{W/U}
+> {W/U}, {Q}: Look at the top card of your library. You may exile that card. ({Q} is the untap symbol.)
+= Activated { cost: [Mana(Mana(["W/U"])), Untap], effect: [LookAtTop { who: You, whose: You, n: N(1) }, May { who: You, then: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })] }], limits: [] }
+
+## Raging Swordtooth
+face: Raging Swordtooth
+type: Creature — Dinosaur
+cost: {3}{R}{G}
+> Trample
+> When this creature enters, it deals 1 damage to each other creature.
+= Keywords([Keyword { name: "trample", param: None }])
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
+
+## Raphael, the Muscle
+face: Raphael, the Muscle
+type: Legendary Creature — Mutant Ninja Turtle
+cost: {4}{R}
+> Double all damage that creatures you control with counters on them would deal.
+> When Raphael enters, create a Mutagen token.
+> Partner—Character select (You can have two commanders if both have this ability.)
+= BROKE at "with" after: double all damage that creatures you control
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["mutagen"], keywords: [], abilities: [], named: Some("mutagen"), attacking: None } }], limits: [] }
+= BROKE at "<end>" after: partner — character select
+
+## Reaper's Scythe
+face: Reaper's Scythe
+type: Artifact — Equipment
+cost: {2}{B}
+> Job select
+> At the beginning of your end step, put a soul counter on this Equipment for each player who lost life this turn.
+> Equipped creature gets +1/+1 for each soul counter on this Equipment and is an Assassin in addition to its other types.
+> Death Sickle — Equip {2}
+= Keywords([Keyword { name: "job select", param: None }])
+= Triggered { trigger: At(EndStep(Yours)), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [LostLifeThisTurn], or: None } }, then: [PutCounters { n: N(1), kind: "soul", on: Objects { quant: SelfRef, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("soul"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [], or: None } })], or: None } })) }, AlsoIs { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: Listed([Subtype("assassin")]) }])
+= Labelled { label: "death sickle", ability: Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }]) }
+
+## Refocus
+face: Refocus
+type: Instant
+cost: {1}{U}
+> Untap target creature.
+> Draw a card.
+= Spell([Untap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })])
+= Spell([Draw { who: You, n: N(1) }])
+
+## Rime Tender
+face: Rime Tender
+type: Snow Creature — Human Druid
+cost: {1}{G}
+> {T}: Untap another target snow permanent.
+= Activated { cost: [Tap], effect: [Untap(Objects { quant: AnotherTarget, filter: Filter { alts: [[Supertype("snow")]], kind: Some(Permanent), posts: [], or: None } })], limits: [] }
+
+## Rishadan Port
+face: Rishadan Port
+type: Land
+> {T}: Add {C}.
+> {1}, {T}: Tap target land.
+= Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
+= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [Tap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })], limits: [] }
+
+## Rising Populace
+face: Rising Populace
+type: Creature — Human
+cost: {2}{W}
+> Whenever another creature or planeswalker you control dies, put a +1/+1 counter on this creature.
+= Triggered { trigger: When(Dies(Objects { quant: Another, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
+
+## Riverwheel Sweep
+face: Riverwheel Sweep
+type: Sorcery
+cost: {2/U}{2/R}{2/W}
+> Tap target creature. Put three stun counters on it. (If a permanent with a stun counter would become untapped, remove one from it instead.)
+> Exile the top two cards of your library. Choose one of them. Until the end of your next turn, you may play that card.
+= Spell([Tap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), PutCounters { n: N(3), kind: "stun", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])
+= Spell([Exile(Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), Choose(Objects(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmongThem], or: None } })), During { dur: UntilEndOfYourNextTurn, then: [May { who: You, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: Permanent }] }] }])
+
+## Salvage Drone
+face: Salvage Drone
+type: Creature — Eldrazi Drone
+cost: {U}
+> Devoid (This card has no color.)
+> Ingest (Whenever this creature deals combat damage to a player, that player exiles the top card of their library.)
+> When this creature dies, you may draw a card. If you do, discard a card.
+= Keywords([Keyword { name: "devoid", param: None }])
+= Keywords([Keyword { name: "ingest", param: None }])
+= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
+
+## Samite Elder
+face: Samite Elder
+type: Creature — Human Cleric
+cost: {2}{W}
+> {T}: Choose target permanent you control. Creatures you control gain protection from each of that permanent's colors until end of turn.
+= BROKE at "'s" after: {T} : choose target permanent you control . creatures you control gain protection from each of that permanent
+
+## Sandbender Scavengers
+face: Sandbender Scavengers
+type: Creature — Human Rogue
+cost: {W}{B}
+> Whenever you sacrifice another permanent, put a +1/+1 counter on this creature.
+> When this creature dies, you may exile it. When you do, return target creature card with mana value less than or equal to this creature's power from your graveyard to the battlefield.
+= Triggered { trigger: When(Sacrifices { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, WhenYouDo([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }])], limits: [] }
+
+## Sea Eagle
+face: Sea Eagle
+type: Creature — Bird
+cost: {1}{U}
+> Flying
+= Keywords([Keyword { name: "flying", param: None }])
+
+## Secrets of the Golden City
+face: Secrets of the Golden City
+type: Sorcery
+cost: {1}{U}{U}
+> Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)
+> Draw two cards. If you have the city's blessing, draw three cards instead.
+= Keywords([Keyword { name: "ascend", param: None }])
+= Spell([Draw { who: You, n: N(2) }, Instead { cond: CitysBlessing(You), then: [Draw { who: You, n: N(3) }] }])
+
+## Segovian Angel
+face: Segovian Angel
+type: Creature — Angel
+cost: {W}
+> Flying, vigilance
+= Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
+
+## Shard Phoenix
+face: Shard Phoenix
+type: Creature — Phoenix
+cost: {4}{R}
+> Flying (This creature can't be blocked except by creatures with flying or reach.)
+> Sacrifice this creature: It deals 2 damage to each creature without flying.
+> {R}{R}{R}: Return this card from your graveyard to your hand. Activate only during your upkeep.
+= Keywords([Keyword { name: "flying", param: None }])
+= Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithoutKeyword("flying")], or: None } })] }], limits: [] }
+= Activated { cost: [Mana(Mana(["R", "R", "R"]))], effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [OnlyDuringYourUpkeep] }
+
+## Skyshroud Ranger
+face: Skyshroud Ranger
+type: Creature — Elf Ranger
+cost: {G}
+> {T}: You may put a land card from your hand onto the battlefield. Activate only as a sorcery.
+= Activated { cost: [Tap], effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }], limits: [SorcerySpeed] }
+
+## Soldier of the Pantheon
+face: Soldier of the Pantheon
+type: Creature — Human Soldier
+cost: {W}
+> Protection from multicolored
+> Whenever an opponent casts a multicolored spell, you gain 1 life.
+= Keywords([Keyword { name: "protection", param: Some(Colors([Multicolored])) }])
+= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [[Color(Multicolored)]], kind: Some(Spell), posts: [], or: None } } }), effect: [GainLife { who: You, n: N(1) }], limits: [] }
+
+## Soul of Theros
+face: Soul of Theros
+type: Creature — Avatar
+cost: {4}{W}{W}
+> Vigilance
+> {4}{W}{W}: Creatures you control get +2/+2 and gain first strike and lifelink until end of turn.
+> {4}{W}{W}, Exile this card from your graveyard: Creatures you control get +2/+2 and gain first strike and lifelink until end of turn.
+= Keywords([Keyword { name: "vigilance", param: None }])
+= Activated { cost: [Mana(Mana(["4", "W", "W"]))], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [Keyword { name: "first strike", param: None }, Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["4", "W", "W"])), Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [Keyword { name: "first strike", param: None }, Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }], limits: [] }
+
+## Spawning Grounds
+face: Spawning Grounds
+type: Enchantment — Aura
+cost: {6}{G}{G}
+> Enchant land
+> Enchanted land has "{T}: Create a 5/5 green Beast creature token with trample."
+= Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })) }])
+= Static([HasAbility { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), colors: [Green], types: ["beast", "creature"], keywords: [Keyword { name: "trample", param: None }], abilities: [], named: None, attacking: None } }], limits: [] } }])
+
+## Spectral Guardian
+face: Spectral Guardian
+type: Creature — Spirit
+cost: {2}{W}{W}
+> As long as this creature is untapped, noncreature artifacts have shroud. (They can't be the targets of spells or abilities.)
+= BROKE at "shroud" after: as long as this creature is untapped , noncreature artifacts have
+
+## Spider-Man, New Champion
+face: Spider-Man, New Champion
+type: Legendary Creature — Spider Human Hero
+cost: {2}{R}
+> Reach
+> Whenever you discard one or more cards, Spider-Man deals that much damage to any target.
+= Keywords([Keyword { name: "reach", param: None }])
+= Triggered { trigger: When(Discards { who: You, what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } } }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: ThatMany, to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+
+## Spirit Link
+face: Spirit Link
+type: Enchantment — Aura
+cost: {W}
+> Enchant creature (Target a creature as you cast this. This card enters attached to that creature.)
+> Whenever enchanted creature deals damage, you gain that much life.
+= Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
+= Triggered { trigger: When(DealsDamage(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [GainLife { who: You, n: ThatMany }], limits: [] }
+
+## Spiritual Sanctuary
+face: Spiritual Sanctuary
+type: Enchantment
+cost: {2}{W}{W}
+> At the beginning of each player's upkeep, if that player controls a Plains, they gain 1 life.
+= Triggered { trigger: InterveningIf(At(Upkeep(Each)), PlayerControls(That, Objects { quant: One, filter: Filter { alts: [[Subtype("plains")]], kind: None, posts: [], or: None } })), effect: [GainLife { who: That, n: N(1) }], limits: [] }
+
+## Strider, Ranger of the North
+face: Strider, Ranger of the North
+type: Legendary Creature — Human Ranger
+cost: {2}{R}{G}
+> Landfall — Whenever a land you control enters, target creature gets +1/+1 until end of turn. Then if that creature has power 4 or greater, it gains first strike until end of turn.
+= Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }, If { cond: Has { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, cmp: Compare { stat: Power, op: Ge, value: N(4) } }, then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "first strike", param: None }], dur: UntilEndOfTurn }] }], limits: [] } }
+
+## Sulfurous Mire
+face: Sulfurous Mire
+type: Snow Land — Swamp Mountain
+> ({T}: Add {B} or {R}.)
+> This land enters tapped.
+= Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })])
+
+## Sutured Ghoul
+face: Sutured Ghoul
+type: Creature — Zombie
+cost: {4}{B}{B}{B}
+> Trample
+> As this creature enters, exile any number of creature cards from your graveyard.
+> Sutured Ghoul's power is equal to the total power of the exiled cards and its toughness is equal to their total toughness.
+= Keywords([Keyword { name: "trample", param: None }])
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, then: [Exile(Objects { quant: AnyNumber, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })] }])
+= BROKE at "toughness" after: ~ 's power is equal to the total power of the exiled cards and its toughness is equal to their total
+
+## Syr Carah, the Bold
+face: Syr Carah, the Bold
+type: Legendary Creature — Human Knight
+cost: {3}{R}{R}
+> Whenever Syr Carah or an instant or sorcery spell you control deals damage to a player, exile the top card of your library. You may play that card this turn.
+> {T}: Syr Carah deals 1 damage to any target.
+= BROKE at "spell" after: whenever ~ or an instant or sorcery
+= Activated { cost: [Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+
+## Tawnos's Coffin
+face: Tawnos's Coffin
+type: Artifact
+cost: {4}
+> You may choose not to untap this artifact during your untap step.
+> {3}, {T}: Exile target creature and all Auras attached to it. Note the number and kind of counters that were on that creature. When this artifact leaves the battlefield or becomes untapped, return that exiled card to the battlefield under its owner's control tapped with the noted number and kind of counters on it. If you do, return the other exiled cards to the battlefield under their owner's control attached to that permanent.
+= Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, rule: MayNotUntap }])
+= BROKE at "the" after: {3} , {T} : exile target creature and all auras attached to it . note
+
+## Temmet, Naktamun's Will
+face: Temmet, Naktamun's Will
+type: Legendary Creature — Zombie Wizard
+cost: {2}{W}{U}{B}
+> Vigilance, menace
+> Whenever you attack, draw a card, then discard a card.
+> Whenever you draw a card, Zombies you control get +1/+1 until end of turn.
+= Keywords([Keyword { name: "vigilance", param: None }, Keyword { name: "menace", param: None }])
+= Triggered { trigger: When(YouAttack), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
+= Triggered { trigger: When(Draws(You)), effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
+
+## Temur Devotee
+face: Temur Devotee
+type: Creature — Human Druid
+cost: {1}{U}
+> Defender
+> {1}: Add {G}, {U}, or {R}. Activate only once each turn.
+= Keywords([Keyword { name: "defender", param: None }])
+= Activated { cost: [Mana(Mana(["1"]))], effect: [AddMana(Or([Mana(["G"]), Mana(["U"]), Mana(["R"])]))], limits: [OncePerTurn] }
+
+## Tenured Concocter
+face: Tenured Concocter
+type: Creature — Troll Druid
+cost: {4}{G}
+> Vigilance
+> Whenever this creature becomes the target of a spell or ability an opponent controls, you may draw a card.
+> Infusion — This creature gets +2/+0 as long as you gained life this turn.
+= Keywords([Keyword { name: "vigilance", param: None }])
+= Triggered { trigger: When(BecomesTarget { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, of: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [Controller(AnOpponent)], or: None } }) }), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }], limits: [] }
+= Labelled { label: "infusion", ability: Static([AsLongAs { cond: DidThisTurn(GainsLife(You)), then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [], per: None }] }]) }
+
+## The Stasis Coffin
+face: The Stasis Coffin
+type: Legendary Artifact
+cost: {3}
+> {2}, {T}, Exile The Stasis Coffin: You gain protection from everything until your next turn.
+= Activated { cost: [Mana(Mana(["2"])), Tap, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [PlayerGains { who: You, keywords: [Keyword { name: "protection", param: Some(Objects(Objects { quant: All, filter: Filter { alts: [], kind: None, posts: [], or: None } })) }], dur: UntilYourNextTurn }], limits: [] }
+
+## Tragic Trajectory
+face: Tragic Trajectory
+type: Sorcery
+cost: {B}
+> Target creature gets -2/-2 until end of turn.
+> Void — That creature gets -10/-10 until end of turn instead if a nonland permanent left the battlefield this turn or a spell was warped this turn.
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-2), toughness: N(-2), signed: true }), gains: [], dur: UntilEndOfTurn }])
+= Labelled { label: "void", ability: Spell([Instead { cond: Or([DidThisTurn(Leaves { what: Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: Battlefield }), DidThisTurn(CastUsing { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, keyword: "warp" })]), then: [Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-10), toughness: N(-10), signed: true }), gains: [], dur: UntilEndOfTurn }] }]) }
+
+## Treeshaker Chimera
+face: Treeshaker Chimera
+type: Creature — Chimera
+cost: {5}{G}{G}
+> All creatures able to block this creature do so.
+> When this creature dies, draw three cards.
+= BROKE at "do" after: all creatures able to block this creature
+= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(3) }], limits: [] }
+
+## Treetop Defense
+face: Treetop Defense
+type: Instant
+cost: {1}{G}
+> Cast this spell only during the declare attackers step and only if you've been attacked this step.
+> Creatures you control gain reach until end of turn. (They can block creatures with flying.)
+= BROKE at "attackers" after: cast this spell only during the declare
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "reach", param: None }], dur: UntilEndOfTurn }])
+
+## Trial of Zeal
+face: Trial of Zeal
+type: Enchantment
+cost: {2}{R}
+> When this enchantment enters, it deals 3 damage to any target.
+> When a Cartouche you control enters, return this enchantment to its owner's hand.
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Subtype("cartouche")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
+
+## Twisted Image
+face: Twisted Image
+type: Instant
+cost: {U}
+> Switch target creature's power and toughness until end of turn.
+> Draw a card.
+= BROKE at "end" after: switch target creature 's power and toughness until
+= Spell([Draw { who: You, n: N(1) }])
+
+## Vastwood Zendikon
+face: Vastwood Zendikon
+type: Enchantment — Aura
+cost: {4}{G}
+> Enchant land
+> Enchanted land is a 6/4 green Elemental creature. It's still a land.
+> When enchanted land dies, return that card to its owner's hand.
+= Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })) }])
+= BROKE at "<pt>" after: enchanted land is a
+= Triggered { trigger: When(Dies(Objects { quant: Enchanted, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })), effect: [Move { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
+
+## Volatile Wanderglyph
+face: Volatile Wanderglyph
+type: Artifact Creature — Golem
+cost: {1}{R}
+> Whenever this creature becomes tapped, you may discard a card. If you do, draw a card.
+= Triggered { trigger: When(BecomesTapped(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
+
+## Watchwolf
+face: Watchwolf
+type: Creature — Wolf
+cost: {G}{W}
+
+## Wildwood Escort
+face: Wildwood Escort
+type: Creature — Elf Warrior
+cost: {4}{G}
+> When this creature enters, return target creature or battle card from your graveyard to your hand.
+> If this creature would die, exile it instead.
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Type("battle")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
+= Static([Replacement { event: Dies(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), instead: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
+
+## Witch of the Moors
+face: Witch of the Moors
+type: Creature — Human Warlock
+cost: {3}{B}{B}
+> Deathtouch
+> At the beginning of your end step, if you gained life this turn, each opponent sacrifices a creature of their choice and you return up to one target creature card from your graveyard to your hand.
+= Keywords([Keyword { name: "deathtouch", param: None }])
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), DidThisTurn(GainsLife(You))), effect: [Sacrifice { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }, Move { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
+

@@ -15,7 +15,7 @@ cargo run --release -p vivisurgeons-insight -- coverage --deck decks/lantern.dec
 cargo run --release -p vivisurgeons-insight -- card Swords to Plowshares
 cargo run --release -p vivisurgeons-insight -- sample 25
 cargo run --release -p vivisurgeons-insight -- failing 2000            # or a milestone: failing modern-meta
-cargo run --release -p vivisurgeons-insight -- snapshot /tmp/trees.txt  # diff two of these around a change
+cargo run --release -p vivisurgeons-insight -- snapshot               # rewrite snapshot/ after a scryfall sync; with a path, the driver's flat file
 cargo run --release -p vivisurgeons-insight -- roundtrip               # or: roundtrip 2000, roundtrip --golden
 cargo run --release -p vivisurgeons-insight -- lint                    # or: lint unbound-x --examples 20, lint --counts
 ```
@@ -73,9 +73,10 @@ the old corpus had dropped.
 Rounds 1–4 were written by hand against the whole corpus. Rounds 5–8 were
 written by agents working through `insight failing N` (the failing abilities
 among the EDHREC top N, in rank order) or `insight failing modern-meta`.
-Each round was checked against a snapshot of every tree from before it
-(`insight snapshot`). No tree was lost, and every tree that changed was read
-and judged a correction.
+Each round was checked against a snapshot of every tree from before it. No
+tree was lost, and every tree that changed was read and judged a correction.
+Since round 9 that snapshot is committed (*The snapshot*, below), so the
+check is no longer a step someone has to remember.
 
 ## Milestones
 
@@ -104,6 +105,22 @@ again and fails if a tree moved. Read each moved tree in the failure, then
 bless the change with `UPDATE_GOLDEN=1 cargo test -p vivisurgeons-insight
 --test golden` and commit the file with it, so the diff shows what changed.
 The test needs no bulk file, so CI holds the grammar to it.
+
+## The snapshot
+
+A golden file covers its milestone. The rest of the corpus is held by
+`snapshot/`: every face of every card, in the golden format, with the trees
+it reads into now and the lines that break as `BROKE at …`. The same test
+reads it, so a change that re-reads a card nobody was looking at fails
+until its moved trees are read and blessed, a card that stops parsing is a
+failure, and one that starts parsing is a diff in the commit that taught
+it. The failure prints only the part of each tree that changed.
+
+It is 22 MB in 256 files, split by a hash of the card name, so a commit
+that moves a few trees rewrites a few files of about 90 KB, not one the size
+of the corpus. `insight snapshot` writes it again from the bulk file; run it
+after `scryfall sync` brings new cards or new Oracle text, and commit that
+on its own, so the grammar's diffs are not mixed with Scryfall's.
 
 ## The round trip
 

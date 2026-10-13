@@ -22,7 +22,9 @@ fail, the driver parks the batch's commits on a branch and resets main to
 - The writer's rules hold: no sub-agents, never push, never pin, `insight: `
   subjects with a behaviour claim, exact counts in the bodies, `cargo fmt --all`
   before each commit, `UPDATE_WALK=1` after an `ast.rs` change, no AI
-  attribution, README updated when a tracked number moves.
+  attribution, README updated when a tracked number moves, and trees moved in
+  `golden/` or `snapshot/` read, blessed with `UPDATE_GOLDEN=1` and committed
+  with the rule that moved them.
 - The supervisor's decisions below still hold. `{{decisionsPath}}` is
   read-only: the driver denies any edit, write or shell command that touches
   it. Report a decision you carried out in your summary instead.
