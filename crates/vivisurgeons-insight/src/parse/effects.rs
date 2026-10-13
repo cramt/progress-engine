@@ -325,7 +325,20 @@ pub(super) fn token_named(p: &mut P) -> Option<(Amount, Token, Option<String>)> 
         p.one_of(&["that's", "that are"])?;
         let tapped = p.attempt(|p| p.words("tapped and")).is_some();
         p.word("attacking")?;
-        let r = p.attempt(recipient).unwrap_or(Recipient::ControllerChooses);
+        let r = match p.attempt(recipient) {
+            // "that's attacking that opponent" (Combat Calligrapher): the
+            // player the trigger saw attacked, a player and not an object.
+            Some(Recipient::Objects(o))
+                if o.quant == Quant::Antecedent
+                    && o.filter.kind == Some(Noun::Opponent)
+                    && o.filter.alts.is_empty()
+                    && o.filter.posts.is_empty() =>
+            {
+                Recipient::Player(Player::That)
+            }
+            Some(r) => r,
+            None => Recipient::ControllerChooses,
+        };
         Some((tapped, r))
     }) {
         Some((t, r)) => (tapped || t, Some(r)),

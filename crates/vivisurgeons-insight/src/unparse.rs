@@ -967,6 +967,12 @@ mod syn {
         alt(o, vec![before, after]);
     }
 
+    /// "a tapped 2/1 … token … that's attacking that opponent" and "a 2/1 …
+    /// token … that's tapped and attacking that opponent".
+    pub fn tapped_first(o: &mut Out, lead: Out, late: Out) {
+        alt(o, vec![lead, late]);
+    }
+
     /// "is a black Nightmare" and "is black and is a Nightmare" (Chainer):
     /// the same colors and types, the color its own predicate.
     pub fn color_predicate(o: &mut Out, joined: Out, split: Out) {
@@ -1119,7 +1125,10 @@ mod syn {
     /// "deals 1 damage to that player", "… to them": the singular "they"
     /// of a player, in the object case. Plural objects are "each of them".
     pub fn them(o: &mut Out) {
-        any_of(o, &["that player", "them", "the player", "they"]);
+        any_of(
+            o,
+            &["that player", "them", "the player", "they", "that opponent"],
+        );
     }
 
     pub fn its(o: &mut Out) {
@@ -3067,6 +3076,7 @@ fn player(o: &mut Out, p: &Player) {
         Player::AnOpponent => syn::an_opponent(o),
         Player::APlayer => o.w("a player"),
         Player::That => syn::that_player(o),
+        Player::AttackingPlayer => o.w("that attacking player"),
         Player::DefendingPlayer => o.w("defending player"),
         Player::ControllerOf(x) => pronoun_or(
             o,
@@ -5691,7 +5701,7 @@ fn recipient(o: &mut Out, r: &Recipient) {
 fn token(o: &mut Out, n: &Amount, t: &Token) {
     // "create half X Food tokens, rounded up".
     let half = match n {
-        Amount::Half { of, round_up } if !is_measure(of) => Some((of, *round_up)),
+        Amount::Half { of, round_up } if !is_measure(of) => Some((&**of, *round_up)),
         _ => None,
     };
     let counted = half.is_none() && (is_measure(n) || matches!(n, Amount::DieResult));
@@ -5703,8 +5713,26 @@ fn token(o: &mut Out, n: &Amount, t: &Token) {
     } else {
         amount_a(o, n);
     }
-    let attacking_says_tapped = t.tapped && t.attacking.is_some();
-    if t.tapped && !attacking_says_tapped {
+    // "a tapped 2/1 … token … that's attacking that opponent" and "a 2/1 …
+    // token … that's tapped and attacking that opponent" (Combat
+    // Calligrapher): the same token.
+    if t.tapped && t.attacking.is_some() {
+        let lead = out(|o| token_body(o, n, t, half, counted, true));
+        let late = out(|o| token_body(o, n, t, half, counted, false));
+        return syn::tapped_first(o, lead, late);
+    }
+    token_body(o, n, t, half, counted, t.tapped);
+}
+
+fn token_body(
+    o: &mut Out,
+    n: &Amount,
+    t: &Token,
+    half: Option<(&Amount, bool)>,
+    counted: bool,
+    lead_tapped: bool,
+) {
+    if lead_tapped {
         o.w("tapped");
     }
     if let Some(pt) = &t.pt {
@@ -5734,14 +5762,14 @@ fn token(o: &mut Out, n: &Amount, t: &Token) {
         o.w("equal to");
         measure(o, n);
     }
-    token_attacking(o, n, t);
+    token_attacking(o, n, t, !lead_tapped);
 }
 
 /// "that's tapped and attacking": said after everything else the token is.
-fn token_attacking(o: &mut Out, n: &Amount, t: &Token) {
+fn token_attacking(o: &mut Out, n: &Amount, t: &Token, say_tapped: bool) {
     if let Some(r) = &t.attacking {
         that_is(o, amount_num(n));
-        if t.tapped {
+        if t.tapped && say_tapped {
             o.w("tapped and");
         }
         o.w("attacking");
@@ -7856,27 +7884,42 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 },
                 ..with
             };
-            token(o, n, &with);
-            let name_first = out(|o| {
-                o.w("named");
-                o.w(name);
-                if every_basic {
-                    o.w("that is every basic land type");
+            // "creates a tapped 1/1 … token named Cordyceps Infected that's
+            // attacking that opponent" (Ellie), or "that's tapped and attacking".
+            let body = |o: &mut Out, lead: bool| {
+                let with = Token {
+                    tapped: with.tapped || lead,
+                    ..with.clone()
+                };
+                token(o, n, &with);
+                let name_first = out(|o| {
+                    o.w("named");
+                    o.w(name);
+                    if every_basic {
+                        o.w("that is every basic land type");
+                    }
+                    token_has(o, t);
+                });
+                // "a 1/2 blue Bird creature token with flying named Storm Crow".
+                let name_after = out(|o| {
+                    token_has(o, t);
+                    o.w("named");
+                    o.w(name);
+                });
+                if every_basic || t.keywords.is_empty() && t.abilities.is_empty() {
+                    o.add(name_first);
+                } else {
+                    syn::named_after(o, name_first, name_after);
                 }
-                token_has(o, t);
-            });
-            // "a 1/2 blue Bird creature token with flying named Storm Crow".
-            let name_after = out(|o| {
-                token_has(o, t);
-                o.w("named");
-                o.w(name);
-            });
-            if every_basic || t.keywords.is_empty() && t.abilities.is_empty() {
-                o.add(name_first);
+                token_attacking(o, n, t, !lead);
+            };
+            if t.tapped && t.attacking.is_some() {
+                let lead = out(|o| body(o, true));
+                let late = out(|o| body(o, false));
+                syn::tapped_first(o, lead, late);
             } else {
-                syn::named_after(o, name_first, name_after);
+                body(o, false);
             }
-            token_attacking(o, n, t);
         }
         Effect::CreateAttached {
             who,

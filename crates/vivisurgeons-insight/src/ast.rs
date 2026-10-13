@@ -556,6 +556,9 @@ pub enum Player {
         who: Box<Player>,
         attacked: Box<Player>,
     },
+    /// "that attacking player": the player whose attack the trigger saw,
+    /// where "that opponent" is the one attacked (Combat Calligrapher).
+    AttackingPlayer,
     /// "each player who searched a library this way".
     DidThisWay {
         who: Box<Player>,
