@@ -314,6 +314,15 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.attempt(|p| p.words("this way"));
             Some(Condition::Not(Box::new(Condition::ThisWay(Box::new(Event::Puts { who: Player::You, what, to })))))
         },
+        // "You may cast it without paying its mana cost. If you don't cast
+        // it, put it into your hand": the cast this ability offered didn't
+        // happen ([didnt-put]).
+        |p| {
+            p.words("you don't cast")?;
+            let what = objects(p)?;
+            p.attempt(|p| p.words("this way"));
+            Some(Condition::Not(Box::new(Condition::ThisWay(Box::new(Event::Casts { who: Player::You, what })))))
+        },
         // "you didn't create a token this way": the event, not done.
         |p| {
             let who = alt!(p; |p| p.word("you").map(|_| Player::You), player_simple)?;

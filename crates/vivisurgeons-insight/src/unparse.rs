@@ -1308,6 +1308,12 @@ mod syn {
         alt(o, vec![Out::default(), of("this way")]);
     }
 
+    /// "if you didn't cast it this way" and "If you don't cast it": the
+    /// cast the same ability offered, not done.
+    pub fn didnt_cast(o: &mut Out, didnt: Out, dont: Out) {
+        alt(o, vec![didnt, dont]);
+    }
+
     /// "can't have flying" and "can't have or gain flying": an object that
     /// can't have an ability can't gain it, so "or gain" only says so.
     pub fn or_gain(o: &mut Out) {
@@ -10461,6 +10467,20 @@ fn not_condition(o: &mut Out, c: &Condition) {
             Event::WasCast(x) => {
                 objects(o, x);
                 o.w("wasn't cast this way");
+            }
+            // "If you don't cast it, put it into your hand": the same cast.
+            Event::Casts { who, what } if *who == Player::You => {
+                let didnt = out(|o| {
+                    o.w("you didn't cast");
+                    objects(o, what);
+                    o.w("this way");
+                });
+                let dont = out(|o| {
+                    o.w("you don't cast");
+                    objects(o, what);
+                    syn::this_way_or_not(o);
+                });
+                syn::didnt_cast(o, didnt, dont);
             }
             Event::Casts { who, what } | Event::Copies { who, what } => {
                 player(o, who);
