@@ -1007,6 +1007,13 @@ pub enum Post {
     /// controlled each as it died (CR 603.10a), where `Controller` would
     /// say who controls it now.
     DiedUnderControlThisTurn(Player),
+    /// "creature that crewed it this turn": tapped this turn to pay that
+    /// Vehicle's crew cost (CR 702.122b); `saddle`, "that saddled it this
+    /// turn", its saddle cost (CR 702.171c).
+    CrewedThisTurn {
+        what: Box<Objects>,
+        saddle: bool,
+    },
     /// "creature cards in your graveyard that were put there from the
     /// battlefield this turn": put into that graveyard from the battlefield
     /// this turn, creatures or not.

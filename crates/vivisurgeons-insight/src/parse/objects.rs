@@ -838,6 +838,15 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| { p.words("with power or toughness")?; let (op, value) = comparison(p)?; Some(Post::PowerOrToughness { op, value }) },
         |p| p.words("that died this turn").map(|_| Post::DiedThisTurn),
         |p| { p.words("that died under")?; let who = whose_pronoun(p)?; p.words("control this turn")?; Some(Post::DiedUnderControlThisTurn(who)) },
+        // "target creature that crewed it this turn", "… that saddled it
+        // this turn".
+        |p| {
+            p.word("that")?;
+            let saddle = p.one_of(&["crewed", "saddled"])? == "saddled";
+            let what = objects(p)?;
+            p.words("this turn")?;
+            Some(Post::CrewedThisTurn { what: Box::new(what), saddle })
+        },
         |p| { p.one_of(&["that was", "that were"])?; p.words("put there from the battlefield this turn").map(|_| Post::PutThereFromBattlefieldThisTurn) },
         // "a nonland card from it": the hand just revealed, said by pronoun.
         |p| {

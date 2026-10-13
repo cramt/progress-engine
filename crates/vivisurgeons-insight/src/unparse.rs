@@ -4418,6 +4418,15 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             whose(o, who);
             o.w("control this turn");
         }
+        Post::CrewedThisTurn { what, saddle } => {
+            o.w(if *saddle {
+                "that saddled"
+            } else {
+                "that crewed"
+            });
+            objects(o, what);
+            o.w("this turn");
+        }
         Post::PutThereFromBattlefieldThisTurn => {
             o.w("that");
             match n {

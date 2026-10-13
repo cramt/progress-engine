@@ -2129,6 +2129,9 @@ impl Walk for Post {
             Post::DiedUnderControlThisTurn(f0) => {
                 Walk::walk(f0, v);
             }
+            Post::CrewedThisTurn { what, .. } => {
+                Walk::walk(&mut **what, v);
+            }
             Post::From(f0) => {
                 Walk::walk(&mut **f0, v);
             }
