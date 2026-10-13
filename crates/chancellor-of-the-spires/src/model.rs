@@ -157,6 +157,8 @@ pub enum Pred {
     /// "this creature": only the ability's own object.
     Itself,
     YouControl,
+    /// "nontoken": a card or a copy of one, not a token (CR 111.1).
+    Nontoken,
     /// "enchanted creature", "equipped creature": what the source is attached to.
     AttachedTo,
 }
@@ -174,6 +176,9 @@ pub struct Seen<'a> {
     pub source: ObjectId,
     pub source_chars: &'a Chars,
     pub source_attached_to: Option<ObjectId>,
+    /// Whether the object is a token. Not a characteristic (CR 109.3), so
+    /// no layer changes it.
+    pub token: bool,
 }
 
 impl Filter {
@@ -185,6 +190,7 @@ impl Filter {
             Pred::Itself => s.id == s.source,
             Pred::YouControl => s.chars.controller == s.source_chars.controller,
             Pred::AttachedTo => s.source_attached_to == Some(s.id),
+            Pred::Nontoken => !s.token,
         })
     }
 }
@@ -336,6 +342,7 @@ pub struct Object {
     pub timestamp: Timestamp,
     pub counters: OrdMap<Counter, u32>,
     pub attached_to: Option<ObjectId>,
+    pub token: bool,
 }
 
 /// The battlefield, as the layers need it. Persistent, so search can fork it.
@@ -353,9 +360,18 @@ impl State {
         self.next
     }
 
-    /// An object enters the battlefield with its static abilities, and gets
-    /// a timestamp (CR 613.7d).
-    pub fn enter(&mut self, mut printed: Chars, statics: Vec<StaticAbility>) -> ObjectId {
+    /// A card enters the battlefield with its static abilities, and gets a
+    /// timestamp (CR 613.7d).
+    pub fn enter(&mut self, printed: Chars, statics: Vec<StaticAbility>) -> ObjectId {
+        self.arrive(printed, statics, false)
+    }
+
+    /// A token is created on the battlefield (CR 111.1, 613.7d).
+    pub fn create_token(&mut self, printed: Chars, statics: Vec<StaticAbility>) -> ObjectId {
+        self.arrive(printed, statics, true)
+    }
+
+    fn arrive(&mut self, mut printed: Chars, statics: Vec<StaticAbility>, token: bool) -> ObjectId {
         for s in statics {
             let id = StaticId(self.tick());
             self.statics.insert(id, s);
@@ -370,6 +386,7 @@ impl State {
                 timestamp,
                 counters: OrdMap::new(),
                 attached_to: None,
+                token,
             },
         );
         id

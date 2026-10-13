@@ -123,6 +123,7 @@ impl Run<'_> {
             source,
             source_chars,
             source_attached_to: self.state.objects[&source].attached_to,
+            token: self.state.objects[&id].token,
         })
     }
 

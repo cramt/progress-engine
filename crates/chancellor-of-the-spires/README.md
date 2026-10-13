@@ -28,11 +28,12 @@ the seam:
 Layers 4 (adding types and subtypes, setting a basic land type, CR 305.7),
 5 (colour), 6 (granting, removing, removing all) and 7b–7d (setting,
 modifying, switching), counters in 7c, filters over type, supertype,
-subtype, colour, controller, "other", "this" and "enchanted".
+subtype, colour, controller, "nontoken", "other", "this" and "enchanted".
 `tests/layers.rs` is the evidence: CR 613.4d, 613.5, 613.6 and 613.9's
 worked examples, and Glorious Anthem with counters, Giant Growth under
 Humility, CR 611.2c's fixed set, Blood Moon with Urborg and Humility with
-Opalescence in both timestamp orders, against their Gatherer rulings.
+Opalescence in both timestamp orders, against their Gatherer rulings, and
+Toph, the First Metalbender under Humility, with an earthbent land.
 
 Not yet: layers 1–3 (copy, control, text), 7a (characteristic-defining
 abilities, and so CDAs first, CR 613.3), dependency through "what it does"
