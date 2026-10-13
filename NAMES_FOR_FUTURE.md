@@ -34,6 +34,7 @@ the narrow tag has come up empty, which it has not yet.
 | **Experimental Augury** | The Monte Carlo cross-checking oracle, if `gauntlet-sim` is ever extracted. | yes |
 | **Meldweb Curator** | The git-backed deck editor: a decklist in a repo is the deck, and saving is a commit. `crates/meldweb-curator/`. | yes |
 | **Vivisurgeon's Insight** | A spike: Oracle text read into a typed ability tree, and a count of how much of Magic that covers. `crates/vivisurgeons-insight/`, binary `insight`. | yes |
+| **Chancellor of the Spires** | The rules engine: the game as a typed Rust state machine, and ascent rules deriving what is true now from Insight's trees. `crates/chancellor-of-the-spires/`. Planned in docs/research/rules-engine.md. | yes |
 
 A gauntlet is a set of trials you put something through, which is what a
 criteria file is. The card's own text is about planeswalkers and proliferate and
@@ -54,6 +55,14 @@ parser. Like Ichormoon Gauntlet, it rests on the word. A vivisurgeon cuts
 something living open to see how it works, which is what a parser does to
 card text. The card's own text, *Draw three cards. Proliferate.*, maps to
 nothing, but it was a fine first test case.
+
+Chancellor of the Spires went to the rules engine over Norn's Decree and Solve
+the Equation, because it rests on both. A chancellor administers a state's law,
+and the engine rules on a game state. The card's enter trigger casts an instant
+or sorcery an opponent wrote, which is what the engine does with Insight's
+trees: it executes card text it did not author. Its opening-hand reveal acts
+before the first turn, a part of the game the engine has to own and Gauntlet
+only approximates.
 
 ### Why Reality Chip is in here without the tag
 
@@ -103,6 +112,8 @@ Checked 2026-09-21. Free: `ichormoon-gauntlet`, `reality-chip`, `gitaxian-probe`
 `experimental-augury`, `serum-visions`, `meldweb`, `malcator`, `unctus`,
 `tekuthal`, `glistener`, `phyrexia`, `metatect`, `ichormoon`.
 `vivisurgeons-insight` was checked free on 2026-10-11 and is now spent.
+`chancellor-of-the-spires` and `chancellor` were checked free on 2026-10-13,
+and the first is now spent.
 
 Taken as bare words, so those need the full card name: `gauntlet`, `ingester`,
 `curator`, `seer`, `augury`, `chip`, `praetor`, `quicksilver`, `toxic`.
@@ -123,6 +134,7 @@ crates/reality-chip/{scryfall,decklist,stats}        packages chip-*
 crates/meldweb-curator/{wasm}                        packages meldweb-*, beside web/, a pnpm package
 crates/gitaxian-probe/{engine,assets,web-check,bindgen}  packages gitaxian-probe-*
 crates/vivisurgeons-insight                         package vivisurgeons-insight, one crate while it is a spike
+crates/chancellor-of-the-spires                     package chancellor-of-the-spires; split crates will be chancellor-*
 ```
 
 The first two shorten the directory to its distinctive word. Gitaxian Probe does

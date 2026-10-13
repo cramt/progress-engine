@@ -1,0 +1,13 @@
+[package]
+name = "chancellor-of-the-spires"
+description = "A rules engine for Magic: the game as a typed state machine, and what is true now derived by ascent from Insight's ability trees"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The default `par` feature pulls in rayon, which does not build for
+# wasm32-unknown-unknown, and the engine has to run in Meldweb's browser build.
+ascent = { workspace = true }
+vivisurgeons-insight = { workspace = true }

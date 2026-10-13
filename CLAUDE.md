@@ -55,7 +55,13 @@ Rust, and `web/src/deck.gen.ts` is generated from the wire types
 **Vivisurgeon's Insight** (`crates/vivisurgeons-insight/`, binary `insight`) is a
 spike, not a product: a grammar that reads Oracle text into a typed ability
 tree, and counts how much of Magic it covers. Its README holds the numbers and
-the verdict. Nothing else in the workspace depends on it.
+the verdict. Only Chancellor of the Spires depends on it.
+
+**Chancellor of the Spires** (`crates/chancellor-of-the-spires/`) is the rules
+engine, a scaffold so far: the game as a typed Rust state machine, with what
+is true now derived by ascent from Insight's trees.
+[docs/research/rules-engine.md](docs/research/rules-engine.md) is the plan. It
+must build for `wasm32-unknown-unknown`, so ascent stays off its `par` feature.
 
 Gauntlet stands on **Reality Chip** (`crates/reality-chip/`), the shared core:
 `chip-scryfall` (card index, query syntax), `chip-decklist` (Archidekt parsing)

@@ -222,11 +222,10 @@ cache (see the open questions).
 ## The plan
 
 1. **A separate product.** It is a rules engine, not Insight (a spike) and
-   not Gauntlet. Following NAMES_FOR_FUTURE.md, two candidates are in
-   `arttag:progress-engine` and free on crates.io: **Norn's Decree** (a
-   decree is a ruling, which is what an engine hands down on a game state)
-   and **Solve the Equation** (a fixpoint is a solved equation). Both rest on
-   the word, not the card's text. **This needs your pick.**
+   not Gauntlet. It is **Chancellor of the Spires**
+   (`crates/chancellor-of-the-spires/`); NAMES_FOR_FUTURE.md says why. Norn's
+   Decree and Solve the Equation were the other candidates, and both rested
+   on the word alone.
 2. **Rust. The game is a typed state machine:** priority, the stack,
    choices, hidden information, randomness. Datalog can't be the whole
    engine, because Magic is Turing complete. Any Turing machine can be
