@@ -1031,6 +1031,18 @@ fn trigger_object(e: &Event) -> Option<Objects> {
     // Embrace's "put a +1/+1 counter on that creature" is the enchanted
     // creature, the dead one being in a graveyard.
     let mut said = what.clone();
+    // "a spell with mana value equal to the number of charge counters on
+    // this artifact" (Chalice of the Void): what a count counts is no object
+    // a reference names.
+    said.filter.posts.retain(|p| {
+        !matches!(
+            p,
+            Post::With(Compare {
+                value: Amount::CountOf(_),
+                ..
+            })
+        )
+    });
     for p in said.filter.posts.iter_mut() {
         if let Post::WasDealtDamageThisTurn { by, .. } = p {
             if by.as_ref().is_some_and(|b| b.quant == Quant::SelfRef) {

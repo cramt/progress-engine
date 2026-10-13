@@ -93,7 +93,7 @@ cost: {X}{X}
 > This artifact enters with X charge counters on it.
 > Whenever a player casts a spell with mana value equal to the number of charge counters on this artifact, counter that spell.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, n: X, kind: "charge" }])
-= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Eq, value: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("charge"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], or: None } }) })], or: None } } }), effect: [Counter { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }], limits: [] }
+= Triggered { trigger: When(Casts { who: APlayer, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Eq, value: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("charge"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], or: None } }) })], or: None } } }), effect: [Counter { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }], limits: [] }
 
 ## Chameleon Blur
 face: Chameleon Blur
