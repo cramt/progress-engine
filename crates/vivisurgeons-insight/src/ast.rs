@@ -943,6 +943,10 @@ pub enum Post {
     },
     /// "creatures that died this turn".
     DiedThisTurn,
+    /// "creatures that died under your control this turn": that player
+    /// controlled each as it died (CR 603.10a), where `Controller` would
+    /// say who controls it now.
+    DiedUnderControlThisTurn(Player),
     /// "creature cards in your graveyard that were put there from the
     /// battlefield this turn": put into that graveyard from the battlefield
     /// this turn, creatures or not.

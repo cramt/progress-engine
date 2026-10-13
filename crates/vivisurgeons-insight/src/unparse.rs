@@ -4105,6 +4105,11 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             comparison(o, *op, value);
         }
         Post::DiedThisTurn => o.w("that died this turn"),
+        Post::DiedUnderControlThisTurn(who) => {
+            o.w("that died under");
+            whose(o, who);
+            o.w("control this turn");
+        }
         Post::PutThereFromBattlefieldThisTurn => {
             o.w("that");
             match n {
