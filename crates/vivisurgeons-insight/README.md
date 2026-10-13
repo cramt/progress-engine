@@ -13,6 +13,7 @@ see what is inside, and the namesake is the first test: it reads as
 ```
 cargo run --release -p vivisurgeons-insight -- coverage --deck decks/lantern.deck.toml --deck decks/loam.deck.toml
 cargo run --release -p vivisurgeons-insight -- card Swords to Plowshares
+cargo run -- 2xm/321                     # from this directory: a printing (asks Scryfall for its name) or a name
 cargo run --release -p vivisurgeons-insight -- sample 25
 cargo run --release -p vivisurgeons-insight -- failing 2000            # or a milestone: failing modern-meta
 cargo run --release -p vivisurgeons-insight -- snapshot               # rewrite snapshot/ after a scryfall sync; with a path, the driver's flat file

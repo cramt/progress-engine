@@ -63,3 +63,10 @@ opt-level = "z"
 lto = true
 codegen-units = 1
 strip = true
+
+# `insight <card>` scans the 200 MB oracle bulk file, which takes 14s at
+# opt-level 0 and well under a second optimised.
+[profile.dev.package.vivisurgeons-insight]
+opt-level = 1
+[profile.dev.package.serde_json]
+opt-level = 1

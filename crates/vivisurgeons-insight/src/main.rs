@@ -216,13 +216,75 @@ fn coverage(args: &[String]) -> Result<()> {
     Ok(())
 }
 
+/// Which card `insight card` reads: a printing as Scryfall's URLs name it
+/// (`2xm/321`), or the card's own name.
+enum Lookup {
+    Printing { set: String, number: String },
+    Name(String),
+}
+
+impl Lookup {
+    fn parse(args: &[String]) -> Result<Self> {
+        let joined = args.join(" ");
+        let joined = joined.trim();
+        if joined.is_empty() {
+            bail!("which card? a name, or set/number like 2xm/321");
+        }
+        // A name never has a slash without spaces round it ("Fire // Ice"),
+        // so one bare slash is always a printing.
+        Ok(match joined.split_once('/') {
+            Some((set, number))
+                if !joined.contains(char::is_whitespace)
+                    && !set.is_empty()
+                    && !number.is_empty()
+                    && !number.contains('/') =>
+            {
+                Lookup::Printing {
+                    set: set.to_ascii_lowercase(),
+                    number: number.to_string(),
+                }
+            }
+            _ => Lookup::Name(joined.to_string()),
+        })
+    }
+
+    /// The Oracle name, which is what the corpus is keyed by: the oracle bulk
+    /// file holds one printing per card, so another printing's set and number
+    /// have to be asked of Scryfall.
+    fn name(self) -> Result<String> {
+        let (set, number) = match self {
+            Lookup::Name(n) => return Ok(n),
+            Lookup::Printing { set, number } => (set, number),
+        };
+        let url = format!("https://api.scryfall.com/cards/{set}/{number}");
+        let body = ureq::get(&url)
+            .header(
+                "User-Agent",
+                concat!("vivisurgeons-insight/", env!("CARGO_PKG_VERSION")),
+            )
+            .header("Accept", "application/json")
+            .call()
+            .with_context(|| format!("asking Scryfall for {set}/{number}"))?
+            .body_mut()
+            .read_to_string()
+            .with_context(|| format!("reading Scryfall's answer for {set}/{number}"))?;
+        let card: serde_json::Value = serde_json::from_str(&body)?;
+        card["name"]
+            .as_str()
+            .map(str::to_string)
+            .with_context(|| format!("Scryfall's {set}/{number} has no name"))
+    }
+}
+
 fn card(args: &[String]) -> Result<()> {
-    let name = args.join(" ");
+    let name = Lookup::parse(args)?.name()?;
     let (cards, _) = load(&cache("oracle-cards.jsonl"), &HashSet::new(), Some(&name))?;
     let c = cards
         .iter()
         .find(|c| c.name.eq_ignore_ascii_case(&name))
-        .with_context(|| format!("no card named {name}"))?;
+        .with_context(|| {
+            format!("no card named {name} in the corpus (not Vintage-legal, or not synced)")
+        })?;
     for l in &c.lines {
         println!("{}", l.text);
         match &l.parsed {
@@ -549,6 +611,29 @@ fn main() -> Result<()> {
         Some("pin") => pin(&args[1..]),
         Some("roundtrip") => roundtrip(&args[1..]),
         Some("lint") => lint(&args[1..]),
-        _ => bail!("usage: insight coverage [--bulk F] [--tags F] [--deck F]... [--top N] | insight card <name> | insight sample N | insight failing [N | milestone] | insight snapshot [file] | insight pin <N | milestone> | insight roundtrip [N | milestone] [--golden] [--examples N] | insight lint [kind] [--counts] [--examples N]"),
+        // Anything else is a card, so `cargo run -- 2xm/321` reads one.
+        Some(_) => card(&args),
+        None => bail!("usage: insight [card] <name | set/number> | insight coverage [--bulk F] [--tags F] [--deck F]... [--top N] |insight sample N | insight failing [N | milestone] | insight snapshot [file] | insight pin <N | milestone> | insight roundtrip [N | milestone] [--golden] [--examples N] | insight lint [kind] [--counts] [--examples N]"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Lookup;
+
+    fn parse(s: &str) -> Lookup {
+        Lookup::parse(&s.split(' ').map(str::to_string).collect::<Vec<_>>()).unwrap()
+    }
+
+    #[test]
+    fn a_bare_slash_is_a_printing_and_a_split_card_is_a_name() {
+        assert!(matches!(
+            parse("2XM/321"),
+            Lookup::Printing { set, number } if set == "2xm" && number == "321"
+        ));
+        assert!(matches!(parse("Fire // Ice"), Lookup::Name(n) if n == "Fire // Ice"));
+        assert!(matches!(parse("Oblivion Ring"), Lookup::Name(_)));
+        assert!(matches!(parse("Fire//Ice"), Lookup::Name(_)));
+        assert!(Lookup::parse(&[]).is_err());
     }
 }

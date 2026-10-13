@@ -77,7 +77,16 @@ pub fn read(
     let text = fs::read_to_string(bulk).with_context(|| format!("reading {bulk}"))?;
     let mut cards = Vec::new();
     let mut skipped = 0;
+    // Parsing all 200 MB is half a minute in a debug build; a line that
+    // doesn't hold the name anywhere can't be the card.
+    let needle = only.map(str::to_ascii_lowercase);
     for line in text.lines() {
+        if needle
+            .as_ref()
+            .is_some_and(|n| !line.to_ascii_lowercase().contains(n.as_str()))
+        {
+            continue;
+        }
         let c: Value = serde_json::from_str(line)?;
         let layout = c["layout"].as_str().unwrap_or("");
         if NOT_CARDS.contains(&layout) || !vintage_playable(&c) {
