@@ -61,7 +61,7 @@ the verdict. Only Chancellor of the Spires depends on it.
 engine, a scaffold so far: the game as a typed Rust state machine, with what
 is true now derived by ascent from Insight's trees.
 [docs/research/rules-engine.md](docs/research/rules-engine.md) is the plan. It
-must build for `wasm32-unknown-unknown`, so ascent stays off its `par` feature.
+must build for `wasm32-unknown-unknown`, so ascent's `par` (rayon) is on only off wasm.
 
 Gauntlet stands on **Reality Chip** (`crates/reality-chip/`), the shared core:
 `chip-scryfall` (card index, query syntax), `chip-decklist` (Archidekt parsing)
