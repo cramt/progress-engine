@@ -171,7 +171,9 @@ fn rename_text(text: &str, names: &[String], words: &mut Vec<String>) -> String 
 }
 
 /// Renaming a card, in its name and its text alike, must not change a
-/// single tree: what a card does cannot depend on what it is called.
+/// single tree: what a card does cannot depend on what it is called. A
+/// tree that holds the printed name ("another spell named ~",
+/// [named-self]) holds the new one.
 #[test]
 fn renaming_a_card_does_not_change_its_trees() {
     let mut moved = Vec::new();
@@ -181,7 +183,11 @@ fn renaming_a_card_does_not_change_its_trees() {
         let card = renamed(&e.card, &mut words);
         let face = renamed(&e.face, &mut words);
         let text = rename_text(&e.text, &names, &mut words);
-        let before = trees(&e.card, &e.face, &e.type_line, &e.text);
+        let printed = |name: &str| format!("PrintedName({name:?})");
+        let before: Vec<String> = trees(&e.card, &e.face, &e.type_line, &e.text)
+            .into_iter()
+            .map(|t| t.replace(&printed(&e.face), &printed(&face)))
+            .collect();
         let after = trees(&card, &face, &e.type_line, &text);
         if before != after {
             moved.push(format!(

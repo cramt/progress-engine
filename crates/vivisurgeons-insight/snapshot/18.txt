@@ -488,7 +488,7 @@ cost: {2}{U}
 > {2}{U}: Creatures named Leitmotif Composer can't be blocked this turn.
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [With(Compare { stat: ManaValue, op: Ge, value: N(5) })], or: None } } }), effect: [CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
-= Activated { cost: [Mana(Mana(["2", "U"]))], effect: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "U"]))], effect: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Named(PrintedName("Leitmotif Composer"))], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] }
 
 ## Lightning Bolt
 face: Lightning Bolt

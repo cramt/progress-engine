@@ -187,7 +187,7 @@ face: Cleric of the Forward Order
 type: Creature — Human Cleric
 cost: {1}{W}
 > When this creature enters, you gain 2 life for each creature you control named Cleric of the Forward Order.
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [GainLife { who: You, n: N(2) }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), Named(PrintedName("Cleric of the Forward Order"))], or: None } }, then: [GainLife { who: You, n: N(2) }] }], limits: [] }
 
 ## Cloudseeder
 face: Cloudseeder

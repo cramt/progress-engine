@@ -35,6 +35,8 @@ pub struct P<'a> {
     /// A spell's paragraph after its first, which alone may open with
     /// "Then" ([then-paragraph]).
     continues: bool,
+    /// The face's printed name, which "named ~" says ([named-self]).
+    name: &'a str,
 }
 
 macro_rules! alt {
@@ -47,7 +49,7 @@ macro_rules! alt {
 }
 
 impl<'a> P<'a> {
-    pub fn new(t: &'a [Tok]) -> Self {
+    pub fn new(t: &'a [Tok], name: &'a str) -> Self {
         P {
             t,
             i: 0,
@@ -59,6 +61,7 @@ impl<'a> P<'a> {
             in_value: false,
             spell: false,
             continues: false,
+            name,
         }
     }
 
@@ -631,7 +634,7 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
                 p.word(&word)?;
                 p.tok(&Tok::Dash)?;
                 let end = p.t[p.i..].iter().position(|t| *t == Tok::Bullet).map_or(p.t.len(), |n| p.i + n);
-                let mut sub = P::new(&p.t[p.i..end]);
+                let mut sub = P::new(&p.t[p.i..end], p.name);
                 let a = ability(&mut sub, false)?;
                 if !sub.at_end() { return None; }
                 p.i = end;
@@ -2604,8 +2607,14 @@ impl Visitor for FromAmongAfterShares {
 }
 
 /// A whole ability line, which must be consumed to the last token.
-pub fn parse_line(toks: &[Tok], spell: bool, continues: bool) -> Result<Ability, usize> {
-    let mut p = P::new(toks);
+/// One line of a face's text, `name` the face's printed name.
+pub fn parse_line(
+    toks: &[Tok],
+    name: &str,
+    spell: bool,
+    continues: bool,
+) -> Result<Ability, usize> {
+    let mut p = P::new(toks, name);
     p.spell = spell;
     p.continues = continues;
     match ability(&mut p, spell) {

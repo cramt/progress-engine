@@ -105,7 +105,7 @@ cost: {2}{R}
 > Each other creature named Brothers Yamazaki gets +2/+2 and has haste.
 = Keywords([Keyword { name: "bushido", param: Some(N(N(1))) }])
 = BROKE at "~" after: if there are exactly two permanents named
-= Static([Modify { what: Objects { quant: Each, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "haste", param: None }], per: None }])
+= Static([Modify { what: Objects { quant: Each, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Named(PrintedName("Brothers Yamazaki"))], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [Keyword { name: "haste", param: None }], per: None }])
 
 ## Case of the Shattered Pact
 face: Case of the Shattered Pact

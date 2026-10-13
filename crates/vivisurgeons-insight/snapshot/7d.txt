@@ -213,7 +213,7 @@ type: Creature — Spirit Avatar
 cost: {B/R}{B/R}{B/R}{B/R}{B/R}
 > When you cast this spell, return all cards named Demigod of Revenge from your graveyard to the battlefield.
 > Flying, haste
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Move { what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Move { what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Demigod of Revenge")), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "haste", param: None }])
 
 ## Doomsday Confluence

@@ -1004,7 +1004,7 @@ face: Whisper Squad
 type: Creature — Human Soldier
 cost: {B}
 > {1}{B}: Search your library for a card named Whisper Squad, put it onto the battlefield tapped, then shuffle.
-= Activated { cost: [Mana(Mana(["1", "B"]))], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }, Shuffle(You)], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "B"]))], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Whisper Squad"))], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }, Shuffle(You)], limits: [] }
 
 ## Wingblade Disciple
 face: Wingblade Disciple

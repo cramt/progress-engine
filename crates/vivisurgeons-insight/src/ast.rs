@@ -898,6 +898,11 @@ pub enum Noun {
     Pile,
 }
 
+/// A card's name as printed: a string any object may share (CR 201.2a),
+/// not the object.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PrintedName(pub String);
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Post {
     /// "a spell that's exactly two colors", "a nonland permanent that isn't
@@ -931,8 +936,13 @@ pub enum Post {
     /// "with a +1/+1 counter on it", or of any kind when `None`: "with
     /// counters on them".
     WithCounter(Option<CounterKind>),
-    /// "card named ~".
-    Named(Box<Objects>),
+    /// "a spell named ~", "a card named ~": the card's own printed name,
+    /// a string, not the object: Approach of the Second Sun counts another
+    /// spell with that name (CR 201.2a). Inside a quoted ability it is still the printed name
+    /// (Rekindling Phoenix's Elemental returns "a card named Rekindling
+    /// Phoenix") ([named-self]). "Differently named" compares objects'
+    /// names, `Amount::DifferentlyNamed`.
+    Named(PrintedName),
     /// "spells your opponents cast that target this creature".
     Targets(Box<Objects>),
     /// "each spell you cast that's red or green".

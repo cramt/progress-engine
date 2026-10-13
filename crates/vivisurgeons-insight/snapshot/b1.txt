@@ -656,7 +656,7 @@ face: Plague Rats
 type: Creature — Rat
 cost: {2}{B}
 > Plague Rats's power and toughness are each equal to the number of creatures named Plague Rats on the battlefield.
-= Static([SetPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), In(Battlefield)], or: None } }) }])
+= Static([SetPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Named(PrintedName("Plague Rats")), In(Battlefield)], or: None } }) }])
 
 ## Planar Overlay
 face: Planar Overlay

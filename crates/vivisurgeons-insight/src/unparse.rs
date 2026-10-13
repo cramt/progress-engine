@@ -4354,9 +4354,10 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.w("on");
             syn::it(o);
         }
-        Post::Named(x) => {
+        // The printed name is the card's own, which the text says as ~.
+        Post::Named(_) => {
             o.w("named");
-            objects(o, x);
+            o.tok(Tok::SelfRef);
         }
         Post::Targets(x) => {
             o.w("that");

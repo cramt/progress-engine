@@ -2070,9 +2070,6 @@ impl Walk for Post {
             Post::EnchantedBy(f0) => {
                 Walk::walk(&mut **f0, v);
             }
-            Post::Named(f0) => {
-                Walk::walk(&mut **f0, v);
-            }
             Post::Targets(f0) => {
                 Walk::walk(&mut **f0, v);
             }

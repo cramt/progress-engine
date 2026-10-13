@@ -519,7 +519,7 @@ face: Life Burst
 type: Instant
 cost: {1}{W}
 > Target player gains 4 life, then gains 4 life for each card named Life Burst in each graveyard.
-= Spell([GainLife { who: Target, n: N(4) }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), In(Graveyard(Each))], or: None } }, then: [GainLife { who: Target, n: N(4) }] }])
+= Spell([GainLife { who: Target, n: N(4) }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Life Burst")), In(Graveyard(Each))], or: None } }, then: [GainLife { who: Target, n: N(4) }] }])
 
 ## Lu Xun, Scholar General
 face: Lu Xun, Scholar General

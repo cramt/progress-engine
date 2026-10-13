@@ -681,7 +681,7 @@ face: Pack Mastiff
 type: Creature — Dog
 cost: {1}{R}
 > {1}{R}: Each creature you control named Pack Mastiff gets +1/+0 until end of turn.
-= Activated { cost: [Mana(Mana(["1", "R"]))], effect: [Modify { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "R"]))], effect: [Modify { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), Named(PrintedName("Pack Mastiff"))], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Panglacial Wurm
 face: Panglacial Wurm

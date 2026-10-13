@@ -674,7 +674,7 @@ cost: {2}{B}{B}
 > Crew 1
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: InterveningIf(At(EndStep(Yours)), DidThisTurn(Sacrifices { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } })), effect: [CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
-= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(8)), filter: Filter { alts: [], kind: Some(Permanent), posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), then: [Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Type("artifact"), Type("creature")]) }] }])
+= Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(8)), filter: Filter { alts: [], kind: Some(Permanent), posts: [Named(PrintedName("Phoenix Fleet Airship"))], or: None } }), then: [Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: Listed([Type("artifact"), Type("creature")]) }] }])
 = Keywords([Keyword { name: "crew", param: Some(N(N(1))) }])
 
 ## Phyresis

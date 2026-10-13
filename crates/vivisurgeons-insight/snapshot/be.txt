@@ -385,7 +385,7 @@ face: Frantic Inventory
 type: Instant
 cost: {1}{U}
 > Draw a card, then draw cards equal to the number of cards named Frantic Inventory in your graveyard.
-= Spell([Draw { who: You, n: N(1) }, Draw { who: You, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), In(Graveyard(You))], or: None } }) }])
+= Spell([Draw { who: You, n: N(1) }, Draw { who: You, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Frantic Inventory")), In(Graveyard(You))], or: None } }) }])
 
 ## Frenzied Raptor
 face: Frenzied Raptor

@@ -938,7 +938,7 @@ face: Rune Snag
 type: Instant
 cost: {1}{U}
 > Counter target spell unless its controller pays {2} plus an additional {2} for each card named Rune Snag in each graveyard.
-= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: Some((ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), [Mana(Mana(["2"])), ManaPer { mana: Mana(["2"]), per: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), In(Graveyard(Each))], or: None } } }])) }])
+= Spell([Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: Some((ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), [Mana(Mana(["2"])), ManaPer { mana: Mana(["2"]), per: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Rune Snag")), In(Graveyard(Each))], or: None } } }])) }])
 
 ## Rune of Protection: Artifacts
 face: Rune of Protection: Artifacts

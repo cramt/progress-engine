@@ -458,7 +458,7 @@ cost: {2}{G}
 > Changeling (This card is every creature type.)
 > Whenever another creature you control named Gladewalker Ritualist enters, draw a card.
 = Keywords([Keyword { name: "changeling", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), Named(PrintedName("Gladewalker Ritualist"))], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Glimmerpoint Stag
 face: Glimmerpoint Stag

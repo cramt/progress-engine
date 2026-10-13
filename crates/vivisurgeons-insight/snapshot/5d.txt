@@ -21,7 +21,7 @@ face: Approach of the Second Sun
 type: Sorcery
 cost: {6}{W}
 > If this spell was cast from your hand and you've cast another spell named Approach of the Second Sun this game, you win the game. Otherwise, put Approach of the Second Sun into its owner's library seventh from the top and you gain 7 life.
-= Spell([If { cond: And([CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, DidThisGame(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Spell), posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } } })]), then: [WinGame(You)] }, Otherwise([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryNthFromTop(7), tapped: false, transformed: false, under: None, order: None }, GainLife { who: You, n: N(7) }])])
+= Spell([If { cond: And([CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, DidThisGame(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Spell), posts: [Named(PrintedName("Approach of the Second Sun"))], or: None } } })]), then: [WinGame(You)] }, Otherwise([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryNthFromTop(7), tapped: false, transformed: false, under: None, order: None }, GainLife { who: You, n: N(7) }])])
 
 ## Argentum Armor
 face: Argentum Armor
@@ -928,7 +928,7 @@ face: Timberpack Wolf
 type: Creature — Wolf
 cost: {1}{G}
 > This creature gets +1/+1 for each other creature you control named Timberpack Wolf.
-= Static([Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You), Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } })) }])
+= Static([Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You), Named(PrintedName("Timberpack Wolf"))], or: None } })) }])
 
 ## Timestream Navigator
 face: Timestream Navigator

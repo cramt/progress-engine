@@ -402,7 +402,7 @@ face: Food Fight
 type: Enchantment
 cost: {1}{R}
 > Artifacts you control have "{2}, Sacrifice this artifact: It deals damage to any target equal to 1 plus the number of permanents named Food Fight you control."
-= Static([HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Mana(Mana(["2"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: Plus(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Named(Objects { quant: Granter, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Controller(You)], or: None } }), 1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] } }])
+= Static([HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Mana(Mana(["2"])), Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: Plus(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Permanent), posts: [Named(PrintedName("Food Fight")), Controller(You)], or: None } }), 1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] } }])
 
 ## Fracture
 face: Fracture

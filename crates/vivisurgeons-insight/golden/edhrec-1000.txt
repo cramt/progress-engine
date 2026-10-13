@@ -240,7 +240,7 @@ face: Approach of the Second Sun
 type: Sorcery
 cost: {6}{W}
 > If this spell was cast from your hand and you've cast another spell named Approach of the Second Sun this game, you win the game. Otherwise, put Approach of the Second Sun into its owner's library seventh from the top and you gain 7 life.
-= Spell([If { cond: And([CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, DidThisGame(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Spell), posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } } })]), then: [WinGame(You)] }, Otherwise([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryNthFromTop(7), tapped: false, transformed: false, under: None, order: None }, GainLife { who: You, n: N(7) }])])
+= Spell([If { cond: And([CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, DidThisGame(Casts { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Spell), posts: [Named(PrintedName("Approach of the Second Sun"))], or: None } } })]), then: [WinGame(You)] }, Otherwise([Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryNthFromTop(7), tapped: false, transformed: false, under: None, order: None }, GainLife { who: You, n: N(7) }])])
 
 ## Aqueous Form
 face: Aqueous Form
@@ -5898,7 +5898,7 @@ face: Rite of Flame
 type: Sorcery
 cost: {R}
 > Add {R}{R}, then add {R} for each card named Rite of Flame in each graveyard.
-= Spell([AddMana(Symbols(Mana(["R", "R"]))), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), In(Graveyard(Each))], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }])
+= Spell([AddMana(Symbols(Mana(["R", "R"]))), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Rite of Flame")), In(Graveyard(Each))], or: None } }, then: [AddMana(Symbols(Mana(["R"])))] }])
 
 ## Rite of Replication
 face: Rite of Replication

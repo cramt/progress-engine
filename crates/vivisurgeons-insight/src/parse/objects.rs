@@ -937,7 +937,9 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| { p.words("exiled with")?; objects(p).map(|o| Post::ExiledWith(Box::new(o))) },
         |p| p.words("you cast").map(|_| Post::Cast(Player::You)),
         |p| p.words("drawn this turn").map(|_| Post::DrawnThisTurn),
-        |p| { p.word("named")?; pronoun(p).map(|o| Post::Named(Box::new(o))) },
+        // "named ~" is the name, so neither `SelfRef` nor, in a quote,
+        // `Granter`: the string is the same either way.
+        |p| { p.word("named")?; p.tok(&Tok::SelfRef)?; Some(Post::Named(PrintedName(p.name.to_string()))) },
         // "a creature named Hanweir Garrison": another card, by its name.
         |p| { p.word("named")?; card_name(p, &[",", "with", "and"]).map(Post::NamedCard) },
         |p| { p.one_of(&["that target", "that targets"])?; objects(p).map(|o| Post::Targets(Box::new(o))) },

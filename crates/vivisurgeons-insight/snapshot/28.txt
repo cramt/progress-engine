@@ -140,7 +140,7 @@ cost: {W}
 > Lifelink
 > When this creature enters, put a +1/+1 counter on each other creature you control named Charmed Stray.
 = Keywords([Keyword { name: "lifelink", param: None }])
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You), Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } } }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You), Named(PrintedName("Charmed Stray"))], or: None } } }], limits: [] }
 
 ## Circu, Dimir Lobotomist
 face: Circu, Dimir Lobotomist

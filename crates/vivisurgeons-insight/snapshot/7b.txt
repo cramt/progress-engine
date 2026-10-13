@@ -605,7 +605,7 @@ cost: {1}{W}{W}
 > {T}: Prevent all damage that would be dealt to target creature this turn.
 > Grandeur — Discard another card named Oriss, Samite Guardian: Target player can't cast spells this turn, and creatures that player controls can't attack this turn.
 = Activated { cost: [Tap], effect: [Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }], limits: [] }
-= Labelled { label: "grandeur", ability: Activated { cost: [Discard(Objects { quant: Another, filter: Filter { alts: [], kind: Some(Card), posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } })], effect: [PlayerRestrict { who: Target, rule: CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), dur: ThisTurn }, Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, rule: CantAttack, dur: ThisTurn }], limits: [] } }
+= Labelled { label: "grandeur", ability: Activated { cost: [Discard(Objects { quant: Another, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Oriss, Samite Guardian"))], or: None } })], effect: [PlayerRestrict { who: Target, rule: CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), dur: ThisTurn }, Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(That)], or: None } }, rule: CantAttack, dur: ThisTurn }], limits: [] } }
 
 ## Ostiary Thrull
 face: Ostiary Thrull

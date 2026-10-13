@@ -766,7 +766,7 @@ type: Land
 > If this land would enter, instead sacrifice each other permanent named Sheltered Valley you control, then put this land onto the battlefield.
 > At the beginning of your upkeep, if you control three or fewer lands, you gain 1 life.
 > {T}: Add {C}.
-= Static([Replacement { event: Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, instead: [Sacrifice { who: You, what: Objects { quant: Each, filter: Filter { alts: [[State(Other)]], kind: Some(Permanent), posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Controller(You)], or: None } } }, Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }])
+= Static([Replacement { event: Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, instead: [Sacrifice { who: You, what: Objects { quant: Each, filter: Filter { alts: [[State(Other)]], kind: Some(Permanent), posts: [Named(PrintedName("Sheltered Valley")), Controller(You)], or: None } } }, Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }])
 = Triggered { trigger: InterveningIf(At(Upkeep(Yours)), YouControl(Objects { quant: AtMost(N(3)), filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })), effect: [GainLife { who: You, n: N(1) }], limits: [] }
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
 

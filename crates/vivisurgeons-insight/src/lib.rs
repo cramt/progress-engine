@@ -84,14 +84,15 @@ pub fn read_face(face: &Face, card_name: &str) -> Vec<Line> {
             let toks = lex::lex(&l);
             let text = l.replace('\u{E000}', "~");
             let continues = spell && i > 0;
-            let parsed = parse::parse_line(&toks, spell, continues).map_err(|at| Broke {
-                read: toks[..at.min(toks.len())]
-                    .iter()
-                    .map(show)
-                    .collect::<Vec<_>>()
-                    .join(" "),
-                at: toks.get(at).map(show).unwrap_or_else(|| "<end>".into()),
-            });
+            let parsed =
+                parse::parse_line(&toks, face.name, spell, continues).map_err(|at| Broke {
+                    read: toks[..at.min(toks.len())]
+                        .iter()
+                        .map(show)
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                    at: toks.get(at).map(show).unwrap_or_else(|| "<end>".into()),
+                });
             Line {
                 text,
                 parsed,

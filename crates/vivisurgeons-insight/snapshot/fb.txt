@@ -266,7 +266,7 @@ cost: {U}
 > Flying
 > When this creature enters, if you control another creature named Faerie Miscreant, draw a card.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), YouControl(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), YouControl(Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Named(PrintedName("Faerie Miscreant"))], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Feral Invocation
 face: Feral Invocation

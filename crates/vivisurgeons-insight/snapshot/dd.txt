@@ -3,7 +3,7 @@ face: Accumulated Knowledge
 type: Instant
 cost: {1}{U}
 > Draw a card, then draw cards equal to the number of cards named Accumulated Knowledge in all graveyards.
-= Spell([Draw { who: You, n: N(1) }, Draw { who: You, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), In(Graveyard(Each))], or: None } }) }])
+= Spell([Draw { who: You, n: N(1) }, Draw { who: You, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Accumulated Knowledge")), In(Graveyard(Each))], or: None } }) }])
 
 ## Angel of Destiny
 face: Angel of Destiny

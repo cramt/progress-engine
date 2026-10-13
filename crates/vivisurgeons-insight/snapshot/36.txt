@@ -860,7 +860,7 @@ face: Take Inventory
 type: Sorcery
 cost: {1}{U}
 > Draw a card, then draw cards equal to the number of cards named Take Inventory in your graveyard.
-= Spell([Draw { who: You, n: N(1) }, Draw { who: You, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), In(Graveyard(You))], or: None } }) }])
+= Spell([Draw { who: You, n: N(1) }, Draw { who: You, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Named(PrintedName("Take Inventory")), In(Graveyard(You))], or: None } }) }])
 
 ## Tanazir Quandrix
 face: Tanazir Quandrix
