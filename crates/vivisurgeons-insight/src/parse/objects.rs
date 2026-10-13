@@ -382,11 +382,26 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
         && groups[0].iter().any(is_typed)
         && groups[1..].iter().all(|g| g.iter().all(is_typed))
     {
-        let lead: Vec<Adj> = groups[0]
+        let mut lead: Vec<Adj> = groups[0]
             .iter()
             .take_while(|a| !is_typed(a))
             .cloned()
             .collect();
+        // "Adventure instant or sorcery spell": subtypes before the first
+        // card type are attributive, so each later bare card type takes them
+        // ([subtypes-before-type]).
+        if let Some((Adj::Type(_), init)) = groups[0].split_last() {
+            if init.len() > lead.len()
+                && init[lead.len()..]
+                    .iter()
+                    .all(|a| matches!(a, Adj::Subtype(_)))
+                && groups[1..]
+                    .iter()
+                    .all(|g| matches!(g.as_slice(), [Adj::Type(_)]))
+            {
+                lead = init.to_vec();
+            }
+        }
         // "enchanted creature or enchantment creature" lists a noun phrase
         // of its own, which takes nothing from the one before; "equipped
         // creature and Equipment" lists an Equipment, which is attached to

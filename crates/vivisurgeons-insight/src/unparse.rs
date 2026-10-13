@@ -3714,6 +3714,28 @@ fn printed_groups(alts: &[Vec<Adj>]) -> Vec<Vec<Adj>> {
             }
         }
     }
+    // "Adventure instant or sorcery", as `filter` reads it: subtypes before
+    // the first card type, shared by later bare card types.
+    if g.len() > 1 {
+        if let Some((Adj::Type(_), init)) = g[0].split_last() {
+            let init = init.to_vec();
+            if init.iter().any(|a| matches!(a, Adj::Subtype(_)))
+                && init
+                    .iter()
+                    .skip_while(|a| !is_typed(a))
+                    .all(|a| matches!(a, Adj::Subtype(_)))
+                && g[1..].iter().all(|x| {
+                    x.len() == init.len() + 1
+                        && x.starts_with(&init)
+                        && matches!(x.last(), Some(Adj::Type(_)))
+                })
+            {
+                for x in g.iter_mut().skip(1) {
+                    x.drain(..init.len());
+                }
+            }
+        }
+    }
     if g.len() > 1 && g[0].iter().any(is_typed) {
         let lead: Vec<Adj> = g[0].iter().take_while(|a| !is_typed(a)).cloned().collect();
         if !lead.is_empty()
