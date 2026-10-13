@@ -560,7 +560,7 @@ cost: {1}{W}
 > Flying
 > At the beginning of each end step, if you put a counter on a creature this turn, investigate. (Create a Clue token. It's an artifact with "{2}, Sacrifice this token: Draw a card.")
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "turn" after: at the beginning of each end step , if you put a counter on a creature this
+= Triggered { trigger: InterveningIf(At(EndStep(Each)), DidThisTurn(CountersPut { by: Some(Player(You)), n: One, kind: None, on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } })), effect: [Action { by: None, name: "investigate", n: None }], limits: [] }
 
 ## Lord of the Void
 face: Lord of the Void

@@ -10098,6 +10098,15 @@ fn condition(o: &mut Out, c: &Condition) {
                 objects(o, what);
                 o.w("left the battlefield this turn");
             }
+            // "if you put a counter on a creature this turn": "put" is its
+            // own past tense.
+            e @ Event::CountersPut {
+                by: Some(Actor::Player(_)),
+                ..
+            } => {
+                event(o, e);
+                o.w("this turn");
+            }
             Event::Sacrifices { who, what } => {
                 player(o, who);
                 syn::did_tense(

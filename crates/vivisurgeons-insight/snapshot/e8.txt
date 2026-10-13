@@ -469,7 +469,7 @@ cost: {3}{G}{U}
 > At the beginning of each end step, if you put a counter on this creature this turn, create a 0/0 green and blue Fractal creature token and put three +1/+1 counters on it.
 = Keywords([Keyword { name: "ward", param: Some(Cost([Mana(Mana(["2"]))])) }])
 = Keywords([Keyword { name: "increment", param: None }])
-= BROKE at "turn" after: at the beginning of each end step , if you put a counter on this creature this
+= Triggered { trigger: InterveningIf(At(EndStep(Each)), DidThisTurn(CountersPut { by: Some(Player(You)), n: One, kind: None, on: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } })), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(0), signed: false }), colors: [Green, Blue], types: ["fractal", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, PutCounters { n: N(3), kind: "+1/+1", on: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## General Leo Cristophe
 face: General Leo Cristophe

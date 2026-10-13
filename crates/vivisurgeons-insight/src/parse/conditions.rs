@@ -207,6 +207,14 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             let e = alt!(p;
                 |p| p.words("gained life").map(|_| Event::GainsLife(who.clone())),
                 |p| p.words("lost life").map(|_| Event::LosesLife(who.clone())),
+                // "if you put a counter on a creature this turn".
+                |p| {
+                    p.word("put")?;
+                    let (n, kind) = counters_phrase(p)?;
+                    p.word("on")?;
+                    let on = objects(p)?;
+                    Some(Event::CountersPut { by: Some(Actor::Player(who.clone())), n, kind, on })
+                },
                 |p| {
                     p.word("searched")?;
                     let w = whose(p)?;

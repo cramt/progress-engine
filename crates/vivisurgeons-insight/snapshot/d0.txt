@@ -546,7 +546,7 @@ face: Lasting Tarfire
 type: Enchantment
 cost: {1}{R}
 > At the beginning of each end step, if you put a counter on a creature this turn, this enchantment deals 2 damage to each opponent.
-= BROKE at "turn" after: at the beginning of each end step , if you put a counter on a creature this
+= Triggered { trigger: InterveningIf(At(EndStep(Each)), DidThisTurn(CountersPut { by: Some(Player(You)), n: One, kind: None, on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } })), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }), n: N(2), to: [Player(EachOpponent)] }], limits: [] }
 
 ## Leatherhead, Swamp Stalker
 face: Leatherhead, Swamp Stalker
