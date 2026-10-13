@@ -1586,26 +1586,36 @@ fn refer(
                 } if matches!(src.quant, Quant::SelfRef | Quant::Triggering) => Some(src.clone()),
                 _ => None,
             };
-            if matches!(
+            // "copy it if you control an artifact, then copy it if you
+            // control an enchantment" (Banish into Fable): the copy goes on
+            // the stack unnamed, and a later "it" is still the spell copied.
+            let copies_own = matches!(
                 e,
-                Effect::RevealTop { .. }
-                    | Effect::LookAtTop { .. }
-                    | Effect::RevealHand { .. }
-                    | Effect::LookAtHand { .. }
-                    | Effect::Mill { .. }
-                    | Effect::Create { .. }
-                    | Effect::CreateCopy { .. }
-                    | Effect::CreateThose { .. }
-                    | Effect::CreateThosePlus { .. }
-                    | Effect::CreateOfEach { .. }
-                    | Effect::CreateNamed { .. }
-                    | Effect::CreateAttached { .. }
-                    | Effect::Copy { .. }
-                    | Effect::Amass { .. }
-                    | Effect::Action { .. }
-                    | Effect::UntilFound { .. }
-                    | Effect::DigUntilTotal { .. }
-            ) {
+                Effect::Copy { what, .. }
+                    if matches!(what.quant, Quant::SelfRef | Quant::Triggering)
+            );
+            if !copies_own
+                && matches!(
+                    e,
+                    Effect::RevealTop { .. }
+                        | Effect::LookAtTop { .. }
+                        | Effect::RevealHand { .. }
+                        | Effect::LookAtHand { .. }
+                        | Effect::Mill { .. }
+                        | Effect::Create { .. }
+                        | Effect::CreateCopy { .. }
+                        | Effect::CreateThose { .. }
+                        | Effect::CreateThosePlus { .. }
+                        | Effect::CreateOfEach { .. }
+                        | Effect::CreateNamed { .. }
+                        | Effect::CreateAttached { .. }
+                        | Effect::Copy { .. }
+                        | Effect::Amass { .. }
+                        | Effect::Action { .. }
+                        | Effect::UntilFound { .. }
+                        | Effect::DigUntilTotal { .. }
+                )
+            {
                 // Tokens alone: a card is none of them (CR 108.2, 111.1).
                 let tokens = matches!(
                     e,
