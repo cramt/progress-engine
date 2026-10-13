@@ -2723,6 +2723,10 @@ fn measure(o: &mut Out, a: &Amount) {
             o.w("the greatest number of cards a player discarded this way")
         }
         Amount::TimesKicked => o.w("time it was kicked"),
+        Amount::TimesCast { .. } => {
+            o.w("the number of");
+            each_time(o, a, true);
+        }
         Amount::Total { stat, of } => {
             o.w("the total");
             o.w(stat_name(*stat));
@@ -2775,6 +2779,34 @@ fn measure(o: &mut Out, a: &Amount) {
 /// ", rounded up", ", rounded down".
 fn rounded(o: &mut Out, up: bool) {
     o.w(if up { ", rounded up" } else { ", rounded down" });
+}
+
+/// What follows "for each": "time you've cast your commander from the
+/// command zone this game", "time it's been cast from …", "time it was
+/// kicked"; and after "the number of", the plural.
+fn each_time(o: &mut Out, a: &Amount, plural: bool) {
+    let time = if plural { "times" } else { "time" };
+    match a {
+        Amount::TimesCast { who, what, zone: z } => {
+            o.w(time);
+            o.w(match who {
+                Player::You => "you've",
+                _ => "they've",
+            });
+            o.w("cast");
+            objects(o, what);
+            o.w("from");
+            zone(o, z);
+            o.w("this game");
+        }
+        Amount::TimesCastFrom { zone: z, .. } => {
+            o.w(time);
+            o.w("it's been cast from");
+            zone(o, z);
+            o.w("this game");
+        }
+        _ => amount(o, a),
+    }
 }
 
 /// "~'s", "target creature's", or "its" for an earlier noun.
@@ -6978,6 +7010,15 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             Amount::DamagePrevented => {
                 o.w("for each 1 damage prevented this way,");
                 clauses(o, then, cx);
+            }
+            // "copy it for each time you've cast your commander from the
+            // command zone this game".
+            t @ (Amount::TimesCast { .. } | Amount::TimesCastFrom { .. } | Amount::TimesKicked)
+                if then.len() == 1 =>
+            {
+                clauses(o, then, cx);
+                o.w("for each");
+                each_time(o, t, false);
             }
             t => {
                 let process = out(|o| {

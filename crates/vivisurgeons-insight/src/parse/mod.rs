@@ -1475,7 +1475,7 @@ fn refer(
                 self.ors.push((self.depth, self.seen_new, self.seen_self));
             }
             self.seen_self |= self.self_pending;
-            if matches!(e, Effect::ForEach { .. }) {
+            if matches!(e, Effect::ForEach { .. } | Effect::Repeat { .. }) {
                 self.loops.push((self.seen_new, self.seen_self));
             }
             if self.drew && matches!(e, Effect::Reveal { what, .. } if *what == antecedent()) {
@@ -1535,7 +1535,7 @@ fn refer(
             if matches!(e, Effect::Or(_)) {
                 self.ors.pop();
             }
-            if matches!(e, Effect::ForEach { .. }) {
+            if matches!(e, Effect::ForEach { .. } | Effect::Repeat { .. }) {
                 self.loops.pop();
             }
             self.seen_self |= self.self_pending;

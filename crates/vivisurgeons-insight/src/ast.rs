@@ -370,6 +370,14 @@ pub enum Amount {
         what: Box<Objects>,
         zone: Zone,
     },
+    /// "each time you've cast your commander from the command zone this
+    /// game": the casts that player made of such objects from that zone.
+    /// "a commander" counts any commander that player cast, theirs or not.
+    TimesCast {
+        who: Player,
+        what: Box<Objects>,
+        zone: Zone,
+    },
     /// "an opponent lost 2 or more life this turn".
     LifeLostThisTurn(Player),
     /// "the amount of life you gained this turn".

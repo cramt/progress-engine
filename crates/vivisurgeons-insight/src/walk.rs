@@ -183,6 +183,11 @@ impl Walk for Amount {
                 Walk::walk(&mut **what, v);
                 Walk::walk(zone, v);
             }
+            Amount::TimesCast { who, what, zone } => {
+                Walk::walk(who, v);
+                Walk::walk(&mut **what, v);
+                Walk::walk(zone, v);
+            }
             Amount::LifeLostThisTurn(f0) => {
                 Walk::walk(f0, v);
             }

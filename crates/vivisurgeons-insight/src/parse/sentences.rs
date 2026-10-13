@@ -41,6 +41,19 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
                 among: Palette::ColorsOf(Box::new(among)),
                 then: vec![e],
             };
+        } else if let Some(times) = p.attempt(|p| {
+            // "copy it for each time you've cast your commander from the
+            // command zone this game": the effect once per cast.
+            p.words("for each")?;
+            each_time(p)
+        }) {
+            // "copy it for each time you've cast your commander": "it" was
+            // said before the commander was named.
+            e.walk(&mut BeforeEach);
+            e = Effect::Repeat {
+                times,
+                then: vec![e],
+            };
         } else if let Some(each) = p.attempt(|p| {
             p.words("for each")?;
             objects(p)

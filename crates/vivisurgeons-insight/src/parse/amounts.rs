@@ -63,6 +63,45 @@ pub(super) fn amount_a(p: &mut P) -> Option<Amount> {
     )
 }
 
+/// What follows "for each time": "you've cast your commander from the
+/// command zone this game", "it's been cast from the command zone this game",
+/// "it was kicked".
+pub(super) fn each_time(p: &mut P) -> Option<Amount> {
+    p.word("time")?;
+    alt!(p;
+        |p| p.words("it was kicked").map(|_| Amount::TimesKicked),
+        |p| {
+            p.words("it's been cast from")?;
+            let zone = zone(p)?;
+            p.words("this game")?;
+            Some(Amount::TimesCastFrom { what: Box::new(antecedent()), zone })
+        },
+        |p| {
+            let who = alt!(p;
+                |p| p.word("you've").map(|_| Player::You),
+                |p| p.word("they've").map(|_| Player::That),
+            )?;
+            p.word("cast")?;
+            let mut what = objects(p)?;
+            // "your commander from the command zone": the object reads the
+            // zone as where it is; here it is where the casts were made from.
+            let zone = match what.filter.posts.last() {
+                Some(Post::CastFrom(z) | Post::In(z)) => {
+                    let z = z.clone();
+                    what.filter.posts.pop();
+                    z
+                }
+                _ => {
+                    p.word("from")?;
+                    zone(p)?
+                }
+            };
+            p.words("this game")?;
+            Some(Amount::TimesCast { who, what: Box::new(what), zone })
+        },
+    )
+}
+
 pub(super) fn stat(p: &mut P) -> Option<Stat> {
     alt!(p;
         |p| p.word("power").map(|_| Stat::Power),
