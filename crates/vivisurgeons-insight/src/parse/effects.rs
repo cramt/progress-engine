@@ -56,6 +56,7 @@ pub(super) fn still(p: &mut P) -> Option<Keeps> {
 /// types", "that's still a land".
 pub(super) fn keeps(p: &mut P) -> Option<Keeps> {
     alt!(p;
+        |p| p.one_of(&["in addition to its other colors and types", "in addition to their other colors and types"]).map(|_| Keeps::OtherColorsAndTypes),
         |p| p.one_of(&["in addition to its other types", "in addition to their other types"]).map(|_| Keeps::OtherTypes),
         |p| { p.one_of(&["that's still a", "that's still an", "that are still"])?; group(p).map(Keeps::Listed) },
     )
@@ -839,12 +840,22 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         },
         // "It's an enchantment.": what it is as it enters, which "becomes"
         // would make it only afterwards (CR 611.2e).
+        // "That creature is a black Zombie in addition to its other colors
+        // and types": the same of a named earlier object.
         |p| {
-            p.word("it's")?;
+            let what = alt!(p;
+                |p| p.word("it's").map(|_| antecedent()),
+                |p| {
+                    let w = objects(p)?;
+                    if w.quant != Quant::Antecedent { return None; }
+                    p.word("is")?;
+                    Some(w)
+                },
+            )?;
             p.one_of(&["a", "an"])?;
             let types = group(p)?;
             let keeps = p.attempt(keeps).unwrap_or_else(|| Keeps::implied_by(&types));
-            Some(Effect::IsNow { what: antecedent(), types, keeps })
+            Some(Effect::IsNow { what, types, keeps })
         },
         // "it deals that much damage plus 2 instead".
         |p| {

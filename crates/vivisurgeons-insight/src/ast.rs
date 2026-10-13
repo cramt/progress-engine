@@ -2128,6 +2128,10 @@ pub enum Keeps {
     AllButSubtypesOfSet,
     /// "in addition to its other types".
     OtherTypes,
+    /// "in addition to its other colors and types": the colors it sets are
+    /// added too, where a color an effect gives otherwise replaces the old
+    /// (CR 105.3).
+    OtherColorsAndTypes,
     /// "that's still a land".
     Listed(Vec<Adj>),
 }

@@ -5429,6 +5429,11 @@ fn ends_in_quote(o: &Out) -> bool {
 
 /// Instructions whose verb takes no player, which a "you" may still lead.
 fn says_no_player(e: &Effect) -> bool {
+    // "You return that card to the battlefield with an additional +1/+1
+    // counter on it" (Drana, the Last Bloodchief).
+    if let Effect::EntersWith { effect, .. } | Effect::EntersAttacking(effect) = e {
+        return says_no_player(effect);
+    }
     matches!(
         e,
         Effect::Untap(_)
@@ -8423,6 +8428,11 @@ fn keeps(o: &mut Out, k: &Keeps) {
             o.w("in addition to");
             syn::its(o);
             o.w("other types");
+        }
+        Keeps::OtherColorsAndTypes => {
+            o.w("in addition to");
+            syn::its(o);
+            o.w("other colors and types");
         }
         Keeps::Listed(v) => {
             o.w("that's still a");
