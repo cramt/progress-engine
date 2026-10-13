@@ -2179,6 +2179,8 @@ pub enum Choose {
     /// "Choose three. You may choose the same mode more than once." (CR
     /// 700.2d: a mode chosen twice is done twice, in sequence).
     Repeatable(Box<Choose>),
+    /// "Choose one or both. Each mode must target a different player."
+    DifferentPlayers(Box<Choose>),
 }
 
 #[derive(Clone, Debug, PartialEq)]

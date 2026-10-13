@@ -310,6 +310,9 @@ impl Walk for Choose {
             Choose::Repeatable(f0) => {
                 Walk::walk(&mut **f0, v);
             }
+            Choose::DifferentPlayers(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             _ => {}
         }
     }

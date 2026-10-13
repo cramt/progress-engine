@@ -982,20 +982,20 @@ pub(super) fn modal(p: &mut P) -> Option<Effect> {
         None => choose,
     };
     // "Choose three. You may choose the same mode more than once." (Eldrazi
-    // Confluence): the modes follow the second sentence.
-    let repeatable = p
-        .attempt(|p| {
-            p.tok(&Tok::Period)?;
-            p.words("you may choose the same mode more than once")?;
-            p.tok(&Tok::Period)
-        })
-        .is_some();
-    if repeatable {
+    // Confluence), "Choose one or both. Each mode must target a different
+    // player.": the modes follow the second sentence.
+    let rule = p.attempt(|p| {
+        p.tok(&Tok::Period)?;
+        let rule = alt!(p;
+            |p| p.words("you may choose the same mode more than once").map(|_| Choose::Repeatable(Box::new(choose.clone()))),
+            |p| p.words("each mode must target a different player").map(|_| Choose::DifferentPlayers(Box::new(choose.clone()))),
+        )?;
+        p.tok(&Tok::Period)?;
+        Some(rule)
+    });
+    if let Some(choose) = rule {
         let modes = modes(p)?;
-        return (!modes.is_empty()).then_some(Effect::Modal {
-            choose: Choose::Repeatable(Box::new(choose)),
-            modes,
-        });
+        return (!modes.is_empty()).then_some(Effect::Modal { choose, modes });
     }
     // "Choose one. If you control a commander as you cast this spell, you
     // may choose both instead." The modes follow the second sentence.
@@ -1057,6 +1057,9 @@ fn modes(p: &mut P) -> Option<Vec<Vec<Effect>>> {
 pub(super) fn sentence(p: &mut P) -> Option<Vec<Effect>> {
     alt!(p;
         |p| modal(p).map(|m| vec![m]),
+        // "At the beginning of combat on your turn, you may choose two."
+        // (Shadrix Silverquill): choosing none is allowed.
+        |p| { p.words("you may")?; modal(p).map(|m| vec![Effect::May { who: Player::You, then: vec![m] }]) },
         // "Repeat the following process X times. …": the process is every
         // sentence after it.
         |p| {

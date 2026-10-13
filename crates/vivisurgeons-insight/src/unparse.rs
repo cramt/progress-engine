@@ -4718,8 +4718,13 @@ fn regen_in_branch(e: &Effect) -> Option<(Effect, Vec<Objects>)> {
 
 fn sentences(o: &mut Out, es: &[Effect], cx: &Cx) {
     clauses(o, es, cx);
-    // A modal effect's modes end their own sentences.
-    if !matches!(es.last(), Some(Effect::Modal { .. })) {
+    // A modal effect's modes end their own sentences, after "you may" too.
+    let modal = |e: &Effect| match e {
+        Effect::Modal { .. } => true,
+        Effect::May { then, .. } => matches!(then.as_slice(), [Effect::Modal { .. }]),
+        _ => false,
+    };
+    if !es.last().is_some_and(modal) {
         o.period();
     }
 }
@@ -6509,7 +6514,9 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 o.add(before);
             }
         }
-        Effect::Modal { choose, modes } => modal(o, choose, modes, cx),
+        // Each mode is sentences of its own: "you may choose two. • Target
+        // player draws a card" (Shadrix) inherits nothing from the "may".
+        Effect::Modal { choose, modes } => modal(o, choose, modes, &Cx::default()),
         Effect::GrantAbility {
             what,
             ability,
@@ -8257,7 +8264,10 @@ fn choice(o: &mut Out, c: &Choice) {
 fn modal(o: &mut Out, choose: &Choose, modes: &[Vec<Effect>], cx: &Cx) {
     o.w("choose");
     choose_words(o, choose, modes.len());
-    if !matches!(choose, Choose::Upgrade { .. } | Choose::Repeatable(_)) {
+    if !matches!(
+        choose,
+        Choose::Upgrade { .. } | Choose::Repeatable(_) | Choose::DifferentPlayers(_)
+    ) {
         o.tok(Tok::Dash);
     }
     for m in modes {
@@ -8316,6 +8326,10 @@ fn choose_words(o: &mut Out, c: &Choose, modes: usize) {
         Choose::Repeatable(c) => {
             choose_words(o, c, modes);
             o.w(". you may choose the same mode more than once.");
+        }
+        Choose::DifferentPlayers(c) => {
+            choose_words(o, c, modes);
+            o.w(". each mode must target a different player.");
         }
     }
 }
