@@ -2139,7 +2139,7 @@ mod round_nine_d {
                 "Enchanted creature has \"{T}: Create X 1/1 red Elemental creature tokens with haste, where X is this creature's power. Exile them at the beginning of the next end step.\""
             )
         );
-        assert!(s.contains("Exile(Objects { quant: Antecedent"), "{s}");
+        assert!(s.contains("Exile(Objects { quant: Created"), "{s}");
         // "that spell" is the spell that targets, not the creature.
         let s = format!(
             "{:?}",

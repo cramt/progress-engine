@@ -2010,8 +2010,10 @@ struct CreatedTokens {
     created: Option<bool>,
     in_cond: u32,
     depth: u32,
-    /// The depths of the `Where`s being read.
-    wheres: Vec<u32>,
+    /// The depths of the `Where`s being read, each with what its effects
+    /// created, kept while its X is read (Ovika: "create X … tokens, where
+    /// X is the mana value of that spell. They gain haste").
+    wheres: Vec<(u32, Option<Option<bool>>)>,
     /// Inside a `Modal` whose modes were read on their own.
     skip: Option<u32>,
     /// Tokens were created and no other token named since: "the token"
@@ -2105,7 +2107,7 @@ impl Visitor for CreatedTokens {
             Effect::PutCounters { on, .. } if self.created.is_some() && *on == antecedent() => {
                 on.quant = Quant::Created;
             }
-            Effect::Where { .. } => self.wheres.push(self.depth),
+            Effect::Where { .. } => self.wheres.push((self.depth, None)),
             Effect::Otherwise(_) | Effect::IfYouDont(_) => {
                 self.created = None;
                 self.tokens = false;
@@ -2127,8 +2129,16 @@ impl Visitor for CreatedTokens {
     }
     fn amount(&mut self, _: &mut Amount) {
         // The `Where`'s own X, read after its effects.
-        if self.skip.is_none() && self.wheres.last() == Some(&self.depth) {
-            self.created = None;
+        if self.skip.is_some() {
+            return;
+        }
+        if let Some((d, saved)) = self.wheres.last_mut() {
+            if *d == self.depth {
+                if saved.is_none() {
+                    *saved = Some(self.created);
+                }
+                self.created = None;
+            }
         }
     }
     fn condition(&mut self, _: &mut Condition) {
@@ -2145,8 +2155,11 @@ impl Visitor for CreatedTokens {
             self.depth -= 1;
             return;
         }
-        if self.wheres.last() == Some(&self.depth) && matches!(e, Effect::Where { .. }) {
-            self.wheres.pop();
+        if self.wheres.last().map(|w| w.0) == Some(self.depth) && matches!(e, Effect::Where { .. })
+        {
+            if let Some((_, Some(saved))) = self.wheres.pop() {
+                self.created = saved;
+            }
         }
         self.depth -= 1;
         let one = |n: &Amount| *n == Amount::N(1);
