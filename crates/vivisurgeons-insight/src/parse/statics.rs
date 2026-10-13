@@ -15,6 +15,33 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
     }) {
         return Some(s);
     }
+    // "You can't cast ~ during your first, second, or third turns of the
+    // game": a cast restriction while it's one of those turns. Before the
+    // rules that read "you can't cast ~" alone.
+    if let Some(s) = p.attempt(|p| {
+        p.words("you can't cast")?;
+        let what = objects(p)?;
+        p.words("during your")?;
+        let mut v = vec![ordinal(p)?];
+        while let Some(n) = p.attempt(|p| {
+            p.one_of(&[", or", ",", "or"])?;
+            ordinal(p)
+        }) {
+            v.push(n);
+        }
+        p.words("turns of the game")?;
+        p.end_sentence()?;
+        let rule = Static::PlayerRestrict {
+            who: Player::You,
+            rules: vec![PlayerRule::CantCast(what)],
+        };
+        Some(vec![Static::If {
+            cond: Condition::YourNthTurn(v),
+            then: vec![rule],
+        }])
+    }) {
+        return Some(s);
+    }
     // "You may exert this creature as it attacks. When you do, …" (CR
     // 701.43d), and Combat Celebrant's "If this creature hasn't been exerted
     // this turn, you may exert it as it attacks."

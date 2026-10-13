@@ -11361,6 +11361,27 @@ fn static_other(o: &mut Out, s: &Static) {
             o.w("power is equal to");
             measure(o, equal_to);
         }
+        // "You can't cast ~ during your first, second, or third turns of
+        // the game".
+        Static::If {
+            cond: Condition::YourNthTurn(v),
+            then,
+        } if matches!(&then[..], [Static::PlayerRestrict { who: Player::You, rules }]
+            if matches!(&rules[..], [PlayerRule::CantCast(_)])) =>
+        {
+            if let [Static::PlayerRestrict { rules, .. }] = &then[..] {
+                if let [PlayerRule::CantCast(x)] = &rules[..] {
+                    o.w("you can't cast");
+                    objects(o, x);
+                }
+            }
+            o.w("during your");
+            for (i, n) in v.iter().enumerate() {
+                list_sep(o, i, v.len(), "or");
+                o.w(ordinal_word(*n));
+            }
+            o.w("turns of the game");
+        }
         Static::If { cond, then } => {
             let before = out(|o| {
                 o.w("if");
