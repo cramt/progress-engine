@@ -7766,6 +7766,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             what,
             types,
             keeps: k,
+            ..
         } => {
             pronoun_or(o, what, |o| o.w("it's"), |o| obj_subj(o, what, "are"));
             let colors = types

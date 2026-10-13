@@ -1279,12 +1279,21 @@ impl Walk for Effect {
                 }
                 Walk::walk(dur, v);
             }
-            Effect::IsNow { what, types, keeps } => {
+            Effect::IsNow {
+                what,
+                types,
+                keeps,
+                gains,
+                ..
+            } => {
                 Walk::walk(what, v);
                 for x0 in (types).iter_mut() {
                     Walk::walk(x0, v);
                 }
                 Walk::walk(keeps, v);
+                for x0 in (gains).iter_mut() {
+                    Walk::walk(x0, v);
+                }
             }
             Effect::EntersWith { effect, n, .. } => {
                 Walk::walk(&mut **effect, v);

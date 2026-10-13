@@ -915,7 +915,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             if !colored.is_empty() && types.iter().any(|a| matches!(a, Adj::Color(_))) { return None; }
             let keeps = p.attempt(keeps).unwrap_or_else(|| Keeps::implied_by(&types));
             types.splice(0..0, colored);
-            Some(Effect::IsNow { what, types, keeps })
+            Some(Effect::IsNow { what, types, keeps, pt: None, gains: vec![] })
         },
         // "it deals that much damage plus 2 instead".
         |p| {

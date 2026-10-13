@@ -275,7 +275,7 @@ face: Ever After
 type: Sorcery
 cost: {4}{B}{B}
 > Return up to two target creature cards from your graveyard to the battlefield. Each of those creatures is a black Zombie in addition to its other colors and types. Put Ever After on the bottom of its owner's library.
-= Spell([Move { what: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: [Color(Black), Subtype("zombie")], keeps: OtherColorsAndTypes }, Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryBottom, tapped: false, transformed: false, under: None, order: None }])
+= Spell([Move { what: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: [Color(Black), Subtype("zombie")], keeps: OtherColorsAndTypes, pt: None, gains: [] }, Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryBottom, tapped: false, transformed: false, under: None, order: None }])
 
 ## Final Flare
 face: Final Flare

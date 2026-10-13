@@ -655,7 +655,7 @@ type: Sorcery
 cost: {4}{B}
 > Each player mills two cards. Then you put a creature card from a graveyard onto the battlefield under your control. It's an artifact in addition to its other types.
 > Will of the Planeswalkers — Starting with you, each player votes for planeswalk or chaos. If planeswalk gets more votes, planeswalk. If chaos gets more votes or the vote is tied, chaos ensues.
-= Spell([Mill { who: Each, n: N(2) }, Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("artifact")], keeps: OtherTypes }])
+= Spell([Mill { who: Each, n: N(2) }, Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Type("artifact")], keeps: OtherTypes, pt: None, gains: [] }])
 = BROKE at "," after: will of the planeswalkers — starting with you
 
 ## Pitiless Carnage
@@ -854,7 +854,7 @@ cost: {2}{W}{B}
 > −X: Return target creature card with mana value X from your graveyard to the battlefield. That creature is a Vampire in addition to its other types.
 = Static([AsLongAs { cond: ItsYourTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "lifelink", param: None }], per: None }] }])
 = Loyalty { change: N(2), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Or([Player(Target), Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])] }] }
-= Loyalty { change: MinusX, effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Eq, value: X }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: [Subtype("vampire")], keeps: OtherTypes }] }
+= Loyalty { change: MinusX, effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Eq, value: X }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: [Subtype("vampire")], keeps: OtherTypes, pt: None, gains: [] }] }
 
 ## Soured Springs
 face: Soured Springs

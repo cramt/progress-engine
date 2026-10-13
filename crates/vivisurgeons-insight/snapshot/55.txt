@@ -871,7 +871,7 @@ cost: {2}{B}{B}
 > Deathtouch
 > Whenever this creature attacks, you may pay {3}{B}. When you do, return target creature card from your graveyard to the battlefield. It's a Phyrexian in addition to its other types.
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["3", "B"]))] }] }, WhenYouDo([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Subtype("phyrexian")], keeps: OtherTypes }])], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["3", "B"]))] }] }, WhenYouDo([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Subtype("phyrexian")], keeps: OtherTypes, pt: None, gains: [] }])], limits: [] }
 
 ## Thorin, Company's Leader
 face: Thorin, Company's Leader

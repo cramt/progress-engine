@@ -49,7 +49,7 @@ cost: {1}{U}{B}
 > −X: Put a creature card with mana value X exiled with Ashiok onto the battlefield under your control. That creature is a Nightmare in addition to its other types.
 > −10: Exile all cards from all opponents' hands and graveyards.
 = Loyalty { change: N(2), effect: [Exile(Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(TargetOpponent))], or: None } })] }
-= Loyalty { change: MinusX, effect: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Eq, value: X }), ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: [Subtype("nightmare")], keeps: OtherTypes }] }
+= Loyalty { change: MinusX, effect: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Eq, value: X }), ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: [Subtype("nightmare")], keeps: OtherTypes, pt: None, gains: [] }] }
 = BROKE at "." after: N(-10) : exile all cards from all opponents 's hands and graveyards
 
 ## Beetle-Headed Merchants

@@ -129,7 +129,7 @@ face: Call a Surprise Witness
 type: Sorcery
 cost: {1}{W}
 > Return target creature card with mana value 3 or less from your graveyard to the battlefield. Put a flying counter on it. It's a Spirit in addition to its other types.
-= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: N(3) }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, PutCounters { n: N(1), kind: "flying", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Subtype("spirit")], keeps: OtherTypes }])
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: N(3) }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, PutCounters { n: N(1), kind: "flying", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Subtype("spirit")], keeps: OtherTypes, pt: None, gains: [] }])
 
 ## Caverns of Despair
 face: Caverns of Despair

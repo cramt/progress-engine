@@ -1806,6 +1806,11 @@ pub enum Effect {
         what: Objects,
         types: Vec<Adj>,
         keeps: Keeps,
+        /// "Each of them is a 1/1 Spirit": the size it enters with, its base
+        /// power and toughness (CR 613.4b).
+        pt: Option<Pt>,
+        /// "… with flying": keywords it has as it enters.
+        gains: Vec<Keyword>,
     },
     /// "return it to the battlefield with a -1/-1 counter on it": the moved
     /// permanent is given them as it enters (CR 122.6), not after.

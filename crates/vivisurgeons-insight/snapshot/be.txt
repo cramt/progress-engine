@@ -863,7 +863,7 @@ face: Rise from the Grave
 type: Sorcery
 cost: {4}{B}
 > Put target creature card from a graveyard onto the battlefield under your control. That creature is a black Zombie in addition to its other colors and types.
-= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: [Color(Black), Subtype("zombie")], keeps: OtherColorsAndTypes }])
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: [Color(Black), Subtype("zombie")], keeps: OtherColorsAndTypes, pt: None, gains: [] }])
 
 ## Roalesk, Apex Hybrid
 face: Roalesk, Apex Hybrid

@@ -650,7 +650,7 @@ cost: {9}
 > When this artifact enters, each opponent sacrifices three creatures of their choice.
 > At the beginning of your upkeep, put target creature card from a graveyard onto the battlefield under your control. It's a Phyrexian in addition to its other types.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Sacrifice { who: EachOpponent, what: Objects { quant: N(N(3)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }], limits: [] }
-= Triggered { trigger: At(Upkeep(Yours)), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Subtype("phyrexian")], keeps: OtherTypes }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Subtype("phyrexian")], keeps: OtherTypes, pt: None, gains: [] }], limits: [] }
 
 ## Possessed Skaab
 face: Possessed Skaab

@@ -421,7 +421,7 @@ face: Grave Betrayal
 type: Enchantment
 cost: {5}{B}{B}
 > Whenever a creature you don't control dies, return it to the battlefield under your control with an additional +1/+1 counter on it at the beginning of the next end step. That creature is a black Zombie in addition to its other colors and types.
-= Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NotControlledBy(You)], or: None } })), effect: [Delayed { step: EndStep(Next), then: [EntersWith { effect: Move { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, n: Additional(N(1)), kind: "+1/+1" }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: [Color(Black), Subtype("zombie")], keeps: OtherColorsAndTypes }] }], limits: [] }
+= Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NotControlledBy(You)], or: None } })), effect: [Delayed { step: EndStep(Next), then: [EntersWith { effect: Move { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, n: Additional(N(1)), kind: "+1/+1" }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: [Color(Black), Subtype("zombie")], keeps: OtherColorsAndTypes, pt: None, gains: [] }] }], limits: [] }
 
 ## Guardian Augmenter
 face: Guardian Augmenter

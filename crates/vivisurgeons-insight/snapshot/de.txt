@@ -21,7 +21,7 @@ cost: {1}{W}{B}
 > I, II — Choose a creature you control. Until your next turn, all damage that would be dealt to creatures you control is dealt to that creature instead.
 > III — Return target creature card from your graveyard to the battlefield with a flying counter on it. That creature is an Angel Warrior in addition to its other types.
 = BROKE at "that" after: i , ii — choose a creature you control . until your next turn , all damage
-= Chapter { chapters: [3], effect: [EntersWith { effect: Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, n: N(1), kind: "flying" }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: [Subtype("angel"), Subtype("warrior")], keeps: OtherTypes }] }
+= Chapter { chapters: [3], effect: [EntersWith { effect: Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, n: N(1), kind: "flying" }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, types: [Subtype("angel"), Subtype("warrior")], keeps: OtherTypes, pt: None, gains: [] }] }
 
 ## Auriok Transfixer
 face: Auriok Transfixer
