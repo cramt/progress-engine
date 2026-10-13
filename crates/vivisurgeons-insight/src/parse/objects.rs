@@ -1232,6 +1232,7 @@ pub(super) fn player_simple(p: &mut P) -> Option<Player> {
         |p| p.words("that attacking player").map(|_| Player::AttackingPlayer),
         |p| p.words("that player").map(|_| Player::That),
         |p| p.words("defending player").map(|_| Player::DefendingPlayer),
+        |p| p.words("enchanted player").map(|_| Player::Enchanted),
         |p| p.words("the chosen player").map(|_| Player::Chosen),
         |p| p.words("a player").map(|_| Player::APlayer),
         |p| p.words("its controller").map(|_| Player::ControllerOf(Box::new(antecedent()))),
