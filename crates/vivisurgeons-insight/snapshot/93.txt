@@ -500,7 +500,7 @@ cost: {1}
 > {T}: Exile target card from a graveyard.
 > {6}, {T}, Sacrifice this artifact: Put each creature card exiled with this artifact onto the battlefield under your control with a flying counter on it. Each of them is a 1/1 Spirit in addition to its other types. Activate only as a sorcery.
 = Activated { cost: [Tap], effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Card), posts: [In(AGraveyard)], or: None } })], limits: [] }
-= BROKE at "<pt>" after: {6} , {T} , sacrifice this artifact : put each creature card exiled with this artifact onto the battlefield under your control with a flying counter on it . each of them is a
+= Activated { cost: [Mana(Mana(["6"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], effect: [EntersWith { effect: Move { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }, n: N(1), kind: "flying" }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Subtype("spirit")], keeps: OtherTypes, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), gains: [] }], limits: [SorcerySpeed] }
 
 ## Giant Spider
 face: Giant Spider

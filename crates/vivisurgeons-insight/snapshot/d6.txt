@@ -890,7 +890,7 @@ cost: {2}{W}{B}
 > Whenever another legendary creature you control dies, create a token that's a copy of that creature, except it's not legendary and it's a 2/2 black Zombie in addition to its other colors and types.
 = Keywords([Keyword { name: "vigilance", param: None }, Keyword { name: "ward", param: Some(Cost([Mana(Mana(["2"]))])) }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("zombie")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "vigilance", param: None }], per: None }])
-= BROKE at "in" after: whenever another legendary creature you control dies , create a token that's a copy of that creature , except it's not legendary and it's a <pt> black zombie
+= Triggered { trigger: When(Dies(Objects { quant: Another, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [CreateCopy { n: N(1), of: Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [IsNot([Supertype("legendary")]), AlsoIsSized { pt: Pt { power: N(2), toughness: N(2), signed: false }, types: [Color(Black), Subtype("zombie")] }] }], limits: [] }
 
 ## Reclusive Wight
 face: Reclusive Wight

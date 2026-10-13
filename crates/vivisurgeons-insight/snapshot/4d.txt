@@ -1006,7 +1006,7 @@ cost: {1}{R}{W}
 > Haste
 > {1}, {T}: Create a token that's a copy of another target creature you control, except it's a 1/1 red Balloon creature in addition to its other colors and types and it has flying and haste. Sacrifice it at the beginning of the next end step. Activate only as a sorcery.
 = Keywords([Keyword { name: "haste", param: None }])
-= BROKE at "in" after: {1} , {T} : create a token that's a copy of another target creature you control , except it's a <pt> red balloon creature
+= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [CreateCopy { n: N(1), of: Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [AlsoIsSized { pt: Pt { power: N(1), toughness: N(1), signed: false }, types: [Color(Red), Subtype("balloon"), Type("creature")] }, Has { keywords: [Keyword { name: "flying", param: None }, Keyword { name: "haste", param: None }], abilities: [] }] }, Delayed { step: EndStep(Next), then: [Sacrifice { who: You, what: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [SorcerySpeed] }
 
 ## Thoughtweft Lieutenant
 face: Thoughtweft Lieutenant

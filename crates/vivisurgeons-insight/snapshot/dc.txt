@@ -48,7 +48,7 @@ cost: {2}{W}{B}{G}
 > Whenever Anikthea enters or attacks, exile up to one target non-Aura enchantment card from your graveyard. Create a token that's a copy of that card, except it's a 3/3 black Zombie creature in addition to its other types.
 = Keywords([Keyword { name: "menace", param: None }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("enchantment"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, has: [Keyword { name: "menace", param: None }], per: None }])
-= BROKE at "in" after: whenever ~ enters or attacks , exile up to one target non-aura enchantment card from your graveyard . create a token that's a copy of that card , except it's a <pt> black zombie creature
+= BROKE at "types" after: whenever ~ enters or attacks , exile up to one target non-aura enchantment card from your graveyard . create a token that's a copy of that card , except it's a <pt> black zombie creature in addition to its other
 
 ## Arcane Adaptation
 face: Arcane Adaptation

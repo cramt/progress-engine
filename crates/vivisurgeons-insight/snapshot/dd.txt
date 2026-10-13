@@ -837,7 +837,7 @@ cost: {1}{G}{U}{R}
 > Whenever you cast an Artificer or artifact spell, you get {E} (an energy counter).
 > At the beginning of combat on your turn, you may pay {E}{E}{E}. When you do, create a token that's a copy of target permanent you control, except it's a 5/5 artifact creature in addition to its other types and has haste. Sacrifice it at the beginning of the next end step.
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("artificer")], [Type("artifact")]], kind: Some(Spell), posts: [], or: None } } }), effect: [GetEnergy(1)], limits: [] }
-= BROKE at "in" after: at the beginning of combat on your turn , you may pay {E} {E} {E} . when you do , create a token that's a copy of target permanent you control , except it's a <pt> artifact creature
+= BROKE at "haste" after: at the beginning of combat on your turn , you may pay {E} {E} {E} . when you do , create a token that's a copy of target permanent you control , except it's a <pt> artifact creature in addition to its other types and has
 
 ## Sandstorm Verge
 face: Sandstorm Verge

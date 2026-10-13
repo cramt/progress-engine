@@ -1195,7 +1195,7 @@ cost: {2}{W}{U}
 > Artifact creatures you control get +2/+2.
 > {6}: Create a token that's a copy of target artifact you control, except it's a 1/1 Soldier creature in addition to its other types.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }])
-= BROKE at "in" after: {6} : create a token that's a copy of target artifact you control , except it's a <pt> soldier creature
+= Activated { cost: [Mana(Mana(["6"]))], effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, except: [AlsoIsSized { pt: Pt { power: N(1), toughness: N(1), signed: false }, types: [Subtype("soldier"), Type("creature")] }] }], limits: [] }
 
 ## Vaultguard Trooper
 face: Vaultguard Trooper

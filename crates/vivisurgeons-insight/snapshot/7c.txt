@@ -532,7 +532,7 @@ cost: {6}{G}{G}
 > Trample
 > Whenever this creature deals combat damage to a player, you may choose any number of target lands you control and put an awakening counter on each of them. Each of those lands is an 8/8 green Elemental creature for as long as it has an awakening counter on it. They're still lands.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "<pt>" after: whenever this creature deals combat damage to a player , you may choose any number of target lands you control and put an awakening counter on each of them . each of those lands is an
+= BROKE at "as" after: whenever this creature deals combat damage to a player , you may choose any number of target lands you control and put an awakening counter on each of them . each of those lands is an <pt> green elemental creature for
 
 ## Lifespinner
 face: Lifespinner

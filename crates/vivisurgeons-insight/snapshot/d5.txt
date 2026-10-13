@@ -647,7 +647,7 @@ face: Nexus of Becoming
 type: Artifact
 cost: {6}
 > At the beginning of combat on your turn, draw a card. Then you may exile an artifact or creature card from your hand. If you do, create a token that's a copy of the exiled card, except it's a 3/3 Golem artifact creature in addition to its other types.
-= BROKE at "in" after: at the beginning of combat on your turn , draw a card . then you may exile an artifact or creature card from your hand . if you do , create a token that's a copy of the exiled card , except it's a <pt> golem artifact creature
+= Triggered { trigger: At(Combat(Yours)), effect: [Draw { who: You, n: N(1) }, May { who: You, then: [Exile(Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: Some(Card), posts: [In(Hand(You))], or: None } })] }, IfYouDo([CreateCopy { n: N(1), of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, except: [AlsoIsSized { pt: Pt { power: N(3), toughness: N(3), signed: false }, types: [Subtype("golem"), Type("artifact"), Type("creature")] }] }])], limits: [] }
 
 ## Oblation
 face: Oblation

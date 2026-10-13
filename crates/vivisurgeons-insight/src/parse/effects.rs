@@ -911,11 +911,18 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                 })
                 .unwrap_or_default();
             p.one_of(&["a", "an"])?;
+            // "Each of them is a 1/1 Spirit with flying in addition to its
+            // other types" (Storm of Souls): the size and keywords it has.
+            let pt = p.attempt(|p| match p.peek()? { Tok::Pt(pt) if !pt.signed => { let pt = *pt; p.bump(); Some(pt) } _ => None });
             let mut types = group(p)?;
             if !colored.is_empty() && types.iter().any(|a| matches!(a, Adj::Color(_))) { return None; }
+            let gains = match pt {
+                Some(_) => p.attempt(|p| { p.word("with")?; keyword_list(p) }).unwrap_or_default(),
+                None => vec![],
+            };
             let keeps = p.attempt(keeps).unwrap_or_else(|| Keeps::implied_by(&types));
             types.splice(0..0, colored);
-            Some(Effect::IsNow { what, types, keeps, pt: None, gains: vec![] })
+            Some(Effect::IsNow { what, types, keeps, pt, gains })
         },
         // "it deals that much damage plus 2 instead".
         |p| {
@@ -2095,14 +2102,21 @@ fn exception(p: &mut P) -> Option<Exception> {
         |p| p.words("it has this ability").map(|_| Exception::HasThisAbility),
         |p| p.one_of(&["his name is ~", "her name is ~", "its name is ~"]).map(|_| Exception::NameIsSelf),
         // "he's a 4/4 Spider Human Hero in addition to his other types".
+        // "it's a 2/2 black Zombie in addition to its other colors and types"
+        // (Ratadrabik): a color added too.
         |p| {
-            p.one_of(&["he", "she", "it"])?;
-            p.tok(&Tok::Possessive)?;
+            alt!(p;
+                |p| { p.one_of(&["he", "she", "it"])?; p.tok(&Tok::Possessive) },
+                |p| p.word("it's"),
+            )?;
             p.one_of(&["a", "an"])?;
             let pt = match p.peek()? { Tok::Pt(pt) if !pt.signed => *pt, _ => return None };
             p.bump();
             let types = group(p)?;
-            p.one_of(&["in addition to his other types", "in addition to her other types", "in addition to its other types"])?;
+            let colors = types.iter().any(|a| matches!(a, Adj::Color(_)));
+            p.words("in addition to")?;
+            p.one_of(&["his", "her", "its"])?;
+            if colors { p.words("other colors and types")?; } else { p.words("other types")?; }
             Some(Exception::AlsoIsSized { pt, types })
         },
         |p| {

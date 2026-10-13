@@ -424,6 +424,12 @@ mod syn {
         );
     }
 
+    /// "It's a 1/1 Spirit …" or "Each of them is a 1/1 Spirit …": a
+    /// reference back said of what was just put onto the battlefield.
+    pub fn it_is_or_each(o: &mut Out) {
+        any_of(o, &["it's", "each of them is"]);
+    }
+
     // ---------------------------------------- agreement and punctuation
 
     /// A number in digits or in words: "3 damage", "three cards". Oracle
@@ -7766,14 +7772,29 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             what,
             types,
             keeps: k,
-            ..
+            pt,
+            gains,
         } => {
-            pronoun_or(o, what, |o| o.w("it's"), |o| obj_subj(o, what, "are"));
+            pronoun_or(o, what, syn::it_is_or_each, |o| obj_subj(o, what, "are"));
             let colors = types
                 .iter()
                 .take_while(|a| matches!(a, Adj::Color(_)))
                 .count();
-            if colors > 0 && colors < types.len() {
+            if let Some(pt) = pt {
+                // "a 1/1 Spirit with flying".
+                o.w("a");
+                o.tok(Tok::Pt(*pt));
+                for (i, a) in types.iter().enumerate() {
+                    if i > 0 && i < colors {
+                        o.w("and");
+                    }
+                    adj(o, a, None);
+                }
+                if !gains.is_empty() {
+                    o.w("with");
+                    keyword_list(o, gains);
+                }
+            } else if colors > 0 && colors < types.len() {
                 // "is black and is a Nightmare" or "is a black Nightmare".
                 let joined = out(|o| type_words(o, types, Num::Sg));
                 let split = out(|o| {
@@ -8807,7 +8828,11 @@ fn exceptions(o: &mut Out, es: &[Exception]) {
                 }
                 o.w("in addition to");
                 syn::its(o);
-                o.w("other types");
+                if types.iter().any(|a| matches!(a, Adj::Color(_))) {
+                    o.w("other colors and types");
+                } else {
+                    o.w("other types");
+                }
             }
         }
     }

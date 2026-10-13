@@ -447,7 +447,7 @@ cost: {1}{U}{B}
 face: Lazotep Convert
 type: Creature — Zombie
 > You may have this creature enter as a copy of any creature card in a graveyard, except it's a 4/4 black Zombie in addition to its other colors and types.
-= BROKE at "in" after: you may have this creature enter as a copy of any creature card in a graveyard , except it's a <pt> black zombie
+= Static([EntersAsCopy { may: true, tapped: false, what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, of: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }, except: [AlsoIsSized { pt: Pt { power: N(4), toughness: N(4), signed: false }, types: [Color(Black), Subtype("zombie")] }] }])
 
 ## Ishgard, the Holy See // Faith & Grief
 face: Ishgard, the Holy See

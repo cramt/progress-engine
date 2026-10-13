@@ -246,7 +246,7 @@ cost: {3}{U}{U}
 > Choose one —
 > • Create a token that's a copy of target creature you control, except it's not legendary and it's a 4/4 Hero in addition to its other types.
 > • Create a token that's a copy of target creature an opponent controls, except it's not legendary and it's a 2/2 Coward in addition to its other types.
-= BROKE at "in" after: choose one — • create a token that's a copy of target creature you control , except it's not legendary and it's a <pt> hero
+= Spell([Modal { choose: One, modes: [[CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [IsNot([Supertype("legendary")]), AlsoIsSized { pt: Pt { power: N(4), toughness: N(4), signed: false }, types: [Subtype("hero")] }] }], [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, except: [IsNot([Supertype("legendary")]), AlsoIsSized { pt: Pt { power: N(2), toughness: N(2), signed: false }, types: [Subtype("coward")] }] }]] }])
 
 ## Enduring Tenacity
 face: Enduring Tenacity

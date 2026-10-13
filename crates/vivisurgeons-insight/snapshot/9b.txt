@@ -263,7 +263,7 @@ cost: {2}{R}{W}
 > Flying, haste
 > Whenever Excava attacks, return up to one target artifact, creature, or non-Aura enchantment card with mana value 3 or less from your graveyard to the battlefield with a finality counter on it. It's a 1/1 Spirit creature with flying in addition to its other types. (If a creature with a finality counter on it would die, exile it instead.)
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "haste", param: None }])
-= BROKE at "<pt>" after: whenever ~ attacks , return up to one target artifact , creature , or non-aura enchantment card with mana value 3 or less from your graveyard to the battlefield with a finality counter on it . it's a
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [EntersWith { effect: Move { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("artifact")], [Type("creature")], [Non("aura"), Type("enchantment")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: N(3) }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, n: N(1), kind: "finality" }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Subtype("spirit"), Type("creature")], keeps: OtherTypes, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), gains: [Keyword { name: "flying", param: None }] }], limits: [] }
 
 ## Expedite
 face: Expedite

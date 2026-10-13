@@ -3,7 +3,7 @@ face: Abuelo's Awakening
 type: Sorcery
 cost: {X}{3}{W}
 > Return target artifact or non-Aura enchantment card from your graveyard to the battlefield with X additional +1/+1 counters on it. It's a 1/1 Spirit creature with flying in addition to its other types.
-= BROKE at "<pt>" after: return target artifact or non-aura enchantment card from your graveyard to the battlefield with x additional <pt> counters on it . it's a
+= Spell([EntersWith { effect: Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Non("aura"), Type("enchantment")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, n: Additional(X), kind: "+1/+1" }, IsNow { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, types: [Subtype("spirit"), Type("creature")], keeps: OtherTypes, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), gains: [Keyword { name: "flying", param: None }] }])
 
 ## Academic Dispute
 face: Academic Dispute
