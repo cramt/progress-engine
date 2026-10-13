@@ -478,6 +478,13 @@ mod syn {
         any_of(o, &["was", "were"]);
     }
 
+    /// "You may exert this creature as it attacks", "exert ~ as he attacks".
+    pub fn as_it_attacks(o: &mut Out) {
+        o.w("as");
+        any_of(o, &["it", "he", "she"]);
+        o.w("attacks");
+    }
+
     /// "a creature dealt damage this turn", "target creature that was dealt
     /// damage this turn", "opponents who were dealt combat damage this
     /// turn": the same filter, with or without the relative clause.
@@ -8412,6 +8419,11 @@ fn event(o: &mut Out, e: &Event) {
             player(o, who);
             o.verb(action, player_num(who));
         }
+        Event::Exerts { who, what } => {
+            player(o, who);
+            o.verb("exert", player_num(who));
+            objects(o, what);
+        }
         Event::CastUsing { what, keyword } if keyword == "warp" => {
             objects(o, what);
             o.verb("is", obj_num(what));
@@ -8819,6 +8831,7 @@ fn event_subject(e: &Event) -> Option<Subject<'_>> {
         | Event::Exiles { who, .. }
         | Event::AttacksWith { who, .. }
         | Event::Performs { who, .. }
+        | Event::Exerts { who, .. }
         | Event::Creates {
             by: Actor::Player(who),
             ..
@@ -9955,6 +9968,10 @@ fn not_condition(o: &mut Out, c: &Condition) {
                 objects(o, what);
                 o.w("this turn");
             }
+            if let Event::Exerts { what, .. } = &**e {
+                objects(o, what);
+                o.w("hasn't been exerted this turn");
+            }
         }
         Condition::SameName { what, as_any_of } => {
             objects(o, what);
@@ -10787,6 +10804,15 @@ fn static_other(o: &mut Out, s: &Static) {
         Static::Control(x) => {
             o.w("you control");
             objects(o, x);
+        }
+        Static::ExertAsAttacks { what, then } => {
+            o.w("you may exert");
+            objects(o, what);
+            syn::as_it_attacks(o);
+            if !then.is_empty() {
+                o.w(".");
+                clauses(o, then, &Cx::default());
+            }
         }
         Static::AsEnters { what, then } => {
             o.w("as");

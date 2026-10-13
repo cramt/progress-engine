@@ -2505,6 +2505,12 @@ pub enum Event {
         what: Objects,
         at: Option<Recipient>,
     },
+    /// "Whenever you exert a creature", "this creature hasn't been exerted
+    /// this turn": the keyword action exert (CR 701.43a).
+    Exerts {
+        who: Player,
+        what: Objects,
+    },
     /// "you scry", "you surveil": a keyword action the player performs.
     Performs {
         who: Player,
@@ -2639,6 +2645,14 @@ pub enum Static {
     /// limit of four (CR 100.2a) for this card.
     DeckCanHave(Option<u32>),
     Control(Objects),
+    /// "You may exert this creature as it attacks. When you do, …": an
+    /// optional cost to attack (CR 701.43d, 508.1g); `then` is the
+    /// reflexive trigger printed with it, linked to it (CR 607.2h), and
+    /// empty when there is none.
+    ExertAsAttacks {
+        what: Objects,
+        then: Vec<Effect>,
+    },
     AsEnters {
         what: Objects,
         then: Vec<Effect>,

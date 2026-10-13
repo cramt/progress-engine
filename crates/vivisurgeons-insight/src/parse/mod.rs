@@ -831,6 +831,7 @@ fn trigger_object(e: &Event) -> Option<Objects> {
         | Event::PutInto { what, .. }
         | Event::Puts { what, .. }
         | Event::Exiles { what, .. }
+        | Event::Exerts { what, .. }
         | Event::Exiled(what)
         | Event::ReturnedToHand(what)
         | Event::LeftUnderControlOf { what, .. }
@@ -1008,6 +1009,12 @@ fn refer_to_the_card(statics: &mut [Static]) {
                 continue;
             }
             Static::AsLongAs { .. } | Static::If { .. } => {}
+            // "You may exert this creature as it attacks. When you do, it
+            // deals 4 damage …": the card, named before the linked trigger.
+            Static::ExertAsAttacks { what, then } if what.quant == Quant::SelfRef => {
+                refer_after_the_card(then);
+                continue;
+            }
             // "Creatures with power less than this creature's power can't
             // block it": the attacker a static's blockers can't block is the
             // card; the plural subject would be "them".

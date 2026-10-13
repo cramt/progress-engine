@@ -15,6 +15,47 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
     }) {
         return Some(s);
     }
+    // "You may exert this creature as it attacks. When you do, …" (CR
+    // 701.43d), and Combat Celebrant's "If this creature hasn't been exerted
+    // this turn, you may exert it as it attacks."
+    if let Some(s) = p.attempt(|p| {
+        let cond = p.attempt(|p| {
+            p.word("if")?;
+            let what = objects(p)?;
+            p.words("hasn't been exerted this turn ,")?;
+            let e = Event::Exerts {
+                who: Player::You,
+                what,
+            };
+            Some(Condition::Not(Box::new(Condition::DidThisTurn(Box::new(
+                e,
+            )))))
+        });
+        p.words("you may exert")?;
+        let what = objects(p)?;
+        p.word("as")?;
+        p.one_of(&["it", "he", "she"])?;
+        p.word("attacks")?;
+        let then = p
+            .attempt(|p| {
+                p.end_sentence()?;
+                if !p.at("when") {
+                    return None;
+                }
+                effects(p)
+            })
+            .or_else(|| p.end_sentence().map(|_| Vec::new()))?;
+        let s = Static::ExertAsAttacks { what, then };
+        Some(vec![match cond {
+            Some(cond) => Static::If {
+                cond,
+                then: vec![s],
+            },
+            None => s,
+        }])
+    }) {
+        return Some(s);
+    }
     // "As this creature transforms into ~, you get an emblem with …".
     if let Some(s) = p.attempt(|p| {
         p.word("as")?;

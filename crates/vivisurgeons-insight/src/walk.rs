@@ -1665,6 +1665,10 @@ impl Walk for Event {
                     Walk::walk(x0, v);
                 }
             }
+            Event::Exerts { who, what } => {
+                Walk::walk(who, v);
+                Walk::walk(what, v);
+            }
             Event::Performs { who, .. } => {
                 Walk::walk(who, v);
             }
@@ -2362,6 +2366,12 @@ impl Walk for Static {
             }
             Static::Control(f0) => {
                 Walk::walk(f0, v);
+            }
+            Static::ExertAsAttacks { what, then } => {
+                Walk::walk(what, v);
+                for x0 in (then).iter_mut() {
+                    Walk::walk(x0, v);
+                }
             }
             Static::AsEnters { what, then } => {
                 Walk::walk(what, v);

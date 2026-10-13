@@ -126,6 +126,7 @@ fn player_predicate(p: &mut P, who: &Player) -> Option<Event> {
             Some(Event::Puts { who: who.clone(), what, to: to.zone() })
         },
         |p| { p.verb("exile")?; let what = objects(p)?; Some(Event::Exiles { who: who.clone(), what }) },
+        |p| { p.verb("exert")?; let what = objects(p)?; Some(Event::Exerts { who: who.clone(), what }) },
         // "Whenever you scry or surveil": a keyword action with no object.
         |p| {
             let action = ["scry", "surveil"].into_iter().find(|a| p.verb(a).is_some())?;
@@ -162,7 +163,7 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
             }
             v.extend(items.into_iter().map(|(_, _, e)| e));
             // A lone verb the rules below read is theirs to read.
-            if v.len() == 1 && !matches!(v[0], Event::AttacksWith { .. } | Event::PlayerAttacks { .. } | Event::PlaysLand(_) | Event::TapsFor { .. } | Event::CountersPut { .. } | Event::Puts { .. } | Event::Exiles { .. } | Event::Performs { .. }) {
+            if v.len() == 1 && !matches!(v[0], Event::AttacksWith { .. } | Event::PlayerAttacks { .. } | Event::PlaysLand(_) | Event::TapsFor { .. } | Event::CountersPut { .. } | Event::Puts { .. } | Event::Exiles { .. } | Event::Performs { .. } | Event::Exerts { .. }) {
                 return None;
             }
             Some(if v.len() == 1 { v.remove(0) } else { Event::Or(v) })
