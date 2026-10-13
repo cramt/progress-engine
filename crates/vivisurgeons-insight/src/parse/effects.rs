@@ -1316,7 +1316,11 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             )?;
             p.word("for")?;
             let what = objects(p)?;
-            Some(Effect::Search { who, zones, what })
+            let mut and = vec![];
+            while let Some(more) = p.attempt(|p| { p.word("and")?; objects(p) }) {
+                and.push(more);
+            }
+            Some(Effect::Search { who, zones, what, and })
         },
         |p| {
             let who = subject_player(p);

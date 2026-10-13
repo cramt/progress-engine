@@ -6177,7 +6177,12 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w("add");
             mana_add(o, m);
         }
-        Effect::Search { who, zones, what } => {
+        Effect::Search {
+            who,
+            zones,
+            what,
+            and,
+        } => {
             subj(o, who, "search", cx);
             match &zones[..] {
                 [Zone::Library(w), Zone::Graveyard(_)] => {
@@ -6200,6 +6205,10 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             }
             o.w("for");
             objects(o, what);
+            for x in and {
+                o.w("and");
+                objects(o, x);
+            }
         }
         Effect::Scry(n) => {
             o.w("scry");

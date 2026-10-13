@@ -721,12 +721,20 @@ impl Walk for Effect {
             Effect::AddMana(f0) => {
                 Walk::walk(f0, v);
             }
-            Effect::Search { who, zones, what } => {
+            Effect::Search {
+                who,
+                zones,
+                what,
+                and,
+            } => {
                 Walk::walk(who, v);
                 for x0 in (zones).iter_mut() {
                     Walk::walk(x0, v);
                 }
                 Walk::walk(what, v);
+                for x0 in (and).iter_mut() {
+                    Walk::walk(x0, v);
+                }
             }
             Effect::Scry(f0) => {
                 Walk::walk(f0, v);

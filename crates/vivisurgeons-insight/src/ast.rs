@@ -1263,6 +1263,10 @@ pub enum Effect {
         /// Whose library, and the other zones "and/or graveyard" adds.
         zones: Vec<Zone>,
         what: Objects,
+        /// "for a Forest card and a Plains card" (Krosan Verge): more cards
+        /// the one search finds, each by its own filter, where one filter
+        /// in `what` would let a single card satisfy both.
+        and: Vec<Objects>,
     },
     Scry(Amount),
     Surveil(Amount),
