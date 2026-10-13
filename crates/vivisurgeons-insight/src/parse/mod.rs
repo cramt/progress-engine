@@ -439,6 +439,11 @@ pub(super) fn spend_uses(p: &mut P) -> Option<Vec<SpendUse>> {
                 p.one_of(&["activate abilities", "activate an ability"])?;
                 Some(SpendUse::ActivateAny)
             },
+            // "Spend this mana only on costs that contain {X}".
+            |p| {
+                p.words("on costs that contain")?;
+                match p.peek()? { Tok::Sym(s) if s == "X" => { p.bump(); Some(SpendUse::CostsWithX) } _ => None }
+            },
         )
     };
     let mut v = vec![one(p)?];

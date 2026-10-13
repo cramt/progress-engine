@@ -357,6 +357,9 @@ pub enum SpendUse {
     ActivateAbilityOf(Objects),
     /// "to activate abilities": of any object.
     ActivateAny,
+    /// "on costs that contain {X}": any cost with an {X} in it, a spell's
+    /// or an ability's (CR 107.3).
+    CostsWithX,
 }
 
 #[derive(Clone, Debug, PartialEq)]

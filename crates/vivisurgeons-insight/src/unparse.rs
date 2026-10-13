@@ -1308,6 +1308,12 @@ mod syn {
         alt(o, vec![Out::default(), of("this way")]);
     }
 
+    /// "in their mana costs" and "in their mana cost": each object has
+    /// one mana cost, said in the plural or not.
+    pub fn cost_or_costs(o: &mut Out, agreeing: Out) {
+        alt(o, vec![agreeing, of("cost")]);
+    }
+
     /// "if you didn't cast it this way" and "If you don't cast it": the
     /// cast the same ability offered, not done.
     pub fn didnt_cast(o: &mut Out, didnt: Out, dont: Out) {
@@ -2111,11 +2117,18 @@ fn spend_uses(o: &mut Out, uses: &[SpendUse]) {
         if i > 0 {
             o.w("or");
         }
+        if *u == SpendUse::CostsWithX {
+            o.w("on costs that contain");
+            o.tok(Tok::Sym("X".into()));
+            continue;
+        }
         // "to cast creature spells or activate abilities of creatures":
         // "to" said once for both.
         let verb = match u {
             SpendUse::Cast(_) => "cast",
-            SpendUse::ActivateAbilityOf(_) | SpendUse::ActivateAny => "activate",
+            SpendUse::ActivateAbilityOf(_) | SpendUse::ActivateAny | SpendUse::CostsWithX => {
+                "activate"
+            }
         };
         let with_to = out(|o| o.w(&format!("to {verb}")));
         if i > 0 {
@@ -2130,6 +2143,7 @@ fn spend_uses(o: &mut Out, uses: &[SpendUse]) {
                 objects(o, x);
             }
             SpendUse::ActivateAny => syn::an_ability(o),
+            SpendUse::CostsWithX => {}
         }
     }
 }
@@ -4547,7 +4561,10 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.w("{X} in");
             syn::its(o);
             o.w("mana");
-            o.noun("cost", n);
+            // "cards with {X} in their mana cost" (Rosheen, Roaring
+            // Prophet): each card has one.
+            let agreeing = out(|o| o.noun("cost", n));
+            syn::cost_or_costs(o, agreeing);
         }
         Post::ManaCost(v) => {
             o.w("with mana cost");
