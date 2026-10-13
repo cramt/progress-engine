@@ -88,31 +88,127 @@ pub fn card(card: &Card) -> Result<Lowered, Refusal> {
             line: line.text.clone(),
             at: b.at,
         })?;
-        let refuse = |node: &dyn fmt::Debug| Refusal::Unlowered {
-            line: line.text.clone(),
-            node: short(node),
-        };
-        match &ability {
-            i::Ability::Static(parts) => lowered
-                .statics
-                .push(static_ability(parts).map_err(|n| refuse(&n))?),
-            i::Ability::Keywords(keywords) => {
-                for k in keywords {
-                    let k = keyword(k).ok_or_else(|| refuse(k))?;
-                    lowered.chars.abilities.insert(Ability::Keyword(k));
-                }
-            }
-            // A spell's instructions are an ability too (CR 113.3a), run as
-            // it resolves.
-            i::Ability::Triggered { .. } | i::Ability::Activated { .. } | i::Ability::Spell(_) => {
-                let index = lowered.unread.len() as u16;
-                lowered.chars.abilities.insert(Ability::Unread(index));
-                lowered.unread.push(ability);
-            }
-            other => return Err(refuse(other)),
-        }
+        lowered
+            .ability(ability)
+            .map_err(|node| Refusal::Unlowered {
+                line: line.text.clone(),
+                node,
+            })?;
     }
     Ok(lowered)
+}
+
+impl Lowered {
+    /// Carry an ability the layers don't read, so an effect can still
+    /// remove it, and the state machine can run it.
+    fn unread(&mut self, ability: i::Ability) {
+        let index = self.unread.len() as u16;
+        self.chars.abilities.insert(Ability::Unread(index));
+        self.unread.push(ability);
+    }
+
+    /// One ability, or the name of the node it can't lower.
+    fn ability(&mut self, ability: i::Ability) -> Result<(), String> {
+        match ability {
+            i::Ability::Static(parts) if parts.iter().all(not_characteristics) => {
+                self.unread(i::Ability::Static(parts))
+            }
+            i::Ability::Static(parts) => self.statics.push(static_ability(&parts)?),
+            i::Ability::Keywords(keywords) => {
+                for k in keywords {
+                    match keyword(&k) {
+                        Some(k) => {
+                            self.chars.abilities.insert(Ability::Keyword(k));
+                        }
+                        // Ward, flash, reach: the layers carry what they don't
+                        // grant or remove by name.
+                        None => self.unread(i::Ability::Keywords(vec![k])),
+                    }
+                }
+            }
+            // An ability word adds no rules (CR 207.2c): what it labels is
+            // the ability.
+            i::Ability::Labelled { ability, .. } => self.ability(*ability)?,
+            // A spell's instructions are an ability too (CR 113.3a), run as
+            // it resolves; a loyalty ability is activated (CR 606.1), a
+            // chapter ability triggered (CR 714.2b).
+            a @ (i::Ability::Triggered { .. }
+            | i::Ability::Activated { .. }
+            | i::Ability::Spell(_)
+            | i::Ability::Loyalty { .. }
+            | i::Ability::Chapter { .. }
+            | i::Ability::DieRow { .. }
+            | i::Ability::Spree { .. }
+            | i::Ability::Tiered(_)) => self.unread(a),
+            other => return Err(short(&other)),
+        }
+        Ok(())
+    }
+}
+
+/// Static abilities that change no characteristic of any object: rules,
+/// costs, permissions, replacement and prevention effects, and effects on
+/// players (CR 613.10–11, 614, 615, 601.2f). The layers carry them unread.
+/// What isn't listed may change one, so lowering it is refused rather than
+/// carried, and a characteristic is never dropped. "As this enters" isn't
+/// here: setting power and toughness as it enters is a copiable effect,
+/// layer 1 (CR 613.2a).
+fn not_characteristics(s: &i::Static) -> bool {
+    use i::Static::*;
+    matches!(
+        s,
+        X(_) | Restrict { .. }
+            | EntersTapped { .. }
+            | EntersTappedUnless { .. }
+            | EntersUntapped { .. }
+            | EntersWithCounters { .. }
+            | EscapesWithCounters { .. }
+            | EntersPrepared { .. }
+            | CostChange { .. }
+            | CostChangePer { .. }
+            | AbilityCostChange { .. }
+            | ActivatedCostChange { .. }
+            | AdditionalCost { .. }
+            | AdditionalCostFor { .. }
+            | OptionalAdditionalCost { .. }
+            | AlternativeCost { .. }
+            | PaysRather { .. }
+            | CastPaying { .. }
+            | CastWithoutPaying
+            | CastFromUsing { .. }
+            | CastAsThoughFlash { .. }
+            | CastAsThoughFlashFor { .. }
+            | CastOnlyAsSorcery { .. }
+            | ActivateAsThoughHaste { .. }
+            | ActivationsPerTurn { .. }
+            | AssignAsThoughUnblocked { .. }
+            | ExtraLand { .. }
+            | PlayerRestrict { .. }
+            | PermissionRules { .. }
+            | PlayFrom { .. }
+            | PlayWithTopRevealed { .. }
+            | LookAtTopAnyTime
+            | UntapDuring { .. }
+            | MaxHandSize
+            | MaxHandSizeIs { .. }
+            | YouHave { .. }
+            | SkipStep { .. }
+            | CanBeCommander
+            | DeckCanHave { .. }
+            | BeginOnBattlefield { .. }
+            | RevealFromOpeningHand { .. }
+            | Replacement { .. }
+            | AdditionalTrigger { .. }
+            | EnteringDoesntTrigger { .. }
+            | ProtectionDoesntRemove { .. }
+            | PreventDamage { .. }
+            | PreventNoncombat { .. }
+            | CantCauseSearch { .. }
+            | SpendAsAnyColor { .. }
+            | SpendAsAnyType { .. }
+            | ExertAsAttacks { .. }
+            | Goaded { .. }
+    )
 }
 
 /// What a resolving effect leaves on the objects it was told to affect: the
@@ -281,7 +377,14 @@ fn keyword(k: &i::Keyword) -> Option<Keyword> {
 fn static_ability(parts: &[i::Static]) -> Result<StaticAbility, String> {
     let mut filter: Option<Filter> = None;
     let mut ops = Vec::new();
+    let mut carried = false;
     for part in parts {
+        // Name what changes a characteristic and can't be lowered first;
+        // a part that changes none only makes the ability mixed.
+        if not_characteristics(part) {
+            carried = true;
+            continue;
+        }
         let (what, part_ops) = static_part(part)?;
         let f = objects(what)?;
         if filter.as_ref().is_some_and(|g| *g != f) {
@@ -289,6 +392,9 @@ fn static_ability(parts: &[i::Static]) -> Result<StaticAbility, String> {
         }
         filter = Some(f);
         ops.extend(part_ops);
+    }
+    if carried {
+        return Err("a characteristic and a rule in one ability".into());
     }
     Ok(StaticAbility {
         filter: filter.ok_or("an empty static ability")?,
@@ -418,9 +524,13 @@ fn fixed(p: &IPt) -> Option<Pt> {
 /// "All creatures", "nontoken artifacts you control": a filter over the
 /// battlefield, re-read as the layers go. Targets aren't a static's.
 fn objects(o: &Objects) -> Result<Filter, String> {
-    if !matches!(o.quant, Quant::All | Quant::Each | Quant::Plural) {
-        return Err(format!("quantity {}", short(&o.quant)));
-    }
+    // "Enchanted creature", "equipped creature": what the source is
+    // attached to, and only while it matches the rest of the filter.
+    let mut preds = match o.quant {
+        Quant::All | Quant::Each | Quant::Plural => Vec::new(),
+        Quant::Enchanted | Quant::Equipped => vec![Pred::AttachedTo],
+        _ => return Err(format!("quantity {}", short(&o.quant))),
+    };
     let f = &o.filter;
     let [alt] = f.alts.as_slice() else {
         return Err("a filter with alternatives".into());
@@ -437,7 +547,6 @@ fn objects(o: &Objects) -> Result<Filter, String> {
             _ => None,
         })
         .collect();
-    let mut preds = Vec::new();
     for adj in alt {
         preds.push(match adj {
             Adj::Type(t) => Pred::Is(Prop::Type(card_type(t).ok_or(format!("type {t}"))?)),

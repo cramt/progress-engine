@@ -45,13 +45,32 @@ Not yet: layers 1–3 (copy, control, text), 7a (characteristic-defining
 abilities, and so CDAs first, CR 613.3), dependency through "what it does"
 (CR 613.8a), counters' own timestamps (CR 613.7c), abilities granted with a
 later timestamp (CR 613.7a), effects on players and rules (CR 613.10–11),
-and lowering for most of Insight's nodes. Today it lowers the statics
-`Modify`, `BasePt`, `BasePtEqual` (its mana value), `Loses` (all
-abilities), `AlsoIs` with listed types, `Is` setting a basic land type or
-making an artifact creature (CR 205.1b); filters over type, supertype,
-subtype, colour, "nontoken", "other" and "you control"; and, as they
-resolve, `Modify` and earthbend. `insight card <name>` shows what a card
-reads as, and `lower::card` says by name what it refuses.
+and conditional statics ("as long as", "if").
+
+## Lowering
+
+`lower::card` lowers the statics `Modify`, `BasePt`, `BasePtEqual` (its
+mana value), `Loses` (all abilities), `AlsoIs` with listed types, and `Is`
+setting a basic land type or making an artifact creature (CR 205.1b);
+filters over type, supertype, subtype, colour, "nontoken", "other", "you
+control", "enchanted" and "equipped"; and, as they resolve, `Modify` and
+earthbend. Everything else that changes no characteristic is carried as
+`Ability::Unread` so an effect can still remove it: triggered, activated,
+loyalty and chapter abilities, keywords the model doesn't name, and an
+explicit list of statics (costs, enters tapped, restrictions, replacement
+and prevention effects, `lower::not_characteristics`). Any other node is
+refused by name, never dropped. `insight card <name>` shows what a card
+reads as.
+
+**493 of the 574 cards in the Modern metagame lower whole** (519 of 600
+faces), measured 2026-10-13 against the Scryfall bulk file:
+`cargo test --release -p chancellor-of-the-spires --test coverage -- --ignored --nocapture`
+prints the number and the refusals by node. The most refused are "as this
+enters" (25, a choice, or a copiable effect if it sets a size, CR 613.2a),
+"as long as" (16) and "if" (12), conditions not modelled yet; then 7a's
+characteristic-defining abilities (`SetPt`) and copy effects. Karn
+Liberated and two others don't parse: they are cards with a rule of their
+own, which Insight's headline leaves out.
 
 ## Speed
 

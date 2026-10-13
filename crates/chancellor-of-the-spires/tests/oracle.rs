@@ -499,3 +499,27 @@ fn a_line_the_engine_cant_lower_is_refused_by_name() {
         .expect("\"as long as\" isn't lowered yet");
     assert!(refusal.to_string().contains("AsLongAs"), "{refusal}");
 }
+
+#[test]
+fn a_karoo_carries_every_ability_unread_and_humility_cant_reach_it() {
+    // "Enters tapped" is a replacement effect (CR 614.1d) and changes no
+    // characteristic, so lowering carries it with the trigger and the mana
+    // ability. Humility takes only creatures' abilities: the land, not a
+    // creature, keeps all three.
+    const SELESNYA_SANCTUARY: Card = card(
+        "Selesnya Sanctuary",
+        "Land",
+        "This land enters tapped.\nWhen this land enters, return a land you control to its owner's \
+hand.\n{T}: Add {G}{W}.",
+        0,
+        &[],
+        None,
+    );
+    let karoo = read(&SELESNYA_SANCTUARY);
+    assert!(karoo.statics.is_empty());
+    assert_eq!(karoo.unread.len(), 3);
+    let mut s = State::default();
+    let k = s.enter(karoo.chars, karoo.statics);
+    enter(&mut s, &HUMILITY);
+    assert_eq!(characteristics(&s)[&k].abilities.len(), 3);
+}
