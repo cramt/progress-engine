@@ -405,6 +405,12 @@ mod syn {
         alt(o, vec![equal_to, same_as]);
     }
 
+    /// "the life your opponents lost this turn" or "the total life lost by
+    /// your opponents this turn": one amount.
+    pub fn total_life(o: &mut Out, theirs: Out, total: Out) {
+        alt(o, vec![theirs, total]);
+    }
+
     // ---------------------------------------- agreement and punctuation
 
     /// A number in digits or in words: "3 damage", "three cards". Oracle
@@ -2856,14 +2862,35 @@ fn measure(o: &mut Out, a: &Amount) {
             o.w("drawn this turn");
         }
         Amount::LifeGainedThisTurn(p) | Amount::LifeLostThisTurn(p) => {
-            syn::the_life(o);
             let verb = if matches!(a, Amount::LifeGainedThisTurn(_)) {
                 "gained"
             } else {
                 "lost"
             };
-            life_subject(o, p, verb);
-            o.w("this turn");
+            let theirs = out(|o| {
+                syn::the_life(o);
+                life_subject(o, p, verb);
+                o.w("this turn");
+            });
+            // "the total life lost by all players this turn".
+            let by = match p {
+                Player::Each => Some("all players"),
+                Player::EachOpponent => Some("your opponents"),
+                _ => None,
+            };
+            match by {
+                Some(by) => {
+                    let total = out(|o| {
+                        o.w("the total life");
+                        o.w(verb);
+                        o.w("by");
+                        o.w(by);
+                        o.w("this turn");
+                    });
+                    syn::total_life(o, theirs, total);
+                }
+                None => o.add(theirs),
+            }
         }
         Amount::DamageDealtThisTurn(p) => {
             o.w("the damage");

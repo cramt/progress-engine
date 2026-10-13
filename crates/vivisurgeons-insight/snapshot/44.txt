@@ -183,7 +183,7 @@ cost: {1}{B/R}{B/R}
 > Trample
 > This creature enters with X +1/+1 counters on it, where X is the total life lost by your opponents this turn.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "life" after: this creature enters with x <pt> counters on it , where x is the total
+= Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, n: LifeLostThisTurn(EachOpponent), kind: "+1/+1" }])
 
 ## Cubwarden
 face: Cubwarden

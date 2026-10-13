@@ -903,7 +903,7 @@ face: Tainted Sigil
 type: Artifact
 cost: {1}{W}{B}
 > {T}, Sacrifice this artifact: You gain life equal to the total life lost by all players this turn. (Damage causes loss of life.)
-= BROKE at "life" after: {T} , sacrifice this artifact : you gain life equal to the total
+= Activated { cost: [Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], effect: [GainLife { who: You, n: LifeLostThisTurn(Each) }], limits: [] }
 
 ## Tajic, Blade of the Legion
 face: Tajic, Blade of the Legion

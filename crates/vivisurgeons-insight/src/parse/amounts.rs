@@ -231,6 +231,18 @@ fn measure_bare(p: &mut P) -> Option<Amount> {
             p.words("this turn")?;
             Some(if gained { Amount::LifeGainedThisTurn(who) } else { Amount::LifeLostThisTurn(who) })
         },
+        // "the total life lost by all players this turn", "… by your opponents …".
+        |p| {
+            p.words("the total life")?;
+            let gained = p.one_of(&["gained", "lost"])? == "gained";
+            p.word("by")?;
+            let who = alt!(p;
+                |p| p.words("all players").map(|_| Player::Each),
+                |p| p.words("your opponents").map(|_| Player::EachOpponent),
+            )?;
+            p.words("this turn")?;
+            Some(if gained { Amount::LifeGainedThisTurn(who) } else { Amount::LifeLostThisTurn(who) })
+        },
         |p| { p.words("the damage dealt this way").map(|_| Amount::Damage) },
         |p| { p.words("the amount of damage dealt this way").map(|_| Amount::Damage) },
         // "Whenever one or more creatures you control … deal combat damage to
