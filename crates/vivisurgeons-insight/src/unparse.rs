@@ -4114,6 +4114,10 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.w("exiled with");
             objects(o, x);
         }
+        Post::UsedToCraft(x) => {
+            o.w("used to craft");
+            objects(o, x);
+        }
         Post::SharesType { card_type, with } => {
             o.w("that");
             o.verb("share", n);

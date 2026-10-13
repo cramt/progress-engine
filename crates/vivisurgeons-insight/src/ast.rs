@@ -888,6 +888,10 @@ pub enum Post {
     Cast(Player),
     FromAmongThem,
     ExiledWith(Box<Objects>),
+    /// "the exiled cards used to craft it": the cards exiled to pay the
+    /// craft cost that put this permanent onto the battlefield (CR
+    /// 702.167c).
+    UsedToCraft(Box<Objects>),
     /// "that shares a creature type with it"; with no object, with each other.
     SharesType {
         card_type: String,

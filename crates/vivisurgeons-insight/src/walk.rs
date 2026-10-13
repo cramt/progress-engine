@@ -2035,6 +2035,9 @@ impl Walk for Post {
             Post::ExiledWith(f0) => {
                 Walk::walk(&mut **f0, v);
             }
+            Post::UsedToCraft(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             Post::SharesType { with, .. } => {
                 if let Some(x0) = (with).as_mut() {
                     Walk::walk(&mut **x0, v);

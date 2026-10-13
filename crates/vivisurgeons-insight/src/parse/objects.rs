@@ -846,6 +846,12 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         // "cards exiled with it": "it" is the object whose ability exiled
         // them, which on a card's own text is the card (CR 607.2a).
         |p| { p.words("exiled with it")?; Some(Post::ExiledWith(Box::new(self_ref()))) },
+        // "the exiled cards used to craft it" (CR 702.167c).
+        |p| {
+            p.words("used to craft")?;
+            let o = alt!(p; |p| p.word("it").map(|_| self_ref()), self_noun)?;
+            Some(Post::UsedToCraft(Box::new(o)))
+        },
         |p| { p.words("exiled with")?; self_noun(p).map(|o| Post::ExiledWith(Box::new(o))) },
         |p| { p.words("exiled with")?; objects(p).map(|o| Post::ExiledWith(Box::new(o))) },
         |p| p.words("you cast").map(|_| Post::Cast(Player::You)),
@@ -1287,6 +1293,12 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
                 // linked ability exiled with this object (CR 607.2a). An
                 // instant's paragraphs are one spell, so there it is what
                 // another of them exiled.
+                // "the exiled cards used to craft it": the cards the craft
+                // ability exiled (CR 702.167c), linked as Isochron Scepter's.
+                Some(Marked::Exiled) if f.posts.iter().any(|q| matches!(q, Post::UsedToCraft(_))) => {
+                    f.posts.insert(0, Post::Marked(Marked::Exiled));
+                    return Some(Objects { quant: Quant::Linked, filter: f });
+                }
                 Some(Marked::Exiled) if !p.spell && !exiled_earlier(&p.t[..start]) => {
                     f.posts.insert(0, Post::ExiledWith(Box::new(self_ref())));
                     return Some(Objects { quant: Quant::Linked, filter: f });
