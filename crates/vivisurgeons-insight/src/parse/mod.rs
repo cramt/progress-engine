@@ -638,12 +638,32 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
             }
             (!modes.is_empty() && finished(p)).then_some(Ability::Tiered(modes))
         },
+        // A station threshold is a permanent's (CR 702.184); in an instant
+        // or sorcery "15+ |" is a die's result row, below.
         |p| {
+            if spell { return None; }
             let at_least = number(p)?;
             p.tok(&Tok::Other('+'))?;
             p.tok(&Tok::Other('|'))?;
             let inner = ability(p, spell)?;
             Some(Ability::Station { at_least, ability: Box::new(inner) })
+        },
+        // "1—14 | …", "15+ | …", "20 | …": a row of a die roll's results
+        // table, its effect done if the result is in its range (CR 706.3a).
+        |p| {
+            let from = number(p)?;
+            let to = if p.attempt(|p| p.tok(&Tok::Other('+'))).is_some() {
+                None
+            } else if p.attempt(|p| p.tok(&Tok::Dash)).is_some() {
+                Some(number(p)?)
+            } else {
+                Some(from)
+            };
+            p.tok(&Tok::Other('|'))?;
+            match ability(p, true)? {
+                Ability::Spell(effect) => Some(Ability::DieRow { from, to, effect }),
+                _ => None,
+            }
         },
         |p| {
             p.tok(&Tok::Other('∞'))?;

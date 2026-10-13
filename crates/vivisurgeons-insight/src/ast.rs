@@ -95,6 +95,14 @@ pub enum Ability {
         at_least: u32,
         ability: Box<Ability>,
     },
+    /// "1—14 | …", "15+ | …", "20 | …": a row of the results table of the
+    /// die rolled before it, done if the result is from `from` to `to`
+    /// (`None`: no upper end) (CR 706.3a).
+    DieRow {
+        from: u32,
+        to: Option<u32>,
+        effect: Vec<Effect>,
+    },
     /// "∞ — …": an ability on only once its permanent is harnessed.
     Harnessed(Box<Ability>),
     /// "Exhaust — {3}: …", "Max speed — …": a keyword that adds rules to

@@ -99,6 +99,11 @@ impl Walk for Ability {
             Ability::Station { ability, .. } => {
                 Walk::walk(&mut **ability, v);
             }
+            Ability::DieRow { effect, .. } => {
+                for x0 in (effect).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Ability::Harnessed(f0) => {
                 Walk::walk(&mut **f0, v);
             }

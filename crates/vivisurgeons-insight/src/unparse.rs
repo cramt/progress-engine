@@ -1930,6 +1930,19 @@ fn ability_into(o: &mut Out, a: &Ability) {
             o.tok(Tok::Other('|'));
             ability_into(o, ability);
         }
+        Ability::DieRow { from, to, effect } => {
+            o.tok(Tok::Num(*from));
+            match to {
+                None => o.tok(Tok::Other('+')),
+                Some(t) if t == from => {}
+                Some(t) => {
+                    o.tok(Tok::Dash);
+                    o.tok(Tok::Num(*t));
+                }
+            }
+            o.tok(Tok::Other('|'));
+            sentences_in_mode(o, effect, &Cx::default());
+        }
         Ability::Harnessed(a) => {
             o.tok(Tok::Other('∞'));
             o.tok(Tok::Dash);

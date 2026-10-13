@@ -108,7 +108,10 @@ pub fn face_context(lines: &[crate::Line], mana_cost: &str) -> Vec<Context> {
     lines
         .iter()
         .map(|l| {
-            if !l.continues {
+            // A die's result row continues the roll above it (CR 706.3a),
+            // on a permanent as in a spell.
+            let row = matches!(l.parsed, Ok(Ability::DieRow { .. }));
+            if !l.continues && !row {
                 named = false;
             }
             let c = Context {
