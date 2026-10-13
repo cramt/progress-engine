@@ -33,11 +33,14 @@ A real run refuses to start unless `main` is checked out, clean, and equal to
    `golden/<name>.txt`. At 100% it is escalated for a human to review and pin,
    and the loop stops.
 2. **Writer.** One `query()` with `prompts/writer.md`, filled in with the
-   handoff, the queued findings, the milestone's `insight failing` list and
-   `method-notes.md`. A `PreToolUse` hook denies `git push`, `insight pin` and,
-   once the wall clock (`--writer-hours`) or the commit cap (`--commit-cap`) is
-   reached, every tool except reading and editing the handoff. The
-   AbortController stops the call 20 minutes after that.
+   handoff, the supervisor's `decisions.md`, the queued findings, the
+   milestone's `insight failing` list and `method-notes.md`. A `PreToolUse`
+   hook denies `git push`, `insight pin`, any edit, write or shell command that
+   touches `decisions.md` and, once the wall clock (`--writer-hours`) or the
+   commit cap (`--commit-cap`) is reached, every tool except reading and
+   editing the handoff. The AbortController stops the call 20 minutes after
+   that. Writers report a decision they carried out in their summary, not in
+   the file.
 3. **Gates.** Git hygiene (on main, clean, nothing pushed, `insight: `
    subjects, no AI attribution), `cargo fmt --all --check`,
    `cargo clippy --all-targets -- -D warnings`,
@@ -46,9 +49,21 @@ A real run refuses to start unless `main` is checked out, clean, and equal to
    tree in the snapshot diff. If the Scryfall bulk changed mid-batch, the
    baseline is measured again in a worktree at the baseline commit. On a pass
    the commits are pushed. On a fail, one fix-up `query()` gets the gate
-   output. If the gates still fail, the commits are parked on
+   output (and `decisions.md`). If the gates still fail, the commits are parked on
    `insight/failed-<n>` and main is reset to the baseline. The reset runs only
    if the baseline is an ancestor of HEAD and `origin/main` still equals it.
+
+   A push rejected because someone else pushed to main first (the human
+   commits by hand) fetches and runs `git rebase origin/main`. A clean rebase
+   is gated again: a fresh baseline is measured at `origin/main` in a
+   worktree, and the round trip, coverage and lint may not regress against
+   it, nor may any tree it parses be lost. Then the push is retried, up to
+   three rebases. A conflicted rebase (aborted), a failed re-gate, a fourth
+   rejection or a git error parks the commits on `insight/unpushed-<n>`,
+   resets main to `origin/main`, writes an escalation and records the batch as
+   `unpushed`, a failed batch. None of it stops the loop. After a rebase, the
+   review and the metrics compare against the `origin/main` baseline, so the
+   human's commits are not counted as the batch's.
 4. **Review.** Every new tree and an even sample of up to 300 changed trees,
    with their Oracle text, in files of about 90. Reviewers run three at a
    time. A hook lets each one read only `src/ast.rs`, `SEMANTICS.md` and its
@@ -62,7 +77,7 @@ A real run refuses to start unless `main` is checked out, clean, and equal to
    driver writes that file; the agent has no write tools.
 
 Stops: `--max-batches` and `--max-cost-usd` for this run, two failed or empty
-batches in a row (rerun with `--reset-failures` after looking), a milestone
+batches in a row (failed, unpushed or empty; rerun with `--reset-failures` after looking), a milestone
 ready to pin, or a git state the driver won't reset.
 
 ## State (`--state-dir`, default `/tmp/insight/driver/`)
@@ -72,10 +87,11 @@ ready to pin, or a git state the driver won't reset.
 | `state.json` | Next batch, consecutive failures, lifetime cost, and the batch in flight with its step. A rerun resumes from it. |
 | `driver.log` | One line per step, the same lines as stdout. |
 | `handoff.md` | Copied from `--handoff-source` on first run. The writers keep it up to date. |
+| `decisions.md` | The supervisor's decisions, part of every writer and fix-up prompt. Only the human edits it; the writer hook denies any change. |
 | `method-notes.md` | Written by the method review; part of every writer prompt. |
 | `queue.jsonl`, `backlog.jsonl` | Findings waiting for a writer. |
-| `escalations.md` | Decisions for the human: card exclusions, milestones ready to pin, git refusals. |
-| `metrics.jsonl` | One line per batch, and one per method review. |
+| `escalations.md` | Decisions for the human: card exclusions, milestones ready to pin, unpushed batches, git refusals. |
+| `metrics.jsonl` | One line per batch (`outcome`: `pushed`, `failed`, `unpushed`, `empty`, or `pushed-manually` for one a human pushed after a crash), and one per method review. |
 | `batches/<n>/` | Baseline and after snapshots, prompts, gate output, agent transcripts (`*.jsonl`), and `review/` with the inputs and `findings-*.md`. |
 
 ## Flags

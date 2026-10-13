@@ -27,7 +27,8 @@ import {
   branch as gitBranch,
   parkAndReset,
   preflight,
-  push,
+  pushRebasing,
+  type Unpushed,
 } from "./git.ts";
 import {
   buildRelease,
@@ -65,10 +66,12 @@ import type {
   AgentRun,
   BatchOutcome,
   Escalation,
+  GateFailure,
   InFlight,
   Measurement,
   Milestone,
   MilestoneStatus,
+  NonEmpty,
   Queued,
   State,
   StopReason,
@@ -128,6 +131,7 @@ const file = (name: string) => join(cfg.stateDir, name);
 const batchDir = (b: number) => file(`batches/${b}`);
 const HANDOFF = file("handoff.md");
 const METHOD_NOTES = file("method-notes.md");
+const DECISIONS = file("decisions.md");
 const AST = join(paths.crate, "src/ast.rs");
 const SEMANTICS = join(paths.crate, "SEMANTICS.md");
 
@@ -181,7 +185,11 @@ function initStateDir(): void {
   }
   if (!existsSync(METHOD_NOTES))
     writeFileSync(METHOD_NOTES, "No method notes yet.\n");
+  if (!existsSync(DECISIONS))
+    writeFileSync(DECISIONS, "## Decisions from the supervisor\n\nNone yet.\n");
 }
+
+const decisionsText = (): string => readFileSync(DECISIONS, "utf8").trim();
 
 // ---------- prompts ----------
 
@@ -264,6 +272,8 @@ async function writerPrompt(
     crate: paths.crate,
     handoffPath: HANDOFF,
     handoff: readFileSync(HANDOFF, "utf8"),
+    decisionsPath: DECISIONS,
+    decisions: decisionsText(),
     commitCap: cfg.commitCap,
     hours: cfg.writerMs / 3_600_000,
     milestone: s.milestone.name,
@@ -319,6 +329,7 @@ function writerSpec(
       commitLimit,
       softDeadline: Date.now() + softMs,
       handoffPath: HANDOFF,
+      decisionsPath: DECISIONS,
     }),
     schema: writerSchema,
     parse: parseWriter,
@@ -351,14 +362,12 @@ function escalate(
 
 // ---------- the batch ----------
 
-async function rebaseline(
-  baseline: Measurement,
-  dir: string,
-): Promise<Measurement> {
+/** A baseline measured at another commit, in a worktree, leaving main alone. */
+async function measureAt(sha: string, snapshot: string): Promise<Measurement> {
   const wt = file("rebaseline-wt");
   const target = file("rebaseline-target");
   await run("git", ["worktree", "remove", "--force", wt], { cwd: REPO });
-  await must("git", ["worktree", "add", "--detach", wt, baseline.head], {
+  await must("git", ["worktree", "add", "--detach", wt, sha], {
     cwd: REPO,
   });
   try {
@@ -369,7 +378,7 @@ async function rebaseline(
         crate: join(wt, "crates/vivisurgeons-insight"),
         insight: join(target, "release/insight"),
       },
-      join(dir, "baseline-rebased.snap"),
+      snapshot,
     );
   } finally {
     await run("git", ["worktree", "remove", "--force", wt], { cwd: REPO });
@@ -456,6 +465,57 @@ async function stepWrite(
   };
 }
 
+const PUSH_REBASES = 3;
+
+/**
+ * The gates again, for commits rebased onto a main someone else moved: the
+ * ratchets compare against a baseline measured at origin/main, so a batch may
+ * not regress what is there now.
+ */
+async function regate(
+  dir: string,
+  onto: string,
+  attempt: number,
+): Promise<
+  | { ok: true; value: { baseline: Measurement; after: Measurement } }
+  | { ok: false; failure: NonEmpty<GateFailure> }
+> {
+  const baseline = await measureAt(
+    onto,
+    join(dir, `baseline-origin-${attempt}.snap`),
+  );
+  writeFileSync(
+    join(dir, `baseline-origin-${attempt}.json`),
+    JSON.stringify(baseline, null, 2),
+  );
+  const report = await runGates(
+    paths,
+    baseline,
+    join(dir, `after-rebase-${attempt}.snap`),
+    true,
+  );
+  if (report.kind === "pass")
+    return { ok: true, value: { baseline, after: report.after } };
+  writeFileSync(
+    join(dir, `gates-rebase-${attempt}.md`),
+    gateReport(report.failures),
+  );
+  return { ok: false, failure: report.failures };
+}
+
+function unpushedLine(c: Unpushed<NonEmpty<GateFailure>>): string {
+  switch (c.kind) {
+    case "conflict":
+      return `rebasing onto origin/main ${c.onto.slice(0, 7)} conflicted: ${c.detail}`;
+    case "gates":
+      return `rebased onto origin/main ${c.onto.slice(0, 7)}, it failed the gates: ${c.failure.map(describe).join("; ")}`;
+    case "rejected":
+      return `the push was rejected ${c.attempts} times: ${c.detail}`;
+    case "error":
+      return `git failed: ${c.detail}`;
+  }
+}
+
 async function stepGate(
   f: Extract<InFlight, { step: "gate" }>,
 ): Promise<InFlight | StopReason> {
@@ -471,7 +531,10 @@ async function stepGate(
       "gate",
       "the Scryfall bulk changed during the batch; measuring the baseline again in a worktree",
     );
-    baseline = await rebaseline(baseline, dir);
+    baseline = await measureAt(
+      baseline.head,
+      join(dir, "baseline-rebased.snap"),
+    );
   }
   const report = await runGates(
     paths,
@@ -480,22 +543,61 @@ async function stepGate(
     true,
   );
   if (report.kind === "pass") {
-    const h = await push(REPO);
-    log("push", `${commits.length} commits pushed, main at ${h.slice(0, 7)}`);
-    return {
-      step: "review",
-      batch: f.batch,
-      baseline,
-      agents: f.agents,
-      writer: f.writer,
-      outcome: {
-        kind: "pushed",
-        head: h,
-        commits: commits.length,
-        fixedUp: f.fixupTried,
-        after: report.after,
-      },
-    };
+    const p = await pushRebasing(REPO, {
+      rebases: PUSH_REBASES,
+      parkAs: `insight/unpushed-${f.batch}`,
+      regate: (onto, attempt) => regate(dir, onto, attempt),
+    });
+    switch (p.kind) {
+      case "pushed": {
+        // After a rebase the review and the metrics compare against what
+        // origin held, so the human's commits aren't counted as the batch's.
+        const now = p.regated ?? { baseline, after: report.after };
+        log(
+          "push",
+          `${commits.length} commits pushed${p.rebases ? ` after ${p.rebases} rebase(s)` : ""}, main at ${p.head.slice(0, 7)}`,
+        );
+        return {
+          step: "review",
+          batch: f.batch,
+          baseline: now.baseline,
+          agents: f.agents,
+          writer: f.writer,
+          outcome: {
+            kind: "pushed",
+            head: p.head,
+            commits: commits.length,
+            fixedUp: f.fixupTried,
+            after: now.after,
+          },
+        };
+      }
+      case "unpushed":
+        escalate(
+          f.batch,
+          "push",
+          `The batch passed its gates but could not be pushed: ${unpushedLine(p.cause)}. Its ${commits.length} commits are on ${p.branch}; main was reset to origin/main ${p.resetTo.slice(0, 7)}. Rebase and push them by hand, or drop the branch.`,
+        );
+        return {
+          ...f,
+          baseline,
+          step: "record",
+          outcome: {
+            kind: "unpushed",
+            branch: p.branch,
+            commits: commits.length,
+            cause: p.cause,
+          },
+          findings: [],
+        };
+      case "refused":
+        escalate(
+          f.batch,
+          "git",
+          `The batch passed its gates but could not be pushed (${unpushedLine(p.cause)}), and the driver refused to park it: ${p.reason}. Nothing was reset.`,
+        );
+        return { kind: "unsafe-git", reason: p.reason };
+    }
   }
   const text = gateReport(report.failures);
   writeFileSync(join(dir, f.fixupTried ? "gates-fixup.md" : "gates.md"), text);
@@ -521,6 +623,8 @@ async function stepGate(
       lintBaseline: lintLine(baseline),
       baselineSnapshot: baseline.snapshotPath,
       handoffPath: HANDOFF,
+      decisionsPath: DECISIONS,
+      decisions: decisionsText(),
     });
     writeFileSync(join(dir, "fixup-prompt.md"), prompt);
     const r = await agent(
@@ -707,6 +811,12 @@ function stepRecord(
       ? {
           failedBranch: f.outcome.branch,
           failures: f.outcome.failures.map(describe),
+        }
+      : {}),
+    ...(f.outcome.kind === "unpushed"
+      ? {
+          unpushedBranch: f.outcome.branch,
+          unpushed: unpushedLine(f.outcome.cause),
         }
       : {}),
     commits: f.outcome.kind === "empty" ? 0 : f.outcome.commits,

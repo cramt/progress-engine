@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { appendFileSync, mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import {
   type HookCallback,
   type HookJSONOutput,
@@ -50,9 +50,29 @@ export const PUSH = /\bgit(\s+(-C|-c)\s+\S+|\s+--\S+)*\s+push\b/;
 export const PIN = /\binsight\s+pin\b|\bcargo\s+run\b[^\n;&|]*--\s+pin\b/;
 
 /**
+ * Whether a tool call would change `path`. Read may; any edit or write to it
+ * may not, nor any shell command that names it, since a shell can change a
+ * file in more ways than a pattern can list.
+ */
+export function touches(
+  tool: string,
+  toolInput: unknown,
+  path: string,
+): boolean {
+  const ti = input(toolInput);
+  if (tool === "Bash") {
+    const c = typeof ti.command === "string" ? ti.command : "";
+    return c.includes(path) || c.includes(basename(path));
+  }
+  if (tool === "Read") return false;
+  const p = ti.file_path ?? ti.notebook_path;
+  return typeof p === "string" && resolve(p) === resolve(path);
+}
+
+/**
  * The writer's rules that a prompt can only ask for, enforced: never push,
- * never pin, and once the clock or the commit cap runs out, nothing but
- * reading and updating the handoff.
+ * never pin, never touch the supervisor's decisions, and once the clock or
+ * the commit cap runs out, nothing but reading and updating the handoff.
  */
 export function writerGuard(g: {
   repo: string;
@@ -60,6 +80,7 @@ export function writerGuard(g: {
   commitLimit: number;
   softDeadline: number;
   handoffPath: string;
+  decisionsPath: string;
 }): HookCallback {
   const commits = (): number =>
     Number(
@@ -71,6 +92,11 @@ export function writerGuard(g: {
   return async (hook) => {
     if (hook.hook_event_name !== "PreToolUse") return allow;
     const ti = input(hook.tool_input);
+    if (touches(hook.tool_name, hook.tool_input, g.decisionsPath)) {
+      return deny(
+        `${g.decisionsPath} is the supervisor's; read it, never change it. Report a decision you carried out in your final summary, and a question about one in escalations.`,
+      );
+    }
     if (hook.tool_name === "Bash" && typeof ti.command === "string") {
       if (PUSH.test(ti.command)) {
         return deny(

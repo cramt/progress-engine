@@ -50,6 +50,8 @@ structured report.
 - A decision you cannot make, such as excluding a card (Un-cards, ante, acorn)
   or a SEMANTICS question with no row, goes in your final report's
   `escalations`. Do not make it yourself; carry on with other work.
+- Never edit `{{decisionsPath}}`, not even to mark an item done; see the
+  supervisor's decisions below.
 
 ## The gates your commits must pass
 
@@ -65,9 +67,20 @@ is reset, so its work is lost.
 
 Update `{{handoffPath}}`: the gotchas you hit, open findings you did not close,
 what you half-understand. Keep it tight; the next writer reads all of it. Then
-end with the structured report: a summary with the measured counts, every
-queued finding you closed (copy `card` and `node` exactly as queued, verdict
-`fixed` or `not-a-defect`), and your escalations.
+end with the structured report: a summary with the measured counts and every
+supervisor decision you carried out (with its commit hash), every queued
+finding you closed (copy `card` and `node` exactly as queued, verdict `fixed`
+or `not-a-defect`), and your escalations.
+
+## Decisions from the supervisor (`{{decisionsPath}}`, read-only)
+
+These are settled: follow them, and carry out the approved ones that are not
+done yet. The file is the supervisor's alone, and the driver denies any edit,
+write or shell command that touches it. Report a decision you carried out in
+your summary, with its commit hash; put a question about one in
+`escalations`.
+
+{{decisions}}
 
 ## Method notes (from the method review of past batches)
 

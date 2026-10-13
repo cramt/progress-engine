@@ -1,6 +1,8 @@
 // The driver's domain. Each union is closed: a state the loop cannot be in
 // has no spelling here.
 
+import type { Unpushed } from "./git.ts";
+
 export type Ratio = { ok: number; total: number };
 
 /** One row of `insight coverage`: "all cards", "EDHREC top N" or a milestone. */
@@ -151,6 +153,16 @@ export type BatchOutcome =
       branch: string;
       commits: number;
       failures: NonEmpty<GateFailure>;
+    }
+  /**
+   * Passed against its own baseline, but main moved under it and the rebase
+   * conflicted or failed the gates again; parked, main reset to origin/main.
+   */
+  | {
+      kind: "unpushed";
+      branch: string;
+      commits: number;
+      cause: Unpushed<NonEmpty<GateFailure>>;
     }
   /** The writer finished without a commit; nothing to gate or review. */
   | { kind: "empty" };

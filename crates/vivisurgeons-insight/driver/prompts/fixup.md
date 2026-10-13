@@ -23,7 +23,14 @@ fail, the driver parks the batch's commits on a branch and resets main to
   subjects with a behaviour claim, exact counts in the bodies, `cargo fmt --all`
   before each commit, `UPDATE_WALK=1` after an `ast.rs` change, no AI
   attribution, README updated when a tracked number moves.
+- The supervisor's decisions below still hold. `{{decisionsPath}}` is
+  read-only: the driver denies any edit, write or shell command that touches
+  it. Report a decision you carried out in your summary instead.
 - Note what broke and why in `{{handoffPath}}` so the next writer avoids it.
 
 End with the structured report; `resolved` lists only the queued findings that
 are still fixed after your changes.
+
+## Decisions from the supervisor (`{{decisionsPath}}`, read-only)
+
+{{decisions}}
