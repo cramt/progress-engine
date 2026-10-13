@@ -2589,6 +2589,9 @@ impl Walk for Static {
             Static::ActivateAsThoughHaste(f0) => {
                 Walk::walk(f0, v);
             }
+            Static::AssignAsThoughUnblocked(f0) => {
+                Walk::walk(f0, v);
+            }
             Static::IsAllColors(f0) => {
                 Walk::walk(f0, v);
             }

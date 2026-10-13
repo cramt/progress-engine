@@ -2929,6 +2929,14 @@ pub enum Static {
     /// "You may activate abilities of creatures you control as though those
     /// creatures had haste."
     ActivateAsThoughHaste(Objects),
+    /// "You may have this creature assign its combat damage as though it
+    /// weren't blocked": while blocked, it may assign its combat damage to
+    /// the player or permanent it attacks instead of its blockers (CR
+    /// 510.1c), a choice the player assigning its damage makes (CR 510.1).
+    /// "Enchanted creature's controller may have it assign …" and "For each
+    /// creature you control, you may have that creature assign …" say the
+    /// same of each object.
+    AssignAsThoughUnblocked(Objects),
     /// "Each nonland permanent you control is all colors."
     IsAllColors(Objects),
     /// "Enchanted creature gets +2/+2 and is goaded": goaded, a designation

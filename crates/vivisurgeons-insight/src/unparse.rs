@@ -591,6 +591,27 @@ mod syn {
         any_of(o, &["abilities", "an ability"]);
     }
 
+    /// "You may have this creature assign …", "Enchanted creature's
+    /// controller may have it assign …", "For each creature you control,
+    /// you may have that creature assign …": the player who assigns a
+    /// creature's combat damage chooses for it (CR 510.1), so "you" of a
+    /// creature you control and "its controller" name the same player, and
+    /// "for each … that creature" says of each what the plural says of all.
+    pub fn may_have_assign(o: &mut Out, what: Out, each_one: Out) {
+        let mut you = Out::default();
+        you.w("you may have");
+        you.add(what.clone());
+        you.w("assign");
+        let mut each = Out::default();
+        each.w("for each");
+        each.add(each_one);
+        each.w(",");
+        each.w("you may have that creature assign");
+        let mut controller = what;
+        controller.w("'s controller may have it assign");
+        alt(o, vec![you, each, controller]);
+    }
+
     /// "you may copy it and may choose a new target for the copy", "you
     /// may copy it. You may choose new targets for the copy.": the second
     /// "may" is the same player's, and the clauses of one ability are
@@ -11393,6 +11414,10 @@ fn static_other(o: &mut Out, s: &Static) {
             o.w("you may activate abilities of");
             objects(o, x);
             o.w("as though those creatures had haste");
+        }
+        Static::AssignAsThoughUnblocked(x) => {
+            syn::may_have_assign(o, out(|o| objects(o, x)), out(|o| each_objects(o, x)));
+            o.w("its combat damage as though it weren't blocked");
         }
         Static::EnteringDoesntTrigger { what, of } => {
             objects(o, what);

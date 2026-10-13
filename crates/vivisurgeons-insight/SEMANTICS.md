@@ -316,6 +316,8 @@ new row takes a new one.
 | [sacrificed-this-way] | "If you sacrificed a creature this way", "if you sacrificed a permanent this turn" | `ThisWay(Sacrifices { … })`, `DidThisTurn(Sacrifices { … })` | settled: as "you exiled … this way" |
 | [done-this-way] | "If a creature card was exiled this way", "If an artifact is destroyed this way", "if at least one Zombie card is milled this way" | `Condition::DoneThisWay { what, how: Marked }` | settled: one of those objects is among what this ability's verb acted on, as the post "cards revealed this way" picks them out; the tense of the passive changes nothing (`syn::passive_be`) |
 | [for-each-color] | "draw a card for each color among permanents you control" | `ForEachColor { among, then: [Draw] }`, trailing as `ForEach` does | settled: once per color, the same tree as "For each color among …, draw a card" (`syn::position`) |
+| [assign-as-unblocked] | "You may have this creature assign its combat damage as though it weren't blocked.", "Enchanted creature's controller may have it assign …", "For each non-Human creature you control, you may have that creature assign …" | `Static::AssignAsThoughUnblocked(objects)`, one node for the three wordings | settled: CR 510.1, the player who assigns a creature's combat damage (its controller, as the active or defending player) makes the choice, so "you" of the card itself, "its controller" and "for each … that creature" name the same choice for each object; CR 510.1c is the rule it sets aside. 14 corpus abilities (Thorn Elemental, Indomitable Might, Zilortha, Siege Behemoth). The activated "assign its combat damage this turn as though …" is not read |
+
 ## Durations
 
 | Id | Text | Tree | Status |

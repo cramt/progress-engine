@@ -578,6 +578,28 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             p.words("had haste")?;
             Some(vec![Static::ActivateAsThoughHaste(what)])
         },
+        // "You may have this creature assign its combat damage as though it
+        // weren't blocked", "For each non-Human creature you control, you
+        // may have that creature assign …", "Enchanted creature's controller
+        // may have it assign …".
+        |p| {
+            let what = alt!(p;
+                |p| { p.words("you may have")?; let what = objects(p)?; p.word("assign")?; Some(what) },
+                |p| {
+                    p.words("for each")?;
+                    let what = objects(p)?;
+                    p.words(", you may have that creature assign")?;
+                    Some(what)
+                },
+                |p| {
+                    let what = objects(p)?;
+                    p.words("'s controller may have it assign")?;
+                    Some(what)
+                },
+            )?;
+            p.words("its combat damage as though it weren't blocked")?;
+            Some(vec![Static::AssignAsThoughUnblocked(what)])
+        },
         // "If you casting or copying an instant or sorcery spell causes a
         // triggered ability of a permanent you control to trigger, …".
         |p| {
