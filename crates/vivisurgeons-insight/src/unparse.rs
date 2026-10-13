@@ -9325,6 +9325,7 @@ fn event_subject(e: &Event) -> Option<Subject<'_>> {
         | Event::Countered(x) => Subject::Obj(x),
         Event::Casts { who, .. }
         | Event::Copies { who, .. }
+        | Event::Activates { who, .. }
         | Event::Sacrifices { who, .. }
         | Event::Discards { who, .. }
         | Event::Cycles { who, .. }
@@ -10081,6 +10082,24 @@ fn condition(o: &mut Out, c: &Condition) {
         Condition::NoManaSpentToCast(x) => {
             o.w("no mana was spent to cast");
             objects(o, x);
+        }
+        Condition::ManaFromSpent { from, on } => {
+            o.w("mana from");
+            objects(o, from);
+            o.w("was spent to");
+            match on {
+                SpentFor::ThisAbility => o.w("activate this ability"),
+                SpentFor::Cast(x) => {
+                    o.w("cast");
+                    objects(o, x);
+                }
+                SpentFor::CastOrActivate(x) => {
+                    o.w("cast");
+                    objects(o, x);
+                    o.w("or activate");
+                    objects(o, x);
+                }
+            }
         }
         Condition::WasBargained => o.w("this spell was bargained"),
         Condition::Past(c) => past(o, c),

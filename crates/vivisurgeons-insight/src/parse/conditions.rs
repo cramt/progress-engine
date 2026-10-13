@@ -246,6 +246,25 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             Some(Condition::HasMore { who, what, than })
         },
         |p| { p.words("no mana was spent to cast")?; objects(p).map(Condition::NoManaSpentToCast) },
+        // "mana from a Treasure was spent to cast it", "… to activate this
+        // ability", "… to cast it or activate it".
+        |p| {
+            p.words("mana from")?;
+            let from = objects(p)?;
+            p.words("was spent to")?;
+            let on = alt!(p;
+                |p| p.words("activate this ability").map(|_| SpentFor::ThisAbility),
+                |p| {
+                    p.word("cast")?;
+                    let x = objects(p)?;
+                    match p.attempt(|p| { p.words("or activate")?; objects(p) }) {
+                        Some(_) => Some(SpentFor::CastOrActivate(x)),
+                        None => Some(SpentFor::Cast(x)),
+                    }
+                },
+            )?;
+            Some(Condition::ManaFromSpent { from, on })
+        },
         |p| p.words("this spell was bargained").map(|_| Condition::WasBargained),
         // "if there are no charge counters on this Vehicle".
         |p| {

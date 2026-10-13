@@ -433,6 +433,10 @@ impl Walk for Condition {
             Condition::NoManaSpentToCast(f0) => {
                 Walk::walk(f0, v);
             }
+            Condition::ManaFromSpent { from, on } => {
+                Walk::walk(from, v);
+                Walk::walk(on, v);
+            }
             Condition::DidThisGame(f0) => {
                 Walk::walk(&mut **f0, v);
             }
@@ -2336,6 +2340,21 @@ impl Walk for SpendUse {
                 Walk::walk(f0, v);
             }
             SpendUse::ActivateAbilityOf(f0) => {
+                Walk::walk(f0, v);
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Walk for SpentFor {
+    #[allow(clippy::all)]
+    fn walk(&mut self, v: &mut dyn Visitor) {
+        match self {
+            SpentFor::Cast(f0) => {
+                Walk::walk(f0, v);
+            }
+            SpentFor::CastOrActivate(f0) => {
                 Walk::walk(f0, v);
             }
             _ => {}

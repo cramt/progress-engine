@@ -1949,6 +1949,17 @@ pub enum Effect {
     },
 }
 
+/// What mana was spent on, in "mana from a Treasure was spent to …".
+#[derive(Clone, Debug, PartialEq)]
+pub enum SpentFor {
+    /// "to cast it", "to cast this spell".
+    Cast(Objects),
+    /// "to activate this ability".
+    ThisAbility,
+    /// "to cast it or activate it": its casting, or an ability of it.
+    CastOrActivate(Objects),
+}
+
 /// How much of the mana an ability made a spell must be paid with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SpentOf {
@@ -3206,6 +3217,12 @@ pub enum Condition {
     InStep(Step),
     /// "no mana was spent to cast it".
     NoManaSpentToCast(Objects),
+    /// "mana from a Treasure was spent to cast it": any of the mana paid
+    /// was produced by such a source (CR 106.3).
+    ManaFromSpent {
+        from: Objects,
+        on: SpentFor,
+    },
     WasBargained,
     /// "you've cast another spell named ~ this game".
     DidThisGame(Box<Event>),
