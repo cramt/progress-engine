@@ -68,6 +68,13 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
         // "hexproof from blue and from black".
         |p| {
             p.words("hexproof from")?;
+            // "hexproof from that color", "… from the chosen color".
+            if let Some(pal) = p.attempt(|p| alt!(p;
+                |p| p.words("the chosen color").map(|_| Palette::Chosen),
+                |p| p.words("that color").map(|_| Palette::That),
+            )) {
+                return Some(Keyword { name: "hexproof".into(), param: Some(KeywordParam::Color(pal)) });
+            }
             let mut cs = vec![color_word(p.peek_word()?)?];
             p.bump();
             while let Some(c) = p.attempt(|p| { p.one_of(&["and from", ", from", ", and from"])?; let c = color_word(p.peek_word()?)?; p.bump(); Some(c) }) {

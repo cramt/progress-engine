@@ -2127,9 +2127,15 @@ fn keyword(o: &mut Out, k: &Keyword) {
         Some(KeywordParam::ColorsNotIn(_)) => {
             o.w("protection from each color that's not in your commander's color identity")
         }
-        Some(KeywordParam::Color(Palette::Chosen)) => o.w("protection from the chosen color"),
-        Some(KeywordParam::Color(Palette::That)) => o.w("protection from that color"),
-        Some(KeywordParam::Color(_)) => o.w("protection from the color of your choice"),
+        // "protection from the chosen color", "hexproof from that color".
+        Some(KeywordParam::Color(pal)) => {
+            o.w(&k.name);
+            o.w(match pal {
+                Palette::Chosen => "from the chosen color",
+                Palette::That => "from that color",
+                _ => "from the color of your choice",
+            });
+        }
         Some(KeywordParam::Objects(x)) if k.name == "protection" => {
             o.w("protection from");
             if x.quant == Quant::All && x.filter == Filter::default() {
