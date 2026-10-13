@@ -373,7 +373,7 @@ type: Sorcery
 cost: {3}{W}{W}
 > Create five 1/1 white Human creature tokens. If this spell was cast from a graveyard, create ten of those tokens instead.
 > Flashback {7}{W}{W} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([Create { who: You, n: N(5), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["human", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, Instead { cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, zone: AGraveyard }, then: [CreateThose { by: Player(You), n: N(10), those: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }])
+= Spell([Create { who: You, n: N(5), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["human", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, Instead { cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, zone: AGraveyard }, then: [Create { who: You, n: N(10), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["human", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["7", "W", "W"]))])) }])
 
 ## Invasion of Dominaria // Serra Faithkeeper

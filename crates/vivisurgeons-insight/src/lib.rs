@@ -108,13 +108,18 @@ pub fn read_face(face: &Face, card_name: &str) -> Vec<Line> {
 /// the tokens a row above described (Swarming Goblins' "1—9 | Create a 1/1
 /// red Goblin creature token. / 10—19 | Create two of those tokens."), the
 /// paragraph before (Gather the Townsfolk), or the branch not taken (Brood
-/// Birthing's "Otherwise, create one of those tokens"). It is a `Create` of
-/// that description ([those-tokens-described]).
+/// Birthing's "Otherwise, create one of those tokens"), or a creation an
+/// "instead" replaced (Conqueror's Pledge's "If this spell was kicked, create
+/// twelve of those tokens instead", CR 614.1a). It is a `Create` of that
+/// description ([those-tokens-described]).
 fn those_tokens(lines: &mut [Line]) {
     use ast::{Actor, Effect, Noun, Objects, Player, Quant, Token};
     use walk::{Visitor, Walk};
     struct Those {
         last: Option<Token>,
+        // The token this line created, for an "instead" that replaces it.
+        here: Option<Token>,
+        instead: usize,
         changed: bool,
     }
     impl Visitor for Those {
@@ -130,7 +135,31 @@ fn those_tokens(lines: &mut [Line]) {
                     who: Player::You,
                     token,
                     ..
-                } => self.last = Some(token.clone()),
+                } => {
+                    self.last = Some(token.clone());
+                    self.here = Some(token.clone());
+                }
+                Effect::Instead { .. } => self.instead += 1,
+                Effect::CreateThose {
+                    by: Actor::Player(Player::You),
+                    n,
+                    those,
+                } if self.instead > 0
+                    && those.quant == Quant::Created
+                    && those.filter.kind == Some(Noun::Token)
+                    && those.filter.alts.is_empty()
+                    && those.filter.posts.is_empty()
+                    && those.filter.or.is_none() =>
+                {
+                    if let Some(token) = self.here.clone() {
+                        *e = Effect::Create {
+                            who: Player::You,
+                            n: n.clone(),
+                            token,
+                        };
+                        self.changed = true;
+                    }
+                }
                 Effect::CreateThose {
                     by: Actor::Player(Player::You),
                     n,
@@ -153,15 +182,23 @@ fn those_tokens(lines: &mut [Line]) {
                 _ => {}
             }
         }
+        fn effect_done(&mut self, e: &mut Effect) {
+            if matches!(e, Effect::Instead { .. }) {
+                self.instead -= 1;
+            }
+        }
     }
     let mut v = Those {
         last: None,
+        here: None,
+        instead: 0,
         changed: false,
     };
     for l in lines.iter_mut() {
         let Ok(a) = &mut l.parsed else { continue };
         let before = a.clone();
         v.changed = false;
+        v.here = None;
         a.walk(&mut v);
         if v.changed {
             l.said = Some(before);

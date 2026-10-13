@@ -149,7 +149,7 @@ cost: {2}{W}{W}{W}
 > Kicker {6} (You may pay an additional {6} as you cast this spell.)
 > Create six 1/1 white Kor Soldier creature tokens. If this spell was kicked, create twelve of those tokens instead.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["6"]))])) }])
-= Spell([Create { who: You, n: N(6), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["kor", "soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, Instead { cond: WasKicked, then: [CreateThose { by: Player(You), n: N(12), those: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }])
+= Spell([Create { who: You, n: N(6), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["kor", "soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, Instead { cond: WasKicked, then: [Create { who: You, n: N(12), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["kor", "soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 
 ## Crashing Footfalls
 face: Crashing Footfalls

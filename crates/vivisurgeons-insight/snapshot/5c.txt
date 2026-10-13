@@ -820,7 +820,7 @@ cost: {1}{G}
 > Kicker {4} (You may pay an additional {4} as you cast this spell.)
 > Create two 1/1 green Saproling creature tokens. If this spell was kicked, create four of those tokens instead.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["4"]))])) }])
-= Spell([Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["saproling", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, Instead { cond: WasKicked, then: [CreateThose { by: Player(You), n: N(4), those: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }])
+= Spell([Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["saproling", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, Instead { cond: WasKicked, then: [Create { who: You, n: N(4), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["saproling", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 
 ## Scorched Earth
 face: Scorched Earth
