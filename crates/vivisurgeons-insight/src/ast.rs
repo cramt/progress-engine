@@ -2176,6 +2176,9 @@ pub enum Choose {
     },
     /// "choose one that hasn't been chosen this turn".
     NotChosenThisTurn(Box<Choose>),
+    /// "Choose three. You may choose the same mode more than once." (CR
+    /// 700.2d: a mode chosen twice is done twice, in sequence).
+    Repeatable(Box<Choose>),
 }
 
 #[derive(Clone, Debug, PartialEq)]

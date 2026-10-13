@@ -981,6 +981,22 @@ pub(super) fn modal(p: &mut P) -> Option<Effect> {
         Some(_) => Choose::NotChosenThisTurn(Box::new(choose)),
         None => choose,
     };
+    // "Choose three. You may choose the same mode more than once." (Eldrazi
+    // Confluence): the modes follow the second sentence.
+    let repeatable = p
+        .attempt(|p| {
+            p.tok(&Tok::Period)?;
+            p.words("you may choose the same mode more than once")?;
+            p.tok(&Tok::Period)
+        })
+        .is_some();
+    if repeatable {
+        let modes = modes(p)?;
+        return (!modes.is_empty()).then_some(Effect::Modal {
+            choose: Choose::Repeatable(Box::new(choose)),
+            modes,
+        });
+    }
     // "Choose one. If you control a commander as you cast this spell, you
     // may choose both instead." The modes follow the second sentence.
     let choose = match p.attempt(|p| {
@@ -1008,6 +1024,12 @@ pub(super) fn modal(p: &mut P) -> Option<Effect> {
             choose
         }
     };
+    let modes = modes(p)?;
+    (!modes.is_empty()).then_some(Effect::Modal { choose, modes })
+}
+
+/// The bulleted modes of a modal spell or ability.
+fn modes(p: &mut P) -> Option<Vec<Vec<Effect>>> {
     let mut modes = Vec::new();
     while p.attempt(|p| p.tok(&Tok::Bullet)).is_some() {
         // "• Sell Contraband — Create a Treasure token.": a flavour label.
@@ -1029,7 +1051,7 @@ pub(super) fn modal(p: &mut P) -> Option<Effect> {
             None => mode,
         });
     }
-    (!modes.is_empty()).then_some(Effect::Modal { choose, modes })
+    Some(modes)
 }
 
 pub(super) fn sentence(p: &mut P) -> Option<Vec<Effect>> {

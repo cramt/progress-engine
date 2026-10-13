@@ -8257,7 +8257,7 @@ fn choice(o: &mut Out, c: &Choice) {
 fn modal(o: &mut Out, choose: &Choose, modes: &[Vec<Effect>], cx: &Cx) {
     o.w("choose");
     choose_words(o, choose, modes.len());
-    if !matches!(choose, Choose::Upgrade { .. }) {
+    if !matches!(choose, Choose::Upgrade { .. } | Choose::Repeatable(_)) {
         o.tok(Tok::Dash);
     }
     for m in modes {
@@ -8312,6 +8312,10 @@ fn choose_words(o: &mut Out, c: &Choose, modes: usize) {
         Choose::NotChosenThisTurn(c) => {
             choose_words(o, c, modes);
             o.w("that hasn't been chosen this turn");
+        }
+        Choose::Repeatable(c) => {
+            choose_words(o, c, modes);
+            o.w(". you may choose the same mode more than once.");
         }
     }
 }
