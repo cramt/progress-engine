@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import {
   batchCommitOnOrigin,
+  branchName,
   commitsSince,
   dirty,
   branch as gitBranch,
@@ -37,14 +38,15 @@ async function gitFailures(
 ): Promise<GateFailure[]> {
   const failures: GateFailure[] = [];
   const b = await gitBranch(paths.repo);
-  if (b !== "main") failures.push({ gate: "git", reason: `on ${b}, not main` });
+  if (b !== branchName())
+    failures.push({ gate: "git", reason: `on ${b}, not ${branchName()}` });
   const d = await dirty(paths.repo);
   if (d) failures.push({ gate: "git", reason: `uncommitted changes:\n${d}` });
   const pushed = await batchCommitOnOrigin(paths.repo, baseline.head);
   if (pushed) {
     failures.push({
       gate: "git",
-      reason: `origin/main holds the batch's commit ${pushed.slice(0, 7)}; the writer must not push`,
+      reason: `origin/${branchName()} holds the batch's commit ${pushed.slice(0, 7)}; the writer must not push`,
     });
   }
   for (const c of await commitsSince(paths.repo, baseline.head)) {
