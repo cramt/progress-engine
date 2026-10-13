@@ -1,0 +1,19 @@
+[package]
+name = "chancellor-cr"
+description = "The Comprehensive Rules the repo is built against, pinned by hash: every citation checked against them, and a new version diffed into a worklist"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "cr"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+facet.workspace = true
+facet-json.workspace = true
+regex.workspace = true
+sha2.workspace = true
+ureq.workspace = true

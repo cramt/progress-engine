@@ -134,7 +134,7 @@ crates/reality-chip/{scryfall,decklist,stats}        packages chip-*
 crates/meldweb-curator/{wasm}                        packages meldweb-*, beside web/, a pnpm package
 crates/gitaxian-probe/{engine,assets,web-check,bindgen}  packages gitaxian-probe-*
 crates/vivisurgeons-insight                         package vivisurgeons-insight, one crate while it is a spike
-crates/chancellor-of-the-spires                     package chancellor-of-the-spires; split crates will be chancellor-*
+crates/chancellor-of-the-spires/{cr}                package chancellor-of-the-spires at the root, and chancellor-* beneath it
 ```
 
 The first two shorten the directory to its distinctive word. Gitaxian Probe does

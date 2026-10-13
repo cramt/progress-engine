@@ -8,6 +8,7 @@ members = [
     "crates/meldweb-curator/wasm",
     "crates/vivisurgeons-insight",
     "crates/chancellor-of-the-spires",
+    "crates/chancellor-of-the-spires/cr",
 ]
 # Gitaxian Probe is a workspace of its own (crates/gitaxian-probe/Cargo.toml), so
 # a plain `cargo` here resolves neither V8 nor the build-time download of

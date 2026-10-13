@@ -62,6 +62,9 @@ engine, a scaffold so far: the game as a typed Rust state machine, with what
 is true now derived by ascent from Insight's trees.
 [docs/research/rules-engine.md](docs/research/rules-engine.md) is the plan. It
 must build for `wasm32-unknown-unknown`, so ascent's `par` (rayon) is on only off wasm.
+The Comprehensive Rules are pinned by hash in `crates/chancellor-of-the-spires/cr/pin.json`
+and never committed. Cite a rule as "CR 613.4c" so `cr check` can resolve it,
+and bump the pin only through `cr diff`'s worklist (that crate's README).
 
 Gauntlet stands on **Reality Chip** (`crates/reality-chip/`), the shared core:
 `chip-scryfall` (card index, query syntax), `chip-decklist` (Archidekt parsing)
@@ -120,7 +123,7 @@ and the rules, never from `crates/`, or it checks nothing.
 
 **Run `cargo fmt --all` before every commit**, and `pnpm fmt` when the web app
 changed. CI is `nix flake check`, whose checks are fmt, clippy, test, build,
-the Python checker, `meldweb-web` (biome, tsc, vitest and the site build,
+the Python checker, `cr-citations` (every "CR nnn.n" in the repo names a rule in the pinned CR), `meldweb-web` (biome, tsc, vitest and the site build,
 against the crane-built wasm) and the probe's own fmt, clippy, test, web build
 and web check; a fmt failure aborts the others, so an
 unformatted commit reports red without ever having run the tests. This has

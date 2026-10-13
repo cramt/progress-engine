@@ -3693,6 +3693,7 @@ crates/meldweb-curator/{wasm,web,worker,infra}       the deck editor: chip-deckl
 crates/gitaxian-probe/                               card scanning; a cargo workspace of its own
 crates/vivisurgeons-insight/                         a spike: Oracle text into a typed ability tree, and how much of Magic it covers
 crates/chancellor-of-the-spires/                     the rules engine, a scaffold: the game as a state machine over Insight's trees
+crates/chancellor-of-the-spires/cr/                  the comprehensive rules pinned by hash, every citation checked, and a new version diffed
 ```
 
 `reality-chip` is the part a sibling tool depends on, kept in its own directory
@@ -3711,6 +3712,7 @@ See [NAMES_FOR_FUTURE.md](NAMES_FOR_FUTURE.md).
 | `meldweb-wasm` | `chip-decklist` and `chip_scryfall::copy` for Meldweb Curator's browser editor, with the TypeScript types generated from its wire types, and `meldweb.toml`'s printing preference over `chip-scryfall` and its deck order, read, checked and written. The copy's wasm functions hold the worker's copy and hand it the default printing preference | Decklist text, the printings of one card it is handed to rank, and the one copy of Scryfall the worker holds. |
 | `vivisurgeons-insight` | A spike. Oracle text read into a typed ability tree, and `insight coverage`, which counts how much of Magic parses with no hole. See [its README](crates/vivisurgeons-insight/README.md). | Oracle text and Scryfall's keyword and type catalogs. Nothing in the workspace. Only `chancellor-of-the-spires` depends on it. |
 | `chancellor-of-the-spires` | The rules engine, a scaffold. The plan is [docs/research/rules-engine.md](docs/research/rules-engine.md). | Insight's ability trees, and ascent. |
+| `chancellor-cr` | The Comprehensive Rules pinned by hash, `cr check` (every citation in the repo resolves, run by the flake as `cr-citations`), and `cr diff`, a new CR as a worklist of the cited rules that moved. See [its README](crates/chancellor-of-the-spires/cr/README.md). | The CR text and the repo's files. Native only. |
 
 The seam worth knowing about is between `chip-scryfall` and `chip-decklist`: a query
 can filter on `cat:"Exile Outlet"`, which is decklist data, not card data. Rather

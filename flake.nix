@@ -87,6 +87,23 @@
       cargoArtifacts = craneLib.buildDepsOnly commonArgs;
       gauntlet = craneLib.buildPackage (commonArgs // {inherit cargoArtifacts;});
 
+      # The Comprehensive Rules the repo is built against, fetched by the hash
+      # pin.json commits. The text is Wizards' and never committed; bumping
+      # it is `cr diff` then `cr pin` (crates/chancellor-of-the-spires/cr/README.md).
+      crPin = builtins.fromJSON (builtins.readFile ./crates/chancellor-of-the-spires/cr/pin.json);
+      comprehensiveRules = pkgs.fetchurl {
+        inherit (crPin) url sha256;
+        # The URL's own file name has a %20 in it, which a store path can't.
+        name = "comprehensive-rules-${crPin.effective}.txt";
+      };
+      crTool = craneLib.buildPackage (commonArgs
+        // {
+          inherit cargoArtifacts;
+          pname = "chancellor-cr";
+          cargoExtraArgs = "-p chancellor-cr";
+          doCheck = false;
+        });
+
       # chip-decklist for the browser: the `wasm` profile from Cargo.toml, then
       # wasm-bindgen's JS glue. Only this package's dependency tree is built for
       # wasm32, because Gauntlet's (ureq, rustls) would not compile there.
@@ -496,6 +513,13 @@
           });
         fmt = craneLib.cargoFmt {inherit src;};
         test = craneLib.cargoTest (commonArgs // {inherit cargoArtifacts;});
+        # Every "CR nnn.n" anywhere in the repo, docs included, names a rule
+        # in the pinned CR. It reads the whole tree rather than the Rust
+        # source, which leaves docs/ and Markdown out.
+        cr-citations = pkgs.runCommand "cr-citations" {} ''
+          ${crTool}/bin/cr check --cr ${comprehensiveRules} ${./.}
+          touch $out
+        '';
         # The independent Python checker (checker/): deals real games from the
         # committed decks and fails when an engine answer falls outside its
         # 99.9% interval (wider for a sampled one, which carries its own

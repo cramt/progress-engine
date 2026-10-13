@@ -256,7 +256,7 @@ cache (see the open questions).
      from scratch or reusing the parent's result when the gate allows.
 
    Salsa is not needed for either.
-9. **A pinned Comprehensive Rules version to build against.** The repo is
+9. **A pinned Comprehensive Rules version to build against** (built: `crates/chancellor-of-the-spires/cr/`, and the flake check `cr-citations`). The repo is
    public and the CR is Wizards' text, so the pin follows
    `crates/gitaxian-probe/assets/pin.json`: commit the URL, the effective
    date and the sha256, fetch the text into `~/.cache` by hash, and never
