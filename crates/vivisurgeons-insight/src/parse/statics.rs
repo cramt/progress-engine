@@ -622,6 +622,19 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             let equal_to = measure(p)?;
             Some(vec![Static::SetPower { what, equal_to }])
         },
+        // "You may pay {0} rather than pay the mana cost for Zombie creature
+        // spells you cast": the same alternative cost (CR 118.9), said
+        // with the cost first.
+        |p| {
+            p.words("you may")?;
+            let mut paid = vec![cost(p)?];
+            while let Some(c) = p.attempt(|p| { p.word("and")?; cost(p) }) {
+                paid.push(c);
+            }
+            p.words("rather than pay the mana cost for")?;
+            let what = objects(p)?;
+            Some(vec![Static::CastPaying { what, zone: None, cost: paid, rather: true }])
+        },
         // "You may cast this card from your graveyard by paying {2}{W} rather
         // than paying its mana cost" (Raffine's Guidance).
         |p| {

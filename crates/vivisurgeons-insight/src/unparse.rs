@@ -478,6 +478,13 @@ mod syn {
         any_of(o, &["was", "were"]);
     }
 
+    /// "you may cast Zombie spells by paying {0} rather than paying their
+    /// mana costs" and "you may pay {0} rather than pay the mana cost for
+    /// Zombie spells you cast": one alternative cost (CR 118.9).
+    pub fn rather_than_pay(o: &mut Out, cast: Out, pay: Out) {
+        alt(o, vec![cast, pay]);
+    }
+
     /// "You may exert this creature as it attacks", "exert ~ as he attacks".
     pub fn as_it_attacks(o: &mut Out) {
         o.w("as");
@@ -10873,13 +10880,31 @@ fn static_other(o: &mut Out, s: &Static) {
             cost: c,
             rather,
         } => {
-            o.w("you may cast");
-            objects(o, what);
-            if let Some(z) = z {
-                o.w("from");
-                zone(o, z);
+            let cast = out(|o| {
+                o.w("you may cast");
+                objects(o, what);
+                if let Some(z) = z {
+                    o.w("from");
+                    zone(o, z);
+                }
+                by_paying(o, c, *rather);
+            });
+            if *rather && z.is_none() {
+                let pay = out(|o| {
+                    o.w("you may");
+                    for (i, x) in c.iter().enumerate() {
+                        if i > 0 {
+                            o.w("and");
+                        }
+                        cost_said(o, x);
+                    }
+                    o.w("rather than pay the mana cost for");
+                    objects(o, what);
+                });
+                syn::rather_than_pay(o, cast, pay);
+            } else {
+                o.add(cast);
             }
-            by_paying(o, c, *rather);
         }
         Static::Replacement { event, instead } => {
             let w = out(|o| would(o, event));
