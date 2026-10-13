@@ -915,6 +915,25 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| { p.words("with the same name as")?; let o = pronoun(p)?; Some(Post::SameNameAs(Box::new(o))) },
         |p| p.one_of(&["with the same name as one another", "with the same name"]).map(|_| Post::SameName),
         |p| p.words("dealt damage this way").map(|_| Post::DealtDamageThisWay),
+        // "target creature that dealt damage this turn", "creatures that
+        // dealt damage to you this turn": the damage it dealt.
+        |p| {
+            p.words("that dealt damage")?;
+            let to = p.attempt(|p| { p.word("to")?; player(p) });
+            p.words("this turn")?;
+            Some(Post::DealtDamageThisTurn(to))
+        },
+        // "a creature dealt damage by this creature this turn", "target
+        // creature that was dealt damage this turn": the damage dealt to it.
+        |p| {
+            p.attempt(|p| { p.one_of(&["that", "who"])?; p.one_of(&["was", "were"]) });
+            p.word("dealt")?;
+            let combat = p.attempt(|p| p.word("combat")).is_some();
+            p.word("damage")?;
+            let by = p.attempt(|p| { p.word("by")?; objects(p) }).map(Box::new);
+            p.words("this turn")?;
+            Some(Post::WasDealtDamageThisTurn { by, combat })
+        },
         |p| p.words("that were cast this turn").map(|_| Post::WasCastThisTurn),
         |p| p.words("who lost life this turn").map(|_| Post::LostLifeThisTurn),
         |p| { p.words("that could produce")?; mana(p).map(Post::CouldProduce) },

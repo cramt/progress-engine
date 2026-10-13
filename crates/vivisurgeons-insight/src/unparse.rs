@@ -478,6 +478,22 @@ mod syn {
         any_of(o, &["was", "were"]);
     }
 
+    /// "a creature dealt damage this turn", "target creature that was dealt
+    /// damage this turn", "opponents who were dealt combat damage this
+    /// turn": the same filter, with or without the relative clause.
+    pub fn dealt_relative(o: &mut Out, rest: Out) {
+        let with = |w: &[&str]| {
+            out(|o| {
+                any_of(o, w);
+                was_or_were(o);
+                o.add(rest.clone());
+            })
+        };
+        let that = with(&["that"]);
+        let who = with(&["who"]);
+        alt(o, vec![rest.clone(), that, who]);
+    }
+
     pub fn passive_be(o: &mut Out, n: Num) {
         match n {
             Num::Sg => any_of(o, &["is", "was"]),
@@ -4131,6 +4147,29 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             objects(o, among);
         }
         Post::DealtDamageThisWay => o.w("dealt damage this way"),
+        Post::WasDealtDamageThisTurn { by, combat } => {
+            let rest = out(|o| {
+                o.w("dealt");
+                if *combat {
+                    o.w("combat");
+                }
+                o.w("damage");
+                if let Some(by) = by {
+                    o.w("by");
+                    objects(o, by);
+                }
+                o.w("this turn");
+            });
+            syn::dealt_relative(o, rest);
+        }
+        Post::DealtDamageThisTurn(to) => {
+            o.w("that dealt damage");
+            if let Some(to) = to {
+                o.w("to");
+                player(o, to);
+            }
+            o.w("this turn");
+        }
         Post::WasCastThisTurn => o.w("that were cast this turn"),
         Post::LostLifeThisTurn => o.w("who lost life this turn"),
         Post::CouldProduce(m) => {

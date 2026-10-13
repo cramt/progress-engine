@@ -2075,6 +2075,16 @@ impl Walk for Post {
             Post::GreatestAmong { among, .. } => {
                 Walk::walk(&mut **among, v);
             }
+            Post::WasDealtDamageThisTurn { by, .. } => {
+                if let Some(x0) = (by).as_mut() {
+                    Walk::walk(&mut **x0, v);
+                }
+            }
+            Post::DealtDamageThisTurn(f0) => {
+                if let Some(x0) = (f0).as_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Post::Either(f0) => {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);

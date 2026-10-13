@@ -908,7 +908,21 @@ fn trigger_object(e: &Event) -> Option<Objects> {
         }
     }
     let mut count = Count(0);
-    what.clone().walk(&mut count);
+    // "Whenever a creature dealt damage by this creature this turn dies":
+    // the source of the damage only says which creature, as an attack's
+    // recipient does ([attack-recipient]); the card is said again as "this
+    // creature". Another source is an object a reference may be: Vampiric
+    // Embrace's "put a +1/+1 counter on that creature" is the enchanted
+    // creature, the dead one being in a graveyard.
+    let mut said = what.clone();
+    for p in said.filter.posts.iter_mut() {
+        if let Post::WasDealtDamageThisTurn { by, .. } = p {
+            if by.as_ref().is_some_and(|b| b.quant == Quant::SelfRef) {
+                *by = None;
+            }
+        }
+    }
+    said.walk(&mut count);
     (count.0 == 1).then(|| what.clone())
 }
 

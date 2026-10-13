@@ -966,6 +966,18 @@ pub enum Post {
     },
     /// "a permanent dealt damage this way".
     DealtDamageThisWay,
+    /// "a creature dealt damage by this creature this turn", "target
+    /// creature that was dealt damage this turn", "target player who was
+    /// dealt combat damage by ~ this turn": damage dealt to it this turn,
+    /// by `by` when said, combat damage only when `combat`.
+    WasDealtDamageThisTurn {
+        by: Option<Box<Objects>>,
+        combat: bool,
+    },
+    /// "target creature that dealt damage this turn", "creatures that dealt
+    /// damage to you this turn": damage it dealt this turn, to `to` when
+    /// said.
+    DealtDamageThisTurn(Option<Player>),
     /// "permanents that were cast this turn": by any player.
     WasCastThisTurn,
     /// "each opponent who lost life this turn".
