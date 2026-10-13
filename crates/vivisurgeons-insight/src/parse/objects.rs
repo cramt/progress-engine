@@ -335,7 +335,7 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
                 if commas {
                     p.tok(&Tok::Comma)?;
                 }
-                p.word("or")?;
+                p.one_of(&["or", "and/or"])?;
                 p.attempt(|p| p.one_of(&["a", "an"]));
                 kind(p).filter(|k| !matches!(k, Noun::Counter(_)))
             }

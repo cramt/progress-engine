@@ -419,7 +419,7 @@ face: Lich-Knights' Conquest
 type: Sorcery
 cost: {4}{B}
 > Sacrifice any number of artifacts, enchantments, and/or tokens. Return that many creature cards from your graveyard to the battlefield.
-= BROKE at "tokens" after: sacrifice any number of artifacts , enchantments , and/or
+= Spell([Sacrifice { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: Some(Filter { alts: [], kind: Some(Token), posts: [], or: None }) } } }, Move { what: Objects { quant: N(ThatMany), filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }])
 
 ## Llanowar Tribe
 face: Llanowar Tribe

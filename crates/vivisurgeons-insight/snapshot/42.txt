@@ -598,7 +598,7 @@ cost: {4}{B}{B}
 > Flying
 > When this creature enters, sacrifice any number of artifacts, enchantments, and/or tokens, then draw that many cards.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "tokens" after: when this creature enters , sacrifice any number of artifacts , enchantments , and/or
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Sacrifice { who: You, what: Objects { quant: AnyNumber, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [], or: Some(Filter { alts: [], kind: Some(Token), posts: [], or: None }) } } }, Draw { who: You, n: ThatMany }], limits: [] }
 
 ## Mantle of Leadership
 face: Mantle of Leadership

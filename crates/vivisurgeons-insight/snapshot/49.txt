@@ -564,7 +564,7 @@ type: Enchantment
 cost: {3}{W}
 > Creatures you control that are Zombies and/or tokens get +1/+1 and have flying.
 > Whenever one or more cards leave your graveyard, create a 1/1 white Zombie creature token.
-= BROKE at "tokens" after: creatures you control that are zombies and/or
+= Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), ThatIs(Filter { alts: [[Subtype("zombie")]], kind: None, posts: [], or: Some(Filter { alts: [], kind: Some(Token), posts: [], or: None }) })], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "flying", param: None }], per: None }])
 = Triggered { trigger: When(Leaves { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: Graveyard(You) }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Plateau

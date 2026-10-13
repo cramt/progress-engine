@@ -15,7 +15,7 @@ type: Creature — Dog Warrior
 cost: {1}{W}
 > Whenever you attack with this creature and/or your commander, for each opponent, create a 1/1 red Goblin creature token that's tapped and attacking that player.
 > Sacrifice this creature: Creature tokens you control gain indestructible until end of turn.
-= BROKE at "your" after: whenever you attack with this creature and/or
+= BROKE at "commander" after: whenever you attack with this creature and/or your
 = Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Ammit Eternal
