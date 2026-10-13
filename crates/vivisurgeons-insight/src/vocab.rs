@@ -90,6 +90,19 @@ pub fn vocab() -> &'static Vocab {
     })
 }
 
+/// A noun after "this" that names the card itself: "this creature", "this
+/// Aura", "this Saga", "this emblem", "this spell". Every card type,
+/// supertype and subtype, and the object nouns "card", "spell", "token"
+/// and "permanent" (CR 700.7). Each is one word: no two-word subtype
+/// follows "this" in the corpus.
+pub fn is_self_descriptor(w: &str) -> bool {
+    let v = vocab();
+    matches!(w, "card" | "spell" | "token" | "permanent")
+        || v.card_types.contains(w)
+        || v.supertypes.contains(w)
+        || v.subtypes.contains(w)
+}
+
 /// Singular forms a printed plural might come from. Card text pluralises
 /// subtypes ("Elves", "Wolves", "Zombies"), and the catalogs are singular.
 pub fn singulars(w: &str) -> Vec<String> {

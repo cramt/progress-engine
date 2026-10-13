@@ -320,13 +320,6 @@ pub(super) fn antecedent() -> Objects {
     }
 }
 
-pub(super) fn self_ref() -> Objects {
-    Objects {
-        quant: Quant::SelfRef,
-        filter: Filter::default(),
-    }
-}
-
 /// Who gained or lost life: "you", "you've", "they", "that player has".
 pub(super) fn life_subject(p: &mut P) -> Option<Player> {
     alt!(p;

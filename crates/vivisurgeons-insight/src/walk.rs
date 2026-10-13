@@ -2099,9 +2099,6 @@ impl Walk for Post {
                     Walk::walk(x0, v);
                 }
             }
-            Post::OtherThanSelf(f0) => {
-                Walk::walk(f0, v);
-            }
             Post::Cast(f0) => {
                 Walk::walk(f0, v);
             }

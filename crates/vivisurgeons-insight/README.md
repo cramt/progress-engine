@@ -140,7 +140,8 @@ one ability are joined, CR 113.2c and 608.2c), ellipsis and word order (a
 subject or verb said once for two clauses, "if" before or after its clause),
 back-references ("it", "that card", "the token"), and words the rules read
 the same with or without ("each of", "also", "whichever comes first"). The
-rest the Comprehensive Rules make identical: "when"/"whenever" (CR 603.1),
+rest the Comprehensive Rules make identical: "this creature", "this Aura",
+"this spell" or "~" as "this card" (CR 700.7), "when"/"whenever" (CR 603.1),
 "enters"/"enters the battlefield" (CR glossary), "first"/"precombat main
 phase" (CR 505.1a), whose library a card goes to and "its graveyard" as its
 owner's (CR 400.3), "put"/"return" (CR 400.6), "remains on the
@@ -159,7 +160,7 @@ or all, may or must) is a node; a difference only in wording is a synonym.
 | EDHREC top 1000 (pinned) | 1800/1800 (100%) |
 | Modern metagame (pinned) | 1164/1164 (100%) |
 | EDHREC top 2000 | 3627/3630 (99.9%) |
-| All parsed abilities | 50085/50115 (99.9%) |
+| All parsed abilities | 50090/50120 (99.9%) |
 
 `tests/roundtrip.rs` holds every pinned ability to it. A second test renames
 each pinned card, in its name and in its text (the whole name, and a leading
@@ -198,7 +199,7 @@ own" (in Two-Headed Giant a teammate owns cards too), "choose target
 opponent" as "choose an opponent" (which does not target), a Saga's "II —"
 as an ability word, a sorcery's "The next Dragon spell you cast costs …" as
 a static, and a bare "its graveyard" as its controller's (CR 400.3 makes it
-the owner's). The 32 corpus abilities that still do not round-trip are
+the owner's). The 30 corpus abilities that still do not round-trip are
 listed by `insight roundtrip`.
 
 After round 4 the parser read an evenly spaced sample of 25 successful parses.

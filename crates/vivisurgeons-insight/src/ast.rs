@@ -596,6 +596,25 @@ pub struct Objects {
     pub filter: Filter,
 }
 
+/// The card itself (`Quant::SelfRef`), the one way the grammar builds it.
+pub fn self_ref() -> Objects {
+    self_ref_in(Vec::new())
+}
+
+/// The card itself where the text says which zone it is in: "return this
+/// card from your graveyard to your hand". The zone is no descriptor (CR
+/// 700.7 is about the noun), so it stays; whether it belongs on the
+/// effect rather than the object is open ([self-reference]).
+pub fn self_ref_in(zone: Vec<Post>) -> Objects {
+    Objects {
+        quant: Quant::SelfRef,
+        filter: Filter {
+            posts: zone,
+            ..Filter::default()
+        },
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Quant {
     Target {
@@ -638,7 +657,12 @@ pub enum Quant {
         n: Amount,
         up_to: bool,
     },
-    /// The card itself.
+    /// The card itself, however the text names it: "~", "this creature",
+    /// "this Aura", "this spell", "this card", "this token". "This
+    /// [descriptor]" is that one object "even if it isn't the appropriate
+    /// quality at the time" (CR 700.7), so the noun is Oracle's shorthand
+    /// for "this card" and never a condition: the filter holds no alts and
+    /// no kind. Build it with `self_ref` ([self-reference]).
     SelfRef,
     /// The card's name inside a quoted ability it grants: the source of
     /// the granting ability, and no other object (CR 201.5a). Shifting
@@ -954,10 +978,10 @@ pub enum Post {
     WithChosenName,
     /// "a permanent they control of each permanent type": one per type.
     OfEachPermanentType,
-    /// "other than ~", "other than this creature": the card, with the noun
-    /// it was named by (as `SelfRef`'s filter keeps it), not an object of
-    /// its own: a trigger's event still names one object.
-    OtherThanSelf(Filter),
+    /// "other than ~", "other than this creature": the card, not an object
+    /// of its own: a trigger's event still names one object. The noun it
+    /// was named by is no condition, as with `Quant::SelfRef`.
+    OtherThanSelf,
     Cast(Player),
     FromAmongThem,
     ExiledWith(Box<Objects>),

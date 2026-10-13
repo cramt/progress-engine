@@ -4,7 +4,7 @@
 
 use crate::ast::*;
 use crate::lex::{Pt, Signed, Tok};
-use crate::vocab::{singulars, vocab};
+use crate::vocab::{is_self_descriptor, singulars, vocab};
 use crate::walk::{Visitor, Walk};
 
 pub struct P<'a> {
@@ -105,13 +105,13 @@ impl<'a> P<'a> {
     fn card_name(&mut self) -> Option<Objects> {
         let granted = self.in_quote();
         self.tok(&Tok::SelfRef)?;
-        Some(Objects {
-            quant: if granted {
-                Quant::Granter
-            } else {
-                Quant::SelfRef
-            },
-            filter: Filter::default(),
+        Some(if granted {
+            Objects {
+                quant: Quant::Granter,
+                filter: Filter::default(),
+            }
+        } else {
+            self_ref()
         })
     }
 
@@ -1577,13 +1577,21 @@ fn refer(
                 && !self.spells_since;
             let seen_new = seen_new && !same_words && !same_kind;
             if referable && !seen_new && !other_type {
-                o.quant = if seen_self && *f == Filter::default() {
-                    Quant::SelfRef
+                *o = if seen_self && *f == Filter::default() || self.to == Quant::SelfRef {
+                    // "When this creature dies, return that card": the card
+                    // again, by whatever noun ([self-reference]).
+                    self_ref()
                 } else if before_each && self.to == Quant::Antecedent {
                     // No trigger object: still an earlier noun outside the loop.
-                    Quant::BeforeEach
+                    Objects {
+                        quant: Quant::BeforeEach,
+                        filter: o.filter.clone(),
+                    }
                 } else {
-                    self.to.clone()
+                    Objects {
+                        quant: self.to.clone(),
+                        filter: o.filter.clone(),
+                    }
                 };
             }
             true

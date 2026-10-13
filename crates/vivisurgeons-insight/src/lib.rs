@@ -1719,10 +1719,7 @@ mod tests {
             "Creature — Dinosaur",
             "Whenever this creature attacks, Dinosaurs you control other than this creature get +1/+1 until end of turn.",
         );
-        assert!(
-            a.contains("OtherThanSelf(Filter { alts: [[Type(\"creature\")]]"),
-            "{a}"
-        );
+        assert!(a.contains("OtherThanSelf"), "{a}");
         let a = one(
             "Creature — Spirit",
             "This creature can't block or be blocked by creatures with power 2 or greater.",

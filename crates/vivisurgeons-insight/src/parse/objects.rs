@@ -792,7 +792,7 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             zone(p).map(Post::In)
         },
         |p| p.one_of(&["that's blocking", "that are blocking"]).map(|_| Post::Blocking),
-        |p| { p.words("other than")?; self_noun(p).map(|o| Post::OtherThanSelf(o.filter)) },
+        |p| { p.words("other than")?; self_noun(p).map(|_| Post::OtherThanSelf) },
         |p| p.words("of the chosen type").map(|_| Post::OfChosenType),
         |p| p.words("of that type").map(|_| Post::OfThatType),
         |p| p.words("of the chosen color").map(|_| Post::OfChosenColor),
@@ -1150,12 +1150,40 @@ fn self_noun(p: &mut P) -> Option<Objects> {
             p.word("this")?;
             let alts: Vec<Vec<Adj>> = p.attempt(group).into_iter().collect();
             let kind = p.attempt(|p| kind(p).filter(|k| !matches!(k, Noun::Counter(_))));
-            (!alts.is_empty() || kind.is_some()).then(|| Objects {
-                quant: Quant::SelfRef,
-                filter: Filter { alts, kind, ..Filter::default() },
-            })
+            this_noun(&Filter { alts, kind, ..Filter::default() })
         },
     )
+}
+
+/// What "this" and the filter after it name: the card itself, whatever the
+/// noun ("this creature", "this Aura", "this spell", "this card"), since
+/// "this [descriptor]" is that object even where it no longer has that
+/// quality (CR 700.7) and Oracle's noun is shorthand for "this card"
+/// ([self-reference]). A zone after it stays ("this card from your
+/// graveyard"). "This ability" is the ability, which is no card (CR
+/// 113.1). `None` where the words are not one descriptor.
+fn this_noun(f: &Filter) -> Option<Objects> {
+    let descriptor = |a: &Adj| matches!(a, Adj::Type(w) | Adj::Subtype(w) | Adj::Supertype(w) if is_self_descriptor(w));
+    let object_noun = |k: &Option<Noun>| {
+        matches!(
+            k,
+            None | Some(Noun::Card | Noun::Spell | Noun::Token | Noun::Permanent)
+        )
+    };
+    if f.or.is_some() {
+        return None;
+    }
+    match (f.alts.as_slice(), &f.kind) {
+        ([], Some(Noun::Ability)) if f.posts.is_empty() => Some(Objects {
+            quant: Quant::ThisAbility,
+            filter: Filter::default(),
+        }),
+        ([], Some(_)) if object_noun(&f.kind) => Some(self_ref_in(f.posts.clone())),
+        ([g], k) if !g.is_empty() && g.iter().all(descriptor) && object_noun(k) => {
+            Some(self_ref_in(f.posts.clone()))
+        }
+        _ => None,
+    }
 }
 
 /// Rod of Absorption: "any number of spells from among cards exiled with
@@ -1313,11 +1341,18 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
         |p| p.card_name(),
         // "this creature" names the card by its own type, so a list after
         // it is a second object, read by `self_and_more`.
+        // A filter that read a list ("this creature or another …") is
+        // neither: `this_noun` takes one descriptor.
         |p| {
             p.word("this")?;
             let f = filter(p)?;
-            let o = with_others(Quant::SelfRef, f);
-            (o.quant != Quant::SelfRef || o.filter.or.is_none() && o.filter.alts.len() < 2).then_some(o)
+            match with_others(Quant::SelfRef, f) {
+                Objects { quant: Quant::WithOthers(me), filter } => {
+                    this_noun(&me.filter)?;
+                    Some(Objects { quant: Quant::WithOthers(Box::new(self_ref())), filter })
+                }
+                o => this_noun(&o.filter),
+            }
         },
         |p| p.one_of(&["each of them", "it", "them", "they"]).map(|_| antecedent()),
         // "put X counters on him", "he deals damage": Oracle text gives a
@@ -1538,13 +1573,10 @@ pub(super) fn objects_no_player(p: &mut P) -> Option<Objects> {
 /// creatures you control": the card by its type, then a second object.
 fn self_and_more(p: &mut P) -> Option<Objects> {
     p.word("this")?;
-    let me = Objects {
-        quant: Quant::SelfRef,
-        filter: Filter {
-            alts: vec![group(p)?],
-            ..Filter::default()
-        },
-    };
+    let me = this_noun(&Filter {
+        alts: vec![group(p)?],
+        ..Filter::default()
+    })?;
     let or = p.one_of(&["or a", "or an", "and"])?;
     // "this land and a creature named …" is a list of two objects, which
     // the caller reads; "this enchantment and counter that spell" is two

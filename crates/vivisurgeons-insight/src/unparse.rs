@@ -15,7 +15,7 @@
 use crate::ast::*;
 use crate::lex::{self, Pt, Signed, Tok};
 use crate::parse::third_person;
-use crate::vocab::singulars;
+use crate::vocab::{is_self_descriptor, singulars};
 
 /// Whether a noun or verb is singular, plural, or decided by an antecedent
 /// the tree holds by position only.
@@ -36,6 +36,9 @@ enum Piece {
     Verb(String, Num),
     /// Built only by `syn`.
     Alt(Vec<Vec<Piece>>),
+    /// One noun that names the card after "this" (`syn::this_card`),
+    /// shown as "card". Built only by `syn`.
+    Descriptor,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -146,6 +149,7 @@ fn flatten(ps: &[Piece], out: &mut Vec<String>) {
                 _ => b.clone(),
             }),
             Piece::Alt(alts) => flatten(&alts[0], out),
+            Piece::Descriptor => out.push("card".into()),
         }
     }
 }
@@ -336,6 +340,13 @@ fn m(
         Piece::Alt(alts) => alts
             .iter()
             .any(|a| m(a, j, toks, far, &mut |j2, far| m(rest, j2, toks, far, k))),
+        Piece::Descriptor => match toks.get(j) {
+            Some(Tok::Word(w)) if is_self_descriptor(w) => m(rest, j + 1, toks, far, k),
+            _ => {
+                far.miss(j, "card".into());
+                false
+            }
+        },
     }
 }
 
@@ -1110,10 +1121,32 @@ mod syn {
         alt(o, vec![of("it"), of("them"), named]);
     }
 
-    /// "~", "he", "him": a character card is "he" or "she" in its own
-    /// text, and Oracle text gives a gendered pronoun to nothing else.
-    pub fn self_named(o: &mut Out) {
-        any_of(o, &["~", "he", "she", "him", "her"]);
+    /// The card itself: "this card", "this creature", "this Aura", "this
+    /// spell", "~". "This [descriptor]" refers to that one object even if
+    /// it isn't the appropriate quality at the time (CR 700.7): Oblivion
+    /// Ring's "When this enchantment leaves the battlefield" would still be
+    /// the card if it had stopped being an enchantment, and Animate Dead's
+    /// "attach this Aura to it" the card if it were no Aura. So Oracle's
+    /// noun is shorthand for "this card", and the tree holds none. The
+    /// noun is any card type, supertype or subtype, or "card", "spell",
+    /// "token", "permanent" (`vocab::is_self_descriptor`); this entry is
+    /// only built where the tree has `Quant::SelfRef`. A character card is
+    /// "he" or "she" in its own text, and Oracle text gives a gendered
+    /// pronoun to nothing else. Referred back to, it is `pronoun`.
+    pub fn this_card(o: &mut Out, pronoun: Out) {
+        let mut this = of("this");
+        this.0.push(Piece::Descriptor);
+        let mut forms = vec![this];
+        forms.extend(["~", "he", "she", "him", "her"].map(of));
+        forms.push(pronoun);
+        alt(o, forms);
+    }
+
+    /// "this ability", and "it" for it said again in its own sentence
+    /// ("This ability costs {1} less to activate if it targets …"): the
+    /// ability the text is part of (CR 113.1).
+    pub fn this_ability(o: &mut Out) {
+        any_of(o, &["this ability", "it"]);
     }
 
     /// "cards exiled with it", "cards exiled with ~": "it" there is the
@@ -1849,7 +1882,8 @@ pub fn ability(a: &Ability) -> Out {
     // The trigger's own object is only ever said by referring back to it:
     // "it", "its", "that card", "with lesser mana value". So is a reference
     // said before a trailing "for each", which only that position tells
-    // from the loop's own object.
+    // from the loop's own object. "This ability" is said by its own
+    // entry (`syn::this_ability`).
     struct Said;
     impl crate::walk::Visitor for Said {
         fn enter(&mut self, o: &mut Objects) -> bool {
@@ -1861,7 +1895,6 @@ pub fn ability(a: &Ability) -> Out {
                     | Quant::Listed
                     | Quant::Itself
                     | Quant::Created
-                    | Quant::ThisAbility
                     | Quant::SourceOf(_)
                     | Quant::Linked
                     | Quant::OriginalAndCopies
@@ -3128,14 +3161,6 @@ fn from_among(o: &mut Out, x: &Objects) {
     }
 }
 
-/// The card itself, said by name or by a character's pronoun.
-fn self_named() -> Objects {
-    Objects {
-        quant: Quant::SelfRef,
-        filter: Filter::default(),
-    }
-}
-
 // ---------------------------------------------------------------- players
 
 fn player_num(p: &Player) -> Num {
@@ -3355,9 +3380,10 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::Other
         | Quant::OneOrMore => Num::Any,
         // "Krang & Shredder enter", "equipped creatures you control": a
-        // name or an attached-to creature may be one or several.
-        Quant::SelfRef if x.filter == Filter::default() => Num::Any,
-        Quant::SelfRef => Num::Sg,
+        // name or an attached-to creature may be one or several. The tree
+        // holds no word for the card ([self-reference]), so "this creature"
+        // agrees as the name does.
+        Quant::SelfRef => Num::Any,
         Quant::Enchanted | Quant::Equipped => Num::Any,
         Quant::Granter => Num::Sg,
     }
@@ -3609,22 +3635,13 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         }
         // The granting card is said by its name alone (CR 201.5a).
         Quant::Granter => o.tok(Tok::SelfRef),
-        Quant::SelfRef if *f == Filter::default() => {
-            let named = out(syn::self_named);
-            let pronoun = out(syn::it);
-            syn::the_card(o, named, pronoun);
-        }
         Quant::SelfRef => {
-            let named = out(|o| {
-                o.w("this");
-                filter(o, f, n);
-            });
-            let back = out(|o| {
-                syn::that(o);
-                filter(o, f, n);
-            });
-            syn::the_card(o, named, back);
+            let pronoun = out(syn::it);
+            syn::this_card(o, pronoun);
+            // "this card from your graveyard" ([self-reference]).
+            posts(o, &f.posts, n);
         }
+        Quant::ThisAbility if *f == Filter::default() => syn::this_ability(o),
         Quant::Both => {
             o.w("both");
             filter(o, f, Num::Pl);
@@ -4474,15 +4491,9 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         }
         Post::WithChosenName => o.w("with the chosen name"),
         Post::OfEachPermanentType => o.w("of each permanent type"),
-        Post::OtherThanSelf(f) => {
+        Post::OtherThanSelf => {
             o.w("other than");
-            objects(
-                o,
-                &Objects {
-                    quant: Quant::SelfRef,
-                    filter: f.clone(),
-                },
-            );
+            objects(o, &self_ref());
         }
         Post::Cast(Player::You) => o.w("you cast"),
         Post::Cast(p) => {
@@ -11226,7 +11237,7 @@ fn sized(o: &mut Out, ss: &[Static], i: usize) -> usize {
     let s = &ss[i];
     match (s, ss.get(i + 1)) {
         (Static::Is { what, types }, Some(Static::BasePt { what: w2, pt }))
-            if what == w2 && (is_bare_antecedent(what) || *what == self_named()) =>
+            if what == w2 && (is_bare_antecedent(what) || *what == self_ref()) =>
         {
             let inline = out(|o| {
                 syn::it_is(o);
