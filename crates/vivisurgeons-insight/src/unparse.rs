@@ -5043,6 +5043,7 @@ fn copy_said_after(e: &Effect) -> Option<bool> {
         | Effect::During { then, .. }
         | Effect::IfYouDont(then)
         | Effect::If { then, .. }
+        | Effect::Instead { then, .. }
         | Effect::Where { then, .. }
         | Effect::IfYouDo(then)
         | Effect::WhenYouDo(then) => then.last().and_then(copy_said_after),
@@ -7499,6 +7500,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 });
                 match &then[..] {
                     [Effect::Action { n: None, .. }] => syn::times_after(o, process, said),
+                    [Effect::Copy { .. }] => o.add(said),
                     _ => o.add(process),
                 }
             }

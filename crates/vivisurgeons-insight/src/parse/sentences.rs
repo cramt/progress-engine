@@ -41,6 +41,23 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
                 among: Palette::ColorsOf(Box::new(among)),
                 then: vec![e],
             };
+        } else if let Some(times) = matches!(e, Effect::Copy { .. })
+            .then(|| {
+                // "Copy target triggered ability you control twice", "copy
+                // that spell X times": the copy made that many times.
+                p.attempt(|p| {
+                    alt!(p;
+                        |p| p.word("twice").map(|_| Amount::N(2)),
+                        |p| { let n = amount(p)?; p.word("times")?; Some(n) },
+                    )
+                })
+            })
+            .flatten()
+        {
+            e = Effect::Repeat {
+                times,
+                then: vec![e],
+            };
         } else if let Some(times) = p.attempt(|p| {
             // "copy it for each time you've cast your commander from the
             // command zone this game": the effect once per cast.

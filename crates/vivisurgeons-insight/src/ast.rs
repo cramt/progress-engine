@@ -2073,6 +2073,7 @@ impl Effect {
             | Effect::During { then, .. }
             | Effect::IfYouDont(then)
             | Effect::If { then, .. }
+            | Effect::Instead { then, .. }
             | Effect::Where { then, .. }
             | Effect::IfYouDo(then)
             | Effect::ForEach { then, .. }
@@ -2095,6 +2096,7 @@ impl Effect {
             | Effect::During { then, .. }
             | Effect::IfYouDont(then)
             | Effect::If { then, .. }
+            | Effect::Instead { then, .. }
             | Effect::Where { then, .. }
             | Effect::IfYouDo(then)
             | Effect::ForEach { then, .. }

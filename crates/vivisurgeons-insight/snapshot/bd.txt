@@ -1047,7 +1047,7 @@ cost: {4}{R}{R}
 > • Copy target instant or sorcery spell an opponent controls twice. You may choose new targets for the copies.
 > • Create two tokens that are copies of target permanent an opponent controls. They gain haste. At the beginning of the next end step, sacrifice them.
 = Keywords([Keyword { name: "flash", param: None }])
-= BROKE at "." after: when ~ enters , choose one — • copy target instant or sorcery spell an opponent controls twice
+= BROKE at "." after: when ~ enters , choose one — • copy target instant or sorcery spell an opponent controls twice . you may choose new targets for the copies . • create two tokens that are copies of target permanent an opponent controls
 
 ## Voidslime
 face: Voidslime

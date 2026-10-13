@@ -861,7 +861,7 @@ cost: {2}{R}{R}
 > III — Triple — When you next cast an instant or sorcery spell this turn, copy it twice. You may choose new targets for the copies.
 = Chapter { chapters: [1], effect: [Surveil(N(1))] }
 = Chapter { chapters: [2], effect: [Labelled { label: "double", then: [DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }, dur: ThisTurn, then: [Copy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: true }] }] }] }
-= BROKE at "twice" after: iii — triple — when you next cast an instant or sorcery spell this turn , copy it
+= Chapter { chapters: [3], effect: [Labelled { label: "triple", then: [DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }, dur: ThisTurn, then: [Repeat { times: N(2), then: [Copy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: true }] }] }] }] }
 
 ## Sundering Stroke
 face: Sundering Stroke

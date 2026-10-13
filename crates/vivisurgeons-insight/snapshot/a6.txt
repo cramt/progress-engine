@@ -161,7 +161,7 @@ cost: {5}{U}
 > When you next cast an instant or sorcery spell this turn, copy that spell twice. You may choose new targets for the copies.
 = Keywords([Keyword { name: "convoke", param: None }])
 = Spell([May { who: You, then: [CastAsThoughFlash { what: Objects { quant: Plural, filter: Filter { alts: [[Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, dur: ThisTurn }] }])
-= BROKE at "twice" after: when you next cast an instant or sorcery spell this turn , copy that spell
+= Spell([DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }, dur: ThisTurn, then: [Repeat { times: N(2), then: [Copy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }] }])
 
 ## Cyber Conversion
 face: Cyber Conversion

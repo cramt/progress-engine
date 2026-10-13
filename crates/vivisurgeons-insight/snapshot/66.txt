@@ -690,7 +690,7 @@ cost: {2}{U}
 > {R}{G}{W}{U}, {T}: Copy target triggered ability you control twice. You may choose new targets for the copies.
 = Keywords([Keyword { name: "reach", param: None }, Keyword { name: "vigilance", param: None }])
 = Triggered { trigger: InterveningIf(At(Combat(Yours)), DidThisTurn(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
-= BROKE at "twice" after: {R} {G} {W} {U} , {T} : copy target triggered ability you control
+= Activated { cost: [Mana(Mana(["R", "G", "W", "U"])), Tap], effect: [Repeat { times: N(2), then: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Ability(Triggered)]], kind: Some(Ability), posts: [Controller(You)], or: None } }, may_choose_new_targets: true }] }], limits: [] }
 
 ## Muxus, Goblin Grandee
 face: Muxus, Goblin Grandee

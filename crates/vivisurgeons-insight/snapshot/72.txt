@@ -224,7 +224,7 @@ cost: {1}{U}{U}
 = Activated { cost: [Mana(Mana(["U", "U"])), Tap], effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }], limits: [] }
 = LevelHeader { from: 4, to: None }
 = LevelPt(Pt { power: N(2), toughness: N(5), signed: false })
-= BROKE at "twice" after: {U} {U} , {T} : copy target instant or sorcery spell
+= Activated { cost: [Mana(Mana(["U", "U"])), Tap], effect: [Repeat { times: N(2), then: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }], limits: [] }
 
 ## Eldrazi Confluence
 face: Eldrazi Confluence

@@ -411,7 +411,7 @@ face: Gogo, Master of Mimicry
 type: Legendary Creature — Wizard
 cost: {2}{U}
 > {X}{X}, {T}: Copy target activated or triggered ability you control X times. You may choose new targets for the copies. This ability can't be copied and X can't be 0. (Mana abilities can't be targeted.)
-= BROKE at "x" after: {X} {X} , {T} : copy target activated or triggered ability you control
+= Activated { cost: [Mana(Mana(["X", "X"])), Tap], effect: [Repeat { times: X, then: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Ability(Activated)], [Ability(Triggered)]], kind: Some(Ability), posts: [Controller(You)], or: None } }, may_choose_new_targets: true }] }], limits: [CantBeCopied, X(NotZero)] }
 
 ## Gruesome Fate
 face: Gruesome Fate

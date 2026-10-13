@@ -558,7 +558,7 @@ type: Instant
 cost: {R}{R}
 > Copy target instant or sorcery spell you control. If this spell was cast from a graveyard, copy that spell twice instead. You may choose new targets for the copies.
 > Flashback {3}{R}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= BROKE at "twice" after: copy target instant or sorcery spell you control . if this spell was cast from a graveyard , copy that spell
+= Spell([Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Controller(You)], or: None } }, may_choose_new_targets: true }, Instead { cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, zone: AGraveyard }, then: [Repeat { times: N(2), then: [Copy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }] }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["3", "R", "R"]))])) }])
 
 ## Instruments of War

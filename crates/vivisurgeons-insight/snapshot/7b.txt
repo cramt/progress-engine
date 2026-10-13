@@ -573,7 +573,7 @@ face: Mnemonic Deluge
 type: Sorcery
 cost: {6}{U}{U}{U}
 > Exile target instant or sorcery card from a graveyard. Copy that card three times. You may cast the copies without paying their mana costs. Exile Mnemonic Deluge.
-= BROKE at "three" after: exile target instant or sorcery card from a graveyard . copy that card
+= Spell([Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(AGraveyard)], or: None } }), Repeat { times: N(3), then: [Copy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, may_choose_new_targets: false }] }, May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Copy), posts: [], or: None } }, payment: Free, dur: Permanent }] }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 
 ## Monstrous Hound
 face: Monstrous Hound

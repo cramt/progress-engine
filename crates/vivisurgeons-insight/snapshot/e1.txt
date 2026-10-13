@@ -777,7 +777,7 @@ face: Storm King's Thunder
 type: Instant
 cost: {X}{R}{R}{R}
 > When you next cast an instant or sorcery spell this turn, copy that spell X times. You may choose new targets for the copies.
-= BROKE at "x" after: when you next cast an instant or sorcery spell this turn , copy that spell
+= Spell([DelayedNext { event: Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }, dur: ThisTurn, then: [Repeat { times: X, then: [Copy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }] }] }])
 
 ## Sunderflock
 face: Sunderflock

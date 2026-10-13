@@ -559,7 +559,7 @@ type: Sorcery
 cost: {X}{R}{R}
 > When you cast this spell, copy it X times. You may choose new targets for the copies.
 > Photon Blast Barrage deals 1 damage to target creature.
-= BROKE at "x" after: when you cast this spell , copy it
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [Repeat { times: X, then: [Copy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: true }] }], limits: [] }
 = Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])
 
 ## Phyresis Outbreak
