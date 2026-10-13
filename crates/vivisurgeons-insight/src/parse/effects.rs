@@ -434,6 +434,7 @@ pub(super) fn restriction_bare(p: &mut P) -> Option<Restriction> {
             }
             (v.len() > 1).then_some(Restriction::CantAttackAnyOf(v))
         },
+        |p| p.words("can't attack a player it has already attacked this turn").map(|_| Restriction::CantAttackPlayerAttackedThisTurn),
         |p| { p.words("can't attack")?; let pl = alt!(p; player_simple, |p| p.word("you").map(|_| Player::You))?; Some(Restriction::CantAttackPlayer(pl)) },
         |p| {
             p.one_of(&["attacks a player other than", "attack a player other than"])?;

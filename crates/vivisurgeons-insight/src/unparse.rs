@@ -6029,6 +6029,9 @@ fn restriction(o: &mut Out, r: &Restriction, n: Num) {
             o.w("can't attack");
             player(o, p);
         }
+        Restriction::CantAttackPlayerAttackedThisTurn => {
+            o.w("can't attack a player it has already attacked this turn")
+        }
         Restriction::NoActivatedAbilities => o.w("its activated abilities can't be activated"),
         Restriction::MayNotUntap => o.w("may not untap"),
         Restriction::DoesntUntapNext => {

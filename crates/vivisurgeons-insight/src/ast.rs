@@ -2415,6 +2415,10 @@ pub enum Restriction {
         per: Option<Objects>,
     },
     CantAttackPlayer(Player),
+    /// "can't attack a player it has already attacked this turn" (Port
+    /// Razer): only a player it hasn't attacked in an earlier combat this
+    /// turn.
+    CantAttackPlayerAttackedThisTurn,
     NoActivatedAbilities,
     MayNotUntap,
     DoesntUntapNext,

@@ -65,7 +65,7 @@ cost: {5}{R}
 > This creature can't attack a player it has already attacked this turn.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }])
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), AdditionalPhases { after: None, phases: [Combat] }], limits: [] }
-= BROKE at "has" after: this creature can't attack a player it
+= Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantAttackPlayerAttackedThisTurn }])
 
 ## Bonded Construct
 face: Bonded Construct

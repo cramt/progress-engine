@@ -730,7 +730,7 @@ cost: {3}{R}{R}
 > Whenever this creature deals combat damage to a player, untap each creature you control. After this phase, there is an additional combat phase.
 > This creature can't attack a player it has already attacked this turn.
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Untap(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), AdditionalPhases { after: None, phases: [Combat] }], limits: [] }
-= BROKE at "has" after: this creature can't attack a player it
+= Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantAttackPlayerAttackedThisTurn }])
 
 ## Practiced Scrollsmith
 face: Practiced Scrollsmith
