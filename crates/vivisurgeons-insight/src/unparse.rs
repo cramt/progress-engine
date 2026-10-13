@@ -6659,7 +6659,17 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 });
                 syn::position(o, before, after);
             } else {
-                o.add(before);
+                // "return it … at the beginning of the next end step. That
+                // creature is a black Zombie …" (Grave Betrayal): the step
+                // said after the first clause, the rest its own sentences.
+                let after = out(|o| {
+                    clauses(o, &then[..1], cx);
+                    o.w("at the beginning of");
+                    step(o, s);
+                    o.tok(Tok::Period);
+                    clauses(o, &then[1..], cx);
+                });
+                syn::position(o, before, after);
             }
         }
         Effect::EntersTapped(x) => {

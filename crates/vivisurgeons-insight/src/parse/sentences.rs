@@ -1214,6 +1214,19 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
             (v.last(), s.first()),
             (Some(Effect::If { cond: a, .. }), Some(Effect::If { cond: b, .. }))
                 if tested(a).is_some() && tested(a) == tested(b)
+        ) || matches!(
+            // "If you win the flip, … If you lose the flip, …" (Frenetic Sliver).
+            (v.last(), s.first()),
+            (
+                Some(Effect::If {
+                    cond: Condition::WonFlip(_),
+                    ..
+                }),
+                Some(Effect::If {
+                    cond: Condition::WonFlip(_),
+                    ..
+                })
+            )
         );
         // "If you do, each opponent may sacrifice a permanent …. For each
         // opponent who doesn't, …": the players who declined were offered
@@ -1501,6 +1514,31 @@ fn branch_with_new_object(e: &mut Effect) -> Option<&mut Vec<Effect>> {
         // Magicite): the reflexive trigger's target exists only in it.
         Effect::WhenYouDo(then) | Effect::WhenYouDoIf { then, .. } => (then, true),
         Effect::If { then, .. } | Effect::Otherwise(then) => (then, false),
+        // "return it to the battlefield … at the beginning of the next end
+        // step. That creature is a black Zombie …" (Grave Betrayal): the
+        // returned permanent exists only once the delayed trigger resolves
+        // ([delayed-owns-later-sentences]).
+        // Only a permanent put onto the battlefield: Elemental Appeal's "Exile
+        // it at the beginning of the next end step. If this spell was kicked,
+        // that creature gets +7/+0" is said of the token now.
+        Effect::Delayed { then, .. } => {
+            fn enters(e: &Effect) -> bool {
+                match e {
+                    Effect::Move {
+                        to: Zone::Battlefield,
+                        ..
+                    } => true,
+                    Effect::EntersWith { effect, .. }
+                    | Effect::EntersAttacking(effect)
+                    | Effect::EntersAttached { effect, .. } => enters(effect),
+                    _ => false,
+                }
+            }
+            if !then.iter().any(enters) {
+                return None;
+            }
+            (then, false)
+        }
         _ => return None,
     };
     if then.iter().any(brings_in) || (option && then.iter().any(acts_on_target)) {
