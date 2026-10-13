@@ -717,6 +717,13 @@ pub enum Quant {
         n: u32,
         of: Player,
     },
+    /// "your first spell during each opponent's turn", "… during each of
+    /// your turns": the nth in each turn of `turns`, none in the others.
+    NthDuringTurns {
+        n: u32,
+        of: Player,
+        turns: Player,
+    },
     /// "the next spell you cast this turn".
     Next,
     /// "additional spells": more than those already counted.

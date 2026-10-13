@@ -1566,6 +1566,17 @@ fn objects_read(p: &mut P) -> Option<Objects> {
             let of = whose_pronoun(p)?;
             let n = ["first", "second", "third"].iter().position(|w| p.word(w).is_some())? as u32 + 1;
             let filter = filter(p)?;
+            // "your first spell during each opponent's turn" (Faerie
+            // Mastermind's kin), "… during each of your turns" (Rashmi).
+            if let Some(turns) = p.attempt(|p| {
+                p.word("during")?;
+                alt!(p;
+                    |p| p.words("each opponent 's turn").map(|_| Player::EachOpponent),
+                    |p| p.words("each of your turns").map(|_| Player::You),
+                )
+            }) {
+                return Some(Objects { quant: Quant::NthDuringTurns { n, of, turns }, filter });
+            }
             p.words("each turn")?;
             Some(Objects { quant: Quant::NthEachTurn { n, of }, filter })
         },

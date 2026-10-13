@@ -3198,6 +3198,7 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::SelfOrAnother(_)
         | Quant::SelfOrA(_)
         | Quant::NthEachTurn { .. }
+        | Quant::NthDuringTurns { .. }
         | Quant::NthOfGame { .. }
         | Quant::Triggering
         | Quant::Next => Num::Sg,
@@ -3682,6 +3683,16 @@ fn objects_plain(o: &mut Out, x: &Objects) {
             } else {
                 o.add(yours);
             }
+        }
+        Quant::NthDuringTurns { n: k, of, turns } => {
+            whose(o, of);
+            o.w(["first", "second", "third"][*k as usize - 1]);
+            filter(o, f, Num::Sg);
+            o.w(if *turns == Player::You {
+                "during each of your turns"
+            } else {
+                "during each opponent's turn"
+            });
         }
 
         Quant::NthOfGame { n: k, of } => {

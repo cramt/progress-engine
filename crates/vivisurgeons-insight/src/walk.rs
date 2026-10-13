@@ -2230,6 +2230,10 @@ impl Walk for Quant {
             Quant::NthEachTurn { of, .. } => {
                 Walk::walk(of, v);
             }
+            Quant::NthDuringTurns { of, turns, .. } => {
+                Walk::walk(of, v);
+                Walk::walk(turns, v);
+            }
             Quant::NthOfGame { of, .. } => {
                 Walk::walk(of, v);
             }
