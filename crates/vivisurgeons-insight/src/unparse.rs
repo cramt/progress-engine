@@ -6534,13 +6534,18 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             });
             match pt {
                 // "creatures you control have base power and toughness X/X".
-                Some(pt)
-                    if types.is_empty() && gains.is_empty() && *k == Keeps::implied_by(&[]) =>
-                {
+                // "… has base power and toughness 10/10 and gains trample"
+                // (Flayer of Loyalties).
+                Some(pt) if types.is_empty() && *k == Keeps::implied_by(&[]) => {
                     let base = out(|o| {
                         obj_subj(o, what, "have");
                         o.w("base power and toughness");
                         o.tok(Tok::Pt(*pt));
+                        if !gains.is_empty() {
+                            o.w("and");
+                            o.verb("gain", obj_num(what));
+                            keyword_list(o, gains);
+                        }
                         dur(o, d);
                     });
                     syn::base_pt(o, becomes, base);

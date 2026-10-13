@@ -272,8 +272,14 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             let pt = match p.peek()? { Tok::Pt(pt) if !pt.signed => *pt, _ => return None };
             p.bump();
             let also = p.attempt(|p| { p.word("and")?; p.verb("gain")?; p.words("all creature types") }).is_some();
+            // "has base power and toughness 10/10 and gains trample,
+            // annihilator 2, and haste": the keywords of the same effect,
+            // as "becomes a 4/4 … and gains flying" (Flayer of Loyalties).
+            let gains = if also { vec![] } else {
+                p.attempt(|p| { p.word("and")?; p.verb("gain")?; super::keyword_list(p) }).unwrap_or_default()
+            };
             let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
-            let mut v = vec![Effect::Becomes { what: what.clone(), pt: Some(pt), types: vec![], gains: vec![], keeps: Keeps::implied_by(&[]), dur: dur.clone() }];
+            let mut v = vec![Effect::Becomes { what: what.clone(), pt: Some(pt), types: vec![], gains, keeps: Keeps::implied_by(&[]), dur: dur.clone() }];
             if also {
                 v.push(Effect::AlsoIs { what, types: TypeSet::EveryCreatureType, dur });
             }
