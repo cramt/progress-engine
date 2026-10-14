@@ -38,6 +38,7 @@ import { HistoryDrawer } from "./HistoryDrawer";
 import "./history.css";
 import { PlaytestArchidekt } from "./PlaytestArchidekt";
 import { ReplaceArchidekt } from "./ReplaceArchidekt";
+import { applyResolved, namesOnly, resolveNames } from "./resolveNames";
 import { SourcingView } from "./SourcingView";
 import { type OnDrop, StacksView } from "./StacksView";
 import { Banners, SaveStatus, Toolbar, UndoRedo } from "./Toolbar";
@@ -141,6 +142,27 @@ export function DeckEditor({
     const t = setTimeout(() => setNotice(null), 5000);
     return () => clearTimeout(t);
   }, [notice]);
+  // A deck opened with cards by name only takes each one's printing, as an
+  // added card would, so the file says which copy the deck is. One edit, saved
+  // like any other and undone with one Ctrl+Z.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once, on open, with the settings it opened with
+  useEffect(() => {
+    const names = namesOnly(loaded);
+    if (names.length === 0) return;
+    let live = true;
+    void resolveNames(names, settings).then((resolved) => {
+      if (!live) return;
+      const { text, count } = applyResolved(present.current, resolved);
+      if (count === 0) return;
+      history.edit(text);
+      setNotice(
+        `Gave ${count} card${count === 1 ? "" : "s"} listed by name ${count === 1 ? "its" : "their"} printing. Ctrl+Z undoes it.`,
+      );
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
   const go = (v: Viewing) => onNavigate({ viewing: v });
   const stem = deckStem(path);
   const otherOf =
