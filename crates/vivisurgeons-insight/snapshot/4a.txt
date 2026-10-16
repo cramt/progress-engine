@@ -620,7 +620,7 @@ type: Instant
 cost: {2}{U}
 > Until end of turn, target artifact or creature becomes a 4/4 Angel artifact creature and gains flying.
 > Draw a card.
-= Spell([During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Subtype("angel"), Type("artifact"), Type("creature")], gains: [Keyword { name: "flying", param: None }], keeps: AllButSubtypesOfSet, dur: Permanent }] }])
+= Spell([Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Subtype("angel"), Type("artifact"), Type("creature")], gains: [Keyword { name: "flying", param: None }], keeps: AllButSubtypesOfSet, dur: UntilEndOfTurn }])
 = Spell([Draw { who: You, n: N(1) }])
 
 ## Meandering Towershell
@@ -811,7 +811,7 @@ face: Rampaging Growth
 type: Instant
 cost: {3}{G}
 > Search your library for a basic land card, put it onto the battlefield, then shuffle. Until end of turn, that land becomes a 4/3 Insect creature with reach and haste. It's still a land.
-= Spell([Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Shuffle(You), During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(3), signed: false }), types: [Subtype("insect"), Type("creature")], gains: [Keyword { name: "reach", param: None }, Keyword { name: "haste", param: None }], keeps: Listed([Type("land")]), dur: Permanent }] }])
+= Spell([Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Supertype("basic"), Type("land")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Shuffle(You), Becomes { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(3), signed: false }), types: [Subtype("insect"), Type("creature")], gains: [Keyword { name: "reach", param: None }, Keyword { name: "haste", param: None }], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }])
 
 ## Realmwalker
 face: Realmwalker
@@ -863,7 +863,7 @@ type: Land
 > Whenever this land attacks, you may discard a card. If you do, draw a card.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Or([Mana(["B"]), Mana(["R"])]))], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "B", "R"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(3), signed: false }), types: [Color(Black), Color(Red), Subtype("insect"), Type("creature")], gains: [Keyword { name: "menace", param: None }], keeps: Listed([Type("land")]), dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "B", "R"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(3), signed: false }), types: [Color(Black), Color(Red), Subtype("insect"), Type("creature")], gains: [Keyword { name: "menace", param: None }], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }], limits: [] }
 = Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(1) }])], limits: [] }
 
 ## Rhystic Syphon

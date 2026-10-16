@@ -591,9 +591,15 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                     return Some(then);
                 }
             }
-            if let [Effect::PlayerRestrict { dur: d @ Duration::Permanent, .. }] = &mut then[..] {
-                *d = dur;
-                return Some(then);
+            // "Until end of turn, target creature … gains "…"" (Simic
+            // Basilisk), "Until end of turn, target land becomes a 3/3":
+            // one effect that lasts takes the duration as its own, the same
+            // as when it trails ([lead-permission-duration]).
+            if let [e] = &mut then[..] {
+                if let Some(d @ Duration::Permanent) = e.dur_mut() {
+                    *d = dur;
+                    return Some(then);
+                }
             }
             Some(vec![Effect::During { dur, then }])
         },
@@ -729,6 +735,13 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                 return Some(vec![Effect::Instead { cond, then: vec![e] }]);
             }
             let e = suffixed(p, e);
+            // "Destroy target blocking creature at end of combat" (Silent
+            // Assassin): the target is the ability's, chosen as it is put on
+            // the stack (CR 601.2c, 602.2b), and the delayed trigger acts on
+            // what was chosen ([target-before-delayed]).
+            if let Some(v) = target_before_delayed(&e) {
+                return Some(v);
+            }
             // "Destroy that creature if it has mana value 4 or less instead if
             // a permanent left the battlefield …": the conditioned effect,
             // replacing the one before it.
@@ -749,6 +762,43 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             Some(vec![if v.len() == 1 { v.remove(0) } else { Effect::Or(v) }])
         },
     )
+}
+
+/// "Destroy target blocking creature at end of combat", "Up to two other
+/// target planeswalkers you control phase out at the beginning of the next
+/// end step", "Target player draws a card at the beginning of the next
+/// turn's upkeep": a target said in a clause that a trailing step delays
+/// is the ability's own, chosen as it is put on the stack (CR 601.2c,
+/// 602.2b), so the tree chooses it first and the delayed trigger acts on
+/// it by reference ([target-before-delayed]).
+pub(super) fn target_before_delayed(e: &Effect) -> Option<Vec<Effect>> {
+    let Effect::Delayed { step, then } = e else {
+        return None;
+    };
+    let [inner] = &then[..] else { return None };
+    let mut inner = inner.clone();
+    let choice = if let Some(x) = crate::ast::delayed_target_mut(&mut inner) {
+        let t = x.clone();
+        x.quant = Quant::Antecedent;
+        x.filter = Filter::default();
+        Choice::Objects(t)
+    } else if let Effect::Draw {
+        who: who @ Player::Target,
+        ..
+    } = &mut inner
+    {
+        *who = Player::That;
+        Choice::TargetPlayer
+    } else {
+        return None;
+    };
+    Some(vec![
+        Effect::Choose(choice),
+        Effect::Delayed {
+            step: step.clone(),
+            then: vec![inner],
+        },
+    ])
 }
 
 /// A delayed trigger's effect: its clauses, and the sentences after them.

@@ -1115,7 +1115,7 @@ cost: {B}
 > {5}{B}{B}{B}: Until end of turn, this Equipment gains "Whenever equipped creature deals combat damage to a player, that player loses the game."
 > Equip {B}{B}
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), has: [Keyword { name: "deathtouch", param: None }], per: None }])
-= Activated { cost: [Mana(Mana(["5", "B", "B", "B"]))], effect: [During { dur: UntilEndOfTurn, then: [GrantAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [LoseGame(That)], limits: [] }, dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["5", "B", "B", "B"]))], effect: [GrantAbility { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [LoseGame(That)], limits: [] }, dur: UntilEndOfTurn }], limits: [] }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["B", "B"]))])) }])
 
 ## Wandering Stream

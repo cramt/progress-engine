@@ -42,7 +42,7 @@ face: Aspirant's Ascent
 type: Instant
 cost: {U}
 > Until end of turn, target creature gets +1/+3 and gains flying and toxic 1. (Players dealt combat damage by that creature also get a poison counter.)
-= Spell([During { dur: UntilEndOfTurn, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(3), signed: true }), gains: [Keyword { name: "flying", param: None }, Keyword { name: "toxic", param: Some(N(N(1))) }], dur: Permanent }] }])
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(3), signed: true }), gains: [Keyword { name: "flying", param: None }, Keyword { name: "toxic", param: Some(N(N(1))) }], dur: UntilEndOfTurn }])
 
 ## Awaken the Woods
 face: Awaken the Woods

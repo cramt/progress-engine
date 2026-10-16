@@ -808,7 +808,7 @@ cost: {1}{R}{R}
 > Dragon spells you cast cost {1} less to cast.
 > Whenever Nogi attacks, if you control three or more Dragons, until end of turn, Nogi becomes a Dragon with base power and toughness 5/5 and gains flying.
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("dragon")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: None }])
-= Triggered { trigger: InterveningIf(When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [], or: None } })), effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), types: [Subtype("dragon")], gains: [Keyword { name: "flying", param: None }], keeps: AllButSubtypesOfSet, dur: Permanent }] }], limits: [] }
+= Triggered { trigger: InterveningIf(When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), YouControl(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Subtype("dragon")]], kind: None, posts: [], or: None } })), effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), types: [Subtype("dragon")], gains: [Keyword { name: "flying", param: None }], keeps: AllButSubtypesOfSet, dur: UntilEndOfTurn }], limits: [] }
 
 ## Opalescence
 face: Opalescence
@@ -1011,7 +1011,7 @@ cost: {1}{G}
 > (As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)
 > I, II — Until your next turn, creatures you control gain "{T}: Add one mana of any color."
 > III — Put a +1/+1 counter on each creature you control. Those creatures gain vigilance, trample, and indestructible until end of turn.
-= Chapter { chapters: [1, 2], effect: [During { dur: UntilYourNextTurn, then: [GrantAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }, dur: Permanent }] }] }
+= Chapter { chapters: [1, 2], effect: [GrantAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }, dur: UntilYourNextTurn }] }
 = Chapter { chapters: [3], effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }, Modify { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "vigilance", param: None }, Keyword { name: "trample", param: None }, Keyword { name: "indestructible", param: None }], dur: UntilEndOfTurn }] }
 
 ## Song of the Dryads

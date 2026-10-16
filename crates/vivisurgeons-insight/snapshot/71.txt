@@ -653,7 +653,7 @@ cost: {3}{W}
 > Until your next turn, prevent all damage that would be dealt to you.
 > Exile Morningtide's Light.
 = Spell([Exile(Objects { quant: AnyNumberOfTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Delayed { step: EndStep(Next), then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: Some(OwnerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }] }])
-= Spell([During { dur: UntilYourNextTurn, then: [Prevent { combat_only: false, n: None, to: Some([Player(You)]), by: None, dur: Permanent }] }])
+= Spell([Prevent { combat_only: false, n: None, to: Some([Player(You)]), by: None, dur: UntilYourNextTurn }])
 = Spell([Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 
 ## Nimana Sell-Sword
@@ -991,7 +991,7 @@ cost: {1}{W}{W}
 > Vigilance
 > Whenever Taranika attacks, untap another target creature you control. Until end of turn, that creature has base power and toughness 4/4 and gains indestructible.
 = Keywords([Keyword { name: "vigilance", param: None }])
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Untap(Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [], gains: [Keyword { name: "indestructible", param: None }], keeps: OtherTypes, dur: Permanent }] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Untap(Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), Becomes { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [], gains: [Keyword { name: "indestructible", param: None }], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] }
 
 ## The Astonishing Ant-Man
 face: The Astonishing Ant-Man

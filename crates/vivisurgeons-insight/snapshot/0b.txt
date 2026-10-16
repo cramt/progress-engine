@@ -895,7 +895,7 @@ cost: {4}{U}{U}
 > 0: Until your next turn, target artifact you control becomes a 5/5 creature in addition to its other types.
 > −7: Put any number of cards from your hand onto the battlefield face down. They're 5/5 artifact creatures.
 = Loyalty { change: N(1), effect: [Draw { who: You, n: N(1) }] }
-= Loyalty { change: N(0), effect: [During { dur: UntilYourNextTurn, then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), types: [Type("creature")], gains: [], keeps: OtherTypes, dur: Permanent }] }] }
+= Loyalty { change: N(0), effect: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), types: [Type("creature")], gains: [], keeps: OtherTypes, dur: UntilYourNextTurn }] }
 = BROKE at "face" after: N(-7) : put any number of cards from your hand onto the battlefield
 
 ## The Ruinous Powers

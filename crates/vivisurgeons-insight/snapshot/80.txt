@@ -1108,5 +1108,5 @@ face: Xanthic Statue
 type: Artifact
 cost: {8}
 > {5}: Until end of turn, this artifact becomes an 8/8 Golem artifact creature with trample.
-= Activated { cost: [Mana(Mana(["5"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(8), toughness: N(8), signed: false }), types: [Subtype("golem"), Type("artifact"), Type("creature")], gains: [Keyword { name: "trample", param: None }], keeps: AllButSubtypesOfSet, dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["5"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(8), toughness: N(8), signed: false }), types: [Subtype("golem"), Type("artifact"), Type("creature")], gains: [Keyword { name: "trample", param: None }], keeps: AllButSubtypesOfSet, dur: UntilEndOfTurn }], limits: [] }
 

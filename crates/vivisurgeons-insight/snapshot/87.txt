@@ -692,7 +692,7 @@ cost: {4}{U}{U}
 > +1: Until your next turn, up to one target creature gets -5/-0.
 > −3: Return up to two target creatures to their owners' hands.
 > −7: Creatures you control with flying get +5/+5 until end of turn.
-= Loyalty { change: N(1), effect: [During { dur: UntilYourNextTurn, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-5), toughness: N(0), signed: true }), gains: [], dur: Permanent }] }] }
+= Loyalty { change: N(1), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-5), toughness: N(0), signed: true }), gains: [], dur: UntilYourNextTurn }] }
 = Loyalty { change: N(-3), effect: [Move { what: Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }
 = Loyalty { change: N(-7), effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), WithKeyword("flying")], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), gains: [], dur: UntilEndOfTurn }] }
 

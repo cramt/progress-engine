@@ -510,7 +510,7 @@ cost: {6}{G}{G}
 > {1}{G}: Until end of turn, target land you control becomes a 1/1 Elemental creature with vigilance, indestructible, and haste. It's still a land.
 > Partner (You can have two commanders if both have partner.)
 = Triggered { trigger: At(Combat(Yours)), effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "G"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), types: [Subtype("elemental"), Type("creature")], gains: [Keyword { name: "vigilance", param: None }, Keyword { name: "indestructible", param: None }, Keyword { name: "haste", param: None }], keeps: Listed([Type("land")]), dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "G"]))], effect: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), types: [Subtype("elemental"), Type("creature")], gains: [Keyword { name: "vigilance", param: None }, Keyword { name: "indestructible", param: None }, Keyword { name: "haste", param: None }], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }], limits: [] }
 = Keywords([Keyword { name: "partner", param: None }])
 
 ## Keeper of Kookus

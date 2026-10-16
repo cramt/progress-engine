@@ -943,7 +943,7 @@ face: Whipgrass Entangler
 type: Creature — Human Cleric
 cost: {2}{W}
 > {1}{W}: Until end of turn, target creature gains "This creature can't attack or block unless its controller pays {1} for each Cleric on the battlefield."
-= Activated { cost: [Mana(Mana(["1", "W"]))], effect: [During { dur: UntilEndOfTurn, then: [GrantAbility { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantAttackOrBlock, who: ControllerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["1"]))], per: Some(Objects { quant: Plural, filter: Filter { alts: [[Subtype("cleric")]], kind: None, posts: [In(Battlefield)], or: None } }) } }]), dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "W"]))], effect: [GrantAbility { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantAttackOrBlock, who: ControllerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["1"]))], per: Some(Objects { quant: Plural, filter: Filter { alts: [[Subtype("cleric")]], kind: None, posts: [In(Battlefield)], or: None } }) } }]), dur: UntilEndOfTurn }], limits: [] }
 
 ## Yotian Tactician
 face: Yotian Tactician

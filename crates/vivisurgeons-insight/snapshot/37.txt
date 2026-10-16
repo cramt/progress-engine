@@ -824,7 +824,7 @@ face: Sly Instigator
 type: Creature — Human Wizard
 cost: {3}{U}
 > {U}, {T}: Until your next turn, target creature an opponent controls can't be blocked. Goad that creature. (Until your next turn, that creature attacks each combat if able and attacks a player other than you if able.)
-= Activated { cost: [Mana(Mana(["U"])), Tap], effect: [During { dur: UntilYourNextTurn, then: [Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, rule: CantBeBlocked, dur: Permanent }] }, ActionOn { who: You, name: "goad", what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
+= Activated { cost: [Mana(Mana(["U"])), Tap], effect: [Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, rule: CantBeBlocked, dur: UntilYourNextTurn }, ActionOn { who: You, name: "goad", what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Sparkspitter
 face: Sparkspitter
@@ -872,7 +872,7 @@ cost: {3}{W}
 > IV — Create X Treasure tokens, where X is the number of opponents who control a creature with power 4 or greater.
 > Vigilance
 = Chapter { chapters: [1], effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")], [State(Tapped), Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } })] }
-= Chapter { chapters: [2, 3], effect: [During { dur: UntilYourNextTurn, then: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantAttackPlayer(You), who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["2"]))], per: Some(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }, dur: Permanent }] }] }
+= Chapter { chapters: [2, 3], effect: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantAttackPlayer(You), who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["2"]))], per: Some(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }, dur: UntilYourNextTurn }] }
 = Chapter { chapters: [4], effect: [Where { then: [Create { who: You, n: X, token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [WhoControls(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } })], or: None } }) }] }
 = Keywords([Keyword { name: "vigilance", param: None }])
 

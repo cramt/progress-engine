@@ -28,7 +28,7 @@ face: Alloy Animist
 type: Creature — Human Druid
 cost: {G}
 > {2}{G}: Until end of turn, target noncreature artifact you control becomes a 4/4 artifact creature.
-= Activated { cost: [Mana(Mana(["2", "G"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature"), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Type("artifact"), Type("creature")], gains: [], keeps: OtherTypes, dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "G"]))], effect: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature"), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Type("artifact"), Type("creature")], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] }
 
 ## Ancestor Dragon
 face: Ancestor Dragon

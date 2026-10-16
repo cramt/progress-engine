@@ -1800,6 +1800,15 @@ mod syn {
         alt(o, vec![spelled, of("at end of combat")]);
     }
 
+    /// Named rewrite [target-before-delayed]: "destroy target blocking
+    /// creature at end of combat" (Silent Assassin) is "choose target
+    /// blocking creature. At the beginning of the end of combat step,
+    /// destroy it": the target is chosen as the ability is put on the stack
+    /// (CR 601.2c, 602.2b), not when the delayed trigger does its work.
+    pub fn target_before_delayed(o: &mut Out, apart: Out, joined: Out) {
+        alt(o, vec![apart, joined]);
+    }
+
     pub fn printed_each_step(o: &mut Out) {
         any_of(o, &["each", "each player's", "the"]);
     }
@@ -5474,6 +5483,58 @@ fn clauses(o: &mut Out, es: &[Effect], cx: &Cx) {
     clauses_in(o, es, cx, false);
 }
 
+/// "Until end of turn, target creature gains "…"": an effect's own
+/// duration said leading its sentence ([lead-permission-duration]).
+fn lead_duration(e: &Effect, cx: &Cx) -> Option<Out> {
+    let mut bare = e.clone();
+    let d = bare.dur_mut()?;
+    if matches!(d, Duration::Permanent) {
+        return None;
+    }
+    let d = std::mem::replace(d, Duration::Permanent);
+    Some(out(|o| {
+        dur(o, &d);
+        o.w(",");
+        clauses(o, &[bare], cx);
+    }))
+}
+
+/// The clause [target-before-delayed] split, said with its target again:
+/// `Choose(target)` then a step's `Delayed` acting on it by reference.
+fn target_in_delayed(c: &Choice, s: &Step, then: &[Effect]) -> Option<Effect> {
+    let [inner] = then else { return None };
+    let mut inner = inner.clone();
+    match c {
+        Choice::Objects(t)
+            if matches!(
+                t.quant,
+                Quant::Target { .. } | Quant::OtherTarget { .. } | Quant::AnotherTarget
+            ) =>
+        {
+            let x = match &mut inner {
+                Effect::Destroy { what, .. } => what,
+                e => e.sole_object_mut()?,
+            };
+            if x.quant != Quant::Antecedent {
+                return None;
+            }
+            *x = t.clone();
+        }
+        Choice::TargetPlayer => match &mut inner {
+            Effect::Draw {
+                who: who @ Player::That,
+                ..
+            } => *who = Player::Target,
+            _ => return None,
+        },
+        _ => return None,
+    }
+    Some(Effect::Delayed {
+        step: s.clone(),
+        then: vec![inner],
+    })
+}
+
 /// `top`: the clauses are an ability's or a mode's sentences, after which a
 /// copy's choice of new targets is said.
 fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
@@ -5598,6 +5659,25 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                     dur(o, d2);
                 });
                 syn::gapped(o, apart, joined);
+                last = Out(o.0[start..].to_vec());
+                i += 2;
+                continue;
+            }
+        }
+        // "Choose target blocking creature. At the beginning of the end of
+        // combat step, destroy it.": Oracle's "Destroy target blocking
+        // creature at end of combat" through one named rewrite
+        // ([target-before-delayed]).
+        if let (Effect::Choose(c), Some(Effect::Delayed { step: s, then })) = (e, es.get(i + 1)) {
+            if let Some(joined) = target_in_delayed(c, s, then) {
+                let next = out(|o| effect(o, &es[i + 1], &cx));
+                let apart = out(|o| {
+                    o.add(full.clone());
+                    syn::joiner(o, false);
+                    o.add(next);
+                });
+                let joined = out(|o| effect(o, &joined, &cx));
+                syn::target_before_delayed(o, apart, joined);
                 last = Out(o.0[start..].to_vec());
                 i += 2;
                 continue;
@@ -5905,7 +5985,10 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                 let you = out(|o| o.w("you"));
                 syn::subject(o, you, named_or_it.clone(), named_or_it);
             }
-            _ => o.add(named_or_it),
+            _ => match lead_duration(e, &cx) {
+                Some(lead) => syn::position(o, named_or_it, lead),
+                None => o.add(named_or_it),
+            },
         }
         // Said once after a run of such copies ("copy it if …, then copy
         // it if …. You may choose new targets for the copies").

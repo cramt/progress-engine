@@ -645,7 +645,7 @@ type: Land
 > {2}{G}{U}: Until end of turn, this land becomes a 3/3 green and blue Elemental creature with hexproof. It's still a land.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Or([Mana(["G"]), Mana(["U"])]))], limits: [] }
-= Activated { cost: [Mana(Mana(["2", "G", "U"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), types: [Color(Green), Color(Blue), Subtype("elemental"), Type("creature")], gains: [Keyword { name: "hexproof", param: None }], keeps: Listed([Type("land")]), dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "G", "U"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), types: [Color(Green), Color(Blue), Subtype("elemental"), Type("creature")], gains: [Keyword { name: "hexproof", param: None }], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }], limits: [] }
 
 ## Lure of Prey
 face: Lure of Prey

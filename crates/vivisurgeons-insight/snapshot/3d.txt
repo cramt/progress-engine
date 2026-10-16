@@ -1125,7 +1125,7 @@ cost: {2}{B}{G}{U}
 > At the beginning of combat on your turn, put a -1/-1 counter on up to one target creature.
 > {1}: Until your next turn, Volrath becomes a copy of target creature with a counter on it, except it's 7/5 and it has this ability.
 = Triggered { trigger: At(Combat(Yours)), effect: [PutCounters { n: N(1), kind: "-1/-1", on: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
-= Activated { cost: [Mana(Mana(["1"]))], effect: [During { dur: UntilYourNextTurn, then: [BecomesCopy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithCounter(None)], or: None } }, dur: Permanent, except: [Is { pt: Some(Pt { power: N(7), toughness: N(5), signed: false }), adjs: [] }, HasThisAbility] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"]))], effect: [BecomesCopy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithCounter(None)], or: None } }, dur: UntilYourNextTurn, except: [Is { pt: Some(Pt { power: N(7), toughness: N(5), signed: false }), adjs: [] }, HasThisAbility] }], limits: [] }
 
 ## War Flare
 face: War Flare

@@ -795,7 +795,7 @@ cost: {1}{W}
 > When this creature enters, choose one —
 > • Tax — Until your next turn, spells your opponents cast cost {1} more to cast.
 > • Arrest — Detain target creature an opponent controls. (Until your next turn, that creature can't attack or block and its activated abilities can't be activated.)
-= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modal { choose: One, modes: [[Labelled { label: "tax", then: [During { dur: UntilYourNextTurn, then: [CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Cast(EachOpponent)], or: None } }, by: Mana(["1"]), less: false, dur: Permanent }] }] }], [Labelled { label: "arrest", then: [ActionOn { who: You, name: "detain", what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } } }] }]] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modal { choose: One, modes: [[Labelled { label: "tax", then: [CostChange { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Cast(EachOpponent)], or: None } }, by: Mana(["1"]), less: false, dur: UntilYourNextTurn }] }], [Labelled { label: "arrest", then: [ActionOn { who: You, name: "detain", what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } } }] }]] }], limits: [] }
 
 ## Tendril of the Mycotyrant
 face: Tendril of the Mycotyrant

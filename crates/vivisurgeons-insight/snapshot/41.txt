@@ -814,7 +814,7 @@ face: Psychic Trance
 type: Instant
 cost: {2}{U}{U}
 > Until end of turn, Wizards you control gain "{T}: Counter target spell."
-= Spell([During { dur: UntilEndOfTurn, then: [GrantAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("wizard")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }], limits: [] }, dur: Permanent }] }])
+= Spell([GrantAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("wizard")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }], limits: [] }, dur: UntilEndOfTurn }])
 
 ## Rakdos Carnarium
 face: Rakdos Carnarium

@@ -449,7 +449,7 @@ cost: {4}{W}{W}
 > +2: Until end of turn, Gideon becomes a 5/5 white Soldier creature that's still a planeswalker. Prevent all damage that would be dealt to him this turn. (He can't attack if he was cast this turn.)
 > −9: Exile Gideon and each creature your opponents control.
 = BROKE at "~" after: whenever you attack with two or more non-
-= Loyalty { change: N(2), effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), types: [Color(White), Subtype("soldier"), Type("creature")], gains: [], keeps: Listed([Type("planeswalker")]), dur: Permanent }] }, Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }] }
+= Loyalty { change: N(2), effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), types: [Color(White), Subtype("soldier"), Type("creature")], gains: [], keeps: Listed([Type("planeswalker")]), dur: UntilEndOfTurn }, Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }] }
 = Loyalty { change: N(-9), effect: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Exile(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } })] }
 
 ## Gleam of Authority
@@ -690,7 +690,7 @@ cost: {2}
 > {3}: Until end of turn, this creature's base power becomes equal to the number of Towns you control.
 = Keywords([Keyword { name: "flying", param: None }])
 = Activated { cost: [Tap], effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [In(Hand(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
-= Activated { cost: [Mana(Mana(["3"]))], effect: [During { dur: UntilEndOfTurn, then: [BaseBecomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, power: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("town")]], kind: None, posts: [Controller(You)], or: None } })), toughness: None, dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["3"]))], effect: [BaseBecomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, power: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("town")]], kind: None, posts: [Controller(You)], or: None } })), toughness: None, dur: UntilEndOfTurn }], limits: [] }
 
 ## Rage of Purphoros
 face: Rage of Purphoros

@@ -1026,7 +1026,7 @@ cost: {3}{R}
 > II — Until your next turn, creatures your opponents control attack each combat if able.
 > III — Each tapped creature deals damage to itself equal to its power.
 = Chapter { chapters: [1], effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: ForAsLongAs(In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Battlefield }) }] }
-= Chapter { chapters: [2], effect: [During { dur: UntilYourNextTurn, then: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, rule: AttacksEachCombat, dur: Permanent }] }] }
+= Chapter { chapters: [2], effect: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, rule: AttacksEachCombat, dur: UntilYourNextTurn }] }
 = BROKE at "equal" after: iii — each tapped creature deals damage to itself
 
 ## The Three Seasons

@@ -74,7 +74,7 @@ face: Banishing Knack
 type: Instant
 cost: {U}
 > Until end of turn, target creature gains "{T}: Return target nonland permanent to its owner's hand."
-= Spell([During { dur: UntilEndOfTurn, then: [GrantAbility { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }, dur: Permanent }] }])
+= Spell([GrantAbility { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Activated { cost: [Tap], effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }, dur: UntilEndOfTurn }])
 
 ## Basalt Gargoyle
 face: Basalt Gargoyle
@@ -249,7 +249,7 @@ type: Land
 > {1}{U}{B}: Until end of turn, this land becomes a 3/2 blue and black Elemental creature. It's still a land. It can't be blocked this turn.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Or([Mana(["U"]), Mana(["B"])]))], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "U", "B"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(2), signed: false }), types: [Color(Blue), Color(Black), Subtype("elemental"), Type("creature")], gains: [], keeps: Listed([Type("land")]), dur: Permanent }] }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "U", "B"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(2), signed: false }), types: [Color(Blue), Color(Black), Subtype("elemental"), Type("creature")], gains: [], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }, Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }], limits: [] }
 
 ## Dead Drop
 face: Dead Drop
@@ -547,7 +547,7 @@ cost: {2}{G}{U}
 > +1: Until your next turn, prevent all damage that would be dealt to and dealt by target permanent an opponent controls.
 > −1: Draw a card. You may play an additional land this turn.
 > −5: You get an emblem with "At the beginning of your end step, create a 9/9 blue Kraken creature token."
-= Loyalty { change: N(1), effect: [During { dur: UntilYourNextTurn, then: [Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } })]), by: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } }), dur: Permanent }] }] }
+= Loyalty { change: N(1), effect: [Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } })]), by: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } }), dur: UntilYourNextTurn }] }
 = Loyalty { change: N(-1), effect: [Draw { who: You, n: N(1) }, May { who: You, then: [ExtraLandPlays { n: N(1), dur: ThisTurn }] }] }
 = Loyalty { change: N(-5), effect: [Emblem([Triggered { trigger: At(EndStep(Yours)), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(9), toughness: N(9), signed: false }), colors: [Blue], types: ["kraken", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }])] }
 
@@ -950,7 +950,7 @@ cost: {4}{G}{G}
 > Graft 3 (This creature enters with three +1/+1 counters on it. Whenever another creature enters, you may move a +1/+1 counter from this creature onto it.)
 > {1}{G}: Until end of turn, target creature with a +1/+1 counter on it gains "Whenever this creature deals combat damage to a creature, destroy that creature at end of combat."
 = Keywords([Keyword { name: "graft", param: Some(N(N(3))) }])
-= Activated { cost: [Mana(Mana(["1", "G"]))], effect: [During { dur: UntilEndOfTurn, then: [GrantAbility { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithCounter(Some("+1/+1"))], or: None } }, ability: Triggered { trigger: When(DealsCombatDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }), effect: [Delayed { step: EndOfCombat(The), then: [Destroy { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] }, dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "G"]))], effect: [GrantAbility { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [WithCounter(Some("+1/+1"))], or: None } }, ability: Triggered { trigger: When(DealsCombatDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }), effect: [Delayed { step: EndOfCombat(The), then: [Destroy { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] }, dur: UntilEndOfTurn }], limits: [] }
 
 ## Simoon
 face: Simoon

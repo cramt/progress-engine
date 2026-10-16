@@ -1107,7 +1107,7 @@ cost: {3}{U}{U}
 > +1: Up to two other target planeswalkers you control phase out at the beginning of the next end step. (Treat them and anything attached to them as though they don't exist until your next turn.)
 > −2: For each opponent, return up to one target nonland permanent that player controls to its owner's hand.
 > −7: Target artifact you control becomes a 9/9 Construct artifact creature and gains vigilance, indestructible, and "This creature can't be blocked."
-= Loyalty { change: N(1), effect: [Delayed { step: EndStep(Next), then: [PhaseOut(Objects { quant: OtherTarget { n: N(2), up_to: true }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } })] }] }
+= Loyalty { change: N(1), effect: [Choose(Objects(Objects { quant: OtherTarget { n: N(2), up_to: true }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } })), Delayed { step: EndStep(Next), then: [PhaseOut(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }
 = Loyalty { change: N(-2), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [Move { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(That)], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }] }
 = BROKE at "\"" after: N(-7) : target artifact you control becomes a <pt> construct artifact creature and gains vigilance , indestructible , and
 

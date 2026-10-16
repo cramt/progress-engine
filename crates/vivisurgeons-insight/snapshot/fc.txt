@@ -364,7 +364,7 @@ type: Legendary Creature — Elf Druid
 cost: {3}{G}
 > {1}: Until end of turn, target token you control becomes a green Bear creature with base power and toughness 4/4 in addition to its other colors and types.
 > Choose a Background (You can have a Background as a second commander.)
-= Activated { cost: [Mana(Mana(["1"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Color(Green), Subtype("bear"), Type("creature")], gains: [], keeps: OtherColorsAndTypes, dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"]))], effect: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Color(Green), Subtype("bear"), Type("creature")], gains: [], keeps: OtherColorsAndTypes, dur: UntilEndOfTurn }], limits: [] }
 = Keywords([Keyword { name: "choose a background", param: None }])
 
 ## Holy Armor

@@ -815,7 +815,7 @@ cost: {U}
 > Choose one —
 > • Conceal — Until end of turn, target creature you control becomes a Citizen with base power and toughness 1/1 and gains hexproof.
 > • Reveal — Until end of turn, target creature you control becomes a Hero with base power and toughness 3/4 and gains flying and vigilance.
-= Spell([Modal { choose: One, modes: [[Labelled { label: "conceal", then: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), types: [Subtype("citizen")], gains: [Keyword { name: "hexproof", param: None }], keeps: AllButSubtypesOfSet, dur: Permanent }] }] }], [Labelled { label: "reveal", then: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(3), toughness: N(4), signed: false }), types: [Subtype("hero")], gains: [Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }], keeps: AllButSubtypesOfSet, dur: Permanent }] }] }]] }])
+= Spell([Modal { choose: One, modes: [[Labelled { label: "conceal", then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), types: [Subtype("citizen")], gains: [Keyword { name: "hexproof", param: None }], keeps: AllButSubtypesOfSet, dur: UntilEndOfTurn }] }], [Labelled { label: "reveal", then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(3), toughness: N(4), signed: false }), types: [Subtype("hero")], gains: [Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }], keeps: AllButSubtypesOfSet, dur: UntilEndOfTurn }] }]] }])
 
 ## Seedtime
 face: Seedtime
@@ -927,7 +927,7 @@ type: Instant
 cost: {2}{U}
 > Until end of turn, target creature or Vehicle becomes an artifact creature with base power and toughness 4/5.
 > Draw a card.
-= Spell([During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Subtype("vehicle")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(5), signed: false }), types: [Type("artifact"), Type("creature")], gains: [], keeps: OtherTypes, dur: Permanent }] }])
+= Spell([Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")], [Subtype("vehicle")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(5), signed: false }), types: [Type("artifact"), Type("creature")], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }])
 = Spell([Draw { who: You, n: N(1) }])
 
 ## Surly Farrier

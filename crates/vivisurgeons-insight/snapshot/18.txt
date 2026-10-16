@@ -953,7 +953,7 @@ face: Water Wings
 type: Instant
 cost: {1}{U}
 > Until end of turn, target creature you control has base power and toughness 4/4 and gains flying and hexproof. (It can't be the target of spells or abilities your opponents control.)
-= Spell([During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [], gains: [Keyword { name: "flying", param: None }, Keyword { name: "hexproof", param: None }], keeps: OtherTypes, dur: Permanent }] }])
+= Spell([Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [], gains: [Keyword { name: "flying", param: None }, Keyword { name: "hexproof", param: None }], keeps: OtherTypes, dur: UntilEndOfTurn }])
 
 ## Weaselback Redcap
 face: Weaselback Redcap

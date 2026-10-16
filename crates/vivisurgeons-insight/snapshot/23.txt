@@ -911,7 +911,7 @@ face: Titanic Ultimatum
 type: Sorcery
 cost: {R}{R}{G}{G}{G}{W}{W}
 > Until end of turn, creatures you control get +5/+5 and gain first strike, trample, and lifelink.
-= Spell([During { dur: UntilEndOfTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), gains: [Keyword { name: "first strike", param: None }, Keyword { name: "trample", param: None }, Keyword { name: "lifelink", param: None }], dur: Permanent }] }])
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: true }), gains: [Keyword { name: "first strike", param: None }, Keyword { name: "trample", param: None }, Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }])
 
 ## Tower of the Magistrate
 face: Tower of the Magistrate

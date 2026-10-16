@@ -367,7 +367,7 @@ cost: {3}{W}{W}
 > 0: Until end of turn, Gideon Jura becomes a 6/6 Human Soldier creature that's still a planeswalker. Prevent all damage that would be dealt to him this turn.
 = BROKE at "target" after: N(2) : during
 = Loyalty { change: N(-2), effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Tapped), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }] }
-= Loyalty { change: N(0), effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(6), toughness: N(6), signed: false }), types: [Subtype("human"), Subtype("soldier"), Type("creature")], gains: [], keeps: Listed([Type("planeswalker")]), dur: Permanent }] }, Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }] }
+= Loyalty { change: N(0), effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(6), toughness: N(6), signed: false }), types: [Subtype("human"), Subtype("soldier"), Type("creature")], gains: [], keeps: Listed([Type("planeswalker")]), dur: UntilEndOfTurn }, Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }] }
 
 ## Give In to Violence
 face: Give In to Violence
@@ -691,7 +691,7 @@ cost: {2}
 > As this artifact enters, choose a creature type.
 > {1}: Until end of turn, this artifact becomes a copy of target creature you control of the chosen type, except it's an artifact in addition to its other types.
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(CreatureType)] }])
-= Activated { cost: [Mana(Mana(["1"]))], effect: [During { dur: UntilEndOfTurn, then: [BecomesCopy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), OfChosenType], or: None } }, dur: Permanent, except: [AlsoIs([Type("artifact")])] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"]))], effect: [BecomesCopy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), OfChosenType], or: None } }, dur: UntilEndOfTurn, except: [AlsoIs([Type("artifact")])] }], limits: [] }
 
 ## Misfortune
 face: Misfortune
@@ -1065,7 +1065,7 @@ cost: {4}{B}{B}
 > −8: Until end of turn, each Vampire you control gains "{T}: Gain control of target creature."
 = Loyalty { change: N(1), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }
 = Loyalty { change: N(-2), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(4), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, GainLife { who: You, n: N(4) }] }
-= Loyalty { change: N(-8), effect: [During { dur: UntilEndOfTurn, then: [GrantAbility { what: Objects { quant: Each, filter: Filter { alts: [[Subtype("vampire")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: Permanent }], limits: [] }, dur: Permanent }] }] }
+= Loyalty { change: N(-8), effect: [GrantAbility { what: Objects { quant: Each, filter: Filter { alts: [[Subtype("vampire")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, dur: Permanent }], limits: [] }, dur: UntilEndOfTurn }] }
 
 ## Soul Enervation
 face: Soul Enervation

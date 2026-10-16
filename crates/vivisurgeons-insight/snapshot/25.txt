@@ -33,7 +33,7 @@ type: Legendary Planeswalker — Arlinn
 > 0: Until end of turn, Arlinn becomes a 5/5 Werewolf creature with trample, indestructible, and haste.
 = Keywords([Keyword { name: "nightbound", param: None }])
 = Loyalty { change: N(2), effect: [AddMana(Symbols(Mana(["R", "G"])))] }
-= Loyalty { change: N(0), effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), types: [Subtype("werewolf"), Type("creature")], gains: [Keyword { name: "trample", param: None }, Keyword { name: "indestructible", param: None }, Keyword { name: "haste", param: None }], keeps: Supertypes, dur: Permanent }] }] }
+= Loyalty { change: N(0), effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), types: [Subtype("werewolf"), Type("creature")], gains: [Keyword { name: "trample", param: None }, Keyword { name: "indestructible", param: None }, Keyword { name: "haste", param: None }], keeps: Supertypes, dur: UntilEndOfTurn }] }
 
 ## Armor of Thorns
 face: Armor of Thorns

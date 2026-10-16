@@ -180,7 +180,7 @@ cost: {3}{G}{G}
 > Trample
 > {1}{G}: Until end of turn, target creature you control has base power and toughness 5/5 and gains trample.
 = Keywords([Keyword { name: "trample", param: None }])
-= Activated { cost: [Mana(Mana(["1", "G"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), types: [], gains: [Keyword { name: "trample", param: None }], keeps: OtherTypes, dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "G"]))], effect: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), types: [], gains: [Keyword { name: "trample", param: None }], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] }
 
 ## Crown of Fury
 face: Crown of Fury
@@ -1036,7 +1036,7 @@ cost: {3}{B}
 > {T}: Surveil 1. (Look at the top card of your library. You may put it into your graveyard.)
 > {T}: Until end of turn, each creature card in your graveyard gains "Escape—{3}{B}, Exile four other cards from your graveyard." (You may cast a card with escape from your graveyard for its escape cost.)
 = Activated { cost: [Tap], effect: [Surveil(N(1))], limits: [] }
-= Activated { cost: [Tap], effect: [During { dur: UntilEndOfTurn, then: [GrantAbility { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, ability: Keywords([Keyword { name: "escape", param: Some(Cost([Mana(Mana(["3", "B"])), Exile(Objects { quant: N(N(4)), filter: Filter { alts: [[State(Other)]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })])) }]), dur: Permanent }] }], limits: [] }
+= Activated { cost: [Tap], effect: [GrantAbility { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, ability: Keywords([Keyword { name: "escape", param: Some(Cost([Mana(Mana(["3", "B"])), Exile(Objects { quant: N(N(4)), filter: Filter { alts: [[State(Other)]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })])) }]), dur: UntilEndOfTurn }], limits: [] }
 
 ## The Red Terror
 face: The Red Terror

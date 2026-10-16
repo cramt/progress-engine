@@ -558,7 +558,7 @@ cost: {W}{B}{G}
 > Legendary spells you cast cost {1} less to cast.
 > Exile two legendary cards from your graveyard: Until end of turn, each legendary card in your graveyard gains "You may play this card from your graveyard."
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Supertype("legendary")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: None }])
-= Activated { cost: [Exile(Objects { quant: N(N(2)), filter: Filter { alts: [[Supertype("legendary")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [During { dur: UntilEndOfTurn, then: [GrantAbility { what: Objects { quant: Each, filter: Filter { alts: [[Supertype("legendary")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, ability: Static([PlayFrom { verb: Play, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }]), dur: Permanent }] }], limits: [] }
+= Activated { cost: [Exile(Objects { quant: N(N(2)), filter: Filter { alts: [[Supertype("legendary")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } })], effect: [GrantAbility { what: Objects { quant: Each, filter: Filter { alts: [[Supertype("legendary")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, ability: Static([PlayFrom { verb: Play, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Graveyard(You) }]), dur: UntilEndOfTurn }], limits: [] }
 
 ## Kolaghan Monument
 face: Kolaghan Monument

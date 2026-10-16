@@ -697,7 +697,7 @@ cost: {4}{G}
 > • Untap all lands you control.
 > • Until end of turn, lands you control become 2/2 creatures that are still lands.
 > Entwine {2}{G} (Choose both if you pay the entwine cost.)
-= Spell([Modal { choose: One, modes: [[Untap(Objects { quant: All, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })], [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), types: [Type("creature")], gains: [], keeps: Listed([Type("land")]), dur: Permanent }] }]] }])
+= Spell([Modal { choose: One, modes: [[Untap(Objects { quant: All, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })], [Becomes { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), types: [Type("creature")], gains: [], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }]] }])
 = Keywords([Keyword { name: "entwine", param: Some(Cost([Mana(Mana(["2", "G"]))])) }])
 
 ## Sacrifice
@@ -715,7 +715,7 @@ type: Sorcery
 cost: {G}
 > Until end of turn, target creature you control becomes a green Wurm with base power and toughness 6/4.
 > Overload {4}{G}{G} (You may cast this spell for its overload cost. If you do, change "target" in its text to "each.")
-= Spell([During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(6), toughness: N(4), signed: false }), types: [Color(Green), Subtype("wurm")], gains: [], keeps: AllButSubtypesOfSet, dur: Permanent }] }])
+= Spell([Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(6), toughness: N(4), signed: false }), types: [Color(Green), Subtype("wurm")], gains: [], keeps: AllButSubtypesOfSet, dur: UntilEndOfTurn }])
 = Keywords([Keyword { name: "overload", param: Some(Cost([Mana(Mana(["4", "G", "G"]))])) }])
 
 ## Scuttling Sentinel

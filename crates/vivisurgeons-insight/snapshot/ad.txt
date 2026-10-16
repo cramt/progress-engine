@@ -40,7 +40,7 @@ type: Legendary Planeswalker — Arlinn
 cost: {2}{R}{G}
 > +1: Until end of turn, up to one target creature gets +2/+2 and gains vigilance and haste.
 > 0: Create a 2/2 green Wolf creature token. Transform Arlinn Kord.
-= Loyalty { change: N(1), effect: [During { dur: UntilEndOfTurn, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [Keyword { name: "vigilance", param: None }, Keyword { name: "haste", param: None }], dur: Permanent }] }] }
+= Loyalty { change: N(1), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [Keyword { name: "vigilance", param: None }, Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }] }
 = Loyalty { change: N(0), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Green], types: ["wolf", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }
 
 ## Arlinn Kord // Arlinn, Embraced by the Moon
@@ -1015,7 +1015,7 @@ face: Triumph of the Hordes
 type: Sorcery
 cost: {2}{G}{G}
 > Until end of turn, creatures you control get +1/+1 and gain trample and infect. (Creatures with infect deal damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)
-= Spell([During { dur: UntilEndOfTurn, then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [Keyword { name: "trample", param: None }, Keyword { name: "infect", param: None }], dur: Permanent }] }])
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [Keyword { name: "trample", param: None }, Keyword { name: "infect", param: None }], dur: UntilEndOfTurn }])
 
 ## Valiant Guard
 face: Valiant Guard

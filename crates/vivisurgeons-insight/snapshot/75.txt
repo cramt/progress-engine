@@ -21,7 +21,7 @@ face: Animate Land
 type: Instant
 cost: {G}
 > Until end of turn, target land becomes a 3/3 creature that's still a land.
-= Spell([During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), types: [Type("creature")], gains: [], keeps: Listed([Type("land")]), dur: Permanent }] }])
+= Spell([Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), types: [Type("creature")], gains: [], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }])
 
 ## Arachnogenesis
 face: Arachnogenesis
@@ -448,7 +448,7 @@ type: Land
 > {1}{B}{G}: Until end of turn, this land becomes a 2/2 black and green Elemental creature with deathtouch. It's still a land.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Or([Mana(["B"]), Mana(["G"])]))], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "B", "G"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), types: [Color(Black), Color(Green), Subtype("elemental"), Type("creature")], gains: [Keyword { name: "deathtouch", param: None }], keeps: Listed([Type("land")]), dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "B", "G"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), types: [Color(Black), Color(Green), Subtype("elemental"), Type("creature")], gains: [Keyword { name: "deathtouch", param: None }], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }], limits: [] }
 
 ## Honey Mammoth
 face: Honey Mammoth

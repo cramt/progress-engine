@@ -572,7 +572,7 @@ cost: {U}
 > + {1} — Until end of turn, target creature becomes a white Rabbit with base power and toughness 0/1.
 > + {3} — Target player draws two cards.
 = Keywords([Keyword { name: "spree", param: None }])
-= Spree { cost: Mana(["1"]), effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), types: [Color(White), Subtype("rabbit")], gains: [], keeps: AllButSubtypesOfSet, dur: Permanent }] }] }
+= Spree { cost: Mana(["1"]), effect: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), types: [Color(White), Subtype("rabbit")], gains: [], keeps: AllButSubtypesOfSet, dur: UntilEndOfTurn }] }
 = Spree { cost: Mana(["3"]), effect: [Draw { who: Target, n: N(2) }] }
 
 ## Mikey & Don, Party Planners

@@ -2298,6 +2298,54 @@ impl Effect {
     }
 }
 
+impl Effect {
+    /// The effect's own duration, for an effect that lasts: "gets +1/+1
+    /// until end of turn", "gains "…" until end of turn".
+    pub fn dur_mut(&mut self) -> Option<&mut Duration> {
+        match self {
+            Effect::AlsoIs { dur, .. }
+            | Effect::BaseBecomes { dur, .. }
+            | Effect::Becomes { dur, .. }
+            | Effect::BecomesCopy { dur, .. }
+            | Effect::BecomesSized { dur, .. }
+            | Effect::Cast { dur, .. }
+            | Effect::CastAsThoughFlash { dur, .. }
+            | Effect::CostChange { dur, .. }
+            | Effect::ExtraLandPlays { dur, .. }
+            | Effect::GainControl { dur, .. }
+            | Effect::GainsChoiceOf { dur, .. }
+            | Effect::GrantAbility { dur, .. }
+            | Effect::LookAt { dur, .. }
+            | Effect::LoseAbility { dur, .. }
+            | Effect::LoseKeywords { dur, .. }
+            | Effect::Loses { dur, .. }
+            | Effect::Modify { dur, .. }
+            | Effect::NoMaxHandSize { dur, .. }
+            | Effect::PlayerGains { dur, .. }
+            | Effect::PlayerRestrict { dur, .. }
+            | Effect::Prevent { dur, .. }
+            | Effect::Restrict { dur, .. }
+            | Effect::SpendAsAnyColor { dur, .. }
+            | Effect::SpendAsAnyType { dur, .. } => Some(dur),
+            _ => None,
+        }
+    }
+}
+
+/// The one targeted object of a clause a trailing step delays, as
+/// [target-before-delayed] chooses it before the delayed trigger.
+pub fn delayed_target_mut(e: &mut Effect) -> Option<&mut Objects> {
+    let x = match e {
+        Effect::Destroy { what, .. } => what,
+        e => e.sole_object_mut()?,
+    };
+    matches!(
+        x.quant,
+        Quant::Target { .. } | Quant::OtherTarget { .. } | Quant::AnotherTarget
+    )
+    .then_some(x)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PhaseKind {
     Combat,

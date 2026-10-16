@@ -333,7 +333,7 @@ cost: {1}{W}{W}
 > 0: Until end of turn, Gideon becomes a 4/4 Human Soldier creature with indestructible that's still a planeswalker. Prevent all damage that would be dealt to him this turn.
 > 0: You get an emblem with "As long as you control a Gideon planeswalker, you can't lose the game and your opponents can't win the game."
 = BROKE at "target" after: N(1) : until your next turn , prevent all damage
-= Loyalty { change: N(0), effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Subtype("human"), Subtype("soldier"), Type("creature")], gains: [Keyword { name: "indestructible", param: None }], keeps: Listed([Type("planeswalker")]), dur: Permanent }] }, Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }] }
+= Loyalty { change: N(0), effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Subtype("human"), Subtype("soldier"), Type("creature")], gains: [Keyword { name: "indestructible", param: None }], keeps: Listed([Type("planeswalker")]), dur: UntilEndOfTurn }, Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })]), by: None, dur: ThisTurn }] }
 = BROKE at "planeswalker" after: 0 : you get an emblem with " as long as you control a ~
 
 ## Glarewielder
@@ -1057,7 +1057,7 @@ cost: {2}{G}
 > +1: Until your next turn, up to one target creature gains reach and vigilance.
 > −2: Look at the top three cards of your library. Exile one face down and put the rest on the bottom of your library in any order. For as long as it remains exiled, you may cast it if it's a creature spell.
 = Static([CastAsThoughFlash(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } })])
-= Loyalty { change: N(1), effect: [During { dur: UntilYourNextTurn, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "reach", param: None }, Keyword { name: "vigilance", param: None }], dur: Permanent }] }] }
+= Loyalty { change: N(1), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "reach", param: None }, Keyword { name: "vigilance", param: None }], dur: UntilYourNextTurn }] }
 = BROKE at "down" after: N(-2) : look at the top three cards of your library . exile one face
 
 ## Vodalian Illusionist

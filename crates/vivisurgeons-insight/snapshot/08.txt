@@ -492,7 +492,7 @@ type: Sorcery
 cost: {1}{U}
 > Until your next turn, creatures target player controls have base power and toughness 1/1.
 > Flashback {3}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([During { dur: UntilYourNextTurn, then: [Becomes { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), types: [], gains: [], keeps: OtherTypes, dur: Permanent }] }])
+= Spell([Becomes { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), types: [], gains: [], keeps: OtherTypes, dur: UntilYourNextTurn }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["3", "U"]))])) }])
 
 ## Mirri's Guile

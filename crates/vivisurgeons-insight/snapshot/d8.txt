@@ -1205,7 +1205,7 @@ face: War Tax
 type: Enchantment
 cost: {2}{U}
 > {X}{U}: This turn, creatures can't attack unless their controller pays {X} for each attacking creature they control.
-= Activated { cost: [Mana(Mana(["X", "U"]))], effect: [During { dur: ThisTurn, then: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantAttack, who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["X"]))], per: Some(Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [Controller(That)], or: None } }) }, dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["X", "U"]))], effect: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantAttack, who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["X"]))], per: Some(Objects { quant: Plural, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [Controller(That)], or: None } }) }, dur: ThisTurn }], limits: [] }
 
 ## Warcry Phoenix
 face: Warcry Phoenix

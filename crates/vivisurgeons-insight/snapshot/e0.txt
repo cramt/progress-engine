@@ -409,7 +409,7 @@ type: Land
 > {5}{U}: Until end of turn, this land becomes a 7/7 blue Giant creature with ward {3}. It's still a land. (Whenever it becomes the target of a spell or ability an opponent controls, counter it unless that player pays {3}.)
 = Static([If { cond: YouControl(Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[State(Other), Type("land")]], kind: None, posts: [], or: None } }), then: [EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["U"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["5", "U"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(7), toughness: N(7), signed: false }), types: [Color(Blue), Subtype("giant"), Type("creature")], gains: [Keyword { name: "ward", param: Some(Cost([Mana(Mana(["3"]))])) }], keeps: Listed([Type("land")]), dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["5", "U"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(7), toughness: N(7), signed: false }), types: [Color(Blue), Subtype("giant"), Type("creature")], gains: [Keyword { name: "ward", param: Some(Cost([Mana(Mana(["3"]))])) }], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }], limits: [] }
 
 ## Hanweir Battlements
 face: Hanweir Battlements

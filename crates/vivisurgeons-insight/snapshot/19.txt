@@ -544,7 +544,7 @@ cost: {2}{U}{U/P}
 > −2: Target player mills three cards. Then if a graveyard has twenty or more cards in it, you draw three cards. Otherwise, you draw a card.
 > −X: Target player mills three times X cards.
 = Keywords([Keyword { name: "compleated", param: None }])
-= Loyalty { change: N(1), effect: [During { dur: UntilYourNextTurn, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-3), toughness: N(0), signed: true }), gains: [], dur: Permanent }] }] }
+= Loyalty { change: N(1), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-3), toughness: N(0), signed: true }), gains: [], dur: UntilYourNextTurn }] }
 = Loyalty { change: N(-2), effect: [Mill { who: Target, n: N(3) }, If { cond: ZoneHasCards { zone: AGraveyard, op: Ge, n: 20 }, then: [Draw { who: You, n: N(3) }] }, Otherwise([Draw { who: You, n: N(1) }])] }
 = Loyalty { change: MinusX, effect: [Mill { who: Target, n: Thrice(X) }] }
 

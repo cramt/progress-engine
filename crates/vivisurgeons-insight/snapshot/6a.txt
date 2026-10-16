@@ -923,7 +923,7 @@ cost: {1}{W}{W}
 > {3}{W}{W}{W}: Until end of turn, this creature gets +2/+2 and gains lifelink.
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: InterveningIf(At(EndStep(Each)), AmountIs { n: LifeGainedThisTurn(You), op: Ge, value: N(5) }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [White], types: ["angel", "creature"], keywords: [Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }], abilities: [], named: None, attacking: None } }], limits: [] }
-= Activated { cost: [Mana(Mana(["3", "W", "W", "W"]))], effect: [During { dur: UntilEndOfTurn, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [Keyword { name: "lifelink", param: None }], dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["3", "W", "W", "W"]))], effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Revitalizing Repast // Old-Growth Grove
 face: Revitalizing Repast

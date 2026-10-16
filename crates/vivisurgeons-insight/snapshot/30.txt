@@ -896,7 +896,7 @@ type: Land
 > {1}{G}{W}: Until end of turn, this land becomes a 3/4 green and white Elemental creature with reach. It's still a land.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Or([Mana(["G"]), Mana(["W"])]))], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "G", "W"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(4), signed: false }), types: [Color(Green), Color(White), Subtype("elemental"), Type("creature")], gains: [Keyword { name: "reach", param: None }], keeps: Listed([Type("land")]), dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "G", "W"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(4), signed: false }), types: [Color(Green), Color(White), Subtype("elemental"), Type("creature")], gains: [Keyword { name: "reach", param: None }], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }], limits: [] }
 
 ## Storm God's Oracle
 face: Storm God's Oracle

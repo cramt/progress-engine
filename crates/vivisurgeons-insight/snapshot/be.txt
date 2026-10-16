@@ -1187,7 +1187,7 @@ face: War Cadence
 type: Enchantment
 cost: {2}{R}
 > {X}{R}: This turn, creatures can't block unless their controller pays {X} for each blocking creature they control.
-= Activated { cost: [Mana(Mana(["X", "R"]))], effect: [During { dur: ThisTurn, then: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantBlock, who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["X"]))], per: Some(Objects { quant: Plural, filter: Filter { alts: [[State(Blocking), Type("creature")]], kind: None, posts: [Controller(That)], or: None } }) }, dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["X", "R"]))], effect: [Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: UnlessPays { rule: CantBlock, who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), cost: [Mana(Mana(["X"]))], per: Some(Objects { quant: Plural, filter: Filter { alts: [[State(Blocking), Type("creature")]], kind: None, posts: [Controller(That)], or: None } }) }, dur: ThisTurn }], limits: [] }
 
 ## Warren Torchmaster
 face: Warren Torchmaster
@@ -1220,7 +1220,7 @@ cost: {4}{U}{U}
 > Partner with Rowan Kenrith
 > Will Kenrith can be your commander.
 = BROKE at "have" after: N(2) : until your next turn , up to two target creatures each
-= Loyalty { change: N(-2), effect: [Draw { who: Target, n: N(2) }, During { dur: UntilYourNextTurn, then: [CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")], [Type("planeswalker")]], kind: Some(Spell), posts: [Cast(That)], or: None } }, by: Mana(["2"]), less: true, dur: Permanent }] }] }
+= Loyalty { change: N(-2), effect: [Draw { who: Target, n: N(2) }, CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")], [Type("planeswalker")]], kind: Some(Spell), posts: [Cast(That)], or: None } }, by: Mana(["2"]), less: true, dur: UntilYourNextTurn }] }
 = Loyalty { change: N(-8), effect: [EmblemFor { who: Target, abilities: [Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Copy { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: true }], limits: [] }] }] }
 = Keywords([Keyword { name: "partner with", param: Some(PartnerWith("rowan kenrith")) }])
 = Static([CanBeCommander])

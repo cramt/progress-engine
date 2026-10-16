@@ -463,7 +463,7 @@ cost: {3}
 > {U}{R}: Until end of turn, this artifact becomes a 2/1 blue and red Elemental artifact creature.
 > Whenever this artifact deals combat damage to a player, you may draw a card. If you do, discard a card.
 = Activated { cost: [Tap], effect: [AddMana(Or([Mana(["U"]), Mana(["R"])]))], limits: [] }
-= Activated { cost: [Mana(Mana(["U", "R"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), types: [Color(Blue), Color(Red), Subtype("elemental"), Type("artifact"), Type("creature")], gains: [], keeps: AllButSubtypesOfSet, dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["U", "R"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), types: [Color(Blue), Color(Red), Subtype("elemental"), Type("artifact"), Type("creature")], gains: [], keeps: AllButSubtypesOfSet, dur: UntilEndOfTurn }], limits: [] }
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }, IfYouDo([Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }])], limits: [] }
 
 ## Josu Vess, Lich Knight
@@ -583,7 +583,7 @@ type: Land
 > {2}{R}{W}: Until end of turn, this land becomes a 2/1 red and white Elemental creature with double strike. It's still a land.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Or([Mana(["R"]), Mana(["W"])]))], limits: [] }
-= Activated { cost: [Mana(Mana(["2", "R", "W"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), types: [Color(Red), Color(White), Subtype("elemental"), Type("creature")], gains: [Keyword { name: "double strike", param: None }], keeps: Listed([Type("land")]), dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "R", "W"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), types: [Color(Red), Color(White), Subtype("elemental"), Type("creature")], gains: [Keyword { name: "double strike", param: None }], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }], limits: [] }
 
 ## Neutralize
 face: Neutralize
@@ -906,7 +906,7 @@ type: Instant
 cost: {1}{U}
 > Until end of turn, target creature becomes a blue Serpent with base power and toughness 4/4.
 > Cycling {1} ({1}, Discard this card: Draw a card.)
-= Spell([During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Color(Blue), Subtype("serpent")], gains: [], keeps: AllButSubtypesOfSet, dur: Permanent }] }])
+= Spell([Becomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Color(Blue), Subtype("serpent")], gains: [], keeps: AllButSubtypesOfSet, dur: UntilEndOfTurn }])
 = Keywords([Keyword { name: "cycling", param: Some(Cost([Mana(Mana(["1"]))])) }])
 
 ## Stone of Erech

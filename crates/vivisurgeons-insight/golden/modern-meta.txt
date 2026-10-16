@@ -1999,7 +1999,7 @@ type: Land
 > {5}{U}: Until end of turn, this land becomes a 7/7 blue Giant creature with ward {3}. It's still a land. (Whenever it becomes the target of a spell or ability an opponent controls, counter it unless that player pays {3}.)
 = Static([If { cond: YouControl(Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[State(Other), Type("land")]], kind: None, posts: [], or: None } }), then: [EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["U"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["5", "U"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(7), toughness: N(7), signed: false }), types: [Color(Blue), Subtype("giant"), Type("creature")], gains: [Keyword { name: "ward", param: Some(Cost([Mana(Mana(["3"]))])) }], keeps: Listed([Type("land")]), dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["5", "U"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(7), toughness: N(7), signed: false }), types: [Color(Blue), Subtype("giant"), Type("creature")], gains: [Keyword { name: "ward", param: Some(Cost([Mana(Mana(["3"]))])) }], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }], limits: [] }
 
 ## Hallowed Fountain
 face: Hallowed Fountain
@@ -2278,7 +2278,7 @@ cost: {2}{U}{U/P}
 > −2: Target player mills three cards. Then if a graveyard has twenty or more cards in it, you draw three cards. Otherwise, you draw a card.
 > −X: Target player mills three times X cards.
 = Keywords([Keyword { name: "compleated", param: None }])
-= Loyalty { change: N(1), effect: [During { dur: UntilYourNextTurn, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-3), toughness: N(0), signed: true }), gains: [], dur: Permanent }] }] }
+= Loyalty { change: N(1), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(-3), toughness: N(0), signed: true }), gains: [], dur: UntilYourNextTurn }] }
 = Loyalty { change: N(-2), effect: [Mill { who: Target, n: N(3) }, If { cond: ZoneHasCards { zone: AGraveyard, op: Ge, n: 20 }, then: [Draw { who: You, n: N(3) }] }, Otherwise([Draw { who: You, n: N(1) }])] }
 = Loyalty { change: MinusX, effect: [Mill { who: Target, n: Thrice(X) }] }
 
@@ -2342,7 +2342,7 @@ cost: {4}
 > +1: Until your next turn, up to one target noncreature artifact becomes an artifact creature with power and toughness each equal to its mana value.
 > −2: You may reveal an artifact card you own from outside the game or choose a face-up artifact card you own in exile. Put that card into your hand.
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, rule: NoActivatedAbilities }])
-= Loyalty { change: N(1), effect: [During { dur: UntilYourNextTurn, then: [BecomesSized { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Non("creature"), Type("artifact")]], kind: None, posts: [], or: None } }, types: [Type("artifact"), Type("creature")], keeps: OtherTypes, each_equal_to: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: Permanent }] }] }
+= Loyalty { change: N(1), effect: [BecomesSized { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Non("creature"), Type("artifact")]], kind: None, posts: [], or: None } }, types: [Type("artifact"), Type("creature")], keeps: OtherTypes, each_equal_to: ManaValueOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), dur: UntilYourNextTurn }] }
 = Loyalty { change: N(-2), effect: [May { who: You, then: [Or([Reveal { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [Owner(You), In(OutsideTheGame)], or: None } } }, Choose(Objects(Objects { quant: One, filter: Filter { alts: [[State(FaceUp), Type("artifact")]], kind: Some(Card), posts: [Owner(You), In(Exile)], or: None } }))]), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }] }
 
 ## Kaya's Guile
@@ -3366,7 +3366,7 @@ type: Legendary Planeswalker — Ral
 > −2: Ral deals 2 damage divided as you choose among one or two targets. Draw a card if you control a blue permanent other than Ral.
 > −8: Exile the top eight cards of your library. You may cast instant and sorcery spells from among them this turn without paying their mana costs.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: Additional(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [CastThisTurn(You)], or: None } })), kind: "loyalty" }])
-= Loyalty { change: N(1), effect: [During { dur: UntilYourNextTurn, then: [CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, dur: Permanent }] }] }
+= Loyalty { change: N(1), effect: [CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, dur: UntilYourNextTurn }] }
 = Loyalty { change: N(-2), effect: [DamageDivided { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), among: Objects { quant: AnyTarget { n: Between(1, 2) }, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, If { cond: YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Permanent), posts: [OtherThanSelf], or: None } }), then: [Draw { who: You, n: N(1) }] }] }
 = Loyalty { change: N(-8), effect: [Exile(Objects { quant: N(N(8)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [FromAmongThem], or: None } }, payment: Free, dur: ThisTurn }] }] }
 

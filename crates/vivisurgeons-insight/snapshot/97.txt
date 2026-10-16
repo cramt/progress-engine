@@ -658,7 +658,7 @@ face: Rain of Filth
 type: Instant
 cost: {B}
 > Until end of turn, lands you control gain "Sacrifice this land: Add {B}."
-= Spell([During { dur: UntilEndOfTurn, then: [GrantAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [AddMana(Symbols(Mana(["B"])))], limits: [] }, dur: Permanent }] }])
+= Spell([GrantAbility { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [AddMana(Symbols(Mana(["B"])))], limits: [] }, dur: UntilEndOfTurn }])
 
 ## Ratchet, Field Medic // Ratchet, Rescue Racer
 face: Ratchet, Field Medic

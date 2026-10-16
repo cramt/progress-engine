@@ -731,7 +731,7 @@ type: Land
 > Whenever this land attacks, target player mills four cards.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Or([Mana(["U"]), Mana(["B"])]))], limits: [] }
-= Activated { cost: [Mana(Mana(["2", "U", "B"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Color(Blue), Color(Black), Subtype("shark"), Type("creature")], gains: [Keyword { name: "deathtouch", param: None }], keeps: Listed([Type("land")]), dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "U", "B"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), types: [Color(Blue), Color(Black), Subtype("shark"), Type("creature")], gains: [Keyword { name: "deathtouch", param: None }], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }], limits: [] }
 = Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Mill { who: Target, n: N(4) }], limits: [] }
 
 ## Rimeshield Frost Giant
@@ -800,7 +800,7 @@ cost: {U}
 > • Target player draws a card at the beginning of the next turn's upkeep.
 > • Target creature gains flying until end of turn.
 > • Target creature an opponent controls phases out. (While it's phased out, it's treated as though it doesn't exist. It phases in before its controller untaps during their next untap step.)
-= Spell([Modal { choose: One, modes: [[Delayed { step: Upkeep(NextTurns), then: [Draw { who: Target, n: N(1) }] }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }], [PhaseOut(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } })]] }])
+= Spell([Modal { choose: One, modes: [[Choose(TargetPlayer), Delayed { step: Upkeep(NextTurns), then: [Draw { who: That, n: N(1) }] }], [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }], [PhaseOut(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } })]] }])
 
 ## Sasaya, Orochi Ascendant // Sasaya's Essence
 face: Sasaya, Orochi Ascendant

@@ -682,7 +682,7 @@ face: Swift Justice
 type: Instant
 cost: {W}
 > Until end of turn, target creature gets +1/+0 and gains first strike and lifelink.
-= Spell([During { dur: UntilEndOfTurn, then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [Keyword { name: "first strike", param: None }, Keyword { name: "lifelink", param: None }], dur: Permanent }] }])
+= Spell([Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [Keyword { name: "first strike", param: None }, Keyword { name: "lifelink", param: None }], dur: UntilEndOfTurn }])
 
 ## Tangle Tumbler
 face: Tangle Tumbler

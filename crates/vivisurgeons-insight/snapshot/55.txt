@@ -719,7 +719,7 @@ type: Land
 > {1}{W}{B}: Until end of turn, this land becomes a 2/3 white and black Elemental creature with lifelink. It's still a land.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Or([Mana(["W"]), Mana(["B"])]))], limits: [] }
-= Activated { cost: [Mana(Mana(["1", "W", "B"]))], effect: [During { dur: UntilEndOfTurn, then: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(3), signed: false }), types: [Color(White), Color(Black), Subtype("elemental"), Type("creature")], gains: [Keyword { name: "lifelink", param: None }], keeps: Listed([Type("land")]), dur: Permanent }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "W", "B"]))], effect: [Becomes { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(3), signed: false }), types: [Color(White), Color(Black), Subtype("elemental"), Type("creature")], gains: [Keyword { name: "lifelink", param: None }], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }], limits: [] }
 
 ## Skyshroud Vampire
 face: Skyshroud Vampire

@@ -266,7 +266,7 @@ cost: {2}{W/U}
 > Artifact, instant, and sorcery spells your opponents cast cost {1} more to cast.
 > −1: Until your next turn, prevent all damage that would be dealt to and dealt by target permanent an opponent controls.
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")], [Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Cast(EachOpponent)], or: None } }, by: Mana(["1"]), less: false, per: None }])
-= Loyalty { change: N(-1), effect: [During { dur: UntilYourNextTurn, then: [Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } })]), by: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } }), dur: Permanent }] }] }
+= Loyalty { change: N(-1), effect: [Prevent { combat_only: false, n: None, to: Some([Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } })]), by: Some(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } }), dur: UntilYourNextTurn }] }
 
 ## Duskwatch Recruiter // Krallenhorde Howler
 face: Duskwatch Recruiter
