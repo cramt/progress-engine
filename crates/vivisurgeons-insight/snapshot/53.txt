@@ -95,7 +95,7 @@ cost: {1}{R}
 > Whenever you cast a Spirit or Arcane spell, you may put a ki counter on this creature.
 > {1}, Remove X ki counters from this creature: For each counter removed, this creature gets +2/+0 until end of turn.
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("spirit")], [Subtype("arcane")]], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [PutCounters { n: N(1), kind: "ki", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
-= BROKE at "removed" after: {1} , remove x ki counters from this creature : for each counter
+= BROKE at "," after: {1} , remove x ki counters from this creature : for each counter removed
 
 ## Bladestitched Skaab
 face: Bladestitched Skaab
@@ -530,7 +530,7 @@ face: Hex Parasite
 type: Artifact Creature — Phyrexian Insect
 cost: {1}
 > {X}{B/P}: Remove up to X counters from target permanent. For each counter removed this way, this creature gets +1/+0 until end of turn. ({B/P} can be paid with either {B} or 2 life.)
-= BROKE at "removed" after: {X} {B/P} : remove up to x counters from target permanent . for each counter
+= Activated { cost: [Mana(Mana(["X", "B/P"]))], effect: [RemoveAnyCounters { n: UpTo(X), from: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(None)), posts: [Marked(Removed)], or: None } }, then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Homura, Human Ascendant // Homura's Essence
 face: Homura, Human Ascendant

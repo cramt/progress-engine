@@ -1196,6 +1196,9 @@ pub enum Marked {
     Tapped,
     Milled,
     Discarded,
+    /// "for each counter removed this way" (Nexus Mentality): removed by
+    /// the effect before.
+    Removed,
 }
 
 #[derive(Clone, Debug, PartialEq)]

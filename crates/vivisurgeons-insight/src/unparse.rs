@@ -4003,6 +4003,7 @@ fn marked_word(m: Marked) -> &'static str {
         Marked::Tapped => "tapped",
         Marked::Milled => "milled",
         Marked::Discarded => "discarded",
+        Marked::Removed => "removed",
     }
 }
 

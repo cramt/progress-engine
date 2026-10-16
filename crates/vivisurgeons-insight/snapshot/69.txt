@@ -193,7 +193,7 @@ cost: {3}{W}
 > If damage would be dealt to you, put that many delay counters on this enchantment instead.
 > At the beginning of your upkeep, remove all delay counters from this enchantment. For each delay counter removed this way, you lose 1 life unless you pay {1}{W}.
 = BROKE at "," after: if damage would be dealt to you
-= BROKE at "removed" after: at the beginning of your upkeep , remove all delay counters from this enchantment . for each delay counter
+= Triggered { trigger: At(Upkeep(Yours)), effect: [RemoveAllCountersOf { kind: "delay", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("delay"))), posts: [Marked(Removed)], or: None } }, then: [Unless { effect: LoseLife { who: You, n: N(1) }, who: You, cost: [Mana(Mana(["1", "W"]))] }] }], limits: [] }
 
 ## Descent of the Dragons
 face: Descent of the Dragons

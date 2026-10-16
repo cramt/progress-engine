@@ -1533,6 +1533,7 @@ fn marked_this_way(p: &mut P) -> Option<Marked> {
     alt!(p;
         marked,
         |p| p.word("tapped").map(|_| Marked::Tapped),
+        |p| p.word("removed").map(|_| Marked::Removed),
     )
 }
 

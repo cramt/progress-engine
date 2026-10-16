@@ -715,7 +715,7 @@ cost: {3}{U}
 > Choose one. If you control a commander as you cast this spell, you may choose both instead.
 > • Move all counters from target nonland permanent you control onto another target nonland permanent you control.
 > • Remove all counters from target nonland permanent you control. Draw a card for each counter removed this way.
-= BROKE at "removed" after: choose one . if you control a commander as you cast this spell , you may choose both instead . • move all counters from target nonland permanent you control onto another target nonland permanent you control . • remove all counters from target nonland permanent you control . draw a card for each counter
+= Spell([Modal { choose: Upgrade { base: One, cond: AsYouCastIt(YouControl(Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } })), to: N(2), may: true }, modes: [[MoveCounters { counters: Objects { quant: All, filter: Filter { alts: [], kind: Some(Counter(None)), posts: [], or: None } }, from: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(You)], or: None } }, to: Objects { quant: AnotherTarget, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(You)], or: None } } }], [RemoveAllCounters(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(You)], or: None } }), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(None)), posts: [Marked(Removed)], or: None } }, then: [Draw { who: You, n: N(1) }] }]] }])
 
 ## Night Market
 face: Night Market

@@ -218,7 +218,7 @@ cost: {3}
 > At the beginning of your first main phase, remove all charge counters from this artifact. Add one mana of any color for each charge counter removed this way.
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
 = Activated { cost: [Tap], effect: [PutCounters { n: N(1), kind: "charge", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "removed" after: at the beginning of your first main phase , remove all charge counters from this artifact . add one mana of any color for each charge counter
+= Triggered { trigger: At(PrecombatMain(Yours)), effect: [RemoveAllCountersOf { kind: "charge", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("charge"))), posts: [Marked(Removed)], or: None } }, then: [AddMana(Of { n: N(1), pick: AnyColor, within: None })] }], limits: [] }
 
 ## Colossal Whale
 face: Colossal Whale

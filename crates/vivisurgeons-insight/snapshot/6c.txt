@@ -1011,7 +1011,7 @@ cost: {4}{B}{B}
 > Flying
 > As this creature enters, remove all counters from all permanents. This creature enters with a +1/+1 counter on it for each counter removed this way.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "removed" after: as this creature enters , remove all counters from all permanents . this creature enters with a <pt> counter on it for each counter
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [RemoveAllCounters(Objects { quant: All, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })] }, EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(None)), posts: [Marked(Removed)], or: None } }), kind: "+1/+1" }])
 
 ## Thornspire Verge
 face: Thornspire Verge

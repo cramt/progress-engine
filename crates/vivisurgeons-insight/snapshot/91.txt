@@ -657,7 +657,7 @@ cost: {2}{B}
 > When you cast this spell, remove all counters from up to one target permanent or opponent. The next spell you cast this turn costs {1} less to cast for each counter removed this way.
 > Deathtouch
 = Keywords([Keyword { name: "devoid", param: None }])
-= BROKE at "removed" after: when you cast this spell , remove all counters from up to one target permanent or opponent . the next spell you cast this turn costs {1} less to cast for each counter
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [RemoveAllCounters(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: Some(Filter { alts: [], kind: Some(Opponent), posts: [], or: None }) } }), ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(None)), posts: [Marked(Removed)], or: None } }, then: [CostChange { what: Objects { quant: Next, filter: Filter { alts: [], kind: Some(Spell), posts: [WillCastThisTurn(You)], or: None } }, by: Mana(["1"]), less: true, dur: Permanent }] }], limits: [] }
 = Keywords([Keyword { name: "deathtouch", param: None }])
 
 ## Mystic Reflection
