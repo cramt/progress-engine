@@ -736,7 +736,7 @@ face: Phyrexian Infiltrator
 type: Creature — Phyrexian Minion
 cost: {2}{B}
 > {2}{U}{U}: Exchange control of this creature and target creature. (This effect lasts indefinitely.)
-= BROKE at "of" after: {2} {U} {U} : exchange control
+= Activated { cost: [Mana(Mana(["2", "U", "U"]))], effect: [ExchangeControl([Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }])], limits: [] }
 
 ## Proud Pack-Rhino
 face: Proud Pack-Rhino

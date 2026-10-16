@@ -664,7 +664,7 @@ face: Role Reversal
 type: Sorcery
 cost: {U}{U}{R}
 > Exchange control of two target permanents that share a permanent type.
-= BROKE at "share" after: exchange control of two target permanents that
+= BROKE at "permanent" after: exchange control of two target permanents that share a
 
 ## Rubblehulk
 face: Rubblehulk

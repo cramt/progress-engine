@@ -1132,6 +1132,11 @@ impl Walk for Effect {
                 Walk::walk(who, v);
                 Walk::walk(what, v);
             }
+            Effect::ExchangeControl(f0) => {
+                for x0 in (f0).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Effect::ExchangeLifeTotals { who, with } => {
                 Walk::walk(who, v);
                 Walk::walk(with, v);

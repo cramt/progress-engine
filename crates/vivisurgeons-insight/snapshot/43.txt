@@ -878,7 +878,7 @@ cost: {2}{U}{U}
 > Split second (As long as this spell is on the stack, players can't cast spells or activate abilities that aren't mana abilities.)
 > Exchange control of target noncreature spell and target creature. Then the spell's controller may choose new targets for it.
 = Keywords([Keyword { name: "split second", param: None }])
-= BROKE at "target" after: exchange control of target noncreature spell and
+= Spell([ExchangeControl([Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }]), May { who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }), then: [ChooseNewTargets(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Sun-Spider, Nimble Webber
 face: Sun-Spider, Nimble Webber

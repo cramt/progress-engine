@@ -915,7 +915,7 @@ face: Shifting Loyalties
 type: Sorcery
 cost: {5}{U}
 > Exchange control of two target permanents that share a card type. (Artifact, creature, enchantment, land, and planeswalker are card types.)
-= BROKE at "share" after: exchange control of two target permanents that
+= Spell([ExchangeControl([Objects { quant: Target { n: N(2), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [SharesType { card_type: "card", with: None }], or: None } }])])
 
 ## Skirge Familiar
 face: Skirge Familiar

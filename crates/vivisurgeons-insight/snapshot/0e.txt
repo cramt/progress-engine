@@ -710,7 +710,7 @@ face: Perplexing Chimera
 type: Enchantment Creature — Chimera
 cost: {4}{U}
 > Whenever an opponent casts a spell, you may exchange control of this creature and that spell. If you do, you may choose new targets for the spell. (If the spell becomes a permanent, you control that permanent.)
-= BROKE at "of" after: whenever an opponent casts a spell , you may exchange control
+= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [ExchangeControl([Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }])] }, IfYouDo([May { who: You, then: [ChooseNewTargets(Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }])], limits: [] }
 
 ## Prismite
 face: Prismite

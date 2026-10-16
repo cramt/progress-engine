@@ -797,7 +797,7 @@ face: Shrewd Negotiation
 type: Sorcery
 cost: {4}{U}
 > Exchange control of target artifact you control and target artifact or creature you don't control.
-= BROKE at "and" after: exchange control of target artifact you control
+= Spell([ExchangeControl([Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [NotControlledBy(You)], or: None } }])])
 
 ## Sky Scourer
 face: Sky Scourer

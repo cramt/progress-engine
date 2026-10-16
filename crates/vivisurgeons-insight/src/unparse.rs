@@ -7626,6 +7626,15 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             possessive_of(o, what);
             o.w(stat_name(*stat));
         }
+        Effect::ExchangeControl(v) => {
+            o.w("exchange control of");
+            for (i, x) in v.iter().enumerate() {
+                if i > 0 {
+                    o.w("and");
+                }
+                objects(o, x);
+            }
+        }
         Effect::ExchangeLifeTotals { who, with } => {
             subj(o, who, "exchange", cx);
             o.w("life totals with");

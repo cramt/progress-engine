@@ -237,7 +237,7 @@ face: Conjured Currency
 type: Enchantment
 cost: {5}{U}
 > At the beginning of your upkeep, you may exchange control of this enchantment and target permanent you neither own nor control.
-= BROKE at "of" after: at the beginning of your upkeep , you may exchange control
+= BROKE at "neither" after: at the beginning of your upkeep , you may exchange control of this enchantment and target permanent you
 
 ## Counterintelligence
 face: Counterintelligence

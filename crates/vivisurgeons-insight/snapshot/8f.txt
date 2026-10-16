@@ -829,7 +829,7 @@ face: Vedalken Plotter
 type: Creature — Vedalken Wizard
 cost: {2}{U}
 > When this creature enters, exchange control of target land you control and target land an opponent controls.
-= BROKE at "of" after: when this creature enters , exchange control
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ExchangeControl([Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(AnOpponent)], or: None } }])], limits: [] }
 
 ## Wand of Denial
 face: Wand of Denial

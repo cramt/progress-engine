@@ -859,7 +859,7 @@ type: Sorcery
 cost: {4}{U}
 > Exchange control of target artifact or creature you control and target artifact or creature an opponent controls.
 > Cycling {2} ({2}, Discard this card: Draw a card.)
-= BROKE at "you" after: exchange control of target artifact or creature
+= Spell([ExchangeControl([Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }])])
 = Keywords([Keyword { name: "cycling", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
 ## Traveler's Amulet

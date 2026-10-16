@@ -738,8 +738,8 @@ cost: {2}{U}{B}
 > I — You may exchange control of two target creatures.
 > II — You may exchange control of two target nonbasic, noncreature permanents that share a card type.
 > III — Target player loses 3 life and you gain 3 life.
-= BROKE at "creatures" after: i — you may exchange control of two target
-= BROKE at "nonbasic" after: ii — you may exchange control of two target
+= Chapter { chapters: [1], effect: [May { who: You, then: [ExchangeControl([Objects { quant: Target { n: N(2), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }])] }] }
+= Chapter { chapters: [2], effect: [May { who: You, then: [ExchangeControl([Objects { quant: Target { n: N(2), up_to: false }, filter: Filter { alts: [[Non("basic"), Non("creature")]], kind: Some(Permanent), posts: [SharesType { card_type: "card", with: None }], or: None } }])] }] }
 = Chapter { chapters: [3], effect: [LoseLife { who: Target, n: N(3) }, GainLife { who: You, n: N(3) }] }
 
 ## Thousand-Faced Shadow

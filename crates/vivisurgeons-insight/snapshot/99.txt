@@ -493,7 +493,7 @@ cost: {4}{U}{U}
 > Vigilance
 > Whenever Kitsune enters or deals combat damage to a player, you may exchange control of two other target creatures controlled by different players.
 = Keywords([Keyword { name: "vigilance", param: None }])
-= BROKE at "of" after: whenever ~ enters or deals combat damage to a player , you may exchange control
+= BROKE at "by" after: whenever ~ enters or deals combat damage to a player , you may exchange control of two other target creatures controlled
 
 ## Knight of Cliffhaven
 face: Knight of Cliffhaven

@@ -362,7 +362,7 @@ face: Gauntlets of Chaos
 type: Artifact
 cost: {5}
 > {5}, Sacrifice this artifact: Exchange control of target artifact, creature, or land you control and target permanent an opponent controls that shares one of those types with it. If those permanents are exchanged this way, destroy all Auras attached to them.
-= BROKE at "of" after: {5} , sacrifice this artifact : exchange control
+= BROKE at "one" after: {5} , sacrifice this artifact : exchange control of target artifact , creature , or land you control and target permanent an opponent controls that shares
 
 ## Gilded Drake
 face: Gilded Drake
@@ -371,7 +371,7 @@ cost: {1}{U}
 > Flying
 > When this creature enters, exchange control of this creature and up to one target creature an opponent controls. If you don't or can't make an exchange, sacrifice this creature. This ability still resolves if its target becomes illegal.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "of" after: when this creature enters , exchange control
+= BROKE at "or" after: when this creature enters , exchange control of this creature and up to one target creature an opponent controls . if you don't
 
 ## Great-Horn Krushok
 face: Great-Horn Krushok

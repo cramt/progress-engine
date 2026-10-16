@@ -656,7 +656,7 @@ face: Legerdemain
 type: Sorcery
 cost: {2}{U}{U}
 > Exchange control of target artifact or creature and another target permanent that shares one of those types with it. (This effect lasts indefinitely.)
-= BROKE at "and" after: exchange control of target artifact or creature
+= BROKE at "one" after: exchange control of target artifact or creature and another target permanent that shares
 
 ## Lightning Shrieker
 face: Lightning Shrieker

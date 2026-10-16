@@ -658,7 +658,7 @@ face: Political Trickery
 type: Sorcery
 cost: {2}{U}
 > Exchange control of target land you control and target land an opponent controls. (This effect lasts indefinitely.)
-= BROKE at "and" after: exchange control of target land you control
+= Spell([ExchangeControl([Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(AnOpponent)], or: None } }])])
 
 ## Praetor's Counsel
 face: Praetor's Counsel

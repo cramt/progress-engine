@@ -582,7 +582,7 @@ cost: {1}{G}{U}
 > −5: Exchange control of target artifact or creature you control and target creature an opponent controls with power 3 or less.
 = Loyalty { change: N(2), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["food"], keywords: [], abilities: [], named: Some("food"), attacking: None } }] }
 = BROKE at "a" after: N(1) : target artifact or creature loses all abilities and becomes
-= BROKE at "of" after: N(-5) : exchange control
+= Loyalty { change: N(-5), effect: [ExchangeControl([Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent), With(Compare { stat: Power, op: Le, value: N(3) })], or: None } }])] }
 
 ## Ooze Garden
 face: Ooze Garden

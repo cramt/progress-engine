@@ -66,7 +66,7 @@ face: Avarice Totem
 type: Artifact
 cost: {1}
 > {5}: Exchange control of this artifact and target nonland permanent.
-= BROKE at "of" after: {5} : exchange control
+= Activated { cost: [Mana(Mana(["5"]))], effect: [ExchangeControl([Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }])], limits: [] }
 
 ## Aven Liberator
 face: Aven Liberator

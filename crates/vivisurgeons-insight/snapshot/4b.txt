@@ -364,7 +364,7 @@ cost: {2}{U}
 > At the beginning of your upkeep, scry 1.
 > {5}{U}: Exchange control of this enchantment and target nonland permanent. Activate only as a sorcery.
 = Triggered { trigger: At(Upkeep(Yours)), effect: [Scry(N(1))], limits: [] }
-= BROKE at "of" after: {5} {U} : exchange control
+= Activated { cost: [Mana(Mana(["5", "U"]))], effect: [ExchangeControl([Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }])], limits: [SorcerySpeed] }
 
 ## Facet Reader
 face: Facet Reader

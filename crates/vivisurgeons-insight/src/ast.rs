@@ -1695,6 +1695,12 @@ pub enum Effect {
         what: Objects,
         stat: Stat,
     },
+    /// "Exchange control of two target creatures", "exchange control of this
+    /// creature and target creature": each controller gains control of the
+    /// permanent the other controlled, and nothing happens unless the whole
+    /// exchange can be made (CR 701.12a-b). One object for "two target …",
+    /// two for "X and Y". It lasts indefinitely.
+    ExchangeControl(Vec<Objects>),
     /// "exchange life totals with target opponent": each gains or loses
     /// the life to equal the other's previous total (CR 701.12c).
     ExchangeLifeTotals {

@@ -982,9 +982,9 @@ cost: {U}{U}
 > + {1} — Exchange control of two target artifacts.
 > + {1} — Exchange control of two target enchantments.
 = Keywords([Keyword { name: "spree", param: None }])
-= BROKE at "of" after: + {2} — exchange control
-= BROKE at "of" after: + {1} — exchange control
-= BROKE at "of" after: + {1} — exchange control
+= Spree { cost: Mana(["2"]), effect: [ExchangeControl([Objects { quant: Target { n: N(2), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }])] }
+= Spree { cost: Mana(["1"]), effect: [ExchangeControl([Objects { quant: Target { n: N(2), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }])] }
+= Spree { cost: Mana(["1"]), effect: [ExchangeControl([Objects { quant: Target { n: N(2), up_to: false }, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [], or: None } }])] }
 
 ## Sisters of the Flame
 face: Sisters of the Flame

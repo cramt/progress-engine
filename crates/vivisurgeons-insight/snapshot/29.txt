@@ -953,7 +953,7 @@ face: Spawnbroker
 type: Creature — Human Wizard
 cost: {2}{U}
 > When this creature enters, you may exchange control of target creature you control and target creature with power less than or equal to that creature's power an opponent controls.
-= BROKE at "of" after: when this creature enters , you may exchange control
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [ExchangeControl([Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Le, value: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }), Controller(AnOpponent)], or: None } }])] }], limits: [] }
 
 ## Spectral Cloak
 face: Spectral Cloak

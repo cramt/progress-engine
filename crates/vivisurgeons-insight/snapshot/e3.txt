@@ -153,7 +153,7 @@ cost: {4}{U}
 > Morph {4}{U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 > When this creature is turned face up, you may exchange control of target creature you control and target creature an opponent controls.
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["4", "U"]))])) }])
-= BROKE at "of" after: when this creature is turned face up , you may exchange control
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [ExchangeControl([Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }])] }], limits: [] }
 
 ## Chronostutter
 face: Chronostutter

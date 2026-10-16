@@ -1388,6 +1388,13 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         |p| { let who = subject_player(p); p.verb("mill")?; p.words("cards equal to")?; let n = measure(p)?; Some(Effect::Mill { who, n }) },
         |p| { let who = subject_player(p); p.verb("look at")?; let (n, whose) = top_of_library(p)?; Some(Effect::LookAtTop { who, whose, n }) },
         |p| { let who = subject_player(p); p.verb("look at")?; let whose = whose(p)?; p.word("hand")?; Some(Effect::LookAtHand { who, whose }) },
+        |p| {
+            p.verb("exchange")?;
+            p.words("control of")?;
+            let mut v = vec![objects(p)?];
+            if let Some(b) = p.attempt(|p| { p.word("and")?; objects(p) }) { v.push(b); }
+            Some(Effect::ExchangeControl(v))
+        },
         |p| { let who = subject_player(p); p.verb("exchange")?; p.words("life totals with")?; let with = player(p)?; Some(Effect::ExchangeLifeTotals { who, with }) },
         // "Exchange your life total with this creature's toughness" (Tree of
         // Redemption).

@@ -921,7 +921,7 @@ face: Switcheroo
 type: Sorcery
 cost: {4}{U}
 > Exchange control of two target creatures.
-= BROKE at "." after: exchange control of two target creatures
+= Spell([ExchangeControl([Objects { quant: Target { n: N(2), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }])])
 
 ## Take Vengeance
 face: Take Vengeance

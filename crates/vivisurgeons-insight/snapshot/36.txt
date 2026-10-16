@@ -44,7 +44,7 @@ face: Burglar's Plot
 type: Sorcery — Adventure
 cost: {4}{U}
 > Exchange control of two target nonland permanents that share a card type. (Then exile this card. You may cast the creature later from exile.)
-= BROKE at "that" after: exchange control of two target nonland permanents
+= Spell([ExchangeControl([Objects { quant: Target { n: N(2), up_to: false }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [SharesType { card_type: "card", with: None }], or: None } }])])
 
 ## Brain Freeze
 face: Brain Freeze

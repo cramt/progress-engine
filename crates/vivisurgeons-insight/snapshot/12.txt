@@ -932,7 +932,7 @@ type: Instant — Arcane
 cost: {3}{U}
 > Exchange control of two target lands.
 > Splice onto Arcane {3}{U} (As you cast an Arcane spell, you may reveal this card from your hand and pay its splice cost. If you do, add this card's effects to that spell.)
-= BROKE at "." after: exchange control of two target lands
+= Spell([ExchangeControl([Objects { quant: Target { n: N(2), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }])])
 = Keywords([Keyword { name: "splice", param: Some(Splice { onto: Filter { alts: [[Subtype("arcane")]], kind: None, posts: [], or: None }, cost: [Mana(Mana(["3", "U"]))] }) }])
 
 ## Soltari Champion

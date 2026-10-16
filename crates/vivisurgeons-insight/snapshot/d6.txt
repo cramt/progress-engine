@@ -1210,7 +1210,7 @@ type: Sorcery
 cost: {2}{U}
 > Exchange control of two target creatures you don't control.
 > Flashback {8}{U}{U}. This spell costs {X} less to cast this way, where X is the greatest mana value of a commander you own on the battlefield or in the command zone. (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= BROKE at "don't" after: exchange control of two target creatures you
+= Spell([ExchangeControl([Objects { quant: Target { n: N(2), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NotControlledBy(You)], or: None } }])])
 = BROKE at "this" after: flashback {8} {U} {U} .
 
 ## Vivien's Talent

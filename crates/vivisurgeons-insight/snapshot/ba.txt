@@ -268,7 +268,7 @@ cost: {4}{U}{U}
 > Flying
 > {T}: Exchange control of two target nonlegendary creatures. You can't activate this ability during combat.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "of" after: {T} : exchange control
+= BROKE at "this" after: {T} : exchange control of two target nonlegendary creatures . you can't activate
 
 ## Dralnu, Lich Lord
 face: Dralnu, Lich Lord
