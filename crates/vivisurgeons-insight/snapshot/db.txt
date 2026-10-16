@@ -472,7 +472,7 @@ cost: {4}{R}
 > Whenever a creature attacks and isn't blocked this combat, untap it and remove it from combat.
 = BROKE at "your" after: cast this spell only during combat on
 = BROKE at "and" after: you choose which creatures block this combat
-= BROKE at "combat" after: whenever a creature attacks and isn't blocked this
+= Spell([During { dur: ThisCombat, then: [DelayedWhenever { event: AttacksUnblocked { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, at: None }, then: [Untap(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), RemoveFromCombat(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }])
 
 ## Militia Bugler
 face: Militia Bugler

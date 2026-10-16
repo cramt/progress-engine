@@ -6206,6 +6206,7 @@ fn dur(o: &mut Out, d: &Duration) {
     match d {
         Duration::UntilEndOfTurn => o.w("until end of turn"),
         Duration::ThisTurn => o.w("this turn"),
+        Duration::ThisCombat => o.w("this combat"),
         Duration::UntilYourNextTurn => o.w("until your next turn"),
         Duration::WhileSelfOnBattlefield => o.w("for as long as you control ~"),
         Duration::Permanent => {}
@@ -7174,7 +7175,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
         // turn, …", "If that creature would die this turn, …": a delayed
         // trigger or replacement that lasts the turn says so after its event.
         Effect::During {
-            dur: Duration::ThisTurn,
+            dur: td @ (Duration::ThisTurn | Duration::ThisCombat),
             then,
         } if matches!(
             &then[..],
@@ -7194,14 +7195,15 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                     match ev {
                         Event::InterveningIf { event: e, cond } => {
                             event(o, e);
-                            o.w("this turn");
+                            dur(o, td);
                             o.w(", if");
                             condition(o, cond);
                             o.w(",");
                         }
                         _ => {
                             event(o, ev);
-                            o.w("this turn,");
+                            dur(o, td);
+                            o.w(",");
                         }
                     }
                     clauses(o, then, cx);
@@ -7209,7 +7211,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 Effect::Replacement { event: ev, instead } => {
                     let w = out(|o| {
                         would(o, ev);
-                        o.w("this turn");
+                        dur(o, td);
                     });
                     replacement(o, w, instead, cx);
                 }

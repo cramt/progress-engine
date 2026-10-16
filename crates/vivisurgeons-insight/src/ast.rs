@@ -1335,6 +1335,10 @@ pub enum Zone {
 pub enum Duration {
     UntilEndOfTurn,
     ThisTurn,
+    /// "this combat": to the end of the combat phase (CR 506.1), as a
+    /// delayed trigger's "Whenever that creature deals combat damage to a
+    /// player this combat" lasts.
+    ThisCombat,
     UntilYourNextTurn,
     WhileSelfOnBattlefield,
     Permanent,

@@ -263,10 +263,12 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
         |p| {
             p.word("whenever")?;
             let event = event(p)?;
-            p.words("this turn ,")?;
+            // "… this combat," (Stensian Sanguinist) lasts the combat.
+            let dur = if p.one_of(&["this turn", "this combat"])? == "this turn" { Duration::ThisTurn } else { Duration::ThisCombat };
+            p.tok(&Tok::Comma)?;
             let event = intervening(p, event);
             let then = delayed_body(p)?;
-            Some(vec![Effect::During { dur: Duration::ThisTurn, then: vec![Effect::DelayedWhenever { event, then }] }])
+            Some(vec![Effect::During { dur, then: vec![Effect::DelayedWhenever { event, then }] }])
         },
         // "Until end of turn, whenever a player taps an Island for mana, …".
         |p| {

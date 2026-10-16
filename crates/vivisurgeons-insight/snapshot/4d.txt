@@ -931,7 +931,7 @@ face: Stensian Sanguinist
 type: Creature — Vampire Cleric
 cost: {1}{B}
 > Whenever you attack, target creature gains deathtouch until end of turn. Whenever that creature deals combat damage to a player this combat, this creature becomes prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)
-= BROKE at "combat" after: whenever you attack , target creature gains deathtouch until end of turn . whenever that creature deals combat damage to a player this
+= Triggered { trigger: When(YouAttack), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "deathtouch", param: None }], dur: UntilEndOfTurn }, During { dur: ThisCombat, then: [DelayedWhenever { event: DealsCombatDamageToPlayer(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), then: [BecomesPrepared(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }], limits: [] }
 
 ## Stensian Sanguinist // Exsanguinate
 face: Exsanguinate
