@@ -437,7 +437,7 @@ face: Hobgoblin Captain
 type: Creature — Goblin Barbarian
 cost: {1}{R}
 > Pack tactics — Whenever this creature attacks, if you attacked with creatures with total power 6 or greater this combat, this creature gains first strike until end of turn.
-= BROKE at "combat" after: pack tactics — whenever this creature attacks , if you attacked with creatures with total power 6 or greater this
+= Labelled { label: "pack tactics", ability: Triggered { trigger: InterveningIf(When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), AttackedWithThisCombat(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Total(Compare { stat: Power, op: Ge, value: N(6) })], or: None } })), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "first strike", param: None }], dur: UntilEndOfTurn }], limits: [] } }
 
 ## Horde of Boggarts
 face: Horde of Boggarts

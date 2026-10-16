@@ -403,6 +403,9 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         |p| {
             p.words("you attacked with")?;
             let what = objects(p)?;
+            if p.attempt(|p| p.words("this combat")).is_some() {
+                return Some(Condition::AttackedWithThisCombat(what));
+            }
             p.words("this turn")?;
             Some(Condition::AttackedWithThisTurn(what))
         },

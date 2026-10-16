@@ -488,7 +488,7 @@ face: Illithid Harvester
 type: Creature — Horror
 cost: {4}{U}
 > Ceremorphosis — When this creature enters, turn any number of target tapped nontoken creatures face down. They're 2/2 Horror creatures.
-= BROKE at "any" after: ceremorphosis — when this creature enters , turn
+= BROKE at "down" after: ceremorphosis — when this creature enters , turn any number of target tapped nontoken creatures face
 
 ## Illithid Harvester // Plant Tadpoles
 face: Plant Tadpoles

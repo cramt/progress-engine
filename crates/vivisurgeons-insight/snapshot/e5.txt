@@ -388,7 +388,7 @@ cost: {1}{R}
 > Choose one or both —
 > • Turn target face-down creature face up.
 > • Exile any number of face-up creatures you control with disguise in a face-down pile, shuffle that pile, then cloak them. (To cloak a card, put it onto the battlefield face down as a 2/2 creature with ward {2}. Turn it face up any time for its mana cost if it's a creature card.)
-= BROKE at "." after: choose one or both — • turn target face-down creature face up
+= BROKE at "that" after: choose one or both — • turn target face-down creature face up . • exile any number of face-up creatures you control with disguise in a face-down pile , shuffle
 
 ## Fake Your Own Death
 face: Fake Your Own Death

@@ -1242,6 +1242,13 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let unless = p.attempt(|p| { p.word("unless")?; let who = player(p)?; p.verb("pay")?; let c = costs(p)?; Some((who, per_costs(p, c))) });
             Some(Effect::Counter { what, unless })
         },
+        // "turn a face-down creature you control face up".
+        |p| {
+            p.word("turn")?;
+            let what = objects(p)?;
+            p.words("face up")?;
+            Some(Effect::TurnFaceUp(what))
+        },
         // tokens
         |p| {
             p.word("create")?;

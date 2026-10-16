@@ -426,6 +426,9 @@ impl Walk for Condition {
             Condition::AttackedWithThisTurn(f0) => {
                 Walk::walk(f0, v);
             }
+            Condition::AttackedWithThisCombat(f0) => {
+                Walk::walk(f0, v);
+            }
             Condition::Searching { who, zone } => {
                 Walk::walk(who, v);
                 Walk::walk(zone, v);
@@ -833,6 +836,9 @@ impl Walk for Effect {
                 for x0 in (except).iter_mut() {
                     Walk::walk(x0, v);
                 }
+            }
+            Effect::TurnFaceUp(f0) => {
+                Walk::walk(f0, v);
             }
             Effect::ChooseNewTargets(f0) => {
                 Walk::walk(f0, v);

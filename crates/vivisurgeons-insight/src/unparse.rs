@@ -6657,6 +6657,11 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             objects(o, of);
             exceptions(o, except);
         }
+        Effect::TurnFaceUp(x) => {
+            o.w("turn");
+            objects(o, x);
+            o.w("face up");
+        }
         Effect::ChooseNewTargets(x) => {
             o.w("choose new targets for");
             objects(o, x);
@@ -10506,6 +10511,11 @@ fn condition(o: &mut Out, c: &Condition) {
             o.w("you attacked with");
             objects(o, x);
             o.w("this turn");
+        }
+        Condition::AttackedWithThisCombat(x) => {
+            o.w("you attacked with");
+            objects(o, x);
+            o.w("this combat");
         }
         Condition::GiftPromised => o.w("the gift was promised"),
         Condition::CastDuring(s) => {

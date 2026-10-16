@@ -69,7 +69,7 @@ cost: {1}{R}
 > {1}{R}: Goblins you control get +1/+0 and gain haste until end of turn.
 > Pack tactics — Whenever this creature attacks, if you attacked with creatures with total power 6 or greater this combat, create a 1/1 red Goblin creature token that's tapped and attacking.
 = Activated { cost: [Mana(Mana(["1", "R"]))], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }], limits: [] }
-= BROKE at "combat" after: pack tactics — whenever this creature attacks , if you attacked with creatures with total power 6 or greater this
+= Labelled { label: "pack tactics", ability: Triggered { trigger: InterveningIf(When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), AttackedWithThisCombat(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Total(Compare { stat: Power, op: Ge, value: N(6) })], or: None } })), effect: [Create { who: You, n: N(1), token: Token { tapped: true, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["goblin", "creature"], keywords: [], abilities: [], named: None, attacking: Some(ControllerChooses) } }], limits: [] } }
 
 ## Bedlam
 face: Bedlam

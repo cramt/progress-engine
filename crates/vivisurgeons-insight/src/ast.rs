@@ -1423,6 +1423,9 @@ pub enum Effect {
         of: Objects,
         except: Vec<Exception>,
     },
+    /// "turn a face-down creature you control face up" (Ugin's Mastery): its
+    /// copiable values revert to its normal ones (CR 708.8).
+    TurnFaceUp(Objects),
     ChooseNewTargets(Objects),
     ClassLevel(u32),
     May {
@@ -3407,6 +3410,9 @@ pub enum Condition {
     },
     /// "you attacked with two or more creatures this turn".
     AttackedWithThisTurn(Objects),
+    /// "you attacked with creatures with total power 6 or greater this
+    /// combat" (pack tactics): in this combat phase only.
+    AttackedWithThisCombat(Objects),
     /// "the gift was promised".
     GiftPromised,
     /// "you cast this spell during your main phase".

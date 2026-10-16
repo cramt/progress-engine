@@ -571,7 +571,7 @@ cost: {G}
 > Face-down creature spells you cast cost {1} less to cast.
 > {1}{G}: Turn this enchantment face down. (It becomes a 2/2 creature.)
 = Static([CostChange { what: Objects { quant: Plural, filter: Filter { alts: [[State(FaceDown), Type("creature")]], kind: Some(Spell), posts: [Cast(You)], or: None } }, by: Mana(["1"]), less: true, per: None }])
-= BROKE at "this" after: {1} {G} : turn
+= BROKE at "down" after: {1} {G} : turn this enchantment face
 
 ## Overflowing Basin
 face: Overflowing Basin
@@ -735,7 +735,7 @@ cost: {1}{R}
 > Haste
 > {T}: Turn target face-down creature you control face up. At the beginning of the next end step, sacrifice it.
 = Keywords([Keyword { name: "haste", param: None }])
-= BROKE at "target" after: {T} : turn
+= Activated { cost: [Tap], effect: [TurnFaceUp(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(FaceDown), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), Delayed { step: EndStep(Next), then: [Sacrifice { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Slaughterhouse Bouncer
 face: Slaughterhouse Bouncer

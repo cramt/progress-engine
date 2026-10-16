@@ -849,7 +849,7 @@ cost: {1}{U}
 > {3}: Turn this creature face down.
 > Morph {U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "this" after: {3} : turn
+= BROKE at "down" after: {3} : turn this creature face
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["U"]))])) }])
 
 ## Waste Management

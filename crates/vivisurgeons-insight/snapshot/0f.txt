@@ -296,7 +296,7 @@ cost: {U}{U}
 > {U}, Sacrifice this creature: Turn all cards exiled with this creature face up. Counter all spells with those names.
 = Triggered { trigger: When(BecomesTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ExileFaceDown(Objects { quant: N(N(3)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(TargetOpponent))], or: None } })], limits: [] }
 = BROKE at "this" after: you may look at cards exiled with
-= BROKE at "all" after: {U} , sacrifice this creature : turn
+= BROKE at "names" after: {U} , sacrifice this creature : turn all cards exiled with this creature face up . counter all spells with those
 
 ## Hedge Shredder
 face: Hedge Shredder

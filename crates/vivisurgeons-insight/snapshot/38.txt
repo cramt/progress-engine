@@ -229,7 +229,7 @@ cost: {5}
 > Imprint — When this creature enters, look at the top four cards of your library, exile one face down, then put the rest on the bottom of your library in any order.
 > When this creature dies, turn the exiled card face up. If it's a creature card, put it onto the battlefield under your control.
 = BROKE at "down" after: imprint — when this creature enters , look at the top four cards of your library , exile one face
-= BROKE at "the" after: when this creature dies , turn
+= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [TurnFaceUp(Objects { quant: Linked, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }), If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } }, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(You), order: None }] }], limits: [] }
 
 ## Cumber Stone
 face: Cumber Stone

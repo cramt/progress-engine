@@ -463,7 +463,7 @@ type: Creature — Illusion
 cost: {3}{U}{U}
 > As this creature enters, turn all other nontoken creatures face down. (They're 2/2 creatures.)
 > Ixidron's power and toughness are each equal to the number of face-down creatures on the battlefield.
-= BROKE at "all" after: as this creature enters , turn
+= BROKE at "down" after: as this creature enters , turn all other nontoken creatures face
 = Static([SetPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [[State(FaceDown), Type("creature")]], kind: None, posts: [In(Battlefield)], or: None } }) }])
 
 ## Jabari's Banner

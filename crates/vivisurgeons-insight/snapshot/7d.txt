@@ -319,7 +319,7 @@ face: Gnoll Hunter
 type: Creature — Gnoll
 cost: {1}{G}
 > Pack tactics — Whenever this creature attacks, if you attacked with creatures with total power 6 or greater this combat, put a +1/+1 counter on this creature.
-= BROKE at "combat" after: pack tactics — whenever this creature attacks , if you attacked with creatures with total power 6 or greater this
+= Labelled { label: "pack tactics", ability: Triggered { trigger: InterveningIf(When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), AttackedWithThisCombat(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Total(Compare { stat: Power, op: Ge, value: N(6) })], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }
 
 ## Gnottvold Slumbermound
 face: Gnottvold Slumbermound

@@ -976,7 +976,7 @@ cost: {4}
 > Whenever you cast a colorless creature spell, manifest the top card of your library. (Put it onto the battlefield face down as a 2/2 creature. Turn it face up any time for its mana cost if it's a creature card.)
 > Whenever you attack with creatures with total power 6 or greater, you may turn a face-down creature you control face up.
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Color(Colorless), Type("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [ActionOn { who: You, name: "manifest", what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } } }], limits: [] }
-= BROKE at "a" after: whenever you attack with creatures with total power 6 or greater , you may turn
+= Triggered { trigger: When(AttacksWith { who: You, what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Total(Compare { stat: Power, op: Ge, value: N(6) })], or: None } }, at: None }), effect: [May { who: You, then: [TurnFaceUp(Objects { quant: One, filter: Filter { alts: [[State(FaceDown), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })] }], limits: [] }
 
 ## Undead Minotaur
 face: Undead Minotaur

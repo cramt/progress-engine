@@ -911,7 +911,7 @@ face: Showstopping Surprise
 type: Instant
 cost: {3}{R}{R}
 > Choose target creature you control. Turn it face up if it's face down. Then it deals damage equal to its power to each other creature.
-= BROKE at "it" after: choose target creature you control . turn
+= BROKE at "down" after: choose target creature you control . turn it face up if it's face
 
 ## Sibsig Appraiser
 face: Sibsig Appraiser

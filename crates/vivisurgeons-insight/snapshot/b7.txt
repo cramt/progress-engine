@@ -263,7 +263,7 @@ type: Enchantment — Room
 cost: {2}{G}
 > Whenever a creature you control deals combat damage to a player, turn that creature face up or put a +1/+1 counter on it.
 > (You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)
-= BROKE at "that" after: whenever a creature you control deals combat damage to a player , turn
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [Or([TurnFaceUp(Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [] }
 
 ## Fade Away
 face: Fade Away

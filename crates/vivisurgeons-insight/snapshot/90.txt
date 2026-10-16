@@ -112,7 +112,7 @@ face: Break Open
 type: Instant
 cost: {1}{R}
 > Turn target face-down creature an opponent controls face up.
-= BROKE at "face" after: turn target face-down creature an opponent controls
+= Spell([TurnFaceUp(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(FaceDown), Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } })])
 
 ## Breath of Dreams
 face: Breath of Dreams

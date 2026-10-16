@@ -901,7 +901,7 @@ cost: {3}{R}{R}
 > Trample
 > Pack tactics — Whenever this creature attacks, if you attacked with creatures with total power 6 or greater this combat, you may sacrifice another creature. When you do, this creature deals damage equal to the sacrificed creature's power to target creature.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "combat" after: pack tactics — whenever this creature attacks , if you attacked with creatures with total power 6 or greater this
+= Labelled { label: "pack tactics", ability: Triggered { trigger: InterveningIf(When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), AttackedWithThisCombat(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Total(Compare { stat: Power, op: Ge, value: N(6) })], or: None } })), effect: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: Another, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }, WhenYouDo([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }])], limits: [] } }
 
 ## Unfortunate Accident
 face: Unfortunate Accident

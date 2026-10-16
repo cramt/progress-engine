@@ -520,7 +520,7 @@ cost: {3}{U}{U}
 > Face-down creatures get +1/+1.
 > {2}{U}: Turn target face-down creature face up.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(FaceDown), Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
-= BROKE at "target" after: {2} {U} : turn
+= Activated { cost: [Mana(Mana(["2", "U"]))], effect: [TurnFaceUp(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(FaceDown), Type("creature")]], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Jackal Familiar
 face: Jackal Familiar

@@ -536,7 +536,7 @@ cost: {4}{U}
 > {3}{U}{U}: Turn this creature face down.
 > Morph {1}{U}{U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 > When this creature is turned face up, copy target instant or sorcery spell. You may choose new targets for that copy.
-= BROKE at "this" after: {3} {U} {U} : turn
+= BROKE at "down" after: {3} {U} {U} : turn this creature face
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["1", "U", "U"]))])) }])
 = BROKE at "," after: when this creature is turned face up
 

@@ -534,7 +534,7 @@ cost: {R/W}{G}
 > Whenever a creature you control that was turned face up this turn deals combat damage to a player, draw a card.
 > {T}: Turn target face-down attacking creature you control face up.
 = BROKE at "turned" after: whenever a creature you control that was
-= BROKE at "target" after: {T} : turn
+= Activated { cost: [Tap], effect: [TurnFaceUp(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(FaceDown), State(Attacking), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })], limits: [] }
 
 ## Khenra Spellspear // Gitaxian Spellstalker
 face: Khenra Spellspear

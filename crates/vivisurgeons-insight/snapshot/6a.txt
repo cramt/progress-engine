@@ -1228,7 +1228,7 @@ type: Creature — Human Werewolf
 cost: {G}{G}
 > Pack tactics — Whenever this creature attacks, if you attacked with creatures with total power 6 or greater this combat, draw a card.
 > {3}{G}: Until end of turn, this creature has base power and toughness 5/3, gains trample, and isn't a Human.
-= BROKE at "combat" after: pack tactics — whenever this creature attacks , if you attacked with creatures with total power 6 or greater this
+= Labelled { label: "pack tactics", ability: Triggered { trigger: InterveningIf(When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), AttackedWithThisCombat(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Total(Compare { stat: Power, op: Ge, value: N(6) })], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] } }
 = BROKE at "trample" after: {3} {G} : until end of turn , this creature has base power and toughness <pt> , gains
 
 ## Wiccan, Young Avenger

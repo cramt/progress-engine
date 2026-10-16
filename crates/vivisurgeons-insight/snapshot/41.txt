@@ -563,7 +563,7 @@ face: Bustle
 type: Sorcery
 cost: {4}{R/G}{R/G}
 > Creatures you control get +2/+2 and gain trample until end of turn. You may turn a creature you control face up.
-= BROKE at "a" after: creatures you control get <pt> and gain trample until end of turn . you may turn
+= Spell([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [Keyword { name: "trample", param: None }], dur: UntilEndOfTurn }, May { who: You, then: [TurnFaceUp(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })] }])
 
 ## Hypervolt Grasp
 face: Hypervolt Grasp
