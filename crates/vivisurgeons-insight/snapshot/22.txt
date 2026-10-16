@@ -493,7 +493,7 @@ cost: {3}{G}
 > 20 | Put all permanent cards exiled with this enchantment onto the battlefield, then sacrifice it.
 = Triggered { trigger: At(Upkeep(Yours)), effect: [Exile(Objects { quant: N(N(4)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), RollDie(20)], limits: [] }
 = DieRow { from: 1, to: Some(9), effect: [May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [FromAmongThem], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }] }
-= BROKE at "among" after: 10 — 19 | create a <pt> green wolf creature token , then put a <pt> counter on it for each creature card
+= BROKE at "those" after: 10 — 19 | create a <pt> green wolf creature token , then put a <pt> counter on it for each creature card among
 = DieRow { from: 20, to: Some(20), effect: [Move { what: Objects { quant: All, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }
 
 ## K'rrik, Son of Yawgmoth

@@ -531,7 +531,7 @@ cost: {1}{U}{R}{W}
 > Whenever you put one or more time counters on a permanent you control, create a 1/1 white Soldier creature token.
 > Whenever Kate Stewart attacks, you may pay {8}. If you do, attacking creatures get +X/+X until end of turn, where X is the number of time counters among permanents you control.
 = Triggered { trigger: When(CountersPut { by: Some(Player(You)), n: AtLeast(N(1)), kind: Some("time"), on: Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } } }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= BROKE at "among" after: whenever ~ attacks , you may pay {8} . if you do , attacking creatures get <pt> until end of turn , where x is the number of time counters
+= BROKE at "permanents" after: whenever ~ attacks , you may pay {8} . if you do , attacking creatures get <pt> until end of turn , where x is the number of time counters among
 
 ## Kinsbaile Balloonist
 face: Kinsbaile Balloonist

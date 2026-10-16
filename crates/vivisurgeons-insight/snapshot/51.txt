@@ -58,7 +58,7 @@ type: Creature — Human Monk
 cost: {4}{G}
 > This creature enters with a +1/+1 counter on it for each +1/+1 counter among other creatures you control.
 > At the beginning of your upkeep, double the number of +1/+1 counters on this creature.
-= BROKE at "among" after: this creature enters with a <pt> counter on it for each <pt> counter
+= BROKE at "other" after: this creature enters with a <pt> counter on it for each <pt> counter among
 = Triggered { trigger: At(Upkeep(Yours)), effect: [DoubleCounters { kind: Some("+1/+1"), on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Astral Cornucopia

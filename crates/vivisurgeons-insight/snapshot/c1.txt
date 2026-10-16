@@ -48,7 +48,7 @@ cost: {1}{U}
 > Defender
 > As long as there are two or more counters among creatures you control, this creature can attack as though it didn't have defender.
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "among" after: as long as there are two or more counters
+= BROKE at "creatures" after: as long as there are two or more counters among
 
 ## Barishi
 face: Barishi

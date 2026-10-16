@@ -1060,7 +1060,7 @@ type: Legendary Creature — God Bard
 cost: {W}{U}{B}{R}{G}
 > As long as there are four or more lore counters among Sagas you control, Tom Bombadil has hexproof and indestructible.
 > Whenever the final chapter ability of a Saga you control resolves, reveal cards from the top of your library until you reveal a Saga card. Put that card onto the battlefield and the rest on the bottom of your library in a random order. This ability triggers only once each turn.
-= BROKE at "among" after: as long as there are four or more lore counters
+= BROKE at "sagas" after: as long as there are four or more lore counters among
 = BROKE at "saga" after: whenever the final chapter ability of a
 
 ## Tormentor's Trident

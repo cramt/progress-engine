@@ -993,7 +993,7 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         |p| { p.word("on")?; let o = pronoun(p)?; Some(Post::On(Box::new(o))) },
         |p| { p.words("put onto the battlefield with")?; objects(p).map(|o| Post::PutOntoBattlefieldWith(Box::new(o))) },
         |p| {
-            p.one_of(&["from among them", "from among those cards"])?;
+            p.one_of(&["from among them", "from among those cards", "among them"])?;
             (!p.in_value).then_some(Post::FromAmongThem)
         },
         // "cards exiled with it": "it" is the object whose ability exiled

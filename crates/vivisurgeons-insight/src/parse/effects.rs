@@ -1703,6 +1703,9 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                 // "Each player exiles the top card of their library face down".
                 |p| { p.verb("exile")?; let what = objects(p)?; p.words("face down")?; Some(Effect::ExileFaceDown(what)) },
                 |p| { p.verb("exile")?; objects(p).map(Effect::Exile) },
+                // "Each player turns face up all cards they own exiled with
+                // this artifact" (Pyxis of Pandemonium).
+                |p| { p.verb("turn")?; p.words("face up")?; objects(p).map(Effect::TurnFaceUp) },
                 |p| {
                     p.verb("gain")?;
                     p.words("control of")?;

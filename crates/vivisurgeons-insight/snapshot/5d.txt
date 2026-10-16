@@ -292,7 +292,7 @@ type: Legendary Creature — Treefolk Druid
 cost: {6}{G}
 > When Ferrafor enters, create a number of 1/1 green Saproling creature tokens equal to the number of counters among creatures target player controls.
 > {T}: Double the number of each kind of counter on target creature.
-= BROKE at "among" after: when ~ enters , create a number of <pt> green saproling creature tokens equal to the number of counters
+= BROKE at "creatures" after: when ~ enters , create a number of <pt> green saproling creature tokens equal to the number of counters among
 = BROKE at "kind" after: {T} : double the number of each
 
 ## Fiend Hunter

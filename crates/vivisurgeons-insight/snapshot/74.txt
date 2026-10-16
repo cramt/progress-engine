@@ -657,7 +657,7 @@ cost: {10}{G}{G}
 > This spell costs {1} less to cast for each counter among players and permanents.
 > Trample
 > This creature enters tapped.
-= BROKE at "among" after: this spell costs {1} less to cast for each counter
+= BROKE at "players" after: this spell costs {1} less to cast for each counter among
 = Keywords([Keyword { name: "trample", param: None }])
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 

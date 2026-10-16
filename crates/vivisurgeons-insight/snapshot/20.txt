@@ -652,7 +652,7 @@ cost: {1}
 > {T}: Each player exiles the top card of their library face down.
 > {7}, {T}, Sacrifice this artifact: Each player turns face up all cards they own exiled with this artifact, then puts all permanent cards among them onto the battlefield.
 = Activated { cost: [Tap], effect: [Performed { by: Each, effect: ExileFaceDown(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(That))], or: None } }) }], limits: [] }
-= BROKE at "turns" after: {7} , {T} , sacrifice this artifact : each player
+= Activated { cost: [Mana(Mana(["7"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Performed { by: Each, effect: TurnFaceUp(Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [Owner(That), ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }) }, Performed { by: Each, effect: Move { what: Objects { quant: All, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [FromAmongThem], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None } }], limits: [] }
 
 ## Quakestrider Ceratops
 face: Quakestrider Ceratops

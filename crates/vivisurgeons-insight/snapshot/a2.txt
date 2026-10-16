@@ -503,7 +503,7 @@ cost: {2}{G}
 > At the beginning of combat on your turn, put a number of +1/+1 counters equal to Maester Seymour's power on another target creature you control.
 > {3}{G}{G}: Monstrosity X, where X is the number of counters among creatures you control. (If this creature isn't monstrous, put X +1/+1 counters on it and it becomes monstrous.)
 = Triggered { trigger: At(Combat(Yours)), effect: [PutCounters { n: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), kind: "+1/+1", on: Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
-= BROKE at "among" after: {3} {G} {G} : monstrosity x , where x is the number of counters
+= BROKE at "creatures" after: {3} {G} {G} : monstrosity x , where x is the number of counters among
 
 ## Mana Skimmer
 face: Mana Skimmer

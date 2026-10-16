@@ -197,7 +197,7 @@ type: Artifact Creature — Food Alien Mutant
 cost: {3}{B}
 > When this creature enters, put two +1/+1 counters on target creature. When you do, destroy up to one target creature with mana value less than or equal to the number of counters among permanents you control.
 > {2}, {T}, Sacrifice this creature: You gain 3 life and each opponent loses 3 life.
-= BROKE at "among" after: when this creature enters , put two <pt> counters on target creature . when you do , destroy up to one target creature with mana value less than or equal to the number of counters
+= BROKE at "permanents" after: when this creature enters , put two <pt> counters on target creature . when you do , destroy up to one target creature with mana value less than or equal to the number of counters among
 = Activated { cost: [Mana(Mana(["2"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [GainLife { who: You, n: N(3) }, LoseLife { who: EachOpponent, n: N(3) }], limits: [] }
 
 ## Dire Wolf Prowler

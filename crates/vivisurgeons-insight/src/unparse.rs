@@ -1283,8 +1283,14 @@ mod syn {
         );
     }
 
+    /// Named rewrite [among-them] for the third: "puts all permanent cards
+    /// among them onto the battlefield" (Pyxis of Pandemonium) is "from among
+    /// them", the cards just named.
     pub fn from_among_them(o: &mut Out) {
-        any_of(o, &["from among them", "from among those cards"]);
+        any_of(
+            o,
+            &["from among them", "from among those cards", "among them"],
+        );
     }
 
     pub fn kicked(o: &mut Out) {
@@ -9051,6 +9057,20 @@ fn performed(o: &mut Out, e: &Effect, n: Num) {
             o.verb("exile", n);
             objects(o, x);
             o.w("face down");
+        }
+        // "Each player turns face up all cards they own exiled with this
+        // artifact": the verb's particle before a long object.
+        Effect::TurnFaceUp(x) => {
+            o.verb("turn", n);
+            let after = out(|o| {
+                objects(o, x);
+                o.w("face up");
+            });
+            let before = out(|o| {
+                o.w("face up");
+                objects(o, x);
+            });
+            syn::position(o, after, before);
         }
         Effect::GainControl { what, dur: d } => {
             o.verb("gain", n);
