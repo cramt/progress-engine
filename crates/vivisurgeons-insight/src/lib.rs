@@ -120,6 +120,9 @@ fn those_tokens(lines: &mut [Line]) {
         last: Option<Token>,
         // The token this line created, for an "instead" that replaces it.
         here: Option<Token>,
+        // Or the copy it created ("create five of those tokens instead",
+        // Rite of Replication, Runo Stromkirk).
+        here_copy: Option<Effect>,
         instead: usize,
         changed: bool,
     }
@@ -139,6 +142,11 @@ fn those_tokens(lines: &mut [Line]) {
                 } => {
                     self.last = Some(token.clone());
                     self.here = Some(token.clone());
+                    self.here_copy = None;
+                }
+                Effect::CreateCopy { .. } => {
+                    self.here = None;
+                    self.here_copy = Some(e.clone());
                 }
                 Effect::Instead { .. } => self.instead += 1,
                 Effect::CreateThose {
@@ -146,7 +154,8 @@ fn those_tokens(lines: &mut [Line]) {
                     n,
                     those,
                 } if self.instead > 0
-                    && those.quant == Quant::Created
+                    && (those.quant == Quant::Created
+                        || those.quant == Quant::Antecedent && self.here_copy.is_some())
                     && those.filter.kind == Some(Noun::Token)
                     && those.filter.alts.is_empty()
                     && those.filter.posts.is_empty()
@@ -157,6 +166,36 @@ fn those_tokens(lines: &mut [Line]) {
                             who: Player::You,
                             n: n.clone(),
                             token,
+                        };
+                        self.changed = true;
+                    } else if let Some(Effect::CreateCopy {
+                        tapped,
+                        attacking,
+                        mut of,
+                        except,
+                        ..
+                    }) = self.here_copy.clone()
+                    {
+                        // The same object copied, the target said before
+                        // and not a second one.
+                        if matches!(
+                            of.quant,
+                            Quant::Target { .. }
+                                | Quant::AnotherTarget
+                                | Quant::OtherTarget { .. }
+                                | Quant::AnyTarget { .. }
+                        ) {
+                            of = Objects {
+                                quant: Quant::Antecedent,
+                                filter: ast::Filter::default(),
+                            };
+                        }
+                        *e = Effect::CreateCopy {
+                            n: n.clone(),
+                            tapped,
+                            attacking,
+                            of,
+                            except,
                         };
                         self.changed = true;
                     }
@@ -192,6 +231,7 @@ fn those_tokens(lines: &mut [Line]) {
     let mut v = Those {
         last: None,
         here: None,
+        here_copy: None,
         instead: 0,
         changed: false,
     };
@@ -200,6 +240,7 @@ fn those_tokens(lines: &mut [Line]) {
         let before = a.clone();
         v.changed = false;
         v.here = None;
+        v.here_copy = None;
         a.walk(&mut v);
         if v.changed {
             l.said = Some(before);

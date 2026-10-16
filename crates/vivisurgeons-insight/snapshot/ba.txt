@@ -602,7 +602,7 @@ cost: {U}{B}{R}
 > Deathtouch, haste
 > Whenever this creature attacks, if you don't control a Devil token, create a tapped and attacking 1/1 red Devil creature token with "When this token dies, it deals 1 damage to any target."
 = Keywords([Keyword { name: "deathtouch", param: None }, Keyword { name: "haste", param: None }])
-= BROKE at "attacking" after: whenever this creature attacks , if you don't control a devil token , create a tapped and
+= BROKE at "<pt>" after: whenever this creature attacks , if you don't control a devil token , create a tapped and attacking
 
 ## Mantle of Tides
 face: Mantle of Tides

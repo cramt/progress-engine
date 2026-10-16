@@ -812,7 +812,7 @@ type: Legendary Creature — Human Scientist
 cost: {3}{U}{R}
 > Whenever you attack, you may create a tapped and attacking token that's a copy of target attacking legendary creature you control other than Shaun, except it's not legendary and it's a Synth artifact creature in addition to its other types.
 > When Shaun leaves the battlefield, exile all Synth tokens you control.
-= BROKE at "attacking" after: whenever you attack , you may create a tapped and
+= Triggered { trigger: When(YouAttack), effect: [May { who: You, then: [CreateCopy { n: N(1), tapped: true, attacking: Some(ControllerChooses), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Attacking), Supertype("legendary"), Type("creature")]], kind: None, posts: [Controller(You), OtherThanSelf], or: None } }, except: [IsNot([Supertype("legendary")]), AlsoIs([Subtype("synth"), Type("artifact"), Type("creature")])] }] }], limits: [] }
 = Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [Exile(Objects { quant: All, filter: Filter { alts: [[Subtype("synth")]], kind: Some(Token), posts: [Controller(You)], or: None } })], limits: [] }
 
 ## Shinestriker

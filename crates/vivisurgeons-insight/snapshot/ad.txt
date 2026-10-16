@@ -430,7 +430,7 @@ cost: {1}{U}{U}
 > −5: Create two tokens that are copies of Jace, except they're not legendary.
 = Loyalty { change: N(1), effect: [During { dur: ThisTurn, then: [DelayedWhenever { event: DealsCombatDamageToPlayer(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), then: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }] }] }
 = Loyalty { change: N(-2), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Blue], types: ["illusion", "creature"], keywords: [], abilities: [Triggered { trigger: When(BecomesTarget { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Some(Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) }), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }], named: None, attacking: None } }] }
-= BROKE at "that" after: N(-5) : create two tokens
+= Loyalty { change: N(-5), effect: [CreateCopy { n: N(2), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [IsNot([Supertype("legendary")])] }] }
 
 ## Jump
 face: Jump

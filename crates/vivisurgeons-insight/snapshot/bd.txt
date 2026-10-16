@@ -617,7 +617,7 @@ cost: {3}{U}
 > Whenever this creature attacks, create a tapped and attacking token that's a copy of the exiled card, except it's an Illusion in addition to its other types. Sacrifice that token at end of combat.
 = Keywords([Keyword { name: "flash", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ExileUntilLeaves { what: Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, until: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "attacking" after: whenever this creature attacks , create a tapped and
+= BROKE at "end" after: whenever this creature attacks , create a tapped and attacking token that's a copy of the exiled card , except it's an illusion in addition to its other types . sacrifice that token at
 
 ## Prairie Stream
 face: Prairie Stream
@@ -1047,7 +1047,7 @@ cost: {4}{R}{R}
 > • Copy target instant or sorcery spell an opponent controls twice. You may choose new targets for the copies.
 > • Create two tokens that are copies of target permanent an opponent controls. They gain haste. At the beginning of the next end step, sacrifice them.
 = Keywords([Keyword { name: "flash", param: None }])
-= BROKE at "." after: when ~ enters , choose one — • copy target instant or sorcery spell an opponent controls twice . you may choose new targets for the copies . • create two tokens that are copies of target permanent an opponent controls
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modal { choose: One, modes: [[Repeat { times: N(2), then: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Controller(AnOpponent)], or: None } }, may_choose_new_targets: true }] }], [CreateCopy { n: N(2), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(AnOpponent)], or: None } }, except: [] }, Modify { what: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: Permanent }, Delayed { step: EndStep(Next), then: [Sacrifice { who: You, what: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }]] }], limits: [] }
 
 ## Voidslime
 face: Voidslime

@@ -12,7 +12,7 @@ face: Aggressive Biomancy
 type: Sorcery
 cost: {X}{X}{G}{U}
 > Create X tokens that are copies of target creature you control, except they have "When this token enters, it fights up to one target creature you don't control."
-= BROKE at "target" after: create x tokens that are copies of
+= BROKE at "have" after: create x tokens that are copies of target creature you control , except they
 
 ## Ajani, Caller of the Pride
 face: Ajani, Caller of the Pride
@@ -453,7 +453,7 @@ type: Legendary Creature — Human Advisor
 cost: {1}{W}{B}
 > Whenever one or more tokens your opponents control enter, for each of them, create a tapped token that's a copy of it. This ability triggers only once each turn.
 > Whenever one or more tokens you control enter, each opponent loses 1 life and you gain 1 life.
-= BROKE at "that's" after: whenever one or more tokens your opponents control enter , for each of them , create a tapped token
+= Triggered { trigger: When(Enters { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [], kind: Some(Token), posts: [Controller(EachOpponent)], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [CreateCopy { n: N(1), tapped: true, attacking: None, of: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }], limits: [OncePerTurn] }
 = Triggered { trigger: When(Enters { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [LoseLife { who: EachOpponent, n: N(1) }, GainLife { who: You, n: N(1) }], limits: [] }
 
 ## Kang Prime

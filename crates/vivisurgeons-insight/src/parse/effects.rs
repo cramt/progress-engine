@@ -1245,10 +1245,22 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         // tokens
         |p| {
             p.word("create")?;
-            p.words("a token that's a copy of")?;
+            // "two tapped tokens that are copies of", "a tapped and
+            // attacking token that's a copy of": attacking whom its
+            // controller chooses (CR 508.4).
+            let n = amount_a(p)?;
+            let tapped = p.attempt(|p| p.word("tapped")).is_some();
+            let attacking = p
+                .attempt(|p| if tapped { p.words("and attacking") } else { p.word("attacking") })
+                .map(|_| Recipient::ControllerChooses);
+            if n == Amount::N(1) {
+                p.words("token that's a copy of")?;
+            } else {
+                p.words("tokens that are copies of")?;
+            }
             let of = objects(p)?;
             let except = p.attempt(exceptions).unwrap_or_default();
-            Some(Effect::CreateCopy { n: Amount::N(1), tapped: false, attacking: None, of, except })
+            Some(Effect::CreateCopy { n, tapped, attacking, of, except })
         },
         |p| {
             let who = subject_player(p);

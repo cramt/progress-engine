@@ -148,7 +148,7 @@ face: Compy Swarm
 type: Creature — Dinosaur
 cost: {1}{B}{G}
 > At the beginning of your end step, if a creature died this turn, create a tapped token that's a copy of this creature.
-= BROKE at "that's" after: at the beginning of your end step , if a creature died this turn , create a tapped token
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), DidThisTurn(Dies(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }))), effect: [CreateCopy { n: N(1), tapped: true, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
 
 ## Curse of the Nightly Hunt
 face: Curse of the Nightly Hunt

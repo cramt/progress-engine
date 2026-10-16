@@ -665,7 +665,7 @@ type: Creature — Ogre Warrior
 cost: {3}{R}{R}
 > Whenever this creature attacks, create a tapped and attacking 1/1 red Devil creature token with "When this token dies, it deals 1 damage to any target."
 > Blitz {3}{R} (If you cast this spell for its blitz cost, it gains haste and "When this creature dies, draw a card." Sacrifice it at the beginning of the next end step.)
-= BROKE at "attacking" after: whenever this creature attacks , create a tapped and
+= BROKE at "<pt>" after: whenever this creature attacks , create a tapped and attacking
 = Keywords([Keyword { name: "blitz", param: Some(Cost([Mana(Mana(["3", "R"]))])) }])
 
 ## Ramosian Sergeant

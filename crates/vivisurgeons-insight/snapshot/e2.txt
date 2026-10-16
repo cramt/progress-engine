@@ -964,7 +964,7 @@ cost: {1}{W}
 face: Furnace-Blessed Conqueror
 type: Creature — Phyrexian Cleric
 > Whenever this creature attacks, create a tapped and attacking token that's a copy of it. Put a +1/+1 counter on that token for each +1/+1 counter on this creature. Sacrifice that token at the beginning of the next end step.
-= BROKE at "attacking" after: whenever this creature attacks , create a tapped and
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [CreateCopy { n: N(1), tapped: true, attacking: Some(ControllerChooses), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("+1/+1"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: BeforeEach, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }, Delayed { step: EndStep(Next), then: [Sacrifice { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }], limits: [] }
 
 ## Sunpearl Kirin
 face: Sunpearl Kirin

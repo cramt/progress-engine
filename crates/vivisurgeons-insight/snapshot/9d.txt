@@ -906,7 +906,7 @@ type: Legendary Creature — Kraken Horror
 > Flying
 > Whenever Krothuss attacks, create a tapped and attacking token that's a copy of another target attacking creature. If that creature is a Kraken, Leviathan, Octopus, or Serpent, create two of those tokens instead.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "attacking" after: whenever ~ attacks , create a tapped and
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [CreateCopy { n: N(1), tapped: true, attacking: Some(ControllerChooses), of: Objects { quant: AnotherTarget, filter: Filter { alts: [[State(Attacking), Type("creature")]], kind: None, posts: [], or: None } }, except: [] }, Instead { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("kraken")], [Subtype("leviathan")], [Subtype("octopus")], [Subtype("serpent")]], kind: None, posts: [], or: None } }, then: [CreateCopy { n: N(2), tapped: true, attacking: Some(ControllerChooses), of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }], limits: [] }
 
 ## Sacred Armory
 face: Sacred Armory

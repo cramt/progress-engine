@@ -767,7 +767,7 @@ cost: {1}{B}{G}
 > Flying
 > Whenever you sacrifice a land, create a tapped token that's a copy of this creature if seven or more land cards are in your graveyard. Otherwise, create a tapped 1/1 black Insect creature token with flying.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "this" after: whenever you sacrifice a land , create a tapped token that's a copy of
+= Triggered { trigger: When(Sacrifices { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } } }), effect: [If { cond: In { what: Objects { quant: AtLeast(N(7)), filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, zone: Graveyard(You) }, then: [CreateCopy { n: N(1), tapped: true, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }, Otherwise([Create { who: You, n: N(1), token: Token { tapped: true, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Black], types: ["insect", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None } }])], limits: [] }
 
 ## Scuzzback Scrounger
 face: Scuzzback Scrounger

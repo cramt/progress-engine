@@ -432,7 +432,7 @@ cost: {2}{B}{G}
 > {T}, Pay 2 life, Tap X untapped tokens you control: Add X mana in any combination of colors.
 > At the beginning of your end step, create a token that's a copy of target token you control. If that token is a Squirrel, instead create two tokens that are copies of it.
 = Activated { cost: [Tap, PayLife(N(2)), TapUntapped(Objects { quant: N(X), filter: Filter { alts: [[State(Untapped)]], kind: Some(Token), posts: [Controller(You)], or: None } })], effect: [AddMana(Of { n: X, pick: AnyCombination, within: None })], limits: [] }
-= BROKE at "that" after: at the beginning of your end step , create a token that's a copy of target token you control . if that token is a squirrel , instead create two tokens
+= Triggered { trigger: At(EndStep(Yours)), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, except: [] }, Instead { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, filter: Filter { alts: [[Subtype("squirrel")]], kind: None, posts: [], or: None } }, then: [CreateCopy { n: N(2), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }], limits: [] }
 
 ## Hero of Iroas
 face: Hero of Iroas

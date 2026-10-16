@@ -810,7 +810,7 @@ cost: {9}
 > When this creature enters, if you cast it, create two tokens that are copies of it.
 = BROKE at "—" after: prototype {3} {R} {R}
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
-= BROKE at "it" after: when this creature enters , if you cast it , create two tokens that are copies of
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), YouCastIt(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [CreateCopy { n: N(2), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
 
 ## Slith Predator
 face: Slith Predator

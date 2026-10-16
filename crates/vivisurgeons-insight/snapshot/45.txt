@@ -652,7 +652,7 @@ cost: {1}{R}{W}{B}
 > Whenever this creature attacks, for each opponent, create a tapped token that's a copy of the exiled card attacking that opponent. At the beginning of your next end step, sacrifice those tokens.
 = Keywords([Keyword { name: "deathtouch", param: None }, Keyword { name: "haste", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ExileUntilLeaves { what: Objects { quant: OtherTarget { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, until: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "that's" after: whenever this creature attacks , for each opponent , create a tapped token
+= BROKE at "attacking" after: whenever this creature attacks , for each opponent , create a tapped token that's a copy of the exiled card
 
 ## Mark for Death
 face: Mark for Death

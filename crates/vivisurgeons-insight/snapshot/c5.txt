@@ -60,7 +60,7 @@ cost: {6}{U}{U}
 > Flying
 > Project Image — When this creature enters, create two tokens that are copies of target noncreature permanent, except they're 3/3 Dragon creatures in addition to their other types, and they have flying.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "that" after: project image — when this creature enters , create two tokens
+= BROKE at "in" after: project image — when this creature enters , create two tokens that are copies of target noncreature permanent , except they're <pt> dragon creatures
 
 ## Bellowing Crier
 face: Bellowing Crier

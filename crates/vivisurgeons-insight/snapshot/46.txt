@@ -649,7 +649,7 @@ cost: {2}{R}
 > First strike
 > Whenever this creature attacks, for each creature token you control that entered this turn, create a tapped and attacking token that's a copy of that token. At the beginning of the next end step, sacrifice those tokens.
 = Keywords([Keyword { name: "first strike", param: None }])
-= BROKE at "attacking" after: whenever this creature attacks , for each creature token you control that entered this turn , create a tapped and
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [Controller(You), EnteredThisTurn], or: None } }, then: [CreateCopy { n: N(1), tapped: true, attacking: Some(ControllerChooses), of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, except: [] }] }, Delayed { step: EndStep(Next), then: [Sacrifice { who: You, what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }], limits: [] }
 
 ## Revealing Wind
 face: Revealing Wind

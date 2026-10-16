@@ -723,7 +723,7 @@ face: Rebuild the City
 type: Sorcery
 cost: {3}{B}{R}{G}
 > Choose target land. Create three tokens that are copies of it, except they're 3/3 creatures in addition to their other types and they have vigilance and menace. (They're affected by summoning sickness.)
-= BROKE at "that" after: choose target land . create three tokens
+= BROKE at "in" after: choose target land . create three tokens that are copies of it , except they're <pt> creatures
 
 ## Red Scarab
 face: Red Scarab

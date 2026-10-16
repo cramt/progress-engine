@@ -211,7 +211,7 @@ face: Devastating Onslaught
 type: Sorcery
 cost: {X}{X}{R}
 > Create X tokens that are copies of target artifact or creature you control. Those tokens gain haste until end of turn. Sacrifice them at the beginning of the next end step.
-= BROKE at "target" after: create x tokens that are copies of
+= Spell([CreateCopy { n: X, tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }, Modify { what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }, Delayed { step: EndStep(Next), then: [Sacrifice { who: You, what: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
 
 ## Dissenter's Deliverance
 face: Dissenter's Deliverance

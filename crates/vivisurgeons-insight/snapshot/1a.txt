@@ -820,7 +820,7 @@ cost: {3}
 > {T}: Add one mana of any color.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["3"]))])) }])
 = Keywords([Keyword { name: "indestructible", param: None }])
-= BROKE at "that" after: when this artifact enters , if it was kicked , create two tapped tokens
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), WasKicked), effect: [CreateCopy { n: N(2), tapped: true, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
 
 ## Snow-Covered Plains

@@ -186,7 +186,7 @@ face: Cleaver Skaab
 type: Creature — Zombie Horror
 cost: {3}{U}
 > {3}, {T}, Sacrifice another Zombie: Create two tokens that are copies of the sacrificed creature.
-= BROKE at "that" after: {3} , {T} , sacrifice another zombie : create two tokens
+= Activated { cost: [Mana(Mana(["3"])), Tap, Sacrifice(Objects { quant: Another, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [], or: None } })], effect: [CreateCopy { n: N(2), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Sacrificed)], or: None } }, except: [] }], limits: [] }
 
 ## Clockwork Dragon
 face: Clockwork Dragon

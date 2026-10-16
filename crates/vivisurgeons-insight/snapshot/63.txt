@@ -53,7 +53,7 @@ cost: {4}{R}{R}
 > Whenever Calamity attacks while saddled, choose a nonlegendary creature that saddled it this turn and create a tapped and attacking token that's a copy of it. Sacrifice that token at the beginning of the next end step. Repeat this process once.
 > Saddle 1
 = Keywords([Keyword { name: "haste", param: None }])
-= BROKE at "attacking" after: whenever ~ attacks while saddled , choose a nonlegendary creature that saddled it this turn and create a tapped and
+= BROKE at "once" after: whenever ~ attacks while saddled , choose a nonlegendary creature that saddled it this turn and create a tapped and attacking token that's a copy of it . sacrifice that token at the beginning of the next end step . repeat this process
 = Keywords([Keyword { name: "saddle", param: Some(N(N(1))) }])
 
 ## Caribou Range

@@ -473,7 +473,7 @@ cost: {3}{G}{G}{G}
 > This creature must be blocked by exactly one creature if able.
 > Whenever this creature attacks, create X tokens that are copies of it and that are tapped and attacking, where X is the number of creatures defending player controls. Exile the tokens at the beginning of the next end step.
 = BROKE at "one" after: this creature must be blocked by exactly
-= BROKE at "that" after: whenever this creature attacks , create x tokens
+= BROKE at "tapped" after: whenever this creature attacks , create x tokens that are copies of it and that are
 
 ## Naga Eternal
 face: Naga Eternal

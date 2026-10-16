@@ -611,7 +611,7 @@ cost: {2}{R}{W}
 > {X}, {T}, Exile an artifact card with mana value X from your graveyard: Create two tokens that are copies of the exiled card. Activate only as a sorcery.
 = Keywords([Keyword { name: "vigilance", param: None }])
 = Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
-= BROKE at "that" after: {X} , {T} , exile an artifact card with mana value x from your graveyard : create two tokens
+= Activated { cost: [Mana(Mana(["X"])), Tap, Exile(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Eq, value: X }), In(Graveyard(You))], or: None } })], effect: [CreateCopy { n: N(2), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, except: [] }], limits: [SorcerySpeed] }
 
 ## Personal Incarnation
 face: Personal Incarnation

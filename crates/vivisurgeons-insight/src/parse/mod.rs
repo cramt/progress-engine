@@ -2252,6 +2252,8 @@ struct CreatedTokens {
     tokens: bool,
     /// The card and creature types of the tokens just created.
     types: Vec<String>,
+    /// The effect just read was a `CreateCopy`.
+    after_copy: bool,
 }
 
 impl CreatedTokens {
@@ -2264,6 +2266,7 @@ impl CreatedTokens {
             skip: None,
             tokens: false,
             types: Vec::new(),
+            after_copy: false,
         }
     }
 }
@@ -2329,6 +2332,17 @@ impl Visitor for CreatedTokens {
         self.depth += 1;
         if self.skip.is_some() {
             return;
+        }
+        // "create a token that's a copy of target token you control. If that
+        // token is a Squirrel, instead create two tokens that are copies of
+        // it" (Hazel of the Rootbloom): the "instead" replaces the creation
+        // (CR 614.1a), so no copy exists for "that token" or "it" to be; they
+        // are the object copied, said before.
+        let after_copy =
+            std::mem::replace(&mut self.after_copy, matches!(e, Effect::CreateCopy { .. }));
+        if after_copy && matches!(e, Effect::Instead { .. }) {
+            self.created = None;
+            self.tokens = false;
         }
         match e {
             // "put a number of +1/+1 counters on it equal to the greatest

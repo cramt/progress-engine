@@ -570,7 +570,7 @@ cost: {4}{R}{R}
 > Backup 1 (When this creature enters, put a +1/+1 counter on target creature. If that's another creature, it gains the following ability until end of turn.)
 > Whenever this creature attacks, for each attacking modified creature you control, create a tapped and attacking token that's a copy of that creature. Exile those tokens at end of combat. (Equipment, Auras you control, and counters are modifications.)
 = Keywords([Keyword { name: "backup", param: Some(N(N(1))) }])
-= BROKE at "attacking" after: whenever this creature attacks , for each attacking modified creature you control , create a tapped and
+= BROKE at "end" after: whenever this creature attacks , for each attacking modified creature you control , create a tapped and attacking token that's a copy of that creature . exile those tokens at
 
 ## Mistform Seaswift
 face: Mistform Seaswift

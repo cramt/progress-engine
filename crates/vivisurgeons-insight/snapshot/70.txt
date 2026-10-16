@@ -475,7 +475,7 @@ type: Legendary Creature — Goblin Warrior
 > Whenever Grub attacks, you may blight 1. If you do, create a tapped and attacking token that's a copy of the blighted creature, except it has "At the beginning of the end step, sacrifice this token."
 > At the beginning of your first main phase, you may pay {B}. If you do, transform Grub.
 = Keywords([Keyword { name: "menace", param: None }])
-= BROKE at "attacking" after: whenever ~ attacks , you may blight 1 . if you do , create a tapped and
+= BROKE at "creature" after: whenever ~ attacks , you may blight 1 . if you do , create a tapped and attacking token that's a copy of the blighted
 = Triggered { trigger: At(PrecombatMain(Yours)), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["B"]))] }] }, IfYouDo([Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])], limits: [] }
 
 ## Hellfire Mongrel

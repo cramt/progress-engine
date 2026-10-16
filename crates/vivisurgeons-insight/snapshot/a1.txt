@@ -395,7 +395,7 @@ face: Hashaton, Scarab's Fist
 type: Legendary Creature — Zombie Wizard
 cost: {W}{B}
 > Whenever you discard a creature card, you may pay {2}{U}. If you do, create a tapped token that's a copy of that card, except it's a 4/4 black Zombie.
-= BROKE at "that's" after: whenever you discard a creature card , you may pay {2} {U} . if you do , create a tapped token
+= Triggered { trigger: When(Discards { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [], or: None } } }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2", "U"]))] }] }, IfYouDo([CreateCopy { n: N(1), tapped: true, attacking: None, of: Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, except: [Is { pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), adjs: [Color(Black), Subtype("zombie")] }] }])], limits: [] }
 
 ## Hordeling Outburst
 face: Hordeling Outburst
