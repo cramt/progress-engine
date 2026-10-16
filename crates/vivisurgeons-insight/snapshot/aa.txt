@@ -420,7 +420,7 @@ cost: {5}
 > Tap an untapped creature you control: This creature gets +X/+0 until end of turn, where X is the power of the creature tapped this way.
 = Keywords([Keyword { name: "trample", param: None }])
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }])
-= BROKE at "end" after: when this creature attacks , sacrifice it at
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Delayed { step: EndOfCombat(The), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 = Activated { cost: [TapUntapped(Objects { quant: One, filter: Filter { alts: [[State(Untapped), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })], effect: [Where { then: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: X, toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], x: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Tapped)], or: None } }) }], limits: [] }
 
 ## Kiora, Behemoth Beckoner
@@ -901,7 +901,7 @@ face: The Wretched
 type: Creature — Demon
 cost: {3}{B}{B}
 > At end of combat, gain control of all creatures blocking this creature for as long as you control this creature.
-= BROKE at "," after: at end of combat
+= BROKE at "creature" after: at end of combat , gain control of all creatures blocking this
 
 ## Triarch Stalker
 face: Triarch Stalker

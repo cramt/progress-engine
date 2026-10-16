@@ -496,7 +496,7 @@ cost: {G}
 > Whenever this creature attacks, it gets +0/+2 until end of turn.
 > At end of combat, tap all creatures that blocked this creature this turn. They don't untap during their controller's next untap step.
 = Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(0), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
-= BROKE at "," after: at end of combat
+= BROKE at "blocked" after: at end of combat , tap all creatures that
 
 ## Laccolith Warrior
 face: Laccolith Warrior
@@ -1094,7 +1094,7 @@ cost: {3}{U}
 > Flying
 > When this creature attacks or blocks, return it to its owner's hand at end of combat. (Return it only if it's on the battlefield.)
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "end" after: when this creature attacks or blocks , return it to its owner 's hand at
+= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Delayed { step: EndOfCombat(The), then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Writ of Return
 face: Writ of Return

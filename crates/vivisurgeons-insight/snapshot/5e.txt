@@ -146,7 +146,7 @@ type: Artifact — Vehicle
 cost: {4}
 > When this Vehicle attacks, exile it at end of combat, then return it to the battlefield transformed under your control.
 > Crew 4 (Tap any number of creatures you control with total power 4 or more: This Vehicle becomes an artifact creature until end of turn.)
-= BROKE at "end" after: when this vehicle attacks , exile it at
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Delayed { step: EndOfCombat(The), then: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: true, under: Some(You), order: None }] }], limits: [] }
 = Keywords([Keyword { name: "crew", param: Some(N(N(4))) }])
 
 ## Conqueror's Galleon // Conqueror's Foothold

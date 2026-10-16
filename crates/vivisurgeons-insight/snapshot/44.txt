@@ -1066,7 +1066,7 @@ cost: {2}
 > Defender (This creature can't attack.)
 > When this creature blocks, return it to its owner's hand at end of combat. (Return it only if it's on the battlefield.)
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "end" after: when this creature blocks , return it to its owner 's hand at
+= Triggered { trigger: When(Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Delayed { step: EndOfCombat(The), then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Wheel of Fortune
 face: Wheel of Fortune

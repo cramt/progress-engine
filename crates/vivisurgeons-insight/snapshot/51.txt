@@ -200,7 +200,7 @@ cost: {5}
 > Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)
 > When this creature attacks, sacrifice it at end of combat.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "end" after: when this creature attacks , sacrifice it at
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Delayed { step: EndOfCombat(The), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Curio Vendor
 face: Curio Vendor

@@ -618,7 +618,7 @@ cost: {2}{B}
 > Defender
 > Whenever you attack with one or more Goblins and/or Orcs, create a 2/1 colorless Construct artifact creature token with flying named Ballistic Boulder that's tapped and attacking. Sacrifice that token at end of combat.
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "end" after: whenever you attack with one or more goblins and/or orcs , create a <pt> colorless construct artifact creature token with flying named ballistic boulder that's tapped and attacking . sacrifice that token at
+= Triggered { trigger: When(AttacksWith { who: You, what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Subtype("goblin")], [Subtype("orc")]], kind: None, posts: [], or: None } }, at: None }), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: true, pt: Some(Pt { power: N(2), toughness: N(1), signed: false }), colors: [Colorless], types: ["construct", "artifact", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: Some(ControllerChooses) }, name: "ballistic boulder" }, Delayed { step: EndOfCombat(The), then: [Sacrifice { who: You, what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }], limits: [] }
 
 ## Nameless Race
 face: Nameless Race

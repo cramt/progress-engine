@@ -436,7 +436,7 @@ face: Kjeldoran Frostbeast
 type: Creature — Elemental Beast
 cost: {3}{G}{W}
 > At end of combat, destroy all creatures blocking or blocked by this creature.
-= BROKE at "," after: at end of combat
+= BROKE at "this" after: at end of combat , destroy all creatures blocking or blocked by
 
 ## Liquify
 face: Liquify

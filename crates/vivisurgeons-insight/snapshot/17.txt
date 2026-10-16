@@ -611,7 +611,7 @@ type: Snow Creature — Snake
 cost: {1}{G}{G}
 > Whenever this creature deals combat damage to a creature, destroy that creature at end of combat.
 > Whenever this creature deals combat damage to a player, you may draw a card.
-= BROKE at "end" after: whenever this creature deals combat damage to a creature , destroy that creature at
+= Triggered { trigger: When(DealsCombatDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }), effect: [Delayed { step: EndOfCombat(The), then: [Destroy { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] }
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Order of the Golden Cricket

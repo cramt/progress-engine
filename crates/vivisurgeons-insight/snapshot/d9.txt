@@ -927,7 +927,7 @@ type: Creature — Elemental
 cost: {2}{U}
 > When this creature attacks or blocks, at end of combat, sacrifice it and it deals 5 damage to you.
 > {2}{U}{U}, {T}: Return target permanent that isn't enchanted to its owner's hand.
-= BROKE at "end" after: when this creature attacks or blocks , at
+= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Delayed { step: EndOfCombat(The), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(5), to: [Player(You)] }] }], limits: [] }
 = Activated { cost: [Mana(Mana(["2", "U", "U"])), Tap], effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Not(ThatIs(Filter { alts: [[State(Enchanted)]], kind: None, posts: [], or: None }))], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Tread Upon

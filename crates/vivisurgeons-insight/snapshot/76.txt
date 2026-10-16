@@ -148,7 +148,7 @@ type: Creature — Human Rebel
 cost: {2}{W}
 > When this creature blocks, at end of combat, destroy it and all creatures it blocked this turn.
 > {5}, {T}: Search your library for a Rebel permanent card with mana value 4 or less, put it onto the battlefield, then shuffle.
-= BROKE at "end" after: when this creature blocks , at
+= BROKE at "blocked" after: when this creature blocks , at end of combat , destroy it and all creatures it
 = Activated { cost: [Mana(Mana(["5"])), Tap], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Subtype("rebel")]], kind: Some(PermanentCard), posts: [With(Compare { stat: ManaValue, op: Le, value: N(4) })], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Shuffle(You)], limits: [] }
 
 ## Departed Deckhand

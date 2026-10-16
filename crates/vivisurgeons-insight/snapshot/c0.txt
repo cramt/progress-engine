@@ -608,7 +608,7 @@ face: Phantom Whelp
 type: Creature — Illusion Dog
 cost: {1}{U}
 > When this creature attacks or blocks, return it to its owner's hand at end of combat. (Return it only if it's on the battlefield.)
-= BROKE at "end" after: when this creature attacks or blocks , return it to its owner 's hand at
+= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Delayed { step: EndOfCombat(The), then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Plundering Pirate
 face: Plundering Pirate

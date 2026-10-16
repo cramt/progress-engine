@@ -514,7 +514,7 @@ face: Kjeldoran Home Guard
 type: Creature — Human Soldier
 cost: {3}{W}
 > At end of combat, if this creature attacked or blocked this combat, put a -0/-1 counter on this creature and create a 0/1 white Deserter creature token.
-= BROKE at "," after: at end of combat
+= BROKE at "or" after: at end of combat , if this creature attacked
 
 ## Lead Astray
 face: Lead Astray

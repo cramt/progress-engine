@@ -394,7 +394,7 @@ face: Goblin Kites
 type: Enchantment
 cost: {1}{R}
 > {R}: Target creature you control with toughness 2 or less gains flying until end of turn. Flip a coin at the beginning of the next end step. If you lose the flip, sacrifice that creature.
-= Activated { cost: [Mana(Mana(["R"]))], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Toughness, op: Le, value: N(2) })], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }, Delayed { step: EndStep(Next), then: [FlipCoin] }, If { cond: WonFlip(false), then: [Sacrifice { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["R"]))], effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Toughness, op: Le, value: N(2) })], or: None } }, pt: None, gains: [Keyword { name: "flying", param: None }], dur: UntilEndOfTurn }, Delayed { step: EndStep(Next), then: [FlipCoin, If { cond: WonFlip(false), then: [Sacrifice { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }] }], limits: [] }
 
 ## Gollum the Abandoned
 face: Gollum the Abandoned
@@ -1168,7 +1168,7 @@ face: Wicker Warcrawler
 type: Artifact Creature — Scarecrow
 cost: {5}
 > Whenever this creature attacks or blocks, put a -1/-1 counter on it at end of combat.
-= BROKE at "end" after: whenever this creature attacks or blocks , put a <pt> counter on it at
+= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Delayed { step: EndOfCombat(The), then: [PutCounters { n: N(1), kind: "-1/-1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Witness of the Ages
 face: Witness of the Ages

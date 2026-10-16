@@ -349,7 +349,7 @@ cost: {1}{R}
 > {R}{R}, {T}: Target creature you control can't be blocked this turn. Destroy it and this creature at end of combat.
 > {R}{R}{R}{R}, {T}: Target creature you control can't be blocked this turn. Destroy it at end of combat.
 = BROKE at "end" after: {R} {R} , {T} : target creature you control can't be blocked this turn . destroy it and this creature at
-= BROKE at "end" after: {R} {R} {R} {R} , {T} : target creature you control can't be blocked this turn . destroy it at
+= Activated { cost: [Mana(Mana(["R", "R", "R", "R"])), Tap], effect: [Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, rule: CantBeBlocked, dur: ThisTurn }, Delayed { step: EndOfCombat(The), then: [Destroy { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] }
 
 ## Green Ward
 face: Green Ward

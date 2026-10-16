@@ -899,7 +899,7 @@ cost: {2}{G}{G}
 > Other Snake creatures you control get +1/+0.
 > Whenever a Warrior you control deals combat damage to a creature, destroy that creature at end of combat.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("snake"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(0), signed: true }), has: [], per: None }])
-= BROKE at "end" after: whenever a warrior you control deals combat damage to a creature , destroy that creature at
+= Triggered { trigger: When(DealsCombatDamageTo { what: Objects { quant: One, filter: Filter { alts: [[Subtype("warrior")]], kind: None, posts: [Controller(You)], or: None } }, to: Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }), effect: [Delayed { step: EndOfCombat(The), then: [Destroy { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] }
 
 ## Spider-Man Noir
 face: Spider-Man Noir

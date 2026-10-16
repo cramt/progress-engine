@@ -47,6 +47,7 @@ pub(super) fn step(p: &mut P) -> Option<Step> {
         |p| p.words("second main phase").map(|_| Step::SecondMain(w.clone())),
         |p| p.words("main phase").map(|_| Step::Main(w.clone())),
         |p| p.words("end step").map(|_| Step::EndStep(w.clone())),
+        |p| p.words("end of combat step").map(|_| Step::EndOfCombat(w.clone())),
         |p| p.words("end of combat").map(|_| Step::EndOfCombat(w.clone())),
         |p| p.word("combat").map(|_| Step::Combat(w.clone())),
     )?;
@@ -393,6 +394,9 @@ pub(super) fn event(p: &mut P) -> Option<Event> {
 pub(super) fn trigger(p: &mut P) -> Option<Trigger> {
     alt!(p;
         |p| { p.words("at the beginning of")?; printed_step(p).map(Trigger::At) },
+        // "At end of combat, …": as each end of combat step begins (CR
+        // 511.2), printed so every one ([printed-the-step]).
+        |p| p.words("at end of combat").map(|_| Trigger::At(Step::EndOfCombat(Whose::Each))),
         |p| {
             p.one_of(&["whenever", "when"])?;
             let e = event(p)?;

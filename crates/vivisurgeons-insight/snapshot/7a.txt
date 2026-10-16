@@ -641,7 +641,7 @@ cost: {1}{U}
 > Enchant creature
 > Whenever enchanted creature attacks, you may create a token that's a copy of that creature. Exile that token at end of combat.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "end" after: whenever enchanted creature attacks , you may create a token that's a copy of that creature . exile that token at
+= Triggered { trigger: When(Attacks(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }, Delayed { step: EndOfCombat(The), then: [Exile(Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } })] }] }], limits: [] }
 
 ## Mjölnir, Hammer of Thor
 face: Mjölnir, Hammer of Thor

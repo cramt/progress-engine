@@ -811,7 +811,7 @@ type: Creature — Basilisk
 cost: {4}{G}{G}{G}
 > Whenever this creature deals combat damage to a creature, destroy that creature at end of combat.
 > Threshold — As long as there are seven or more cards in your graveyard, all creatures able to block this creature do so.
-= BROKE at "end" after: whenever this creature deals combat damage to a creature , destroy that creature at
+= Triggered { trigger: When(DealsCombatDamageTo { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }), effect: [Delayed { step: EndOfCombat(The), then: [Destroy { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] }
 = BROKE at "to" after: threshold — as long as there are seven or more cards in your graveyard , all creatures able
 
 ## Sundering Growth

@@ -161,7 +161,7 @@ cost: {R}
 > Defender
 > When this creature blocks, destroy it at end of combat.
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "end" after: when this creature blocks , destroy it at
+= Triggered { trigger: When(Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Delayed { step: EndOfCombat(The), then: [Destroy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] }
 
 ## Coursers' Accord
 face: Coursers' Accord

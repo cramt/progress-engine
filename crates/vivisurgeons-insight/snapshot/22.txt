@@ -522,7 +522,7 @@ face: Kavaron Harrier
 type: Artifact Creature — Robot Soldier
 cost: {R}
 > Whenever this creature attacks, you may pay {2}. If you do, create a 2/2 colorless Robot artifact creature token that's tapped and attacking. Sacrifice that token at end of combat.
-= BROKE at "end" after: whenever this creature attacks , you may pay {2} . if you do , create a <pt> colorless robot artifact creature token that's tapped and attacking . sacrifice that token at
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["2"]))] }] }, IfYouDo([Create { who: You, n: N(1), token: Token { tapped: true, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Colorless], types: ["robot", "artifact", "creature"], keywords: [], abilities: [], named: None, attacking: Some(ControllerChooses) } }, Delayed { step: EndOfCombat(The), then: [Sacrifice { who: You, what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }])], limits: [] }
 
 ## Kirtar's Wrath
 face: Kirtar's Wrath

@@ -188,7 +188,7 @@ cost: {5}
 > {X}, {T}: Put up to X +1/+0 counters on this creature. This ability can't cause the total number of +1/+0 counters on this creature to be greater than four. Activate only during your upkeep.
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(4), kind: "+1/+0" }])
-= BROKE at "," after: at end of combat
+= BROKE at "or" after: at end of combat , if this creature attacked
 = BROKE at "." after: {X} , {T} : put up to x <pt> counters on this creature
 
 ## Coastal Tower

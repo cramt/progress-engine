@@ -910,7 +910,7 @@ face: Silent Assassin
 type: Creature — Human Mercenary Assassin
 cost: {B}{B}
 > {3}{B}: Destroy target blocking creature at end of combat.
-= BROKE at "end" after: {3} {B} : destroy target blocking creature at
+= Activated { cost: [Mana(Mana(["3", "B"]))], effect: [Delayed { step: EndOfCombat(The), then: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[State(Blocking), Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] }
 
 ## Silver Wyvern
 face: Silver Wyvern

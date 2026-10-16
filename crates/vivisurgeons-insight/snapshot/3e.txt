@@ -273,7 +273,7 @@ cost: {W}{U}
 > When Dorothea attacks or blocks, sacrifice it at end of combat.
 > Disturb {1}{W}{U} (You may cast this card from your graveyard transformed for its disturb cost.)
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "end" after: when ~ attacks or blocks , sacrifice it at
+= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Delayed { step: EndOfCombat(The), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 = Keywords([Keyword { name: "disturb", param: Some(Cost([Mana(Mana(["1", "W", "U"]))])) }])
 
 ## Dorothea, Vengeful Victim // Dorothea's Retribution
@@ -283,7 +283,7 @@ type: Enchantment — Aura
 > Enchanted creature has "Whenever this creature attacks, create a 4/4 white Spirit creature token with flying that's tapped and attacking. Sacrifice that token at end of combat."
 > If Dorothea's Retribution would be put into a graveyard from anywhere, exile it instead.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "end" after: enchanted creature has " whenever this creature attacks , create a <pt> white spirit creature token with flying that's tapped and attacking . sacrifice that token at
+= Static([HasAbility { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, ability: Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Create { who: You, n: N(1), token: Token { tapped: true, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [White], types: ["spirit", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: Some(ControllerChooses) } }, Delayed { step: EndOfCombat(The), then: [Sacrifice { who: You, what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }], limits: [] } }])
 = Static([Replacement { event: PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: AGraveyard, from: Anywhere }, instead: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Dreadhorde Invasion
@@ -1138,7 +1138,7 @@ cost: {1}{W}{W}
 > At end of combat, exile all creatures blocked by this creature.
 > When this creature leaves the battlefield, return all cards exiled with it to the battlefield under their owners' control.
 = Keywords([Keyword { name: "defender", param: None }])
-= BROKE at "," after: at end of combat
+= BROKE at "this" after: at end of combat , exile all creatures blocked by
 = Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [Move { what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: Some(OwnerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }], limits: [] }
 
 ## Wanderwine Hub

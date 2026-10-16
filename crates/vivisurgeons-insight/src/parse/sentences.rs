@@ -135,8 +135,12 @@ pub(super) fn suffixed(p: &mut P, mut e: Effect) -> Effect {
                 of: Box::new(of),
             };
         } else if let Some(s) = p.attempt(|p| {
-            p.words("at the beginning of")?;
-            step(p)
+            alt!(p;
+                |p| { p.words("at the beginning of")?; step(p) },
+                // "destroy that creature at end of combat": as the end of
+                // combat step begins (CR 511.2).
+                |p| p.words("at end of combat").map(|_| Step::EndOfCombat(Whose::The)),
+            )
         }) {
             e = Effect::Delayed {
                 step: s,
@@ -569,6 +573,8 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             }])
         },
         |p| { p.words("at the beginning of")?; let step = step(p)?; p.tok(&Tok::Comma)?; let then = delayed_body(p)?; Some(vec![Effect::Delayed { step, then }]) },
+        // "at end of combat, exile it" (Fortune, Loyal Steed): CR 511.2.
+        |p| { p.words("at end of combat")?; p.tok(&Tok::Comma)?; let then = delayed_body(p)?; Some(vec![Effect::Delayed { step: Step::EndOfCombat(Whose::The), then }]) },
         |p| {
             let dur = duration(p)?;
             p.tok(&Tok::Comma)?;
@@ -1014,6 +1020,15 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
     }) {
         let mut more = more;
         listed(&v, &mut more);
+        // "exile it at end of combat, then return it to the battlefield
+        // transformed" (Conqueror's Galleon): what follows "then" happens
+        // when the delayed trigger does ([delayed-owns-later-sentences]).
+        if matches!(joiner, ", then" | ", and then" | "and then" | "then") {
+            if let Some(Effect::Delayed { then, .. }) = v.last_mut() {
+                then.extend(more);
+                continue;
+            }
+        }
         if joiner == "and" {
             if let (Some(a), Some(b)) = (v.last_mut(), more.first()) {
                 play_and_cast_from(a, b);
@@ -1609,6 +1624,7 @@ fn branch_with_new_object(e: &mut Effect) -> Option<&mut Vec<Effect>> {
         // step. That creature is a black Zombie …" (Grave Betrayal): the
         // returned permanent exists only once the delayed trigger resolves
         // ([delayed-owns-later-sentences]).
+        // A coin flipped then (Fickle Efreet) is won or lost only then.
         // Only a permanent put onto the battlefield: Elemental Appeal's "Exile
         // it at the beginning of the next end step. If this spell was kicked,
         // that creature gets +7/+0" is said of the token now.
@@ -1624,6 +1640,9 @@ fn branch_with_new_object(e: &mut Effect) -> Option<&mut Vec<Effect>> {
                     | Effect::EntersAttached { effect, .. } => enters(effect),
                     _ => false,
                 }
+            }
+            if then.iter().any(|e| matches!(e, Effect::FlipCoin)) {
+                return Some(then);
             }
             if !then.iter().any(enters) {
                 return None;
@@ -1714,6 +1733,12 @@ fn refers_back(e: &Effect) -> bool {
             ..
         } if matches!(**c, Condition::ThisWay(_)) => false,
         Effect::If { cond, .. } if tested(cond).is_some() => true,
+        // "flip a coin at end of combat. If you lose the flip, …" (Fickle
+        // Efreet): the flip the delayed trigger makes.
+        Effect::If {
+            cond: Condition::WonFlip(_),
+            ..
+        } => true,
         // "Return those cards to the battlefield … at the beginning of the
         // next end step. If a land enters this way, it enters tapped"
         // (Silver Surfer): what the return put onto the battlefield.

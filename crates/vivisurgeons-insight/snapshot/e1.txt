@@ -73,7 +73,7 @@ face: Ceremonial Guard
 type: Creature — Human Soldier
 cost: {2}{R}
 > When this creature attacks or blocks, destroy it at end of combat.
-= BROKE at "end" after: when this creature attacks or blocks , destroy it at
+= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Delayed { step: EndOfCombat(The), then: [Destroy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }] }], limits: [] }
 
 ## Champion's Drake
 face: Champion's Drake

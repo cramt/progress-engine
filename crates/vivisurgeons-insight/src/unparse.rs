@@ -1011,6 +1011,14 @@ mod syn {
         alt(o, vec![before, after]);
     }
 
+    /// A step said after the first of a delayed trigger's clauses, the rest
+    /// its own sentences or joined by "then": "exile it at end of combat,
+    /// then return it to the battlefield transformed" (Conqueror's
+    /// Galleon), all done as the step begins.
+    pub fn position_then(o: &mut Out, before: Out, after: Out, then: Out) {
+        alt(o, vec![before, after, then]);
+    }
+
     /// "a tapped 2/1 … token … that's attacking that opponent" and "a 2/1 …
     /// token … that's tapped and attacking that opponent".
     pub fn tapped_first(o: &mut Out, lead: Out, late: Out) {
@@ -1782,6 +1790,14 @@ mod syn {
     /// into your hand": a bare number names the cards just found.
     pub fn one_of_them(o: &mut Out) {
         alt(o, vec![of("of them"), Out::default()]);
+    }
+
+    /// Named rewrite [at-end-of-combat]: "at end of combat" (Fortune, Loyal
+    /// Steed; Dorothea) is "at the beginning of the end of combat step":
+    /// abilities that trigger "at end of combat" trigger as that step
+    /// begins (CR 511.2).
+    pub fn at_end_of_combat(o: &mut Out, spelled: Out) {
+        alt(o, vec![spelled, of("at end of combat")]);
     }
 
     pub fn printed_each_step(o: &mut Out) {
@@ -7218,16 +7234,14 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
         }),
         Effect::Delayed { step: s, then } => {
             let before = out(|o| {
-                o.w("at the beginning of");
-                step(o, s);
+                at_step(o, s, false);
                 o.w(",");
                 clauses(o, then, cx);
             });
             if then.len() == 1 {
                 let after = out(|o| {
                     clauses(o, then, cx);
-                    o.w("at the beginning of");
-                    step(o, s);
+                    at_step(o, s, false);
                 });
                 syn::position(o, before, after);
             } else {
@@ -7236,12 +7250,17 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 // said after the first clause, the rest its own sentences.
                 let after = out(|o| {
                     clauses(o, &then[..1], cx);
-                    o.w("at the beginning of");
-                    step(o, s);
+                    at_step(o, s, false);
                     o.tok(Tok::Period);
                     clauses(o, &then[1..], cx);
                 });
-                syn::position(o, before, after);
+                let joined = out(|o| {
+                    clauses(o, &then[..1], cx);
+                    at_step(o, s, false);
+                    o.w(", then");
+                    clauses(o, &then[1..], cx);
+                });
+                syn::position_then(o, before, after, joined);
             }
         }
         Effect::EntersTapped(x) => {
@@ -9607,8 +9626,7 @@ fn trigger(o: &mut Out, t: &Trigger) {
             printed_step(o, s);
         }
         Trigger::At(s) => {
-            o.w("at the beginning of");
-            printed_step(o, s);
+            at_step(o, s, true);
         }
         Trigger::When(e) => {
             let one = out(|o| {
@@ -9638,6 +9656,25 @@ fn trigger(o: &mut Out, t: &Trigger) {
     }
 }
 
+/// "at the beginning of" a step. The end of combat step is said in full,
+/// taking Oracle's "at end of combat" through one named rewrite
+/// ([at-end-of-combat]).
+fn at_step(o: &mut Out, s: &Step, printed: bool) {
+    let said = out(|o| {
+        o.w("at the beginning of");
+        if printed {
+            printed_step(o, s);
+        } else {
+            step(o, s);
+        }
+    });
+    if matches!(s, Step::EndOfCombat(Whose::Each | Whose::The)) {
+        syn::at_end_of_combat(o, said);
+    } else {
+        o.add(said);
+    }
+}
+
 /// A printed trigger's step: "the end step" there is each end step
 /// ([printed-the-step]), so `EndStep(Each)` also renders "the end step".
 fn printed_step(o: &mut Out, s: &Step) {
@@ -9656,7 +9693,7 @@ fn step(o: &mut Out, s: &Step) {
         Step::PrecombatMain(w) => (w, "precombat main phase"),
         Step::Combat(w) => (w, "combat"),
         Step::EndStep(w) => (w, "end step"),
-        Step::EndOfCombat(w) => (w, "end of combat"),
+        Step::EndOfCombat(w) => (w, "end of combat step"),
         Step::SecondMain(w) => (w, "second main phase"),
         Step::PostcombatMain(w) => (w, "postcombat main phase"),
         Step::Main(w) => (w, "main phase"),

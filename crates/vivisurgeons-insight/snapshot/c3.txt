@@ -195,7 +195,7 @@ type: Artifact — Vehicle
 cost: {3}
 > At end of combat, if this Vehicle attacked or blocked this combat, put a velocity counter on it. Then if it has two or more velocity counters on it, sacrifice it and draw two cards.
 > Crew 2 (Tap any number of creatures you control with total power 2 or more: This Vehicle becomes an artifact creature until end of turn.)
-= BROKE at "," after: at end of combat
+= BROKE at "or" after: at end of combat , if this vehicle attacked
 = Keywords([Keyword { name: "crew", param: Some(N(N(2))) }])
 
 ## Dark Bargain

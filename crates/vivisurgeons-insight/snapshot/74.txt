@@ -1026,7 +1026,7 @@ cost: {2}{W}
 > When this creature blocks, sacrifice it at end of combat.
 = Keywords([Keyword { name: "defender", param: None }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "end" after: when this creature blocks , sacrifice it at
+= Triggered { trigger: When(Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Delayed { step: EndOfCombat(The), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Sudden Strike
 face: Sudden Strike

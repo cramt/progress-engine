@@ -200,7 +200,7 @@ cost: {4}
 > Whenever this creature attacks or blocks, remove a +1/+1 counter from it at end of combat.
 = Keywords([Keyword { name: "flying", param: None }])
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(3), kind: "+1/+1" }])
-= BROKE at "end" after: whenever this creature attacks or blocks , remove a <pt> counter from it at
+= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Delayed { step: EndOfCombat(The), then: [RemoveCounters { n: N(1), kind: "+1/+1", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Colfenor's Plans
 face: Colfenor's Plans

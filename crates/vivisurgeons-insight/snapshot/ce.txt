@@ -679,7 +679,7 @@ cost: {4}
 > Trample
 > When this creature attacks or blocks, sacrifice it at end of combat.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "end" after: when this creature attacks or blocks , sacrifice it at
+= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Delayed { step: EndOfCombat(The), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Runesword
 face: Runesword

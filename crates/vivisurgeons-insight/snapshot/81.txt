@@ -404,7 +404,7 @@ face: Heat Stroke
 type: Enchantment
 cost: {2}{R}
 > At end of combat, destroy each creature that blocked or was blocked this turn.
-= BROKE at "," after: at end of combat
+= BROKE at "blocked" after: at end of combat , destroy each creature that
 
 ## Heroes of the Revel
 face: Heroes of the Revel
@@ -804,7 +804,7 @@ face: Saprazzan Outrigger
 type: Creature — Merfolk
 cost: {3}{U}
 > When this creature attacks or blocks, put it on top of its owner's library at end of combat.
-= BROKE at "end" after: when this creature attacks or blocks , put it on top of its owner 's library at
+= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Delayed { step: EndOfCombat(The), then: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersLibraryTop, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Sarkhan's Whelp
 face: Sarkhan's Whelp

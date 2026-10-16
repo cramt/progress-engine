@@ -822,7 +822,7 @@ face: Teferi's Veil
 type: Enchantment
 cost: {1}{U}
 > Whenever a creature you control attacks, it phases out at end of combat. (While it's phased out, it's treated as though it doesn't exist. It phases in before you untap during your next untap step.)
-= BROKE at "end" after: whenever a creature you control attacks , it phases out at
+= Triggered { trigger: When(Attacks(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [Delayed { step: EndOfCombat(The), then: [PhaseOut(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Tenured Tethermage
 face: Tenured Tethermage

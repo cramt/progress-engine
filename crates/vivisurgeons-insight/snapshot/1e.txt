@@ -454,7 +454,7 @@ cost: {1}{W}{U}
 > Hexproof (This creature can't be the target of spells or abilities your opponents control.)
 > Whenever Geist of Saint Traft attacks, create a 4/4 white Angel creature token with flying that's tapped and attacking. Exile that token at end of combat.
 = Keywords([Keyword { name: "hexproof", param: None }])
-= BROKE at "end" after: whenever ~ attacks , create a <pt> white angel creature token with flying that's tapped and attacking . exile that token at
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Create { who: You, n: N(1), token: Token { tapped: true, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [White], types: ["angel", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: Some(ControllerChooses) } }, Delayed { step: EndOfCombat(The), then: [Exile(Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } })] }], limits: [] }
 
 ## Gnarled Effigy
 face: Gnarled Effigy

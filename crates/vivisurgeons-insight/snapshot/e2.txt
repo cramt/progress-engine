@@ -459,7 +459,7 @@ cost: {2}{U}
 > Flying (This creature can't be blocked except by creatures with flying or reach.)
 > When this creature attacks or blocks, sacrifice it at end of combat.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "end" after: when this creature attacks or blocks , sacrifice it at
+= Triggered { trigger: When(Or([Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Blocks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Delayed { step: EndOfCombat(The), then: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Galina's Knight
 face: Galina's Knight
