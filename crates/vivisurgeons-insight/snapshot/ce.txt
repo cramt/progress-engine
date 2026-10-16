@@ -826,7 +826,7 @@ face: Thran Quarry
 type: Land
 > At the beginning of the end step, if you control no creatures, sacrifice this land.
 > {T}: Add one mana of any color.
-= Triggered { trigger: InterveningIf(At(EndStep(The)), YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: InterveningIf(At(EndStep(Each)), YouDontControl(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
 
 ## Triceraton Regenta

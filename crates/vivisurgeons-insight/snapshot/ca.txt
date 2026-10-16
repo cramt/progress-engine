@@ -101,7 +101,7 @@ cost: {1}{R}{R}{R}
 > At the beginning of the end step, sacrifice this creature.
 > Morph {R}{R} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
-= Triggered { trigger: At(EndStep(The)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: At(EndStep(Each)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["R", "R"]))])) }])
 
 ## Bog Tatters

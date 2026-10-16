@@ -66,6 +66,18 @@ pub(super) fn step_of(s: Step, w: Whose) -> Step {
     }
 }
 
+/// The step of a printed trigger ("At the beginning of the end step, …"):
+/// "the" there is every such step, each turn, not this turn's only (CR
+/// 603.2: the ability triggers each time its event occurs), so it is
+/// `Whose::Each`. `Whose::The` is left to delayed triggers, which happen
+/// once ([printed-the-step]).
+pub(super) fn printed_step(p: &mut P) -> Option<Step> {
+    step(p).map(|s| match s {
+        Step::EndStep(Whose::The) => Step::EndStep(Whose::Each),
+        s => s,
+    })
+}
+
 /// A player's verb in a trigger that takes an object: "you cast", "you copy".
 pub(super) fn player_verb(p: &mut P, who: &Player) -> Option<Box<dyn Fn(Objects) -> Event>> {
     let who = who.clone();
@@ -364,7 +376,7 @@ pub(super) fn event(p: &mut P) -> Option<Event> {
 
 pub(super) fn trigger(p: &mut P) -> Option<Trigger> {
     alt!(p;
-        |p| { p.words("at the beginning of")?; step(p).map(Trigger::At) },
+        |p| { p.words("at the beginning of")?; printed_step(p).map(Trigger::At) },
         |p| {
             p.one_of(&["whenever", "when"])?;
             let e = event(p)?;
@@ -396,7 +408,7 @@ pub(super) fn trigger(p: &mut P) -> Option<Trigger> {
             // two trigger conditions for one effect (CR 603.1b), which is
             // one trigger on either event.
             // "When this artifact enters and at the beginning of your upkeep".
-            if let Some(s) = p.attempt(|p| { p.words("and at the beginning of")?; step(p) }) {
+            if let Some(s) = p.attempt(|p| { p.words("and at the beginning of")?; printed_step(p) }) {
                 return Some(Trigger::WhenAndAt(Box::new(e), s));
             }
             Some(Trigger::When(Box::new(match p.attempt(|p| { p.word("and")?; p.one_of(&["whenever", "when"])?; event(p) }) {

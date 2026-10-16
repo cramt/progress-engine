@@ -881,7 +881,7 @@ cost: {R}
 > Trample, haste (This creature can deal excess combat damage to the player or planeswalker it's attacking. This creature can attack and {T} as soon as it comes under your control.)
 > At the beginning of the end step, sacrifice this creature.
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
-= Triggered { trigger: At(EndStep(The)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: At(EndStep(Each)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Spectral Snatcher
 face: Spectral Snatcher

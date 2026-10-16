@@ -252,7 +252,7 @@ type: Sorcery
 cost: {2}{R}
 > Create a token that's a copy of target creature you control, except it has haste and "At the beginning of the end step, sacrifice this token."
 > Flashback {2}{R}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [Has { keywords: [Keyword { name: "haste", param: None }], abilities: [Triggered { trigger: At(EndStep(The)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }] }] }])
+= Spell([CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [Has { keywords: [Keyword { name: "haste", param: None }], abilities: [Triggered { trigger: At(EndStep(Each)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }] }] }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["2", "R", "R"]))])) }])
 
 ## Energy Storm

@@ -48,7 +48,7 @@ cost: {2}{R}{R}
 > Flying, haste
 > At the beginning of the end step, return this creature to its owner's hand.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "haste", param: None }])
-= Triggered { trigger: At(EndStep(The)), effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
+= Triggered { trigger: At(EndStep(Each)), effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Arrogant Outlaw
 face: Arrogant Outlaw

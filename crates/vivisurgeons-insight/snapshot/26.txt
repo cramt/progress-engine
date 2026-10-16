@@ -87,7 +87,7 @@ cost: {R}{R}{R}
 > At the beginning of the end step, sacrifice this creature.
 = Keywords([Keyword { name: "trample", param: None }])
 = Keywords([Keyword { name: "haste", param: None }])
-= Triggered { trigger: At(EndStep(The)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: At(EndStep(Each)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Baneslayer Angel
 face: Baneslayer Angel
@@ -376,7 +376,7 @@ cost: {G}{G}{G}
 > Trample, haste
 > At the beginning of the end step, sacrifice this creature.
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
-= Triggered { trigger: At(EndStep(The)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: At(EndStep(Each)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Guff Rewrites History
 face: Guff Rewrites History

@@ -209,7 +209,7 @@ cost: {5}{R}{R}
 > +1: Create a token that's a copy of target creature you control, except it has haste and "At the beginning of the end step, sacrifice this token."
 > −4: Chandra deals 8 damage divided as you choose among any number of target creatures and/or planeswalkers.
 = BROKE at "play" after: N(2) : add {R} {R} {R} . exile the top three cards of your library . choose one . you may
-= Loyalty { change: N(1), effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [Has { keywords: [Keyword { name: "haste", param: None }], abilities: [Triggered { trigger: At(EndStep(The)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }] }] }] }
+= Loyalty { change: N(1), effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [Has { keywords: [Keyword { name: "haste", param: None }], abilities: [Triggered { trigger: At(EndStep(Each)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }] }] }] }
 = Loyalty { change: N(-4), effect: [DamageDivided { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(8), among: Objects { quant: AnyNumberOfTarget, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } } }] }
 
 ## Chittering Skitterling

@@ -532,7 +532,7 @@ cost: {1}{W}
 > First strike, lifelink
 > At the beginning of the end step, if you gained 3 or more life this turn, transform this creature.
 = Keywords([Keyword { name: "first strike", param: None }, Keyword { name: "lifelink", param: None }])
-= Triggered { trigger: InterveningIf(At(EndStep(The)), AmountIs { n: LifeGainedThisTurn(You), op: Ge, value: N(3) }), effect: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
+= Triggered { trigger: InterveningIf(At(EndStep(Each)), AmountIs { n: LifeGainedThisTurn(You), op: Ge, value: N(3) }), effect: [Transform(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Lone Rider // It That Rides as One
 face: It That Rides as One

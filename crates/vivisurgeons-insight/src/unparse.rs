@@ -1693,6 +1693,14 @@ mod syn {
         any_of(o, &["each", "each player's"]);
     }
 
+    /// Named rewrite [printed-the-step]: a printed trigger's "At the
+    /// beginning of the end step" (Nalfeshnee, Biovisionary) is "each end
+    /// step": a triggered ability triggers whenever its event occurs (CR
+    /// 603.2), on every turn.
+    pub fn printed_each_step(o: &mut Out) {
+        any_of(o, &["each", "each player's", "the"]);
+    }
+
     /// "is put into a graveyard", "… from anywhere": an event that names
     /// no zone it comes from happens from any.
     pub fn from_anywhere(o: &mut Out, said: Out) {
@@ -9125,11 +9133,11 @@ fn trigger(o: &mut Out, t: &Trigger) {
             syn::when(o);
             event(o, e);
             o.w("and at the beginning of");
-            step(o, s);
+            printed_step(o, s);
         }
         Trigger::At(s) => {
             o.w("at the beginning of");
-            step(o, s);
+            printed_step(o, s);
         }
         Trigger::When(e) => {
             let one = out(|o| {
@@ -9157,6 +9165,17 @@ fn trigger(o: &mut Out, t: &Trigger) {
             condition(o, c);
         }
     }
+}
+
+/// A printed trigger's step: "the end step" there is each end step
+/// ([printed-the-step]), so `EndStep(Each)` also renders "the end step".
+fn printed_step(o: &mut Out, s: &Step) {
+    if matches!(s, Step::EndStep(Whose::Each)) {
+        syn::printed_each_step(o);
+        o.w("end step");
+        return;
+    }
+    step(o, s);
 }
 
 fn step(o: &mut Out, s: &Step) {

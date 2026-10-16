@@ -1039,7 +1039,7 @@ cost: {1}{R}{R}
 > At the beginning of the end step, return this creature to its owner's hand. (Return it only if it's on the battlefield.)
 > Cycling {R} ({R}, Discard this card: Draw a card.)
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
-= Triggered { trigger: At(EndStep(The)), effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
+= Triggered { trigger: At(EndStep(Each)), effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 = Keywords([Keyword { name: "cycling", param: Some(Cost([Mana(Mana(["R"]))])) }])
 
 ## Victor Timely, Wily Tycoon

@@ -109,7 +109,7 @@ face: Biovisionary
 type: Creature — Human Wizard
 cost: {1}{G}{U}
 > At the beginning of the end step, if you control four or more creatures named Biovisionary, you win the game.
-= Triggered { trigger: InterveningIf(At(EndStep(The)), YouControl(Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Named(PrintedName("Biovisionary"))], or: None } })), effect: [WinGame(You)], limits: [] }
+= Triggered { trigger: InterveningIf(At(EndStep(Each)), YouControl(Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Named(PrintedName("Biovisionary"))], or: None } })), effect: [WinGame(You)], limits: [] }
 
 ## Blast Zone
 face: Blast Zone

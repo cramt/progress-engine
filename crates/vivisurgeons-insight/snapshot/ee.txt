@@ -34,7 +34,7 @@ cost: {2}{G}
 > At the beginning of the end step, if enchanted creature's power is 4 or greater, destroy this Aura.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Static([Restrict { what: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantAttackOrBlock }, Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: NoActivatedAbilities }])
-= Triggered { trigger: InterveningIf(At(EndStep(The)), AmountIs { n: PowerOf(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), op: Ge, value: N(4) }), effect: [Destroy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] }
+= Triggered { trigger: InterveningIf(At(EndStep(Each)), AmountIs { n: PowerOf(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), op: Ge, value: N(4) }), effect: [Destroy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: false }], limits: [] }
 
 ## Arbor Colossus
 face: Arbor Colossus

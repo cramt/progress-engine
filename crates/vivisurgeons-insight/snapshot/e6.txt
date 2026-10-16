@@ -826,7 +826,7 @@ cost: {3}{G}{G}
 > At the beginning of the end step, sacrifice this creature.
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
 = Keywords([Keyword { name: "infect", param: None }])
-= Triggered { trigger: At(EndStep(The)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
+= Triggered { trigger: At(EndStep(Each)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Pyretic Prankster // Glistening Goremonger
 face: Pyretic Prankster
