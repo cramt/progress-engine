@@ -294,7 +294,11 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             let what = objects(p)?;
             if !matches!(what.quant, Quant::One | Quant::Another | Quant::AtLeast(_) | Quant::OneOrMore | Quant::N(_)) { return None; }
             p.one_of(&["is", "was", "are", "were"])?;
-            let how = super::objects::marked(p)?;
+            let how = alt!(p;
+                super::objects::marked,
+                // "If an Equipment is put onto the battlefield this way".
+                |p| p.words("put onto the battlefield").map(|_| Marked::PutOntoBattlefield),
+            )?;
             p.words("this way")?;
             Some(Condition::DoneThisWay { what, how })
         },

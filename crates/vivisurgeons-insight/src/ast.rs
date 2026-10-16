@@ -1247,6 +1247,9 @@ pub enum Marked {
     /// "for each counter removed this way" (Nexus Mentality): removed by
     /// the effect before.
     Removed,
+    /// "If an Equipment is put onto the battlefield this way" (Armored
+    /// Skyhunter): put there by the effect before.
+    PutOntoBattlefield,
 }
 
 #[derive(Clone, Debug, PartialEq)]
