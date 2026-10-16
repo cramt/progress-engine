@@ -351,7 +351,7 @@ cost: {1}{U}{U}
 > Flash
 > When this creature enters, counter target spell. Its controller manifests dread. (That player looks at the top two cards of their library, then puts one onto the battlefield face down as a 2/2 creature and the other into their graveyard. If it's a creature card, it can be turned face up any time for its mana cost.)
 = Keywords([Keyword { name: "flash", param: None }])
-= BROKE at "." after: when this creature enters , counter target spell . its controller manifests dread
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }, Performed { by: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), effect: Action { by: None, name: "manifest dread", n: None } }], limits: [] }
 
 ## Foriysian Interceptor
 face: Foriysian Interceptor

@@ -1612,6 +1612,16 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                         .or_else(|| w.strip_suffix('s').filter(|b| vocab().keyword_actions.contains(*b)))?
                         .to_string();
                     p.bump();
+                    // "Its controller manifests dread" (Unwanted Remake): an
+                    // action of two words.
+                    let mut name = name;
+                    if let Some(Tok::Word(next)) = p.peek() {
+                        let two = format!("{name} {next}");
+                        if vocab().keyword_actions.contains(&two) {
+                            p.bump();
+                            name = two;
+                        }
+                    }
                     let n = p.attempt(amount);
                     p.end_of_clause().then_some(Effect::Action { by: None, name, n })
                 },
