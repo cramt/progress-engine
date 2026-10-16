@@ -2797,9 +2797,45 @@ pub(super) fn casts(who: Player, mut what: Objects) -> Event {
 
 /// "Whenever you cast a spell with {X} in its mana cost, put X +1/+1
 /// counters on ~": the ability's X is the spell's (CR 107.3e), where
-/// nothing else defines one ([x-of-the-spell]).
-fn x_of_the_spell(t: &Trigger, effect: &mut [Effect]) {
+/// nothing else defines one ([x-of-the-spell]). A face-up trigger's X is
+/// the X paid to turn the card face up ([x-turned-face-up]).
+fn x_of_the_spell(t: &Trigger, effect: &mut Vec<Effect>) {
     let Trigger::When(e) = t else { return };
+    if matches!(&**e, Event::TurnedFaceUp(o) if o.quant == Quant::SelfRef) {
+        struct Free(bool, u32);
+        impl Visitor for Free {
+            fn enter(&mut self, _: &mut Objects) -> bool {
+                true
+            }
+            fn effect(&mut self, e: &mut Effect) {
+                self.1 += u32::from(matches!(e, Effect::Where { .. }));
+                if let Effect::Modify { pt: Some(pt), .. } = e {
+                    let x = |p: &crate::lex::PtPart| {
+                        matches!(p, crate::lex::PtPart::X | crate::lex::PtPart::MinusX)
+                    };
+                    self.0 |= self.1 == 0 && (x(&pt.power) || x(&pt.toughness));
+                }
+            }
+            fn effect_done(&mut self, e: &mut Effect) {
+                self.1 -= u32::from(matches!(e, Effect::Where { .. }));
+            }
+            fn amount(&mut self, a: &mut Amount) {
+                self.0 |= *a == Amount::X && self.1 == 0;
+            }
+        }
+        let mut v = Free(false, 0);
+        for x in effect.iter_mut() {
+            x.walk(&mut v);
+        }
+        if v.0 {
+            let then = std::mem::take(effect);
+            effect.push(Effect::Where {
+                then,
+                x: Amount::XTurnedFaceUp,
+            });
+        }
+        return;
+    }
     x_of_event(e, effect);
 }
 

@@ -1407,6 +1407,12 @@ mod syn {
     /// spell …. If you don't, put that card into your hand" (Discover the
     /// Impossible) is "If you don't cast it": the option the sentence before
     /// offered, said by its verb or not.
+    /// Named rewrite [x-turned-face-up]: a face-up trigger's X is the X
+    /// paid to turn the card face up (Bane of the Living), said or not.
+    pub fn x_turned_face_up(o: &mut Out, said: Out, bare: Out) {
+        alt(o, vec![said, bare]);
+    }
+
     pub fn dont_alone(full: Out) -> Out {
         let mut o = Out::default();
         alt(&mut o, vec![full, of("you don't")]);
@@ -2834,6 +2840,7 @@ fn amount(o: &mut Out, a: &Amount) {
         }
         Amount::N(n) => syn::number(o, *n),
         Amount::X | Amount::XOf(_) => o.w("X"),
+        Amount::XTurnedFaceUp => o.w("the value of X paid to turn this card face up"),
         Amount::ThatMany => syn::that_many(o),
         Amount::UpTo(a) => {
             o.w("up to");
@@ -2905,6 +2912,7 @@ fn measure(o: &mut Out, a: &Amount) {
         | Amount::AnyOf(_)
         | Amount::X
         | Amount::XOf(_)
+        | Amount::XTurnedFaceUp
         | Amount::ThatMany
         | Amount::UpTo(_)
         | Amount::Twice(_)
@@ -7049,6 +7057,21 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 }
                 quoted(o, a);
             }
+        }
+        // Named rewrite [x-turned-face-up]: "When this creature is turned
+        // face up, all creatures get -X/-X" says the X of the cost paid to
+        // turn it face up without saying "where X is".
+        Effect::Where {
+            then,
+            x: Amount::XTurnedFaceUp,
+        } => {
+            let said = out(|o| {
+                clauses(o, then, cx);
+                o.w(", where X is");
+                measure(o, &Amount::XTurnedFaceUp);
+            });
+            let bare = out(|o| clauses(o, then, cx));
+            syn::x_turned_face_up(o, said, bare);
         }
         Effect::Where { then, x } => {
             let forms = (1..=then.len())

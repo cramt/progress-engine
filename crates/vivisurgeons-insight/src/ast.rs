@@ -528,6 +528,11 @@ pub enum Amount {
     /// counters on ~": the X of that object's mana cost (CR 107.3e), not
     /// one this ability's controller chooses (CR 107.3f).
     XOf(Box<Objects>),
+    /// "When this creature is turned face up, all creatures get -X/-X"
+    /// (Bane of the Living, Morph {X}{B}{B}): the X chosen for the morph or
+    /// disguise cost paid to turn this permanent face up (CR 107.3d; Gatherer
+    /// ruling 2004-10-04), not one the controller chooses again.
+    XTurnedFaceUp,
 }
 
 /// A set of colors a rule draws from, named by what decides it.
