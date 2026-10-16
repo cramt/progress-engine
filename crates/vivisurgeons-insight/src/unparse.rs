@@ -1205,6 +1205,13 @@ mod syn {
         );
     }
 
+    /// Named rewrite [that-opponent]: "if that opponent has more life than
+    /// another of your opponents" (Breena, the Demagogue) is "that player",
+    /// the opponent the trigger saw attacked.
+    pub fn that_opponent(o: &mut Out) {
+        alt(o, vec![of("that player"), of("that opponent")]);
+    }
+
     pub fn its(o: &mut Out) {
         any_of(o, &["its", "their", "his", "her"]);
     }
@@ -3440,6 +3447,7 @@ fn player(o: &mut Out, p: &Player) {
         Player::AnOpponent => syn::an_opponent(o),
         Player::APlayer => o.w("a player"),
         Player::Another => o.w("another player"),
+        Player::AnotherOpponentThan(_) => o.w("another of your opponents"),
         Player::That => syn::that_player(o),
         Player::AttackingPlayer => o.w("that attacking player"),
         Player::DefendingPlayer => o.w("defending player"),
@@ -6095,6 +6103,7 @@ fn says_no_player(e: &Effect) -> bool {
             | Effect::Attach { .. }
             | Effect::Move { .. }
             | Effect::Choose(_)
+            | Effect::PutCounters { .. }
     )
 }
 
@@ -11373,7 +11382,11 @@ fn condition(o: &mut Out, c: &Condition) {
         }
         Condition::DamagePreventedThisWay => o.w("damage is prevented this way"),
         Condition::HasMore { who, what, than } => {
-            player(o, who);
+            if *who == Player::That && matches!(than, Player::AnotherOpponentThan(_)) {
+                syn::that_opponent(o);
+            } else {
+                player(o, who);
+            }
             o.verb("have", player_num(who));
             o.w("more");
             match what {

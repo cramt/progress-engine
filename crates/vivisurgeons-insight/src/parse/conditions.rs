@@ -252,12 +252,13 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         },
         // "an opponent has more life than you".
         |p| {
-            let who = player_simple(p)?;
+            let who = alt!(p; player_simple, |p| p.words("that opponent").map(|_| Player::That))?;
             p.word("has")?;
             p.word("more")?;
             let what = holding(p)?;
             p.word("than")?;
-            let than = alt!(p; player_simple, |p| p.word("you").map(|_| Player::You))?;
+            let than = alt!(p; player_simple, |p| p.word("you").map(|_| Player::You),
+                |p| p.words("another of your opponents").map(|_| Player::AnotherOpponentThan(Box::new(who.clone()))))?;
             Some(Condition::HasMore { who, what, than })
         },
         |p| { p.words("no mana was spent to cast")?; objects(p).map(Condition::NoManaSpentToCast) },

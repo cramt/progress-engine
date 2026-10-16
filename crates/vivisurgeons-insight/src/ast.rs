@@ -602,6 +602,10 @@ pub enum Player {
     APlayer,
     /// "another player" (Firemane Commando): any player but you.
     Another,
+    /// "if that opponent has more life than another of your opponents"
+    /// (Breena, the Demagogue): one of your opponents other than the player
+    /// named, any one of them.
+    AnotherOpponentThan(Box<Player>),
     That,
     DefendingPlayer,
     ControllerOf(Box<Objects>),

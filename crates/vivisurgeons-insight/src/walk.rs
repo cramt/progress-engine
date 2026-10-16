@@ -2073,6 +2073,9 @@ impl Walk for Player {
     fn walk(&mut self, v: &mut dyn Visitor) {
         v.player(self);
         match self {
+            Player::AnotherOpponentThan(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             Player::ControllerOf(f0) => {
                 Walk::walk(&mut **f0, v);
             }

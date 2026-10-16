@@ -115,7 +115,7 @@ cost: {1}{W}{B}
 > Flying
 > Whenever a player attacks one of your opponents, if that opponent has more life than another of your opponents, that attacking player draws a card and you put two +1/+1 counters on a creature you control.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "more" after: whenever a player attacks one of your opponents , if that opponent has
+= Triggered { trigger: InterveningIf(When(PlayerAttacks { who: APlayer, at: Some(AnOpponent) }), HasMore { who: That, what: Life, than: AnotherOpponentThan(That) }), effect: [Draw { who: AttackingPlayer, n: N(1) }, PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 
 ## Cabal Initiate
 face: Cabal Initiate
