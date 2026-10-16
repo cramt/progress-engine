@@ -420,7 +420,7 @@ cost: {3}{G}
 > When this artifact enters, distribute three +1/+1 counters among one, two, or three target creatures you control.
 > Craft with creature {5}{G}{G} ({5}{G}{G}, Exile this artifact, Exile a creature you control or a creature card from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [DistributeCounters { n: N(3), kind: "+1/+1", among: Objects { quant: Target { n: Between(1, 3), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
-= BROKE at "{5}" after: craft with creature
+= Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["5", "G", "G"]))] }) }])
 
 ## Jade Seedstones // Jadeheart Attendant
 face: Jadeheart Attendant

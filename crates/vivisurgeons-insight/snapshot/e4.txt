@@ -734,7 +734,7 @@ cost: {3}{W}{U}
 > When this artifact enters, create a 4/4 white and blue Golem artifact creature token.
 > Craft with artifact {4}{W}{W}{U} ({4}{W}{W}{U}, Exile this artifact, Exile another artifact you control or an artifact card from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [White, Blue], types: ["golem", "artifact", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= BROKE at "{4}" after: craft with artifact
+= Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["4", "W", "W", "U"]))] }) }])
 
 ## Master's Guide-Mural // Master's Manufactory
 face: Master's Manufactory

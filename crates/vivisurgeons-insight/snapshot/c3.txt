@@ -887,7 +887,7 @@ cost: {U}{R}{W}
 > Whenever Tetzin or another double-faced artifact you control enters, mill three cards. You may put an artifact card from among them into your hand.
 > Craft with six artifacts {4} ({4}, Exile this artifact, Exile the six from among other permanents you control and/or cards from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[State(DoubleFaced), Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Mill { who: You, n: N(3) }, May { who: You, then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [FromAmongThem], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
-= BROKE at "{4}" after: craft with six artifacts
+= Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: N(N(6)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["4"]))] }) }])
 
 ## Tetzin, Gnome Champion // The Golden-Gear Colossus
 face: The Golden-Gear Colossus

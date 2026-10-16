@@ -614,7 +614,7 @@ cost: {1}{U}
 > Craft with artifact {2}{U} ({2}{U}, Exile this artifact, Exile another artifact you control or an artifact card from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
 = Keywords([Keyword { name: "flash", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Tap(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } }), PutCounters { n: N(2), kind: "stun", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "{2}" after: craft with artifact
+= Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["2", "U"]))] }) }])
 
 ## Lodestone Needle // Guidestone Compass
 face: Guidestone Compass

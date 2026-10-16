@@ -1126,7 +1126,7 @@ cost: {3}{W}{W}
 > When this artifact enters, if you cast it, for each player, choose a creature with power 2 or less that player controls. Then destroy all creatures except creatures chosen this way.
 > Craft with artifact {3}{W}{W} ({3}{W}{W}, Exile this artifact, Exile another artifact you control or an artifact card from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
 = BROKE at "creatures" after: when this artifact enters , if you cast it , for each player , choose a creature with power 2 or less that player controls . then destroy all creatures except
-= BROKE at "{3}" after: craft with artifact
+= Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["3", "W", "W"]))] }) }])
 
 ## Unstable Glyphbridge // Sandswirl Wanderglyph
 face: Sandswirl Wanderglyph

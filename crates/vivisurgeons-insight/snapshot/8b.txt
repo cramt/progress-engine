@@ -15,7 +15,7 @@ cost: {2}{B}
 > Craft with one or more creatures {2}{B}{B}
 > {2}{B}: Return this card from your graveyard to your hand.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [], or: None } } }] }, IfYouDo([Where { then: [Draw { who: You, n: X }, Mill { who: You, n: X }], x: PowerOf(Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }) }])], limits: [] }
-= BROKE at "{2}" after: craft with one or more creatures
+= Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["2", "B", "B"]))] }) }])
 = Activated { cost: [Mana(Mana(["2", "B"]))], effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Altar of the Wretched // Wretched Bonemass

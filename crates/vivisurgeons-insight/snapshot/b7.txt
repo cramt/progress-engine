@@ -465,7 +465,7 @@ cost: {2}{R}
 > Craft with artifact {2}{R} ({2}{R}, Exile this artifact, Exile another artifact you control or an artifact card from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
 = Keywords([Keyword { name: "flash", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
-= BROKE at "{2}" after: craft with artifact
+= Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["2", "R"]))] }) }])
 
 ## Idol of the Deep King // Sovereign's Macuahuitl
 face: Sovereign's Macuahuitl

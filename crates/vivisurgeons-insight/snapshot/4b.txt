@@ -773,7 +773,7 @@ cost: {2}
 > Craft with one or more creatures {5} ({5}, Exile this artifact, Exile one or more creatures you control and/or creature cards from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
 = Triggered { trigger: When(Attacks(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["1"]))])) }])
-= BROKE at "{5}" after: craft with one or more creatures
+= Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["5"]))] }) }])
 
 ## Paleontologist's Pick-Axe // Dinosaur Headdress
 face: Dinosaur Headdress

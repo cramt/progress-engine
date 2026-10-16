@@ -859,7 +859,7 @@ cost: {1}{R}
 > When this artifact enters, you may discard a card. If you do, draw two cards.
 > Craft with one or more Dinosaurs {4}{R} ({4}{R}, Exile this artifact, Exile one or more Dinosaurs you control and/or Dinosaur cards from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }, IfYouDo([Draw { who: You, n: N(2) }])], limits: [] }
-= BROKE at "{4}" after: craft with one or more dinosaurs
+= Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Subtype("dinosaur")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["4", "R"]))] }) }])
 
 ## Saheeli's Lattice // Mastercraft Raptor
 face: Mastercraft Raptor

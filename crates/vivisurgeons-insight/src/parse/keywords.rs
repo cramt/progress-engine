@@ -127,6 +127,20 @@ pub(super) fn keyword(p: &mut P) -> Option<Keyword> {
                 // is the token's count.
                 |p| { if name != "affinity" { return None; } p.word("for")?; objects(p).map(|o| KeywordParam::Objects(Box::new(o))) },
                 |p| { p.word("from")?; objects(p).map(|o| KeywordParam::Objects(Box::new(o))) },
+                // "Craft with artifact {3}{W}{W}": the materials and the
+                // cost (CR 702.167a).
+                |p| {
+                    if name != "craft" { return None; }
+                    p.word("with")?;
+                    let mut o = objects(p)?;
+                    // "Craft with artifact": a bare noun is one of them, where
+                    // "Craft with six artifacts" counts.
+                    if o.quant == Quant::Plural && matches!(p.t.get(p.i.wrapping_sub(1)), Some(Tok::Word(w)) if !w.ends_with('s')) {
+                        o.quant = Quant::One;
+                    }
+                    let m = mana(p)?;
+                    Some(KeywordParam::CostFor { what: Box::new(o), cost: vec![Cost::Mana(m)] })
+                },
                 |p| {
                     // "Enchant creature you control", "Equip legendary creature {3}".
                     if !matches!(name.as_str(), "enchant" | "equip") { return None; }

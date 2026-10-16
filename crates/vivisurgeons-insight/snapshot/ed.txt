@@ -985,7 +985,7 @@ cost: {U}
 > Craft with four or more nonlands with activated abilities {8}{U} ({8}{U}, Exile this artifact, Exile the four or more from among other permanents you control and/or cards in your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C", "C"])))], limits: [SpendOnly { uses: [ActivateAny], then: None }] }
-= BROKE at "activated" after: craft with four or more nonlands with
+= Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Non("land")]], kind: None, posts: [WithAbilityOf(Activated)], or: None } }, cost: [Mana(Mana(["8", "U"]))] }) }])
 
 ## The Enigma Jewel // Locus of Enlightenment
 face: Locus of Enlightenment

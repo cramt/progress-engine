@@ -488,7 +488,7 @@ cost: {1}{U}
 > When this artifact enters, mill a card, then draw a card. (To mill a card, put the top card of your library into your graveyard.)
 > Craft with artifact {4}{U}{U} ({4}{U}{U}, Exile this artifact, Exile another artifact you control or an artifact card from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Mill { who: You, n: N(1) }, Draw { who: You, n: N(1) }], limits: [] }
-= BROKE at "{4}" after: craft with artifact
+= Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["4", "U", "U"]))] }) }])
 
 ## Inverted Iceberg // Iceberg Titan
 face: Iceberg Titan

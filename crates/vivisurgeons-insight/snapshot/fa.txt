@@ -207,7 +207,7 @@ cost: {2}{U}
 > Craft with artifact {1}{U}
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(3), kind: "net" }])
 = BROKE at "activated" after: {T} , remove a net counter from this artifact : tap another target nonland permanent . its
-= BROKE at "{1}" after: craft with artifact
+= Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["1", "U"]))] }) }])
 
 ## Braided Net // Braided Quipu
 face: Braided Quipu

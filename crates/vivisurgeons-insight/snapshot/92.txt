@@ -1013,7 +1013,7 @@ cost: {2}
 > {T}: Mill two cards.
 > Craft with a Dinosaur, a Merfolk, a Pirate, and a Vampire {4} ({4}, Exile this artifact, Exile the four from among permanents you control and/or cards in your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
 = Activated { cost: [Tap], effect: [Mill { who: You, n: N(2) }], limits: [] }
-= BROKE at "," after: craft with a dinosaur
+= BROKE at "a" after: craft with a dinosaur ,
 
 ## Throne of the Grim Captain // The Grim Captain
 face: The Grim Captain

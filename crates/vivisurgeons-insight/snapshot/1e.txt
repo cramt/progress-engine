@@ -726,7 +726,7 @@ cost: {1}{R}
 > {T}: Add {R}. Spend this mana only to cast an instant or sorcery spell.
 > Craft with four or more red instant and/or sorcery cards {3}{R}{R} ({3}{R}{R}, Exile this artifact, Exile the four or more from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["R"])))], limits: [SpendOnly { uses: [Cast(Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } })], then: None }] }
-= BROKE at "and/or" after: craft with four or more red instant
+= Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Color(Red), Type("instant")], [Color(Red), Type("sorcery")]], kind: Some(Card), posts: [], or: None } }, cost: [Mana(Mana(["3", "R", "R"]))] }) }])
 
 ## Ore-Rich Stalactite // Cosmium Catalyst
 face: Cosmium Catalyst

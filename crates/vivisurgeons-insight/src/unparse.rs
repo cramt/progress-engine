@@ -2497,7 +2497,16 @@ fn keyword(o: &mut Out, k: &Keyword) {
         }
         Some(KeywordParam::CostFor { what, cost }) => {
             o.w(&k.name);
-            each_objects(o, what);
+            if k.name == "craft" {
+                o.w("with");
+                if what.quant == Quant::One {
+                    filter(o, &what.filter, Num::Sg);
+                } else {
+                    each_objects(o, what);
+                }
+            } else {
+                each_objects(o, what);
+            }
             keyword_cost(o, cost);
         }
         Some(KeywordParam::Cost(c)) => {
@@ -4401,7 +4410,9 @@ fn groups_words(
             if j > 0 && is_non(&g[j - 1]) && is_non(a) {
                 syn::adj_comma(o);
             }
-            let is_noun = nouns && j + 1 == g.len() && is_typed(a);
+            // "four or more nonlands": a lone "non-" type is the noun.
+            let lone_non = g.len() == 1 && matches!(a, Adj::Non(_));
+            let is_noun = nouns && j + 1 == g.len() && (is_typed(a) || lone_non);
             adj(o, a, is_noun.then_some(n));
         }
     }

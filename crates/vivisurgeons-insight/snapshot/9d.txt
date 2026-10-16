@@ -1207,7 +1207,7 @@ cost: {U}
 > {T}: Mill a card. (Put the top card of your library into your graveyard.)
 > Craft with Island {3}{U} ({3}{U}, Exile this artifact, Exile an Island you control or an Island card from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
 = Activated { cost: [Tap], effect: [Mill { who: You, n: N(1) }], limits: [] }
-= BROKE at "{3}" after: craft with island
+= Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: One, filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["3", "U"]))] }) }])
 
 ## Waterlogged Hulk // Watertight Gondola
 face: Watertight Gondola

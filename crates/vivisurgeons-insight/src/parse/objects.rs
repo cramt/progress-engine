@@ -264,7 +264,12 @@ pub(super) fn descriptor(p: &mut P) -> Option<Adj> {
         if let Some(c) = color_word(rest) {
             Adj::NonColor(c)
         } else if type_word(rest).is_some() || vocab().supertypes.contains(rest) {
-            Adj::Non(rest.to_string())
+            // "four or more nonlands": the type, singular, as every other
+            // adjective holds it.
+            match type_word(rest) {
+                Some(Adj::Type(t) | Adj::Subtype(t)) => Adj::Non(t),
+                _ => Adj::Non(rest.to_string()),
+            }
         } else {
             return None;
         }
