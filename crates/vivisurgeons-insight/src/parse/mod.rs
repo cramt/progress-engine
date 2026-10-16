@@ -1800,7 +1800,6 @@ fn refer(
                         | Effect::CreateCopy { .. }
                         | Effect::CreateThose { .. }
                         | Effect::CreateThosePlus { .. }
-                        | Effect::CreateOfEach { .. }
                         | Effect::CreateNamed { .. }
                         | Effect::CreateAttached { .. }
                         | Effect::Copy { .. }
@@ -1815,7 +1814,6 @@ fn refer(
                     e,
                     Effect::Create { .. }
                         | Effect::CreateCopy { .. }
-                        | Effect::CreateOfEach { .. }
                         | Effect::CreateNamed { .. }
                         | Effect::CreateAttached { .. }
                 );
@@ -2405,7 +2403,6 @@ impl Visitor for CreatedTokens {
             | Effect::CreateCopy { n, .. }
             | Effect::CreateNamed { n, .. }
             | Effect::CreateAttached { n, .. } => Some(one(n)),
-            Effect::CreateOfEach { .. } => Some(false),
             // Effects that bring in an object they name in no `Objects`.
             Effect::RevealTop { .. }
             | Effect::LookAtTop { .. }
@@ -2426,7 +2423,7 @@ impl Visitor for CreatedTokens {
             Effect::Create { token, .. }
             | Effect::CreateNamed { token, .. }
             | Effect::CreateAttached { token, .. } => self.types = token.types.clone(),
-            Effect::CreateCopy { .. } | Effect::CreateOfEach { .. } => self.types.clear(),
+            Effect::CreateCopy { .. } => self.types.clear(),
             _ => {}
         }
         if self.created.is_some() {

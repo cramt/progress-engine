@@ -1661,12 +1661,6 @@ pub enum Effect {
         of: String,
         n: Amount,
     },
-    /// "instead create one of each": n of each kind of token the replaced
-    /// event named.
-    CreateOfEach {
-        who: Player,
-        n: Amount,
-    },
     /// "exile it instead of putting it into its owner's graveyard".
     InsteadOf {
         then: Box<Effect>,
@@ -2405,6 +2399,46 @@ pub enum Pick {
     Stated,
     /// "three mana of that type": the type of mana named before, colorless too.
     ThatType,
+}
+
+/// "If you would create a Clue, Food, or Treasure token, instead create one
+/// of each" (Academy Manufactor): that many of each predefined token the
+/// replaced event names (CR 111.10), each a `Create` of the same token "create
+/// a Treasure token" reads into, and never the replaced token itself (a Food
+/// copy of Carrot Cake still makes a plain Food). The Scryfall ruling says
+/// it: "you will instead create that many Clue tokens, that many Food
+/// tokens, and that many Treasure tokens" ([one-of-each]).
+pub fn one_of_each(event: &Event, who: &Player) -> Option<Vec<Effect>> {
+    let Event::Creates { what, .. } = event else {
+        return None;
+    };
+    if what.filter.kind != Some(Noun::Token)
+        || what.filter.alts.len() < 2
+        || !what.filter.posts.is_empty()
+    {
+        return None;
+    }
+    what.filter
+        .alts
+        .iter()
+        .map(|alt| match alt.as_slice() {
+            [Adj::Subtype(s)] => Some(Effect::Create {
+                who: who.clone(),
+                n: Amount::ThatMany,
+                token: Token {
+                    tapped: false,
+                    pt: None,
+                    colors: Vec::new(),
+                    types: vec![s.clone()],
+                    keywords: Vec::new(),
+                    abilities: Vec::new(),
+                    named: Some(s.clone()),
+                    attacking: None,
+                },
+            }),
+            _ => None,
+        })
+        .collect()
 }
 
 #[derive(Clone, Debug, PartialEq)]

@@ -21,7 +21,7 @@ face: Academy Manufactor
 type: Artifact Creature — Assembly-Worker
 cost: {3}
 > If you would create a Clue, Food, or Treasure token, instead create one of each.
-= Static([Replacement { event: Creates { by: Player(You), what: Objects { quant: One, filter: Filter { alts: [[Subtype("clue")], [Subtype("food")], [Subtype("treasure")]], kind: Some(Token), posts: [], or: None } }, under: None }, instead: [CreateOfEach { who: You, n: N(1) }] }])
+= Static([Replacement { event: Creates { by: Player(You), what: Objects { quant: One, filter: Filter { alts: [[Subtype("clue")], [Subtype("food")], [Subtype("treasure")]], kind: Some(Token), posts: [], or: None } }, under: None }, instead: [Create { who: You, n: ThatMany, token: Token { tapped: false, pt: None, colors: [], types: ["clue"], keywords: [], abilities: [], named: Some("clue"), attacking: None } }, Create { who: You, n: ThatMany, token: Token { tapped: false, pt: None, colors: [], types: ["food"], keywords: [], abilities: [], named: Some("food"), attacking: None } }, Create { who: You, n: ThatMany, token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }] }])
 
 ## Academy Ruins
 face: Academy Ruins

@@ -1697,6 +1697,14 @@ mod syn {
     /// beginning of the end step" (Nalfeshnee, Biovisionary) is "each end
     /// step": a triggered ability triggers whenever its event occurs (CR
     /// 603.2), on every turn.
+    /// Named rewrite [one-of-each]: "instead create one of each" (Academy
+    /// Manufactor) is "instead create that many Clue tokens, that many Food
+    /// tokens, and that many Treasure tokens", the Scryfall ruling's words,
+    /// one `Create` of each predefined token the replaced event names.
+    pub fn one_of_each(o: &mut Out, spelled: Out) {
+        alt(o, vec![spelled, of("create one of each")]);
+    }
+
     pub fn printed_each_step(o: &mut Out) {
         any_of(o, &["each", "each player's", "the"]);
     }
@@ -7403,11 +7411,6 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.noun(of, Num::Pl);
             amount(o, n);
         }
-        Effect::CreateOfEach { who, n } => {
-            subj(o, who, "create", cx);
-            amount_a(o, n);
-            o.w("of each");
-        }
         Effect::LifeTotalBecomes { who, n } => {
             whose(o, who);
             o.w("life total becomes");
@@ -11951,6 +11954,25 @@ fn static_other(o: &mut Out, s: &Static) {
             } else {
                 o.add(cast);
             }
+        }
+        Static::Replacement { event, instead }
+            if crate::ast::one_of_each(event, &Player::You).as_ref() == Some(instead) =>
+        {
+            o.w("if");
+            would(o, event);
+            o.w(", instead");
+            let spelled = out(|o| {
+                o.w("create");
+                for (i, e) in instead.iter().enumerate() {
+                    if i > 0 {
+                        o.w(if i + 1 == instead.len() { ", and" } else { "," });
+                    }
+                    if let Effect::Create { n, token: t, .. } = e {
+                        token(o, n, t);
+                    }
+                }
+            });
+            syn::one_of_each(o, spelled);
         }
         Static::Replacement { event, instead } => {
             let w = out(|o| would(o, event));

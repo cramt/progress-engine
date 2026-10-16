@@ -880,13 +880,6 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         // "Each player exiles all creature cards from their graveyard, then
         // sacrifices all creatures they control": read by "A verb that takes
         // no player" below.
-        |p| {
-            let who = subject_player(p);
-            p.verb("create")?;
-            let n = amount_a(p)?;
-            p.words("of each")?;
-            Some(Effect::CreateOfEach { who, n })
-        },
         // "It's an enchantment.": what it is as it enters, which "becomes"
         // would make it only afterwards (CR 611.2e).
         // "That creature is a black Zombie in addition to its other colors

@@ -357,6 +357,17 @@ pub(super) fn replacement(p: &mut P) -> Option<Vec<Static>> {
         None => event,
     };
     p.tok(&Tok::Comma)?;
+    // "instead create one of each" (Academy Manufactor): that many of each
+    // predefined token the event names ([one-of-each]).
+    if let Some(instead) = p.attempt(|p| {
+        p.words("instead create one of each")?;
+        one_of_each(&event, &Player::You)
+    }) {
+        return Some(vec![Static::Replacement {
+            event: Box::new(event),
+            instead,
+        }]);
+    }
     // "instead" may lead or trail; either way the clauses replace the event.
     p.attempt(|p| p.word("instead"));
     let mut instead = clauses(p)?;

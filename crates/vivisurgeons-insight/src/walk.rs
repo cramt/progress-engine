@@ -1136,10 +1136,6 @@ impl Walk for Effect {
             Effect::Amass { n, .. } => {
                 Walk::walk(n, v);
             }
-            Effect::CreateOfEach { who, n } => {
-                Walk::walk(who, v);
-                Walk::walk(n, v);
-            }
             Effect::InsteadOf { then, of } => {
                 Walk::walk(&mut **then, v);
                 Walk::walk(&mut **of, v);
