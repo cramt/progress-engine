@@ -369,7 +369,7 @@ cost: {4}{B}
 > When this creature enters, choose one —
 > • Target opponent loses 2 life and you gain 2 life.
 > • Choose target battle. If an opponent protects it, remove three defense counters from it. Otherwise, put three defense counters on it.
-= BROKE at "protects" after: when this creature enters , choose one — • target opponent loses 2 life and you gain 2 life . • choose target battle . if an opponent
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Modal { choose: One, modes: [[LoseLife { who: TargetOpponent, n: N(2) }, GainLife { who: You, n: N(2) }], [Choose(Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("battle")]], kind: None, posts: [], or: None } })), If { cond: Protects { who: AnOpponent, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [RemoveCounters { n: N(3), kind: "defense", from: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, Otherwise([PutCounters { n: N(3), kind: "defense", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])]] }], limits: [] }
 
 ## Figure of Fable
 face: Figure of Fable

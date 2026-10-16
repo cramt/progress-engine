@@ -598,7 +598,7 @@ cost: {1}{G}
 > {T}: Untap target land.
 > {T}: Choose target battle. If an opponent protects it, remove a defense counter from it. Otherwise, put a defense counter on it. Activate only as a sorcery.
 = Activated { cost: [Tap], effect: [Untap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })], limits: [] }
-= BROKE at "protects" after: {T} : choose target battle . if an opponent
+= Activated { cost: [Tap], effect: [Choose(Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("battle")]], kind: None, posts: [], or: None } })), If { cond: Protects { who: AnOpponent, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, then: [RemoveCounters { n: N(1), kind: "defense", from: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }, Otherwise([PutCounters { n: N(1), kind: "defense", on: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])], limits: [SorcerySpeed] }
 
 ## Pre-War Formalwear
 face: Pre-War Formalwear

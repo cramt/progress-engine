@@ -355,6 +355,13 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.words("this game")?;
             Some(Condition::DidThisGame(Box::new(casts(Player::You, what))))
         },
+        // "an opponent protects it" (Portent Tracker, CR 310.9).
+        |p| {
+            let who = player_simple(p)?;
+            p.verb("protect")?;
+            let what = objects(p)?;
+            Some(Condition::Protects { who, what })
+        },
         // "you've cycled a card named ~ four or more times this game" (Yidaro).
         |p| {
             p.words("you've cycled")?;

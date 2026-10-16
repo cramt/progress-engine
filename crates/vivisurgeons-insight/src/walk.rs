@@ -522,6 +522,10 @@ impl Walk for Condition {
             Condition::WasCast(f0) => {
                 Walk::walk(f0, v);
             }
+            Condition::Protects { who, what } => {
+                Walk::walk(who, v);
+                Walk::walk(what, v);
+            }
             Condition::WasCycled(f0) => {
                 Walk::walk(f0, v);
             }

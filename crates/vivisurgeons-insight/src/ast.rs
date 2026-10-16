@@ -3637,6 +3637,12 @@ pub enum Condition {
     },
     /// "it wasn't cast": cast at all, by anyone.
     WasCast(Objects),
+    /// "an opponent protects it" (Portent Tracker): the player is the
+    /// battle's protector (CR 310.9).
+    Protects {
+        who: Player,
+        what: Objects,
+    },
     /// "it wasn't cycled" (Abandoned Sarcophagus): it is not being
     /// discarded to pay a cycling cost (CR 702.29a).
     WasCycled(Objects),

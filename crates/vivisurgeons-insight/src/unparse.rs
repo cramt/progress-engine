@@ -11111,6 +11111,15 @@ fn condition(o: &mut Out, c: &Condition) {
             objects(o, x);
             o.w("was cast");
         }
+        Condition::Protects { who, what } => {
+            player(o, who);
+            o.w(if matches!(who, Player::You) {
+                "protect"
+            } else {
+                "protects"
+            });
+            objects(o, what);
+        }
         Condition::WasCycled(x) => {
             objects(o, x);
             o.w("was cycled");
