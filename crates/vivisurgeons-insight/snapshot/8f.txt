@@ -74,7 +74,7 @@ face: Bludgeon Brawl
 type: Enchantment
 cost: {2}{R}
 > Each noncreature, non-Equipment artifact is an Equipment with equip {X} and "Equipped creature gets +X/+0," where X is that artifact's mana value.
-= BROKE at "equip" after: each noncreature , non-equipment artifact is an equipment with
+= BROKE at "\"" after: each noncreature , non-equipment artifact is an equipment with equip {X} and
 
 ## Brain Weevil
 face: Brain Weevil

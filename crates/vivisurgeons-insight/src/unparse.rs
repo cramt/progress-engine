@@ -11727,7 +11727,8 @@ fn statics(o: &mut Out, ss: &[Static]) {
                 && matches!(
                     next,
                     Static::BasePt { .. } | Static::BasePtEqual { .. } | Static::HasAbility { .. }
-                );
+                )
+                || matches!((&ss[j - 1], next), (Static::Is { .. }, Static::Modify { pt: None, per: None, has, .. }) if !has.is_empty());
             if after_is {
                 o.w("with");
                 if let Static::BasePt { pt, .. } = next {
@@ -11738,6 +11739,8 @@ fn statics(o: &mut Out, ss: &[Static]) {
                     measure(o, each_equal_to);
                 } else if let Static::HasAbility { ability, .. } = next {
                     quoted(o, ability);
+                } else if let Static::Modify { has, .. } = next {
+                    keyword_list(o, has);
                 }
             } else {
                 // "gets +1/+1 and has trample and "Whenever …"": "has"

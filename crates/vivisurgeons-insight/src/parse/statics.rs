@@ -1321,6 +1321,8 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
                         measure(p).map(|n| Static::BasePtEqual { what: what.clone(), each_equal_to: n })
                     },
                     |p| quoted(p).map(|a| Static::HasAbility { what: what.clone(), ability: Box::new(a) }),
+                    // "is a Vehicle artifact with crew 5" (Swift Reconfiguration).
+                    |p| keyword_list(p).map(|has| Static::Modify { what: what.clone(), pt: None, has, per: None }),
                 )?);
                 // "… with base power and toughness 0/2 in addition to its
                 // other types": the types are added, not replacing.

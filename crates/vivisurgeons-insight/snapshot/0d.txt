@@ -939,7 +939,7 @@ cost: {W}
 > Enchanted permanent is a Vehicle artifact with crew 5 and it loses all other card types. (It's not a creature unless it's crewed.)
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")], [Subtype("vehicle")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "crew" after: enchanted permanent is a vehicle artifact with
+= Static([Is { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, types: Listed([Subtype("vehicle"), Type("artifact")]) }, Modify { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, pt: None, has: [Keyword { name: "crew", param: Some(N(N(5))) }], per: None }, Loses { what: Objects { quant: Enchanted, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, lost: [All { other: true, of: CardTypes }] }])
 
 ## Sylvan Reclamation
 face: Sylvan Reclamation
