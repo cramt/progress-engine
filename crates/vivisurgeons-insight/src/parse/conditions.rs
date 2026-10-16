@@ -359,6 +359,12 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.words("this game")?;
             Some(Condition::DidThisGame(Box::new(casts(Player::You, what))))
         },
+        // "if the two spells have the same mana value" (Powerbalance): the
+        // card cast and the spell the trigger saw.
+        |p| {
+            p.words("the two spells have the same mana value")?;
+            Some(two_spells_same_mana_value())
+        },
         // "an opponent protects it" (Portent Tracker, CR 310.9).
         |p| {
             let who = player_simple(p)?;
@@ -752,4 +758,31 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         // "If it's not a creature, it becomes …": the same as "it isn't".
         |p| { p.words("it's not")?; p.attempt(|p| p.one_of(&["a", "an"])); let f = filter(p)?; Some(Condition::Not(Box::new(Condition::Is { what: antecedent(), filter: f }))) },
     )
+}
+
+/// "the two spells have the same mana value" (Powerbalance): the card the
+/// effect casts ("that card") against the spell the trigger saw.
+pub(crate) fn two_spells_same_mana_value() -> Condition {
+    let card = Objects {
+        quant: Quant::Antecedent,
+        filter: Filter {
+            kind: Some(Noun::Card),
+            ..Filter::default()
+        },
+    };
+    let spell = Objects {
+        quant: Quant::Triggering,
+        filter: Filter {
+            kind: Some(Noun::Spell),
+            ..Filter::default()
+        },
+    };
+    Condition::Has {
+        what: card,
+        cmp: Compare {
+            stat: Stat::ManaValue,
+            op: Op::Eq,
+            value: Amount::ManaValueOf(Box::new(spell)),
+        },
+    }
 }

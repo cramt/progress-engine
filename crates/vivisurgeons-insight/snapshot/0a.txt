@@ -704,7 +704,7 @@ face: Powerbalance
 type: Enchantment
 cost: {R}{R}
 > Whenever an opponent casts a spell, you may reveal the top card of your library. If you do, you may cast that card without paying its mana cost if the two spells have the same mana value.
-= BROKE at "spells" after: whenever an opponent casts a spell , you may reveal the top card of your library . if you do , you may cast that card without paying its mana cost if the two
+= Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [May { who: You, then: [RevealTop { who: You, whose: You, n: N(1) }] }, IfYouDo([If { cond: Has { what: Objects { quant: ClauseObject, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, cmp: Compare { stat: ManaValue, op: Eq, value: ManaValueOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }) } }, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: Free, dur: Permanent }] }] }])], limits: [] }
 
 ## Prava of the Steel Legion
 face: Prava of the Steel Legion

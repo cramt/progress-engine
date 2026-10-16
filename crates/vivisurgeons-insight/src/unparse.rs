@@ -10982,6 +10982,17 @@ fn condition(o: &mut Out, c: &Condition) {
                 Holding::Opponents => o.w("opponents"),
             }
         }
+        // "the two spells have the same mana value" (Powerbalance).
+        Condition::Has { what, cmp }
+            if matches!(what.quant, Quant::Antecedent | Quant::ClauseObject)
+                && what.filter.kind == Some(Noun::Card)
+                && cmp.stat == Stat::ManaValue
+                && cmp.op == Op::Eq
+                && matches!(&cmp.value, Amount::ManaValueOf(x) if matches!(x.quant, Quant::Triggering | Quant::Antecedent)
+                    && x.filter.kind == Some(Noun::Spell)) =>
+        {
+            o.w("the two spells have the same mana value");
+        }
         Condition::Has { what, cmp } => {
             objects(o, what);
             o.verb("have", obj_num(what));
