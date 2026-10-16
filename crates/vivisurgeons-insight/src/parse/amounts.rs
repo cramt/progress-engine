@@ -189,6 +189,7 @@ fn measure_bare(p: &mut P) -> Option<Amount> {
             Some(Amount::Minus(Box::new(Amount::N(a)), Box::new(b)))
         },
         |p| p.words("that damage").map(|_| Amount::ThatDamage),
+        |p| { p.words("the amount of")?; sym(p, "S")?; p.words("spent to cast")?; objects(p).map(|o| Amount::SnowManaSpentToCast(Box::new(o))) },
         |p| { p.words("the amount of mana spent to cast")?; objects(p).map(|o| Amount::ManaSpentToCast(Box::new(o))) },
         |p| {
             p.words("the number of times")?;

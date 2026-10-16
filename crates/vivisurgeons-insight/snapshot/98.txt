@@ -318,7 +318,7 @@ face: Graven Lore
 type: Snow Instant
 cost: {3}{U}{U}
 > Scry X, where X is the amount of {S} spent to cast this spell, then draw three cards. ({S} is mana from a snow source.)
-= BROKE at "{S}" after: scry x , where x is the amount of
+= Spell([Where { then: [Scry(X)], x: SnowManaSpentToCast(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }, Draw { who: You, n: N(3) }])
 
 ## Hammer of Purphoros
 face: Hammer of Purphoros

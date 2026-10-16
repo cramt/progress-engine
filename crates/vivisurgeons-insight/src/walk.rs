@@ -191,6 +191,9 @@ impl Walk for Amount {
             Amount::ManaSpentToCast(f0) => {
                 Walk::walk(&mut **f0, v);
             }
+            Amount::SnowManaSpentToCast(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             Amount::TimesCastFrom { what, zone } => {
                 Walk::walk(&mut **what, v);
                 Walk::walk(zone, v);

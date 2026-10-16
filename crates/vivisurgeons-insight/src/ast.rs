@@ -417,6 +417,9 @@ pub enum Amount {
     Thrice(Box<Amount>),
     /// "the amount of mana spent to cast this creature".
     ManaSpentToCast(Box<Objects>),
+    /// "the amount of {S} spent to cast this spell": the mana spent to cast it
+    /// that a snow source produced (CR 107.4h).
+    SnowManaSpentToCast(Box<Objects>),
     /// "the number of times it's been cast from the command zone this game".
     TimesCastFrom {
         what: Box<Objects>,

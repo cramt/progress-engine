@@ -3024,6 +3024,12 @@ fn measure(o: &mut Out, a: &Amount) {
             o.w("the amount of mana spent to cast");
             objects(o, x);
         }
+        Amount::SnowManaSpentToCast(x) => {
+            o.w("the amount of");
+            o.tok(Tok::Sym("S".into()));
+            o.w("spent to cast");
+            objects(o, x);
+        }
         Amount::TimesCastFrom { what, zone: z } => {
             o.w("the number of times");
             pronoun_or(

@@ -105,7 +105,7 @@ cost: {4}{B}{B}
 > • Destroy all planeswalkers.
 > Then return a creature or planeswalker card with mana value X or less from your graveyard to the battlefield, where X is the amount of {S} spent to cast this spell. ({S} is mana from a snow source.)
 = Spell([Modal { choose: One, modes: [[Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], [Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } }, no_regen: false }]] }])
-= BROKE at "{S}" after: then return a creature or planeswalker card with mana value x or less from your graveyard to the battlefield , where x is the amount of
+= Spell([Where { then: [Move { what: Objects { quant: One, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: Some(Card), posts: [With(Compare { stat: ManaValue, op: Le, value: X }), In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }], x: SnowManaSpentToCast(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }])
 
 ## Bruvac the Grandiloquent
 face: Bruvac the Grandiloquent
