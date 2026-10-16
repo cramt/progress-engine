@@ -5599,8 +5599,16 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
         }
         // Said once after a run of such copies ("copy it if …, then copy
         // it if …. You may choose new targets for the copies").
-        let after = copy_said_after(e)
-            .filter(|_| top && !cx.modal && es.get(i + 1).and_then(copy_said_after).is_none());
+        // "Copy target instant or sorcery spell, then return it to its
+        // owner's hand. You may choose new targets for the copy." (Narset's
+        // Reversal): said after the move of the original that follows.
+        let moved = top && !cx.modal && i > 0 && e.moves_the_original();
+        let copy_at = if moved { i - 1 } else { i };
+        let after = copy_said_after(&es[copy_at]).filter(|_| {
+            top && !cx.modal
+                && es.get(copy_at + 1).and_then(copy_said_after).is_none()
+                && (moved || !es.get(i + 1).is_some_and(Effect::moves_the_original))
+        });
         // "If you do, copy that spell and you may choose new targets for the
         // copy. If the copy is …" (Mizzix): a copy inside a branch that goes
         // on past it says its choice where it is, as the branch's last
@@ -5620,7 +5628,7 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
             .then_some(false)
         });
         if let Some(many) = after {
-            let run = es[..i]
+            let run = es[..copy_at]
                 .iter()
                 .rev()
                 .take_while(|e| copy_said_after(e).is_some())

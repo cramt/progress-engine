@@ -650,7 +650,7 @@ face: Narset's Reversal
 type: Instant
 cost: {U}{U}
 > Copy target instant or sorcery spell, then return it to its owner's hand. You may choose new targets for the copy.
-= Spell([Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: false }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, May { who: You, then: [ChooseNewTargets(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Copy), posts: [], or: None } })] }])
+= Spell([Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }])
 
 ## Navigator's Ruin
 face: Navigator's Ruin

@@ -2126,6 +2126,15 @@ impl Effect {
         }
     }
 
+    /// "Copy target instant or sorcery spell, then return it to its owner's
+    /// hand. You may choose new targets for the copy." (Narset's Reversal):
+    /// a move of the copied spell itself, said between the copy and its
+    /// new-targets sentence, which is still about the copy ([copy-new-targets]).
+    pub fn moves_the_original(&self) -> bool {
+        matches!(self, Effect::Move { what, .. }
+            if what.quant == Quant::Antecedent && what.filter == Filter::default())
+    }
+
     pub fn trailing_copy(&self) -> Option<bool> {
         match self {
             Effect::Copy {

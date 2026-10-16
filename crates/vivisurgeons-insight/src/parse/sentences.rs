@@ -1361,11 +1361,20 @@ fn new_targets_after(v: &mut Vec<Effect>) {
             if matches!(then.as_slice(), [Effect::ChooseNewTargets(o)]
                 if o.quant == Quant::Antecedent
                     && o.filter == Filter { kind: Some(Noun::Copy), ..Filter::default() }));
-        if about_copy && v[i - 1].trailing_copy() == Some(false) {
+        // "copy target spell, then return it to its owner's hand. You may
+        // choose new targets for the copy" (Narset's Reversal): past a move
+        // of the original, the copy said before it.
+        let at =
+            if i >= 2 && v[i - 1].moves_the_original() && v[i - 2].trailing_copy() == Some(false) {
+                i - 1
+            } else {
+                i
+            };
+        if about_copy && v[at - 1].trailing_copy() == Some(false) {
             // "copy it if you control an artifact, then copy it if you
             // control an enchantment. You may choose new targets for the
             // copies": each copy said before.
-            for e in v[..i].iter_mut().rev() {
+            for e in v[..at].iter_mut().rev() {
                 match e.trailing_copy_mut() {
                     Some(flag) if !*flag => *flag = true,
                     _ => break,
