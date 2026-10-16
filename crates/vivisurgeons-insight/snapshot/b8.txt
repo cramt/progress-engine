@@ -356,7 +356,7 @@ cost: {4}
 > Repair Barge — Whenever this Vehicle becomes crewed, each artifact creature card in your graveyard gains unearth {3} until end of turn.
 > Crew 2 (Tap any number of creatures you control with total power 2 or more: This Vehicle becomes an artifact creature until end of turn.)
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: repair barge — whenever this vehicle becomes crewed
+= Labelled { label: "repair barge", ability: Triggered { trigger: When(BecomesCrewed(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: Each, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, pt: None, gains: [Keyword { name: "unearth", param: Some(Cost([Mana(Mana(["3"]))])) }], dur: UntilEndOfTurn }], limits: [] } }
 = Keywords([Keyword { name: "crew", param: Some(N(N(2))) }])
 
 ## Gibbering Fiend

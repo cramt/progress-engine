@@ -622,7 +622,7 @@ cost: {3}
 > Crew 4
 = Keywords([Keyword { name: "trample", param: None }])
 = Keywords([Keyword { name: "ward", param: Some(Cost([Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })])) }])
-= BROKE at "first" after: whenever this vehicle becomes crewed for the
+= BROKE at "by" after: whenever this vehicle becomes crewed for the first time each turn , if it was crewed
 = Keywords([Keyword { name: "crew", param: Some(N(N(4))) }])
 
 ## Mimeofacture

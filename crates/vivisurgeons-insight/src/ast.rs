@@ -2684,6 +2684,9 @@ pub enum Event {
     },
     YouAttack,
     BecomesTapped(Objects),
+    /// "Whenever this Vehicle becomes crewed": its crew ability resolved and
+    /// it became an artifact creature (CR 702.122a).
+    BecomesCrewed(Objects),
     /// "When this creature is turned face up", "Whenever a permanent is
     /// turned face up": by any means (CR 708.8: abilities relating to it
     /// entering don't trigger, since it already entered).

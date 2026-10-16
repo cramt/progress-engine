@@ -572,7 +572,7 @@ cost: {1}{U}
 > Whenever this Vehicle becomes crewed, up to one other target Vehicle you control becomes an artifact creature until end of turn.
 > Crew 3 (Tap any number of creatures you control with total power 3 or more: This Vehicle becomes an artifact creature until end of turn.)
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: whenever this vehicle becomes crewed
+= Triggered { trigger: When(BecomesCrewed(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Becomes { what: Objects { quant: OtherTarget { n: N(1), up_to: true }, filter: Filter { alts: [[Subtype("vehicle")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, types: [Type("artifact"), Type("creature")], gains: [], keeps: OtherTypes, dur: UntilEndOfTurn }], limits: [] }
 = Keywords([Keyword { name: "crew", param: Some(N(N(3))) }])
 
 ## Moment's Peace

@@ -631,7 +631,7 @@ cost: {2}{U}
 > Whenever this Vehicle becomes crewed for the first time each turn, until end of turn, this Vehicle becomes a copy of target nonlegendary creature that crewed it this turn, except it's 4/3, it's a Vehicle artifact in addition to its other types, and it has flying.
 > Crew 1
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "first" after: whenever this vehicle becomes crewed for the
+= Triggered { trigger: When(FirstTimeEachTurn(BecomesCrewed(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }))), effect: [During { dur: UntilEndOfTurn, then: [BecomesCopy { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("legendary"), Type("creature")]], kind: None, posts: [CrewedThisTurn { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, saddle: false }], or: None } }, dur: Permanent, except: [Is { pt: Some(Pt { power: N(4), toughness: N(3), signed: false }), adjs: [] }, AlsoIs([Subtype("vehicle"), Type("artifact")]), Has { keywords: [Keyword { name: "flying", param: None }], abilities: [] }] }] }], limits: [] }
 = Keywords([Keyword { name: "crew", param: Some(N(N(1))) }])
 
 ## Mindwrack Demon
