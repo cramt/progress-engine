@@ -1229,5 +1229,5 @@ face: Zimone, All-Questioning
 type: Legendary Creature — Human Wizard
 cost: {1}{G}{U}
 > At the beginning of your end step, if a land entered the battlefield under your control this turn and you control a prime number of lands, create Primo, the Indivisible, a legendary 0/0 green and blue Fractal creature token, then put that many +1/+1 counters on it. (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, and 31 are prime numbers.)
-= BROKE at "number" after: at the beginning of your end step , if a land entered the battlefield under your control this turn and you control a prime
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), And([DidThisTurn(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, under: Some(You), state: None }), YouControl(Objects { quant: PrimeNumber, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })])), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(0), signed: false }), colors: [Green, Blue], types: ["legendary", "fractal", "creature"], keywords: [], abilities: [], named: None, attacking: None }, name: "primo, the indivisible" }, PutCounters { n: ThatMany, kind: "+1/+1", on: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 

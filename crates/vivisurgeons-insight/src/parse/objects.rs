@@ -1400,6 +1400,7 @@ pub(super) fn quant(p: &mut P) -> Option<Quant> {
         |p| p.words("a second target").map(|_| Quant::SecondTarget),
         |p| p.words("any number of other target").map(|_| Quant::AnyNumberOfOtherTarget),
         |p| p.words("any number of target").map(|_| Quant::AnyNumberOfTarget),
+        |p| p.words("a prime number of").map(|_| Quant::PrimeNumber),
         |p| { let n = amount(p)?; p.word("target")?; Some(Quant::Target { n, up_to: false }) },
         |p| { let n = amount(p)?; p.words("or more")?; Some(Quant::AtLeast(n)) },
         |p| { p.words("at least")?; amount(p).map(Quant::AtLeast) },

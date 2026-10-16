@@ -3615,6 +3615,7 @@ fn obj_num(x: &Objects) -> Num {
         Quant::Possessive(_) => Num::Any,
         Quant::All
         | Quant::Plural
+        | Quant::PrimeNumber
         | Quant::AnyNumber
         | Quant::AnyNumberOfTarget
         | Quant::AnyNumberOfOtherTarget
@@ -3867,6 +3868,10 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         }
         Quant::AnyNumber => {
             o.w("any number of");
+            filter(o, f, n);
+        }
+        Quant::PrimeNumber => {
+            o.w("a prime number of");
             filter(o, f, n);
         }
         Quant::UpTo(k) => {

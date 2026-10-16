@@ -707,6 +707,9 @@ pub enum Quant {
     /// "any number of target creatures": as many targets as the player
     /// picks, with no bound, where "up to X target" has one.
     AnyNumberOfTarget,
+    /// "you control a prime number of lands" (Zimone, All-Questioning): as
+    /// many as some prime, 2, 3, 5, 7 ….
+    PrimeNumber,
     /// "any number of other target creatures" (Kinetic Ooze): as many as the
     /// player picks, each other than this object.
     AnyNumberOfOtherTarget,
