@@ -462,7 +462,7 @@ cost: {2}{W}
 > You may pay {0} rather than pay the equip cost of the first equip ability you activate during each of your turns.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("equipment")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 = BROKE at "equip" after: during your turn , you may activate
-= BROKE at "equip" after: you may pay {0} rather than pay the
+= Static([KeywordCostPaying { keyword: "equip", cost: [Mana(Mana(["0"]))], first: Some(YourTurn) }])
 
 ## Fortified Village
 face: Fortified Village

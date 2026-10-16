@@ -659,6 +659,29 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             p.words("its combat damage as though it weren't blocked")?;
             Some(vec![Static::AssignAsThoughUnblocked(what)])
         },
+        // "you may pay {0} rather than pay cycling costs", "… the equip cost of
+        // the first equip ability you activate each turn" (Bruenor).
+        |p| {
+            p.words("you may pay")?;
+            let cost = costs(p)?;
+            p.words("rather than pay")?;
+            let (keyword, first) = alt!(p;
+                |p| { let k = p.peek_word().filter(|w| *w == "cycling" || *w == "equip")?.to_string(); p.bump(); p.word("costs")?; Some((k, None)) },
+                |p| {
+                    p.word("the")?;
+                    let k = p.peek_word().filter(|w| *w == "cycling" || *w == "equip")?.to_string();
+                    p.bump();
+                    p.words("cost of the first")?;
+                    if k == "cycling" { p.words("card you cycle")?; } else { p.words("equip ability you activate")?; }
+                    let each = alt!(p;
+                        |p| p.words("each turn").map(|_| EachTurn::Turn),
+                        |p| p.words("during each of your turns").map(|_| EachTurn::YourTurn),
+                    )?;
+                    Some((k, Some(each)))
+                },
+            )?;
+            Some(vec![Static::KeywordCostPaying { keyword, cost, first }])
+        },
         // "For each {B} in a cost, you may pay 2 life rather than pay that
         // mana" (K'rrik).
         |p| {

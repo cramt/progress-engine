@@ -3245,6 +3245,16 @@ pub enum Static {
         mana: Mana,
         life: Amount,
     },
+    /// "you may pay {0} rather than pay cycling costs" (New Perspectives), "…
+    /// rather than pay the equip cost of the first equip ability you activate
+    /// each turn" (Bruenor): a cost paid in place of a keyword
+    /// ability's cost, with `first`, only for the first activation of it in
+    /// each turn, or each of your turns.
+    KeywordCostPaying {
+        keyword: String,
+        cost: Vec<Cost>,
+        first: Option<EachTurn>,
+    },
     /// "Each nonland permanent you control is all colors."
     IsAllColors(Objects),
     /// "Enchanted creature gets +2/+2 and is goaded": goaded, a designation
@@ -3645,3 +3655,10 @@ pub enum Holding {
 
 /// The basic land types (CR 205.3i), as a token's subtypes say them.
 pub const BASIC_LAND_TYPES: [&str; 5] = ["plains", "island", "swamp", "mountain", "forest"];
+
+/// "each turn" or "during each of your turns", after "the first …".
+#[derive(Clone, Debug, PartialEq)]
+pub enum EachTurn {
+    Turn,
+    YourTurn,
+}

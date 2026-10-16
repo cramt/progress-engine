@@ -659,7 +659,7 @@ cost: {5}{U}
 > When this enchantment enters, draw three cards.
 > As long as you have seven or more cards in hand, you may pay {0} rather than pay cycling costs.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(3) }], limits: [] }
-= BROKE at "cycling" after: as long as you have seven or more cards in hand , you may pay {0} rather than pay
+= Static([AsLongAs { cond: PlayerHas { who: You, at_least: 7, what: CardsInHand }, then: [KeywordCostPaying { keyword: "cycling", cost: [Mana(Mana(["0"]))], first: None }] }])
 
 ## Niv-Mizzet Reborn
 face: Niv-Mizzet Reborn

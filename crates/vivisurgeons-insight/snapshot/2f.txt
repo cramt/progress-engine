@@ -394,7 +394,7 @@ type: Legendary Creature — Human Shaman
 cost: {2}{U}{R}{W}
 > You may pay {0} rather than pay the cycling cost of the first card you cycle each turn.
 > Whenever you draw your second card each turn, create a 2/2 red and white Dinosaur Cat creature token.
-= BROKE at "cycling" after: you may pay {0} rather than pay the
+= Static([KeywordCostPaying { keyword: "cycling", cost: [Mana(Mana(["0"]))], first: Some(Turn) }])
 = Triggered { trigger: When(DrawsNth { who: You, n: 2 }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Red, White], types: ["dinosaur", "cat", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Giant Shark

@@ -12511,6 +12511,36 @@ fn static_other(o: &mut Out, s: &Static) {
             objects(o, x);
             o.w("as though those creatures had haste");
         }
+        Static::KeywordCostPaying {
+            keyword,
+            cost: c,
+            first,
+        } => {
+            o.w("you may pay");
+            costs(o, c);
+            o.w("rather than pay");
+            match first {
+                None => {
+                    o.w(keyword);
+                    o.w("costs");
+                }
+                Some(each) => {
+                    o.w("the");
+                    o.w(keyword);
+                    o.w("cost of the first");
+                    if keyword == "cycling" {
+                        o.w("card you cycle");
+                    } else {
+                        o.w(keyword);
+                        o.w("ability you activate");
+                    }
+                    o.w(match each {
+                        EachTurn::Turn => "each turn",
+                        EachTurn::YourTurn => "during each of your turns",
+                    });
+                }
+            }
+        }
         Static::LifeForMana { mana: m, life } => {
             o.w("for each");
             mana(o, m);

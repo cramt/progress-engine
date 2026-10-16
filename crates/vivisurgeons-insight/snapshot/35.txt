@@ -559,7 +559,7 @@ cost: {1}{W}
 > As long as you have an enduring story, you may pay {0} rather than pay the equip cost of the first equip ability you activate each turn.
 > Whenever another Dwarf or Equipment you control enters, draw a card. This ability triggers only once each turn.
 = Keywords([Keyword { name: "storied", param: None }])
-= BROKE at "equip" after: as long as you have an enduring story , you may pay {0} rather than pay the
+= Static([AsLongAs { cond: EnduringStory(You), then: [KeywordCostPaying { keyword: "equip", cost: [Mana(Mana(["0"]))], first: Some(Turn) }] }])
 = Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[Subtype("dwarf")], [Subtype("equipment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }], limits: [OncePerTurn] }
 
 ## Lagonna-Band Elder

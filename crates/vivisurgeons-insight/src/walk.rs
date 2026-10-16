@@ -2731,6 +2731,11 @@ impl Walk for Static {
             Static::LifeForMana { life, .. } => {
                 Walk::walk(life, v);
             }
+            Static::KeywordCostPaying { cost, .. } => {
+                for x0 in (cost).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Static::IsAllColors(f0) => {
                 Walk::walk(f0, v);
             }
