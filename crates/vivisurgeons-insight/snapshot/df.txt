@@ -226,7 +226,7 @@ face: Dawn Evangel
 type: Enchantment Creature — Human Cleric
 cost: {2}{W}
 > Whenever a creature dies, if an Aura you controlled was attached to it, return target creature card with mana value 2 or less from your graveyard to your hand.
-= BROKE at "controlled" after: whenever a creature dies , if an aura you
+= BROKE at "was" after: whenever a creature dies , if an aura you controlled
 
 ## Deceit
 face: Deceit

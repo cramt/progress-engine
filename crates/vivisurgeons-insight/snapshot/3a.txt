@@ -597,7 +597,7 @@ type: Instant
 cost: {4}{G}{G}
 > Draw X cards, where X is the greatest power among creatures you controlled as you cast this spell. If this spell was cast from exile, you gain twice X life.
 > Foretell {4}{G} (During your turn, you may pay {2} and exile this card from your hand face down. Cast it on a later turn for its foretell cost.)
-= BROKE at "controlled" after: draw x cards , where x is the greatest power among creatures you
+= BROKE at "as" after: draw x cards , where x is the greatest power among creatures you controlled
 = Keywords([Keyword { name: "foretell", param: Some(Cost([Mana(Mana(["4", "G"]))])) }])
 
 ## Louisoix's Sacrifice

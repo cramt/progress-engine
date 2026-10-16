@@ -1419,6 +1419,12 @@ mod syn {
         alt(o, vec![in_cost, of("with a mana cost that contains {X}")]);
     }
 
+    /// "that died under your control this turn" and "you controlled that
+    /// died this turn" (Tobias, Doomed Conqueror).
+    pub fn you_controlled_died(o: &mut Out, under: Out, controlled: Out) {
+        alt(o, vec![under, controlled]);
+    }
+
     pub fn dont_alone(full: Out) -> Out {
         let mut o = Out::default();
         alt(&mut o, vec![full, of("you don't")]);
@@ -4505,6 +4511,15 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             o.w("blocking");
         }
         Post::AttachedToIt => o.w("attached to it"),
+        Post::WasAttachedToIt => {
+            o.w("that");
+            syn::was_or_were(o);
+            o.w("attached to it");
+        }
+        Post::ControlledThen(w) => {
+            player(o, w);
+            o.w("controlled");
+        }
         Post::OfChosenParity(s) => {
             o.w("with");
             o.w(stat_name(*s));
@@ -4665,9 +4680,16 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         }
         Post::DiedThisTurn => o.w("that died this turn"),
         Post::DiedUnderControlThisTurn(who) => {
-            o.w("that died under");
-            whose(o, who);
-            o.w("control this turn");
+            let under = out(|o| {
+                o.w("that died under");
+                whose(o, who);
+                o.w("control this turn");
+            });
+            let controlled = out(|o| {
+                player(o, who);
+                o.w("controlled that died this turn");
+            });
+            syn::you_controlled_died(o, under, controlled);
         }
         Post::CrewedThisTurn { what, saddle } => {
             o.w(if *saddle {

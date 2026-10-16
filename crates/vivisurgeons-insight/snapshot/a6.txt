@@ -426,7 +426,7 @@ cost: {1}{R}
 > Aftermath (Cast this spell only from your graveyard. Then exile it.)
 > Create a Treasure token for each creature you controlled that dealt combat damage to a player this turn.
 = Keywords([Keyword { name: "aftermath", param: None }])
-= BROKE at "controlled" after: create a treasure token for each creature you
+= BROKE at "combat" after: create a treasure token for each creature you controlled that dealt
 
 ## Inkshape Demonstrator
 face: Inkshape Demonstrator

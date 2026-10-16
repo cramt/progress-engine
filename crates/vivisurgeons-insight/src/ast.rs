@@ -975,6 +975,14 @@ pub enum Post {
     Attacking,
     Blocking,
     AttachedToIt,
+    /// "that was attached to it", "all Auras and Equipment that were attached
+    /// to it": attached to the object named before, until the event or
+    /// effect before ended that (a leaves-the-battlefield trigger looks back
+    /// in time, CR 603.10a).
+    WasAttachedToIt,
+    /// "each Aura you controlled that was attached to it" (Hateful
+    /// Eidolon): controlled by that player then.
+    ControlledThen(Player),
     /// "each Aura you control that's attached to a creature": attached to
     /// one of those objects.
     AttachedTo(Box<Objects>),

@@ -295,7 +295,7 @@ cost: {B}
 > Lifelink
 > Whenever an enchanted creature dies, draw a card for each Aura you controlled that was attached to it.
 = Keywords([Keyword { name: "lifelink", param: None }])
-= BROKE at "controlled" after: whenever an enchanted creature dies , draw a card for each aura you
+= Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[State(Enchanted), Type("creature")]], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Subtype("aura")]], kind: None, posts: [ControlledThen(You), WasAttachedToIt], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Healer of the Pride
 face: Healer of the Pride

@@ -135,7 +135,7 @@ face: Ceaseless Conflict
 type: Sorcery
 cost: {3}{W}{W}
 > Destroy all creatures. Then create a 3/2 red and white Spirit creature token for each nontoken creature you controlled that was destroyed this way.
-= BROKE at "controlled" after: destroy all creatures . then create a <pt> red and white spirit creature token for each nontoken creature you
+= BROKE at "destroyed" after: destroy all creatures . then create a <pt> red and white spirit creature token for each nontoken creature you controlled that was
 
 ## Chambered Nautilus
 face: Chambered Nautilus

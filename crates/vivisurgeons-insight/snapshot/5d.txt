@@ -107,7 +107,7 @@ face: Break the Spell
 type: Instant
 cost: {W}
 > Destroy target enchantment. If a permanent you controlled or a token was destroyed this way, draw a card.
-= BROKE at "controlled" after: destroy target enchantment . if a permanent you
+= BROKE at "or" after: destroy target enchantment . if a permanent you controlled
 
 ## Cackling Slasher
 face: Cackling Slasher

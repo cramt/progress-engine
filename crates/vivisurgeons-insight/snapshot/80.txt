@@ -418,7 +418,7 @@ face: Fumble
 type: Instant
 cost: {1}{U}
 > Return target creature to its owner's hand. Gain control of all Auras and Equipment that were attached to it, then attach them to another creature.
-= BROKE at "attached" after: return target creature to its owner 's hand . gain control of all auras and equipment that were
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, GainControl { what: Objects { quant: All, filter: Filter { alts: [[Subtype("aura")], [Subtype("equipment")]], kind: None, posts: [WasAttachedToIt], or: None } }, dur: Permanent }, Attach { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: Objects { quant: One, filter: Filter { alts: [[OtherThan(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Type("creature")]], kind: None, posts: [], or: None } } }])
 
 ## Gahiji, Honored One
 face: Gahiji, Honored One

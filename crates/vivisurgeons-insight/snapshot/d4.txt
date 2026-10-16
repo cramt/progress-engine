@@ -698,7 +698,7 @@ cost: {5}{W}
 > Flying
 > At the beginning of your end step, if a permanent you controlled left the battlefield this turn, create a 1/1 white Pegasus creature token with flying.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "controlled" after: at the beginning of your end step , if a permanent you
+= BROKE at "left" after: at the beginning of your end step , if a permanent you controlled
 
 ## Pegasus Guardian // Rescue the Foal
 face: Rescue the Foal

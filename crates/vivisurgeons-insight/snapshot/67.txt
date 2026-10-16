@@ -612,7 +612,7 @@ cost: {2}{W}{B}
 > At the beginning of your end step, if a permanent you controlled left the battlefield this turn, you get an experience counter.
 > Creatures you control get +1/+0 for each experience counter you have.
 = BROKE at "have" after: ~ has ward {X} , where x is the number of experience counters you
-= BROKE at "controlled" after: at the beginning of your end step , if a permanent you
+= BROKE at "left" after: at the beginning of your end step , if a permanent you controlled
 = BROKE at "have" after: creatures you control get <pt> for each experience counter you
 
 ## Moment of Glory

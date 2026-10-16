@@ -591,7 +591,7 @@ face: Lethal Exploit
 type: Instant
 cost: {1}{B}
 > Target creature gets -2/-2 until end of turn. It gets an additional -1/-1 until end of turn for each modified creature you controlled as you cast this spell. (Equipment, Auras you control, and counters are modifications.)
-= BROKE at "controlled" after: target creature gets <pt> until end of turn . it gets an additional <pt> until end of turn for each modified creature you
+= BROKE at "as" after: target creature gets <pt> until end of turn . it gets an additional <pt> until end of turn for each modified creature you controlled
 
 ## Lightning Mare
 face: Lightning Mare
@@ -1116,7 +1116,7 @@ cost: {3}{B}{B}
 > Flying
 > Toxic Spores — At the beginning of your end step, if a permanent you controlled left the battlefield this turn, each opponent loses 3 life.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "controlled" after: toxic spores — at the beginning of your end step , if a permanent you
+= BROKE at "left" after: toxic spores — at the beginning of your end step , if a permanent you controlled
 
 ## Whisper of the Dross
 face: Whisper of the Dross

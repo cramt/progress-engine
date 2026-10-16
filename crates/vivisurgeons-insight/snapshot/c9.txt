@@ -1011,7 +1011,7 @@ cost: {3}{R}{G}
 > You may tap three untapped Dwarves you control rather than pay this spell's mana cost.
 > At the beginning of each end step, if a land you controlled was put into a graveyard from the battlefield this turn, reveal the top four cards of your library. You may put any number of Dwarf cards from among them into your hand. Put the rest on the bottom of your library in a random order.
 = Static([AlternativeCost([TapUntapped(Objects { quant: N(N(3)), filter: Filter { alts: [[State(Untapped), Subtype("dwarf")]], kind: None, posts: [Controller(You)], or: None } })])])
-= BROKE at "controlled" after: at the beginning of each end step , if a land you
+= BROKE at "was" after: at the beginning of each end step , if a land you controlled
 
 ## The Mind Stone
 face: The Mind Stone

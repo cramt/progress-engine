@@ -444,7 +444,7 @@ face: Kaya's Wrath
 type: Sorcery
 cost: {W}{W}{B}{B}
 > Destroy all creatures. You gain life equal to the number of creatures you controlled that were destroyed this way.
-= BROKE at "controlled" after: destroy all creatures . you gain life equal to the number of creatures you
+= BROKE at "destroyed" after: destroy all creatures . you gain life equal to the number of creatures you controlled that were
 
 ## Keldon Warcaller
 face: Keldon Warcaller

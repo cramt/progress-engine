@@ -763,7 +763,7 @@ cost: {1}{G}
 > When this enchantment enters, the Ring tempts you.
 > At the beginning of your end step, if a permanent you controlled left the battlefield this turn, put a +1/+1 counter on target creature you control.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Designation("ring")], limits: [] }
-= BROKE at "controlled" after: at the beginning of your end step , if a permanent you
+= BROKE at "left" after: at the beginning of your end step , if a permanent you controlled
 
 ## Shu Elite Infantry
 face: Shu Elite Infantry

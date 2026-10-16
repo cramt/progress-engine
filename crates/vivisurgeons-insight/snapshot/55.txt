@@ -141,7 +141,7 @@ cost: {6}{B}
 > When this Vehicle enters, for each player, destroy up to one target creature that player controls. If a creature you controlled was destroyed this way, put two +1/+1 counters on this Vehicle.
 > Crew 2
 = Keywords([Keyword { name: "affinity", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "controlled" after: when this vehicle enters , for each player , destroy up to one target creature that player controls . if a creature you
+= BROKE at "was" after: when this vehicle enters , for each player , destroy up to one target creature that player controls . if a creature you controlled
 = Keywords([Keyword { name: "crew", param: Some(N(N(2))) }])
 
 ## Desolation of Smaug

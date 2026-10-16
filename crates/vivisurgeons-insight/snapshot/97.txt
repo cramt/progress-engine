@@ -527,7 +527,7 @@ cost: {3}{W}
 > At the beginning of your end step, if a permanent you controlled left the battlefield this turn, put a +1/+1 counter on each tapped creature you control, then untap them.
 > Choose a Background (You can have a Background as a second commander.)
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "controlled" after: at the beginning of your end step , if a permanent you
+= BROKE at "left" after: at the beginning of your end step , if a permanent you controlled
 = Keywords([Keyword { name: "choose a background", param: None }])
 
 ## Marauding Dreadship

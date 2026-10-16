@@ -146,7 +146,7 @@ cost: {2}{R}{W}
 > Vigilance
 > Whenever Cass or another creature you control dies, if it was enchanted or equipped, return any number of Aura cards that were attached to it from your graveyard to the battlefield attached to target creature, then attach any number of Equipment that were attached to it to that creature.
 = Keywords([Keyword { name: "vigilance", param: None }])
-= BROKE at "attached" after: whenever ~ or another creature you control dies , if it was enchanted or equipped , return any number of aura cards that were
+= Triggered { trigger: InterveningIf(When(Dies(Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), Past(Is { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Enchanted)], [State(Equipped)]], kind: None, posts: [], or: None } })), effect: [EntersAttached { effect: Move { what: Objects { quant: AnyNumber, filter: Filter { alts: [[Subtype("aura")]], kind: Some(Card), posts: [WasAttachedToIt, In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, to: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, Attach { what: Objects { quant: AnyNumber, filter: Filter { alts: [[Subtype("equipment")]], kind: None, posts: [WasAttachedToIt], or: None } }, to: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Cement Shoes
 face: Cement Shoes
@@ -1052,7 +1052,7 @@ cost: {2}{W}{U}
 > Flash
 > When Tobias dies, for each nontoken creature you controlled that died this turn, create a 2/2 black Zombie creature token.
 = Keywords([Keyword { name: "flash", param: None }])
-= BROKE at "controlled" after: when ~ dies , for each nontoken creature you
+= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [DiedUnderControlThisTurn(You)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Black], types: ["zombie", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }], limits: [] }
 
 ## Tom Bombadil
 face: Tom Bombadil

@@ -733,6 +733,10 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             p.word("source")?;
             Some(Post::FromSource(g))
         },
+        // "each Aura you controlled that was attached to it": control then,
+        // said only of what was attached.
+        |p| { p.words("you controlled that died this turn")?; Some(Post::DiedUnderControlThisTurn(Player::You)) },
+        |p| { p.words("you controlled")?; if !matches!(p.peek_word(), Some("that")) { return None; } Some(Post::ControlledThen(Player::You)) },
         |p| p.words("you control").map(|_| Post::Controller(Player::You)),
         |p| p.words("you don't control").map(|_| Post::NotControlledBy(Player::You)),
         |p| p.words("you own").map(|_| Post::Owner(Player::You)),
@@ -805,6 +809,7 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         },
         |p| p.words("of that color").map(|_| Post::OfThatColor),
         |p| p.words("attached to it").map(|_| Post::AttachedToIt),
+        |p| { p.one_of(&["that was attached to it", "that were attached to it"])?; Some(Post::WasAttachedToIt) },
         |p| {
             p.one_of(&["that's attached to", "that are attached to"])?;
             objects(p).map(|o| Post::AttachedTo(Box::new(o)))

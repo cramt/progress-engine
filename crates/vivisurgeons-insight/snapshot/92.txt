@@ -687,7 +687,7 @@ type: Land
 > {T}: Add {R}.
 > {2}{R}, {T}: Transform this land. Activate only if red sources you controlled dealt 4 or more noncombat damage this turn and only as a sorcery.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["R"])))], limits: [] }
-= BROKE at "controlled" after: {2} {R} , {T} : transform this land . activate only if red sources you
+= BROKE at "dealt" after: {2} {R} , {T} : transform this land . activate only if red sources you controlled
 
 ## Oran-Rief Invoker
 face: Oran-Rief Invoker
