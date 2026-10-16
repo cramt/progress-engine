@@ -433,7 +433,7 @@ cost: {1}{R}
 > First strike, menace
 > Whenever Kari Zev attacks, create Ragavan, a legendary 2/1 red Monkey creature token. Ragavan enters tapped and attacking. Exile that token at end of combat.
 = Keywords([Keyword { name: "first strike", param: None }, Keyword { name: "menace", param: None }])
-= BROKE at "ragavan" after: whenever ~ attacks , create
+= BROKE at "enters" after: whenever ~ attacks , create ragavan , a legendary <pt> red monkey creature token . ragavan
 
 ## Keiga, the Tide Star
 face: Keiga, the Tide Star

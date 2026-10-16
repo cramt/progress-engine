@@ -1809,6 +1809,15 @@ mod syn {
         alt(o, vec![apart, joined]);
     }
 
+    /// Named rewrite [legendary-token-name]: "create Primo, the
+    /// Indivisible, a legendary 0/0 green and blue Fractal creature token"
+    /// (Zimone) is "create a legendary 0/0 green and blue Fractal creature
+    /// token named Primo, the Indivisible": the name the token has (CR
+    /// 111.4), said before the token it names.
+    pub fn legendary_token_name(o: &mut Out, spelled: Out, name_first: Out) {
+        alt(o, vec![spelled, name_first]);
+    }
+
     pub fn printed_each_step(o: &mut Out) {
         any_of(o, &["each", "each player's", "the"]);
     }
@@ -6311,6 +6320,12 @@ fn token_body(
     if lead_tapped {
         o.w("tapped");
     }
+    // "a legendary 0/0 green and blue Fractal creature token": the supertype
+    // before the size and colors.
+    let legendary = t.types.first().is_some_and(|x| x == "legendary");
+    if legendary {
+        o.w("legendary");
+    }
     if let Some(pt) = &t.pt {
         o.tok(Tok::Pt(*pt));
     }
@@ -6324,7 +6339,7 @@ fn token_body(
         // "a Monster Role token": the Role's name says its subtype.
         (Some(name), [ty]) if ty == "role" => o.w(name),
         _ => {
-            for ty in &t.types {
+            for ty in t.types.iter().skip(usize::from(legendary)) {
                 o.w(ty);
             }
         }
@@ -8684,6 +8699,16 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 let lead = out(|o| body(o, true));
                 let late = out(|o| body(o, false));
                 syn::tapped_first(o, lead, late);
+            } else if *n == Amount::N(1) && t.types.first().is_some_and(|x| x == "legendary") {
+                // "create Primo, the Indivisible, a legendary 0/0 …
+                // token" ([legendary-token-name]).
+                let spelled = out(|o| body(o, false));
+                let name_first = out(|o| {
+                    o.w(name);
+                    o.tok(Tok::Comma);
+                    token(o, n, t);
+                });
+                syn::legendary_token_name(o, spelled, name_first);
             } else {
                 body(o, false);
             }

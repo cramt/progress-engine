@@ -838,7 +838,7 @@ cost: {1}{G}{W}{U}
 > When Sophia enters, create Tiny, a legendary 2/2 green Dog Detective creature token with trample.
 > {1}, Sacrifice an artifact token: Put a +1/+1 counter on each Dog you control.
 > Whenever a Dog you control deals combat damage to a player, create a Food token, then investigate.
-= BROKE at "tiny" after: when ~ enters , create
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Green], types: ["legendary", "dog", "detective", "creature"], keywords: [Keyword { name: "trample", param: None }], abilities: [], named: None, attacking: None }, name: "tiny" }], limits: [] }
 = Activated { cost: [Mana(Mana(["1"])), Sacrifice(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Token), posts: [], or: None } })], effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Subtype("dog")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[Subtype("dog")]], kind: None, posts: [Controller(You)], or: None } })), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["food"], keywords: [], abilities: [], named: Some("food"), attacking: None } }, Action { by: None, name: "investigate", n: None }], limits: [] }
 

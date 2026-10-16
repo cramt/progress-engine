@@ -1168,7 +1168,7 @@ cost: {3}{R}{R}
 > III — Create Smaug, a legendary 6/6 red Dragon creature token with flying, haste, and "When Smaug dies, create fourteen Treasure tokens."
 = Chapter { chapters: [1], effect: [Restrict { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBlock, dur: ForAsLongAs(YouControl(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })) }, Designation("ring")] }
 = Chapter { chapters: [2], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Subtype("mountain")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Shuffle(You)] }
-= BROKE at "," after: iii — create smaug
+= BROKE at "," after: iii — create smaug , a legendary <pt> red dragon creature token with flying , haste , and " when smaug dies
 
 ## Tradewind Rider
 face: Tradewind Rider

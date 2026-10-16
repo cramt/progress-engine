@@ -956,7 +956,7 @@ cost: {2}{G}{U}
 > When The Third Doctor enters, create your choice of a Clue token, a Food token, or a Treasure token.
 = Keywords([Keyword { name: "trample", param: None }])
 = Static([Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: Some(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Non("creature")]], kind: Some(Token), posts: [Controller(You)], or: None } })) }])
-= BROKE at "your" after: when ~ enters , create
+= BROKE at "a" after: when ~ enters , create your choice of
 
 ## Thistledown Duo
 face: Thistledown Duo

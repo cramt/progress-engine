@@ -233,7 +233,7 @@ cost: {3}{B}{G}
 > When Enkira, Hostile Scavenger enters, create two Walker tokens. (They're 2/2 black Zombie creatures.)
 > As long as Enkira is equipped, it must be blocked if able.
 > Whenever Enkira and at least two Zombies attack, Enkira gains indestructible until end of turn.
-= BROKE at "tokens" after: when ~ enters , create two walker
+= BROKE at "." after: when ~ enters , create two walker tokens
 = Static([AsLongAs { cond: Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[State(Equipped)]], kind: None, posts: [], or: None } }, then: [Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: MustBeBlocked }] }])
 = BROKE at "attack" after: whenever ~ and at least two zombies
 

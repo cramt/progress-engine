@@ -190,6 +190,9 @@ pub(super) fn token_named(p: &mut P) -> Option<(Amount, Token, Option<String>)> 
         n => n,
     };
     let tapped = p.attempt(|p| p.word("tapped")).is_some();
+    // "a legendary 0/0 green and blue Fractal creature token": the
+    // supertype first, before its size and colors.
+    let legendary = p.attempt(|p| p.word("legendary")).is_some();
     let pt = p.attempt(|p| match p.peek()? {
         Tok::Pt(pt) if !pt.signed => {
             let pt = *pt;
@@ -208,6 +211,9 @@ pub(super) fn token_named(p: &mut P) -> Option<(Amount, Token, Option<String>)> 
         colors.push(c);
     }
     let mut types = Vec::new();
+    if legendary {
+        types.push("legendary".to_string());
+    }
     let mut named = None;
     // "a Monster Role token": a predefined Role (CR 111.10), named by the
     // word before its subtype.
@@ -245,7 +251,7 @@ pub(super) fn token_named(p: &mut P) -> Option<(Amount, Token, Option<String>)> 
             _ => {}
         }
     }
-    if types.is_empty() {
+    if types.len() == usize::from(legendary) {
         return None;
     }
     p.one_of(&["tokens", "token"])?;
@@ -1316,6 +1322,18 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let of = objects(p)?;
             let except = p.attempt(exceptions).unwrap_or_default();
             Some(Effect::CreateCopy { n, tapped, attacking, of, except })
+        },
+        // "create Primo, the Indivisible, a legendary 0/0 green and blue
+        // Fractal creature token": the name first, then the one legendary
+        // token it names ([legendary-token-name]).
+        |p| {
+            let who = subject_player(p);
+            p.verb("create")?;
+            let name = card_name(p, &["a", "an"])?;
+            p.tok(&Tok::Comma)?;
+            let (n, token, None) = token_named(p)? else { return None };
+            (n == Amount::N(1) && token.types.first().is_some_and(|t| t == "legendary")).then_some(())?;
+            Some(Effect::CreateNamed { who, n, token, name })
         },
         |p| {
             let who = subject_player(p);

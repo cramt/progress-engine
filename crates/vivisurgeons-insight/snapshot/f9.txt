@@ -445,7 +445,7 @@ face: Odric, Blood-Cursed
 type: Legendary Creature — Vampire Soldier
 cost: {1}{R}{W}
 > When Odric enters, create X Blood tokens, where X is the number of abilities from among flying, first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, reach, trample, and vigilance found among creatures you control. (Count each ability only once.)
-= BROKE at "," after: when ~ enters , create x blood tokens , where x is the number of abilities from among flying
+= BROKE at "." after: when ~ enters , create x blood tokens , where x is the number of abilities from among flying , first strike , double strike , deathtouch , haste , hexproof , indestructible , lifelink , menace , reach , trample , and vigilance found among creatures you control
 
 ## Pestilent Haze
 face: Pestilent Haze

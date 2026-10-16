@@ -1013,7 +1013,7 @@ type: Artifact
 cost: {5}
 > {T}: Create your choice of a Blood token, a Clue token, or a Food token.
 > {3}, {T}, Sacrifice three artifact tokens with different names: Search your library for an artifact card, put it onto the battlefield, then shuffle. Activate only as a sorcery.
-= BROKE at "your" after: {T} : create
+= BROKE at "a" after: {T} : create your choice of
 = Activated { cost: [Mana(Mana(["3"])), Tap, Sacrifice(Objects { quant: N(N(3)), filter: Filter { alts: [[Type("artifact")]], kind: Some(Token), posts: [DifferentNames], or: None } })], effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, Shuffle(You)], limits: [SorcerySpeed] }
 
 ## Trip Wire

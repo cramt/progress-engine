@@ -379,7 +379,7 @@ cost: {2}{R}{G}
 > At the beginning of your upkeep, target opponent creates three Walker tokens. (They're 2/2 black Zombie creatures.)
 > {T}: Hansk, Slayer Zealot deals 2 damage to target creature.
 > Whenever a Zombie an opponent controls dies, draw a card.
-= BROKE at "tokens" after: at the beginning of your upkeep , target opponent creates three walker
+= BROKE at "." after: at the beginning of your upkeep , target opponent creates three walker tokens
 = Activated { cost: [Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })] }], limits: [] }
 = Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [Controller(AnOpponent)], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
 

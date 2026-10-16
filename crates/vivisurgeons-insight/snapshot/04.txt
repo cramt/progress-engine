@@ -647,7 +647,7 @@ type: Legendary Planeswalker — Nissa
 > −2: Create Ashaya, the Awoken World, a legendary 4/4 green Elemental creature token.
 > −7: Untap up to six target lands. They become 6/6 Elemental creatures. They're still lands.
 = Loyalty { change: N(1), effect: [RevealTop { who: You, whose: You, n: N(1) }, If { cond: Is { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [], or: None } }, then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }, Otherwise([Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }])] }
-= BROKE at "ashaya" after: N(-2) : create
+= Loyalty { change: N(-2), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(4), toughness: N(4), signed: false }), colors: [Green], types: ["legendary", "elemental", "creature"], keywords: [], abilities: [], named: None, attacking: None }, name: "ashaya, the awoken world" }] }
 = BROKE at "still" after: N(-7) : untap up to six target lands . they become <pt> elemental creatures . they're
 
 ## Notorious Assassin

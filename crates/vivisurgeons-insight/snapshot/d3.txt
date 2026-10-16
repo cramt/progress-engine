@@ -1081,7 +1081,7 @@ face: White Tiger, Ava Ayala
 type: Legendary Creature — Human Hero
 cost: {1}{G}
 > Power-up — {5}{G}: Put a +1/+1 counter on White Tiger and create The Tiger God, a legendary 4/4 green Cat God creature token with "The Tiger God can't be blocked by more than one creature." (Activate each power-up ability only once. Reduce the cost by her mana cost if she entered this turn.)
-= BROKE at "god" after: power-up — {5} {G} : put a <pt> counter on ~ and create the tiger
+= BROKE at "more" after: power-up — {5} {G} : put a <pt> counter on ~ and create the tiger god , a legendary <pt> green cat god creature token with " the tiger god can't be blocked by
 
 ## Wicker Witch
 face: Wicker Witch

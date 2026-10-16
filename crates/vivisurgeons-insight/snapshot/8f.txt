@@ -784,7 +784,7 @@ type: Legendary Creature — Elf Scout
 cost: {2}{G}{G}{W}
 > When Tolsimir enters, create Voja, Friend to Elves, a legendary 3/3 green and white Wolf creature token.
 > Whenever a Wolf you control enters, you gain 3 life and that creature fights up to one target creature you don't control.
-= BROKE at "voja" after: when ~ enters , create
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Green, White], types: ["legendary", "wolf", "creature"], keywords: [], abilities: [], named: None, attacking: None }, name: "voja, friend to elves" }], limits: [] }
 = Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Subtype("wolf")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [GainLife { who: You, n: N(3) }, Fight { a: Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, b: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NotControlledBy(You)], or: None } } }], limits: [] }
 
 ## Touch of Death

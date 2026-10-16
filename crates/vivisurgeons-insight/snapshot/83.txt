@@ -489,7 +489,7 @@ cost: {4}{G}
 > When Ka-Zar enters, create Zabu, a legendary 2/2 green Cat creature token with "Landfall — Whenever a land you control enters, put a +1/+1 counter on Zabu."
 = Static([LookAtTopAnyTime])
 = Static([PlayFrom { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, zone: TopOfLibrary(You) }])
-= BROKE at "zabu" after: when ~ enters , create
+= BROKE at "." after: when ~ enters , create zabu , a legendary <pt> green cat creature token with " landfall — whenever a land you control enters , put a <pt> counter on zabu
 
 ## Kavaron Turbodrone
 face: Kavaron Turbodrone

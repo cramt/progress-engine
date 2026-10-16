@@ -872,7 +872,7 @@ cost: {2}{B}{B}{G}
 > IV — Create Galactus, a legendary 16/16 black Elder Alien creature token with flying, trample, and "Whenever Galactus attacks, destroy target land."
 = Chapter { chapters: [1], effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, no_regen: false }] }
 = Chapter { chapters: [2, 3], effect: [LoseLife { who: EachOpponent, n: N(2) }] }
-= BROKE at "," after: iv — create galactus
+= BROKE at "," after: iv — create galactus , a legendary <pt> black elder alien creature token with flying , trample , and " whenever galactus attacks
 
 ## The Mimeoplasm
 face: The Mimeoplasm

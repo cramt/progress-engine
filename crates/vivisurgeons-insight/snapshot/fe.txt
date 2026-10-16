@@ -1124,7 +1124,7 @@ cost: {2}{B}{R}{G}
 > {T}: Target opponent creates X Treasure tokens, where X is the number of Treasure tokens you created this turn.
 > Whenever an opponent casts a spell or activates an ability, if mana from a Treasure was spent to cast it or activate it, put a +1/+1 counter on target creature, then draw a card.
 = Keywords([Keyword { name: "haste", param: None }])
-= BROKE at "created" after: {T} : target opponent creates x treasure tokens , where x is the number of treasure tokens you
+= BROKE at "." after: {T} : target opponent creates x treasure tokens , where x is the number of treasure tokens you created this turn
 = Triggered { trigger: InterveningIf(When(Or([Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }, Activates { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Ability), posts: [], or: None } } }])), ManaFromSpent { from: Objects { quant: One, filter: Filter { alts: [[Subtype("treasure")]], kind: None, posts: [], or: None } }, on: CastOrActivate(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }, Draw { who: You, n: N(1) }], limits: [] }
 
 ## Verity Circle

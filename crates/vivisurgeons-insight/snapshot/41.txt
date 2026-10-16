@@ -1009,7 +1009,7 @@ cost: {2}{R}
 > • Summon — Create Phobos, a legendary 3/2 red Horse creature token.
 > • Revelation — Discard two cards, then draw two cards.
 > Equip {2}
-= BROKE at "phobos" after: whenever equipped creature attacks , choose one — • bull rush — it gains double strike until end of turn . • summon — create
+= Triggered { trigger: When(Attacks(Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Modal { choose: One, modes: [[Labelled { label: "bull rush", then: [Modify { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "double strike", param: None }], dur: UntilEndOfTurn }] }], [Labelled { label: "summon", then: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(2), signed: false }), colors: [Red], types: ["legendary", "horse", "creature"], keywords: [], abilities: [], named: None, attacking: None }, name: "phobos" }] }], [Labelled { label: "revelation", then: [Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }, Draw { who: You, n: N(2) }] }]] }], limits: [] }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["2"]))])) }])
 
 ## Theft of Dreams

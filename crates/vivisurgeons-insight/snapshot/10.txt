@@ -1166,7 +1166,7 @@ cost: {4}{G}{W}
 > {T}: Create Voja, a legendary 2/2 green and white Wolf creature token.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Color(Green), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Color(White), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
-= BROKE at "voja" after: {T} : create
+= Activated { cost: [Tap], effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Green, White], types: ["legendary", "wolf", "creature"], keywords: [], abilities: [], named: None, attacking: None }, name: "voja" }], limits: [] }
 
 ## Tomb of Urami
 face: Tomb of Urami
@@ -1174,7 +1174,7 @@ type: Legendary Land
 > {T}: Add {B}. Tomb of Urami deals 1 damage to you if you don't control an Ogre.
 > {2}{B}{B}, {T}, Sacrifice all lands you control: Create Urami, a legendary 5/5 black Demon Spirit creature token with flying.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["B"]))), If { cond: YouDontControl(Objects { quant: One, filter: Filter { alts: [[Subtype("ogre")]], kind: None, posts: [], or: None } }), then: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Player(You)] }] }], limits: [] }
-= BROKE at "urami" after: {2} {B} {B} , {T} , sacrifice all lands you control : create
+= Activated { cost: [Mana(Mana(["2", "B", "B"])), Tap, Sacrifice(Objects { quant: All, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } })], effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), colors: [Black], types: ["legendary", "demon", "spirit", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None }, name: "urami" }], limits: [] }
 
 ## Triplicate Titan
 face: Triplicate Titan

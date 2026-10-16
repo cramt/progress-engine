@@ -713,7 +713,7 @@ type: Legendary Creature — Human Rebel Warlock
 cost: {3}{G}{W}
 > When Rinoa Heartilly enters, create Angelo, a legendary 1/1 green and white Dog creature token.
 > Angelo Cannon — Whenever Rinoa Heartilly attacks, another target creature you control gets +1/+1 until end of turn for each creature you control.
-= BROKE at "angelo" after: when ~ enters , create
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green, White], types: ["legendary", "dog", "creature"], keywords: [], abilities: [], named: None, attacking: None }, name: "angelo" }], limits: [] }
 = Labelled { label: "angelo cannon", ability: Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [Modify { what: Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }] }], limits: [] } }
 
 ## Runic Armasaur

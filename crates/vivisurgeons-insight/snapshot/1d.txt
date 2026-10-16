@@ -955,7 +955,7 @@ cost: {3}{W}
 > Flying, vigilance, indestructible
 > When The Sentry enters, target opponent creates The Void, a legendary 5/5 black Horror Villain creature token with flying, indestructible, and "The Void attacks each combat if able."
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }, Keyword { name: "indestructible", param: None }])
-= BROKE at "," after: when ~ enters , target opponent creates the void
+= BROKE at "." after: when ~ enters , target opponent creates the void , a legendary <pt> black horror villain creature token with flying , indestructible , and " the void attacks each combat if able
 
 ## The Serpent Society
 face: The Serpent Society

@@ -576,7 +576,7 @@ type: Legendary Creature — Human Ranger
 cost: {R}{G}{W}
 > When Minsc enters, create Boo, a legendary 1/1 red Hamster creature token with trample and haste.
 > {X}: Until end of turn, target creature you control has base power and toughness X/X and becomes a Giant in addition to its other types. Activate only as a sorcery.
-= BROKE at "boo" after: when ~ enters , create
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Red], types: ["legendary", "hamster", "creature"], keywords: [Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }], abilities: [], named: None, attacking: None }, name: "boo" }], limits: [] }
 = BROKE at "a" after: {X} : until end of turn , target creature you control has base power and toughness <pt> and becomes
 
 ## Mischief and Mayhem

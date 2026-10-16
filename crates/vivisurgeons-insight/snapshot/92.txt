@@ -470,7 +470,7 @@ type: Legendary Creature — Human Druid
 cost: {3}{G}
 > When Jiang Yanggu enters, create Mowu, a legendary 3/3 green Dog creature token.
 > At the beginning of your end step, untap all tokens you control.
-= BROKE at "mowu" after: when ~ enters , create
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Green], types: ["legendary", "dog", "creature"], keywords: [], abilities: [], named: None, attacking: None }, name: "mowu" }], limits: [] }
 = Triggered { trigger: At(EndStep(Yours)), effect: [Untap(Objects { quant: All, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } })], limits: [] }
 
 ## Jugan Defends the Temple // Remnant of the Rising Star

@@ -895,7 +895,7 @@ cost: {2}{G}{W}{W}
 > When Tolsimir enters, create Voja Fenstalker, a legendary 5/5 green and white Wolf creature token with trample.
 > Whenever a Wolf you control attacks, if Tolsimir attacked this combat, target creature an opponent controls blocks that Wolf this combat if able.
 = Keywords([Keyword { name: "lifelink", param: None }])
-= BROKE at "voja" after: when ~ enters , create
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(5), toughness: N(5), signed: false }), colors: [Green, White], types: ["legendary", "wolf", "creature"], keywords: [Keyword { name: "trample", param: None }], abilities: [], named: None, attacking: None }, name: "voja fenstalker" }], limits: [] }
 = BROKE at "this" after: whenever a wolf you control attacks , if ~ attacked
 
 ## Traitorous Greed

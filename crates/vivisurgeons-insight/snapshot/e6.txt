@@ -91,7 +91,7 @@ cost: {4}{W}{W}
 > I, II — For each player, exile up to one target non-Saga, nonland permanent that player controls until this Saga leaves the battlefield.
 > III — Create Avacyn, a legendary 8/8 white Angel creature token with flying, vigilance, and indestructible.
 = Chapter { chapters: [1, 2], effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } }, then: [ExileUntilLeaves { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Non("saga"), Non("land")]], kind: Some(Permanent), posts: [Controller(That)], or: None } }, until: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }] }
-= BROKE at "," after: iii — create avacyn
+= Chapter { chapters: [3], effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(8), toughness: N(8), signed: false }), colors: [White], types: ["legendary", "angel", "creature"], keywords: [Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }, Keyword { name: "indestructible", param: None }], abilities: [], named: None, attacking: None }, name: "avacyn" }] }
 
 ## Behold the Sinister Six!
 face: Behold the Sinister Six!
@@ -918,7 +918,7 @@ face: Saw in Half
 type: Instant
 cost: {2}{B}
 > Destroy target creature. If that creature dies this way, its controller creates two tokens that are copies of that creature, except their power is half that creature's power and their toughness is half that creature's toughness. Round up each time.
-= BROKE at "that" after: destroy target creature . if that creature dies this way , its controller creates two tokens
+= BROKE at "'s" after: destroy target creature . if that creature dies this way , its controller creates two tokens that are copies of that creature , except their power is half that creature
 
 ## Scalestorm Summoner
 face: Scalestorm Summoner

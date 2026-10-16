@@ -648,7 +648,7 @@ cost: {1}{U}
 > Whenever Marit Lage's Slumber or another snow permanent you control enters, scry 1.
 > At the beginning of your upkeep, if you control ten or more snow permanents, sacrifice Marit Lage's Slumber. If you do, create Marit Lage, a legendary 20/20 black Avatar creature token with flying and indestructible.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Supertype("snow")]], kind: Some(Permanent), posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Scry(N(1))], limits: [] }
-= BROKE at "marit" after: at the beginning of your upkeep , if you control ten or more snow permanents , sacrifice ~ . if you do , create
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), YouControl(Objects { quant: AtLeast(N(10)), filter: Filter { alts: [[Supertype("snow")]], kind: Some(Permanent), posts: [], or: None } })), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, IfYouDo([CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(20), toughness: N(20), signed: false }), colors: [Black], types: ["legendary", "avatar", "creature"], keywords: [Keyword { name: "flying", param: None }, Keyword { name: "indestructible", param: None }], abilities: [], named: None, attacking: None }, name: "marit lage" }])], limits: [] }
 
 ## Martha Jones
 face: Martha Jones

@@ -532,7 +532,7 @@ cost: {2}{U}
 > When Kiora enters, draw two cards, then discard two cards.
 > Threshold — Whenever Kiora attacks, if there are seven or more cards in your graveyard, you may create Scion of the Deep, a legendary 8/8 blue Octopus creature token.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }], limits: [] }
-= BROKE at "scion" after: threshold — whenever ~ attacks , if there are seven or more cards in your graveyard , you may create
+= Labelled { label: "threshold", ability: Triggered { trigger: InterveningIf(When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), AmountIs { n: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }), op: Ge, value: N(7) }), effect: [May { who: You, then: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(8), toughness: N(8), signed: false }), colors: [Blue], types: ["legendary", "octopus", "creature"], keywords: [], abilities: [], named: None, attacking: None }, name: "scion of the deep" }] }], limits: [] } }
 
 ## Lady Caleria
 face: Lady Caleria

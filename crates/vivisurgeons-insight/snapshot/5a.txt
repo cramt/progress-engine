@@ -99,7 +99,7 @@ cost: {3}{G}{U}{U}
 > When Bonny Pall enters, create Beau, a legendary blue Ox creature token with "Beau's power and toughness are each equal to the number of lands you control."
 > Whenever you attack, draw a card, then you may put a land card from your hand or graveyard onto the battlefield.
 = Keywords([Keyword { name: "reach", param: None }])
-= BROKE at "beau" after: when ~ enters , create
+= BROKE at "to" after: when ~ enters , create beau , a legendary blue ox creature token with " beau 's power and toughness are each equal
 = BROKE at "onto" after: whenever you attack , draw a card , then you may put a land card from your hand or graveyard
 
 ## Cabal Therapist

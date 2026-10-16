@@ -733,7 +733,7 @@ face: Rufus Shinra
 type: Legendary Creature — Human Noble
 cost: {1}{W}{B}
 > Whenever Rufus Shinra attacks, if you don't control a creature named Darkstar, create Darkstar, a legendary 2/2 white and black Dog creature token.
-= BROKE at "darkstar" after: whenever ~ attacks , if you don't control a creature named darkstar , create
+= Triggered { trigger: InterveningIf(When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), YouDontControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NamedCard("darkstar")], or: None } })), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [White, Black], types: ["legendary", "dog", "creature"], keywords: [], abilities: [], named: None, attacking: None }, name: "darkstar" }], limits: [] }
 
 ## Ruin Processor
 face: Ruin Processor

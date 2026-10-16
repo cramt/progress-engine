@@ -898,7 +898,7 @@ cost: {1}{B}{R}
 > When Setzer enters, create The Blackjack, a legendary 3/3 colorless Vehicle artifact token with flying and crew 2.
 > Whenever a Vehicle you control deals combat damage to a player, flip a coin.
 > Whenever you win a coin flip, create two tapped Treasure tokens.
-= BROKE at "," after: when ~ enters , create the blackjack
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Colorless], types: ["legendary", "vehicle", "artifact"], keywords: [Keyword { name: "flying", param: None }, Keyword { name: "crew", param: Some(N(N(2))) }], abilities: [], named: None, attacking: None }, name: "the blackjack" }], limits: [] }
 = Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[Subtype("vehicle")]], kind: None, posts: [Controller(You)], or: None } })), effect: [FlipCoin], limits: [] }
 = BROKE at "," after: whenever you win a coin flip
 

@@ -127,7 +127,7 @@ cost: {3}{B}
 > Whenever Burakos attacks, defending player loses X life and you create X Treasure tokens, where X is the number of creatures in your party.
 > Choose a Background (You can have a Background as a second commander.)
 = BROKE at "," after: ~ is also a cleric
-= BROKE at "party" after: whenever ~ attacks , defending player loses x life and you create x treasure tokens , where x is the number of creatures in your
+= BROKE at "." after: whenever ~ attacks , defending player loses x life and you create x treasure tokens , where x is the number of creatures in your party
 = Keywords([Keyword { name: "choose a background", param: None }])
 
 ## Captain America, Liberator
@@ -522,7 +522,7 @@ cost: {4}{G}
 > −1: If you don't control a creature named Mowu, create Mowu, a legendary 3/3 green Dog creature token.
 > −5: Until end of turn, target creature gains trample and gets +X/+X, where X is the number of lands you control.
 = Loyalty { change: N(1), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }] }
-= BROKE at "mowu" after: N(-1) : if you don't control a creature named mowu , create
+= Loyalty { change: N(-1), effect: [If { cond: YouDontControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NamedCard("mowu")], or: None } }), then: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Green], types: ["legendary", "dog", "creature"], keywords: [], abilities: [], named: None, attacking: None }, name: "mowu" }] }] }
 = Loyalty { change: N(-5), effect: [During { dur: UntilEndOfTurn, then: [Where { then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: true }), gains: [Keyword { name: "trample", param: None }], dur: Permanent }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }) }] }] }
 
 ## Jund Charm

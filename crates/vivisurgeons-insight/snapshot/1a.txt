@@ -900,7 +900,7 @@ type: Legendary Creature — Human Ninja
 cost: {2}{B}
 > Whenever you cast an enchantment spell, if you don't control a creature named Keimi, create Keimi, a legendary 3/3 black and green Frog creature token with "Whenever you cast an enchantment spell, each opponent loses 1 life and you gain 1 life."
 > {1}{G/U}: Tatsunari and target Frog you control can't be blocked this turn except by creatures with flying or reach.
-= BROKE at "keimi" after: whenever you cast an enchantment spell , if you don't control a creature named keimi , create
+= Triggered { trigger: InterveningIf(When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: Some(Spell), posts: [], or: None } } }), YouDontControl(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NamedCard("keimi")], or: None } })), effect: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Black, Green], types: ["legendary", "frog", "creature"], keywords: [], abilities: [Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: Some(Spell), posts: [], or: None } } }), effect: [LoseLife { who: EachOpponent, n: N(1) }, GainLife { who: You, n: N(1) }], limits: [] }], named: None, attacking: None }, name: "keimi" }], limits: [] }
 = BROKE at "target" after: {1} {G/U} : ~ and
 
 ## The Seedcore

@@ -668,7 +668,7 @@ cost: {2}{B}
 > Ozox can't block.
 > When Ozox dies, create Jumblebones, a legendary 2/1 black Skeleton creature token with "Jumblebones can't block" and "When Jumblebones leaves the battlefield, return target card named Ozox, the Clattering King from your graveyard to your hand."
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBlock }])
-= BROKE at "jumblebones" after: when ~ dies , create
+= BROKE at "\"" after: when ~ dies , create jumblebones , a legendary <pt> black skeleton creature token with " jumblebones can't block
 
 ## Palace Guard
 face: Palace Guard
