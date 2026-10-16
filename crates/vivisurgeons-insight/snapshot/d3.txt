@@ -45,7 +45,7 @@ type: Sorcery
 cost: {7}{R}{R}{R}
 > Exile the top seven cards of your library. Until end of turn, you may cast spells from among them.
 > If this spell was cast from your hand, add ten mana of any one color.
-= Spell([Exile(Objects { quant: N(N(7)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), During { dur: UntilEndOfTurn, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [FromAmongThem], or: None } }, payment: ManaCost, dur: Permanent }] }] }])
+= Spell([Exile(Objects { quant: N(N(7)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [FromAmongThem], or: None } }, payment: ManaCost, dur: UntilEndOfTurn }] }])
 = Spell([If { cond: CastFrom { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Hand(You) }, then: [AddMana(Of { n: N(10), pick: AnyOneColor, within: None })] }])
 
 ## Argoth, Sanctum of Nature

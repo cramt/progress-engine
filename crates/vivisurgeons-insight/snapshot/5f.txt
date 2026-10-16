@@ -427,7 +427,7 @@ cost: {2}
 > {W}, {T}: Look at the top card of your library, then exile it face down. (You may look at it any time.)
 > {T}: Until end of turn, you may play cards you own exiled with Kayla's Music Box.
 = Activated { cost: [Mana(Mana(["W"])), Tap], effect: [LookAtTop { who: You, whose: You, n: N(1) }, ExileFaceDown(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
-= Activated { cost: [Tap], effect: [During { dur: UntilEndOfTurn, then: [May { who: You, then: [Cast { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Owner(You), ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, payment: ManaCost, dur: Permanent }] }] }], limits: [] }
+= Activated { cost: [Tap], effect: [May { who: You, then: [Cast { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Owner(You), ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, payment: ManaCost, dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Kellan's Lightblades
 face: Kellan's Lightblades

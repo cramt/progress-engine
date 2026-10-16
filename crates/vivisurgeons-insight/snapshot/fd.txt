@@ -153,7 +153,7 @@ type: Land
 > {3}{R}, {T}: Exile the top card of your library. Until the end of your next turn, you may play that card.
 = Static([EntersTappedUnless { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: YouControl(Objects { quant: One, filter: Filter { alts: [[Subtype("plains")], [Subtype("island")]], kind: None, posts: [], or: None } }) }])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["R"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["3", "R"])), Tap], effect: [Exile(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), During { dur: UntilEndOfYourNextTurn, then: [May { who: You, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: Permanent }] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["3", "R"])), Tap], effect: [Exile(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), May { who: You, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: UntilEndOfYourNextTurn }] }], limits: [] }
 
 ## Craven Knight
 face: Craven Knight
@@ -482,7 +482,7 @@ face: Hex Magic
 type: Sorcery — Arcane
 cost: {2}{R}
 > Exile all the cards from your hand, then draw that many cards. Until the end of your next turn, you may play cards exiled this way.
-= Spell([Exile(Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }), Draw { who: You, n: ThatMany }, During { dur: UntilEndOfYourNextTurn, then: [May { who: You, then: [Cast { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, payment: ManaCost, dur: Permanent }] }] }])
+= Spell([Exile(Objects { quant: All, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } }), Draw { who: You, n: ThatMany }, May { who: You, then: [Cast { verb: Play, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Exiled)], or: None } }, payment: ManaCost, dur: UntilEndOfYourNextTurn }] }])
 
 ## Hithlain Knots
 face: Hithlain Knots
@@ -903,7 +903,7 @@ cost: {2}{B}
 > Whenever an Elf you control dies, exile it.
 > {T}, Pay 2 life: Until end of turn, you may cast a creature spell from among cards exiled with this artifact.
 = Triggered { trigger: When(Dies(Objects { quant: One, filter: Filter { alts: [[Subtype("elf")]], kind: None, posts: [Controller(You)], or: None } })), effect: [Exile(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
-= Activated { cost: [Tap, PayLife(N(2))], effect: [During { dur: UntilEndOfTurn, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [FromAmong(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } })], or: None } }, payment: ManaCost, dur: Permanent }] }] }], limits: [] }
+= Activated { cost: [Tap, PayLife(N(2))], effect: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [FromAmong(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } })], or: None } }, payment: ManaCost, dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Silent Assassin
 face: Silent Assassin

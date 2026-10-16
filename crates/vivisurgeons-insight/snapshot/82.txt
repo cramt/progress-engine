@@ -181,7 +181,7 @@ cost: {4}{R}{R}
 > −8: Discard your hand, then draw seven cards. Until end of turn, you may cast spells from your hand without paying their mana costs.
 = Loyalty { change: N(1), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Player(EachOpponent)] }] }
 = Loyalty { change: N(-2), effect: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Color(Red), Type("instant")], [Color(Red), Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, payment: ManaCost, dur: Permanent }] }, Replacement { event: PutInto { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, to: Graveyard(You), from: Anywhere }, instead: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }] }
-= Loyalty { change: N(-8), effect: [DiscardHand(You), Draw { who: You, n: N(7) }, During { dur: UntilEndOfTurn, then: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(Hand(You))], or: None } }, payment: Free, dur: Permanent }] }] }] }
+= Loyalty { change: N(-8), effect: [DiscardHand(You), Draw { who: You, n: N(7) }, May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(Hand(You))], or: None } }, payment: Free, dur: UntilEndOfTurn }] }] }
 
 ## Cinder Pyromancer
 face: Cinder Pyromancer

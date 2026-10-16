@@ -1507,6 +1507,8 @@ fn refer(
         named_since: Vec<Adj>,
         /// A spell or ability was named after the window closed.
         spells_since: bool,
+        /// The depth of a `ForEach` whose noun is being read.
+        loop_head: Option<u32>,
     }
     impl Visitor for Refer {
         fn enter(&mut self, o: &mut Objects) -> bool {
@@ -1648,6 +1650,11 @@ fn refer(
                 .any(|p| matches!(p, Post::FromAmong(x) if x.quant == Quant::Triggering));
             match o.quant {
                 Quant::SelfRef => self.self_pending = true,
+                // A loop over the trigger's objects names each in turn.
+                Quant::Triggering if self.loop_head == Some(self.depth) => {
+                    self.seen_new = true;
+                    self.tokens_only = false;
+                }
                 Quant::Triggering => {}
                 // A trailing condition's "it": the clause's own object, said
                 // after it in the text, no noun of its own ([trailing-if]).
@@ -1700,6 +1707,10 @@ fn refer(
             if matches!(e, Effect::ForEach { .. } | Effect::Repeat { .. }) {
                 self.loops.push((self.seen_new, self.seen_self));
             }
+            // "for each of them, create a tapped token that's a copy of it"
+            // (Kambal): the loop names one of the trigger's objects at a
+            // time, and "it" in its clause is that pass's ([before-each]).
+            self.loop_head = matches!(e, Effect::ForEach { .. }).then_some(self.depth);
             if self.drew && matches!(e, Effect::Reveal { what, .. } if *what == antecedent()) {
                 self.seen_new = true;
                 self.tokens_only = false;
@@ -1864,6 +1875,7 @@ fn refer(
         tokens_only: false,
         named_since: Vec::new(),
         spells_since: false,
+        loop_head: None,
     };
     if let Some(c) = cond {
         c.walk(&mut v);

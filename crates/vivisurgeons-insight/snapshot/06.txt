@@ -738,7 +738,7 @@ cost: {2}{B}{R}
 > Mystic Arcanum — At the beginning of your end step, exile the top card of your library. Until the end of your next turn, you may play that card.
 > Pact Boon — Whenever you play a card from exile, create a Treasure token.
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= Labelled { label: "mystic arcanum", ability: Triggered { trigger: At(EndStep(Yours)), effect: [Exile(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), During { dur: UntilEndOfYourNextTurn, then: [May { who: You, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: Permanent }] }] }], limits: [] } }
+= Labelled { label: "mystic arcanum", ability: Triggered { trigger: At(EndStep(Yours)), effect: [Exile(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), May { who: You, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: UntilEndOfYourNextTurn }] }], limits: [] } }
 = BROKE at "," after: pact boon — whenever you play a card from exile
 
 ## Prowler, Clawed Thief

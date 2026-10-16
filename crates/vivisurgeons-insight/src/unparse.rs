@@ -1705,6 +1705,13 @@ mod syn {
         alt(o, vec![spelled, of("create one of each")]);
     }
 
+    /// Named rewrite [one-of-them]: "look at the top two cards of your
+    /// library. Put one into your hand" (Faerie Snoop) is "put one of them
+    /// into your hand": a bare number names the cards just found.
+    pub fn one_of_them(o: &mut Out) {
+        alt(o, vec![of("of them"), Out::default()]);
+    }
+
     pub fn printed_each_step(o: &mut Out) {
         any_of(o, &["each", "each player's", "the"]);
     }
@@ -3627,7 +3634,7 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         Quant::N(k) => {
             if f.kind.is_none() && f.alts.is_empty() && f.posts == [Post::FromAmongThem] {
                 amount(o, k);
-                o.w("of them");
+                syn::one_of_them(o);
                 return;
             }
             // "put one onto the battlefield": a bare number names the cards
@@ -6676,13 +6683,37 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             syn::number(o, *n);
         }
         Effect::May { who, then } => {
-            player(o, who);
-            o.w("may");
             let inner = Cx {
                 implied: Some(who.clone()),
                 continues: None,
                 modal: true,
             };
+            // "Until end of turn, you may play that card": the permission's
+            // duration said first.
+            if let [Effect::Cast { dur: d, .. }] = &then[..] {
+                if !matches!(d, Duration::Permanent | Duration::ThisTurn) {
+                    let mut bare = then[0].clone();
+                    if let Effect::Cast { dur, .. } = &mut bare {
+                        *dur = Duration::Permanent;
+                    }
+                    let trail = out(|o| {
+                        player(o, who);
+                        o.w("may");
+                        clauses(o, then, &inner);
+                    });
+                    let lead = out(|o| {
+                        dur(o, d);
+                        o.w(",");
+                        player(o, who);
+                        o.w("may");
+                        clauses(o, &[bare], &inner);
+                    });
+                    syn::position(o, trail, lead);
+                    return;
+                }
+            }
+            player(o, who);
+            o.w("may");
             // "You may put a creature card … onto the battlefield. That
             // creature gains haste.": the steps after the option, said in
             // its sentence or in sentences of their own.

@@ -565,7 +565,17 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             let outer = std::mem::replace(&mut p.during, true);
             let then = p.attempt(clauses);
             p.during = outer;
-            Some(vec![Effect::During { dur, then: then? }])
+            let mut then = then?;
+            // "Until end of turn, you may play that card" (Ire Shaman): the
+            // permission lasts that long, as "you may play that card until
+            // end of turn" says, rather than a lasting one given then.
+            if let [Effect::May { then: inner, .. }] = &mut then[..] {
+                if let [Effect::Cast { dur: d @ Duration::Permanent, .. }] = &mut inner[..] {
+                    *d = dur;
+                    return Some(then);
+                }
+            }
+            Some(vec![Effect::During { dur, then }])
         },
         // "For each opponent, create …", "For each of those cards, pay 4 life
         // or …": the clauses once per object.

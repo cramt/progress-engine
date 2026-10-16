@@ -1407,10 +1407,11 @@ pub(super) fn pronoun(p: &mut P) -> Option<Objects> {
         },
         |p| {
             let n = amount_a(p)?;
-            let posts = if p.attempt(|p| p.words("of them")).is_some() { vec![Post::FromAmongThem] } else { vec![] };
-            // A bare number names the cards just found: "put one onto the battlefield".
-            if posts.is_empty() && !matches!(p.peek_word(), Some("onto" | "into" | "on")) { return None; }
-            Some(Objects { quant: Quant::N(n), filter: Filter { posts, ..Filter::default() } })
+            let of_them = p.attempt(|p| p.words("of them")).is_some();
+            // A bare number names the cards just found: "put one onto the
+            // battlefield" is one of them ([one-of-them]).
+            if !of_them && !matches!(p.peek_word(), Some("onto" | "into" | "on")) { return None; }
+            Some(Objects { quant: Quant::N(n), filter: Filter { posts: vec![Post::FromAmongThem], ..Filter::default() } })
         },
         // Spinerock Tyrant: "you may copy it. If you do, those spells gain
         // wither": the spell copied and its copy (a copy of a spell is a
