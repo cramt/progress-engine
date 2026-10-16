@@ -630,7 +630,7 @@ cost: {1}{B}
 > Enchanted land loses all land types and abilities and has "{T}: Add {C}" and "{T}, Pay 1 life: Add one mana of any color."
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } })) }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Draw { who: You, n: N(1) }], limits: [] }
-= BROKE at "abilities" after: enchanted land loses all land types and
+= BROKE at "\"" after: enchanted land loses all land types and abilities and has " {T} : add {C} " and
 
 ## Magmatic Sprinter
 face: Magmatic Sprinter

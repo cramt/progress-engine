@@ -5852,6 +5852,52 @@ fn clauses_in(o: &mut Out, es: &[Effect], cx: &Cx, top: bool) {
                 continue;
             }
         }
+        // "it loses all land types and abilities and has "{T}: Add {C}.""
+        // (Ultima): one subject, one duration, the abilities it has after
+        // what it loses.
+        if let Effect::Loses { what, lost, dur: d } = e {
+            let granted: Vec<&Ability> = es[i + 1..]
+                .iter()
+                .map_while(|x| match x {
+                    Effect::GrantAbility {
+                        what: w,
+                        ability,
+                        dur: d2,
+                    } if w == what && d2 == d => Some(&**ability),
+                    _ => None,
+                })
+                .collect();
+            if !granted.is_empty() {
+                let said = out(|o| {
+                    obj_subj(o, what, "lose");
+                    lost_words(o, lost);
+                    o.w("and");
+                    o.verb("have", obj_num(what));
+                    for (j, a) in granted.iter().enumerate() {
+                        syn::quote_list_sep(o, j, granted.len(), j > 0);
+                        quoted(o, a);
+                    }
+                });
+                let trail = out(|o| {
+                    o.add(said.clone());
+                    dur(o, d);
+                });
+                if matches!(d, Duration::Permanent) {
+                    o.add(trail);
+                } else {
+                    // "For as long as …, it loses …" ([lead-permission-duration]).
+                    let lead = out(|o| {
+                        dur(o, d);
+                        o.w(",");
+                        o.add(said);
+                    });
+                    syn::position(o, trail, lead);
+                }
+                last = Out(o.0[start..].to_vec());
+                i += 1 + granted.len();
+                continue;
+            }
+        }
         // "this land becomes a 3/2 red Goblin creature with "Whenever …"":
         // the quoted abilities granted with the new types, one "with".
         if let Effect::Becomes {
@@ -12444,6 +12490,7 @@ fn lost_words(o: &mut Out, lost: &[Lost]) {
                 Characteristic::Abilities => "abilities",
                 Characteristic::CardTypes => "card types",
                 Characteristic::CreatureTypes => "creature types",
+                Characteristic::LandTypes => "land types",
             });
         }
     }

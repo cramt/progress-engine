@@ -1348,6 +1348,7 @@ pub(super) fn lost(p: &mut P) -> Option<Vec<Lost>> {
             |p| p.one_of(&["abilities", "ability"]).map(|_| Characteristic::Abilities),
             |p| p.words("card types").map(|_| Characteristic::CardTypes),
             |p| p.words("creature types").map(|_| Characteristic::CreatureTypes),
+            |p| p.words("land types").map(|_| Characteristic::LandTypes),
         )
     };
     let mut v = vec![Lost::All { other, of: one(p)? }];

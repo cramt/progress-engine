@@ -354,6 +354,25 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                 Effect::Becomes { what, pt: Some(pt), types: vec![], gains: vec![], keeps: Keeps::implied_by(&[]), dur },
             ])
         },
+        // "For as long as that land has a blight counter on it, it loses
+        // all land types and abilities and has "{T}: Add {C}."" (Ultima):
+        // what it loses and each quoted ability it has, one subject.
+        |p| {
+            let what = objects(p)?;
+            p.verb("lose")?;
+            if p.peek_word() != Some("all") { return None; }
+            let lost = lost(p)?;
+            p.word("and")?;
+            p.verb("have")?;
+            let mut granted = vec![quoted(p)?];
+            while let Some(a) = p.attempt(|p| { p.word("and")?; quoted(p) }) {
+                granted.push(a);
+            }
+            let dur = p.attempt(duration).unwrap_or(Duration::Permanent);
+            let mut v = vec![Effect::Loses { what: what.clone(), lost, dur: dur.clone() }];
+            v.extend(granted.into_iter().map(|a| Effect::GrantAbility { what: what.clone(), ability: Box::new(a), dur: dur.clone() }));
+            Some(v)
+        },
         // "Until end of turn, this land becomes a 3/2 red Goblin creature
         // with "Whenever this creature attacks, …". It's still a land.": the
         // new types and keywords, and each quoted ability granted for as
@@ -598,6 +617,22 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             if let [e] = &mut then[..] {
                 if let Some(d @ Duration::Permanent) = e.dur_mut() {
                     *d = dur;
+                    return Some(then);
+                }
+            }
+            // "For as long as …, it loses all land types and abilities and
+            // has "…"" (Ultima): what it loses and what it has, said as one
+            // clause, each lasting that long.
+            if let [Effect::Loses { what, dur: Duration::Permanent, .. }, rest @ ..] = &then[..] {
+                let what = what.clone();
+                if !rest.is_empty()
+                    && rest.iter().all(|e| matches!(e, Effect::GrantAbility { what: w, dur: Duration::Permanent, .. } if *w == what))
+                {
+                    for e in &mut then {
+                        if let Some(d) = e.dur_mut() {
+                            *d = dur.clone();
+                        }
+                    }
                     return Some(then);
                 }
             }

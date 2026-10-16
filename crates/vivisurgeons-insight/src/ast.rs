@@ -2393,6 +2393,8 @@ pub enum Characteristic {
     Abilities,
     CardTypes,
     CreatureTypes,
+    /// "loses all land types" (Ultima, Origin of Oblivion): every land subtype (CR 205.3i).
+    LandTypes,
 }
 
 #[derive(Clone, Debug, PartialEq)]

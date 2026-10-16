@@ -16,7 +16,7 @@ cost: {R}
 > As this enchantment enters, choose a nonbasic land card name.
 > Lands your opponents control with the chosen name lose all land types and abilities, and they gain "{T}: Add one mana of any color."
 = BROKE at "name" after: as this enchantment enters , choose a nonbasic land card
-= BROKE at "land" after: lands your opponents control with the chosen name lose all
+= BROKE at "gain" after: lands your opponents control with the chosen name lose all land types and abilities , and they
 
 ## Ana Sanctuary
 face: Ana Sanctuary
