@@ -524,7 +524,17 @@ pub(super) fn filter(p: &mut P) -> Option<Filter> {
                 // "an instant card or a card with flash": after "or", a second
                 // kind may take its own article.
                 let again = (bare_kind || or) && p.attempt(|p| p.one_of(&["a", "an"])).is_some();
-                let f = filter(p)?;
+                // "a colorless spell you control or another colorless
+                // permanent you control" (Echoes of Eternity): "another" is
+                // the second kind's alone.
+                let another = or && !again && p.attempt(|p| p.word("another")).is_some();
+                let mut f = filter(p)?;
+                if another {
+                    if f.posts.is_empty() || f.or.is_some() {
+                        return None;
+                    }
+                    f.posts.insert(0, Post::OtherThanSelf);
+                }
                 // A comma with no "or" yet must be in a list that ends in one,
                 // or "an enchantment spell, counter it" would read as a list.
                 if comma && !or && f.or.is_none() {

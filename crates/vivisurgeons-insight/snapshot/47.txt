@@ -258,7 +258,7 @@ type: Kindred Enchantment — Eldrazi
 cost: {3}{C}{C}{C}
 > If a triggered ability of a colorless spell you control or another colorless permanent you control triggers, that ability triggers an additional time.
 > Whenever you cast a colorless spell, copy it. You may choose new targets for the copy. (A copy of a permanent spell becomes a token.)
-= BROKE at "colorless" after: if a triggered ability of a colorless spell you control or another
+= Static([AdditionalTrigger { of: Objects { quant: One, filter: Filter { alts: [[Color(Colorless)]], kind: Some(Spell), posts: [Controller(You)], or: Some(Filter { alts: [[Color(Colorless)]], kind: Some(Permanent), posts: [OtherThanSelf, Controller(You)], or: None }) } }, cause: None }])
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Color(Colorless)]], kind: Some(Spell), posts: [], or: None } } }), effect: [Copy { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, may_choose_new_targets: true }], limits: [] }
 
 ## Enormous Energy Blade

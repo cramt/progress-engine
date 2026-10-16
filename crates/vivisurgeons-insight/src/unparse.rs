@@ -4318,7 +4318,12 @@ fn filter_q(o: &mut Out, f: &Filter, n: Num, another: bool) {
     // "a creature card or a planeswalker card from your graveyard", "target
     // spell or nonland permanent an opponent controls": what holds of each
     // kind, said once after the last (as `filter` shares it).
+    // "… or another colorless permanent you control" says its own.
+    let another = chain
+        .iter()
+        .any(|x| x.posts.first() == Some(&Post::OtherThanSelf));
     let shared: &[Post] = match chain.last() {
+        _ if another => &[],
         Some(l) if !l.posts.is_empty() && f.posts.ends_with(&l.posts) => &l.posts,
         Some(l) => match l.posts.last() {
             Some(q) if f.posts.last() == Some(q) => std::slice::from_ref(q),
@@ -4352,6 +4357,13 @@ fn filter_q(o: &mut Out, f: &Filter, n: Num, another: bool) {
             },
             ..(*x).clone()
         };
+        // "a colorless spell you control or another colorless permanent you
+        // control" (Echoes of Eternity).
+        let mut alone = alone;
+        if alone.posts.first() == Some(&Post::OtherThanSelf) {
+            alone.posts.remove(0);
+            o.w("another");
+        }
         // "a black or red permanent, spell, or card": the colors the first
         // kind was said with belong to each kind after it.
         if !f.alts.is_empty() && alone.alts == f.alts {
