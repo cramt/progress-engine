@@ -10620,7 +10620,11 @@ fn condition(o: &mut Out, c: &Condition) {
             zone: Zone::Exile,
         } => {
             objects(o, what);
-            o.verb("remain exiled", obj_num(what));
+            // "if this card is exiled" (Senu) and "if it remains exiled"
+            // say the same: it is in exile now ([is-exiled]).
+            let is = out(|o| o.verb("are exiled", obj_num(what)));
+            let remains = out(|o| o.verb("remain exiled", obj_num(what)));
+            syn::remains(o, remains, is);
         }
         Condition::In {
             what,

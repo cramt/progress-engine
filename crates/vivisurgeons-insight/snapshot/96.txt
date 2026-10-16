@@ -1035,7 +1035,7 @@ face: Uvilda, Dean of Perfection
 type: Legendary Creature — Djinn Wizard
 cost: {2}{U}
 > {T}: You may exile an instant or sorcery card from your hand and put three refine counters on it. It gains "At the beginning of your upkeep, if this card is exiled, remove a refine counter from it" and "When the last refine counter is removed from this card, if it's exiled, you may cast it. It costs {4} less to cast this way."
-= BROKE at "remove" after: {T} : you may exile an instant or sorcery card from your hand and put three refine counters on it . it gains " at the beginning of your upkeep , if this card is exiled ,
+= BROKE at "from" after: {T} : you may exile an instant or sorcery card from your hand and put three refine counters on it . it gains " at the beginning of your upkeep , if this card is exiled , remove a refine counter from it " and " when the last refine counter is removed
 
 ## Uvilda, Dean of Perfection // Nassari, Dean of Expression
 face: Nassari, Dean of Expression

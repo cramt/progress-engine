@@ -550,6 +550,12 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                     Some(Condition::Is { what: what.clone(), filter: Filter { posts: vec![Post::AttackingAnyOf(v)], ..Filter::default() } })
                 },
                 |p| { p.one_of(&["is", "are"])?; p.one_of(&["on", "in"])?; let zone = zone(p)?; Some(Condition::In { what: what.clone(), zone }) },
+                // "if this card is exiled" (Senu): in exile ([is-exiled]).
+                |p| {
+                    p.one_of(&["is exiled", "are exiled"])?;
+                    if p.peek_word() == Some("with") { return None; }
+                    Some(Condition::In { what: what.clone(), zone: Zone::Exile })
+                },
                 // "this enchantment has seven or more quest counters on it".
                 |p| {
                     p.one_of(&["has", "have"])?;

@@ -841,7 +841,7 @@ cost: {1}{W}
 > When a legendary creature you control attacks and isn't blocked, if this card is exiled, put it onto the battlefield attacking.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "vigilance", param: None }])
 = Activated { cost: [Tap, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [GainLife { who: You, n: N(2) }, Scry(N(2))], limits: [] }
-= BROKE at "put" after: when a legendary creature you control attacks and isn't blocked , if this card is exiled ,
+= Triggered { trigger: InterveningIf(When(AttacksUnblocked { what: Objects { quant: One, filter: Filter { alts: [[Supertype("legendary"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, at: None }), In { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, zone: Exile }), effect: [EntersAttacking(Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None })], limits: [] }
 
 ## Shrieking Specter
 face: Shrieking Specter
