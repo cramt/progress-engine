@@ -1672,6 +1672,19 @@ fn self_and_more(p: &mut P) -> Option<Objects> {
 fn objects_read(p: &mut P) -> Option<Objects> {
     alt!(p;
         self_and_more,
+        // "for each graveyard with seven or more cards in it": each player
+        // whose graveyard holds that many ([graveyard-with], CR 404.1).
+        |p| {
+            p.words("graveyard with")?;
+            let n = number(p)?;
+            p.words("or more cards in it")?;
+            let filter = Filter {
+                kind: Some(Noun::Player),
+                posts: vec![Post::HasAtLeast { n, what: Holding::CardsInGraveyard }],
+                ..Filter::default()
+            };
+            Some(Objects { quant: Quant::Plural, filter })
+        },
         // "~ and other Knights you control": the card by name, and the others.
         |p| {
             p.tok(&Tok::SelfRef)?;

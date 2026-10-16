@@ -1740,6 +1740,26 @@ mod syn {
         alt(o, vec![spelled, of("create one of each")]);
     }
 
+    /// Named rewrite [graveyard-with]: "for each graveyard with seven or more
+    /// cards in it" (The Master of Lake-town) is "for each player with seven
+    /// or more cards in their graveyard": every player has one graveyard
+    /// (CR 404.1), so the graveyards are counted by their owners.
+    pub fn graveyard_with(o: &mut Out, k: u32, n: Num) {
+        let said = |noun: &str, tail: &str| {
+            let mut x = Out::default();
+            x.noun(noun, n);
+            x.w("with");
+            super::syn::number(&mut x, k);
+            x.w("or more cards in");
+            x.w(tail);
+            x
+        };
+        alt(
+            o,
+            vec![said("player", "their graveyard"), said("graveyard", "it")],
+        );
+    }
+
     /// Named rewrite [twice-mana]: "pays twice {X}" (Thassa's Intervention)
     /// is "pays {X}{X}".
     pub fn twice_mana(o: &mut Out, m: &Mana) {
@@ -4296,6 +4316,20 @@ fn filter(o: &mut Out, f: &Filter, n: Num) {
 /// alternative with "other" reads "or another": "a Shaman or another
 /// Wizard you control".
 fn filter_q(o: &mut Out, f: &Filter, n: Num, another: bool) {
+    // "player with seven or more cards in their graveyard", said by the
+    // Oracle as "graveyard with seven or more cards in it".
+    if let (
+        Some(Noun::Player),
+        [Post::HasAtLeast {
+            n: k,
+            what: Holding::CardsInGraveyard,
+        }],
+        true,
+    ) = (&f.kind, &f.posts[..], f.alts.is_empty() && f.or.is_none())
+    {
+        syn::graveyard_with(o, *k, n);
+        return;
+    }
     // "an artifact, enchantment, or token you control": the kind is the
     // list's last alternative, and the posts hold of all of it.
     let or_kind = f.kind.is_none()
@@ -4826,6 +4860,17 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         }
         Post::WasCastThisTurn => o.w("that were cast this turn"),
         Post::LostLifeThisTurn => o.w("who lost life this turn"),
+        Post::HasAtLeast { n: k, what } => {
+            o.w("with");
+            syn::number(o, *k);
+            o.w("or more");
+            o.w(match what {
+                Holding::Life => "life",
+                Holding::CardsInHand => "cards in their hand",
+                Holding::CardsInGraveyard => "cards in their graveyard",
+                Holding::Opponents => "opponents",
+            });
+        }
         Post::AttackedThisTurn(v) => {
             o.w("who attacked");
             attacked_list(o, v);

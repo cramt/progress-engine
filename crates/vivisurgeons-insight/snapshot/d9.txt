@@ -907,7 +907,7 @@ cost: {1}{B}{B}
 > When The Master of Lake-town dies, draw a card for each graveyard with seven or more cards in it.
 = Keywords([Keyword { name: "deathtouch", param: None }])
 = Triggered { trigger: When(LosesLife(APlayer)), effect: [Mill { who: That, n: ThatMany }], limits: [] }
-= BROKE at "with" after: when ~ dies , draw a card for each graveyard
+= Triggered { trigger: When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [HasAtLeast { n: 7, what: CardsInGraveyard }], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## The Parting of the Ways
 face: The Parting of the Ways

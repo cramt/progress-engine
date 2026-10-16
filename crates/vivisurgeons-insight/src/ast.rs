@@ -1166,6 +1166,12 @@ pub enum Post {
     /// damage to you this turn": damage it dealt this turn, to `to` when
     /// said.
     DealtDamageThisTurn(Option<Player>),
+    /// "with seven or more cards in their graveyard": said of a player, who
+    /// has at least `n` of what `what` counts.
+    HasAtLeast {
+        n: u32,
+        what: Holding,
+    },
     /// "who attacked you or a planeswalker you control this turn": the
     /// player attacked one of these this turn (CR 508.1a).
     AttackedThisTurn(Vec<Recipient>),

@@ -544,7 +544,7 @@ cost: {2}{R}{R}
 > Flash
 > When this creature enters, for each graveyard with an instant or sorcery card in it, exile target instant or sorcery card from that graveyard. If two or more cards are exiled this way, choose one of them at random and copy it. You may cast the copy without paying its mana cost.
 = Keywords([Keyword { name: "flash", param: None }])
-= BROKE at "with" after: when this creature enters , for each graveyard
+= BROKE at "an" after: when this creature enters , for each graveyard with
 
 ## Nakaya Shade
 face: Nakaya Shade

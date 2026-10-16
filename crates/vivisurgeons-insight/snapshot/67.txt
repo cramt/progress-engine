@@ -640,7 +640,7 @@ cost: {2}{B}{G}
 > −5: You may put a creature card with mana value less than or equal to the number of lands you control onto the battlefield from your hand or graveyard with two +1/+1 counters on it.
 = Labelled { label: "landfall", ability: Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(1), kind: "loyalty", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }
 = Loyalty { change: N(1), effect: [Untap(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }), May { who: You, then: [Becomes { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), types: [Subtype("elemental"), Type("creature")], gains: [Keyword { name: "haste", param: None }, Keyword { name: "menace", param: None }], keeps: Listed([Type("land")]), dur: UntilEndOfTurn }] }] }
-= BROKE at "with" after: N(-5) : you may put a creature card with mana value less than or equal to the number of lands you control onto the battlefield from your hand or graveyard
+= BROKE at "<pt>" after: N(-5) : you may put a creature card with mana value less than or equal to the number of lands you control onto the battlefield from your hand or graveyard with two
 
 ## Odds // Ends
 face: Odds
