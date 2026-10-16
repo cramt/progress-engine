@@ -1328,6 +1328,7 @@ pub(super) fn quant(p: &mut P) -> Option<Quant> {
         |p| { p.words("up to")?; amount(p).map(Quant::UpTo) },
         |p| p.words("another target").map(|_| Quant::AnotherTarget),
         |p| p.words("a second target").map(|_| Quant::SecondTarget),
+        |p| p.words("any number of other target").map(|_| Quant::AnyNumberOfOtherTarget),
         |p| p.words("any number of target").map(|_| Quant::AnyNumberOfTarget),
         |p| { let n = amount(p)?; p.word("target")?; Some(Quant::Target { n, up_to: false }) },
         |p| { let n = amount(p)?; p.words("or more")?; Some(Quant::AtLeast(n)) },
@@ -1647,7 +1648,7 @@ fn objects_read(p: &mut P) -> Option<Objects> {
         |p| {
             p.words("each of")?;
             let o = objects(p)?;
-            matches!(o.quant, Quant::Target { .. } | Quant::AnyNumberOfTarget).then_some(o)
+            matches!(o.quant, Quant::Target { .. } | Quant::AnyNumberOfTarget | Quant::AnyNumberOfOtherTarget).then_some(o)
         },
         // "two or more of those creatures": some of an earlier noun.
         |p| {

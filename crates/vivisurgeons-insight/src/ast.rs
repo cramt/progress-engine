@@ -668,6 +668,9 @@ pub enum Quant {
     /// "any number of target creatures": as many targets as the player
     /// picks, with no bound, where "up to X target" has one.
     AnyNumberOfTarget,
+    /// "any number of other target creatures" (Kinetic Ooze): as many as the
+    /// player picks, each other than this object.
+    AnyNumberOfOtherTarget,
     UpTo(Amount),
     /// "another creature": one object other than the card itself. Where the text means other than some other
     /// object (the trigger's, a clause's target, each of a set in turn) the

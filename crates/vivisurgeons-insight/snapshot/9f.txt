@@ -33,7 +33,7 @@ cost: {2}{W}{W}
 > Whenever you cast a spell from exile, create a 1/1 white Ally creature token.
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "nonland" after: when ~ enters , airbend any number of other target
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [ActionOn { who: You, name: "airbend", what: Objects { quant: AnyNumberOfOtherTarget, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(You)], or: None } } }], limits: [] }
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(Exile)], or: None } } }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["ally", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Avengers Tower

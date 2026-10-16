@@ -1699,6 +1699,13 @@ fn refers_back(e: &Effect) -> bool {
             ..
         } if matches!(**c, Condition::ThisWay(_)) => false,
         Effect::If { cond, .. } if tested(cond).is_some() => true,
+        // "Return those cards to the battlefield … at the beginning of the
+        // next end step. If a land enters this way, it enters tapped"
+        // (Silver Surfer): what the return put onto the battlefield.
+        Effect::If {
+            cond: Condition::ThisWay(ev),
+            ..
+        } if matches!(**ev, Event::Enters { .. }) => true,
         Effect::Cast { what, .. } => it(what),
         // "You may look at that card for as long as it remains exiled" (Intet).
         Effect::LookAt { what, .. } => it(what),

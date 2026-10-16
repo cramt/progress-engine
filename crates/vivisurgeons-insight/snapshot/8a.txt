@@ -84,7 +84,7 @@ cost: {X}{3}{G}
 > Ravenous (This creature enters with X +1/+1 counters on it. If X is 5 or more, draw a card when it enters.)
 > Brood Telepathy — When this creature enters, distribute X +1/+1 counters among any number of other target creatures you control.
 = Keywords([Keyword { name: "ravenous", param: None }])
-= BROKE at "creatures" after: brood telepathy — when this creature enters , distribute x <pt> counters among any number of other target
+= Labelled { label: "brood telepathy", ability: Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [DistributeCounters { n: X, kind: "+1/+1", among: Objects { quant: AnyNumberOfOtherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] } }
 
 ## Captivating Gyre
 face: Captivating Gyre

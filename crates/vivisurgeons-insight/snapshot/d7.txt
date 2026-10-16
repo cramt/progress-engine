@@ -628,7 +628,7 @@ face: Lagrella, the Magpie
 type: Legendary Creature — Human Soldier
 cost: {G}{W}{U}
 > When Lagrella enters, exile any number of other target creatures controlled by different players until Lagrella leaves the battlefield. When an exiled card enters under your control this way, put two +1/+1 counters on it.
-= BROKE at "creatures" after: when ~ enters , exile any number of other target
+= BROKE at "by" after: when ~ enters , exile any number of other target creatures controlled
 
 ## Leopard-Spotted Jiao
 face: Leopard-Spotted Jiao

@@ -3492,6 +3492,7 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::Plural
         | Quant::AnyNumber
         | Quant::AnyNumberOfTarget
+        | Quant::AnyNumberOfOtherTarget
         | Quant::AtLeast(_)
         | Quant::AtMost(_)
         | Quant::Rest
@@ -3608,6 +3609,11 @@ fn objects_plain(o: &mut Out, x: &Objects) {
         Quant::AnyNumberOfTarget => {
             syn::each_of(o);
             o.w("any number of target");
+            filter(o, f, n);
+        }
+        Quant::AnyNumberOfOtherTarget => {
+            syn::each_of(o);
+            o.w("any number of other target");
             filter(o, f, n);
         }
         Quant::AnyTarget { n: Amount::N(1) } => o.w("any target"),

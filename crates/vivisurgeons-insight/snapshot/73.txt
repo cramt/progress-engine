@@ -351,7 +351,7 @@ cost: {1}{W}{W}
 > When this creature enters, any number of other target creatures you control phase out. (Treat them and anything attached to them as though they don't exist until their controller's next turn.)
 = Keywords([Keyword { name: "flash", param: None }])
 = Keywords([Keyword { name: "vigilance", param: None }])
-= BROKE at "creatures" after: when this creature enters , any number of other target
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [PhaseOut(Objects { quant: AnyNumberOfOtherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })], limits: [] }
 
 ## Hidden Volcano
 face: Hidden Volcano

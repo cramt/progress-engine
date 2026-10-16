@@ -516,7 +516,7 @@ cost: {X}{G}
 > This creature enters with X +1/+1 counters on it.
 > When this creature enters, destroy up to one target artifact or enchantment with mana value X or less. If X is 5 or more, you draw a card. If X is 10 or more, double the number of +1/+1 counters on any number of other target creatures.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: X, kind: "+1/+1" }])
-= BROKE at "creatures" after: when this creature enters , destroy up to one target artifact or enchantment with mana value x or less . if x is 5 or more , you draw a card . if x is 10 or more , double the number of <pt> counters on any number of other target
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("artifact")], [Type("enchantment")]], kind: None, posts: [With(Compare { stat: ManaValue, op: Le, value: X })], or: None } }, no_regen: false }, If { cond: AmountIs { n: X, op: Ge, value: N(5) }, then: [Draw { who: You, n: N(1) }] }, If { cond: AmountIs { n: X, op: Ge, value: N(10) }, then: [DoubleCounters { kind: Some("+1/+1"), on: Objects { quant: AnyNumberOfOtherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Knight Watch
 face: Knight Watch
