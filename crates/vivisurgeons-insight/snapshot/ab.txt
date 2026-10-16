@@ -5,7 +5,7 @@ cost: {3}
 > You may cast spells that have a cycling ability from your graveyard.
 > If a card that has a cycling ability would be put into your graveyard from anywhere and it wasn't cycled, exile it instead.
 = Static([PlayFrom { verb: Cast, what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [WithAbilityOf(Cycling)], or: None } }, zone: Graveyard(You) }])
-= BROKE at "cycled" after: if a card that has a cycling ability would be put into your graveyard from anywhere and it wasn't
+= Static([Replacement { event: AndIf { event: PutInto { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [WithAbilityOf(Cycling)], or: None } }, to: Graveyard(You), from: Anywhere }, cond: Not(WasCycled(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })) }, instead: [Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Act of Heroism
 face: Act of Heroism

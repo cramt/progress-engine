@@ -11111,6 +11111,10 @@ fn condition(o: &mut Out, c: &Condition) {
             objects(o, x);
             o.w("was cast");
         }
+        Condition::WasCycled(x) => {
+            objects(o, x);
+            o.w("was cycled");
+        }
         Condition::ThereAre(v) => {
             // The zone each is in is said once, after the last.
             syn::there_is(o);
@@ -11381,6 +11385,10 @@ fn not_condition(o: &mut Out, c: &Condition) {
         Condition::WasCast(x) => {
             objects(o, x);
             o.w("wasn't cast");
+        }
+        Condition::WasCycled(x) => {
+            objects(o, x);
+            o.w("wasn't cycled");
         }
         Condition::DidThisTurn(e) => {
             if let Event::Casts { who, what } = &**e {

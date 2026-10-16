@@ -3637,6 +3637,9 @@ pub enum Condition {
     },
     /// "it wasn't cast": cast at all, by anyone.
     WasCast(Objects),
+    /// "it wasn't cycled" (Abandoned Sarcophagus): it is not being
+    /// discarded to pay a cycling cost (CR 702.29a).
+    WasCycled(Objects),
     /// "there is an instant card and a sorcery card in your graveyard".
     ThereAre(Vec<Objects>),
     /// "If a creature card was exiled this way", "if an artifact is

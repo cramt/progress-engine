@@ -522,6 +522,9 @@ impl Walk for Condition {
             Condition::WasCast(f0) => {
                 Walk::walk(f0, v);
             }
+            Condition::WasCycled(f0) => {
+                Walk::walk(f0, v);
+            }
             Condition::ThereAre(f0) => {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);
