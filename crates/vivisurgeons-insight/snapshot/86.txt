@@ -940,7 +940,7 @@ cost: {2}{G}
 > Landfall — Whenever a land you control enters, you may get two rad counters.
 > {T}: Put target land card in a graveyard that was milled this turn onto the battlefield tapped under your control.
 = BROKE at "two" after: landfall — whenever a land you control enters , you may get
-= BROKE at "milled" after: {T} : put target land card in a graveyard that was
+= BROKE at "turn" after: {T} : put target land card in a graveyard that was milled this
 
 ## Teeterpeak Ambusher
 face: Teeterpeak Ambusher

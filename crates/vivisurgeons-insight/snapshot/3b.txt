@@ -864,7 +864,7 @@ cost: {1}{B}{G}{U}
 > When The Master enters, target player gets two rad counters.
 > {T}: Put target creature card in a graveyard that was milled this turn onto the battlefield under your control. It's a green Mutant with base power and toughness 3/3. (It loses its other colors and creature types.)
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [GetCounters { who: Target, n: N(2), kind: "rad" }], limits: [] }
-= BROKE at "milled" after: {T} : put target creature card in a graveyard that was
+= BROKE at "turn" after: {T} : put target creature card in a graveyard that was milled this
 
 ## Totem Speaker
 face: Totem Speaker

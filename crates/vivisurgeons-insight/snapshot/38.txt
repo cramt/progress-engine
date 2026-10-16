@@ -814,7 +814,7 @@ type: Legendary Creature — Zombie Mutant Rogue
 cost: {1}{U}{B}
 > Once during each of your turns, you may cast a spell from among cards in your graveyard that were milled this turn.
 > {T}: Each player mills a card. (They each put the top card of their library into their graveyard.)
-= BROKE at "milled" after: once during each of your turns , you may cast a spell from among cards in your graveyard that were
+= BROKE at "turn" after: once during each of your turns , you may cast a spell from among cards in your graveyard that were milled this
 = Activated { cost: [Tap], effect: [Mill { who: Each, n: N(1) }], limits: [] }
 
 ## Reins of Power

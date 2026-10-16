@@ -964,6 +964,9 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         },
         |p| { p.word("that's")?; filter(p).map(Post::ThatIs) },
         |p| { let how = marked_this_way(p)?; p.words("this way")?; Some(Post::Marked(how)) },
+        // "the number of creatures you controlled that were destroyed this
+        // way" (Kaya's Wrath).
+        |p| { p.one_of(&["that was", "that were"])?; let how = marked_this_way(p)?; p.words("this way")?; Some(Post::Marked(how)) },
         |p| p.one_of(&["who doesn't", "who don't"]).map(|_| Post::WhoDoesnt),
         |p| p.words("who can't").map(|_| Post::WhoCant),
         |p| { p.one_of(&["that aren't", "that isn't"])?; p.one_of(&["on", "in"])?; zone(p).map(Post::NotIn) },

@@ -445,7 +445,7 @@ cost: {2}{U}
 > Whenever Ghost of Ramirez DePietro deals combat damage to a player, choose up to one target card in a graveyard that was discarded or put there from a library this turn. Put that card into its owner's hand.
 > Partner (You can have two commanders if both have partner.)
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlockedBy(Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Toughness, op: Ge, value: N(3) })], or: None }) }])
-= BROKE at "discarded" after: whenever ~ deals combat damage to a player , choose up to one target card in a graveyard that was
+= BROKE at "or" after: whenever ~ deals combat damage to a player , choose up to one target card in a graveyard that was discarded
 = Keywords([Keyword { name: "partner", param: None }])
 
 ## Giant's Skewer

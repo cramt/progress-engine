@@ -135,7 +135,7 @@ face: Ceaseless Conflict
 type: Sorcery
 cost: {3}{W}{W}
 > Destroy all creatures. Then create a 3/2 red and white Spirit creature token for each nontoken creature you controlled that was destroyed this way.
-= BROKE at "destroyed" after: destroy all creatures . then create a <pt> red and white spirit creature token for each nontoken creature you controlled that was
+= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [ControlledThen(You), Marked(Destroyed)], or: None } }, then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(2), signed: false }), colors: [Red, White], types: ["spirit", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }])
 
 ## Chambered Nautilus
 face: Chambered Nautilus

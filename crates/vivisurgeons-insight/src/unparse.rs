@@ -1425,6 +1425,13 @@ mod syn {
         alt(o, vec![under, controlled]);
     }
 
+    /// "creatures destroyed this way" and "creatures you controlled that were
+    /// destroyed this way" (Kaya's Wrath): the same mark, with or without
+    /// the relative clause.
+    pub fn that_was(o: &mut Out) {
+        alt(o, vec![Out::default(), of("that was"), of("that were")]);
+    }
+
     pub fn dont_alone(full: Out) -> Out {
         let mut o = Out::default();
         alt(&mut o, vec![full, of("you don't")]);
@@ -4893,6 +4900,7 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             objects(o, x);
         }
         Post::Marked(m) => {
+            syn::that_was(o);
             o.w(marked_word(*m));
             o.w("this way");
         }

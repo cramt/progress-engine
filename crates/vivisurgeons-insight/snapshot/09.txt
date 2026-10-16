@@ -444,7 +444,7 @@ face: Kaya's Wrath
 type: Sorcery
 cost: {W}{W}{B}{B}
 > Destroy all creatures. You gain life equal to the number of creatures you controlled that were destroyed this way.
-= BROKE at "destroyed" after: destroy all creatures . you gain life equal to the number of creatures you controlled that were
+= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, GainLife { who: You, n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ControlledThen(You), Marked(Destroyed)], or: None } }) }])
 
 ## Keldon Warcaller
 face: Keldon Warcaller
