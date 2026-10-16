@@ -439,7 +439,7 @@ cost: {1}{W}
 > Whenever an opponent draws their second card each turn, you create a Treasure token.
 > {2}{W}: Two target players each draw a card.
 = Triggered { trigger: When(DrawsNth { who: AnOpponent, n: 2 }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }], limits: [] }
-= BROKE at "draw" after: {2} {W} : two target players each
+= Activated { cost: [Mana(Mana(["2", "W"]))], effect: [Draw { who: NTarget { n: 2, up_to: false }, n: N(1) }], limits: [] }
 
 ## Glowering Rogon
 face: Glowering Rogon

@@ -358,7 +358,7 @@ cost: {2}{U}
 > Assist (Another player can pay up to {2} of this spell's cost.)
 > Two target players each draw a card.
 = Keywords([Keyword { name: "assist", param: None }])
-= BROKE at "." after: two target players each draw a card
+= Spell([Draw { who: NTarget { n: 2, up_to: false }, n: N(1) }])
 
 ## Infernal Caretaker
 face: Infernal Caretaker

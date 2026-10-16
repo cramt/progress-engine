@@ -611,7 +611,7 @@ type: Legendary Creature — Eldrazi
 cost: {9}
 > When you cast this spell, up to two target players each manifest two cards from their hands. For each card manifested this way, you draw a card. (To manifest a card, put it onto the battlefield face down as a 2/2 creature. Turn it face up any time for its mana cost if it's a creature card.)
 > Other colorless creatures you control get +3/+2.
-= BROKE at "manifest" after: when you cast this spell , up to two target players each
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [ActionOn { who: NTarget { n: 2, up_to: true }, name: "manifest", what: Objects { quant: N(N(2)), filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(That))], or: None } } }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [Marked(Manifested)], or: None } }, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Color(Colorless), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(3), toughness: N(2), signed: true }), has: [], per: None }])
 
 ## Lava Storm

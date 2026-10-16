@@ -156,7 +156,7 @@ face: Donatello's Science Lesson
 type: Instant
 cost: {2}{U}
 > Tap up to two target creatures. Up to two target players each draw a card.
-= BROKE at "draw" after: tap up to two target creatures . up to two target players each
+= Spell([Tap(Objects { quant: Target { n: N(2), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), Draw { who: NTarget { n: 2, up_to: true }, n: N(1) }])
 
 ## Dovescape
 face: Dovescape

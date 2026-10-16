@@ -3397,6 +3397,7 @@ fn player_num(p: &Player) -> Num {
         Player::That | Player::EachOpponent => Num::Any,
         Player::EachOf(_)
         | Player::Those(_)
+        | Player::NTarget { .. }
         | Player::AnyNumberOfTarget
         | Player::AnyNumberOfTargetOpponents => Num::Pl,
         _ => Num::Sg,
@@ -3410,6 +3411,13 @@ fn player(o: &mut Out, p: &Player) {
         Player::TargetOpponent => o.w("target opponent"),
         Player::UpToOneTarget => o.w("up to one target player"),
         Player::AnyNumberOfTarget => o.w("any number of target players"),
+        Player::NTarget { n, up_to } => {
+            if *up_to {
+                o.w("up to");
+            }
+            syn::number(o, *n);
+            o.w("target players");
+        }
         Player::AnyNumberOfTargetOpponents => o.w("any number of target opponents"),
         Player::Each => syn::each_player(o),
         Player::EachOpponent => syn::each_opponent(o),
@@ -3535,7 +3543,7 @@ fn subj(o: &mut Out, who: &Player, verb: &str, cx: &Cx) {
         // "Any number of target players each mill two cards".
         if matches!(
             who,
-            Player::AnyNumberOfTarget | Player::AnyNumberOfTargetOpponents
+            Player::AnyNumberOfTarget | Player::AnyNumberOfTargetOpponents | Player::NTarget { .. }
         ) {
             syn::each_after(o);
         }
@@ -4126,6 +4134,7 @@ fn marked_word(m: Marked) -> &'static str {
         Marked::Discarded => "discarded",
         Marked::Removed => "removed",
         Marked::PutOntoBattlefield => "put onto the battlefield",
+        Marked::Manifested => "manifested",
     }
 }
 
@@ -5247,6 +5256,7 @@ fn possessor_num(w: &Player) -> Num {
         Player::That
         | Player::EachOpponent
         | Player::Each
+        | Player::NTarget { .. }
         | Player::AnyNumberOfTarget
         | Player::AnyNumberOfTargetOpponents => Num::Any,
         _ => Num::Sg,

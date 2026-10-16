@@ -1035,7 +1035,10 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
         let plural = matches!(
             v.last().and_then(subject_of),
             Some(
-                Player::AnyNumberOfTarget | Player::AnyNumberOfTargetOpponents | Player::EachOf(_)
+                Player::AnyNumberOfTarget
+                    | Player::AnyNumberOfTargetOpponents
+                    | Player::NTarget { .. }
+                    | Player::EachOf(_)
             )
         );
         let agrees = |w: &str| {

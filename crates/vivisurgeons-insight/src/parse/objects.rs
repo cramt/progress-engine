@@ -64,6 +64,14 @@ fn player_read(p: &mut P) -> Option<Player> {
         |p| p.words("target opponent").map(|_| Player::TargetOpponent),
         |p| p.words("up to one target player").map(|_| Player::UpToOneTarget),
         |p| p.words("any number of target players").map(|_| Player::AnyNumberOfTarget),
+        // "Two target players each draw a card", "up to two target players
+        // each manifest …": "each" says every one of them does it.
+        |p| {
+            let up_to = p.attempt(|p| p.words("up to")).is_some();
+            let n = super::amounts::number(p).filter(|n| *n > 1)?;
+            p.words("target players each")?;
+            Some(Player::NTarget { n, up_to })
+        },
         |p| p.words("any number of target opponents").map(|_| Player::AnyNumberOfTargetOpponents),
         |p| p.words("each other player").map(|_| Player::EachOtherPlayer),
         |p| p.words("each player who can't").map(|_| Player::WhoCant(Box::new(Player::Each))),
@@ -1598,6 +1606,7 @@ fn marked_this_way(p: &mut P) -> Option<Marked> {
         marked,
         |p| p.word("tapped").map(|_| Marked::Tapped),
         |p| p.word("removed").map(|_| Marked::Removed),
+        |p| p.word("manifested").map(|_| Marked::Manifested),
     )
 }
 

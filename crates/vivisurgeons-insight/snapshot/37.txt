@@ -573,7 +573,7 @@ face: Parker Luck
 type: Enchantment
 cost: {2}{B}
 > At the beginning of your end step, two target players each reveal the top card of their library. They each lose life equal to the mana value of the card revealed by the other player. Then they each put the card they revealed into their hand.
-= BROKE at "reveal" after: at the beginning of your end step , two target players each
+= BROKE at "lose" after: at the beginning of your end step , two target players each reveal the top card of their library . they each
 
 ## Pink Horror
 face: Pink Horror

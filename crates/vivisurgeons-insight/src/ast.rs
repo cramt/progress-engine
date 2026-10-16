@@ -635,6 +635,13 @@ pub enum Player {
     /// "Any number of target opponents each sacrifice a creature …" (Will of
     /// the Abzan).
     AnyNumberOfTargetOpponents,
+    /// "two target players each draw a card", "up to two target players each
+    /// manifest two cards from their hands" (Kozilek, the Broken Reality):
+    /// that many target players, or up to that many, each doing it.
+    NTarget {
+        n: u32,
+        up_to: bool,
+    },
     /// "that player or that planeswalker's controller": whichever one the
     /// earlier choice made it.
     OneOf(Vec<Player>),
@@ -1252,6 +1259,9 @@ pub enum Marked {
     /// "If an Equipment is put onto the battlefield this way" (Armored
     /// Skyhunter): put there by the effect before.
     PutOntoBattlefield,
+    /// "For each card manifested this way" (Kozilek, the Broken Reality):
+    /// turned face down as a 2/2 by the effect before (CR 701.40a).
+    Manifested,
 }
 
 #[derive(Clone, Debug, PartialEq)]
