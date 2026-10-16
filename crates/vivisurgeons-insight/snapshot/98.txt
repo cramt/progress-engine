@@ -805,7 +805,7 @@ cost: {W}{U}
 > This creature has all activated abilities of the chosen permanent except for loyalty abilities. You may spend mana as though it were mana of any color to activate those abilities.
 = Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [May { who: You, then: [Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }))] }] }])
 = Static([Restrict { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [Marked(Chosen)], or: None } }, rule: NoActivatedAbilities }])
-= BROKE at "except" after: this creature has all activated abilities of the chosen permanent
+= BROKE at "." after: this creature has all activated abilities of the chosen permanent except for loyalty abilities
 
 ## Scorpion Sentinel
 face: Scorpion Sentinel

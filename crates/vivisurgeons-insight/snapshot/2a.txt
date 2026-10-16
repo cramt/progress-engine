@@ -915,7 +915,7 @@ face: Slash the Ranks
 type: Sorcery
 cost: {3}{W}{W}
 > Destroy all creatures and planeswalkers except for commanders.
-= BROKE at "commanders" after: destroy all creatures and planeswalkers except for
+= Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [Except(Filter { alts: [], kind: Some(Commander), posts: [], or: None })], or: None } }, no_regen: false }])
 
 ## Smell Fear
 face: Smell Fear

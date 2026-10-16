@@ -1025,6 +1025,9 @@ pub enum Post {
     OfThatColor,
     /// "that aren't of the chosen type".
     Not(Box<Post>),
+    /// "all permanents except for lands and tokens", "all creatures except
+    /// creatures chosen this way": none of what the filter describes.
+    Except(Filter),
     /// "that entered this turn".
     EnteredThisTurn,
     /// "that entered the battlefield under your control this turn": under

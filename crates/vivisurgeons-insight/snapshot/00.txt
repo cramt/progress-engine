@@ -523,7 +523,7 @@ face: Keldon Firebombers
 type: Creature — Human Soldier
 cost: {3}{R}{R}
 > When this creature enters, each player sacrifices all lands they control except for three.
-= BROKE at "except" after: when this creature enters , each player sacrifices all lands they control
+= BROKE at "." after: when this creature enters , each player sacrifices all lands they control except for three
 
 ## Lavabrink Venturer
 face: Lavabrink Venturer

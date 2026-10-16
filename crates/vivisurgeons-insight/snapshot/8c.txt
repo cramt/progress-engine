@@ -337,7 +337,7 @@ cost: {3}{W}{W}
 > −5: Destroy all other permanents except for lands and tokens.
 = Loyalty { change: N(2), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [GainLife { who: You, n: N(1) }] }] }
 = Loyalty { change: N(-2), effect: [Create { who: You, n: N(3), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["soldier", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }
-= BROKE at "except" after: N(-5) : destroy all other permanents
+= BROKE at "tokens" after: N(-5) : destroy all other permanents except for lands and
 
 ## Empress Galina
 face: Empress Galina

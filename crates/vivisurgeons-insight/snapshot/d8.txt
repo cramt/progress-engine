@@ -335,7 +335,7 @@ face: Flame Sweep
 type: Instant
 cost: {2}{R}
 > Flame Sweep deals 2 damage to each creature except for creatures you control with flying.
-= BROKE at "for" after: ~ deals 2 damage to each creature except
+= Spell([Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Except(Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), WithKeyword("flying")], or: None })], or: None } })] }])
 
 ## Fleecemane Lion
 face: Fleecemane Lion

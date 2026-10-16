@@ -368,7 +368,7 @@ cost: {3}{U}
 > Flying
 > Whenever a nontoken creature an opponent controls enters, create a token that's a copy of that creature except it's an artifact in addition to its other types. Then exile all other tokens created with this creature.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "it's" after: whenever a nontoken creature an opponent controls enters , create a token that's a copy of that creature except
+= BROKE at "an" after: whenever a nontoken creature an opponent controls enters , create a token that's a copy of that creature except it's
 
 ## Ferocity
 face: Ferocity

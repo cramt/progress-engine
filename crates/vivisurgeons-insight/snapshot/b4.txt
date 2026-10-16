@@ -1125,7 +1125,7 @@ type: Artifact
 cost: {3}{W}{W}
 > When this artifact enters, if you cast it, for each player, choose a creature with power 2 or less that player controls. Then destroy all creatures except creatures chosen this way.
 > Craft with artifact {3}{W}{W} ({3}{W}{W}, Exile this artifact, Exile another artifact you control or an artifact card from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)
-= BROKE at "creatures" after: when this artifact enters , if you cast it , for each player , choose a creature with power 2 or less that player controls . then destroy all creatures except
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), YouCastIt(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [], or: None } }, then: [Choose(Objects(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Le, value: N(2) }), Controller(That)], or: None } }))] }, Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Except(Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Chosen)], or: None })], or: None } }, no_regen: false }], limits: [] }
 = Keywords([Keyword { name: "craft", param: Some(CostFor { what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, cost: [Mana(Mana(["3", "W", "W"]))] }) }])
 
 ## Unstable Glyphbridge // Sandswirl Wanderglyph

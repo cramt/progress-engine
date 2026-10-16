@@ -729,7 +729,7 @@ face: Scourglass
 type: Artifact
 cost: {3}{W}{W}
 > {T}, Sacrifice this artifact: Destroy all permanents except for artifacts and lands. Activate only during your upkeep.
-= BROKE at "except" after: {T} , sacrifice this artifact : destroy all permanents
+= Activated { cost: [Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Destroy { what: Objects { quant: All, filter: Filter { alts: [], kind: Some(Permanent), posts: [Except(Filter { alts: [[Type("artifact")], [Type("land")]], kind: None, posts: [], or: None })], or: None } }, no_regen: false }], limits: [OnlyDuringYourUpkeep] }
 
 ## Serpent Generator
 face: Serpent Generator

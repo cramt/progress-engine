@@ -855,6 +855,18 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             p.one_of(&["that's attached to", "that are attached to"])?;
             objects(p).map(|o| Post::AttachedTo(Box::new(o)))
         },
+        // "all permanents except for lands and tokens", "all creatures except
+        // creatures chosen this way": none of those ([except-for]).
+        |p| {
+            p.word("except")?;
+            p.attempt(|p| p.word("for"));
+            let f = filter(p)?;
+            // "except for lands and tokens": a list the filter stopped
+            // short of; "lands … except mana abilities": the abilities'
+            // exception, not the lands'.
+            if p.peek_word() == Some("and") || f.kind == Some(Noun::Ability) { return None; }
+            (!f.alts.is_empty() || f.kind.is_some()).then_some(Post::Except(f))
+        },
         // "an ability that isn't a mana ability", "a creature that isn't a
         // Dragon": not of that kind.
         |p| {

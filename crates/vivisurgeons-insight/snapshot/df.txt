@@ -569,7 +569,7 @@ face: Mageta the Lion
 type: Legendary Creature — Human Spellshaper
 cost: {3}{W}{W}
 > {2}{W}{W}, {T}, Discard two cards: Destroy all creatures except for Mageta. Those creatures can't be regenerated.
-= BROKE at "for" after: {2} {W} {W} , {T} , discard two cards : destroy all creatures except
+= BROKE at "~" after: {2} {W} {W} , {T} , discard two cards : destroy all creatures except for
 
 ## Mechanized Warfare
 face: Mechanized Warfare

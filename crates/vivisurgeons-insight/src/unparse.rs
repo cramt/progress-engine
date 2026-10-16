@@ -1760,6 +1760,13 @@ mod syn {
         );
     }
 
+    /// Named rewrite [except-for]: "destroy all creatures except creatures
+    /// chosen this way" (Unstable Glyphbridge) is "except for creatures
+    /// chosen this way": the same exclusion, with or without "for".
+    pub fn except_for(o: &mut Out) {
+        alt(o, vec![of("except for"), of("except")]);
+    }
+
     /// Named rewrite [twice-mana]: "pays twice {X}" (Thassa's Intervention)
     /// is "pays {X}{X}".
     pub fn twice_mana(o: &mut Out, m: &Mana) {
@@ -4636,6 +4643,10 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             that_is(o, n);
             o.w("attached to");
             objects(o, x);
+        }
+        Post::Except(f) => {
+            syn::except_for(o);
+            filter(o, f, Num::Pl);
         }
         Post::OfChosenType => o.w("of the chosen type"),
         Post::OfChosenColor => o.w("of the chosen color"),

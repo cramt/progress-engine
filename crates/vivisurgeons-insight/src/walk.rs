@@ -2172,6 +2172,9 @@ impl Walk for Post {
             Post::Not(f0) => {
                 Walk::walk(&mut **f0, v);
             }
+            Post::Except(f0) => {
+                Walk::walk(f0, v);
+            }
             Post::EnteredUnderThisTurn(f0) => {
                 Walk::walk(f0, v);
             }

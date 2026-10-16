@@ -977,7 +977,7 @@ cost: {2}{U}{B}
 > Sharkey has all activated abilities of lands your opponents control except mana abilities.
 > Mana of any type can be spent to activate Sharkey's abilities.
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(EachOpponent)], or: None } }, rule: NoNonManaActivatedAbilities }])
-= BROKE at "except" after: ~ has all activated abilities of lands your opponents control
+= BROKE at "." after: ~ has all activated abilities of lands your opponents control except mana abilities
 = BROKE at "~" after: mana of any type can be spent to activate
 
 ## Sharktocrab

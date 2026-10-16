@@ -257,7 +257,7 @@ type: Enchantment — Saga
 > III — Destroy all other permanents except for artifacts, lands, and Phyrexians. Exile this Saga, then return it to the battlefield (front face up).
 = BROKE at "five" after: i — incubate 2
 = Chapter { chapters: [2], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [Keyword { name: "double strike", param: None }], dur: UntilEndOfTurn }] }
-= BROKE at "," after: iii — destroy all other permanents except for artifacts
+= Chapter { chapters: [3], effect: [Destroy { what: Objects { quant: All, filter: Filter { alts: [[State(Other)]], kind: Some(Permanent), posts: [Except(Filter { alts: [[Type("artifact")], [Type("land")], [Subtype("phyrexian")]], kind: None, posts: [], or: None })], or: None } }, no_regen: false }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }] }
 
 ## Ember Swallower
 face: Ember Swallower
