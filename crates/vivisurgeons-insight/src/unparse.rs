@@ -1740,6 +1740,16 @@ mod syn {
         alt(o, vec![spelled, of("create one of each")]);
     }
 
+    /// Named rewrite [twice-mana]: "pays twice {X}" (Thassa's Intervention)
+    /// is "pays {X}{X}".
+    pub fn twice_mana(o: &mut Out, m: &Mana) {
+        let mut two = Out::default();
+        super::mana(&mut two, m);
+        let mut once = of("twice");
+        once.tok(Tok::Sym(m.0[0].clone()));
+        alt(o, vec![two, once]);
+    }
+
     /// Named rewrite [one-of-them]: "look at the top two cards of your
     /// library. Put one into your hand" (Faerie Snoop) is "put one of them
     /// into your hand": a bare number names the cards just found.
@@ -2659,6 +2669,7 @@ fn cost_said(o: &mut Out, c: &Cost) {
 
 fn cost(o: &mut Out, c: &Cost) {
     match c {
+        Cost::Mana(m) if m.0.len() == 2 && m.0[0] == m.0[1] => syn::twice_mana(o, m),
         Cost::Mana(m) => mana(o, m),
         Cost::Tap => o.tok(Tok::Sym("T".into())),
         Cost::Untap => o.tok(Tok::Sym("Q".into())),

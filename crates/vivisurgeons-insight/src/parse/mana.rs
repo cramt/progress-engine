@@ -27,6 +27,9 @@ pub(super) fn sym(p: &mut P, s: &str) -> Option<()> {
 pub(super) fn cost(p: &mut P) -> Option<Cost> {
     alt!(p;
         |p| mana(p).map(Cost::Mana),
+        // "unless its controller pays twice {X}" (Thassa's Intervention): {X}{X}
+        // ([twice-mana]).
+        |p| { p.word("twice")?; let Mana(s) = mana(p)?; (s.len() == 1).then(|| Cost::Mana(Mana([s.clone(), s].concat()))) },
         |p| sym(p, "T").map(|_| Cost::Tap),
         |p| sym(p, "Q").map(|_| Cost::Untap),
         |p| {
