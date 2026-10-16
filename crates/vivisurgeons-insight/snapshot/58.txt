@@ -154,7 +154,7 @@ cost: {1}{G}{G}
 > When this enchantment enters, create a Lander token. (It's an artifact with "{2}, {T}, Sacrifice this token: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.")
 > Each creature you control enters with an additional +1/+1 counter on it for each land that entered the battlefield under your control this turn.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["lander"], keywords: [], abilities: [], named: Some("lander"), attacking: None } }], limits: [] }
-= Static([EntersWithCounters { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, n: Additional(CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [EnteredUnderThisTurn(You)], or: None } })), kind: "+1/+1" }])
+= Static([EntersWithCounters { what: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, n: Additional(EntriesThisTurn { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [], or: None } }, under: You }), kind: "+1/+1" }])
 
 ## Blessing of Leeches
 face: Blessing of Leeches

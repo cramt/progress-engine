@@ -1929,6 +1929,33 @@ pub fn ability(a: &Ability) -> Out {
         fn ability(&mut self, _: &mut Ability) -> bool {
             true
         }
+        // "the number of creatures that entered the battlefield under your
+        // control this turn" counts entries ([entries-this-turn]), and is
+        // said with the words of the permanents it would otherwise name.
+        fn amount(&mut self, a: &mut Amount) {
+            if let Amount::EntriesThisTurn { what, under } = a {
+                *a = Amount::CountOf(Box::new(entered_under(what, under)));
+            }
+        }
+        fn effect(&mut self, e: &mut Effect) {
+            if let Effect::Repeat {
+                times: Amount::EntriesThisTurn { what, under },
+                then,
+            } = e
+            {
+                *e = Effect::ForEach {
+                    each: entered_under(what, under),
+                    then: std::mem::take(then),
+                };
+            }
+        }
+    }
+    fn entered_under(what: &Objects, under: &Player) -> Objects {
+        let mut o = what.clone();
+        o.filter
+            .posts
+            .push(Post::EnteredUnderThisTurn(under.clone()));
+        o
     }
     let mut a = a.clone();
     crate::walk::Walk::walk(&mut a, &mut Said);
@@ -2833,6 +2860,15 @@ fn measure(o: &mut Out, a: &Amount) {
         | Amount::Thrice(_)
         | Amount::Between(..)
         | Amount::Additional(_) => amount(o, a),
+        // Said as `CountOf` by `ability`'s `Said`; here only when rendered
+        // without it.
+        Amount::EntriesThisTurn { what, under } => {
+            let mut x = (**what).clone();
+            x.filter
+                .posts
+                .push(Post::EnteredUnderThisTurn(under.clone()));
+            measure(o, &Amount::CountOf(Box::new(x)));
+        }
         Amount::Plus(m, k) => {
             let a = out(|o| measure(o, m));
             let b = out(|o| syn::number(o, *k));

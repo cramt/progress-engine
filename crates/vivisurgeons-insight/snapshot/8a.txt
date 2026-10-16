@@ -275,7 +275,7 @@ cost: {2}{U}
 > Whenever you cast a spell during your turn other than your first spell that turn, create a 2/2 blue and black Zombie Rogue creature token.
 > Whenever a Zombie you control enters, put a +1/+1 counter on it for each other Zombie that entered the battlefield under your control this turn.
 = BROKE at "other" after: whenever you cast a spell during your turn
-= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[OtherThan(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Subtype("zombie")]], kind: None, posts: [EnteredUnderThisTurn(You)], or: None } }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Subtype("zombie")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [Repeat { times: EntriesThisTurn { what: Objects { quant: Plural, filter: Filter { alts: [[OtherThan(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Subtype("zombie")]], kind: None, posts: [], or: None } }, under: You }, then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Ghost Ship
 face: Ghost Ship

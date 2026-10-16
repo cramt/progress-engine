@@ -407,7 +407,7 @@ cost: {1}{R}{R}
 > Other Goblins you control get +1/+1.
 > {R}, {T}: This creature deals damage equal to the number of Goblins that entered the battlefield under your control this turn to any target.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Subtype("goblin")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
-= Activated { cost: [Mana(Mana(["R"])), Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [EnteredUnderThisTurn(You)], or: None } }), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
+= Activated { cost: [Mana(Mana(["R"])), Tap], effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: EntriesThisTurn { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [], or: None } }, under: You }, to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Huang Zhong, Shu General
 face: Huang Zhong, Shu General

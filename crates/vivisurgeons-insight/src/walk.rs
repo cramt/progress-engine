@@ -169,6 +169,10 @@ impl Walk for Amount {
             Amount::CountOf(f0) => {
                 Walk::walk(&mut **f0, v);
             }
+            Amount::EntriesThisTurn { what, under } => {
+                Walk::walk(&mut **what, v);
+                Walk::walk(under, v);
+            }
             Amount::PowerOf(f0) => {
                 Walk::walk(&mut **f0, v);
             }

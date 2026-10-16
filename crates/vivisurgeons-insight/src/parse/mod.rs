@@ -2574,6 +2574,78 @@ fn counters_on_itself(a: &mut Ability) {
 /// the permanent whose ability it is was never revealed or exiled this way,
 /// so "other" among those cards is other than the card named before
 /// ([other-than-named-before]), in any ability, as in a spell.
+/// "the number of nontoken creatures you had enter the battlefield under your
+/// control this turn" (Gyome), "for each land you had enter …" (Emergent
+/// Sequence): a count of such permanents is a count of the entries, which
+/// includes those that have since left ([entries-this-turn]). The objects
+/// acted on ("put a +1/+1 counter on each creature that entered …") stay
+/// permanents now on the battlefield.
+struct EntriesThisTurn;
+
+impl EntriesThisTurn {
+    fn split(o: &Objects) -> Option<(Objects, Player)> {
+        if o.quant != Quant::Plural {
+            return None;
+        }
+        let at = o
+            .filter
+            .posts
+            .iter()
+            .position(|p| matches!(p, Post::EnteredUnderThisTurn(_)))?;
+        let mut what = o.clone();
+        let Post::EnteredUnderThisTurn(under) = what.filter.posts.remove(at) else {
+            return None;
+        };
+        Some((what, under))
+    }
+}
+
+impl Visitor for EntriesThisTurn {
+    fn enter(&mut self, _: &mut Objects) -> bool {
+        true
+    }
+    fn ability(&mut self, _: &mut Ability) -> bool {
+        true
+    }
+    fn amount(&mut self, a: &mut Amount) {
+        if let Amount::CountOf(o) = a {
+            if let Some((what, under)) = Self::split(o) {
+                *a = Amount::EntriesThisTurn {
+                    what: Box::new(what),
+                    under,
+                };
+            }
+        }
+    }
+    fn effect(&mut self, e: &mut Effect) {
+        struct Each(bool);
+        impl Visitor for Each {
+            fn enter(&mut self, o: &mut Objects) -> bool {
+                self.0 |= o.quant == Quant::Itself;
+                true
+            }
+        }
+        if let Effect::ForEach { each, then } = e {
+            let mut each_one = Each(false);
+            for t in then.iter_mut() {
+                t.walk(&mut each_one);
+            }
+            if each_one.0 {
+                return;
+            }
+            if let Some((what, under)) = Self::split(each) {
+                *e = Effect::Repeat {
+                    times: Amount::EntriesThisTurn {
+                        what: Box::new(what),
+                        under,
+                    },
+                    then: std::mem::take(then),
+                };
+            }
+        }
+    }
+}
+
 struct OtherMarkedCards;
 
 impl Visitor for OtherMarkedCards {
@@ -2641,6 +2713,7 @@ pub fn parse_line(
             a.walk(&mut DelayedX);
             a.walk(&mut OtherMarkedCards);
             a.walk(&mut FromAmongAfterShares);
+            a.walk(&mut EntriesThisTurn);
             counters_on_itself(&mut a);
             Ok(a)
         }

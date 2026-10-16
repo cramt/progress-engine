@@ -387,6 +387,19 @@ pub enum Amount {
     X,
     ThatMany,
     CountOf(Box<Objects>),
+    /// "the number of nontoken creatures you had enter the battlefield under
+    /// your control this turn" (Gyome), "for each land that entered the
+    /// battlefield under your control this turn": how many objects that
+    /// were `what` as they entered entered under `under`'s control this turn,
+    /// counted by the entries, so one that has since left the battlefield,
+    /// stopped being `what` or changed control still counts (the Scryfall
+    /// rulings on Gyome and Hobgoblin Bandit Lord) ([entries-this-turn]).
+    /// `what` holds no `Post::EnteredUnderThisTurn`, which is the filter of
+    /// a permanent now on the battlefield.
+    EntriesThisTurn {
+        what: Box<Objects>,
+        under: Player,
+    },
     PowerOf(Box<Objects>),
     ToughnessOf(Box<Objects>),
     ManaValueOf(Box<Objects>),

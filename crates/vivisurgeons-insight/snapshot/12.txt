@@ -562,7 +562,7 @@ type: Enchantment
 cost: {3}{W}{W}
 > Creatures you control get +X/+X, where X is the number of creatures that entered the battlefield under your control this turn.
 > At the beginning of combat on your turn, create a 1/1 green and white Kithkin creature token.
-= Static([Where { inner: Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: true }), has: [], per: None }, x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [EnteredUnderThisTurn(You)], or: None } }) }])
+= Static([Where { inner: Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: X, toughness: X, signed: true }), has: [], per: None }, x: EntriesThisTurn { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, under: You } }])
 = Triggered { trigger: At(Combat(Yours)), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green, White], types: ["kithkin", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Komainu Battle Armor
