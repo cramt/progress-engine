@@ -3403,6 +3403,10 @@ fn player(o: &mut Out, p: &Player) {
             }
         }
         Player::Those(_) => o.w("those players"),
+        Player::Who { who, posts: ps } => {
+            player(o, who);
+            posts(o, ps, Num::Sg);
+        }
     }
 }
 
@@ -4814,6 +4818,11 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         }
         Post::WasCastThisTurn => o.w("that were cast this turn"),
         Post::LostLifeThisTurn => o.w("who lost life this turn"),
+        Post::AttackedThisTurn(v) => {
+            o.w("who attacked");
+            attacked_list(o, v);
+            o.w("this turn");
+        }
         Post::WhoControls(x) => {
             o.w("who");
             o.verb("control", n);
@@ -6006,6 +6015,16 @@ fn cards(o: &mut Out, n: &Amount) {
     }
 }
 
+/// "you or planeswalkers you control": what an attack went to, any of them.
+fn attacked_list(o: &mut Out, rs: &[Recipient]) {
+    for (i, r) in rs.iter().enumerate() {
+        if i > 0 {
+            o.w("or");
+        }
+        recipient(o, r);
+    }
+}
+
 fn recipients(o: &mut Out, rs: &[Recipient]) {
     for (i, r) in rs.iter().enumerate() {
         list_sep(o, i, rs.len(), "and");
@@ -6353,6 +6372,10 @@ fn player_rule(o: &mut Out, r: &PlayerRule) {
         PlayerRule::CantGainLife => o.w("gain life"),
         PlayerRule::CantSearchLibraries => o.w("search libraries"),
         PlayerRule::CantGetCounters => o.w("get counters"),
+        PlayerRule::CantAttack(v) => {
+            o.w("attack");
+            attacked_list(o, v);
+        }
     }
 }
 
@@ -9821,6 +9844,7 @@ fn event(o: &mut Out, e: &Event) {
             match &**cond {
                 Condition::ItsYourTurn => o.w("during your turn"),
                 Condition::OpponentsTurn => o.w("during an opponent's turn"),
+                Condition::TheirTurn => o.w("during their turn"),
                 // "attacks while saddled": the attacker, said once.
                 Condition::Is { what, filter: f }
                     if matches!(&**e, Event::Attacks(x) if x == what)
@@ -10324,6 +10348,7 @@ fn condition(o: &mut Out, c: &Condition) {
         }
         Condition::NotYourTurn => o.w("it's not your turn"),
         Condition::OpponentsTurn => o.w("it's an opponent's turn"),
+        Condition::TheirTurn => o.w("it's their turn"),
         Condition::LifeAtLeast(n) => {
             o.w("you have");
             syn::number(o, *n);

@@ -124,7 +124,7 @@ face: Call for Aid
 type: Sorcery
 cost: {4}{R}
 > Gain control of all creatures target opponent controls until end of turn. Untap those creatures. They gain haste until end of turn. You can't attack that player this turn. You can't sacrifice those creatures this turn.
-= BROKE at "attack" after: gain control of all creatures target opponent controls until end of turn . untap those creatures . they gain haste until end of turn . you can't
+= BROKE at "sacrifice" after: gain control of all creatures target opponent controls until end of turn . untap those creatures . they gain haste until end of turn . you can't attack that player this turn . you can't
 
 ## Cauldron of Souls
 face: Cauldron of Souls

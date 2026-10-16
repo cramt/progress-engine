@@ -26,8 +26,33 @@ pub(super) fn player(p: &mut P) -> Option<Player> {
     pl
 }
 
+/// "you or planeswalkers you control": what an attack went to, any of them.
+pub(super) fn attacked_list(p: &mut P) -> Option<Vec<Recipient>> {
+    let mut v = vec![super::effects::recipient(p)?];
+    while let Some(r) = p.attempt(|p| {
+        p.one_of(&["or", "and/or"])?;
+        super::effects::recipient(p)
+    }) {
+        v.push(r);
+    }
+    Some(v)
+}
+
 fn player_read(p: &mut P) -> Option<Player> {
     alt!(p;
+        // "target player who was dealt combat damage by ~ this turn", "each
+        // opponent who attacked you … this turn": those the post holds of.
+        |p| {
+            let who = alt!(p;
+                |p| p.words("target player").map(|_| Player::Target),
+                |p| p.words("target opponent").map(|_| Player::TargetOpponent),
+                |p| p.words("each player").map(|_| Player::Each),
+                |p| p.words("each opponent").map(|_| Player::EachOpponent),
+            )?;
+            if p.peek_word() != Some("who") { return None; }
+            let q = post(p).filter(|q| matches!(q, Post::WasDealtDamageThisTurn { .. } | Post::AttackedThisTurn(_)))?;
+            Some(Player::Who { who: Box::new(who), posts: vec![q] })
+        },
         |p| {
             let mut v = vec![alt!(p; player_simple, |p| p.word("you").map(|_| Player::You))?];
             p.word("and")?;
@@ -1070,6 +1095,13 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         },
         |p| p.words("that were cast this turn").map(|_| Post::WasCastThisTurn),
         |p| p.words("who lost life this turn").map(|_| Post::LostLifeThisTurn),
+        // "who attacked you or a planeswalker you control this turn".
+        |p| {
+            p.words("who attacked")?;
+            let v = attacked_list(p)?;
+            p.words("this turn")?;
+            Some(Post::AttackedThisTurn(v))
+        },
         |p| { p.words("that could produce")?; mana(p).map(Post::CouldProduce) },
         // "that is snow or could produce {C}": either predicate.
         |p| {

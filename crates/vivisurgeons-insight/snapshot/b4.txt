@@ -1135,8 +1135,8 @@ type: Artifact Creature — Golem
 > Whenever an opponent casts a spell during their turn, they can't attack you or planeswalkers you control this turn.
 > Each opponent who attacked you or a planeswalker you control this turn can't cast spells.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "their" after: whenever an opponent casts a spell during
-= BROKE at "planeswalker" after: each opponent who attacked you or a
+= Triggered { trigger: When(While { event: Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }, cond: TheirTurn }), effect: [PlayerRestrict { who: That, rule: CantAttack([Player(You), Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } })]), dur: ThisTurn }], limits: [] }
+= Static([PlayerRestrict { who: Who { who: EachOpponent, posts: [AttackedThisTurn([Player(You), Objects(Objects { quant: One, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [Controller(You)], or: None } })])] }, rules: [CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } })] }])
 
 ## Urdnan, Dromoka Warrior
 face: Urdnan, Dromoka Warrior

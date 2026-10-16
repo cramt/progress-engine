@@ -616,6 +616,13 @@ pub enum Player {
     /// "that player or that planeswalker's controller": whichever one the
     /// earlier choice made it.
     OneOf(Vec<Player>),
+    /// "target player who was dealt combat damage by ~ this turn", "each
+    /// opponent who attacked you … this turn": the players `who` names, those
+    /// of them each post holds of.
+    Who {
+        who: Box<Player>,
+        posts: Vec<Post>,
+    },
     /// "Those players" after "For each permanent destroyed this way, its
     /// controller …": every player the loop before named, all at once.
     Those(Box<Player>),
@@ -1145,6 +1152,9 @@ pub enum Post {
     /// damage to you this turn": damage it dealt this turn, to `to` when
     /// said.
     DealtDamageThisTurn(Option<Player>),
+    /// "who attacked you or a planeswalker you control this turn": the
+    /// player attacked one of these this turn (CR 508.1a).
+    AttackedThisTurn(Vec<Recipient>),
     /// "permanents that were cast this turn": by any player.
     WasCastThisTurn,
     /// "each opponent who lost life this turn".
@@ -2387,6 +2397,9 @@ pub enum PlayerRule {
     CantSearchLibraries,
     /// "That player can't get counters".
     CantGetCounters,
+    /// "they can't attack you or planeswalkers you control": the player
+    /// declares no attack on any of these (CR 508.1a).
+    CantAttack(Vec<Recipient>),
 }
 
 /// Who does a thing a replacement effect watches for.
@@ -3400,6 +3413,10 @@ pub enum Condition {
     /// "during an opponent's turn", "it's an opponent's turn": apart from
     /// "not your turn", which a teammate's turn also is.
     OpponentsTurn,
+    /// "during their turn": the turn of the player the trigger's event
+    /// names (Unstable Glyphbridge's "an opponent casts a spell during
+    /// their turn").
+    TheirTurn,
     LifeAtLeast(u32),
     LifeAtMost(u32),
     CardsInHandAtMost(u32),

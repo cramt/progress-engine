@@ -496,7 +496,7 @@ cost: {1}
 > Flying
 > Sacrifice Hope of Ghirapur: Until your next turn, target player who was dealt combat damage by Hope of Ghirapur this turn can't cast noncreature spells.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "cast" after: sacrifice ~ : until your next turn , target player who was dealt combat damage by ~ this turn can't
+= Activated { cost: [Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [PlayerRestrict { who: Who { who: Target, posts: [WasDealtDamageThisTurn { by: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), combat: true }] }, rule: CantCast(Objects { quant: Plural, filter: Filter { alts: [[Non("creature")]], kind: Some(Spell), posts: [], or: None } }), dur: UntilYourNextTurn }], limits: [] }
 
 ## Hunter's Edge
 face: Hunter's Edge

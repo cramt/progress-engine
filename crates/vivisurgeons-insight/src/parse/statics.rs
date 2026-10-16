@@ -1384,6 +1384,11 @@ pub(super) fn player_rule_bare(p: &mut P) -> Option<PlayerRule> {
         },
         |p| p.words("gain life").map(|_| PlayerRule::CantGainLife),
         |p| p.words("get counters").map(|_| PlayerRule::CantGetCounters),
+        // "can't attack you or planeswalkers you control".
+        |p| {
+            p.word("attack")?;
+            super::objects::attacked_list(p).map(PlayerRule::CantAttack)
+        },
         |p| p.words("search libraries").map(|_| PlayerRule::CantSearchLibraries),
         |p| { p.word("cast")?; objects(p).map(PlayerRule::CantCast) },
         |p| { p.words("activate abilities of")?; objects(p).map(PlayerRule::CantActivateAbilitiesOf) },

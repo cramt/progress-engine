@@ -2077,6 +2077,12 @@ impl Walk for Player {
                     Walk::walk(x0, v);
                 }
             }
+            Player::Who { who, posts } => {
+                Walk::walk(&mut **who, v);
+                for x0 in (posts).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Player::Those(f0) => {
                 Walk::walk(&mut **f0, v);
             }
@@ -2097,6 +2103,11 @@ impl Walk for PlayerRule {
             }
             PlayerRule::CantCastMoreThanEachTurn { what, .. } => {
                 Walk::walk(what, v);
+            }
+            PlayerRule::CantAttack(f0) => {
+                for x0 in (f0).iter_mut() {
+                    Walk::walk(x0, v);
+                }
             }
             _ => {}
         }
@@ -2237,6 +2248,11 @@ impl Walk for Post {
             }
             Post::DealtDamageThisTurn(f0) => {
                 if let Some(x0) = (f0).as_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
+            Post::AttackedThisTurn(f0) => {
+                for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);
                 }
             }
