@@ -7358,7 +7358,26 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                     o.w("if");
                     condition(o, cond);
                 });
-                let if_forms = out(|o| syn::position(o, before, after));
+                let if_forms = match &then[..] {
+                    // "you may exile target creature if it attacked or
+                    // blocked this turn. Return that card …" (Vizier of
+                    // Deferment): the "if" after the may's first clause.
+                    [Effect::May { who, then: inner }] if inner.len() > 1 => {
+                        let first = Effect::May {
+                            who: who.clone(),
+                            then: inner[..1].to_vec(),
+                        };
+                        let inside = out(|o| {
+                            effect(o, &first, cx);
+                            o.w("if");
+                            condition(o, cond);
+                            o.tok(Tok::Period);
+                            clauses(o, &inner[1..], cx);
+                        });
+                        out(|o| syn::position_then(o, before, after, inside))
+                    }
+                    _ => out(|o| syn::position(o, before, after)),
+                };
                 match cond {
                     // "put that card into your hand unless it has the same
                     // name as another card exiled this way".
@@ -11173,6 +11192,15 @@ fn condition(o: &mut Out, c: &Condition) {
         Condition::WasCycled(x) => {
             objects(o, x);
             o.w("was cycled");
+        }
+        Condition::AttackedOrBlocked { what, this_combat } => {
+            objects(o, what);
+            o.w("attacked or blocked");
+            o.w(if *this_combat {
+                "this combat"
+            } else {
+                "this turn"
+            });
         }
         Condition::ThereAre(v) => {
             // The zone each is in is said once, after the last.

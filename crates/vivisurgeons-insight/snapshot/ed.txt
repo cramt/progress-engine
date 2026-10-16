@@ -96,7 +96,7 @@ cost: {G}
 > Cast this spell only before the combat damage step.
 > Target creature gains trample and gets +X/+0 until end of turn, where X is its power. At the beginning of the next end step, destroy that creature if it attacked this turn.
 = BROKE at "damage" after: cast this spell only before the combat
-= BROKE at "attacked" after: target creature gains trample and gets <pt> until end of turn , where x is its power . at the beginning of the next end step , destroy that creature if it
+= BROKE at "this" after: target creature gains trample and gets <pt> until end of turn , where x is its power . at the beginning of the next end step , destroy that creature if it attacked
 
 ## Bladecoil Serpent
 face: Bladecoil Serpent

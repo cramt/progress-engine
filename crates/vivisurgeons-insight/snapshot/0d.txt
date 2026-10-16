@@ -514,7 +514,7 @@ face: Kjeldoran Home Guard
 type: Creature — Human Soldier
 cost: {3}{W}
 > At end of combat, if this creature attacked or blocked this combat, put a -0/-1 counter on this creature and create a 0/1 white Deserter creature token.
-= BROKE at "or" after: at end of combat , if this creature attacked
+= Triggered { trigger: InterveningIf(At(EndOfCombat(Each)), AttackedOrBlocked { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, this_combat: true }), effect: [PutCounters { n: N(1), kind: "+0/-1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(1), signed: false }), colors: [White], types: ["deserter", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Lead Astray
 face: Lead Astray

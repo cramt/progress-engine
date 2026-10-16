@@ -641,6 +641,11 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
                 |p| { p.words("wasn't cast from")?; let zone = zone(p)?; Some(Condition::Not(Box::new(Condition::CastFrom { what: what.clone(), zone }))) },
                 |p| p.words("wasn't cast").map(|_| Condition::Not(Box::new(Condition::WasCast(what.clone())))),
                 |p| p.words("wasn't cycled").map(|_| Condition::Not(Box::new(Condition::WasCycled(what.clone())))),
+                |p| {
+                    p.words("attacked or blocked")?;
+                    let this_combat = p.one_of(&["this combat", "this turn"])? == "this combat";
+                    Some(Condition::AttackedOrBlocked { what: what.clone(), this_combat })
+                },
                 |p| { p.one_of(&["is", "are"])?; p.words("face down")?; Some(Condition::FaceDown(what.clone())) },
                 // "a card is exiled with this land".
                 |p| {

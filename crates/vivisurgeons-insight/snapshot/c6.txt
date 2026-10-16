@@ -824,7 +824,7 @@ cost: {3}{G}{G}{G}
 > At the beginning of your upkeep, put a +1/+1 counter on enchanted creature if it attacked or blocked since your last upkeep. Otherwise, remove a +1/+1 counter from it.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [PutCounters { n: N(6), kind: "+1/+1", on: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }], limits: [] }
-= BROKE at "attacked" after: at the beginning of your upkeep , put a <pt> counter on enchanted creature if it
+= BROKE at "since" after: at the beginning of your upkeep , put a <pt> counter on enchanted creature if it attacked or blocked
 
 ## Shining Shoal
 face: Shining Shoal

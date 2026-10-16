@@ -550,7 +550,7 @@ cost: {1}{W}{U}{B}{R}{G}
 > Flying, trample
 > Whenever O-Kagachi deals combat damage to a player, if that player attacked you during their last turn, exile target nonland permanent that player controls.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }])
-= BROKE at "attacked" after: whenever ~ deals combat damage to a player , if that player
+= BROKE at "you" after: whenever ~ deals combat damage to a player , if that player attacked
 
 ## Ob Nixilis, the Fallen
 face: Ob Nixilis, the Fallen

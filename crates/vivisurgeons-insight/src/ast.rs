@@ -3642,6 +3642,13 @@ pub enum Condition {
     },
     /// "it wasn't cast": cast at all, by anyone.
     WasCast(Objects),
+    /// "this creature attacked or blocked this combat" (Clockwork Beast),
+    /// "… this turn": it was declared as an attacker or a blocker in that
+    /// combat, or in any combat this turn.
+    AttackedOrBlocked {
+        what: Objects,
+        this_combat: bool,
+    },
     /// "an opponent protects it" (Portent Tracker): the player is the
     /// battle's protector (CR 310.9).
     Protects {

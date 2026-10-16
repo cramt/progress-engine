@@ -34,7 +34,7 @@ type: Sorcery
 cost: {4}{W}{W}
 > This spell costs {2} less to cast if a player attacked you during their last turn.
 > Destroy all creatures. You gain 1 life for each creature destroyed this way.
-= BROKE at "attacked" after: this spell costs {2} less to cast if a player
+= BROKE at "you" after: this spell costs {2} less to cast if a player attacked
 = Spell([Destroy { what: Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Marked(Destroyed)], or: None } }, then: [GainLife { who: You, n: N(1) }] }])
 
 ## Black Knight

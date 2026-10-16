@@ -980,7 +980,7 @@ cost: {2}{W}{U}
 > Instant, sorcery, and Dragon spells you control can't be countered.
 > Whenever you cast an instant or sorcery spell from your hand, if Taigam attacked this turn, that spell gains rebound. (Exile the spell as it resolves. At the beginning of your next upkeep, you may cast that card from exile without paying its mana cost.)
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("instant")], [Type("sorcery")], [Subtype("dragon")]], kind: Some(Spell), posts: [Controller(You)], or: None } }, rule: CantBeCountered }])
-= BROKE at "attacked" after: whenever you cast an instant or sorcery spell from your hand , if ~
+= BROKE at "this" after: whenever you cast an instant or sorcery spell from your hand , if ~ attacked
 
 ## Tergrid, God of Fright // Tergrid's Lantern
 face: Tergrid, God of Fright

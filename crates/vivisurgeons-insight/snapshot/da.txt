@@ -252,7 +252,7 @@ face: Ever-Watching Threshold
 type: Enchantment
 cost: {2}{U}
 > Whenever an opponent attacks, if they attacked you and/or a planeswalker you control, draw a card.
-= BROKE at "attacked" after: whenever an opponent attacks , if they
+= BROKE at "you" after: whenever an opponent attacks , if they attacked
 
 ## Fblthp, Impossibly Lost
 face: Fblthp, Impossibly Lost
@@ -896,7 +896,7 @@ cost: {2}{G}{W}{W}
 > Whenever a Wolf you control attacks, if Tolsimir attacked this combat, target creature an opponent controls blocks that Wolf this combat if able.
 = Keywords([Keyword { name: "lifelink", param: None }])
 = BROKE at "voja" after: when ~ enters , create
-= BROKE at "attacked" after: whenever a wolf you control attacks , if ~
+= BROKE at "this" after: whenever a wolf you control attacks , if ~ attacked
 
 ## Traitorous Greed
 face: Traitorous Greed

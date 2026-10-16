@@ -219,7 +219,7 @@ cost: {4}
 > {X}, {T}: Put up to X +1/+0 counters on this creature. This ability can't cause the total number of +1/+0 counters on this creature to be greater than four. Activate only during your upkeep.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(4), kind: "+1/+0" }])
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeBlockedBy(Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [], or: None }) }])
-= BROKE at "or" after: at end of combat , if this creature attacked
+= Triggered { trigger: InterveningIf(At(EndOfCombat(Each)), AttackedOrBlocked { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, this_combat: true }), effect: [RemoveCounters { n: N(1), kind: "+1/+0", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = BROKE at "." after: {X} , {T} : put up to x <pt> counters on this creature
 
 ## Clowning Around

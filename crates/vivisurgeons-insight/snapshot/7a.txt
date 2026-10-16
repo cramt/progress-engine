@@ -1151,7 +1151,7 @@ cost: {2}{G}
 > Reach
 > This creature has indestructible as long as it attacked a battle this turn.
 = Keywords([Keyword { name: "reach", param: None }])
-= BROKE at "attacked" after: this creature has indestructible as long as it
+= BROKE at "a" after: this creature has indestructible as long as it attacked
 
 ## Warping Wurm
 face: Warping Wurm

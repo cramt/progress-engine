@@ -165,7 +165,7 @@ cost: {6}
 > At end of combat, if this creature attacked or blocked this combat, remove a +1/+0 counter from it.
 > {X}, {T}: Put up to X +1/+0 counters on this creature. This ability can't cause the total number of +1/+0 counters on this creature to be greater than seven. Activate only during your upkeep.
 = Static([EntersWithCounters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, n: N(7), kind: "+1/+0" }])
-= BROKE at "or" after: at end of combat , if this creature attacked
+= Triggered { trigger: InterveningIf(At(EndOfCombat(Each)), AttackedOrBlocked { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, this_combat: true }), effect: [RemoveCounters { n: N(1), kind: "+1/+0", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = BROKE at "." after: {X} , {T} : put up to x <pt> counters on this creature
 
 ## Collector Ouphe

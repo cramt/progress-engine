@@ -535,7 +535,7 @@ cost: {1}{R}
 > Enchant creature
 > Enchanted creature has "At the beginning of your end step, sacrifice this creature unless it attacked this turn."
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "attacked" after: enchanted creature has " at the beginning of your end step , sacrifice this creature unless it
+= BROKE at "this" after: enchanted creature has " at the beginning of your end step , sacrifice this creature unless it attacked
 
 ## Liliana's Scorn
 face: Liliana's Scorn
