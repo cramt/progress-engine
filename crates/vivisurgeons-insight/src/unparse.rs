@@ -8898,11 +8898,22 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             clauses(o, then, cx);
         }
         Effect::PreventThatDamage => o.w("prevent that damage"),
-        Effect::Meld { what, into } => {
+        Effect::Meld {
+            what,
+            into,
+            shares_short_name,
+        } => {
             o.w("meld");
             objects(o, what);
             o.w("into");
-            o.w(into);
+            match into.split_once(", ") {
+                Some((_, rest)) if *shares_short_name => {
+                    o.tok(Tok::SelfRef);
+                    o.w(",");
+                    o.w(rest);
+                }
+                _ => o.w(into),
+            }
         }
         Effect::ProducesInstead { what, mana: m } => {
             obj_subj(o, what, "produce");

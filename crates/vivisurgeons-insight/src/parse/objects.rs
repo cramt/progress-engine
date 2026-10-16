@@ -1013,7 +1013,7 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
         // `Granter`: the string is the same either way.
         |p| { p.word("named")?; p.tok(&Tok::SelfRef)?; Some(Post::Named(PrintedName(p.name.to_string()))) },
         // "a creature named Hanweir Garrison": another card, by its name.
-        |p| { p.word("named")?; card_name(p, &[",", "with", "and"]).map(Post::NamedCard) },
+        |p| { p.word("named")?; super::effects::named_card(p).map(Post::NamedCard) },
         |p| { p.one_of(&["that target", "that targets"])?; objects(p).map(|o| Post::Targets(Box::new(o))) },
         // "a spell that's exactly two colors", "that isn't exactly two colors".
         |p| {

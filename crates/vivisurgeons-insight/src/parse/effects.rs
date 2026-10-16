@@ -2016,8 +2016,17 @@ fn effect_more(p: &mut P) -> Option<Effect> {
             p.word("meld")?;
             let what = objects(p)?;
             p.word("into")?;
-            let into = card_name(p, &[])?;
-            Some(Effect::Meld { what, into })
+            // "meld them into ~, Gaea Incarnate": the melded card shares the
+            // short name the lexer marked (Titania, Voice of Gaea).
+            let shares_short_name = p.attempt(|p| p.tok(&Tok::SelfRef)).is_some();
+            let into = if shares_short_name {
+                p.tok(&Tok::Comma)?;
+                let short = p.name.split(',').next()?.to_lowercase();
+                format!("{short}, {}", card_name(p, &[])?)
+            } else {
+                card_name(p, &[])?
+            };
+            Some(Effect::Meld { what, into, shares_short_name })
         },
         // "it produces {C} instead of any other type and amount".
         |p| {
@@ -2065,6 +2074,69 @@ pub(super) fn card_name(p: &mut P, stops: &[&str]) -> Option<String> {
     }
     (!words.is_empty() && words.last().map(String::as_str) != Some(","))
         .then(|| words.join(" ").replace(" ,", ","))
+}
+
+/// The name after "a creature named": to a comma, "with" or "and", unless
+/// the name itself goes on past one. "a creature named Bruna, the Fading
+/// Light, exile them" and "an artifact named The Mightstone and Weakstone,
+/// exile them": a run of words after the stop that ends at a comma before an
+/// effect's first word belongs to the name (the lexer folds case, so the
+/// capitals that would say so are gone).
+pub(super) fn named_card(p: &mut P) -> Option<String> {
+    const STOPS: [&str; 3] = [",", "with", "and"];
+    const EFFECT_STARTS: [&str; 10] = [
+        "exile",
+        "you",
+        "then",
+        "put",
+        "reveal",
+        "create",
+        "draw",
+        "return",
+        "sacrifice",
+        "search",
+    ];
+    // "an artifact named …" is one card, so an "and" may be inside its name;
+    // "creatures named Power Plant Worker and Tower Worker" are two.
+    let one = p.i >= 3 && matches!(p.t.get(p.i - 3), Some(Tok::Word(w)) if w == "a" || w == "an");
+    let mut name = card_name(p, &STOPS)?;
+    loop {
+        let start = p.i;
+        let joint = match p.peek() {
+            Some(Tok::Comma) => ",",
+            Some(Tok::Word(w)) if w == "and" && one => "and",
+            _ => break,
+        };
+        let mut run: Vec<String> = Vec::new();
+        let mut j = start + 1;
+        while let Some(Tok::Word(w)) = p.t.get(j) {
+            if w == "and" && joint == "," {
+                break;
+            }
+            run.push(w.clone());
+            j += 1;
+        }
+        let ends = matches!(p.t.get(j), Some(Tok::Comma))
+            && matches!(p.t.get(j + 1), Some(Tok::Word(w)) if EFFECT_STARTS.contains(&w.as_str()));
+        let refused = ["a", "an", "named", "this", "that", "target"];
+        if run.is_empty()
+            || run.len() > 4
+            || !ends
+            || EFFECT_STARTS.contains(&run[0].as_str())
+            || run.iter().any(|w| refused.contains(&w.as_str()))
+        {
+            break;
+        }
+        for _ in start..j {
+            p.bump();
+        }
+        name = if joint == "," {
+            format!("{name}, {}", run.join(" "))
+        } else {
+            format!("{name} and {}", run.join(" "))
+        };
+    }
+    Some(name)
 }
 
 fn dig_verb(p: &mut P) -> Option<DigVerb> {

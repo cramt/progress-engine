@@ -40,7 +40,7 @@ face: Angrath's Fury
 type: Sorcery
 cost: {3}{B}{R}
 > Destroy target creature. Angrath's Fury deals 3 damage to target player or planeswalker. You may search your library and/or graveyard for a card named Angrath, Minotaur Pirate, reveal it, and put it into your hand. If you search your library this way, shuffle.
-= BROKE at "reveal" after: destroy target creature . ~ deals 3 damage to target player or planeswalker . you may search your library and/or graveyard for a card named angrath , minotaur pirate ,
+= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }, Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(3), to: [Or([Player(Target), Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("planeswalker")]], kind: None, posts: [], or: None } })])] }, May { who: You, then: [Search { who: You, zones: [Library(You), Graveyard(You)], what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [NamedCard("angrath, minotaur pirate")], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }] }, If { cond: ThisWay(Searches { who: You, zone: Library(You) }), then: [Shuffle(You)] }])
 
 ## Arcane Laboratory
 face: Arcane Laboratory
@@ -970,7 +970,7 @@ cost: {3}{G}
 > When Vanille enters, mill two cards, then return a permanent card from your graveyard to your hand.
 > At the beginning of your first main phase, if you both own and control Vanille and a creature named Fang, Fearless l'Cie, you may pay {3}{B}{G}. If you do, exile them, then meld them into Ragnarok, Divine Deliverance.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Mill { who: You, n: N(2) }, Move { what: Objects { quant: One, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
-= BROKE at "l'cie" after: at the beginning of your first main phase , if you both own and control ~ and a creature named fang , fearless
+= Triggered { trigger: InterveningIf(At(PrecombatMain(Yours)), OwnAndControl([Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NamedCard("fang, fearless l'cie")], or: None } }])), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["3", "B", "G"]))] }] }, IfYouDo([Exile(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Meld { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, into: "ragnarok, divine deliverance", shares_short_name: false }])], limits: [] }
 
 ## Verduran Enchantress
 face: Verduran Enchantress

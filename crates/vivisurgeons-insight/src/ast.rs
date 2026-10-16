@@ -2130,6 +2130,9 @@ pub enum Effect {
     Meld {
         what: Objects,
         into: String,
+        /// The melded card's name begins with this card's short name, which
+        /// the text says as ~ ("meld them into ~, Gaea Incarnate").
+        shares_short_name: bool,
     },
     /// "it produces {C} instead of any other type and amount".
     ProducesInstead {
