@@ -817,21 +817,20 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             let b = objects(p)?;
             p.word("each")?;
             let v = predicate_static(p, &a)?;
-            let [s] = v.as_slice() else { return None };
-            let inner = match s {
-                Static::Where { inner, .. } => &**inner,
-                s => s,
-            };
-            let Static::Modify { .. } = inner else { return None };
-            let mut t = s.clone();
-            match &mut t {
-                Static::Where { inner, .. } => {
-                    if let Static::Modify { what, .. } = &mut **inner { *what = b; }
+            let mut t = v.clone();
+            for s in &mut t {
+                match s {
+                    Static::Where { inner, .. } => match &mut **inner {
+                        Static::Modify { what, .. } => *what = b.clone(),
+                        _ => return None,
+                    },
+                    Static::Modify { what, .. } => *what = b.clone(),
+                    _ => return None,
                 }
-                Static::Modify { what, .. } => *what = b,
-                _ => return None,
             }
-            Some(vec![s.clone(), t])
+            let mut v = v;
+            v.extend(t);
+            Some(v)
         },
         // "Equipped creature has ward {2}, is an Assassin in addition to its
         // other types, and can't be blocked": one subject, several predicates.
@@ -1040,6 +1039,7 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
                     |p| objects(p).map(|o| Amount::CountOf(Box::new(o))),
                 )
             });
+            let has_per = per.is_some();
             let has = p.attempt(|p| { p.word("and")?; p.verb("have")?; keyword_list(p) }).unwrap_or_default();
             let modify = Static::Modify { what: what.clone(), pt: Some(pt), has, per };
             // "This creature gets -X/-X, where X is your life total."
@@ -1047,6 +1047,18 @@ fn predicate_static(p: &mut P, what: &Objects) -> Option<Vec<Static>> {
                 return Some(vec![Static::Where { inner: Box::new(modify), x }]);
             }
             let mut v = vec![modify];
+            // "get +1/+1 for each creature you control and +1/+1 for each Aura
+            // you control" (Eidolon of Countless Battles): a bonus for each.
+            if has_per {
+                while let Some((pt, of)) = p.attempt(|p| {
+                    p.word("and")?;
+                    let pt = pt_signed(p)?;
+                    p.words("for each")?;
+                    Some((pt, objects(p)?))
+                }) {
+                    v.push(Static::Modify { what: what.clone(), pt: Some(pt), has: vec![], per: Some(Amount::CountOf(Box::new(of))) });
+                }
+            }
             // "gets +2/+2 and is goaded".
             if p.attempt(|p| p.words("and is goaded")).is_some() {
                 v.push(Static::Goaded(what.clone()));

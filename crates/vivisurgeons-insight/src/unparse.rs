@@ -11317,27 +11317,51 @@ fn statics(o: &mut Out, ss: &[Static]) {
         start = o.0.len();
         // "This creature and enchanted creature each get +X/+X, where X is
         // …": one static said of two subjects, a static each in the tree.
-        if let (Some(a), Some(next)) = (two_subject_static(s), ss.get(i + 1)) {
-            if let Some(b) = two_subject_static(next) {
-                if a != b && with_static_subject(s, b) == *next {
+        // "… each get +1/+1 for each creature you control and +1/+1 for each
+        // Aura you control" (Eidolon of Countless Battles): a run of bonuses
+        // for each subject.
+        if let Some(a) = two_subject_static(s) {
+            let run = ss[i..]
+                .iter()
+                .take_while(|t| two_subject_static(t) == Some(a))
+                .count();
+            let rest = ss.get(i + run..i + 2 * run);
+            let b = rest.and_then(|r| two_subject_static(&r[0]));
+            if let (Some(rest), Some(b)) = (rest, b) {
+                let mine = &ss[i..i + run];
+                if a != b
+                    && mine
+                        .iter()
+                        .zip(rest)
+                        .all(|(m, r)| with_static_subject(m, b) == *r)
+                {
                     let apart = out(|o| {
-                        static_full(o, s);
-                        syn::joiner(o, false);
-                        static_full(o, next);
+                        for (k, t) in mine.iter().chain(rest).enumerate() {
+                            if k > 0 {
+                                syn::joiner(o, false);
+                            }
+                            static_full(o, t);
+                        }
                     });
                     let joined = out(|o| {
                         objects(o, a);
                         o.w("and");
                         objects(o, b);
                         o.w("each");
-                        let pred = out(|o| static_predicate(o, s));
-                        o.0.extend(pred.0.into_iter().map(|p| match p {
-                            Piece::Verb(v, _) => Piece::Verb(v, Num::Pl),
-                            p => p,
-                        }));
+                        for (k, t) in mine.iter().enumerate() {
+                            if k > 0 {
+                                o.w("and");
+                            }
+                            let pred = out(|o| static_predicate(o, t));
+                            o.0.extend(pred.0.into_iter().filter_map(|p| match p {
+                                Piece::Verb(_, _) if k > 0 => None,
+                                Piece::Verb(v, _) => Some(Piece::Verb(v, Num::Pl)),
+                                p => Some(p),
+                            }));
+                        }
                     });
                     syn::gapped(o, apart, joined);
-                    i += 2;
+                    i += 2 * run;
                     continue;
                 }
             }
