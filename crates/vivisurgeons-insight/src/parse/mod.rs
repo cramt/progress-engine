@@ -1280,7 +1280,18 @@ pub(super) fn after_clause(clause: &Effect, cond: &mut Condition) {
     let mut named = Named(Vec::new());
     clause.clone().walk(&mut named);
     let [one] = named.0.as_slice() else { return };
-    let Some(to) = clause_object(&one.quant) else {
+    // "counter that spell if it has the same mana value as the revealed
+    // card" (Counterbalance): the condition's "it" is the clause's "that
+    // spell", the one object the clause names. The tree holds the condition
+    // first, so a bare `Antecedent` there reached past "that spell" to the
+    // revealed card, and the spell was compared with itself.
+    let back = one.quant == Quant::Antecedent && one.filter != Filter::default();
+    let to = if back {
+        Some(Quant::ClauseObject)
+    } else {
+        clause_object(&one.quant)
+    };
+    let Some(to) = to else {
         return;
     };
     others_than_clause_object(cond, &to, one);
@@ -1633,6 +1644,9 @@ fn refer(
             match o.quant {
                 Quant::SelfRef => self.self_pending = true,
                 Quant::Triggering => {}
+                // A trailing condition's "it": the clause's own object, said
+                // after it in the text, no noun of its own ([trailing-if]).
+                Quant::ClauseObject => {}
                 _ if among_trigger => {}
                 // The tokens said again: still only tokens since the window
                 // closed.
