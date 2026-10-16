@@ -2972,6 +2972,12 @@ fn measure(o: &mut Out, a: &Amount) {
             let b = out(|o| syn::number(o, *k));
             syn::sum(o, a, b);
         }
+        // Read only after "draws"; said here as a sum for completeness.
+        Amount::PlusEach(m, each) => {
+            measure(o, m);
+            o.w("plus one for each");
+            each_time(o, each, false);
+        }
         Amount::CountOf(x) => {
             o.w("the number of");
             objects(o, x);
@@ -5967,6 +5973,11 @@ fn dur(o: &mut Out, d: &Duration) {
 /// "draw two cards", "draw cards equal to …".
 fn cards(o: &mut Out, n: &Amount) {
     match n {
+        Amount::PlusEach(a, each) => {
+            cards(o, a);
+            o.w("plus an additional card for each");
+            each_time(o, each, false);
+        }
         // "mills half their library, rounded down".
         Amount::Half { of, round_up } if matches!(&**of, Amount::CountOf(x) if matches!(&x.filter.posts[..], [Post::In(Zone::Library(_))])) =>
         {

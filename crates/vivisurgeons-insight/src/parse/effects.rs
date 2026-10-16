@@ -600,6 +600,16 @@ fn effect_first(p: &mut P) -> Option<Effect> {
 fn effect_main(p: &mut P) -> Option<Effect> {
     alt!(p;
         // draw
+        // "draws X cards plus an additional card for each time they've cast
+        // a commander from the command zone this game" (Commander's Insight).
+        |p| {
+            let who = subject_player(p);
+            p.verb("draw")?;
+            let n = cards(p)?;
+            p.words("plus an additional card for each")?;
+            let each = super::amounts::each_time(p)?;
+            Some(Effect::Draw { who, n: Amount::PlusEach(Box::new(n), Box::new(each)) })
+        },
         |p| { let who = subject_player(p); p.verb("draw")?; let n = cards(p)?; Some(Effect::Draw { who, n }) },
         |p| { let who = subject_player(p); p.verb("draw")?; p.words("cards equal to")?; let n = measure(p)?; Some(Effect::Draw { who, n }) },
         // discard

@@ -230,6 +230,10 @@ impl Walk for Amount {
             Amount::Plus(f0, _) => {
                 Walk::walk(&mut **f0, v);
             }
+            Amount::PlusEach(f0, f1) => {
+                Walk::walk(&mut **f0, v);
+                Walk::walk(&mut **f1, v);
+            }
             Amount::Greatest { among, .. } => {
                 Walk::walk(&mut **among, v);
             }

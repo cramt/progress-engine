@@ -463,6 +463,10 @@ pub enum Amount {
     Twice(Box<Amount>),
     /// "that many plus one".
     Plus(Box<Amount>, u32),
+    /// "X cards plus an additional card for each time they've cast a
+    /// commander from the command zone this game": the first amount, and
+    /// one more for each the second counts.
+    PlusEach(Box<Amount>, Box<Amount>),
     /// "the greatest power among creatures you control".
     Greatest {
         stat: Stat,

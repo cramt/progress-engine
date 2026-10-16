@@ -237,7 +237,7 @@ face: Commander's Insight
 type: Instant
 cost: {X}{U}{U}{U}
 > Target player draws X cards plus an additional card for each time they've cast a commander from the command zone this game.
-= BROKE at "additional" after: target player draws x cards plus an
+= Spell([Draw { who: Target, n: PlusEach(X, TimesCast { who: That, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Commander), posts: [], or: None } }, zone: CommandZone }) }])
 
 ## Confounding Riddle
 face: Confounding Riddle
