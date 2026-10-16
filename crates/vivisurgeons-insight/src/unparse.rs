@@ -7408,15 +7408,31 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             dur(o, d);
         }
         Effect::PlayerRestrict { who, rule, dur: d } => {
-            if *rule == PlayerRule::LifeTotalCantChange {
-                whose(o, who);
-                o.w("life total can't change");
+            let body = out(|o| {
+                if *rule == PlayerRule::LifeTotalCantChange {
+                    whose(o, who);
+                    o.w("life total can't change");
+                } else {
+                    player(o, who);
+                    o.w("can't");
+                    player_rule(o, rule);
+                }
+            });
+            let after = out(|o| {
+                o.add(body.clone());
+                dur(o, d);
+            });
+            if *d == Duration::Permanent {
+                o.add(after);
             } else {
-                player(o, who);
-                o.w("can't");
-                player_rule(o, rule);
+                // "Until your next turn, target player can't cast …".
+                let lead = out(|o| {
+                    dur(o, d);
+                    o.w(",");
+                    o.add(body);
+                });
+                syn::position(o, after, lead);
             }
-            dur(o, d);
         }
         Effect::PhaseOut(x) => obj_subj(o, x, "phase out"),
         Effect::Instead { cond, then } => {

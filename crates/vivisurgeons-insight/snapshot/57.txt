@@ -4,7 +4,7 @@ type: Instant
 cost: {1}{W}
 > Until end of turn, target player can't cast instant or sorcery spells, and that player can't activate abilities that aren't mana abilities.
 > Draw a card.
-= BROKE at "that" after: until end of turn , target player can't cast instant or sorcery spells , and
+= BROKE at "that" after: until end of turn , target player can't cast instant or sorcery spells , and that player can't activate abilities
 = Spell([Draw { who: You, n: N(1) }])
 
 ## Alchemist's Refuge

@@ -66,7 +66,7 @@ cost: {2}{W}{W}
 > Until your next turn, your opponents can't cast spells from anywhere other than their hands.
 > Exile Avatar's Wrath.
 = Spell([Choose(Objects(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), ActionOn { who: You, name: "airbend", what: Objects { quant: All, filter: Filter { alts: [[OtherThan(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Type("creature")]], kind: None, posts: [], or: None } } }])
-= BROKE at "." after: until your next turn , your opponents can't cast spells from anywhere other than their hands
+= Spell([PlayerRestrict { who: EachOpponent, rule: CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(AnywhereOtherThan(Hand(That)))], or: None } }), dur: UntilYourNextTurn }])
 = Spell([Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 
 ## Bamboozle

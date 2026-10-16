@@ -349,7 +349,7 @@ new row takes a new one.
 | Id | Text | Tree | Status |
 |---|---|---|---|
 | [during-default] | a duration inside a `During` block | defaults to `Permanent` | open |
-| [lead-permission-duration] | "Until end of turn, you may play that card" (Ire Shaman), "Until the end of your next turn, you may play those cards", "For as long as that card remains exiled, its owner may play it" | `May { then: [Cast { dur }] }`, the duration on the permission, no `During` | settled: the permission lasts that long, the same as "you may play that card until end of turn"; a `During` around it gave a lasting permission (`dur: Permanent`) inside a block nothing else reads. Rendered with the duration after the cast or leading the sentence (`syn::position`). 92 corpus trees |
+| [lead-permission-duration] | "Until end of turn, you may play that card", "Until your next turn, your opponents can't cast spells from anywhere other than their hands" (Ire Shaman), "Until the end of your next turn, you may play those cards", "For as long as that card remains exiled, its owner may play it" | `May { then: [Cast { dur }] }`, the duration on the permission, no `During`; a player restriction is likewise `PlayerRestrict { dur }` | settled: the permission lasts that long, the same as "you may play that card until end of turn"; a `During` around it gave a lasting permission (`dur: Permanent`) inside a block nothing else reads. Rendered with the duration after the cast or leading the sentence (`syn::position`). 92 corpus trees |
 
 ## Lexing
 

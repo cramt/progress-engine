@@ -575,6 +575,10 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
                     return Some(then);
                 }
             }
+            if let [Effect::PlayerRestrict { dur: d @ Duration::Permanent, .. }] = &mut then[..] {
+                *d = dur;
+                return Some(then);
+            }
             Some(vec![Effect::During { dur, then }])
         },
         // "For each opponent, create …", "For each of those cards, pay 4 life

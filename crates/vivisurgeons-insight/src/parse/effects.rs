@@ -1490,7 +1490,13 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         |p| {
             let who = player(p)?;
             let rule = player_rule(p)?;
-            let dur = duration(p)?;
+            // "Until your next turn, target player can't cast noncreature
+            // spells" (Hope of Ghirapur): the duration said first.
+            let dur = match p.attempt(duration) {
+                Some(d) => d,
+                None if p.during => Duration::Permanent,
+                None => return None,
+            };
             Some(Effect::PlayerRestrict { who, rule, dur })
         },
         |p| {

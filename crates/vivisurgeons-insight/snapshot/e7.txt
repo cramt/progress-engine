@@ -268,7 +268,7 @@ cost: {W}
 > Aftermath (Cast this spell only from your graveyard. Then exile it.)
 > Choose a card name. Until your next turn, your opponents can't cast spells with the chosen name.
 = Keywords([Keyword { name: "aftermath", param: None }])
-= BROKE at "." after: choose a card name . until your next turn , your opponents can't cast spells with the chosen name
+= Spell([Choose(CardName), PlayerRestrict { who: EachOpponent, rule: CantCast(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [WithChosenName], or: None } }), dur: UntilYourNextTurn }])
 
 ## Fallen Ferromancer
 face: Fallen Ferromancer
