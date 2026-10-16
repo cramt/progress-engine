@@ -2792,6 +2792,11 @@ fn cost(o: &mut Out, c: &Cost) {
             }
         }
         Cost::DiscardHand => o.w("discard your hand"),
+        Cost::AmountOfMana(n) => {
+            o.w("pay");
+            amount(o, n);
+            o.w("mana");
+        }
         Cost::PayEnergy(n) => {
             o.w("pay");
             amount(o, n);
@@ -6951,6 +6956,10 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             subj(o, who, "pay", cx);
             match &c[..] {
                 [Cost::PayLife(n)] => life(o, n),
+                [Cost::AmountOfMana(n)] => {
+                    amount(o, n);
+                    o.w("mana");
+                }
                 [Cost::PayEnergy(n)] => {
                     amount(o, n);
                     o.tok(Tok::Sym("E".into()));

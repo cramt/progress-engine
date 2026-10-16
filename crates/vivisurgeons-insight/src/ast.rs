@@ -235,6 +235,9 @@ pub enum Gift {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Cost {
     Mana(Mana),
+    /// "pay any amount of mana" (Karn, Living Legacy): mana of any kind,
+    /// as much as the amount says; "that many" after it is the amount paid.
+    AmountOfMana(Amount),
     Tap,
     Untap,
     Sacrifice(Objects),

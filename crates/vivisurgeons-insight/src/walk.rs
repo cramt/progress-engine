@@ -554,6 +554,9 @@ impl Walk for Cost {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
         match self {
+            Cost::AmountOfMana(f0) => {
+                Walk::walk(f0, v);
+            }
             Cost::Sacrifice(f0) => {
                 Walk::walk(f0, v);
             }

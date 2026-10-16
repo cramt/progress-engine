@@ -481,7 +481,7 @@ face: Liege of the Hollows
 type: Creature — Spirit
 cost: {2}{G}{G}
 > When this creature dies, each player may pay any amount of mana. Then each player creates a number of 1/1 green Squirrel creature tokens equal to the amount of mana they paid this way.
-= BROKE at "mana" after: when this creature dies , each player may pay any amount of
+= BROKE at "they" after: when this creature dies , each player may pay any amount of mana . then each player creates a number of <pt> green squirrel creature tokens equal to the amount of mana
 
 ## Light of Sanction
 face: Light of Sanction
