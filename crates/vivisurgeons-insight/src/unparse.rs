@@ -6395,6 +6395,7 @@ fn restriction(o: &mut Out, r: &Restriction, n: Num) {
         Restriction::CantAttack => o.w("can't attack"),
         Restriction::CantAttackOrBlock => o.w("can't attack or block"),
         Restriction::CantBeBlocked => o.w("can't be blocked"),
+        Restriction::CantBeAttacked => o.w("can't be attacked"),
         Restriction::CantBeBlockedExceptBy(f) => {
             o.w("can't be blocked except by");
             filter(o, f, Num::Pl);

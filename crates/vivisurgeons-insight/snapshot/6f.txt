@@ -771,7 +771,7 @@ cost: {4}{G}{G}
 > Whenever a creature you control deals combat damage during your turn, put that many +1/+1 counters on it. (It must survive to get the counters.)
 > You may cast this card from your graveyard by removing six counters from among creatures you control in addition to paying its other costs.
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "during" after: whenever a creature you control deals combat damage
+= Triggered { trigger: When(While { event: DealsCombatDamage(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), cond: ItsYourTurn }), effect: [PutCounters { n: ThatMany, kind: "+1/+1", on: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = BROKE at "removing" after: you may cast this card from your graveyard by
 
 ## Razor Pendulum

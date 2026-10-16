@@ -445,6 +445,7 @@ pub(super) fn restriction_bare(p: &mut P) -> Option<Restriction> {
         |p| p.words("can't attack").map(|_| Restriction::CantAttack),
         |p| { p.words("can't be blocked except by")?; filter(p).map(Restriction::CantBeBlockedExceptBy) },
         |p| p.words("can't be blocked").map(|_| Restriction::CantBeBlocked),
+        |p| p.words("can't be attacked").map(|_| Restriction::CantBeAttacked),
         |p| p.words("can't be countered").map(|_| Restriction::CantBeCountered),
         |p| p.words("can't be sacrificed").map(|_| Restriction::CantBeSacrificed),
         |p| p.words("can't be regenerated").map(|_| Restriction::CantBeRegenerated),

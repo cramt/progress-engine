@@ -2666,6 +2666,9 @@ pub enum Restriction {
     CantAttackOrBlock,
     CantBeBlocked,
     CantBeBlockedExceptBy(Filter),
+    /// "can't be attacked" (The Aetherspark): no creature may attack it, though
+    /// it is a planeswalker (CR 508.1b).
+    CantBeAttacked,
     CantBeCountered,
     /// "can't be sacrificed": no effect or cost may sacrifice it.
     CantBeSacrificed,
