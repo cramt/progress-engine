@@ -1172,9 +1172,44 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
             Some(each) => p.attempt(|p| those_players(p, each)),
             None => None,
         };
-        let Some(s) = s.or_else(|| p.attempt(sentence)) else {
+        let Some(mut s) = s.or_else(|| p.attempt(sentence)) else {
             break;
         };
+        // "You may cast the exiled card without paying its mana cost if it's
+        // an instant spell …. If you don't, put that card into your hand"
+        // (Discover the Impossible): the card goes to hand whether the "if"
+        // failed or the option was declined, so this is the cast (or put)
+        // the option offered not done ([didnt-put]), not an `IfYouDont`.
+        if let ([Effect::IfYouDont(then)], Some(Effect::If { then: opt, .. })) =
+            (&mut s[..], v.last())
+        {
+            if let [Effect::May { who, then: offered }] = &opt[..] {
+                let not_done = match &offered[..] {
+                    [Effect::Cast { what, .. }] => Some(Event::Casts {
+                        who: who.clone(),
+                        what: what.clone(),
+                    }),
+                    [Effect::Move {
+                        what,
+                        from: None,
+                        to,
+                        ..
+                    }] => Some(Event::Puts {
+                        who: who.clone(),
+                        what: what.clone(),
+                        to: to.clone(),
+                    }),
+                    _ => None,
+                };
+                if let Some(ev) = not_done {
+                    let then = std::mem::take(then);
+                    s = vec![Effect::If {
+                        cond: Condition::Not(Box::new(Condition::ThisWay(Box::new(ev)))),
+                        then,
+                    }];
+                }
+            }
+        }
         // "When you do, put two +1/+1 counters … on target attacking
         // creature. It becomes an Angel …": "it" is what the reflexive
         // trigger targeted, so the sentence is that trigger's too.
@@ -1221,7 +1256,6 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
                 continue;
             }
         }
-        let mut s = s;
         listed(&v, &mut s);
         // "Tyvar gains indestructible until end of turn. Tap it.": the only
         // object the sentence before names is the card itself, so "it" is.

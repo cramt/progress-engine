@@ -1403,6 +1403,16 @@ mod syn {
 
     /// "if you didn't cast it this way" and "If you don't cast it": the
     /// cast the same ability offered, not done.
+    /// Named rewrite [didnt-option]: "You may cast it … if it's an instant
+    /// spell …. If you don't, put that card into your hand" (Discover the
+    /// Impossible) is "If you don't cast it": the option the sentence before
+    /// offered, said by its verb or not.
+    pub fn dont_alone(full: Out) -> Out {
+        let mut o = Out::default();
+        alt(&mut o, vec![full, of("you don't")]);
+        o
+    }
+
     pub fn didnt_cast(o: &mut Out, didnt: Out, dont: Out) {
         alt(o, vec![didnt, dont]);
     }
@@ -10978,7 +10988,7 @@ fn not_condition(o: &mut Out, c: &Condition) {
                     objects(o, what);
                     syn::this_way_or_not(o);
                 });
-                syn::didnt_cast(o, didnt, dont);
+                syn::didnt_cast(o, didnt, syn::dont_alone(dont));
             }
             Event::Casts { who, what } | Event::Copies { who, what } => {
                 player(o, who);
@@ -11002,11 +11012,14 @@ fn not_condition(o: &mut Out, c: &Condition) {
                 o.w("this way");
             }
             Event::Puts { who, what, to } => {
-                player(o, who);
-                o.w("don't put");
-                objects(o, what);
-                put_to(o, to, false, false, &None);
-                syn::this_way_or_not(o);
+                let full = out(|o| {
+                    player(o, who);
+                    o.w("don't put");
+                    objects(o, what);
+                    put_to(o, to, false, false, &None);
+                    syn::this_way_or_not(o);
+                });
+                o.add(syn::dont_alone(full));
             }
             e => {
                 o.w("not");
