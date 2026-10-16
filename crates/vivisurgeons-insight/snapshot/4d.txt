@@ -632,7 +632,7 @@ cost: {1}{G}
 > Disguise {G} (You may cast this card face down for {3} as a 2/2 creature with ward {2}. Turn it face up any time for its disguise cost.)
 > When this creature is turned face up, search your library for a land card with a basic land type, reveal it, put it into your hand, then shuffle.
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["G"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Type("land")]], kind: Some(Card), posts: [WithBasicLandType], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You)], limits: [] }
 
 ## Nettle Sentinel
 face: Nettle Sentinel

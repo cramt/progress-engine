@@ -1017,7 +1017,7 @@ cost: {1}{R}{R}
 > Morph {3}{R}{R} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 > When this creature is turned face up, it gets +6/+6 and gains trample until end of turn. You skip your next turn.
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["3", "R", "R"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= BROKE at "your" after: when this creature is turned face up , it gets <pt> and gains trample until end of turn . you skip
 
 ## Velomachus Lorehold
 face: Velomachus Lorehold

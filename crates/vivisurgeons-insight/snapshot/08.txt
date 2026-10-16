@@ -271,7 +271,7 @@ cost: {3}{W}{W}
 > Disguise {2}{W} (You may cast this card face down for {3} as a 2/2 creature with ward {2}. Turn it face up any time for its disguise cost.)
 > When this creature is turned face up, creatures you control gain hexproof until end of turn. Untap them.
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["2", "W"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "hexproof", param: None }], dur: UntilEndOfTurn }, Untap(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Ethersworn Sphinx
 face: Ethersworn Sphinx

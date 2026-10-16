@@ -460,7 +460,7 @@ cost: {1}{R}
 > When this creature is turned face up, exile the top card of your library. Until end of turn, you may play that card.
 = Keywords([Keyword { name: "menace", param: None }])
 = Keywords([Keyword { name: "megamorph", param: Some(Cost([Mana(Mana(["R"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Exile(Objects { quant: N(N(1)), filter: Filter { alts: [], kind: Some(Card), posts: [In(TopOfLibrary(You))], or: None } }), During { dur: UntilEndOfTurn, then: [May { who: You, then: [Cast { verb: Play, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, payment: ManaCost, dur: Permanent }] }] }], limits: [] }
 
 ## Jade Avenger
 face: Jade Avenger

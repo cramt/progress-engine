@@ -77,7 +77,7 @@ cost: {2}{W}{W}
 > When this creature is turned face up, target creature you control gains protection from the color of your choice until end of turn.
 = Keywords([Keyword { name: "flying", param: None }])
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["3", "W"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: None, gains: [Keyword { name: "protection", param: Some(Color(ChoiceOf(You))) }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Bathe in Dragonfire
 face: Bathe in Dragonfire

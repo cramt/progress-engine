@@ -761,7 +761,7 @@ cost: {1}{R}
 > Disguise {R} (You may cast this card face down for {3} as a 2/2 creature with ward {2}. Turn it face up any time for its disguise cost.)
 > Whenever this creature or another creature you control is turned face up, that creature deals damage equal to its power to each opponent.
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["R"]))])) }])
-= BROKE at "turned" after: whenever this creature or another creature you control is
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [Damage { source: Some(Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), n: PowerOf(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }), to: [Player(EachOpponent)] }], limits: [] }
 
 ## Quilled Greatwurm
 face: Quilled Greatwurm

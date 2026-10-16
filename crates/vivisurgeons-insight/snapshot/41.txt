@@ -208,7 +208,7 @@ cost: {R}{W}
 > When this creature is turned face up, create two tapped 1/1 white Dog creature tokens.
 = Keywords([Keyword { name: "vigilance", param: None }])
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["R/W", "R/W"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Create { who: You, n: N(2), token: Token { tapped: true, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["dog", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Dukhara Scavenger
 face: Dukhara Scavenger

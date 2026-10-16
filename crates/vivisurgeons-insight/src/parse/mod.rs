@@ -958,6 +958,7 @@ fn trigger_object(e: &Event) -> Option<Objects> {
         | Event::ReturnedToHand(what)
         | Event::LeftUnderControlOf { what, .. }
         | Event::BecomesTapped(what)
+        | Event::TurnedFaceUp(what)
         | Event::TappedForMana(what)
         | Event::TapsForMana { what, .. }
         | Event::TapsFor { what, .. }

@@ -782,7 +782,7 @@ cost: {4}{R}
 > Disguise {4}{R} (You may cast this card face down for {3} as a 2/2 creature with ward {2}. Turn it face up any time for its disguise cost.)
 > When this creature enters or is turned face up, up to one target creature gets +2/+0 until end of turn.
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["4", "R"]))])) }])
-= BROKE at "face" after: when this creature enters or is turned
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(2), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Oona, Queen of the Fae
 face: Oona, Queen of the Fae

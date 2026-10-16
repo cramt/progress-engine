@@ -443,7 +443,7 @@ cost: {G}{U}
 > When this creature is turned face up, you may return another target creature to its owner's hand.
 = Keywords([Keyword { name: "flying", param: None }])
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["1", "G", "U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Move { what: Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }] }], limits: [] }
 
 ## Ichorclaw Myr
 face: Ichorclaw Myr

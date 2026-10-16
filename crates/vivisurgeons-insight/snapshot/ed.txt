@@ -760,7 +760,7 @@ type: Creature — Dog Warrior
 cost: {3}{G}
 > Whenever another permanent you control is turned face up, if it's a creature, put two +1/+1 counters on it.
 > Megamorph {3}{G}{G} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its megamorph cost and put a +1/+1 counter on it.)
-= BROKE at "face" after: whenever another permanent you control is turned
+= Triggered { trigger: InterveningIf(When(TurnedFaceUp(Objects { quant: Another, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } })), Is { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }), effect: [PutCounters { n: N(2), kind: "+1/+1", on: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = Keywords([Keyword { name: "megamorph", param: Some(Cost([Mana(Mana(["3", "G", "G"]))])) }])
 
 ## Samite Blessing

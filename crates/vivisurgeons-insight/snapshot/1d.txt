@@ -694,7 +694,7 @@ cost: {B}
 > When this creature is turned face up, target player loses 2 life.
 = Keywords([Keyword { name: "deathtouch", param: None }])
 = Keywords([Keyword { name: "morph", param: Some(Cost([Reveal(Objects { quant: One, filter: Filter { alts: [[Color(Black)]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [LoseLife { who: Target, n: N(2) }], limits: [] }
 
 ## Sage of Hours
 face: Sage of Hours

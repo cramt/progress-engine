@@ -1560,6 +1560,9 @@ impl Walk for Event {
             Event::BecomesTapped(f0) => {
                 Walk::walk(f0, v);
             }
+            Event::TurnedFaceUp(f0) => {
+                Walk::walk(f0, v);
+            }
             Event::BecomesTarget { what, of } => {
                 Walk::walk(what, v);
                 if let Some(x0) = (of).as_mut() {

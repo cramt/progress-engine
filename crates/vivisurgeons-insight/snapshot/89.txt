@@ -927,7 +927,7 @@ cost: {1}{U}{U}
 > Morph {2}{U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 > When this creature is turned face up, target creature gets +2/-2 or -2/+2 until end of turn.
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["2", "U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= BROKE at "or" after: when this creature is turned face up , target creature gets <pt>
 
 ## Sonic Burst
 face: Sonic Burst

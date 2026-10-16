@@ -846,7 +846,7 @@ cost: {4}{U}{U}
 > When this creature is turned face up, return all other tapped creatures to their owners' hands.
 = Keywords([Keyword { name: "flying", param: None }])
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["5", "U", "U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Move { what: Objects { quant: All, filter: Filter { alts: [[State(Other), State(Tapped), Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Thraben Inspector
 face: Thraben Inspector

@@ -330,7 +330,7 @@ cost: {1}{R}
 > When this creature is turned face up, discard your hand, then draw three cards.
 = Keywords([Keyword { name: "prowess", param: None }, Keyword { name: "haste", param: None }])
 = BROKE at "this" after: disguise {5} {R} .
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [DiscardHand(You), Draw { who: You, n: N(3) }], limits: [] }
 
 ## Ghastly Death Tyrant
 face: Ghastly Death Tyrant
@@ -692,7 +692,7 @@ cost: {1}{G}
 > Whenever this creature or another creature you control is turned face up, create a 0/0 green Ooze creature token with trample. The token enters with X +1/+1 counters on it, where X is the number of other creatures you control.
 > Disguise {3}{G}
 = Keywords([Keyword { name: "deathtouch", param: None }])
-= BROKE at "turned" after: whenever this creature or another creature you control is
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(0), toughness: N(0), signed: false }), colors: [Green], types: ["ooze", "creature"], keywords: [Keyword { name: "trample", param: None }], abilities: [], named: None, attacking: None } }, Where { then: [EntersWithCounters { what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, n: X, kind: "+1/+1" }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[OtherThan(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }) }], limits: [] }
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["3", "G"]))])) }])
 
 ## Prognostic Sphinx

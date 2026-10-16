@@ -313,7 +313,7 @@ cost: {3}{U}{R}{W}
 > When this creature enters or is turned face up, another target creature you control gets +3/+0 until end of turn.
 > Morph {2}{U}{R}{W} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 = Keywords([Keyword { name: "first strike", param: None }])
-= BROKE at "face" after: when this creature enters or is turned
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Modify { what: Objects { quant: AnotherTarget, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(3), toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["2", "U", "R", "W"]))])) }])
 
 ## Enigma Eidolon
@@ -858,7 +858,7 @@ cost: {5}{R}
 > When this creature is turned face up, put a +1/+1 counter on each other Dragon creature you control.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "first strike", param: None }])
 = Keywords([Keyword { name: "megamorph", param: Some(Cost([Mana(Mana(["5", "R", "R"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[State(Other), Subtype("dragon"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 
 ## Sudden Disappearance
 face: Sudden Disappearance

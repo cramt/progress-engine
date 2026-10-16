@@ -1005,7 +1005,7 @@ cost: {U}
 > • Remove two time counters from target permanent or suspended card.
 > • Put two time counters on target permanent with a time counter on it or suspended card.
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= BROKE at "." after: when this creature is turned face up , choose one — • remove two time counters from target permanent or suspended card
 
 ## Titan of Industry
 face: Titan of Industry

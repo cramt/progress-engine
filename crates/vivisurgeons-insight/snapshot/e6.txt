@@ -188,7 +188,7 @@ cost: {1}{W}
 > Whenever a Detective you control enters or is turned face up, put a +1/+1 counter on it.
 > To solve — You control three or more Detectives. (If unsolved, solve at the beginning of your end step.)
 > Solved — If one or more tokens would be created under your control, those tokens plus a Clue token are created instead. (It's an artifact with "{2}, Sacrifice this token: Draw a card.")
-= BROKE at "turned" after: whenever a detective you control enters or is
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: One, filter: Filter { alts: [[Subtype("detective")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, TurnedFaceUp(Objects { quant: One, filter: Filter { alts: [[Subtype("detective")]], kind: None, posts: [Controller(You)], or: None } })])), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 = Labelled { label: "to solve", ability: Static([Control(Objects { quant: AtLeast(N(3)), filter: Filter { alts: [[Subtype("detective")]], kind: None, posts: [], or: None } })]) }
 = BROKE at "are" after: solved — if one or more tokens would be created under your control , those tokens plus a clue token
 
@@ -1174,7 +1174,7 @@ cost: {1}{W}
 > Disguise {1}{W} (You may cast this card face down for {3} as a 2/2 creature with ward {2}. Turn it face up any time for its disguise cost.)
 > When this creature is turned face up, exile another target nonland permanent. If you controlled it, return it to the battlefield tapped. Otherwise, its controller creates a 2/2 white and blue Detective creature token.
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["1", "W"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Exile(Objects { quant: AnotherTarget, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }), If { cond: Past(YouControl(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), then: [Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: None, order: None }] }, Otherwise([Create { who: ControllerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [White, Blue], types: ["detective", "creature"], keywords: [], abilities: [], named: None, attacking: None } }])], limits: [] }
 
 ## Waterknot
 face: Waterknot

@@ -359,7 +359,7 @@ cost: {1}{U}{B}
 > When this creature is turned face up, look at the top two cards of your library. Put one into your hand and the other into your graveyard.
 = Keywords([Keyword { name: "flying", param: None }])
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["1", "U/B", "U/B"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [LookAtTop { who: You, whose: You, n: N(2) }, Move { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Move { what: Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Graveyard(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Festive Funeral
 face: Festive Funeral

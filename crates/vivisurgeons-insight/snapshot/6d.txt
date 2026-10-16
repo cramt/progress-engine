@@ -128,7 +128,7 @@ cost: {1}{U}
 > Morph {U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 > When this creature is turned face up, you may tap or untap target permanent.
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= BROKE at "untap" after: when this creature is turned face up , you may tap or
 
 ## Craw Wurm
 face: Craw Wurm
@@ -199,7 +199,7 @@ cost: {2}{U}
 > Morph {2}{U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 > When this creature is turned face up, return target creature to its owner's hand.
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["2", "U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Emrakul's Hatcher
 face: Emrakul's Hatcher

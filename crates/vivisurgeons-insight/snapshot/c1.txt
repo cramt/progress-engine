@@ -463,7 +463,7 @@ cost: {R}
 > When this creature is turned face up, target creature gains haste until end of turn.
 = Keywords([Keyword { name: "haste", param: None }])
 = Keywords([Keyword { name: "megamorph", param: Some(Cost([Mana(Mana(["R"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Lavaball Trap
 face: Lavaball Trap
@@ -538,7 +538,7 @@ cost: {2}{U}{U}
 > Morph {2}{U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 > When this creature is turned face up, you may turn target creature with a morph ability face down.
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["2", "U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= BROKE at "ability" after: when this creature is turned face up , you may turn target creature with a morph
 
 ## Maze's End
 face: Maze's End
@@ -970,7 +970,7 @@ cost: {5}{U}{U}
 > Morph {4}{U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 > When this creature is turned face up, turn any number of target creatures with morph abilities other than this creature face down.
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["4", "U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= BROKE at "abilities" after: when this creature is turned face up , turn any number of target creatures with morph
 
 ## Woodwraith Corrupter
 face: Woodwraith Corrupter

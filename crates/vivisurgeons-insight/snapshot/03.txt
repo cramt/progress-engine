@@ -250,7 +250,7 @@ cost: {2}{U}
 > When this creature is turned face up, you may put a creature card with a morph ability from your hand onto the battlefield face up. If you do, return this creature to its owner's hand.
 = Keywords([Keyword { name: "flying", param: None }])
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["2", "U", "U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= BROKE at "ability" after: when this creature is turned face up , you may put a creature card with a morph
 
 ## Desert Were-Worm
 face: Desert Were-Worm
@@ -610,7 +610,7 @@ cost: {3}{U}
 > Megamorph {5}{U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its megamorph cost and put a +1/+1 counter on it.)
 > When this creature is turned face up, return target noncreature, nonland card from your graveyard to your hand.
 = Keywords([Keyword { name: "megamorph", param: Some(Cost([Mana(Mana(["5", "U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("creature"), Non("land")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Moss Viper
 face: Moss Viper

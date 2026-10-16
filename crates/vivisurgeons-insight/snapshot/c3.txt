@@ -847,7 +847,7 @@ cost: {G}{W}
 > Reach
 > Whenever a face-down permanent you control is turned face up, put a +1/+1 counter on it and a +1/+1 counter on this creature.
 = Keywords([Keyword { name: "reach", param: None }])
-= BROKE at "turned" after: whenever a face-down permanent you control is
+= BROKE at "." after: whenever a face-down permanent you control is turned face up , put a <pt> counter on it and a <pt> counter on this creature
 
 ## Super-Soldier Serum
 face: Super-Soldier Serum

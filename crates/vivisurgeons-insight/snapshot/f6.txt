@@ -79,7 +79,7 @@ type: Land
 > When this land is turned face up, add two mana of any one color. Until end of turn, you don't lose this mana as steps and phases end.
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["3"]))])) }])
-= BROKE at "," after: when this land is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [AddMana(Of { n: N(2), pick: AnyOneColor, within: None }), During { dur: UntilEndOfTurn, then: [KeepsMana { who: You, mana: This }] }], limits: [] }
 
 ## Brazen Buccaneers
 face: Brazen Buccaneers

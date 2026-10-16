@@ -884,7 +884,7 @@ cost: {G}{U}
 > Face-down creatures you control get +0/+1.
 > Whenever a permanent you control is turned face up, draw a card.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[State(FaceDown), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(0), toughness: N(1), signed: true }), has: [], per: None }])
-= BROKE at "face" after: whenever a permanent you control is turned
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } })), effect: [Draw { who: You, n: N(1) }], limits: [] }
 
 ## Shimmercreep
 face: Shimmercreep

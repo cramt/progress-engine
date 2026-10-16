@@ -367,7 +367,7 @@ cost: {3}{B}
 > Morph {3}{B} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 > When this creature is turned face up, return all Zombie cards from all graveyards to their owners' hands.
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["3", "B"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Move { what: Objects { quant: All, filter: Filter { alts: [[Subtype("zombie")]], kind: Some(Card), posts: [In(Graveyard(Each))], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Insatiable Avarice
 face: Insatiable Avarice

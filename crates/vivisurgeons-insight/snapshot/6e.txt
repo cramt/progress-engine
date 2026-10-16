@@ -674,7 +674,7 @@ cost: {1}{B}
 > When this creature is turned face up, destroy target creature with power 3 or less an opponent controls.
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Gt, value: PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) })], or: None } }, rule: CantBlockObject(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }) }])
 = Keywords([Keyword { name: "megamorph", param: Some(Cost([Mana(Mana(["2", "B"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: Power, op: Le, value: N(3) }), Controller(AnOpponent)], or: None } }, no_regen: false }], limits: [] }
 
 ## Slaughter
 face: Slaughter

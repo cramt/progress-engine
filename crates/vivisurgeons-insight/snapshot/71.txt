@@ -805,7 +805,7 @@ cost: {1}{G}
 > When this creature is turned face up, add {G}{U}{R}.
 = Activated { cost: [Tap], effect: [AddMana(Or([Mana(["G"]), Mana(["U"]), Mana(["R"])]))], limits: [] }
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["2"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [AddMana(Symbols(Mana(["G", "U", "R"])))], limits: [] }
 
 ## Red Guardian, Super-Soldier
 face: Red Guardian, Super-Soldier

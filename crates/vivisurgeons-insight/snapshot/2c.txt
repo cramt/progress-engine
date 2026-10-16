@@ -50,7 +50,7 @@ cost: {5}{U}
 > When this creature is turned face up, put a +1/+1 counter on each other Dragon creature you control.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "hexproof", param: None }])
 = Keywords([Keyword { name: "megamorph", param: Some(Cost([Mana(Mana(["5", "U", "U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[State(Other), Subtype("dragon"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 
 ## Biowaste Blob
 face: Biowaste Blob

@@ -86,7 +86,7 @@ face: Aphetto Runecaster
 type: Creature — Human Wizard
 cost: {3}{U}
 > Whenever a permanent is turned face up, you may draw a card.
-= BROKE at "," after: whenever a permanent is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })), effect: [May { who: You, then: [Draw { who: You, n: N(1) }] }], limits: [] }
 
 ## Arcanis the Omnipotent
 face: Arcanis the Omnipotent
@@ -424,7 +424,7 @@ cost: {B}
 > Enchant creature
 > When enchanted creature is turned face up, destroy it. It can't be regenerated.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= BROKE at "," after: when enchanted creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), effect: [Destroy { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, no_regen: true }], limits: [] }
 
 ## Ferocious Charge
 face: Ferocious Charge

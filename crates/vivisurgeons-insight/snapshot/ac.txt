@@ -239,7 +239,7 @@ cost: {1}{U}{U}
 = Keywords([Keyword { name: "flying", param: None }])
 = BROKE at "but" after: whenever this creature attacks , gain control of target permanent you own
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["1", "U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= BROKE at "gained" after: when this creature is turned face up , target opponent gains control of any number of target permanents you control . draw a card for each one they
 
 ## Creeping Tar Pit
 face: Creeping Tar Pit
@@ -1022,7 +1022,7 @@ cost: {1}{U}
 > When this creature is turned face up, counter target instant or sorcery spell.
 = Keywords([Keyword { name: "flying", param: None }])
 = Keywords([Keyword { name: "megamorph", param: Some(Cost([Mana(Mana(["1", "U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, unless: None }], limits: [] }
 
 ## String of Disappearances
 face: String of Disappearances

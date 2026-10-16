@@ -538,7 +538,7 @@ cost: {4}{U}
 > When this creature is turned face up, copy target instant or sorcery spell. You may choose new targets for that copy.
 = BROKE at "down" after: {3} {U} {U} : turn this creature face
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["1", "U", "U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }], limits: [] }
 
 ## Mistfire Adept
 face: Mistfire Adept

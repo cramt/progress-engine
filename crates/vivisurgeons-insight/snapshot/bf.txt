@@ -77,7 +77,7 @@ cost: {1}{W}
 > Flying
 > Whenever a permanent is turned face up, put a +1/+1 counter on this creature.
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "," after: whenever a permanent is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Azorius Guildmage
 face: Azorius Guildmage

@@ -57,7 +57,7 @@ cost: {2}{W}{W}
 > When this creature leaves the battlefield, return the exiled cards to their owners' hands.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "lifelink", param: None }, Keyword { name: "ward", param: Some(Cost([Mana(Mana(["2"]))])) }])
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["X", "3", "W"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= BROKE at "and/or" after: when this creature is turned face up , exile up to x other target creatures from the battlefield
 = Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [Move { what: Objects { quant: Linked, filter: Filter { alts: [], kind: Some(Card), posts: [ExiledWith(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Avenger of the Fallen

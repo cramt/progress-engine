@@ -167,7 +167,7 @@ cost: {2}{G}
 > Vigilance
 > Whenever a face-down permanent you control enters and whenever this creature or another permanent you control is turned face up, put a +1/+1 counter on this creature.
 = Keywords([Keyword { name: "vigilance", param: None }])
-= BROKE at "turned" after: whenever a face-down permanent you control enters and whenever this creature or another permanent you control is
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: One, filter: Filter { alts: [[State(FaceDown)]], kind: Some(Permanent), posts: [Controller(You)], or: None } }, under: None, state: None }, TurnedFaceUp(Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } })])), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Dawnhart Rejuvenator
 face: Dawnhart Rejuvenator
@@ -704,7 +704,7 @@ cost: {G}
 > Morph {2}{G} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 > When this creature is turned face up, target creature gets +3/+3 until end of turn.
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["2", "G"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(3), toughness: N(3), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Perigee Beckoner
 face: Perigee Beckoner

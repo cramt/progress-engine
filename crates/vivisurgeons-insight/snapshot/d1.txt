@@ -582,7 +582,7 @@ cost: {1}{W}
 > Morph {3}{W}{W} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 > When this creature is turned face up, creatures you control get +2/+2 until end of turn.
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["3", "W", "W"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Midnight Entourage
 face: Midnight Entourage
@@ -1011,7 +1011,7 @@ type: Enchantment
 cost: {1}{W}
 > Whenever this enchantment or another permanent you control is turned face up, scry 1, then draw a card. This ability triggers only once each turn.
 > Disguise {W} (You may cast this card face down for {3} as a 2/2 creature with ward {2}. Turn it face up any time for its disguise cost.)
-= BROKE at "turned" after: whenever this enchantment or another permanent you control is
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } })), effect: [Scry(N(1)), Draw { who: You, n: N(1) }], limits: [OncePerTurn] }
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["W"]))])) }])
 
 ## Ulalek, Fused Atrocity

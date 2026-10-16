@@ -110,7 +110,7 @@ cost: {4}{U}{U}
 > Morph {5}{U}{U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 > When this creature is turned face up, each opponent skips their next untap step.
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["5", "U", "U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= BROKE at "their" after: when this creature is turned face up , each opponent skips
 
 ## Burden of Proof
 face: Burden of Proof
@@ -467,7 +467,7 @@ cost: {5}{R}{R}
 > When this creature is turned face up, you may search your library for a Dragon card, reveal it, put it into your hand, then shuffle.
 = Keywords([Keyword { name: "flying", param: None }])
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["6", "R", "R"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Search { who: You, zones: [Library(You)], what: Objects { quant: One, filter: Filter { alts: [[Subtype("dragon")]], kind: Some(Card), posts: [], or: None } }, and: [] }, Reveal { who: You, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Hand(You), tapped: false, transformed: false, under: None, order: None }, Shuffle(You)] }], limits: [] }
 
 ## Intimidator Initiate
 face: Intimidator Initiate
@@ -1065,7 +1065,7 @@ cost: {2}{W}
 > When this creature is turned face up, target creature gains first strike until end of turn.
 = Keywords([Keyword { name: "flying", param: None }])
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["2", "W"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: None, gains: [Keyword { name: "first strike", param: None }], dur: UntilEndOfTurn }], limits: [] }
 
 ## Wood Sage
 face: Wood Sage

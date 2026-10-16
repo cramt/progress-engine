@@ -58,7 +58,7 @@ cost: {2}{B}
 > When this creature is turned face up, target opponent loses 3 life and you gain 3 life.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["4", "B", "B"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [LoseLife { who: TargetOpponent, n: N(3) }, GainLife { who: You, n: N(3) }], limits: [] }
 
 ## Ancestral Knowledge
 face: Ancestral Knowledge
@@ -696,7 +696,7 @@ cost: {1}{W}
 > Flying, lifelink
 > Whenever another Detective you control enters and whenever a Detective you control is turned face up, this creature gets +1/+1 until end of turn.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "lifelink", param: None }])
-= BROKE at "turned" after: whenever another detective you control enters and whenever a detective you control is
+= Triggered { trigger: When(Or([Enters { what: Objects { quant: Another, filter: Filter { alts: [[Subtype("detective")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }, TurnedFaceUp(Objects { quant: One, filter: Filter { alts: [[Subtype("detective")]], kind: None, posts: [Controller(You)], or: None } })])), effect: [Modify { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [], dur: UntilEndOfTurn }], limits: [] }
 
 ## Pitiless Gorgon
 face: Pitiless Gorgon
@@ -1110,7 +1110,7 @@ cost: {2}{W}
 > When this creature is turned face up, you gain 2 life.
 = Keywords([Keyword { name: "flying", param: None }])
 = Keywords([Keyword { name: "morph", param: Some(Cost([Reveal(Objects { quant: One, filter: Filter { alts: [[Color(White)]], kind: Some(Card), posts: [In(Hand(You))], or: None } })])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [GainLife { who: You, n: N(2) }], limits: [] }
 
 ## Windstorm
 face: Windstorm

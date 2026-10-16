@@ -70,7 +70,7 @@ face: Bonethorn Valesk
 type: Creature — Beast
 cost: {4}{R}
 > Whenever a permanent is turned face up, this creature deals 1 damage to any target.
-= BROKE at "," after: whenever a permanent is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: One, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })), effect: [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(1), to: [Objects(Objects { quant: AnyTarget { n: N(1) }, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }], limits: [] }
 
 ## Borrowed Malevolence
 face: Borrowed Malevolence

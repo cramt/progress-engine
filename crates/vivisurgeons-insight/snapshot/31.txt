@@ -548,7 +548,7 @@ cost: {U}
 > When this creature is turned face up, until end of turn, whenever a creature you control deals combat damage to a player, investigate.
 = Keywords([Keyword { name: "flying", param: None }])
 = Keywords([Keyword { name: "disguise", param: Some(Cost([Mana(Mana(["1", "U"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [During { dur: UntilEndOfTurn, then: [DelayedWhenever { event: DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }), then: [Action { by: None, name: "investigate", n: None }] }] }], limits: [] }
 
 ## Nettle Drone
 face: Nettle Drone

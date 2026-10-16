@@ -335,7 +335,7 @@ cost: {W}
 > Morph {W} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)
 > When this creature is turned face up, prevent all combat damage non-Soldier creatures would deal this turn.
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["W"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= BROKE at "non-soldier" after: when this creature is turned face up , prevent all combat damage
 
 ## Galazeth Prismari
 face: Galazeth Prismari

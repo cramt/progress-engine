@@ -377,7 +377,7 @@ cost: {3}{W}
 > When this creature is turned face up, untap it.
 = Keywords([Keyword { name: "vigilance", param: None }])
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["1", "W"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Untap(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
 
 ## Mai, Jaded Edge
 face: Mai, Jaded Edge

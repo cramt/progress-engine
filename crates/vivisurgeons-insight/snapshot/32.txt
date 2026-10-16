@@ -901,7 +901,7 @@ cost: {3}{G}
 > When this creature is turned face up, create four 1/1 green Saproling creature tokens.
 = Static([Modify { what: Objects { quant: All, filter: Filter { alts: [[Subtype("saproling")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [], per: None }])
 = Keywords([Keyword { name: "morph", param: Some(Cost([Mana(Mana(["3", "G", "G"]))])) }])
-= BROKE at "," after: when this creature is turned face up
+= Triggered { trigger: When(TurnedFaceUp(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [Create { who: You, n: N(4), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green], types: ["saproling", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
 
 ## Thrashing Frontliner
 face: Thrashing Frontliner

@@ -9486,6 +9486,10 @@ fn event(o: &mut Out, e: &Event) {
             obj_subj(o, x, "become");
             o.w("tapped");
         }
+        Event::TurnedFaceUp(x) => {
+            obj_subj(o, x, "are");
+            o.w("turned face up");
+        }
         Event::BecomesTarget { what, of } => {
             obj_subj(o, what, "become");
             o.w("the target of");
@@ -9791,6 +9795,7 @@ fn event_subject(e: &Event) -> Option<Subject<'_>> {
         | Event::DealsDamage(x)
         | Event::IsDealtDamage(x)
         | Event::BecomesTapped(x)
+        | Event::TurnedFaceUp(x)
         | Event::TappedForMana(x)
         | Event::Countered(x) => Subject::Obj(x),
         Event::Casts { who, .. }
