@@ -3292,7 +3292,10 @@ fn player_num(p: &Player) -> Num {
     match p {
         Player::You => Num::Pl,
         Player::That | Player::EachOpponent => Num::Any,
-        Player::EachOf(_) | Player::Those(_) | Player::AnyNumberOfTarget => Num::Pl,
+        Player::EachOf(_)
+        | Player::Those(_)
+        | Player::AnyNumberOfTarget
+        | Player::AnyNumberOfTargetOpponents => Num::Pl,
         _ => Num::Sg,
     }
 }
@@ -3304,6 +3307,7 @@ fn player(o: &mut Out, p: &Player) {
         Player::TargetOpponent => o.w("target opponent"),
         Player::UpToOneTarget => o.w("up to one target player"),
         Player::AnyNumberOfTarget => o.w("any number of target players"),
+        Player::AnyNumberOfTargetOpponents => o.w("any number of target opponents"),
         Player::Each => syn::each_player(o),
         Player::EachOpponent => syn::each_opponent(o),
         Player::EachOtherPlayer => o.w("each other player"),
@@ -3421,7 +3425,10 @@ fn subj(o: &mut Out, who: &Player, verb: &str, cx: &Cx) {
     let said = out(|o| {
         player(o, who);
         // "Any number of target players each mill two cards".
-        if *who == Player::AnyNumberOfTarget {
+        if matches!(
+            who,
+            Player::AnyNumberOfTarget | Player::AnyNumberOfTargetOpponents
+        ) {
             syn::each_after(o);
         }
     });
@@ -5073,7 +5080,11 @@ fn zone(o: &mut Out, z: &Zone) {
 /// "their hands": a zone of several players is plural.
 fn possessor_num(w: &Player) -> Num {
     match w {
-        Player::That | Player::EachOpponent | Player::Each | Player::AnyNumberOfTarget => Num::Any,
+        Player::That
+        | Player::EachOpponent
+        | Player::Each
+        | Player::AnyNumberOfTarget
+        | Player::AnyNumberOfTargetOpponents => Num::Any,
         _ => Num::Sg,
     }
 }

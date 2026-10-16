@@ -968,7 +968,9 @@ pub(super) fn clauses(p: &mut P) -> Option<Vec<Effect>> {
         // verb continues it as the third person does after a singular one.
         let plural = matches!(
             v.last().and_then(subject_of),
-            Some(Player::AnyNumberOfTarget | Player::EachOf(_))
+            Some(
+                Player::AnyNumberOfTarget | Player::AnyNumberOfTargetOpponents | Player::EachOf(_)
+            )
         );
         let agrees = |w: &str| {
             THIRD_PERSON.contains(&w)

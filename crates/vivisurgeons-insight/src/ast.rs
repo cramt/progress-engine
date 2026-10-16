@@ -607,6 +607,9 @@ pub enum Player {
     UpToOneTarget,
     /// "any number of target players' graveyards".
     AnyNumberOfTarget,
+    /// "Any number of target opponents each sacrifice a creature …" (Will of
+    /// the Abzan).
+    AnyNumberOfTargetOpponents,
     /// "that player or that planeswalker's controller": whichever one the
     /// earlier choice made it.
     OneOf(Vec<Player>),

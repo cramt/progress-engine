@@ -416,7 +416,7 @@ cost: {6}{B}
 > When this creature enters, any number of target opponents each discard a card. For each of those opponents who didn't discard a card with mana value 4 or greater, draw a card.
 = Static([CostChange { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: Some(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }) }])
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "discard" after: when this creature enters , any number of target opponents each
+= BROKE at "didn't" after: when this creature enters , any number of target opponents each discard a card . for each of those opponents who
 
 ## Homing Lightning
 face: Homing Lightning

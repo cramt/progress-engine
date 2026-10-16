@@ -154,9 +154,9 @@ pub(super) fn subject_player(p: &mut P) -> Player {
     match p.attempt(player) {
         // "Any number of target players each mill two cards": "each"
         // restates that every one of them does.
-        Some(Player::AnyNumberOfTarget) => {
+        Some(who @ (Player::AnyNumberOfTarget | Player::AnyNumberOfTargetOpponents)) => {
             p.attempt(|p| p.word("each"));
-            Player::AnyNumberOfTarget
+            who
         }
         Some(who) => who,
         None => p.implied.clone().unwrap_or(Player::You),

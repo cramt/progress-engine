@@ -216,7 +216,7 @@ type: Enchantment
 cost: {2}{G}
 > When this enchantment enters, any number of target opponents each draw a card. Put an ingredient counter on this enchantment, then put an ingredient counter on it for each card drawn this way.
 > Whenever you cast a creature spell, that creature enters with X additional +1/+1 counters on it, where X is the number of ingredient counters on this enchantment.
-= BROKE at "draw" after: when this enchantment enters , any number of target opponents each
+= BROKE at "way" after: when this enchantment enters , any number of target opponents each draw a card . put an ingredient counter on this enchantment , then put an ingredient counter on it for each card drawn this
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } } }), effect: [Where { then: [EntersWithCounters { what: Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, n: Additional(X), kind: "+1/+1" }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Counter(Some("ingredient"))), posts: [On(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], or: None } }) }], limits: [] }
 
 ## Cradle Guard

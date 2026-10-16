@@ -1120,7 +1120,7 @@ type: Instant
 cost: {3}{U}
 > Any number of target opponents each discard their hands, then draw seven cards.
 > Draw a card.
-= BROKE at "their" after: any number of target opponents each discard
+= BROKE at "," after: any number of target opponents each discard their hands
 = Spell([Draw { who: You, n: N(1) }])
 
 ## Winter Soldier, Bucky Barnes

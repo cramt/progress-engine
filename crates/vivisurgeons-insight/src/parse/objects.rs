@@ -39,6 +39,7 @@ fn player_read(p: &mut P) -> Option<Player> {
         |p| p.words("target opponent").map(|_| Player::TargetOpponent),
         |p| p.words("up to one target player").map(|_| Player::UpToOneTarget),
         |p| p.words("any number of target players").map(|_| Player::AnyNumberOfTarget),
+        |p| p.words("any number of target opponents").map(|_| Player::AnyNumberOfTargetOpponents),
         |p| p.words("each other player").map(|_| Player::EachOtherPlayer),
         |p| p.words("each player who can't").map(|_| Player::WhoCant(Box::new(Player::Each))),
         |p| p.words("each opponent who can't").map(|_| Player::WhoCant(Box::new(Player::EachOpponent))),
