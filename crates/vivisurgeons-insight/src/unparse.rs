@@ -1413,6 +1413,12 @@ mod syn {
         alt(o, vec![said, bare]);
     }
 
+    /// "with {X} in its mana cost" and "with a mana cost that contains {X}"
+    /// (Unbound Flourishing).
+    pub fn cost_contains_x(o: &mut Out, in_cost: Out) {
+        alt(o, vec![in_cost, of("with a mana cost that contains {X}")]);
+    }
+
     pub fn dont_alone(full: Out) -> Out {
         let mut o = Out::default();
         alt(&mut o, vec![full, of("you don't")]);
@@ -4812,18 +4818,25 @@ fn post(o: &mut Out, q: &Post, n: Num) {
             syn::with_ability(o, kind, n);
         }
         Post::XInManaCost | Post::NoXInManaCost => {
-            o.w(if *q == Post::XInManaCost {
-                "with"
-            } else {
-                "without"
+            let in_cost = out(|o| {
+                o.w(if *q == Post::XInManaCost {
+                    "with"
+                } else {
+                    "without"
+                });
+                o.w("{X} in");
+                syn::its(o);
+                o.w("mana");
+                // "cards with {X} in their mana cost" (Rosheen, Roaring
+                // Prophet): each card has one.
+                let agreeing = out(|o| o.noun("cost", n));
+                syn::cost_or_costs(o, agreeing);
             });
-            o.w("{X} in");
-            syn::its(o);
-            o.w("mana");
-            // "cards with {X} in their mana cost" (Rosheen, Roaring
-            // Prophet): each card has one.
-            let agreeing = out(|o| o.noun("cost", n));
-            syn::cost_or_costs(o, agreeing);
+            if *q == Post::XInManaCost {
+                syn::cost_contains_x(o, in_cost);
+            } else {
+                o.add(in_cost);
+            }
         }
         Post::ManaCost(v) => {
             o.w("with mana cost");
@@ -7095,6 +7108,7 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w(",");
             clauses(o, v, cx);
         }
+        Effect::DoubleX(_) => o.w("double the value of X"),
         Effect::BecomesPrepared(what) => {
             obj_subj(o, what, "become");
             o.w("prepared");
@@ -10135,6 +10149,16 @@ fn condition(o: &mut Out, c: &Condition) {
         Condition::YouControl(x) => {
             o.w("you control");
             objects(o, x);
+        }
+        Condition::CostHasX(x) => {
+            if x.filter.kind == Some(Noun::SpellOrAbility) {
+                o.w("that spell's mana cost or that ability's activation cost");
+            } else {
+                possessive_of(o, x);
+                o.w("mana cost");
+            }
+            o.w("contains");
+            o.tok(Tok::Sym("X".into()));
         }
         Condition::YouDontControl(x) => {
             let no = out(|o| {

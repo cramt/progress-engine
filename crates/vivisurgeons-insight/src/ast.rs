@@ -2054,6 +2054,9 @@ pub enum Effect {
     },
     /// "this creature becomes prepared": while it is, its controller may
     /// cast a copy of its inset spell (CR 722.3).
+    /// "double the value of X" (Unbound Flourishing): the X chosen for that
+    /// spell becomes twice as much, after it was cast.
+    DoubleX(Objects),
     BecomesPrepared(Objects),
     /// "it becomes plotted": a card in exile its owner may cast without
     /// paying its mana cost as a sorcery on a later turn (CR 702.170c-d).
@@ -3333,6 +3336,9 @@ pub enum TypeSet {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Condition {
     YouControl(Objects),
+    /// "if that spell's mana cost or that ability's activation cost
+    /// contains {X}" (Unbound Flourishing).
+    CostHasX(Objects),
     YouDontControl(Objects),
     ItsYourTurn,
     /// "if it's the first combat phase of the turn": no combat phase came

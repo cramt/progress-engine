@@ -899,6 +899,12 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             p.one_of(&["ability", "abilities"])?;
             Some(Post::WithAbilityOf(kind))
         },
+        // "a permanent spell with a mana cost that contains {X}".
+        |p| {
+            p.words("with a mana cost that contains")?;
+            p.tok(&Tok::Sym("X".into()))?;
+            Some(Post::XInManaCost)
+        },
         // "with {X} in its mana cost", "without {X} in their mana costs".
         |p| {
             let without = p.one_of(&["with", "without"])? == "without";

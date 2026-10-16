@@ -566,6 +566,11 @@ fn effect_first(p: &mut P) -> Option<Effect> {
             let to = objects(p)?;
             Some(Effect::CreateAttached { who, n, token, to })
         },
+        // "double the value of X" (Unbound Flourishing): the spell's X.
+        |p| {
+            p.words("double the value of x")?;
+            Some(Effect::DoubleX(antecedent()))
+        },
         // "this creature becomes prepared", before "becomes" would read
         // "prepared" as a type it takes on.
         |p| {

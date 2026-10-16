@@ -984,8 +984,8 @@ type: Enchantment
 cost: {2}{G}
 > Whenever you cast a permanent spell with a mana cost that contains {X}, double the value of X.
 > Whenever you cast an instant or sorcery spell or activate an ability, if that spell's mana cost or that ability's activation cost contains {X}, copy that spell or ability. You may choose new targets for the copy.
-= BROKE at "cost" after: whenever you cast a permanent spell with a mana
-= BROKE at "cost" after: whenever you cast an instant or sorcery spell or activate an ability , if that spell 's mana
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Permanent]], kind: Some(Spell), posts: [XInManaCost], or: None } } }), effect: [DoubleX(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } })], limits: [] }
+= Triggered { trigger: InterveningIf(When(Or([Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [], or: None } } }, Activates { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Ability), posts: [], or: None } } }])), CostHasX(Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } })), effect: [Copy { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: Some(SpellOrAbility), posts: [], or: None } }, may_choose_new_targets: true }], limits: [] }
 
 ## Updraft Elemental
 face: Updraft Elemental

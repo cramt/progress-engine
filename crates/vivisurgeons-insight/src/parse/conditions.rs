@@ -200,6 +200,13 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             Some(Condition::ZoneHasCards { zone, op, n })
         },
         |p| { p.words("you controlled")?; objects(p).map(|o| Condition::Past(Box::new(Condition::YouControl(o)))) },
+        // "if that spell's mana cost or that ability's activation cost
+        // contains {X}" (Unbound Flourishing): the trigger's spell or ability.
+        |p| {
+            p.words("that spell 's mana cost or that ability 's activation cost contains")?;
+            p.tok(&Tok::Sym("X".into()))?;
+            Some(Condition::CostHasX(Objects { quant: Quant::Antecedent, filter: Filter { kind: Some(Noun::SpellOrAbility), ..Filter::default() } }))
+        },
         // "you gained life this turn", "an opponent searched their library
         // this turn".
         |p| {

@@ -1013,7 +1013,25 @@ fn trigger_object(e: &Event) -> Option<Objects> {
         }
         Event::Or(v) => {
             let all: Vec<Objects> = v.iter().map(trigger_object).collect::<Option<_>>()?;
-            return all.windows(2).all(|w| w[0] == w[1]).then(|| all[0].clone());
+            if all.windows(2).all(|w| w[0] == w[1]) {
+                return Some(all[0].clone());
+            }
+            // "Whenever you cast an instant or sorcery spell or activate an
+            // ability, … copy that spell or ability" (Unbound Flourishing):
+            // one object, a spell or an ability.
+            let kind = |k: Noun| all.iter().any(|o| o.filter.kind.as_ref() == Some(&k));
+            let spell_or_ability = all
+                .iter()
+                .all(|o| matches!(o.filter.kind, Some(Noun::Spell | Noun::Ability)))
+                && kind(Noun::Spell)
+                && kind(Noun::Ability);
+            return spell_or_ability.then(|| Objects {
+                quant: Quant::One,
+                filter: Filter {
+                    kind: Some(Noun::SpellOrAbility),
+                    ..Filter::default()
+                },
+            });
         }
         _ => return None,
     };

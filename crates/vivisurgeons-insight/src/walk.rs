@@ -348,6 +348,9 @@ impl Walk for Condition {
             Condition::YouControl(f0) => {
                 Walk::walk(f0, v);
             }
+            Condition::CostHasX(f0) => {
+                Walk::walk(f0, v);
+            }
             Condition::YouDontControl(f0) => {
                 Walk::walk(f0, v);
             }
@@ -1466,6 +1469,9 @@ impl Walk for Effect {
                 for x0 in (then).iter_mut() {
                     Walk::walk(x0, v);
                 }
+            }
+            Effect::DoubleX(f0) => {
+                Walk::walk(f0, v);
             }
             Effect::BecomesPrepared(f0) => {
                 Walk::walk(f0, v);
