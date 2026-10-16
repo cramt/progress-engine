@@ -419,8 +419,8 @@ cost: {2}{W}{W}
 > As Greymond, Avacyn's Stalwart enters, choose two abilities from among first strike, vigilance, and lifelink.
 > Humans you control have each of the chosen abilities.
 > As long as you control four or more Humans, Humans you control get +2/+2.
-= BROKE at "strike" after: as ~ enters , choose two abilities from among first
-= BROKE at "chosen" after: humans you control have each of the
+= Static([AsEnters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, then: [Choose(KeywordsAmong { n: 2, among: [Keyword { name: "first strike", param: None }, Keyword { name: "vigilance", param: None }, Keyword { name: "lifelink", param: None }] })] }])
+= Static([HasChosenAbilities(Objects { quant: Plural, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [Controller(You)], or: None } })])
 = Static([AsLongAs { cond: YouControl(Objects { quant: AtLeast(N(4)), filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [], or: None } }), then: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }] }])
 
 ## Grindstone

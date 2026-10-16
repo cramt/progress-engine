@@ -659,6 +659,13 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             p.words("its combat damage as though it weren't blocked")?;
             Some(vec![Static::AssignAsThoughUnblocked(what)])
         },
+        // "Humans you control have each of the chosen abilities" (Greymond).
+        |p| {
+            let what = objects(p)?;
+            p.one_of(&["have", "has"])?;
+            p.words("each of the chosen abilities")?;
+            Some(vec![Static::HasChosenAbilities(what)])
+        },
         // "you may pay {0} rather than pay cycling costs", "… the equip cost of
         // the first equip ability you activate each turn" (Bruenor).
         |p| {

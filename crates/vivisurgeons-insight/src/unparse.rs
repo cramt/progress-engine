@@ -9210,6 +9210,12 @@ fn choice(o: &mut Out, c: &Choice) {
         Choice::Player => o.w("a player"),
         Choice::Opponent => o.w("an opponent"),
         Choice::Objects(x) => objects(o, x),
+        Choice::KeywordsAmong { n, among } => {
+            syn::number(o, *n);
+            o.w(if *n == 1 { "ability" } else { "abilities" });
+            o.w("from among");
+            keyword_list(o, among);
+        }
         Choice::CardTypeAmong(v) => {
             for (i, t) in v.iter().enumerate() {
                 list_sep(o, i, v.len(), "or");
@@ -12540,6 +12546,11 @@ fn static_other(o: &mut Out, s: &Static) {
                     });
                 }
             }
+        }
+        Static::HasChosenAbilities(x) => {
+            objects(o, x);
+            o.verb("have", obj_num(x));
+            o.w("each of the chosen abilities");
         }
         Static::LifeForMana { mana: m, life } => {
             o.w("for each");

@@ -1149,6 +1149,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                 |p| p.words("a nonland card name").map(|_| Choice::NonlandCardName),
                 |p| p.words("a land card name").map(|_| Choice::LandCardName),
                 |p| p.words("a number").map(|_| Choice::Number),
+                |p| { let n = number(p)?; p.one_of(&["abilities", "ability"])?; p.words("from among")?; let among = keyword_list(p)?; Some(Choice::KeywordsAmong { n, among }) },
                 // "choose artifact, creature, enchantment, instant, or
                 // sorcery": a card type, from those listed.
                 |p| {

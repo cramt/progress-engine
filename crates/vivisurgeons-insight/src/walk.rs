@@ -302,6 +302,11 @@ impl Walk for Choice {
             Choice::Objects(f0) => {
                 Walk::walk(f0, v);
             }
+            Choice::KeywordsAmong { among, .. } => {
+                for x0 in (among).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
             Choice::OneOfEach { picks, among } => {
                 for x0 in (picks).iter_mut() {
                     Walk::walk(x0, v);
@@ -2735,6 +2740,9 @@ impl Walk for Static {
                 for x0 in (cost).iter_mut() {
                     Walk::walk(x0, v);
                 }
+            }
+            Static::HasChosenAbilities(f0) => {
+                Walk::walk(f0, v);
             }
             Static::IsAllColors(f0) => {
                 Walk::walk(f0, v);

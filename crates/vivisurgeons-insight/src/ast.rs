@@ -3255,6 +3255,9 @@ pub enum Static {
         cost: Vec<Cost>,
         first: Option<EachTurn>,
     },
+    /// "Humans you control have each of the chosen abilities" (Greymond): the
+    /// keywords chosen with this object's `Choice::KeywordsAmong`.
+    HasChosenAbilities(Objects),
     /// "Each nonland permanent you control is all colors."
     IsAllColors(Objects),
     /// "Enchanted creature gets +2/+2 and is goaded": goaded, a designation
@@ -3632,6 +3635,12 @@ pub enum Choice {
     /// "choose artifact, creature, enchantment, instant, or sorcery": one
     /// of these card types.
     CardTypeAmong(Vec<String>),
+    /// "choose two abilities from among first strike, vigilance, and
+    /// lifelink" (Greymond): that many different ones of those listed.
+    KeywordsAmong {
+        n: u32,
+        among: Vec<Keyword>,
+    },
     LandCardName,
     /// "choose target opponent": a target, so it can be illegal on
     /// resolution and hexproof stops it, where "choose an opponent" is not.
