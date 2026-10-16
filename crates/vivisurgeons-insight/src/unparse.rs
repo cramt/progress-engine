@@ -7386,9 +7386,19 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
         }
         Effect::ShuffleInto { who, what } => {
             subj(o, who, "shuffle", cx);
-            objects(o, what);
-            o.w("into");
-            syn::owners_library(o);
+            if let ([Post::In(z)], Quant::SelfRef) = (&what.filter.posts[..], &what.quant) {
+                let mut bare = what.clone();
+                bare.filter.posts.clear();
+                objects(o, &bare);
+                o.w("into");
+                syn::owners_library(o);
+                o.w("from");
+                zone(o, z);
+            } else {
+                objects(o, what);
+                o.w("into");
+                syn::owners_library(o);
+            }
         }
         Effect::Performed { by, effect: inner } => {
             let n = player_num(by);

@@ -1025,5 +1025,5 @@ cost: {5}{R}{R}
 > When you cycle this card, shuffle it into your library from your graveyard. If you've cycled a card named Yidaro, Wandering Monster four or more times this game, put it onto the battlefield from your graveyard instead. (Do this before you draw.)
 = Keywords([Keyword { name: "trample", param: None }, Keyword { name: "haste", param: None }])
 = Keywords([Keyword { name: "cycling", param: Some(Cost([Mana(Mana(["1", "R"]))])) }])
-= BROKE at "from" after: when you cycle this card , shuffle it into your library
+= BROKE at "." after: when you cycle this card , shuffle it into your library from your graveyard
 

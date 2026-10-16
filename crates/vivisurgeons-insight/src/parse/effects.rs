@@ -1380,6 +1380,13 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             let what = objects(p)?;
             p.word("into")?;
             p.one_of(&["their library", "its owner 's library", "your library", "their owners ' libraries"])?;
+            let mut what = what;
+            // "shuffle it into your library from your graveyard" (Yidaro): where
+            // the card is, said after the library.
+            if let Some(z) = p.attempt(|p| { p.word("from")?; zone(p) }) {
+                if !what.filter.posts.is_empty() || what.quant != Quant::SelfRef { return None; }
+                what.filter.posts.push(Post::In(z));
+            }
             Some(Effect::ShuffleInto { who, what })
         },
         |p| { let who = subject_player(p); p.verb("shuffle")?; p.attempt(|p| p.one_of(&["your library", "their library"])); Some(Effect::Shuffle(who)) },
