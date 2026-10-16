@@ -651,7 +651,7 @@ type: Sorcery
 cost: {2}{G}{U}
 > Create a token that's a copy of target creature you control.
 > Conspire (As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it and you may choose a new target for the copy.)
-= Spell([CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }])
+= Spell([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }])
 = Keywords([Keyword { name: "conspire", param: None }])
 
 ## Reckless Imp

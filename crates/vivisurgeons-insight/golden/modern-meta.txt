@@ -1461,7 +1461,7 @@ cost: {2}{R}
 face: Reflection of Kiki-Jiki
 type: Enchantment Creature — Goblin Shaman
 > {1}, {T}: Create a token that's a copy of another target nonlegendary creature you control, except it has haste. Sacrifice it at the beginning of the next end step.
-= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [CreateCopy { n: N(1), of: Objects { quant: AnotherTarget, filter: Filter { alts: [[Non("legendary"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [Has { keywords: [Keyword { name: "haste", param: None }], abilities: [] }] }, Delayed { step: EndStep(Next), then: [Sacrifice { who: You, what: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1"])), Tap], effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: AnotherTarget, filter: Filter { alts: [[Non("legendary"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [Has { keywords: [Keyword { name: "haste", param: None }], abilities: [] }] }, Delayed { step: EndStep(Next), then: [Sacrifice { who: You, what: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 
 ## Faerie Macabre
 face: Faerie Macabre
@@ -2707,7 +2707,7 @@ type: Land
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [] }
 = Activated { cost: [Mana(Mana(["2", "C"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Spell), posts: [Controller(You)], or: None } }, may_choose_new_targets: true }], limits: [] }
-= Activated { cost: [Mana(Mana(["4", "C"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }], limits: [] }
+= Activated { cost: [Mana(Mana(["4", "C"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }], limits: [] }
 
 ## Mishra's Bauble
 face: Mishra's Bauble
@@ -2994,7 +2994,7 @@ cost: {W}
 > At the beginning of your end step, if you gained life this turn, create a 1/1 white Cat creature token. Then if you have the city's blessing, for each token you control that entered this turn, create a token that's a copy of it.
 = Keywords([Keyword { name: "first strike", param: None }, Keyword { name: "lifelink", param: None }])
 = Keywords([Keyword { name: "ascend", param: None }])
-= Triggered { trigger: InterveningIf(At(EndStep(Yours)), DidThisTurn(GainsLife(You))), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["cat", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, If { cond: CitysBlessing(You), then: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You), EnteredThisTurn], or: None } }, then: [CreateCopy { n: N(1), of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }] }], limits: [] }
+= Triggered { trigger: InterveningIf(At(EndStep(Yours)), DidThisTurn(GainsLife(You))), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["cat", "creature"], keywords: [], abilities: [], named: None, attacking: None } }, If { cond: CitysBlessing(You), then: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You), EnteredThisTurn], or: None } }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }] }], limits: [] }
 
 ## Oliphaunt
 face: Oliphaunt

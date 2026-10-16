@@ -506,7 +506,7 @@ face: Irenicus's Vile Duplication
 type: Sorcery
 cost: {3}{U}
 > Create a token that's a copy of target creature you control, except the token has flying and it isn't legendary.
-= Spell([CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [Has { keywords: [Keyword { name: "flying", param: None }], abilities: [] }, IsNot([Supertype("legendary")])] }])
+= Spell([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [Has { keywords: [Keyword { name: "flying", param: None }], abilities: [] }, IsNot([Supertype("legendary")])] }])
 
 ## Jungle Hollow
 face: Jungle Hollow

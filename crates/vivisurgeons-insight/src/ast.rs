@@ -1412,8 +1412,14 @@ pub enum Effect {
         whose: Player,
         n: Amount,
     },
+    /// "Create a token that's a copy of …", "create two tapped tokens that
+    /// are copies of …", "create a tapped and attacking token that's a copy
+    /// of …": `n` tokens, entering tapped, or attacking (CR 508.4: whom its
+    /// controller chooses, unless `attacking` names it).
     CreateCopy {
         n: Amount,
+        tapped: bool,
+        attacking: Option<Recipient>,
         of: Objects,
         except: Vec<Exception>,
     },

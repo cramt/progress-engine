@@ -339,7 +339,7 @@ face: Here Comes a New Hero!
 type: Sorcery
 cost: {X}{2}{U}
 > Target player draws X cards. Create a token that's a copy of up to one target creature with mana value X or less.
-= Spell([Draw { who: Target, n: X }, CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: ManaValue, op: Le, value: X })], or: None } }, except: [] }])
+= Spell([Draw { who: Target, n: X }, CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: ManaValue, op: Le, value: X })], or: None } }, except: [] }])
 
 ## Hydroelectric Specimen // Hydroelectric Laboratory
 face: Hydroelectric Specimen

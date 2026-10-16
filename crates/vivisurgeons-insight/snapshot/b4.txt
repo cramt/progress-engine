@@ -835,7 +835,7 @@ face: Second Harvest
 type: Instant
 cost: {2}{G}{G}
 > For each token you control, create a token that's a copy of that permanent.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, then: [CreateCopy { n: N(1), of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, except: [] }] }])
+= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, except: [] }] }])
 
 ## Seht's Tiger
 face: Seht's Tiger

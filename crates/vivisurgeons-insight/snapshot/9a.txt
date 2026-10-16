@@ -627,7 +627,7 @@ cost: {5}{W}
 > Trample
 > At the beginning of your upkeep, if you control a blue permanent, you may create a token that's a copy of this creature.
 = Keywords([Keyword { name: "trample", param: None }])
-= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Permanent), posts: [], or: None } })), effect: [May { who: You, then: [CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }], limits: [] }
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), YouControl(Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Permanent), posts: [], or: None } })), effect: [May { who: You, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }], limits: [] }
 
 ## Momir Vig, Simic Visionary
 face: Momir Vig, Simic Visionary

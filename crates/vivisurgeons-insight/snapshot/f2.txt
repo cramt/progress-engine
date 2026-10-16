@@ -531,7 +531,7 @@ type: Land
 > {2}{G}{G}{U}, {T}, Sacrifice this land: Create a token that's a copy of target creature you control, except it enters with an additional +1/+1 counter on it. Activate only as a sorcery.
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["U"])))], limits: [] }
-= Activated { cost: [Mana(Mana(["2", "G", "G", "U"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [EntersWithCounters { n: Additional(N(1)), kind: "+1/+1", cond: None }] }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["2", "G", "G", "U"])), Tap, Sacrifice(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [EntersWithCounters { n: Additional(N(1)), kind: "+1/+1", cond: None }] }], limits: [SorcerySpeed] }
 
 ## Lost Legacy
 face: Lost Legacy

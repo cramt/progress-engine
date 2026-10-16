@@ -159,7 +159,7 @@ cost: {1}{U}
 > Flying
 > Whenever you surveil, you may pay {1}{U}. If you do, create a token that's a copy of this creature.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Performs { who: You, action: "surveil" }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1", "U"]))] }] }, IfYouDo([CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }])], limits: [] }
+= Triggered { trigger: When(Performs { who: You, action: "surveil" }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["1", "U"]))] }] }, IfYouDo([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }])], limits: [] }
 
 ## Court of Cunning
 face: Court of Cunning

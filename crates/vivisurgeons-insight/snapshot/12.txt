@@ -21,7 +21,7 @@ face: Applied Geometry
 type: Sorcery
 cost: {2}{G}{U}
 > Create a token that's a copy of target non-Aura permanent you control, except it's a 0/0 Fractal creature in addition to its other types. Put six +1/+1 counters on it.
-= Spell([CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("aura")]], kind: Some(Permanent), posts: [Controller(You)], or: None } }, except: [AlsoIsSized { pt: Pt { power: N(0), toughness: N(0), signed: false }, types: [Subtype("fractal"), Type("creature")] }] }, PutCounters { n: N(6), kind: "+1/+1", on: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])
+= Spell([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("aura")]], kind: Some(Permanent), posts: [Controller(You)], or: None } }, except: [AlsoIsSized { pt: Pt { power: N(0), toughness: N(0), signed: false }, types: [Subtype("fractal"), Type("creature")] }] }, PutCounters { n: N(6), kind: "+1/+1", on: Objects { quant: Created, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])
 
 ## Arrow Volley Trap
 face: Arrow Volley Trap
@@ -295,7 +295,7 @@ cost: {3}{G}
 > Whenever Esika's Chariot attacks, create a token that's a copy of target token you control.
 > Crew 4
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [Create { who: You, n: N(2), token: Token { tapped: false, pt: Some(Pt { power: N(2), toughness: N(2), signed: false }), colors: [Green], types: ["cat", "creature"], keywords: [], abilities: [], named: None, attacking: None } }], limits: [] }
-= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, except: [] }], limits: [] }
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, except: [] }], limits: [] }
 = Keywords([Keyword { name: "crew", param: Some(N(N(4))) }])
 
 ## Eternal Isolation

@@ -615,7 +615,7 @@ face: Impostor Syndrome
 type: Enchantment
 cost: {4}{U}{U}
 > Whenever a nontoken creature you control deals combat damage to a player, create a token that's a copy of it, except it isn't legendary.
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [CreateCopy { n: N(1), of: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [IsNot([Supertype("legendary")])] }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [IsNot([Supertype("legendary")])] }], limits: [] }
 
 ## Incite War
 face: Incite War

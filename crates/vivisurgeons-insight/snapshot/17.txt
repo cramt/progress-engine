@@ -523,7 +523,7 @@ cost: {3}{G}{U}{R}
 > Flying, ward {2}
 > Whenever another nontoken Dragon you control enters, create a token that's a copy of it, except the token isn't legendary.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "ward", param: Some(Cost([Mana(Mana(["2"]))])) }])
-= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[State(Nontoken), Subtype("dragon")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [CreateCopy { n: N(1), of: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [IsNot([Supertype("legendary")])] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: Another, filter: Filter { alts: [[State(Nontoken), Subtype("dragon")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [IsNot([Supertype("legendary")])] }], limits: [] }
 
 ## Miles "Tails" Prower
 face: Miles "Tails" Prower

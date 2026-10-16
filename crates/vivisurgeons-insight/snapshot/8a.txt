@@ -781,7 +781,7 @@ cost: {4}{G}
 > Defender (This creature can't attack.)
 > Whenever this creature is dealt damage, you may create a token that's a copy of this creature.
 = Keywords([Keyword { name: "defender", param: None }])
-= Triggered { trigger: When(IsDealtDamage(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }], limits: [] }
+= Triggered { trigger: When(IsDealtDamage(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }], limits: [] }
 
 ## Strongbox Raider
 face: Strongbox Raider

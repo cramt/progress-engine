@@ -6631,8 +6631,29 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             subj(o, who, "reveal", cx);
             top_of(o, n, w);
         }
-        Effect::CreateCopy { n: _, of, except } => {
-            o.w("create a token that's a copy of");
+        Effect::CreateCopy {
+            n,
+            tapped,
+            attacking,
+            of,
+            except,
+        } => {
+            o.w("create");
+            amount_a(o, n);
+            if *tapped {
+                o.w("tapped");
+            }
+            if attacking.is_some() {
+                if *tapped {
+                    o.w("and");
+                }
+                o.w("attacking");
+            }
+            if amount_num(n) == Num::Sg {
+                o.w("token that's a copy of");
+            } else {
+                o.w("tokens that are copies of");
+            }
             objects(o, of);
             exceptions(o, except);
         }

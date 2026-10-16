@@ -379,7 +379,7 @@ cost: {5}{G}{G}
 > Trample
 > Whenever this creature deals combat damage to a player, create a token that's a copy of this creature.
 = Keywords([Keyword { name: "trample", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
 
 ## Gideon the Oathless
 face: Gideon the Oathless
@@ -1101,7 +1101,7 @@ cost: {U}
 > + {2} — Draw two cards, then discard a card.
 = Keywords([Keyword { name: "spree", param: None }])
 = Spree { cost: Mana(["1", "U"]), effect: [Counter { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: None }] }
-= Spree { cost: Mana(["3"]), effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }] }
+= Spree { cost: Mana(["3"]), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }] }
 = Spree { cost: Mana(["2"]), effect: [Draw { who: You, n: N(2) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }
 
 ## Throne of Empires

@@ -608,7 +608,7 @@ type: Sorcery
 cost: {3}{U}
 > Create a token that's a copy of target creature you control, except it isn't legendary.
 > Flashback {5}{U}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [IsNot([Supertype("legendary")])] }])
+= Spell([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [IsNot([Supertype("legendary")])] }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["5", "U", "U"]))])) }])
 
 ## Nylea's Emissary

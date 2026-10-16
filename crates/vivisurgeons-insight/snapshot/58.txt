@@ -100,7 +100,7 @@ cost: {3}{U}{R}
 > • Target player draws two cards.
 > • Ashling's Command deals 2 damage to each creature target player controls.
 > • Target player creates two Treasure tokens.
-= Spell([Modal { choose: N(2), modes: [[CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("elemental")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }], [Draw { who: Target, n: N(2) }], [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } })] }], [Create { who: Target, n: N(2), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }]] }])
+= Spell([Modal { choose: N(2), modes: [[CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("elemental")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }], [Draw { who: Target, n: N(2) }], [Damage { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(2), to: [Objects(Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } })] }], [Create { who: Target, n: N(2), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }]] }])
 
 ## Atemsis, All-Seeing
 face: Atemsis, All-Seeing
@@ -209,7 +209,7 @@ cost: {5}{R}{R}
 > +1: Create a token that's a copy of target creature you control, except it has haste and "At the beginning of the end step, sacrifice this token."
 > −4: Chandra deals 8 damage divided as you choose among any number of target creatures and/or planeswalkers.
 = BROKE at "play" after: N(2) : add {R} {R} {R} . exile the top three cards of your library . choose one . you may
-= Loyalty { change: N(1), effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [Has { keywords: [Keyword { name: "haste", param: None }], abilities: [Triggered { trigger: At(EndStep(Each)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }] }] }] }
+= Loyalty { change: N(1), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [Has { keywords: [Keyword { name: "haste", param: None }], abilities: [Triggered { trigger: At(EndStep(Each)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }] }] }] }
 = Loyalty { change: N(-4), effect: [DamageDivided { source: Some(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), n: N(8), among: Objects { quant: AnyNumberOfTarget, filter: Filter { alts: [[Type("creature")], [Type("planeswalker")]], kind: None, posts: [], or: None } } }] }
 
 ## Chittering Skitterling
@@ -627,7 +627,7 @@ type: Enchantment — Aura
 > At the beginning of your upkeep, create a token that's a copy of enchanted creature, except it's a Spirit in addition to its other types.
 > If Ghastly Mimicry would be put into a graveyard from anywhere, exile it instead.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })) }])
-= Triggered { trigger: At(Upkeep(Yours)), effect: [CreateCopy { n: N(1), of: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [AlsoIs([Subtype("spirit")])] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [AlsoIs([Subtype("spirit")])] }], limits: [] }
 = Static([Replacement { event: PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: AGraveyard, from: Anywhere }, instead: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])
 
 ## Moon Girl and Devil Dinosaur

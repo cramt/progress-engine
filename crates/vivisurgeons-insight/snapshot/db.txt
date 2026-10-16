@@ -522,7 +522,7 @@ face: Multiversal Incursion
 type: Sorcery
 cost: {5}{U}{U}
 > For each nontoken creature you control, create a token that's a copy of that creature, except it isn't legendary.
-= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [CreateCopy { n: N(1), of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [IsNot([Supertype("legendary")])] }] }])
+= Spell([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [IsNot([Supertype("legendary")])] }] }])
 
 ## Nakia, Wakandan Operative
 face: Nakia, Wakandan Operative

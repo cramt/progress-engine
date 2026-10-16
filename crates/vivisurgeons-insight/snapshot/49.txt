@@ -254,7 +254,7 @@ cost: {5}{B}{B}
 > Flying
 > At the beginning of your end step, sacrifice a non-Demon creature. If you do, create a token that's a copy of this creature.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: At(EndStep(Yours)), effect: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("demon"), Type("creature")]], kind: None, posts: [], or: None } } }, IfYouDo([CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }])], limits: [] }
+= Triggered { trigger: At(EndStep(Yours)), effect: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Non("demon"), Type("creature")]], kind: None, posts: [], or: None } } }, IfYouDo([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }])], limits: [] }
 
 ## Drumbellower
 face: Drumbellower

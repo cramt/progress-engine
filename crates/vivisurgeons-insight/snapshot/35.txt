@@ -675,7 +675,7 @@ cost: {2}{B}{B}
 > Flying
 > Whenever another nontoken creature you control dies, you may exile it. If you do, create a token that's a copy of that creature, except it's 1/1 and it's a Nightmare in addition to its other types.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(Dies(Objects { quant: Another, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [May { who: You, then: [Exile(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, IfYouDo([CreateCopy { n: N(1), of: Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [Is { pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), adjs: [] }, AlsoIs([Subtype("nightmare")])] }])], limits: [] }
+= Triggered { trigger: When(Dies(Objects { quant: Another, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } })), effect: [May { who: You, then: [Exile(Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }, IfYouDo([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [Is { pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), adjs: [] }, AlsoIs([Subtype("nightmare")])] }])], limits: [] }
 
 ## Noxious Assault
 face: Noxious Assault
@@ -1019,7 +1019,7 @@ face: Theoretical Duplication
 type: Instant
 cost: {2}{U}
 > Whenever a nontoken creature an opponent controls enters this turn, create a token that's a copy of that creature.
-= Spell([During { dur: ThisTurn, then: [DelayedWhenever { event: Enters { what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, under: None, state: None }, then: [CreateCopy { n: N(1), of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }] }] }])
+= Spell([During { dur: ThisTurn, then: [DelayedWhenever { event: Enters { what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(AnOpponent)], or: None } }, under: None, state: None }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }] }] }])
 
 ## Thought Erasure
 face: Thought Erasure

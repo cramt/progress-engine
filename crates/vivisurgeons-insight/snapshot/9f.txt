@@ -1082,7 +1082,7 @@ cost: {2}{U}
 > If you would create one or more artifact tokens, instead create those tokens plus an additional Map token. (It's an artifact with "{1}, {T}, Sacrifice this token: Target creature you control explores. Activate only as a sorcery.")
 > {1}{U}, {T}: Create a token that's a copy of target artifact token you control.
 = Static([Replacement { event: Creates { by: Player(You), what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [[Type("artifact")]], kind: Some(Token), posts: [], or: None } }, under: None }, instead: [CreateThosePlus { by: Player(You), those: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, n: Additional(N(1)), token: Token { tapped: false, pt: None, colors: [], types: ["map"], keywords: [], abilities: [], named: Some("map"), attacking: None } }] }])
-= Activated { cost: [Mana(Mana(["1", "U"])), Tap], effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: Some(Token), posts: [Controller(You)], or: None } }, except: [] }], limits: [] }
+= Activated { cost: [Mana(Mana(["1", "U"])), Tap], effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: Some(Token), posts: [Controller(You)], or: None } }, except: [] }], limits: [] }
 
 ## Zedruu the Greathearted
 face: Zedruu the Greathearted

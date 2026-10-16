@@ -818,8 +818,17 @@ impl Walk for Effect {
                 Walk::walk(whose, v);
                 Walk::walk(n, v);
             }
-            Effect::CreateCopy { n, of, except } => {
+            Effect::CreateCopy {
+                n,
+                attacking,
+                of,
+                except,
+                ..
+            } => {
                 Walk::walk(n, v);
+                if let Some(x0) = (attacking).as_mut() {
+                    Walk::walk(x0, v);
+                }
                 Walk::walk(of, v);
                 for x0 in (except).iter_mut() {
                     Walk::walk(x0, v);

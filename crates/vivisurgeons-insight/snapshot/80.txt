@@ -685,7 +685,7 @@ cost: {2}{U}{U}
 > When you cast this spell, create a token that's a copy of it, except it isn't legendary.
 > {T}: Add {C}. Spend this mana only to cast an artifact spell or activate an ability of an artifact.
 > Paradox — Whenever you cast a spell from anywhere other than your hand, investigate. (Create a Clue token. It's an artifact with "{2}, Sacrifice this token: Draw a card.")
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [IsNot([Supertype("legendary")])] }], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [IsNot([Supertype("legendary")])] }], limits: [] }
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"])))], limits: [SpendOnly { uses: [Cast(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: Some(Spell), posts: [], or: None } }), ActivateAbilityOf(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], then: None }] }
 = Labelled { label: "paradox", ability: Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [CastFrom(AnywhereOtherThan(Hand(You)))], or: None } } }), effect: [Action { by: None, name: "investigate", n: None }], limits: [] } }
 

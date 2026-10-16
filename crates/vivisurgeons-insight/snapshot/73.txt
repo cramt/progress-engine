@@ -251,7 +251,7 @@ cost: {2}{U}
 > At the beginning of your upkeep, create a token that's a copy of enchanted creature, except the token is 1/1.
 > When enchanted creature dies, if that creature was a Horror, return this card to its owner's hand.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } })) }])
-= Triggered { trigger: At(Upkeep(Yours)), effect: [CreateCopy { n: N(1), of: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [Is { pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), adjs: [] }] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [Is { pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), adjs: [] }] }], limits: [] }
 = Triggered { trigger: InterveningIf(When(Dies(Objects { quant: Enchanted, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), Past(Is { what: Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Subtype("horror")]], kind: None, posts: [], or: None } })), effect: [Move { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }], limits: [] }
 
 ## Escaped Null
@@ -583,7 +583,7 @@ face: Ondu Spiritdancer
 type: Creature — Kor Cleric
 cost: {4}{W}
 > Whenever an enchantment you control enters, you may create a token that's a copy of it. Do this only once each turn.
-= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [CreateCopy { n: N(1), of: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }], limits: [DoOnlyOncePerTurn] }
+= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[Type("enchantment")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [May { who: You, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }] }], limits: [DoOnlyOncePerTurn] }
 
 ## Orzhov Locket
 face: Orzhov Locket
@@ -658,7 +658,7 @@ face: Polyraptor
 type: Creature — Dinosaur
 cost: {6}{G}{G}
 > Enrage — Whenever this creature is dealt damage, create a token that's a copy of this creature.
-= Labelled { label: "enrage", ability: Triggered { trigger: When(IsDealtDamage(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] } }
+= Labelled { label: "enrage", ability: Triggered { trigger: When(IsDealtDamage(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] } }
 
 ## Raise Dead
 face: Raise Dead

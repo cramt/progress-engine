@@ -260,7 +260,7 @@ face: Espers to Magicite
 type: Instant
 cost: {3}{B}
 > Exile each opponent's graveyard. When you do, choose up to one target creature card exiled this way. Create a token that's a copy of that card, except it's an artifact and it loses all other card types.
-= Spell([ExileZone(Graveyard(EachOpponent)), WhenYouDo([Choose(Objects(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [Marked(Exiled)], or: None } })), CreateCopy { n: N(1), of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, except: [Is { pt: None, adjs: [Type("artifact")] }] }])])
+= Spell([ExileZone(Graveyard(EachOpponent)), WhenYouDo([Choose(Objects(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [Marked(Exiled)], or: None } })), CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, except: [Is { pt: None, adjs: [Type("artifact")] }] }])])
 
 ## Evidence Examiner
 face: Evidence Examiner

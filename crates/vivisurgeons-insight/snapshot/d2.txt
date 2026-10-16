@@ -229,7 +229,7 @@ cost: {2}{G}
 > Kicker {3}{U} (You may pay an additional {3}{U} as you cast this spell.)
 > When this creature enters, if it was kicked, create a token that's a copy of target creature you control.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["3", "U"]))])) }])
-= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), WasKicked), effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }], limits: [] }
+= Triggered { trigger: InterveningIf(When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), WasKicked), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }], limits: [] }
 
 ## Endless Cockroaches
 face: Endless Cockroaches

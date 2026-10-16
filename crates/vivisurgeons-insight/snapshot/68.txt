@@ -692,7 +692,7 @@ face: Necroduality
 type: Enchantment
 cost: {3}{U}
 > Whenever a nontoken Zombie you control enters, create a token that's a copy of that creature.
-= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Subtype("zombie")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [CreateCopy { n: N(1), of: Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
+= Triggered { trigger: When(Enters { what: Objects { quant: One, filter: Filter { alts: [[State(Nontoken), Subtype("zombie")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
 
 ## Necromancer's Stockpile
 face: Necromancer's Stockpile

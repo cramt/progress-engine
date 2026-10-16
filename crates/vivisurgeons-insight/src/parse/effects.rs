@@ -1248,7 +1248,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             p.words("a token that's a copy of")?;
             let of = objects(p)?;
             let except = p.attempt(exceptions).unwrap_or_default();
-            Some(Effect::CreateCopy { n: Amount::N(1), of, except })
+            Some(Effect::CreateCopy { n: Amount::N(1), tapped: false, attacking: None, of, except })
         },
         |p| {
             let who = subject_player(p);

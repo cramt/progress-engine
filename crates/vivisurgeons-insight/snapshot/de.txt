@@ -725,7 +725,7 @@ cost: {2}{U}{U}
 > Kicker {5} (You may pay an additional {5} as you cast this spell.)
 > Create a token that's a copy of target creature. If this spell was kicked, create five of those tokens instead.
 = Keywords([Keyword { name: "kicker", param: Some(Cost([Mana(Mana(["5"]))])) }])
-= Spell([CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }, Instead { cond: WasKicked, then: [CreateThose { by: Player(You), n: N(5), those: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }])
+= Spell([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }, Instead { cond: WasKicked, then: [CreateThose { by: Player(You), n: N(5), those: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } } }] }])
 
 ## Rootwater Hunter
 face: Rootwater Hunter

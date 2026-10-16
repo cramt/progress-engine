@@ -505,7 +505,7 @@ cost: {2}{U}{U}
 > Enchant artifact you control
 > At the beginning of your upkeep, create a token that's a copy of enchanted artifact. Then if you control eight or more artifacts with the same name as one another, you win the game.
 = Keywords([Keyword { name: "enchant", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } })) }])
-= Triggered { trigger: At(Upkeep(Yours)), effect: [CreateCopy { n: N(1), of: Objects { quant: Enchanted, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, except: [] }, If { cond: YouControl(Objects { quant: AtLeast(N(8)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [SameName], or: None } }), then: [WinGame(You)] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Enchanted, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } }, except: [] }, If { cond: YouControl(Objects { quant: AtLeast(N(8)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [SameName], or: None } }), then: [WinGame(You)] }], limits: [] }
 
 ## Mirelurk Queen
 face: Mirelurk Queen

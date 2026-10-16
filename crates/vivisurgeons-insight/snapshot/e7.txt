@@ -80,7 +80,7 @@ face: Blue Sun's Twilight
 type: Sorcery
 cost: {X}{U}{U}
 > Gain control of target creature with mana value X or less. If X is 5 or more, create a token that's a copy of that creature.
-= Spell([GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: ManaValue, op: Le, value: X })], or: None } }, dur: Permanent }, If { cond: AmountIs { n: X, op: Ge, value: N(5) }, then: [CreateCopy { n: N(1), of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }] }])
+= Spell([GainControl { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [With(Compare { stat: ManaValue, op: Le, value: X })], or: None } }, dur: Permanent }, If { cond: AmountIs { n: X, op: Ge, value: N(5) }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }] }])
 
 ## Bojuka Bog
 face: Bojuka Bog

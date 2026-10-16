@@ -193,7 +193,7 @@ type: Sorcery
 cost: {1}{G}{U}
 > Create a token that's a copy of target non-Frog creature, except it's a 1/1 green Frog.
 > Flashback {3}{G}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("frog"), Type("creature")]], kind: None, posts: [], or: None } }, except: [Is { pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), adjs: [Color(Green), Subtype("frog")] }] }])
+= Spell([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("frog"), Type("creature")]], kind: None, posts: [], or: None } }, except: [Is { pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), adjs: [Color(Green), Subtype("frog")] }] }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["3", "G", "U"]))])) }])
 
 ## Dargo, the Shipwrecker

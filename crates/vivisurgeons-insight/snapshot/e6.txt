@@ -1158,7 +1158,7 @@ cost: {3}{B}
 > Uchuulon's power is equal to the number of Crabs, Oozes, and/or Horrors you control.
 > Horrific Symbiosis — At the beginning of your end step, exile up to one target creature card from an opponent's graveyard. If you do, create a token that's a copy of this creature.
 = Static([SetPower { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("crab")], [Subtype("ooze")], [Subtype("horror")]], kind: None, posts: [Controller(You)], or: None } }) }])
-= Labelled { label: "horrific symbiosis", ability: Triggered { trigger: At(EndStep(Yours)), effect: [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(AnOpponent))], or: None } }), IfYouDo([CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }])], limits: [] } }
+= Labelled { label: "horrific symbiosis", ability: Triggered { trigger: At(EndStep(Yours)), effect: [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(AnOpponent))], or: None } }), IfYouDo([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }])], limits: [] } }
 
 ## Uncovered Clues
 face: Uncovered Clues

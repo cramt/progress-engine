@@ -659,7 +659,7 @@ cost: {4}{U}
 > Demonstrate (When you cast this spell, you may copy it. If you do, choose an opponent to also copy it. Players may choose new targets for their copies.)
 > Create a token that's a copy of target permanent you control.
 = Keywords([Keyword { name: "demonstrate", param: None }])
-= Spell([CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, except: [] }])
+= Spell([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [Controller(You)], or: None } }, except: [] }])
 
 ## Resculpt
 face: Resculpt

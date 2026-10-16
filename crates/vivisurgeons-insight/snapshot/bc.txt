@@ -194,7 +194,7 @@ cost: {3}{B}{B}
 > Gift a card (You may promise an opponent a gift as you cast this spell. If you do, they draw a card before its other effects.)
 > Return target creature card from your graveyard to the battlefield. Then if the gift was promised and that creature isn't legendary, create a token that's a copy of that creature, except it's 1/1.
 = Keywords([Keyword { name: "gift", param: Some(Gift(Card)) }])
-= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, If { cond: And([GiftPromised, Not(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Supertype("legendary")]], kind: None, posts: [], or: None } })]), then: [CreateCopy { n: N(1), of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [Is { pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), adjs: [] }] }] }])
+= Spell([Move { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }, from: None, to: Battlefield, tapped: false, transformed: false, under: None, order: None }, If { cond: And([GiftPromised, Not(Is { what: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, filter: Filter { alts: [[Supertype("legendary")]], kind: None, posts: [], or: None } })]), then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [Is { pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), adjs: [] }] }] }])
 
 ## Combust
 face: Combust
@@ -677,7 +677,7 @@ cost: {3}{G}{U}
 > Gift an Octopus (You may promise an opponent a gift as you cast this spell. If you do, when it enters, they create an 8/8 blue Octopus creature token.)
 > At the beginning of each end step, create a token that's a copy of target creature token that entered the battlefield this turn.
 = Keywords([Keyword { name: "gift", param: Some(Gift(Token { tapped: false, named: "octopus" })) }])
-= Triggered { trigger: At(EndStep(Each)), effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [EnteredThisTurn], or: None } }, except: [] }], limits: [] }
+= Triggered { trigger: At(EndStep(Each)), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: Some(Token), posts: [EnteredThisTurn], or: None } }, except: [] }], limits: [] }
 
 ## Outmuscle
 face: Outmuscle

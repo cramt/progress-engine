@@ -303,7 +303,7 @@ cost: {R}{G}{W}
 > Haste
 > Nontoken creatures you control have "{T}: Create a token that's a copy of target token you control that entered this turn."
 = Keywords([Keyword { name: "haste", param: None }])
-= Static([HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You), EnteredThisTurn], or: None } }, except: [] }], limits: [] } }])
+= Static([HasAbility { what: Objects { quant: Plural, filter: Filter { alts: [[State(Nontoken), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, ability: Activated { cost: [Tap], effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You), EnteredThisTurn], or: None } }, except: [] }], limits: [] } }])
 
 ## Glamdring
 face: Glamdring

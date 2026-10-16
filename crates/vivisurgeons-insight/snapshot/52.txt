@@ -839,7 +839,7 @@ cost: {2}{W}
 > II, III — Create a token that's a copy of target token you control.
 > IV — Creatures you control get +1/+1 and gain vigilance until end of turn.
 = Chapter { chapters: [1], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["mouse", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }
-= Chapter { chapters: [2, 3], effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, except: [] }] }
+= Chapter { chapters: [2, 3], effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Token), posts: [Controller(You)], or: None } }, except: [] }] }
 = Chapter { chapters: [4], effect: [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [Keyword { name: "vigilance", param: None }], dur: UntilEndOfTurn }] }
 
 ## Toph, the Blind Bandit

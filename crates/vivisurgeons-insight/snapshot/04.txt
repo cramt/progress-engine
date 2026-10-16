@@ -463,7 +463,7 @@ type: Kindred Sorcery — Elemental
 cost: {3}{R}
 > Create a token that's a copy of target creature you control, except it has haste and "At the beginning of the end step, sacrifice this token."
 > Flashback—{1}{R}, Behold three Elementals. (You may cast this card from your graveyard for its flashback cost. Then exile it. To behold an Elemental, choose an Elemental you control or reveal an Elemental card from your hand.)
-= Spell([CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [Has { keywords: [Keyword { name: "haste", param: None }], abilities: [Triggered { trigger: At(EndStep(Each)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }] }] }])
+= Spell([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [Has { keywords: [Keyword { name: "haste", param: None }], abilities: [Triggered { trigger: At(EndStep(Each)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }] }] }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["1", "R"])), ActionOn { name: "behold", what: Objects { quant: N(N(3)), filter: Filter { alts: [[Subtype("elemental")]], kind: None, posts: [], or: None } } }])) }])
 
 ## Kingpin, Wilson Fisk

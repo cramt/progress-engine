@@ -473,7 +473,7 @@ type: Legendary Artifact — Equipment
 cost: {4}
 > At the beginning of combat on your turn, create a token that's a copy of equipped creature, except the token isn't legendary. That token gains haste.
 > Equip {5}
-= Triggered { trigger: At(Combat(Yours)), effect: [CreateCopy { n: N(1), of: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [IsNot([Supertype("legendary")])] }, Modify { what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: Permanent }], limits: [] }
+= Triggered { trigger: At(Combat(Yours)), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [IsNot([Supertype("legendary")])] }, Modify { what: Objects { quant: Created, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } }, pt: None, gains: [Keyword { name: "haste", param: None }], dur: Permanent }], limits: [] }
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["5"]))])) }])
 
 ## Highland Forest

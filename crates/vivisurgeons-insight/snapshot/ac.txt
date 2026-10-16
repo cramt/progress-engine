@@ -475,7 +475,7 @@ cost: {3}{B}{R}
 > • Creatures target player controls get +1/+1 and gain haste until end of turn.
 > • Destroy target artifact or creature.
 > • Target player mills five cards, then puts each Goblin card milled this way into their hand.
-= Spell([Modal { choose: N(2), modes: [[CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }], [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }], [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], [Mill { who: Target, n: N(5) }, Performed { by: Target, effect: Move { what: Objects { quant: Each, filter: Filter { alts: [[Subtype("goblin")]], kind: Some(Card), posts: [Marked(Milled)], or: None } }, from: None, to: Hand(That), tapped: false, transformed: false, under: None, order: None } }]] }])
+= Spell([Modal { choose: N(2), modes: [[CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("goblin")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }], [Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(Target)], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), gains: [Keyword { name: "haste", param: None }], dur: UntilEndOfTurn }], [Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } }, no_regen: false }], [Mill { who: Target, n: N(5) }, Performed { by: Target, effect: Move { what: Objects { quant: Each, filter: Filter { alts: [[Subtype("goblin")]], kind: Some(Card), posts: [Marked(Milled)], or: None } }, from: None, to: Hand(That), tapped: false, transformed: false, under: None, order: None } }]] }])
 
 ## Headsplitter
 face: Headsplitter
@@ -713,7 +713,7 @@ face: Myr Propagator
 type: Artifact Creature — Myr
 cost: {3}
 > {3}, {T}: Create a token that's a copy of this creature.
-= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
+= Activated { cost: [Mana(Mana(["3"])), Tap], effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
 
 ## Nadaar, Selfless Paladin
 face: Nadaar, Selfless Paladin

@@ -706,7 +706,7 @@ type: Sorcery
 cost: {1}{U}{U}
 > Create a token that's a copy of target creature you control.
 > Jump-start (You may cast this card from your graveyard by discarding a card in addition to paying its other costs. Then exile this card.)
-= Spell([CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }])
+= Spell([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }])
 = Keywords([Keyword { name: "jump-start", param: None }])
 
 ## Rakdos Cluestone

@@ -662,7 +662,7 @@ cost: {2}{U}
 > • Create a token that's a copy of target artifact creature you control.
 > • Create a token that's a copy of target nonartifact creature you control.
 > Entwine {2}{U} (Choose both if you pay the entwine cost.)
-= Spell([Modal { choose: One, modes: [[CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }], [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("artifact"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }]] }])
+= Spell([Modal { choose: One, modes: [[CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }], [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("artifact"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }]] }])
 = Keywords([Keyword { name: "entwine", param: Some(Cost([Mana(Mana(["2", "U"]))])) }])
 
 ## Moorland Inquisitor

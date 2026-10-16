@@ -799,7 +799,7 @@ cost: {2}{U}{U}
 > • Copy target spell. You may choose new targets for the copy. (A copy of a permanent spell becomes a token.)
 > • Create a token that's a copy of target creature.
 = BROKE at "." after: this spell can't be copied
-= Spell([Modal { choose: Upgrade { base: One, cond: PlayerHas { who: AnOpponent, at_least: 8, what: CardsInGraveyard }, to: N(2), may: true }, modes: [[Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }], [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }]] }])
+= Spell([Modal { choose: Upgrade { base: One, cond: PlayerHas { who: AnOpponent, at_least: 8, what: CardsInGraveyard }, to: N(2), may: true }, modes: [[Copy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, may_choose_new_targets: true }], [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, except: [] }]] }])
 
 ## Senseless Rage
 face: Senseless Rage

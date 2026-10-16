@@ -505,7 +505,7 @@ face: Homunculus Horde
 type: Creature — Homunculus
 cost: {3}{U}
 > Whenever you draw your second card each turn, create a token that's a copy of this creature.
-= Triggered { trigger: When(DrawsNth { who: You, n: 2 }), effect: [CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
+= Triggered { trigger: When(DrawsNth { who: You, n: 2 }), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
 
 ## Horned Kavu
 face: Horned Kavu

@@ -824,7 +824,7 @@ cost: {1}{B}
 > Pack Rat's power and toughness are each equal to the number of Rats you control.
 > {2}{B}, Discard a card: Create a token that's a copy of this creature.
 = Static([SetPt { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, each_equal_to: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("rat")]], kind: None, posts: [Controller(You)], or: None } }) }])
-= Activated { cost: [Mana(Mana(["2", "B"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
+= Activated { cost: [Mana(Mana(["2", "B"])), Discard(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }], limits: [] }
 
 ## Phantasmal Dragon
 face: Phantasmal Dragon
@@ -1195,7 +1195,7 @@ cost: {2}{W}{U}
 > Artifact creatures you control get +2/+2.
 > {6}: Create a token that's a copy of target artifact you control, except it's a 1/1 Soldier creature in addition to its other types.
 = Static([Modify { what: Objects { quant: Plural, filter: Filter { alts: [[Type("artifact"), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: N(2), toughness: N(2), signed: true }), has: [], per: None }])
-= Activated { cost: [Mana(Mana(["6"]))], effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, except: [AlsoIsSized { pt: Pt { power: N(1), toughness: N(1), signed: false }, types: [Subtype("soldier"), Type("creature")] }] }], limits: [] }
+= Activated { cost: [Mana(Mana(["6"]))], effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, except: [AlsoIsSized { pt: Pt { power: N(1), toughness: N(1), signed: false }, types: [Subtype("soldier"), Type("creature")] }] }], limits: [] }
 
 ## Vaultguard Trooper
 face: Vaultguard Trooper

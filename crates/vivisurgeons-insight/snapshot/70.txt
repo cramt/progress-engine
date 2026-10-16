@@ -292,7 +292,7 @@ face: Extravagant Replication
 type: Enchantment
 cost: {4}{U}{U}
 > At the beginning of your upkeep, create a token that's a copy of another target nonland permanent you control.
-= Triggered { trigger: At(Upkeep(Yours)), effect: [CreateCopy { n: N(1), of: Objects { quant: AnotherTarget, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(You)], or: None } }, except: [] }], limits: [] }
+= Triggered { trigger: At(Upkeep(Yours)), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: AnotherTarget, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(You)], or: None } }, except: [] }], limits: [] }
 
 ## Extruder
 face: Extruder
@@ -1130,7 +1130,7 @@ cost: {5}{G}{G}
 > When this creature dies, if it's not a token, create a token that's a copy of it, except it's an artifact in addition to its other types.
 = Keywords([Keyword { name: "trample", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You), With(Compare { stat: Power, op: Ge, value: N(4) })], or: None } }, under: None, state: None }), effect: [GainLife { who: You, n: N(3) }, Draw { who: You, n: N(1) }], limits: [] }
-= Triggered { trigger: InterveningIf(When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Not(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } })), effect: [CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [AlsoIs([Type("artifact")])] }], limits: [] }
+= Triggered { trigger: InterveningIf(When(Dies(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), Not(Is { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, filter: Filter { alts: [], kind: Some(Token), posts: [], or: None } })), effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [AlsoIs([Type("artifact")])] }], limits: [] }
 
 ## Vicious Shadows
 face: Vicious Shadows

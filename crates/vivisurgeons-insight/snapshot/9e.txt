@@ -141,7 +141,7 @@ type: Instant
 cost: {1}{U}{U}
 > Create a token that's a copy of target creature you control.
 > Flashback {5}{U}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)
-= Spell([CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }])
+= Spell([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, except: [] }])
 = Keywords([Keyword { name: "flashback", param: Some(Cost([Mana(Mana(["5", "U", "U"]))])) }])
 
 ## Central Elevator // Promising Stairs
@@ -578,7 +578,7 @@ cost: {2}{G}{U}
 = BROKE at "has" after: at the beginning of combat on your turn , ~ becomes a copy of up to one target creature you control until end of turn , except he
 = BROKE at "committed" after: N(1) : draw two cards . if you've
 = Loyalty { change: N(-1), effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(3), toughness: N(3), signed: false }), colors: [Green], types: ["elk", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }
-= Loyalty { change: N(-5), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Non("land")]], kind: Some(Permanent), posts: [Controller(You)], or: None } }, then: [CreateCopy { n: N(1), of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, except: [] }] }] }
+= Loyalty { change: N(-5), effect: [ForEach { each: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Non("land")]], kind: Some(Permanent), posts: [Controller(You)], or: None } }, then: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, except: [] }] }] }
 
 ## Ordeal of Nylea
 face: Ordeal of Nylea

@@ -531,7 +531,7 @@ face: Joo Dee, One of Many
 type: Creature — Human Advisor
 cost: {1}{B}
 > {B}, {T}: Surveil 1. Create a token that's a copy of this creature, then sacrifice an artifact or creature. Activate only as a sorcery. (To surveil 1, look at the top card of your library. You may put it into your graveyard.)
-= Activated { cost: [Mana(Mana(["B"])), Tap], effect: [Surveil(N(1)), CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }, Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } } }], limits: [SorcerySpeed] }
+= Activated { cost: [Mana(Mana(["B"])), Tap], effect: [Surveil(N(1)), CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }, Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } } }], limits: [SorcerySpeed] }
 
 ## Keening Stone
 face: Keening Stone
@@ -959,7 +959,7 @@ face: Sorcerer's Broom
 type: Artifact Creature — Spirit
 cost: {2}
 > Whenever you sacrifice another permanent, you may pay {3}. If you do, create a token that's a copy of this creature.
-= Triggered { trigger: When(Sacrifices { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["3"]))] }] }, IfYouDo([CreateCopy { n: N(1), of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }])], limits: [] }
+= Triggered { trigger: When(Sacrifices { who: You, what: Objects { quant: Another, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } } }), effect: [May { who: You, then: [Pay { who: You, cost: [Mana(Mana(["3"]))] }] }, IfYouDo([CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, except: [] }])], limits: [] }
 
 ## Spelltithe Enforcer
 face: Spelltithe Enforcer

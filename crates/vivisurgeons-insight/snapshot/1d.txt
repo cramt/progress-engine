@@ -132,7 +132,7 @@ cost: {2}{G}
 > I — Create a Treasure token.
 > II, III, IV, V, VI — Create a token that's a copy of target non-Saga token you control.
 = Chapter { chapters: [1], effect: [Create { who: You, n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }] }
-= Chapter { chapters: [2, 3, 4, 5, 6], effect: [CreateCopy { n: N(1), of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("saga")]], kind: Some(Token), posts: [Controller(You)], or: None } }, except: [] }] }
+= Chapter { chapters: [2, 3, 4, 5, 6], effect: [CreateCopy { n: N(1), tapped: false, attacking: None, of: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Non("saga")]], kind: Some(Token), posts: [Controller(You)], or: None } }, except: [] }] }
 
 ## Clever Impersonator
 face: Clever Impersonator
