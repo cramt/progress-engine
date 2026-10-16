@@ -325,7 +325,7 @@ face: Exuberant Wolfbear
 type: Creature — Wolf Bear
 cost: {3}{G}
 > Whenever this creature attacks, you may have the base power and toughness of target Human you control become equal to this creature's power and toughness until end of turn.
-= BROKE at "power" after: whenever this creature attacks , you may have the base
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [BaseBecomes { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Subtype("human")]], kind: None, posts: [Controller(You)], or: None } }, power: Some(PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), toughness: Some(ToughnessOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Flamebraider
 face: Flamebraider

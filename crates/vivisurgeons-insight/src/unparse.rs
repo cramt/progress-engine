@@ -7885,6 +7885,12 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                     toughness: lex::PtPart::N(*b as i32),
                     signed: false,
                 })),
+                (Some(Amount::PowerOf(x)), Some(Amount::PowerOf(_))) => {
+                    o.w("equal to");
+                    objects(o, x);
+                    o.tok(Tok::Possessive);
+                    o.w("power");
+                }
                 (Some(Amount::PowerOf(x)), Some(_)) => {
                     o.w("equal to");
                     let s_form = out(|o| {
@@ -7909,9 +7915,16 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                     if have {
                         o.w("have");
                     }
-                    possessive_of(o, what);
-                    o.w("base");
-                    o.w(if both { "power and toughness" } else { "power" });
+                    // "the base power and toughness of other creatures you
+                    // control": a group is said with "of".
+                    if both && !matches!(what.quant, Quant::SelfRef | Quant::Antecedent) {
+                        o.w("the base power and toughness of");
+                        objects(o, what);
+                    } else {
+                        possessive_of(o, what);
+                        o.w("base");
+                        o.w(if both { "power and toughness" } else { "power" });
+                    }
                     o.w(if have || both { "become" } else { "becomes" });
                     o.0.extend(size.0.iter().cloned());
                 })

@@ -821,7 +821,7 @@ cost: {1}{G}{U}
 > Whenever this creature attacks, you may have the base power and toughness of another target creature you control become X/X until end of turn, where X is this creature's power.
 > {3}{G}{U}: Adapt 3. (If this creature has no +1/+1 counters on it, put three +1/+1 counters on it.)
 = Keywords([Keyword { name: "trample", param: None }])
-= BROKE at "power" after: whenever this creature attacks , you may have the base
+= BROKE at "<pt>" after: whenever this creature attacks , you may have the base power and toughness of another target creature you control become
 = Activated { cost: [Mana(Mana(["3", "G", "U"]))], effect: [Action { by: None, name: "adapt", n: Some(N(3)) }], limits: [] }
 
 ## Valley Dasher

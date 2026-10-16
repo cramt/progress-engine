@@ -871,7 +871,7 @@ cost: {3}{G}{U}
 > Whenever Tanazir Quandrix attacks, you may have the base power and toughness of other creatures you control become equal to Tanazir Quandrix's power and toughness until end of turn.
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [DoubleCounters { kind: Some("+1/+1"), on: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
-= BROKE at "power" after: whenever ~ attacks , you may have the base
+= Triggered { trigger: When(Attacks(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [BaseBecomes { what: Objects { quant: Plural, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, power: Some(PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), toughness: Some(ToughnessOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), dur: UntilEndOfTurn }] }], limits: [] }
 
 ## Tempered Veteran
 face: Tempered Veteran

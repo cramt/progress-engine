@@ -723,15 +723,24 @@ fn effect_main(p: &mut P) -> Option<Effect> {
         // that creature's power" (CR 613.4b).
         |p| {
             let have = p.attempt(|p| p.word("have")).is_some();
-            let what = alt!(p;
-                |p| p.word("its").map(|_| antecedent()),
-                |p| { let o = objects(p)?; p.tok(&Tok::Possessive)?; Some(o) },
-            )?;
-            p.word("base")?;
-            let both = alt!(p;
-                |p| p.words("power and toughness").map(|_| true),
-                |p| p.word("power").map(|_| false),
-            )?;
+            // "the base power and toughness of other creatures you control"
+            // (Tanazir Quandrix): the same, said of a group.
+            let of = p.attempt(|p| { p.words("the base power and toughness of")?; objects(p) });
+            let (what, both) = match of {
+                Some(o) => (o, true),
+                None => {
+                    let what = alt!(p;
+                        |p| p.word("its").map(|_| antecedent()),
+                        |p| { let o = objects(p)?; p.tok(&Tok::Possessive)?; Some(o) },
+                    )?;
+                    p.word("base")?;
+                    let both = alt!(p;
+                        |p| p.words("power and toughness").map(|_| true),
+                        |p| p.word("power").map(|_| false),
+                    )?;
+                    (what, both)
+                }
+            };
             match (have, both) {
                 (true, _) => p.word("become")?,
                 (false, true) => p.word("become")?,
@@ -745,6 +754,17 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                         Some((Some(Amount::N(u32::try_from(a).ok()?)), Some(Amount::N(u32::try_from(b).ok()?))))
                     }
                     _ => None,
+                },
+                // "become equal to Sita Varma's power": both stats, one number.
+                |p| {
+                    if !both { return None; }
+                    p.words("equal to")?;
+                    let o = objects(p)?;
+                    p.tok(&Tok::Possessive)?;
+                    p.word("power")?;
+                    if p.peek_word() == Some("and") { return None; }
+                    let n = Amount::PowerOf(Box::new(o));
+                    Some((Some(n.clone()), Some(n)))
                 },
                 |p| {
                     if !both { return None; }

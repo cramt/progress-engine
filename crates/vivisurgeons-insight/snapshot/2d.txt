@@ -930,7 +930,7 @@ face: Sita Varma, Masked Racer
 type: Legendary Creature — Human Rogue
 cost: {G}{U}
 > Exhaust — {X}{G}{G}{U}: Put X +1/+1 counters on Sita Varma. Then you may have the base power and toughness of each other creature you control become equal to Sita Varma's power until end of turn. (Activate each exhaust ability only once.)
-= BROKE at "power" after: exhaust — {X} {G} {G} {U} : put x <pt> counters on ~ . then you may have the base
+= KeywordOn { keyword: Exhaust, ability: Activated { cost: [Mana(Mana(["X", "G", "G", "U"]))], effect: [PutCounters { n: X, kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, May { who: You, then: [BaseBecomes { what: Objects { quant: Each, filter: Filter { alts: [[State(Other), Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, power: Some(PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), toughness: Some(PowerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), dur: UntilEndOfTurn }] }], limits: [] } }
 
 ## Soulcipher Board // Cipherbound Spirit
 face: Soulcipher Board
