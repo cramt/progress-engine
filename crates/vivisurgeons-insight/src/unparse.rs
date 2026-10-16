@@ -3391,6 +3391,7 @@ fn player(o: &mut Out, p: &Player) {
         Player::EachOtherPlayer => o.w("each other player"),
         Player::AnOpponent => syn::an_opponent(o),
         Player::APlayer => o.w("a player"),
+        Player::Another => o.w("another player"),
         Player::That => syn::that_player(o),
         Player::AttackingPlayer => o.w("that attacking player"),
         Player::DefendingPlayer => o.w("defending player"),
@@ -11293,6 +11294,20 @@ fn past(o: &mut Out, c: &Condition) {
 
 fn not_condition(o: &mut Out, c: &Condition) {
     match c {
+        // "none of those creatures attacked you" (Firemane Commando).
+        Condition::Is { what, filter }
+            if what.quant == Quant::AtLeast(Amount::N(1))
+                && matches!(&what.filter.posts[..], [Post::FromAmong(_)])
+                && matches!(&filter.posts[..], [Post::AttackingAnyOf(r)]
+                    if r[..] == [Recipient::Player(Player::You)]) =>
+        {
+            let [Post::FromAmong(those)] = &what.filter.posts[..] else {
+                return;
+            };
+            o.w("none of");
+            objects(o, those);
+            o.w("attacked you");
+        }
         // "this enchantment has no charge counters on it", "there are no
         // charge counters on this Vehicle".
         Condition::HasCounter { what, kind } => {

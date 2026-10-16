@@ -365,6 +365,15 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.words("the two spells have the same mana value")?;
             Some(two_spells_same_mana_value())
         },
+        // "if none of those creatures attacked you" (Firemane Commando): not
+        // one of the creatures the trigger saw attacks you.
+        |p| {
+            p.words("none of")?;
+            let those = objects(p)?;
+            if those.quant != Quant::Antecedent { return None; }
+            p.words("attacked you")?;
+            Some(none_attacked_you(those))
+        },
         // "an opponent protects it" (Portent Tracker, CR 310.9).
         |p| {
             let who = player_simple(p)?;
@@ -785,4 +794,23 @@ pub(crate) fn two_spells_same_mana_value() -> Condition {
             value: Amount::ManaValueOf(Box::new(spell)),
         },
     }
+}
+
+/// "none of those creatures attacked you": no one of them is attacking you.
+pub(crate) fn none_attacked_you(those: Objects) -> Condition {
+    let one = Objects {
+        quant: Quant::AtLeast(Amount::N(1)),
+        filter: Filter {
+            posts: vec![Post::FromAmong(Box::new(those))],
+            ..Filter::default()
+        },
+    };
+    let attacking = Filter {
+        posts: vec![Post::AttackingAnyOf(vec![Recipient::Player(Player::You)])],
+        ..Filter::default()
+    };
+    Condition::Not(Box::new(Condition::Is {
+        what: one,
+        filter: attacking,
+    }))
 }

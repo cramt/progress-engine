@@ -600,6 +600,8 @@ pub enum Player {
     EachOtherPlayer,
     AnOpponent,
     APlayer,
+    /// "another player" (Firemane Commando): any player but you.
+    Another,
     That,
     DefendingPlayer,
     ControllerOf(Box<Objects>),

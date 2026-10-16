@@ -361,7 +361,7 @@ cost: {3}{W}
 > Whenever another player attacks with two or more creatures, they draw a card if none of those creatures attacked you.
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(AttacksWith { who: You, what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, at: None }), effect: [Draw { who: You, n: N(1) }], limits: [] }
-= BROKE at "more" after: whenever another player attacks with two or
+= Triggered { trigger: When(AttacksWith { who: Another, what: Objects { quant: AtLeast(N(2)), filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, at: None }), effect: [If { cond: Not(Is { what: Objects { quant: AtLeast(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Triggering, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })], or: None } }, filter: Filter { alts: [], kind: None, posts: [AttackingAnyOf([Player(You)])], or: None } }), then: [Draw { who: That, n: N(1) }] }], limits: [] }
 
 ## First Response
 face: First Response

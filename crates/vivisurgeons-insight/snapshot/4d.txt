@@ -33,7 +33,7 @@ cost: {3}{W}{W}
 > Whenever another player casts a spell from anywhere other than their hand, draw a card.
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Or([Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }, DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])), effect: [Exile(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }), May { who: OwnerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [Cast { verb: Cast, what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, payment: ManaCost, dur: ForAsLongAs(In { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, zone: Exile }) }] }], limits: [] }
-= BROKE at "anywhere" after: whenever another player casts a spell from
+= BROKE at "a" after: whenever another player casts a spell from anywhere other than their hand , draw
 
 ## Agent of Horizons
 face: Agent of Horizons

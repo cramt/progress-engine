@@ -166,7 +166,12 @@ pub(super) fn single_event(p: &mut P) -> Option<Event> {
         // second card each turn, or casts their second spell each turn": one
         // player, a list of verbs.
         |p| {
-            let who = player(p)?;
+            let who = alt!(p;
+                player,
+                // "Whenever another player attacks with two or more
+                // creatures" (Firemane Commando).
+                |p| p.words("another player").map(|_| Player::Another),
+            )?;
             let mut v = vec![player_predicate(p, &who)?];
             // Each item with where it started and whether "or" led it: a
             // list ends in "or", so a trailing bare comma ends the trigger.
