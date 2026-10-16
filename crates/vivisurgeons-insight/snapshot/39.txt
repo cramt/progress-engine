@@ -452,7 +452,7 @@ face: Journey On
 type: Sorcery — Adventure
 cost: {G}
 > Create X Map tokens, where X is one plus the number of opponents who control an artifact. (Then exile this card. You may cast the creature later from exile.)
-= BROKE at "control" after: create x map tokens , where x is one plus the number of opponents who
+= Spell([Where { then: [Create { who: You, n: X, token: Token { tapped: false, pt: None, colors: [], types: ["map"], keywords: [], abilities: [], named: Some("map"), attacking: None } }], x: Plus(CountOf(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [WhoControls(Objects { quant: One, filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], or: None } }), 1) }])
 
 ## King's Assassin
 face: King's Assassin

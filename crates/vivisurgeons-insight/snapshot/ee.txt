@@ -107,7 +107,7 @@ cost: {2}{W}{U}{B}
 > III — Draw two cards for each opponent who controls fewer creatures than you.
 = BROKE at "have" after: i — create a <pt> white astartes warrior creature token with vigilance for each opponent you
 = Chapter { chapters: [2], effect: [Sacrifice { who: EachOpponent, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [ChosenBy(That)], or: None } } }] }
-= BROKE at "controls" after: iii — draw two cards for each opponent who
+= BROKE at "creatures" after: iii — draw two cards for each opponent who controls fewer
 
 ## Bloodletter of Aclazotz
 face: Bloodletter of Aclazotz

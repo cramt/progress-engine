@@ -1127,6 +1127,10 @@ pub enum Post {
     WasCastThisTurn,
     /// "each opponent who lost life this turn".
     LostLifeThisTurn,
+    /// "the number of opponents who control a creature with power 4 or
+    /// greater" (Summon: Yojimbo): a player who controls one or more of
+    /// the objects.
+    WhoControls(Box<Objects>),
     /// "a land that could produce {C}".
     CouldProduce(Mana),
     /// "that is snow or could produce {C}": any one of these holds.

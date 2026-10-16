@@ -384,7 +384,7 @@ cost: {1}{G}{U}
 > You and permanents you control have protection from Salamanders.
 > At the beginning of your end step, each player who controls the fewest creatures creates a 4/3 blue Salamander Warrior creature token.
 = BROKE at "from" after: you and permanents you control have protection
-= BROKE at "controls" after: at the beginning of your end step , each player who
+= BROKE at "creatures" after: at the beginning of your end step , each player who controls the fewest
 
 ## Gorma, the Gullet
 face: Gorma, the Gullet

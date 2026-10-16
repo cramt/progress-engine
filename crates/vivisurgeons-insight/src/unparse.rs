@@ -4700,6 +4700,11 @@ fn post(o: &mut Out, q: &Post, n: Num) {
         }
         Post::WasCastThisTurn => o.w("that were cast this turn"),
         Post::LostLifeThisTurn => o.w("who lost life this turn"),
+        Post::WhoControls(x) => {
+            o.w("who");
+            o.verb("control", n);
+            objects(o, x);
+        }
         Post::CouldProduce(m) => {
             o.w("that could produce");
             mana(o, m);

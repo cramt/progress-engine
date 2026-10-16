@@ -690,7 +690,7 @@ face: Priest of the Blessed Graf
 type: Creature — Human Cleric
 cost: {2}{W}
 > At the beginning of your end step, create X 1/1 white Spirit creature tokens with flying, where X is the number of opponents who control more lands than you.
-= BROKE at "control" after: at the beginning of your end step , create x <pt> white spirit creature tokens with flying , where x is the number of opponents who
+= BROKE at "lands" after: at the beginning of your end step , create x <pt> white spirit creature tokens with flying , where x is the number of opponents who control more
 
 ## Put Away
 face: Put Away

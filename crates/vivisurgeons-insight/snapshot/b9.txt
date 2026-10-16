@@ -246,7 +246,7 @@ face: Disorder
 type: Sorcery
 cost: {1}{R}
 > Disorder deals 2 damage to each white creature and each player who controls a white creature.
-= BROKE at "controls" after: ~ deals 2 damage to each white creature and each player who
+= BROKE at "." after: ~ deals 2 damage to each white creature and each player who controls a white creature
 
 ## Dread Tiller
 face: Dread Tiller

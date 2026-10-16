@@ -2212,6 +2212,9 @@ impl Walk for Post {
                     Walk::walk(x0, v);
                 }
             }
+            Post::WhoControls(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             Post::Either(f0) => {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);

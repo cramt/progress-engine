@@ -344,7 +344,7 @@ cost: {3}{W}
 > At the beginning of combat on your turn, target creature you control gets +X/+0 until end of turn, where X is the number of Soldiers you control.
 > At the beginning of your end step, create a number of 1/1 white Soldier creature tokens equal to the number of opponents who control more creatures than you.
 = Triggered { trigger: At(Combat(Yours)), effect: [Where { then: [Modify { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } }, pt: Some(Pt { power: X, toughness: N(0), signed: true }), gains: [], dur: UntilEndOfTurn }], x: CountOf(Objects { quant: Plural, filter: Filter { alts: [[Subtype("soldier")]], kind: None, posts: [Controller(You)], or: None } }) }], limits: [] }
-= BROKE at "control" after: at the beginning of your end step , create a number of <pt> white soldier creature tokens equal to the number of opponents who
+= BROKE at "creatures" after: at the beginning of your end step , create a number of <pt> white soldier creature tokens equal to the number of opponents who control more
 
 ## Heir of the Wilds
 face: Heir of the Wilds

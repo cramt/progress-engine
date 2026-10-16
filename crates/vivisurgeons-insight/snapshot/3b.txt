@@ -987,8 +987,8 @@ cost: {2}{W}{W}
 > Whenever an opponent who controls an artifact named Wedding Ring draws a card during their turn, you draw a card.
 > Whenever an opponent who controls an artifact named Wedding Ring gains life during their turn, you gain that much life.
 = BROKE at "," after: when this artifact enters , if it was cast
-= BROKE at "named" after: whenever an opponent who controls an artifact
-= BROKE at "named" after: whenever an opponent who controls an artifact
+= BROKE at "draws" after: whenever an opponent who controls an artifact named ~
+= BROKE at "gains" after: whenever an opponent who controls an artifact named ~
 
 ## Woodland Bellower
 face: Woodland Bellower

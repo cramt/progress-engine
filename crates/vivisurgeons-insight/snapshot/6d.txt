@@ -824,7 +824,7 @@ face: Voice of Many
 type: Creature — Elf Druid
 cost: {2}{G}{G}
 > When this creature enters, draw a card for each opponent who controls fewer creatures than you.
-= BROKE at "controls" after: when this creature enters , draw a card for each opponent who
+= BROKE at "creatures" after: when this creature enters , draw a card for each opponent who controls fewer
 
 ## War Oracle
 face: War Oracle

@@ -704,7 +704,7 @@ face: Oath of Lieges
 type: Enchantment
 cost: {1}{W}
 > At the beginning of each player's upkeep, that player chooses target player who controls more lands than they do and is their opponent. The first player may search their library for a basic land card, put that card onto the battlefield, then shuffle.
-= BROKE at "controls" after: at the beginning of each player 's upkeep , that player chooses target player who
+= BROKE at "lands" after: at the beginning of each player 's upkeep , that player chooses target player who controls more
 
 ## Ohabi Caleria
 face: Ohabi Caleria

@@ -1007,6 +1007,7 @@ pub(super) fn post(p: &mut P) -> Option<Post> {
             Some(Post::DidThisWay(Box::new(Event::CountersPut { by: None, n: Quant::One, kind: None, on })))
         },
         |p| { p.word("who")?; let e = did(p, Player::That)?; p.words("this way")?; Some(Post::DidThisWay(Box::new(e))) },
+        |p| { p.word("who")?; p.one_of(&["control", "controls"])?; objects(p).map(|o| Post::WhoControls(Box::new(o))) },
         |p| { p.words("with the same name as")?; let o = pronoun(p)?; Some(Post::SameNameAs(Box::new(o))) },
         |p| p.one_of(&["with the same name as one another", "with the same name"]).map(|_| Post::SameName),
         |p| p.words("dealt damage this way").map(|_| Post::DealtDamageThisWay),

@@ -763,7 +763,7 @@ face: Oreskos Explorer
 type: Creature — Cat Scout
 cost: {1}{W}
 > When this creature enters, search your library for up to X Plains cards, where X is the number of players who control more lands than you. Reveal those cards, put them into your hand, then shuffle.
-= BROKE at "control" after: when this creature enters , search your library for up to x plains cards , where x is the number of players who
+= BROKE at "lands" after: when this creature enters , search your library for up to x plains cards , where x is the number of players who control more
 
 ## Pale Moon
 face: Pale Moon

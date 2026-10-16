@@ -875,7 +875,7 @@ face: Sudden Salvation
 type: Instant
 cost: {2}{W}{W}
 > Choose up to three target permanent cards in graveyards that were put there from the battlefield this turn. Return them to the battlefield tapped under their owners' control. You draw a card for each opponent who controls one or more of those permanents.
-= BROKE at "controls" after: choose up to three target permanent cards in graveyards that were put there from the battlefield this turn . return them to the battlefield tapped under their owners 's control . you draw a card for each opponent who
+= Spell([Choose(Objects(Objects { quant: Target { n: N(3), up_to: true }, filter: Filter { alts: [], kind: Some(PermanentCard), posts: [In(AGraveyard), PutThereFromBattlefieldThisTurn], or: None } })), Move { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: None, to: Battlefield, tapped: true, transformed: false, under: Some(OwnerOf(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })), order: None }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [WhoControls(Objects { quant: AtLeast(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } })], or: None } })], or: None } }, then: [Draw { who: You, n: N(1) }] }])
 
 ## Sunspine Lynx
 face: Sunspine Lynx

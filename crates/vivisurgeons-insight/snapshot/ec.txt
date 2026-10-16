@@ -967,7 +967,7 @@ face: Surveyor's Scope
 type: Artifact
 cost: {2}
 > {T}, Exile this artifact: Search your library for up to X basic land cards, where X is the number of players who control at least two more lands than you. Put those cards onto the battlefield, then shuffle.
-= BROKE at "control" after: {T} , exile this artifact : search your library for up to x basic land cards , where x is the number of players who
+= BROKE at "lands" after: {T} , exile this artifact : search your library for up to x basic land cards , where x is the number of players who control at least two more
 
 ## Susurian Voidborn
 face: Susurian Voidborn

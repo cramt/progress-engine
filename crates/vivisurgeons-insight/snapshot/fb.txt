@@ -915,7 +915,7 @@ cost: {5}{R}{R}
 > Haste
 > Whenever this creature attacks, each player who controls the most lands sacrifices two lands of their choice.
 = Keywords([Keyword { name: "haste", param: None }])
-= BROKE at "controls" after: whenever this creature attacks , each player who
+= BROKE at "lands" after: whenever this creature attacks , each player who controls the most
 
 ## Temple of Plenty
 face: Temple of Plenty

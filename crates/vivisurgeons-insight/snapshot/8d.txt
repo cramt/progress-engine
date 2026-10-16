@@ -321,7 +321,7 @@ face: Fade from History
 type: Sorcery
 cost: {2}{G}{G}
 > Each player who controls an artifact or enchantment creates a 2/2 green Bear creature token. Then destroy all artifacts and enchantments.
-= BROKE at "enchantment" after: each player who controls an artifact or
+= BROKE at "a" after: each player who controls an artifact or enchantment creates
 
 ## Famished Worldsire
 face: Famished Worldsire

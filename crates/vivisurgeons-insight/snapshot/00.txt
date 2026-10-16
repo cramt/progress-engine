@@ -229,7 +229,7 @@ face: Depopulate
 type: Sorcery
 cost: {2}{W}{W}
 > Each player who controls a multicolored creature draws a card. Then destroy all creatures.
-= BROKE at "draws" after: each player who controls a multicolored creature
+= BROKE at "a" after: each player who controls a multicolored creature draws
 
 ## Depthshaker Titan
 face: Depthshaker Titan
