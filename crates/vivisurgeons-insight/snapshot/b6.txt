@@ -253,7 +253,7 @@ cost: {15}
 > Flying, protection from spells that are one or more colors, annihilator 6
 > When Emrakul is put into a graveyard from anywhere, its owner shuffles their graveyard into their library.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeCountered }])
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [ExtraTurn], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [ExtraTurn { who: You, n: N(1), after: ThisOne }], limits: [] }
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "protection", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [OneOrMoreColors], or: None } })) }, Keyword { name: "annihilator", param: Some(N(N(6))) }])
 = Triggered { trigger: When(PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: AGraveyard, from: Anywhere }), effect: [ShuffleZones { who: OwnerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), zones: [Graveyard(That)] }], limits: [] }
 

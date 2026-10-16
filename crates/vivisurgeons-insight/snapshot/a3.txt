@@ -502,7 +502,7 @@ cost: {4}{U}{U}
 > −10: Tap all creatures your opponents control. You take an extra turn after this one.
 = Loyalty { change: N(2), effect: [Restrict { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, rule: CantBeBlocked, dur: ThisTurn }] }
 = Loyalty { change: N(-3), effect: [Draw { who: You, n: N(2) }] }
-= BROKE at "an" after: N(-10) : tap all creatures your opponents control . you take
+= Loyalty { change: N(-10), effect: [Tap(Objects { quant: All, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(EachOpponent)], or: None } }), ExtraTurn { who: You, n: N(1), after: ThisOne }] }
 
 ## Mysterious Tome // Chilling Chronicle
 face: Mysterious Tome

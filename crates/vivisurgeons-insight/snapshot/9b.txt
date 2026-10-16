@@ -1136,7 +1136,7 @@ cost: {4}{U}{U}
 > Buyback—Sacrifice three Islands. (You may sacrifice three Islands in addition to any other costs as you cast this spell. If you do, put this card into your hand as it resolves.)
 > Target player takes an extra turn after this one.
 = Keywords([Keyword { name: "buyback", param: Some(Cost([Sacrifice(Objects { quant: N(N(3)), filter: Filter { alts: [[Subtype("island")]], kind: None, posts: [], or: None } })])) }])
-= BROKE at "this" after: target player takes an extra turn after
+= Spell([ExtraTurn { who: Target, n: N(1), after: ThisOne }])
 
 ## Watcher in the Web
 face: Watcher in the Web

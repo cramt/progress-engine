@@ -809,6 +809,10 @@ impl Walk for Effect {
             Effect::Copy { what, .. } => {
                 Walk::walk(what, v);
             }
+            Effect::ExtraTurn { who, n, .. } => {
+                Walk::walk(who, v);
+                Walk::walk(n, v);
+            }
             Effect::RevealTop { who, whose, n } => {
                 Walk::walk(who, v);
                 Walk::walk(whose, v);
@@ -1343,9 +1347,6 @@ impl Walk for Effect {
                 Walk::walk(f0, v);
             }
             Effect::ControlPlayerNextTurn(f0) => {
-                Walk::walk(f0, v);
-            }
-            Effect::ExtraTurnAfterThat(f0) => {
                 Walk::walk(f0, v);
             }
             Effect::BecomesSized {

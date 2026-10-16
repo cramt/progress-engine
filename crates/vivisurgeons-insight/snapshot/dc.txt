@@ -1083,7 +1083,7 @@ cost: {4}{U}{U}
 > Champion a Merfolk (When this enters, sacrifice it unless you exile another Merfolk you control. When this leaves the battlefield, that card returns to the battlefield.)
 > Whenever this creature deals combat damage to a player, you may sacrifice a Merfolk. If you do, take an extra turn after this one.
 = BROKE at "<end>" after: champion a merfolk
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("merfolk")]], kind: None, posts: [], or: None } } }] }, IfYouDo([ExtraTurn])], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [May { who: You, then: [Sacrifice { who: You, what: Objects { quant: One, filter: Filter { alts: [[Subtype("merfolk")]], kind: None, posts: [], or: None } } }] }, IfYouDo([ExtraTurn { who: You, n: N(1), after: ThisOne }])], limits: [] }
 
 ## Wild Instincts
 face: Wild Instincts

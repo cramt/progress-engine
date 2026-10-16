@@ -5,7 +5,7 @@ cost: {3}{W}
 > Choose one —
 > • Take the Elevator — Create three 1/1 colorless Hero creature tokens.
 > • Take 59 Flights of Stairs — Tap up to three target creatures. Put a stun counter on one of them. (If a permanent with a stun counter would become untapped, remove one from it instead.)
-= BROKE at "59" after: choose one — • take the elevator — create three <pt> colorless hero creature tokens . • take
+= BROKE at "flights" after: choose one — • take the elevator — create three <pt> colorless hero creature tokens . • take 59
 
 ## Apothecary Geist
 face: Apothecary Geist

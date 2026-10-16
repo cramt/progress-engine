@@ -893,7 +893,7 @@ cost: {9}{C}{C}{C}
 > Destroy target permanent. Target player draws four cards. Take an extra turn after this one.
 > Exile Rise of the Eldrazi.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeCountered }])
-= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, no_regen: false }, Draw { who: Target, n: N(4) }, ExtraTurn])
+= Spell([Destroy { what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [], or: None } }, no_regen: false }, Draw { who: Target, n: N(4) }, ExtraTurn { who: You, n: N(1), after: ThisOne }])
 = Spell([Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 
 ## Ritual of the Machine

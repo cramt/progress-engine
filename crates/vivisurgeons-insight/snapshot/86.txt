@@ -135,7 +135,7 @@ face: Capture of Jingzhou
 type: Sorcery
 cost: {3}{U}{U}
 > Take an extra turn after this one.
-= Spell([ExtraTurn])
+= Spell([ExtraTurn { who: You, n: N(1), after: ThisOne }])
 
 ## Caradora, Heart of Alacria
 face: Caradora, Heart of Alacria

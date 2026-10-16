@@ -882,7 +882,7 @@ type: Sorcery
 cost: {5}{U}{U}
 > Take an extra turn after this one. Exile Temporal Mastery.
 > Miracle {1}{U} (You may cast this card for its miracle cost when you draw it if it's the first card you drew this turn.)
-= Spell([ExtraTurn, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
+= Spell([ExtraTurn { who: You, n: N(1), after: ThisOne }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Keywords([Keyword { name: "miracle", param: Some(Cost([Mana(Mana(["1", "U"]))])) }])
 
 ## Tendrils of Corruption
@@ -935,7 +935,7 @@ face: Time Warp
 type: Sorcery
 cost: {3}{U}{U}
 > Target player takes an extra turn after this one.
-= BROKE at "this" after: target player takes an extra turn after
+= Spell([ExtraTurn { who: Target, n: N(1), after: ThisOne }])
 
 ## Timeless Witness
 face: Timeless Witness

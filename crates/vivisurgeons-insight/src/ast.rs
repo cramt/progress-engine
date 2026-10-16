@@ -1390,7 +1390,16 @@ pub enum Effect {
         what: Objects,
         may_choose_new_targets: bool,
     },
-    ExtraTurn,
+    /// "Take an extra turn after this one", "Target player takes two extra
+    /// turns after this one", "After that turn, that player takes an extra
+    /// turn" (Emrakul, the Promised End): `who` takes `n` extra turns
+    /// directly after the turn `after` names. An effect adds them as it
+    /// resolves, not through a delayed trigger (CR 500.7).
+    ExtraTurn {
+        who: Player,
+        n: Amount,
+        after: TurnRef,
+    },
     RevealTop {
         who: Player,
         whose: Player,
@@ -1907,8 +1916,6 @@ pub enum Effect {
     /// "you gain control of target opponent during that player's next turn":
     /// always the controlled player's next turn (CR 723.1).
     ControlPlayerNextTurn(Player),
-    /// "After that turn, that player takes an extra turn."
-    ExtraTurnAfterThat(Player),
     /// "becomes an artifact creature with power and toughness each equal to
     /// its mana value".
     BecomesSized {
@@ -2452,6 +2459,17 @@ pub fn one_of_each(event: &Event, who: &Player) -> Option<Vec<Effect>> {
             _ => None,
         })
         .collect()
+}
+
+/// The turn an extra turn comes after (CR 500.7).
+#[derive(Clone, Debug, PartialEq)]
+pub enum TurnRef {
+    /// "after this one": the turn the effect happens in, and the reading
+    /// when no turn is named.
+    ThisOne,
+    /// "After that turn": the turn just named, as the controlled player's
+    /// next turn `ControlPlayerNextTurn` names (Emrakul, the Promised End).
+    That,
 }
 
 #[derive(Clone, Debug, PartialEq)]

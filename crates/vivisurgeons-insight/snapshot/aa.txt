@@ -475,7 +475,7 @@ cost: {3}
 > {4}, {T}: Put a charge counter on this artifact.
 > {T}, Remove three charge counters from this artifact: Take an extra turn after this one.
 = Activated { cost: [Mana(Mana(["4"])), Tap], effect: [PutCounters { n: N(1), kind: "charge", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
-= Activated { cost: [Tap, RemoveCounters { n: N(3), kind: "charge", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [ExtraTurn], limits: [] }
+= Activated { cost: [Tap, RemoveCounters { n: N(3), kind: "charge", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], effect: [ExtraTurn { who: You, n: N(1), after: ThisOne }], limits: [] }
 
 ## Mardu Scout
 face: Mardu Scout

@@ -824,7 +824,7 @@ cost: {1}{G}
 > Cast this spell only during your turn.
 > Take an extra turn after this one if an opponent cast a blue spell this turn.
 = BROKE at "." after: cast this spell only during your turn
-= Spell([If { cond: DidThisTurn(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Spell), posts: [], or: None } } }), then: [ExtraTurn] }])
+= Spell([If { cond: DidThisTurn(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [[Color(Blue)]], kind: Some(Spell), posts: [], or: None } } }), then: [ExtraTurn { who: You, n: N(1), after: ThisOne }] }])
 
 ## Shared Roots
 face: Shared Roots

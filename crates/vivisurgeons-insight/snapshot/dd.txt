@@ -1053,7 +1053,7 @@ face: Time Walk
 type: Sorcery
 cost: {1}{U}
 > Take an extra turn after this one.
-= Spell([ExtraTurn])
+= Spell([ExtraTurn { who: You, n: N(1), after: ThisOne }])
 
 ## Treefolk Seedlings
 face: Treefolk Seedlings

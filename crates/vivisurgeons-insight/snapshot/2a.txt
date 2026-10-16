@@ -1094,7 +1094,7 @@ type: Legendary Creature — Nightmare Warlock
 > Menace (This creature can't be blocked except by two or more creatures.)
 > Time Compression — When this creature transforms into Ultimecia, Omnipotent, take an extra turn after this one.
 = Keywords([Keyword { name: "menace", param: None }])
-= Labelled { label: "time compression", ability: Triggered { trigger: When(TransformsInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, into: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [ExtraTurn], limits: [] } }
+= Labelled { label: "time compression", ability: Triggered { trigger: When(TransformsInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, into: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [ExtraTurn { who: You, n: N(1), after: ThisOne }], limits: [] } }
 
 ## Veteran Dungeoneer
 face: Veteran Dungeoneer

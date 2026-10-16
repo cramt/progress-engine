@@ -1054,7 +1054,7 @@ cost: {2}
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: DoesntUntap(You) }])
 = BROKE at "this" after: if you would begin your turn while
-= Activated { cost: [Tap], effect: [ExtraTurn], limits: [] }
+= Activated { cost: [Tap], effect: [ExtraTurn { who: You, n: N(1), after: ThisOne }], limits: [] }
 
 ## Toski, Bearer of Secrets
 face: Toski, Bearer of Secrets

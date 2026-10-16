@@ -493,7 +493,7 @@ cost: {4}{W}{U}
 > Whenever Medomai deals combat damage to a player, take an extra turn after this one.
 > Medomai can't attack during extra turns.
 = Keywords([Keyword { name: "flying", param: None }])
-= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ExtraTurn], limits: [] }
+= Triggered { trigger: When(DealsCombatDamageToPlayer(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })), effect: [ExtraTurn { who: You, n: N(1), after: ThisOne }], limits: [] }
 = BROKE at "." after: ~ can't attack during extra turns
 
 ## Michelangelo, Mutant BFF

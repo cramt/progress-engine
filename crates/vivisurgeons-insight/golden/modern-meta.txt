@@ -1309,7 +1309,7 @@ cost: {15}
 > Flying, protection from spells that are one or more colors, annihilator 6
 > When Emrakul is put into a graveyard from anywhere, its owner shuffles their graveyard into their library.
 = Static([Restrict { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, rule: CantBeCountered }])
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [ExtraTurn], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [ExtraTurn { who: You, n: N(1), after: ThisOne }], limits: [] }
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "protection", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [OneOrMoreColors], or: None } })) }, Keyword { name: "annihilator", param: Some(N(N(6))) }])
 = Triggered { trigger: When(PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: AGraveyard, from: Anywhere }), effect: [ShuffleZones { who: OwnerOf(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), zones: [Graveyard(That)] }], limits: [] }
 
@@ -1334,7 +1334,7 @@ cost: {13}
 > When you cast this spell, you gain control of target opponent during that player's next turn. After that turn, that player takes an extra turn.
 > Flying, trample, protection from instants
 = Static([CostChangePer { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, by: Mana(["1"]), less: true, per: NumberOfCardTypes(Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Card), posts: [In(Graveyard(You))], or: None } }) }])
-= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [ControlPlayerNextTurn(TargetOpponent), ExtraTurnAfterThat(That)], limits: [] }
+= Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [ControlPlayerNextTurn(TargetOpponent), ExtraTurn { who: That, n: N(1), after: That }], limits: [] }
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "trample", param: None }, Keyword { name: "protection", param: Some(Objects(Objects { quant: Plural, filter: Filter { alts: [[Type("instant")]], kind: None, posts: [], or: None } })) }])
 
 ## Emrakul, the World Anew

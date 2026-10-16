@@ -358,7 +358,7 @@ cost: {2}{U}{U}
 > Flying
 > When this creature enters, if you cast it, target opponent takes an extra turn after this one. Until your next turn, you and planeswalkers you control gain protection from that player. (You and planeswalkers you control can't be targeted, dealt damage, or enchanted by anything controlled by that player.)
 = Keywords([Keyword { name: "flying", param: None }])
-= BROKE at "takes" after: when this creature enters , if you cast it , target opponent
+= BROKE at "." after: when this creature enters , if you cast it , target opponent takes an extra turn after this one . until your next turn , you and planeswalkers you control gain protection from that player
 
 ## Escaped Shapeshifter
 face: Escaped Shapeshifter

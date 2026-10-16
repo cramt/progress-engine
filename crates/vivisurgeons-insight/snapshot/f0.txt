@@ -664,7 +664,7 @@ type: Sorcery
 cost: {4}{U}{U}
 > Take an extra turn after this one. Exile Part the Waterveil.
 > Awaken 6—{6}{U}{U}{U} (If you cast this spell for {6}{U}{U}{U}, also put six +1/+1 counters on target land you control and it becomes a 0/0 Elemental creature with haste. It's still a land.)
-= Spell([ExtraTurn, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
+= Spell([ExtraTurn { who: You, n: N(1), after: ThisOne }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Keywords([Keyword { name: "awaken", param: Some(NCost { n: N(6), cost: [Mana(Mana(["6", "U", "U", "U"]))] }) }])
 
 ## Perception Bobblehead

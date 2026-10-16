@@ -993,7 +993,7 @@ face: Stitch in Time
 type: Sorcery
 cost: {1}{U}{R}
 > Flip a coin. If you win the flip, take an extra turn after this one.
-= Spell([FlipCoin, If { cond: WonFlip(true), then: [ExtraTurn] }])
+= Spell([FlipCoin, If { cond: WonFlip(true), then: [ExtraTurn { who: You, n: N(1), after: ThisOne }] }])
 
 ## Strongarm Thug
 face: Strongarm Thug

@@ -1058,7 +1058,7 @@ face: Time Sieve
 type: Artifact
 cost: {U}{B}
 > {T}, Sacrifice five artifacts: Take an extra turn after this one.
-= Activated { cost: [Tap, Sacrifice(Objects { quant: N(N(5)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], effect: [ExtraTurn], limits: [] }
+= Activated { cost: [Tap, Sacrifice(Objects { quant: N(N(5)), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [], or: None } })], effect: [ExtraTurn { who: You, n: N(1), after: ThisOne }], limits: [] }
 
 ## Traverse the Outlands
 face: Traverse the Outlands

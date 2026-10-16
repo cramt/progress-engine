@@ -536,7 +536,7 @@ cost: {1}{U}
 = LevelPt(Pt { power: N(2), toughness: N(4), signed: false })
 = LevelHeader { from: 7, to: None }
 = LevelPt(Pt { power: N(3), toughness: N(5), signed: false })
-= Triggered { trigger: InterveningIf(At(EndStep(Each)), NotYourTurn), effect: [ExtraTurn], limits: [] }
+= Triggered { trigger: InterveningIf(At(EndStep(Each)), NotYourTurn), effect: [ExtraTurn { who: You, n: N(1), after: ThisOne }], limits: [] }
 
 ## Lightning Javelin
 face: Lightning Javelin

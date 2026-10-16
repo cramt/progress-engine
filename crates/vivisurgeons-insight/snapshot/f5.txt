@@ -583,7 +583,7 @@ type: Instant
 cost: {5}{U}{U}
 > Take an extra turn after this one.
 > If Nexus of Fate would be put into a graveyard from anywhere, reveal Nexus of Fate and shuffle it into its owner's library instead.
-= Spell([ExtraTurn])
+= Spell([ExtraTurn { who: You, n: N(1), after: ThisOne }])
 = Static([Replacement { event: PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: AGraveyard, from: Anywhere }, instead: [Reveal { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ShuffleInto { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }])
 
 ## Nova Chaser

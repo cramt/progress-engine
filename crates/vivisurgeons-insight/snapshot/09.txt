@@ -999,7 +999,7 @@ face: Time Stretch
 type: Sorcery
 cost: {8}{U}{U}
 > Target player takes two extra turns after this one.
-= BROKE at "this" after: target player takes two extra turns after
+= Spell([ExtraTurn { who: Target, n: N(2), after: ThisOne }])
 
 ## Tinder Wall
 face: Tinder Wall

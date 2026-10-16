@@ -878,7 +878,7 @@ face: Second Chance
 type: Enchantment
 cost: {2}{U}
 > At the beginning of your upkeep, if you have 5 or less life, sacrifice this enchantment and take an extra turn after this one.
-= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), LifeAtMost(5)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ExtraTurn], limits: [] }
+= Triggered { trigger: InterveningIf(At(Upkeep(Yours)), LifeAtMost(5)), effect: [Sacrifice { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ExtraTurn { who: You, n: N(1), after: ThisOne }], limits: [] }
 
 ## Selesnya Eulogist
 face: Selesnya Eulogist

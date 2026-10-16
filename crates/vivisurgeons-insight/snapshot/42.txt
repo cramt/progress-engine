@@ -943,7 +943,7 @@ cost: {2}{U}{U}
 = BROKE at "on" after: you may activate loyalty abilities of ~
 = Loyalty { change: N(1), effect: [Draw { who: You, n: N(1) }, Discard { who: You, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } }, random: false }] }
 = Loyalty { change: N(-3), effect: [PhaseOut(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [NotControlledBy(You)], or: None } })] }
-= BROKE at "two" after: N(-10) : take
+= Loyalty { change: N(-10), effect: [ExtraTurn { who: You, n: N(2), after: ThisOne }] }
 
 ## The Squadron Sinister
 face: The Squadron Sinister

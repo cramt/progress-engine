@@ -1139,5 +1139,5 @@ cost: {5}{U}{U}
 > When this creature leaves the battlefield, you take an extra turn after this one.
 = Keywords([Keyword { name: "flying", param: None }])
 = BROKE at "your" after: when this creature enters , you skip
-= BROKE at "an" after: when this creature leaves the battlefield , you take
+= Triggered { trigger: When(Leaves { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, from: Battlefield }), effect: [ExtraTurn { who: You, n: N(1), after: ThisOne }], limits: [] }
 

@@ -6582,7 +6582,17 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
                 syn::may_copy_new_targets(o, and, sentence);
             }
         }
-        Effect::ExtraTurn => o.w("take an extra turn after this one"),
+        Effect::ExtraTurn {
+            who,
+            n,
+            after: TurnRef::ThisOne,
+        } => {
+            subj(o, who, "take", cx);
+            amount_a(o, n);
+            o.w("extra");
+            o.noun("turn", amount_num(n));
+            o.w("after this one");
+        }
         Effect::RevealTop { who, whose: w, n } => {
             subj(o, who, "reveal", cx);
             top_of(o, n, w);
@@ -8041,11 +8051,17 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             player(o, who);
             o.w("during that player's next turn");
         }
-        Effect::ExtraTurnAfterThat(who) => {
+        Effect::ExtraTurn {
+            who,
+            n,
+            after: TurnRef::That,
+        } => {
             o.w("after that turn,");
             player(o, who);
             o.verb("take", player_num(who));
-            o.w("an extra turn");
+            amount_a(o, n);
+            o.w("extra");
+            o.noun("turn", amount_num(n));
         }
         Effect::BecomesSized {
             what,

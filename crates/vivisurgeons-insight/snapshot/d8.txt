@@ -550,7 +550,7 @@ type: Legendary Sorcery
 cost: {4}{U}{U}
 > (You may cast a legendary sorcery only if you control a legendary creature or planeswalker.)
 > Target player takes an extra turn after this one. Return up to one target nonland permanent to its owner's hand. Exile Karn's Temporal Sundering.
-= BROKE at "this" after: target player takes an extra turn after
+= Spell([ExtraTurn { who: Target, n: N(1), after: ThisOne }, Move { what: Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [], or: None } }, from: None, to: OwnersHand, tapped: false, transformed: false, under: None, order: None }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 
 ## Kasimir the Lone Wolf
 face: Kasimir the Lone Wolf

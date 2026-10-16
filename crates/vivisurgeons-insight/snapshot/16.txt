@@ -90,7 +90,7 @@ face: Beacon of Tomorrows
 type: Sorcery
 cost: {6}{U}{U}
 > Target player takes an extra turn after this one. Shuffle Beacon of Tomorrows into its owner's library.
-= BROKE at "this" after: target player takes an extra turn after
+= Spell([ExtraTurn { who: Target, n: N(1), after: ThisOne }, ShuffleInto { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }])
 
 ## Benevolent Bodyguard
 face: Benevolent Bodyguard

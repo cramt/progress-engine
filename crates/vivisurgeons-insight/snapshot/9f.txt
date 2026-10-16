@@ -914,7 +914,7 @@ cost: {4}{W}{U}
 > −9: Take an extra turn after this one.
 = Loyalty { change: N(2), effect: [Untap(Objects { quant: Target { n: N(1), up_to: true }, filter: Filter { alts: [[Type("artifact")], [Type("creature")]], kind: None, posts: [], or: None } })] }
 = Loyalty { change: N(-3), effect: [GainLife { who: You, n: N(2) }, Draw { who: You, n: N(2) }] }
-= Loyalty { change: N(-9), effect: [ExtraTurn] }
+= Loyalty { change: N(-9), effect: [ExtraTurn { who: You, n: N(1), after: ThisOne }] }
 
 ## Thundering Chariot
 face: Thundering Chariot

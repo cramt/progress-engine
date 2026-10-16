@@ -1001,7 +1001,7 @@ cost: {8}{U}{U}{U}
 > Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)
 > Take an extra turn after this one. Exile Temporal Trespass.
 = Keywords([Keyword { name: "delve", param: None }])
-= Spell([ExtraTurn, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
+= Spell([ExtraTurn { who: You, n: N(1), after: ThisOne }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 
 ## The Kami War // O-Kagachi Made Manifest
 face: The Kami War

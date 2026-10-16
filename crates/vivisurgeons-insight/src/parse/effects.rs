@@ -1598,7 +1598,17 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             )?;
             Some(Effect::Performed { by, effect: Box::new(e) })
         },
-        |p| p.words("take an extra turn after this one").map(|_| Effect::ExtraTurn),
+        // "Take an extra turn after this one", "Target player takes two
+        // extra turns after this one" (Time Stretch).
+        |p| {
+            let who = subject_player(p);
+            p.verb("take")?;
+            let n = amount_a(p)?;
+            p.word("extra")?;
+            p.one_of(&["turns", "turn"])?;
+            p.words("after this one")?;
+            Some(Effect::ExtraTurn { who, n, after: TurnRef::ThisOne })
+        },
         // "The next spell you cast this turn has improvise": said of a spell
         // not yet cast, so "has" and not "gains", and no duration.
         |p| {
@@ -1769,7 +1779,7 @@ fn effect_more(p: &mut P) -> Option<Effect> {
             let who = player(p)?;
             p.verb("take")?;
             p.words("an extra turn")?;
-            Some(Effect::ExtraTurnAfterThat(who))
+            Some(Effect::ExtraTurn { who, n: Amount::N(1), after: TurnRef::That })
         },
         // "The flashback cost is equal to its mana cost."
         |p| {

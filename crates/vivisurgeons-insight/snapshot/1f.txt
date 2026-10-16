@@ -486,7 +486,7 @@ cost: {6}
 > Whenever Gonti's Aether Heart or another artifact you control enters, you get {E}{E} (two energy counters).
 > Pay eight {E}, Exile Gonti's Aether Heart: Take an extra turn after this one.
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfOrAnother(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), filter: Filter { alts: [[Type("artifact")]], kind: None, posts: [Controller(You)], or: None } }, under: None, state: None }), effect: [GetEnergy(2)], limits: [] }
-= Activated { cost: [PayEnergy(N(8)), Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [ExtraTurn], limits: [] }
+= Activated { cost: [PayEnergy(N(8)), Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [ExtraTurn { who: You, n: N(1), after: ThisOne }], limits: [] }
 
 ## Grave Sifter
 face: Grave Sifter
@@ -1114,7 +1114,7 @@ cost: {B}{B}{B}{B}
 > When you cast this spell, any player may pay half their life, rounded up. If a player does, counter Temporal Extortion.
 > Take an extra turn after this one.
 = BROKE at "may" after: when you cast this spell , any player
-= Spell([ExtraTurn])
+= Spell([ExtraTurn { who: You, n: N(1), after: ThisOne }])
 
 ## The Pandorica
 face: The Pandorica
@@ -1188,7 +1188,7 @@ cost: {5}
 > If a player would begin an extra turn, that player skips that turn instead.
 > If Ugin's Nexus would be put into a graveyard from the battlefield, instead exile it and take an extra turn after this one.
 = Static([Replacement { event: BeginsExtraTurn(APlayer), instead: [SkipTurn(That)] }])
-= Static([Replacement { event: PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: AGraveyard, from: Battlefield }, instead: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), ExtraTurn] }])
+= Static([Replacement { event: PutInto { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, to: AGraveyard, from: Battlefield }, instead: [Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), ExtraTurn { who: You, n: N(1), after: ThisOne }] }])
 
 ## Unnatural Predation
 face: Unnatural Predation

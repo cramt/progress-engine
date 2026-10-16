@@ -669,7 +669,7 @@ type: Land
 = Static([EntersTapped(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["U"])))], limits: [] }
 = BROKE at "your" after: {U} , {T} : put an eon counter on this land . skip
-= Activated { cost: [Tap, RemoveCounters { n: N(1), kind: "eon", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ReturnToHand(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [ExtraTurn], limits: [] }
+= Activated { cost: [Tap, RemoveCounters { n: N(1), kind: "eon", from: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }, ReturnToHand(Objects { quant: Antecedent, filter: Filter { alts: [], kind: None, posts: [], or: None } })], effect: [ExtraTurn { who: You, n: N(1), after: ThisOne }], limits: [] }
 
 ## Maned Serval
 face: Maned Serval
@@ -1154,7 +1154,7 @@ cost: {4}{U}{U}
 > Cast this spell only if you control two or more Doctors.
 > Take an extra turn after this one. Exile Twice Upon a Time.
 = BROKE at "two" after: cast this spell only if you control
-= Spell([ExtraTurn, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
+= Spell([ExtraTurn { who: You, n: N(1), after: ThisOne }, Exile(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } })])
 
 ## Twice Upon a Time // Unlikely Meeting
 face: Unlikely Meeting
