@@ -206,7 +206,7 @@ type: Artifact — Vehicle
 cost: {X}
 > When this Vehicle enters, roll X six-sided dice. For each odd result, create a 1/1 white Clown Robot artifact creature token. For each even result, put a +1/+1 counter on this Vehicle.
 > Crew 2
-= BROKE at "x" after: when this vehicle enters , roll
+= Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [RollDice { n: X, sides: 6 }, Repeat { times: RolledResults(Odd), then: [Create { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [White], types: ["clown", "robot", "artifact", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }, Repeat { times: RolledResults(Even), then: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }] }], limits: [] }
 = Keywords([Keyword { name: "crew", param: Some(N(N(2))) }])
 
 ## Coalition Relic

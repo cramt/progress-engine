@@ -3108,6 +3108,8 @@ fn measure(o: &mut Out, a: &Amount) {
             o.w("was dealt this turn");
         }
         Amount::DamagePrevented => o.w("1 damage prevented this way"),
+        Amount::RolledResults(Parity::Odd) => o.w("odd result"),
+        Amount::RolledResults(Parity::Even) => o.w("even result"),
         Amount::TimesAttackedThisTurn(x) => {
             o.w("time");
             pronoun_or(o, x, syn::it_has, |o| {
@@ -7918,6 +7920,15 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             dur(o, d);
         }
         Effect::RollDie(n) => o.w(&format!("roll a d{n}")),
+        Effect::RollDice { n, sides } => {
+            o.w("roll");
+            amount(o, n);
+            if *sides == 6 {
+                o.w("six-sided dice");
+            } else {
+                o.w(&format!("d{sides}"));
+            }
+        }
         Effect::KeepsMana { who, mana: m } => {
             player(o, who);
             o.verb("don't lose", player_num(who));
@@ -7934,6 +7945,12 @@ fn effect(o: &mut Out, e: &Effect, cx: &Cx) {
             o.w("as steps and phases end");
         }
         Effect::Repeat { times, then } => match times {
+            Amount::RolledResults(_) => {
+                o.w("for each");
+                amount(o, times);
+                o.w(",");
+                clauses(o, then, cx);
+            }
             Amount::DamagePrevented => {
                 o.w("for each 1 damage prevented this way,");
                 clauses(o, then, cx);

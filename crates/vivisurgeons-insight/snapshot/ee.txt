@@ -688,7 +688,7 @@ face: Pair o' Dice Lost
 type: Instant
 cost: {3}{G}{G}
 > Roll two six-sided dice. Return any number of cards with total mana value X or less from your graveyard to your hand, where X is the total of those results. Exile Pair o' Dice Lost.
-= BROKE at "." after: roll two six-sided dice
+= BROKE at "of" after: roll two six-sided dice . return any number of cards with total mana value x or less from your graveyard to your hand , where x is the total
 
 ## Pia Nalaar
 face: Pia Nalaar

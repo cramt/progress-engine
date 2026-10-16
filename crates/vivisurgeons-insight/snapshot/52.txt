@@ -474,7 +474,7 @@ cost: {3}
 > {T}: Add one mana of any color.
 > {1}, {T}: Roll X six-sided dice, where X is the number of Bobbleheads you control. Create a tapped Treasure token for each even result. If you rolled 6 exactly seven times, you win the game.
 = Activated { cost: [Tap], effect: [AddMana(Of { n: N(1), pick: AnyColor, within: None })], limits: [] }
-= BROKE at "x" after: {1} , {T} : roll
+= BROKE at "result" after: {1} , {T} : roll x six-sided dice , where x is the number of bobbleheads you control . create a tapped treasure token for each even
 
 ## Magnus the Red
 face: Magnus the Red

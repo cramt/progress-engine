@@ -160,7 +160,7 @@ cost: {5}
 > • 4 — lifelink
 > • 5 — flying
 > • 6 — indestructible
-= BROKE at "two" after: at the beginning of combat on your turn , roll
+= BROKE at "of" after: at the beginning of combat on your turn , roll two six-sided dice . for each result
 
 ## Cinder Storm
 face: Cinder Storm

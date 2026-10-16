@@ -654,7 +654,7 @@ cost: {X}{X}{G}{G}
 > As this creature enters, roll X d6. It enters with a number of +1/+1 counters on it equal to the total of those results.
 > Trample
 > Ward {4} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {4}.)
-= BROKE at "x" after: as this creature enters , roll
+= BROKE at "of" after: as this creature enters , roll x d6 . it enters with a number of <pt> counters on it equal to the total
 = Keywords([Keyword { name: "trample", param: None }])
 = Keywords([Keyword { name: "ward", param: Some(Cost([Mana(Mana(["4"]))])) }])
 

@@ -140,7 +140,7 @@ cost: {3}{G}{G}
 > When this creature enters, roll five six-sided dice and store those results on it.
 > At the beginning of combat on your turn, you may reroll any number of this creature's stored results.
 > This creature gets +X/+X, where X is the greatest number of stored results on it of the same value.
-= BROKE at "five" after: when this creature enters , roll
+= BROKE at "those" after: when this creature enters , roll five six-sided dice and store
 = BROKE at "any" after: at the beginning of combat on your turn , you may reroll
 = BROKE at "stored" after: this creature gets <pt> , where x is the greatest number of
 

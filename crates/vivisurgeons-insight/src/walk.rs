@@ -1203,6 +1203,9 @@ impl Walk for Effect {
             Effect::WinGame(f0) => {
                 Walk::walk(f0, v);
             }
+            Effect::RollDice { n, .. } => {
+                Walk::walk(n, v);
+            }
             Effect::KeepsMana { who, .. } => {
                 Walk::walk(who, v);
             }

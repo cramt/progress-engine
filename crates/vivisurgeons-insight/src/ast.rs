@@ -383,6 +383,13 @@ pub enum SpendUse {
     CostsWithX,
 }
 
+/// A die result's parity: "each odd result", "each even result".
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Parity {
+    Odd,
+    Even,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Amount {
     /// "your starting life total" (CR 119.1).
@@ -446,6 +453,9 @@ pub enum Amount {
     DamageDealtThisTurn(Player),
     /// "each 1 damage prevented this way".
     DamagePrevented,
+    /// "each odd result": the results of the dice just rolled that are odd
+    /// (or even), one per die (CR 706.2: the result after modifiers).
+    RolledResults(Parity),
     /// "each time it has attacked this turn".
     TimesAttackedThisTurn(Box<Objects>),
     /// "up to two": the player picks any number to that bound.
@@ -1783,6 +1793,12 @@ pub enum Effect {
     WinGame(Player),
     /// "roll a d20".
     RollDie(u32),
+    /// "roll X six-sided dice", "roll two six-sided dice": `n` dice of
+    /// `sides` sides, rolled together (CR 706.1).
+    RollDice {
+        n: Amount,
+        sides: u32,
+    },
     /// "you don't lose this mana as steps and phases end".
     KeepsMana {
         who: Player,

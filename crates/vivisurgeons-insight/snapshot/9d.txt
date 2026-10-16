@@ -158,7 +158,7 @@ face: Circuits Act
 type: Sorcery
 cost: {2}{R}
 > Roll three six-sided dice. For each different result, create a 1/1 white Clown Robot artifact creature token.
-= BROKE at "." after: roll three six-sided dice
+= BROKE at "result" after: roll three six-sided dice . for each different
 
 ## Coram, the Undertaker
 face: Coram, the Undertaker

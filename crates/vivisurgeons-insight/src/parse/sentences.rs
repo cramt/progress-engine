@@ -273,6 +273,16 @@ pub(super) fn clause(p: &mut P) -> Option<Vec<Effect>> {
             let then = delayed_body(p)?;
             Some(vec![Effect::DelayedWhenever { event, then }])
         },
+        // "For each odd result, create …": once per die that came up odd.
+        |p| {
+            p.words("for each")?;
+            let parity = alt!(p;
+                |p| p.word("odd").map(|_| Parity::Odd),
+                |p| p.word("even").map(|_| Parity::Even),
+            )?;
+            p.words("result ,")?;
+            Some(vec![Effect::Repeat { times: Amount::RolledResults(parity), then: clauses(p)? }])
+        },
         // "For each 1 damage prevented this way, create …": once per point.
         |p| {
             p.words("for each")?;

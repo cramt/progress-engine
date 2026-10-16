@@ -826,6 +826,16 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                 Err(_) => None,
             }
         },
+        // "roll X six-sided dice", "roll two d6".
+        |p| {
+            p.verb("roll")?;
+            let n = amount(p)?;
+            let sides = match p.peek_word()? {
+                "six-sided" => { p.bump(); p.word("dice")?; 6 }
+                w => { let s = w.strip_prefix('d')?.parse().ok()?; p.bump(); s }
+            };
+            Some(Effect::RollDice { n, sides })
+        },
         |p| {
             let who = subject_player(p);
             p.one_of(&["don't lose", "doesn't lose"])?;

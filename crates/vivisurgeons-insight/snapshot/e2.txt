@@ -30,7 +30,7 @@ face: Attempted Murder
 type: Sorcery
 cost: {X}{B}{B}
 > Choose target creature. Roll X six-sided dice. For each even result, put two -1/-1 counters on that creature. For each odd result, create a 1/2 blue Bird creature token with flying named Storm Crow.
-= BROKE at "x" after: choose target creature . roll
+= Spell([Choose(Objects(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } })), RollDice { n: X, sides: 6 }, Repeat { times: RolledResults(Even), then: [PutCounters { n: N(2), kind: "-1/-1", on: Objects { quant: Antecedent, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }] }, Repeat { times: RolledResults(Odd), then: [CreateNamed { who: You, n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(2), signed: false }), colors: [Blue], types: ["bird", "creature"], keywords: [Keyword { name: "flying", param: None }], abilities: [], named: None, attacking: None }, name: "storm crow" }] }])
 
 ## Aven Envoy
 face: Aven Envoy
