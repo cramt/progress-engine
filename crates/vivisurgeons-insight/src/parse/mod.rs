@@ -1976,6 +1976,33 @@ fn other_than_the_trigger(e: &Event, cond: Option<&mut Condition>, effect: &mut 
     if let Some(c) = cond {
         c.walk(&mut v);
     }
+    // "create a 0/0 … Ooze creature token …. The token enters with X +1/+1
+    // counters on it, where X is the number of other creatures you control"
+    // (Printlifter Ooze): other than the token entering, not the trigger's
+    // object.
+    struct Than(Objects);
+    impl Visitor for Than {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            other_than(o, &self.0, None);
+            true
+        }
+    }
+    for x in effect.iter_mut() {
+        if let Effect::Where { then, x: n } = x {
+            if let [Effect::EntersWithCounters { what, .. }] = &then[..] {
+                // Read before the tokens are named `Created`.
+                if matches!(what.quant, Quant::Created | Quant::Antecedent)
+                    && what.filter.kind == Some(Noun::Token)
+                {
+                    let token = Objects {
+                        quant: Quant::Created,
+                        filter: what.filter.clone(),
+                    };
+                    n.walk(&mut Than(token));
+                }
+            }
+        }
+    }
     for x in effect {
         x.walk(&mut v);
     }
@@ -2295,7 +2322,8 @@ impl Visitor for CreatedTokens {
             None => self.in_cond == 0,
             _ => false,
         };
-        if self.created.is_some() && o.quant == Quant::Antecedent && bare && fits {
+        let back = matches!(o.quant, Quant::Antecedent | Quant::BeforeEach);
+        if self.created.is_some() && back && bare && fits {
             o.quant = Quant::Created;
         }
         // "Create a 1/1 blue and red Otter creature token with prowess. If
@@ -2321,8 +2349,7 @@ impl Visitor for CreatedTokens {
         {
             o.quant = Quant::Created;
         }
-        if self.tokens && o.quant == Quant::Antecedent && bare && o.filter.kind == Some(Noun::Token)
-        {
+        if self.tokens && back && bare && o.filter.kind == Some(Noun::Token) {
             o.quant = Quant::Created;
         }
         true
@@ -2361,7 +2388,11 @@ impl Visitor for CreatedTokens {
             // "put a number of +1/+1 counters on it equal to the greatest
             // mana value among those cards": "it" is said before the amount,
             // which the tree holds first.
-            Effect::PutCounters { on, .. } if self.created.is_some() && *on == antecedent() => {
+            Effect::PutCounters { on, .. }
+                if self.created.is_some()
+                    && (*on == antecedent()
+                        || on.quant == Quant::BeforeEach && on.filter == Filter::default()) =>
+            {
                 on.quant = Quant::Created;
             }
             // "Create a 1/1 red Goblin creature token, then attach this
