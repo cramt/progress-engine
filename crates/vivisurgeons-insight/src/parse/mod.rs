@@ -1539,7 +1539,13 @@ fn refer(
             };
             // "those counters", "the exiled card": not the trigger's object.
             let referable = (o.quant == Quant::Antecedent || before_each)
-                && f.posts.is_empty()
+                && (f.posts.is_empty()
+                    // "shuffle it into your library from your graveyard"
+                    // (Yidaro): where the card is, not which card.
+                    || (o.quant == Quant::Antecedent
+                        && f.kind.is_none()
+                        && f.alts.is_empty()
+                        && matches!(&f.posts[..], [Post::In(Zone::Graveyard(Player::You))])))
                 && f.or.is_none()
                 && !matches!(
                     f.kind,
@@ -1619,8 +1625,13 @@ fn refer(
             if referable && !seen_new && !other_type {
                 *o = if seen_self && *f == Filter::default() || self.to == Quant::SelfRef {
                     // "When this creature dies, return that card": the card
-                    // again, by whatever noun ([self-reference]).
-                    self_ref()
+                    // again, by whatever noun ([self-reference]). Where it
+                    // is ("from your graveyard") is kept.
+                    let mut s = self_ref();
+                    if let [p @ Post::In(_)] = &f.posts[..] {
+                        s.filter.posts.push(p.clone());
+                    }
+                    s
                 } else if before_each && self.to == Quant::Antecedent {
                     // No trigger object: still an earlier noun outside the loop.
                     Objects {

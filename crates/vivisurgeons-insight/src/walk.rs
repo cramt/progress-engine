@@ -203,6 +203,9 @@ impl Walk for Amount {
                 Walk::walk(&mut **what, v);
                 Walk::walk(zone, v);
             }
+            Amount::TimesThisGame(f0) => {
+                Walk::walk(&mut **f0, v);
+            }
             Amount::LifeLostThisTurn(f0) => {
                 Walk::walk(f0, v);
             }

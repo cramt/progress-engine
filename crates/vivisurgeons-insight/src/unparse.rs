@@ -3077,6 +3077,11 @@ fn measure(o: &mut Out, a: &Amount) {
             o.w("spent to cast");
             objects(o, x);
         }
+        Amount::TimesThisGame(e) => {
+            o.w("the number of times");
+            done_this_game(o, e);
+            o.w("this game");
+        }
         Amount::TimesCastFrom { what, zone: z } => {
             o.w("the number of times");
             pronoun_or(
@@ -11406,8 +11411,33 @@ fn not_condition(o: &mut Out, c: &Condition) {
     }
 }
 
+/// "you've cycled a card named ~", said of an event counted this game.
+fn done_this_game(o: &mut Out, e: &Event) {
+    if let Event::Cycles { who, what } = e {
+        if *who == Player::You {
+            o.w("you've");
+        } else {
+            player(o, who);
+            o.w("has");
+        }
+        o.w("cycled");
+        if let Some(w) = what {
+            objects(o, w);
+        }
+    }
+}
+
 fn amount_is(o: &mut Out, n: &Amount, op: Op, value: &Amount) {
     match n {
+        // "you've cycled a card named ~ four or more times this game".
+        Amount::TimesThisGame(e) if op == Op::Ge => {
+            done_this_game(o, e);
+            match value {
+                Amount::N(k) => syn::number(o, *k),
+                v => amount(o, v),
+            }
+            o.w("or more times this game");
+        }
         // "you have at least 10 life more than your starting life total".
         Amount::LifeTotal(Player::You)
             if op == Op::Ge

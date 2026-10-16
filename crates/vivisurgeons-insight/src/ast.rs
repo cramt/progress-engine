@@ -443,6 +443,9 @@ pub enum Amount {
         what: Box<Objects>,
         zone: Zone,
     },
+    /// "you've cycled a card named ~ four or more times this game"
+    /// (Yidaro): how many times the event has happened this game.
+    TimesThisGame(Box<Event>),
     /// "an opponent lost 2 or more life this turn".
     LifeLostThisTurn(Player),
     /// "the amount of life you gained this turn".

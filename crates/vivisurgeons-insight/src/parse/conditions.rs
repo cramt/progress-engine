@@ -355,6 +355,15 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
             p.words("this game")?;
             Some(Condition::DidThisGame(Box::new(casts(Player::You, what))))
         },
+        // "you've cycled a card named ~ four or more times this game" (Yidaro).
+        |p| {
+            p.words("you've cycled")?;
+            let what = objects(p)?;
+            let value = number(p)?;
+            p.words("or more times this game")?;
+            let n = Amount::TimesThisGame(Box::new(Event::Cycles { who: Player::You, what: Some(what) }));
+            Some(Condition::AmountIs { n, op: Op::Ge, value: Amount::N(value) })
+        },
         // "you control an Urza's Mine and an Urza's Power-Plant": one test per object.
         |p| {
             p.words("you control")?;

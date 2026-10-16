@@ -1425,7 +1425,7 @@ fn effect_main(p: &mut P) -> Option<Effect> {
             // "shuffle it into your library from your graveyard" (Yidaro): where
             // the card is, said after the library.
             if let Some(z) = p.attempt(|p| { p.word("from")?; zone(p) }) {
-                if !what.filter.posts.is_empty() || what.quant != Quant::SelfRef { return None; }
+                if !what.filter.posts.is_empty() || !matches!(what.quant, Quant::SelfRef | Quant::Antecedent) { return None; }
                 what.filter.posts.push(Post::In(z));
             }
             Some(Effect::ShuffleInto { who, what })
