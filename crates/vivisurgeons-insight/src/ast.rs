@@ -3238,6 +3238,13 @@ pub enum Static {
     /// creature you control, you may have that creature assign …" say the
     /// same of each object.
     AssignAsThoughUnblocked(Objects),
+    /// "For each {B} in a cost, you may pay 2 life rather than pay that mana"
+    /// (K'rrik): each such symbol in a cost its controller pays may be paid
+    /// with that much life instead, as a Phyrexian symbol may (CR 107.4f).
+    LifeForMana {
+        mana: Mana,
+        life: Amount,
+    },
     /// "Each nonland permanent you control is all colors."
     IsAllColors(Objects),
     /// "Enchanted creature gets +2/+2 and is goaded": goaded, a designation

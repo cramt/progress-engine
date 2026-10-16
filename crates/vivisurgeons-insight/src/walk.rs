@@ -2728,6 +2728,9 @@ impl Walk for Static {
             Static::AssignAsThoughUnblocked(f0) => {
                 Walk::walk(f0, v);
             }
+            Static::LifeForMana { life, .. } => {
+                Walk::walk(life, v);
+            }
             Static::IsAllColors(f0) => {
                 Walk::walk(f0, v);
             }

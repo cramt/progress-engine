@@ -12511,6 +12511,15 @@ fn static_other(o: &mut Out, s: &Static) {
             objects(o, x);
             o.w("as though those creatures had haste");
         }
+        Static::LifeForMana { mana: m, life } => {
+            o.w("for each");
+            mana(o, m);
+            o.w("in a cost");
+            o.tok(Tok::Comma);
+            o.w("you may pay");
+            amount(o, life);
+            o.w("life rather than pay that mana");
+        }
         Static::AssignAsThoughUnblocked(x) => {
             syn::may_have_assign(o, out(|o| objects(o, x)), out(|o| each_objects(o, x)));
             o.w("its combat damage as though it weren't blocked");

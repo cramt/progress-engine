@@ -505,7 +505,7 @@ cost: {4}{B/P}{B/P}{B/P}
 > For each {B} in a cost, you may pay 2 life rather than pay that mana.
 > Whenever you cast a black spell, put a +1/+1 counter on K'rrik.
 = Keywords([Keyword { name: "lifelink", param: None }])
-= BROKE at "{B}" after: for each
+= Static([LifeForMana { mana: Mana(["B"]), life: N(2) }])
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: One, filter: Filter { alts: [[Color(Black)]], kind: Some(Spell), posts: [], or: None } } }), effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] }
 
 ## Karai, Future of the Foot

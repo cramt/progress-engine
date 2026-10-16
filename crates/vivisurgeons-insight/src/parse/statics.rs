@@ -659,6 +659,19 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             p.words("its combat damage as though it weren't blocked")?;
             Some(vec![Static::AssignAsThoughUnblocked(what)])
         },
+        // "For each {B} in a cost, you may pay 2 life rather than pay that
+        // mana" (K'rrik).
+        |p| {
+            p.words("for each")?;
+            let m = mana(p)?;
+            (m.0.len() == 1).then_some(())?;
+            p.words("in a cost")?;
+            p.tok(&Tok::Comma)?;
+            p.words("you may pay")?;
+            let life = amount(p)?;
+            p.words("life rather than pay that mana")?;
+            Some(vec![Static::LifeForMana { mana: m, life }])
+        },
         // "If you casting or copying an instant or sorcery spell causes a
         // triggered ability of a permanent you control to trigger, …".
         |p| {
