@@ -1326,6 +1326,7 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
         // made in two branches are both the sentence's, so it is neither's.
         let copies_before = v[..n.saturating_sub(1)].iter().any(makes_copy);
         let both = copies_before && v.last().is_some_and(makes_copy);
+        let option = matches!(v.last(), Some(Effect::IfYouDo(_)));
         if let Some(branch) = v
             .last_mut()
             .and_then(branch_with_new_object)
@@ -1358,7 +1359,11 @@ pub fn effects(p: &mut P) -> Option<Vec<Effect>> {
                             | Effect::EntersAttached { .. }
                     )
             });
-            if otherwise || didnt_put || s.first().is_some_and(refers_back) {
+            if otherwise
+                || didnt_put
+                || s.first().is_some_and(refers_back)
+                || (option && s.first().is_some_and(casts_from_among_them))
+            {
                 branch.extend(s);
                 continue;
             }
@@ -1689,7 +1694,7 @@ fn acts_on_target(e: &Effect) -> bool {
 /// creature", or a definite "the token", "that card": an object an earlier
 /// clause named. "If the token isn't a creature, …" says it in the "if".
 fn refers_back(e: &Effect) -> bool {
-    let it = |x: &Objects| x.quant == Quant::Antecedent;
+    let it = |x: &Objects| matches!(x.quant, Quant::Antecedent | Quant::Listed);
     match e {
         // "If it's a land card, you may put it onto the battlefield. If you
         // don't put the card onto the battlefield, put it into your hand":
@@ -1743,6 +1748,33 @@ fn refers_back(e: &Effect) -> bool {
         // end of your next turn, you may play those cards" (Anep).
         Effect::Delayed { then, .. } | Effect::During { then, .. } | Effect::If { then, .. } => {
             then.first().is_some_and(refers_back)
+        }
+        _ => false,
+    }
+}
+
+/// "If you do, exile the top card of your library. Until the end of your
+/// next turn, you may play one of those cards" (Flameskull), "If you do,
+/// exile the top four cards of your library. You may cast any number of
+/// spells from among them" (Glorious Purpose): a cast picked from what the
+/// option's branch brought in, so the option's too. Not after a plain "if"
+/// or no branch: Locke's "If a land card was milled this way, create a
+/// Treasure token. Until end of turn, you may cast a spell from among those
+/// cards" casts whatever was milled.
+/// "Put the rest …" stays outside ([branch-owns-new-object]).
+fn casts_from_among_them(e: &Effect) -> bool {
+    fn back(x: &Objects) -> bool {
+        matches!(x.quant, Quant::Antecedent | Quant::Listed)
+            || x.filter.posts.iter().any(|p| match p {
+                Post::FromAmongThem => true,
+                Post::FromAmong(o) => back(o),
+                _ => false,
+            })
+    }
+    match e {
+        Effect::Cast { what, .. } => back(what),
+        Effect::May { then, .. } | Effect::During { then, .. } => {
+            then.first().is_some_and(casts_from_among_them)
         }
         _ => false,
     }
@@ -1921,6 +1953,31 @@ fn last_token(e: &mut [Effect]) -> Option<&mut Token> {
 /// them": after a verb said once for two or more objects, the references
 /// back that open the next clause are all of them ([listed-objects]).
 fn listed(before: &[Effect], after: &mut [Effect]) {
+    struct Them {
+        done: bool,
+    }
+    impl Visitor for Them {
+        fn enter(&mut self, o: &mut Objects) -> bool {
+            if self.done {
+                return false;
+            }
+            match o.quant {
+                Quant::Antecedent => o.quant = Quant::Listed,
+                // "one of those cards".
+                _ => {
+                    self.done = true;
+                    for p in &mut o.filter.posts {
+                        if let Post::FromAmong(x) = p {
+                            if x.quant == Quant::Antecedent {
+                                x.quant = Quant::Listed;
+                            }
+                        }
+                    }
+                }
+            }
+            false
+        }
+    }
     let verb = |e: &Effect| match e {
         Effect::Destroy { .. } => Some(0),
         Effect::Exile(_) => Some(1),
@@ -1928,7 +1985,22 @@ fn listed(before: &[Effect], after: &mut [Effect]) {
         Effect::Untap(_) => Some(3),
         _ => None,
     };
+    // "When this creature dies, exile it. If you do, exile the top card of
+    // your library. Until the end of your next turn, you may play one of
+    // those cards" (Flameskull): the card the option exiled and the one its
+    // branch exiled.
+    let branched = match before {
+        [.., a, Effect::IfYouDo(then)] => {
+            verb(a).is_some() && then.len() == 1 && verb(&then[0]) == verb(a)
+        }
+        _ => false,
+    };
     let Some(last) = before.last().and_then(verb) else {
+        if branched {
+            if let Some(first) = after.first_mut() {
+                first.walk(&mut Them { done: false });
+            }
+        }
         return;
     };
     if before
@@ -1943,21 +2015,6 @@ fn listed(before: &[Effect], after: &mut [Effect]) {
     let Some(first) = after.first_mut() else {
         return;
     };
-    struct Them {
-        done: bool,
-    }
-    impl Visitor for Them {
-        fn enter(&mut self, o: &mut Objects) -> bool {
-            if self.done {
-                return false;
-            }
-            match o.quant {
-                Quant::Antecedent => o.quant = Quant::Listed,
-                _ => self.done = true,
-            }
-            false
-        }
-    }
     first.walk(&mut Them { done: false });
 }
 
