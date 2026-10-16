@@ -639,7 +639,7 @@ cost: {4}{W}{W}{W}
 > You may reveal this card from your opening hand. If you do, when each opponent casts their first spell of the game, counter that spell unless that player pays {1}.
 > Flying
 > Whenever an opponent casts a spell, counter it unless that player pays {1}.
-= Static([RevealFromOpeningHand([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [DelayedWhen { event: Casts { who: That, what: Objects { quant: NthOfGame { n: 1, of: That }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }, then: [Counter { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: Some((That, [Mana(Mana(["1"]))])) }] }] }])])
+= OpeningHandAction(Reveal([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [DelayedWhen { event: Casts { who: That, what: Objects { quant: NthOfGame { n: 1, of: That }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }, then: [Counter { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: Some((That, [Mana(Mana(["1"]))])) }] }] }]))
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [Counter { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: Some((That, [Mana(Mana(["1"]))])) }], limits: [] }
 
@@ -1055,7 +1055,7 @@ type: Creature — Eldrazi
 cost: {5}{C}{C}
 > You may reveal this card from your opening hand. If you do, at the beginning of your first upkeep, look at the top four cards of your library. You may put one of those cards back on top of your library. Exile the rest.
 > When you cast this spell, exile target permanent that's one or more colors.
-= Static([RevealFromOpeningHand([Delayed { step: Upkeep(YourFirst), then: [LookAtTop { who: You, whose: You, n: N(4) }, May { who: You, then: [Move { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], or: None } }, from: None, to: TopOfLibrary(You), tapped: false, transformed: false, under: None, order: None }] }, Exile(Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }])])
+= OpeningHandAction(Reveal([Delayed { step: Upkeep(YourFirst), then: [LookAtTop { who: You, whose: You, n: N(4) }, May { who: You, then: [Move { what: Objects { quant: N(N(1)), filter: Filter { alts: [], kind: None, posts: [FromAmong(Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Card), posts: [], or: None } })], or: None } }, from: None, to: TopOfLibrary(You), tapped: false, transformed: false, under: None, order: None }] }, Exile(Objects { quant: Rest, filter: Filter { alts: [], kind: None, posts: [], or: None } })] }]))
 = Triggered { trigger: When(Casts { who: You, what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }), effect: [Exile(Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [], kind: Some(Permanent), posts: [OneOrMoreColors], or: None } })], limits: [] }
 
 ## Disciple of Freyalise // Garden of Freyalise
@@ -1770,7 +1770,7 @@ face: Gemstone Caverns
 type: Legendary Land
 > If this card is in your opening hand and you're not the starting player, you may begin the game with Gemstone Caverns on the battlefield with a luck counter on it. If you do, exile a card from your hand.
 > {T}: Add {C}. If Gemstone Caverns has a luck counter on it, instead add one mana of any color.
-= Static([If { cond: And([InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Not(YouAreStartingPlayer)]), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: Some((N(1), "luck")), then: [IfYouDo([Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } })])] }] }])
+= OpeningHandAction(BeginOnBattlefield { not_starting_player: true, counters: Some((N(1), "luck")), if_you_do: [Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } })] })
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"]))), Instead { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("luck") }, then: [AddMana(Of { n: N(1), pick: AnyColor, within: None })] }], limits: [] }
 
 ## Generous Ent
@@ -2439,7 +2439,7 @@ cost: {4}
 > If this card is in your opening hand, you may begin the game with it on the battlefield.
 > Equipped creature gets +1/+1 and has double strike and trample.
 > Equip {3} ({3}: Attach to target creature you control. Equip only as a sorcery.)
-= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
+= OpeningHandAction(BeginOnBattlefield { not_starting_player: false, counters: None, if_you_do: [] })
 = Static([Modify { what: Objects { quant: Equipped, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } }, pt: Some(Pt { power: N(1), toughness: N(1), signed: true }), has: [Keyword { name: "double strike", param: None }, Keyword { name: "trample", param: None }], per: None }])
 = Keywords([Keyword { name: "equip", param: Some(Cost([Mana(Mana(["3"]))])) }])
 
@@ -2461,7 +2461,7 @@ cost: {2}{G}{G}
 > If this card is in your opening hand, you may begin the game with it on the battlefield.
 > Whenever you tap a creature for mana, add an additional {G}.
 > {6}{G}{G}: Put a +1/+1 counter on each creature you control.
-= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
+= OpeningHandAction(BeginOnBattlefield { not_starting_player: false, counters: None, if_you_do: [] })
 = Triggered { trigger: When(TapsForMana { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }), effect: [AddMana(Additional(Symbols(Mana(["G"]))))], limits: [] }
 = Activated { cost: [Mana(Mana(["6", "G", "G"]))], effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 
@@ -2472,7 +2472,7 @@ cost: {G/W}{G/U}{B/G}{R/G}
 > If this card is in your opening hand, you may begin the game with it on the battlefield.
 > Each nonland permanent you control is all colors.
 > Lands you control are every basic land type in addition to their other types.
-= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
+= OpeningHandAction(BeginOnBattlefield { not_starting_player: false, counters: None, if_you_do: [] })
 = Static([IsAllColors(Objects { quant: Each, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(You)], or: None } })])
 = Static([AlsoIs { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, types: EveryBasicLandType }])
 

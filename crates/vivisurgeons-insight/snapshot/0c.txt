@@ -693,7 +693,7 @@ cost: {R}
 > If Quicksilver, Brash Blur is in your opening hand, you may begin the game with him on the battlefield.
 > Haste
 > Power-up — {4}{R}: Put a +1/+1 counter and a double strike counter on Quicksilver. (Activate each power-up ability only once. Reduce the cost by his mana cost if he entered this turn.)
-= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
+= OpeningHandAction(BeginOnBattlefield { not_starting_player: false, counters: None, if_you_do: [] })
 = Keywords([Keyword { name: "haste", param: None }])
 = KeywordOn { keyword: PowerUp, ability: Activated { cost: [Mana(Mana(["4", "R"]))], effect: [PutCountersEach { counters: [(N(1), "+1/+1"), (N(1), "double strike")], on: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } } }], limits: [] } }
 

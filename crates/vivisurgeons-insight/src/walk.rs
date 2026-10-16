@@ -81,6 +81,9 @@ impl Walk for Ability {
                     Walk::walk(x0, v);
                 }
             }
+            Ability::OpeningHandAction(f0) => {
+                Walk::walk(f0, v);
+            }
             Ability::Spell(f0) => {
                 for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);
@@ -387,9 +390,6 @@ impl Walk for Condition {
             Condition::In { what, zone } => {
                 Walk::walk(what, v);
                 Walk::walk(zone, v);
-            }
-            Condition::InOpeningHand(f0) => {
-                Walk::walk(f0, v);
             }
             Condition::DidThisTurn(f0) => {
                 Walk::walk(&mut **f0, v);
@@ -1956,6 +1956,34 @@ impl Walk for Objects {
     }
 }
 
+impl Walk for OpeningHandAction {
+    #[allow(clippy::all)]
+    fn walk(&mut self, v: &mut dyn Visitor) {
+        match self {
+            OpeningHandAction::BeginOnBattlefield {
+                counters,
+                if_you_do,
+                ..
+            } => {
+                if let Some(x0) = (counters).as_mut() {
+                    {
+                        let (t1_0, _) = x0;
+                        Walk::walk(t1_0, v);
+                    }
+                }
+                for x0 in (if_you_do).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
+            OpeningHandAction::Reveal(f0) => {
+                for x0 in (f0).iter_mut() {
+                    Walk::walk(x0, v);
+                }
+            }
+        }
+    }
+}
+
 impl Walk for Palette {
     #[allow(clippy::all)]
     fn walk(&mut self, v: &mut dyn Visitor) {
@@ -2610,22 +2638,6 @@ impl Walk for Static {
             Static::ActivationsPerTurn { what, .. } => {
                 Walk::walk(what, v);
             }
-            Static::BeginOnBattlefield {
-                what,
-                counters,
-                then,
-            } => {
-                Walk::walk(what, v);
-                if let Some(x0) = (counters).as_mut() {
-                    {
-                        let (t1_0, _) = x0;
-                        Walk::walk(t1_0, v);
-                    }
-                }
-                for x0 in (then).iter_mut() {
-                    Walk::walk(x0, v);
-                }
-            }
             Static::ControlPlayer(f0) => {
                 Walk::walk(f0, v);
             }
@@ -2759,11 +2771,6 @@ impl Walk for Static {
                 Walk::walk(what, v);
                 Walk::walk(into, v);
                 for x0 in (then).iter_mut() {
-                    Walk::walk(x0, v);
-                }
-            }
-            Static::RevealFromOpeningHand(f0) => {
-                for x0 in (f0).iter_mut() {
                     Walk::walk(x0, v);
                 }
             }

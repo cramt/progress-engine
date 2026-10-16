@@ -2058,6 +2058,40 @@ fn ability_into(o: &mut Out, a: &Ability) {
             limits(o, ls, true);
         }
         Ability::Static(ss) => statics(o, ss),
+        Ability::OpeningHandAction(OpeningHandAction::Reveal(then)) => {
+            o.w("you may reveal");
+            syn::this_card(o, out(|o| o.w("it")));
+            o.w("from your opening hand. if you do,");
+            clauses(o, then, &Cx::default());
+            o.tok(Tok::Period);
+        }
+        Ability::OpeningHandAction(OpeningHandAction::BeginOnBattlefield {
+            not_starting_player,
+            counters,
+            if_you_do,
+        }) => {
+            o.w("if");
+            syn::this_card(o, out(|o| o.w("it")));
+            o.w("is in your opening hand");
+            if *not_starting_player {
+                o.w("and you're not the starting player");
+            }
+            o.w(", you may begin the game with");
+            syn::this_card(o, out(|o| o.w("it")));
+            o.w("on the battlefield");
+            if let Some((n, kind)) = counters {
+                o.w("with");
+                amount_a(o, n);
+                counter_noun(o, kind, amount_num(n));
+                o.w("on it");
+            }
+            o.tok(Tok::Period);
+            if !if_you_do.is_empty() {
+                o.w("if you do,");
+                clauses(o, if_you_do, &Cx::default());
+                o.tok(Tok::Period);
+            }
+        }
         Ability::Spell(es) => sentences(o, es, &cx),
         Ability::Spree { cost, effect } => {
             o.tok(Tok::Other('+'));
@@ -9262,6 +9296,10 @@ fn step(o: &mut Out, s: &Step) {
         o.w("combat on each opponent's turn");
         return;
     }
+    if matches!(s, Step::PrecombatMain(Whose::YourFirst)) {
+        o.w("your first main phase of the game");
+        return;
+    }
     if matches!(s, Step::Main(Whose::Yours)) {
         syn::your_main_phase(o);
         return;
@@ -9285,6 +9323,7 @@ fn step(o: &mut Out, s: &Step) {
         Whose::ThatPlayers => "that player's",
         Whose::YourNext => "your next",
         Whose::YourFirst => "your first",
+        Whose::First => "the first",
         Whose::EachOther => "each other player's",
 
         Whose::That => "that",
@@ -10225,11 +10264,6 @@ fn condition(o: &mut Out, c: &Condition) {
             );
             o.w(if *z == Zone::Battlefield { "on" } else { "in" });
             zone(o, z);
-        }
-        Condition::InOpeningHand(x) => {
-            objects(o, x);
-            o.verb("are", obj_num(x));
-            o.w("in your opening hand");
         }
         Condition::YouAreStartingPlayer => o.w("you're the starting player"),
         Condition::DidThisTurn(e) => match &**e {
@@ -12171,25 +12205,6 @@ fn static_other(o: &mut Out, s: &Static) {
             });
             o.w("turns rather than once");
         }
-        Static::BeginOnBattlefield {
-            what,
-            counters,
-            then,
-        } => {
-            o.w("you may begin the game with");
-            objects(o, what);
-            o.w("on the battlefield");
-            if let Some((n, kind)) = counters {
-                o.w("with");
-                amount_a(o, n);
-                counter_noun(o, kind, amount_num(n));
-                o.w("on it");
-            }
-            if !then.is_empty() {
-                o.tok(Tok::Period);
-                clauses(o, then, &Cx::default());
-            }
-        }
         Static::ControlPlayer(p) => {
             o.w("you control");
             player(o, p);
@@ -12297,10 +12312,6 @@ fn static_other(o: &mut Out, s: &Static) {
             o.w("into");
             objects(o, into);
             o.w(",");
-            clauses(o, then, &Cx::default());
-        }
-        Static::RevealFromOpeningHand(then) => {
-            o.w("you may reveal this card from your opening hand. if you do,");
             clauses(o, then, &Cx::default());
         }
         Static::OptionalAdditionalCost(c) => {

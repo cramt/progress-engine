@@ -643,7 +643,7 @@ cost: {2}{R}{R}
 > If this card is in your opening hand, you may begin the game with it on the battlefield.
 > Players can't gain life.
 > Damage can't be prevented.
-= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
+= OpeningHandAction(BeginOnBattlefield { not_starting_player: false, counters: None, if_you_do: [] })
 = Static([PlayerRestrict { who: Each, rules: [CantGainLife] }])
 = BROKE at "." after: damage can't be prevented
 

@@ -9,6 +9,8 @@ pub(super) fn whose_step(p: &mut P) -> Option<Whose> {
         // precombat one of each turn (CR 505.1a), read by `step`.
         |p| { p.words("your first")?; (p.peek_word() != Some("main")).then_some(Whose::YourFirst) },
         |p| p.word("your").map(|_| Whose::Yours),
+        // "at the beginning of the first upkeep": the game's.
+        |p| { p.words("the first")?; (p.peek_word() == Some("upkeep")).then_some(Whose::First) },
         |p| p.words("each opponent 's").map(|_| Whose::EachOpponent),
         |p| p.words("each other player 's").map(|_| Whose::EachOther),
         |p| p.words("each player 's").map(|_| Whose::Each),
@@ -25,6 +27,13 @@ pub(super) fn step(p: &mut P) -> Option<Step> {
     // "each of your main phases": both of them (CR 505.1).
     if p.attempt(|p| p.words("each of your main phases")).is_some() {
         return Some(Step::Main(Whose::Yours));
+    }
+    // "at the beginning of your first main phase of the game" (Chancellor of
+    // the Tangle): the precombat main phase of your first turn (CR 505.1a).
+    if p.attempt(|p| p.words("your first main phase of the game"))
+        .is_some()
+    {
+        return Some(Step::PrecombatMain(Whose::YourFirst));
     }
     let w = p.attempt(whose_step);
     let named = w.is_some();

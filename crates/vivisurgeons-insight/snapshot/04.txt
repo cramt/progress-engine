@@ -96,7 +96,7 @@ cost: {4}{W}{W}{W}
 > You may reveal this card from your opening hand. If you do, when each opponent casts their first spell of the game, counter that spell unless that player pays {1}.
 > Flying
 > Whenever an opponent casts a spell, counter it unless that player pays {1}.
-= Static([RevealFromOpeningHand([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [DelayedWhen { event: Casts { who: That, what: Objects { quant: NthOfGame { n: 1, of: That }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }, then: [Counter { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: Some((That, [Mana(Mana(["1"]))])) }] }] }])])
+= OpeningHandAction(Reveal([ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Opponent), posts: [], or: None } }, then: [DelayedWhen { event: Casts { who: That, what: Objects { quant: NthOfGame { n: 1, of: That }, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }, then: [Counter { what: Objects { quant: Antecedent, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } }, unless: Some((That, [Mana(Mana(["1"]))])) }] }] }]))
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Casts { who: AnOpponent, what: Objects { quant: One, filter: Filter { alts: [], kind: Some(Spell), posts: [], or: None } } }), effect: [Counter { what: Objects { quant: Triggering, filter: Filter { alts: [], kind: None, posts: [], or: None } }, unless: Some((That, [Mana(Mana(["1"]))])) }], limits: [] }
 

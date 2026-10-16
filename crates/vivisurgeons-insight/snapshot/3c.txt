@@ -495,7 +495,7 @@ cost: {G/W}{G/U}{B/G}{R/G}
 > If this card is in your opening hand, you may begin the game with it on the battlefield.
 > Each nonland permanent you control is all colors.
 > Lands you control are every basic land type in addition to their other types.
-= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
+= OpeningHandAction(BeginOnBattlefield { not_starting_player: false, counters: None, if_you_do: [] })
 = Static([IsAllColors(Objects { quant: Each, filter: Filter { alts: [[Non("land")]], kind: Some(Permanent), posts: [Controller(You)], or: None } })])
 = Static([AlsoIs { what: Objects { quant: Plural, filter: Filter { alts: [[Type("land")]], kind: None, posts: [Controller(You)], or: None } }, types: EveryBasicLandType }])
 

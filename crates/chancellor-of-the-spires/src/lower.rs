@@ -139,7 +139,8 @@ impl Lowered {
             | i::Ability::Chapter { .. }
             | i::Ability::DieRow { .. }
             | i::Ability::Spree { .. }
-            | i::Ability::Tiered(_)) => self.unread(a),
+            | i::Ability::Tiered(_)
+            | i::Ability::OpeningHandAction(_)) => self.unread(a),
             other => return Err(short(&other)),
         }
         Ok(())
@@ -195,8 +196,6 @@ fn not_characteristics(s: &i::Static) -> bool {
             | SkipStep { .. }
             | CanBeCommander
             | DeckCanHave { .. }
-            | BeginOnBattlefield { .. }
-            | RevealFromOpeningHand { .. }
             | Replacement { .. }
             | AdditionalTrigger { .. }
             | EnteringDoesntTrigger { .. }

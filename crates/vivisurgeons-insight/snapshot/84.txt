@@ -545,7 +545,7 @@ type: Enchantment
 cost: {2}{R}{R}
 > If this card is in your opening hand, you may begin the game with it on the battlefield.
 > Whenever you cast an instant or sorcery spell that targets only a single creature you control, copy that spell. You may choose new targets for the copy.
-= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
+= OpeningHandAction(BeginOnBattlefield { not_starting_player: false, counters: None, if_you_do: [] })
 = BROKE at "a" after: whenever you cast an instant or sorcery spell that targets only
 
 ## Lobotomy

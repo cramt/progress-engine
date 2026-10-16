@@ -488,7 +488,6 @@ pub(super) fn condition_one(p: &mut P) -> Option<Condition> {
         |p| {
             let what = objects(p)?;
             alt!(p;
-                |p| { p.one_of(&["is", "are"])?; p.words("in your opening hand")?; Some(Condition::InOpeningHand(what.clone())) },
                 |p| { p.one_of(&["remain exiled", "remains exiled"])?; Some(Condition::In { what: what.clone(), zone: Zone::Exile }) },
                 |p| { p.one_of(&["remain on the battlefield", "remains on the battlefield"])?; Some(Condition::In { what: what.clone(), zone: Zone::Battlefield }) },
                 |p| { p.one_of(&["is attached to", "are attached to"])?; let to = objects(p)?; Some(Condition::AttachedTo { what: what.clone(), to }) },

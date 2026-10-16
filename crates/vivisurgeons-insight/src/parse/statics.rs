@@ -152,13 +152,6 @@ pub(super) fn static_sentence(p: &mut P) -> Option<Vec<Static>> {
     }) {
         return Some(s);
     }
-    // "You may reveal this card from your opening hand. If you do, …".
-    if let Some(s) = p.attempt(|p| {
-        p.words("you may reveal this card from your opening hand . if you do ,")?;
-        Some(vec![Static::RevealFromOpeningHand(effects(p)?)])
-    }) {
-        return Some(s);
-    }
     // "While an opponent is searching their library, they exile each card
     // they find. You may play those cards …": the sentences after it are
     // about what happens while it holds.
@@ -428,25 +421,6 @@ fn static_body_base(p: &mut P) -> Option<Vec<Static>> {
             let of = objects(p)?;
             p.words("to trigger , that ability triggers an additional time")?;
             Some(vec![Static::AdditionalTrigger { of, cause: Some(cause) }])
-        },
-        |p| {
-            p.words("you may begin the game with")?;
-            let what = pronoun(p)?;
-            p.words("on the battlefield")?;
-            let counters = p.attempt(|p| {
-                p.word("with")?;
-                let n = amount_a(p)?;
-                let kind = counter_kind(p)?;
-                p.one_of(&["counters", "counter"])?;
-                p.one_of(&["on it", "on them"])?;
-                Some((n, kind))
-            });
-            let then = p.attempt(|p| {
-                p.tok(&Tok::Period)?;
-                let c = clause(p)?;
-                matches!(c.first(), Some(Effect::IfYouDo(_))).then_some(c)
-            }).unwrap_or_default();
-            Some(vec![Static::BeginOnBattlefield { what, counters, then }])
         },
         |p| {
             // "As long as enchanted permanent is a Vehicle, it's a creature in
@@ -1422,4 +1396,51 @@ fn set_of(g: Vec<Adj>) -> TypeSet {
     } else {
         TypeSet::Listed(g)
     }
+}
+
+/// "If this card is in your opening hand, you may begin the game with it on
+/// the battlefield", Gemstone Caverns' "… and you're not the starting player
+/// … with a luck counter on it. If you do, exile a card from your hand", and
+/// "You may reveal this card from your opening hand. If you do, …": an
+/// opening-hand action (CR 103.6, [opening-hand]).
+pub(super) fn opening_hand(p: &mut P) -> Option<Ability> {
+    if p.attempt(|p| p.words("you may reveal this card from your opening hand . if you do ,"))
+        .is_some()
+    {
+        return Some(Ability::OpeningHandAction(OpeningHandAction::Reveal(
+            effects(p)?,
+        )));
+    }
+    p.word("if")?;
+    pronoun(p)?;
+    p.words("is in your opening hand")?;
+    let not_starting_player = p
+        .attempt(|p| p.words("and you're not the starting player"))
+        .is_some();
+    p.words(", you may begin the game with")?;
+    // "it", "~": the card itself, which the tree need not name.
+    pronoun(p)?;
+    p.words("on the battlefield")?;
+    let counters = p.attempt(|p| {
+        p.word("with")?;
+        let n = amount_a(p)?;
+        let kind = counter_kind(p)?;
+        p.one_of(&["counters", "counter"])?;
+        p.one_of(&["on it", "on them"])?;
+        Some((n, kind))
+    });
+    p.tok(&Tok::Period)?;
+    let if_you_do = p
+        .attempt(|p| {
+            p.words("if you do ,")?;
+            effects(p)
+        })
+        .unwrap_or_default();
+    Some(Ability::OpeningHandAction(
+        OpeningHandAction::BeginOnBattlefield {
+            not_starting_player,
+            counters,
+            if_you_do,
+        },
+    ))
 }

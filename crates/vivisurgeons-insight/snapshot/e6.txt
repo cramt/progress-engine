@@ -208,7 +208,7 @@ cost: {4}{U}{U}{U}
 > You may reveal this card from your opening hand. If you do, at the beginning of the first upkeep, each opponent mills seven cards.
 > Flying
 > When this creature enters, you may cast target instant or sorcery card from an opponent's graveyard without paying its mana cost.
-= BROKE at "upkeep" after: you may reveal this card from your opening hand . if you do , at the beginning of the first
+= OpeningHandAction(Reveal([Delayed { step: Upkeep(First), then: [Mill { who: EachOpponent, n: N(7) }] }]))
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: When(Enters { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, under: None, state: None }), effect: [May { who: You, then: [Cast { verb: Cast, what: Objects { quant: Target { n: N(1), up_to: false }, filter: Filter { alts: [[Type("instant")], [Type("sorcery")]], kind: Some(Card), posts: [In(Graveyard(AnOpponent))], or: None } }, payment: Free, dur: Permanent }] }], limits: [] }
 

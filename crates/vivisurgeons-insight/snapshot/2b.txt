@@ -480,7 +480,7 @@ type: Enchantment
 cost: {2}{G}{G}
 > If this card is in your opening hand, you may begin the game with it on the battlefield.
 > You may pay {W}{U}{B}{R}{G} rather than pay the mana cost for spells you cast.
-= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
+= OpeningHandAction(BeginOnBattlefield { not_starting_player: false, counters: None, if_you_do: [] })
 = Static([CastPaying { what: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Spell), posts: [Cast(You)], or: None } }, zone: None, cost: [Mana(Mana(["W", "U", "B", "R", "G"]))], rather: true }])
 
 ## Lorthos, the Tidemaker

@@ -543,7 +543,7 @@ type: Enchantment
 cost: {2}{G}{G}
 > If this card is in your opening hand, you may begin the game with it on the battlefield.
 > Creature spells can't be countered.
-= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
+= OpeningHandAction(BeginOnBattlefield { not_starting_player: false, counters: None, if_you_do: [] })
 = Static([Restrict { what: Objects { quant: Plural, filter: Filter { alts: [[Type("creature")]], kind: Some(Spell), posts: [], or: None } }, rule: CantBeCountered }])
 
 ## Lord Magnus

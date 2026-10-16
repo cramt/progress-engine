@@ -73,6 +73,13 @@ pub enum Ability {
         limits: Vec<Limit>,
     },
     Static(Vec<Static>),
+    /// "If this card is in your opening hand, you may begin the game with it
+    /// on the battlefield", "You may reveal this card from your opening
+    /// hand. If you do, …": an action taken with the card from the opening
+    /// hand once the mulligan process is complete, before the first turn
+    /// (CR 103.6). No cost, no stack, no continuous effect: neither a
+    /// static ability nor an effect ([opening-hand]).
+    OpeningHandAction(OpeningHandAction),
     Spell(Vec<Effect>),
     /// A spree mode: "+ {1} — Copy target instant spell …", the cost added
     /// for choosing it.
@@ -2461,6 +2468,22 @@ pub fn one_of_each(event: &Event, who: &Player) -> Option<Vec<Effect>> {
         .collect()
 }
 
+/// What a card lets its player do with it from the opening hand (CR 103.6).
+#[derive(Clone, Debug, PartialEq)]
+pub enum OpeningHandAction {
+    /// Begin the game with it on the battlefield (CR 103.6a): only if you
+    /// aren't the starting player when `not_starting_player` (Gemstone
+    /// Caverns), with `counters` on it, and `if_you_do` after.
+    BeginOnBattlefield {
+        not_starting_player: bool,
+        counters: Option<(Amount, CounterKind)>,
+        if_you_do: Vec<Effect>,
+    },
+    /// Reveal it (CR 103.6b), setting up what follows "If you do" (the
+    /// delayed triggers at the first upkeep, the Chancellors').
+    Reveal(Vec<Effect>),
+}
+
 /// The turn an extra turn comes after (CR 500.7).
 #[derive(Clone, Debug, PartialEq)]
 pub enum TurnRef {
@@ -2864,6 +2887,8 @@ pub enum Whose {
     YourNext,
     /// "your first upkeep": of the game.
     YourFirst,
+    /// "the first upkeep": the game's, the starting player's.
+    First,
     EachOther,
 
     /// "at the beginning of that combat": the one an earlier effect made.
@@ -3101,13 +3126,6 @@ pub enum Static {
         times: u32,
         during: Whose,
     },
-    /// "you may begin the game with ~ on the battlefield", the opening-hand
-    /// rule (CR 103.6), with what follows "If you do".
-    BeginOnBattlefield {
-        what: Objects,
-        counters: Option<(Amount, CounterKind)>,
-        then: Vec<Effect>,
-    },
     /// "You control your opponents": one player making another's choices.
     ControlPlayer(Player),
     /// "While an opponent is searching their library, they exile each card
@@ -3250,8 +3268,6 @@ pub enum Static {
         into: Objects,
         then: Vec<Effect>,
     },
-    /// "You may reveal this card from your opening hand. If you do, …".
-    RevealFromOpeningHand(Vec<Effect>),
     /// "As an additional cost to cast this spell, you may …": a cost the
     /// caster may choose not to pay.
     OptionalAdditionalCost(Vec<Cost>),
@@ -3347,7 +3363,6 @@ pub enum Condition {
         what: Objects,
         zone: Zone,
     },
-    InOpeningHand(Objects),
     YouAreStartingPlayer,
     /// "you created a token this turn".
     DidThisTurn(Box<Event>),

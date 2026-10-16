@@ -446,7 +446,7 @@ cost: {2}{G}{G}
 > If this card is in your opening hand, you may begin the game with it on the battlefield.
 > Whenever you tap a creature for mana, add an additional {G}.
 > {6}{G}{G}: Put a +1/+1 counter on each creature you control.
-= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
+= OpeningHandAction(BeginOnBattlefield { not_starting_player: false, counters: None, if_you_do: [] })
 = Triggered { trigger: When(TapsForMana { who: You, what: Objects { quant: One, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [], or: None } } }), effect: [AddMana(Additional(Symbols(Mana(["G"]))))], limits: [] }
 = Activated { cost: [Mana(Mana(["6", "G", "G"]))], effect: [PutCounters { n: N(1), kind: "+1/+1", on: Objects { quant: Each, filter: Filter { alts: [[Type("creature")]], kind: None, posts: [Controller(You)], or: None } } }], limits: [] }
 

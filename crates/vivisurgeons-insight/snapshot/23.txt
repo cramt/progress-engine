@@ -804,7 +804,7 @@ cost: {2}{U}{U}
 > You may reveal this card from your opening hand. If you do, scry 3 at the beginning of your first upkeep.
 > Flying
 > At the beginning of your upkeep, scry 1.
-= Static([RevealFromOpeningHand([Delayed { step: Upkeep(YourFirst), then: [Scry(N(3))] }])])
+= OpeningHandAction(Reveal([Delayed { step: Upkeep(YourFirst), then: [Scry(N(3))] }]))
 = Keywords([Keyword { name: "flying", param: None }])
 = Triggered { trigger: At(Upkeep(Yours)), effect: [Scry(N(1))], limits: [] }
 

@@ -655,7 +655,7 @@ type: Sorcery
 cost: {5}{W}{W}
 > You may reveal this card from your opening hand. If you do, at the beginning of the first upkeep, your life total becomes 26.
 > Your life total becomes 26.
-= BROKE at "upkeep" after: you may reveal this card from your opening hand . if you do , at the beginning of the first
+= OpeningHandAction(Reveal([Delayed { step: Upkeep(First), then: [LifeTotalBecomes { who: You, n: N(26) }] }]))
 = Spell([LifeTotalBecomes { who: You, n: N(26) }])
 
 ## Purphoros's Emissary

@@ -479,7 +479,7 @@ type: Enchantment
 cost: {2}{W}{W}
 > If this card is in your opening hand, you may begin the game with it on the battlefield.
 > You have hexproof. (You can't be the target of spells or abilities your opponents control.)
-= Static([If { cond: InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: None, then: [] }] }])
+= OpeningHandAction(BeginOnBattlefield { not_starting_player: false, counters: None, if_you_do: [] })
 = Static([YouHave([Keyword { name: "hexproof", param: None }])])
 
 ## Lost in Thought

@@ -137,7 +137,7 @@ type: Creature — Phyrexian Vampire
 cost: {4}{B}{B}{B}
 > You may reveal this card from your opening hand. If you do, at the beginning of the first upkeep, each opponent loses 3 life, then you gain life equal to the life lost this way.
 > Flying, lifelink
-= BROKE at "upkeep" after: you may reveal this card from your opening hand . if you do , at the beginning of the first
+= OpeningHandAction(Reveal([Delayed { step: Upkeep(First), then: [LoseLife { who: EachOpponent, n: N(3) }, GainLife { who: You, n: LifeLost }] }]))
 = Keywords([Keyword { name: "flying", param: None }, Keyword { name: "lifelink", param: None }])
 
 ## Chivalric Alliance

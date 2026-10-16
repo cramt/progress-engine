@@ -492,6 +492,10 @@ pub fn ability(p: &mut P, spell: bool) -> Option<Ability> {
             finished(p).then_some(Ability::Keywords(k))
         },
         |p| {
+            let a = statics::opening_hand(p)?;
+            finished(p).then_some(a)
+        },
+        |p| {
             // "Planeswalkers you control have "[+1]: Add {R}."": inside
             // quotes Oracle text brackets the loyalty cost.
             let bracket = p.attempt(|p| p.tok(&Tok::Other('['))).is_some();

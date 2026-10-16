@@ -420,7 +420,7 @@ face: Gemstone Caverns
 type: Legendary Land
 > If this card is in your opening hand and you're not the starting player, you may begin the game with Gemstone Caverns on the battlefield with a luck counter on it. If you do, exile a card from your hand.
 > {T}: Add {C}. If Gemstone Caverns has a luck counter on it, instead add one mana of any color.
-= Static([If { cond: And([InOpeningHand(Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }), Not(YouAreStartingPlayer)]), then: [BeginOnBattlefield { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, counters: Some((N(1), "luck")), then: [IfYouDo([Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } })])] }] }])
+= OpeningHandAction(BeginOnBattlefield { not_starting_player: true, counters: Some((N(1), "luck")), if_you_do: [Exile(Objects { quant: One, filter: Filter { alts: [], kind: Some(Card), posts: [In(Hand(You))], or: None } })] })
 = Activated { cost: [Tap], effect: [AddMana(Symbols(Mana(["C"]))), Instead { cond: HasCounter { what: Objects { quant: SelfRef, filter: Filter { alts: [], kind: None, posts: [], or: None } }, kind: Some("luck") }, then: [AddMana(Of { n: N(1), pick: AnyColor, within: None })] }], limits: [] }
 
 ## Gremlin Infestation

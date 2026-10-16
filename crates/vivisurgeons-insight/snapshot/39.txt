@@ -133,7 +133,7 @@ type: Creature — Phyrexian Beast
 cost: {4}{G}{G}{G}
 > You may reveal this card from your opening hand. If you do, at the beginning of your first main phase of the game, add {G}.
 > Reach, vigilance
-= BROKE at "of" after: you may reveal this card from your opening hand . if you do , at the beginning of your first main phase
+= OpeningHandAction(Reveal([Delayed { step: PrecombatMain(YourFirst), then: [AddMana(Symbols(Mana(["G"])))] }]))
 = Keywords([Keyword { name: "reach", param: None }, Keyword { name: "vigilance", param: None }])
 
 ## Claim the Firstborn
