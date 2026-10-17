@@ -2094,6 +2094,12 @@ struct Cx {
     modal: bool,
 }
 
+/// One object phrase as text, for a reader that annotates a tree
+/// (`src/bin/backref.rs`).
+pub fn objects_text(x: &Objects) -> String {
+    out(|o| objects(o, x)).text()
+}
+
 fn out(f: impl FnOnce(&mut Out)) -> Out {
     let mut o = Out::default();
     f(&mut o);
@@ -3770,7 +3776,11 @@ fn obj_num(x: &Objects) -> Num {
         | Quant::SourceOf(_)
         | Quant::Linked
         | Quant::Other
-        | Quant::OneOrMore => Num::Any,
+        | Quant::OneOrMore
+        // Prototype pointers: said as the reference they replace.
+        | Quant::BackRef { .. }
+        | Quant::LinkedBackRef { .. }
+        | Quant::BackRefs(_) => Num::Any,
         // "Krang & Shredder enter", "equipped creatures you control": a
         // name or an attached-to creature may be one or several. The tree
         // holds no word for the card ([self-reference]), so "this creature"
@@ -3881,6 +3891,15 @@ fn objects_plain(o: &mut Out, x: &Objects) {
     let n = obj_num(x);
     let f = &x.filter;
     match &x.quant {
+        // Prototype (insight-backref): a pointer reads as "it" until the
+        // round trip learns to say what it points at.
+        Quant::BackRef { .. } | Quant::LinkedBackRef { .. } | Quant::BackRefs(_) => {
+            let said = Objects {
+                quant: Quant::Antecedent,
+                filter: f.clone(),
+            };
+            objects_plain(o, &said);
+        }
         Quant::Last => {
             o.w("the last");
             filter(o, f, n);

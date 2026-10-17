@@ -873,6 +873,23 @@ pub enum Quant {
     /// name as that permanent": the one object, and every other the filter
     /// names.
     WithAllOthers(Box<Objects>),
+    /// Prototype (branch insight-backref): the `back`-th object introduced
+    /// before this reference in reading order within the ability, 1 the
+    /// nearest. Only `src/bin/backref.rs` writes it; the parser never does.
+    BackRef {
+        back: u8,
+    },
+    /// Prototype: the `nth` object (1-based, reading order) introduced by
+    /// the `ability`-th line (0-based) of the same face, a linked ability
+    /// (CR 607.1). Replaces `Linked` with `ExiledWith`/`CreatedWith`.
+    LinkedBackRef {
+        ability: u8,
+        nth: u8,
+    },
+    /// Prototype: several earlier objects at once, each counted as
+    /// `BackRef` counts ("them" after a verb said once of two objects,
+    /// "both cards"), which one `back` cannot say.
+    BackRefs(Vec<u8>),
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
