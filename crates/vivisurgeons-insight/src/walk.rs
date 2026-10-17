@@ -15,14 +15,17 @@ pub trait Visitor {
     fn ability(&mut self, _a: &mut Ability) -> bool {
         false
     }
+    /// After an ability `ability` entered.
+    fn ability_done(&mut self, _a: &mut Ability) {}
     /// Before and after an effect's parts.
     fn effect(&mut self, _e: &mut Effect) {}
     fn effect_done(&mut self, _e: &mut Effect) {}
     /// Before and after a condition's parts.
     fn condition(&mut self, _c: &mut Condition) {}
     fn condition_done(&mut self, _c: &mut Condition) {}
-    /// Before an amount's parts.
+    /// Before and after an amount's parts.
     fn amount(&mut self, _a: &mut Amount) {}
+    fn amount_done(&mut self, _a: &mut Amount) {}
     /// Before a player's parts.
     fn player(&mut self, _p: &mut Player) {}
 }
@@ -129,6 +132,7 @@ impl Walk for Ability {
             }
             _ => {}
         }
+        v.ability_done(self);
     }
 }
 
@@ -292,6 +296,7 @@ impl Walk for Amount {
             }
             _ => {}
         }
+        v.amount_done(self);
     }
 }
 

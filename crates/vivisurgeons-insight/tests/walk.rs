@@ -220,14 +220,17 @@ fn generate(src: &str) -> String {
              /// After them.\n    \
              fn leave(&mut self, _o: &mut Objects) {}\n    \
              fn ability(&mut self, _a: &mut Ability) -> bool {\n        false\n    }\n    \
+             /// After an ability `ability` entered.\n    \
+             fn ability_done(&mut self, _a: &mut Ability) {}\n    \
              /// Before and after an effect's parts.\n    \
              fn effect(&mut self, _e: &mut Effect) {}\n    \
              fn effect_done(&mut self, _e: &mut Effect) {}\n    \
              /// Before and after a condition's parts.\n    \
              fn condition(&mut self, _c: &mut Condition) {}\n    \
              fn condition_done(&mut self, _c: &mut Condition) {}\n    \
-             /// Before an amount's parts.\n    \
+             /// Before and after an amount's parts.\n    \
              fn amount(&mut self, _a: &mut Amount) {}\n    \
+             fn amount_done(&mut self, _a: &mut Amount) {}\n    \
              /// Before a player's parts.\n    \
              fn player(&mut self, _p: &mut Player) {}\n\
          }\n\n\
@@ -323,10 +326,12 @@ fn generate(src: &str) -> String {
         };
         let body = match name.as_str() {
             "Objects" => format!("if v.enter(self) {{\n{body}\n}}\nv.leave(self);"),
-            "Ability" => format!("if !v.ability(self) {{\nreturn;\n}}\n{body}"),
+            "Ability" => {
+                format!("if !v.ability(self) {{\nreturn;\n}}\n{body}\nv.ability_done(self);")
+            }
             "Effect" => format!("v.effect(self);\n{body}\nv.effect_done(self);"),
             "Condition" => format!("v.condition(self);\n{body}\nv.condition_done(self);"),
-            "Amount" => format!("v.amount(self);\n{body}"),
+            "Amount" => format!("v.amount(self);\n{body}\nv.amount_done(self);"),
             "Player" => format!("v.player(self);\n{body}"),
             _ => body,
         };
