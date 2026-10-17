@@ -1215,6 +1215,9 @@ pub enum Post {
     CouldProduce(Mana),
     /// "that is snow or could produce {C}": any one of these holds.
     Either(Vec<Post>),
+    /// "for each player who chose money" (Master of Ceremonies): the
+    /// players whose `Choice::Words` pick was this word.
+    ChoseWord(String),
     /// "unless it's only the color its controller chose" (Selective
     /// Obliteration): exactly one color, the one that player chose (CR
     /// 105.2a: a monocolored object is exactly one of the five colors).
@@ -4011,6 +4014,9 @@ pub enum Condition {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Choice {
     Color,
+    /// "chooses money, friends, or secrets" (Master of Ceremonies): one of
+    /// these words, which have no rules meaning, as a vote's (CR 701.38b).
+    Words(Vec<String>),
     /// "choose odd or even": a parity, zero being even.
     OddOrEven,
     CreatureType,

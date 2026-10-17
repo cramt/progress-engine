@@ -4852,6 +4852,10 @@ fn post(o: &mut Out, q: &Post, n: Num) {
                 }
             }
         }
+        Post::ChoseWord(w) => {
+            o.w("who chose");
+            o.w(w);
+        }
         Post::OnlyColorChosenBy(w) => {
             that_is(o, n);
             only_color_chosen_by(o, w);
@@ -9888,6 +9892,12 @@ fn exceptions(o: &mut Out, es: &[Exception]) {
 
 fn choice(o: &mut Out, c: &Choice) {
     match c {
+        Choice::Words(v) => {
+            for (i, w) in v.iter().enumerate() {
+                list_sep(o, i, v.len(), "or");
+                o.w(w);
+            }
+        }
         Choice::Color => o.w("a color"),
         Choice::OddOrEven => o.w("odd or even"),
         Choice::CreatureType => o.w("a creature type"),

@@ -1732,6 +1732,31 @@ fn effect_main(p: &mut P) -> Option<Effect> {
                     )?;
                     Some(Effect::Choose(c))
                 },
+                // "each opponent chooses money, friends, or secrets" (Master of
+                // Ceremonies): one of these words, which have no rules
+                // meaning, as a vote's (CR 701.38b).
+                |p| {
+                    p.verb("choose")?;
+                    let mut v = vec![];
+                    // Look before reading, so a line that is no list keeps its
+                    // break point.
+                    if !matches!(p.t.get(p.i + 1), Some(Tok::Comma)) { return None; }
+                    loop {
+                        let w = p.peek_word()?.to_string();
+                        if ["a", "an", "the", "one", "two", "up", "any", "target"].contains(&w.as_str()) { return None; }
+                        p.bump();
+                        v.push(w);
+                        if matches!(p.peek(), Some(Tok::Period)) { break; }
+                        p.tok(&Tok::Comma)?;
+                        if p.attempt(|p| p.word("or")).is_some() {
+                            let w = p.peek_word()?.to_string();
+                            p.bump();
+                            v.push(w);
+                            break;
+                        }
+                    }
+                    (v.len() > 2 && matches!(p.peek(), Some(Tok::Period))).then_some(Effect::Choose(Choice::Words(v)))
+                },
                 |p| { p.verb("choose")?; objects(p).map(|o| Effect::Choose(Choice::Objects(o))) },
                 |p| { p.verb("add")?; mana_add(p).map(Effect::AddMana) },
                 |p| { p.verb("scry")?; amount(p).map(Effect::Scry) },

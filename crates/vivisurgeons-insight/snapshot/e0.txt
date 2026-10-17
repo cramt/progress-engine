@@ -563,7 +563,7 @@ face: Master of Ceremonies
 type: Creature — Rhino Druid
 cost: {3}{W}
 > At the beginning of your upkeep, each opponent chooses money, friends, or secrets. For each player who chose money, you and that player each create a Treasure token. For each player who chose friends, you and that player each create a 1/1 green and white Citizen creature token. For each player who chose secrets, you and that player each draw a card.
-= BROKE at "," after: at the beginning of your upkeep , each opponent chooses money
+= Triggered { trigger: At(Upkeep(Yours)), effect: [Performed { by: EachOpponent, effect: Choose(Words(["money", "friends", "secrets"])) }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [ChoseWord("money")], or: None } }, then: [Create { who: EachOf([You, That]), n: N(1), token: Token { tapped: false, pt: None, colors: [], types: ["treasure"], keywords: [], abilities: [], named: Some("treasure"), attacking: None } }] }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [ChoseWord("friends")], or: None } }, then: [Create { who: EachOf([You, That]), n: N(1), token: Token { tapped: false, pt: Some(Pt { power: N(1), toughness: N(1), signed: false }), colors: [Green, White], types: ["citizen", "creature"], keywords: [], abilities: [], named: None, attacking: None } }] }, ForEach { each: Objects { quant: Plural, filter: Filter { alts: [], kind: Some(Player), posts: [ChoseWord("secrets")], or: None } }, then: [Draw { who: EachOf([You, That]), n: N(1) }] }], limits: [] }
 
 ## Mindwhisker
 face: Mindwhisker
